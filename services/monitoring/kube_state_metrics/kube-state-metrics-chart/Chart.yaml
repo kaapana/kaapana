@@ -4,4 +4,3 @@ appVersion: "v1.9.7-vdev"
 description: A Helm chart for Kubernetes
 name: kube-state-metrics-chart
 version: v1.9.7-vdev
-

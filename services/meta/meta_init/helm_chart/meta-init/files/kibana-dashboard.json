@@ -1,0 +1,403 @@
+[
+  {
+    "_id": "16767e00-496c-11e8-a3a4-57df2c598fcb",
+    "_type": "dashboard",
+    "_source": {
+      "title": "Meta-Dashboard",
+      "hits": 0,
+      "description": "",
+      "panelsJSON": "[{\"gridData\":{\"h\":19,\"i\":\"5\",\"w\":10,\"x\":9,\"y\":168},\"id\":\"1399b0e0-1b81-11e7-bd5d-db91c77cdfc6\",\"panelIndex\":\"5\",\"title\":\"Series Description\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"embeddableConfig\":{\"spy\":null,\"vis\":{\"params\":{\"sort\":{\"columnIndex\":null,\"direction\":null}}}},\"gridData\":{\"h\":19,\"i\":\"6\",\"w\":9,\"x\":0,\"y\":168},\"id\":\"51208de0-4a05-11e8-a3a4-57df2c598fcb\",\"panelIndex\":\"6\",\"title\":\"Procedure Description\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"embeddableConfig\":{\"vis\":{\"colors\":{\"CT\":\"#64B0C8\",\"MR\":\"#2F575E\",\"NM\":\"#F2C96D\",\"SR\":\"#AEA2E0\",\"Unique count of 0020000D StudyInstanceUID_keyword.keyword\":\"#7EB26D\"}}},\"gridData\":{\"h\":24,\"i\":\"8\",\"w\":27,\"x\":21,\"y\":98},\"id\":\"43615780-4a1d-11e8-a3a4-57df2c598fcb\",\"panelIndex\":\"8\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"embeddableConfig\":{\"vis\":{\"colors\":{\"F\":\"#BF1B00\",\"M\":\"#0A50A1\",\"Other/Missing\":\"#629E51\"}}},\"gridData\":{\"h\":20,\"i\":\"10\",\"w\":23,\"x\":0,\"y\":31},\"id\":\"bcf33620-4f6f-11e8-8bbc-a37cd7e32d52\",\"panelIndex\":\"10\",\"title\":\"Patient Age by Sex\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"gridData\":{\"h\":24,\"i\":\"12\",\"w\":21,\"x\":0,\"y\":98},\"id\":\"84289ef0-4f76-11e8-8bbc-a37cd7e32d52\",\"panelIndex\":\"12\",\"title\":\"Modality Usage\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"embeddableConfig\":{\"vis\":{\"colors\":{\"CT\":\"#64B0C8\",\"MR\":\"#2F575E\",\"NM\":\"#F4D598\",\"SR\":\"#AEA2E0\"},\"legendOpen\":false}},\"gridData\":{\"h\":19,\"i\":\"16\",\"w\":14,\"x\":14,\"y\":12},\"id\":\"efb0b700-2638-11e8-87c0-6910c12ed7d4\",\"panelIndex\":\"16\",\"title\":\"Modality Donut\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"gridData\":{\"h\":19,\"i\":\"18\",\"w\":8,\"x\":6,\"y\":12},\"id\":\"45f1ca00-536b-11e8-ba0e-67fd72e50763\",\"panelIndex\":\"18\",\"title\":\"Body Part Examined\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"gridData\":{\"h\":22,\"i\":\"19\",\"w\":12,\"x\":36,\"y\":146},\"id\":\"bf120c70-536a-11e8-ba0e-67fd72e50763\",\"panelIndex\":\"19\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"gridData\":{\"h\":24,\"i\":\"20\",\"w\":21,\"x\":0,\"y\":122},\"id\":\"40168700-5399-11e8-ba0e-67fd72e50763\",\"panelIndex\":\"20\",\"title\":\"Manufacturer and Device\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"embeddableConfig\":{},\"gridData\":{\"h\":12,\"i\":\"21\",\"w\":20,\"x\":28,\"y\":0},\"id\":\"9823e6d0-b1a5-11e8-8c39-af1d5340b08a\",\"panelIndex\":\"21\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"embeddableConfig\":{},\"gridData\":{\"h\":20,\"i\":\"25\",\"w\":25,\"x\":23,\"y\":31},\"id\":\"5e382340-4f77-11e8-8bbc-a37cd7e32d52\",\"panelIndex\":\"25\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"embeddableConfig\":{},\"gridData\":{\"h\":7,\"i\":\"26\",\"w\":20,\"x\":28,\"y\":12},\"id\":\"6ec8cc60-5381-11e8-ba0e-67fd72e50763\",\"panelIndex\":\"26\",\"title\":\"Patient Sex Numbers\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"embeddableConfig\":{\"vis\":{\"legendOpen\":false}},\"gridData\":{\"h\":12,\"i\":\"27\",\"w\":20,\"x\":28,\"y\":19},\"id\":\"a84a8150-b811-11e8-9844-fbac0473ab5c\",\"panelIndex\":\"27\",\"title\":\"Gender Donut\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"embeddableConfig\":{},\"gridData\":{\"h\":17,\"i\":\"28\",\"w\":48,\"x\":0,\"y\":51},\"id\":\"9093c010-4955-11e8-a3a4-57df2c598fcb\",\"panelIndex\":\"28\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"embeddableConfig\":{},\"gridData\":{\"h\":15,\"i\":\"29\",\"w\":48,\"x\":0,\"y\":68},\"id\":\"ba5f3050-b813-11e8-9844-fbac0473ab5c\",\"panelIndex\":\"29\",\"title\":\"Patient Weight over Age by Sex\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"embeddableConfig\":{},\"gridData\":{\"h\":15,\"i\":\"30\",\"w\":48,\"x\":0,\"y\":83},\"id\":\"2659cd00-b81a-11e8-9844-fbac0473ab5c\",\"panelIndex\":\"30\",\"title\":\"Patient Weight over Size by Sex\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"embeddableConfig\":{},\"gridData\":{\"h\":24,\"i\":\"32\",\"w\":27,\"x\":21,\"y\":122},\"id\":\"17a510e0-b823-11e8-9844-fbac0473ab5c\",\"panelIndex\":\"32\",\"title\":\"Manufacturer Graph\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"embeddableConfig\":{},\"gridData\":{\"h\":22,\"i\":\"34\",\"w\":36,\"x\":0,\"y\":146},\"id\":\"ca4bcb00-b81c-11e8-9844-fbac0473ab5c\",\"panelIndex\":\"34\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"embeddableConfig\":{},\"gridData\":{\"h\":19,\"i\":\"38\",\"w\":6,\"x\":0,\"y\":12},\"id\":\"01e08e70-4017-11e9-acb6-29d3d979e91d\",\"panelIndex\":\"38\",\"title\":\"Datasets\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"embeddableConfig\":{},\"gridData\":{\"h\":12,\"i\":\"41\",\"w\":28,\"x\":0,\"y\":0},\"id\":\"67cd8200-d960-11e9-93c9-2f37fe6c8be0\",\"panelIndex\":\"41\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"embeddableConfig\":{},\"gridData\":{\"h\":19,\"i\":\"42\",\"w\":14,\"x\":19,\"y\":168},\"id\":\"a3384b90-fa3f-11e9-a4dd-e3ed745ac68d\",\"panelIndex\":\"42\",\"type\":\"visualization\",\"version\":\"6.3.0\"},{\"embeddableConfig\":{},\"gridData\":{\"h\":19,\"i\":\"43\",\"w\":15,\"x\":33,\"y\":168},\"id\":\"220be060-fa42-11e9-a4dd-e3ed745ac68d\",\"panelIndex\":\"43\",\"type\":\"visualization\",\"version\":\"6.3.0\"}]",
+      "optionsJSON": "{\"darkTheme\":false,\"hidePanelTitles\":false,\"useMargins\":true}",
+      "version": 1,
+      "timeRestore": true,
+      "timeTo": "Thu Oct 15 2020 12:49:49 GMT+0200",
+      "timeFrom": "Thu Oct 15 1970 12:49:49 GMT+0100",
+      "refreshInterval": {
+        "display": "Off",
+        "pause": false,
+        "section": 0,
+        "value": 0
+      },
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"query\":{\"language\":\"lucene\",\"query\":\"\"},\"filter\":[],\"highlightAll\":true,\"version\":true}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "5e382340-4f77-11e8-8bbc-a37cd7e32d52",
+    "_type": "visualization",
+    "_source": {
+      "title": "Height Distribution by Patient Sex",
+      "visState": "{\"title\":\"Height Distribution by Patient Sex\",\"type\":\"histogram\",\"params\":{\"addLegend\":true,\"addTimeMarker\":false,\"addTooltip\":true,\"categoryAxes\":[{\"id\":\"CategoryAxis-1\",\"labels\":{\"rotate\":0,\"show\":true,\"truncate\":100},\"position\":\"bottom\",\"scale\":{\"type\":\"linear\"},\"show\":true,\"style\":{},\"title\":{},\"type\":\"category\"}],\"grid\":{\"categoryLines\":false,\"style\":{\"color\":\"#eee\"}},\"legendPosition\":\"right\",\"seriesParams\":[{\"data\":{\"id\":\"1\",\"label\":\"Number of Patients\"},\"drawLinesBetweenPoints\":true,\"interpolate\":\"cardinal\",\"lineWidth\":5,\"mode\":\"normal\",\"show\":\"true\",\"showCircles\":true,\"type\":\"line\",\"valueAxis\":\"ValueAxis-1\"}],\"times\":[],\"type\":\"histogram\",\"valueAxes\":[{\"id\":\"ValueAxis-1\",\"labels\":{\"filter\":false,\"rotate\":0,\"show\":true,\"truncate\":100},\"name\":\"LeftAxis-1\",\"position\":\"left\",\"scale\":{\"mode\":\"normal\",\"type\":\"linear\"},\"show\":true,\"style\":{},\"title\":{\"text\":\"Number of Patients\"},\"type\":\"value\"}]},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"cardinality\",\"schema\":\"metric\",\"params\":{\"field\":\"00100010 PatientName_keyword_alphabetic.keyword\",\"customLabel\":\"Number of Patients\"}},{\"id\":\"3\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"group\",\"params\":{\"field\":\"00100040 PatientSex_keyword.keyword\",\"otherBucket\":true,\"otherBucketLabel\":\"Other\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"include\":\"\",\"size\":2,\"order\":\"desc\",\"orderBy\":\"1\",\"customLabel\":\"Patient Sex\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"range\",\"schema\":\"segment\",\"params\":{\"field\":\"00101020 PatientSize_float\",\"ranges\":[{\"from\":1,\"to\":1.6},{\"from\":1.6,\"to\":1.7},{\"from\":1.7,\"to\":1.8},{\"from\":1.8,\"to\":1.9},{\"from\":1.9,\"to\":2},{\"from\":2,\"to\":2.1},{\"from\":2.1,\"to\":2.2},{\"from\":2.2}],\"customLabel\":\"Height of Patients\"}}]}",
+      "uiStateJSON": "{\"vis\":{\"colors\":{\"F\":\"#BF1B00\",\"M\":\"#447EBC\"},\"legendOpen\":true}}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"filter\":[],\"query\":{\"language\":\"lucene\",\"query\":\"\"}}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "9823e6d0-b1a5-11e8-8c39-af1d5340b08a",
+    "_type": "visualization",
+    "_source": {
+      "title": "Unique Counts of Patients, Studies, and Series",
+      "visState": "{\"title\":\"Unique Counts of Patients, Studies, and Series\",\"type\":\"metric\",\"params\":{\"handleNoResults\":true,\"fontSize\":\"32\",\"addTooltip\":true,\"addLegend\":false,\"type\":\"metric\",\"metric\":{\"percentageMode\":false,\"useRanges\":false,\"colorSchema\":\"Green to Red\",\"metricColorMode\":\"None\",\"colorsRange\":[{\"from\":0,\"to\":10000}],\"labels\":{\"show\":true},\"invertColors\":false,\"style\":{\"bgFill\":\"#000\",\"bgColor\":false,\"labelColor\":false,\"subText\":\"\",\"fontSize\":60}}},\"aggs\":[{\"id\":\"6\",\"enabled\":true,\"type\":\"cardinality\",\"schema\":\"metric\",\"params\":{\"field\":\"00100010 PatientName_keyword_alphabetic.keyword\",\"customLabel\":\"Number of Patients\"}},{\"id\":\"1\",\"enabled\":true,\"type\":\"cardinality\",\"schema\":\"metric\",\"params\":{\"field\":\"0020000D StudyInstanceUID_keyword.keyword\",\"customLabel\":\"Number of Studies\"}},{\"id\":\"4\",\"enabled\":true,\"type\":\"cardinality\",\"schema\":\"metric\",\"params\":{\"field\":\"0020000E SeriesInstanceUID_keyword.keyword\",\"customLabel\":\"Number of Series\"}}]}",
+      "uiStateJSON": "{}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"query\":{\"language\":\"lucene\",\"query\":{\"query_string\":{\"analyze_wildcard\":true,\"default_field\":\"*\",\"query\":\"*\"}}},\"filter\":[]}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "43615780-4a1d-11e8-a3a4-57df2c598fcb",
+    "_type": "visualization",
+    "_source": {
+      "title": "Modality Chart",
+      "visState": "{\"aggs\":[{\"enabled\":true,\"id\":\"1\",\"params\":{\"customLabel\":\"Number of Studies\",\"field\":\"0020000D StudyInstanceUID_keyword.keyword\"},\"schema\":\"metric\",\"type\":\"cardinality\"},{\"enabled\":true,\"id\":\"3\",\"params\":{\"field\":\"00080060 Modality_keyword.keyword\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"order\":\"desc\",\"orderBy\":\"1\",\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"size\":500},\"schema\":\"group\",\"type\":\"terms\"},{\"enabled\":true,\"id\":\"2\",\"params\":{\"customLabel\":\"Existing modality(s) per patient\",\"field\":\"00100010 PatientName_keyword_alphabetic.keyword\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"order\":\"desc\",\"orderAgg\":{\"enabled\":true,\"id\":\"2-orderAgg\",\"params\":{},\"schema\":{\"aggFilter\":[\"!top_hits\",\"!percentiles\",\"!median\",\"!std_dev\",\"!derivative\",\"!moving_avg\",\"!serial_diff\",\"!cumulative_sum\",\"!avg_bucket\",\"!max_bucket\",\"!min_bucket\",\"!sum_bucket\"],\"deprecate\":false,\"editor\":false,\"group\":\"none\",\"hideCustomLabel\":true,\"max\":null,\"min\":0,\"name\":\"orderAgg\",\"params\":[],\"title\":\"Order Agg\"},\"type\":\"count\"},\"orderBy\":\"custom\",\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"size\":50000},\"schema\":\"segment\",\"type\":\"terms\"}],\"params\":{\"addLegend\":true,\"addTimeMarker\":false,\"addTooltip\":true,\"categoryAxes\":[{\"id\":\"CategoryAxis-1\",\"labels\":{\"show\":false,\"truncate\":100},\"position\":\"bottom\",\"scale\":{\"type\":\"linear\"},\"show\":true,\"style\":{},\"title\":{},\"type\":\"category\"}],\"grid\":{\"categoryLines\":false,\"style\":{\"color\":\"#eee\"}},\"legendPosition\":\"bottom\",\"orderBucketsBySum\":true,\"seriesParams\":[{\"data\":{\"id\":\"1\",\"label\":\"Number of Studies\"},\"drawLinesBetweenPoints\":true,\"mode\":\"stacked\",\"show\":\"true\",\"showCircles\":true,\"type\":\"histogram\",\"valueAxis\":\"ValueAxis-1\"}],\"times\":[],\"type\":\"histogram\",\"valueAxes\":[{\"id\":\"ValueAxis-1\",\"labels\":{\"filter\":false,\"rotate\":0,\"show\":true,\"truncate\":100},\"name\":\"LeftAxis-1\",\"position\":\"left\",\"scale\":{\"defaultYExtents\":true,\"mode\":\"normal\",\"setYExtents\":false,\"type\":\"linear\"},\"show\":true,\"style\":{},\"title\":{\"text\":\"Number of Studies\"},\"type\":\"value\"}]},\"title\":\"Modality Chart\",\"type\":\"histogram\"}",
+      "uiStateJSON": "{\"vis\":{\"colors\":{\"Unique count of 0020000D StudyInstanceUID_keyword.keyword\":\"#7EB26D\"}}}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"filter\":[],\"query\":{\"language\":\"lucene\",\"query\":\"\"}}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "bcf33620-4f6f-11e8-8bbc-a37cd7e32d52",
+    "_type": "visualization",
+    "_source": {
+      "title": "Patient Age Bar Chart",
+      "visState": "{\"title\":\"Patient Age Bar Chart\",\"type\":\"histogram\",\"params\":{\"type\":\"histogram\",\"grid\":{\"categoryLines\":false,\"style\":{\"color\":\"#eee\"}},\"categoryAxes\":[{\"id\":\"CategoryAxis-1\",\"type\":\"category\",\"position\":\"bottom\",\"show\":true,\"style\":{},\"scale\":{\"type\":\"linear\"},\"labels\":{\"show\":true,\"truncate\":100,\"rotate\":0},\"title\":{}}],\"valueAxes\":[{\"id\":\"ValueAxis-1\",\"name\":\"LeftAxis-1\",\"type\":\"value\",\"position\":\"left\",\"show\":true,\"style\":{},\"scale\":{\"type\":\"linear\",\"mode\":\"normal\"},\"labels\":{\"show\":true,\"rotate\":0,\"filter\":false,\"truncate\":100},\"title\":{\"text\":\"Number of Patients\"}}],\"seriesParams\":[{\"show\":\"true\",\"type\":\"histogram\",\"mode\":\"normal\",\"data\":{\"label\":\"Number of Patients\",\"id\":\"1\"},\"valueAxis\":\"ValueAxis-1\",\"drawLinesBetweenPoints\":true,\"showCircles\":true}],\"addTooltip\":true,\"addLegend\":true,\"legendPosition\":\"right\",\"times\":[],\"addTimeMarker\":false},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"cardinality\",\"schema\":\"metric\",\"params\":{\"field\":\"00100020 PatientID_keyword.keyword\",\"customLabel\":\"Number of Patients\"}},{\"id\":\"3\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"group\",\"params\":{\"field\":\"00100040 PatientSex_keyword.keyword\",\"otherBucket\":true,\"otherBucketLabel\":\"Other/Missing\",\"missingBucket\":true,\"missingBucketLabel\":\"Missing\",\"include\":\"\",\"size\":2,\"order\":\"desc\",\"orderBy\":\"1\",\"customLabel\":\"male/female\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"range\",\"schema\":\"segment\",\"params\":{\"field\":\"00101010 PatientAge_integer\",\"ranges\":[{\"from\":0,\"to\":20},{\"from\":20,\"to\":30},{\"from\":30,\"to\":40},{\"from\":50,\"to\":60},{\"from\":70,\"to\":80},{\"from\":90,\"to\":100},{\"from\":100,\"to\":110},{\"from\":110,\"to\":120}],\"customLabel\":\"Patient Age in Years\"}}]}",
+      "uiStateJSON": "{}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"filter\":[],\"query\":{\"query\":\"\",\"language\":\"lucene\"}}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "84289ef0-4f76-11e8-8bbc-a37cd7e32d52",
+    "_type": "visualization",
+    "_source": {
+      "title": "modality_usage",
+      "visState": "{\"title\":\"modality_usage\",\"type\":\"heatmap\",\"params\":{\"addLegend\":true,\"addTooltip\":true,\"colorSchema\":\"Greens\",\"colorsNumber\":6,\"colorsRange\":[],\"enableHover\":false,\"invertColors\":false,\"legendPosition\":\"right\",\"percentageMode\":false,\"setColorRange\":false,\"times\":[],\"type\":\"heatmap\",\"valueAxes\":[{\"id\":\"ValueAxis-1\",\"labels\":{\"color\":\"#555\",\"rotate\":0,\"show\":false,\"overwriteColor\":false},\"scale\":{\"defaultYExtents\":false,\"type\":\"linear\"},\"show\":false,\"type\":\"value\"}]},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"cardinality\",\"schema\":\"metric\",\"params\":{\"field\":\"0020000D StudyInstanceUID_keyword.keyword\",\"customLabel\":\"Count\"}},{\"id\":\"3\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"split\",\"params\":{\"field\":\"00080060 Modality_keyword.keyword\",\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"exclude\":\"\",\"include\":\"\",\"size\":100,\"order\":\"asc\",\"orderBy\":\"1\",\"json\":\"{\\\"exclude\\\":[\\\"SR\\\",\\\"NM\\\"]}\",\"customLabel\":\"Modality\",\"row\":true}},{\"id\":\"2\",\"enabled\":true,\"type\":\"date_histogram\",\"schema\":\"segment\",\"params\":{\"field\":\"timestamp\",\"interval\":\"w\",\"customInterval\":\"2h\",\"min_doc_count\":1,\"extended_bounds\":{},\"customLabel\":\"Date\"}}]}",
+      "uiStateJSON": "{\"vis\":{\"defaultColors\":{\"0 - 0.167\":\"rgb(247,252,245)\",\"0.167 - 0.333\":\"rgb(219,241,214)\",\"0.333 - 0.5\":\"rgb(174,222,167)\",\"0.5 - 0.667\":\"rgb(116,196,118)\",\"0.667 - 0.833\":\"rgb(55,160,85)\",\"0.833 - 1\":\"rgb(12,119,52)\"}}}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"filter\":[],\"query\":{\"language\":\"lucene\",\"query\":\"\"}}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "bf120c70-536a-11e8-ba0e-67fd72e50763",
+    "_type": "visualization",
+    "_source": {
+      "title": "Contrast Flow Duration",
+      "visState": "{\"title\":\"Contrast Flow Duration\",\"type\":\"metric\",\"params\":{\"addLegend\":false,\"addTooltip\":true,\"metric\":{\"colorSchema\":\"Green to Red\",\"colorsRange\":[{\"from\":0,\"to\":10000}],\"invertColors\":false,\"labels\":{\"show\":true},\"metricColorMode\":\"None\",\"percentageMode\":false,\"style\":{\"bgColor\":false,\"bgFill\":\"#000\",\"fontSize\":46,\"labelColor\":false,\"subText\":\"\"},\"useRanges\":false},\"type\":\"metric\"},\"aggs\":[{\"id\":\"2\",\"enabled\":true,\"type\":\"min\",\"schema\":\"metric\",\"params\":{\"field\":\"00181047 ContrastFlowDuration_float\",\"customLabel\":\"Min Contrast Flow Duration in sec\"}},{\"id\":\"3\",\"enabled\":true,\"type\":\"median\",\"schema\":\"metric\",\"params\":{\"field\":\"00181047 ContrastFlowDuration_float\",\"percents\":[50],\"customLabel\":\"Contrast Flow Duration  in sec\"}},{\"id\":\"1\",\"enabled\":true,\"type\":\"max\",\"schema\":\"metric\",\"params\":{\"field\":\"00181047 ContrastFlowDuration_float\",\"customLabel\":\"Max Contrast Flow Duration in sec\"}}]}",
+      "uiStateJSON": "{}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"filter\":[{\"meta\":{\"index\":\"meta-index\",\"negate\":false,\"disabled\":false,\"alias\":null,\"type\":\"exists\",\"key\":\"00181047 ContrastFlowDuration_float\",\"value\":\"exists\"},\"exists\":{\"field\":\"00181047 ContrastFlowDuration_float\"},\"$state\":{\"store\":\"appState\"}},{\"meta\":{\"index\":\"meta-index\",\"negate\":true,\"disabled\":false,\"alias\":null,\"type\":\"phrase\",\"key\":\"00181047 ContrastFlowDuration_float\",\"value\":\"0\",\"params\":{\"query\":0,\"type\":\"phrase\"}},\"query\":{\"match\":{\"00181047 ContrastFlowDuration_float\":{\"query\":0,\"type\":\"phrase\"}}},\"$state\":{\"store\":\"appState\"}}],\"query\":{\"query\":\"\",\"language\":\"lucene\"}}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "ba5f3050-b813-11e8-9844-fbac0473ab5c",
+    "_type": "visualization",
+    "_source": {
+      "title": "patient_weight_over_age_m_f",
+      "visState": "{\"title\":\"patient_weight_over_age_m_f\",\"type\":\"line\",\"params\":{\"type\":\"line\",\"grid\":{\"categoryLines\":true,\"style\":{\"color\":\"#eee\"},\"valueAxis\":\"ValueAxis-1\"},\"categoryAxes\":[{\"id\":\"CategoryAxis-1\",\"type\":\"category\",\"position\":\"bottom\",\"show\":true,\"style\":{},\"scale\":{\"type\":\"linear\"},\"labels\":{\"show\":true,\"truncate\":100,\"rotate\":0},\"title\":{}}],\"valueAxes\":[{\"id\":\"ValueAxis-1\",\"name\":\"LeftAxis-1\",\"type\":\"value\",\"position\":\"left\",\"show\":true,\"style\":{},\"scale\":{\"type\":\"linear\",\"mode\":\"normal\"},\"labels\":{\"show\":true,\"rotate\":0,\"filter\":false,\"truncate\":100},\"title\":{\"text\":\"Patient Weight\"}}],\"seriesParams\":[{\"show\":\"true\",\"type\":\"line\",\"mode\":\"normal\",\"data\":{\"label\":\"Patient Weight\",\"id\":\"1\"},\"valueAxis\":\"ValueAxis-1\",\"drawLinesBetweenPoints\":true,\"showCircles\":true,\"interpolate\":\"cardinal\",\"lineWidth\":5}],\"addTooltip\":true,\"addLegend\":true,\"legendPosition\":\"right\",\"times\":[],\"addTimeMarker\":false},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"avg\",\"schema\":\"metric\",\"params\":{\"field\":\"00101030 PatientWeight_float\",\"customLabel\":\"Patient Weight\"}},{\"id\":\"3\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"group\",\"params\":{\"field\":\"00100040 PatientSex_keyword.keyword\",\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"size\":2,\"order\":\"desc\",\"orderBy\":\"1\",\"customLabel\":\"Patient Weight\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"range\",\"schema\":\"segment\",\"params\":{\"field\":\"00101010 PatientAge_integer\",\"ranges\":[{\"from\":0,\"to\":20},{\"from\":20,\"to\":30},{\"from\":30,\"to\":40},{\"from\":40,\"to\":50},{\"from\":51,\"to\":60},{\"from\":60,\"to\":70},{\"from\":70,\"to\":80},{\"from\":80,\"to\":90},{\"from\":90}],\"customLabel\":\"Patient Age\"}}]}",
+      "uiStateJSON": "{}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"filter\":[],\"query\":{\"language\":\"lucene\",\"query\":\"\"}}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "6ec8cc60-5381-11e8-ba0e-67fd72e50763",
+    "_type": "visualization",
+    "_source": {
+      "title": "Patient_Sex_Numbers",
+      "visState": "{\"title\":\"Patient_Sex_Numbers\",\"type\":\"metric\",\"params\":{\"addLegend\":false,\"addTooltip\":true,\"metric\":{\"colorSchema\":\"Green to Red\",\"colorsRange\":[{\"from\":0,\"to\":10000}],\"invertColors\":false,\"labels\":{\"show\":true},\"metricColorMode\":\"None\",\"percentageMode\":false,\"style\":{\"bgColor\":false,\"bgFill\":\"#000\",\"fontSize\":36,\"labelColor\":false,\"subText\":\"\"},\"useRanges\":false},\"type\":\"metric\"},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"cardinality\",\"schema\":\"metric\",\"params\":{\"field\":\"00100010 PatientName_keyword_alphabetic.keyword\",\"customLabel\":\"Patients\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"group\",\"params\":{\"field\":\"00100040 PatientSex_keyword.keyword\",\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"missingBucket\":true,\"missingBucketLabel\":\"Missing\",\"size\":3,\"order\":\"desc\",\"orderBy\":\"1\",\"customLabel\":\"Patient's Sex\"}}]}",
+      "uiStateJSON": "{}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"filter\":[],\"query\":{\"language\":\"lucene\",\"query\":\"\"}}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "9093c010-4955-11e8-a3a4-57df2c598fcb",
+    "_type": "visualization",
+    "_source": {
+      "title": "Weight Distribution by Sex",
+      "visState": "{\"title\":\"Weight Distribution by Sex\",\"type\":\"histogram\",\"params\":{\"type\":\"histogram\",\"grid\":{\"categoryLines\":false,\"style\":{\"color\":\"#eee\"}},\"categoryAxes\":[{\"id\":\"CategoryAxis-1\",\"type\":\"category\",\"position\":\"bottom\",\"show\":true,\"style\":{},\"scale\":{\"type\":\"linear\"},\"labels\":{\"show\":true,\"truncate\":100,\"rotate\":0},\"title\":{}}],\"valueAxes\":[{\"id\":\"ValueAxis-1\",\"name\":\"LeftAxis-1\",\"type\":\"value\",\"position\":\"left\",\"show\":true,\"style\":{},\"scale\":{\"type\":\"linear\",\"mode\":\"normal\"},\"labels\":{\"show\":true,\"rotate\":0,\"filter\":false,\"truncate\":100},\"title\":{\"text\":\"Number of Patients\"}}],\"seriesParams\":[{\"show\":\"true\",\"type\":\"line\",\"mode\":\"normal\",\"data\":{\"label\":\"Number of Patients\",\"id\":\"1\"},\"valueAxis\":\"ValueAxis-1\",\"drawLinesBetweenPoints\":true,\"showCircles\":true,\"interpolate\":\"cardinal\",\"lineWidth\":5}],\"addTooltip\":true,\"addLegend\":true,\"legendPosition\":\"right\",\"times\":[],\"addTimeMarker\":false},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"cardinality\",\"schema\":\"metric\",\"params\":{\"field\":\"00100010 PatientName_keyword_alphabetic.keyword\",\"customLabel\":\"Number of Patients\"}},{\"id\":\"3\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"group\",\"params\":{\"field\":\"00100040 PatientSex_keyword.keyword\",\"otherBucket\":true,\"otherBucketLabel\":\"Other\",\"missingBucket\":true,\"missingBucketLabel\":\"Missing\",\"size\":2,\"order\":\"desc\",\"orderBy\":\"1\",\"customLabel\":\"Patient Sex\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"range\",\"schema\":\"segment\",\"params\":{\"field\":\"00101030 PatientWeight_float\",\"ranges\":[{\"from\":0,\"to\":30},{\"from\":31,\"to\":40},{\"from\":41,\"to\":50},{\"from\":51,\"to\":60},{\"from\":61,\"to\":70},{\"from\":71,\"to\":80},{\"from\":81,\"to\":90},{\"from\":91,\"to\":100},{\"from\":101,\"to\":110},{\"from\":111,\"to\":120},{\"from\":121,\"to\":150}],\"customLabel\":\"Weight in kg\"}}]}",
+      "uiStateJSON": "{\"vis\":{\"legendOpen\":true,\"colors\":{\"F\":\"#BF1B00\",\"M\":\"#447EBC\"}}}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"filter\":[],\"query\":{\"query\":\"\",\"language\":\"lucene\"}}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "a84a8150-b811-11e8-9844-fbac0473ab5c",
+    "_type": "visualization",
+    "_source": {
+      "title": "gender_donut",
+      "visState": "{\"title\":\"gender_donut\",\"type\":\"pie\",\"params\":{\"type\":\"pie\",\"addTooltip\":true,\"addLegend\":true,\"legendPosition\":\"right\",\"isDonut\":true,\"labels\":{\"show\":true,\"values\":true,\"last_level\":true,\"truncate\":100}},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"cardinality\",\"schema\":\"metric\",\"params\":{\"field\":\"00100020 PatientID_keyword.keyword\",\"customLabel\":\"Number of Patients\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"segment\",\"params\":{\"field\":\"00100040 PatientSex_keyword.keyword\",\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"missingBucket\":true,\"missingBucketLabel\":\"Missing\",\"size\":4,\"order\":\"desc\",\"orderBy\":\"1\",\"customLabel\":\"\"}}]}",
+      "uiStateJSON": "{}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"filter\":[],\"query\":{\"language\":\"lucene\",\"query\":\"\"}}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "ca4bcb00-b81c-11e8-9844-fbac0473ab5c",
+    "_type": "visualization",
+    "_source": {
+      "title": "Contrast Agent Volume",
+      "visState": "{\"title\":\"Contrast Agent Volume\",\"type\":\"line\",\"params\":{\"type\":\"line\",\"grid\":{\"categoryLines\":true,\"style\":{\"color\":\"#eee\"},\"valueAxis\":\"ValueAxis-1\"},\"categoryAxes\":[{\"id\":\"CategoryAxis-1\",\"type\":\"category\",\"position\":\"bottom\",\"show\":true,\"style\":{},\"scale\":{\"type\":\"linear\"},\"labels\":{\"show\":true,\"truncate\":100,\"rotate\":0},\"title\":{}}],\"valueAxes\":[{\"id\":\"ValueAxis-1\",\"name\":\"LeftAxis-1\",\"type\":\"value\",\"position\":\"left\",\"show\":true,\"style\":{},\"scale\":{\"type\":\"linear\",\"mode\":\"normal\"},\"labels\":{\"show\":true,\"rotate\":0,\"filter\":false,\"truncate\":100},\"title\":{\"text\":\"Volume injected in milliliters of diluted contrast agent\"}}],\"seriesParams\":[{\"show\":\"true\",\"type\":\"line\",\"mode\":\"normal\",\"data\":{\"label\":\"Volume injected in milliliters of diluted contrast agent\",\"id\":\"1\"},\"valueAxis\":\"ValueAxis-1\",\"drawLinesBetweenPoints\":true,\"showCircles\":true,\"interpolate\":\"cardinal\",\"lineWidth\":5}],\"addTooltip\":true,\"addLegend\":true,\"legendPosition\":\"right\",\"times\":[],\"addTimeMarker\":false},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"avg\",\"schema\":\"metric\",\"params\":{\"field\":\"00181041 Contrast/BolusVolume_float\",\"customLabel\":\"Volume injected in milliliters of diluted contrast agent\"}},{\"id\":\"3\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"group\",\"params\":{\"field\":\"00100040 PatientSex_keyword.keyword\",\"otherBucket\":true,\"otherBucketLabel\":\"Other\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"size\":2,\"order\":\"asc\",\"orderBy\":\"1\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"range\",\"schema\":\"segment\",\"params\":{\"field\":\"00101030 PatientWeight_float\",\"ranges\":[{\"from\":20,\"to\":30},{\"from\":30,\"to\":40},{\"from\":40,\"to\":45},{\"from\":45,\"to\":50},{\"from\":50,\"to\":55},{\"from\":55,\"to\":60},{\"from\":60,\"to\":65},{\"from\":65,\"to\":70},{\"from\":70,\"to\":75},{\"from\":75,\"to\":80},{\"from\":80,\"to\":85},{\"from\":85,\"to\":90},{\"from\":90,\"to\":95},{\"from\":100}],\"customLabel\":\"Patient Weight [kg]\"}}]}",
+      "uiStateJSON": "{}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"filter\":[],\"query\":{\"language\":\"lucene\",\"query\":\"\"}}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "2659cd00-b81a-11e8-9844-fbac0473ab5c",
+    "_type": "visualization",
+    "_source": {
+      "title": "patient_weight_over_size_m_f",
+      "visState": "{\"title\":\"patient_weight_over_size_m_f\",\"type\":\"line\",\"params\":{\"type\":\"line\",\"grid\":{\"categoryLines\":true,\"style\":{\"color\":\"#eee\"},\"valueAxis\":\"ValueAxis-1\"},\"categoryAxes\":[{\"id\":\"CategoryAxis-1\",\"type\":\"category\",\"position\":\"bottom\",\"show\":true,\"style\":{},\"scale\":{\"type\":\"linear\"},\"labels\":{\"show\":true,\"truncate\":100,\"rotate\":0},\"title\":{}}],\"valueAxes\":[{\"id\":\"ValueAxis-1\",\"name\":\"LeftAxis-1\",\"type\":\"value\",\"position\":\"left\",\"show\":true,\"style\":{},\"scale\":{\"type\":\"linear\",\"mode\":\"normal\"},\"labels\":{\"show\":true,\"rotate\":0,\"filter\":false,\"truncate\":100},\"title\":{\"text\":\"Patient Weight\"}}],\"seriesParams\":[{\"show\":\"true\",\"type\":\"line\",\"mode\":\"normal\",\"data\":{\"label\":\"Patient Weight\",\"id\":\"1\"},\"valueAxis\":\"ValueAxis-1\",\"drawLinesBetweenPoints\":true,\"showCircles\":true,\"interpolate\":\"cardinal\",\"lineWidth\":5}],\"addTooltip\":true,\"addLegend\":true,\"legendPosition\":\"right\",\"times\":[],\"addTimeMarker\":false},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"avg\",\"schema\":\"metric\",\"params\":{\"field\":\"00101030 PatientWeight_float\",\"customLabel\":\"Patient Weight\"}},{\"id\":\"3\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"group\",\"params\":{\"field\":\"00100040 PatientSex_keyword.keyword\",\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"size\":2,\"order\":\"asc\",\"orderBy\":\"1\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"range\",\"schema\":\"segment\",\"params\":{\"field\":\"00101020 PatientSize_float\",\"ranges\":[{\"from\":0,\"to\":1.5},{\"from\":1.61,\"to\":1.7},{\"from\":1.7,\"to\":1.8},{\"from\":1.8,\"to\":1.9},{\"from\":1.9,\"to\":2},{\"from\":2.1}],\"customLabel\":\"Height of Patients\"}}]}",
+      "uiStateJSON": "{}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"filter\":[],\"query\":{\"language\":\"lucene\",\"query\":\"\"}}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "40168700-5399-11e8-ba0e-67fd72e50763",
+    "_type": "visualization",
+    "_source": {
+      "title": "Manufacturer_DeviceName_Table",
+      "visState": "{\"title\":\"Manufacturer_DeviceName_Table\",\"type\":\"table\",\"params\":{\"perPage\":10,\"showMeticsAtAllLevels\":false,\"showPartialRows\":false,\"showTotal\":false,\"sort\":{\"columnIndex\":null,\"direction\":null},\"totalFunc\":\"sum\"},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"cardinality\",\"schema\":\"metric\",\"params\":{\"field\":\"0020000E SeriesInstanceUID_keyword.keyword\",\"customLabel\":\"Number of Series\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"bucket\",\"params\":{\"field\":\"00080070 Manufacturer_keyword.keyword\",\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"size\":100,\"order\":\"desc\",\"orderBy\":\"1\",\"customLabel\":\"Manufacturer\"}},{\"id\":\"3\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"bucket\",\"params\":{\"field\":\"00081090 ManufacturerModelName_keyword.keyword\",\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"size\":100,\"order\":\"desc\",\"orderBy\":\"1\",\"customLabel\":\"Device\"}}]}",
+      "uiStateJSON": "{\"vis\":{\"params\":{\"sort\":{\"columnIndex\":null,\"direction\":null}}}}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"filter\":[],\"query\":{\"language\":\"lucene\",\"query\":\"\"}}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "51208de0-4a05-11e8-a3a4-57df2c598fcb",
+    "_type": "visualization",
+    "_source": {
+      "title": "Procedure Description Table",
+      "visState": "{\"title\":\"Procedure Description Table\",\"type\":\"table\",\"params\":{\"perPage\":7,\"showPartialRows\":true,\"showMeticsAtAllLevels\":true,\"sort\":{\"columnIndex\":null,\"direction\":null},\"showTotal\":true,\"totalFunc\":\"count\",\"type\":\"table\"},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"cardinality\",\"schema\":\"metric\",\"params\":{\"field\":\"0020000D StudyInstanceUID_keyword.keyword\",\"customLabel\":\"Number of Studys\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"bucket\",\"params\":{\"field\":\"00081032 ProcedureCodeSequence_object_object.00080104 CodeMeaning_keyword.keyword\",\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"size\":1024,\"order\":\"desc\",\"orderBy\":\"1\",\"customLabel\":\"Procedure Description\"}}]}",
+      "uiStateJSON": "{\"vis\":{\"params\":{\"sort\":{\"columnIndex\":null,\"direction\":null}}}}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"query\":{\"query\":{\"query_string\":{\"query\":\"*\",\"analyze_wildcard\":true,\"default_field\":\"*\"}},\"language\":\"lucene\"},\"filter\":[]}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "1399b0e0-1b81-11e7-bd5d-db91c77cdfc6",
+    "_type": "visualization",
+    "_source": {
+      "title": "SeriesDescription",
+      "visState": "{\"title\":\"SeriesDescription\",\"type\":\"table\",\"params\":{\"perPage\":7,\"showPartialRows\":true,\"showMeticsAtAllLevels\":true,\"sort\":{\"columnIndex\":null,\"direction\":null},\"showTotal\":true,\"totalFunc\":\"count\",\"type\":\"table\"},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"count\",\"schema\":\"metric\",\"params\":{\"customLabel\":\"\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"bucket\",\"params\":{\"field\":\"0008103E SeriesDescription_keyword.keyword\",\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"size\":1024,\"order\":\"desc\",\"orderBy\":\"1\",\"customLabel\":\"SeriesDescription\"}}]}",
+      "uiStateJSON": "{\"vis\":{\"params\":{\"sort\":{\"columnIndex\":null,\"direction\":null}}}}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"query\":{\"query\":{\"query_string\":{\"query\":\"*\",\"analyze_wildcard\":true,\"default_field\":\"*\"}},\"language\":\"lucene\"},\"filter\":[]}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "220be060-fa42-11e9-a4dd-e3ed745ac68d",
+    "_type": "visualization",
+    "_source": {
+      "title": "SeriesInstanceUID",
+      "visState": "{\"title\":\"SeriesInstanceUID\",\"type\":\"table\",\"params\":{\"perPage\":7,\"showPartialRows\":true,\"showMeticsAtAllLevels\":true,\"sort\":{\"columnIndex\":null,\"direction\":null},\"showTotal\":true,\"totalFunc\":\"count\",\"type\":\"table\"},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"count\",\"schema\":\"metric\",\"params\":{\"customLabel\":\"\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"bucket\",\"params\":{\"field\":\"0020000E SeriesInstanceUID_keyword.keyword\",\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"size\":1024,\"order\":\"desc\",\"orderBy\":\"1\",\"customLabel\":\"SeriesInstanceUID\"}}]}",
+      "uiStateJSON": "{\"vis\":{\"params\":{\"sort\":{\"columnIndex\":null,\"direction\":null}}}}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"query\":{\"query\":{\"query_string\":{\"query\":\"*\",\"analyze_wildcard\":true,\"default_field\":\"*\"}},\"language\":\"lucene\"},\"filter\":[]}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "a3384b90-fa3f-11e9-a4dd-e3ed745ac68d",
+    "_type": "visualization",
+    "_source": {
+      "title": "StudyInstanceUID",
+      "visState": "{\"title\":\"StudyInstanceUID\",\"type\":\"table\",\"params\":{\"perPage\":7,\"showPartialRows\":true,\"showMeticsAtAllLevels\":true,\"sort\":{\"columnIndex\":null,\"direction\":null},\"showTotal\":true,\"totalFunc\":\"count\",\"type\":\"table\"},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"count\",\"schema\":\"metric\",\"params\":{\"customLabel\":\"\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"bucket\",\"params\":{\"field\":\"0020000D StudyInstanceUID_keyword.keyword\",\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"size\":1024,\"order\":\"desc\",\"orderBy\":\"1\",\"customLabel\":\"StudyInstanceUID\"}}]}",
+      "uiStateJSON": "{\"vis\":{\"params\":{\"sort\":{\"columnIndex\":null,\"direction\":null}}}}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"query\":{\"query\":{\"query_string\":{\"query\":\"*\",\"analyze_wildcard\":true,\"default_field\":\"*\"}},\"language\":\"lucene\"},\"filter\":[]}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "45f1ca00-536b-11e8-ba0e-67fd72e50763",
+    "_type": "visualization",
+    "_source": {
+      "title": "Body_Part_Examined_Table",
+      "visState": "{\"title\":\"Body_Part_Examined_Table\",\"type\":\"table\",\"params\":{\"perPage\":8,\"showMeticsAtAllLevels\":false,\"showPartialRows\":false,\"showTotal\":false,\"sort\":{\"columnIndex\":null,\"direction\":null},\"totalFunc\":\"sum\"},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"cardinality\",\"schema\":\"metric\",\"params\":{\"field\":\"0020000D StudyInstanceUID_keyword.keyword\",\"customLabel\":\"Number of Studies\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"bucket\",\"params\":{\"field\":\"00180015 BodyPartExamined_keyword.keyword\",\"otherBucket\":true,\"otherBucketLabel\":\"Other\",\"missingBucket\":true,\"missingBucketLabel\":\"missing\",\"size\":500,\"order\":\"desc\",\"orderBy\":\"1\",\"customLabel\":\"Body Part Examined\"}}]}",
+      "uiStateJSON": "{\"vis\":{\"params\":{\"sort\":{\"columnIndex\":null,\"direction\":null}}}}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"filter\":[],\"query\":{\"language\":\"lucene\",\"query\":\"\"}}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "01e08e70-4017-11e9-acb6-29d3d979e91d",
+    "_type": "visualization",
+    "_source": {
+      "title": "dataset_list",
+      "visState": "{\"title\":\"dataset_list\",\"type\":\"table\",\"params\":{\"perPage\":7,\"showPartialRows\":true,\"showMeticsAtAllLevels\":false,\"sort\":{\"columnIndex\":null,\"direction\":null},\"showTotal\":true,\"totalFunc\":\"sum\"},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"count\",\"schema\":\"metric\",\"params\":{\"customLabel\":\"Count\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"bucket\",\"params\":{\"field\":\"00120020 ClinicalTrialProtocolID_keyword.keyword\",\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"size\":1000,\"order\":\"desc\",\"orderBy\":\"1\",\"customLabel\":\"Dataset\"}}]}",
+      "uiStateJSON": "{\"vis\":{\"params\":{\"sort\":{\"columnIndex\":null,\"direction\":null}}}}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"filter\":[],\"query\":{\"language\":\"lucene\",\"query\":\"\"}}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "67cd8200-d960-11e9-93c9-2f37fe6c8be0",
+    "_type": "visualization",
+    "_source": {
+      "title": "send_cohort",
+      "visState": "{\"title\":\"send_cohort\",\"type\":\"workflow_trigger\",\"params\":{\"buttonTitle\":\"SEND {{value}} RESULTS\",\"filterprovider\":{\"_emitChain\":{},\"_listeners\":{\"fetch\":[],\"update\":[]}},\"fontSize\":30,\"incoming_trigger_dag\":\"process_incoming_elastic\",\"margin\":10,\"url\":\"\"},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"count\",\"schema\":\"metric\",\"params\":{}}]}",
+      "uiStateJSON": "{}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"filter\":[],\"query\":{\"language\":\"lucene\",\"query\":\"\"}}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "17a510e0-b823-11e8-9844-fbac0473ab5c",
+    "_type": "visualization",
+    "_source": {
+      "title": "manufacturer graph",
+      "visState": "{\"title\":\"manufacturer graph\",\"type\":\"histogram\",\"params\":{\"type\":\"histogram\",\"grid\":{\"categoryLines\":true,\"style\":{\"color\":\"#eee\"},\"valueAxis\":\"ValueAxis-1\"},\"categoryAxes\":[{\"id\":\"CategoryAxis-1\",\"type\":\"category\",\"position\":\"bottom\",\"show\":true,\"style\":{},\"scale\":{\"type\":\"linear\"},\"labels\":{\"show\":true,\"truncate\":100,\"rotate\":75},\"title\":{}}],\"valueAxes\":[{\"id\":\"ValueAxis-1\",\"name\":\"LeftAxis-1\",\"type\":\"value\",\"position\":\"left\",\"show\":true,\"style\":{},\"scale\":{\"type\":\"linear\",\"mode\":\"normal\"},\"labels\":{\"show\":true,\"rotate\":0,\"filter\":false,\"truncate\":100},\"title\":{\"text\":\"Number of Series\"}}],\"seriesParams\":[{\"show\":\"true\",\"type\":\"histogram\",\"mode\":\"stacked\",\"data\":{\"label\":\"Number of Series\",\"id\":\"1\"},\"valueAxis\":\"ValueAxis-1\",\"drawLinesBetweenPoints\":true,\"showCircles\":true}],\"addTooltip\":true,\"addLegend\":true,\"legendPosition\":\"right\",\"times\":[],\"addTimeMarker\":false},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"count\",\"schema\":\"metric\",\"params\":{\"customLabel\":\"Number of Series\"}},{\"id\":\"3\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"group\",\"params\":{\"field\":\"00081090 ManufacturerModelName_keyword.keyword\",\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"size\":5,\"order\":\"desc\",\"orderBy\":\"1\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"segment\",\"params\":{\"field\":\"00080070 Manufacturer_keyword.keyword\",\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"size\":6,\"order\":\"desc\",\"orderBy\":\"1\",\"customLabel\":\"Manufacturer\"}}]}",
+      "uiStateJSON": "{}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"filter\":[],\"query\":{\"query\":\"\",\"language\":\"lucene\"}}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "efb0b700-2638-11e8-87c0-6910c12ed7d4",
+    "_type": "visualization",
+    "_source": {
+      "title": "Modality Donut (StudyInstanceUID)",
+      "visState": "{\"title\":\"Modality Donut (StudyInstanceUID)\",\"type\":\"pie\",\"params\":{\"type\":\"pie\",\"addTooltip\":true,\"addLegend\":true,\"legendPosition\":\"right\",\"isDonut\":true,\"labels\":{\"show\":true,\"values\":true,\"last_level\":true,\"truncate\":100}},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"cardinality\",\"schema\":\"metric\",\"params\":{\"field\":\"0020000D StudyInstanceUID_keyword.keyword\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"segment\",\"params\":{\"field\":\"00080060 Modality_keyword.keyword\",\"otherBucket\":true,\"otherBucketLabel\":\"Other\",\"missingBucket\":true,\"missingBucketLabel\":\"Unknown\",\"size\":20,\"order\":\"desc\",\"orderBy\":\"1\",\"customLabel\":\"\"}}]}",
+      "uiStateJSON": "{}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"filter\":[],\"query\":{\"query\":\"\",\"language\":\"lucene\"}}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    }
+  }
+]

@@ -1,0 +1,51 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dicom-init
+  namespace: {{ .Values.global.store_namespace }}
+spec:
+  template:
+    metadata:
+      name: dicom-init
+    spec:
+      initContainers:
+      - name: init
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/service_checker:1.1
+        imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
+        env:
+          - name: WAIT
+            value: "ctp,ctp-service.flow.svc,11112;dcm4che,dcm4chee-service.store.svc,11115;elastic,elastic-meta-service.meta.svc,9200;airflow,airflow-service.flow.svc,8080,/flow/kaapana/api/getdags"
+          - name: DELAY
+            value: "2"
+          - name: TIMEOUT
+            value: "10"
+      containers:
+      - name: dicom-init
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/dicom-init:0.9-vdev
+        imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
+        env:
+        - name: CTP_HOST
+          value: "ctp-service.flow.svc"
+        - name: CTP_PORT
+          value: "11112"
+        - name: DCM4CHEE
+          value: "http://dcm4chee-service.store.svc:8080"
+        - name: AET
+          value: "KAAPANA"
+        - name: ELASTIC_HOST
+          value: "elastic-meta-service.meta.svc:9200"
+        - name: AIRFLOW_TRIGGER
+          value: "http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger"
+        volumeMounts:
+        - name: slowdir
+          mountPath: /slow_data_dir
+      volumes:
+      - name: slowdir
+        hostPath:
+          path: {{ .Values.global.slow_data_dir }}
+          type: DirectoryOrCreate
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: camic-registry
+  backoffLimit: 0    

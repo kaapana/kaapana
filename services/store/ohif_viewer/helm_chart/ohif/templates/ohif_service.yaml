@@ -1,0 +1,33 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ohif-service
+  namespace: {{ .Values.global.store_namespace }}
+spec:
+  selector:
+    app-name: ohif
+  ports:
+  - name: ohif-port
+    port: 80
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: ohif-ingress-ip
+  namespace: {{ .Values.global.store_namespace }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+      - path: /ohif
+        backend:
+          serviceName: ohif-service
+          servicePort: 80

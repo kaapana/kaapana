@@ -1,0 +1,112 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: {{ .Values.global.monitoring_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: grafana
+  template:
+    metadata:
+      labels:
+        app-name: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/grafana:6.4.4
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        env:
+        # - name: GF_SERVER_ROOT_URL
+        #   value: "https://{{ required "A valid hostname (or fqdn) is required!" .Values.global.hostname }}/grafana"
+        # - name: GF_AUTH_ANONYMOUS_ENABLED
+        #   value: "true"
+        # - name: GF_AUTH_ANONYMOUS_ORG_NAME
+        #   value: "Main Org."
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: {{ .Values.global.credentials.grafana_password }}
+        - name: GF_SECURITY_ADMIN_USER
+          value: {{ .Values.global.credentials.grafana_username }}
+        ports:
+        - containerPort: 3000
+          protocol: TCP
+        resources:
+          requests:
+            memory: 50Mi
+          limits:
+            memory: 100Mi
+        volumeMounts:
+          - name: grafana-config-file
+            mountPath: /etc/grafana/grafana.ini
+            subPath: grafana.ini
+          - name: datasources-provisioning
+            mountPath: /etc/grafana/provisioning/datasources/prometheus.yml
+            subPath: prometheus.yml
+          - name: dashboard-provisioning
+            mountPath: /etc/grafana/provisioning/dashboards
+          - name: grafana-kubernetes-dashboard
+            mountPath: /etc/grafana/dashboards/kubernetes/dashboards/kubernetes-dashboard.json
+            subPath: kubernetes-dashboard.json
+          - name: grafana-traefik-dashboard
+            mountPath: /etc/grafana/dashboards/traefik/dashboards/traefik-dashboard.json
+            subPath: traefik-dashboard.json
+          - name: grafana-prometheus-dashboard
+            mountPath: /etc/grafana/dashboards/prometheus/dashboards/prometheus-dashboard.json
+            subPath: prometheus-dashboard.json
+          {{- if .Values.global.gpu_support }}
+          - name: grafana-gpu-dashboard
+            mountPath: /etc/grafana/dashboards/gpu/dashboards/gpu-dashboard.json
+            subPath: gpu-dashboard.json
+          {{- end }}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 20
+          periodSeconds: 120
+      volumes:
+      - name: grafana-config-file
+        configMap:
+          name: grafana-config
+          items:
+          - key: grafana.ini
+            path: grafana.ini
+      - name: datasources-provisioning
+        configMap:
+          name: grafana-ds-prometheus
+          items:
+          - key: prometheus.yml
+            path: prometheus.yml
+      - name: dashboard-provisioning
+        configMap:
+          name: grafana-provisioning-dashboards
+      - name: grafana-kubernetes-dashboard
+        configMap:
+          name: grafana-dashboards
+          items:
+          - key: kubernetes-dashboard.json
+            path: kubernetes-dashboard.json
+      - name: grafana-traefik-dashboard
+        configMap:
+          name: grafana-dashboards
+          items:
+          - key: traefik-dashboard.json
+            path: traefik-dashboard.json
+      {{- if .Values.global.gpu_support }}
+      - name: grafana-gpu-dashboard
+        configMap:
+          name: grafana-dashboards
+          items:
+          - key: gpu-dashboard.json
+            path: gpu-dashboard.json
+      {{- end }}
+      - name: grafana-prometheus-dashboard
+        configMap:
+          name: grafana-dashboards
+          items:
+          - key: prometheus-dashboard.json
+            path: prometheus-dashboard.json
+      imagePullSecrets:
+        - name: camic-registry

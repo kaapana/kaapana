@@ -1,0 +1,66 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # Unique key of the Job instance
+  name: init-meta
+  namespace: {{ .Values.global.meta_namespace }}
+spec:
+  template:
+    metadata:
+      name: init-meta
+    spec:
+      initContainers:
+      - name: init
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/service_checker:1.1
+        imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
+        env:
+          - name: WAIT
+            value: "kibana,kibana-meta-service.meta.svc,5601;elastic,elastic-meta-service.meta.svc,9200"
+          - name: DELAY
+            value: "1"
+          - name: TIMEOUT
+            value: "10"
+      containers:
+      - name: init-meta
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/init-meta:6.8.12-vdev
+        imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
+        env:
+          - name: DOMAIN
+            value: "{{ required "A valid hostname (or fqdn) is required!" .Values.global.hostname }}"
+          - name: STACKVERSION
+            value: "6.8.12"
+          - name: OVERRIDE_OBJECTS
+            value: "true"
+          - name: INITKIBANA
+            value: "True"
+          - name: INITELASTIC
+            value: "True"
+          - name: ELASTICHOST
+            value: "elastic-meta-service.meta.svc"
+          - name: ELASTICPORT
+            value: "9200"
+          - name: ELASTICINDEX
+            value: "meta-index"
+          - name: KIBANAHOST
+            value: "kibana-meta-service.meta.svc"
+          - name: KIBANAPORT
+            value: "5601"
+          - name: KIBANADASHBOARD
+            value: "/dashboards/kibana-dashboard.json"
+        volumeMounts:
+          - name: kibana-dashboard-file
+            mountPath: /dashboards/kibana-dashboard.json
+            subPath: kibana-dashboard.json
+      # Do not restart containers after they exit
+      restartPolicy: OnFailure
+      volumes:
+      - name: kibana-dashboard-file
+        configMap:
+          name: kibana-dashboard
+          items:
+          - key: kibana-dashboard.json
+            path: kibana-dashboard.json
+      imagePullSecrets:
+      - name: camic-registry
+  backoffLimit: 0

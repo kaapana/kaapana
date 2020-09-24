@@ -1,0 +1,25 @@
+groups:
+- name: prometheus/alert.rules
+  rules:
+  - alert: service_down
+    expr: up == 0
+  - alert: dicom_filesyste_usage_ninety_percent_alert
+    expr: sum (container_fs_usage_bytes{device=~".*dicom.*",id="/"}) / sum (container_fs_limit_bytes{device=~".*dicom.*",id="/"}) * 100 > 90
+    labels:
+      severity: warning
+      summary: Dicom filesystem usage critical!
+  - alert: home_filesyste_usage_ninety_percent_alert
+    expr: sum (container_fs_usage_bytes{device=~".*home.*",id="/"}) / sum (container_fs_limit_bytes{device=~".*home.*",id="/"}) * 100 > 90
+    labels:
+      severity: warning
+      summary: Home filesystem usage critical!
+  - alert: APIHighInvocationRate
+    expr: sum(rate(gateway_function_invocation_total{code="200"}[10s])) BY (function_name) > 5
+    for: 5s
+    labels:
+      service: gateway
+      severity: major
+      value: '{{$value}}'
+    annotations:
+      description: High invocation total on {{ $labels.instance }}
+      summary: High invocation total on {{ $labels.instance }}

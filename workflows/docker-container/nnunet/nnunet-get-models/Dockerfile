@@ -1,0 +1,12 @@
+FROM python:3
+
+
+LABEL IMAGE="nnunet-get-models"
+LABEL VERSION="0.1-vdev"
+LABEL CI_IGNORE="False"
+
+ENV MODELDIR "/models"
+
+COPY files/process.py /
+
+CMD ["python3","-u","/process.py"]

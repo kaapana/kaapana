@@ -1,0 +1,111 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: {{ .Values.global.monitoring_namespace }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-deployment
+  namespace: {{ .Values.global.monitoring_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: prometheus-server
+  template:
+    metadata:
+      labels:
+        app-name: prometheus-server
+    spec:
+      initContainers:
+      - name: volume-permissions
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/busybox:1.31.1
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        command: ["sh", "-c", "chown -R 1000:1000 /prometheus"]
+        volumeMounts:
+        - name: prometheus-storage-volume
+          mountPath: /prometheus/
+        securityContext:
+          runAsUser: 0
+      securityContext:
+        runAsUser: 1000
+      containers:
+        - name: prometheus
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/prometheus:v2.20.1
+          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          args:
+            - "--config.file=/etc/prometheus.yaml"
+            - "--storage.tsdb.path=/prometheus/"
+            - "--web.external-url=/prometheus"
+            - "--web.route-prefix=/prometheus"
+          ports:
+            - containerPort: 9090
+          resources:
+            requests:
+              memory: 150Mi
+            limits:
+              memory: 500Mi
+          volumeMounts:
+            - name: prometheus-alerts-vol
+              mountPath: /etc/prometheus/
+            - name: prometheus-config-vol
+              mountPath: /etc/prometheus.yaml
+              subPath: prometheus.yaml
+            - name: prometheus-storage-volume
+              mountPath: /prometheus/
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 9090
+            initialDelaySeconds: 20
+            periodSeconds: 120
+      volumes:
+        - name: prometheus-config-vol
+          configMap:
+            name: prometheus-config
+            items:
+            - key: prometheus.yaml
+              path: prometheus.yaml
+        - name: prometheus-alerts-vol
+          configMap:
+            defaultMode: 420
+            name: prometheus-alerts-config
+        - name: prometheus-storage-volume
+          hostPath:
+            path: {{ .Values.global.fast_data_dir }}/prometheus
+            type: DirectoryOrCreate
+      imagePullSecrets:
+      - name: camic-registry
+---

@@ -1,0 +1,32 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-service
+  namespace: {{ .Values.global.flow_namespace }}
+spec:
+  selector:
+    app-name: airflow
+  ports:
+    - port: 8080
+      name: airflow-http
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: airflow-ingress-ip
+  namespace: {{ .Values.global.flow_namespace }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+      - path: /flow
+        backend:
+          serviceName: airflow-service
+          servicePort: airflow-http
+---

@@ -1,0 +1,10 @@
+---
+global:
+    registry_url: ""
+    registry_project: ""
+    pull_policy_pods: "IfNotPresent"
+    pull_policy_jobs: "Always"
+    hostname: 
+    credentials:
+        keycloak_admin_username: "admin"
+        keycloak_admin_password: "admin"

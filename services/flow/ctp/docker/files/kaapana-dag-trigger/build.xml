@@ -1,0 +1,64 @@
+<project name="kaapanaTriggerAndStorage" default="all" basedir="..">
+	<property name="name" value="KaapanaDagTrigger"/>
+	<property name="build" value="${basedir}/kaapana-dag-trigger/build"/>
+	<property name="source" value="${basedir}/kaapana-dag-trigger/source"/>
+	<property name="resources" value="${basedir}/kaapana-dag-trigger/resources"/>
+	<property name="libraries" value="${basedir}/CTP/libraries"/>
+	<property name="products" value="${basedir}/CTP/libraries"/>
+	<property name="documentation" value="${basedir}/kaapana-dag-trigger/documentation"/>
+
+	<path id="classpath">
+		<pathelement location="${libraries}/CTP.jar"/>
+		<pathelement location="${libraries}/util.jar"/>
+		<pathelement location="${libraries}/log4j.jar"/>
+        <pathelement location="${libraries}/json-simple-1.1.1.jar"/>
+        <pathelement location="${libraries}/commons-collections4-4.4.jar"/>
+	</path>
+
+	<target name="clean">
+		<delete dir="${build}" failonerror="false"/>
+		<delete dir="${documentation}" failonerror="false"/>
+	</target>
+
+	<target name="init">
+		<tstamp>
+			<format property="today" pattern="dd-MMMM-yyyy"/>
+			<format property="now" pattern="HH:mm:ss"/>
+		</tstamp>
+		<echo message="Time now ${now}"/>
+		<echo message="ant.java.version = ${ant.java.version}" />
+		<mkdir dir="${build}"/>
+		<mkdir dir="${products}"/>
+	</target>
+
+	<target name="compile" depends="init">
+		<javac destdir="${build}" optimize="on"
+				includeantruntime="false"
+				classpathref="classpath"
+				debug="true" debuglevel="lines,vars,source">
+			<src path="${source}"/>
+			<!--<compilerarg value="-Xlint:unchecked"/>-->
+		</javac>
+	</target>
+
+	<target name="jar" depends="compile">
+		<copy overwrite="true" todir="${build}">
+			<fileset dir="${resources}"/>
+		</copy>
+		<jar jarfile="${products}/${name}.jar">
+			<manifest>
+	            		<attribute name="Date" value="${today} at ${now}"/>
+	           		<attribute name="Java-Version" value="${ant.java.version}"/>
+			</manifest>
+			<fileset dir="${build}" includes="**"/>
+		</jar>
+	</target>
+
+	<target name="javadocs">
+		<mkdir dir="${documentation}"/>
+		<javadoc destdir="${documentation}" sourcefiles="${source}/**" classpathref="classpath"/>
+	</target>
+
+	<target name="all" depends="clean, jar, javadocs"/>
+
+</project>

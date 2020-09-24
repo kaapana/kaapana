@@ -1,0 +1,70 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # This name uniquely identifies the Deployment
+  name: minio-deployment
+  namespace: {{ .Values.global.store_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: minio
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: minio
+    spec:
+      initContainers:
+        - name: init
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/service_checker:1.1
+          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          env:
+            - name: WAIT
+              value: "keycloak,keycloak-service.kube-system.svc,443"
+            - name: DELAY
+              value: "3"
+            - name: TIMEOUT
+              value: "10"
+      containers:
+      - name: minio
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/minio:2020.09.17-vdev
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        args:
+        - server
+        - /storage
+        env:
+        - name: MINIO_IDENTITY_OPENID_CLIENT_ID
+          value: "kaapana"
+        - name: MINIO_KAAPANA_AUTHORIZATION_ENDPOINT
+          value: "https://{{ .Values.global.hostname }}/auth/realms/kaapana/protocol/openid-connect/auth"
+        # - name: MINIO_IDENTITY_OPENID_JWKS_URL
+        #  value: https://vm-129-6.cloud.dkfz-heidelberg.de/auth/realms/kaapana/protocol/openid-connect/certs
+        - name: MINIO_IDENTITY_OPENID_CONFIG_URL
+          value: "http://keycloak-service.kube-system.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
+        # Minio access key and secret key
+        - name: MINIO_ACCESS_KEY
+          value: {{ .Values.global.credentials.minio_username }}
+        - name: MINIO_SECRET_KEY
+          value: {{ .Values.global.credentials.minio_password }}
+        ports:
+        - containerPort: 9000
+        resources:
+          requests:
+            memory: 200Mi
+          limits:
+            memory: 500Mi
+        volumeMounts:
+        - name: storage # must match the volume name, above
+          mountPath: "/storage"
+      volumes:
+      - name: storage
+        hostPath:
+          # path: /home/kaapana/minio
+          path: {{ .Values.global.slow_data_dir }}/minio
+          type: DirectoryOrCreate
+      imagePullSecrets:
+      - name: camic-registry
+---

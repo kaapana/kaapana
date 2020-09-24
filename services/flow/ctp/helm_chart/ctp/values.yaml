@@ -1,0 +1,9 @@
+---
+global:
+    registry_url: ""
+    registry_project: ""
+    pull_policy_pods: "IfNotPresent"
+    flow_namespace: "flow"
+    dicom_port: 11112
+    dicom_web_port: 7777
+    fast_data_dir: /home/kaapana

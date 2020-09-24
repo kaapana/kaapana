@@ -1,0 +1,140 @@
+extends ./chrome
+
+block content
+  style.
+    * {
+      box-sizing: border-box;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      background-color: #F5F7FA;
+    }
+    .kibanaWelcomeView {
+      background-color: #F5F7FA;
+    }
+
+    .kibanaWelcomeTitle {
+      color: #000;
+      font-size: 20px;
+      font-family: Sans-serif;
+      margin-top: 20px;
+      animation: fadeIn 1s ease-in-out;
+      animation-fill-mode: forwards;
+      opacity: 0;
+      animation-delay: 1.0s;
+    }
+
+    .kibanaWelcomeText {
+      font-size: 14px;
+      font-family: Sans-serif;
+      color: #343741;
+      animation: fadeIn 1s ease-in-out;
+      animation-fill-mode: forwards;
+      opacity: 0;
+      animation-delay: 1.0s;
+    }
+
+    .kibanaLoaderWrap {
+      height: 128px;
+      width: 128px;
+      position: relative;
+      margin-top: 40px;
+    }
+
+    .kibanaLoaderWrap + * {
+      margin-top: 24px;
+    }
+
+    .kibanaLoader {
+      height: 128px;
+      width: 128px;
+      margin: 0 auto;
+      position: relative;
+      border: 2px solid transparent;
+      border-top: 2px solid #017D73;
+      border-radius: 100%;
+      display: block;
+      opacity: 0;
+      animation: rotation .75s .5s infinite linear, fadeIn 1s .5s ease-in-out forwards;
+    }
+
+    .kibanaWelcomeLogoCircle {
+      position: absolute;
+      left: 4px;
+      top: 4px;
+      width: 120px;
+      height: 120px;
+      padding: 20px;
+      background-color: #FFF;
+      border-radius: 50%;
+      animation: bounceIn .5s ease-in-out;
+    }
+
+    .kibanaWelcomeLogo {
+      background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFcAAABTCAYAAADqWZt6AAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH4wkRDxgzjyYvdQAAA9RJREFUeNrtnM+VokAQxj99kwAJcGBDYDJAQ3BC0AMBSAgYAAcJQUMQMhhCGA4kYAp7sNhlXRraphqYob735jBPW7p/FEXXHwBEIpHoH63mNiE3SDYA/IE/U1R5mE29lrcZnnAfQDzwNyIAk8Ndy8UrcAWuSOAKXIErErgCV+CKBK7AFbgigStwBa5I4H4LWU2Wu0HiAfDq/+dQHTBcg99YR4lHpaMcFS6VaOo/v+VzALjjUSUoAKRVHt6fvlbMCGoMYKf4/Aog6oK8YpiEA2BPf96Lw+8ATk3IdIJuA6cVVXl4GrCmPYF1NOYfVXmYsvtcmsQXTcQz+AmHxn4S1MldhxskOwBnDbD1/M80hgeuGySOGySXFybRJw/AjU7WlGAdWtOrOtPYYXDdIPEBfKp80UCd3SCJ6aYxhfaGxlK7RnO4BPZm6AJ0dbT8+13acY5dG4B18HPlc45da4J1GP2rRGjPvhDDW4wErmJrshNUzHDJHcQL4lFwju2zXJOo6zvryjl23WO1x4VdySmFtK/qTmO1LXdnaXdQJ24yw4VYE+U3IsNcxn9reetxCdxWkVZ5WDxdIR4eWbQpg4cm4JSyd7ph8EGVuFn1hLhclnqo8rDXn7lBcmS6gQ7KijUYxHTi25TRcZQ3QZXlbhiNYds1gSerOc3F19OctzaS5Vz72kgX7JOlz8kPlzBMJK0txNidd9BFBxF10ppjz9h2B116hMaVQ8iwcNksrRcC15Ll6txNlwiXIypbPFibbkHgQtqZBK7AFY0GV+ptFuFKlVgBlyWyomySwLUkgWsxbN0IXHsBwE7gtucEOFKFnmH68sfcDFWViIzJ8s5ukLzr5nXpZMyqnE89w15je1kAKFVFSR24BRPcuql52weYwF5mBFXVYb6hz2P0FF5Vu4Ur4zx9AF9ukOzbuq/dIPHdIDljRu2pNJ9Lz3wcABf6bqtWHQf4tBRpNQt+tnYUxqV1w/J+6/G69rm2iot1E8jstmqNx6NeVdwWNCnhksNeWoFxzzm2L0I7LQzuqM9EpFhWVcHjHNsJd0DXn0jDckH7uFRQWYBbbzUgfQh24JJ72I4IuMA0HTsZ51jtfO6IgDM6zhSuaJxnInoAXy0tLqrysM5DjG65tLc32R21JnLWBhO4V3n4AeCDcZtW4NEkfXo6kVP4+Y8Xg6c7jcFguM1dRJWHvwAcBkAu8MgsvSveszCF9RZ0deqsqURH5zzb2/bpGYLmK1icnpvV1aDrfMw8Q9cbUEr8fYBGaeUryxNsQi6/a+cjgf6TLF96U7dIJBKJRCKRaNn6DUBMYXJm413tAAAAAElFTkSuQmCC");
+      background-repeat: no-repeat;
+      background-size: contain;
+      width: 60px;
+      height: 60px;
+      margin: 10px 0px 10px 10px;
+    }
+
+    @keyframes rotation {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(359deg);
+      }
+    }
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes bounceIn {
+      0% {
+        opacity: 0;
+        transform: scale(.1);
+      }
+      80% {
+        opacity: .5;
+        transform: scale(1.2);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+  .kibanaWelcomeView(id="kbn_loading_message", style="display: none;")
+    .kibanaLoaderWrap
+      .kibanaLoader
+      .kibanaWelcomeLogoCircle
+        .kibanaWelcomeLogo
+    .kibanaWelcomeText(data-error-message=i18n('common.ui.welcomeErrorMessage', { defaultMessage: 'META did not load properly. Check the server output for more information.' }))
+      | #{i18n('common.ui.welcomeMessage', { defaultMessage: 'Loading META' })}
+
+  .kibanaWelcomeView(id="kbn_legacy_browser_error", style="display: none;")
+    .kibanaLoaderWrap
+      .kibanaWelcomeLogoCircle
+        .kibanaWelcomeLogo
+    h2.kibanaWelcomeTitle
+      | #{i18n('common.ui.legacyBrowserTitle', { defaultMessage: 'Please upgrade your browser' })}
+    .kibanaWelcomeText
+      | #{i18n('common.ui.legacyBrowserMessage', { defaultMessage: 'This Kibana installation has strict security requirements enabled that your current browser does not meet.' })}
+
+  script.
+    // Since this script tag does not contain a nonce, this code will not run
+    // in browsers that support content security policy(CSP). This is
+    // intentional as we check for the existence of __kbnCspNotEnforced__ in
+    // bootstrap.
+    window.__kbnCspNotEnforced__ = true;
+  script(src=bootstrapScriptUrl, nonce=nonce)

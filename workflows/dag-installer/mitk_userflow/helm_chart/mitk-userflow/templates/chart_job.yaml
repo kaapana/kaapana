@@ -1,0 +1,25 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mitk-userflow
+  namespace: {{ .Values.global.flow_namespace }}
+spec:
+  template:
+    spec:
+      containers:
+      - name: mitk-userflow
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/processing-internal/dag-mitk-userflow:0.9-vdev
+        imagePullPolicy:  {{ .Values.global.pull_policy_operators }}
+        volumeMounts:
+        - name: data
+          mountPath: "/mount_data"
+      volumes:
+      - name: data
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}/workflows
+          type: DirectoryOrCreate
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: camic-registry
+  backoffLimit: 0

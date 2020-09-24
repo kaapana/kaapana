@@ -1,0 +1,8 @@
+{
+    "id": "jip",
+    "name": "Joint Imaging Platform",
+    "shortName": "JIP",
+    "infoText": "The strategic initiative “Joint Imaging Platform” establishes a distributed IT infrastructure for image analysis and machine learning at all DKTK sites. It will facilitate pooling of analysis methods that can be applied in an automated and standardized manner to patient data of the different centers. This will allow unprecedented cohort sizes in cross-center evaluations as well as faster transfer of analytical methods from research to evaluation on clinical data.",
+    "disclaimer": "Disclaimer: The JIP software is intended for use in research projects. It must not be used to support diagnosis or therapy. Each site manages the system independently (hardware operation and root privileges) and is responsible for the proper local deployment.",
+    "version": "1.0"
+  }

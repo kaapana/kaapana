@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+appVersion: "11.0.2-vdev"
+description: Chart for Keycloak 11.0.2
+name: keycloak
+version: 11.0.2-vdev
+

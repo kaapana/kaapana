@@ -1,0 +1,61 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ctp
+  namespace: {{ .Values.global.flow_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: ctp
+  template:
+    metadata:
+      labels:
+        app-name: ctp
+    spec:
+      containers:
+        - name: ctp-container
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/ctp:1.0.1-vdev
+          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          ports:
+            - containerPort: 11112
+            - containerPort: 1050
+            - containerPort: 7777
+          resources:
+            requests:
+              memory: 250Mi
+            limits:
+              memory: 250Mi
+          volumeMounts:
+            - name: ctp-data
+              mountPath: /data/
+            - name: ctp-logs
+              mountPath: /opt/CTP/logs
+            - name: config-file
+              mountPath: /opt/CTP/config.xml
+              subPath: config.xml
+          livenessProbe:
+            tcpSocket:
+              port: 1050
+            initialDelaySeconds: 30
+            periodSeconds: 120
+      volumes:
+      - name: ctp-data
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}/ctp
+          type: DirectoryOrCreate
+      - name: ctp-logs
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}/ctp/logs
+          type: DirectoryOrCreate
+      - name: config-file
+        configMap:
+          name: ctp-config
+          items:
+          - key: config.xml
+            path: config.xml
+      imagePullSecrets:
+      - name: camic-registry
+---
+

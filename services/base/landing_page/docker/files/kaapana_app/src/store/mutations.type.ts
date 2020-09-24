@@ -1,0 +1,6 @@
+export const PURGE_AUTH = 'logOut'
+export const SET_AUTH = 'setUser'
+export const SET_ERROR = 'setError'
+export const SET_AVAILABLE_WEBISTES = 'setAvailableWebsites'
+export const SET_COMMON_DATA = 'set_common_data'
+export const SET_LAUNCH_APPLICATION_DATA = 'set_launch_application_data'

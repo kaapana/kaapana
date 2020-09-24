@@ -1,0 +1,18 @@
+---
+dependencies:
+  - name: kaapana-core
+    version: 1.0.0-vdev
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+  - name: meta-init
+    condition: Release.IsInstall
+    version: 6.8.12-vdev
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+  - name: elasticsearch-oss
+    version: 6.8.12-vdev
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+  - name: kaapana-landing-page
+    version: 1.1.1-vdev
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+  - name: kibana-kaapana
+    version: 6.8.12-vdev
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public

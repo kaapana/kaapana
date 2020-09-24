@@ -1,0 +1,102 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dcm4chee
+  namespace: {{ .Values.global.store_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: dcm4chee
+  template:
+    metadata:
+      labels:
+        app-name: dcm4chee
+    spec:
+      initContainers:
+      - name: init
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/service_checker:1.1
+        imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
+        env:
+          - name: WAIT
+            value: "ldap,ldap-service.store.svc,389;postgres-dcm4che,postgres-dcm4che-service.store.svc,5432"
+          - name: DELAY
+            value: "2"
+          - name: TIMEOUT
+            value: "10"
+      containers:
+        - name: dcm4chee-container
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/dcm4chee-arc:5.22.4
+          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          env:
+          - name: ARCHIVE_DEVICE_NAME
+            value: KAAPANA
+          - name: LDAP_URL
+            value: ldap://ldap-service.store.svc:389
+          - name: LDAP_ROOTPASS
+            value: secret
+          - name: POSTGRES_HOST
+            value: postgres-dcm4che-service.store.svc
+          - name: POSTGRES_PORT
+            value: "5432"
+          - name: POSTGRES_DB
+            value: pacsdb
+          - name: POSTGRES_USER
+            value: pacs
+          - name: POSTGRES_PASSWORD
+            value: pacs
+          - name: HTTP_PORT
+            value: "8080"
+          - name: HTTPS_PORT
+            value: "8443"
+          - name: STORAGE_DIR
+            value: /storage/fs1
+          - name: WILDFLY_CHOWN
+            value: /opt/wildfly/standalone /storage
+          - name: WILDFLY_WAIT_FOR
+            value: ldap-service.store.svc:389 postgres-dcm4che-service.store.svc:5432
+          - name: TZ
+            value: Europe/Paris
+          # - name: GELF_LEVEL
+          #   value: INFO
+          # - name: AUTH_SERVER_URL
+          #   value: https://192.168.99.100:8080/auth
+          # - name: REALM_NAME
+          #   value: jipdktk
+          # - name: UI_CLIENT_ID
+          #   value: jip
+          ports:
+            - containerPort: 8080
+            - containerPort: 8443
+            - containerPort: 9990
+            - containerPort: 11112
+            - containerPort: 2575
+          livenessProbe:
+            httpGet:
+              path: /dcm4chee-arc/ui2
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 120
+          resources:
+            requests:
+              memory: 800Mi
+            limits:
+              memory: 1500Mi
+          volumeMounts:
+            - mountPath: /opt/wildfly/standalone
+              name: standalone-data
+            - mountPath: /storage
+              name: storage-data
+      volumes:
+        - name: standalone-data
+          hostPath:
+            path: {{ .Values.global.fast_data_dir }}/dcm4che/server_data
+            type: DirectoryOrCreate
+        - name: storage-data
+          hostPath:
+            path: {{ .Values.global.slow_data_dir }}/dcm4che/dicom_data
+            type: DirectoryOrCreate
+      imagePullSecrets:
+      - name: camic-registry
+---

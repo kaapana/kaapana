@@ -1,0 +1,26 @@
+{
+  "jti": "083adcb1-01f0-4f11-9a20-218a4514130d",
+  "exp": 1565798428,
+  "nbf": 0,
+  "iat": 1565798128,
+  "iss": "https://vm-129-138.cloud.dkfz-heidelberg.de/auth/realms/kaapana",
+  "aud": ["jip", "account"],
+  "sub": "841bf385-0486-4754-8c10-e24b22fa9193",
+  "typ": "Bearer",
+  "azp": "jip",
+  "auth_time": 1565798128,
+  "session_state": "b18764ce-e82c-47ec-80eb-163e886a488e",
+  "acr": "1",
+  "allowed-origins": ["*"],
+  "realm_access": {
+    "roles": ["offline_access", "admin", "uma_authorization", "user"]
+  },
+  "resource_access": {
+    "account": {
+      "roles": ["manage-account", "manage-account-links", "view-profile"]
+    }
+  },
+  "scope": "openid email profile jip",
+  "email_verified": false,
+  "preferred_username": "kaapana"
+}

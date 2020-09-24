@@ -1,0 +1,35 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager-service
+  namespace: {{ .Values.global.monitoring_namespace }}
+
+  labels:
+    app-name: alertmanager
+spec:
+  selector:
+    app-name: alertmanager
+  ports:
+    - port: 9093
+      protocol: TCP
+      targetPort: 9093
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: alertmanager-ingress
+  namespace: {{ .Values.global.monitoring_namespace }}
+
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,kube-system-strip-prefix@kubernetescrd
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+      - path: /alert
+        backend:
+          serviceName: alertmanager-service
+          servicePort: 9093

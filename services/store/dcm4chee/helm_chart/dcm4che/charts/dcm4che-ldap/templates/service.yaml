@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ldap-service
+  namespace: {{ .Values.global.store_namespace }}
+  labels:
+    app-name: ldap
+spec:
+  selector:
+    app-name: ldap
+  ports:
+  - name: ldap-port
+    port: 389

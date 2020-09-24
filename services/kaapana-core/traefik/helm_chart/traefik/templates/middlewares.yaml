@@ -1,0 +1,67 @@
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix
+  namespace: kube-system
+spec:
+  stripPrefix:
+    prefixes:
+    - /traefik
+    - /error-pages
+    - /kubernetes
+    - /elasticsearch
+    - /meta
+    - /alert
+    - /grafana
+    - /orthanc
+    - /jena
+    - /code
+    - /web-ide
+    forceSlash: true
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: errorpages
+  namespace: kube-system
+spec:
+  errors:
+    status:
+      - 400-411
+    query: /{status}
+    service:
+      name: error-pages-service
+      namespace: kube-system
+      port: 5000
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: traefik-redirect
+  namespace: kube-system
+spec:
+  redirectRegex:
+    regex: ^.*/traefik$
+    replacement: /traefik/dashboard/#/
+---
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: remove-auth-headers
+  namespace: kube-system
+spec:
+  headers:
+    customRequestHeaders:
+      X-Auth-Token:
+      X-Auth-Username:
+      X-Auth-Username:
+      X-Auth-Userid:
+      X-Auth-Email:
+      X-Auth-Subject:
+      Authorization:
+      kc-state:
+      cookie:
+---
+    

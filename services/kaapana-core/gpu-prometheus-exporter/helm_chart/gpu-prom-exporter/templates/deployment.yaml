@@ -1,0 +1,32 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: gpu-prom-exporter
+  namespace: kube-system
+  labels:
+    k8s-app: gpu-prom-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: gpu-prom-exporter
+  template:
+    metadata:
+      labels:
+        app-name: gpu-prom-exporter
+    spec:
+      containers:
+      - name: gpu-prom-exporter
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/gpu-prom-exporter:1.0
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        ports:
+        - name: metrics
+          containerPort: 9445
+        resources:
+          requests:
+            memory: 10Mi
+          limits:
+            memory: 20Mi
+      imagePullSecrets:
+      - name: camic-registry

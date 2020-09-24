@@ -1,0 +1,3 @@
+/opt/jboss/keycloak/themes/base/login/messages/messages_en.properties
+/opt/jboss/keycloak/themes/keycloak/login/resources/img/kaapana_login.jpg
+/opt/jboss/keycloak/themes/keycloak/login/resources/css/login.css

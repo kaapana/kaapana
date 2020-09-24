@@ -1,0 +1,43 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: {{ .Values.global.monitoring_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: alertmanager
+  template:
+    metadata:
+      labels:
+        app-name: alertmanager
+    spec:
+      containers:
+      - name: alertmanager
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/alert-manager:v0.21.0
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        command: ["/bin/alertmanager"]
+        args: ["--config.file=/conf/alertmanager.yml","--storage.path=/alertmanager"]
+        ports:
+        - containerPort: 9003
+          protocol: TCP
+        resources:
+          requests:
+            memory: 30Mi
+          limits:
+            memory: 50Mi
+        volumeMounts:
+          - name: alertmanager-config-file
+            mountPath: /conf/alertmanager.yml
+            subPath: alertmanager.yml
+      volumes:
+      - name: alertmanager-config-file
+        configMap:
+          name: alertmanager-config
+          items:
+          - key: alertmanager.yml
+            path: alertmanager.yml
+      imagePullSecrets:
+      - name: camic-registry

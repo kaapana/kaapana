@@ -1,0 +1,44 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana-meta-de
+  namespace: {{ .Values.global.meta_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: kibana-meta
+  template:
+    metadata:
+      labels:
+        app-name: kibana-meta
+    spec:
+      containers:
+        - name: kibana-meta-container          
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/kibana-kaapana:6.8.12-vdev          
+          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          # env:
+          # - name: NODE_OPTIONS
+          #   value: "--max-old-space-size=500"
+          ports:
+            - containerPort: 5601
+          resources:
+            requests:
+              memory: 150Mi
+            limits:
+              memory: 300Mi
+          volumeMounts:
+            - name: kibana-config-file
+              mountPath: /usr/share/kibana/config/kibana.yml
+              subPath: kibana.yml
+      volumes:
+      - name: kibana-config-file
+        configMap:
+          name: kibana-meta-config
+          items:
+          - key: kibana.yml
+            path: kibana.yml
+      imagePullSecrets:
+      - name: camic-registry
+---

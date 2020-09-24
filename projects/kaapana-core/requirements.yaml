@@ -1,0 +1,27 @@
+---
+dependencies:
+  - name: error-pages
+    version: 1.0.1-vdev
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+  - name: louketo-proxy
+    version: 1.0.1-vdev
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+  - name: keycloak
+    version: 11.0.2-vdev
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+  - name: gpu-prom-exporter
+    condition: global.gpu_support
+    version: 1.0.0-vdev
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+  - name: traefik
+    version: 2.2-vdev
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+  - name: kube-dashboard
+    version: 2.0.3-vdev
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+  - name: kube-helm
+    version: 1.0-vdev
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+  # - name: metrics-server
+  #   version: v0.3.7
+  #   repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public

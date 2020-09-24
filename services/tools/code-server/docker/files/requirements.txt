@@ -1,0 +1,10 @@
+pathlib
+pylint
+elasticsearch
+pydicom
+dicomweb-client
+numpy
+kubernetes==11.0.0
+minio
+pint
+timeloop

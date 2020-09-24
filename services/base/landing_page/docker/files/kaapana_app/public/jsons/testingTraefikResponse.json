@@ -1,0 +1,548 @@
+[
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "flow-airflow-service-airflow-http",
+        "rule": "PathPrefix(`/flow`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "airflow-ingress-ip-flow-flow@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd",
+            "kube-system-strip-prefix@kubernetescrd"
+        ],
+        "service": "monitoring-alertmanager-service-9093",
+        "rule": "PathPrefix(`/alert`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "alertmanager-ingress-monitoring-alert@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "traefik"
+        ],
+        "service": "api@internal",
+        "rule": "PathPrefix(`/api`)",
+        "priority": 2147483646,
+        "status": "enabled",
+        "using": [
+            "traefik"
+        ],
+        "name": "api@internal",
+        "provider": "internal"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "flow-ctp-service-80",
+        "rule": "PathPrefix(`/ctp`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "ctp-ingress-ip-flow-ctp@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "flow-ctp-service-7777",
+        "rule": "PathPrefix(`/dicomweb`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "ctp-ingress-ip-flow-dicomweb@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "traefik"
+        ],
+        "middlewares": [
+            "dashboard_redirect@internal",
+            "dashboard_stripprefix@internal"
+        ],
+        "service": "dashboard@internal",
+        "rule": "PathPrefix(`/`)",
+        "priority": 2147483645,
+        "status": "enabled",
+        "using": [
+            "traefik"
+        ],
+        "name": "dashboard@internal",
+        "provider": "internal"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "store-rewrite-pacs@kubernetescrd",
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "store-dcm4chee-service-dcm4che-http",
+        "rule": "PathPrefix(`/pacs`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "dcm4chee-ing-ip-rewrite-store-pacs@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "store-dcm4chee-service-dcm4che-http",
+        "rule": "PathPrefix(`/dcm4chee-arc`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "dcm4chee-ingress-ip-store-dcm4chee-arc@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd",
+            "kube-system-strip-prefix@kubernetescrd"
+        ],
+        "service": "meta-elastic-meta-service-elastic-rest",
+        "rule": "PathPrefix(`/elasticsearch`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "elasticsearch-ingress-meta-elasticsearch@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd",
+            "kube-system-strip-prefix@kubernetescrd"
+        ],
+        "service": "kube-system-error-pages-service-error-http",
+        "rule": "PathPrefix(`/error-pages`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "error-pages-ingress-ip-kube-system-error-pages@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd",
+            "kube-system-strip-prefix@kubernetescrd",
+            "kube-system-remove-auth-headers@kubernetescrd"
+        ],
+        "service": "monitoring-grafana-3000",
+        "rule": "PathPrefix(`/grafana`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "grafna-ingress-monitoring-grafana@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "web"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "kube-system-keycloak-service-kc-http-port",
+        "rule": "PathPrefix(`/auth`)",
+        "status": "enabled",
+        "using": [
+            "web"
+        ],
+        "name": "keycloak-ingress-ip-kube-system-auth@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd",
+            "kube-system-strip-prefix@kubernetescrd"
+        ],
+        "service": "meta-kibana-meta-service-5601",
+        "rule": "PathPrefix(`/meta`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "kibana-meta-ingress-ip-meta-meta@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd",
+            "kube-system-kube-redirect@kubernetescrd",
+            "kube-system-strip-prefix@kubernetescrd"
+        ],
+        "service": "kube-system-kubernetes-dashboard-9090",
+        "rule": "PathPrefix(`/kubernetes`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "kubedashboard-ingress-ip-kube-system-kubernetes@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "base-landingpage-service-log-http-port",
+        "rule": "PathPrefix(`/`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "landingp-ing-ip-redirect-base@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "store-minio-service-9000",
+        "rule": "PathPrefix(`/downloads`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "minio-ingress-store-downloads@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "store-minio-service-9000",
+        "rule": "PathPrefix(`/minio`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "minio-ingress-store-minio@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "store-minio-service-9000",
+        "rule": "PathPrefix(`/uploads`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "minio-ingress-store-uploads@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "store-ohif-service-80",
+        "rule": "PathPrefix(`/ohif`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "ohif-ingress-ip-store-ohif@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "monitoring-prometheus-service-9090",
+        "rule": "PathPrefix(`/prometheus`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "prometheus-ingress-monitoring-prometheus@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "traefik"
+        ],
+        "service": "prometheus@internal",
+        "rule": "PathPrefix(`/metrics`)",
+        "priority": 2147483647,
+        "status": "enabled",
+        "using": [
+            "traefik"
+        ],
+        "name": "prometheus@internal",
+        "provider": "internal"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "default-mitk-service-pt-mitk-http",
+        "rule": "PathPrefix(`/mitk`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "pt-mitk-ingress-ip-default-mitk@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "dicom",
+            "web"
+        ],
+        "service": "flow-jobs-qpsma-20090908420344075771a68dc6-4203440757-http",
+        "rule": "PathPrefix(`/dynamic-user-workflow-09-Sep-2020-08-42-50`)",
+        "status": "enabled",
+        "using": [
+            "dicom",
+            "web"
+        ],
+        "name": "qpsma-20090908420344075771ab5720-flow-jobs-dynamic-user-workflow-09-Sep-2020-08-42-50@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd",
+            "kube-system-traefik-redirect@kubernetescrd",
+            "kube-system-strip-prefix@kubernetescrd"
+        ],
+        "service": "kube-system-traefik-tr-admin",
+        "rule": "PathPrefix(`/traefik`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "traefik-ingress-kube-system-traefik@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "kube-system-traefik-tr-admin",
+        "rule": "PathPrefix(`/api`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "traefik-web-api-ip-kube-system-api@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "kube-system-traefik-tr-admin",
+        "rule": "PathPrefix(`/health`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "traefik-web-api-ip-kube-system-health@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd",
+            "base-code-redirect@kubernetescrd",
+            "kube-system-strip-prefix@kubernetescrd"
+        ],
+        "service": "base-vscode-service-vscode-http",
+        "rule": "PathPrefix(`/code`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "vscode-ingress-base-code@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "web"
+        ],
+        "middlewares": [
+            "redirect-web-to-websecure@internal"
+        ],
+        "service": "noop@internal",
+        "rule": "HostRegexp(`{host:.+}`)",
+        "priority": 2147483647,
+        "status": "enabled",
+        "using": [
+            "web"
+        ],
+        "name": "web-to-websecure@internal",
+        "provider": "internal"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "kube-system-keycloak-service-kc-http-port",
+        "rule": "PathPrefix(`/auth`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "websecure-keycloak-ingress-ip-kube-system-auth@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "service": "flow-jobs-qpsma-20090908420344075771a68dc6-4203440757-http",
+        "rule": "PathPrefix(`/dynamic-user-workflow-09-Sep-2020-08-42-50`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "websecure-qpsma-20090908420344075771ab5720-flow-jobs-dynamic-user-workflow-09-Sep-2020-08-42-50@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "flow-workflow-fileserver-service-workflow-http",
+        "rule": "PathPrefix(`/page-style`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "workflow-fileserver-ingress-ip-flow-page-style@kubernetes",
+        "provider": "kubernetes"
+    },
+    {
+        "entryPoints": [
+            "websecure"
+        ],
+        "middlewares": [
+            "kube-system-errorpages@kubernetescrd"
+        ],
+        "service": "flow-workflow-fileserver-service-workflow-http",
+        "rule": "PathPrefix(`/workflowdata`)",
+        "tls": {},
+        "status": "enabled",
+        "using": [
+            "websecure"
+        ],
+        "name": "workflow-fileserver-ingress-ip-flow-workflowdata@kubernetes",
+        "provider": "kubernetes"
+    }
+]

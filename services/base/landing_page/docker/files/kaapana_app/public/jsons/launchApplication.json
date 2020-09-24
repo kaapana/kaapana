@@ -1,0 +1,54 @@
+{
+    "Tensorboard in Minio": {
+        "conf": {
+            "image": "dktk-jip-registry.dkfz.de/kaapana/tensorboard:1.0-vdev",
+            "port": 6006,
+            "ingress_path": "/tensorboard",
+            "volume_mounts": [
+                {
+                    "name": "tensorboarddata",
+                    "mount_path": "/data",
+                    "sub_path": null,
+                    "read_only": false
+                }
+            ],
+            "volumes": [
+                {
+                    "name": "tensorboarddata",
+                    "configs": {
+                        "hostPath": {
+                            "type": "DirectoryOrCreate",
+                            "path": "/home/kaapana/minio/"
+                        }
+                    }
+                }
+            ]
+        }
+    },
+    "Jupyterlab in Minio": {
+        "conf": {
+            "image": "dktk-jip-registry.dkfz.de/kaapana/jupyterlab:1.0-vdev",
+            "port": 8888,
+            "ingress_path": "/jupyterlaab",
+            "volume_mounts": [
+                {
+                    "name": "jupyterlabdata",
+                    "mount_path": "/appdata",
+                    "sub_path": null,
+                    "read_only": false
+                }
+            ],
+            "volumes": [
+                {
+                    "name": "jupyterlabdata",
+                    "configs": {
+                        "hostPath": {
+                            "type": "DirectoryOrCreate",
+                            "path": "/home/kaapana/minio/"
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}

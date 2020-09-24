@@ -1,0 +1,40 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-init
+  namespace: {{ .Values.global.store_namespace }}
+spec:
+  template:
+    metadata:
+      name: minio-init
+    spec:
+      initContainers:
+      - name: init
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/service_checker:1.1
+        imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
+        env:
+          - name: WAIT
+            value: "minio,minio-service.store.svc,9000;airflow,airflow-service.flow.svc,8080"
+          - name: DELAY
+            value: "2"
+          - name: TIMEOUT
+            value: "10"
+      containers:
+      - name: minio-init
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/minio-init:1.0.1-vdev
+        imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
+        resources:
+          requests:
+            memory: 150Mi
+          limits:
+            memory: 150Mi
+        env:
+          - name: MINIO_ACCESS_KEY
+            value: {{ .Values.global.credentials.minio_username }}
+          - name: MINIO_SECRET_KEY
+            value: {{ .Values.global.credentials.minio_password }}
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: camic-registry
+  backoffLimit: 0

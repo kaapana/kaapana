@@ -1,0 +1,94 @@
+---
+apiVersion: v1
+data:
+  config.xml: |+
+    <Configuration>
+        <Server
+            maxThreads="20"
+            port="1050"/>
+        <Pipeline name="Pipeline">
+            <DicomImportService
+                calledAETTag="00120020"
+                callingAETTag="00120010"
+                class="org.rsna.ctp.stdstages.DicomImportService"
+                logConnections="rejected"
+                name="DicomImportService"
+                port="11112"
+                quarantine="/data/incoming/.quarantines/DicomImportService"
+                root="/data/incoming/.roots/DicomImportService"/>
+        <DicomSTOWRSExportService
+            name="DicomSTOWRSExportService"
+            id="DicomSTOWRSExportService"
+            class="org.rsna.ctp.stdstages.DicomSTOWRSExportService"
+            quarantine="/data/incoming/.quarantines/DicomSTOWRSExportService"
+            root="/data/incoming/.roots/DicomSTOWRSExportService"
+            url="http://dcm4chee-service.store.svc:8080/dcm4chee-arc/aets/KAAPANA/rs/studies"
+            includeContentDispositionHeader="no"
+            logDuplicates="no"
+            auditLogID="id"
+            auditLogTags="PatientID;SOPInstanceUID;StudyInstanceUID;InstanceNumber" />
+        <KaapanaDagTrigger
+            class="org.rsna.ctp.dkfz.KaapanaDagTrigger"
+            condition_tag="0008103E"
+            dagnames="process_incoming_dcm"
+            debug_log="no"
+            triggerurl="http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger"
+            name="MetaExtraction"
+            acceptDuplicates="yes"
+            defaultString=""
+            logDuplicates="no"
+            quarantine="/data/incoming/.quarantines/KaapanaDagTrigger"
+            root="/data/incoming"
+            setStandardExtensions="yes"
+            structure="(0020,000E)"
+            unchangedCounter = "2"
+            whitespaceReplacement="_"/>
+        </Pipeline>
+        <Pipeline name="DicomSTOWRSImportService">
+            <HttpImportService
+                name="DicomSTOWRSLocalImportService"
+                id="DicomSTOWRSLocalImportService"
+                class="org.rsna.ctp.stdstages.DicomSTOWRSImportService"
+                port="7777"
+                ssl="no"
+                requireAuthentication="no"
+                logConnections="no"
+                logDuplicates="no"
+                quarantine="/data/incoming/.quarantines/HttpImportService"
+                root="/data/incoming/.roots/HttpImportService"/>
+        <DicomSTOWRSExportService
+            name="DicomSTOWRSExportService"
+            id="DicomSTOWRSExportService"
+            class="org.rsna.ctp.stdstages.DicomSTOWRSExportService"
+            quarantine="/data/incoming/.quarantines/DicomSTOWRSExportService"
+            root="/data/incoming/.roots/DicomSTOWRSExportService"
+            url="http://dcm4chee-service.store.svc:8080/dcm4chee-arc/aets/KAAPANA/rs/studies"
+            includeContentDispositionHeader="no"
+            logDuplicates="no"
+            auditLogID="id"
+            auditLogTags="PatientID;SOPInstanceUID;StudyInstanceUID;InstanceNumber" />
+        <KaapanaDagTrigger
+            class="org.rsna.ctp.dkfz.KaapanaDagTrigger"
+            condition_tag="0008103E"
+            dagnames="process_incoming_dcm"
+            debug_log="no"
+            triggerurl="http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger"
+            name="MetaExtraction"
+            acceptDuplicates="yes"
+            defaultString=""
+            logDuplicates="yes"
+            quarantine="/data/incoming/.quarantines/KaapanaDagTrigger"
+            root="/data/incoming"
+            setStandardExtensions="yes"
+            structure="(0020,000E)"
+            unchangedCounter = "2"
+            fix_aetitle="DICOM_WEB"
+            whitespaceReplacement="_"/>
+        </Pipeline>
+    </Configuration>
+kind: ConfigMap
+metadata:
+  name: ctp-config
+  namespace: flow
+#   namespace: {{ .Values.global.flow_namespace }}
+

@@ -1,0 +1,8 @@
+---
+dependencies:
+  - name: airflow
+    version: 1.10.12-vdev
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+  - name: ctp
+    version: 1.0.1-vdev
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public

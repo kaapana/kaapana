@@ -1,0 +1,23 @@
+version: 1
+dn: dcmWebAppName=KAAPANA,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
+changetype: modify
+add: dcmProperty
+dcmProperty: IID_PATIENT_URL=/ohif
+-
+
+dn: dcmWebAppName=KAAPANA,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
+changetype: modify
+add: dcmProperty
+dcmProperty: IID_STUDY_URL=/ohif/IHEInvokeImageDisplay?requestType=STUDY&studyUID={{studyUID}}
+
+dn: dcmWebAppName=KAAPANA,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
+changetype: modify
+add: dcmProperty
+dcmProperty: IID_URL_TARGET=_self
+
+version: 1
+dn: dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
+changetype: modify
+replace: dcmQidoMaxNumberOfResults
+dcmQidoMaxNumberOfResults: 0
+-

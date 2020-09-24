@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" type="text/css" href="/static/glitch.css" />
+    <!-- <link rel="stylesheet" type="text/css" href="/error-pages/static/glitch.css" /> -->
+    <title>Error 404 - {host}</title>
+    <style>
+        html {
+            background-color: #e74c3c;
+        }
+
+        body {
+            color: #fefefe;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="over404">
+        <div class="darkOverlay"></div>
+        <header>
+            <h1 class="glitch" data-text="404">404</h1>
+        </header>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,4 @@
+{
+    "title": "meta-index",
+    "fieldFormatMap": "{\"0020000D StudyInstanceUID_keyword.keyword\":{\"id\":\"url\",\"params\":{\"urlTemplate\":\"TESThttps://vm-130-66.cloud.dkfz-heidelberg.de/ohif/IHEInvokeImageDisplay?requestType=STUDY&studyUID={{value}}\"}}}"
+}

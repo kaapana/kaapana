@@ -1,0 +1,82 @@
+2D:
+
+"Task006_Lung" -> dcmqi not working (probably no segmentation)
+"Task017_AbdominalOrganSegmentation" -> OOM
+
+"Task008_HepaticVessel" -> ok
+"Task009_Spleen" -> ok
+"Task048_KiTS_clean" -> ok
+"Task029_LITS" -> ok
+"Task003_Liver"  -> ok
+"Task007_Pancreas" -> ok
+
+3d_lowres:    
+
+"Task006_Lung" -> dcmqi not working (probably no segmentation)
+"Task017_AbdominalOrganSegmentation" -> nnunet ok -> dcmqi: std::bad_alloc
+
+"Task003_Liver"  -> ok
+"Task007_Pancreas" -> ok
+"Task008_HepaticVessel" -> ok
+"Task009_Spleen" -> ok
+"Task029_LITS" -> ok
+"Task048_KiTS_clean" -> ok
+
+3d_fullres:
+
+"Task006_Lung" -> dcmqi not working
+"Task017_AbdominalOrganSegmentation" -> nnunet ok -> dcmqi: std::bad_alloc
+
+"Task029_LITS" -> ok
+"Task048_KiTS_clean" -> ok
+"Task003_Liver"  -> ok
+"Task007_Pancreas" -> ok
+"Task008_HepaticVessel" -> ok
+"Task009_Spleen" -> ok
+
+3d_cascade_fullres  
+
+"Task007_Pancreas"   -> nnunet ok?   -> dcmqi not working not alloc
+"Task048_KiTS_clean" -> nnunet OOM
+"Task017_AbdominalOrganSegmentation" -> nnunet OOM 
+
+
+"Task029_LITS"   -> nnunet bug 
+"Task003_Liver"  -> nnunet bug
+LOG: 
+INFO - b'data shape: (3, 654, 651, 651)\n'
+INFO - b'patch size: [128 128 128]\n'
+INFO - b'steps (x, y, and z): [[0, 58, 117, 175, 234, 292, 351, 409, 468, 526], [0, 58, 116, 174, 232, 291, 349, 407, 465, 523], [0, 58, 116, 174, 232, 291, 349, 407, 465, 523]]\n'
+INFO - b'number of tiles: 1000\n'
+INFO - b'using precomputed Gaussian\n'
+INFO - b'prediction done\n'
+INFO - b'aggregating softmax\n'
+INFO - b'obtaining segmentation map\n'
+INFO - b'applying transpose_backward\n'
+INFO - b'initializing segmentation export\n'
+INFO - b'done\n'
+INFO - b'inference done. Now waiting for the segmentation export to finish...\n'
+INFO - b'Traceback (most recent call last):\n'
+INFO - b'  File "/opt/conda/bin/nnUNet_predict", line 8, in <module>\n'
+INFO - b'    sys.exit(main())\n'
+INFO - b'  File "/opt/conda/lib/python3.7/site-packages/nnunet/inference/predict_simple.py", line 223, in main\n'
+INFO - b'    step_size=step_size, checkpoint_name=args.chk)\n'
+INFO - b'  File "/opt/conda/lib/python3.7/site-packages/nnunet/inference/predict.py", line 640, in predict_from_folder\n'
+INFO - b'    segmentation_export_kwargs=segmentation_export_kwargs)\n'
+INFO - b'  File "/opt/conda/lib/python3.7/site-packages/nnunet/inference/predict.py", line 395, in predict_cases_fast\n'
+INFO - b'    _ = [i.get() for i in results]\n'
+INFO - b'  File "/opt/conda/lib/python3.7/site-packages/nnunet/inference/predict.py", line 395, in <listcomp>\n'
+INFO - b'    _ = [i.get() for i in results]\n'
+INFO - b'  File "/opt/conda/lib/python3.7/multiprocessing/pool.py", line 657, in get\n'
+INFO - b'    raise self._value\n'
+INFO - b'  File "/opt/conda/lib/python3.7/multiprocessing/pool.py", line 431, in _handle_tasks\n'
+INFO - b'    put(task)\n'
+INFO - b'  File "/opt/conda/lib/python3.7/multiprocessing/connection.py", line 206, in send\n'
+INFO - b'    self._send_bytes(_ForkingPickler.dumps(obj))\n'
+INFO - b'  File "/opt/conda/lib/python3.7/multiprocessing/connection.py", line 393, in _send_bytes\n'
+INFO - b'    header = struct.pack("!i", n)\n'
+INFO - b"struct.error: 'i' format requires -2147483648 <= number <= 2147483647\n"
+
+"Task006_Lung" -> ok
+"Task008_HepaticVessel" -> ok
+"Task009_Spleen" -> ok

@@ -1,0 +1,173 @@
+{
+    "Task001_BrainTumour": {
+        "description": "Segmentation targets are edema, enhancing tumor and necrosis",
+        "body_part": "head",
+        "modalities": "MRI",
+        "protocols": "FLAIR;T1;T1-contrast-agent;T2",
+        "input_mode": "all",
+        "organs": "tumor-edema@brain;tumor-enhancing@brain;tumor-necrosis@brain",
+        "link": "http://medicaldecathlon.com/"
+    },
+    "Task002_Heart": {
+        "description": "Segmentation target is the left atrium,",
+        "body_part": "-",
+        "modalities": "MRI",
+        "protocols": "-",
+        "input_mode": "all",
+        "organs": "left-atrium@heart",
+        "link": "http://medicaldecathlon.com/"
+    },
+    "Task003_Liver": {
+        "description": "Segmentation targets are liver and tumors",
+        "body_part": "abdomen",
+        "modalities": "CT",
+        "protocols": "-",
+        "input_mode": "all",
+        "organs": "liver;tumor@liver",
+        "link": "http://medicaldecathlon.com/"
+    },
+    "Task004_Hippocampus": {
+        "description": "Segmentation targets posterior and anterior parts of the hippocampus",
+        "body_part": "-",
+        "modalities": "MRI",
+        "protocols": "-",
+        "input_mode": "all",
+        "organs": "hippocampus@brain",
+        "link": "http://medicaldecathlon.com/"
+    },
+    "Task005_Prostate": {
+        "description": "Segmentation targets are peripheral and central zone",
+        "body_part": "-",
+        "modalities": "MRI",
+        "protocols": "T2;ADC",
+        "input_mode": "all",
+        "organs": "peripheral@prostate;central-zone@prostate",
+        "link": "http://medicaldecathlon.com/"
+    },
+    "Task006_Lung": {
+        "description": "Segmentation target are lung nodules",
+        "body_part": "abdomen",
+        "modalities": "CT",
+        "protocols": "-",
+        "input_mode": "all",
+        "organs": "tumor@lung",
+        "link": "http://medicaldecathlon.com/"
+    },
+    "Task007_Pancreas": {
+        "description": "Segmentation targets are pancras and pancreas tumor",
+        "body_part": "abdomen",
+        "modalities": "CT",
+        "protocols": "-",
+        "input_mode": "all",
+        "organs": "pancreas,tumor@pancreas",
+        "link": "http://medicaldecathlon.com/"
+    },
+    "Task008_HepaticVessel": {
+        "description": "Segmentation targets are hepatic vesels and liver tumors",
+        "body_part": "abdomen",
+        "modalities": "CT",
+        "protocols": "-",
+        "input_mode": "all",
+        "organs": "vessels@liver;tumor@liver",
+        "link": "http://medicaldecathlon.com/"
+    },
+    "Task009_Spleen": {
+        "description": "Segmentation target is the spleen",
+        "body_part": "abdomen",
+        "modalities": "CT",
+        "protocols": "-",
+        "input_mode": "all",
+        "organs": "spleen",
+        "link": "http://medicaldecathlon.com/"
+    },
+    "Task010_Colon": {
+        "description": "Segmentation target are colon caner primaries",
+        "body_part": "-",
+        "modalities": "CT",
+        "protocols": "-",
+        "input_mode": "all",
+        "organs": "caner-primaries@colon",
+        "link": "http://medicaldecathlon.com/"
+    },
+    "Task017_AbdominalOrganSegmentation": {
+        "description": "Segmentation targets are thirteen different abdominal organss",
+        "body_part": "abdomen",
+        "modalities": "CT",
+        "protocols": "-",
+        "input_mode": "all",
+        "organs": "spleen;right@kidney;left@kidney;gallbladder;esophagus;liver;stomach;aorta;inferior-vena-cava;portal-vein;splenic-vein;pancreas;right@adrenal-gland;left@adrenal-gland",
+        "link": "www.synapse.org/#!Synapse:syn3193805/wiki/217754"
+    },
+    "Task024_Promise": {
+        "description": "Segmentation target is the prostate",
+        "body_part": "-",
+        "modalities": "MRI",
+        "protocols": "T2",
+        "input_mode": "all",
+        "organs": "prostate",
+        "link": "promise12.grand-challenge.org"
+    },
+    "Task027_ACDC": {
+        "description": "Segmentation targets are right ventricle, left ventricular cavity and left myocardium",
+        "body_part": "-",
+        "modalities": "MRI",
+        "protocols": "cine-MRI",
+        "input_mode": "all",
+        "organs": "right-ventricle@heart;left-ventricular-cavity@heart;myocardium-left@heart",
+        "link": "acdc.creatis.insa-lyon.fr"
+    },
+    "Task029_LITS": {
+        "description": "Segmentation targets are liver and liver tumors",
+        "body_part": "abdomen",
+        "modalities": "CT",
+        "protocols": "-",
+        "input_mode": "all",
+        "organs": "liver;tumor@liver",
+        "link": "competitions.codalab.org/competitions/17094"
+    },
+    "Task035_ISBILesionSegmentation": {
+        "description": "Segmentation target is MS lesions",
+        "body_part": "-",
+        "modalities": "MRI",
+        "protocols": "FLAIR;MPRAGE;proton-density;T2",
+        "input_mode": "all",
+        "organs": "ms-lesions@brain",
+        "link": "smart-stats-tools.org/lesion-challenge"
+    },
+    "Task048_KiTS_clean": {
+        "description": "Kidney and Kidney Tumor Segmentation Challenge.",
+        "body_part": "abdomen",
+        "modalities": "CT",
+        "protocols": "-",
+        "input_mode": "any",
+        "organs": "kidney;tumors@kidney",
+        "link": "https://kits19.grand-challenge.org/"
+    },
+    "Task038_CHAOS_Task_3_5_Variant2": {
+        "description": "Segmentation targets are left and right kidney, liver, spleen",
+        "body_part": "-",
+        "modalities": "MRI",
+        "protocols": "T1 in-phase;T1 out-phase;T2",
+        "input_mode": "any",
+        "organs": "kidney-left;kidney-right;liver;spleen",
+        "link": "chaos.grand-challenge.org"
+    },
+    "Task055_SegTHOR": {
+        "description": "Segmentation targets are aorta, esophagus, heart and trachea",
+        "body_part": "-",
+        "modalities": "CT",
+        "protocols": "-",
+        "input_mode": "all",
+        "organs": "aorta;esophagus;heart;trachea",
+        "link": "competitions.codalab.org/competitions/21145"
+    },
+    "Task061_CREMI": {
+        "description": "Segmentation target is synaptic clefts",
+        "body_part": "-",
+        "modalities": "-",
+        "protocols": "serial section transmission electron microscopy of neural tissue",
+        "input_mode": "all",
+        "organs": "-",
+        "link": "cremi.org"
+    }
+}

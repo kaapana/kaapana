@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" type="text/css" href="/error-pages/static/hack.css" />
+    <title>Error 404 - {{ host }}</title>
+</head>
+
+<body>
+    <div class="overlay"></div>
+    <div class="terminal">
+        <h1>Error
+            <span class="errorcode">404</span>
+        </h1>
+        <p class="output">The page you are looking for might have been removed, had its name changed or is temporarily unavailable</ü>
+            <p class="output">Please try
+                <a href="/">this link</a>
+            </p>
+            <p class="output">Good luck</p>
+    </div>
+</body>
+
+</html>

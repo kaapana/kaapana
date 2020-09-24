@@ -1,0 +1,49 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ctp-service
+  namespace: {{ .Values.global.flow_namespace }}
+  labels:
+    app-name: ctp
+spec:
+  selector:
+    app-name: ctp
+  type: NodePort
+  externalTrafficPolicy: Local
+  ports:
+  - name: ctp-port
+    port: 80
+    targetPort: 1050
+    protocol: TCP
+  - name: ctp-dcm-port
+    port: 11112
+    nodePort: {{ .Values.global.dicom_port }}
+    targetPort: 11112
+  - name: ctp-http-port
+    port: {{ .Values.global.dicom_web_port }}
+    targetPort: 7777
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: ctp-ingress-ip
+  namespace: {{ .Values.global.flow_namespace }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    # traefik.frontend.rule.type: PathPrefixStrip
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /ctp
+        backend:
+          serviceName: ctp-service
+          servicePort: 80
+      - path: /dicomweb
+        backend:
+          serviceName: ctp-service
+          servicePort: {{ .Values.global.dicom_web_port }}

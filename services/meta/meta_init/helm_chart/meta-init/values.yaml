@@ -1,0 +1,7 @@
+---
+global:
+    registry_url: ""
+    registry_project: ""
+    pull_policy_jobs: "Always"
+    meta_namespace: "meta"
+    hostname: ""

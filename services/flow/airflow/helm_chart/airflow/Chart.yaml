@@ -1,0 +1,6 @@
+---
+apiVersion: v1
+appVersion: "1.10.12-vdev"
+description: Airflow chart v1.10.12
+name: airflow
+version: 1.10.12-vdev

@@ -1,0 +1,21 @@
+node_modules
+build
+tmpcharts
+__pycache__
+.vscode
+.DS_Store
+*vars.yaml
+*.idea*
+*.work*
+*.iml
+*.ipr
+*.iws
+*.vagrant*
+*.spyproject
+*.pyc
+*.lock
+*.tgz
+## Linux
+*~
+history
+

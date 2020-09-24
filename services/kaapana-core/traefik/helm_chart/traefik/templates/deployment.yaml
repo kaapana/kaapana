@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: traefik-ingress-controller
+  namespace: kube-system
+
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: traefik
+  namespace: kube-system
+  labels:
+    app: traefik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: traefik
+  template:
+    metadata:
+      labels:
+        app: traefik
+    spec:
+      serviceAccountName: traefik-ingress-controller
+      containers:
+        - name: traefik
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/traefik:v2.2
+
+          ports:
+            - name: web
+              containerPort: 80
+            - name: websecure
+              containerPort: 443
+            - name: admin
+              containerPort: 8080
+          args:
+            - '--providers.kubernetesingress=true'
+            - '--providers.kubernetescrd=true'
+            - '--providers.file.filename=/config/conf.toml'
+            - '--providers.file.watch=true'
+            - '--entrypoints.web.address=:80'
+            - '--entrypoints.web.http.redirections.entryPoint.to=websecure'
+            - '--entrypoints.web.http.redirections.entryPoint.scheme=https'
+            - '--entrypoints.websecure.address=:443'
+            - '--entryPoints.websecure.http.tls=true'
+            - '--entrypoints.dicom.Address=:11112'
+            # - '--serversTransport.insecureSkipVerify=true'
+            - '--api=true'
+            - '--api.dashboard=true'
+            - '--api.insecure=true'
+            - '--api.debug=false'
+            - '--log.level=WARN'
+            - '--log.filePath=/log/traefik.log'
+            - '--accesslog=true'
+            - '--accesslog.filepath=/log/access.log'
+            - '--log.format=json'
+            - '--metrics=true'
+            - '--metrics.prometheus=true'
+          resources:
+            requests:
+              memory: 30Mi
+            limits:
+              memory: 60Mi
+          volumeMounts:
+            - mountPath: /config/conf.toml
+              name: traefik-config-file
+              subPath: conf.toml
+            - mountPath: /log
+              name: traefiklog
+            - mountPath: /ssl
+              name: ssl
+        #   livenessProbe:
+        #     tcpSocket:
+        #       port: 443
+        #     initialDelaySeconds: 15
+        #     periodSeconds: 120
+      volumes:
+        - name: traefiklog
+          hostPath:
+            # path: /home/kaapana/traefik
+            path: {{ .Values.global.fast_data_dir }}/traefik
+            type: DirectoryOrCreate
+        - name: traefik-config-file
+          configMap:
+            name: traefik-config
+            items:
+            - key: conf.toml
+              path: conf.toml
+        - name: ssl
+          secret:
+            secretName: certificate
+      imagePullSecrets:
+        - name: camic-registry
+---

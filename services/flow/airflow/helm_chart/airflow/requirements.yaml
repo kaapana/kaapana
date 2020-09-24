@@ -1,0 +1,13 @@
+---
+dependencies:
+  - name: kaapana-plugin
+    version: 0.8-vdev
+    # condition: Release.IsInstall
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+  # - name: image-fetcher-cronjob
+  #   version: 1.1-vdev
+  #   condition: Release.IsInstall
+  #   repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+  - name: image-fetcher-job
+    version: 1.1-vdev
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public

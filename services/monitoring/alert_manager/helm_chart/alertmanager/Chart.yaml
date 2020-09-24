@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+appVersion: "v0.21.0"
+description: Chart for Alertmanager
+name: alertmanager
+version: v0.21.0
+

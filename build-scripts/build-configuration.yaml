@@ -1,0 +1,10 @@
+http_proxy: ""
+default_container_registry: "jonasscherer"
+default_container_project: ""
+# default_registry: "dktk-jip-registry.dkfz.de"
+# default_project: "kaapana"
+default_chart_registry: "https://dktk-jip-registry.dkfz.de/chartrepo/"
+default_chart_project: "kaapana-public"
+log_level: "WARN"
+build_containers: false
+build_charts: true

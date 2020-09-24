@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+{{ if .Values.global.traefik_nodeport }}
+  type: NodePort
+  ports:
+    - name: tr-admin
+      port: 8080
+      nodePort: 8080
+      protocol: TCP
+    - name: traefik-http
+      port: 80
+      nodePort: 80
+      protocol: TCP
+    - name: traefik-https
+      port: 443
+      nodePort: 443
+      protocol: TCP
+{{ else }}
+{{ if .Values.global.dev_ports }}
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 8080
+      nodePort: 8080
+      name: tr-admin
+    - protocol: TCP
+      port: 80
+      nodePort: 8000
+      name: traefik-http
+    - protocol: TCP
+      port: 443
+      nodePort: 8443
+      name: traefik-https
+{{ else }}
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 8080
+      name: tr-admin
+    - protocol: TCP
+      port: 80
+      name: traefik-http
+    - protocol: TCP
+      port: 443
+      name: traefik-https
+{{ end }}
+{{ end }}
+  selector:
+    app: traefik
+---

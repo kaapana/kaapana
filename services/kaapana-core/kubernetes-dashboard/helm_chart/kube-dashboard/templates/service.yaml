@@ -1,0 +1,48 @@
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    k8s-app: kubernetes-dashboard
+  name: kubernetes-dashboard
+  namespace: kube-system
+spec:
+  selector:
+    app-name: kubernetes-dashboard
+  type: NodePort
+  ports:
+    - port: 9090
+      nodePort: 9090
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: kube-redirect
+  namespace: kube-system
+spec:
+  redirectRegex:
+    regex: ^.*/kubernetes([^\/]*)$
+    replacement: /kubernetes/#/overview?namespace=base
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: kubedashboard-ingress-ip
+  namespace: kube-system
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,kube-system-kube-redirect@kubernetescrd,kube-system-strip-prefix@kubernetescrd
+    ingress.kubernetes.io/auth-remove-header: 'true'
+    ingress.kubernetes.io/custom-request-headers: "Authorization:||cookie:"
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /kubernetes
+        backend:
+          serviceName: kubernetes-dashboard
+          servicePort: 9090
+---

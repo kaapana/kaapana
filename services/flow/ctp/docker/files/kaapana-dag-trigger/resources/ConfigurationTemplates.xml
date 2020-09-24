@@ -1,0 +1,26 @@
+<TemplateDefinitions>
+
+	<Components>
+
+		<ExportService>
+			<attr name="name" required="yes" default="kaapanaDirectoryStoreAndHttpDagTrigger"/>
+			<attr name="class" required="yes" default="org.rsna.ctp.dkfz.kaapanaDirectoryStoreAndHttpDagTrigger" editable="no"/>
+			<attr name="root" required="yes" default="roots/kaapanaDirectoryStoreAndHttpDagTrigger"/>
+			<attr name="enableExport" required="no" default="yes" options="yes|no"/>
+			<attr name="airflow_username" required="no" default=""/>
+			<attr name="airflow_password" required="no" default=""/>
+			<attr name="triggerurl" required="yes" default="http://airflow-service.flow.svc.cluster.local:8080/flow/kaapana/api/trigger">
+				<helptext>URL of the destination airflow service (http://airflow-service.flow.svc.cluster.local:8080/flow/kaapana/api/trigger)</helptext>
+			</attr>
+			<attr name="dagnames" required="yes" default="dagname">
+				<helptext>Dag_id(s) of the workflows that should be triggered (comma separated)</helptext>
+			</attr>
+			<attr name="export_all_slices" required="yes" default="no" options="yes|no"/>
+			<attr name="debug_log" required="yes" default="no" options="yes|no"/>
+			<attr name="fix_aetitle" required="no" defualt=""/>
+			<attr name="remove_tags" required="no" default="no" options="yes|no"/>
+			<attr name="unchangedCounter" requiered="no" default="2"/>
+				<helptext>The airflow dag is triggered after about 2sec*unchangeCount</helptext>
+		</ExportService>		
+	</Components>
+</TemplateDefinitions>

@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-dcm4che-service
+  namespace: {{ .Values.global.store_namespace }}
+  labels:
+    app-name: postgres-dcm4che
+spec:
+  selector:
+    app-name: postgres-dcm4che
+  ports:
+  - name: postgres-dcm4che-port
+    port: 5432
+    targetPort: 5432
+    protocol: TCP
+---

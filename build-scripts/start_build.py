@@ -160,17 +160,17 @@ if build_containers:
             for log in docker_container.check_prebuild():
                 print_log_entry(log)
                 if log['loglevel'].upper() == "ERROR":
-                    raise SkipException('SKIP {}: check_prebuild() failed!'.format(log['test']),log=log_entry)
+                    raise SkipException('SKIP {}: check_prebuild() failed!'.format(log['test']),log=log)
 
             for log in docker_container.build():
                 print_log_entry(log)
                 if log['loglevel'].upper() == "ERROR":
-                    raise SkipException('SKIP {}: build() failed!'.format(log['test']),log=log_entry)
+                    raise SkipException('SKIP {}: build() failed!'.format(log['test']),log=log)
 
             for log in docker_container.push():
                 print_log_entry(log)
                 if log['loglevel'].upper() == "ERROR":
-                    raise SkipException('SKIP {}: push() failed!'.format(log['test']),log=log_entry)
+                    raise SkipException('SKIP {}: push() failed!'.format(log['test']),log=log)
 
         except SkipException as error:
             print("SkipException: {}".format(str(error)))

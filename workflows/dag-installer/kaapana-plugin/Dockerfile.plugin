@@ -1,6 +1,5 @@
 FROM busybox:1.31
 
-
 LABEL IMAGE="kaapana-plugin"
 LABEL VERSION="0.8-vdev"
 LABEL CI_IGNORE="False"

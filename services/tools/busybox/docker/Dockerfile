@@ -1,0 +1,5 @@
+FROM busybox:1.31
+
+LABEL IMAGE="busybox"
+LABEL VERSION="1.31"
+LABEL CI_IGNORE="False"

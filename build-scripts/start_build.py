@@ -3,9 +3,9 @@ import yaml
 import json
 import os
 import getpass
-from containers_build_and_push_all import start_container_build
-from charts_build_and_push_all import init_helm_charts
-from charts_build_and_push_all import HelmChart
+from build_helper.charts_build_and_push_all import HelmChart
+from build_helper.containers_build_and_push_all import start_container_build
+from build_helper.charts_build_and_push_all import init_helm_charts
 
 
 class SkipException(Exception):

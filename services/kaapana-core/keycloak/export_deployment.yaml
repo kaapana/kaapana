@@ -26,7 +26,7 @@ spec:
           - name: TIMEOUT
             value: "10"
       - name: volume-permissions
-        image: dktk-jip-registry.dkfz.de/kaapana/busybox:1.31.1
+        image: dktk-jip-registry.dkfz.de/kaapana/busybox:1.31
         command: ["sh", "-c", "chmod -R 777 /tmp"]
         volumeMounts:
         - mountPath: /tmp

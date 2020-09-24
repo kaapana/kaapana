@@ -16,7 +16,7 @@ spec:
     spec:
       initContainers:
           - name: volume-permissions
-            image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/busybox:1.31.1
+            image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/busybox:1.31
 
             imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
             command: ["sh", "-c", "chown -R 1000:1000 /elastic_data"]

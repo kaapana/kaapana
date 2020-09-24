@@ -1,9 +1,8 @@
 #!/bin/bash
 ############################################################################80>|###########################################128>|
 # @Version: 1.0.0
-# @Authors: Jonas Scherer <j.scherer@dkfz.de>, Klaus Kades <k.kades@dkfz.de>, Martin Hettich <m.hettich@dkfz.de>, et al.
+# @Authors: Jonas Scherer <j.scherer@dkfz.de>, Klaus Kades <k.kades@dkfz.de> et al.
 # @Copyright: 2019 Deutsches Krebsforschungszentrum http://www.dkfz.de
-# @License: Three clauses BSD license
 ############################################################################80>|###########################################128>|
 
 set -euf -o pipefail

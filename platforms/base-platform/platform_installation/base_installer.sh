@@ -3,9 +3,8 @@
 # vi: set fileencoding=utf-8
 ###########################################
 # Version 1.0.2
-# @Authors: Jonas Scherer <j.scherer@dkfz.de>, Martin Hettich <m.hettich@dkfz.de>, et al.
+# @Authors: Jonas Scherer <j.scherer@dkfz.de> et al.
 # @Copyright: 2019 Deutsches Krebsforschungszentrum http://www.dkfz.de
-# @License: Three clauses BSD license
 ############################################################################80>|###########################################128>|
 # set -euf -o pipefail
 

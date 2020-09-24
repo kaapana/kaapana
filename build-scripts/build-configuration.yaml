@@ -6,5 +6,5 @@ default_container_project: ""
 default_chart_registry: "https://dktk-jip-registry.dkfz.de/chartrepo/"
 default_chart_project: "kaapana-public"
 log_level: "WARN"
-build_containers: true
+build_containers: false
 build_charts: true

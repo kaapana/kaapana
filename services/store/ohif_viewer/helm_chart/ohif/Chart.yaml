@@ -1,7 +1,0 @@
----
-apiVersion: v1
-appVersion: "4.5.9-vdev"
-description: OHIF Medical Imaging Viewer
-name: ohif
-version: 4.5.9-vdev
-

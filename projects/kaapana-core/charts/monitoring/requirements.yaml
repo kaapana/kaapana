@@ -1,16 +1,16 @@
 ---
 dependencies:
 # MONITORING
-  - name: prometheus
+  - name: prometheus-chart
     version: v2.20.1
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
-  - name: alertmanager
+  - name: alertmanager-chart
     version: v0.21.0
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
-  - name: grafana
+  - name: grafana-chart
     version: 6.4.4-vdev
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
-  - name: kube-state-metrics
+  - name: kube-state-metrics-chart
     version: v1.9.7-vdev
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
 ---

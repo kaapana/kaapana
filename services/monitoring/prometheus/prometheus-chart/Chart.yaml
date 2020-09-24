@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+appVersion: "v2.20.1"
+description: A Helm chart for Kubernetes
+name: prometheus-chart
+version: v2.20.1
+

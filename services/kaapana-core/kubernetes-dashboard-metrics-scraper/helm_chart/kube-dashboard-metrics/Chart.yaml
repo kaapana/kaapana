@@ -1,7 +1,0 @@
----
-apiVersion: v1
-appVersion: "1.0.4-vdev"
-description: Kubernetes Dashboard Metrics Scraper
-name: kube-dashboard-metrics
-version: 1.0.4-vdev
-

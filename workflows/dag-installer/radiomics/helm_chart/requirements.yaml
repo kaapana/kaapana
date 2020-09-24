@@ -1,6 +1,0 @@
----
-dependencies:
-  - name: image-fetcher-job
-    version: 1.1-vdev
-    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
-    

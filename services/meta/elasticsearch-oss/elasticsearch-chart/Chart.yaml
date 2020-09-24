@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+appVersion: "6.8.12-vdev"
+description: Chart for Elasticsearch
+name: elasticsearch-chart
+version: 6.8.12-vdev
+

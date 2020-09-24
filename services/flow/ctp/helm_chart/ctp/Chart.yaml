@@ -1,7 +1,0 @@
----
-apiVersion: v1
-appVersion: "1.0.1-vdev"
-description: Clinical Trial Processor (CTP)
-name: ctp
-version: 1.0.1-vdev
-

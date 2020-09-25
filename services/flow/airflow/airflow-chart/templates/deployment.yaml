@@ -151,6 +151,10 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["scheduler"]
         env:
+        - name: DEFAULT_REGISTRY
+          value: "{{  .Values.global.registry_url }}"
+        - name: DEFAULT_PROJECT
+          value: "{{  .Values.global.registry_project }}"
         - name: AIRFLOW_HOME
           value: "/root/airflow"
         - name: DATADIR

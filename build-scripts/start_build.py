@@ -105,9 +105,9 @@ if build_charts:
         print()
         print("ENVs 'REGISTRY_USER' and 'REGISTRY_PW' not found! ")
         print()
-        registry_user = input("Registry user: ")
+        registry_user = input("User for {}: ".format(default_chart_registry))
         print()
-        print("User: {}".format(registry_user))
+        print("Registry-User: {}".format(registry_user))
         registry_pwd = getpass.getpass("password: ")
     else:
         registry_user = os.getenv("REGISTRY_USER", None)

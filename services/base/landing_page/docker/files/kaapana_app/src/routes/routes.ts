@@ -18,6 +18,16 @@ const routes = [
         },
     },
     {
+        name: 'kubehelm-links',
+        path: '/kubehelm-links',
+        component: () => import('@/views/KubeHelmViews.vue'),
+        title: 'kubehelmlinks',
+        permissions: {
+            isPublic: false,
+        },
+    },
+
+    {
         name: 'data-upload',
         path: '/data-upload',
         component: () => import('@/views/DataUpload.vue'),

@@ -9,22 +9,22 @@
             a(:href='item.url', target='_blank') {{ item.url }}
           template(v-slot:item.chartReleaseName='{ item }')
             v-btn(@click='uninstallChart(item.chartReleaseName)', color="primary") Finished manual interaction
-        br
-        br
-        h2 Launch an application manually (max 10 applications at the same time)
-        p If you want to work 
-        v-menu(offset-y='')
-          template(v-slot:activator='{ on, attrs }')
-            v-btn(color='primary' dark='' v-bind='attrs' v-on='on')
-              | Select application you want to launch
-          v-list
-            v-list-item(v-for='(item, index) in availableApplications' :key='index' @click="installChart(item)")
-              v-list-item-title {{ item }}
-        v-data-table.elevation-1(:headers='headers' :items='launchedAppLinks' :items-per-page='20' :loading='loading' loading-text="Waiting a few seconds...")
-          template(v-slot:item.url='{ item }')
-            a(:href='item.url', target='_blank') {{ item.url }}
-          template(v-slot:item.chartReleaseName='{ item }')
-            v-btn(@click='uninstallChart(item.chartReleaseName)', color="primary") Shutdown app
+        //- br
+        //- br
+        //- h2 Launch an application manually (max 10 applications at the same time)
+        //- p If you want to work 
+        //- v-menu(offset-y='')
+        //-   template(v-slot:activator='{ on, attrs }')
+        //-     v-btn(color='primary' dark='' v-bind='attrs' v-on='on')
+        //-       | Select application you want to launch
+        //-   v-list
+        //-     v-list-item(v-for='(item, index) in availableApplications' :key='index' @click="installChart(item)")
+        //-       v-list-item-title {{ item }}
+        //- v-data-table.elevation-1(:headers='headers' :items='launchedAppLinks' :items-per-page='20' :loading='loading' loading-text="Waiting a few seconds...")
+        //-   template(v-slot:item.url='{ item }')
+        //-     a(:href='item.url', target='_blank') {{ item.url }}
+        //-   template(v-slot:item.chartReleaseName='{ item }')
+        //-     v-btn(@click='uninstallChart(item.chartReleaseName)', color="primary") Shutdown app
 </template>
 
 <script lang="ts">
@@ -127,43 +127,43 @@ export default Vue.extend({
 
     },
 
-    installChart(applicationName: any) {
-      function uuidv4() {
-        return 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-          var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-          return v.toString(16);
-        });
-      }
+    // installChart(applicationName: any) {
+    //   function uuidv4() {
+    //     return 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    //       var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    //       return v.toString(16);
+    //     });
+    //   }
 
-      if (this.launchedAppLinks.length < 10) {
-        let payload = JSON.parse(JSON.stringify(this.launchApplicationData[applicationName]))
-        // let payload =JSON.parse(JSON.stringify({
-        //     "repoName": "kaapana-public",
-        //     "chartName": "jupyterlab",
-        //     "version": "1.0-vdev",
-        //     "sets": {
-        //         "mount_path": "/home/data/jupyterlab",
-        //         "ingress_path": "/jupyterlab"
-        //     }
-        // }))
-        let identifier = uuidv4()
-        if (payload["sets"]["ingress_path"] != '/code') {
-          payload["sets"]["ingress_path"] = payload["sets"]["ingress_path"] + "-desktop-" + this.currentUser.username + "-" + identifier
-          payload["sets"]["multi_instance_suffix"] = identifier
-          payload["customName"] = identifier
-        }
-        console.log(payload)
-        kaapanaApiService.helmApiPost('/helm-install-chart', payload).then((response: any) => {
-          this.loading = true
-          setTimeout(() => {
-            this.getApplicationsLinks()
-            this.loading = false
-          }, 15000);
-        }).catch((err: any) => {
-          console.log(err)
-        })
-      }
-    }
+    //   if (this.launchedAppLinks.length < 10) {
+    //     let payload = JSON.parse(JSON.stringify(this.launchApplicationData[applicationName]))
+    //     // let payload =JSON.parse(JSON.stringify({
+    //     //     "repoName": "kaapana-public",
+    //     //     "chartName": "jupyterlab",
+    //     //     "version": "1.0-vdev",
+    //     //     "sets": {
+    //     //         "mount_path": "/home/data/jupyterlab",
+    //     //         "ingress_path": "/jupyterlab"
+    //     //     }
+    //     // }))
+    //     let identifier = uuidv4()
+    //     if (payload["sets"]["ingress_path"] != '/code') {
+    //       payload["sets"]["ingress_path"] = payload["sets"]["ingress_path"] + "-desktop-" + this.currentUser.username + "-" + identifier
+    //       payload["sets"]["multi_instance_suffix"] = identifier
+    //       payload["customName"] = identifier
+    //     }
+    //     console.log(payload)
+    //     kaapanaApiService.helmApiPost('/helm-install-chart', payload).then((response: any) => {
+    //       this.loading = true
+    //       setTimeout(() => {
+    //         this.getApplicationsLinks()
+    //         this.loading = false
+    //       }, 15000);
+    //     }).catch((err: any) => {
+    //       console.log(err)
+    //     })
+    //   }
+    // }
   }
 })
 </script>

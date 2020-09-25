@@ -2,5 +2,7 @@ apiVersion: v1
 appVersion: "1.0-vdev"
 description: A Helm chart for Kubernetes
 name: jupyterlab-chart
-
 version: 1.0-vdev
+keywords:
+- kaapanaextension
+- 1.0-vdev

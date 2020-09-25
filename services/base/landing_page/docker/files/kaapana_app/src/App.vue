@@ -14,17 +14,23 @@
             v-list-item-title {{section.label}}
           v-list-item(v-for="(subSection, subSectionKey) in section.subSections" :key="subSection.id" :to="{ name: 'ew-section-view', params: { ewSection: sectionKey, ewSubSection: subSectionKey }}")
             v-list-item-title(v-text="subSection.label")
-        v-list-item(:to="'/application-links'" v-if="isAuthenticated")
-          v-list-item-action
-            v-icon mdi-gamepad-variant
-          v-list-item-content
-            v-list-item-title Dynamic applications
-          v-list-item-icon
         v-list-item(:to="'/data-upload'" v-if="isAuthenticated")
           v-list-item-action
             v-icon mdi-cloud-upload
           v-list-item-content
             v-list-item-title Data upload
+          v-list-item-icon
+        v-list-item(:to="'/application-links'" v-if="isAuthenticated")
+          v-list-item-action
+            v-icon mdi-gamepad-variant
+          v-list-item-content
+            v-list-item-title Pending applications
+          v-list-item-icon
+        v-list-item(:to="'/kubehelm-links'", v-if="isAuthenticated")
+          v-list-item-action
+            v-icon mdi-apps
+          v-list-item-content
+            v-list-item-title Extensions
           v-list-item-icon
     v-app-bar(color="primary" dark dense clipped-left app)
       v-app-bar-nav-icon(@click.stop="drawer = !drawer")

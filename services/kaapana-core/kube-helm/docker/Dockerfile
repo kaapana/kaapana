@@ -32,4 +32,4 @@ ENV FLASK_APP run.py
 
 EXPOSE 5000
 
-ENTRYPOINT ["./boot.sh"]
+CMD ["./boot.sh"]

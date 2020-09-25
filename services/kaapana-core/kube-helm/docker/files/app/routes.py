@@ -1,12 +1,17 @@
 import os
+import copy
 from flask import render_template, Response, request, jsonify
 from app import app
+from app import utils
 import subprocess, json
+import yaml
+import secrets
 
 """
 Welcome Page
 """
 
+NAMESPACE='default'
 
 @app.route("/")
 @app.route("/index")
@@ -17,6 +22,7 @@ def index():
         html: a html welcome page
     """
     hello_world_user = os.environ["HELLO_WORLD_USER"]
+
     return render_template(
         "index.html", title="Home", hello_world_user=hello_world_user
     )
@@ -35,6 +41,10 @@ def add_repo():
         json: A json response with installed charts
     """
     try:
+        repoUpdated = subprocess.check_output(
+            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
+        )
+        print(repoUpdated)
         resp = subprocess.check_output(
             [os.environ["HELM_PATH"], "ls", "-o", "json"], stderr=subprocess.STDOUT
         )
@@ -62,6 +72,10 @@ def view_helm_env():
     """
 
     try:
+        repoUpdated = subprocess.check_output(
+            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
+        )
+        print(repoUpdated)
         resp = subprocess.check_output(
             [os.environ["HELM_PATH"], "env"], stderr=subprocess.STDOUT
         )
@@ -88,6 +102,10 @@ def helm_repo_list():
         json: A json with installed helm repositories
     """
     try:
+        repoUpdated = subprocess.check_output(
+            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
+        )
+        print(repoUpdated)
         resp = subprocess.check_output(
             [os.environ["HELM_PATH"], "repo", "list", "-o", "json"],
             stderr=subprocess.STDOUT,
@@ -121,6 +139,10 @@ def view_chart_status():
     chartname = request.args.get("chart")
     # print('chart name:', chartname)
     try:
+        repoUpdated = subprocess.check_output(
+            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
+        )
+        print(repoUpdated)
         resp = subprocess.check_output(
             [os.environ["HELM_PATH"], "status", chartname, "-o", "json"],
             stderr=subprocess.STDOUT,
@@ -154,6 +176,10 @@ def helm_add_repo():
     repoName = request.args.get("repo")
 
     try:
+        repoUpdated = subprocess.check_output(
+            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
+        )
+        print(repoUpdated)
         resp = subprocess.check_output(
             [
                 os.environ["HELM_PATH"],
@@ -194,6 +220,10 @@ def helm_remove_repo():
     repoName = request.args.get("repo")
 
     try:
+        repoUpdated = subprocess.check_output(
+            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
+        )
+        print(repoUpdated)
         resp = subprocess.check_output(
             [os.environ["HELM_PATH"], "repo", "remove", repoName],
             stderr=subprocess.STDOUT,
@@ -223,54 +253,44 @@ def helm_add_custom_chart():
     Returns:
         json: A json response about the installed chart
     """
-    userConfig = ""
+
+    return utils.helm_install(request.json)
+
+"""
+custom parameters to install chart 
+"""
+
+
+@app.route("/helm-install-extension", methods=["POST"])
+def helm_install_extension():
+    """A API response for adding helm charts from jip registry
+
+    Arguments:
+        config file {json} -- A json contains custom values for installing helm charts. It must contain meta tags repoName,
+        chartName,version. The sets tag is not mandatory
+    Returns:
+        json: A json response about the installed chart
+    """
     content = request.json
-    print(content)
-    repoName = content["repoName"]
-    chartName = content["chartName"]
+
+    content['sets'] = {
+            'global.registry_url': 'dktk-jip-registry.dkfz.de',
+            'global.registry_project':  '/kaapana',
+            'global.base_namespace': 'flow-jobs',
+            'global.fast_data_dir': '/home/kaapana/dicom/minio',
+            'global.slow_data_dir': '/home/kaapana/dicom/minio',
+        }
+    repoName, chartName = content["name"].split('/')
     version = content["version"]
+    multi_installable = content["multi_installable"]
+    if multi_installable == 'yes':
+        suffix = secrets.token_hex(5)
+        content['customName'] = f'{chartName}-{suffix}'
+        content['sets']['ingress_path'] = f'/{content["customName"]}'
+        content['sets']['multi_instance_suffix'] = suffix
 
-    if "customName" in content:
-        custom_name = content["customName"]
-    else:
-        custom_name = content["chartName"]
-
-    if "sets" in content:
-        for i in content["sets"]:
-            userConfig += " --set " + i + "=" + content["sets"][i]
-
-    try:
-        resp = subprocess.check_output(
-            [
-                os.environ["HELM_PATH"]
-                + " install"
-                + " "
-                + userConfig
-                + " "
-                + "--version"
-                + " "
-                + version
-                + " "
-                + custom_name
-                + " "
-                + repoName
-                + "/"
-                + chartName
-                + " -o"
-                + " json"
-            ],
-            shell=True,
-            stderr=subprocess.STDOUT,
-        )
-
-    except subprocess.CalledProcessError as e:
-        return Response(
-            f"{e.output}Could not verify your access level for that URL.\n"
-            "You have to login with proper credentials",
-            401,
-        )
-
-    return resp
+    print('content', content)
+    return utils.helm_install(content)
 
 
 """
@@ -292,8 +312,12 @@ def helm_uninstall_chart():
     chartName = request.args.get("chart")
 
     try:
+        repoUpdated = subprocess.check_output(
+            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
+        )
+        print(repoUpdated)
         resp = subprocess.check_output(
-            [os.environ["HELM_PATH"], "uninstall", chartName], stderr=subprocess.STDOUT
+            [os.environ["HELM_PATH"], "-n", NAMESPACE, "uninstall", chartName], stderr=subprocess.STDOUT
         )
 
     except subprocess.CalledProcessError as e:
@@ -305,4 +329,112 @@ def helm_uninstall_chart():
     return jsonify({"message": str(resp), "status": "200"})
 
 
-# end of lines
+@app.route("/available-single-chart")
+def available_single_chart():
+    """A API response to knw if a particular chart is installable or not
+
+    Arguments:
+        key : repo, chart
+        value: repo name and chart name
+
+    Returns:
+        json: returns the json response, if the keywords tag contains AppStore as value, its installable
+    """
+    repoName = request.args.get("repo")
+    chartName = request.args.get("chart")
+
+    # Helm chart filter logic goes here
+    # helm show chart --version 1.0-vdev dcipher-core/kube-helm
+    try:
+        repoUpdated = subprocess.check_output(
+            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
+        )
+        print(repoUpdated)
+
+        # repoName = "dcipher-core"
+        # chartName = "kube-helm"
+        resp = "Installable version of chart is not found"
+        repoChart = repoName + "/" + chartName
+        showCharts = subprocess.check_output(
+            [
+                os.environ["HELM_PATH"],
+                "show",
+                "chart",
+                repoChart,
+                "--devel",
+            ],
+            stderr=subprocess.STDOUT,
+        )
+
+        if "AppStore" in yaml.load(showCharts).get("keywords"):
+            resp = subprocess.check_output(
+                [
+                    os.environ["HELM_PATH"],
+                    "status",
+                    "joint-imaging-platform",
+                    "-o",
+                    "json",
+                ],
+                stderr=subprocess.STDOUT,
+            )
+
+    except subprocess.CalledProcessError as e:
+        return Response(
+            f"{e.output}Could not verify your access level for that URL.\n"
+            "You have to login with proper credentials",
+            401,
+        )
+    return resp
+
+
+@app.route("/all-available-charts")
+def all_available_charts():
+    """A API response to get all installable charts from repo
+
+    Arguments:
+        key : repo
+        value: repo name
+
+    Returns:
+        json: returns the json response with all installable charts
+    """
+    repoName = request.args.get("repo")
+    resp = "Not a Valid Charts"
+    # Helm chart filter all installable charts
+    # TODO: add repoName to regex
+    try:
+        available_charts = utils.helm_search_repo()
+        extensions_list = []
+        for extension in available_charts:
+            repoName, chartName = extension["name"].split('/')
+            chart_values = utils.helm_show_values(repoName, chartName, extension['version'])
+            if 'multi_installable' in chart_values:
+                extension['multi_installable'] = 'yes'
+            else:
+                extension['multi_installable'] = 'no'
+
+            installed_values = utils.helm_get_values(chartName, 'default')
+            if 'multi_instance_suffix' in installed_values or not installed_values:
+                extension['installed'] = 'no'
+                extensions_list.append(extension)
+            for chart in utils.helm_ls('default', chartName):
+                manifest = utils.helm_get_manifest(chart['name'], 'default')
+                ingress_path = ''
+                for config in manifest:
+                    if config['kind'] == 'Ingress':
+                        ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']
+                running_extensions = copy.deepcopy(extension)
+                running_extensions['name'] =  chart['name']
+                running_extensions['link'] = ingress_path
+                running_extensions['installed'] = 'yes'
+                extensions_list.append(running_extensions)
+
+    except subprocess.CalledProcessError as e:
+        return Response(
+            f"{e.output}Could not verify your access level for that URL.\n"
+            "You have to login with proper credentials",
+            401,
+        )
+    return json.dumps(extensions_list)
+
+    # End of Lines

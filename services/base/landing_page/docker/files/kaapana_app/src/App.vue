@@ -18,7 +18,7 @@
           v-list-item-action
             v-icon mdi-gamepad-variant
           v-list-item-content
-            v-list-item-title Pending applications
+            v-list-item-title Dynamic applications
           v-list-item-icon
         v-list-item(:to="'/data-upload'" v-if="isAuthenticated")
           v-list-item-action
@@ -85,10 +85,8 @@ export default Vue.extend({
     },
     minioCall() {
          request.get('/flow/kaapana/api/getaccesstoken').then(response => {
-            console.log(response)
             let payload = {"id":1,"jsonrpc":"2.0","params":{"token": response.data["xAuthToken"]},"method":"Web.LoginSTS"}
             request.post('/minio/webrpc', payload).then(response => {
-                console.log(response)
                 storage.setItem('token', `${response.data.result["token"]}`)
             }).catch(error => {
               console.log('Could not generate the minio token...', error)

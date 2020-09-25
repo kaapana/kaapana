@@ -20,8 +20,6 @@ import json
 import time
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.blueprints.kaapana_utils import generate_minio_credentials
-from kaapana.kubetools.delete_apps import delete_apps_by_run_id
-from kaapana.kubetools.ingress_finder import IngressFinder
 from airflow.api.common.experimental.trigger_dag import trigger_dag as trigger
 from kaapana.operators.HelperElasticsearch import HelperElasticsearch
 
@@ -282,43 +280,6 @@ def dag_run_status(dag_id, run_id):
     )
 
 
-@csrf.exempt
-@kaapanaApi.route('/api/deleteappbyrunid', methods=['POST'])
-def delete_app_by_run_id():
-    """
-    Removes all pods, ingresses and services that contain the run_id in their name
-    """
-    data = request.get_json(force=True)
-
-    delete_apps_by_run_id(data['run_id'], data['namespace'], stop_ingresses=True, stop_services=True, stop_pods=True)
-
-    message = ['Pods, ingresses and services of {} deleted!'.format(data['run_id'])]
-    response = jsonify(message=message)
-    return response
-
-
-@csrf.exempt
-@kaapanaApi.route('/api/getingressbyrunid', methods=['GET'])
-def get_ingress_by_run_id():
-    """
-    Removes all pods, ingresses and services that contain the run_id in their name
-    """
-    run_id = request.args.get('run_id')
-    namespace = request.args.get('namespace')
-
-    ingress_finder = IngressFinder()
-    ingresses = ingress_finder.find_ingress(namespace).items
-    for ingress in ingresses:
-        if ingress.metadata.labels is not None:
-            if 'run_id' in ingress.metadata.labels:
-                if run_id == ingress.metadata.labels['run_id']:
-                    print(ingress)
-                    print(type(ingress))
-                    response = jsonify(ingress.to_dict())
-                    return response
-    return Response('For the RunId {} no ingress was found'.format(run_id), HTTPStatus.BAD_REQUEST)
-
-
 # Authorization topics
 @kaapanaApi.route('/api/getaccesstoken')
 @csrf.exempt
@@ -327,6 +288,7 @@ def get_access_token():
     if x_auth_token is None:
         return jsonify({'message': 'No X-Auth-Token found in your request, seems that you are calling me from the backend!'}), 404
     return jsonify(xAuthToken=x_auth_token)
+
 
 @kaapanaApi.route('/api/getminiocredentials')
 @csrf.exempt

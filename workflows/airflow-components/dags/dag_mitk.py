@@ -5,7 +5,7 @@ from datetime import datetime
 
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from mitk_userflow.RunMitk import RunMitk
+from mitk_userflow.LocalRunMitk import LocalRunMitk
 
 
 dag_info = {
@@ -26,7 +26,7 @@ dag = DAG(
     schedule_interval=None)
 
 get_input = LocalGetInputDataOperator(dag=dag)
-run_mitk = RunMitk(dag=dag)
+run_mitk = LocalRunMitk(dag=dag)
 clean = LocalWorkflowCleanerOperator(dag=dag)
 
 get_input >> run_mitk >> clean

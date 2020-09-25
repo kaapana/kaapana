@@ -225,6 +225,7 @@ def helm_add_custom_chart():
     """
     userConfig = ""
     content = request.json
+    print(content)
     repoName = content["repoName"]
     chartName = content["chartName"]
     version = content["version"]

@@ -17,6 +17,8 @@ class SkipException(Exception):
 
     def __init__(self, reason, log=None):
         self.reason = reason
+        if "container" in log:
+            del log['container']
         self.log = log
         super().__init__(self.reason)
 

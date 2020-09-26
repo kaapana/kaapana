@@ -20,13 +20,13 @@
           v-list-item-content
             v-list-item-title Data upload
           v-list-item-icon
-        v-list-item(:to="'/application-links'" v-if="isAuthenticated")
+        v-list-item(:to="'/pending-applications'" v-if="isAuthenticated")
           v-list-item-action
             v-icon mdi-gamepad-variant
           v-list-item-content
             v-list-item-title Pending applications
           v-list-item-icon
-        v-list-item(:to="'/kubehelm-links'", v-if="isAuthenticated")
+        v-list-item(:to="'/extensions'", v-if="isAuthenticated")
           v-list-item-action
             v-icon mdi-apps
           v-list-item-content

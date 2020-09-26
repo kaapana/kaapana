@@ -19,29 +19,28 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
     TIMEOUT = 60*60*12
     
     @staticmethod
-    def _get_custom_name(kwargs):
+    def _get_release_name(kwargs):
         task_id = kwargs['ti'].task_id
         run_id = kwargs['run_id']
-        custom_name = f'dynamic-{task_id}-{run_id}'
-        return cure_invalid_name(custom_name, r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*", max_length=53)
+        release_name = f'kaapanaint-{run_id}'
+        return cure_invalid_name(release_name, r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*", max_length=53)
 
     def start(self, ds, **kwargs):
         print(kwargs)        
         run_dir = os.path.join(WORKFLOW_DIR, kwargs['run_id'])
-        custom_name = KaapanaApplicationBaseOperator._get_custom_name(kwargs)
+        release_name = KaapanaApplicationBaseOperator._get_release_name(kwargs)
 
         payload={
-            'repoName': self.chart_repo_name,
-            'chartName': self.chart_name,
+            'name': f'{self.chart_repo_name}/{self.chart_name}',
             'version': self.version,
-            'customName': custom_name,
+            'customName': release_name,
             'sets': {
                 'global.registry_url': 'dktk-jip-registry.dkfz.de',
                 'global.registry_project':  '/kaapana',
                 'global.base_namespace': 'flow-jobs',
                 'global.pull_policy_jobs': 'IfNotPresent',
                 'mount_path': f'/home/kaapana/workflows/{run_dir}',
-                'ingress_path': f'/{custom_name}',
+                'ingress_path': f'/{release_name}',
                 'multi_instance_suffix': secrets.token_hex(5)
             }
         }
@@ -64,18 +63,18 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
         while time.time() < t_end:
             time.sleep(15)
             url = f'{KaapanaApplicationBaseOperator.HELM_API}/view-chart-status'
-            r = requests.get(url, params={'chart': custom_name})
+            r = requests.get(url, params={'release_name': release_name})
             if r.status_code == 401:
-                print('Helm chart was uninstalled. My job is done here!')
+                print(f'Release {release_name} was uninstalled. My job is done here!')
                 break
             r.raise_for_status()
 
 
     @staticmethod
     def uninstall_helm_chart(kwargs):
-        custom_name = KaapanaApplicationBaseOperator._get_custom_name(kwargs)
+        release_name = KaapanaApplicationBaseOperator._get_release_name(kwargs)
         url = f'{KaapanaApplicationBaseOperator.HELM_API}/helm-uninstall-chart'
-        r = requests.get(url, params={'chart': custom_name})
+        r = requests.get(url, params={'release_name': release_name})
         r.raise_for_status()
         print(r)
         print(r.text)

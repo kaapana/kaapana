@@ -9,19 +9,19 @@ const routes = [
         },
     },
     {
-        name: 'application-links',
-        path: '/application-links',
-        component: () => import('@/views/ApplicationLinks.vue'),
-        title: 'ApplicationLinks',
+        name: 'pending-applications',
+        path: '/pending-applications',
+        component: () => import('@/views/PendingApplications.vue'),
+        title: 'PendingApplications',
         permissions: {
             isPublic: false,
         },
     },
     {
-        name: 'kubehelm-links',
-        path: '/kubehelm-links',
-        component: () => import('@/views/KubeHelmViews.vue'),
-        title: 'kubehelmlinks',
+        name: 'extensions',
+        path: '/extensions',
+        component: () => import('@/views/Extensions.vue'),
+        title: 'Extensions',
         permissions: {
             isPublic: false,
         },
@@ -39,7 +39,7 @@ const routes = [
     {
         name: 'iframe-view',
         path: '/web/:iFrameUrl',
-        component: () => import('@/views/IframeView.vue'),
+        component: () => import('@/views/Iframe.vue'),
         title: 'None',
         permissions: {
             isPublic: false,
@@ -48,7 +48,7 @@ const routes = [
     {
         name: 'ew-section-view',
         path: '/web/:ewSection/:ewSubSection',
-        component: () => import('@/views/IframeView.vue'),
+        component: () => import('@/views/Iframe.vue'),
         title: 'View',
         permissions: {
             isPublic: false,

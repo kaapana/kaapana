@@ -11,7 +11,6 @@ import secrets
 Welcome Page
 """
 
-NAMESPACE='default'
 
 @app.route("/")
 @app.route("/index")
@@ -32,7 +31,7 @@ def index():
 The /list-helm-charts will list the currently installed helm charts in your environment
 """
 
-
+@utils.helm_repo_update_decorator
 @app.route("/list-helm-charts")
 def add_repo():
     """Return a list of helm charts installed in the environment
@@ -41,10 +40,6 @@ def add_repo():
         json: A json response with installed charts
     """
     try:
-        repoUpdated = subprocess.check_output(
-            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
-        )
-        print(repoUpdated)
         resp = subprocess.check_output(
             [os.environ["HELM_PATH"], "ls", "-o", "json"], stderr=subprocess.STDOUT
         )
@@ -72,10 +67,6 @@ def view_helm_env():
     """
 
     try:
-        repoUpdated = subprocess.check_output(
-            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
-        )
-        print(repoUpdated)
         resp = subprocess.check_output(
             [os.environ["HELM_PATH"], "env"], stderr=subprocess.STDOUT
         )
@@ -93,7 +84,7 @@ def view_helm_env():
 The /helm-repo-list will list your installed helm repositories
 """
 
-
+@utils.helm_repo_update_decorator
 @app.route("/helm-repo-list")
 def helm_repo_list():
     """A API response with installed helm repositories
@@ -102,10 +93,6 @@ def helm_repo_list():
         json: A json with installed helm repositories
     """
     try:
-        repoUpdated = subprocess.check_output(
-            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
-        )
-        print(repoUpdated)
         resp = subprocess.check_output(
             [os.environ["HELM_PATH"], "repo", "list", "-o", "json"],
             stderr=subprocess.STDOUT,
@@ -136,25 +123,16 @@ def view_chart_status():
     Returns:
         json: returns installed charts and its property values
     """
-    chartname = request.args.get("chart")
-    # print('chart name:', chartname)
-    try:
-        repoUpdated = subprocess.check_output(
-            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
-        )
-        print(repoUpdated)
-        resp = subprocess.check_output(
-            [os.environ["HELM_PATH"], "status", chartname, "-o", "json"],
-            stderr=subprocess.STDOUT,
-        )
-
-    except subprocess.CalledProcessError as e:
+    release_name = request.args.get("release_name")
+    status = utils.helm_status(release_name, app.config['NAMESPACE'])
+    if status:
+        return json.dumps(status)
+    else:
         return Response(
-            f"{e.output}Could not verify your access level for that URL.\n"
+            f"Could not verify your access level for that URL.\n"
             "You have to login with proper credentials",
             401,
         )
-    return resp
 
 
 """
@@ -176,10 +154,6 @@ def helm_add_repo():
     repoName = request.args.get("repo")
 
     try:
-        repoUpdated = subprocess.check_output(
-            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
-        )
-        print(repoUpdated)
         resp = subprocess.check_output(
             [
                 os.environ["HELM_PATH"],
@@ -220,10 +194,6 @@ def helm_remove_repo():
     repoName = request.args.get("repo")
 
     try:
-        repoUpdated = subprocess.check_output(
-            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
-        )
-        print(repoUpdated)
         resp = subprocess.check_output(
             [os.environ["HELM_PATH"], "repo", "remove", repoName],
             stderr=subprocess.STDOUT,
@@ -242,7 +212,7 @@ def helm_remove_repo():
 custom parameters to install chart 
 """
 
-
+@utils.helm_repo_update_decorator
 @app.route("/helm-install-chart", methods=["POST"])
 def helm_add_custom_chart():
     """A API response for adding helm charts from jip registry
@@ -254,7 +224,7 @@ def helm_add_custom_chart():
         json: A json response about the installed chart
     """
 
-    return utils.helm_install(request.json)
+    return utils.helm_install(request.json, app.config['NAMESPACE'])
 
 """
 custom parameters to install chart 
@@ -290,7 +260,7 @@ def helm_install_extension():
         content['sets']['multi_instance_suffix'] = suffix
 
     print('content', content)
-    return utils.helm_install(content)
+    return utils.helm_install(content, app.config['NAMESPACE'])
 
 
 """
@@ -309,15 +279,11 @@ def helm_uninstall_chart():
     Returns:
         json: A json response with status code and message from helm
     """
-    chartName = request.args.get("chart")
+    release_name = request.args.get("release_name")
 
     try:
-        repoUpdated = subprocess.check_output(
-            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
-        )
-        print(repoUpdated)
         resp = subprocess.check_output(
-            [os.environ["HELM_PATH"], "-n", NAMESPACE, "uninstall", chartName], stderr=subprocess.STDOUT
+            [os.environ["HELM_PATH"], "-n", app.config['NAMESPACE'], "uninstall", release_name], stderr=subprocess.STDOUT
         )
 
     except subprocess.CalledProcessError as e:
@@ -329,54 +295,22 @@ def helm_uninstall_chart():
     return jsonify({"message": str(resp), "status": "200"})
 
 
-@app.route("/available-single-chart")
-def available_single_chart():
-    """A API response to knw if a particular chart is installable or not
-
-    Arguments:
-        key : repo, chart
-        value: repo name and chart name
-
-    Returns:
-        json: returns the json response, if the keywords tag contains AppStore as value, its installable
-    """
-    repoName = request.args.get("repo")
-    chartName = request.args.get("chart")
-
-    # Helm chart filter logic goes here
-    # helm show chart --version 1.0-vdev dcipher-core/kube-helm
+@utils.helm_repo_update_decorator
+@app.route("/pending-applications")
+def pending_applications():
     try:
-        repoUpdated = subprocess.check_output(
-            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
-        )
-        print(repoUpdated)
-
-        # repoName = "dcipher-core"
-        # chartName = "kube-helm"
-        resp = "Installable version of chart is not found"
-        repoChart = repoName + "/" + chartName
-        showCharts = subprocess.check_output(
-            [
-                os.environ["HELM_PATH"],
-                "show",
-                "chart",
-                repoChart,
-                "--devel",
-            ],
-            stderr=subprocess.STDOUT,
-        )
-
-        if "AppStore" in yaml.load(showCharts).get("keywords"):
-            resp = subprocess.check_output(
-                [
-                    os.environ["HELM_PATH"],
-                    "status",
-                    "joint-imaging-platform",
-                    "-o",
-                    "json",
-                ],
-                stderr=subprocess.STDOUT,
-            )
+        extensions_list = []
+        for chart in utils.helm_ls(app.config['NAMESPACE'], 'kaapanaint'):
+            manifest = utils.helm_get_manifest(chart['name'], app.config['NAMESPACE'])
+            ingress_path = ''
+            for config in manifest:
+                if config['kind'] == 'Ingress':
+                    ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']
+            extension = {
+                'name': chart['name'],
+                'link': ingress_path
+            }            
+            extensions_list.append(extension)
 
     except subprocess.CalledProcessError as e:
         return Response(
@@ -384,11 +318,12 @@ def available_single_chart():
             "You have to login with proper credentials",
             401,
         )
-    return resp
+    return json.dumps(extensions_list)
 
 
-@app.route("/all-available-charts")
-def all_available_charts():
+@utils.helm_repo_update_decorator
+@app.route("/extensions")
+def extensions():
     """A API response to get all installable charts from repo
 
     Arguments:
@@ -399,11 +334,10 @@ def all_available_charts():
         json: returns the json response with all installable charts
     """
     repoName = request.args.get("repo")
-    resp = "Not a Valid Charts"
-    # Helm chart filter all installable charts
+
     # TODO: add repoName to regex
     try:
-        available_charts = utils.helm_search_repo()
+        available_charts = utils.helm_search_repo("kaapanaextension")
         extensions_list = []
         for extension in available_charts:
             repoName, chartName = extension["name"].split('/')
@@ -413,12 +347,12 @@ def all_available_charts():
             else:
                 extension['multi_installable'] = 'no'
 
-            installed_values = utils.helm_get_values(chartName, 'default')
+            installed_values = utils.helm_get_values(chartName, app.config['NAMESPACE'])
             if 'multi_instance_suffix' in installed_values or not installed_values:
                 extension['installed'] = 'no'
                 extensions_list.append(extension)
-            for chart in utils.helm_ls('default', chartName):
-                manifest = utils.helm_get_manifest(chart['name'], 'default')
+            for chart in utils.helm_ls(app.config['NAMESPACE'], chartName):
+                manifest = utils.helm_get_manifest(chart['name'], app.config['NAMESPACE'])
                 ingress_path = ''
                 for config in manifest:
                     if config['kind'] == 'Ingress':

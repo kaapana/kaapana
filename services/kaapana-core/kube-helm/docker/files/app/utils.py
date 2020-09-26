@@ -1,8 +1,21 @@
 import os
 import yaml
+import functools
 import subprocess, json
 from flask import render_template, Response, request, jsonify
-NAMESPACE='default'
+
+
+def helm_repo_update_decorator(func):
+    @functools.wraps(func)
+    def wrapper_decorator(*args, **kwargs):
+        # Do something before
+        repoUpdated = subprocess.check_output(
+            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
+        )
+        print(repoUpdated)
+        value = func(*args, **kwargs)
+        return value
+    return wrapper_decorator
 
 def helm_show_values(repo, name, version):
     try:
@@ -43,7 +56,7 @@ def helm_status(release_name, namespace):
         return dict()
     return yaml.load(status)
 
-def helm_install(content):
+def helm_install(content, namespace):
     repoName, chartName = content["name"].split('/')
     version = content["version"]
 
@@ -52,9 +65,9 @@ def helm_install(content):
     else:
         custom_name = chartName
 
-    status = helm_status(custom_name, NAMESPACE)
+    status = helm_status(custom_name, namespace)
     if status:
-        chart = helm_show_all(repoName, chartName, version)
+        chart = helm_show_values(repoName, chartName, version)
         if 'multi_instance_suffix' in chart:
             print('Installing again with multi_instance_suffix')
         else:
@@ -68,10 +81,6 @@ def helm_install(content):
             userConfig = userConfig + ["--set", f"{key}={value}"]
             
     try:
-        repoUpdated = subprocess.check_output(
-            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
-        )
-        print(repoUpdated)
         print(userConfig)
         resp = subprocess.check_output(
             [
@@ -104,10 +113,6 @@ def helm_install(content):
 
 def helm_ls(namespace, release_filter=''):
     try:
-        repoUpdated = subprocess.check_output(
-            [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
-        )
-        print(repoUpdated)
         resp = subprocess.check_output(
             [os.environ["HELM_PATH"], "-n", namespace, "--filter", release_filter, "ls", "-o", "json"], stderr=subprocess.STDOUT
         )
@@ -115,11 +120,7 @@ def helm_ls(namespace, release_filter=''):
     except subprocess.CalledProcessError as e:
         return []
         
-def helm_search_repo():   
-    repoUpdated = subprocess.check_output(
-        [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
-    )
-    print(repoUpdated)
+def helm_search_repo(filter_regex):   
     resp = subprocess.check_output(
         [
             os.environ["HELM_PATH"],
@@ -127,7 +128,7 @@ def helm_search_repo():
             "repo",
             "--devel",
             "-r",
-            "kaapanaextension",
+            filter_regex,
             "-o",
             "json",
         ],

@@ -1,6 +1,6 @@
 FROM httpd:2.4
 
-LABEL IMAGE="jip-documentation"
+LABEL IMAGE="kaapana-documentation"
 LABEL VERSION="0.1-alpha"
 LABEL CI_IGNORE="True"
 

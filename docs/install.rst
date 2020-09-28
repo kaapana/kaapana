@@ -1,4 +1,4 @@
-Generic JIP system installation
+Generic Kaapana system installation
 ===============================
 
 This document describes the setup of a system for the DKTK Joint Imaging
@@ -137,7 +137,7 @@ repository:
 
 ::
 
-    /jip/platform_deployment
+    /kaapana/platform_deployment
 
 Script file:
 
@@ -165,7 +165,7 @@ should specify a location on your machine, where these files can be
 placed.
 
 **Mounting points** This are the locations, where all the stateful data
-is saved at from the platform. If you run this script on the default jip
+is saved at from the platform. If you run this script on the default kaapana
 server, you can keep the defaults. Otherwise, you should make some
 adjustments.
 

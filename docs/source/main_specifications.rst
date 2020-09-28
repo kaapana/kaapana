@@ -6,17 +6,17 @@ Default Configuration
 Default credentials
 -------------------
 
-**Main JIP Login:**
+**Main Kaapana Login:**
   | username: kaapana
   | password: kaapana
 
 **Keycloak Usermanagement Administrator:**
-  | username: jipadmin
-  | password: DKjipTK
+  | username: admin
+  | password: Kaapana2020
 
 **Minio:**
-  | username: jipadmin
-  | password: DKjipTK2019
+  | username: kaapana-minio
+  | password: Kaapana2020
 
 Dicom Receiver Specs
 --------------------
@@ -25,7 +25,7 @@ They will need the some information about the system:
 
   | address:  the IP address or domain of the server
   | port:     11112 
-  | AE-title: JIP
+  | AE-title: Kaapana
 
 The selection of the AE-title has a special meaning.
 The system can filter data by this AE-title and mark it as seperate datasets.

@@ -3,13 +3,13 @@
 License
 =======
 
-| Copyright 2019 MICO DKFZ Heidelberg
+| Copyright 2020 MIC DKFZ Heidelberg
 
 Contact
 ^^^^^^^
 
-| JIP Team Heidelberg
-| jip-service@dkfz-heidelberg.de
+| Kaapana Team Heidelberg
+| kaapana@dkfz-heidelberg.de
 
 | German Cancer Research Center (DKFZ)
 | Division of Medical Image Computing (MIC)

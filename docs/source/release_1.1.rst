@@ -27,7 +27,7 @@ After a successful update of the platform, you can remove the snapshot with:
 
 .. _Update migrate:
 
-How to update from JIP v1.0.1
+How to update from Kaapana v1.0.1
 -----------------------------
 .. hint::
 
@@ -48,11 +48,11 @@ How to update from JIP v1.0.1
 
 You can update the system directly on the server or remote from your machine via ssh.
 
-**1. Check JIP deloyment:**
+**1. Check Kaapana deloyment:**
 ::
 
     helm ls
-    > jip 	1       	Tue Nov 19 13:38:17 2019	DEPLOYED	joint-imaging-platform-1.0.1	1.0.1      	default  
+    > kaapana-platform	default  	2       	2020-09-28 11:06:15.759674029 +0200 CEST	deployed	kaapana-platform-x	x  
 
 In case you get an "command not found"
 
@@ -65,11 +65,11 @@ Please enter:
 
 Now "helm ls" should work!
 
-**2. Remove old jip delpoyment:**
+**2. Remove old Kaapana delpoyment:**
 ::
 
-    helm del jip --purge
-    > release "jip" deleted
+    helm del kaapana-platform
+    > release "kaapana-platform" deleted
 
     
 
@@ -195,7 +195,7 @@ Fresh installation
 **1. Delete persisted data**
 ::
 
-    rm -rf /home/jip
+    rm -rf /home/kaapana
 
 **2. Delete dicom data**
 ::

@@ -391,13 +391,13 @@ You are now ready to start the installation!
 
    Setting the root password
 
--  Configure a **User**. For the default JIP installation a user called **jip** is required
+-  Configure a **User**. For the default Kaapana installation a user called **kaapana** is required
 
 .. figure:: _static/img/1.6.1.png
    :align: center
    :scale: 45%
 
-   Creating the default user **jip** on the user configuration page
+   Creating the default user **kaapana** on the user configuration page
 
 - **ATTENTION: Write down the passwords and put them in a documentation!!!**
 -  Wait till the process is finished

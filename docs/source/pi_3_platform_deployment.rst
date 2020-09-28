@@ -84,7 +84,7 @@ If you see and error or container restart listed, it is not necessarily a reason
 
 The system tries to bring itself in the right condition.
 
-If you still have some issues with this process you should contact the JIP team (See :ref:`license_doc`).
+If you still have some issues with this process you should contact the Kaapana team (See :ref:`license_doc`).
 
 Now you can visit your server at:
 

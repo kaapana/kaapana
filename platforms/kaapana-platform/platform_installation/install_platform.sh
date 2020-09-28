@@ -9,8 +9,10 @@ set -euf -o pipefail
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
 PROJECT_NAME="kaapana-platform"
-CHART_REPO="kaapana-public"
 DEFAULT_VERSION="1.0.0-vdev"
+REGISTRY_URL="dktk-jip-registry.dkfz.de"
+REGISTRY_PROJECT_CONTAINER="/kaapana"
+REGISTRY_PROJECT_CHART="kaapana-public"
 
 HTTP_PORT=80
 HTTPS_PORT=443
@@ -19,8 +21,6 @@ DEV_MODE="true"
 GPU_SUPPORT="false"
 DEV_PORTS="false"
 
-REGISTRY_URL: "dktk-jip-registry.dkfz.de"
-REGISTRY_PROJECT: "/kaapana"
 
 FAST_DATA_DIR="/home/kaapana"
 SLOW_DATA_DIR="/home/kaapana/dicom"
@@ -28,7 +28,7 @@ PULL_POLICY_PODS="Always"
 PULL_POLICY_JOBS="Always"
 PULL_POLICY_OPERATORS="Always"
 
-declare -a NEEDED_REPOS=("$CHART_REPO" "processing-external")
+declare -a NEEDED_REPOS=("$REGISTRY_PROJECT_CHART" "processing-external")
 
 script_name=`basename "$0"`
 
@@ -116,8 +116,8 @@ function install_chart {
         chart_version=$DEFAULT_VERSION
     fi
     
-    echo -e "${YELLOW}Installing $CHART_REPO/$PROJECT_NAME version: $chart_version${NC}"
-    helm install --devel --version $chart_version  $CHART_REPO/$PROJECT_NAME \
+    echo -e "${YELLOW}Installing $REGISTRY_PROJECT_CHART/$PROJECT_NAME version: $chart_version${NC}"
+    helm install --devel --version $chart_version  $REGISTRY_PROJECT_CHART/$PROJECT_NAME \
     --set global.version="$chart_version" \
     --set global.hostname="$DOMAIN" \
     --set global.dev_ports="$DEV_PORTS" \
@@ -134,7 +134,7 @@ function install_chart {
     --set global.credentials.registry_password="$REGISTRY_PASSWORD" \
     --set global.gpu_support=$GPU_SUPPORT \
     --set global.registry_url=$REGISTRY_URL \
-    --set global.registry_project=$REGISTRY_PROJECT \
+    --set global.registry_project=$REGISTRY_PROJECT_CONTAINER \
     --name-template $PROJECT_NAME
     
     print_installation_done
@@ -151,10 +151,10 @@ function upgrade_chart {
         chart_version=$DEFAULT_VERSION
     fi
 
-    echo "${YELLOW}Upgrading release: $CHART_REPO/$PROJECT_NAME${NC}"
+    echo "${YELLOW}Upgrading release: $REGISTRY_PROJECT_CHART/$PROJECT_NAME${NC}"
     echo "${YELLOW}version: $chart_version${NC}"
 
-    helm upgrade $PROJECT_NAME $CHART_REPO/$PROJECT_NAME --devel --version $chart_version --set global.version="$chart_version" --reuse-values 
+    helm upgrade $PROJECT_NAME $REGISTRY_PROJECT_CHART/$PROJECT_NAME --devel --version $chart_version --set global.version="$chart_version" --reuse-values 
     print_installation_done
 }
 

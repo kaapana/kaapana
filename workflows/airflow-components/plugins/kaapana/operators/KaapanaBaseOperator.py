@@ -263,7 +263,7 @@ class KaapanaBaseOperator(BaseOperator):
         self.log.info("Conf: ")
         self.log.info(context['dag_run'].conf)
 
-        if "conf" in context['dag_run'].conf and "form_data" in context['dag_run'].conf["conf"]:
+        if context['dag_run'].conf is not None and "conf" in context['dag_run'].conf and "form_data" in context['dag_run'].conf["conf"]:
             form_data = context['dag_run'].conf["conf"]["form_data"]
             form_envs = {}
             for form_key in form_data.keys():

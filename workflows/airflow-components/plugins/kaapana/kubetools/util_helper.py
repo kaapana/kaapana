@@ -199,6 +199,7 @@ class NodeUtil():
     @staticmethod
     def check_ti_scheduling(ti, logger):
         if NodeUtil.ureg is None:
+            logger.warning("Inititalize Util-Helper!")
             NodeUtil.enable = Variable.get(key="util_scheduling", default_var=None)
             if NodeUtil.enable == None:
                 Variable.set("util_scheduling", True)
@@ -228,7 +229,6 @@ class NodeUtil():
             return True
 
         else:
-            
             config = ti.executor_config
             if "ram_mem_mb" not in config:
                 logger.warning("Execuexecutor_config not found!")

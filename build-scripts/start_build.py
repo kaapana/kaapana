@@ -78,9 +78,13 @@ if __name__ == '__main__':
             print(exc)
 
     build_containers = configuration["build_containers"]
+    push_containers = configuration["push_containers"]
     print("build_containers: {}".format(build_containers))
+    print("push_containers: {}".format(push_containers))
     build_charts = configuration["build_charts"]
+    push_charts = configuration["push_charts"]
     print("build_charts: {}".format(build_charts))
+    print("push_charts: {}".format(push_charts))
 
 
     if configuration["http_proxy"] == "":
@@ -190,7 +194,7 @@ if __name__ == '__main__':
                     if log['loglevel'].upper() == "ERROR":
                         raise SkipException('SKIP {}: build() failed!'.format(log['test']),log=log)
                 
-                if not build_only:
+                if not build_only and push_containers:
                     for log in docker_container.push():
                         print_log_entry(log)
                         if log['loglevel'].upper() == "ERROR":
@@ -261,7 +265,7 @@ if __name__ == '__main__':
                     if log_entry['loglevel'].upper() == "ERROR":
                         raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']),log=log_entry)
                 
-                if not build_only:
+                if not build_only and push_charts:
                     for log_entry in chart.push():
                         print_log_entry(log_entry)
                         if log_entry['loglevel'].upper() == "ERROR":

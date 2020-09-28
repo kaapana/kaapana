@@ -1,0 +1,10 @@
+.. mermaid::
+
+    graph TD
+        A[Dicom image] --> B[convert to nifti];
+        B --> C[start tumor segmentation];
+        C --> D[convert results to dicom segmentation objects];
+        D --> E[send dicom segmentation to pacs];
+        D --> F[extract metadata];
+        E --> G[clean temp data]
+        F --> G

@@ -1,7 +1,7 @@
-.. _jip_doc:
+.. _kaapana_doc:
 
 
-The **Kaapana ( JIP )** is a strategic initiative within the German Cancer Consortium (DKTK).
+The **Kaapana ( Kaapana )** is a strategic initiative within the German Cancer Consortium (DKTK).
 The aim is to establish a technical infrastructure that enables modern and distributed imaging
 research within the consortium. The main focus is on the use of modern machine learning methods in
 medical image processing. It will strengthen collaborations between the participating clinical sites
@@ -44,7 +44,7 @@ necessary to install additional software on workstations - a modern
 browser is sufficient.
 
 The following sections of this documentation will describe the components in
-more detail, and present a step-by-step guide how to install the JIP software
+more detail, and present a step-by-step guide how to install the Kaapana software
 on your DKTK hardware.
 
 .. raw:: latex
@@ -77,7 +77,7 @@ The following sections give a basic overview of each of these areas and describe
 
 Base
 ########
-The base section represents the main user interface of the JIP.
+The base section represents the main user interface of the Kaapana.
 It is basically a website which combines the interfaces of all components in a single view.
 
 Store
@@ -132,7 +132,7 @@ Example of a typical workflow:
 All processing containers are also handled by Kubernetes.
 This will ensure a completely integrated processing unit.
 
-Since this topic is very extensive and important for the usage of the JIP,
+Since this topic is very extensive and important for the usage of the Kaapana,
 we will dedicate it a separate chapter in this documentation.
 The development guide explains the basic principles and gives an introductory example.
 
@@ -154,7 +154,7 @@ Monitoring
 ##########
 
 As with all platforms, a system to monitor the current system status is needed.
-To provide this, the JIP utilized a commonly used combination of `Prometheus <https://prometheus.io/>`_ and `Grafana <https://grafana.com/>`_.
+To provide this, the Kaapana utilized a commonly used combination of `Prometheus <https://prometheus.io/>`_ and `Grafana <https://grafana.com/>`_.
 The graphical dashboards present states such as disk space, CPU and memory usage, network pressure etc.
 
 .. figure:: _static/img/grafana.png

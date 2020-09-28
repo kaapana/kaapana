@@ -39,9 +39,9 @@ this happens quite quickly. It may already be completed when you look for it.
    :align: center
    :scale: 40%
 
-The metadata will appear in the 'DKTK JIP' dashboard of the Meta section of the platform.
+The metadata will appear in the 'DKTK Kaapana' dashboard of the Meta section of the platform.
 You should now see two (or more) entries in the list. 
-The 'Datasets' visualization will show the AE-title, the image was sent to (JIP when you used the default).
+The 'Datasets' visualization will show the AE-title, the image was sent to (Kaapana when you used the default).
 
 .. figure:: _static/img/meta_second_image.png
    :align: center

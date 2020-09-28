@@ -39,7 +39,7 @@ If GPU support is desired (recommended):
 
 You can find the port configuration in :ref:`specs_doc`
 
-Download the script from the JIP Homepage
+Download the script from the Kaapana Homepage
 -----------------------------------------
 
 - Login as root on the server (ssh, ILO or directly)
@@ -75,7 +75,7 @@ asked a couple of questions during the process.
 
 Right now only NVIDIA GPUs are supported. If you have
 such a card in your system you should enable the support.
-The "default" JIP-Server has two NVIDIA TITAN Xp GPUs.
+The "default" Kaapana-Server has two NVIDIA TITAN Xp GPUs.
 
 | If everything runs as expected, the Nvidia card will be detected automatically.
   In this case, it will also be activated automatically.

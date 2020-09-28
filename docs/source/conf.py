@@ -47,7 +47,7 @@ extensions = [
     'sphinxcontrib.mermaid'
 ]
 
-pdf_documents = [('index', u'joint_imaging_platform', 'JIP documentation', u'MICO @DKFZ'), ]
+pdf_documents = [('index', u'joint_imaging_platform', 'Kaapana documentation', u'MICO @DKFZ'), ]
 mermaid_params = ['--theme', 'forest', '--width', '200', '--backgroundColor', 'transparent']
 
 
@@ -133,7 +133,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'JointImagingPlatform.tex', 'DKTK Kaapana\\\\Technical Documentation',
-     'JIP Team Heidelberg', 'manual'),
+     'Kaapana Team Heidelberg', 'manual'),
 ]
 
 

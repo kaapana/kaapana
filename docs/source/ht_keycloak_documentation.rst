@@ -8,8 +8,8 @@ You can access keycloak via the dashboard (only if you have admin rights) or dir
 
 The default credentials to access the Admin section of Keycloak are:
 
--  Admin username: "jipadmin"
--  Admin password: "DKjipTK"
+-  Admin username: "admin"
+-  Admin password: "Kaapana2020"
 
 As it does not make any sense to repeat the original `documentation of keycloak <https://www.keycloak.org/documentation.html>`_ we only present here some simple steps.
 

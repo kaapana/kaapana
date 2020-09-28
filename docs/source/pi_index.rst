@@ -28,7 +28,7 @@ This consists of the following parts:
 2. All required dependencies will be installed on the plain CentOS (:ref:`kaapana_dependencies_doc`).
 3. The platform itself will be deployed (:ref:`platform_deployment_doc`).
 
-| Please follow the steps mentioned. If you have issues feel free to contact us: jip-service@dkfz-heidelberg.de
+| Please follow the steps mentioned. If you have issues feel free to contact us: kaapana@dkfz-heidelberg.de
 
 .. note::
 

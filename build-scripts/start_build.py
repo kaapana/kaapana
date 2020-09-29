@@ -34,8 +34,8 @@ def print_log_entry(log_entry):
     if supported_log_levels.index(log_entry['loglevel'].upper()) >= log_level:
         print("-----------------------------------------------------------")
         print("Log: {}".format(log_entry["test"]))
-        print("Step: {}".format(log_entry["step"]))
-        print("Message: {}".format(log_entry["message"]))
+        print("Step: {}".format(log_entry["step"] if "step" in log_entry else "na"))
+        print("Message: {}".format(log_entry["message"] if "message" in log_entry else "na"))
         print("-----------------------------------------------------------")
         # print(json.dumps(log_entry_copy, indent=4, sort_keys=True))
 

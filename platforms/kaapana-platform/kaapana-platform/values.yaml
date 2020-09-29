@@ -3,8 +3,8 @@ global:
     registry_url: "dktk-jip-registry.dkfz.de"
     registry_project: "/kaapana"
     pull_policy_pods: "IfNotPresent"
-    pull_policy_jobs: "Always"
-    pull_policy_operators: "Always"
+    pull_policy_jobs: "IfNotPresent"
+    pull_policy_operators: "IfNotPresent"
     core_namespace: "kube-system"
     base_namespace: "base"
     meta_namespace: "meta"
@@ -12,11 +12,7 @@ global:
     flow_namespace: "flow"
     flow_jobs_namespace: "flow-jobs"
     monitoring_namespace: "monitoring"
-    hostname: 
     gpu_support: false
-    dkfz_registry: true
-    private_registry:
-
     credentials:
         minio_username: "kaapana-minio"
         minio_password: "Kaapana2020"
@@ -24,14 +20,10 @@ global:
         grafana_password: "admin"
         keycloak_admin_username: "admin"
         keycloak_admin_password: "Kaapana2020"
-        registry_username: "na"
-        registry_password: "na"
-        
     dicom_port: 11112
     http_port: 80
     https_port: 443
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana
-    home_dir: /root
-    version: "1.1.3-vdev"
+    version: "1.0.0-vdev"
 ---

@@ -1,18 +1,16 @@
 #!/bin/bash
-############################################################################80>|###########################################128>|
-# @Version: 1.0.0
-# @Authors: Jonas Scherer <j.scherer@dkfz.de>, Klaus Kades <k.kades@dkfz.de> et al.
-# @Copyright: 2019 Deutsches Krebsforschungszentrum http://www.dkfz.de
-############################################################################80>|###########################################128>|
 set -euf -o pipefail
 
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
 PROJECT_NAME="kaapana-platform"
 DEFAULT_VERSION="1.0.0-vdev"
-REGISTRY_URL="dktk-jip-registry.dkfz.de"
-REGISTRY_PROJECT_CONTAINER="/kaapana"
-REGISTRY_PROJECT_CHART="kaapana-public"
+
+CHART_REGISTRY_URL="dktk-jip-registry.dkfz.de"
+CHART_REGISTRY_PROJECT="kaapana-public"
+
+CONTAINER_REGISTRY_URL="dktk-jip-registry.dkfz.de"
+CONTAINER_REGISTRY_PROJECT="/kaapana"
 
 HTTP_PORT=80
 HTTPS_PORT=443
@@ -21,14 +19,13 @@ DEV_MODE="true"
 GPU_SUPPORT="false"
 DEV_PORTS="false"
 
-
 FAST_DATA_DIR="/home/kaapana"
 SLOW_DATA_DIR="/home/kaapana/dicom"
 PULL_POLICY_PODS="Always"
 PULL_POLICY_JOBS="Always"
 PULL_POLICY_OPERATORS="Always"
 
-declare -a NEEDED_REPOS=("$REGISTRY_PROJECT_CHART" "processing-external")
+declare -a NEEDED_REPOS=("$CHART_REGISTRY_PROJECT" "processing-external")
 
 script_name=`basename "$0"`
 
@@ -83,15 +80,35 @@ function get_domain {
 }
 
 function delete_deployment {
-    echo -e "${YELLOW}Removing deployment: $PROJECT_NAME${NC}"
-    helm del $PROJECT_NAME
-    echo -e "${YELLOW}Wait 60s until everything is terminated...${NC}"
-    sleep 60
-    echo -e "${GREEN}####################################  DONE  ############################################${NC}"
+    echo -e "${YELLOW}Uninstall releases${NC}"
+    helm ls -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 helm delete
+    echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
+    WAIT_UNINSTALL_COUNT=60
+    for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
+    do
+        sleep 3
+        DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered 'flow-jobs|flow|base|monitoring|store' | cut -d' ' -f1")
+        TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E --line-buffered 'Terminating' | cut -d' ' -f1")
+        UNINSTALL_TEST=$DEPLOYED_NAMESPACES$TERMINATING_PODS
+        if [ -z "$UNINSTALL_TEST" ]; then
+            break
+        fi
+    done
+
+    if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
+        echo "${RED}Something went wrong while uninstalling please check manually if there are still namespaces or pods floating around. Everything must be delete before the installation:${NC}"
+        echo "${RED}kubectl get pods -A${NC}"
+        echo "${RED}kubectl get namespaces${NC}"
+        echo "${RED}Once everything is delete you can reinstall the platform!${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}####################################  UNINSTALLATION DONE  ############################################${NC}"
 }
 
 function install_chart {
-    check_harbor_access
+    check_credentials
+    add_helm_repos
 
     if [ ! "$QUIET" = "true" ];then
         while true; do
@@ -105,9 +122,7 @@ function install_chart {
     else
         echo -e "${YELLOW}QUIET-MODE active!${NC}"
     fi
-    
     echo -e "${YELLOW}GPU_SUPPORT: $GPU_SUPPORT ${NC}"
-
     get_domain
     if [ ! "$QUIET" = "true" ];then
         echo -e ""
@@ -116,8 +131,8 @@ function install_chart {
         chart_version=$DEFAULT_VERSION
     fi
     
-    echo -e "${YELLOW}Installing $REGISTRY_PROJECT_CHART/$PROJECT_NAME version: $chart_version${NC}"
-    helm install --devel --version $chart_version  $REGISTRY_PROJECT_CHART/$PROJECT_NAME \
+    echo -e "${YELLOW}Installing $CHART_REGISTRY_PROJECT/$PROJECT_NAME version: $chart_version${NC}"
+    helm install --devel --version $chart_version  $CHART_REGISTRY_PROJECT/$PROJECT_NAME \
     --set global.version="$chart_version" \
     --set global.hostname="$DOMAIN" \
     --set global.dev_ports="$DEV_PORTS" \
@@ -133,8 +148,8 @@ function install_chart {
     --set global.credentials.registry_username="$REGISTRY_USERNAME" \
     --set global.credentials.registry_password="$REGISTRY_PASSWORD" \
     --set global.gpu_support=$GPU_SUPPORT \
-    --set global.registry_url=$REGISTRY_URL \
-    --set global.registry_project=$REGISTRY_PROJECT_CONTAINER \
+    --set global.registry_url=$CONTAINER_REGISTRY_URL \
+    --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
     --name-template $PROJECT_NAME
     
     print_installation_done
@@ -151,53 +166,36 @@ function upgrade_chart {
         chart_version=$DEFAULT_VERSION
     fi
 
-    echo "${YELLOW}Upgrading release: $REGISTRY_PROJECT_CHART/$PROJECT_NAME${NC}"
+    echo "${YELLOW}Upgrading release: $CHART_REGISTRY_PROJECT/$PROJECT_NAME${NC}"
     echo "${YELLOW}version: $chart_version${NC}"
 
-    helm upgrade $PROJECT_NAME $REGISTRY_PROJECT_CHART/$PROJECT_NAME --devel --version $chart_version --set global.version="$chart_version" --reuse-values 
+    helm upgrade $PROJECT_NAME $CHART_REGISTRY_PROJECT/$PROJECT_NAME --devel --version $chart_version --set global.version="$chart_version" --reuse-values 
     print_installation_done
 }
 
 
-function check_harbor_access {
-    echo -e "${YELLOW}Check registry access...${NC}"
+function check_credentials {
     while true; do
         if [ ! -v REGISTRY_USERNAME ] || [ ! -v REGISTRY_PASSWORD ]; then
-            echo -e "${YELLOW}Please enter the credentials for the DKTK Docker Registry that you got from the kaapana team in order to download docker containers!${NC}"
+            echo -e "${YELLOW}Please enter the credentials for the Container-Registry: $CONTAINER_REGISTRY_URL !${NC}"
             read -p '**** username: ' REGISTRY_USERNAME
             read -s -p '**** password: ' REGISTRY_PASSWORD
         else
-            echo -e "${GREEN}Credentials already found!${NC}"
-        fi
-
-        HTTP_STATUS=$(curl -u $REGISTRY_USERNAME:$REGISTRY_PASSWORD --silent --write-out "%{http_code}" --output /dev/null "https://dktk-jip-registry.dkfz.de/api/v2.0/users/current")
-        if [[ "$HTTP_STATUS" -ne 200 ]];then
-            echo -e "${RED}Wrong credentials!${NC}"
-            echo -e "${RED}Try again!${NC}"
-            unset REGISTRY_USERNAME
-            unset REGISTRY_PASSWORD
-            continue
-        else
-            echo ""
-            echo -e "${GREEN}Credentials OK!${NC}"
+            echo -e "${GREEN}Credentials found!${NC}"
             break
         fi
     done
+}
 
-    echo -e "Checking project access..."
-    HTTP_RESPONSE=$(curl -u $REGISTRY_USERNAME:$REGISTRY_PASSWORD --silent --write-out "HTTPSTATUS:%{http_code}"-i -k -X GET "https://dktk-jip-registry.dkfz.de/api/v2.0/projects")
+function add_helm_repos {
+    echo -e "Adding needed helm projects..."
     for i in "${NEEDED_REPOS[@]}"
     do
-        if [[ $HTTP_RESPONSE == *"\"name\": \"$i\""* ]];then
-            echo -e "${GREEN}Access granted for Project $i.${NC}"
-            helm repo add --username $REGISTRY_USERNAME --password $REGISTRY_PASSWORD $i https://dktk-jip-registry.dkfz.de/chartrepo/$i
-
-        else
-            echo -e "${RED}######################### No access for project $i! #########################${NC}"
-            echo -e "${RED}################### Please contact the kaapana team from DKFZ to grant access! ###################${NC}"
-            exit 1
-        fi
+        echo -e "${YELLOW}Adding project $i.${NC}"
+        helm repo add $i https://dktk-jip-registry.dkfz.de/chartrepo/$i
     done
+
+    helm repo update
 }
 
 function install_certs {
@@ -385,7 +383,7 @@ echo $deployments
 if [[ $deployments == *"$PROJECT_NAME"* ]] && [[ ! $QUIET = true ]];then
     echo -e "${YELLOW}$PROJECT_NAME already deployed!${NC}"
     PS3='select option: '
-    options=("Upgrade" "Re-install" "Quit")
+    options=("Upgrade" "Re-install" "Uninstall" "Quit")
     select opt in "${options[@]}"
     do
         case $opt in
@@ -399,6 +397,11 @@ if [[ $deployments == *"$PROJECT_NAME"* ]] && [[ ! $QUIET = true ]];then
                 delete_deployment
                 install_chart
                 break
+                ;;
+            "Uninstall")
+                echo -e "${YELLOW}Starting Uninstallation...${NC}"
+                delete_deployment
+                exit 0
                 ;;
             "Quit")
                 echo -e "${YELLOW}abort.${NC}"

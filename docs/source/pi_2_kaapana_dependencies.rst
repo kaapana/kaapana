@@ -11,7 +11,6 @@ Requirements
 ------------
 The following requirements should be met:
 
-- CentOS installed  (:ref:`centos_install_doc`)
 - Proxy configured (If necessary :ref:`proxy_conf_doc`)
 - Internet access
 - Root privileges
@@ -40,7 +39,7 @@ If GPU support is desired (recommended):
 You can find the port configuration in :ref:`specs_doc`
 
 Download the script from the Kaapana Homepage
------------------------------------------
+---------------------------------------------
 
 - Login as root on the server (ssh, ILO or directly)
 - Execute the following commands:

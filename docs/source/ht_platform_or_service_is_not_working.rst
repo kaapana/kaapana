@@ -28,6 +28,4 @@ automatically restarted. To delete a pod via the console. You need do copy the "
 
     kubectl delete pods -n <THE NAMESPACE> <NAME OF THE POD>
 
-- Network errors: In case of network erros, there seems to be an error within your local network. E.g. your server domain might not work. In this case you could for
-example reinstall the platform by first deleting the jip_config.json file and then entering your IP-Address also when the script ask for the server_domain. If you are
-sure that in your local network everything is correctly set, please contact the Kaapana-Team. 
+- Network errors: In case of network erros, there seems to be an error within your local network. E.g. your server domain might not work. In this case you could for example reinstall the platform by first deleting the jip_config.json file and then entering your IP-Address also when the script ask for the server_domain. If you are sure that in your local network everything is correctly set, please contact the Kaapana-Team. 

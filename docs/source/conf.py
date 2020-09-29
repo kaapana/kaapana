@@ -20,13 +20,13 @@
 # -- Project information -----------------------------------------------------
 
 project = 'Kaapana'
-copyright = '2019, MIC @DKFZ'
+copyright = '2020, MIC @DKFZ'
 author = 'MIC @DKFZ'
 
 # The short X.Y version
-version = '1.1'
+version = '0.9'
 # The full version, including alpha/beta/rc tags
-release = '1.1'
+release = '0.9'
 
 
 # -- General configuration ---------------------------------------------------
@@ -47,7 +47,7 @@ extensions = [
     'sphinxcontrib.mermaid'
 ]
 
-pdf_documents = [('index', u'joint_imaging_platform', 'Kaapana documentation', u'MICO @DKFZ'), ]
+pdf_documents = [('index', u'kaapana_docs', 'Kaapana documentation', u'MIC @DKFZ'), ]
 mermaid_params = ['--theme', 'forest', '--width', '200', '--backgroundColor', 'transparent']
 
 
@@ -113,7 +113,7 @@ html_static_path = ['_static']
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'JointImagingPlatformdoc'
+htmlhelp_basename = 'Kaapanadoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -132,7 +132,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'JointImagingPlatform.tex', 'DKTK Kaapana\\\\Technical Documentation',
+    (master_doc, 'Kaapana.tex', 'DKTK Kaapana\\\\Technical Documentation',
      'Kaapana Team Heidelberg', 'manual'),
 ]
 
@@ -142,7 +142,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'jointimagingplatform', 'Kaapana Documentation',
+    (master_doc, 'kaapana', 'Kaapana Documentation',
      [author], 1)
 ]
 
@@ -153,8 +153,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'JointImagingPlatform', 'Kaapana Documentation',
-     author, 'JointImagingPlatform', 'One line description of project.',
+    (master_doc, 'Kaapana', 'Kaapana Documentation',
+     author, 'Kaapana', 'Build infrastructure for Medical Image Computing.',
      'Miscellaneous'),
 ]
 

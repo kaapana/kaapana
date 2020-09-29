@@ -9,7 +9,7 @@ Welcome to Kaapana's documentation!
 .. hint::
 
   | **New release is online!**
-  | see :ref:`update_1.1_doc`
+  | see :ref:`update_0.9_doc`
 
 .. toctree::
    :maxdepth: 2

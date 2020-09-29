@@ -1,59 +1,17 @@
 .. _kaapana_doc:
 
+Mission of the project Kaapana
+##############################
+TODO 
 
-The **Kaapana ( Kaapana )** is a strategic initiative within the German Cancer Consortium (DKTK).
-The aim is to establish a technical infrastructure that enables modern and distributed imaging
-research within the consortium. The main focus is on the use of modern machine learning methods in
-medical image processing. It will strengthen collaborations between the participating clinical sites
-and support multicenter trails.
-
-The great progress in artificial intelligence and machine learning in recent years has enabled
-previously unimaginable research results in computer vision. But these
-technologies also introduce some new challenges, especially for the
-medical imaging domain.  In order to conduct top-level research in this field,
-it is imperative to have large amounts of data available in order to train
-and evaluate new algorithms.
-
-These prerequisites present researchers (particularly in medical research) with major challenges.
-Data is highly personalized and subject to information privacy requirements.
-
-Within the German Cancer Consortium, there are large amounts of high-quality
-datasets waiting for exploration. In order to make them usable for research,
-it is necessary to find new solutions. This project attempts to address the
-organizational challenges of data protection requirements by **exchanging and
-distributing the processing methods rather than patient data**. Every clinical
-site therefore retains sovereignty over its own data at all times, no patient
-dataset has to leave the clinic IT infrastructure.
-
-The first development stage of Kaapana aims to create a
-uniform processing infrastructure at all participating sites. Image
-analysis algorithms can be executed, trained and developed in a standardized
-manner, facilitating easy exchange and comparison of methods and results across sites.
-
-The basic infrastructure contains all the components required to
-operate such a system.  It provides both specialized components for medical
-image processing (such as PACS, DICOM receiver, metadata analysis etc.) and
-general platform systems (such as user administration, monitoring etc.). One
-design goal was to leverage existing standards and established open
-technologies as much as possible.
-
-The platform integrates itself into the existing IT system by offering a DICOM
-receiver to which you can send images from your existing systems. The platform
-itself is operated via a web-based user interface. It is therefore not
-necessary to install additional software on workstations - a modern
-browser is sufficient.
-
-The following sections of this documentation will describe the components in
-more detail, and present a step-by-step guide how to install the Kaapana software
-on your DKTK hardware.
-
-.. raw:: latex
-
-    \clearpage
+Technology-stack
+################
 
 
-Structure of the Platform
-#########################
+
+Basic structure of the repository
+#################################
+
 The platform is running on servers, which are operated locally at each of the participating sites.
 More precisely, the software is a collection of components that are linked together using modern cloud technologies.
 This also reflects the platform character, as these components can be easily extended, adapted and exchanged.

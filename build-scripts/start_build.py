@@ -45,7 +45,7 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument("-u", "--username", dest="username", default=None, help="Username")
     parser.add_argument("-p", "--password", dest="password", default=None, required=False, help="Password")
-    parser.add_argument("-bo", "--build-only", dest="build_only", default=False, action='store_true', help="No platform deployment and UI tests.")
+    parser.add_argument("-bo", "--build-only", dest="build_only", default=False, action='store_true', help="Just building the containers and charts -> no pushing")
     parser.add_argument("-co", "--charts-only", dest="charts_only", default=False, action='store_true', help="Just build all helm charts.")
     parser.add_argument("-do", "--docker-only", dest="docker_only", default=False, action='store_true', help="Just build all Docker containers charts.")
 
@@ -268,11 +268,10 @@ if __name__ == '__main__':
                 continue
 
     print("-----------------------------------------------------------")
-    print("")
-    print("-----------------------------------------------------------")
     if len(error_list) > 0:
         for error in error_list:
             if error == "containers":
+                print("")
                 print("-----------------------------------------------------------")
                 print("------------------- Container issues: ---------------------")
                 print("-----------------------------------------------------------")

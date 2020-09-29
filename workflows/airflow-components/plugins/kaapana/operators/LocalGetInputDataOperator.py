@@ -42,16 +42,10 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         dag_run_id = kwargs['dag_run'].run_id
         print(conf)
 
-        if conf == None:
-            print("No config found!")
+        if conf == None or not "inputs" in conf:
+            print("No config or inputs in config found!")
             print("Skipping...")
             return
-
-        if not "inputs" in conf:
-            print("Error with dag-config!")
-            print("Could not identify 'inputs'")
-            print("Dag-conf: {}".format(conf))
-            exit(1)
 
         inputs = conf["inputs"]
 

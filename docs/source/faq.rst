@@ -14,5 +14,4 @@ Frequently Asked Questions (FAQ)
    ht_setup_connection_to_kubernetes
    ht_kibana_dashboard
    ht_platform_or_service_is_not_working
-   ht_configure_lacp_example
    ht_browser_does_not_work

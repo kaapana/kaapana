@@ -11,7 +11,6 @@ Requirements
 
 The following requirements should be met:
 
-- CentOS installed  (:ref:`centos_install_doc`)
 - All dependencies are installed (:ref:`kaapana_dependencies_doc`)
 - System reboot
 - Kubernetes up and running -> you can check this on the server:

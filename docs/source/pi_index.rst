@@ -24,7 +24,7 @@ This consists of the following parts:
 
 | The installation of Kaapana will be done in **three steps**:
 
-1. A plain Minimal CentOS 7 will be installed on the server (:ref:`centos_install_doc`).
+1. A plain Minimal CentOS 7 will be installed on the server
 2. All required dependencies will be installed on the plain CentOS (:ref:`kaapana_dependencies_doc`).
 3. The platform itself will be deployed (:ref:`platform_deployment_doc`).
 
@@ -46,7 +46,6 @@ This consists of the following parts:
 .. toctree::
    :maxdepth: 2
 
-   pi_1_centos_installation
    pi_2_kaapana_dependencies
    pi_3_platform_deployment
 

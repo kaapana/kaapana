@@ -13,7 +13,6 @@ Contact
 
 | German Cancer Research Center (DKFZ)
 | Division of Medical Image Computing (MIC)
-| Working Group Medical Imaging Components (MICO)
 
 | Deutsches Krebsforschungzentrum
 | Radiologisches Forschungs- und Entwicklungszentrum

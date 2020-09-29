@@ -9,6 +9,6 @@ Kaapana
 .. toctree::
    :maxdepth: 2
    
-   kaapna_documentation
+   kaapana_documentation
 
 

@@ -36,7 +36,7 @@ Radiomics
 | **What's going on?**
 | 1) Selected DICOM SEGs are converted not .nrrd files
 | 2) Corresponding CT file is downloaded form the PACS
-| 3) Downloaded CT files are converted to *.nrrd
+| 3) Downloaded CT files are converted to \*.nrrd
 | 4) Radiomics is done on selected DICOMs
 | 5) Extracted radiomics data are pushed to the bucket *radiomics* in Minio and can be downloaded there
 

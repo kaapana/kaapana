@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 Kaapana
-==========================
+=======
 
 .. toctree::
    :maxdepth: 2

@@ -1,7 +1,7 @@
-.. _getting_started_doc:
+.. _user_guide_platform_doc:
 
-Getting started
-===============
+User Guide Platform
+===================
 
 | If the platform has been successfully installed, you can start here to get familiar with the basic principles.
 

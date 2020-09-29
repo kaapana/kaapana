@@ -3,13 +3,13 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-User guide
-==========
+Platform User-Guide
+===================
 
 .. toctree::
    :maxdepth: 2
    
-   ug_getting_started
+   ug_platform
    main_specifications
    ug_workflows
 

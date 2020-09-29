@@ -15,9 +15,10 @@ Welcome to Kaapana's documentation!
    :maxdepth: 2
    
    index_kaapana
-   pi_index
-   release_index
+   getting_started
    user_guide
    index_development_guide
    faq
+   glossary
+   release_index
    main_license

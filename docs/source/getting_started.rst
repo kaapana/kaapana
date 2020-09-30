@@ -14,13 +14,45 @@ Requirements
 Before you get started you should be familiar with the basic concepts and components of Kaapana see :ref:`kaapana_concept`.
 You should also have the following packages installed on your build-system.
 
-1. Clone the repository: (:code:`git clone https://github.com/kaapana/kaapana.git`) 
+1. Clone the repository:
+
+   - :code:`git clone https://github.com/kaapana/kaapana.git`
+   - :code:`git clone https://phabricator.mitk.org/source/kaapana.git`
+
 2. Python3 
-3. Python requirements (:code:`python3 -m pip install -r kaapana/build-scripts/requirements.txt`) 
-4. Docker (:code:`snap install docker --classic`)
-5. (opt) Helm (:code:`snap install helm --classic --channel=3.1/stable`)
-6. (opt) Helm-push plugin (:code:`helm plugin install https://github.com/chartmuseum/helm-push`)
-7. (opt) Helm-kubeval plugin (:code:`helm plugin install https://github.com/instrumenta/helm-kubeval`)
+
+   - :code:`apt install python3 python3-pip`
+   - :code:`yum install python3 python3-pip`
+
+3. Python requirements 
+   
+   - :code:`python3 -m pip install -r kaapana/build-scripts/requirements.txt`
+
+4. Docker
+
+   - :code:`snap install docker --classic`
+
+5. (opt) Helm
+
+   - :code:`snap install helm --classic --channel=3.1/stable`
+
+6. (opt) Helm-push plugin
+
+   - :code:`helm plugin install https://github.com/chartmuseum/helm-push`
+
+7. (opt) Helm-kubeval plugin
+
+   - :code:`helm plugin install https://github.com/instrumenta/helm-kubeval`
+
+.. hint::
+
+  | **Docker as a non-root user**
+  | In order to docker commands as non-root user you need to execute the following steps:
+  | 1. :code:`sudo groupadd docker`
+  | 2. :code:`sudo usermod -aG docker $USER`
+  | 3. :code:`reboot` -> to reboot the system
+  | 5. :code:`docker run hello-world` -> this should work now without root privileges
+  | For more information visit the `Docker docs <https://docs.docker.com/engine/install/linux-postinstall/>`_ 
 
 To install the platform itself, you'll also need some kind of a :term:`server` (please have a look in the Glossary for more information).
 
@@ -36,10 +68,18 @@ To get the Kaapana-platform running, you need to execute the following steps:
 
 Step 1&2: Build
 ---------------
+.. hint::
+
+  | **Docker login needed!**
+  | In order to be able to push and pull images from your registry, you need to login first.
+  | For Dockerhub just use: :code:`docker login` and use your normal Dockerhub credentials.
+  | For private registries you also need to specify the corresponding URL eg: :code:`docker login <URL>` 
+
 Step 1&2 will be handeled with a build-script, which you can find it within the repository at :code:`kaapana/build-scripts/start_build.py`.
 
 Before you start the build-process, you should have a look at the build-configuration at :code:`kaapana/build-scripts/build-configuration.yaml`.
 Assuming you want to use `Dockerhub <https://hub.docker.com/>`_ as the target registry (username johndoe), then you must adjust the configuration as follows:
+
 
 .. code-block:: python
    :emphasize-lines: 2,3,9,10
@@ -60,7 +100,7 @@ As described in the :ref:`kaapana_concept`, we will utilize the DKFZ registry fo
 .. hint::
 
   | **Disk space needed:**
-  | For the complete build of the project xx GB memory on the system is needed.
+  | For the complete build of the project ~50GB of container images will be stored at :code:`/var/snap/docker/common/var-lib-docker`.
 
 
 Start the build process:

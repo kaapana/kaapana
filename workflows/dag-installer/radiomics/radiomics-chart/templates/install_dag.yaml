@@ -9,7 +9,7 @@ spec:
     spec:
       containers:
       - name: kaapana-plugin
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/processing-internal/dag-radiomics:1.0.0
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/processing-internal/dag-radiomics:0.1.0
         imagePullPolicy:  {{ .Values.global.pull_policy_operators }}
         volumeMounts:
         - name: data

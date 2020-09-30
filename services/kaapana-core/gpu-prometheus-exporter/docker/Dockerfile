@@ -1,9 +1,7 @@
-# FROM https://github.com/mindprince/nvidia_gpu_prometheus_exporter
-
 FROM golang as build
 
 LABEL IMAGE="gpu-prom-exporter"
-LABEL VERSION="1.0"
+LABEL VERSION="0.1"
 LABEL CI_IGNORE="False"
 
 RUN go get github.com/mindprince/nvidia_gpu_prometheus_exporter

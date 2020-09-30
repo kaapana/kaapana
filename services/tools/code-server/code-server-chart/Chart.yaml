@@ -5,4 +5,4 @@ name: code-server-chart
 version: 3.5.0-vdev
 keywords:
 - kaapanaextension
-- 1.0.0-vdev
+- 0.1.0-vdev

@@ -11,7 +11,7 @@ dependencies:
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: gpu-prom-exporter-chart
     condition: global.gpu_support
-    version: 1.0.0-vdev
+    version: 0.1.0-vdev
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: traefik-chart
     version: 2.3-vdev

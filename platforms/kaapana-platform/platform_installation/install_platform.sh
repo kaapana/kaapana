@@ -4,7 +4,7 @@ set -euf -o pipefail
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
 PROJECT_NAME="kaapana-platform"
-DEFAULT_VERSION="1.0.0-vdev"
+DEFAULT_VERSION="0.1.0-vdev"
 
 CHART_REGISTRY_URL="dktk-jip-registry.dkfz.de"
 CHART_REGISTRY_PROJECT="kaapana-public"

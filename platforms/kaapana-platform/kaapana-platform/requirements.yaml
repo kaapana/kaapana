@@ -1,7 +1,7 @@
 ---
 dependencies:
   - name: kaapana-core
-    version: 1.0.0-vdev
+    version: 0.1.0-vdev
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: meta-init-chart
     condition: Release.IsInstall

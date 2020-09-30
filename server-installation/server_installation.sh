@@ -1,10 +1,4 @@
 #!/bin/bash
-############################################################################80>|###########################################128>|
-# @Version: 1.0.0
-# @Authors: Jonas Scherer <j.scherer@dkfz.de>, Klaus Kades <k.kades@dkfz.de> et al.
-# @Copyright: 2019 Deutsches Krebsforschungszentrum http://www.dkfz.de
-############################################################################80>|###########################################128>|
-
 set -euf -o pipefail
 
 # check if stdout is a terminal...

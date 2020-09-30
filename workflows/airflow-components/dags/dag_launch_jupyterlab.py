@@ -8,7 +8,7 @@ from airflow.models import DAG
 
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from dev.KaapanaApplicationBaseOperator import KaapanaApplicationBaseOperator
+from kaapana.operators.KaapanaApplicationBaseOperator import KaapanaApplicationBaseOperator
 
 from datetime import datetime
 

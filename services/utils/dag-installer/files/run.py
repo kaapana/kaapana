@@ -85,10 +85,10 @@ if action == 'copy':
                 'docker_image': match[3],
                 'docker_version': match[4]
             }
-        print(payload)
-        r = requests.post(url, json=payload)
-        print(r.status_code)
-        print(r.text)
+            print(payload)
+            r = requests.post(url, json=payload)
+            print(r.status_code)
+            print(r.text)
 
 print('################################################################################')
 print(f'Successfully triggered the deployment to download the images of the dag')

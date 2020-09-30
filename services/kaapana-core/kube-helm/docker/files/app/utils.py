@@ -143,10 +143,6 @@ def helm_install(payload, namespace):
                 resp = pull_docker_image(**ds)
                 print(resp)
                 print(resp.status)
-                return Response(
-                    f"We will try to download the image: {ds['docker_registry_url']}{ds['docker_registry_project']}/{ds['docker_image']}:{ds['docker_version']}! Depending on your internet connection, this might take some time, please try again later!",
-                    500
-                )
             except requests.exceptions.ConnectionError as e:
                 print(e)
                 return Response(
@@ -154,7 +150,10 @@ def helm_install(payload, namespace):
                     500
                 )
         return Response(
-            f"We have trouble downloading the container. Please have a look into the logs of the kube-helm container to see, why the installation failed!",
+            f"We will try to download the images: " + \
+                " ,".join([f"{ds['docker_registry_url']}{ds['docker_registry_project']}/{ds['docker_image']}:{ds['docker_version']}" for ds in docker_containers]) + \
+                    "! Depending on your internet connection, this might take some time, please try again later! \
+                        In case you cannot install the chart after a very long time, plese take a look into Kubernetes and the logs of the kube-helm container to see, why the installation failed!",
             500
         )
 

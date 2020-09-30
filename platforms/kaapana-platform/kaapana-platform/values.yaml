@@ -1,7 +1,5 @@
 ---
 global:
-    registry_url: "dktk-jip-registry.dkfz.de"
-    registry_project: "/kaapana"
     pull_policy_pods: "IfNotPresent"
     pull_policy_jobs: "IfNotPresent"
     pull_policy_operators: "IfNotPresent"

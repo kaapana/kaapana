@@ -1,7 +1,5 @@
 ---
 global:
-    registry_url: ""
-    registry_project: ""
     pull_policy_pods: "IfNotPresent"
     store_namespace: "store"
     slow_data_dir: /home/kaapana

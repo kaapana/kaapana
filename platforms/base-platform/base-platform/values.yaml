@@ -1,10 +1,8 @@
 ---
 global:
-    registry_url: ""
-    registry_project: ""
     pull_policy_pods: "IfNotPresent"
-    pull_policy_jobs: "Always"
-    pull_policy_operators: "Always"
+    pull_policy_jobs: "IfNotPresent"
+    pull_policy_operators: "IfNotPresent"
     core_namespace: "kube-system"
     hostname: 
     credentials:
@@ -14,7 +12,7 @@ global:
     http_port: 80
     https_port: 443
     fast_data_dir: /home/kaapana
-    slow_data_dir: /home/kaapana/dcm_data
+    slow_data_dir: /home/kaapana
     home_dir: /root
     traefik_nodeport: true
     

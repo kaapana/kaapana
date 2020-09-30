@@ -1,5 +1,3 @@
 ---
 global:
-    registry_url: ""
-    registry_project: ""
     pull_policy_pods: "IfNotPresent"

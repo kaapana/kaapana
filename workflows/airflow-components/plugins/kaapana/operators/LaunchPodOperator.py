@@ -5,38 +5,6 @@ from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
 from kaapana.operators.KaapanaApplicationBaseOperator import KaapanaApplicationBaseOperator
 
-# Trigge example:
-
-# AIRFLOW_API='http://airflow-service.flow.svc:8080/flow/kaapana/api/'
-# url = AIRFLOW_API + 'trigger/' + 'launch-app'
-# payload={
-#     'conf': {
-#         'image': 'dktk-jip-registry.dkfz.de/kaapana/jupyterlab:1.0-vdev',
-#         'port': 8888,
-#         'ingress_path': f'/jupyterlab-{str(uuid.uuid1())[:10]}',
-#         'volume_mounts': [{
-#             'name': 'jupyterlabdata',
-#             'mount_path': '/appdata',
-#             'sub_path': None,
-#             'read_only': False
-#             }],
-#         'volumes': [{
-#             'name': 'jupyterlabdata',
-#             'configs': {
-#                 'hostPath':
-#                     {
-#                         'type': 'DirectoryOrCreate',
-#                         'path': '/home/jip/data/minio/'
-#                     }
-#                 }
-#             }]
-#     }
-# }
-# r = requests.post(url, json=payload)
-# print(r)
-# print(r.json())
-
-
 class LaunchPodOperator(KaapanaApplicationBaseOperator):
 
     def pre_execute(self, context):

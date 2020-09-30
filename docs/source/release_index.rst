@@ -15,7 +15,7 @@ Releases
 .. toctree::
    :maxdepth: 2
 
-   release_0.9.rst
+   release_0.1.0.rst
 
 
 

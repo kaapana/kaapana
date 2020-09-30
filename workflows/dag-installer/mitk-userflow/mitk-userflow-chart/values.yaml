@@ -1,7 +1,5 @@
 ---
 global:
-    registry_url: "dktk-jip-registry.dkfz.de"
-    registry_project: "/processing-external"
     pull_policy_operators: "Always"
     flow_namespace: "flow"
     fast_data_dir: "/home/kaapana"

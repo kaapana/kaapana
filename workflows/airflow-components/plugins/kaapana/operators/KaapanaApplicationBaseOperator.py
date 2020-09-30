@@ -8,7 +8,7 @@ from kaapana.kubetools.delete_apps import delete_apps_by_run_id
 from kubernetes.client.rest import ApiException
 from airflow.exceptions import AirflowException
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 
 
 class KaapanaApplicationBaseOperator(KaapanaBaseOperator):

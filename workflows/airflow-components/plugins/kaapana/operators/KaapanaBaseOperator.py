@@ -26,6 +26,8 @@ from pprint import pprint
 import uuid
 import json
 
+default_registry = os.getenv("DEFAULT_REGISTRY","")
+default_project = os.getenv("DEFAULT_PROJECT","")
 
 class KaapanaBaseOperator(BaseOperator):
     """

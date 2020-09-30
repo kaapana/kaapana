@@ -1,7 +1,7 @@
 from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
 from kaapana.kubetools.resources import Resources as PodResources
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 from datetime import timedelta
 import os
 import json
@@ -48,7 +48,7 @@ class NnUnetOperator(KaapanaBaseOperator):
 
         super(NnUnetOperator, self).__init__(
             dag=dag,
-            image="dktk-jip-registry.dkfz.de/kaapana/nnunet-predict:0.2-vdev",
+            image="{}{}/nnunet-predict:0.2-vdev".format(default_registry, default_project),
             name="nnunet-predict",
             parallel_id=parallel_id,
             image_pull_secrets=["camic-registry"],

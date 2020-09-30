@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.decorators import apply_defaults
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 
 
 class KaapanaPythonBaseOperator(PythonOperator):

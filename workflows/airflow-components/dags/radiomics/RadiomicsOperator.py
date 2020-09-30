@@ -1,4 +1,4 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 from datetime import timedelta
 
 
@@ -23,7 +23,7 @@ class RadiomicsOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="dktk-jip-registry.dkfz.de/processing-external/radiomics:1.0.1-vdev",
+            image="{}{}/radiomics:1.0.1-vdev".format(default_registry, default_project),
             name="radiomics",
             env_vars=env_vars,
             image_pull_secrets=["camic-registry"],

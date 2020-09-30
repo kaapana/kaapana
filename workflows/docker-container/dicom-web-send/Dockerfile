@@ -1,7 +1,5 @@
 FROM python:3.5-alpine3.7
 
-LABEL REGISTRY="dktk-jip-registry.dkfz.de"
-LABEL REGISTRY_PROJECT="processing-external"
 LABEL IMAGE="dicomwebsend"
 LABEL VERSION="1.0.1-vdev"
 LABEL CI_IGNORE="False"

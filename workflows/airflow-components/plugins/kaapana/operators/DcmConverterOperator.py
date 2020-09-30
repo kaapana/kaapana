@@ -1,4 +1,4 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project, default_registry, default_project
 from datetime import timedelta
 
 class DcmConverterOperator(KaapanaBaseOperator):
@@ -25,10 +25,12 @@ class DcmConverterOperator(KaapanaBaseOperator):
             print(("output format %s is currently not supported!" % output_format))
             print("Dcm2nrrdOperator options: 'nrrd' or 'nii'")
             exit(1)
+        
+
 
         super().__init__(
             dag=dag,
-            image="dktk-jip-registry.dkfz.de/processing-external/mitk-fileconverter:1.1-vdev",
+            image="{}{}/mitk-fileconverter:1.1-vdev".format(default_registry,default_project),
             name='dcm-converter',
             env_vars=env_vars,
             image_pull_secrets=["camic-registry"],

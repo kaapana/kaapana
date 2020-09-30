@@ -1,7 +1,5 @@
 FROM python:3.6
 
-LABEL REGISTRY="dktk-jip-registry.dkfz.de"
-LABEL REGISTRY_PROJECT="processing-external"
 LABEL IMAGE="dcmqi"
 LABEL VERSION="1.3-vdev"
 LABEL CI_IGNORE="False"

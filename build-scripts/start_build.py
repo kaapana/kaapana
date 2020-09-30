@@ -9,6 +9,14 @@ from build_helper.containers_build_and_push_all import start_container_build
 from build_helper.charts_build_and_push_all import init_helm_charts
 
 
+log_list = {
+    "CONTAINERS": [],
+    "CHARTS": [],
+    "OTHER": []
+}
+supported_log_levels = ["DEBUG", "WARN", "ERROR"]
+
+
 class SkipException(Exception):
     """Exception raised for errors within the build-process.
 
@@ -30,14 +38,18 @@ class SkipException(Exception):
             return self.reason
 
 
-def print_log_entry(log_entry):
-    if supported_log_levels.index(log_entry['loglevel'].upper()) >= log_level:
+def print_log_entry(log_entry,kind="OTHER"):
+    log_entry_loglevel = log_entry['loglevel'].upper()
+    if supported_log_levels.index(log_entry_loglevel) >= log_level:
         print("-----------------------------------------------------------")
         print("Log: {}".format(log_entry["test"]))
         print("Step: {}".format(log_entry["step"] if "step" in log_entry else "na"))
         print("Message: {}".format(log_entry["message"] if "message" in log_entry else "na"))
         print("-----------------------------------------------------------")
-        # print(json.dumps(log_entry_copy, indent=4, sort_keys=True))
+    
+    if "container" in log_entry:
+        del log_entry['container']
+    log_list[kind].append([log_entry_loglevel,json.dumps(log_entry, indent=4, sort_keys=True)])
 
 
 if __name__ == '__main__':
@@ -55,7 +67,6 @@ if __name__ == '__main__':
     build_only = args.build_only
     charts_only = args.charts_only
     docker_only = args.docker_only
-    error_list = []
 
     kaapana_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if not os.path.isdir(os.path.join(kaapana_dir, "platforms")):
@@ -146,7 +157,6 @@ if __name__ == '__main__':
             print("Using default_chart_project: {}".format(default_chart_project))
         print("-----------------------------------------------------------")
 
-    supported_log_levels = ["DEBUG", "WARN", "ERROR"]
     log_level = configuration["log_level"].upper()
     if log_level not in supported_log_levels:
         print("Log level {} not supported.")
@@ -160,7 +170,6 @@ if __name__ == '__main__':
         print("-----------------------------------------------------------")
         print("------------------------ CONTAINER ------------------------")
         print("-----------------------------------------------------------")
-        error_list.append("containers")
         config_list = (kaapana_dir, http_proxy, default_container_registry, default_container_project)
         docker_containers_list, logs = start_container_build(config=config_list)
 
@@ -182,24 +191,23 @@ if __name__ == '__main__':
                     print('SKIP {}: CI_IGNORE == True!'.format(docker_container.tag.replace(docker_container.docker_registry, "")[1:]))
                     continue
                 for log in docker_container.check_prebuild():
-                    print_log_entry(log)
+                    print_log_entry(log,kind="CONTAINERS")
                     if log['loglevel'].upper() == "ERROR":
                         raise SkipException('SKIP {}: check_prebuild() failed!'.format(log['test']), log=log)
 
                 for log in docker_container.build():
-                    print_log_entry(log)
+                    print_log_entry(log,kind="CONTAINERS")
                     if log['loglevel'].upper() == "ERROR":
                         raise SkipException('SKIP {}: build() failed!'.format(log['test']), log=log)
 
                 if not build_only and push_containers:
                     for log in docker_container.push():
-                        print_log_entry(log)
+                        print_log_entry(log,kind="CONTAINERS")
                         if log['loglevel'].upper() == "ERROR":
                             raise SkipException('SKIP {}: push() failed!'.format(log['test']), log=log)
 
             except SkipException as error:
                 print("SkipException: {}".format(str(error)))
-                error_list.append(str(error))
                 continue
 
     if build_charts and not docker_only:
@@ -208,24 +216,18 @@ if __name__ == '__main__':
         print("-----------------------------------------------------------")
 
         print("Init HelmCharts...")
-        error_list.append("charts")
         init_helm_charts(kaapana_dir=kaapana_dir, chart_registry=default_chart_registry, default_project=default_chart_project)
 
         print("Start quick_check...")
         for log_entry in HelmChart.quick_check():
             if isinstance(log_entry, dict):
-                print_log_entry(log_entry)
-                if log_entry['loglevel'].upper() == "ERROR":
-                    print("Quick-Check failed: {}".format(log_entry["step"]))
-                    print("Message: {}".format(log_entry["message"]))
-                    print(json.dumps(log_entry["log"], indent=4, sort_keys=True))
-                    error_list.append(json.dumps(log_entry["log"], indent=4, sort_keys=True))
+                print_log_entry(log_entry,kind="CHARTS")
             else:
                 build_ready_list = log_entry
 
         print("Start check_repos...")
         for log_entry in HelmChart.check_repos(user=registry_user, pwd=registry_pwd):
-            print_log_entry(log_entry)
+            print_log_entry(log_entry,kind="CHARTS")
             if log_entry['loglevel'].upper() == "ERROR":
                 print("Could not add repository: {}".format(log_entry["step"]))
                 print("Message: {}".format(log_entry["message"]))
@@ -242,50 +244,54 @@ if __name__ == '__main__':
                 print()
                 chart.remove_tgz_files()
                 for log_entry in chart.dep_up():
-                    print_log_entry(log_entry)
+                    print_log_entry(log_entry,kind="CHARTS")
                     if log_entry['loglevel'].upper() == "ERROR":
                         raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
 
                 for log_entry in chart.lint_chart():
-                    print_log_entry(log_entry)
+                    print_log_entry(log_entry,kind="CHARTS")
                     if log_entry['loglevel'].upper() == "ERROR":
                         raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
 
                 for log_entry in chart.lint_kubeval():
-                    print_log_entry(log_entry)
+                    print_log_entry(log_entry,kind="CHARTS")
                     if log_entry['loglevel'].upper() == "ERROR":
                         raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
 
                 if not build_only and push_charts:
                     for log_entry in chart.push():
-                        print_log_entry(log_entry)
+                        print_log_entry(log_entry,kind="CHARTS")
                         if log_entry['loglevel'].upper() == "ERROR":
                             raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
 
             except SkipException as error:
                 print("SkipException: {}".format(str(error)))
-                error_list.append(str(error))
                 continue
 
     print("-----------------------------------------------------------")
-    if len(error_list) > 0:
-        for error in error_list:
-            if error == "containers":
-                print("")
+    if len(log_list["CONTAINERS"]) > 0:
+        print("")
+        print("-----------------------------------------------------------")
+        print("------------------- Container issues: ---------------------")
+        print("-----------------------------------------------------------")
+        print("")
+        for log in log_list["CONTAINERS"]:
+            if supported_log_levels.index(log[0]) >= log_level:
+                print(log[1])
                 print("-----------------------------------------------------------")
-                print("------------------- Container issues: ---------------------")
+                print()
+    print("-----------------------------------------------------------")
+    if len(log_list["CHARTS"]) > 0:
+        print("")
+        print("-----------------------------------------------------------")
+        print("--------------------- Chart issues: -----------------------")
+        print("-----------------------------------------------------------")
+        print("")
+        for log in log_list["CHARTS"]:
+            if supported_log_levels.index(log[0]) >= log_level:
+                print(log[1])
                 print("-----------------------------------------------------------")
-                print("")
-            elif error == "charts":
-                print("")
-                print("-----------------------------------------------------------")
-                print("--------------------- Chart issues: -----------------------")
-                print("-----------------------------------------------------------")
-
-            else:
-                print(error)
-                print("-----------------------------------------------------------")
-
+                print()
     print("")
     print("")
     print("-----------------------------------------------------------")

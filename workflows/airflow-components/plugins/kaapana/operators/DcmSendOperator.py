@@ -1,4 +1,4 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 from datetime import timedelta
 
 class DcmSendOperator(KaapanaBaseOperator):
@@ -28,7 +28,7 @@ class DcmSendOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="dktk-jip-registry.dkfz.de/kaapana/dcmsend:1.0-vdev",
+            image="{}{}/dcmsend:1.0-vdev".format(default_registry, default_project),
             name="dcmsend",
             image_pull_secrets=["camic-registry"],
             env_vars=env_vars,

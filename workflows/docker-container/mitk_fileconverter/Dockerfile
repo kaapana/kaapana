@@ -1,7 +1,5 @@
 FROM ubuntu:20.04 as build_container
 
-LABEL REGISTRY="dktk-jip-registry.dkfz.de"
-LABEL REGISTRY_PROJECT="processing-external"
 LABEL IMAGE="mitk-fileconverter"
 LABEL VERSION="1.1-vdev"
 LABEL CI_IGNORE="False"

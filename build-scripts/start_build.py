@@ -124,7 +124,7 @@ if __name__ == '__main__':
             print("Using default_container_project: {}".format(default_container_project))
         print("-----------------------------------------------------------")
 
-    if build_charts and not docker_only:
+    if push_charts and not docker_only:
         print("-----------------------------------------------------------")
         default_chart_registry = configuration["default_chart_registry"]
         if default_chart_registry == "":
@@ -224,14 +224,15 @@ if __name__ == '__main__':
                 print_log_entry(log_entry,kind="CHARTS")
             else:
                 build_ready_list = log_entry
-
-        print("Start check_repos...")
-        for log_entry in HelmChart.check_repos(user=registry_user, pwd=registry_pwd):
-            print_log_entry(log_entry,kind="CHARTS")
-            if log_entry['loglevel'].upper() == "ERROR":
-                print("Could not add repository: {}".format(log_entry["step"]))
-                print("Message: {}".format(log_entry["message"]))
-                exit(1)
+        
+        if push_charts:
+            print("Start check_repos...")
+            for log_entry in HelmChart.check_repos(user=registry_user, pwd=registry_pwd):
+                print_log_entry(log_entry,kind="CHARTS")
+                if log_entry['loglevel'].upper() == "ERROR":
+                    print("Could not add repository: {}".format(log_entry["step"]))
+                    print("Message: {}".format(log_entry["message"]))
+                    exit(1)
 
         print("Start build- and push-process ...")
         i = 0

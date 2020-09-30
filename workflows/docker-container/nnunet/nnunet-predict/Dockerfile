@@ -1,4 +1,5 @@
-FROM pytorch/pytorch:latest
+FROM nvcr.io/nvidia/pytorch:20.08-py3
+# FROM pytorch/pytorch:latest
 
 LABEL IMAGE="nnunet-predict"
 LABEL VERSION="0.2-vdev"

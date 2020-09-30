@@ -125,6 +125,7 @@ if __name__ == '__main__':
         print("-----------------------------------------------------------")
 
     default_chart_registry = ""
+    default_chart_project = ""
     if push_charts and not docker_only:
         print("-----------------------------------------------------------")
         default_chart_registry = configuration["default_chart_registry"]

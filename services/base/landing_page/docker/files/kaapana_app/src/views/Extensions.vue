@@ -9,16 +9,16 @@
         :loading="loading",
         loading-text="Waiting a few seconds..."
       )
-        template(v-slot:item.name="{ item }")
-          a(:href='item.link', target='_blank') {{ item.name }}
+        template(v-slot:item.releaseMame="{ item }")
+          a(:href='item.link', target='_blank') {{ item.releaseMame }}
         template(v-slot:item.installed="{ item }")
           v-btn(
-            @click="uninstallChart(item.name)",
+            @click="deleteChart(item.releaseMame, item.name, item.version, item.keywords)",
             color="primary",
              v-if="item.installed==='yes'"
           ) Uninstall
           v-btn(
-            @click="installChart(item.name, item.version, item.multi_installable)",
+            @click="installChart(item.name, item.version, item.keywords)",
             color="primary",
             v-if="item.installed==='no'"
           ) Install
@@ -38,7 +38,7 @@ export default Vue.extend({
       {
         text: "Name",
         align: "start",
-        value: "name",
+        value: "releaseMame",
       },
       {
         text: "Version",
@@ -70,49 +70,58 @@ export default Vue.extend({
       let params = {
         repo: "kaapana-public"
       };
-
+      this.loading = true;
       kaapanaApiService
         .helmApiGet("/extensions", params)
         .then((response: any) => {
           this.launchedAppLinks = response.data;
+          this.loading = false;
         })
         .catch((err: any) => {
+          this.loading = false;
           console.log(err);
         });
     },
 
-    uninstallChart(releaseName: any) {
-      let params = {
-        release_name: releaseName,
-      };
+    deleteChart(releaseName: any, name: any, version: any, keywords: any) {
+      let payload = {
+        'release_name': releaseName,
+        'name': name,
+        'version': version,
+        'keywords': keywords
+      }
+      this.loading = true;
       kaapanaApiService
-        .helmApiGet("/helm-uninstall-chart", params)
+        .helmApiPost("/helm-delete-extension", payload)
         .then((response: any) => {
-          this.loading = true;
           setTimeout(() => {
             this.getHelmCharts();
             this.loading = false;
           }, 1000);
         })
         .catch((err: any) => {
+          this.getHelmCharts();
+          this.loading = false;
           console.log(err);
         });
     },
 
-    installChart(name: any, version: any, multi_installable: any) {
+    installChart(name: any, version: any, keywords: any) {
       let payload = {
         'name': name,
         'version': version,
-        'multi_installable': multi_installable
+        'keywords': keywords
       }
       this.loading = true;
       kaapanaApiService
-        .helmApiPost("/helm-install-extension", payload)
+        .helmApiPost("/helm-install-chart", payload)
         .then((response: any) => {
-            this.loading = false;
             this.getHelmCharts();
+            this.loading = false;
         })
         .catch((err: any) => {
+          this.getHelmCharts();
+          this.loading = false;
           console.log(err);
         });
     },

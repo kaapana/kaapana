@@ -27,9 +27,7 @@ spec:
         #imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env: # Environment variables
         - name: SECRET_KEY
-          value: jip-secret
-        - name: HELLO_WORLD_USER
-          value: jip-user
+          value: kaapana-secret
         - name: APPLICATION_ROOT
           value: "/kube-helm-api"
         - name: HELM_PATH

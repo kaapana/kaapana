@@ -4,7 +4,4 @@ global:
     base_namespace: "default"
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana
-ingress_path: /jupyterlab
 mount_path: ""
-multi_instance_suffix: ""
-multi_installable: 'yes'

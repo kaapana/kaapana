@@ -1,0 +1,42 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dag-mitk-userflow
+  namespace: {{ .Values.global.flow_namespace }}
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: init
+          image: {{  .Values.global.registry_url }}/kaapana/service_checker:1.1
+          imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
+          env:
+            - name: WAIT
+              value: "kube-helm,kube-helm-service.kube-system.svc,5000"
+            - name: DELAY
+              value: "2"
+            - name: TIMEOUT
+              value: "10"
+      securityContext:
+        runAsUser: 1000
+      containers:
+      - name: dag-mitk-userflow
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/dag-mitk-userflow:0.9-vdev
+        imagePullPolicy:  {{ .Values.global.pull_policy_operators }}
+        env:
+        - name: ACTION
+          value: "{{ .Values.action }}"
+        volumeMounts:
+        - name: data
+          mountPath: "/workflows"
+
+      volumes:
+      - name: data
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}/workflows
+          type: DirectoryOrCreate
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: camic-registry
+  backoffLimit: 0

@@ -8,7 +8,7 @@ from airflow.models import DAG
 
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.KaapanaApplicationBaseOperator import KaapanaApplicationBaseOperator
+from dev.KaapanaApplicationBaseOperator import KaapanaApplicationBaseOperator
 
 from datetime import datetime
 
@@ -34,7 +34,7 @@ dag = DAG(
     schedule_interval=None)
 
 get_input = LocalGetInputDataOperator(dag=dag)
-launch_app = KaapanaApplicationBaseOperator(dag=dag, chart_name='jupyterlab-chart', version='1.0-vdev')
+launch_app = KaapanaApplicationBaseOperator(dag=dag, chart_name='jupyterlab-chart', version='1.0.1-vdev')
 clean = LocalWorkflowCleanerOperator(dag=dag)
 
 get_input >> launch_app >> clean

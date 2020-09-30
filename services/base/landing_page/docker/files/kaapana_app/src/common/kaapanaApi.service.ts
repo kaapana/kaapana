@@ -9,8 +9,7 @@ const kaapanaApiService = {
         console.log(response)
         resolve(response)
       }).catch((error: any) => {
-        console.log('Something went wrong loading the default external wepages', error)
-        alert('Helm command failed because of ' + error)
+        alert('Failed: ' + error.response.data)
         reject(error)
       })   
     }) 
@@ -21,8 +20,7 @@ const kaapanaApiService = {
       request.get('/kube-helm-api' + subUrl, { params } ).then( (response: any) => {
           resolve(response)
       }).catch((error: any) => {
-        console.log('Something went wrong getting the dags', error)
-        alert('Helm command failed because of ' + error)
+        alert('Failed: ' + error.response.data)
         reject(error)
       })
     }) 

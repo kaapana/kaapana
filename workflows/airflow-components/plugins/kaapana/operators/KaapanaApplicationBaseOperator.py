@@ -33,20 +33,16 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
         payload={
             'name': f'{self.chart_repo_name}/{self.chart_name}',
             'version': self.version,
-            'customName': release_name,
+            'custom_release_name': release_name,
             'sets': {
                 'global.registry_url': 'dktk-jip-registry.dkfz.de',
                 'global.registry_project':  '/kaapana',
                 'global.base_namespace': 'flow-jobs',
                 'global.pull_policy_jobs': 'IfNotPresent',
                 'mount_path': f'/home/kaapana/workflows/{run_dir}',
-                'ingress_path': f'/{release_name}',
-                'multi_instance_suffix': secrets.token_hex(5)
             }
         }
 
-        if 'ingress_path' in self.sets:
-            raise NameError('Ingress path cannot be set manually!')
         for set_key, set_value in self.sets.items():
             payload['sets'][set_key] = set_value 
 
@@ -64,7 +60,7 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
             time.sleep(15)
             url = f'{KaapanaApplicationBaseOperator.HELM_API}/view-chart-status'
             r = requests.get(url, params={'release_name': release_name})
-            if r.status_code == 401:
+            if r.status_code == 500:
                 print(f'Release {release_name} was uninstalled. My job is done here!')
                 break
             r.raise_for_status()

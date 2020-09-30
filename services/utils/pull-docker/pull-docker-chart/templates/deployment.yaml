@@ -1,0 +1,26 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: pull-{{ .Values.image }}-{{ .Values.version }}
+  namespace: flow-jobs
+spec:
+  selector:
+    matchLabels:
+      app-name: pull-{{ .Values.image }}-{{ .Values.version }}
+  template:
+    metadata:
+      labels:
+        app-name: pull-{{ .Values.image }}-{{ .Values.version }}
+    spec:
+      containers:
+      - name: pull-docker
+        image: {{ .Values.registry_url }}{{ .Values.registry_project }}/{{ .Values.image }}:{{ .Values.version }}
+        #command: ["echo", "downloaded"] # tail better since otherwise the pod tries to restart after successfull deployment
+        command: ["tail"]
+        args: ["-f", "/dev/null"]
+        imagePullPolicy: IfNotPresent
+      imagePullSecrets:
+        - name: camic-registry
+
+        

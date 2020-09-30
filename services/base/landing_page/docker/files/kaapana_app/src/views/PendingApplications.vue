@@ -12,10 +12,10 @@
           loading-text="Waiting a few seconds..."
         )
           template(v-slot:item.link="{ item }")
-            a(:href='item.link', target='_blank') {{ item.name }}
-          template(v-slot:item.name="{ item }")
+            a(:href='item.link', target='_blank') {{ item.releaseMame }}
+          template(v-slot:item.releaseMame="{ item }")
             v-btn(
-              @click="uninstallChart(item.name)",
+              @click="deleteChart(item.releaseMame)",
               color="primary",
             ) Finished manual interaction
 </template>
@@ -36,7 +36,7 @@ export default Vue.extend({
         align: "start",
         value: "link",
       },
-      { text: "Action", value: "name" },
+      { text: "Action", value: "releaseMame" },
     ],
   }),
   mounted() {
@@ -49,30 +49,35 @@ export default Vue.extend({
   methods: {
 
     getHelmCharts() {
+      this.loading = true;
       kaapanaApiService
         .helmApiGet("/pending-applications", {})
         .then((response: any) => {
           this.launchedAppLinks = response.data;
+          this.loading = false;
         })
         .catch((err: any) => {
+          this.loading = false;
           console.log(err);
         });
     },
 
-    uninstallChart(releaseName: any) {
+    deleteChart(releaseName: any) {
       let params = {
         release_name: releaseName,
       };
+      this.loading = true;
       kaapanaApiService
-        .helmApiGet("/helm-uninstall-chart", params)
+        .helmApiGet("/helm-delete-chart", params)
         .then((response: any) => {
-          this.loading = true;
           setTimeout(() => {
             this.getHelmCharts();
             this.loading = false;
           }, 1000);
         })
         .catch((err: any) => {
+          this.getHelmCharts();
+          this.loading = false;
           console.log(err);
         });
     },

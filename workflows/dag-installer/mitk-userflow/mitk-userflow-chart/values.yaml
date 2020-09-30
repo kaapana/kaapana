@@ -1,7 +1,10 @@
 ---
 global:
+    registry_url: ""
+    registry_project: "/processing-external"
     pull_policy_operators: "Always"
     flow_namespace: "flow"
     fast_data_dir: "/home/kaapana"
     pull_policy_operators: "Always"
+action: "copy"
     

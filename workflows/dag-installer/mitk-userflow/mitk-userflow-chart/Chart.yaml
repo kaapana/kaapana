@@ -2,7 +2,8 @@
 apiVersion: v1
 appVersion: "0.9-vdev"
 description: Interactive MITK segmenation
-repo: processing-internal
+repo: processing-external
 name: mitk-userflow-chart
 version: 0.9-vdev
-
+keywords:
+  - kaapanadag

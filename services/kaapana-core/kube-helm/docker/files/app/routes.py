@@ -1,11 +1,14 @@
 import os
 import copy
+import secrets
+import subprocess
+import json
+import yaml
+import re
 from flask import render_template, Response, request, jsonify
 from app import app
 from app import utils
-import subprocess, json
-import yaml
-import secrets
+
 
 """
 Welcome Page
@@ -20,10 +23,9 @@ def index():
     Returns:
         html: a html welcome page
     """
-    hello_world_user = os.environ["HELLO_WORLD_USER"]
 
     return render_template(
-        "index.html", title="Home", hello_world_user=hello_world_user
+        "index.html", title="Home",
     )
 
 
@@ -31,8 +33,8 @@ def index():
 The /list-helm-charts will list the currently installed helm charts in your environment
 """
 
-@utils.helm_repo_update_decorator
 @app.route("/list-helm-charts")
+@utils.helm_repo_update_decorator
 def add_repo():
     """Return a list of helm charts installed in the environment
 
@@ -48,7 +50,7 @@ def add_repo():
         return Response(
             f"{e.output}Could not verify your access level for that URL.\n"
             "You have to login with proper credentials",
-            401,
+            500,
         )
     return resp
 
@@ -75,7 +77,7 @@ def view_helm_env():
         return Response(
             f"{e.output}Could not verify your access level for that URL.\n"
             "You have to login with proper credentials",
-            401,
+            500,
         )
     return jsonify({"message": str(resp), "status": "200"})
 
@@ -84,8 +86,8 @@ def view_helm_env():
 The /helm-repo-list will list your installed helm repositories
 """
 
-@utils.helm_repo_update_decorator
 @app.route("/helm-repo-list")
+@utils.helm_repo_update_decorator
 def helm_repo_list():
     """A API response with installed helm repositories
 
@@ -102,7 +104,7 @@ def helm_repo_list():
         return Response(
             f"{e.output}Could not verify your access level for that URL.\n"
             "You have to login with proper credentials",
-            401,
+            500,
         )
     return resp
 
@@ -131,7 +133,7 @@ def view_chart_status():
         return Response(
             f"Could not verify your access level for that URL.\n"
             "You have to login with proper credentials",
-            401,
+            500,
         )
 
 
@@ -169,7 +171,7 @@ def helm_add_repo():
         return Response(
             f"{e.output}Could not verify your access level for that URL.\n"
             "You have to login with proper credentials",
-            401,
+            500,
         )
     return jsonify({"message": str(resp), "status": "200"})
 
@@ -185,7 +187,7 @@ def helm_remove_repo():
 
     Arguments:
         key : repo
-        value: the repo name to be uninstalled
+        value: the repo name to be deleted
 
     Returns:
         json: A json response with removed repo
@@ -203,7 +205,7 @@ def helm_remove_repo():
         return Response(
             f"{e.output}Could not verify your access level for that URL.\n"
             "You have to login with proper credentials",
-            401,
+            500,
         )
     return jsonify({"message": str(resp), "status": "200"})
 
@@ -212,8 +214,8 @@ def helm_remove_repo():
 custom parameters to install chart 
 """
 
-@utils.helm_repo_update_decorator
 @app.route("/helm-install-chart", methods=["POST"])
+@utils.helm_repo_update_decorator
 def helm_add_custom_chart():
     """A API response for adding helm charts from jip registry
 
@@ -223,16 +225,15 @@ def helm_add_custom_chart():
     Returns:
         json: A json response about the installed chart
     """
-
+    print(request.json)
     return utils.helm_install(request.json, app.config['NAMESPACE'])
 
 """
 custom parameters to install chart 
 """
 
-
-@app.route("/helm-install-extension", methods=["POST"])
-def helm_install_extension():
+@app.route("/pull-docker-image", methods=["POST"])
+def pull_docker_image():
     """A API response for adding helm charts from jip registry
 
     Arguments:
@@ -241,62 +242,49 @@ def helm_install_extension():
     Returns:
         json: A json response about the installed chart
     """
-    content = request.json
-
-    content['sets'] = {
-            'global.registry_url': 'dktk-jip-registry.dkfz.de',
-            'global.registry_project':  '/kaapana',
-            'global.base_namespace': 'flow-jobs',
-            'global.fast_data_dir': '/home/kaapana/dicom/minio',
-            'global.slow_data_dir': '/home/kaapana/dicom/minio',
-        }
-    repoName, chartName = content["name"].split('/')
-    version = content["version"]
-    multi_installable = content["multi_installable"]
-    if multi_installable == 'yes':
-        suffix = secrets.token_hex(5)
-        content['customName'] = f'{chartName}-{suffix}'
-        content['sets']['ingress_path'] = f'/{content["customName"]}'
-        content['sets']['multi_instance_suffix'] = suffix
-
-    print('content', content)
-    return utils.helm_install(content, app.config['NAMESPACE'])
-
+    payload = request.json
+    print(payload)
+    return utils.pull_docker_image(**payload)
 
 """
-The /helm-uninstall-chart to uninstall the existing helm charts
+The /helm-delete-chart to delete the existing helm charts
 """
 
-
-@app.route("/helm-uninstall-chart")
-def helm_uninstall_chart():
-    """Return a API response for uninstalling a helm chart
+@app.route("/helm-delete-chart")
+def helm_delete_chart():
+    """Return a API response for deleting a helm chart
 
     Arguments:
         key : chart
-        value: the chart name to be uninstalled
+        value: the chart name to be deleted
 
     Returns:
         json: A json response with status code and message from helm
     """
     release_name = request.args.get("release_name")
 
-    try:
-        resp = subprocess.check_output(
-            [os.environ["HELM_PATH"], "-n", app.config['NAMESPACE'], "uninstall", release_name], stderr=subprocess.STDOUT
-        )
+    return utils.helm_delete(release_name, app.config['NAMESPACE'])
 
-    except subprocess.CalledProcessError as e:
-        return Response(
-            f"{e.output}Could not verify your access level for that URL.\n"
-            "You have to login with proper credentials",
-            401,
-        )
-    return jsonify({"message": str(resp), "status": "200"})
+@app.route("/helm-delete-extension", methods=["POST"])
+def helm_delete_extension():
+    """Return a API response for deleting a helm chart
+    """
+    payload = request.json
+    release_name =  payload['release_name']
+    if 'kaapanadag' in payload['keywords']:
+        utils.helm_delete(release_name, app.config['NAMESPACE'])
+        payload['custom_release_name'] = release_name
+        payload['sets'] = {
+            'action':'remove'
+        }
+        utils.helm_install(payload, app.config['NAMESPACE'])
+        return utils.helm_delete(release_name, app.config['NAMESPACE'])
+    else:
+        return utils.helm_delete(release_name, app.config['NAMESPACE'])
 
 
-@utils.helm_repo_update_decorator
 @app.route("/pending-applications")
+@utils.helm_repo_update_decorator
 def pending_applications():
     try:
         extensions_list = []
@@ -307,7 +295,7 @@ def pending_applications():
                 if config['kind'] == 'Ingress':
                     ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']
             extension = {
-                'name': chart['name'],
+                'releaseMame': chart['name'],
                 'link': ingress_path
             }            
             extensions_list.append(extension)
@@ -316,13 +304,13 @@ def pending_applications():
         return Response(
             f"{e.output}Could not verify your access level for that URL.\n"
             "You have to login with proper credentials",
-            401,
+            500,
         )
     return json.dumps(extensions_list)
 
 
-@utils.helm_repo_update_decorator
 @app.route("/extensions")
+@utils.helm_repo_update_decorator
 def extensions():
     """A API response to get all installable charts from repo
 
@@ -337,18 +325,20 @@ def extensions():
 
     # TODO: add repoName to regex
     try:
-        available_charts = utils.helm_search_repo("kaapanaextension")
+        available_charts = utils.helm_search_repo("(kaapanaextension|kaapanadag)")
+        print(available_charts)
         extensions_list = []
         for extension in available_charts:
             repoName, chartName = extension["name"].split('/')
-            chart_values = utils.helm_show_values(repoName, chartName, extension['version'])
-            if 'multi_installable' in chart_values:
-                extension['multi_installable'] = 'yes'
-            else:
-                extension['multi_installable'] = 'no'
-
-            installed_values = utils.helm_get_values(chartName, app.config['NAMESPACE'])
-            if 'multi_instance_suffix' in installed_values or not installed_values:
+            chart = utils.helm_show_chart(repoName, chartName, extension['version'])
+            status = utils.helm_status(chartName, app.config['NAMESPACE'])
+            print('chartName', chartName)
+            print('chart', chart)
+            print('status', status)
+            print('keywords', chart['keywords'])
+            extension['keywords'] = chart['keywords']
+            extension['releaseMame'] = extension["name"]
+            if 'kaapanamultiinstallable' in chart['keywords'] or not status:
                 extension['installed'] = 'no'
                 extensions_list.append(extension)
             for chart in utils.helm_ls(app.config['NAMESPACE'], chartName):
@@ -358,16 +348,15 @@ def extensions():
                     if config['kind'] == 'Ingress':
                         ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']
                 running_extensions = copy.deepcopy(extension)
-                running_extensions['name'] =  chart['name']
+                running_extensions['releaseMame'] =  chart['name']
                 running_extensions['link'] = ingress_path
                 running_extensions['installed'] = 'yes'
                 extensions_list.append(running_extensions)
 
     except subprocess.CalledProcessError as e:
         return Response(
-            f"{e.output}Could not verify your access level for that URL.\n"
-            "You have to login with proper credentials",
-            401,
+            f"{e.output}Failed to load the extension list!",
+            500,
         )
     return json.dumps(extensions_list)
 

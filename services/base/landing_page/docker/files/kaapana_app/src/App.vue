@@ -67,7 +67,7 @@ import request from '@/request';
 
 import { mapGetters } from 'vuex';
 import { LOGIN, LOGOUT, CHECK_AUTH } from '@/store/actions.type';
-import { CHECK_AVAILABLE_WEBISTES, LOAD_COMMON_DATA, LOAD_LAUNCH_APPLICATION_DATA} from '@/store/actions.type';
+import { CHECK_AVAILABLE_WEBISTES, LOAD_COMMON_DATA} from '@/store/actions.type';
 
 export default Vue.extend({
   name: 'App',
@@ -105,7 +105,6 @@ export default Vue.extend({
   beforeCreate () {
     this.$store.dispatch(CHECK_AVAILABLE_WEBISTES)
     this.$store.dispatch(LOAD_COMMON_DATA)
-    this.$store.dispatch(LOAD_LAUNCH_APPLICATION_DATA)
   },
   onIdle() {
     console.log('checking', this.$store.getters.isAuthenticated)

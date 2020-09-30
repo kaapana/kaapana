@@ -108,8 +108,7 @@ class HelmChart:
             if "-vdev" in version:
                 self.dev = True
 
-            self.chart_id = "{}/{}:{}".format(self.repo,
-                                              self.name, self.version)
+            self.chart_id = "{}/{}:{}".format(self.repo,self.name, self.version)
 
             print("")
             print("Adding new chart:")

@@ -266,17 +266,17 @@ if __name__ == '__main__':
                     if log_entry['loglevel'].upper() == "ERROR":
                         raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
 
-                if not build_only and push_charts:
-                    if "platforms" in chart.chart_dir and create_package:
-                        for log_entry in chart.package():
-                            print_log_entry(log_entry, kind="CHARTS")
-                            if log_entry['loglevel'].upper() == "ERROR":
-                                raise SkipException("SKIP {}: package() error!".format(log_entry['test']), log=log_entry)
-                            else:
-                                packages = glob(os.path.join(os.path.dirname(chart.chart_dir),'*.tgz'))
-                                for package in packages:
-                                    move(package, build_dir)
+                if "platforms" in chart.chart_dir and create_package:
+                    for log_entry in chart.package():
+                        print_log_entry(log_entry, kind="CHARTS")
+                        if log_entry['loglevel'].upper() == "ERROR":
+                            raise SkipException("SKIP {}: package() error!".format(log_entry['test']), log=log_entry)
+                        else:
+                            packages = glob(os.path.join(os.path.dirname(chart.chart_dir),'*.tgz'))
+                            for package in packages:
+                                move(package, build_dir)
 
+                if not build_only and push_charts:
                     for log_entry in chart.push():
                         print_log_entry(log_entry, kind="CHARTS")
                         if log_entry['loglevel'].upper() == "ERROR":

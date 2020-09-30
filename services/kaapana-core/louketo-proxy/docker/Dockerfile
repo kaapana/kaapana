@@ -1,4 +1,4 @@
-FROM quay.io/louketo/louketo-proxy:1.0.0
+FROM quay.io/louketo/louketo-proxy:latest
 
 LABEL IMAGE="louketo-proxy"
 LABEL VERSION="1.0.0-vdev"

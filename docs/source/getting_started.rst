@@ -80,7 +80,6 @@ Step 1&2 will be handeled with a build-script, which you can find it within the 
 Before you start the build-process, you should have a look at the build-configuration at :code:`kaapana/build-scripts/build-configuration.yaml`.
 Assuming you want to use `Dockerhub <https://hub.docker.com/>`_ as the target registry (username johndoe), then you must adjust the configuration as follows:
 
-
 .. code-block:: python
    :emphasize-lines: 2,3,9,10
 

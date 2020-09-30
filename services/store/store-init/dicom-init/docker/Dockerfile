@@ -1,4 +1,4 @@
-FROM dktk-jip-registry.dkfz.de/kaapana/dicom_phantom:1.0 as files
+FROM dktk-jip-registry.dkfz.de/kaapana-public/dicom_phantom:1.0 as files
 
 LABEL IMAGE="dicom-init"
 LABEL VERSION="0.9-vdev"

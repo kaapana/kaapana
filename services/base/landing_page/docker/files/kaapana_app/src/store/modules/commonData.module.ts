@@ -4,15 +4,13 @@ import CommonDataService from '@/common/commonData.service.ts'
 import {
   CHECK_AVAILABLE_WEBISTES,
   LOAD_COMMON_DATA,
-  LOAD_LAUNCH_APPLICATION_DATA,
 } from '@/store/actions.type'
-import { SET_AVAILABLE_WEBISTES, SET_COMMON_DATA, SET_LAUNCH_APPLICATION_DATA } from '@/store/mutations.type'
+import { SET_AVAILABLE_WEBISTES, SET_COMMON_DATA } from '@/store/mutations.type'
 
 
 const defaults = {
   externalWebpages: {},
   commonData: {},
-  launchApplicationData: {},
   availableApplications: []
 }
 
@@ -24,9 +22,6 @@ const getters = {
   },
   commonData(state: any) {
     return state.commonData
-  },
-  launchApplicationData(state: any) {
-    return state.launchApplicationData
   },
   availableApplications(state: any) {
     return state.availableApplications
@@ -56,18 +51,7 @@ const actions = {
         resolve(false)
       })
     })
-  },
-  [LOAD_LAUNCH_APPLICATION_DATA](context: any) {
-    return new Promise((resolve: any) => {
-      CommonDataService.getLaunchApplication().then((launchApplicationData: any) => {
-        context.commit(SET_LAUNCH_APPLICATION_DATA, launchApplicationData)
-        resolve(true)
-      }).catch((err: any) => {
-        console.log(err)
-        resolve(false)
-      })
-    })
-  },
+  }
 }
 
 const mutations = {
@@ -77,12 +61,7 @@ const mutations = {
   [SET_COMMON_DATA](state: any, commonData: any) {
     console.log(commonData)
     state.commonData = commonData
-  },
-  [SET_LAUNCH_APPLICATION_DATA](state: any, launchApplicationData: any) {
-    console.log(launchApplicationData)
-    state.launchApplicationData = launchApplicationData
-    state.availableApplications = Object.keys(launchApplicationData);
-  },
+  }
 }
 export default {
   state,

@@ -5,4 +5,5 @@ description: nnUNet inference installer
 repo: processing-external
 name: nnunet-inference-chart
 version: 0.1-vdev
-
+keywords:
+- kaapanadag

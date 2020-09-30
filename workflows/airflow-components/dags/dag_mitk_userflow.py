@@ -3,7 +3,7 @@ from datetime import timedelta
 from airflow.utils.dates import days_ago
 from datetime import datetime
 from mitk_userflow.MitkInputOperator import MitkInputOperator
-from mitk_userflow.RunMitk import RunMitk
+from mitk_userflow.LocalRunMitk import LocalRunMitk
 from kaapana.operators.DcmWebSendOperator import DcmWebSendOperator
 from kaapana.operators.LocalDagTriggerOperator import LocalDagTriggerOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
@@ -31,7 +31,7 @@ dag = DAG(
     schedule_interval=None)
 
 mitk_input = MitkInputOperator(dag=dag)
-run_mitk = RunMitk(dag=dag, data_operator=mitk_input)
+run_mitk = LocalRunMitk(dag=dag, data_operator=mitk_input)
 
 
 dcmseg_send_segmentation = DcmWebSendOperator(dag=dag, input_operator=run_mitk)

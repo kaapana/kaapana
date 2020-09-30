@@ -24,13 +24,16 @@ def generate_minio_credentials(x_auth_token):
 
 
 def cure_invalid_name(name, regex, max_length=None):
-    if re.fullmatch(regex, name) is None:
-        invalid_characters = re.sub(regex, '', name)
-        for c in invalid_characters:
-            name = name.replace(c, '')
-        print(f'Your name does not fullfill the regex {regex}, we adapt it to {name} to work with Kubernetes')
-
+    def _regex_match(regex, name):
+        if re.fullmatch(regex, name) is None:
+            invalid_characters = re.sub(regex, '', name)
+            for c in invalid_characters:
+                name = name.replace(c, '')
+            print(f'Your name does not fullfill the regex {regex}, we adapt it to {name} to work with Kubernetes')
+        return name
+    name = _regex_match(regex, name)
     if max_length is not None and len(name) > max_length:
         name = name[:max_length]
         print(f'Your name is too long, only {max_length} character are allowed, we will cut it to {name} to work with Kubernetes')
+    name = _regex_match(regex, name)
     return name

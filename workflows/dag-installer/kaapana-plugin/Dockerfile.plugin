@@ -1,29 +1,27 @@
-FROM busybox:1.31
+FROM dktk-jip-registry.dkfz.de/kaapana/dag-installer:1.0-vdev
 
 LABEL IMAGE="kaapana-plugin"
 LABEL VERSION="0.8-vdev"
 LABEL CI_IGNORE="False"
 
-COPY dags/dag_delete_series_from_platform.py /workflows/dags/
-COPY dags/dag_reindex_dicom_data.py /workflows/dags/
-COPY dags/dag_download_selected_files.py /workflows/dags/
-COPY dags/dag_extract_metadata.py /workflows/dags/
-COPY dags/dag_process_incoming_dcm.py /workflows/dags/
-COPY dags/dag_minio_dicom_upload.py /workflows/dags/
-COPY dags/dag_launch_app.py /workflows/dags/
+COPY dags/dag_delete_series_from_platform.py /tmp/dags/
+COPY dags/dag_reindex_dicom_data.py /tmp/dags/
+COPY dags/dag_download_selected_files.py /tmp/dags/
+COPY dags/dag_extract_metadata.py /tmp/dags/
+COPY dags/dag_process_incoming_dcm.py /tmp/dags/
+COPY dags/dag_minio_dicom_upload.py /tmp/dags/
+COPY dags/dag_launch_jupyterlab.py /tmp/dags/
 
-COPY dags/dag_radiomics_dcmseg.py /workflows/dags/
-COPY dags/radiomics /workflows/dags/radiomics
+COPY dags/dag_radiomics_dcmseg.py /tmp/dags/
+COPY dags/radiomics /tmp/dags/radiomics
 
-COPY dags/dag_organ_segmentation.py /workflows/dags/
-COPY dags/shapemodel /workflows/dags/shapemodel
+COPY dags/dag_organ_segmentation.py /tmp/dags/
+COPY dags/shapemodel /tmp/dags/shapemodel
 
-COPY dags/nnunet /workflows/dags/nnunet
-COPY dags/dag_nnunet_inference.py /workflows/dags/
-COPY dags/dag_download_all_models.py /workflows/dags/
+COPY dags/nnunet /tmp/dags/nnunet
+COPY dags/dag_nnunet_inference.py /tmp/dags/
+COPY dags/dag_download_all_models.py /tmp/dags/
 
-COPY dags/dag_collect_metadata.py /workflows/dags/
+COPY dags/dag_collect_metadata.py /tmp/dags/
 
-COPY plugins/ /workflows/plugins
-
-CMD ["cp","-rf","/workflows/.","/mount_data/"]
+COPY plugins/ /tmp/plugins

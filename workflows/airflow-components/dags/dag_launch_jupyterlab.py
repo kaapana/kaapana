@@ -6,8 +6,9 @@ from datetime import timedelta
 
 from airflow.models import DAG
 
-from kaapana.operators.LaunchPodOperator import LaunchPodOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from dev.KaapanaApplicationBaseOperator import KaapanaApplicationBaseOperator
 
 from datetime import datetime
 
@@ -16,7 +17,7 @@ import os
 log = LoggingMixin().log
 
 dag_info = {
-    "visible": False,
+    "visible": True,
 }
 
 args = {
@@ -28,12 +29,12 @@ args = {
 }
 
 dag = DAG(
-    dag_id='launch-app',
+    dag_id='launch-jupyterlab',
     default_args=args,
     schedule_interval=None)
 
-
-launch_app = LaunchPodOperator(dag=dag)
+get_input = LocalGetInputDataOperator(dag=dag)
+launch_app = KaapanaApplicationBaseOperator(dag=dag, chart_name='jupyterlab-chart', version='1.0.1-vdev')
 clean = LocalWorkflowCleanerOperator(dag=dag)
 
-launch_app >> clean
+get_input >> launch_app >> clean

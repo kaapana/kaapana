@@ -1,7 +1,8 @@
+{{- $uuid := uuidv4 | trunc 10 }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: tensorboard{{- if .Values.multi_instance_suffix }}-{{ .Values.multi_instance_suffix }}{{- end }}
+  name: tensorboard-{{ $uuid }}
   namespace: {{ .Values.global.base_namespace }}
   labels:
     k8s-app: tensorboard
@@ -9,16 +10,18 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: tensorboard{{- if .Values.multi_instance_suffix }}-{{ .Values.multi_instance_suffix }}{{- end }}
+      app-name: tensorboard-{{ $uuid }}
   template:
     metadata:
       labels:
-        app-name: tensorboard{{- if .Values.multi_instance_suffix }}-{{ .Values.multi_instance_suffix }}{{- end }}
+        app-name: tensorboard-{{ $uuid }}
     spec:
+      securityContext:
+        runAsUser: 1000
       containers:
       - name: tensorboard
         image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/tensorboard:1.0-vdev
-        imagePullPolicy:  Always
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           requests:
             memory: "100Mi"
@@ -26,7 +29,7 @@ spec:
             memory: "1Gi"
         env:
           - name: INGRESS_PATH
-            value: {{ .Values.ingress_path }}
+            value: "/tensorboard-{{ $uuid }}"
         volumeMounts:
           - name: tensorboard-files
             mountPath: /data
@@ -41,3 +44,44 @@ spec:
           type: DirectoryOrCreate
       imagePullSecrets:
       - name: camic-registry
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: tensorboard-{{ $uuid }}
+  namespace: {{ .Values.global.base_namespace }}
+spec:
+  selector:
+    app-name: tensorboard-{{ $uuid }}
+  ports:
+    - protocol: TCP
+      port: 6006
+      #nodePort: 8010
+      name: log-http-port
+  type: ClusterIP
+  #type: NodePort
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: tensorboard-{{ $uuid }}
+  namespace: {{ .Values.global.base_namespace }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/preserve-host: "true"
+    # ingress.kubernetes.io/custom-request-headers: "Authorization:||cookie:"
+    # nginx.ingress.kubernetes.io/enable-cors: "true"
+    # nginx.ingress.kubernetes.io/cors-allow-methods: "PUT, GET, POST, OPTIONS"
+    # nginx.ingress.kubernetes.io/cors-allow-origin: "https://vm-129-41.cloud.dkfz-heidelberg.de/oauth/"
+    # nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    #traefik.frontend.rule.type: PathPrefixStrip
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+      - path: "/tensorboard-{{ $uuid }}"
+        backend:
+          serviceName: tensorboard-{{ $uuid }}
+          servicePort: log-http-port

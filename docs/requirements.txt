@@ -1,0 +1,8 @@
+# Python requirements for the documentation
+sphinx
+sphinx_rtd_theme
+sphinxcontrib-mermaid
+rst2pdf
+
+# apt requirements
+# sudo apt-get install texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended latexmk lmodern texlive-xetex

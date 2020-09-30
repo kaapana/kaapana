@@ -337,14 +337,14 @@ function enable_gpu {
                 * ) echo "Please answer yes or no.";;
             esac
         done
-        while true; do
-            read -p "Do you want to install Nvidia drivers?" yn
-            case $yn in
-                [Yy]* ) install_nvidia_drivers;break;;
-                [Nn]* ) break;;
-                * ) echo "Please answer yes or no.";;
-            esac
-        done
+        # while true; do
+        #     read -p "Do you want to install Nvidia drivers?" yn
+        #     case $yn in
+        #         [Yy]* ) install_nvidia_drivers;break;;
+        #         [Nn]* ) break;;
+        #         * ) echo "Please answer yes or no.";;
+        #     esac
+        # done
     else
         GPU_SUPPORT=false;
     fi

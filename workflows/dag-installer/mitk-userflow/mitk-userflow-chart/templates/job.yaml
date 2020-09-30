@@ -1,14 +1,15 @@
----
+# Copy me and only adapt values.yaml and Chart.yaml!
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: dag-mitk-userflow
+  name: dag-{{ .Values.image }}
   namespace: {{ .Values.global.flow_namespace }}
 spec:
   template:
     spec:
       initContainers:
         - name: init
+          #TODO find solution for kaapana/service_checker:1.1
           image: {{  .Values.global.registry_url }}/kaapana/service_checker:1.1
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
@@ -18,11 +19,9 @@ spec:
               value: "2"
             - name: TIMEOUT
               value: "10"
-      securityContext:
-        runAsUser: 1000
       containers:
-      - name: dag-mitk-userflow
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/dag-mitk-userflow:0.9-vdev
+      - name: dag-{{ .Values.image }}
+        image: "{{ .Values.registry_url }}{{ .Values.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_operators }}
         env:
         - name: ACTION
@@ -30,7 +29,8 @@ spec:
         volumeMounts:
         - name: data
           mountPath: "/workflows"
-
+      securityContext:
+        runAsUser: 1000
       volumes:
       - name: data
         hostPath:

@@ -1,5 +1,9 @@
 ---
 global:
-    pull_policy_pods: "IfNotPresent"
-    base_namespace: "default"
+    registry_url: ""
+    registry_project: ""
+    pull_policy_pods: ""
+    base_namespace: ""
+    fast_data_dir: ""
+    slow_data_dir: ""
 mount_path: ""

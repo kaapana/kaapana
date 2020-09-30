@@ -1,19 +1,36 @@
----
+# Copy me and only adapt values.yaml and Chart.yaml!
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: nnunet-inference-installer
+  name: dag-{{ .Values.image }}
   namespace: {{ .Values.global.flow_namespace }}
 spec:
   template:
     spec:
+      initContainers:
+        - name: init
+          #TODO find solution for kaapana/service_checker:1.1
+          image: {{  .Values.global.registry_url }}/kaapana/service_checker:1.1
+          imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
+          env:
+            - name: WAIT
+              value: "kube-helm,kube-helm-service.kube-system.svc,5000"
+            - name: DELAY
+              value: "2"
+            - name: TIMEOUT
+              value: "10"
       containers:
-      - name: liver-mri-segmentation
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/processing-external/dag-nnunet-inference:0.1-vdev
+      - name: dag-{{ .Values.image }}
+        image: "{{ .Values.registry_url }}{{ .Values.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_operators }}
+        env:
+        - name: ACTION
+          value: "{{ .Values.action }}"
         volumeMounts:
         - name: data
-          mountPath: "/mount_data"
+          mountPath: "/workflows"
+      securityContext:
+        runAsUser: 1000
       volumes:
       - name: data
         hostPath:

@@ -1,10 +1,12 @@
 ---
 global:
-    registry_url: ""
+    registry_url: "dktk-jip-registry.dkfz.de"
     registry_project: "/processing-external"
     pull_policy_operators: "Always"
     flow_namespace: "flow"
     fast_data_dir: "/home/kaapana"
     pull_policy_operators: "Always"
 action: "copy"
+image: "dag-mitk-userflow"
+version: "0.9-vdev"
     

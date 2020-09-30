@@ -144,7 +144,7 @@ def helm_install(payload, namespace):
                 print(resp)
                 print(resp.status)
                 return Response(
-                    f"We will try to download the image: {ds['docker_registry_url']}{ds['docker_registry_project']}({ds['docker_image']}:{ds['docker_version']}! Depending on your internet connection, this might take some time, please try again later!",
+                    f"We will try to download the image: {ds['docker_registry_url']}{ds['docker_registry_project']}/{ds['docker_image']}:{ds['docker_version']}! Depending on your internet connection, this might take some time, please try again later!",
                     500
                 )
             except requests.exceptions.ConnectionError as e:
@@ -164,11 +164,15 @@ def helm_install(payload, namespace):
 
     values = helm_show_values(repoName, chartName, payload["version"])
     default_sets =  {
-        'global.registry_url': 'dktk-jip-registry.dkfz.de',
-        'global.registry_project':  '/kaapana',
-        'global.base_namespace': 'flow-jobs',
-        'global.fast_data_dir': '/home/kaapana/',
-        'global.slow_data_dir': '/home/kaapana/'
+        'global.registry_url': os.getenv('REGISTRY_URL'),
+        'global.registry_project': os.getenv('REGISTRY_PROJECT'),
+        'global.base_namespace': os.getenv('BASE_NAMESPACE'),
+        'global.flow_namespace': os.getenv('FLOW_NAMESPACE'),
+        'global.flow_jobs_namespace': os.getenv('FLOW_JOBS_NAMESPACE'),
+        'global.fast_data_dir': os.getenv('FAST_DATA_DIR'),
+        'global.slow_data_dir': os.getenv('SLOW_DATA_DIR'),
+        'global.pull_policy_pods': os.getenv('PULL_POLICY_PODS'),
+        'global.pull_policy_jobs': os.getenv('PULL_POLICY_JOBS')
     } 
     for key, value in values['global'].items():
         if value != '':

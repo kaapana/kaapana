@@ -18,13 +18,12 @@ spec:
       containers:
       - name: kube-helm
         image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/kube-helm:1.0-vdev
-        imagePullPolicy:  Always
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         resources:
           limits:
             memory: "1Gi"
           requests:
             memory: "100Mi"
-        #imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env: # Environment variables
         - name: SECRET_KEY
           value: kaapana-secret
@@ -32,6 +31,24 @@ spec:
           value: "/kube-helm-api"
         - name: HELM_PATH
           value: "/usr/local/bin/helm"
+        - name: REGISTRY_URL
+          value: {{  .Values.global.registry_url }}
+        - name: REGISTRY_PROJECT
+          value: {{  .Values.global.registry_project }}
+        - name: BASE_NAMESPACE
+          value: {{  .Values.global.base_namespace }}
+        - name: FLOW_NAMESPACE
+          value: {{  .Values.global.flow_namespace }}
+        - name: FLOW_JOBS_NAMESPACE
+          value: {{  .Values.global.flow_jobs_namespace }}
+        - name: PULL_POLICY_PODS
+          value: {{  .Values.global.pull_policy_pods }}
+        - name: PULL_POLICY_JOBS
+          value: {{  .Values.global.pull_policy_jobs }}
+        - name: FAST_DATA_DIR
+          value: {{  .Values.global.fast_data_dir }}
+        - name: SLOW_DATA_DIR
+          value: {{  .Values.global.slow_data_dir }}
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         volumeMounts:

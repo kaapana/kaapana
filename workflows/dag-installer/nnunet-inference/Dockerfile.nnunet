@@ -4,7 +4,5 @@ LABEL IMAGE="dag-nnunet-inference"
 LABEL VERSION="0.1-vdev"
 LABEL CI_IGNORE="False"
 
-COPY dags/nnunet /workflows/dags/nnunet
-COPY dags/dag_nnunet_inference.py /workflows/dags/dag_nnunet_inference.py
-
-CMD ["cp","-rf","/workflows/.","/mount_data/"]
+COPY dags/nnunet /tmp/dags/nnunet
+COPY dags/dag_nnunet_inference.py /tmp/dags/dag_nnunet_inference.py

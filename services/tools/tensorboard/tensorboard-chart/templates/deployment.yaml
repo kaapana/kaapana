@@ -81,7 +81,7 @@ spec:
   - host: 
     http:
       paths:
-      - path: {{ .Values.ingress_path }}
+      - path: "/tensorboard-{{ $uuid }}"
         backend:
           serviceName: tensorboard-{{ $uuid }}
           servicePort: log-http-port

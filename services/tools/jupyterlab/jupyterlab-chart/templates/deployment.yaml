@@ -16,8 +16,8 @@ spec:
       labels:
         app-name: "jupyterlab-{{ $uuid }}"
     spec:
-      securityContext:
-        runAsUser: 1000
+      # securityContext:
+      #   runAsUser: 1000
       containers:
       - name: jupyterlab
         image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/jupyterlab:1.0-vdev

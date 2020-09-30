@@ -23,5 +23,6 @@ global:
     https_port: 443
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana
+    home_dir: /root
     version: "1.0.0-vdev"
 ---

@@ -35,10 +35,6 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
             'version': self.version,
             'custom_release_name': release_name,
             'sets': {
-                'global.registry_url': 'dktk-jip-registry.dkfz.de',
-                'global.registry_project':  '/kaapana',
-                'global.base_namespace': 'flow-jobs',
-                'global.pull_policy_jobs': 'IfNotPresent',
                 'mount_path': f'/home/kaapana/workflows/{run_dir}',
             }
         }

@@ -1,8 +1,9 @@
-from shutil import which
+from shutil import which, move
 import yaml
 import json
 import os
 import getpass
+from glob import glob
 from argparse import ArgumentParser
 from build_helper.charts_build_and_push_all import HelmChart
 from build_helper.containers_build_and_push_all import start_container_build
@@ -38,7 +39,7 @@ class SkipException(Exception):
             return self.reason
 
 
-def print_log_entry(log_entry,kind="OTHER"):
+def print_log_entry(log_entry, kind="OTHER"):
     log_entry_loglevel = log_entry['loglevel'].upper()
     if supported_log_levels.index(log_entry_loglevel) >= log_level:
         print("-----------------------------------------------------------")
@@ -46,10 +47,10 @@ def print_log_entry(log_entry,kind="OTHER"):
         print("Step: {}".format(log_entry["step"] if "step" in log_entry else "na"))
         print("Message: {}".format(log_entry["message"] if "message" in log_entry else "na"))
         print("-----------------------------------------------------------")
-    
+
     if "container" in log_entry:
         del log_entry['container']
-    log_list[kind].append([log_entry_loglevel,json.dumps(log_entry, indent=4, sort_keys=True)])
+    log_list[kind].append([log_entry_loglevel, json.dumps(log_entry, indent=4, sort_keys=True)])
 
 
 if __name__ == '__main__':
@@ -87,11 +88,15 @@ if __name__ == '__main__':
             configuration = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
             print(exc)
-
     build_containers = configuration["build_containers"]
     push_containers = configuration["push_containers"]
     print("build_containers: {}".format(build_containers))
     print("push_containers: {}".format(push_containers))
+    create_package = configuration["create_package"]
+    if create_package:
+        build_dir = os.path.join(kaapana_dir,"build")
+        os.makedirs(build_dir, exist_ok=True)
+
     build_charts = configuration["build_charts"]
     push_charts = configuration["push_charts"]
     print("build_charts: {}".format(build_charts))
@@ -193,18 +198,18 @@ if __name__ == '__main__':
                     print('SKIP {}: CI_IGNORE == True!'.format(docker_container.tag.replace(docker_container.docker_registry, "")[1:]))
                     continue
                 for log in docker_container.check_prebuild():
-                    print_log_entry(log,kind="CONTAINERS")
+                    print_log_entry(log, kind="CONTAINERS")
                     if log['loglevel'].upper() == "ERROR":
                         raise SkipException('SKIP {}: check_prebuild() failed!'.format(log['test']), log=log)
 
                 for log in docker_container.build():
-                    print_log_entry(log,kind="CONTAINERS")
+                    print_log_entry(log, kind="CONTAINERS")
                     if log['loglevel'].upper() == "ERROR":
                         raise SkipException('SKIP {}: build() failed!'.format(log['test']), log=log)
 
                 if not build_only and push_containers:
                     for log in docker_container.push():
-                        print_log_entry(log,kind="CONTAINERS")
+                        print_log_entry(log, kind="CONTAINERS")
                         if log['loglevel'].upper() == "ERROR":
                             raise SkipException('SKIP {}: push() failed!'.format(log['test']), log=log)
 
@@ -223,14 +228,14 @@ if __name__ == '__main__':
         print("Start quick_check...")
         for log_entry in HelmChart.quick_check():
             if isinstance(log_entry, dict):
-                print_log_entry(log_entry,kind="CHARTS")
+                print_log_entry(log_entry, kind="CHARTS")
             else:
                 build_ready_list = log_entry
-        
+
         if push_charts:
             print("Start check_repos...")
             for log_entry in HelmChart.check_repos(user=registry_user, pwd=registry_pwd):
-                print_log_entry(log_entry,kind="CHARTS")
+                print_log_entry(log_entry, kind="CHARTS")
                 if log_entry['loglevel'].upper() == "ERROR":
                     print("Could not add repository: {}".format(log_entry["step"]))
                     print("Message: {}".format(log_entry["message"]))
@@ -247,23 +252,33 @@ if __name__ == '__main__':
                 print()
                 chart.remove_tgz_files()
                 for log_entry in chart.dep_up():
-                    print_log_entry(log_entry,kind="CHARTS")
+                    print_log_entry(log_entry, kind="CHARTS")
                     if log_entry['loglevel'].upper() == "ERROR":
                         raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
 
                 for log_entry in chart.lint_chart():
-                    print_log_entry(log_entry,kind="CHARTS")
+                    print_log_entry(log_entry, kind="CHARTS")
                     if log_entry['loglevel'].upper() == "ERROR":
                         raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
 
                 for log_entry in chart.lint_kubeval():
-                    print_log_entry(log_entry,kind="CHARTS")
+                    print_log_entry(log_entry, kind="CHARTS")
                     if log_entry['loglevel'].upper() == "ERROR":
                         raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
 
                 if not build_only and push_charts:
+                    if "platforms" in chart.chart_dir and create_package:
+                        for log_entry in chart.package():
+                            print_log_entry(log_entry, kind="CHARTS")
+                            if log_entry['loglevel'].upper() == "ERROR":
+                                raise SkipException("SKIP {}: package() error!".format(log_entry['test']), log=log_entry)
+                            else:
+                                packages = glob(os.path.join(os.path.dirname(chart.chart_dir),'*.tgz'))
+                                for package in packages:
+                                    move(package, build_dir)
+
                     for log_entry in chart.push():
-                        print_log_entry(log_entry,kind="CHARTS")
+                        print_log_entry(log_entry, kind="CHARTS")
                         if log_entry['loglevel'].upper() == "ERROR":
                             raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
 

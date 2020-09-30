@@ -367,6 +367,39 @@ class HelmChart:
 
         yield log_entry
 
+    def package(self):
+        os.chdir(os.path.dirname(self.chart_dir))
+        command = ["helm", "package", self.name]
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+        log = make_log(std_out=output.stdout, std_err=output.stderr)
+        if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
+            log_entry = {
+                "suite": suite_tag,
+                "test": "{}:{}".format(self.name, self.version),
+                "step": "Helm package",
+                "log": log,
+                "loglevel": "ERROR",
+                "timestamp": get_timestamp(),
+                "message": "package failed: {}".format(self.name),
+                "rel_file": self.path,
+                "test_done": True,
+            }
+            yield log_entry
+
+        else:
+            log_entry = {
+                "suite": suite_tag,
+                "test": "{}:{}".format(self.name, self.version),
+                "step": "Helm package",
+                "log": log,
+                "loglevel": "DEBUG",
+                "timestamp": get_timestamp(),
+                "message": "Chart package successfully!",
+                "rel_file": self.path,
+                "test_done": True,
+            }
+            yield log_entry
+
     def push(self):
         os.chdir(os.path.dirname(self.chart_dir))
         try_count = 0

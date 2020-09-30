@@ -131,7 +131,7 @@ function install_chart {
     fi
     
     echo -e "${YELLOW}Installing $CHART_REGISTRY_PROJECT/$PROJECT_NAME version: $chart_version${NC}"
-    helm install --devel --version $chart_version  $CHART_REGISTRY_PROJECT/$PROJECT_NAME \
+    helm install --wait --devel --version $chart_version  $CHART_REGISTRY_PROJECT/$PROJECT_NAME \
     --set global.version="$chart_version" \
     --set global.hostname="$DOMAIN" \
     --set global.dev_ports="$DEV_PORTS" \
@@ -168,7 +168,7 @@ function upgrade_chart {
     echo "${YELLOW}Upgrading release: $CHART_REGISTRY_PROJECT/$PROJECT_NAME${NC}"
     echo "${YELLOW}version: $chart_version${NC}"
 
-    helm upgrade $PROJECT_NAME $CHART_REGISTRY_PROJECT/$PROJECT_NAME --devel --version $chart_version --set global.version="$chart_version" --reuse-values 
+    helm upgrade --wait $PROJECT_NAME $CHART_REGISTRY_PROJECT/$PROJECT_NAME --devel --version $chart_version --set global.version="$chart_version" --reuse-values 
     print_installation_done
 }
 
@@ -176,7 +176,7 @@ function upgrade_chart {
 function check_credentials {
     while true; do
         if [ ! -v REGISTRY_USERNAME ] || [ ! -v REGISTRY_PASSWORD ]; then
-            echo -e "${YELLOW}Please enter the credentials for the Container-Registry: $CONTAINER_REGISTRY_URL !${NC}"
+            echo -e "${YELLOW}Please enter the credentials for the Container-Registry!${NC}"
             read -p '**** username: ' REGISTRY_USERNAME
             read -s -p '**** password: ' REGISTRY_PASSWORD
         else

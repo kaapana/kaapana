@@ -34,8 +34,7 @@ spec:
     spec:
       initContainers:
         - name: init
-          #TODO find solution for kaapana/service_checker:1.1
-          image: {{  .Values.global.registry_url }}/kaapana/service_checker:1.1
+          image: {{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/service_checker:1.1
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT

@@ -25,8 +25,7 @@ PULL_POLICY_PODS="Always"
 PULL_POLICY_JOBS="Always"
 PULL_POLICY_OPERATORS="Always"
 
-declare -a NEEDED_REPOS=("$CHART_REGISTRY_PROJECT" "processing-external")
-
+declare -a NEEDED_REPOS=("$CHART_REGISTRY_PROJECT")
 script_name=`basename "$0"`
 
 # check if stdout is a terminal...

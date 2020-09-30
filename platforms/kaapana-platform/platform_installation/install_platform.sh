@@ -12,18 +12,31 @@ CHART_REGISTRY_PROJECT="kaapana-public"
 CONTAINER_REGISTRY_URL="dktk-jip-registry.dkfz.de"
 CONTAINER_REGISTRY_PROJECT="/kaapana"
 
+if [ -z "$CHART_REGISTRY_URL" ] || [ -z "$CHART_REGISTRY_PROJECT" ] || [ -z "$CONTAINER_REGISTRY_URL" ]; then
+  echo 'CHART_REGISTRY_URL, CHART_REGISTRY_PROJECT, CONTAINER_REGISTRY_URL, CONTAINER_REGISTRY_PROJECT need to be set! -> please adjust the install_platform.sh script!'        
+  echo 'ABORT'
+  exit 1
+fi
+
 HTTP_PORT=80
 HTTPS_PORT=443
 DICOM_PORT=11112
 DEV_MODE="true"
-GPU_SUPPORT="false"
 DEV_PORTS="false"
+GPU_SUPPORT="false"
 
 FAST_DATA_DIR="/home/kaapana"
-SLOW_DATA_DIR="/home/kaapana/dicom"
-PULL_POLICY_PODS="Always"
-PULL_POLICY_JOBS="Always"
-PULL_POLICY_OPERATORS="Always"
+SLOW_DATA_DIR="/home/kaapana"
+
+PULL_POLICY_PODS="IfNotPresent"
+PULL_POLICY_JOBS="IfNotPresent"
+PULL_POLICY_OPERATORS="IfNotPresent"
+
+if [ "$DEV_MODE" == "true" ]; then
+    PULL_POLICY_PODS="Always"
+    PULL_POLICY_JOBS="Always"
+    PULL_POLICY_OPERATORS="Always"
+fi
 
 declare -a NEEDED_REPOS=("$CHART_REGISTRY_PROJECT")
 script_name=`basename "$0"`

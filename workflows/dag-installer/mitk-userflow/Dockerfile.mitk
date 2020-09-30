@@ -1,7 +1,5 @@
 FROM busybox:1.31
 
-LABEL REGISTRY="dktk-jip-registry.dkfz.de"
-LABEL REGISTRY_PROJECT="processing-external"
 LABEL IMAGE="dag-mitk-userflow"
 LABEL VERSION="0.9-vdev"
 LABEL CI_IGNORE="False"

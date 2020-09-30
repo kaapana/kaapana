@@ -501,7 +501,6 @@ class HelmChart:
         resolve_tries = 0
 
         while resolve_tries <= HelmChart.max_tries and len(charts_list) != 0:
-            print("Try count: {}".format(resolve_tries))
             resolve_tries += 1
 
             to_do_charts = []
@@ -542,9 +541,7 @@ class HelmChart:
             for chart in reversed(charts_list):
                 miss_deps = []
                 for req in chart.requirements:
-                    print(req)
                     miss_deps.append(req)
-                print()
 
                 log_entry = {
                     "suite": suite_tag,

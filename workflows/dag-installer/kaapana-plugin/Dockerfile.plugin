@@ -1,4 +1,4 @@
-FROM dktk-jip-registry.dkfz.de/kaapana/dag-installer:1.0-vdev
+FROM dktk-jip-registry.dkfz.de/kaapana-public/dag-installer:1.0-vdev
 
 LABEL IMAGE="kaapana-plugin"
 LABEL VERSION="0.8-vdev"

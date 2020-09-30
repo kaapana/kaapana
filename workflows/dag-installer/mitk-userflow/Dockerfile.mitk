@@ -1,4 +1,4 @@
-FROM dktk-jip-registry.dkfz.de/kaapana/dag-installer:1.0-vdev
+FROM dktk-jip-registry.dkfz.de/kaapana-public/dag-installer:1.0-vdev
 
 LABEL IMAGE="dag-mitk-userflow"
 LABEL VERSION="0.9-vdev"

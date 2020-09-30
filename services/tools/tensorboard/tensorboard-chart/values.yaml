@@ -2,6 +2,4 @@
 global:
     pull_policy_pods: "IfNotPresent"
     base_namespace: "default"
-    ingress_path: /tensorboard/
-    mount_path:
-    multi_instance_suffix:
+mount_path: ""

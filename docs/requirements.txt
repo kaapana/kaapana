@@ -2,6 +2,7 @@
 sphinx
 sphinx_rtd_theme
 sphinxcontrib-mermaid
+sphinx-tabs
 rst2pdf
 
 # apt requirements

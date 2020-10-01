@@ -44,6 +44,7 @@ extensions = [
     'sphinx.ext.imgmath',
     'rst2pdf.pdfbuilder',
     'sphinx.ext.viewcode',
+    'sphinx_tabs.tabs',
     'sphinxcontrib.mermaid'
 ]
 

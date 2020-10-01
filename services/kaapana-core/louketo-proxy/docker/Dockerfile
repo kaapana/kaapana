@@ -17,4 +17,4 @@ FROM golang
 
 WORKDIR /app
 COPY --from=build-env /opt/louketo-proxy/bin/louketo-proxy /app/louketo-proxy
-CMD /app/louketo-proxy
+ENTRYPOINT /app/louketo-proxy

@@ -118,11 +118,13 @@ if __name__ == '__main__':
 
     if build_mode == "local" and push_charts:
         print("local build: Forcing push_charts = False !")
-        push_containers=False
+        push_charts=False
+
     if build_mode == "local" and push_containers:
         print("local build: Forcing push_containers = False !")
         push_containers=False
-
+    
+    print()
     print("build_charts: {}".format(build_charts))
     print("push_charts: {}".format(push_charts))
 

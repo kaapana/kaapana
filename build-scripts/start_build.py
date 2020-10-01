@@ -1,4 +1,4 @@
-from shutil import which, move
+from shutil import which, copy
 import yaml
 import json
 import os
@@ -302,7 +302,8 @@ if __name__ == '__main__':
                         else:
                             packages = glob(os.path.join(os.path.dirname(chart.chart_dir),'*.tgz'))
                             for package in packages:
-                                move(package, build_dir)
+                                copy(package, build_dir)
+                                os.remove(package)
 
                 if not build_only and push_charts:
                     for log_entry in chart.push():

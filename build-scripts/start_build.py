@@ -99,6 +99,7 @@ if __name__ == '__main__':
         exit(1)
 
     build_mode = configuration["build_mode"]
+    print("Build-mode: {}!".format(build_mode))
 
     build_containers = configuration["build_containers"]
     push_containers = configuration["push_containers"]
@@ -108,9 +109,20 @@ if __name__ == '__main__':
     if create_package:
         build_dir = os.path.join(kaapana_dir,"build")
         os.makedirs(build_dir, exist_ok=True)
+    elif build_mode == "local":
+        print("local build: Forcing create_package = True !")
+        create_package = True
 
     build_charts = configuration["build_charts"]
     push_charts = configuration["push_charts"]
+    
+    if build_mode != "local" and push_charts:
+        print("local build: Forcing push_charts = False !")
+        push_containers=False
+    if build_mode != "local" and push_containers:
+        print("local build: Forcing push_containers = False !")
+        push_containers=False
+
     print("build_charts: {}".format(build_charts))
     print("push_charts: {}".format(push_charts))
 
@@ -126,10 +138,12 @@ if __name__ == '__main__':
     if build_containers and not charts_only:
         print("-----------------------------------------------------------")
         default_container_registry = configuration["default_container_registry"]
-        if default_container_registry == "":
+        if default_container_registry == "" and build_mode != "local":
             print("No default registry configured!")
             print("Please specify 'default_container_registry' within the build-configuration.json")
             exit(1)
+        elif default_container_registry == "" and build_mode == "local":
+            default_container_registry = "local"
         else:
             print("Using default_container_registry: {}".format(default_container_registry))
         print("-----------------------------------------------------------")

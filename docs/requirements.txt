@@ -1,5 +1,5 @@
 # Python requirements for the documentation
-sphinx
+sphinx==3.2.1
 sphinx_rtd_theme
 sphinxcontrib-mermaid
 sphinx-tabs

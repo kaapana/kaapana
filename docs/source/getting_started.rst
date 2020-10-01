@@ -16,13 +16,13 @@ You should also have the following packages installed on your build-system.
 
 1. Clone the repository:
 
-   :code:`git clone https://github.com/kaapana/kaapana.git`
-   :code:`git clone https://phabricator.mitk.org/source/kaapana.git`
+   | :code:`git clone https://github.com/kaapana/kaapana.git`
+   | :code:`git clone https://phabricator.mitk.org/source/kaapana.git`
 
 2. Python3 
 
-   :code:`sudo apt install python3 python3-pip`
-   :code:`sudo yum install python3 python3-pip`
+   | :code:`sudo apt install python3 python3-pip`
+   | :code:`sudo yum install python3 python3-pip`
 
 3. Python requirements 
    
@@ -176,7 +176,8 @@ Step 3: Server Installation
 
   | **GPU support -> Currently only Nvidia GPUs are supported!**
   | If you want to enable GPU support, you need to install the `Nvidia drivers <https://www.nvidia.de/Download/index.aspx?lang=en>`_ first.
-  | (For Ubuntu Server 20.04 :code:`sudo apt install nvidia-driver-<version>-server` should also work.)
+  | For Ubuntu Server 20.04 :code:`sudo apt install nvidia-driver-<version>-server` should also work
+  | -> reboot required!
   | Please make sure the :code:`nvidia-smi` command is working as expected!
 
 Before the example platform "Kaapana-platform" can be deployed, all dependencies must be installed on the server first. 
@@ -184,9 +185,9 @@ To do this, you can use the :term:`server-installation-script`, which you can fi
 You can just copy the script to your target-system (server):
 
 1. Make it executable: :code:`chmod +x server_installation.sh`
-2. Execute the script: :code:`./server_installation.sh`
-3. (opt) Enable GPU support for Microk8s :code:`./server_installation.sh -gpu`
-
+2. Execute the script: :code:`sudo ./server_installation.sh`
+3. Reboot the system :code:`sudo reboot`
+4. (opt) Enable GPU support for Microk8s :code:`sudo ./server_installation.sh -gpu`
 
 Step 4: Platform Deployment
 ---------------------------
@@ -225,6 +226,8 @@ You can just copy the script to your target-system (server) and **adjust some va
          ...
 
    .. tab:: Private registry
+
+      .. important:: The beginning slash for <registry-project> is important!
 
       .. code-block:: python
 

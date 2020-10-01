@@ -3,6 +3,7 @@ import glob
 import shutil
 import re
 import requests
+import warnings
 
 tmp_prefix = '/tmp/'
 workflow_prefix = '/workflows/'
@@ -61,17 +62,16 @@ for file_path in files_to_copy:
             if os.path.isdir(dest_path) and not list(listdir_nohidden(dest_path)):
                 shutil.rmtree(dest_path, ignore_errors=True)
     else:
-        if os.path.isfile(dest_path) and action == 'copy':
-            raise NameError('File exists already!')
+        if action == 'copy':
+            if os.path.isfile(dest_path) and action == 'copy':
+                warnings.warn(f"Attention! You are overwriting the file {dest_path}!")
+                #raise NameError('File exists already!')
+            shutil.copyfile(file_path, dest_path)
+        elif action == 'remove':
+            if os.path.isfile(dest_path):
+                os.remove(dest_path)
         else:
-            if action == 'copy':
-                shutil.copyfile(file_path, dest_path)
-                #shutil.chown(file_path)
-            elif action == 'remove':
-                if os.path.isfile(dest_path):
-                    os.remove(dest_path)
-            else:
-                raise NameError('Action must be either copy or remove')
+            raise NameError('Action must be either copy or remove')
 
 
 print('################################################################################')

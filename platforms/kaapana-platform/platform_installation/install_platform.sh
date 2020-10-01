@@ -118,7 +118,7 @@ function get_domain {
 }
 
 function delete_deployment {
-    echo -e "${YELLOW}Uninstall releases${NC}"
+    echo -e "${YELLOW}Uninstalling releases${NC}"
     helm ls --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 helm delete
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
     WAIT_UNINSTALL_COUNT=60

@@ -1,20 +1,19 @@
-# Copy me and only adapt values.yaml and Chart.yaml!
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: remove-{{ .Values.image }}
-  namespace: {{ .Values.global.flow_namespace }}
+  name: remove-kaapana-plugin
+  namespace: default
   annotations:
-    "helm.sh/hook": pre-delete
+    "helm.sh/hook": post-delete
     "helm.sh/hook-weight": "-5"
     "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
 spec:
   template:
     spec:
       containers:
-      - name: remove-{{ .Values.image }}
-        image: "{{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_operators }}
+      - name: remove-kaapana-plugin
+        image: "dktk-jip-registry.dkfz.de/kaapana-public/kaapana-plugin:0.8-vdev"
+        imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
         - name: ACTION
           value: "remove"
@@ -29,6 +28,4 @@ spec:
           path: {{ .Values.global.fast_data_dir }}/workflows
           type: DirectoryOrCreate
       restartPolicy: Never
-      imagePullSecrets:
-      - name: camic-registry
   backoffLimit: 0

@@ -1,6 +1,6 @@
 ---
 global:
-    pull_policy_operators: "Always"
+    pull_policy_jobs: "Always"
     flow_namespace: "flow"
     fast_data_dir: "/home/kaapana"
 image: "dag-shapemodel"

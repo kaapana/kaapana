@@ -21,7 +21,7 @@ spec:
       containers:
       - name: copy-{{ .Values.image }}
         image: "{{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_operators }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
         - name: ACTION
           value: "copy"

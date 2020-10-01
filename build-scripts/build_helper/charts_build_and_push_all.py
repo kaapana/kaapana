@@ -65,19 +65,19 @@ class HelmChart:
         return "{}:{}".format(self.name, self.version) == "{}:{}".format(other.name, other.version)
 
     def __init__(self, chartfile):
-        name = None
-        repo = None
-        version = None
-        nested = False
+        self.name = None
+        self.repo = None
+        self.version = None
+        self.nested = False
         self.log_list = []
-
+        self.chartfile = chartfile
 
         if not os.path.isfile(chartfile):
             print("ERROR: Chartfile not found.")
             exit(1)
 
         if os.path.dirname(os.path.dirname(chartfile)).split("/")[-1] == "charts":
-            nested = True
+            self.nested = True
 
         with open(chartfile) as f:
             read_file = f.readlines()
@@ -85,40 +85,36 @@ class HelmChart:
 
             for line in read_file:
                 if "name:" in line:
-                    name = line.split(": ")[1].strip()
+                    self.name = line.split(": ")[1].strip()
                 elif "repo:" in line:
-                    repo = line.split(": ")[1].strip()
+                    self.repo = line.split(": ")[1].strip()
                 elif "version:" in line:
-                    version = line.split(": ")[1].strip()
+                    self.version = line.split(": ")[1].strip()
 
-        if repo is None:
-            repo = HelmChart.default_project
+        if self.repo is None:
+            self.repo = HelmChart.default_project
 
-        if name is not None and version is not None and repo is not None:
-            self.name = name
-            self.repo = repo
-            self.version = version
-            self.path = chartfile
+        if self.name is not None and self.version is not None and self.repo is not None:
+            self.path = self.chartfile
             self.chart_dir = os.path.dirname(chartfile)
             self.dev = False
             self.requirements_ready = False
-            self.nested = nested
             self.requirements = []
 
-            if "-vdev" in version:
+            if "-vdev" in self.version:
                 self.dev = True
 
-            self.chart_id = "{}/{}:{}".format(self.repo,self.name, self.version)
+            self.chart_id = "{}/{}:{}".format(self.repo, self.name, self.version)
 
             print("")
             print("Adding new chart:")
-            print("name: {}".format(name))
-            print("version: {}".format(version))
-            print("repo: {}".format(repo))
+            print("name: {}".format(self.name))
+            print("version: {}".format(self.version))
+            print("repo: {}".format(self.repo))
             print("chart_id: {}".format(self.chart_id))
             print("dev: {}".format(self.dev))
             print("nested: {}".format(self.nested))
-            print("file: {}".format(chartfile))
+            print("file: {}".format(self.chartfile))
             print("")
 
             if self.repo not in HelmChart.repos_needed:
@@ -158,10 +154,10 @@ class HelmChart:
             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
             print("")
             print("ERROR: Cound not extract all infos from chart...")
-            print("name: {}".format(name))
-            print("version: {}".format(version))
-            print("repo: {}".format(repo))
-            print("file: {}".format(chartfile))
+            print("name: {}".format(self.name if self.name is not None else chartfile))
+            print("version: {}".format(self.version if self.name is not None else ""))
+            print("repo: {}".format(self.repo if self.name is not None else ""))
+            print("file: {}".format(self.chartfile if self.name is not None else ""))
             print("")
             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
             print("")
@@ -444,7 +440,7 @@ class HelmChart:
     def check_repos(user, pwd):
         for repo in HelmChart.repos_needed:
             command = ["helm", "repo", "add", "--username", user, "--password", pwd, repo, HelmChart.default_registry + repo]
-            output = run(command, stdout=PIPE, stderr=PIPE,universal_newlines=True, timeout=30)
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=30)
             log = make_log(std_out=output.stdout, std_err=output.stderr)
 
             if output.returncode != 0 and '401 Unauthorized' in output.stderr:
@@ -608,11 +604,12 @@ class HelmChart:
 ######################   START   ###########################
 ############################################################
 
-def init_helm_charts(kaapana_dir,chart_registry,default_project):
+def init_helm_charts(kaapana_dir, chart_registry, default_project):
     HelmChart.kaapana_dir = kaapana_dir
     HelmChart.default_registry = chart_registry
     HelmChart.default_project = default_project
     check_helm_installed()
+
 
 if __name__ == '__main__':
     print("Please use the 'start_build.py' script to launch the build-process.")

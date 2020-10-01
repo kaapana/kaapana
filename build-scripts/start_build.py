@@ -1,4 +1,4 @@
-from shutil import which, move
+from shutil import which, copy
 import yaml
 import json
 import os
@@ -8,7 +8,6 @@ from argparse import ArgumentParser
 from build_helper.charts_build_and_push_all import HelmChart
 from build_helper.containers_build_and_push_all import start_container_build
 from build_helper.charts_build_and_push_all import init_helm_charts
-
 
 log_list = {
     "CONTAINERS": [],
@@ -83,11 +82,25 @@ if __name__ == '__main__':
     print("-----------------------------------------------------------")
     print("--------------- loading build-configuration ---------------")
     print("-----------------------------------------------------------")
+
     with open(config_filepath, 'r') as stream:
         try:
             configuration = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
             print(exc)
+
+    if "build_mode" not in configuration or (configuration["build_mode"] != "local" and configuration["build_mode"] != "private" and configuration["build_mode"] != "dockerhub"):
+        print("-----------------------------------------------------------")
+        print("------------------- CONFIGURATION ERROR -------------------")
+        print("-----------------------------------------------------------")
+        print("Please set the configuration key 'build_mode' to 'local', 'dockerhub', 'private'")
+        print("Please adjust the build-configuration.yaml")
+        print("Abort")
+        exit(1)
+
+    build_mode = configuration["build_mode"]
+    print("Build-mode: {}!".format(build_mode))
+
     build_containers = configuration["build_containers"]
     push_containers = configuration["push_containers"]
     print("build_containers: {}".format(build_containers))
@@ -96,9 +109,22 @@ if __name__ == '__main__':
     if create_package:
         build_dir = os.path.join(kaapana_dir,"build")
         os.makedirs(build_dir, exist_ok=True)
+    elif build_mode == "local":
+        print("local build: Forcing create_package = True !")
+        create_package = True
 
     build_charts = configuration["build_charts"]
     push_charts = configuration["push_charts"]
+
+    if build_mode == "local" and push_charts:
+        print("local build: Forcing push_charts = False !")
+        push_charts=False
+
+    if build_mode == "local" and push_containers:
+        print("local build: Forcing push_containers = False !")
+        push_containers=False
+    
+    print()
     print("build_charts: {}".format(build_charts))
     print("push_charts: {}".format(push_charts))
 
@@ -114,10 +140,12 @@ if __name__ == '__main__':
     if build_containers and not charts_only:
         print("-----------------------------------------------------------")
         default_container_registry = configuration["default_container_registry"]
-        if default_container_registry == "":
+        if default_container_registry == "" and build_mode != "local":
             print("No default registry configured!")
             print("Please specify 'default_container_registry' within the build-configuration.json")
             exit(1)
+        elif default_container_registry == "" and build_mode == "local":
+            default_container_registry = "local"
         else:
             print("Using default_container_registry: {}".format(default_container_registry))
         print("-----------------------------------------------------------")
@@ -131,7 +159,7 @@ if __name__ == '__main__':
 
     default_chart_registry = configuration["default_chart_registry"] if "default_chart_registry" in configuration else ""
     default_chart_project = configuration["default_chart_project"] if "default_chart_project" in configuration else ""
-    if push_charts and not docker_only:
+    if not docker_only:
         print("-----------------------------------------------------------")
         default_chart_registry = configuration["default_chart_registry"]
         if default_chart_registry == "":
@@ -142,7 +170,7 @@ if __name__ == '__main__':
             print("Using default_chart_registry: {}".format(default_chart_registry))
         print("-----------------------------------------------------------")
 
-        if registry_user is None or registry_pwd is None:
+        if push_charts and (registry_user is None or registry_pwd is None):
             if os.getenv("REGISTRY_USER", None) is None or os.getenv("REGISTRY_PW", None) is None:
                 print()
                 print("ENVs 'REGISTRY_USER' and 'REGISTRY_PW' not found! ")
@@ -206,7 +234,7 @@ if __name__ == '__main__':
                     print_log_entry(log, kind="CONTAINERS")
                     if log['loglevel'].upper() == "ERROR":
                         raise SkipException('SKIP {}: build() failed!'.format(log['test']), log=log)
-
+                
                 if not build_only and push_containers:
                     for log in docker_container.push():
                         print_log_entry(log, kind="CONTAINERS")
@@ -274,7 +302,8 @@ if __name__ == '__main__':
                         else:
                             packages = glob(os.path.join(os.path.dirname(chart.chart_dir),'*.tgz'))
                             for package in packages:
-                                move(package, build_dir)
+                                copy(package, build_dir)
+                                os.remove(package)
 
                 if not build_only and push_charts:
                     for log_entry in chart.push():

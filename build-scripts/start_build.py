@@ -105,13 +105,15 @@ if __name__ == '__main__':
     push_containers = configuration["push_containers"]
     print("build_containers: {}".format(build_containers))
     print("push_containers: {}".format(push_containers))
+    
     create_package = configuration["create_package"]
+    if build_mode == "local":
+        print("local build: Forcing create_package = True !")
+        create_package = True
+    
     if create_package:
         build_dir = os.path.join(kaapana_dir,"build")
         os.makedirs(build_dir, exist_ok=True)
-    elif build_mode == "local":
-        print("local build: Forcing create_package = True !")
-        create_package = True
 
     build_charts = configuration["build_charts"]
     push_charts = configuration["push_charts"]

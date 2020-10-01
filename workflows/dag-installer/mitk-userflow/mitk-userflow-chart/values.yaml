@@ -3,8 +3,6 @@ global:
     pull_policy_operators: "Always"
     flow_namespace: "flow"
     fast_data_dir: "/home/kaapana"
-    pull_policy_operators: "Always"
-action: "copy"
 image: "dag-mitk-userflow"
-version: "0.9-vdev"
+version: "0.1-vdev"
     

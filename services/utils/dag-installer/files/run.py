@@ -8,31 +8,40 @@ tmp_prefix = '/tmp/'
 workflow_prefix = '/workflows/'
 HELM_API='http://kube-helm-service.kube-system.svc:5000/kube-helm-api'
 
+regex = r'image=(\"|\'|f\"|f\')([\w\-\\{\}.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)(\"|\'|f\"|f\')'
+
+def listdir_nohidden(path):
+    for f in os.listdir(path):
+        if not f.endswith('.pyc') and not f.startswith('.') and not (f.startswith('__') and f.endswith('__')):
+            yield f
+
 def get_images(target_dir):
     print("Searching for images...")
-
-    image_list = []
+    image_dict = {}
     file_paths = glob.glob(f'{target_dir}/**/*.py', recursive=True)
     print("Found %i files..." % len(file_paths))
     for file_path in file_paths:
-        print(file_path)
         if os.path.isfile(file_path):
             print(f'Checking file: {file_path}')
             content = open(file_path).read()
-            findings = [m.start()
-                        for m in re.finditer("image\s*=\s*('|\")", content)]
-
-            for finding in findings:
-                id_index = finding
-                image_id = content[id_index:].split("\n")[0].split("=")[1].replace(
-                    "\"", "").replace("'", "").replace(" ", "").replace(",", "")
-                print("Found: % s" % image_id)
-                image_list.append(image_id)
+            matches = re.findall(regex, content)
+            if matches:
+                for match in matches:
+                    docker_registry_url = match[1] if '{' not in match[1] else ''
+                    docker_registry_project = match[2]
+                    docker_image = match[3]
+                    docker_version = match[4]
+                    image_dict.update({f'{docker_registry_url}{docker_registry_project}/{docker_image}:{docker_version}': {
+                        'docker_registry_url': docker_registry_url,
+                        'docker_registry_project': docker_registry_project,
+                        'docker_image': docker_image,
+                        'docker_version': docker_version
+                    }})
+                    print(f'{docker_registry_url}{docker_registry_project}/{docker_image}:{docker_version}')
         else:
             print(f'Skipping directory: {file_path}')
-    image_list=list(set(image_list))
-    print("Found %i images to download..." % len(image_list))
-    return image_list
+    print("Found %i images to download..." % len(image_dict))
+    return image_dict
 
 action = os.getenv('ACTION', 'copy')
 print(f'Apply action {action} to files')
@@ -48,11 +57,9 @@ for file_path in files_to_copy:
     if os.path.isdir(file_path):
         if not os.path.isdir(dest_path) and action == 'copy':
             os.makedirs(dest_path)
-            #shutil.chown(dest_path)
-            #os.rmdir()
         if action == 'remove':
-            if os.path.isdir(dest_path) and not os.listdir(dest_path):
-                os.rmdir(dest_path)
+            if os.path.isdir(dest_path) and not list(listdir_nohidden(dest_path)):
+                shutil.rmtree(dest_path, ignore_errors=True)
     else:
         if os.path.isfile(dest_path) and action == 'copy':
             raise NameError('File exists already!')
@@ -74,21 +81,11 @@ print('#########################################################################
 
 if action == 'copy':
     url = f'{HELM_API}/pull-docker-image'
-    regex = r"([\w\-\.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)"
-
-    for image in get_images(tmp_prefix):
-        match = re.match(regex, image)
-        if match is not None:
-            payload = {
-                'docker_registry_url': match[1],
-                'docker_registry_project': match[2],
-                'docker_image': match[3],
-                'docker_version': match[4]
-            }
-            print(payload)
-            r = requests.post(url, json=payload)
-            print(r.status_code)
-            print(r.text)
+    for name, payload in get_images(tmp_prefix).items():
+        print(payload)
+        r = requests.post(url, json=payload)
+        print(r.status_code)
+        print(r.text)
 
 print('################################################################################')
 print(f'Successfully triggered the deployment to download the images of the dag')

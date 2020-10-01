@@ -12,16 +12,6 @@ COPY dags/dag_process_incoming_dcm.py /tmp/dags/
 COPY dags/dag_minio_dicom_upload.py /tmp/dags/
 COPY dags/dag_launch_jupyterlab.py /tmp/dags/
 
-COPY dags/dag_radiomics_dcmseg.py /tmp/dags/
-COPY dags/radiomics /tmp/dags/radiomics
-
-COPY dags/dag_organ_segmentation.py /tmp/dags/
-COPY dags/shapemodel /tmp/dags/shapemodel
-
-COPY dags/nnunet /tmp/dags/nnunet
-COPY dags/dag_nnunet_inference.py /tmp/dags/
-COPY dags/dag_download_all_models.py /tmp/dags/
-
 COPY dags/dag_collect_metadata.py /tmp/dags/
 
 COPY plugins/ /tmp/plugins

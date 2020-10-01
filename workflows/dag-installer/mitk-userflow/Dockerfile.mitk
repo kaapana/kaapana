@@ -1,9 +1,8 @@
 FROM dktk-jip-registry.dkfz.de/kaapana-public/dag-installer:1.0-vdev
 
 LABEL IMAGE="dag-mitk-userflow"
-LABEL VERSION="0.9-vdev"
+LABEL VERSION="0.1-vdev"
 LABEL CI_IGNORE="False"
 
 COPY dags/dag_mitk_userflow.py /tmp/dags/
 COPY dags/mitk_userflow /tmp/dags/mitk_userflow
-COPY dags/radiomics /tmp/dags/radiomics

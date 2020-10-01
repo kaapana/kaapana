@@ -40,7 +40,9 @@ export default Vue.extend({
     ],
   }),
   mounted() {
+    this.loading = true;
     this.getHelmCharts()
+    this.loading = false;
   },
   computed: {
     ...mapGetters(['currentUser', 'isAuthenticated', "commonData", "launchApplicationData", "availableApplications"])

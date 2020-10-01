@@ -76,16 +76,6 @@ dcmseg_send_kidney_left = DcmWebSendOperator(
     dag=dag, input_operator=nrrd2dcmSeg_kidney_left)
 
 
-trigger_radiomics_liver = LocalDagTriggerOperator(
-    dag=dag, input_operator=nrrd2dcmSeg_liver, trigger_dag_id='radiomics-dcmseg')
-trigger_radiomics_spleen = LocalDagTriggerOperator(
-    dag=dag, input_operator=nrrd2dcmSeg_spleen, trigger_dag_id='radiomics-dcmseg')
-trigger_radiomics_kidney_right = LocalDagTriggerOperator(
-    dag=dag, input_operator=nrrd2dcmSeg_kidney_right, trigger_dag_id='radiomics-dcmseg')
-trigger_radiomics_kidney_left = LocalDagTriggerOperator(
-    dag=dag, input_operator=nrrd2dcmSeg_kidney_left, trigger_dag_id='radiomics-dcmseg')
-
-
 trigger_extract_meta_liver = LocalDagTriggerOperator(
     dag=dag, input_operator=nrrd2dcmSeg_liver, trigger_dag_id='extract-metadata')
 trigger_extract_meta_spleen = LocalDagTriggerOperator(
@@ -106,11 +96,6 @@ organSeg_unityCS >> organSeg_kidney_left >> nrrd2dcmSeg_kidney_left >> dcmseg_se
 
 organSeg_spleen >> organSeg_kidney_right
 organSeg_spleen >> organSeg_kidney_left
-
-nrrd2dcmSeg_liver >> trigger_radiomics_liver >> clean
-nrrd2dcmSeg_spleen >> trigger_radiomics_spleen >> clean
-nrrd2dcmSeg_kidney_right >> trigger_radiomics_kidney_right >> clean
-nrrd2dcmSeg_kidney_left >> trigger_radiomics_kidney_left >> clean
 
 nrrd2dcmSeg_liver >> trigger_extract_meta_liver >> clean
 nrrd2dcmSeg_spleen >> trigger_extract_meta_spleen >> clean

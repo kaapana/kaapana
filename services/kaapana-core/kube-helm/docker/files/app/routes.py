@@ -74,24 +74,6 @@ def helm_delete_chart():
     return utils.helm_delete(release_name, app.config['NAMESPACE'])
 
 
-@app.route("/helm-delete-extension", methods=["POST"])
-def helm_delete_extension():
-    """Return a API response for deleting a helm chart
-    """
-    payload = request.json
-    release_name =  payload['release_name']
-    if 'kaapanadag' in payload['keywords']:
-        utils.helm_delete(release_name, app.config['NAMESPACE'])
-        payload['custom_release_name'] = release_name
-        payload['sets'] = {
-            'action':'remove'
-        }
-        utils.helm_install(payload, app.config['NAMESPACE'])
-        return utils.helm_delete(release_name, app.config['NAMESPACE'])
-    else:
-        return utils.helm_delete(release_name, app.config['NAMESPACE'])
-
-
 @app.route("/pending-applications")
 @utils.helm_repo_update_decorator
 def pending_applications():

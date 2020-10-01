@@ -97,8 +97,8 @@ def pull_docker_image(docker_image, docker_version, docker_registry_url='dktk-ji
     version = '1.0-vdev'
     release_name = f'{chartName}-{secrets.token_hex(10)}'
     sets = {
-        'registry_url': docker_registry_url,
-        'registry_project': docker_registry_project,
+        'registry_url': docker_registry_url or os.getenv('REGISTRY_URL'),
+        'registry_project': docker_registry_project or os.getenv('REGISTRY_PROJECT'),
         'image': docker_image,
         'version': docker_version
     }

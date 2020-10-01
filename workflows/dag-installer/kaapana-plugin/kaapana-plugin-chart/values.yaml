@@ -3,6 +3,5 @@ global:
     pull_policy_operators: "Always"
     flow_namespace: "flow"
     fast_data_dir: "/home/kaapana"
-action: "copy"
 image: "kaapana-plugin"
 version: "0.8-vdev"

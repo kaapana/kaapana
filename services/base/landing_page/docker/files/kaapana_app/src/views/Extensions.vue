@@ -54,7 +54,9 @@ export default Vue.extend({
     ],
   }),
   mounted() {
+    this.loading = true;
     this.getHelmCharts();
+    this.loading = false;
   },
   computed: {
     ...mapGetters([
@@ -70,7 +72,6 @@ export default Vue.extend({
       let params = {
         repo: "kaapana-public"
       };
-      this.loading = true;
       kaapanaApiService
         .helmApiGet("/extensions", params)
         .then((response: any) => {
@@ -84,19 +85,16 @@ export default Vue.extend({
     },
 
     deleteChart(releaseName: any, name: any, version: any, keywords: any) {
-      let payload = {
-        'release_name': releaseName,
-        'name': name,
-        'version': version,
-        'keywords': keywords
+      let params = {
+        'release_name': releaseName
       }
       this.loading = true;
       kaapanaApiService
-        .helmApiPost("/helm-delete-extension", payload)
+        .helmApiGet("/helm-delete-chart", params)
         .then((response: any) => {
           setTimeout(() => {
             this.getHelmCharts();
-            this.loading = false;
+            //this.loading = false;
           }, 1000);
         })
         .catch((err: any) => {
@@ -117,7 +115,7 @@ export default Vue.extend({
         .helmApiPost("/helm-install-chart", payload)
         .then((response: any) => {
             this.getHelmCharts();
-            this.loading = false;
+            //this.loading = false;
         })
         .catch((err: any) => {
           this.getHelmCharts();

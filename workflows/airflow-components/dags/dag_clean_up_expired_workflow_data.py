@@ -16,7 +16,7 @@ import os
 log = LoggingMixin().log
 
 dag_info = {
-    "visible": True,
+    "visible": False,
 }
 
 args = {

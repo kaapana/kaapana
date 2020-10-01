@@ -144,7 +144,7 @@ class HelmChart:
         else:
             log_entry = {
                 "suite": suite_tag,
-                "test": "{}".format(self.name if self.name is not None else chartfile),
+                "test": "{}".format(chartfile),
                 "step": "Extract Chart Infos",
                 "log": "",
                 "loglevel": "ERROR",
@@ -158,7 +158,7 @@ class HelmChart:
             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
             print("")
             print("ERROR: Cound not extract all infos from chart...")
-            print("name: {}".format(name))
+            print("name: {}".format(chartfile))
             print("version: {}".format(version))
             print("repo: {}".format(repo))
             print("file: {}".format(chartfile))

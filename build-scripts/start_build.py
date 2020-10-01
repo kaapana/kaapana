@@ -9,7 +9,6 @@ from build_helper.charts_build_and_push_all import HelmChart
 from build_helper.containers_build_and_push_all import start_container_build
 from build_helper.charts_build_and_push_all import init_helm_charts
 
-
 log_list = {
     "CONTAINERS": [],
     "CHARTS": [],
@@ -83,11 +82,24 @@ if __name__ == '__main__':
     print("-----------------------------------------------------------")
     print("--------------- loading build-configuration ---------------")
     print("-----------------------------------------------------------")
+
     with open(config_filepath, 'r') as stream:
         try:
             configuration = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
             print(exc)
+
+    if "build_mode" not in configuration or (configuration["build_mode"] != "local" and configuration["build_mode"] != "private" and configuration["build_mode"] != "dockerhub"):
+        print("-----------------------------------------------------------")
+        print("------------------- CONFIGURATION ERROR -------------------")
+        print("-----------------------------------------------------------")
+        print("Please set the configuration key 'build_mode' to 'local', 'dockerhub', 'private'")
+        print("Please adjust the build-configuration.yaml")
+        print("Abort")
+        exit(1)
+
+    build_mode = configuration["build_mode"]
+
     build_containers = configuration["build_containers"]
     push_containers = configuration["push_containers"]
     print("build_containers: {}".format(build_containers))

@@ -234,7 +234,7 @@ if __name__ == '__main__':
                     print_log_entry(log, kind="CONTAINERS")
                     if log['loglevel'].upper() == "ERROR":
                         raise SkipException('SKIP {}: build() failed!'.format(log['test']), log=log)
-
+                
                 if not build_only and push_containers:
                     for log in docker_container.push():
                         print_log_entry(log, kind="CONTAINERS")

@@ -6,17 +6,11 @@ set -euf -o pipefail
 PROJECT_NAME="kaapana-platform"
 DEFAULT_VERSION="0.1.0-vdev"
 
-CHART_REGISTRY_URL="dktk-jip-registry.dkfz.de"
+CHART_REGISTRY_URL="https://dktk-jip-registry.dkfz.de/chartrepo"
 CHART_REGISTRY_PROJECT="kaapana-public"
 
 CONTAINER_REGISTRY_URL="dktk-jip-registry.dkfz.de"
 CONTAINER_REGISTRY_PROJECT="/kaapana"
-
-if [ -z "$CHART_REGISTRY_URL" ] || [ -z "$CHART_REGISTRY_PROJECT" ] || [ -z "$CONTAINER_REGISTRY_URL" ]; then
-  echo 'CHART_REGISTRY_URL, CHART_REGISTRY_PROJECT, CONTAINER_REGISTRY_URL, CONTAINER_REGISTRY_PROJECT need to be set! -> please adjust the install_platform.sh script!'        
-  echo 'ABORT'
-  exit 1
-fi
 
 HTTP_PORT=80
 HTTPS_PORT=443
@@ -38,6 +32,7 @@ if [ "$DEV_MODE" == "true" ]; then
     PULL_POLICY_OPERATORS="Always"
 fi
 
+CHART_PATH=""
 declare -a NEEDED_REPOS=("$CHART_REGISTRY_PROJECT")
 script_name=`basename "$0"`
 
@@ -61,6 +56,37 @@ if test -t 1; then
         WHITE="$(tput bold)$(tput setaf 7)"
     fi
 fi
+
+function import_containerd {
+    echo "Starting image import into containerd..."
+    docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | while read line; do
+        echo "Generating tar-file: '$line'"
+        docker save $line > ./image.tar
+        if [ $? -eq 0 ]; then
+            echo "ok"
+        else
+            echo "Failed!"
+            exit 1
+        fi
+        echo "Import image into containerd..."
+        microk8s ctr image import image.tar
+        if [ $? -eq 0 ]; then
+            echo "ok"
+        else
+            echo "Failed!"
+            exit 1
+        fi
+        echo "Remove tmp image.tar file..."
+        rm image.tar
+        if [ $? -eq 0 ]; then
+            echo "ok"
+        else
+            echo "Failed!"
+            exit 1
+        fi
+    done
+    echo "All images successfully imported!"
+}
 
 function get_domain {
     DOMAIN=$(hostname -f)
@@ -121,8 +147,26 @@ function delete_deployment {
 }
 
 function install_chart {
-    check_credentials
-    add_helm_repos
+    if [ ! -z "$CHART_PATH" ]; then
+        CHART_REGISTRY_URL="local"
+        CHART_REGISTRY_PROJECT="local"
+    else
+        add_helm_repos
+    fi
+
+    if [ -z "$CHART_REGISTRY_URL" ] || [ -z "$CHART_REGISTRY_PROJECT" ] || [ -z "$CONTAINER_REGISTRY_URL" ]; then
+        echo 'CHART_REGISTRY_URL, CHART_REGISTRY_PROJECT, CONTAINER_REGISTRY_URL, CONTAINER_REGISTRY_PROJECT need to be set! -> please adjust the install_platform.sh script!'        
+        echo 'ABORT'
+        exit 1
+    fi
+    
+    if [ ! "$CONTAINER_REGISTRY_URL" = "local" ];then
+        check_credentials
+    else
+        REGISTRY_USERNAME=""
+        REGISTRY_PASSWORD=""
+        import_containerd
+    fi
 
     if [ ! "$QUIET" = "true" ];then
         while true; do
@@ -144,28 +188,53 @@ function install_chart {
     else
         chart_version=$DEFAULT_VERSION
     fi
-    
-    echo -e "${YELLOW}Installing $CHART_REGISTRY_PROJECT/$PROJECT_NAME version: $chart_version${NC}"
-    helm install --wait --devel --version $chart_version  $CHART_REGISTRY_PROJECT/$PROJECT_NAME \
-    --set global.version="$chart_version" \
-    --set global.hostname="$DOMAIN" \
-    --set global.dev_ports="$DEV_PORTS" \
-    --set global.dev_mode="$DEV_MODE" \
-    --set global.dicom_port="$DICOM_PORT" \
-    --set global.http_port="$HTTP_PORT" \
-    --set global.https_port="$HTTPS_PORT" \
-    --set global.fast_data_dir="$FAST_DATA_DIR" \
-    --set global.slow_data_dir="$SLOW_DATA_DIR" \
-    --set global.home_dir="$HOME" \
-    --set global.pull_policy_jobs="$PULL_POLICY_JOBS" \
-    --set global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
-    --set global.pull_policy_pods="$PULL_POLICY_PODS" \
-    --set global.credentials.registry_username="$REGISTRY_USERNAME" \
-    --set global.credentials.registry_password="$REGISTRY_PASSWORD" \
-    --set global.gpu_support=$GPU_SUPPORT \
-    --set global.registry_url=$CONTAINER_REGISTRY_URL \
-    --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
-    --name-template $PROJECT_NAME
+
+    if [ ! -z "$CHART_PATH" ]; then
+        echo -e "${YELLOW}Installing $PROJECT_NAME: version $chart_version${NC}"
+        echo -e "${YELLOW}Chart-tgz-path $CHART_PATH${NC}"
+        helm install $CHART_PATH \
+        --set global.version="$chart_version" \
+        --set global.hostname="$DOMAIN" \
+        --set global.dev_ports="$DEV_PORTS" \
+        --set global.dev_mode="$DEV_MODE" \
+        --set global.dicom_port="$DICOM_PORT" \
+        --set global.http_port="$HTTP_PORT" \
+        --set global.https_port="$HTTPS_PORT" \
+        --set global.fast_data_dir="$FAST_DATA_DIR" \
+        --set global.slow_data_dir="$SLOW_DATA_DIR" \
+        --set global.home_dir="$HOME" \
+        --set global.pull_policy_jobs="$PULL_POLICY_JOBS" \
+        --set global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
+        --set global.pull_policy_pods="$PULL_POLICY_PODS" \
+        --set global.credentials.registry_username="$REGISTRY_USERNAME" \
+        --set global.credentials.registry_password="$REGISTRY_PASSWORD" \
+        --set global.gpu_support=$GPU_SUPPORT \
+        --set global.registry_url=$CONTAINER_REGISTRY_URL \
+        --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
+        --name-template $PROJECT_NAME
+    else
+        echo -e "${YELLOW}Installing $CHART_REGISTRY_PROJECT/$PROJECT_NAME version: $chart_version${NC}"
+        helm install --devel --version $chart_version  $CHART_REGISTRY_PROJECT/$PROJECT_NAME \
+        --set global.version="$chart_version" \
+        --set global.hostname="$DOMAIN" \
+        --set global.dev_ports="$DEV_PORTS" \
+        --set global.dev_mode="$DEV_MODE" \
+        --set global.dicom_port="$DICOM_PORT" \
+        --set global.http_port="$HTTP_PORT" \
+        --set global.https_port="$HTTPS_PORT" \
+        --set global.fast_data_dir="$FAST_DATA_DIR" \
+        --set global.slow_data_dir="$SLOW_DATA_DIR" \
+        --set global.home_dir="$HOME" \
+        --set global.pull_policy_jobs="$PULL_POLICY_JOBS" \
+        --set global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
+        --set global.pull_policy_pods="$PULL_POLICY_PODS" \
+        --set global.credentials.registry_username="$REGISTRY_USERNAME" \
+        --set global.credentials.registry_password="$REGISTRY_PASSWORD" \
+        --set global.gpu_support=$GPU_SUPPORT \
+        --set global.registry_url=$CONTAINER_REGISTRY_URL \
+        --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
+        --name-template $PROJECT_NAME
+    fi
     
     print_installation_done
     
@@ -207,7 +276,7 @@ function add_helm_repos {
     for i in "${NEEDED_REPOS[@]}"
     do
         echo -e "${YELLOW}Adding project $i.${NC}"
-        helm repo add $i https://dktk-jip-registry.dkfz.de/chartrepo/$i
+        helm repo add $i $CHART_REGISTRY_URL/$i
     done
 
     helm repo update
@@ -304,6 +373,8 @@ usage="$(basename "$0")
 _Flag: --install-certs  set new HTTPS-certificates for the platform
 _Flag: --quiet, meaning non-interactive operation
 
+_Argument: --chart-path [path-to-chart-tgz]
+
 _Argument: --username [Docker regsitry username]
 _Argument: --password [Docker regsitry password]
 _Argument: --port [Set main https-port]
@@ -350,6 +421,13 @@ do
             shift # past value
         ;;
 
+        --chart-path)
+            CHART_PATH="$2"
+            echo -e "${GREEN}SET CHART_PATH: $CHART_PATH !${NC}";
+            shift # past argument
+            shift # past value
+        ;;
+
         --quiet)
             QUIET=true
             shift # past argument
@@ -367,15 +445,6 @@ do
         ;;
     esac
 done
-
-echo -e "${YELLOW}Check if curl is available...${NC}"
-if ! [ -x "$(command -v curl)" ]; then
-    echo -e "${RED}############### Curl not available! ###############${NC}"
-    echo -e "${YELLOW}       Install curl first! ${NC}"
-    exit 1
-else
-    echo -e "${GREEN}ok${NC}"
-fi
 
 echo -e "${YELLOW}Check if helm is available...${NC}"
 if ! [ -x "$(command -v helm)" ]; then

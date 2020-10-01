@@ -71,20 +71,20 @@ Currently Kaapana supports three different **build-modes**:
 
 1. **Local build (default)**
 
-   By choosing this option you will need no external Docker registry to install the platform. 
+   By choosing this option you will need **no external Docker registry** to install the platform. 
    All Docker containers and Helm charts will be build and used locally on the server. 
    Therefore you need to execute all of the following steps to build the project directly on your remote server. 
    
 
 2. **Dockerhub**
 
-   `Dockerhub <https://hub.docker.com/>`_  offers a free solution to store Docker containers in a registry. 
+   `Dockerhub <https://hub.docker.com/>`_  offers a **free solution to store Docker containers** in a registry. 
    The disadvantage of this method is that network access to Dockerhub must be guaranteed and all stored containers are publicly accessible (in the free version).
 
 3. **Private registry**
 
    The third option is to use a private Docker Registry to manage the containers used, which is the recommended option for all projects that are developed more seriously.
-   Here you will get many additional features like access restrictions or the possibility to manage helmet charts directly in the registry. 
+   Here you will get many **additional features like access controll or the possibility to manage helm charts** directly in the registry. 
    The disadvantage of a private registry is, that you have to either host it yourself or at least pay for it. 
    We recommend `Harbor <https://goharbor.io/>`__ or `Artifactory <https://jfrog.com/artifactory/>`__ as professional solutions for a custom registry.
 

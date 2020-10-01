@@ -95,14 +95,10 @@ class HelmChart:
             self.repo = HelmChart.default_project
 
         if self.name is not None and self.version is not None and self.repo is not None:
-            self.name = name
-            self.repo = repo
-            self.version = version
-            self.path = chartfile
+            self.path = self.chartfile
             self.chart_dir = os.path.dirname(chartfile)
             self.dev = False
             self.requirements_ready = False
-            self.nested = nested
             self.requirements = []
 
             if "-vdev" in self.version:

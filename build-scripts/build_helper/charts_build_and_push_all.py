@@ -70,13 +70,14 @@ class HelmChart:
         self.version = None
         self.nested = False
         self.log_list = []
+        self.chartfile = chartfile
 
         if not os.path.isfile(chartfile):
             print("ERROR: Chartfile not found.")
             exit(1)
 
         if os.path.dirname(os.path.dirname(chartfile)).split("/")[-1] == "charts":
-            nested = True
+            self.nested = True
 
         with open(chartfile) as f:
             read_file = f.readlines()
@@ -84,16 +85,16 @@ class HelmChart:
 
             for line in read_file:
                 if "name:" in line:
-                    name = line.split(": ")[1].strip()
+                    self.name = line.split(": ")[1].strip()
                 elif "repo:" in line:
-                    repo = line.split(": ")[1].strip()
+                    self.repo = line.split(": ")[1].strip()
                 elif "version:" in line:
-                    version = line.split(": ")[1].strip()
+                    self.version = line.split(": ")[1].strip()
 
-        if repo is None:
-            repo = HelmChart.default_project
+        if self.repo is None:
+            self.repo = HelmChart.default_project
 
-        if name is not None and version is not None and repo is not None:
+        if self.name is not None and self.version is not None and self.repo is not None:
             self.name = name
             self.repo = repo
             self.version = version
@@ -104,20 +105,20 @@ class HelmChart:
             self.nested = nested
             self.requirements = []
 
-            if "-vdev" in version:
+            if "-vdev" in self.version:
                 self.dev = True
 
             self.chart_id = "{}/{}:{}".format(self.repo, self.name, self.version)
 
             print("")
             print("Adding new chart:")
-            print("name: {}".format(name))
-            print("version: {}".format(version))
-            print("repo: {}".format(repo))
+            print("name: {}".format(self.name))
+            print("version: {}".format(self.version))
+            print("repo: {}".format(self.repo))
             print("chart_id: {}".format(self.chart_id))
             print("dev: {}".format(self.dev))
             print("nested: {}".format(self.nested))
-            print("file: {}".format(chartfile))
+            print("file: {}".format(self.chartfile))
             print("")
 
             if self.repo not in HelmChart.repos_needed:

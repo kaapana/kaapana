@@ -160,10 +160,12 @@ Before you start the build-process, you should have a look at the build-configur
 
 As described in the :ref:`kaapana_concept`, we will utilize the DKFZ registry for Helm chart as long as there is no other easy alternative.
 
-.. hint::
+.. important::
 
   | **Disk space needed:**
   | For the complete build of the project ~50GB of container images will be stored at :code:`/var/snap/docker/common/var-lib-docker`.
+  | If you use build-mode local it will be ~120GB since each container will be also imported separately into containerd.
+  | In the future we will also provide an option to delete the docker image after the import.
 
 
 Start the build process:

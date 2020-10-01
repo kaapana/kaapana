@@ -64,7 +64,7 @@ for file_path in files_to_copy:
     else:
         if action == 'copy':
             if os.path.isfile(dest_path) and action == 'copy':
-                warnings.warn(f"Attention! You are overwrign the file {dest_path}!")
+                warnings.warn(f"Attention! You are overwriting the file {dest_path}!")
                 #raise NameError('File exists already!')
             shutil.copyfile(file_path, dest_path)
         elif action == 'remove':

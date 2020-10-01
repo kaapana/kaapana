@@ -28,8 +28,8 @@ spec:
         volumeMounts:
         - name: data
           mountPath: "/workflows"
-      securityContext:
-        runAsUser: 0
+      # securityContext:
+      #   runAsUser: 0
       volumes:
       - name: data
         hostPath:

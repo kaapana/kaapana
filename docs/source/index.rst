@@ -6,11 +6,6 @@
 Welcome to Kaapana's documentation!
 ==================================================
 
-.. hint::
-
-  | **New release is online!**
-  | see :ref:`update_0.1.0_doc`
-
 .. toctree::
    :maxdepth: 2
    

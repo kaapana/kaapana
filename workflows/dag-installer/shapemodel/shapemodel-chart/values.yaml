@@ -4,5 +4,4 @@ global:
     flow_namespace: "flow"
     fast_data_dir: "/home/kaapana"
 image: "dag-shapemodel"
-version: "0.1-vdev""
-    
+version: "0.1-vdev"

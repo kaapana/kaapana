@@ -93,7 +93,7 @@ function get_domain {
 
 function delete_deployment {
     echo -e "${YELLOW}Uninstall releases${NC}"
-    helm ls -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 helm delete
+    helm ls --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 helm delete
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
     WAIT_UNINSTALL_COUNT=60
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
@@ -114,6 +114,8 @@ function delete_deployment {
         echo "${RED}Once everything is delete you can reinstall the platform!${NC}"
         exit 1
     fi
+
+    delete_helm_repos
 
     echo -e "${GREEN}####################################  UNINSTALLATION DONE  ############################################${NC}"
 }
@@ -154,6 +156,7 @@ function install_chart {
     --set global.https_port="$HTTPS_PORT" \
     --set global.fast_data_dir="$FAST_DATA_DIR" \
     --set global.slow_data_dir="$SLOW_DATA_DIR" \
+    --set global.home_dir="$HOME" \
     --set global.pull_policy_jobs="$PULL_POLICY_JOBS" \
     --set global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
     --set global.pull_policy_pods="$PULL_POLICY_PODS" \
@@ -209,6 +212,16 @@ function add_helm_repos {
 
     helm repo update
 }
+
+function delete_helm_repos {
+    echo -e "Deleting needed helm projects..."
+    for i in "${NEEDED_REPOS[@]}"
+    do
+        echo -e "${YELLOW}Deleting project $i.${NC}"
+        helm repo remove $i
+    done
+}
+
 
 function install_certs {
     echo -e "Checking if Kubectl is installed..."

@@ -118,16 +118,6 @@ function get_domain {
 }
 
 function delete_deployment {
-    echo -e "${YELLOW}Removing kaapana-plugin${NC}"
-    helm install -n default --version 0.8-vdev remove-kaapana-plugin-chart \
-    --set global.registry_url=$CONTAINER_REGISTRY_URL \
-    --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
-    --set global.base_namespace='default'
-    --set global.fast_data_dir="$FAST_DATA_DIR" \
-    --set global.pull_policy_jobs="$PULL_POLICY_JOBS" \
-    --set action='remove' \
-    kaapana-public/mitk-userflow-chart -o json --wait --timeout 1m0s    
-
     echo -e "${YELLOW}Uninstalling releases${NC}"
     helm ls --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 helm delete
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"

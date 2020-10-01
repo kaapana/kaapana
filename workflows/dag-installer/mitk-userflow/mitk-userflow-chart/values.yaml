@@ -5,4 +5,4 @@ global:
     fast_data_dir: "/home/kaapana"
 image: "dag-mitk-userflow"
 version: "0.1-vdev"
-    
+action: "copy"

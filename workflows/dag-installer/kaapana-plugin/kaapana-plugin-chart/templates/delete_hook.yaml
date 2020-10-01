@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: remove-kaapana-plugin
+  namespace: default
+  annotations:
+    "helm.sh/hook": post-delete
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
+spec:
+  template:
+    spec:
+      containers:
+      - name: remove-kaapana-plugin
+        image: "dktk-jip-registry.dkfz.de/kaapana-public/kaapana-plugin:0.8-vdev"
+        imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
+        env:
+        - name: ACTION
+          value: "remove"
+        volumeMounts:
+        - name: data
+          mountPath: "/workflows"
+      securityContext:
+        runAsUser: 0
+      volumes:
+      - name: data
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}/workflows
+          type: DirectoryOrCreate
+      restartPolicy: Never
+  backoffLimit: 0

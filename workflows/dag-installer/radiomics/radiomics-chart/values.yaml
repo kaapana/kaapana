@@ -5,3 +5,4 @@ global:
     fast_data_dir: "/home/kaapana"
 image: "dag-radiomics"
 version: "0.1-vdev"
+action: "copy"

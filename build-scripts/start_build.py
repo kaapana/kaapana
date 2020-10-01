@@ -159,7 +159,7 @@ if __name__ == '__main__':
 
     default_chart_registry = configuration["default_chart_registry"] if "default_chart_registry" in configuration else ""
     default_chart_project = configuration["default_chart_project"] if "default_chart_project" in configuration else ""
-    if push_charts and not docker_only:
+    if not docker_only:
         print("-----------------------------------------------------------")
         default_chart_registry = configuration["default_chart_registry"]
         if default_chart_registry == "":
@@ -170,7 +170,7 @@ if __name__ == '__main__':
             print("Using default_chart_registry: {}".format(default_chart_registry))
         print("-----------------------------------------------------------")
 
-        if registry_user is None or registry_pwd is None:
+        if push_charts and (registry_user is None or registry_pwd is None):
             if os.getenv("REGISTRY_USER", None) is None or os.getenv("REGISTRY_PW", None) is None:
                 print()
                 print("ENVs 'REGISTRY_USER' and 'REGISTRY_PW' not found! ")

@@ -1,11 +1,5 @@
 #bin/bash
 
-echo ""
-dt_start=$(date '+%d/%m/%Y %H:%M:%S');
-echo "STARTTIME: "
-echo "$dt_start"
-echo ""
-
 NUM_THREADS_PREPROCESSING="1"
 NUM_THREADS_NIFTISAVE="1"
 
@@ -26,15 +20,6 @@ echo "BATCH_COUNT: " $BATCH_COUNT
 echo "NUM_THREADS_PREPROCESSING: " $NUM_THREADS_PREPROCESSING
 echo "NUM_THREADS_NIFTISAVE: " $NUM_THREADS_NIFTISAVE
 echo ""
-
-# if [ -z $TASK ]; 
-# then 
-#     echo "TASK: $TASK"; 
-# else 
-#     echo "No TASK env has been found!";
-#     echo "abort.";
-#     exit 1
-# fi
 
 if [ "$MODE" != "train" ] && [ "$MODE" != "predict" ] ; then
     echo "MODE ($MODE) NOT SUPPORTED";
@@ -88,11 +73,21 @@ do
         echo "########### Starting nnUNet prediction..."
 
         #CONFIGURATION can be 2d, 3d_lowres or 3d_fullres        
-        nnUNet_predict -t $TASK -i $prepare_output_dir -o $operator_output_dir -m $MODEL --num_threads_preprocessing 1 --num_threads_nifti_save 1 --disable_tta --mode fast --all_in_gpu False
+        nnUNet_predict -t $TASK -i $prepare_output_dir -o $operator_output_dir -m $MODEL --num_threads_preprocessing $NUM_THREADS_PREPROCESSING --num_threads_nifti_save $NUM_THREADS_NIFTISAVE --disable_tta --mode fast --all_in_gpu False
         if [ $? -eq 0 ]; then
             echo "########### Prediction successful!"
         else
             echo "########### Prediction failed!"
+            exit 1
+        fi
+        echo "########### Testing if segmentation is present..."
+        python3 -u ./check_empty.py
+        if [ $? -eq 0 ]; then
+            echo "Segmentation found!!"
+        else
+            echo "No segmentation found!"
+            echo "The segmentatiion NIFTI has no mask -> no label found."
+            echo "Abort"
             exit 1
         fi
 
@@ -115,12 +110,6 @@ done
 #     exit 1;
 # fi;
 
-echo ""
-echo "STARTTIME: "
-echo "$dt_start"
-dt_end=$(date '+%d/%m/%Y %H:%M:%S');
-echo "ENDTIME: "
-echo "$dt_end"
-echo ""
+
 
 

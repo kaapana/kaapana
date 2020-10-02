@@ -3,6 +3,7 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 dag_info = {
     "visible": False,
@@ -22,4 +23,7 @@ dag = DAG(
     schedule_interval=None
 )
 
-get_task_model = GetTaskModelOperator(dag=dag,task_id="all")
+clean = LocalWorkflowCleanerOperator(dag=dag, trigger_rule="all_done")
+get_task_model = GetTaskModelOperator(dag=dag, task_id="all")
+
+get_task_model >> clean

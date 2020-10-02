@@ -1,0 +1,30 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: get-nnunet-models
+  namespace: {{ .Values.global.flow_namespace }}
+spec:
+  template:
+    metadata:
+      name: get-nnunet-models
+    spec:
+      containers:
+      - name: nnunet-models
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/nnunet-get-models:0.1-vdev
+        imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
+        env:
+        - name: TASK
+          value: "all"
+        volumeMounts:
+        - name: models_dir
+          mountPath: /models
+      volumes:
+      - name: models_dir
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}/workflows/models
+          type: DirectoryOrCreate
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: camic-registry
+  backoffLimit: 0    

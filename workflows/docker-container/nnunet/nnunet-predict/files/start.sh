@@ -81,7 +81,7 @@ do
             exit 1
         fi
         echo "########### Testing if segmentation is present..."
-        python3 -u ./check_empty.py
+        python3 -u ./check_empty.py $operator_output_dir
         if [ $? -eq 0 ]; then
             echo "Segmentation found!!"
         else

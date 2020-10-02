@@ -1,7 +1,11 @@
 #!/bin/bash
 
-if [ -z $DICOM_DIR ]; then DICOM_DIR=$WORKFLOW_DIR/$OPERATOR_IN_DIR; fi
+for dir in /$WORKFLOW_DIR/$BATCH_NAME/*    
+do
+        ELEMENT_INPUT_DIR="$dir/$OPERATOR_IN_DIR"
 
-echo 'Sending images in $DICOM_DIR' 
+        echo 'Sending images in $ELEMENT_INPUT_DIR'
+        dcmsend -v $HOST $PORT  --scan-directories --call $AETITLE --scan-pattern '*'  --recurse $ELEMENT_INPUT_DIR
+done
 
-dcmsend -v $HOST $PORT  --scan-directories --call $AETITLE --scan-pattern '*'  --recurse $DICOM_DIR
+echo "DONE"

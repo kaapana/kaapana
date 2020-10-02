@@ -58,7 +58,7 @@ for task_id in task_ids:
     file_name = "{}.zip".format(task_id)
     model_url = "https://zenodo.org/record/4003545/files/{}?download=1".format(file_name)
 
-    output_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_OUT_DIR'])
+    output_dir = os.path.join('/', os.environ["WORKFLOW_DIR","tmp"], os.environ["OPERATOR_OUT_DIR",""])
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 

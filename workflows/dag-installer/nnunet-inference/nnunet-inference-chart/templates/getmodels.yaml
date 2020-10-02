@@ -19,12 +19,16 @@ spec:
         volumeMounts:
         - name: models-dir
           mountPath: /models
+        - name: cache-volume
+          mountPath: /tmp
       volumes:
       - name: models-dir
         hostPath:
           path: {{ .Values.global.fast_data_dir }}/workflows/models
           type: DirectoryOrCreate
-      restartPolicy: Never
+      - name: cache-volume
+        emptyDir: {}
+          restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret
   backoffLimit: 0    

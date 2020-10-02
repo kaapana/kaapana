@@ -137,7 +137,7 @@ function install_packages_centos {
 }
 
 function install_packages_ubuntu {
-    if [ -x "$(command -v nano)" ] && [ -x "$(command -v jq)" ]; then
+    if [ -x "$(command -v nano)" ] && [ -x "$(command -v jq)" ] && [ -x "$(command -v snap)" ]; then
         echo "${GREEN}Dependencies ok.${NC}"
     else
         echo "${YELLOW}Check if apt is locked...${NC}"
@@ -161,8 +161,21 @@ function install_packages_ubuntu {
         apt update
         apt upgrade -y
 
-        echo "${YELLOW}Installing JQ${NC}"
         apt install -y nano jq curl
+
+        if [ -x "$(command -v snap)" ]; then
+            echo "${GREEN}Snap ok.${NC}"
+        else
+
+            echo "${YELLOW}Snap not installed! ${NC}"
+            apt install -y snapd
+            echo "${YELLOW}Snap has been installed -> reboot needed! ${NC}"
+            echo "${YELLOW}Please restart this script afterwards. ${NC}"
+            echo "${YELLOW}Please reboot now ${NC}"
+            exit 0
+        fi
+
+        echo "${YELLOW}Installing JQ${NC}"
     fi
     
 
@@ -481,7 +494,8 @@ where opt is:
     1.14/stable --> for Kubernetes v1.14
     1.17/stable --> for Kubernetes v1.17
     1.18/stable --> for Kubernetes v1.18
-    default: 1.18/stable
+    1.19/stable --> for Kubernetes v1.19
+    default: 1.19/stable
 
 _Argument: -os --operating-system [opt]
 where opt is:
@@ -490,7 +504,7 @@ where opt is:
     default: $OS_PRESENT"
 
 QUIET=NA
-DEFAULT_MICRO_VERSION=1.18/stable
+DEFAULT_MICRO_VERSION=1.19/stable
 HELM_VERSION=3.1/stable
 
 POSITIONAL=()

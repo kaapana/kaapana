@@ -10,7 +10,7 @@ WORKDIR /app
 RUN apk update && apk add postgresql-dev gcc python3-dev musl-dev
 RUN pip install psycopg2
 
-ENV KUBE_LATEST_VERSION="v1.18.8"
+ENV KUBE_LATEST_VERSION="v1.19.2"
 ENV HELM_VERSION="v3.1.3"
 
 RUN apk add --no-cache ca-certificates bash git openssh curl \

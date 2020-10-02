@@ -19,36 +19,57 @@ You should also have the following packages installed on your build-system.
    | :code:`git clone https://github.com/kaapana/kaapana.git`
    | :code:`git clone https://phabricator.mitk.org/source/kaapana.git`
 
-2. Python3 
+2. Check if Snap is installed 
+
+   .. tabs::
+
+      .. tab:: Ubuntu
+
+         | Check if snap is already installed: :code:`snap help --all`
+         | If **not** run the following commands:
+         | :code:`sudo apt install snapd`
+         | A **reboot** is needed afterwards!
+
+      .. tab:: Centos
+
+         | Check if snap is already installed: :code:`snap help --all`
+         | If **not** run the following commands:
+         | :code:`sudo yum install -y epel-release`
+         | :code:`sudo yum update -y`
+         | :code:`sudo yum install snapd`
+         | :code:`sudo systemctl enable --now snapd.socket`
+         | :code:`sudo snap wait system seed.loaded`
+
+3. Python3 
 
    .. tabs::
 
       .. tab:: Ubuntu
 
          | :code:`sudo apt install python3 python3-pip`
+         | :code:`sudo apt install python3 python3-pip`
 
       .. tab:: Centos
 
-         | :code:`sudo yum install python3 python3-pip snapd`
-         | :code:`systemctl enable --now snapd.socket`
+         | :code:`sudo yum install python3 python3-pip`
 
-3. Python requirements 
+4. Python requirements 
    
    :code:`python3 -m pip install -r kaapana/build-scripts/requirements.txt`
 
-4. Docker
+5. Docker
 
    :code:`sudo snap install docker --classic`
 
-5. (opt) Helm
+6. (opt) Helm
 
    :code:`sudo snap install helm --classic --channel=3.1/stable`
 
-6. (opt) Helm-push plugin
+7. (opt) Helm-push plugin
 
    :code:`helm plugin install https://github.com/chartmuseum/helm-push`
 
-7. (opt) Helm-kubeval plugin
+8. (opt) Helm-kubeval plugin
 
    :code:`helm plugin install https://github.com/instrumenta/helm-kubeval`
 

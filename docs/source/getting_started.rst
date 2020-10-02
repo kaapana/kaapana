@@ -47,7 +47,6 @@ You should also have the following packages installed on your build-system.
       .. tab:: Ubuntu
 
          | :code:`sudo apt install python3 python3-pip`
-         | :code:`sudo apt install python3 python3-pip`
 
       .. tab:: Centos
 

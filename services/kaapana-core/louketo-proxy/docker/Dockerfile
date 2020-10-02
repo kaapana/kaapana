@@ -1,14 +1,14 @@
 FROM golang:1.14.4 AS build-env
 
 LABEL IMAGE="louketo-proxy"
-LABEL VERSION="0.1.0-vdev"
+LABEL VERSION="0.1-vdev"
 LABEL CI_IGNORE="False"
 
 WORKDIR /opt
 
 RUN git clone https://github.com/louketo/louketo-proxy.git 
 WORKDIR /opt/louketo-proxy
-RUN git checkout b043dea3a21d9ca5955edbe194b572db9b7d6b8c
+RUN git checkout aa9ae98d6414045628d17b5c43a3f17cdb7f799b
 
 RUN make
 

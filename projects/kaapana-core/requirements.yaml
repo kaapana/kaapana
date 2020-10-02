@@ -4,7 +4,7 @@ dependencies:
     version: 1.0.1-vdev
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: louketo-proxy-chart
-    version: 1.0.1-vdev
+    version: 0.1-vdev
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: keycloak-chart
     version: 11.0.2-vdev

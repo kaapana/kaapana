@@ -17,10 +17,10 @@ spec:
         - name: TASK
           value: "all"
         volumeMounts:
-        - name: models_dir
+        - name: models-dir
           mountPath: /models
       volumes:
-      - name: models_dir
+      - name: models-dir
         hostPath:
           path: {{ .Values.global.fast_data_dir }}/workflows/models
           type: DirectoryOrCreate

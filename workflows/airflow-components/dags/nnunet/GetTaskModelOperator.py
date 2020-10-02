@@ -8,7 +8,7 @@ import os
 
 
 class GetTaskModelOperator(KaapanaBaseOperator):
-    execution_timeout = timedelta(minutes=120)
+    execution_timeout = timedelta(minutes=240)
 
     def __init__(self,
                  dag,

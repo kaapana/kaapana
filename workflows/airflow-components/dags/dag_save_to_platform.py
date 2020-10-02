@@ -2,7 +2,7 @@
 from airflow.models import DAG
 from datetime import timedelta
 from airflow.utils.dates import days_ago
-from kaapana.operators.DcmWebSendOperator import DcmWebSendOperator
+from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.LocalDagTriggerOperator import LocalDagTriggerOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
@@ -25,7 +25,7 @@ dag = DAG(
     schedule_interval=None)
 
 
-save_to_local_pacs = DcmWebSendOperator(dag=dag, task_id='save_to_local_pacs')
+save_to_local_pacs = DcmSendOperator(dag=dag, task_id='save_to_local_pacs')
 trigger_extract_meta = LocalDagTriggerOperator(dag=dag, trigger_dag_id='extract-metadata')
 clean = LocalWorkflowCleanerOperator(dag=dag)
 

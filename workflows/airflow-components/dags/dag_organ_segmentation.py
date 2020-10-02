@@ -6,7 +6,7 @@ from datetime import datetime
 
 
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
-from kaapana.operators.DcmWebSendOperator import DcmWebSendOperator
+from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.LocalDagTriggerOperator import LocalDagTriggerOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
@@ -68,12 +68,10 @@ nrrd2dcmSeg_kidney_right = Itk2DcmSegOperator(dag=dag, segmentation_operator=org
 nrrd2dcmSeg_kidney_left = Itk2DcmSegOperator(dag=dag, segmentation_operator=organSeg_kidney_left, single_label_seg_info="Left@Kidney", parallel_id='kidney-left')
 
 # Send DICOM segmentation objects to pacs
-dcmseg_send_liver = DcmWebSendOperator(dag=dag, input_operator=nrrd2dcmSeg_liver)
-dcmseg_send_spleen = DcmWebSendOperator(dag=dag, input_operator=nrrd2dcmSeg_spleen)
-dcmseg_send_kidney_right = DcmWebSendOperator(
-    dag=dag, input_operator=nrrd2dcmSeg_kidney_right)
-dcmseg_send_kidney_left = DcmWebSendOperator(
-    dag=dag, input_operator=nrrd2dcmSeg_kidney_left)
+dcmseg_send_liver = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_liver)
+dcmseg_send_spleen = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_spleen)
+dcmseg_send_kidney_right = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_kidney_right)
+dcmseg_send_kidney_left = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_kidney_left)
 
 
 trigger_extract_meta_liver = LocalDagTriggerOperator(

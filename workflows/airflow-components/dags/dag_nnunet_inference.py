@@ -8,7 +8,7 @@ from datetime import datetime
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.DcmWebSendOperator import DcmWebSendOperator
+from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
@@ -98,7 +98,7 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
 )
 
 
-dcmseg_send_multi = DcmWebSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi)
+dcmseg_send_multi = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi)
 clean = LocalWorkflowCleanerOperator(dag=dag)
 
 get_input >> get_task_model >> dcm2nifti >> nnunet_predict >> nrrd2dcmSeg_multi >> dcmseg_send_multi >> clean

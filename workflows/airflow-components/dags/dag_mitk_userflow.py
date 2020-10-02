@@ -4,7 +4,7 @@ from airflow.utils.dates import days_ago
 from datetime import datetime
 from mitk_userflow.MitkInputOperator import MitkInputOperator
 from mitk_userflow.LocalRunMitk import LocalRunMitk
-from kaapana.operators.DcmWebSendOperator import DcmWebSendOperator
+from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.LocalDagTriggerOperator import LocalDagTriggerOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
@@ -34,7 +34,7 @@ mitk_input = MitkInputOperator(dag=dag)
 run_mitk = LocalRunMitk(dag=dag, data_operator=mitk_input)
 
 
-dcmseg_send_segmentation = DcmWebSendOperator(dag=dag, input_operator=run_mitk)
+dcmseg_send_segmentation = DcmSendOperator(dag=dag, input_operator=run_mitk)
 trigger_extract_meta = LocalDagTriggerOperator(dag=dag, input_operator=run_mitk, trigger_dag_id='extract-metadata')
 clean = LocalWorkflowCleanerOperator(dag=dag)
 

@@ -21,6 +21,11 @@ spec:
           mountPath: /models
         - name: cache-volume
           mountPath: /tmp
+        resources:
+          requests:
+            memory: 500Mi
+          limits:
+            memory: 1000Mi
       volumes:
       - name: models-dir
         hostPath:

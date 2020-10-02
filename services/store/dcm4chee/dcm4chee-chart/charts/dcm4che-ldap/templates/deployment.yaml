@@ -67,4 +67,4 @@ spec:
         configMap:
           name: dcm4che-iid-config
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret

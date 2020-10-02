@@ -46,7 +46,7 @@ spec:
           {{- end }}
           type: DirectoryOrCreate
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---
 kind: Service
 apiVersion: v1

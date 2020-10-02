@@ -46,4 +46,4 @@ spec:
           timeoutSeconds: 5
       serviceAccountName: kube-state-metrics
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret

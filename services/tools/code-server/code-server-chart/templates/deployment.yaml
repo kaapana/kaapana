@@ -56,5 +56,5 @@ spec:
           - key: keybindings.json
             path: keybindings.json
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---

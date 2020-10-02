@@ -28,7 +28,7 @@ class DcmSeg2ItkOperator(KaapanaBaseOperator):
             image="{}{}/dcmqi:1.3-vdev".format(default_registry, default_project),
             name="dcmseg2nrrd",
             env_vars=env_vars,
-            image_pull_secrets=["camic-registry"],
+            image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             ram_mem_mb=3000,
             *args, **kwargs

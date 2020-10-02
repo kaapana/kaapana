@@ -51,5 +51,5 @@ spec:
           path: {{ .Values.global.fast_data_dir }}/elastic-meta
           type: DirectoryOrCreate
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---

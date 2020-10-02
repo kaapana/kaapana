@@ -40,5 +40,5 @@ spec:
           - key: kibana.yml
             path: kibana.yml
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---

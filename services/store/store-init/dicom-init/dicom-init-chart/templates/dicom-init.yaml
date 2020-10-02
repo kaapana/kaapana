@@ -47,5 +47,5 @@ spec:
           type: DirectoryOrCreate
       restartPolicy: Never
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
   backoffLimit: 0    

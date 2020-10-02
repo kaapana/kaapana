@@ -230,5 +230,5 @@ spec:
           path: {{ .Values.global.slow_data_dir }}
           type: DirectoryOrCreate
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---

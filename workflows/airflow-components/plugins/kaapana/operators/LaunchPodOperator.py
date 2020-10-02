@@ -64,7 +64,7 @@ class LaunchPodOperator(KaapanaApplicationBaseOperator):
         super().__init__(
             dag=dag,
             name='launch-pod',
-            image_pull_secrets=["camic-registry"],
+            image_pull_secrets=["registry-secret"],
             service=True,
             ingress=True,
             execution_timeout=execution_timeout,

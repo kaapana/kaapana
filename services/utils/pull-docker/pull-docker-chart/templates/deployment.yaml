@@ -21,6 +21,6 @@ spec:
         args: ["-f", "/dev/null"]
         imagePullPolicy: IfNotPresent
       imagePullSecrets:
-        - name: camic-registry
+        - name: registry-secret
 
         

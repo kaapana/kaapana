@@ -30,7 +30,7 @@ class DcmSendOperator(KaapanaBaseOperator):
             dag=dag,
             image="{}{}/dcmsend:1.0-vdev".format(default_registry, default_project),
             name="dcmsend",
-            image_pull_secrets=["camic-registry"],
+            image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             execution_timeout=execution_timeout,
             *args, **kwargs

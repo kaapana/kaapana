@@ -66,5 +66,5 @@ spec:
           path: {{ .Values.global.slow_data_dir }}/minio
           type: DirectoryOrCreate
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---

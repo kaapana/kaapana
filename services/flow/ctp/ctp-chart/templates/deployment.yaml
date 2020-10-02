@@ -56,6 +56,6 @@ spec:
           - key: config.xml
             path: config.xml
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---
 

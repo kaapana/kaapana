@@ -51,7 +51,7 @@ class NnUnetOperator(KaapanaBaseOperator):
             image="{}{}/nnunet-predict:0.2-vdev".format(default_registry, default_project),
             name="nnunet-predict",
             parallel_id=parallel_id,
-            image_pull_secrets=["camic-registry"],
+            image_pull_secrets=["registry-secret"],
             volumes=volumes,
             volume_mounts=volume_mounts,
             execution_timeout=execution_timeout,

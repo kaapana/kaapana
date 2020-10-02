@@ -42,4 +42,4 @@ spec:
         configMap:
           name: landing-page-config
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret

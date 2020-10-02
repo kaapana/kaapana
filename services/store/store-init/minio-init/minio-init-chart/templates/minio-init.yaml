@@ -36,5 +36,5 @@ spec:
             value: {{ .Values.global.credentials.minio_password }}
       restartPolicy: Never
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
   backoffLimit: 0

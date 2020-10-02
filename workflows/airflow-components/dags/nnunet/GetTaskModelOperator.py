@@ -48,7 +48,7 @@ class GetTaskModelOperator(KaapanaBaseOperator):
             dag=dag,
             image="{}{}/nnunet-get-models:0.1-vdev".format(default_registry, default_project),
             name="get-task-model",
-            image_pull_secrets=["camic-registry"],
+            image_pull_secrets=["registry-secret"],
             volumes=volumes,
             volume_mounts=volume_mounts,
             execution_timeout=execution_timeout,

@@ -37,7 +37,7 @@ class OrganSegmentationOperator(KaapanaBaseOperator):
             image="{}{}/organseg:1.1-vdev".format(default_registry, default_project),
             name="organ-segmentation",
             parallel_id=parallel_id,
-            image_pull_secrets=["camic-registry"],
+            image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             env_vars=env_vars,
             task_concurrency=10,

@@ -78,5 +78,5 @@ spec:
           path: {{ .Values.global.home_dir }}/.local/share/helm
           type: DirectoryOrCreate
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---

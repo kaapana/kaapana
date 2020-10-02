@@ -98,5 +98,5 @@ spec:
             path: {{ .Values.global.slow_data_dir }}/dcm4che/dicom_data
             type: DirectoryOrCreate
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---

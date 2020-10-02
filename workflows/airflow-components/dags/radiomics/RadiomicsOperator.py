@@ -26,7 +26,7 @@ class RadiomicsOperator(KaapanaBaseOperator):
             image="{}{}/radiomics:1.0.1-vdev".format(default_registry, default_project),
             name="radiomics",
             env_vars=env_vars,
-            image_pull_secrets=["camic-registry"],
+            image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             task_concurrency=10,
             ram_mem_mb=3000,

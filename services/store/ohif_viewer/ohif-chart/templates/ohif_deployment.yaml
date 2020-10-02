@@ -26,6 +26,6 @@ spec:
             limits:
               memory: 100Mi
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---
 

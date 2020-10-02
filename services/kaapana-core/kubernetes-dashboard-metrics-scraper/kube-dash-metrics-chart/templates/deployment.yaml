@@ -60,5 +60,5 @@ spec:
             path: {{ .Values.global.fast_data_dir }}/dashboard-metrics
             type: DirectoryOrCreate
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---

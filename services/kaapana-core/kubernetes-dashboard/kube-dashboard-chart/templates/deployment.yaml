@@ -95,6 +95,6 @@ spec:
           emptyDir: {}
       serviceAccountName: kubernetes-dashboard
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 
 ---

@@ -33,7 +33,7 @@ class DcmConverterOperator(KaapanaBaseOperator):
             image="{}{}/mitk-fileconverter:1.1-vdev".format(default_registry,default_project),
             name='dcm-converter',
             env_vars=env_vars,
-            image_pull_secrets=["camic-registry"],
+            image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             ram_mem_mb=1000,
             *args, **kwargs

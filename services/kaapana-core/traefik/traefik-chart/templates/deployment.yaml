@@ -91,5 +91,5 @@ spec:
           secret:
             secretName: certificate
       imagePullSecrets:
-        - name: camic-registry
+        - name: registry-secret
 ---

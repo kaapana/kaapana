@@ -109,4 +109,4 @@ spec:
           - key: prometheus-dashboard.json
             path: prometheus-dashboard.json
       imagePullSecrets:
-        - name: camic-registry
+        - name: registry-secret

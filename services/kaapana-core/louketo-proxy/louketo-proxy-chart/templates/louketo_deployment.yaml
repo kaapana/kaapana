@@ -53,5 +53,5 @@ spec:
         configMap:
           name: louketo-config
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---

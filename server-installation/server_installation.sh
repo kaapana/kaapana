@@ -309,6 +309,7 @@ function install_microk8s {
         echo "${YELLOW}Set kubeconfig${NC}"
         mkdir -p $homedir/.kube
         mkdir -p $homedir/.cache
+        mkdir -p $homedir/snap
         microk8s.kubectl config view --raw > $homedir/.kube/config
 
         echo "${YELLOW}Chown $homedir/.kube${NC}"

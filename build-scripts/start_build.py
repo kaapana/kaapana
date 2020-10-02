@@ -55,6 +55,7 @@ def print_log_entry(log_entry, kind="OTHER"):
 if __name__ == '__main__':
 
     parser = ArgumentParser()
+    parser.add_argument("-c", "--config", dest="config_filepath", default=None, help="Path the the build-configuration.yaml")
     parser.add_argument("-u", "--username", dest="username", default=None, help="Username")
     parser.add_argument("-p", "--password", dest="password", default=None, required=False, help="Password")
     parser.add_argument("-bo", "--build-only", dest="build_only", default=False, action='store_true', help="Just building the containers and charts -> no pushing")
@@ -67,6 +68,7 @@ if __name__ == '__main__':
     build_only = args.build_only
     charts_only = args.charts_only
     docker_only = args.docker_only
+    config_filepath = args.config_filepath
 
     kaapana_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if not os.path.isdir(os.path.join(kaapana_dir, "platforms")):
@@ -74,7 +76,7 @@ if __name__ == '__main__':
         print("-----------------------------------------------------------")
         exit(1)
 
-    config_filepath = os.path.join(kaapana_dir, "build-scripts", "build-configuration.yaml")
+    config_filepath = config_filepath if config_filepath is not None else os.path.join(kaapana_dir, "build-scripts", "build-configuration.yaml")
     if not os.path.isfile(config_filepath):
         print("The build-configuration.yaml file was not found at: {}".format(config_filepath))
         print("-----------------------------------------------------------")

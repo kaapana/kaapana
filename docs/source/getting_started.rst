@@ -21,8 +21,16 @@ You should also have the following packages installed on your build-system.
 
 2. Python3 
 
-   | :code:`sudo apt install python3 python3-pip`
-   | :code:`sudo yum install python3 python3-pip`
+   .. tabs::
+
+      .. tab:: Ubuntu
+
+         | :code:`sudo apt install python3 python3-pip`
+
+      .. tab:: Centos
+
+         | :code:`sudo yum install python3 python3-pip snapd`
+         | :code:`systemctl enable --now snapd.socket`
 
 3. Python requirements 
    

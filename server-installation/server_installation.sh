@@ -66,7 +66,6 @@ function no_proxy_environment {
 function proxy_environment {
     
     echo "${YELLOW}Checking proxy settings...${NC}"
-    source /etc/environment
     
     if [ ! -v http_proxy ]; then
         echo "${RED}No proxy has been found!${NC}"
@@ -235,8 +234,6 @@ function install_microk8s {
         insert_text $INSERTLINE /etc/environment
         set -e
     fi
-
-    source /etc/environment
     
     set +e
     insert_text "--service-node-port-range=80-32000" /var/snap/microk8s/current/args/kube-apiserver

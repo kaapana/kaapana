@@ -46,9 +46,27 @@ fi
 
 # no_proxy_url="NO_PROXY=127.0.0.1,localhost,10.1.0.0/16,10.152.183.0/24,$IPADDRESS,$DOMAIN"
 
+
+function no_proxy_environment {
+    echo "${GREEN}Checking no_proxy settings${NC}"
+    if [ ! -v no_proxy ]; then
+        echo "${YELLOW}no_proxy not found, setting it and adding ${HOSTNAME}${NC}"
+        INSERTLINE="no_proxy=$HOSTNAME"
+        sed -i "$ a\\${INSERTLINE}" /etc/environment && echo "Adding $HOSTNAME to no_proxy"
+    else
+        echo "${YELLOW}no_proxy found, checking of $HOSTNAME is part of it!${NC}"
+        echo $no_proxy
+        INSERTLINE="no_proxy=$no_proxy,$HOSTNAME"
+        grep -q '\bno_proxy\b.*\b'${HOSTNAME}'\b' /etc/environment || sed -i '/no_proxy=/d' /etc/environment
+        echo $INSERTLINE
+        grep -q '\bno_proxy\b.*\b'${HOSTNAME}'\b' /etc/environment  && echo "$HOSTNAME already part of no_proxy ...." || (sed -i "$ a\\${INSERTLINE}" /etc/environment && echo "Adding $HOSTNAME to no_proxy")
+    fi
+}
+
 function proxy_environment {
     
     echo "${YELLOW}Checking proxy settings...${NC}"
+    source /etc/environment
     
     if [ ! -v http_proxy ]; then
         echo "${RED}No proxy has been found!${NC}"
@@ -62,11 +80,10 @@ function proxy_environment {
         done
     else
         echo "${GREEN}Proxy ok!${NC}"
-        INSERTLINE="no_proxy=$no_proxy,$HOSTNAME"
-        grep -q '\bno_proxy\b.*\b'${HOSTNAME}'\b' /etc/environment || sed -i '/no_proxy=/d' /etc/environment
-        grep -q '\bno_proxy\b.*\b'${HOSTNAME}'\b' /etc/environment  && echo "$HOSTNAME already part of no_proxy ...." || (sh -c "echo '$INSERTLINE' >> /etc/environment" && echo "Adding $HOSTNAME to no_proxy")
+        no_proxy_environment
     fi
 }
+
 
 function install_packages_centos {
     echo "${YELLOW}Check packages...${NC}"
@@ -219,6 +236,8 @@ function install_microk8s {
         set -e
     fi
 
+    source /etc/environment
+    
     set +e
     insert_text "--service-node-port-range=80-32000" /var/snap/microk8s/current/args/kube-apiserver
     set -e

@@ -214,7 +214,7 @@ if __name__ == '__main__':
 
         for log in logs:
             if supported_log_levels.index(log['loglevel'].upper()) >= log_level:
-                print_log_entry(log)
+                print_log_entry(log, kind="CONTAINERS")
             if log['loglevel'].upper() == "ERROR":
                 exit(1)
 

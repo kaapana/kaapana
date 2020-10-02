@@ -113,7 +113,11 @@ def pull_docker_image(docker_image, docker_version, docker_registry_url='dktk-ji
         resp = subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
         return Response(f"We are trying to download the docker container {docker_registry_url}{docker_registry_project}/{docker_image}:{docker_version}", 202)
     except subprocess.CalledProcessError as e:
-        helm_delete(release_name,  app.config['NAMESPACE'])
+        helm_delete(release_name,       {
+        text: "Helm Status",
+        align: "start",
+        value: "status",
+      }, app.config['NAMESPACE'])
         print(e)
         return Response(
             f"We could not download your container",
@@ -122,41 +126,6 @@ def pull_docker_image(docker_image, docker_version, docker_registry_url='dktk-ji
 
 
 def helm_install(payload, namespace):
-
-    def _download_images_from_manifest(manifest):
-
-        docker_containers = []
-        manifest = json.dumps(manifest)
-        print(manifest)
-        regex = r'\"image\": \"([\w\-\.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)\"'
-        matches = re.findall(regex, manifest)
-        for match in matches:
-            docker_containers.append({
-                'docker_registry_url': match[0],
-                'docker_registry_project': match[1],
-                'docker_image': match[2],
-                'docker_version': match[3]
-            })
-        print(docker_containers)
-        for ds in docker_containers:
-            try:
-                resp = pull_docker_image(**ds)
-                print(resp)
-                print(resp.status)
-            except requests.exceptions.ConnectionError as e:
-                print(e)
-                return Response(
-                    f"You need to have a internet access to dktk-jip-registry.dkfz.de in order to install the chart! If the chart was installed once, you can deactivate again the internet access.",
-                    500
-                )
-        return Response(
-            f"We will try to download the images: " + \
-                " ,".join([f"{ds['docker_registry_url']}{ds['docker_registry_project']}/{ds['docker_image']}:{ds['docker_version']}" for ds in docker_containers]) + \
-                    "! Depending on your internet connection, this might take some time, please try again later! \
-                        In case you cannot install the chart after a very long time, plese take a look into Kubernetes and the logs of the kube-helm container to see, why the installation failed!",
-            500
-        )
-
 
     repoName, chartName = payload["name"].split('/')
     version = payload["version"]
@@ -208,56 +177,24 @@ def helm_install(payload, namespace):
             helm_sets = helm_sets + f" --set {key}='{value}'"
 
     print(helm_sets)
-    helm_command = f'{os.environ["HELM_PATH"]} install -n {namespace} --version {version} {release_name} {helm_sets} {repoName}/{chartName} -o json --wait --timeout 0m8s'
+    helm_command = f'{os.environ["HELM_PATH"]} install -n {namespace} --version {version} {release_name} {helm_sets} {repoName}/{chartName} -o json'
     print('helm_command', helm_command)
 
     try:
-        resp = subprocess.check_output(helm_command, stderr=subprocess.STDOUT, shell=True)
-        resp = json.loads(resp)
-        print('resp', resp)
-        manifests = yaml.load_all(resp['manifest'], Loader=yaml.Loader)
-        job_names = {}
-        for manifest in manifests:
-            if manifest['kind'] == 'Job':
-                job_names.update({manifest['metadata']['name']: 'pending'})
-        if job_names:
-            t_end = time.time() + 6
-            while time.time() < t_end:
-                time.sleep(1)
-                for job_name in job_names.keys():
-                    print('job_name', job_name)
-                    try:
-                        job_pods = subprocess.check_output(f'kubectl -n flow get pods --selector=job-name=mitk-userflow -o custom-columns=NAME:.metadata.name,STATUS:.status.phase', stderr=subprocess.STDOUT, shell=True)
-                        job_states = {}
-                        for row in re.findall(r'(.*\n)', job_pods.decode("utf-8"))[1:]:
-                            job_id, job_status = row.split()
-                            print('pod and status', job_id, job_status)
-                            job_states.update({job_id: job_status})
-                        if (list(job_states.values()).count('Running') == len(job_states)) is True or \
-                        (list(job_states.values()).count('Succeeded') == len(job_states)) is True:
-                            job_names[job_name] = 'running_or_succeeded'
-                    except subprocess.CalledProcessError as e:
-                        helm_delete(release_name, namespace)
-                        return Response(
-                            f"We could not execute the job, please have look into the kubernetes logs of the job and the kube-helm pods",
-                            500
-                        )
-                if (list(job_names.values()).count('running_or_succeeded') == len(job_names)) is True:
-                    return Response(resp, 200)
-            helm_delete(release_name, namespace)
-            return _download_images_from_manifest(manifest)
-        else:
-            return Response(resp, 200)
+        resp = subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
+        
+        return Response(f"Trying to install with {helm_command}", 200)
     except subprocess.CalledProcessError as e:
-        manifest = helm_get_manifest(release_name, namespace)
-        helm_delete(release_name, namespace)
-        return _download_images_from_manifest(manifest)
+        return Response(
+            f"A helm command error occured!",
+            500,
+        )
 
 
 def helm_delete(release_name, namespace):
     try:
         print(f'deleting {release_name}')
-        resp = subprocess.check_output(
+        resp = subprocess.Popen(
             [os.environ["HELM_PATH"], "-n", namespace, "delete", release_name], stderr=subprocess.STDOUT
         )
         print(f'Successfully deleted {release_name}')
@@ -271,7 +208,7 @@ def helm_delete(release_name, namespace):
 def helm_ls(namespace, release_filter=''):
     try:
         resp = subprocess.check_output(
-            [os.environ["HELM_PATH"], "-n", namespace, "--filter", release_filter, "ls", "-o", "json"], stderr=subprocess.STDOUT
+            [os.environ["HELM_PATH"], "-n", namespace, "--filter", release_filter, "ls", "--deployed", "--pending", "--failed", "--uninstalling", "-o", "json"], stderr=subprocess.STDOUT
         )
         return json.loads(resp)
     except subprocess.CalledProcessError as e:
@@ -293,3 +230,48 @@ def helm_search_repo(filter_regex):
         print('Error calling repo search!')
         data = []
     return data
+
+def get_kube_status(kind, name, namespace):
+    states = {
+        "name": [], 
+        "ready": [],
+        "status": [],
+        "restarts": [],
+        "age": []
+    }
+
+    try:
+        resp = subprocess.check_output(
+            f'kubectl -n {namespace} get pod -l={kind}-name={name}',
+            stderr=subprocess.STDOUT,
+            shell=True
+        )
+        for row in re.findall(r'(.*\n)', resp.decode("utf-8"))[1:]:
+            name, ready, status, restarts, age = row.split()
+            states['name'].append(name)
+            states['ready'].append(ready)
+            states['status'].append(status)
+            states['restarts'].append(restarts)
+            states['age'].append(age)
+    except subprocess.CalledProcessError as e:
+        print(f'Could not get kube status of {name}')
+
+    return states
+
+def get_manifest_infos(manifest):
+    ingress_path = ''
+    for config in manifest:
+        if config['kind'] == 'Ingress':
+            ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']
+        if config['kind'] == 'Deployment':
+            kube_status = get_kube_status('app',config['metadata']['name'], config['metadata']['namespace'])
+        if config['kind'] == 'Job':
+            kube_status = get_kube_status('job',config['metadata']['name'], config['metadata']['namespace'])
+    return kube_status, ingress_path
+
+def all_successful(status):
+    successfull = ['Completed', 'Running', 'deployed']
+    for i in status:
+        if i not in successfull:
+            return 'no'
+    return 'yes'

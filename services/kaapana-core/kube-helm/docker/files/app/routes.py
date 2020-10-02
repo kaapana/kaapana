@@ -81,13 +81,13 @@ def pending_applications():
         extensions_list = []
         for chart in utils.helm_ls(app.config['NAMESPACE'], 'kaapanaint'):
             manifest = utils.helm_get_manifest(chart['name'], app.config['NAMESPACE'])
-            ingress_path = ''
-            for config in manifest:
-                if config['kind'] == 'Ingress':
-                    ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']
+            kube_status, ingress_path = utils.get_manifest_infos(manifest)
             extension = {
                 'releaseMame': chart['name'],
-                'link': ingress_path
+                'link': ingress_path,
+                'helm_status': chart['status'].capitalize(),
+                'successful': utils.all_successful(set(kube_status['status'] + [chart['status']])),
+                'kube_status': ", ".join(kube_status['status'])
             }            
             extensions_list.append(extension)
 
@@ -117,32 +117,39 @@ def extensions():
     # TODO: add repoName to regex
     try:
         available_charts = utils.helm_search_repo("(kaapanaextension|kaapanadag)")
-        print(available_charts)
+        # print(available_charts)
         extensions_list = []
         for extension in available_charts:
             repoName, chartName = extension["name"].split('/')
             chart = utils.helm_show_chart(repoName, chartName, extension['version'])
             status = utils.helm_status(chartName, app.config['NAMESPACE'])
-            print('chartName', chartName)
-            print('chart', chart)
-            print('status', status)
-            print('keywords', chart['keywords'])
             extension['keywords'] = chart['keywords']
+            if 'kaapanadag' in chart['keywords']: 
+                extension['kind'] = 'dag'
+            elif 'kaapanaextension' in chart['keywords']:
+                extension['kind'] = 'extension'
+            else:
+                extension['kind'] = 'unkown'
             extension['releaseMame'] = extension["name"]
+            extension['helm_status'] = 'Not installed' 
+            extension['kube_status'] = 'Not deployed'
+            extension['successful'] = 'none'
             if 'kaapanamultiinstallable' in chart['keywords'] or not status:
                 extension['installed'] = 'no'
                 extensions_list.append(extension)
             for chart in utils.helm_ls(app.config['NAMESPACE'], chartName):
+                
                 manifest = utils.helm_get_manifest(chart['name'], app.config['NAMESPACE'])
-                ingress_path = ''
-                for config in manifest:
-                    if config['kind'] == 'Ingress':
-                        ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']
-                running_extensions = copy.deepcopy(extension)
-                running_extensions['releaseMame'] =  chart['name']
-                running_extensions['link'] = ingress_path
-                running_extensions['installed'] = 'yes'
-                extensions_list.append(running_extensions)
+                kube_status, ingress_path = utils.get_manifest_infos(manifest)
+                
+                running_extension = copy.deepcopy(extension)
+                running_extension['releaseMame'] =  chart['name']
+                running_extension['link'] = ingress_path
+                running_extension['installed'] = 'yes'
+                running_extension['helm_status'] = chart['status'].capitalize()
+                running_extension['successful'] = utils.all_successful(set(kube_status['status'] + [chart['status']]))
+                running_extension['kube_status'] = ", ".join(kube_status['status'])
+                extensions_list.append(running_extension)
 
     except subprocess.CalledProcessError as e:
         return Response(

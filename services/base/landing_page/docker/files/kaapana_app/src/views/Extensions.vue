@@ -10,7 +10,22 @@
         loading-text="Waiting a few seconds..."
       )
         template(v-slot:item.releaseMame="{ item }")
-          a(:href='item.link', target='_blank') {{ item.releaseMame }}
+          a(:href='item.link', target='_blank' v-if="item.link") {{ item.releaseMame }}
+          span(v-if="!item.link") {{ item.releaseMame }}
+        template(v-slot:item.successful="{ item }")
+          v-icon(v-if="item.successful==='yes'" color='green') mdi-check-circle
+          v-icon(v-if="item.successful==='no'" color='red') mdi-alert-circle
+        template(v-slot:item.kind="{ item }")
+          v-tooltip(bottom='' v-if="item.kind==='dag'")
+            template(v-slot:activator='{ on, attrs }')
+              v-icon(color='primary' dark='' v-bind='attrs' v-on='on')
+                | mdi-chart-timeline-variant
+            span A workflow or algorithm that will be added to Airflow DAGs
+          v-tooltip(bottom='' v-if="item.kind==='extension'")
+            template(v-slot:activator='{ on, attrs }')
+              v-icon(color='primary' dark='' v-bind='attrs' v-on='on')
+                | mdi-laptop
+            span An application to work with
         template(v-slot:item.installed="{ item }")
           v-btn(
             @click="deleteChart(item.releaseMame, item.name, item.version, item.keywords)",
@@ -32,7 +47,7 @@ import kaapanaApiService from "@/common/kaapanaApi.service";
 
 export default Vue.extend({
   data: () => ({
-    loading: false,
+    loading: true,
     launchedAppLinks: [] as any,
     headers: [
       {
@@ -46,9 +61,29 @@ export default Vue.extend({
         value: "version",
       },
       {
+        text: "Kind",
+        align: "start",
+        value: "kind",
+      },
+      {
         text: "Description",
         align: "start",
         value: "description",
+      },
+      {
+        text: "Helm Status",
+        align: "start",
+        value: "helm_status",
+      },
+      {
+        text: "Kube Status",
+        align: "start",
+        value: "kube_status",
+      },
+      {
+        text: "Ready",
+        align: "start",
+        value: "successful",
       },
       { text: "Action", value: "installed" },
     ],
@@ -114,8 +149,9 @@ export default Vue.extend({
       kaapanaApiService
         .helmApiPost("/helm-install-chart", payload)
         .then((response: any) => {
-            this.getHelmCharts();
-            //this.loading = false;
+            setTimeout(() => {
+              this.getHelmCharts();
+            }, 3000);
         })
         .catch((err: any) => {
           this.getHelmCharts();

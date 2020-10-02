@@ -13,6 +13,9 @@
         )
           template(v-slot:item.link="{ item }")
             a(:href='item.link', target='_blank') {{ item.releaseMame }}
+          template(v-slot:item.successful="{ item }")
+            v-icon(v-if="item.successful==='yes'" color='green') mdi-check-circle
+            v-icon(v-if="item.successful==='no'" color='red') mdi-alert-circle
           template(v-slot:item.releaseMame="{ item }")
             v-btn(
               @click="deleteChart(item.releaseMame)",
@@ -28,13 +31,28 @@ import kaapanaApiService from '@/common/kaapanaApi.service'
 
 export default Vue.extend({
   data: () => ({
-    loading: false,
+    loading: true,
     launchedAppLinks: [] as any,
     headers: [
       {
         text: "Name",
         align: "start",
         value: "link",
+      },
+      {
+        text: "Helm Status",
+        align: "start",
+        value: "helm_status",
+      },
+      {
+        text: "Kube Status",
+        align: "start",
+        value: "kube_status",
+      },
+      {
+        text: "Ready",
+        align: "start",
+        value: "successful",
       },
       { text: "Action", value: "releaseMame" },
     ],
@@ -74,7 +92,6 @@ export default Vue.extend({
         .then((response: any) => {
           setTimeout(() => {
             this.getHelmCharts();
-            this.loading = false;
           }, 1000);
         })
         .catch((err: any) => {

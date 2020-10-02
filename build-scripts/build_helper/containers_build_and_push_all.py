@@ -512,11 +512,12 @@ def quick_check():
             "rel_file": not_resolved.path,
             "container": "",
         }
-        yield log_entry
 
         if not_resolved.tag not in DockerContainer.used_tags_list:
             docker_containers_list.append(not_resolved)
             docker_container.used_tags_list.append(not_resolved.tag)
+        
+        yield log_entry
 
     yield docker_containers_list
 

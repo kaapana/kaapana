@@ -28,7 +28,7 @@ spec:
           type: DirectoryOrCreate
       - name: cache-volume
         emptyDir: {}
-          restartPolicy: Never
+      restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret
   backoffLimit: 0    

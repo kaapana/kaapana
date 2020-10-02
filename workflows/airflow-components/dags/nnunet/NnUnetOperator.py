@@ -55,8 +55,8 @@ class NnUnetOperator(KaapanaBaseOperator):
             volumes=volumes,
             volume_mounts=volume_mounts,
             execution_timeout=execution_timeout,
-            ram_mem_mb=15000,
-            gpu_mem_mb=4500,
+            ram_mem_mb=30000,
+            gpu_mem_mb=5000,
             env_vars=env_vars,
             *args,
             **kwargs

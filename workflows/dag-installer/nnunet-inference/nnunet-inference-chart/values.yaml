@@ -2,6 +2,7 @@
 global:
     pull_policy_jobs: "Always"
     flow_namespace: "flow"
+    flow_namespace: "flow-jobs"
     fast_data_dir: "/home/kaapana"
 image: "dag-nnunet-inference"
 version: "0.1-vdev"

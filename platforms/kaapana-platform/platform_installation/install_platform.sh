@@ -283,6 +283,7 @@ function add_helm_repos {
 }
 
 function delete_helm_repos {
+    # helm repo ls |cut -f 1  | tail -n +2 | xargs -L1 helm repo rm # delete all repos
     echo -e "Deleting needed helm projects..."
     for i in "${NEEDED_REPOS[@]}"
     do

@@ -1,6 +1,6 @@
 import "./brutusin-json-forms.min.js"
-// import "./brutusin-json-forms-bootstrap.min.js"
 import "./brutusin-json-forms.min.css"
+// import "./brutusin-json-forms-bootstrap.min.js"
 
 class VisController {
   static metricBtn = document.createElement(`button`);
@@ -62,7 +62,7 @@ class VisController {
 
     var dag_id = VisController.metricDag.options[VisController.metricDag.selectedIndex].text.toLowerCase()
     var trigger_url = VisController.airflow_url + "/trigger/meta-trigger"
-    // trigger_url = "http://e230-pc15:8080/flow/dcipher/api/trigger/meta-trigger"
+    trigger_url = "http://e230-pc15:8080/flow/kaapana/api/trigger/meta-trigger"
     var query = (this.vis.searchSource.history[0].fetchParams.body.query);
     var index = this.vis.searchSource.history[0].fetchParams.index.title;
     var bulk = VisController.metricBulk.options[VisController.metricBulk.selectedIndex].text;
@@ -108,6 +108,9 @@ class VisController {
 
   create_dialog() {
     const dag_info = VisController.selected_dag_info
+    console.error("+++++++++++++++++++++++++++++++++++++++++++++++++++")
+    console.error(dag_info)
+    console.error("+++++++++++++++++++++++++++++++++++++++++++++++++++")
     this.workflow_dialog.innerHTML = "";
 
     const BrutusinForms = brutusin["json-forms"];
@@ -175,7 +178,7 @@ class VisController {
       tbdy.appendChild(tr_2);
 
       var td_1_1 = document.createElement('td');
-      td_1_1.setAttribute('style', "font-weight: bold;font-size: 1.3em;");
+      td_1_1.setAttribute('style', "font-weight: bold;font-size: 1em;");
       td_1_1.appendChild(document.createTextNode('Title: '));
       var td_1_2 = document.createElement('td');
       td_1_2.appendChild(document.createTextNode(pub_info["title"]));
@@ -183,13 +186,13 @@ class VisController {
       tr_1.appendChild(td_1_2)
       var td_2_1 = document.createElement('td');
       td_2_1.appendChild(document.createTextNode('Authors: '));
-      td_2_1.setAttribute('style', "font-weight: bold;font-size: 1.3em;");
+      td_2_1.setAttribute('style', "font-weight: bold;font-size: 1em;");
       var td_2_2 = document.createElement('td');
       td_2_2.appendChild(document.createTextNode(pub_info["authors"]));
       tr_2.appendChild(td_2_1)
       tr_2.appendChild(td_2_2)
       var td_3_1 = document.createElement('td');
-      td_3_1.setAttribute('style', "font-weight: bold;font-size: 1.3em;");
+      td_3_1.setAttribute('style', "font-weight: bold;font-size: 1em;");
       td_3_1.appendChild(document.createTextNode('DOI: '));
       var td_3_2 = document.createElement('td');
       td_3_2.appendChild(document.createTextNode(pub_info["doi"]));
@@ -227,7 +230,37 @@ class VisController {
       schema["properties"][key] = additional_prop[i][key]
     }
     const bf = BrutusinForms.create(schema);
-    bf.render(form_div, {});
+
+    bf.schemaResolver = function (names, data, cb) {
+      var schemas = new Object();
+      console.error("in schemaResolver");
+      console.error(names);
+
+      names.forEach(function (item, index) {
+        var schema = new Object();
+        const form_field = item.split(".")[1];
+        const insert_data = dag_info["tasks"][data.task][form_field];
+        const schema_template = dag_info["form_schema"]["properties"][form_field];
+
+        schema.title = schema_template.hasOwnProperty('title') ? schema_template.title : form_field;
+        schema.description = schema_template.hasOwnProperty('description') ? schema_template.description : "NA";
+        schema.readOnly = schema_template.hasOwnProperty('readOnly') ? schema_template.readOnly : false;
+        schema.type = schema_template.hasOwnProperty('type') ? schema_template.type : "string";
+        const enum_present = schema_template.hasOwnProperty('enum') ? true : false;
+
+        if (Array.isArray(insert_data) && enum_present) {
+          schema.enum = insert_data;
+          schema.default = schema_template.hasOwnProperty('default') ? schema_template.default : "";
+        } else if (Array.isArray(insert_data) && !enum_present) {
+          schema.default = insert_data + "";
+        } else {
+          schema.default = insert_data + "";
+        }
+        schemas[item] = schema;
+      });
+      setTimeout(function () { cb(schemas) }, 500); // in order to show asynchrony
+    };
+    bf.render(form_div);
 
     this.workflow_dialog.appendChild(form_div)
     this.workflow_dialog.appendChild(button_div)
@@ -235,16 +268,11 @@ class VisController {
   }
 
   render(visData, status) {
-
     this.container.innerHTML = '';
     const table = visData
     const metrics = [];
     let bucketAgg;
     var dag_list;
-    console.error("here")
-    console.error(table.columns)
-    console.error(table.columns[0].aggConfig)
-    console.error(table.columns[0].aggConfig.aggConfigs)
     var info = table.columns.aggConfig
 
     this.workflow_dialog = document.createElement(`dialog`);
@@ -359,16 +387,16 @@ class VisController {
         this.container.appendChild(VisController.metricBulk);
         this.container.appendChild(VisController.metricBtn);
 
-        var form_div = document.createElement("div");
+        // var form_div = document.createElement("div");
         // f.setAttribute('method',"post");
-        form_div.src = './test.html';;
+        // form_div.src = './test.html';;
         // form_div.innerHTML='<object type="text/html" data="home.html" ></object>';
 
-        this.container.appendChild(form_div);
+        // this.container.appendChild(form_div);
 
         function getDags(callback, vis) {
           var dagurl = VisController.airflow_url + "/getdags?active_only&dag_info"
-          // dagurl = "http://e230-pc15:8080/flow/dcipher/api/getdags?active_only&dag_info"
+          dagurl = "http://e230-pc15:8080/flow/kaapana/api/getdags?active_only&dag_info"
           console.log("DAGURL: " + dagurl)
           fetch(dagurl, {
             method: 'GET',
@@ -380,6 +408,7 @@ class VisController {
             if (response.ok) {
               response.json().then(json => {
                 callback(json, vis);
+
               });
             } else {
               console.error("Could not retrieve dags from server!")

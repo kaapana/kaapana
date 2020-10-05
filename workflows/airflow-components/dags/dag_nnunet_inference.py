@@ -17,58 +17,109 @@ import pathlib
 import json
 import os
 
-# dcmsend e230-pc02 -v 11112 -aet PUSH_TOOL -aec "CTPET" --scan-directories --scan-pattern *.dcm --recurse ./DicomExportService/
-# wget "https://zenodo.org/record/3734294/files/Task017_AbdominalOrganSegmentation.zip?download=1" -O "./Task017_AbdominalOrganSegmentation.zip"
-# mkdir -p /home/kaapana/data/workflows/models/nnUNet
-# unzip ./Task017_AbdominalOrganSegmentation.zip -d "/home/kaapana/data/workflows/models/nnUNet"
-
-tasks_json_path = os.path.join("/root/airflow/dags","nnunet","nnunet_tasks.json")
+tasks_json_path = os.path.join("/root/airflow/dags", "nnunet", "nnunet_tasks.json")
 with open(tasks_json_path) as f:
     tasks = json.load(f)
 
-available_tasks = [*{k:v for (k,v) in tasks.items() if "supported" in tasks[k] and tasks[k]["supported"]}]
+available_tasks = [*{k: v for (k, v) in tasks.items() if "supported" in tasks[k] and tasks[k]["supported"]}]
 available_models = [*tasks["Task001_BrainTumour"]["models"]]
-
-task_models_present = []
-for task_id in available_tasks:
-    model_path = os.path.join("/root/airflow/models/nnUNet/2d", task_id)
-    if os.path.isdir(model_path):
-        task_models_present.append(task_id)
-
-print(task_models_present)
 
 dag_info = {
     "visible": True,
-    "modality": ["CT","MRI"],
+    "tasks": tasks,
+    "modality": ["CT", "MRI"],
     "publication": {
         "doi": "arXiv preprint: 1904.08128 (2020)",
         "link": "https://github.com/MIC-DKFZ/nnUNet",
         "title": "Automated Design of Deep Learning Methods for Biomedical Image Segmentation",
-        "authors": "Fabian Isensee, Paul F. J\xc3\xa4ger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein",
+        "authors": "Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein",
         "confirmation": False
     },
     "form_schema": {
-        "$schema": "http://json-schema.org/draft-03/schema#",
         "type": "object",
         "properties": {
             "task": {
+                "index": "1",
                 "title": "Tasks available",
                 "description": "Select one of the available tasks.",
                 "type": "string",
                 "enum": available_tasks,
-                "required": 'true'
+                "required": "true"
             },
-            "model": {
+            "description": {
+                "index": "2",
+                "title": "Task Description",
+                "description": "Description of the task.",
+                "type": "string",
+                "readOnly": True,
+                "dependsOn": [
+                    "task"
+                ]
+            },
+            "url": {
+                "index": "3",
+                "title": "Website",
+                "description": "Website to the task.",
+                "type": "string",
+                "readOnly": True,
+                "dependsOn": [
+                    "task"
+                ]
+            },
+            "body_part": {
+                "index": "4",
+                "title": "Body Part",
+                "description": "Body part, which needs to be present in the image.",
+                "type": "string",
+                "readOnly": True,
+                "dependsOn": [
+                    "task"
+                ]
+            },
+            "input-mode": {
+                "index": "5",
+                "title": "Input Mode",
+                "description": "Input mode expected.",
+                "type": "string",
+                "readOnly": True,
+                "dependsOn": [
+                    "task"
+                ]
+            },
+            "input": {
+                "index": "6",
+                "title": "Input Modalities",
+                "description": "Expected input modalities.",
+                "type": "string",
+                "readOnly": True,
+                "dependsOn": [
+                    "task"
+                ]
+            },
+            "targets": {
+                "index": "7",
+                "title": "Segmentation Targets",
+                "description": "Segmentation targets.",
+                "type": "string",
+                "readOnly": True,
+                "dependsOn": [
+                    "task"
+                ]
+            },
+            "models": {
+                "index": "8",
                 "title": "Pre-trained models",
                 "description": "Select one of the available models.",
                 "type": "string",
-                "enum": available_models,
-                "required": 'true'
-            },
+                "default": "3d_lowres",
+                "enum": [],
+                "dependsOn": [
+                    "task"
+                ]
+            }
         }
     }
 }
-
 args = {
     'owner': 'airflow',
     'start_date': days_ago(0),

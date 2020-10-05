@@ -11,16 +11,6 @@ from flask import render_template, Response, request, jsonify
 from app import app
 
 
-def internet_access_decorator(func):
-    @functools.wraps(func)
-    def wrapper_decorator(*args, **kwargs):
-        print('Checking internet access')   
-        r = requests.get('https://dktk-jip-registry.dkfz.de/api/v2.0/projects')
-        return func(*args, **kwargs)
-
-    return wrapper_decorator
-
-
 def helm_repo_update_decorator(func):
     @functools.wraps(func)
     def wrapper_decorator(*args, **kwargs):
@@ -89,7 +79,6 @@ def helm_status(release_name, namespace):
     return yaml.load(status)
 
 
-@internet_access_decorator
 def pull_docker_image(docker_image, docker_version, docker_registry_url='dktk-jip-registry.dkfz.de', docker_registry_project='/kaapana', timeout='120m0s'):
     print(f'Pulling {docker_registry_url}{docker_registry_project}/{docker_image}:{docker_version}')
     repoName = 'kaapana-public'
@@ -142,9 +131,10 @@ def helm_install(payload, namespace):
         'global.pull_policy_pods': os.getenv('PULL_POLICY_PODS'),
         'global.pull_policy_jobs': os.getenv('PULL_POLICY_JOBS')
     } 
-    for key, value in values['global'].items():
-        if value != '':
-            default_sets.update({f'global.{key}': value })
+    if 'global' in values:
+        for key, value in values['global'].items():
+            if value != '':
+                default_sets.update({f'global.{key}': value })
     
     if 'sets' not in payload:
         payload['sets'] = default_sets
@@ -259,15 +249,32 @@ def get_kube_status(kind, name, namespace):
     return states
 
 def get_manifest_infos(manifest):
-    ingress_path = ''
+    ingress_paths = []
+    
+    concatenated_states = {
+        "name": [], 
+        "ready": [],
+        "status": [],
+        "restarts": [],
+        "age": []
+    }
+
+
     for config in manifest:
+        ingress_path = ''
         if config['kind'] == 'Ingress':
             ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']
+            ingress_paths.append(ingress_path)
         if config['kind'] == 'Deployment':
             kube_status = get_kube_status('app',config['metadata']['name'], config['metadata']['namespace'])
+            for key, value in kube_status.items():
+                concatenated_states[key]  = concatenated_states[key] + value
         if config['kind'] == 'Job':
             kube_status = get_kube_status('job',config['metadata']['name'], config['metadata']['namespace'])
-    return kube_status, ingress_path
+            for key, value in kube_status.items():
+                concatenated_states[key]  = concatenated_states[key] + value
+
+    return concatenated_states, ingress_paths
 
 def all_successful(status):
     successfull = ['Completed', 'Running', 'deployed']

@@ -81,10 +81,10 @@ def pending_applications():
         extensions_list = []
         for chart in utils.helm_ls(app.config['NAMESPACE'], 'kaapanaint'):
             manifest = utils.helm_get_manifest(chart['name'], app.config['NAMESPACE'])
-            kube_status, ingress_path = utils.get_manifest_infos(manifest)
+            kube_status, ingress_paths = utils.get_manifest_infos(manifest)
             extension = {
                 'releaseMame': chart['name'],
-                'link': ingress_path,
+                'links': ingress_paths,
                 'helm_status': chart['status'].capitalize(),
                 'successful': utils.all_successful(set(kube_status['status'] + [chart['status']])),
                 'kube_status': ", ".join(kube_status['status'])
@@ -138,16 +138,16 @@ def extensions():
                 extension['installed'] = 'no'
                 extensions_list.append(extension)
             for chart in utils.helm_ls(app.config['NAMESPACE'], chartName):
-                
                 manifest = utils.helm_get_manifest(chart['name'], app.config['NAMESPACE'])
-                kube_status, ingress_path = utils.get_manifest_infos(manifest)
+                kube_status, ingress_paths = utils.get_manifest_infos(manifest)
                 
                 running_extension = copy.deepcopy(extension)
                 running_extension['releaseMame'] =  chart['name']
-                running_extension['link'] = ingress_path
-                running_extension['installed'] = 'yes'
-                running_extension['helm_status'] = chart['status'].capitalize()
                 running_extension['successful'] = utils.all_successful(set(kube_status['status'] + [chart['status']]))
+                running_extension['installed'] = 'yes'
+                
+                running_extension['links'] = ingress_paths
+                running_extension['helm_status'] = chart['status'].capitalize()
                 running_extension['kube_status'] = ", ".join(kube_status['status'])
                 extensions_list.append(running_extension)
 
@@ -156,6 +156,7 @@ def extensions():
             f"{e.output}Failed to load the extension list!",
             500,
         )
+
     return json.dumps(extensions_list)
 
 

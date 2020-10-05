@@ -11,8 +11,10 @@
           :loading="loading",
           loading-text="Waiting a few seconds..."
         )
-          template(v-slot:item.link="{ item }")
-            a(:href='item.link', target='_blank') {{ item.releaseMame }}
+          template(v-slot:item.links="{ item }")
+            span {{ item.releaseMame }} &nbsp;
+              a(:href='link', target='_blank' v-for="link in item.links" :key="item.link")
+                v-icon(color='primary') mdi-open-in-new
           template(v-slot:item.successful="{ item }")
             v-icon(v-if="item.successful==='yes'" color='green') mdi-check-circle
             v-icon(v-if="item.successful==='no'" color='red') mdi-alert-circle
@@ -37,7 +39,7 @@ export default Vue.extend({
       {
         text: "Name",
         align: "start",
-        value: "link",
+        value: "links",
       },
       {
         text: "Helm Status",
@@ -105,4 +107,5 @@ export default Vue.extend({
 </script>
 
 <style lang="scss">
+a {  text-decoration: none;}
 </style>

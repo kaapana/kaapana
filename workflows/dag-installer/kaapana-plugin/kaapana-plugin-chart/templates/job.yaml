@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .Values.image }}
+  name: kaapana-plugin
   namespace: {{ .Values.global.flow_namespace }}
 spec:
   template:
@@ -19,8 +19,8 @@ spec:
             - name: TIMEOUT
               value: "10"
       containers:
-      - name: copy-{{ .Values.image }}
-        image: "{{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
+      - name: copy-kaapana-plugin
+        image: "dktk-jip-registry.dkfz.de/kaapana-public/kaapana-plugin:0.8-vdev"
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
         - name: ACTION

@@ -30,7 +30,7 @@ args = {
 dag = DAG(
     dag_id='clean-up-expired-workflow-data',
     default_args=args,
-    schedule_interval='0 * * * *')
+    schedule_interval='@daily')
 
 clean_up = LocalCleanUpExpiredWorkflowDataOperator(dag=dag, expired_period=timedelta(days=14))
 

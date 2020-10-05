@@ -34,7 +34,7 @@ dag = DAG(
     schedule_interval=None)
 
 get_input = LocalGetInputDataOperator(dag=dag)
-launch_app = KaapanaApplicationBaseOperator(dag=dag, chart_name='jupyterlab-chart', version='1.0.1-vdev')
+launch_app = KaapanaApplicationBaseOperator(dag=dag, chart_name='jupyterlab-chart', version='1.0-vdev')
 clean = LocalWorkflowCleanerOperator(dag=dag)
 
 get_input >> launch_app >> clean

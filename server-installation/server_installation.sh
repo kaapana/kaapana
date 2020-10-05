@@ -504,7 +504,7 @@ where opt is:
     default: $OS_PRESENT"
 
 QUIET=NA
-DEFAULT_MICRO_VERSION=1.19/stable
+DEFAULT_MICRO_VERSION=1.18/stable
 HELM_VERSION=3.1/stable
 
 POSITIONAL=()

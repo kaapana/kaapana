@@ -27,6 +27,12 @@ def index():
         "index.html", title="Home",
     )
 
+@app.route("/health-check")
+def health_check():
+    return Response(
+        f"Kube-Helm api is up and running!",
+        200,
+    )
 
 @app.route("/helm-install-chart", methods=["POST"])
 @utils.helm_repo_update_decorator

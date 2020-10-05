@@ -166,7 +166,6 @@ def helm_install(payload, namespace):
         for key, value in payload["sets"].items():
             helm_sets = helm_sets + f" --set {key}='{value}'"
 
-    print(helm_sets)
     helm_command = f'{os.environ["HELM_PATH"]} install -n {namespace} --version {version} {release_name} {helm_sets} {repoName}/{chartName} -o json'
     print('helm_command', helm_command)
 
@@ -212,7 +211,6 @@ def helm_search_repo(filter_regex):
         )
         try:
             data = json.loads(resp)
-            print(data)
         except json.decoder.JSONDecodeError as e:
             print('No results found', e)
             data = []

@@ -29,12 +29,12 @@ args = {
 }
 
 dag = DAG(
-    dag_id='launch-jupyterlab',
+    dag_id='launch-mitk-volume',
     default_args=args,
     schedule_interval=None)
 
 get_input = LocalGetInputDataOperator(dag=dag)
-launch_app = KaapanaApplicationBaseOperator(dag=dag, chart_name='jupyterlab-chart', version='0.1-vdev')
+launch_app = KaapanaApplicationBaseOperator(dag=dag, chart_name='mitk-volume-chart', version='0.1-vdev')
 clean = LocalWorkflowCleanerOperator(dag=dag)
 
 get_input >> launch_app >> clean

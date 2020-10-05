@@ -1,5 +1,6 @@
 #!/bin/sh
 
+sleep 30s
 mc config host add kaapana http://minio-service.store.svc:9000/ $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
 mc admin user add kaapana landing landingminio
 mc mb kaapana/uploads

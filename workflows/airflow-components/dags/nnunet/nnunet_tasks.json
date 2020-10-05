@@ -1,42 +1,18 @@
 {
     "Task001_BrainTumour": {
         "description": "Brain Tumor Segmentation.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "mri",
-                "protocol": "flair"
-            },
-            {
-                "modality": "mri",
-                "protocol": "t1"
-            },
-            {
-                "modality": "mri",
-                "protocol": "t1_ca"
-            },
-            {
-                "modality": "mri",
-                "protocol": "t2"
-            }
+            "mri-flair",
+            "mri-t1",
+            "mri-t1_ca",
+            "mri-t2"
         ],
         "body_part": "head",
         "targets": [
@@ -48,30 +24,15 @@
     },
     "Task002_Heart": {
         "description": "Left Atrium Segmentation.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "mri",
-                "protocol": ""
-            }
+            "mri"
         ],
         "body_part": "chest",
         "targets": [
@@ -83,29 +44,15 @@
     },
     "Task003_Liver": {
         "description": "Liver and Liver Tumor Segmentation.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "ct"
-            }
+            "ct"
         ],
         "body_part": "abdomen",
         "targets": [
@@ -118,30 +65,15 @@
     },
     "Task004_Hippocampus": {
         "description": "Hippocampus Segmentation.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "mri",
-                "protocol": ""
-            }
+            "mri"
         ],
         "body_part": "head",
         "targets": [
@@ -153,34 +85,16 @@
     },
     "Task005_Prostate": {
         "description": "Prostate Segmentation.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "mri",
-                "protocol": "t2"
-            },
-            {
-                "modality": "mri",
-                "protocol": "adc"
-            }
+            "mri-t2",
+            "mri-adc"
         ],
         "body_part": "pelvis",
         "targets": [
@@ -192,29 +106,15 @@
     },
     "Task006_Lung": {
         "description": "Lung Nodule Segmentation.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "ct"
-            }
+            "ct"
         ],
         "body_part": "abdomen",
         "targets": [
@@ -226,29 +126,15 @@
     },
     "Task007_Pancreas": {
         "description": "Pancreas Segmentation.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "ct"
-            }
+            "ct"
         ],
         "body_part": "abdomen",
         "targets": [
@@ -260,29 +146,15 @@
     },
     "Task008_HepaticVessel": {
         "description": "Hepatic Vessel Segmentation.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "ct"
-            }
+            "ct"
         ],
         "body_part": "abdomen",
         "targets": [
@@ -295,29 +167,15 @@
     },
     "Task009_Spleen": {
         "description": "Spleen Segmentation.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "ct"
-            }
+            "ct"
         ],
         "body_part": "abdomen",
         "targets": [
@@ -329,29 +187,15 @@
     },
     "Task010_Colon": {
         "description": "Colon Cancer Segmentation.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "ct"
-            }
+            "ct"
         ],
         "body_part": "abdomen",
         "targets": [
@@ -363,29 +207,15 @@
     },
     "Task017_AbdominalOrganSegmentation": {
         "description": "Multi-Atlas Labeling Beyond the Cranial Vault - Abdomen.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "ct"
-            }
+            "ct"
         ],
         "body_part": "abdomen",
         "targets": [
@@ -410,30 +240,15 @@
     },
     "Task024_Promise": {
         "description": "Prostate MR Image Segmentation 2012.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "mri",
-                "protocol": "t2"
-            }
+            "mri-t2"
         ],
         "body_part": "pelvis",
         "targets": [
@@ -445,30 +260,15 @@
     },
     "Task027_ACDC": {
         "description": "Automatic Cardiac Diagnosis Challenge.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "mri",
-                "protocol": "cine"
-            }
+            "mri-cine"
         ],
         "body_part": "chest",
         "targets": [
@@ -482,29 +282,15 @@
     },
     "Task029_LITS": {
         "description": "Liver and Liver Tumor Segmentation Challenge.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "ct"
-            }
+            "ct"
         ],
         "body_part": "abdomen",
         "targets": [
@@ -517,42 +303,18 @@
     },
     "Task035_ISBILesionSegmentation": {
         "description": "Longitudinal multiple sclerosis lesion segmentation Challenge.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "mri",
-                "protocol": "flair"
-            },
-            {
-                "modality": "mri",
-                "protocol": "mprage"
-            },
-            {
-                "modality": "mri",
-                "protocol": "proton-density"
-            },
-            {
-                "modality": "mri",
-                "protocol": "t2"
-            }
+            "mri-flair",
+            "mri-mprage",
+            "mri-proton-density",
+            "mri-t2"
         ],
         "body_part": "head",
         "targets": [
@@ -564,34 +326,16 @@
     },
     "Task038_CHAOS_Task_3_5_Variant2": {
         "description": "CHAOS - Combined (CT-MR) Healthy Abdominal Organ Segmentation Challenge (Task 3 & 5).",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "any",
         "input": [
-            {
-                "modality": "mri",
-                "protocol": "t1"
-            },
-            {
-                "modality": "mri",
-                "protocol": "t2"
-            }
+            "mri-t1",
+            "mri-t2"
         ],
         "body_part": "abdomen",
         "targets": [
@@ -606,29 +350,15 @@
     },
     "Task048_KiTS_clean": {
         "description": "Kidney and Kidney Tumor Segmentation Challenge.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "ct"
-            }
+            "ct"
         ],
         "body_part": "abdomen",
         "targets": [
@@ -641,29 +371,15 @@
     },
     "Task055_SegTHOR": {
         "description": "SegTHOR: Segmentation of THoracic Organs at Risk in CT images.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "ct"
-            }
+            "ct"
         ],
         "body_part": "chest",
         "targets": [
@@ -678,30 +394,15 @@
     },
     "Task061_CREMI": {
         "description": "MICCAI Challenge on Circuit Reconstruction from Electron Microscopy Images (Synaptic Cleft segmentation task).",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "electron-microscopy",
-                "protocol": "serial section transmission"
-            }
+            "electron-microscopy-serial section transmission"
         ],
         "body_part": "",
         "targets": [
@@ -713,29 +414,15 @@
     },
     "Task075_Fluo_C3DH_A549_ManAndSim": {
         "description": "Fluo-C3DH-A549-SIM and Fluo-C3DH-A549 datasets of the cell tracking challenge. Segmentation target are C3DH cells in fluorescence microscopy images",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "fluorescence microscopy"
-            }
+            "fluorescence-microscopy"
         ],
         "body_part": "",
         "targets": [
@@ -747,29 +434,15 @@
     },
     "Task076_Fluo_N3DH_SIM": {
         "description": "Fluo-N3DH-SIM dataset of the cell tracking challenge. Segmentation target are N3DH cells and cell borders in fluorescence microscopy images.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "fluorescence_microscopy"
-            }
+            "fluorescence-microscopy"
         ],
         "body_part": "",
         "targets": [
@@ -782,29 +455,15 @@
     },
     "Task089_Fluo-N2DH-SIM_thickborder_time": {
         "description": "Fluo-N2DH-SIM dataset of the cell tracking challenge. Segmentation target are nuclei of N2DH cells and cell borders in fluorescence microscopy images.",
-        "models": {
-            "2d": [
-                5000,
-                4000
-            ],
-            "3d_lowres": [
-                10000,
-                4000
-            ],
-            "3d_fullres": [
-                15000,
-                4000
-            ],
-            "3d_cascade_fullres": [
-                5000,
-                4000
-            ]
-        },
+        "models": [
+            "2d",
+            "3d_lowres",
+            "3d_fullres",
+            "3d_cascade_fullres"
+        ],
         "input-mode": "all",
         "input": [
-            {
-                "modality": "fluorescence microscopy"
-            }
+            "fluorescence-microscopy"
         ],
         "body_part": "",
         "targets": [

@@ -14,36 +14,41 @@ from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_r
 
 
 class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
-    
-    HELM_API='http://kube-helm-service.kube-system.svc:5000/kube-helm-api'
-    TIMEOUT = 60*60*12
-    
+    HELM_API = 'http://kube-helm-service.kube-system.svc:5000/kube-helm-api'
+    TIMEOUT = 60 * 60 * 12
+
     @staticmethod
     def _get_release_name(kwargs):
         task_id = kwargs['ti'].task_id
         run_id = kwargs['run_id']
         release_name = f'kaapanaint-{run_id}'
-        return cure_invalid_name(release_name, r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*", max_length=53)
+        return cure_invalid_name(release_name, r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
+                                 max_length=53)
 
     def start(self, ds, **kwargs):
-        print(kwargs)        
+        print(kwargs)
         run_dir = os.path.join(WORKFLOW_DIR, kwargs['run_id'])
         release_name = KaapanaApplicationBaseOperator._get_release_name(kwargs)
 
-        payload={
+        payload = {
             'name': f'{self.chart_repo_name}/{self.chart_name}',
             'version': self.version,
             'custom_release_name': release_name,
             'sets': {
                 'mount_path': f'/home/kaapana/workflows/{run_dir}',
+                "workflow_dir": str(WORKFLOW_DIR),
+                "batch_name": str(BATCH_NAME),
+                "operator_out_dir": str(self.operator_out_dir),
+                "operator_in_dir": str(self.operator_in_dir),
+                "batches_input_dir": "/{}/{}".format(WORKFLOW_DIR, BATCH_NAME)
             }
         }
 
         for set_key, set_value in self.sets.items():
-            payload['sets'][set_key] = set_value 
+            payload['sets'][set_key] = set_value
 
         url = f'{KaapanaApplicationBaseOperator.HELM_API}/helm-install-chart'
-        
+
         print('payload')
         print(payload)
         r = requests.post(url, json=payload)
@@ -60,7 +65,6 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
                 print(f'Release {release_name} was uninstalled. My job is done here!')
                 break
             r.raise_for_status()
-
 
     @staticmethod
     def uninstall_helm_chart(kwargs):
@@ -79,7 +83,7 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
     @staticmethod
     def on_success(info_dict):
         pass
-        
+
     @staticmethod
     def on_retry(info_dict):
         print("##################################################### ON RETRY!")

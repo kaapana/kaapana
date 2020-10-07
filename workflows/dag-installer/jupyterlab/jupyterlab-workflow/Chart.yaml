@@ -1,9 +1,0 @@
----
-apiVersion: v1
-appVersion: "0.1-vdev"
-description: Airflow Dag to open images within Jupyterlab
-name: jupyterlab-workflow
-version: 0.1-vdev
-keywords:
-- kaapanadag
-    

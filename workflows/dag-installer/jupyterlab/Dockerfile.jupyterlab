@@ -1,7 +1,0 @@
-FROM dktk-jip-registry.dkfz.de/kaapana-public/dag-installer:1.0-vdev
-
-LABEL IMAGE="dag-launch-jupyterlab"
-LABEL VERSION="0.1-vdev"
-LABEL CI_IGNORE="False"
-
-COPY dags/dag_launch_jupyterlab.py /tmp/dags/

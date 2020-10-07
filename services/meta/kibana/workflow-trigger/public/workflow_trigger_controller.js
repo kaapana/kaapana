@@ -49,7 +49,7 @@ class VisController {
 
     var dag_id = VisController.metricDag.options[VisController.metricDag.selectedIndex].text.toLowerCase()
     var trigger_url = VisController.airflow_url + "/trigger/meta-trigger"
-    trigger_url = "http://e230-pc15:8080/flow/kaapana/api/trigger/meta-trigger"
+    // trigger_url = "http://e230-pc15:8080/flow/kaapana/api/trigger/meta-trigger"
     var query = (this.vis.searchSource.history[0].fetchParams.body.query);
     var index = this.vis.searchSource.history[0].fetchParams.index.title;
     var bulk = VisController.metricBulk.options[VisController.metricBulk.selectedIndex].text;
@@ -175,7 +175,6 @@ class VisController {
       }
 
       if (workflow_form != null) {
-        var query_tag = workflow_form.hasOwnProperty("query_tag") ? workflow_form["query_tag"] : null;
         const head_dag_div = document.createElement(`div`);
         head_dag_div.innerHTML = "<h2>Configuration</h2>";
         head_dag_div.style.paddingTop = '20px'
@@ -190,12 +189,11 @@ class VisController {
           names.forEach(function (item, index) {
             var tmp_schema = new Object();
             var form_field = item.split(".");
-            var form_data = data;
             form_field = form_field[form_field.length - 1];
             const schema_template = ui_forms["workflow_form"]["properties"][form_field];
 
             const depends = schema_template.hasOwnProperty('dependsOn') ? schema_template["dependsOn"] : null;
-            form_data = depends != null && form_data.hasOwnProperty(depends) ? form_data[depends] : form_data;
+            data = depends != null && data.hasOwnProperty(depends) ? data[depends] : data;
 
             tmp_schema.title = schema_template.hasOwnProperty('title') ? schema_template.title : form_field;
             tmp_schema.description = schema_template.hasOwnProperty('description') ? schema_template.description : "NA";
@@ -203,7 +201,7 @@ class VisController {
             tmp_schema.type = schema_template.hasOwnProperty('type') ? schema_template.type : "string";
             const enum_present = schema_template.hasOwnProperty('enum') ? true : false;
 
-            const insert_data = dag_info[form_data][form_field];
+            const insert_data = dag_info[data][form_field];
             if (Array.isArray(insert_data) && enum_present) {
               tmp_schema.enum = insert_data;
               tmp_schema.default = schema_template.hasOwnProperty('default') ? schema_template.default : "";
@@ -214,8 +212,8 @@ class VisController {
           });
           cb(schemas);
         };
-        this.workflow_dialog.appendChild(form_dag_div)
         bf_dag.render(form_dag_div);
+        this.workflow_dialog.appendChild(form_dag_div)
       }
     }
 
@@ -233,7 +231,10 @@ class VisController {
 
     this.workflow_dialog = document.createElement(`dialog`);
     this.workflow_dialog.setAttribute("id", "workflow-dialog")
-    this.container.appendChild(this.workflow_dialog)
+    this.workflow_dialog.style.position = "absolute";
+    this.workflow_dialog.style.zIndex = "100";
+    document.getElementsByClassName("react-grid-layout dshLayout--viewing")[0].appendChild(this.workflow_dialog);
+
 
     if (table) {
 
@@ -273,7 +274,6 @@ class VisController {
           } else {
             VisController.selected_dag_info = null;
           }
-
           if (dag_entry.hasOwnProperty('ui_forms')) {
             VisController.selected_dag_forms = dag_entry['ui_forms']
             this.create_dialog()
@@ -345,7 +345,7 @@ class VisController {
 
         function getDags(callback, vis) {
           var dagurl = VisController.airflow_url + "/getdags?active_only&dag_info"
-          dagurl = "http://e230-pc15:8080/flow/kaapana/api/getdags?active_only&dag_info"
+          // dagurl = "http://e230-pc15:8080/flow/kaapana/api/getdags?active_only&dag_info"
           console.log("DAGURL: " + dagurl)
           fetch(dagurl, {
             method: 'GET',

@@ -26,8 +26,7 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
                                  max_length=53)
 
     def start(self, ds, **kwargs):
-        print(kwargs)
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['run_id'])
+        print(kwargs)        
         release_name = KaapanaApplicationBaseOperator._get_release_name(kwargs)
 
         payload = {
@@ -35,7 +34,7 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
             'version': self.version,
             'custom_release_name': release_name,
             'sets': {
-                'mount_path': f'/home/kaapana/workflows/{run_dir}',
+                'mount_path': f'{self.data_dir}/{kwargs["run_id"]}',
                 "workflow_dir": str(WORKFLOW_DIR),
                 "batch_name": str(BATCH_NAME),
                 "operator_out_dir": str(self.operator_out_dir),
@@ -99,6 +98,7 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
                  version,
                  name="helm-chart",
                  chart_repo_name=None,
+                 data_dir=None,
                  sets=None,
                  *args, **kwargs):
 
@@ -106,6 +106,7 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
         self.chart_name = chart_name
         self.version = version
         self.sets = sets or dict()
+        self.data_dir = data_dir or os.getenv('DATADIR', "")
 
         super().__init__(
             dag=dag,

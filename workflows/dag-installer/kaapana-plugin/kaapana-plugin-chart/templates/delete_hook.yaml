@@ -12,7 +12,7 @@ spec:
     spec:
       containers:
       - name: remove-kaapana-plugin
-        image: "dktk-jip-registry.dkfz.de/kaapana-public/kaapana-plugin:0.8-vdev"
+        image: "{{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
         - name: ACTION

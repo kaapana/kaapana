@@ -13,19 +13,13 @@ from radiomics.RadiomicsOperator import RadiomicsOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
-
 log = LoggingMixin().log
 
-dag_info = {
-    "visible": True,
-    "modality": ["SEG"]
-}
-
 args = {
-    'owner': 'airflow',
+    'ui_visible': True,
+    'owner': 'kaapana',
     'start_date': days_ago(0),
     'retries': 1,
-    'dag_info': dag_info,
     'retry_delay': timedelta(seconds=30)
 }
 

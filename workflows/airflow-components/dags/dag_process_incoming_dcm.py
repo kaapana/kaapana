@@ -5,15 +5,11 @@ from airflow.utils.dates import days_ago
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.operators.LocalCtpQuarantineCheckOperator import LocalCtpQuarantineCheckOperator
 
-dag_info = {
-    "visible": False,
-}
-
 args = {
-    'owner': 'airflow',
+    'ui_visible': False,
+    'owner': 'kaapana',
     'start_date': days_ago(0),
     'retries': 1,
-    'dag_info': dag_info,
     'retry_delay': timedelta(seconds=60)
 }
 

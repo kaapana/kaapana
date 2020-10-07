@@ -1,19 +1,20 @@
 import "./brutusin-json-forms.min.js"
-// import "./brutusin-json-forms-bootstrap.min.js"
 import "./brutusin-json-forms.min.css"
+// import "./brutusin-json-forms-bootstrap.min.js"
 
 class VisController {
   static metricBtn = document.createElement(`button`);
   static metricDag = document.createElement(`select`);
   static metricBulk = document.createElement(`select`);
   static airflow_url = null;
+  static selected_dag_id = null;
   static selected_dag_info = null;
+  static selected_dag_forms = null;
   static vis = null;
 
   constructor(el, vis) {
     this.vis = vis;
     VisController.vis = vis;
-    console.error(VisController.vis)
     this.el = el;
 
     this.container = document.createElement('div');
@@ -25,7 +26,7 @@ class VisController {
     this.dag_list = null;
     this.tmp_metric = null
     VisController.airflow_url = "https://" + window.location.href.split("//")[1].split("/")[0] + "/flow/kaapana/api";
-    console.error("airflow_url: " + VisController.airflow_url)
+    console.log("airflow_url: " + VisController.airflow_url)
   }
 
   destroy() {
@@ -33,20 +34,6 @@ class VisController {
   }
 
   start_dag() {
-    if (VisController.selected_dag_info != null && VisController.selected_dag_info.hasOwnProperty('modality')) {
-      console.error("Found modality check!")
-      var modalities = VisController.selected_dag_info['modality']
-      console.error(modalities)
-
-      if (!Array.isArray(modalities)) {
-        modalities = [modalities]
-      }
-
-      console.error(this.tmp_metric)
-
-
-    }
-
     var start = confirm(String(this.tmp_metric.value) + " series will be pushed for processing!\nDo you want to continue?");
     if (!start) {
       return
@@ -55,24 +42,26 @@ class VisController {
       if (result == 'ok') {
         console.log("Start processing!")
       } else {
-        console.log("Pushing cancelled!")
+        console.log("Process cancelled!")
         return
       }
     }
 
     var dag_id = VisController.metricDag.options[VisController.metricDag.selectedIndex].text.toLowerCase()
     var trigger_url = VisController.airflow_url + "/trigger/meta-trigger"
-    // trigger_url = "http://e230-pc15:8080/flow/dcipher/api/trigger/meta-trigger"
+    trigger_url = "http://e230-pc15:8080/flow/kaapana/api/trigger/meta-trigger"
     var query = (this.vis.searchSource.history[0].fetchParams.body.query);
     var index = this.vis.searchSource.history[0].fetchParams.index.title;
     var bulk = VisController.metricBulk.options[VisController.metricBulk.selectedIndex].text;
     var conf = {
-      "conf": { "query": query, "index": index, "dag": dag_id, bulk: bulk, "form_data": this.form_data }
+      "conf": { "query": query, "index": index, "dag": dag_id, bulk: bulk, "form_data": this.dag_form_data }
     };
 
     var conf_json = JSON.stringify(conf)
-    console.log('CONF: \n' + conf_json)
-    console.log('URL: ' + trigger_url);
+    console.log('DAG CONF:')
+    console.log(conf_json)
+    console.log('URL:');
+    console.log(trigger_url);
 
     fetch(trigger_url, {
       method: 'POST',
@@ -107,36 +96,39 @@ class VisController {
   }
 
   create_dialog() {
-    const dag_info = VisController.selected_dag_info
+    var bf_pub = null;
+    var bf_dag = null;
     this.workflow_dialog.innerHTML = "";
-
     const BrutusinForms = brutusin["json-forms"];
-    var additional_prop = []
-    var confirmation = false
-    var tbl = null
 
-    const publication = dag_info.hasOwnProperty('publication') && dag_info['publication'].hasOwnProperty("title") && dag_info['publication'].hasOwnProperty("authors") && dag_info['publication'].hasOwnProperty("doi")
-    const workflow_form = dag_info.hasOwnProperty('form_schema')
-
-
-    console.error("publication: " + publication)
-    console.error("workflow_form: " + workflow_form)
+    const ui_forms = VisController.selected_dag_forms
+    const dag_info = VisController.selected_dag_info
 
     const send_button = document.createElement(`button`);
     send_button.setAttribute("class", "kuiButton kuiButton--secondary")
     send_button.setAttribute('style', "font-weight: bold;font-size: 2em;margin: 10px;height: 50px;");
     send_button.innerHTML = "START"
     send_button.addEventListener('click', () => {
-      if (bf.validate()) {
-        this.form_data = bf.getData();
-        if (confirmation && (this.form_data == null || (this.form_data.hasOwnProperty('confirmation') && this.form_data['confirmation'].toLowerCase() !== "ok"))) {
-          alert("You have to confirm this with 'ok'")
-        } else {
-          this.workflow_dialog.close();
-          this.start_dag()
+      if (bf_pub.validate()) {
+        if (bf_pub.getData().hasOwnProperty("confirmation")) {
+          if (!bf_pub.getData()["confirmation"]) {
+            alert("You have to confirm first!")
+            return
+          } else {
+            console.log("Confirmation ok.")
+          }
         }
       } else {
-        alert("Input in not vaild!")
+        alert("Input for form information in not vaild!")
+        return
+      }
+      if (bf_dag.validate()) {
+        this.dag_form_data = bf_dag.getData().hasOwnProperty("dag_schema") ? bf_dag.getData()["dag_schema"] : bf_dag.getData();
+        this.workflow_dialog.close();
+        this.start_dag()
+      } else {
+        alert("Input for configuration in not vaild!")
+        return
       }
     });
 
@@ -148,108 +140,99 @@ class VisController {
       this.workflow_dialog.close();
     });
 
-    const form_div = document.createElement(`div`);
+    const head_dialog_div = document.createElement(`div`);
+    head_dialog_div.innerHTML = "<h1>DAG: " + VisController.selected_dag_id + "</h1>";
+    head_dialog_div.style.paddingTop = '10px'
+    head_dialog_div.style.paddingBottom = '15px'
+    this.workflow_dialog.appendChild(head_dialog_div)
+
     const button_div = document.createElement(`div`);
     button_div.setAttribute("style", "text-align: center;");
     button_div.appendChild(send_button)
     button_div.appendChild(cancel_button)
 
-    if (publication) {
-      const pub_info = dag_info['publication']
+    if (ui_forms != null) {
+      const head_pub_div = document.createElement(`div`);
+      head_pub_div.innerHTML = "<h2>Information</h2>";
+      head_pub_div.style.paddingTop = '10px'
+      head_pub_div.style.paddingBottom = '10px'
+      this.workflow_dialog.appendChild(head_pub_div)
 
-      tbl = document.createElement('table');
-      tbl.style.width = '100%';
-      tbl.setAttribute('border', '1');
-      var tbdy = document.createElement('tbody');
-      var tr_button = document.createElement('tr');
-      var tr_1 = document.createElement('tr');
-      tr_1.setAttribute("style", "font-size: 1em;margin: 20px;padding: 10px;");
+      const form_pub_div = document.createElement(`div`);
+      const form_dag_div = document.createElement(`div`);
 
-      var tr_2 = document.createElement('tr');
-      tr_2.setAttribute("style", "font-size: 1em;margin: 20px;padding: 10px;");
-      var tr_3 = document.createElement('tr');
-      tr_3.setAttribute("style", "font-size: 1em;margin: 20px;padding: 10px;");
+      var schema_pub = null;
+      var schema_dag = null;
 
-      tbdy.appendChild(tr_1);
-      tbdy.appendChild(tr_3);
-      tbdy.appendChild(tr_2);
+      const workflow_form = ui_forms.hasOwnProperty("workflow_form") ? ui_forms["workflow_form"] : null;
+      const publication_form = ui_forms.hasOwnProperty("publication_form") ? ui_forms["publication_form"] : null;
 
-      var td_1_1 = document.createElement('td');
-      td_1_1.setAttribute('style', "font-weight: bold;font-size: 1.3em;");
-      td_1_1.appendChild(document.createTextNode('Title: '));
-      var td_1_2 = document.createElement('td');
-      td_1_2.appendChild(document.createTextNode(pub_info["title"]));
-      tr_1.appendChild(td_1_1)
-      tr_1.appendChild(td_1_2)
-      var td_2_1 = document.createElement('td');
-      td_2_1.appendChild(document.createTextNode('Authors: '));
-      td_2_1.setAttribute('style', "font-weight: bold;font-size: 1.3em;");
-      var td_2_2 = document.createElement('td');
-      td_2_2.appendChild(document.createTextNode(pub_info["authors"]));
-      tr_2.appendChild(td_2_1)
-      tr_2.appendChild(td_2_2)
-      var td_3_1 = document.createElement('td');
-      td_3_1.setAttribute('style', "font-weight: bold;font-size: 1.3em;");
-      td_3_1.appendChild(document.createTextNode('DOI: '));
-      var td_3_2 = document.createElement('td');
-      td_3_2.appendChild(document.createTextNode(pub_info["doi"]));
-      tr_3.appendChild(td_3_1)
-      tr_3.appendChild(td_3_2)
-      tbl.appendChild(tbdy);
-      form_div.appendChild(tbl)
+      if (publication_form != null) {
+        schema_pub = publication_form;
+        bf_pub = BrutusinForms.create(schema_pub);
+        bf_pub.render(form_pub_div);
+        this.workflow_dialog.appendChild(form_pub_div)
+      }
 
-      if (pub_info["confirmation"]) {
-        confirmation = true
-        additional_prop.push({
-          "confirmation": {
-            "title": "confirmation",
-            "description": "Please enter ok to confirm.",
-            "type": "string",
-            "required": 'true'
-          }
-        }
-        )
+      if (workflow_form != null) {
+        var query_tag = workflow_form.hasOwnProperty("query_tag") ? workflow_form["query_tag"] : null;
+        const head_dag_div = document.createElement(`div`);
+        head_dag_div.innerHTML = "<h2>Configuration</h2>";
+        head_dag_div.style.paddingTop = '20px'
+        head_dag_div.style.paddingBottom = '10px'
+        this.workflow_dialog.appendChild(head_dag_div)
+
+        schema_dag = workflow_form;
+        bf_dag = BrutusinForms.create(schema_dag);
+        bf_dag.schemaResolver = function (names, data, cb) {
+          var schemas = new Object();
+
+          names.forEach(function (item, index) {
+            var tmp_schema = new Object();
+            var form_field = item.split(".");
+            var form_data = data;
+            form_field = form_field[form_field.length - 1];
+            const schema_template = ui_forms["workflow_form"]["properties"][form_field];
+
+            const depends = schema_template.hasOwnProperty('dependsOn') ? schema_template["dependsOn"] : null;
+            form_data = depends != null && form_data.hasOwnProperty(depends) ? form_data[depends] : form_data;
+
+            tmp_schema.title = schema_template.hasOwnProperty('title') ? schema_template.title : form_field;
+            tmp_schema.description = schema_template.hasOwnProperty('description') ? schema_template.description : "NA";
+            tmp_schema.readOnly = schema_template.hasOwnProperty('readOnly') ? schema_template.readOnly : false;
+            tmp_schema.type = schema_template.hasOwnProperty('type') ? schema_template.type : "string";
+            const enum_present = schema_template.hasOwnProperty('enum') ? true : false;
+
+            const insert_data = dag_info[form_data][form_field];
+            if (Array.isArray(insert_data) && enum_present) {
+              tmp_schema.enum = insert_data;
+              tmp_schema.default = schema_template.hasOwnProperty('default') ? schema_template.default : "";
+            } else {
+              tmp_schema.default = insert_data + "";
+            }
+            schemas[item] = tmp_schema;
+          });
+          cb(schemas);
+        };
+        this.workflow_dialog.appendChild(form_dag_div)
+        bf_dag.render(form_dag_div);
       }
     }
 
-    var schema = {
-      "type": "object",
-      "properties": {
-      }
-    }
-    if (workflow_form) {
-      schema = dag_info['form_schema']
-    }
-
-    var arrayLength = additional_prop.length;
-    for (var i = 0; i < arrayLength; i++) {
-      const key = Object.keys(additional_prop[i])[0];
-      schema["properties"][key] = additional_prop[i][key]
-    }
-    const bf = BrutusinForms.create(schema);
-    bf.render(form_div, {});
-
-    this.workflow_dialog.appendChild(form_div)
     this.workflow_dialog.appendChild(button_div)
     this.workflow_dialog.show();
   }
 
   render(visData, status) {
-
     this.container.innerHTML = '';
     const table = visData
     const metrics = [];
     let bucketAgg;
     var dag_list;
-    console.error("here")
-    console.error(table.columns)
-    console.error(table.columns[0].aggConfig)
-    console.error(table.columns[0].aggConfig.aggConfigs)
-    var info = table.columns.aggConfig
+    // var info = table.columns.aggConfig
 
     this.workflow_dialog = document.createElement(`dialog`);
     this.workflow_dialog.setAttribute("id", "workflow-dialog")
-    // workflow_dialog.setAttribute("style","width:50%;background-color:#F4FFEF;border:1px dotted black;")
     this.container.appendChild(this.workflow_dialog)
 
     if (table) {
@@ -282,18 +265,20 @@ class VisController {
 
 
         VisController.metricBtn.addEventListener('click', () => {
-          var dag_id = VisController.metricDag.options[VisController.metricDag.selectedIndex].text.toLowerCase();
-          var dag_entry = dag_list[dag_id]
-          if (dag_entry.hasOwnProperty('dag_info')) {
-            VisController.selected_dag_info = dag_entry['dag_info']
-            if (VisController.selected_dag_info.hasOwnProperty('form_schema') || VisController.selected_dag_info.hasOwnProperty('publication')) {
-              this.create_dialog()
-            } else {
-              this.start_dag()
-            }
+          VisController.selected_dag_id = VisController.metricDag.options[VisController.metricDag.selectedIndex].text;
+          var dag_entry = dag_list[VisController.selected_dag_id]
+
+          if (dag_entry.hasOwnProperty('ui_dag_info')) {
+            VisController.selected_dag_info = dag_entry['ui_dag_info'];
           } else {
             VisController.selected_dag_info = null;
-            this.start_dag();
+          }
+
+          if (dag_entry.hasOwnProperty('ui_forms')) {
+            VisController.selected_dag_forms = dag_entry['ui_forms']
+            this.create_dialog()
+          } else {
+            this.start_dag()
           }
         });
 
@@ -301,11 +286,10 @@ class VisController {
         function setOptions(list, vis) {
           dag_list = list;
           VisController.metricDag.removeChild(VisController.metricDag.childNodes[0]);
-          const dag_ids = Object.keys(dag_list);
+          const dag_ids = Object.keys(dag_list).sort();
           for (var i = 0; i < dag_ids.length; i++) {
             var dag_id = dag_ids[i];
-
-            if (dag_list[dag_id].hasOwnProperty('dag_info') && dag_list[dag_id]["dag_info"].hasOwnProperty('visible') && !dag_list[dag_id]["dag_info"]["visible"]) {
+            if (dag_list[dag_id].hasOwnProperty('ui_visible') && !dag_list[dag_id]["ui_visible"]) {
               continue
             }
             var option = document.createElement("option");
@@ -359,16 +343,9 @@ class VisController {
         this.container.appendChild(VisController.metricBulk);
         this.container.appendChild(VisController.metricBtn);
 
-        var form_div = document.createElement("div");
-        // f.setAttribute('method',"post");
-        form_div.src = './test.html';;
-        // form_div.innerHTML='<object type="text/html" data="home.html" ></object>';
-
-        this.container.appendChild(form_div);
-
         function getDags(callback, vis) {
           var dagurl = VisController.airflow_url + "/getdags?active_only&dag_info"
-          // dagurl = "http://e230-pc15:8080/flow/dcipher/api/getdags?active_only&dag_info"
+          dagurl = "http://e230-pc15:8080/flow/kaapana/api/getdags?active_only&dag_info"
           console.log("DAGURL: " + dagurl)
           fetch(dagurl, {
             method: 'GET',
@@ -380,6 +357,7 @@ class VisController {
             if (response.ok) {
               response.json().then(json => {
                 callback(json, vis);
+
               });
             } else {
               console.error("Could not retrieve dags from server!")

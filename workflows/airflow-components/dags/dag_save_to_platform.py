@@ -7,15 +7,11 @@ from kaapana.operators.LocalDagTriggerOperator import LocalDagTriggerOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 
-dag_info = {
-    "visible": False,
-}
-
 args = {
-    'owner': 'airflow',
+    'ui_visible': True,
+    'owner': 'kaapana',
     'start_date': days_ago(0),
     'retries': 3,
-    'dag_info': dag_info,
     'retry_delay': timedelta(seconds=30),
 }
 

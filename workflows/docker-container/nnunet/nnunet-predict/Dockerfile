@@ -11,10 +11,11 @@ ENV nnUNet_preprocessed="/nnUNet_preprocessed"
 RUN mkdir /nnunet/nnUNet_preprocessed
 RUN mkdir /models
 ENV RESULTS_FOLDER="/models"
-ENV MODEL="2d"
 ENV MODE="predict"
 ENV PREP_DIR="nnunet-prep"
 ENV PREPARATION="true"
+ENV MODEL="3d_lowres"
+ENV TASK=""
 
 RUN apt-get update && apt-get install -y \
     git \

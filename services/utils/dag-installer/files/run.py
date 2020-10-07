@@ -88,5 +88,10 @@ if action == 'copy':
         print(r.text)
 
 print('################################################################################')
-print(f'Successfully triggered the deployment to download the images of the dag')
+print(f'Updating dags in airflow database!')
 print('################################################################################')
+
+if action == 'remove':
+    r = requests.post('http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/remove-deleted-dags-from-db', json={})
+    print(r.status_code)
+    print(r.text)

@@ -2,7 +2,7 @@
   .workflow-applications
     v-container(grid-list-lg text-left)
       div
-        h2 List of applications started in a workflow (max 2 applications at the same time)
+        h2 List of applications started in a workflow
         p If a workflow has started an application, you will find here the corresponding url to the application. Once you are done you can here finish the manual interaction which will continue the workflow.
         v-data-table.elevation-1(
           :headers="headers",

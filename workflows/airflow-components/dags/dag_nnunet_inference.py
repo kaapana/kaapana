@@ -62,6 +62,7 @@ ui_forms = {
         "type": "object",
         "properties": {
             "task": {
+                "index": "1",
                 "title": "Tasks available",
                 "description": "Select one of the available tasks.",
                 "type": "string",
@@ -113,7 +114,38 @@ ui_forms = {
                     "task"
                 ]
             },
-            "model": {
+            "input-mode": {
+                "index": "5",
+                "title": "Input Mode",
+                "description": "Input mode expected.",
+                "type": "string",
+                "readOnly": True,
+                "dependsOn": [
+                    "task"
+                ]
+            },
+            "input": {
+                "index": "6",
+                "title": "Input Modalities",
+                "description": "Expected input modalities.",
+                "type": "string",
+                "readOnly": True,
+                "dependsOn": [
+                    "task"
+                ]
+            },
+            "targets": {
+                "index": "7",
+                "title": "Segmentation Targets",
+                "description": "Segmentation targets.",
+                "type": "string",
+                "readOnly": True,
+                "dependsOn": [
+                    "task"
+                ]
+            },
+            "models": {
+                "index": "8",
                 "title": "Pre-trained models",
                 "description": "Select one of the available models.",
                 "type": "string",

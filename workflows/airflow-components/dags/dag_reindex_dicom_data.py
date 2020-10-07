@@ -11,19 +11,11 @@ from kaapana.operators.LocalDeleteFromElasticOperator import LocalDeleteFromElas
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 
-dag_info = {
-    "visible": False,
-}
-
-dag_info = {
-    "visible": False,
-}
-
 args = {
-    'owner': 'airflow',
+    'ui_visible': False,
+    'owner': 'kaapana',
     'start_date': days_ago(0),
     'retries': 0,
-    'dag_info': dag_info,
     'retry_delay': timedelta(seconds=10),
 }
 

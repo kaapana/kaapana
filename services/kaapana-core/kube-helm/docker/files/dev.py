@@ -9,9 +9,6 @@ from flask import render_template, Response, request, jsonify
 from app import app
 from app import utils
 
-
-
-    
 repoName = 'kaapana'
 
 available_charts = utils.helm_search_repo("(kaapanaextension|kaapanadag)")

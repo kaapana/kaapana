@@ -22,24 +22,46 @@ with open(tasks_json_path) as f:
     tasks = json.load(f)
 
 available_tasks = [*{k: v for (k, v) in tasks.items() if "supported" in tasks[k] and tasks[k]["supported"]}]
-available_models = [*tasks["Task001_BrainTumour"]["models"]]
 
-dag_info = {
-    "visible": True,
-    "tasks": tasks,
-    "modality": ["CT", "MRI"],
-    "publication": {
-        "doi": "arXiv preprint: 1904.08128 (2020)",
-        "link": "https://github.com/MIC-DKFZ/nnUNet",
-        "title": "Automated Design of Deep Learning Methods for Biomedical Image Segmentation",
-        "authors": "Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein",
-        "confirmation": False
+ui_forms = {
+    "publication_form": {
+        "type": "object",
+        "properties": {
+            "title": {
+                "title": "Title",
+                "default": "Automated Design of Deep Learning Methods\n for Biomedical Image Segmentation",
+                "description": "Automated Design of Deep Learning Methods for Biomedical Image Segmentation",
+                "type": "string",
+                "readOnly": True,
+            },
+            "authors": {
+                "title": "Authors",
+                "default": "Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein",
+                "description": "Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein",
+                "type": "string",
+                "readOnly": True,
+            },
+            "link": {
+                "title": "DOI",
+                "default": "https://arxiv.org/abs/1904.08128",
+                "description": "DOI",
+                "type": "string",
+                "readOnly": True,
+            },
+            "confirmation": {
+                "title": "Accept",
+                "default": False,
+                "description": "I will cite the publication if applicable.",
+                "type": "boolean",
+                "readOnly": True,
+                "required": True,
+            }
+        }
     },
-    "form_schema": {
+    "workflow_form": {
         "type": "object",
         "properties": {
             "task": {
-                "index": "1",
                 "title": "Tasks available",
                 "description": "Select one of the available tasks.",
                 "type": "string",
@@ -47,7 +69,6 @@ dag_info = {
                 "required": "true"
             },
             "description": {
-                "index": "2",
                 "title": "Task Description",
                 "description": "Description of the task.",
                 "type": "string",
@@ -57,7 +78,6 @@ dag_info = {
                 ]
             },
             "url": {
-                "index": "3",
                 "title": "Website",
                 "description": "Website to the task.",
                 "type": "string",
@@ -66,28 +86,7 @@ dag_info = {
                     "task"
                 ]
             },
-            "body_part": {
-                "index": "4",
-                "title": "Body Part",
-                "description": "Body part, which needs to be present in the image.",
-                "type": "string",
-                "readOnly": True,
-                "dependsOn": [
-                    "task"
-                ]
-            },
-            "input-mode": {
-                "index": "5",
-                "title": "Input Mode",
-                "description": "Input mode expected.",
-                "type": "string",
-                "readOnly": True,
-                "dependsOn": [
-                    "task"
-                ]
-            },
             "input": {
-                "index": "6",
                 "title": "Input Modalities",
                 "description": "Expected input modalities.",
                 "type": "string",
@@ -96,8 +95,16 @@ dag_info = {
                     "task"
                 ]
             },
+            "body_part": {
+                "title": "Body Part",
+                "description": "Body part, which needs to be present in the image.",
+                "type": "string",
+                "readOnly": True,
+                "dependsOn": [
+                    "task"
+                ]
+            },
             "targets": {
-                "index": "7",
                 "title": "Segmentation Targets",
                 "description": "Segmentation targets.",
                 "type": "string",
@@ -106,8 +113,7 @@ dag_info = {
                     "task"
                 ]
             },
-            "models": {
-                "index": "8",
+            "model": {
                 "title": "Pre-trained models",
                 "description": "Select one of the available models.",
                 "type": "string",
@@ -121,10 +127,12 @@ dag_info = {
     }
 }
 args = {
-    'owner': 'airflow',
+    'ui_visible': True,
+    'ui_dag_info': tasks,
+    'ui_forms': ui_forms,
+    'owner': 'kaapana',
     'start_date': days_ago(0),
     'retries': 0,
-    'dag_info': dag_info,
     'retry_delay': timedelta(seconds=60)
 }
 
@@ -133,7 +141,6 @@ dag = DAG(
     default_args=args,
     schedule_interval=None
 )
-
 get_task_model = GetTaskModelOperator(dag=dag)
 get_input = LocalGetInputDataOperator(dag=dag)
 dcm2nifti = DcmConverterOperator(dag=dag, output_format='nii.gz')

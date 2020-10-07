@@ -15,7 +15,7 @@ function ButtonVisProvider(Private) {
   return VisFactory.createBaseVisualization({
     name: 'workflow_trigger',
     title: 'Start Process Button',
-    icon: 'fa fa-gear',
+    icon: 'logstashIf',
     description: 'An actionable button',
     // category: CATEGORY.OTHER,
     visualization: VisController,

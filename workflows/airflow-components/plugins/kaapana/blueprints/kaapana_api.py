@@ -22,6 +22,7 @@ from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.blueprints.kaapana_utils import generate_minio_credentials
 from airflow.api.common.experimental.trigger_dag import trigger_dag as trigger
 from kaapana.operators.HelperElasticsearch import HelperElasticsearch
+from flask import current_app as app
 
 _log = LoggingMixin().log
 
@@ -29,7 +30,6 @@ _log = LoggingMixin().log
 Represents a blueprint kaapanaApi
 """
 kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
-
 
 @csrf.exempt
 @kaapanaApi.route('/api/trigger/<string:dag_id>', methods=['POST'])
@@ -202,13 +202,17 @@ def get_dags_endpoint():
             continue
 
         dag_id = dag_dict['dag_id']
-        print("DAG-ID: {}".format(dag_id))
-        if dag_id in dag_objects and dag_objects[dag_id] is not None and hasattr(dag_objects[dag_id], 'default_args') and 'dag_info' in dag_objects[dag_id].default_args:
-            dag_dict["dag_info"] = dag_objects[dag_id].default_args["dag_info"]
+        if dag_id in dag_objects and dag_objects[dag_id] is not None and hasattr(dag_objects[dag_id], 'default_args'):
+            default_args = dag_objects[dag_id].default_args
+            for default_arg in default_args.keys():
+                if default_arg[:3] == "ui_":
+                    print("Found ui_ air: {}".format(default_args[default_arg]))
+                    dag_dict[default_arg] = default_args[default_arg]
 
         del dag_dict['_sa_instance_state']
         dags[dag_id] = dag_dict
-
+    
+    app.config['JSON_SORT_KEYS'] = False
     return jsonify(dags)
 
 

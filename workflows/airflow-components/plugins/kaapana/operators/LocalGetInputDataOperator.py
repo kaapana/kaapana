@@ -14,10 +14,10 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     def check_dag_modality(self, input_modality):
         config = self.conf["conf"] if "conf" in self.conf else None
-
+        input_modality = input_modality.lower()
         if config is not None and "form_data" in config and "input" in config["form_data"]:
-            dag_modality = config["form_data"]["input"]
-            if dag_modality.lower() == "ct" or dag_modality.lower() == "mri" or dag_modality.lower() == "mrt" or dag_modality.lower() == "seg":
+            dag_modality = config["form_data"]["input"].lower()
+            if dag_modality == "ct" or dag_modality == "mri" or dag_modality == "mrt" or dag_modality == "seg":
                 if input_modality != dag_modality:
                     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")

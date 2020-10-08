@@ -30,14 +30,12 @@ ui_forms = {
             "title": {
                 "title": "Title",
                 "default": "Automated Design of Deep Learning Methods\n for Biomedical Image Segmentation",
-                "description": "Automated Design of Deep Learning Methods for Biomedical Image Segmentation",
                 "type": "string",
                 "readOnly": True,
             },
             "authors": {
                 "title": "Authors",
                 "default": "Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein",
-                "description": "Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein",
                 "type": "string",
                 "readOnly": True,
             },
@@ -51,7 +49,6 @@ ui_forms = {
             "confirmation": {
                 "title": "Accept",
                 "default": False,
-                "description": "I will cite the publication if applicable.",
                 "type": "boolean",
                 "readOnly": True,
                 "required": True,
@@ -106,7 +103,6 @@ ui_forms = {
             },
             "targets": {
                 "title": "Segmentation Targets",
-                "description": "Segmentation targets.",
                 "type": "string",
                 "readOnly": True,
                 "dependsOn": [

@@ -38,7 +38,7 @@
         "targets": [
             "left-atrium@heart"
         ],
-        "supported": false,
+        "supported": true,
         "info": "",
         "url": "https://zenodo.org/record/4003545/files/Task002_Heart.zip?download=1"
     },
@@ -79,7 +79,7 @@
         "targets": [
             "hippocampus@brain"
         ],
-        "supported": false,
+        "supported": true,
         "info": "",
         "url": "https://zenodo.org/record/4003545/files/Task004_Hippocampus.zip?download=1"
     },
@@ -254,7 +254,7 @@
         "targets": [
             "prostate"
         ],
-        "supported": false,
+        "supported": true,
         "info": "",
         "url": "https://zenodo.org/record/4003545/files/Task024_Promise.zip?download=1"
     },
@@ -276,7 +276,7 @@
             "left-ventricular-cavity@heart",
             "left-myocardium@heart"
         ],
-        "supported": false,
+        "supported": true,
         "info": "",
         "url": "https://zenodo.org/record/4003545/files/Task027_ACDC.zip?download=1"
     },

@@ -22,9 +22,9 @@ if task_ids == "all":
     print("Downloading all nnUnet-task-models...")
     task_ids = [
         # "Task001_BrainTumour",
-        # "Task002_Heart",
+        "Task002_Heart",
         "Task003_Liver",
-        # "Task004_Hippocampus",
+        "Task004_Hippocampus",
         # "Task005_Prostate",
         "Task006_Lung",
         "Task007_Pancreas",
@@ -32,8 +32,8 @@ if task_ids == "all":
         "Task009_Spleen",
         "Task010_Colon",
         "Task017_AbdominalOrganSegmentation",
-        # "Task024_Promise",
-        # "Task027_ACDC",
+        "Task024_Promise",
+        "Task027_ACDC",
         "Task029_LITS",
         # "Task035_ISBILesionSegmentation",
         # "Task038_CHAOS_Task_3_5_Variant2",

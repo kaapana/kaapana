@@ -206,7 +206,8 @@ Step 3: Server Installation
 
   | **GPU support -> Currently only Nvidia GPUs are supported!**
   | If you want to enable GPU support, you need to install the `Nvidia drivers <https://www.nvidia.de/Download/index.aspx?lang=en>`_ first.
-  | For Ubuntu Server 20.04 :code:`sudo apt install nvidia-driver-<version>-server` should also work
+  | For Ubuntu Server 20.04 :code:`sudo apt install nvidia-driver-<version>-server`
+  | should also work **BUT** check the hibernation settings afterwards --> `see <https://www.unixtutorial.org/disable-sleep-on-ubuntu-server/>`_
   | -> reboot required!
   | Please make sure the :code:`nvidia-smi` command is working as expected!
 

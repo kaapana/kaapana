@@ -9,11 +9,9 @@ Welcome to Kaapana's documentation!
 .. toctree::
    :maxdepth: 2
    
-   index_kaapana
+   mission_statement
    getting_started
-   user_guide
-   index_development_guide
-   faq
+   development_guide
    glossary
-   release_index
+   releases
    main_license

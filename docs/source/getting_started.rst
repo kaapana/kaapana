@@ -11,7 +11,7 @@ This can be used as a starting-point to derive a customized platform, which cove
 
 Requirements
 ------------
-Before you get started you should be familiar with the basic concepts and components of Kaapana see :ref:`kaapana_concept`.
+Before you get started you should be familiar with the basic concepts and components of Kaapana see :ref:`mission_statement`.
 You should also have the following packages installed on your build-system.
 
 1. Clone the repository:
@@ -186,7 +186,7 @@ Before you start the build-process, you should have a look at the build-configur
          push_charts: true
          create_package: false
 
-As described in the :ref:`kaapana_concept`, we will utilize the DKFZ registry for Helm chart as long as there is no other easy alternative.
+As described in the :ref:`mission_statement`, we will utilize the DKFZ registry for Helm chart as long as there is no other easy alternative.
 
 .. important::
 
@@ -320,5 +320,3 @@ After a successful installation you'll get the following message:
    Initial credentials:
    username: kaapana
    password: kaapana
-
-You can now continue with the :ref:`user_guide_platform_doc`

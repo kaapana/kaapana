@@ -14,7 +14,6 @@ spec:
       labels:
         app-name: kube-helm
     spec:
-      hostNetwork: true
       containers:
       - name: kube-helm
         image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/kube-helm:1.0-vdev
@@ -52,18 +51,18 @@ spec:
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         volumeMounts:
-          - name: kubeconfig # must match the volume name, above
-            mountPath: "/root/.kube"
-          - name: helmconfig # must match the volume name, above
+          - name: helmextensions
+            mountPath: "/root/extensions"
+          - name: helmconfig
             mountPath: "/root/.config/helm"
-          - name: helmcache # must match the volume name, above
+          - name: helmcache
             mountPath: "/root/.cache/helm"
           - name: helmlocal
             mountPath: "/root/.local/share/helm"
       volumes:
-      - name: kubeconfig
+      - name: helmextensions
         hostPath:
-          path: {{ .Values.global.home_dir }}/.kube
+          path: {{ .Values.global.fast_data_dir }}/extensions
           type: DirectoryOrCreate
       - name: helmconfig
         hostPath:

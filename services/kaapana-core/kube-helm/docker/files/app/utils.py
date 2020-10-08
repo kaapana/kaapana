@@ -11,28 +11,13 @@ from flask import render_template, Response, request, jsonify
 from app import app
 
 
-def helm_repo_update_decorator(func):
-    @functools.wraps(func)
-    def wrapper_decorator(*args, **kwargs):
-        print('Executing repo udpate')
-        try:
-            repoUpdated = subprocess.check_output(
-                [os.environ["HELM_PATH"], "repo", "update"], stderr=subprocess.STDOUT
-            )
-        except subprocess.CalledProcessError as e:
-            print('Repo update failed due to missing internet connection or wrong credentials: ', e)
-            pass 
-
-        return func(*args, **kwargs)
-    return wrapper_decorator
-
-
 def helm_show_values(repo, name, version):
     try:
         chart = subprocess.check_output(
-            [os.environ["HELM_PATH"], "show", "values", f"--version={version}", f"{repo}/{name}"], stderr=subprocess.STDOUT
+            [os.environ["HELM_PATH"], "show", "values", f"{app.config['HELM_REPOSITORY_CACHE']}/{name}-{version}.tgz"], stderr=subprocess.STDOUT
         )
     except subprocess.CalledProcessError as e:
+        print('Nothing found!')
         return {}
     return yaml.load(chart)
 
@@ -40,9 +25,10 @@ def helm_show_values(repo, name, version):
 def helm_show_chart(repo, name, version):
     try:
         chart = subprocess.check_output(
-            [os.environ["HELM_PATH"], "show", "chart", f"--version={version}", f"{repo}/{name}"], stderr=subprocess.STDOUT
+            [os.environ["HELM_PATH"], "show", "chart", f"{app.config['HELM_REPOSITORY_CACHE']}/{name}-{version}.tgz"], stderr=subprocess.STDOUT
         )
     except subprocess.CalledProcessError as e:
+        print('Nothing online, nothing local!')      
         return {}
     return yaml.load(chart)
 
@@ -79,47 +65,81 @@ def helm_status(release_name, namespace):
     return yaml.load(status)
 
 
-def pull_docker_image(docker_image, docker_version, docker_registry_url='dktk-jip-registry.dkfz.de', docker_registry_project='/kaapana', timeout='120m0s'):
-    print(f'Pulling {docker_registry_url}{docker_registry_project}/{docker_image}:{docker_version}')
-    repoName = 'kaapana-public'
-    chartName = 'pull-docker-chart'
-    version = '1.0-vdev'
-    release_name = f'{chartName}-{secrets.token_hex(10)}'
-    sets = {
-        'registry_url': docker_registry_url or os.getenv('REGISTRY_URL'),
-        'registry_project': docker_registry_project or os.getenv('REGISTRY_PROJECT'),
-        'image': docker_image,
-        'version': docker_version
+def helm_prefetch_extension_docker():
+    regex = r'image: ([\w\-\.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)'
+    extensions = helm_search_repo("(kaapanaextension|kaapanaint|kaapanadag)")
+    dags = []
+    for extension in extensions:
+        repo_name, chart_name = extension["name"].split('/')
+        print(chart_name, extension["version"], f'{app.config["HELM_REPOSITORY_CACHE"]}/{chart_name}-{extension["version"]}.tgz')
+        if os.path.isfile(f'{app.config["HELM_REPOSITORY_CACHE"]}/{chart_name}-{extension["version"]}.tgz') is not True:
+            print('not found')
+            continue
+        chart = helm_show_chart(repo_name, chart_name, extension['version'])
+        print(chart)
+        payload = {
+            'name': extension["name"],
+            'version': extension["version"],
+            'keywords': chart["keywords"],
+            'release_name': f'prefetch-{chart_name}'
+            }
+
+        if 'kaapanadag' in chart["keywords"]:
+            dags.append(payload)
+        else:
+            print(f'Prefetching {extension["name"]}')
+            try:
+                release, _ = helm_install(payload, app.config["NAMESPACE"], helm_command_addons='--dry-run', in_background=False)
+                manifest = json.loads(release.decode("utf-8"))["manifest"]
+                matches = re.findall(regex, manifest)
+                if matches:
+                    for match in matches:
+                        docker_registry_url = match[0]
+                        docker_registry_project = match[1]
+                        docker_image = match[2]
+                        docker_version = match[3]
+                        release_name = f'pull-docker-chart-{secrets.token_hex(10)}'
+                        try:
+                            pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, docker_registry_project)
+                        except subprocess.CalledProcessError as e:
+                            helm_delete(release_name, app.config['NAMESPACE'])
+                            print(e)
+            except subprocess.CalledProcessError as e:
+                print(f'Skipping {extension["name"]} due to {e.output.decode("utf-8")}')
+    for dag in dags:
+        try:
+            print(f'Prefetching {dag["name"]}')
+            dag['sets'] = {
+                'action': 'prefetch'
+            }
+            helm_comman_suffix = f'--wait --atomic --timeout=10m0s; sleep 60;{os.environ["HELM_PATH"]} delete --no-hooks -n {app.config["NAMESPACE"]} {dag["release_name"]}'
+            helm_install(dag, app.config["NAMESPACE"], helm_comman_suffix=helm_comman_suffix)
+        except subprocess.CalledProcessError as e:
+            print(f'Skipping {dag["name"]} due to {e.output.decode("utf-8")}')
+            helm_delete(dag['release_name'], app.config['NAMESPACE'], helm_command_addons='--no-hooks')
+
+def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url='dktk-jip-registry.dkfz.de', docker_registry_project='/kaapana', timeout='120m0s'):
+    print(f'Pulling {docker_registry_url}{docker_registry_project}/{docker_image}:{docker_version}')   
+    payload = {
+        'name': f'kaapana-public/pull-docker-chart',
+        'version': '1.0-vdev',
+        'sets': {
+            'registry_url': docker_registry_url or os.getenv('REGISTRY_URL'),
+            'registry_project': docker_registry_project or os.getenv('REGISTRY_PROJECT'),
+            'image': docker_image,
+            'version': docker_version
+        },
+        'release_name': release_name
     }
 
-    helm_sets = ''
-    for key, value in sets.items():
-        helm_sets = helm_sets + f" --set {key}='{value}'"
-    helm_command = f'{os.environ["HELM_PATH"]} install -n {app.config["NAMESPACE"]} --version {version} {release_name} {helm_sets} {repoName}/{chartName} -o json --wait --atomic --timeout {timeout}'
-    helm_command = helm_command + ';' +  f'{os.environ["HELM_PATH"]} delete -n {app.config["NAMESPACE"]} {release_name}'
-    print('helm_command', helm_command) 
-    try:
-        resp = subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
-        return Response(f"We are trying to download the docker container {docker_registry_url}{docker_registry_project}/{docker_image}:{docker_version}", 202)
-    except subprocess.CalledProcessError as e:
-        helm_delete(release_name,       {
-        text: "Helm Status",
-        align: "start",
-        value: "status",
-      }, app.config['NAMESPACE'])
-        print(e)
-        return Response(
-            f"We could not download your container",
-            500
-        )
+    helm_comman_suffix = f'--wait --atomic --timeout {timeout}; sleep 10;{os.environ["HELM_PATH"]} delete -n {app.config["NAMESPACE"]} {release_name}'
+    helm_install(payload, app.config["NAMESPACE"], helm_comman_suffix=helm_comman_suffix)
 
+def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix='', in_background=True):
 
-def helm_install(payload, namespace):
-
-    repoName, chartName = payload["name"].split('/')
+    repo_name, chart_name = payload["name"].split('/')
     version = payload["version"]
 
-    values = helm_show_values(repoName, chartName, payload["version"])
     default_sets =  {
         'global.registry_url': os.getenv('REGISTRY_URL'),
         'global.registry_project': os.getenv('REGISTRY_PROJECT'),
@@ -130,7 +150,10 @@ def helm_install(payload, namespace):
         'global.slow_data_dir': os.getenv('SLOW_DATA_DIR'),
         'global.pull_policy_pods': os.getenv('PULL_POLICY_PODS'),
         'global.pull_policy_jobs': os.getenv('PULL_POLICY_JOBS')
-    } 
+    }
+    
+    values = helm_show_values(repo_name, chart_name, payload["version"])
+    
     if 'global' in values:
         for key, value in values['global'].items():
             if value != '':
@@ -143,56 +166,36 @@ def helm_install(payload, namespace):
             if key not in payload['sets'] or payload['sets'][key] == '':
                 payload['sets'].update({key: value})
 
-    if "custom_release_name" in payload:
-        release_name = payload["custom_release_name"]
+    if "release_name" in payload:
+        release_name = payload["release_name"]
     elif 'kaapanamultiinstallable' in payload["keywords"]:
-        release_name = f'{chartName}-{secrets.token_hex(10)}'
+        release_name = f'{chart_name}-{secrets.token_hex(10)}'
     else:
-        release_name = chartName
+        release_name = chart_name
 
     status = helm_status(release_name, namespace)
     if status:
-        chart = helm_show_chart(repoName, chartName, version)
+        chart = helm_show_chart(repo_name, chart_name, version)
         if 'keywords' in chart and 'kaapanamultiinstallable' in chart['keywords']:
             print('Installing again since its kaapanamultiinstallable')
         else:
-            return Response(
-                "installed",
-                200,
-            )
+            return "already installed"
 
     helm_sets = ''
     if "sets" in payload:
         for key, value in payload["sets"].items():
             helm_sets = helm_sets + f" --set {key}='{value}'"
 
-    helm_command = f'{os.environ["HELM_PATH"]} install -n {namespace} --version {version} {release_name} {helm_sets} {repoName}/{chartName} -o json'
+    helm_command = f'{os.environ["HELM_PATH"]} install {helm_command_addons} -n {namespace} {release_name} {helm_sets} {app.config["HELM_REPOSITORY_CACHE"]}/{chart_name}-{version}.tgz -o json {helm_comman_suffix}'
     print('helm_command', helm_command)
+    if in_background is False:
+        return subprocess.check_output(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command
+    else:
+        return subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command
 
-    try:
-        resp = subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
-        
-        return Response(f"Trying to install with {helm_command}", 200)
-    except subprocess.CalledProcessError as e:
-        return Response(
-            f"A helm command error occured!",
-            500,
-        )
-
-
-def helm_delete(release_name, namespace):
-    try:
-        print(f'deleting {release_name}')
-        resp = subprocess.Popen(
-            [os.environ["HELM_PATH"], "-n", namespace, "delete", release_name], stderr=subprocess.STDOUT
-        )
-        print(f'Successfully deleted {release_name}')
-        return jsonify({"message": str(resp), "status": "200"})
-    except subprocess.CalledProcessError as e:
-        return Response(
-            f"We could not find the release you are trying to delete!",
-            500,
-        )
+def helm_delete(release_name, namespace, helm_command_addons=''):
+    helm_command = f'{os.environ["HELM_PATH"]} delete {helm_command_addons} -n {namespace} {release_name}'
+    subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
 
 def helm_ls(namespace, release_filter=''):
     try:

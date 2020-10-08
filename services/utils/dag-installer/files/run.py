@@ -71,7 +71,7 @@ for file_path in files_to_copy:
             if os.path.isfile(dest_path):
                 os.remove(dest_path)
         else:
-            raise NameError('Action must be either copy or remove')
+            pass
 
 
 print('################################################################################')
@@ -79,7 +79,7 @@ print(f'Successfully applied action {action} to all the files')
 print('################################################################################')
 
 
-if action == 'copy':
+if action == 'copy' or action == 'prefetch':
     url = f'{HELM_API}/pull-docker-image'
     for name, payload in get_images(tmp_prefix).items():
         print(payload)

@@ -60,9 +60,7 @@ export default Vue.extend({
     ],
   }),
   mounted() {
-    this.loading = true;
     this.getHelmCharts()
-    this.loading = false;
   },
   computed: {
     ...mapGetters(['currentUser', 'isAuthenticated', "commonData", "launchApplicationData", "availableApplications"])
@@ -71,7 +69,6 @@ export default Vue.extend({
   methods: {
 
     getHelmCharts() {
-      this.loading = true;
       kaapanaApiService
         .helmApiGet("/pending-applications", {})
         .then((response: any) => {

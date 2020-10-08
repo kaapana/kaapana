@@ -146,6 +146,18 @@ function delete_deployment {
     echo -e "${GREEN}####################################  UNINSTALLATION DONE  ############################################${NC}"
 }
 
+function download_extensions_and_dags {
+    echo -e "Downloading all kaapanadag|kaapanaextensions|kaapanaint to $HOME/extensions"
+    helm repo update
+    updates_output=$(helm repo update)
+    
+    mkdir -p $FAST_DATA_DIR/extensions
+    find $FAST_DATA_DIR/extensions/ -type f -delete
+    helm pull -d $FAST_DATA_DIR/extensions/ --version=1.0-vdev $CHART_REGISTRY_PROJECT/pull-docker-chart
+    helm search repo --devel -r '(kaapanadag|kaapanaextension|kaapanaint)' | awk 'NR > 1 { print  $1, "--version " $2}' | xargs -L1 helm pull -d $FAST_DATA_DIR/extensions/
+    echo -e "${GREEN}OK!${NC}"
+}
+
 function install_chart {
     if [ ! -z "$CHART_PATH" ]; then
         CHART_REGISTRY_URL="local"
@@ -188,6 +200,8 @@ function install_chart {
     else
         chart_version=$DEFAULT_VERSION
     fi
+
+    download_extensions_and_dags
 
     if [ ! -z "$CHART_PATH" ]; then
         echo -e "${YELLOW}Installing $PROJECT_NAME: version $chart_version${NC}"
@@ -292,6 +306,21 @@ function delete_helm_repos {
     done
 }
 
+function prefetch_extension_docker {
+    echo -e "Prefetching all extension docker container"
+    release_name=kube-helm-init-chart-$(echo $(uuidgen --hex) | cut -c1-10)
+    helm install --devel --version 0.1-vdev $CHART_REGISTRY_PROJECT/kube-helm-init-chart \
+    --set global.pull_policy_jobs="$PULL_POLICY_JOBS" \
+    --set global.registry_url=$CONTAINER_REGISTRY_URL \
+    --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
+    --name-template $release_name \
+    --wait \
+    --atomic \
+    --timeout 1m0s
+    sleep 10
+    helm delete $release_name
+    echo -e "${GREEN}OK!${NC}"
+}
 
 function install_certs {
     echo -e "Checking if Kubectl is installed..."
@@ -436,6 +465,12 @@ do
 
         --install-certs)
             install_certs
+            exit 0
+        ;;
+
+        --update-extensions)
+            download_extensions_and_dags
+            prefetch_extension_docker
             exit 0
         ;;
 

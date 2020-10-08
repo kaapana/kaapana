@@ -1,22 +1,17 @@
+import os
 import sys
-import os
-import glob
-import math
 import json
-import os
+import glob
 import re
-import pydicom
+import math
 import pandas as pd
-from datetime import datetime
 import subprocess
 
-
 def process_seg_info(seg_info, series_description):
-
     split_seg_info = seg_info.split('@')
     code_meaning = split_seg_info[-1]
     if len(split_seg_info) > 1:
-        series_description_code_meaning = f'{code_meaning.capitalize()}_{split_seg_info[0]}'
+        series_description_code_meaning = f'{code_meaning.capitalize()}-{split_seg_info[0]}'
     else:
         series_description_code_meaning = f'{code_meaning.capitalize()}'
 
@@ -224,6 +219,9 @@ for batch_element_dir in batch_folders:
             print("Could not find key 'seg_info' in json-file: {}".format(json_path))
             print("Abort!")
             exit(1)
+
+        if "algorithm" in data:
+            multi_label_seg_name = "{}-{}".format(data["algorithm"],series_description)
 
         segment_attributes = [[]]
         for idx, single_label_seg_info in enumerate(data['seg_info']):

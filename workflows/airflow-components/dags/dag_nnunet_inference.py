@@ -142,7 +142,7 @@ get_input = LocalGetInputDataOperator(dag=dag)
 dcm2nifti = DcmConverterOperator(dag=dag, output_format='nii.gz')
 nnunet_predict = NnUnetOperator(dag=dag, input_dirs=[dcm2nifti.operator_out_dir], input_operator=dcm2nifti)
 
-alg_name = "nnUnet-{}".format(nnunet_predict.image.split(":")[1])
+alg_name = nnunet_predict.image.split("/")[1]
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     dag=dag,
     segmentation_operator=nnunet_predict,
@@ -150,7 +150,6 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     multi_label_seg_name=alg_name,
     alg_name=alg_name
 )
-
 
 dcmseg_send_multi = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi)
 clean = LocalWorkflowCleanerOperator(dag=dag)

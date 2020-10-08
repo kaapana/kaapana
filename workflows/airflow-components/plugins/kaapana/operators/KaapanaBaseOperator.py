@@ -261,10 +261,6 @@ class KaapanaBaseOperator(BaseOperator):
     @cache_operator_output
     def execute(self, context):
         self.set_context_variables(context)
-        self.log.info("using envs: \n {0}".format(self.env_vars))
-        self.log.info("Conf: ")
-        self.log.info(context['dag_run'].conf)
-
         if context['dag_run'].conf is not None and "conf" in context['dag_run'].conf and "form_data" in context['dag_run'].conf["conf"]:
             form_data = context['dag_run'].conf["conf"]["form_data"]
             form_envs = {}

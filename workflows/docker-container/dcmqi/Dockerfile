@@ -9,7 +9,7 @@ LABEL CI_IGNORE="False"
 WORKDIR /dcmqi
 
 RUN apt-get update && apt-get install nano
-RUN pip install pydicom pandas
+RUN pip install pandas
 
 #Release 1.0.4
 RUN curl -L -O https://github.com/QIICR/dcmqi/releases/download/v1.2.2/dcmqi-1.2.2-linux.tar.gz

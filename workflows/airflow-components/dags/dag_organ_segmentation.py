@@ -48,10 +48,30 @@ ui_forms = {
                 "type": "string",
                 "readOnly": True,
             },
+            "confirmation": {
+                "title": "Accept",
+                "default": False,
+                "description": "I will cite the publication if applicable.",
+                "type": "boolean",
+                "readOnly": True,
+                "required": True,
+            }
+        }
+    },
+    "workflow_form": {
+        "type": "object",
+        "properties": {
+            "body_part": {
+                "title": "Body Part",
+                "default": "abdomen",
+                "description": "Body part, which needs to be present in the image.",
+                "type": "string",
+                "readOnly": True,
+            },
             "input": {
                 "title": "Input",
-                "default": "Abdominal CT images",
-                "description": "Abdominal CT images",
+                "default": "CT",
+                "description": "Input-data modality",
                 "type": "string",
                 "readOnly": True,
             },
@@ -61,14 +81,6 @@ ui_forms = {
                 "description": "Liver, Spleen, Left-Kidney, Right-Kidney",
                 "type": "string",
                 "readOnly": True,
-            },
-            "confirmation": {
-                "title": "Accept",
-                "default": False,
-                "description": "I will cite the publication if applicable.",
-                "type": "boolean",
-                "readOnly": True,
-                "required": True,
             }
         }
     }

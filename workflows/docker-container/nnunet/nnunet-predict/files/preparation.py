@@ -9,6 +9,7 @@ from getTaskInfo import get_task_info
 
 def write_organs_json(task_organs, batch_element_dir):
     organs_json = {"seg_info": task_organs}
+    organs_json["algorithm"] = os.getenv("TASK", "na").lower()
     output_dir = os.path.join(batch_element_dir, operator_output_dir, 'seg_info.json')
 
     with open(output_dir, 'w') as outfile:

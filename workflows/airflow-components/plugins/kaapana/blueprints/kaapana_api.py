@@ -35,7 +35,6 @@ kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
 @kaapanaApi.route('/api/trigger/<string:dag_id>', methods=['POST'])
 def trigger_dag(dag_id):
     data = request.get_json(force=True)
-    print(data)
     if 'conf' in data:
         tmp_conf = data['conf']
     else:
@@ -74,16 +73,14 @@ def trigger_dag(dag_id):
                 seriesUID = hit[HelperElasticsearch.series_uid_tag]
                 SOPInstanceUID = hit[HelperElasticsearch.SOPInstanceUID_tag]
                 modality = hit[HelperElasticsearch.modality_tag]
-                print(("studyUID %s" % studyUID))
-                print(("seriesUID %s" % seriesUID))
-                print(("modality %s" % modality))
 
                 conf = {
                     "inputs": [
                         {
                             "dcm-uid": {
                                 "study-uid": studyUID,
-                                "series-uid": seriesUID
+                                "series-uid": seriesUID,
+                                "modality": modality
                             }
                         }
                     ],
@@ -206,7 +203,6 @@ def get_dags_endpoint():
             default_args = dag_objects[dag_id].default_args
             for default_arg in default_args.keys():
                 if default_arg[:3] == "ui_":
-                    print("Found ui_ air: {}".format(default_args[default_arg]))
                     dag_dict[default_arg] = default_args[default_arg]
 
         del dag_dict['_sa_instance_state']

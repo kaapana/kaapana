@@ -15,8 +15,24 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 
 log = LoggingMixin().log
 
+ui_forms = {
+    "workflow_form": {
+        "type": "object",
+        "properties": {
+            "input": {
+                "title": "Input",
+                "default": "SEG",
+                "description": "Input-data modality",
+                "type": "string",
+                "readOnly": True,
+            },
+        }
+    }
+}
+
 args = {
     'ui_visible': True,
+    'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),
     'retries': 1,

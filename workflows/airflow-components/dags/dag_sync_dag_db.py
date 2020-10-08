@@ -28,9 +28,9 @@ args = {
 }
 
 dag = DAG(
-    dag_id='remove-deleted-dags-from-db',
+    dag_id='sync-dags-with-db',
     default_args=args,
-    schedule_interval='*/5 * * * *')
+    schedule_interval="@hourly")
 
 remove_delete_dags = LocalRemoveDeletedDagsFromDB(dag=dag)
 

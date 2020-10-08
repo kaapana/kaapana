@@ -13,6 +13,7 @@ COPY dags/dag_minio_dicom_upload.py /tmp/dags/
 COPY dags/dag_clean_up_airflow_logs.py /tmp/dags
 
 COPY dags/dag_collect_metadata.py /tmp/dags/
-COPY dags/dag_remove_deleted_dags_from_db.py /tmp/dags/
+COPY dags/dag_sync_dag_db.py /tmp/dags/
+COPY dags/dag_clean_tmp_dag_data.py /tmp/dags/
 
 COPY plugins/ /tmp/plugins

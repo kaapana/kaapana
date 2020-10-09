@@ -4,7 +4,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: prefetch-{{ .Values.image }}
-  namespace: {{ .Values.global.flow_namespace }}
+  namespace: default
 spec:
   selector:
     matchLabels:
@@ -39,7 +39,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ .Values.image }}
-  namespace: {{ .Values.global.flow_namespace }}
+  namespace: default
 spec:
   template:
     spec:

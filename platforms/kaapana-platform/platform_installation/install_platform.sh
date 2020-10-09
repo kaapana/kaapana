@@ -164,14 +164,23 @@ function prefetch_extension_docker {
 
 function download_extensions_and_dags {
     echo -e "Downloading all kaapanadag|kaapanaextensions|kaapanaint to $HOME/.extensions"
-    helm repo update
-    updates_output=$(helm repo update)
     
-    mkdir -p $HOME/.extensions
-    find $HOME/.extensions/ -type f -delete
-    helm pull -d $HOME/.extensions/ --version=1.0-vdev $CHART_REGISTRY_PROJECT/pull-docker-chart
-    helm search repo --devel -r '(kaapanadag|kaapanaextension|kaapanaint)' | awk 'NR > 1 { print  $1, "--version " $2}' | xargs -L1 helm pull -d $HOME/.extensions/
-    echo -e "${GREEN}OK!${NC}"
+    set +euf
+    updates_output=$(helm repo update)
+    set -euf
+
+    if echo "$updates_output" | grep -q 'failed to'; then
+        echo -e "${RED}updates failed!${NC}"
+        echo -e "${RED}You seem to have no internet connection!${NC}"
+        echo "$updates_output"
+        exit 1
+    else
+        mkdir -p $HOME/.extensions
+        find $HOME/.extensions/ -type f -delete
+        helm pull -d $HOME/.extensions/ --version=1.0-vdev $CHART_REGISTRY_PROJECT/pull-docker-chart
+        helm search repo --devel -r '(kaapanadag|kaapanaextension|kaapanaint)' | awk 'NR > 1 { print  $1, "--version " $2}' | xargs -L1 helm pull -d $HOME/.extensions/
+        echo -e "${GREEN}Update OK!${NC}"
+    fi
 }
 
 function install_chart {

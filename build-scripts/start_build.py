@@ -4,6 +4,7 @@ import json
 import os
 import getpass
 from glob import glob
+from time import time
 from argparse import ArgumentParser
 from build_helper.charts_build_and_push_all import HelmChart
 from build_helper.containers_build_and_push_all import start_container_build
@@ -107,14 +108,14 @@ if __name__ == '__main__':
     push_containers = configuration["push_containers"]
     print("build_containers: {}".format(build_containers))
     print("push_containers: {}".format(push_containers))
-    
+
     create_package = configuration["create_package"]
     if build_mode == "local":
         print("local build: Forcing create_package = True !")
         create_package = True
-    
+
     if create_package:
-        build_dir = os.path.join(kaapana_dir,"build")
+        build_dir = os.path.join(kaapana_dir, "build")
         os.makedirs(build_dir, exist_ok=True)
 
     build_charts = configuration["build_charts"]
@@ -122,12 +123,12 @@ if __name__ == '__main__':
 
     if build_mode == "local" and push_charts:
         print("local build: Forcing push_charts = False !")
-        push_charts=False
+        push_charts = False
 
     if build_mode == "local" and push_containers:
         print("local build: Forcing push_containers = False !")
-        push_containers=False
-    
+        push_containers = False
+
     print()
     print("build_charts: {}".format(build_charts))
     print("push_charts: {}".format(push_charts))
@@ -204,6 +205,7 @@ if __name__ == '__main__':
 
     log_level = supported_log_levels.index(log_level)
 
+    startTime = time()
     print("-----------------------------------------------------------")
     if build_containers and not charts_only:
         print("-----------------------------------------------------------")
@@ -238,7 +240,7 @@ if __name__ == '__main__':
                     print_log_entry(log, kind="CONTAINERS")
                     if log['loglevel'].upper() == "ERROR":
                         raise SkipException('SKIP {}: build() failed!'.format(log['test']), log=log)
-                
+
                 if not build_only and push_containers:
                     for log in docker_container.push():
                         print_log_entry(log, kind="CONTAINERS")
@@ -304,7 +306,7 @@ if __name__ == '__main__':
                         if log_entry['loglevel'].upper() == "ERROR":
                             raise SkipException("SKIP {}: package() error!".format(log_entry['test']), log=log_entry)
                         else:
-                            packages = glob(os.path.join(os.path.dirname(chart.chart_dir),'*.tgz'))
+                            packages = glob(os.path.join(os.path.dirname(chart.chart_dir), '*.tgz'))
                             for package in packages:
                                 copy(package, build_dir)
                                 os.remove(package)
@@ -343,8 +345,11 @@ if __name__ == '__main__':
                 print(log[1])
                 print("-----------------------------------------------------------")
                 print()
-    print("")
-    print("")
+
+    hours, rem = divmod(time()-startTime, 3600)
+    minutes, seconds = divmod(rem, 60)
+    print("-----------------------------------------------------------")
+    print("------------------ TIME NEEDED: {:0>2}:{:0>2}:{:0>2} -----------------".format(int(hours), int(minutes), int(seconds)))
     print("-----------------------------------------------------------")
     print("-------------------------- DONE ---------------------------")
     print("-----------------------------------------------------------")

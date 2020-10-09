@@ -9,9 +9,9 @@ from airflow.models import DAG
 from mitk_userflow.MitkInputOperator import MitkInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.DcmWebSendOperator import DcmWebSendOperator
-from kaapana.operators.LocalDagTriggerOperator import LocalDagTriggerOperator
 from kaapana.operators.KaapanaApplicationBaseOperator import KaapanaApplicationBaseOperator
+from kaapana.operators.DcmSendOperator import DcmSendOperator
+
 
 from datetime import datetime
 
@@ -24,7 +24,7 @@ dag_info = {
 }
 
 args = {
-    'owner': 'kaapana',
+    'owner': 'airflow',
     'start_date': days_ago(0),
     'retries': 0,
     'dag_info': dag_info,
@@ -39,16 +39,10 @@ dag = DAG(
 get_input = LocalGetInputDataOperator(dag=dag)
 mitk_input = MitkInputOperator(dag=dag)
 
-launch_app = KaapanaApplicationBaseOperator(dag=dag, chart_name='mitk-flow-chart', version='0.1-vdev')
-clean = LocalWorkflowCleanerOperator(dag=dag)
-dcmseg_send_segmentation = DcmWebSendOperator(dag=dag, input_operator=launch_app)
-trigger_extract_meta = LocalDagTriggerOperator(dag=dag, input_operator=launch_app, trigger_dag_id='extract-metadata')
+launch_app = KaapanaApplicationBaseOperator(dag=dag, name="application-mitk-flow", chart_name='mitk-flow-chart', version='0.1-vdev')
+send_dicom = DcmSendOperator(dag=dag, input_operator=launch_app)
 clean = LocalWorkflowCleanerOperator(dag=dag)
 
 
 
-get_input  >> mitk_input >> launch_app
-launch_app >> dcmseg_send_segmentation >> clean
-launch_app >> trigger_extract_meta >> clean
-
-
+get_input  >> mitk_input >> launch_app >> send_dicom >> clean

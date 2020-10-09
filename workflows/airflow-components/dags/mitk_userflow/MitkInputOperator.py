@@ -67,7 +67,6 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
 
             node = ElementTree.Element("node", UID="Node_1")
             ElementTree.SubElement(node, "data", {'type': "Image", 'file': element['file_image']})
-            ElementTree.SubElement(node, "properties", file="image_node_props")
             start_tree = ElementTree.ElementTree(node)
             output_file = os.path.join(element['scene_dir'], "input.mitksceneindex")
             print('Writing scene file')
@@ -76,57 +75,37 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
             if element['hasSegementation']:
                 node2 = ElementTree.Element("node", UID="Node_2")
                 ElementTree.SubElement(node2, "source", UID="Node_1")
-                ElementTree.SubElement(node2, "data", {'type': "LabelSetImage", 'file': element['file_seg']})
+                data = ElementTree.Element("data", {'type': "LabelSetImage", 'file': element['file_seg']})
+                ElementTree.SubElement(data,  "properties", file="segmetation_data_props")
+                node2.append(data)
                 ElementTree.SubElement(node2, "properties", file="segmetation_props")
                 xmlstr = ElementTree.tostring(node2, encoding='utf-8', method="xml").decode()
                 print('Writing Segmentation node to scene file')
                 with open(output_file, "a") as myfile:
                     myfile.write(xmlstr)
 
-            name_props = ElementTree.Element("property", {'key': "name", 'type': "StringProperty"})
-            ElementTree.SubElement(name_props, "string", value="Input_images")
-            opacity_props = ElementTree.Element("property", {'key': "opacity", 'type': "FloatProperty"})
-            ElementTree.SubElement(opacity_props, "float", value="0.8")
-            selected_props = ElementTree.Element("property", {'key': "selected", 'type': "BoolProperty"})
-            ElementTree.SubElement(selected_props, "bool", value="false")
-            start_prop = ElementTree.ElementTree(name_props)
-            print('Writing image_node_props')
-            output_file = os.path.join(element['scene_dir'], "image_node_props")
-            start_prop.write(output_file, xml_declaration=True, encoding='utf-8', method="xml")
-            opacity_str = ElementTree.tostring(opacity_props, encoding='utf-8', method="xml").decode()
-            selected_str = ElementTree.tostring(selected_props, encoding='utf-8', method="xml").decode()
-            with open(output_file, "a") as myfile:
-                myfile.write(opacity_str)
-                myfile.write(selected_str)
-
-            if element['hasSegementation']:
-                seg_props = list()
+                output_file = os.path.join(element['scene_dir'], "segmetation_props")
                 seg_name = ElementTree.Element("property", {'key': "name", 'type': "StringProperty"})
                 ElementTree.SubElement(seg_name, "string", value="Segmentation")
-                seg_opacity = ElementTree.Element("property", {'key': "opacity", 'type': "FloatProperty"})
-                ElementTree.SubElement(seg_opacity, "float", value="0.7")
-                seg_props.append(seg_opacity)
-                seg_typ = ElementTree.Element("property", {'key': "segmentation", 'type': "BoolProperty"})
-                ElementTree.SubElement(seg_typ, "bool", value="true")
-                seg_props.append(seg_typ)
-                seg_selected = ElementTree.Element("property", {'key': "selected", 'type': "BoolProperty"})
-                ElementTree.SubElement(seg_selected, "bool", value="true")
-                seg_props.append(seg_selected)
-                seg_binary = ElementTree.Element("property", {'key': "binary", 'type': "BoolProperty"})
-                ElementTree.SubElement(seg_binary, "bool", value="true")
-                seg_props.append(seg_binary)
-                seg_color = ElementTree.Element("property", {'key': "color", 'type': "ColorProperty"})
-                ElementTree.SubElement(seg_color, "color", {'r': "1", 'g': "0", 'b': "0"})
-                seg_props.append(seg_color)
-
                 start_prop = ElementTree.ElementTree(seg_name)
                 print('Writing segmetation_props')
-                output_file = os.path.join(element['scene_dir'], "segmetation_props")
                 start_prop.write(output_file, xml_declaration=True, encoding='utf-8', method="xml")
-                with open(output_file, "a") as myfile:
-                    for prop in seg_props:
-                        prop_str = ElementTree.tostring(prop, encoding='utf-8', method="xml").decode()
-                        myfile.write(prop_str)
+
+                # Setting the referenceFile is a workaround, because of limitations saving existing dicm-seg objects
+                # https://phabricator.mitk.org/T26953
+                output_file = os.path.join(element['scene_dir'], "segmetation_data_props")
+                property = ElementTree.Element("property", {'key': "referenceFiles", 'type': "StringLookupTableProperty"})
+                string_lookup_table = ElementTree.Element("StringLookupTable")
+                file_path = element['file_image_absolute_container']
+                ElementTree.SubElement(string_lookup_table,
+                                       "LUTValue",
+                                       value= element['file_image_absolute_container'])
+                property.append(string_lookup_table)
+                segmetation_data_props = ElementTree.ElementTree(property)
+                print('Writing segmetation_data_props')
+                segmetation_data_props.write(output_file, xml_declaration=True, encoding='utf-8', method="xml")
+
+
 
     def get_files(self, ds, **kwargs):
         from dicomweb_client.api import DICOMwebClient
@@ -143,11 +122,13 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
         run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
         batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
 
+
         print("Starting module MtikInputOperator")
 
         mitk_scenes = []
         for batch_element_dir in batch_folder:
             print("batch_element_dir: " + batch_element_dir)
+            path_dir = os.path.basename(batch_element_dir)
             dcm_files = sorted(
                 glob.glob(os.path.join(batch_element_dir, self.operator_in_dir, "*.dcm*"), recursive=True))
             if len(dcm_files) > 0:
@@ -166,11 +147,14 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
                                                                seriesUID=seriesUID,
                                                                target_dir=target_dir)
                         if status == 'ok':
+                            data_path = os.path.join(WORKFLOW_DIR, BATCH_NAME, path_dir, REF_IMG, fileName )
+                            abs_container_path = "/" + data_path
                             mitk_scenes.append({
                                 'hasSegementation': True,
                                 'file_image': os.path.join(REF_IMG, fileName),
                                 'file_seg': os.path.join(INITIAL_INPUT_DIR, os.path.basename(dcm_files[0])),
-                                'scene_dir': batch_element_dir
+                                'scene_dir': batch_element_dir,
+                                'file_image_absolute_container' : abs_container_path
                             })
                         else:
                             print('Reference images to segmentation not found!')

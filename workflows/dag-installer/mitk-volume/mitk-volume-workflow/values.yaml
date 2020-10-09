@@ -1,8 +1,0 @@
----
-global:
-    pull_policy_jobs: "Always"
-    flow_namespace: "flow"
-    fast_data_dir: "/home/kaapana"
-image: "dag-launch-mitk-volume"
-version: "0.1-vdev"
-action: "copy"

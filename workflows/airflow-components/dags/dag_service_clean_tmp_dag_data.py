@@ -6,7 +6,7 @@ from datetime import timedelta
 
 from airflow.models import DAG
 
-from kaapana.operators.LocalRemoveDeletedDagsFromDB import LocalRemoveDeletedDagsFromDB
+from kaapana.operators.LocalCleanUpExpiredWorkflowDataOperator import LocalCleanUpExpiredWorkflowDataOperator
 
 from datetime import timedelta
 from datetime import datetime
@@ -15,23 +15,19 @@ import os
 
 log = LoggingMixin().log
 
-dag_info = {
-    "visible": False,
-}
-
 args = {
+    'ui_visible': False,
     'owner': 'kaapana',
     'start_date': days_ago(0),
     'retries': 0,
-    'dag_info': dag_info,
     'retry_delay': timedelta(seconds=30)
 }
 
 dag = DAG(
-    dag_id='sync-dags-with-db',
+    dag_id='service-clean-up-expired-workflow-data',
     default_args=args,
-    schedule_interval="@hourly")
+    schedule_interval='@daily')
 
-remove_delete_dags = LocalRemoveDeletedDagsFromDB(dag=dag)
+clean_up = LocalCleanUpExpiredWorkflowDataOperator(dag=dag, expired_period=timedelta(days=14))
 
-remove_delete_dags
+clean_up

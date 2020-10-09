@@ -409,6 +409,7 @@ fi;
 ### Parsing command line arguments:
 usage="$(basename "$0")
 
+_Flag: --prefetch-extension-docker prefetch containers needed for the extensions 
 _Flag: --install-certs  set new HTTPS-certificates for the platform
 _Flag: --quiet, meaning non-interactive operation
 
@@ -418,11 +419,10 @@ _Argument: --username [Docker regsitry username]
 _Argument: --password [Docker regsitry password]
 _Argument: --port [Set main https-port]
 
-
 _Argument: --version [version]
 
 where version is one of the available platform releases:
-    1.1          --> latest JIP release
+    0.1.0             --> latest Kaapana release
     $DEFAULT_VERSION  --> latest development version ${NC}"
 
 QUIET=NA

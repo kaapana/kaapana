@@ -24,7 +24,7 @@ dag_info = {
 }
 
 args = {
-    'owner': 'airflow',
+    'owner': 'kaapana',
     'start_date': days_ago(0),
     'retries': 0,
     'dag_info': dag_info,

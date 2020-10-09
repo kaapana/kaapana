@@ -1,4 +1,4 @@
-FROM golang as build
+FROM golang:1.14.4 as build
 
 LABEL IMAGE="gpu-prom-exporter"
 LABEL VERSION="0.1"

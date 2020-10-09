@@ -62,7 +62,7 @@ spec:
       volumes:
       - name: helmextensions
         hostPath:
-          path: {{ .Values.global.fast_data_dir }}/extensions
+          path: {{ .Values.global.home_dir }}/.extensions
           type: DirectoryOrCreate
       - name: helmconfig
         hostPath:

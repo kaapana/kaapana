@@ -196,7 +196,7 @@ for batch_element_dir in batch_folders:
             try:
                 resp = subprocess.check_output([
                     f"{DCMQI}/itkimage2segimage",
-                    "--skip",
+                    # "--skip",
                     "--inputImageList", seg_filepath,
                     "--inputMetadata", meta_data_file,
                     "--outputDICOM", output_dcm_file,
@@ -245,7 +245,7 @@ for batch_element_dir in batch_folders:
         try:
             resp = subprocess.check_output([
                 f"{DCMQI}/itkimage2segimage",
-                "--skip",
+                # "--skip",
                 "--inputImageList", ",".join(segmentation_paths),
                 "--inputMetadata", meta_data_file,
                 "--outputDICOM", output_dcm_file,

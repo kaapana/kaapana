@@ -112,7 +112,7 @@ def helm_prefetch_extension_docker():
             dag['sets'] = {
                 'action': 'prefetch'
             }
-            helm_comman_suffix = f'--wait --atomic --timeout=10m0s; sleep 60;{os.environ["HELM_PATH"]} delete --no-hooks -n {app.config["NAMESPACE"]} {dag["release_name"]}'
+            helm_comman_suffix = f'--wait --atomic --timeout=120m0s; sleep 10;{os.environ["HELM_PATH"]} delete --no-hooks -n {app.config["NAMESPACE"]} {dag["release_name"]}'
             helm_install(dag, app.config["NAMESPACE"], helm_comman_suffix=helm_comman_suffix)
         except subprocess.CalledProcessError as e:
             print(f'Skipping {dag["name"]} due to {e.output.decode("utf-8")}')

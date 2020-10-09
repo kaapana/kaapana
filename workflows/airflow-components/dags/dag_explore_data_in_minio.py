@@ -18,7 +18,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='explore-files-in-minio',
+    dag_id='explore-data-in-minio',
     default_args=args,
     schedule_interval=None)
 

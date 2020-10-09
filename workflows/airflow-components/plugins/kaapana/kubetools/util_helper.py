@@ -57,7 +57,7 @@ class NodeUtil():
         logger = None
 
         tries = 0
-        result_value = 0
+        result_value = None
         return_code = True
 
         while result_value == None and tries < 4:
@@ -81,6 +81,11 @@ class NodeUtil():
         if tries >= 10:
             print("+++++++++++++++++++++++++++++++++++++++++ Could not fetch node-info!")
             return_code = False
+
+        if not isinstance(result_value,int):
+            result_value = 0
+            if logger is not None:
+                logger.error("'result_value' was not an integer! -> set to 0 !")
 
         return result_value, return_code
 

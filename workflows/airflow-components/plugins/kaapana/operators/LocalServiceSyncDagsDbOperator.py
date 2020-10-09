@@ -13,7 +13,7 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.blueprints.kaapana_global_variables import WORKFLOW_DIR
 
 
-class LocalRemoveDeletedDagsFromDB(KaapanaPythonBaseOperator):
+class LocalServiceSyncDagsDbOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         conf = kwargs['dag_run'].conf

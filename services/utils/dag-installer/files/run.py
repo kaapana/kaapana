@@ -91,7 +91,7 @@ if action == 'remove':
     print('################################################################################')
     print(f'Updating dags in airflow database!')
     print('################################################################################')
-    r = requests.post('http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/remove-deleted-dags-from-db', json={})
+    r = requests.post('http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/service-sync-dags-with-db', json={})
     print(r.status_code)
     print(r.text)
 

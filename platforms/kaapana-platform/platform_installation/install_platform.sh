@@ -146,23 +146,8 @@ function delete_deployment {
     echo -e "${GREEN}####################################  UNINSTALLATION DONE  ############################################${NC}"
 }
 
-function prefetch_extension_docker {
-    echo -e "Prefetching all extension docker container"
-    release_name=kube-helm-init-chart-$(echo $(uuidgen --hex) | cut -c1-10)
-    helm install --devel --version 0.1-vdev $CHART_REGISTRY_PROJECT/prefetch-extensions-chart \
-    --set global.pull_policy_jobs="$PULL_POLICY_JOBS" \
-    --set global.registry_url=$CONTAINER_REGISTRY_URL \
-    --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
-    --name-template $release_name \
-    --wait \
-    --atomic \
-    --timeout 1m0s
-    sleep 10
-    helm delete $release_name
-    echo -e "${GREEN}OK!${NC}"
-}
 
-function download_extensions_and_dags {
+function update_extensions {
     echo -e "Downloading all kaapanadag|kaapanaextensions|kaapanaint to $HOME/.extensions"
     
     set +euf
@@ -178,6 +163,7 @@ function download_extensions_and_dags {
         mkdir -p $HOME/.extensions
         find $HOME/.extensions/ -type f -delete
         helm pull -d $HOME/.extensions/ --version=1.0-vdev $CHART_REGISTRY_PROJECT/pull-docker-chart
+        helm search repo -r '(kaapanadag|kaapanaextension|kaapanaint)' | awk 'NR > 1 { print  $1, "--version " $2}' | xargs -L1 helm pull -d $HOME/.extensions/
         helm search repo --devel -r '(kaapanadag|kaapanaextension|kaapanaint)' | awk 'NR > 1 { print  $1, "--version " $2}' | xargs -L1 helm pull -d $HOME/.extensions/
         echo -e "${GREEN}Update OK!${NC}"
     fi
@@ -226,7 +212,7 @@ function install_chart {
         chart_version=$DEFAULT_VERSION
     fi
 
-    download_extensions_and_dags
+    update_extensions
 
     if [ ! -z "$CHART_PATH" ]; then
         echo -e "${YELLOW}Installing $PROJECT_NAME: version $chart_version${NC}"
@@ -369,6 +355,22 @@ function install_certs {
     echo -e "${GREEN}DONE${NC}"
 }
 
+function prefetch_extensions {
+    echo -e "Prefetching all extension docker container"
+    release_name=kube-helm-init-chart-$(echo $(uuidgen --hex) | cut -c1-10)
+    helm install --devel --version 0.1-vdev $CHART_REGISTRY_PROJECT/prefetch-extensions-chart \
+    --set global.pull_policy_jobs="$PULL_POLICY_JOBS" \
+    --set global.registry_url=$CONTAINER_REGISTRY_URL \
+    --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
+    --name-template $release_name \
+    --wait \
+    --atomic \
+    --timeout 1m0s
+    sleep 10
+    helm delete $release_name
+    echo -e "${GREEN}OK!${NC}"
+}
+
 function print_installation_done {
     echo -e "${GREEN}Installation finished."
     echo -e "Please wait till all components have been downloaded and started."
@@ -477,9 +479,14 @@ do
             exit 0
         ;;
 
-        --prefetch-extension-docker)
-            download_extensions_and_dags
-            prefetch_extension_docker
+        --update-extensions)
+            update_extensions
+            exit 0
+        ;;
+
+        --prefetch-extensions)
+            update_extensions
+            prefetch_extensions
             exit 0
         ;;
 

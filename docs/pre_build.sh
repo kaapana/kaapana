@@ -4,6 +4,13 @@ set -e
 DOCSPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 echo "DOCSPATH:" $DOCSPATH
 
+if python -c "import sphinx" &> /dev/null; then
+    echo 'Python requirements already present...'
+else
+    echo 'Install python requirements...'
+    python3 -m pip install -r requirements.txt
+fi
+
 set +e
 make -C $DOCSPATH clean
 set -e

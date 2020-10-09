@@ -321,11 +321,29 @@ class DockerContainer:
         yield log_entry
 
     def push(self, retry=True):
+        print()
+        print("############################ Push Container: {}".format(self.tag))
+        
+        if self.docker_registry == "local":
+            print("############################ Push skipped -> local registry found!")
+            log_entry = {
+                "suite": suite_tag,
+                "test": self.tag.replace(self.docker_registry, "")[1:],
+                "step": "Docker push",
+                "log": "",
+                "loglevel": "DEBUG",
+                "timestamp": get_timestamp(),
+                "message": "Push skipped -> local registry set",
+                "rel_file": self.path,
+                "container": self,
+                "test_done": True,
+            }
+            yield log_entry
+            return
+
         max_retires = 2
         retries = 0
 
-        print()
-        print("############################ Push Container: {}".format(self.tag))
         command = ["docker", "push", self.tag]
 
         while retries < max_retires:

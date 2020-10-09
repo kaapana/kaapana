@@ -1,4 +1,4 @@
-FROM python:3.5-alpine3.7
+FROM python:3.9-alpine3.12
 
 LABEL IMAGE="dicomwebsend"
 LABEL VERSION="1.0.1-vdev"

@@ -1,4 +1,4 @@
-FROM python:3
+FROM python:3.9-alpine3.12
 
 LABEL IMAGE="tensorboard"
 LABEL VERSION="1.0-vdev"

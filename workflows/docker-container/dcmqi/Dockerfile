@@ -1,4 +1,4 @@
-FROM python:3.6
+FROM python:3.9-alpine3.12
 
 LABEL IMAGE="dcmqi"
 LABEL VERSION="1.3-vdev"

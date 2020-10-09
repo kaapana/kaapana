@@ -4,6 +4,7 @@ LABEL IMAGE="ohif"
 LABEL VERSION="4.5.9-vdev"
 LABEL CI_IGNORE="False"
 
+RUN apk add --no-cache ca-certificates git
 RUN git clone https://github.com/OHIF/Viewers.git /src
 
 RUN yarn config set workspaces-experimental true

@@ -57,7 +57,7 @@ class NodeUtil():
         logger = None
 
         tries = 0
-        result_value = None
+        result_value = 0
         return_code = True
 
         while result_value == None and tries < 4:
@@ -74,7 +74,7 @@ class NodeUtil():
                 result_value = 0
             else:
                 if logger is not None:
-                    logger.warning("Could not retrieve node-info -> waiting 1s ...")
+                    logger.error("Could not retrieve node-info -> waiting 1s ...")
                 time.sleep(1)
                 tries += 1
 
@@ -135,7 +135,6 @@ class NodeUtil():
                 stats["mem_lmt_per"] = (stats["mem_lmt"] / stats["mem_alloc"] * 100)
                 data[node_name] = stats
 
-
             node_info = next(iter(data.values()))
             NodeUtil.cpu_alloc = node_info["cpu_alloc"].to_base_units().magnitude * 1000
             NodeUtil.cpu_req = node_info["cpu_req"].to_base_units().magnitude * 1000
@@ -151,7 +150,11 @@ class NodeUtil():
 
             if NodeUtil.gpu_count > 0:
                 NodeUtil.gpu_alloc, return_code = NodeUtil.get_node_info(query=NodeUtil.gpu_mem_available_query, logger=logger)
+                if not return_code and logger is not None:
+                    logger.warning("############################################# Could not fetch gpu_alloc utilization from prometheus!!")
                 NodeUtil.gpu_used, return_code = NodeUtil.get_node_info(query=NodeUtil.gpu_mem_used_query, logger=logger)
+                if not return_code and logger is not None:
+                    logger.warning("############################################# Could not fetch gpu_used utilization from prometheus!!")
             else:
                 NodeUtil.gpu_alloc = 0
                 NodeUtil.gpu_used = 0
@@ -196,7 +199,7 @@ class NodeUtil():
         except Exception as e:
             print("+++++++++++++++++++++++++++++++++++++++++ COULD NOT FETCH NODES!")
             return False
-            
+
     @staticmethod
     def check_ti_scheduling(ti, logger):
         if NodeUtil.ureg is None:
@@ -241,15 +244,13 @@ class NodeUtil():
             NodeUtil.max_util_cpu = Variable.get(key="max_util_cpu", default_var=None)
             NodeUtil.max_util_ram = Variable.get(key="max_util_ram", default_var=None)
             if NodeUtil.max_util_cpu is None and NodeUtil.max_util_ram is None:
-                    Variable.set("max_util_cpu", default_cpu)
-                    Variable.set("max_util_ram", default_ram)
-                    NodeUtil.max_util_cpu = default_cpu
-                    NodeUtil.max_util_ram = default_ram
+                Variable.set("max_util_cpu", default_cpu)
+                Variable.set("max_util_ram", default_ram)
+                NodeUtil.max_util_cpu = default_cpu
+                NodeUtil.max_util_ram = default_ram
             else:
-                NodeUtil.max_util_cpu=int(NodeUtil.max_util_cpu)
-                NodeUtil.max_util_ram=int(NodeUtil.max_util_ram)
-            
-
+                NodeUtil.max_util_cpu = int(NodeUtil.max_util_cpu)
+                NodeUtil.max_util_ram = int(NodeUtil.max_util_ram)
 
             now = datetime.now()
             if NodeUtil.last_update is None or (now - NodeUtil.last_update).seconds >= 3:
@@ -260,7 +261,7 @@ class NodeUtil():
 
             NodeUtil.cpu_percent, return_code_cpu = NodeUtil.get_node_info(query=NodeUtil.cpu_util_per_query, logger=logger)
             if not return_code_cpu:
-                logger.warning("############################################# Could not fetch cpu utilization!!")
+                logger.warning("############################################# Could not fetch cpu utilization from prometheus!!")
 
             Variable.set("CPU-Percent", "{}".format(NodeUtil.cpu_percent))
             if NodeUtil.cpu_percent is None or NodeUtil.cpu_percent > NodeUtil.max_util_cpu:
@@ -269,6 +270,8 @@ class NodeUtil():
                 return False
 
             NodeUtil.mem_percent, return_code_ram = NodeUtil.get_node_info(query=NodeUtil.mem_util_per_query, logger=logger)
+            if not return_code_ram:
+                logger.warning("############################################# Could not fetch ram utilization from prometheus!!")
             Variable.set("RAM-Percent", "{}".format(NodeUtil.mem_percent))
             if NodeUtil.mem_percent is None or NodeUtil.mem_percent > NodeUtil.max_util_ram:
                 logger.warning("############################################# High RAM utilization -> waiting!")

@@ -5,10 +5,11 @@ import subprocess
 import json
 import yaml
 import re
+
+
 from flask import render_template, Response, request, jsonify
 from app import app
 from app import utils
-
 
 
 @app.route("/")
@@ -18,6 +19,7 @@ def index():
     return render_template(
         "index.html", title="Home",
     )
+
 
 @app.route("/health-check")
 def health_check():
@@ -32,11 +34,12 @@ def helm_repo_update():
         if 'server misbehaving' in resp.decode("utf-8"):
             return Response(f"You seem to have no internet connection inside the pod, this might be due to missing proxy settings!", 500)
         helm_command = 'helm repo update; \
-        mkdir -p /root/extensions; \
-        find $HOME/extensions -type f -delete; \
-        helm search repo --devel -r \'(kaapanadag|kaapanaextension|kaapanaint)\' | awk \'NR > 1 { print  $1, "--version " $2}\' | xargs -L1 helm pull -d /root/extensions/'
+        mkdir -p /root/.extensions; \
+        find /root/.extensions -type f -delete; \
+        helm search repo -r \'(kaapanadag|kaapanaextension|kaapanaint)\' | awk \'NR > 1 { print  $1, "--version " $2}\' | xargs -L1 helm pull -d /root/.extensions/ \
+        helm search repo --devel -r \'(kaapanadag|kaapanaextension|kaapanaint)\' | awk \'NR > 1 { print  $1, "--version " $2}\' | xargs -L1 helm pull -d /root/.extensions/'
         subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
-        return Response(f"Kube-Helm api is up and running!", 200)
+        return Response(f"Successfully updated the extension list!", 200)
     except subprocess.CalledProcessError as e:
         return Response(f"A helm command error occured while executing {helm_command}!", 500)
 
@@ -97,6 +100,7 @@ def pending_applications():
                 'releaseMame': chart['name'],
                 'links': ingress_paths,
                 'helm_status': chart['status'].capitalize(),
+                'experimental': 'yes' if 'kaapanaexperimental' in chart['keywords'] else 'no',
                 'successful': utils.all_successful(set(kube_status['status'] + [chart['status']])),
                 'kube_status': ", ".join(kube_status['status'])
             }            
@@ -124,6 +128,8 @@ def extensions():
             chart = utils.helm_show_chart(repo_name, chart_name, extension['version'])
             status = utils.helm_status(chart_name, app.config['NAMESPACE'])
             extension['keywords'] = chart['keywords']
+            extension['experimental'] = 'yes' if 'kaapanaexperimental' in chart['keywords'] else 'no' 
+            extension['multiinstallable'] = 'yes' if 'kaapanamultiinstallable' in chart['keywords'] else 'no'             
             if 'kaapanadag' in chart['keywords']: 
                 extension['kind'] = 'dag'
             elif 'kaapanaextension' in chart['keywords']:
@@ -160,7 +166,7 @@ def extensions():
 @app.route("/list-helm-charts")
 def add_repo():
     try:
-        resp = subprocess.check_output(f'{os.environ["HELM_PATH"]} ls -o json', stderr=subprocess.STDOUT, shell=True)
+        resp = subprocess.check_output(f'{os.environ["HELM_PATH"]} ls -n {app.config["NAMESPACE"]} -o json', stderr=subprocess.STDOUT, shell=True)
         print(resp)
     except subprocess.CalledProcessError as e:
         return Response(f"{e.output}", 500)

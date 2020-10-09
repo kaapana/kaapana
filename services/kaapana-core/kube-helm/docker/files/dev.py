@@ -55,9 +55,9 @@ repoName = 'kaapana'
 
 # print(utils.helm_show_chart('kaapana-public', 'jupyterlab-chart', '0.1-vdev'))
 
-# available_charts = utils.helm_search_repo('(kaapanadag)')
+available_charts = utils.helm_search_repo("(kaapanaextension|kaapanadag)")
 
-# print(available_charts)
+print(available_charts)
 # for extension in available_charts:
 #     repoName, chartName = extension["name"].split('/')
 #     filepath = f'{HELM_REPOSITORY_CACHE}/{chartName}-{extension["version"]}.tgz'
@@ -65,4 +65,4 @@ repoName = 'kaapana'
 #         print('go for it')
 #     else:
 #         print('skip')
-utils.helm_prefetch_extension_docker()
+#utils.helm_prefetch_extension_docker()

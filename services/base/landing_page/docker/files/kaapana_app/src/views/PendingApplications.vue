@@ -1,9 +1,16 @@
 <template lang="pug">
   .workflow-applications
     v-container(grid-list-lg text-left)
-      div
-        h2 List of applications started in a workflow
-        p If a workflow has started an application, you will find here the corresponding url to the application. Once you are done you can here finish the manual interaction which will continue the workflow.
+      v-card
+        v-card-title
+          | List of applications started in a workflow &nbsp;
+          v-tooltip(bottom='')
+            template(v-slot:activator='{ on, attrs }')
+              v-icon(color='primary' dark='' v-bind='attrs' v-on='on')
+                | mdi-information-outline
+            span If a workflow has started an application, you will find here the corresponding url to the application. Once you are done you can here finish the manual interaction which will continue the workflow.
+          v-spacer
+          v-text-field(v-model='search' append-icon='mdi-magnify' label='Search' single-line='' hide-details='')
         v-data-table.elevation-1(
           :headers="headers",
           :items="launchedAppLinks",
@@ -15,6 +22,12 @@
             span {{ item.releaseMame }} &nbsp;
               a(:href='link', target='_blank' v-for="link in item.links" :key="item.link")
                 v-icon(color='primary') mdi-open-in-new
+          template(v-slot:item.experimental="{ item }")
+            v-tooltip(bottom='' v-if="item.experimental==='yes'")
+              template(v-slot:activator='{ on, attrs }')
+                v-icon(color='primary' dark='' v-bind='attrs' v-on='on')
+                  | mdi-test-tube
+              span Experimental extension or DAG, not tested yet!
           template(v-slot:item.successful="{ item }")
             v-icon(v-if="item.successful==='yes'" color='green') mdi-check-circle
             v-icon(v-if="item.successful==='no'" color='red') mdi-alert-circle
@@ -50,6 +63,11 @@ export default Vue.extend({
         text: "Kube Status",
         align: "start",
         value: "kube_status",
+      },
+      {
+        text: "Experimental",
+        align: "start",
+        value: "experimental",
       },
       {
         text: "Ready",

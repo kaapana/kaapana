@@ -14,8 +14,7 @@ from app import app
 def helm_show_values(repo, name, version):
     try:
         chart = subprocess.check_output(
-            [os.environ["HELM_PATH"], "show", "values", f"{app.config['HELM_REPOSITORY_CACHE']}/{name}-{version}.tgz"], stderr=subprocess.STDOUT
-        )
+            f'{os.environ["HELM_PATH"]} show values {app.config["HELM_REPOSITORY_CACHE"]}/{name}-{version}.tgz', stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as e:
         print('Nothing found!')
         return {}
@@ -25,8 +24,7 @@ def helm_show_values(repo, name, version):
 def helm_show_chart(repo, name, version):
     try:
         chart = subprocess.check_output(
-            [os.environ["HELM_PATH"], "show", "chart", f"{app.config['HELM_REPOSITORY_CACHE']}/{name}-{version}.tgz"], stderr=subprocess.STDOUT
-        )
+            f'{os.environ["HELM_PATH"]} show chart {app.config["HELM_REPOSITORY_CACHE"]}/{name}-{version}.tgz', stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as e:
         print('Nothing online, nothing local!')      
         return {}
@@ -36,8 +34,7 @@ def helm_show_chart(repo, name, version):
 def helm_get_manifest(release_name, namespace):
     try:
         manifest = subprocess.check_output(
-            [os.environ["HELM_PATH"], "-n", namespace, "get", "manifest", release_name], stderr=subprocess.STDOUT
-        )
+            f'{os.environ["HELM_PATH"]} -n {namespace} get manifest {release_name}', stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as e:
         return []
     return list(yaml.load_all(manifest))    
@@ -46,8 +43,7 @@ def helm_get_manifest(release_name, namespace):
 def helm_get_values(release_name, namespace):
     try:
         values = subprocess.check_output(
-            [os.environ["HELM_PATH"], "-n", namespace, "get", "values", "-o", "json", release_name], stderr=subprocess.STDOUT
-        )
+            f'{os.environ["HELM_PATH"]} -n {namespace} get values -o json {release_name}', stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as e:
         return dict()
     if values==b'null\n':
@@ -58,8 +54,7 @@ def helm_get_values(release_name, namespace):
 def helm_status(release_name, namespace):
     try:
         status = subprocess.check_output(
-            [os.environ["HELM_PATH"], "-n", namespace, "status", release_name], stderr=subprocess.STDOUT
-        )
+            f'{os.environ["HELM_PATH"]} -n {namespace} status {release_name}', stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as e:
         return dict()
     return yaml.load(status)
@@ -73,7 +68,7 @@ def helm_prefetch_extension_docker():
         repo_name, chart_name = extension["name"].split('/')
         print(chart_name, extension["version"], f'{app.config["HELM_REPOSITORY_CACHE"]}/{chart_name}-{extension["version"]}.tgz')
         if os.path.isfile(f'{app.config["HELM_REPOSITORY_CACHE"]}/{chart_name}-{extension["version"]}.tgz') is not True:
-            print('not found')
+            print(f'{extension["name"]} not found')
             continue
         chart = helm_show_chart(repo_name, chart_name, extension['version'])
         print(chart)
@@ -84,7 +79,10 @@ def helm_prefetch_extension_docker():
             'release_name': f'prefetch-{chart_name}'
             }
 
-        if 'kaapanadag' in chart["keywords"]:
+        if 'kaapanaexperimental' in chart["keywords"]:
+            continue
+            print(f'Skipping {extension["name"]}, since its experimental')
+        elif 'kaapanadag' in chart["keywords"]:
             dags.append(payload)
         else:
             print(f'Prefetching {extension["name"]}')
@@ -118,6 +116,7 @@ def helm_prefetch_extension_docker():
             print(f'Skipping {dag["name"]} due to {e.output.decode("utf-8")}')
             helm_delete(dag['release_name'], app.config['NAMESPACE'], helm_command_addons='--no-hooks')
 
+
 def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url='dktk-jip-registry.dkfz.de', docker_registry_project='/kaapana', timeout='120m0s'):
     print(f'Pulling {docker_registry_url}{docker_registry_project}/{docker_image}:{docker_version}')   
     payload = {
@@ -134,6 +133,7 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
 
     helm_comman_suffix = f'--wait --atomic --timeout {timeout}; sleep 10;{os.environ["HELM_PATH"]} delete -n {app.config["NAMESPACE"]} {release_name}'
     helm_install(payload, app.config["NAMESPACE"], helm_comman_suffix=helm_comman_suffix)
+
 
 def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix='', in_background=True):
 
@@ -193,34 +193,37 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
     else:
         return subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command
 
+
 def helm_delete(release_name, namespace, helm_command_addons=''):
     helm_command = f'{os.environ["HELM_PATH"]} delete {helm_command_addons} -n {namespace} {release_name}'
     subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
 
+
 def helm_ls(namespace, release_filter=''):
     try:
         resp = subprocess.check_output(
-            [os.environ["HELM_PATH"], "-n", namespace, "--filter", release_filter, "ls", "--deployed", "--pending", "--failed", "--uninstalling", "-o", "json"], stderr=subprocess.STDOUT
-        )
+            f'{os.environ["HELM_PATH"]} -n {namespace} --filter {release_filter} ls --deployed --pending --failed --uninstalling -o json', stderr=subprocess.STDOUT, shell=True)
         return json.loads(resp)
     except subprocess.CalledProcessError as e:
         return []
         
+
 def helm_search_repo(filter_regex):
     try:
-        resp = subprocess.check_output(
-            [os.environ["HELM_PATH"], "search", "repo", "--devel", "-r", filter_regex, "-o", "json"],
-            stderr=subprocess.STDOUT,
-        )
+        resp_stable = subprocess.check_output(
+            f'{os.environ["HELM_PATH"]} search repo -r "{filter_regex}" -o json', stderr=subprocess.STDOUT, shell=True)
+        resp_devel = subprocess.check_output(
+            f'{os.environ["HELM_PATH"]} search repo --devel -r "{filter_regex}" -o json', stderr=subprocess.STDOUT, shell=True)
         try:
-            data = json.loads(resp)
+            data = json.loads(resp_stable) + json.loads(resp_devel)
         except json.decoder.JSONDecodeError as e:
             print('No results found', e)
             data = []
     except subprocess.CalledProcessError as e:
-        print('Error calling repo search!')
+        print('Error calling search repo!', e.output)
         data = []
     return data
+
 
 def get_kube_status(kind, name, namespace):
     states = {
@@ -249,6 +252,7 @@ def get_kube_status(kind, name, namespace):
 
     return states
 
+
 def get_manifest_infos(manifest):
     ingress_paths = []
     
@@ -276,6 +280,7 @@ def get_manifest_infos(manifest):
                 concatenated_states[key]  = concatenated_states[key] + value
 
     return concatenated_states, ingress_paths
+
 
 def all_successful(status):
     successfull = ['Completed', 'Running', 'deployed']

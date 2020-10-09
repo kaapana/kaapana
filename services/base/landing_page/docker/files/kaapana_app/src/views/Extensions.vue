@@ -1,12 +1,29 @@
 <template lang="pug">
 .workflow-applications
   v-container(grid-list-lg, text-left)
-    div
+    v-card
+      v-card-title
+        v-row()
+          v-col(cols='12' sm='5')
+            span List of extensions &nbsp;
+              v-tooltip(bottom='')
+                template(v-slot:activator='{ on, attrs }')
+                  v-icon(@click="updateExtensions()", color='primary' dark='' v-bind='attrs' v-on='on')
+                    | mdi-cloud-download-outline
+                span By clicking on this icon it will try to download the latest extensions. In case you do not have internet connection this can also be done on the terminal via ./install-platform --update-extensions.
+          v-col(cols='12' sm='2')
+            v-select(label='Kind' :items="['All', 'Workflows', 'Applications']" v-model='extensionKind' hide-details='')
+          v-col(cols='12' sm='2')
+            v-select(label='Version' :items="['All', 'Stable', 'Experimental']" v-model='extensionExperimental' hide-details='')
+          v-col(cols='12' sm='3')
+            v-text-field(v-model='search' append-icon='mdi-magnify' label='Search' hide-details='')
+       
       v-data-table.elevation-1(
         :headers="headers",
-        :items="launchedAppLinks",
+        :items="filteredLaunchedAppLinks",
         :items-per-page="20",
         :loading="loading",
+        :search='search',
         loading-text="Waiting a few seconds..."
       )
         template(v-slot:item.releaseMame="{ item }")
@@ -27,17 +44,27 @@
               v-icon(color='primary' dark='' v-bind='attrs' v-on='on')
                 | mdi-laptop
             span An application to work with
+        template(v-slot:item.experimental="{ item }")
+          v-tooltip(bottom='' v-if="item.experimental==='yes'")
+            template(v-slot:activator='{ on, attrs }')
+              v-icon(color='primary' dark='' v-bind='attrs' v-on='on')
+                | mdi-test-tube
+            span Experimental extension or DAG, not tested yet!
         template(v-slot:item.installed="{ item }")
           v-btn(
             @click="deleteChart(item.releaseMame, item.name, item.version, item.keywords)",
             color="primary",
              v-if="item.installed==='yes'"
-          ) Uninstall
+          ) 
+            span(v-if="item.multiinstallable ==='yes'") Delete 
+            span(v-if="item.multiinstallable ==='no'") Uninstall
           v-btn(
             @click="installChart(item.name, item.version, item.keywords)",
             color="primary",
             v-if="item.installed==='no'"
-          ) Install
+          ) 
+            span(v-if="item.multiinstallable ==='yes'") Launch
+            span(v-if="item.multiinstallable ==='no'") Install
 </template>
 
 <script lang="ts">
@@ -50,6 +77,9 @@ export default Vue.extend({
   data: () => ({
     loading: true,
     launchedAppLinks: [] as any,
+    search: '',
+    extensionExperimental: 'All',
+    extensionKind: 'All',
     headers: [
       {
         text: "Name",
@@ -82,6 +112,11 @@ export default Vue.extend({
         value: "kube_status",
       },
       {
+        text: "Experimental",
+        align: "start",
+        value: "experimental",
+      },
+      {
         text: "Ready",
         align: "start",
         value: "successful",
@@ -93,13 +128,32 @@ export default Vue.extend({
     this.getHelmCharts();
   },
   computed: {
+    filteredLaunchedAppLinks(): any {
+      return this.launchedAppLinks.filter((i: any) => {
+        let experimentalFilter = true
+        let kindFilter = true
+        if (this.extensionExperimental=='Stable' && i.experimental==='yes') {
+          experimentalFilter = false
+        } else if (this.extensionExperimental=='Experimental' && i.experimental==='no') {
+          experimentalFilter = false
+        }
+
+        if (this.extensionKind=='Workflows' && i.kind==='extension') {
+          kindFilter = false
+        } else if (this.extensionKind=='Applications' && i.kind==='dag') {
+          kindFilter = false
+        }
+        return experimentalFilter && kindFilter
+      })
+    },
+
     ...mapGetters([
       "currentUser",
       "isAuthenticated",
       "commonData",
       "launchApplicationData",
       "availableApplications",
-    ]),
+    ])
   },
   methods: {
     getHelmCharts() {
@@ -111,6 +165,21 @@ export default Vue.extend({
         .then((response: any) => {
           this.launchedAppLinks = response.data;
           this.loading = false;
+        })
+        .catch((err: any) => {
+          this.loading = false;
+          console.log(err);
+        });
+    },
+
+    updateExtensions() {
+      this.loading = true;
+      kaapanaApiService
+        .helmApiGet("/helm-repo-update", {})
+        .then((response: any) => {
+          this.getHelmCharts();
+          this.loading = false;
+          alert(response.data)
         })
         .catch((err: any) => {
           this.loading = false;

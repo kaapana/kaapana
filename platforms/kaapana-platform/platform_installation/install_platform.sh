@@ -356,9 +356,14 @@ function install_certs {
 }
 
 function prefetch_extensions {
+    if [ ! "$QUIET" = "true" ];then
+        read -e -p "${YELLOW}Which prefetch-extensions-chart version should be use? If you have no idea, press enter and accept the default: ${NC}" -i $DEFAULT_VERSION chart_version;
+    else
+        chart_version=$DEFAULT_VERSION
+    fi
     echo -e "Prefetching all extension docker container"
-    release_name=kube-helm-init-chart-$(echo $(uuidgen --hex) | cut -c1-10)
-    helm install --devel --version 0.1-vdev $CHART_REGISTRY_PROJECT/prefetch-extensions-chart \
+    release_name=prefetch-extensions-chart-$(echo $(uuidgen --hex) | cut -c1-10)
+    helm install --devel --version $chart_version $CHART_REGISTRY_PROJECT/prefetch-extensions-chart \
     --set global.pull_policy_jobs="$PULL_POLICY_JOBS" \
     --set global.registry_url=$CONTAINER_REGISTRY_URL \
     --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
@@ -411,7 +416,8 @@ fi;
 ### Parsing command line arguments:
 usage="$(basename "$0")
 
-_Flag: --prefetch-extension-docker prefetch containers needed for the extensions 
+_Flag: --prefetch-extensions prefetch containers needed for the extensions
+_Flag: --update-extensions Updates the extensions saved to ~/.extensions
 _Flag: --install-certs  set new HTTPS-certificates for the platform
 _Flag: --quiet, meaning non-interactive operation
 

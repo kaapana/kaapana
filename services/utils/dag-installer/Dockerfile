@@ -1,5 +1,6 @@
 FROM python:3.6-alpine
 
+LABEL REGISTRY="local"
 LABEL IMAGE="dag-installer"
 LABEL VERSION="1.0-vdev"
 LABEL CI_IGNORE="False"

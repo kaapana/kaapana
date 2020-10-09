@@ -1,4 +1,4 @@
-FROM dag-installer:1.0-vdev
+FROM local/dag-installer:1.0-vdev
 
 LABEL IMAGE="dag-shapemodel"
 LABEL VERSION="0.1-vdev"

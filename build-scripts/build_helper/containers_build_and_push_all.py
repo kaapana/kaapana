@@ -110,7 +110,7 @@ class DockerContainer:
 
         if self.docker_registry == None:
             self.docker_registry = default_registry
-        if self.project_name is None and default_project is not None:
+        if self.project_name is None and default_project is not None and self.docker_registry.lower() != "local":
             self.project_name = default_project
 
         if self.image_version != None and self.image_name != None and self.image_version != "" and self.image_name != "":

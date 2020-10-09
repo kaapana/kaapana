@@ -87,11 +87,15 @@ if action == 'copy' or action == 'prefetch':
         print(r.status_code)
         print(r.text)
 
-print('################################################################################')
-print(f'Updating dags in airflow database!')
-print('################################################################################')
-
 if action == 'remove':
+    print('################################################################################')
+    print(f'Updating dags in airflow database!')
+    print('################################################################################')
     r = requests.post('http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/remove-deleted-dags-from-db', json={})
     print(r.status_code)
     print(r.text)
+
+if action == 'prefetch':
+    print('Running forever :)')
+    while True:
+        pass

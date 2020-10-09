@@ -54,6 +54,7 @@ def make_log(std_out, std_err):
 
     return log
 
+
 class DockerContainer:
     used_tags_list = []
 
@@ -118,7 +119,7 @@ class DockerContainer:
                 self.tag = self.docker_registry+"/"+self.project_name + "/"+self.image_name+":"+self.image_version
             else:
                 self.tag = self.docker_registry+"/"+self.image_name+":"+self.image_version
-                
+
             self.check_pending()
 
             log_entry = {
@@ -234,7 +235,7 @@ class DockerContainer:
         pre_build_script = os.path.dirname(self.path)+"/pre_build.sh"
         if os.path.isfile(pre_build_script):
             command = [pre_build_script]
-            output = run(command, stdout=PIPE, stderr=PIPE,universal_newlines=True, timeout=3600)
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3600)
             log = make_log(std_out=output.stdout, std_err=output.stderr)
 
             if output.returncode == 0:
@@ -281,13 +282,14 @@ class DockerContainer:
 
     def build(self):
         print("############################ Build Container: {}".format(self.tag))
+        startTime = time()
         os.chdir(self.container_dir)
         if http_proxy is not None:
             command = ["docker", "build", "--build-arg", "http_proxy={}".format(http_proxy), "--build-arg", "https_proxy={}".format(http_proxy), "-t", self.tag, "-f", self.path, "."]
         else:
             command = ["docker", "build", "-t", self.tag, "-f", self.path, "."]
 
-        output = run(command, stdout=PIPE, stderr=PIPE,universal_newlines=True, timeout=6000)
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
         log = make_log(std_out=output.stdout, std_err=output.stderr)
 
         if output.returncode != 0:
@@ -306,7 +308,9 @@ class DockerContainer:
             self.error = True
             yield log_entry
 
-        print("############################ Build -> success")
+        hours, rem = divmod(time()-startTime, 3600)
+        minutes, seconds = divmod(rem, 60)
+        print("############################ Build: {:0>2}:{:0>2}:{:05.2f} -> success".format(int(hours),int(minutes),seconds))
         log_entry = {
             "suite": suite_tag,
             "test": self.tag.replace(self.docker_registry, "")[1:],
@@ -323,7 +327,7 @@ class DockerContainer:
     def push(self, retry=True):
         print()
         print("############################ Push Container: {}".format(self.tag))
-        
+
         if self.docker_registry == "local":
             print("############################ Push skipped -> local registry found!")
             log_entry = {
@@ -534,9 +538,26 @@ def quick_check():
         if not_resolved.tag not in DockerContainer.used_tags_list:
             docker_containers_list.append(not_resolved)
             docker_container.used_tags_list.append(not_resolved.tag)
-        
+
         yield log_entry
 
+    i = 0
+    list_size_containers = len(docker_containers_list)
+    while i < list_size_containers:
+        container = docker_containers_list[i]
+        if container.docker_registry.lower() == "local":
+            docker_containers_list.insert(0, docker_containers_list.pop(i))
+            continue
+
+        for base_image in container.base_images:
+            base_image_registry = base_image.split("/")[0]
+            if base_image_registry == default_registry:
+                docker_containers_list.insert(len(docker_containers_list)-1, docker_containers_list.pop(i))
+                list_size_containers -= 1
+                i -= 1
+                continue
+
+        i += 1
     yield docker_containers_list
 
 
@@ -560,7 +581,7 @@ def start_container_build(config):
     print("Process {} containers...".format(len(docker_containers_list)))
     print()
 
-    return [docker_containers_list,logs]
+    return [docker_containers_list, logs]
 
 
 if __name__ == '__main__':

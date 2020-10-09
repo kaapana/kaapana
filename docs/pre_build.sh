@@ -8,7 +8,7 @@ if python -c "import sphinx" &> /dev/null; then
     echo 'Python requirements already present...'
 else
     echo 'Install python requirements...'
-    python3 -m pip install -r requirements.txt
+    python3 -m pip install -r $DOCSPATH/requirements.txt
 fi
 
 set +e

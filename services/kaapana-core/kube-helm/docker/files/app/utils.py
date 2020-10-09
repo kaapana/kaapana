@@ -152,7 +152,7 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
         'global.pull_policy_jobs': os.getenv('PULL_POLICY_JOBS')
     }
     
-    values = helm_show_values(repo_name, chart_name, payload["version"])
+    values = helm_show_values(repo_name, chart_name, version)
     
     if 'global' in values:
         for key, value in values['global'].items():

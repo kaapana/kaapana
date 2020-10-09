@@ -24,6 +24,7 @@
         :items-per-page="20",
         :loading="loading",
         :search='search',
+        sort-by='releaseMame',
         loading-text="Waiting a few seconds..."
       )
         template(v-slot:item.releaseMame="{ item }")
@@ -104,12 +105,12 @@ export default Vue.extend({
       {
         text: "Helm Status",
         align: "start",
-        value: "helm_status",
+        value: "helmStatus",
       },
       {
         text: "Kube Status",
         align: "start",
-        value: "kube_status",
+        value: "kubeStatus",
       },
       {
         text: "Experimental",

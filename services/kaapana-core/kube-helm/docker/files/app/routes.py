@@ -99,10 +99,10 @@ def pending_applications():
             extension = {
                 'releaseMame': chart['name'],
                 'links': ingress_paths,
-                'helm_status': chart['status'].capitalize(),
+                'helmStatus': chart['status'].capitalize(),
                 'experimental': 'yes' if 'kaapanaexperimental' in chart['keywords'] else 'no',
                 'successful': utils.all_successful(set(kube_status['status'] + [chart['status']])),
-                'kube_status': ", ".join(kube_status['status'])
+                'kubeStatus': ", ".join(kube_status['status'])
             }            
             extensions_list.append(extension)
 
@@ -136,26 +136,27 @@ def extensions():
                 extension['kind'] = 'extension'
             else:
                 extension['kind'] = 'unkown'
-            extension['releaseMame'] = extension["name"]
-            extension['helm_status'] = 'Not installed' 
-            extension['kube_status'] = 'Not deployed'
+            extension['releaseMame'] = chart_name
+            extension['helmStatus'] = 'Not installed' 
+            extension['kubeStatus'] = 'Not deployed'
             extension['successful'] = 'none'
             if 'kaapanamultiinstallable' in chart['keywords'] or not status:
                 extension['installed'] = 'no'
                 extensions_list.append(extension)
             for chart in utils.helm_ls(app.config['NAMESPACE'], chart_name):
-                manifest = utils.helm_get_manifest(chart['name'], app.config['NAMESPACE'])
-                kube_status, ingress_paths = utils.get_manifest_infos(manifest)
-                
-                running_extension = copy.deepcopy(extension)
-                running_extension['releaseMame'] =  chart['name']
-                running_extension['successful'] = utils.all_successful(set(kube_status['status'] + [chart['status']]))
-                running_extension['installed'] = 'yes'
-                
-                running_extension['links'] = ingress_paths
-                running_extension['helm_status'] = chart['status'].capitalize()
-                running_extension['kube_status'] = ", ".join(kube_status['status'])
-                extensions_list.append(running_extension)
+                if chart['chart'] == f'{chart_name}-{extension["version"]}':
+                    manifest = utils.helm_get_manifest(chart['name'], app.config['NAMESPACE'])
+                    kube_status, ingress_paths = utils.get_manifest_infos(manifest)
+                    
+                    running_extension = copy.deepcopy(extension)
+                    running_extension['releaseMame'] =  chart['name']
+                    running_extension['successful'] = utils.all_successful(set(kube_status['status'] + [chart['status']]))
+                    running_extension['installed'] = 'yes'
+                    
+                    running_extension['links'] = ingress_paths
+                    running_extension['helmStatus'] = chart['status'].capitalize()
+                    running_extension['kubeStatus'] = ", ".join(kube_status['status'])
+                    extensions_list.append(running_extension)
 
     except subprocess.CalledProcessError as e:
         return Response(f"{e.output}Failed to load the extension list!", 500)

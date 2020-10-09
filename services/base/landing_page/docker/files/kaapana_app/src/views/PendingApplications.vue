@@ -16,6 +16,7 @@
           :items="launchedAppLinks",
           :items-per-page="20",
           :loading="loading",
+          sort-by='releaseMame',
           loading-text="Waiting a few seconds..."
         )
           template(v-slot:item.links="{ item }")
@@ -57,12 +58,12 @@ export default Vue.extend({
       {
         text: "Helm Status",
         align: "start",
-        value: "helm_status",
+        value: "helmStatus",
       },
       {
         text: "Kube Status",
         align: "start",
-        value: "kube_status",
+        value: "kubeStatus",
       },
       {
         text: "Experimental",

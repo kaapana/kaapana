@@ -1,4 +1,4 @@
-FROM dktk-jip-registry.dkfz.de/kaapana-public/dag-installer:1.0-vdev
+FROM dag-installer:1.0-vdev
 
 LABEL IMAGE="dag-launch-mitk-volume"
 LABEL VERSION="0.1-vdev"

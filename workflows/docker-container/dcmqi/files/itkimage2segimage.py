@@ -16,7 +16,7 @@ def process_seg_info(seg_info, series_description):
         series_description_code_meaning = f'{code_meaning.capitalize()}'
 
     if series_description != "":
-        return code_meaning, f'{series_description_code_meaning}_{series_description}'
+        return code_meaning, f'{series_description_code_meaning}-{series_description}'
     else:
         return code_meaning, series_description_code_meaning
 
@@ -221,7 +221,7 @@ for batch_element_dir in batch_folders:
             exit(1)
 
         if "algorithm" in data:
-            multi_label_seg_name = "{}-{}".format(data["algorithm"],series_description)
+            multi_label_seg_name = "{}-{}".format(segment_algorithm_name,data["algorithm"])
 
         segment_attributes = [[]]
         for idx, single_label_seg_info in enumerate(data['seg_info']):

@@ -3,7 +3,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: get-nnunet-models
-  namespace: {{ .Values.global.flow_namespace }}
+  namespace: default
 spec:
   template:
     metadata:

@@ -1,4 +1,4 @@
-FROM node:14.9.0 as build
+FROM node:lts-alpine as build
 
 LABEL IMAGE="ohif"
 LABEL VERSION="4.5.9-vdev"

@@ -1,9 +1,8 @@
-FROM python:3.9-alpine3.12
+FROM python:3
 
 LABEL IMAGE="tensorboard"
 LABEL VERSION="1.0-vdev"
 LABEL CI_IGNORE="False"
-
 
 RUN pip3 install tensorboard
 

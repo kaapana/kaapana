@@ -5,7 +5,6 @@ import json
 import os
 import re
 import pydicom
-import pandas as pd
 from datetime import datetime
 import subprocess
 

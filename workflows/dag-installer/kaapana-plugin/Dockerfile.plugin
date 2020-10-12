@@ -9,7 +9,7 @@ COPY dags/dag_reindex_dicom_data.py /tmp/dags/
 COPY dags/dag_download_selected_files.py /tmp/dags/
 COPY dags/dag_extract_metadata.py /tmp/dags/
 COPY dags/dag_process_incoming_dcm.py /tmp/dags/
-COPY dags/dag_minio_dicom_upload.py /tmp/dags/
+COPY dags/dag_service_minio_dicom_upload.py /tmp/dags/
 COPY dags/dag_collect_metadata.py /tmp/dags/
 COPY dags/dag_explore_data_in_minio.py /tmp/dags/
 

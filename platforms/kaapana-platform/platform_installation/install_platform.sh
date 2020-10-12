@@ -491,7 +491,6 @@ do
         ;;
 
         --prefetch-extensions)
-            update_extensions
             prefetch_extensions
             exit 0
         ;;

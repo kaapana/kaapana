@@ -20,7 +20,7 @@ import os
 log = LoggingMixin().log
 
 dag_info = {
-    "visible": True,
+    "ui_visible": True,
 }
 
 args = {

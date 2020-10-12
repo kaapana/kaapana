@@ -23,7 +23,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='minio-dicom-upload',
+    dag_id='service-minio-dicom-upload',
     default_args=args,
     schedule_interval=None)
 

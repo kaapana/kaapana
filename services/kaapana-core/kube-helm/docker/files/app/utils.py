@@ -271,7 +271,7 @@ def get_manifest_infos(manifest):
             ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']
             ingress_paths.append(ingress_path)
         if config['kind'] == 'Deployment':
-            kube_status = get_kube_status('app',config['metadata']['name'], config['metadata']['namespace'])
+            kube_status = get_kube_status('app', config['spec']['selector']['matchLabels']['app-name'], config['metadata']['namespace'])
             for key, value in kube_status.items():
                 concatenated_states[key]  = concatenated_states[key] + value
         if config['kind'] == 'Job':

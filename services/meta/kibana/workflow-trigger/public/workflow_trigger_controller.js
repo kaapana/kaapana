@@ -26,6 +26,9 @@ class VisController {
     this.dag_list = null;
     this.tmp_metric = null
     VisController.airflow_url = "https://" + window.location.href.split("//")[1].split("/")[0] + "/flow/kaapana/api";
+    if (VisController.airflow_url.includes("localhost")) {
+      VisController.airflow_url = "http://e230-pc15:8080/flow/kaapana/api"
+    }
     console.log("airflow_url: " + VisController.airflow_url)
   }
 
@@ -37,7 +40,6 @@ class VisController {
 
     var dag_id = VisController.metricDag.options[VisController.metricDag.selectedIndex].text.toLowerCase()
     var trigger_url = VisController.airflow_url + "/trigger/meta-trigger"
-    // trigger_url = "http://e230-pc15:8080/flow/kaapana/api/trigger/meta-trigger"
 
     var query = (this.vis.searchSource.history[0].fetchParams.body.query);
     var index = this.vis.searchSource.history[0].fetchParams.index.title;
@@ -97,17 +99,17 @@ class VisController {
       this.workflow_dialog = document.createElement(`dialog`);
       this.workflow_dialog.setAttribute("id", "workflow_dialog")
       // this.workflow_dialog.setAttribute('class','fixed');
-      this.workflow_dialog.style.backgroundColor = "white";
+      this.workflow_dialog.style.backgroundColor = "#F5F5F5";
       this.workflow_dialog.style.opacity = "1";
       this.workflow_dialog.style.position = "fixed";
       this.workflow_dialog.style.top = "30%";
       this.workflow_dialog.style.zIndex = "100";
       this.workflow_dialog.style.width = "50%";
+      this.workflow_dialog.style.borderColor = "#FF851B";
+      this.workflow_dialog.style.borderWidth = "thick";
 
-      if (document.getElementsByClassName("react-grid-layout dshLayout--viewing").length == 1) {
-        document.getElementsByClassName("react-grid-layout dshLayout--viewing")[0].appendChild(this.workflow_dialog);
-      } else if (document.getElementsByClassName("react-grid-layout dshLayout--editing").length == 1) {
-        document.getElementsByClassName("react-grid-layout dshLayout--editing")[0].appendChild(this.workflow_dialog);
+      if ($(".dshDashboardViewport-withMargins").length) {
+        $(".dshDashboardViewport-withMargins")[0].appendChild(this.workflow_dialog);
       } else {
         this.container.appendChild(this.workflow_dialog);
       }
@@ -202,6 +204,9 @@ class VisController {
                 return
               }
               $('#workflow_dialog').eq(0).hide();
+              if (document.getElementsByClassName("react-grid-layout dshLayout--viewing").length == 1) {
+                document.getElementsByClassName("react-grid-layout dshLayout--viewing")[0].style.filter = "none"
+              }
               this.start_dag()
             });
 
@@ -211,6 +216,9 @@ class VisController {
             cancel_button.innerHTML = "CANCEL"
             cancel_button.addEventListener('click', () => {
               $('#workflow_dialog').eq(0).hide();
+              if (document.getElementsByClassName("react-grid-layout dshLayout--viewing").length == 1) {
+                document.getElementsByClassName("react-grid-layout dshLayout--viewing")[0].style.filter = "none"
+              }
             });
 
             const head_dialog_div = document.createElement(`div`);
@@ -331,6 +339,9 @@ class VisController {
 
             this.workflow_dialog.appendChild(button_div)
             $('#workflow_dialog').eq(0).show();
+            if (document.getElementsByClassName("react-grid-layout dshLayout--viewing").length == 1) {
+              document.getElementsByClassName("react-grid-layout dshLayout--viewing")[0].style.filter = "blur(5px)"
+            }
           });
 
 
@@ -397,7 +408,6 @@ class VisController {
 
           function getDags(callback, vis) {
             var dagurl = VisController.airflow_url + "/getdags?active_only&dag_info"
-            // dagurl = "http://e230-pc15:8080/flow/kaapana/api/getdags?active_only&dag_info"
             console.log("DAGURL: " + dagurl)
             fetch(dagurl, {
               method: 'GET',

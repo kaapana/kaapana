@@ -341,7 +341,7 @@ class VisController {
 
             this.workflow_dialog.appendChild(button_div)
             $('#workflow_dialog').eq(0).show();
-            document.getElementById("workflow_dialog").focus();
+            document.getElementById("form-ok-button").focus();
             if (document.getElementsByClassName("react-grid-layout dshLayout--viewing").length == 1) {
               document.getElementsByClassName("react-grid-layout dshLayout--viewing")[0].style.filter = "blur(5px)"
             }
@@ -462,7 +462,7 @@ document.onkeydown = function (evt) {
     if (evt.keyCode === 27 || (evt.key === "Escape" || evt.key === "Esc")) {
       document.getElementById("form-cancle-button").click(); 
     } else if (evt.key === "Enter" || evt.keyCode == 13) {
-      document.getElementById("form-ok-button").click();
+      document.getElementById("form-ok-button").focus();
     }
   }
 };

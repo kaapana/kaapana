@@ -52,7 +52,7 @@ spec:
           - containerPort: 5000
         volumeMounts:
           - name: helmextensions
-            mountPath: "/root/extensions"
+            mountPath: "/root/.extensions"
           - name: helmconfig
             mountPath: "/root/.config/helm"
           - name: helmcache

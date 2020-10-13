@@ -5,4 +5,4 @@ class Config(object):
     SECRET_KEY = os.environ['SECRET_KEY']
     APPLICATION_ROOT = os.environ['APPLICATION_ROOT']
     NAMESPACE = 'default'
-    HELM_REPOSITORY_CACHE="/root/extensions"
+    HELM_REPOSITORY_CACHE="/root/.extensions"

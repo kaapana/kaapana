@@ -34,14 +34,14 @@ def helm_repo_update():
         if 'server misbehaving' in resp.decode("utf-8"):
             return Response(f"You seem to have no internet connection inside the pod, this might be due to missing proxy settings!", 500)
         helm_command = 'helm repo update; \
-        mkdir -p /root/.extensions; \
-        find /root/.extensions -type f -delete; \
-        helm search repo -r \'(kaapanadag|kaapanaextension|kaapanaint)\' | awk \'NR > 1 { print  $1, "--version " $2}\' | xargs -L1 helm pull -d /root/.extensions/ \
-        helm search repo --devel -r \'(kaapanadag|kaapanaextension|kaapanaint)\' | awk \'NR > 1 { print  $1, "--version " $2}\' | xargs -L1 helm pull -d /root/.extensions/'
+            mkdir -p /root/\.extensions; \
+            find /root/\.extensions -type f -delete; \
+            helm search repo -r \'(kaapanadag|kaapanaextension|kaapanaint)\' | awk \'NR > 1 { print  $1, "--version " $2}\' | xargs -L1 helm pull -d /root/\.extensions/; \
+            helm search repo --devel -r \'(kaapanadag|kaapanaextension|kaapanaint)\' | awk \'NR > 1 { print  $1, "--version " $2}\' | xargs -L1 helm pull -d /root/\.extensions/'
         subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
         return Response(f"Successfully updated the extension list!", 200)
     except subprocess.CalledProcessError as e:
-        return Response(f"A helm command error occured while executing {helm_command}!", 500)
+        return Response(f"A helm command error occured while executing {helm_command}! Error {e}", 500)
 
 
 @app.route("/helm-delete-chart")

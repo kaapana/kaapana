@@ -449,6 +449,8 @@ class VisController {
       return new Promise(resolve => {
         resolve('when done rendering');
       });
+    }else{
+      VisController.metricBtn.innerHTML = this.vis.params.buttonTitle.replace("{{value}}", visData.rows[0]['col-0-1'])
     }
   }
 };

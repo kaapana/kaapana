@@ -26,9 +26,9 @@ class VisController {
     this.dag_list = null;
     this.tmp_metric = null
     VisController.airflow_url = "https://" + window.location.href.split("//")[1].split("/")[0] + "/flow/kaapana/api";
-    if (VisController.airflow_url.includes("localhost")) {
-      VisController.airflow_url = "http://e230-pc15:8080/flow/kaapana/api"
-    }
+    // if (VisController.airflow_url.includes("localhost")) {
+    //   VisController.airflow_url = "http://e230-pc15:8080/flow/kaapana/api"
+    // }
     console.log("airflow_url: " + VisController.airflow_url)
   }
 

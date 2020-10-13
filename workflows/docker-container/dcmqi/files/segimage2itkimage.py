@@ -41,14 +41,16 @@ for batch_element_dir in batch_folders:
     for dcm_filepath in dcm_paths:
         # Creating objects
         json_output = os.path.basename(dcm_filepath)[:-4]
-        try:
-            resp = subprocess.check_output([
+        try: 
+            dcmqi_command = [
                 f"{DCMQI}/segimage2itkimage", 
                 "--outputType", output_type,
                 "-p", f'{json_output}' ,
                 "--outputDirectory", element_output_dir,
                 "--inputDICOM",  dcm_filepath
-            ], stderr=subprocess.STDOUT)
+            ]
+            print('Executing', " ".join(dcmqi_command))
+            resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
             print(resp)
         except subprocess.CalledProcessError as e:
             print("Error with dcmqi. Might be due to missing resources!", e.output)

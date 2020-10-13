@@ -1,0 +1,46 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # This name uniquely identifies the Deployment
+  name: hello-backend
+  namespace: base
+  #namespace: {{ .Values.global.base_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: hello-backend
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: hello-backend
+    spec:
+      containers:
+      - name: hello-backend
+        image: {{  .Values.global.registry_url }}/tutorial/hello-backend:0.1-dkfz-vdev
+        imagePullPolicy:  Always
+        #imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        # command: ["tail"]
+        # args: ["-f", "/dev/null"] 
+        env: # Environment variables
+        - name: SECRET_KEY
+          value: kaapana-secret
+        - name: HELLO_WORLD_USER
+          #value: kaapana-user
+          value: {{ .Values.hello_world_user }}
+        - name: APPLICATION_ROOT
+          value: "/hello-backend"
+        - name: DATABASE_URL
+          value: postgresql://someuser:somepassword@hello-postgres-service.base.svc:5432
+        ports: # Port(s) on which your application runs
+          - containerPort: 5000
+        resources:
+          requests:
+            memory: 200Mi
+          limits:
+            memory: 500Mi
+      imagePullSecrets:
+        - name: registry-secret

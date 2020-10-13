@@ -1,0 +1,35 @@
+# Copy me and only adapt values.yaml and Chart.yaml!
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: remove-{{ .Values.image }}
+  namespace: default
+  annotations:
+    "helm.sh/hook": post-delete
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
+spec:
+  template:
+    spec:
+      containers:
+      - name: remove-{{ .Values.image }}
+        image: "{{ .Values.global.registry_url }}/tutorial/{{ .Values.image }}:{{ .Values.version }}"
+  #      image: "{{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
+        env:
+        - name: ACTION
+          value: "remove"
+        volumeMounts:
+        - name: data
+          mountPath: "/workflows"
+      securityContext:
+        runAsUser: 0
+      volumes:
+      - name: data
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}/workflows
+          type: DirectoryOrCreate
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: registry-secret
+  backoffLimit: 0

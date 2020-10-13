@@ -1,0 +1,37 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # This name uniquely identifies the Deployment
+  name: hello-world
+  #namespace: base
+  namespace: {{ .Values.global.base_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: hello-world
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: hello-world
+    spec:
+      containers:
+      - name: hello-world
+        image: {{  .Values.global.registry_url }}/tutorial/hello-world:0.1-dkfz-vdev
+        #imagePullPolicy:  Always
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        env: # Environment variables
+        - name: SECRET_KEY
+          value: kaapana-secret
+        - name: HELLO_WORLD_USER
+          value: {{ .Values.hello_world_user }}
+        - name: APPLICATION_ROOT
+          value: "/hello-world"
+        ports: # Port(s) on which your application runs
+          - containerPort: 5000
+      imagePullSecrets:
+        - name: registry-secret
+---

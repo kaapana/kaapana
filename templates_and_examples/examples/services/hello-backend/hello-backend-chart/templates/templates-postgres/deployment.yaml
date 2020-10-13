@@ -1,0 +1,44 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # This name uniquely identifies the Deployment
+  name: hello-postgres-deployment
+  namespace: base
+  #namespace: {{ .Values.global.base_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: hello-postgres
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: hello-postgres
+    spec:
+      containers:
+      - name: hello-postgres
+        image: postgres:12.0-alpine # ideally should also be pushed to the dktk-jip-registry.dkfz.de
+        imagePullPolicy:  Always
+        #imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        env: # Environment variables
+        - name: POSTGRES_USER
+          value: someuser
+        - name: POSTGRES_PASSWORD
+          value: somepassword
+        ports: # Port(s) on which your application runs
+          - containerPort: 5432
+        volumeMounts:
+          - name: hello-postgres-data # key of volume moment
+            mountPath: "/postgres" # path in container
+      volumes:
+      - name: hello-postgres-data # key of volume mount
+        hostPath:
+          path: /home/kaapana/hello-postgres-data
+          #path: {{ .Values.global.fast_data_dir }}/hello-postgres-data # path on hostmachine
+          type: DirectoryOrCreate
+      imagePullSecrets:
+        - name: registry-secret
+---

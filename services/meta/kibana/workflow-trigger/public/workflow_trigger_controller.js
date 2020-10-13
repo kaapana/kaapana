@@ -88,6 +88,7 @@ class VisController {
 
 
   render(visData, status) {
+    VisController.series_count=visData.rows[0]['col-0-1'];
     if ($('#workflow_dialog').length <= 0) {
       this.container.innerHTML = '';
       const table = visData
@@ -230,7 +231,8 @@ class VisController {
             this.workflow_dialog.appendChild(head_dialog_div)
 
             const series_count_div = document.createElement(`div`);
-            series_count_div.innerHTML = "<h3>Series-Count: " + this.tmp_metric.value + "</h3>";
+            series_count_div.setAttribute("id", "series_count_div");
+            series_count_div.innerHTML = "<h3>Series-Count: " + VisController.series_count + "</h3>";
             series_count_div.style.paddingTop = '10px'
             series_count_div.style.paddingBottom = '10px'
             this.workflow_dialog.appendChild(series_count_div)
@@ -313,7 +315,7 @@ class VisController {
               }
             }
 
-            if (this.tmp_metric.value > 100) {
+            if (VisController.series_count > 100) {
               const status_form_div = document.createElement(`div`);
               var status_schema = {
                 "type": "object",
@@ -322,7 +324,7 @@ class VisController {
                     "title": "Warning",
                     "description": "Warning because of many series.",
                     "type": "string",
-                    "default": "Trigger " + this.tmp_metric.value + " series?",
+                    "default": "Trigger " + VisController.series_count + " series?",
                     "readOnly": true
                   },
                   "sure": {
@@ -340,6 +342,7 @@ class VisController {
             }
 
             this.workflow_dialog.appendChild(button_div)
+            $('#series_count_div').innerHTML = "<h3>Series-Count: " + VisController.series_count + "</h3>";
             $('#workflow_dialog').eq(0).show();
             document.getElementById("form-ok-button").focus();
             if (document.getElementsByClassName("react-grid-layout dshLayout--viewing").length == 1) {
@@ -395,7 +398,7 @@ class VisController {
             + 'width: 95%');
 
 
-          VisController.metricBtn.innerHTML = this.vis.params.buttonTitle.replace("{{value}}", String(metric.value))
+          VisController.metricBtn.innerHTML = this.vis.params.buttonTitle.replace("{{value}}", String(VisController.series_count))
             .replace("{{row}}", metric.row)
             .replace("{{column}}", metric.column);
 
@@ -449,8 +452,8 @@ class VisController {
       return new Promise(resolve => {
         resolve('when done rendering');
       });
-    }else{
-      VisController.metricBtn.innerHTML = this.vis.params.buttonTitle.replace("{{value}}", visData.rows[0]['col-0-1'])
+    } else {
+      VisController.metricBtn.innerHTML = this.vis.params.buttonTitle.replace("{{value}}", VisController.series_count)
     }
   }
 };
@@ -462,7 +465,7 @@ document.onkeydown = function (evt) {
   if ($('#workflow_dialog').length > 0 && $('#workflow_dialog').get(0).style.display === "block") {
     evt = evt || window.event;
     if (evt.keyCode === 27 || (evt.key === "Escape" || evt.key === "Esc")) {
-      document.getElementById("form-cancle-button").click(); 
+      document.getElementById("form-cancle-button").click();
     } else if (evt.key === "Enter" || evt.keyCode == 13) {
       document.getElementById("form-ok-button").focus();
     }

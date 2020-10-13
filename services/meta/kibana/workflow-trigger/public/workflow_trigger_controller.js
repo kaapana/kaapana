@@ -26,9 +26,9 @@ class VisController {
     this.dag_list = null;
     this.tmp_metric = null
     VisController.airflow_url = "https://" + window.location.href.split("//")[1].split("/")[0] + "/flow/kaapana/api";
-    // if (VisController.airflow_url.includes("localhost")) {
-    //   VisController.airflow_url = "http://e230-pc15:8080/flow/kaapana/api"
-    // }
+    if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
+      VisController.airflow_url = "http://e230-pc15:8080/flow/kaapana/api"
+    }
     console.log("airflow_url: " + VisController.airflow_url)
   }
 
@@ -171,9 +171,10 @@ class VisController {
             const dag_info = VisController.selected_dag_info
 
             const send_button = document.createElement(`button`);
-            send_button.setAttribute("class", "kuiButton kuiButton--secondary")
+            send_button.setAttribute("class", "kuiButton kuiButton--secondary");
+            send_button.setAttribute("id", "form-ok-button");
             send_button.setAttribute('style', "font-weight: bold;font-size: 2em;margin: 10px;height: 50px;");
-            send_button.innerHTML = "START"
+            send_button.innerHTML = "START";
             send_button.addEventListener('click', () => {
               if (bf_pub && bf_pub.validate()) {
                 if (bf_pub.getData().hasOwnProperty("confirmation")) {
@@ -211,6 +212,7 @@ class VisController {
             });
 
             const cancel_button = document.createElement(`button`);
+            cancel_button.setAttribute("id", "form-cancle-button")
             cancel_button.setAttribute("class", "kuiButton kuiButton--danger")
             cancel_button.setAttribute('style', "font-weight: bold;font-size: 2em;margin: 10px;height: 50px;");
             cancel_button.innerHTML = "CANCEL"
@@ -339,6 +341,7 @@ class VisController {
 
             this.workflow_dialog.appendChild(button_div)
             $('#workflow_dialog').eq(0).show();
+            document.getElementById("workflow_dialog").focus();
             if (document.getElementsByClassName("react-grid-layout dshLayout--viewing").length == 1) {
               document.getElementsByClassName("react-grid-layout dshLayout--viewing")[0].style.filter = "blur(5px)"
             }
@@ -451,3 +454,16 @@ class VisController {
 };
 
 export { VisController };
+
+
+document.onkeydown = function (evt) {
+  if ($('#workflow_dialog').length > 0 && $('#workflow_dialog').get(0).style.display === "block") {
+    evt = evt || window.event;
+    if (evt.keyCode === 27 || (evt.key === "Escape" || evt.key === "Esc")) {
+      document.getElementById("form-cancle-button").click(); 
+    } else if (evt.key === "Enter" || evt.keyCode == 13) {
+      document.getElementById("form-ok-button").click();
+    }
+  }
+};
+

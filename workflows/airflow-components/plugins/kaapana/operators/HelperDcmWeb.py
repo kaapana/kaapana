@@ -1,13 +1,13 @@
 import requests
 import os
-
+from pathlib import Path
 class HelperDcmWeb():
     pacs_dcmweb = "http://dcm4chee-service.store.svc:8080/dcm4chee-arc/aets/KAAPANA"
 
     @staticmethod
-    def downloadSeries(studyUID, seriesUID, dag_run_id, target_dir):
-        payload = {'StudyInstanceUID': studyUID,
-                   'SeriesInstanceUID': seriesUID}
+    def downloadSeries(studyUID, seriesUID, target_dir):
+        Path(target_dir).mkdir(parents=True, exist_ok=True)
+        payload = {'StudyInstanceUID': studyUID,'SeriesInstanceUID': seriesUID}
         url = HelperDcmWeb.pacs_dcmweb + "/rs/instances"
         httpResponse = requests.get(url, params=payload)
         print(payload)
@@ -27,20 +27,20 @@ class HelperDcmWeb():
             print(("Start downloading series: {0}".format(seriesUID)))
             for objectUID in objectUIDList:
                 HelperDcmWeb.downloadObject(
-                    studyUID=studyUID, seriesUID=seriesUID, objectUID=objectUID, downloadDir=target_dir)
+                    studyUID=studyUID, seriesUID=seriesUID, objectUID=objectUID, target_dir=target_dir)
             print("Done.")
         else:
             print("Error at PACS request!")
             exit(1)
 
     @staticmethod
-    def downloadObject(studyUID, seriesUID, objectUID, downloadDir):
+    def downloadObject(studyUID, seriesUID, objectUID, target_dir):
         payload = {'requestType': 'WADO', 'studyUID': studyUID, 'seriesUID': seriesUID,
                    'objectUID': objectUID, 'contentType': 'application/dicom'}
         url = HelperDcmWeb.pacs_dcmweb + "/wado"
         response = requests.get(url, params=payload)
         fileName = objectUID+".dcm"
-        filePath = os.path.join(downloadDir, fileName)
+        filePath = os.path.join(target_dir, fileName)
         with open(filePath, "wb") as f:
             f.write(response.content)
 

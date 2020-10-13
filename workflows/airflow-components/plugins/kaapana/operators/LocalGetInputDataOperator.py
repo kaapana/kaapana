@@ -49,7 +49,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             os.makedirs(target_dir)
 
         if self.data_type == "dicom":
-            HelperDcmWeb.downloadSeries(studyUID=studyUID, seriesUID=seriesUID, dag_run_id=dag_run_id, target_dir=target_dir)
+            HelperDcmWeb.downloadSeries(studyUID=studyUID, seriesUID=seriesUID, target_dir=target_dir)
 
         elif self.data_type == "json":
             meta_data = HelperElasticsearch.get_series_metadata(series_uid=seriesUID)

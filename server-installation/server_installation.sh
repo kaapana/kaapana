@@ -375,9 +375,7 @@ function enable_gpu {
 
     if [ $GPU_SUPPORT == true ];then
         echo "${YELLOW}Activating GPU...${NC}"
-        # did not work on Ubuntu: LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/lib64" 
-        # however needed for centos 8! LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/lib64"
-        microk8s.enable gpu && echo "${GREEN}OK${NC}" || (LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/lib64" microk8s.enable gpu) || (echo "${RED}######################## ERROR WHILE ACTIVATING GPU! ########################${NC}" && exit 1)
+        microk8s.enable gpu && echo "${GREEN}OK${NC}" || (echo "${YELLOW}Trying with LD_LIBRARY_PATH to activate GPU...${NC}" && LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+LD_LIBRARY_PATH:}/lib64" microk8s.enable gpu) || (echo "${RED}######################## ERROR WHILE ACTIVATING GPU! ########################${NC}" && exit 1)
     else
         echo "${YELLOW}No GPU support.${NC}"
     fi

@@ -42,7 +42,10 @@ args = {
 dag = DAG(
     dag_id='radiomics-dcmseg',
     default_args=args,
-    schedule_interval=None)
+    schedule_interval=None,
+    concurrency=30,
+    max_active_runs=15
+)
 
 get_input = LocalGetInputDataOperator(dag=dag)
 dcmseg2nrrd = DcmSeg2ItkOperator(dag=dag)

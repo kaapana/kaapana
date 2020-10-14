@@ -135,8 +135,11 @@ args = {
 dag = DAG(
     dag_id='nnunet-predict',
     default_args=args,
+    concurrency=50,
+    max_active_runs=30,
     schedule_interval=None
 )
+
 get_task_model = GetTaskModelOperator(dag=dag)
 get_input = LocalGetInputDataOperator(dag=dag)
 dcm2nifti = DcmConverterOperator(dag=dag, output_format='nii.gz')

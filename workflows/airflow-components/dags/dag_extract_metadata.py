@@ -22,10 +22,13 @@ args = {
 dag = DAG(
     dag_id='extract-metadata',
     default_args=args,
-    schedule_interval=None)
+    concurrency=50,
+    max_active_runs=50,
+    schedule_interval=None
+)
 
 get_input = LocalGetInputDataOperator(dag=dag)
-extract_metadata = LocalDcm2JsonOperator(dag=dag,delete_private_tags=True)
+extract_metadata = LocalDcm2JsonOperator(dag=dag, delete_private_tags=True)
 push_json = LocalJson2MetaOperator(dag=dag, json_operator=extract_metadata)
 clean = LocalWorkflowCleanerOperator(dag=dag)
 

@@ -34,7 +34,10 @@ args = {
 dag = DAG(
     dag_id='mitk-flow',
     default_args=args,
-    schedule_interval=None)
+    concurrency=10,
+    max_active_runs=5,
+    schedule_interval=None
+)
 
 get_input = LocalGetInputDataOperator(dag=dag)
 mitk_input = MitkInputOperator(dag=dag)
@@ -44,5 +47,4 @@ send_dicom = DcmSendOperator(dag=dag, input_operator=launch_app)
 clean = LocalWorkflowCleanerOperator(dag=dag)
 
 
-
-get_input  >> mitk_input >> launch_app >> send_dicom >> clean
+get_input >> mitk_input >> launch_app >> send_dicom >> clean

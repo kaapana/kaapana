@@ -98,7 +98,10 @@ args = {
 dag = DAG(
     dag_id='shapemodel-organ-seg',
     default_args=args,
-    schedule_interval=None)
+    schedule_interval=None,
+    concurrency=40,
+    max_active_runs=30
+    )
 
 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
 

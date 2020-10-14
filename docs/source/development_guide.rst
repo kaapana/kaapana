@@ -71,7 +71,8 @@ Before proceeding to the next steps, ensure that the following assumptions are c
     default_args=args,
     concurrency=20,
     max_active_runs=10,
-    schedule_interval=None)
+    schedule_interval=None
+    )
     
     
     convert = DcmConverterOperator(dag, output_format='nrrd')

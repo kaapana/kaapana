@@ -25,7 +25,8 @@ dag = DAG(
     default_args=args,
     max_active_runs=5,
     concurrency=5,
-    schedule_interval=None)
+    schedule_interval=None
+    )
 
 bash_operator = TemplateExecBashOperator(dag=dag)
 python_operator = TemplateExecPythonOperator(dag=dag)

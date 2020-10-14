@@ -20,7 +20,10 @@ args = {
 dag = DAG(
     dag_id='download-selected-files',
     default_args=args,
-    schedule_interval=None)
+    concurrency=10,
+    max_active_runs=10,
+    schedule_interval=None
+)
 
 get_input = LocalGetInputDataOperator(dag=dag)
 put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operator_dirs=['initial-input'], bucket_name="downloads", file_white_tuples=('.zip'), zip_files=True)

@@ -23,7 +23,10 @@ args = {
 dag = DAG(
     dag_id='delete-study-from-platform',
     default_args=args,
-    schedule_interval=None)
+    concurrency=30,
+    max_active_runs=10,
+    schedule_interval=None
+)
 
 get_input = LocalGetInputDataOperator(dag=dag)
 delete_dcm_pacs = LocalDeleteFromPacsOperator(dag=dag, delete_complete_study=True)

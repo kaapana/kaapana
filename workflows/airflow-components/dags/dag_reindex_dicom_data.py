@@ -22,7 +22,10 @@ args = {
 dag = DAG(
     dag_id='re-index-dicom-data',
     default_args=args,
-    schedule_interval=None)
+    schedule_interval=None,
+    concurrency=1,
+    max_active_runs=1,
+)
 
 
 def start_reindexing(ds, **kwargs):

@@ -20,7 +20,10 @@ args = {
 dag = DAG(
     dag_id='explore-data-in-minio',
     default_args=args,
-    schedule_interval=None)
+    schedule_interval=None,
+    concurrency=20,
+    max_active_runs=20
+)
 
 get_input = LocalGetInputDataOperator(dag=dag)
 put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operator_dirs=['initial-input'], bucket_name="exploration", file_white_tuples=('.dcm'))

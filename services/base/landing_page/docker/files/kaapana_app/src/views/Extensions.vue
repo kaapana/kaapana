@@ -79,7 +79,7 @@ export default Vue.extend({
     loading: true,
     launchedAppLinks: [] as any,
     search: '',
-    extensionExperimental: 'All',
+    extensionExperimental: 'Stable',
     extensionKind: 'All',
     headers: [
       {

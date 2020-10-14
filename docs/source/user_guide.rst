@@ -5,8 +5,8 @@ User guide
 This manual is intended to provide a quick and easy way to get started with :term:`kaapana`.
 This project should not be considered a finished platform or software. 
 
-Sending images to the platform and appling a processing pipeline to the imates
-----------------------------------------------------------------------------
+Sending images to the platform and appling a processing pipeline to the images
+------------------------------------------------------------------------------
 
 Triggering workflows with Kibana
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -74,7 +74,7 @@ ui_forms = {
                     "task"
                 ]
             },
-            "url": {
+            "task_url": {
                 "title": "Website",
                 "description": "Website to the task.",
                 "type": "string",

@@ -59,7 +59,7 @@
         "modalities": "CT",
         "protocols": "-",
         "input_mode": "all",
-        "organs": "pancreas,tumor@pancreas",
+        "organs": "pancreas;tumor@pancreas",
         "link": "http://medicaldecathlon.com/"
     },
     "Task008_HepaticVessel": {

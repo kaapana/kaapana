@@ -11,6 +11,7 @@ Welcome to Kaapana's documentation!
    
    mission_statement
    getting_started
+   user_guide
    development_guide
    glossary
    releases

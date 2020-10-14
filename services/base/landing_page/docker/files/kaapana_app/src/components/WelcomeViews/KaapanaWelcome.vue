@@ -27,15 +27,6 @@
               v-icon mdi-email
               |&nbsp;
               a(href="mailto:kaapana@dkfz-heidelberg.de?subject=kaapana%20Support%20Question") kaapana@dkfz-heidelberg.de
-            //- v-flex(xs12, py-1)
-            //-   v-icon fab fa-slack
-            //-   |&nbsp;
-            //-   a(href="https://dktk-jip.slack.com/" target='_blank') jip-dktk
-        //-   br
-        //-   span.kaapana-headline Project coordinator
-        //-   hr.my-2
-        //-   div(style={'margin': '14px'})
-        //-     img(src='../../assets/160512_DKTK-Platine_single_combined.png', alt='Vuetify', width='100%')
 </template>
 
 <script>

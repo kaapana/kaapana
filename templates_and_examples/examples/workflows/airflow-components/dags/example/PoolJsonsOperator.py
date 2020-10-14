@@ -13,7 +13,7 @@ class PoolJsonsOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name='pool-json',
-            image='dktk-jip-registry.dkfz.de/tutorial/example-pool-jsons:1.0-dkfz-vdev',
+            image='dktk-jip-registry.dkfz.de/tutorial/example-pool-jsons:0.1.0',
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             *args,

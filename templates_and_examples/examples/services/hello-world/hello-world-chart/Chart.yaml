@@ -1,10 +1,10 @@
 ---
 apiVersion: v1
-appVersion: 0.1-vdev
+appVersion: 0.1.0
 description: Chart for Hello World
 name: hello-world-chart
 repo: tutorial
-version: 0.1-vdev
+version: 0.1.0
 keywords:
 - kaapanaextension
 - kaapanaexperimental

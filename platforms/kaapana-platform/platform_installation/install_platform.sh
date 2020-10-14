@@ -4,7 +4,7 @@ set -euf -o pipefail
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
 PROJECT_NAME="kaapana-platform"
-DEFAULT_VERSION="0.1.0-vdev"
+DEFAULT_VERSION="0.1.0-rc.1"
 
 CHART_REGISTRY_URL="https://dktk-jip-registry.dkfz.de/chartrepo"
 CHART_REGISTRY_PROJECT="kaapana-public"
@@ -162,7 +162,7 @@ function update_extensions {
     else
         mkdir -p $HOME/.extensions
         find $HOME/.extensions/ -type f -delete
-        helm pull -d $HOME/.extensions/ --version=1.0-vdev $CHART_REGISTRY_PROJECT/pull-docker-chart
+        helm pull -d $HOME/.extensions/ --version=0.1.0 $CHART_REGISTRY_PROJECT/pull-docker-chart
         helm search repo -r '(kaapanadag|kaapanaextension|kaapanaint)' | awk 'NR > 1 { print  $1, "--version " $2}' | xargs -L1 helm pull -d $HOME/.extensions/
         helm search repo --devel -r '(kaapanadag|kaapanaextension|kaapanaint)' | awk 'NR > 1 { print  $1, "--version " $2}' | xargs -L1 helm pull -d $HOME/.extensions/
         echo -e "${GREEN}Update OK!${NC}"

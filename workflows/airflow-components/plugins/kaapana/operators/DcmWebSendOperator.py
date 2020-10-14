@@ -26,7 +26,7 @@ class DcmWebSendOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="{}{}/dicomwebsend:1.0.1-vdev".format(default_registry, default_project),
+            image="{}{}/dicomwebsend:0.50.0".format(default_registry, default_project),
             name="dcmweb-send",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,

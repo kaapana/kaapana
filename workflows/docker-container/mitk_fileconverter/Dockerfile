@@ -1,7 +1,7 @@
 FROM ubuntu:20.04 as build_container
 
 LABEL IMAGE="mitk-fileconverter"
-LABEL VERSION="1.1-vdev"
+LABEL VERSION="01.10.2020-master"
 LABEL CI_IGNORE="False"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]

@@ -1,7 +1,7 @@
 FROM python:3.9-alpine3.12
 
 LABEL IMAGE="dicomwebsend"
-LABEL VERSION="1.0.1-vdev"
+LABEL VERSION="0.50.0"
 LABEL CI_IGNORE="False"
 
 # RUN apk add build-base python-dev py-pip jpeg-dev zlib-dev

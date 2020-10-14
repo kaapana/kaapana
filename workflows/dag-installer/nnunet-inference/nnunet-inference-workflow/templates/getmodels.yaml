@@ -11,7 +11,7 @@ spec:
     spec:
       containers:
       - name: nnunet-models
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/nnunet-get-models:0.1-vdev
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/nnunet-get-models:0.1.0
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
         - name: TASK

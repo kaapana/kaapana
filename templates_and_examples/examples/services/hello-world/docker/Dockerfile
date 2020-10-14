@@ -3,7 +3,7 @@ FROM python:3.6-alpine
 LABEL REGISTRY="dktk-jip-registry.dkfz.de"
 LABEL REGISTRY_PROJECT="tutorial"
 LABEL IMAGE="hello-world"
-LABEL VERSION="0.1-dkfz-vdev"
+LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="True"
 
 WORKDIR /app

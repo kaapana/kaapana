@@ -121,7 +121,7 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
     print(f'Pulling {docker_registry_url}{docker_registry_project}/{docker_image}:{docker_version}')   
     payload = {
         'name': f'kaapana-public/pull-docker-chart',
-        'version': '1.0-vdev',
+        'version': '0.1.0',
         'sets': {
             'registry_url': docker_registry_url or os.getenv('REGISTRY_URL'),
             'registry_project': docker_registry_project or os.getenv('REGISTRY_PROJECT'),

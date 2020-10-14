@@ -2,7 +2,7 @@
 FROM node:lts-alpine as build-stage
 
 LABEL IMAGE="landing-page"
-LABEL VERSION="1.1.1-vdev"
+LABEL VERSION="0.1.1"
 LABEL CI_IGNORE="False"
 
 WORKDIR /landing/app

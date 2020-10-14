@@ -48,7 +48,7 @@ class NnUnetOperator(KaapanaBaseOperator):
 
         super(NnUnetOperator, self).__init__(
             dag=dag,
-            image="{}{}/nnunet-predict:0.2-vdev".format(default_registry, default_project),
+            image="{}{}/nnunet-predict:0.1.0".format(default_registry, default_project),
             name="nnunet-predict",
             parallel_id=parallel_id,
             image_pull_secrets=["registry-secret"],

@@ -1,7 +1,7 @@
 FROM nvcr.io/nvidia/pytorch:20.09-py3
 
 LABEL IMAGE="nnunet-predict"
-LABEL VERSION="0.2-vdev"
+LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
 RUN mkdir /nnunet

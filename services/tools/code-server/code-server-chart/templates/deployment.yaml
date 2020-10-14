@@ -30,7 +30,7 @@ spec:
         runAsUser: 0
       containers:
       - name: code-server
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/code-server:3.5.0-vdev
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/code-server:3.5.0
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["--auth","none","--disable-telemetry"]        
         resources:

@@ -104,8 +104,9 @@ if __name__ == '__main__':
     build_mode = configuration["build_mode"]
     print("Build-mode: {}!".format(build_mode))
 
-    build_containers = configuration["build_containers"]
-    push_containers = configuration["push_containers"]
+    build_containers = False if charts_only else configuration["build_containers"]
+    push_containers = False if charts_only else configuration["push_containers"]
+    push_containers = False if build_only else push_containers
     print("build_containers: {}".format(build_containers))
     print("push_containers: {}".format(push_containers))
 
@@ -118,8 +119,9 @@ if __name__ == '__main__':
         build_dir = os.path.join(kaapana_dir, "build")
         os.makedirs(build_dir, exist_ok=True)
 
-    build_charts = configuration["build_charts"]
-    push_charts = configuration["push_charts"]
+    build_charts = False if docker_only else configuration["build_charts"]
+    push_charts = False if docker_only else configuration["push_charts"]
+    push_charts = False if build_only else push_charts
 
     if build_mode == "local" and push_charts:
         print("local build: Forcing push_charts = False !")
@@ -142,7 +144,7 @@ if __name__ == '__main__':
     else:
         print("Using http_proxy: {}".format(http_proxy))
 
-    if build_containers and not charts_only:
+    if build_containers:
         print("-----------------------------------------------------------")
         default_container_registry = configuration["default_container_registry"]
         if default_container_registry == "" and build_mode != "local":
@@ -164,7 +166,7 @@ if __name__ == '__main__':
 
     default_chart_registry = configuration["default_chart_registry"] if "default_chart_registry" in configuration else ""
     default_chart_project = configuration["default_chart_project"] if "default_chart_project" in configuration else ""
-    if not docker_only:
+    if build_charts:
         print("-----------------------------------------------------------")
         default_chart_registry = configuration["default_chart_registry"]
         if default_chart_registry == "":
@@ -207,7 +209,7 @@ if __name__ == '__main__':
 
     startTime = time()
     print("-----------------------------------------------------------")
-    if build_containers and not charts_only:
+    if build_containers:
         print("-----------------------------------------------------------")
         print("------------------------ CONTAINER ------------------------")
         print("-----------------------------------------------------------")
@@ -241,7 +243,7 @@ if __name__ == '__main__':
                     if log['loglevel'].upper() == "ERROR":
                         raise SkipException('SKIP {}: build() failed!'.format(log['test']), log=log)
 
-                if not build_only and push_containers:
+                if push_containers:
                     for log in docker_container.push():
                         print_log_entry(log, kind="CONTAINERS")
                         if log['loglevel'].upper() == "ERROR":
@@ -251,7 +253,7 @@ if __name__ == '__main__':
                 print("SkipException: {}".format(str(error)))
                 continue
 
-    if build_charts and not docker_only:
+    if build_charts:
         print("-----------------------------------------------------------")
         print("------------------------- CHARTS --------------------------")
         print("-----------------------------------------------------------")
@@ -311,7 +313,7 @@ if __name__ == '__main__':
                                 copy(package, build_dir)
                                 os.remove(package)
 
-                if not build_only and push_charts:
+                if push_charts:
                     for log_entry in chart.push():
                         print_log_entry(log_entry, kind="CHARTS")
                         if log_entry['loglevel'].upper() == "ERROR":

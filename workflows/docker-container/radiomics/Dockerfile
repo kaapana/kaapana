@@ -1,7 +1,7 @@
 FROM dktk-jip-registry.dkfz.de/dcipher-core/screenradiomic:develop
 
-LABEL IMAGE="radiomics"
-LABEL VERSION="1.0.1-vdev"
+LABEL IMAGE="mitk-radiomics"
+LABEL VERSION="0.1.1"
 LABEL CI_IGNORE="False"
 
 WORKDIR /

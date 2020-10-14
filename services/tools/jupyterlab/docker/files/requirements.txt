@@ -13,7 +13,7 @@ plotly
 torch
 torchvision
 transformers
-jupyterlab
+jupyterlab==2.2.8
 ipywidgets
 matplotlib
 seaborn

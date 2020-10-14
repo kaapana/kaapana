@@ -5,7 +5,7 @@
 FROM python:3.9-alpine3.12
 
 LABEL IMAGE="bash-template"
-LABEL VERSION="0.1-vdev"
+LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="True"
 
 COPY files/process.sh /

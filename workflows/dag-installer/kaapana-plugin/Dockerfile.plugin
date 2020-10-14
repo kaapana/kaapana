@@ -1,7 +1,7 @@
-FROM local/dag-installer:1.0-vdev
+FROM local/dag-installer:0.1.0
 
 LABEL IMAGE="kaapana-plugin"
-LABEL VERSION="0.8-vdev"
+LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
 COPY dags/dag_delete_series_from_platform.py /tmp/dags/

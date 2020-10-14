@@ -1,7 +1,7 @@
 FROM lassoan/slicer-notebook:2020-05-15-89b6bb5
 
 LABEL IMAGE="slicer-jupyterlab"
-LABEL VERSION="1.0-vdev"
+LABEL VERSION="2020-05-15-89b6bb5"
 LABEL CI_IGNORE="False"
 
 

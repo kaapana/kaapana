@@ -4,5 +4,5 @@ global:
     flow_namespace: "flow"
     fast_data_dir: "/home/kaapana"
 image: "kaapana-plugin"
-version: "0.8-vdev"
+version: "0.1.0"
 action: "copy"

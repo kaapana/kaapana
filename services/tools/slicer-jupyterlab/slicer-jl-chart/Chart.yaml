@@ -1,8 +1,8 @@
 apiVersion: v1
-appVersion: "0.1-vdev"
+appVersion: "2020-05-15-89b6bb5"
 description: A Helm chart for Kubernetes
 name: slicer-jl-chart
-version: 0.1-vdev
+version: 2020-05-15-89b6bb5
 keywords:
 - kaapanaextension
 - kaapanaint

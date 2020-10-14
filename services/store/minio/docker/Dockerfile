@@ -1,7 +1,8 @@
 FROM golang:1.14-alpine as builder
 
-
-LABEL maintainer="MinIO Inc <dev@min.io>"
+LABEL IMAGE=minio
+LABEL VERSION=2020.09.17
+LABEL CI_IGNORE=False
 
 ENV GOPATH /go
 ENV CGO_ENABLED 0
@@ -21,12 +22,6 @@ COPY jwt.go /go/minio/cmd/config/identity/openid/
 RUN go install -v -ldflags "$(go run buildscripts/gen-ldflags.go)"
 
 FROM alpine:3.12
-
-
-LABEL IMAGE=minio
-LABEL VERSION=2020.09.17-vdev
-LABEL CI_IGNORE=False
-
 
 ENV MINIO_UPDATE off
 ENV MINIO_ACCESS_KEY_FILE=access_key \

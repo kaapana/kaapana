@@ -20,7 +20,7 @@ spec:
       #   runAsUser: 1000
       containers:
       - name: jupyterlab
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/jupyterlab:1.0-vdev
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/jupyterlab:2.2.8
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           requests:

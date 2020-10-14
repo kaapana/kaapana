@@ -1,18 +1,18 @@
 ---
 dependencies:
   - name: kaapana-core
-    version: 0.1.0-vdev
+    version: 0.1.0
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+  - name: kibana-kaapana-chart
+    version: 6.8.12
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: meta-init-chart
     condition: Release.IsInstall
-    version: 6.8.12-vdev
+    version: 6.8.12
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: elasticsearch-chart
-    version: 6.8.12-vdev
+    version: 6.8.12
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: kaapana-landing-page-chart
-    version: 1.1.1-vdev
-    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
-  - name: kibana-kaapana-chart
-    version: 6.8.12-vdev
+    version: 0.1.1
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public

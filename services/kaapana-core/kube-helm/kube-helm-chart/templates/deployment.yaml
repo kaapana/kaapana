@@ -34,6 +34,10 @@ spec:
           value: {{  .Values.global.registry_url }}
         - name: REGISTRY_PROJECT
           value: {{  .Values.global.registry_project }}
+        - name: CHART_REGISTRY_PROJECT
+          value: {{  .Values.global.chart_registry_project }}
+        - name: VERSION
+          value: {{ .Values.global.version }}
         - name: BASE_NAMESPACE
           value: {{  .Values.global.base_namespace }}
         - name: FLOW_NAMESPACE

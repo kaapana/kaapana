@@ -236,6 +236,7 @@ function install_chart {
         --set global.gpu_support=$GPU_SUPPORT \
         --set global.registry_url=$CONTAINER_REGISTRY_URL \
         --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
+        --set global.chart_registry_project=$CHART_REGISTRY_PROJECT \
         --name-template $PROJECT_NAME
     else
         echo -e "${YELLOW}Installing $CHART_REGISTRY_PROJECT/$PROJECT_NAME version: $chart_version${NC}"
@@ -258,6 +259,7 @@ function install_chart {
         --set global.gpu_support=$GPU_SUPPORT \
         --set global.registry_url=$CONTAINER_REGISTRY_URL \
         --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
+        --set global.chart_registry_project=$CHART_REGISTRY_PROJECT \
         --name-template $PROJECT_NAME
     fi
     

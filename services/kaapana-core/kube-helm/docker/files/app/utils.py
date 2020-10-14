@@ -117,11 +117,11 @@ def helm_prefetch_extension_docker():
             helm_delete(dag['release_name'], app.config['NAMESPACE'], helm_command_addons='--no-hooks')
 
 
-def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url='dktk-jip-registry.dkfz.de', docker_registry_project='/kaapana', timeout='120m0s'):
+def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, docker_registry_project, timeout='120m0s'):
     print(f'Pulling {docker_registry_url}{docker_registry_project}/{docker_image}:{docker_version}')   
     payload = {
-        'name': f'kaapana-public/pull-docker-chart',
-        'version': '0.1.0',
+        'name': f'{app.config["CHART_REGISTRY_PROJECT"]}/pull-docker-chart',
+        'version': f'{app.config["VERSION"]}',
         'sets': {
             'registry_url': docker_registry_url or os.getenv('REGISTRY_URL'),
             'registry_project': docker_registry_project or os.getenv('REGISTRY_PROJECT'),
@@ -214,8 +214,11 @@ def helm_search_repo(filter_regex):
             f'{os.environ["HELM_PATH"]} search repo -r "{filter_regex}" -o json', stderr=subprocess.STDOUT, shell=True)
         resp_devel = subprocess.check_output(
             f'{os.environ["HELM_PATH"]} search repo --devel -r "{filter_regex}" -o json', stderr=subprocess.STDOUT, shell=True)
+        
         try:
-            data = json.loads(resp_stable) + json.loads(resp_devel)
+            resp_combined = json.loads(resp_stable) + json.loads(resp_devel)
+            resp_str = set([json.dumps(el) for el in resp_combined])
+            data = [json.loads(el) for el in resp_str]
         except json.decoder.JSONDecodeError as e:
             print('No results found', e)
             data = []

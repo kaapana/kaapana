@@ -1,6 +1,6 @@
 FROM python:3.6-alpine
 
-LABEL IMAGE="hello-world"
+LABEL IMAGE="hello-backend"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="True"
 

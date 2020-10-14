@@ -27,7 +27,7 @@ spec:
               value: "10"
       containers:
       - name: prefetch-{{ .Values.image }}
-        image: "{{ .Values.global.registry_url }}/tutorial/{{ .Values.image }}:{{ .Values.version }}"
+        image: "{{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
   #      image: "{{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
         env:
           - name: ACTION
@@ -57,7 +57,7 @@ spec:
               value: "10"
       containers:
       - name: copy-{{ .Values.image }}
-        image: "{{ .Values.global.registry_url }}/tutorial/{{ .Values.image }}:{{ .Values.version }}"
+        image: "{{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
   #      image: "{{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:

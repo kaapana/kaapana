@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: hello-backend
-        image: {{  .Values.global.registry_url }}/tutorial/hello-backend:0.1.0
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/hello-backend:0.1.0
         imagePullPolicy:  Always
         #imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         # command: ["tail"]

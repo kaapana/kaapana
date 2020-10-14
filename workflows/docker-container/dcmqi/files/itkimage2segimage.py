@@ -205,20 +205,21 @@ for batch_element_dir in batch_folders:
                 resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
                 print(resp)
             except subprocess.CalledProcessError as e:
-                print('The image seems to have emtpy slices, we will skip them! This might make the segmentation no usable anymore for MITK.')
-                dcmqi_command = [
-                    f"{DCMQI}/itkimage2segimage",
-                    "--skip",
-                    "--inputImageList", seg_filepath,
-                    "--inputMetadata", meta_data_file,
-                    "--outputDICOM", output_dcm_file,
-                    "--inputDICOMDirectory",  element_input_dir
-                ]
-                print('Executing', " ".join(dcmqi_command))
-                resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
-                print(resp)
-            except subprocess.CalledProcessError as e:
-                raise AssertionError(f'Something weng wrong while creating the single-label-dcm object {e.output}')
+                try:
+                    print(f'The image seems to have emtpy slices, we will skip them! This might make the segmentation no usable anymore for MITK. Error: {e.output}')
+                    dcmqi_command = [
+                        f"{DCMQI}/itkimage2segimage",
+                        "--skip",
+                        "--inputImageList", seg_filepath,
+                        "--inputMetadata", meta_data_file,
+                        "--outputDICOM", output_dcm_file,
+                        "--inputDICOMDirectory",  element_input_dir
+                    ]
+                    print('Executing', " ".join(dcmqi_command))
+                    resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
+                    print(resp)
+                except subprocess.CalledProcessError as e:
+                    raise AssertionError(f'Something weng wrong while creating the single-label-dcm object {e.output}')
 
     elif input_type == 'multi_label_seg':
         print("input_type == 'multi_label_seg'")
@@ -268,20 +269,21 @@ for batch_element_dir in batch_folders:
             resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
             print(resp)
         except subprocess.CalledProcessError as e:
-            print('The image seems to have emtpy slices, we will skip them! This might make the segmentation no usable anymore for MITK.')
-            dcmqi_command = [
-                f"{DCMQI}/itkimage2segimage",
-                "--skip",
-                "--inputImageList", ",".join(segmentation_paths),
-                "--inputMetadata", meta_data_file,
-                "--outputDICOM", output_dcm_file,
-                "--inputDICOMDirectory",  element_input_dir
-            ]
-            print('Executing', " ".join(dcmqi_command))
-            resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
-            print(resp)
-        except subprocess.CalledProcessError as e:
-            raise AssertionError(f'Something weng wrong while creating the multi-label-dcm object {e.output}')
-    
+            try:
+                print(f'The image seems to have emtpy slices, we will skip them! This might make the segmentation no usable anymore for MITK. Error: {e.output}')
+                dcmqi_command = [
+                    f"{DCMQI}/itkimage2segimage",
+                    "--skip",
+                    "--inputImageList", ",".join(segmentation_paths),
+                    "--inputMetadata", meta_data_file,
+                    "--outputDICOM", output_dcm_file,
+                    "--inputDICOMDirectory",  element_input_dir
+                ]
+                print('Executing', " ".join(dcmqi_command))
+                resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
+                print(resp)
+            except subprocess.CalledProcessError as e:
+                raise AssertionError(f'Something weng wrong while creating the multi-label-dcm object {e.output}')
+        
     print("End of script.")
     print("DONE")

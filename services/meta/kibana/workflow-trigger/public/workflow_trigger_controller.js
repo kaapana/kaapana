@@ -88,7 +88,8 @@ class VisController {
 
 
   render(visData, status) {
-    VisController.series_count=visData.rows[0]['col-0-1'];
+    VisController.series_count = visData.rows[0]['col-0-1'];
+
     if ($('#workflow_dialog').length <= 0) {
       this.container.innerHTML = '';
       const table = visData
@@ -207,7 +208,8 @@ class VisController {
               }
               $('#workflow_dialog').eq(0).hide();
               if (document.getElementsByClassName("react-grid-layout dshLayout--viewing").length == 1) {
-                document.getElementsByClassName("react-grid-layout dshLayout--viewing")[0].style.filter = "none"
+                document.getElementsByClassName("react-grid-layout dshLayout--viewing")[0].style.filter = "none";
+                document.getElementsByClassName("react-grid-layout dshLayout--viewing")[0].style.pointerEvents = "auto";
               }
               this.start_dag()
             });
@@ -220,7 +222,8 @@ class VisController {
             cancel_button.addEventListener('click', () => {
               $('#workflow_dialog').eq(0).hide();
               if (document.getElementsByClassName("react-grid-layout dshLayout--viewing").length == 1) {
-                document.getElementsByClassName("react-grid-layout dshLayout--viewing")[0].style.filter = "none"
+                document.getElementsByClassName("react-grid-layout dshLayout--viewing")[0].style.filter = "none";
+                document.getElementsByClassName("react-grid-layout dshLayout--viewing")[0].style.pointerEvents = "auto";
               }
             });
 
@@ -346,7 +349,8 @@ class VisController {
             $('#workflow_dialog').eq(0).show();
             document.getElementById("form-ok-button").focus();
             if (document.getElementsByClassName("react-grid-layout dshLayout--viewing").length == 1) {
-              document.getElementsByClassName("react-grid-layout dshLayout--viewing")[0].style.filter = "blur(5px)"
+              document.getElementsByClassName("react-grid-layout dshLayout--viewing")[0].style.filter = "blur(5px)";
+              document.getElementsByClassName("react-grid-layout dshLayout--viewing")[0].style.pointerEvents = "none";
             }
           });
 
@@ -471,4 +475,3 @@ document.onkeydown = function (evt) {
     }
   }
 };
-

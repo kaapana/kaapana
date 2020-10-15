@@ -337,7 +337,7 @@ function install_microk8s {
 
     mkdir -p /root/.kube
     microk8s.kubectl config view --raw > /root/.kube/config
-    
+    chmod 600 $HOME/.kube/config
 
     echo ""
     echo ""

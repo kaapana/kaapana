@@ -55,6 +55,8 @@ else:
 for task_id in task_ids:
     model_path = os.path.join(models_dir, model, task_id)
     print("Check if model already present: {}".format(model_path))
+    print("TASK: {}".format(task_id))
+    print("MODEL: {}".format(model))
     if os.path.isdir(model_path):
         print("Model {} found!".format(task_id))
         continue
@@ -112,7 +114,7 @@ print("------------------------------------")
 print("Check if all models are now present: {}".format(model_path))
 print("------------------------------------")
 for task_id in task_ids:
-    model_path = os.path.join(models_dir, "2d", task_id)
+    model_path = os.path.join(models_dir, model, task_id)
     if os.path.isdir(model_path):
         print("Model {} found!".format(task_id))
         print("------------------------------------")

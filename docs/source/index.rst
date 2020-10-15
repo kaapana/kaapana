@@ -9,7 +9,7 @@ Welcome to Kaapana's documentation!
 .. toctree::
    :maxdepth: 2
    
-   mission_statement
+   what_is_kaapana
    getting_started
    user_guide
    development_guide

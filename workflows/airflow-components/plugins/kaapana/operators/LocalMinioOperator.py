@@ -153,6 +153,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
            dag,
            name=f'minio-actions-{action}',
            python_callable=self.start,
+           execution_timeout=timedelta(minutes=5),
            *args,
            **kwargs
         )

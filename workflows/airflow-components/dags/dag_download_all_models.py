@@ -21,5 +21,4 @@ dag = DAG(
 
 clean = LocalWorkflowCleanerOperator(dag=dag, trigger_rule="all_done")
 get_task_model = GetTaskModelOperator(dag=dag, task_id="all")
-
 get_task_model >> clean

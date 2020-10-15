@@ -1,7 +1,7 @@
 .. _what_is_kaapana:
 
-# What is :term:`Kaapana`?
-
+What is :term:`Kaapana<kaapana>`?
+=================================
 Kaapana (from the hawaiian word kaʻāpana, meaning “distributor” or “part”) is an open source toolkit for creating federated medical data analysis and quantification platforms, with a focus on radiological and radiotherapeutic imaging. 
 
 Obtaining the large amounts of medical data necessary for developing and training modern methods for big data processing by extracting it from their individual institutions is an extremely challenging effort that often fails, e.g. due to technical, organizational and legal hurdles. A federated approach where the data remains in the respective institution and is processed on-site is in contrast a very promising approach ideally suited for such a scenario. 

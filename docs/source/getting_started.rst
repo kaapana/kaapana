@@ -1,23 +1,27 @@
 .. _getting_started:
 
 
-# Getting started
+Getting started
+===============
 
-This manual is intended to provide a quick and easy way to get started with :term:`Kaapana`.
+This manual is intended to provide a quick and easy way to get started with :term:`Kaapana<kaapana>`.
 
-:term:`Kaapana` is not a ready-to-use software but a toolkit that enables you to build the platform that fits your specific needs.
+:term:`Kaapana<kaapana>` is not a ready-to-use software but a toolkit that enables you to build the platform that fits your specific needs.
 
 The steps described in this guide will build an example :term:`platform`, which is a default configuration and contains many of the typical platform :term:`components<component>`. This basic platform can be used as a starting-point to derive a customized platform for your specific project.
 
-## Requirements
+Requirements
+------------
 
-Before you get started you should be familiar with the basic concepts and components of Kaapana see :ref:`mission_statement`.
+Before you get started you should be familiar with the basic concepts and components of Kaapana see :ref:`what_is_kaapana`.
 You should also have the following packages installed on your build-system.
 
 1. Clone the repository:
 
    | :code:`git clone https://github.com/kaapana/kaapana.git`
+   
    or   
+   
    | :code:`git clone https://phabricator.mitk.org/source/kaapana.git`
 
 2. Snap 
@@ -85,7 +89,8 @@ You should also have the following packages installed on your build-system.
 
 To install the platform itself, you'll also need some kind of a :term:`server` (please have a look in the Glossary for more information).
 
-## Creating an example platform
+Creating an example platform
+----------------------------
  
 The process of creating a Kaapana-based platform involves the following steps:
 
@@ -94,8 +99,8 @@ The process of creating a Kaapana-based platform involves the following steps:
 3. Install all server requirements with the :term:`server-installation-script`
 4. Deploy the platform with the :term:`platform-installation-script`
 
-### Build modes
-
+Build modes
+^^^^^^^^^^^
 Currently Kaapana supports three different **build-modes**:
 
 1. **Local build (default)**
@@ -112,8 +117,8 @@ Currently Kaapana supports three different **build-modes**:
 
 The following sections include a configuration example for each of the options (if applicable).
 
-### Steps 1&2: Build Dockerfiles and Helm Charts
-
+Steps 1&2: Build Dockerfiles and Helm Charts
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Step 1&2 will be handeled with a build-script, which you can find it within the repository at :code:`kaapana/build-scripts/start_build.py`.
 
 Before you start the build-process, you should have a look at the build-configuration at :code:`kaapana/build-scripts/build-configuration.yaml`.
@@ -178,7 +183,7 @@ Before you start the build-process, you should have a look at the build-configur
          push_charts: true
          create_package: false
 
-As described in the :ref:`mission_statement`, we will utilize the DKFZ registry for Helm chart as long as there is no other easy alternative.
+As described in the :ref:`what_is_kaapana`, we will utilize the DKFZ registry for Helm chart as long as there is no other easy alternative.
 
 .. important::
 
@@ -191,8 +196,8 @@ As described in the :ref:`mission_statement`, we will utilize the DKFZ registry 
 Start the build process:
 :code:`python3 kaapana/build-scripts/start_build.py`
 
-### Step 3: Server Installation
-
+Step 3: Server Installation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. hint::
 
   | **GPU support -> Currently only Nvidia GPUs are supported!**
@@ -211,8 +216,8 @@ To do this, you can use the :term:`server-installation-script`, located at :code
 4. Reboot the system :code:`sudo reboot`
 5. (optional) Enable GPU support for Microk8s :code:`sudo ./server_installation.sh -gpu`
 
-### Step 4: Platform Deployment
-
+Step 4: Platform Deployment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The platform is deployed using the :term:`platform-installation-script`, which you can find at :code:`kaapana/platforms/kaapana-platform/platform_installation/install_platform.sh`.
 
 Copy the script to your target-system (server) and **adjust it as described below**:

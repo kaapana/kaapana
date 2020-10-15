@@ -131,6 +131,7 @@ Before you start the build-process, you should have a look at the build-configur
          :emphasize-lines: 2,3,7,8,9,10,11
 
          http_proxy: ""
+         build_mode: "local"
          default_container_registry: "local"
          default_container_project: "" 
          default_chart_registry: "https://dktk-jip-registry.dkfz.de/chartrepo/"
@@ -152,6 +153,7 @@ Before you start the build-process, you should have a look at the build-configur
          :emphasize-lines: 2,3,7,8,9,10,11
 
          http_proxy: ""
+         build_mode: "dockerhub"
          default_container_registry: "johndoe"
          default_container_project: "" 
          default_chart_registry: "https://dktk-jip-registry.dkfz.de/chartrepo/"
@@ -172,6 +174,7 @@ Before you start the build-process, you should have a look at the build-configur
          :emphasize-lines: 2,3,4,5,7,8,9,10,11
 
          http_proxy: ""
+         build_mode: "private"
          default_container_registry: "<registry-url>"
          default_container_project: "<registry-project>" 
          default_chart_registry: "<registry-chart-repo-url>"

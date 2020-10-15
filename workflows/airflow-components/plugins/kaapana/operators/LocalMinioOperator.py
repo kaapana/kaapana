@@ -17,6 +17,10 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         conf = kwargs['dag_run'].conf
         print('conf', conf)
+        if 'conf' in conf and 'form_data' in conf['conf'] and 'zip_files' in conf['conf']['form_data']:
+                self.zip_files = conf['conf']['form_data']['zip_files']
+                print('Zip files set by form data', self.zip_files)
+
         ###################
         # TODO: Can't be used like this, since token expires, we should use presigned_urls, which should be generated when the airflow is triggered 
         # if 'conf' in conf:

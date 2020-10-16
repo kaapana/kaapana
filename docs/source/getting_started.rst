@@ -87,12 +87,11 @@ You should also have the following packages installed on your build-system.
   | :code:`docker run hello-world` -> this should work now without root privileges
   | For more information visit the `Docker docs <https://docs.docker.com/engine/install/linux-postinstall/>`_ 
 
-To install the platform itself, you'll also need some kind of a :term:`server` (please have a look in the Glossary for more information).
 
 Creating an example platform
 ----------------------------
  
-The process of creating a Kaapana-based platform involves the following steps:
+The process of creating a Kaapana-based platform involves the following steps that should be executed on a dedicated physical or virtual server:
 
 1. Build and push all :term:`Dockerfiles<docker>`
 2. Build and push all :term:`Helm Charts<helm>` (optional - you can use our registry)

@@ -1,6 +1,6 @@
 FROM ubuntu:20.04 as build_container
 
-LABEL IMAGE="radiomics"
+LABEL IMAGE="mitk-radiomics"
 LABEL VERSION="15.10.20-master"
 LABEL CI_IGNORE="False"
 
@@ -99,4 +99,3 @@ ENV OPERATOR_OUT_DIR radiomics
 COPY files/radiomics.sh /
 
 CMD ["/bin/bash", "/radiomics.sh"]
-

@@ -120,7 +120,7 @@ Steps 1&2: Build Dockerfiles and Helm Charts
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Step 1&2 will be handeled with a build-script, which you can find it within the repository at :code:`kaapana/build-scripts/start_build.py`.
 
-Before you start the build-process, you should have a look at the build-configuration at :code:`kaapana/build-scripts/build-configuration.yaml`.
+Before you start the build-process, you should have a look at the build-configuration at :code:`kaapana/build-scripts/build-configuration.yaml` and adapt it according as shown below according to you chosen build configuration.
 
 .. tabs::
 
@@ -185,7 +185,7 @@ Before you start the build-process, you should have a look at the build-configur
          push_charts: true
          create_package: false
 
-As described in the :ref:`what_is_kaapana`, we will utilize the DKFZ registry for Helm chart as long as there is no other easy alternative.
+We will utilize the DKFZ registry for Helm chart as long as there is no other easy alternative.
 
 .. important::
 

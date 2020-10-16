@@ -9,7 +9,7 @@ from airflow.models import DAG
 from mitk_userflow.MitkInputOperator import MitkInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.KaapanaApplicationBaseOperator import KaapanaApplicationBaseOperator
+from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 
 
@@ -42,7 +42,7 @@ dag = DAG(
 get_input = LocalGetInputDataOperator(dag=dag)
 mitk_input = MitkInputOperator(dag=dag)
 
-launch_app = KaapanaApplicationBaseOperator(dag=dag, name="application-mitk-flow", chart_name='mitk-flow-chart', version='0.1.1')
+launch_app = KaapanaApplicationOperator(dag=dag, name="application-mitk-flow", chart_name='mitk-flow-chart', version='0.1.1')
 send_dicom = DcmSendOperator(dag=dag, input_operator=launch_app)
 clean = LocalWorkflowCleanerOperator(dag=dag)
 

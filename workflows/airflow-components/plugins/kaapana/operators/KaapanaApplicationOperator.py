@@ -13,7 +13,7 @@ from kaapana.blueprints.kaapana_utils import cure_invalid_name
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 
 
-class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
+class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
     HELM_API = 'http://kube-helm-service.kube-system.svc:5000/kube-helm-api'
     TIMEOUT = 60 * 60 * 12
 
@@ -27,7 +27,7 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         print(kwargs)        
-        release_name = KaapanaApplicationBaseOperator._get_release_name(kwargs)
+        release_name = KaapanaApplicationOperator._get_release_name(kwargs)
 
         payload = {
             'name': f'{self.chart_repo_name}/{self.chart_name}',
@@ -46,7 +46,7 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
         for set_key, set_value in self.sets.items():
             payload['sets'][set_key] = set_value
 
-        url = f'{KaapanaApplicationBaseOperator.HELM_API}/helm-install-chart'
+        url = f'{KaapanaApplicationOperator.HELM_API}/helm-install-chart'
 
         print('payload')
         print(payload)
@@ -55,10 +55,10 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
         print(r.text)
         r.raise_for_status()
 
-        t_end = time.time() + KaapanaApplicationBaseOperator.TIMEOUT
+        t_end = time.time() + KaapanaApplicationOperator.TIMEOUT
         while time.time() < t_end:
             time.sleep(15)
-            url = f'{KaapanaApplicationBaseOperator.HELM_API}/view-chart-status'
+            url = f'{KaapanaApplicationOperator.HELM_API}/view-chart-status'
             r = requests.get(url, params={'release_name': release_name})
             if r.status_code == 500:
                 print(f'Release {release_name} was uninstalled. My job is done here!')
@@ -67,8 +67,8 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
 
     @staticmethod
     def uninstall_helm_chart(kwargs):
-        release_name = KaapanaApplicationBaseOperator._get_release_name(kwargs)
-        url = f'{KaapanaApplicationBaseOperator.HELM_API}/helm-uninstall-chart'
+        release_name = KaapanaApplicationOperator._get_release_name(kwargs)
+        url = f'{KaapanaApplicationOperator.HELM_API}/helm-uninstall-chart'
         r = requests.get(url, params={'release_name': release_name})
         r.raise_for_status()
         print(r)
@@ -77,7 +77,7 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
     @staticmethod
     def on_failure(info_dict):
         print("##################################################### ON FAILURE!")
-        KaapanaApplicationBaseOperator.uninstall_helm_chart(info_dict)
+        KaapanaApplicationOperator.uninstall_helm_chart(info_dict)
 
     @staticmethod
     def on_success(info_dict):
@@ -86,7 +86,7 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
     @staticmethod
     def on_retry(info_dict):
         print("##################################################### ON RETRY!")
-        KaapanaApplicationBaseOperator.uninstall_helm_chart(info_dict)
+        KaapanaApplicationOperator.uninstall_helm_chart(info_dict)
 
     @staticmethod
     def on_execute(info_dict):
@@ -112,11 +112,11 @@ class KaapanaApplicationBaseOperator(KaapanaPythonBaseOperator):
             dag=dag,
             name=name,
             python_callable=self.start,
-            execution_timeout=timedelta(seconds=KaapanaApplicationBaseOperator.TIMEOUT),
-            on_failure_callback=KaapanaApplicationBaseOperator.on_failure,
-            on_success_callback=KaapanaApplicationBaseOperator.on_success,
-            on_retry_callback=KaapanaApplicationBaseOperator.on_retry,
-            on_execute_callback=KaapanaApplicationBaseOperator.on_execute,
+            execution_timeout=timedelta(seconds=KaapanaApplicationOperator.TIMEOUT),
+            on_failure_callback=KaapanaApplicationOperator.on_failure,
+            on_success_callback=KaapanaApplicationOperator.on_success,
+            on_retry_callback=KaapanaApplicationOperator.on_retry,
+            on_execute_callback=KaapanaApplicationOperator.on_execute,
             *args, **kwargs
         )
 

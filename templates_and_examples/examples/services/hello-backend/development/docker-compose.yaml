@@ -1,11 +1,7 @@
 version: '3'
 services:
   hello-backend:
-
-    image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/tutorial/hello-backend:1.0-dkfz
-{{ else }}
-    image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/tutorial/hello-backend:1.0-dkfz
-{{ end }}
+    image: <docker-registry><docker-repo>/hello-backend:1.0-dkfz
     environment:
       SECRET_KEY: jip-secret
       HELLO_WORLD_USER: Klaus
@@ -14,11 +10,7 @@ services:
     ports:
     - 5000:5000
   postgres-backend:
-
     image: postgres:12.0-alpine
-{{ else }}
-    image: postgres:12.0-alpine
-{{ end }}
     volumes:
       - ./postgres
     environment:

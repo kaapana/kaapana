@@ -76,4 +76,5 @@ Glossary
     component
       Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. 
     
-    
+    single and batch file processing
+      The difference between single and batch file processing is that in single file processing for every image an own DAG is triggered. Therefore, each operator within the DAG only obtains a single image at a time. When selecting batch file processing, for all the selected images only one DAG is started and every operator obtains all images in the batch. In general, batch file processing is recommended. Single file processing is only necessary if an operator within the workflow can only handle one image at a time.

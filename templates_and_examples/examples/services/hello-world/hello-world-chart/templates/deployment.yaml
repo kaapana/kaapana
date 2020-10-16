@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: hello-world
-        image: <docker-registry>/<docker-repo>//hello-world:0.1.0
+        image: <docker-registry><docker-repo>/hello-world:0.1.0
         #image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/hello-world:0.1.0
         imagePullPolicy:  Always
         #imagePullPolicy:  {{ .Values.global.pull_policy_pods }}

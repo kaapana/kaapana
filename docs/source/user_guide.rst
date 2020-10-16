@@ -12,10 +12,6 @@ Triggering workflows with Kibana
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 As mentioned above, Kibana visualizes all the metadata of the images and is therefore a good option to also filter the images to which a workflow should be applied. To trigger a workflow from Kibana, a panel 'send_cohort' was added to the Kibana dashboard which contains a dropdown to select a workflow, the option between single and batch file processing and a send button, which will send the request to Airflow.
 
-Single and batch file processing
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The difference between single and batch file processing is that in single file processing for every image an own DAG is triggered. Therefore, each operator within the DAG only obtains a single image at a time. When selecting batch file processing, for all the selected images only one DAG is started and every operator obtains all images in the batch. In general, batch file processing is recommended. Single file processing is only necessary if an operator within the workflow can only handle one image at a time.
-
 Handling of the Kibana request to provide PACS images for the upcoming workflow
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Once Kibana has sent its request to the custom Airflow API, we use the query of Kibana to download the selected images from the local PACS system DCM4CHEE to a predefined directory in the local file system so that the images are available for the upcoming workflow.
@@ -25,10 +21,6 @@ Airflow: DAGs, operators and the UI in action
 This section will introduce a basic DAG as well as the usage of the UI to examine a running DAG and its operators. As an example DAG, let us take a look at the 'download-selected-files' workflow. This can be done via the UI of Airflow. First, go to Airflow and then click on the 'download-selected-files' DAG. Now you should see the 'Graph View' of the DAG which shows the two operators of the pipeline. On the same level as the 'Graph View' tab, a tab called 'Code' is available, which shows the code of the DAG. After importing the necessary dependencies, a DAG object is created which contains, among other things, the id of the DAG (its name). Then, the two operators objects are created. The ``LocalPushFiles2MinioOperator`` will push the files to Minio. The last line of the DAG defines the pipeline, therefore, the ``LocalPushFiles2MinioOperator`` is executed.
 
 To see the DAG in action, go to the Kibana dashboard, select a few images and trigger the DAG 'download-selected-files' with the batch file processing option. Once you have triggered the workflow, go to the main page of Airflow. As mentioned above, the images get first downloaded from the local PACS and are saved to a directory called ``initial-input`` within the workflows folder on the server. This is done by a different DAG called 'processing_incoming_elastic'. You will see that this DAG is working right now. The colored circles in the 'Recent Tasks' section indicate the current status of the operators. The 'processing_incoming_elastic' DAG will trigger then the 'download-selected-files' DAG. If you go to the 'Graph View' of the 'download-selected-files' DAG, you will see how the operators also get colored. By clicking on an operator, a small window opens where you can click, for example, on 'View Log' to see the output of the operator. This is very helpful to debug an operator.
-
-Kubernetes to manage processing Docker containers
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-If an operator does not run in pure Python but triggers a Docker container instead, the container will be managed by Kubernetes. In Kubernetes, a namespace called 'flow-jobs' is reserved for all processing containers. If you select this namespace in the dashboard, you will see all the containers which were triggered by Airflow. E.g. the 'organ-segmentation' DAG triggers Docker containers. Also, Kubernetes will be helpful for debugging a Docker container.
 
 
 Debugging

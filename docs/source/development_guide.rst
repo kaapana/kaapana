@@ -114,7 +114,7 @@ In order to build and test the Dockerfile and the resulting container proceed as
 
   | Depending on your docker registry ``docker-repo`` might be not defined: ``docker-repo=''`` or the name of the docker repository!
 
-* Run the docker image, however, specify the environment variable as well as by mounting your local file system into the Docker container to a directory called data. This mount will also be made automatically on the platform.
+* Run the docker image, however, specify the environment variable as well as mount your local file system into the Docker container to a directory called data. This mount will also be made automatically on the platform.
 
 ::
 
@@ -188,7 +188,7 @@ Now you can try to run the Flask application locally:
 
     flask run
 
-When you go to http://localhost:5000 you should see a congratulations message!
+When you go to http://localhost:5000 you should see a hello message!
 
 Since ``flask run`` is only for development, we use Gunicorn to run in production. Gunicorn is started via the ``boot.sh`` bash script. To try it please run:
 
@@ -245,13 +245,13 @@ Since the Kaapana platform runs in Kubernetes, we will create a Kubernetes deplo
 * Copy the folder ``hello-word-chart`` to the instance where the platform is running
 * Log in to the server and go to the templates directory.
 
-Now you should be able to deploy the platform. Go to the server, inside the templates directory and execute:
+Now you should be able to deploy the platform. Go to the server to the directory of the ``hello-world-chart`` folder and execute:
 
 ::
 
-   kubectl apply -f .
+   kubectl apply -f hello-world-chart/templates/
 
-If everything works well the docker container is started inside the Kubernetes cluster. When going to ``/hello-world`` on your platform, you should see the congratulations page again. Furthermore you should also be able to see the application running on the port 5000. This is because we specified a NodePort in the ``service.yaml`` file.
+If everything works well the docker container is started inside the Kubernetes cluster. When going to ``/hello-world`` on your platform, you should see the hello kaapana page again. Furthermore you should also be able to see the application running on the port 5000. This is because we specified a NodePort in the ``service.yaml`` file.
 
 If the pod started successfully you can also execute:
 
@@ -265,7 +265,7 @@ In order to remove the deployment again execute:
 
 ::
 
-   kubectl delete -f .
+   kubectl delete -f hello-world-chart/templates/
 
 
 Step 4: Write a helm chart and provide it as an extensions 
@@ -281,7 +281,7 @@ This will generate a file called ``hello-world-chart-0.1.0.tgz``, which can be i
 
 ::
    
-   helm install hello-world-chart-0.1.0.tgz
+   helm install hello-world-chart hello-world-chart-0.1.0.tgz
 
 Now, you should have the same result as before, when you created the deployment with ``kubectl``. With ``helm ls`` you can view all helm releases that are currently running.
 
@@ -289,11 +289,11 @@ In order to remove the chart execute:
 
 ::
 
-   helm delete hello-world-chart-0.1.0
+   helm delete hello-world-chart
 
 In case you want to push the helm chart to a registry you first need to do the following steps:
 
-* Install two plugins on the server:
+* Install two plugins on the server (if you are on CentOS you might need to install git first with ``sudo yum install git``):
 
 :: 
 
@@ -306,7 +306,7 @@ In case you want to push the helm chart to a registry you first need to do the f
    
    helm repo add --username <username> --password <password> <repo-name> https://dktk-jip-registry.dkfz.de/chartrepo/<repo-name>
 
-* Push the helm chart form the ``hello-world`` directory to your repo
+* Push the helm chart to your repo
 
    helm push hello-world-chart <repo-name>
 
@@ -314,18 +314,18 @@ In case you want to push the helm chart to a registry you first need to do the f
 
 .. code-block:: python
 
-   helm install --version 0.1.0 hello-world <repo-name>/hello-world
+   helm install --version 0.1.0 hello-world-chart <repo-name>/hello-world-chart
 
 Also here the chart can be deleted again with:
 
 ::
 
-   helm delete hello-world-chart-0.1.0
+   helm delete hello-world-chart
 
 Since in the ``Chart.yaml`` definition we have added ``kaapanextension`` to the keywords, your application should also appear in the extension list. If it does not you might need to update the extension list via:
 
 ::
    
-   ./install_platform --update-extensions
+   ./install_platform.sh --update-extensions
 
 

@@ -167,6 +167,17 @@ function update_extensions {
     fi
 }
 
+function shell_update_extensions {
+
+    if [ ! "$QUIET" = "true" ];then
+        read -e -p "${YELLOW}Which pull-docker-chart version should be used? If you have no idea, press enter and accept the default: ${NC}" -i $DEFAULT_VERSION chart_version;
+    else
+        chart_version=$DEFAULT_VERSION
+    fi
+    update_extensions
+    helm pull -d $HOME/.extensions/ --version=$chart_version $CHART_REGISTRY_PROJECT/pull-docker-chart
+}
+
 function install_chart {
     if [ ! -z "$CHART_PATH" ]; then
         CHART_REGISTRY_URL="local"
@@ -487,7 +498,7 @@ do
         ;;
 
         --update-extensions)
-            update_extensions
+            shell_update_extensions
             exit 0
         ;;
 

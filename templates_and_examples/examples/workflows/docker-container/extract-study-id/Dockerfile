@@ -4,8 +4,7 @@ LABEL IMAGE="example-extract-study-id"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="True"
 
-COPY files/requirements.txt /
-RUN pip3 install -r /requirements.txt
+RUN pip3 install pydicom==2.0.0
 
 COPY files/extract_study_id.py /
 

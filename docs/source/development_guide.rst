@@ -79,13 +79,13 @@ First of all, it is important that your script works. For this, we will simulate
 
   | In case your algorithm works with ``.nrrd`` files you could simply download the batch folder that we generated in the example-dcm2nrrd folder
 
-* Now we create the following python script. Make sure that we have Pydicom installed:
+* Now we create the following python script ``extract_study_id.px``. Make sure that we have Pydicom installed:
 
 .. literalinclude:: ../../templates_and_examples/examples/workflows/docker-container/extract-study-id/files/extract_study_id.py
 
 .. hint::
 
-  | When creating a new algorithm you can always take our templates TODO as a starting point and simply add your code snippet in between for the processing.
+  | When creating a new algorithm you can always take our templates (``templates_and_examples/templates/docker-container``) as a starting point and simply add your code snippet in between for the processing.
 
 In order to test the script we uncomment the os.environ sections and adapt the ``WORKFLOW_DIR`` to the ``data`` location on our local file system. Then we execute the script. On the platform all the environment variables will be set automatically. If the algorithm runs without errors, the most difficult part is already done, we have a running workflow!
 
@@ -118,14 +118,14 @@ In order to build and test the Dockerfile and the resulting container proceed as
 
 ::
 
-   sudo docker run -v <your data directory>:/data -e WORKFLOW_DIR='data' -e BATCH_NAME='batch' -e OPERATOR_IN_DIR='dcm-converter' -e OPERATOR_OUT_DIR='segmented-nrrd'  <docker-registry><docker-repo>/example-extract-study-id:0.1.0
+   sudo docker run -v <directory with the data folder>:/data -e WORKFLOW_DIR='data' -e BATCH_NAME='batch' -e OPERATOR_IN_DIR='dcm-converter' -e OPERATOR_OUT_DIR='segmented-nrrd'  <docker-registry><docker-repo>/example-extract-study-id:0.1.0
 
 
 In order to debug directly into the container you can execute:
 
 ::
 
-   sudo docker run -v <your data directory>:/data -e WORKFLOW_DIR='data' -e BATCH_NAME='batch' -e OPERATOR_IN_DIR='dcm-converter' -e OPERATOR_OUT_DIR='segmented-nrrd'  -it <docker-registry><docker-repo>/example-extract-study-id:0.1.0 /bin/bash
+   sudo docker run -v <directory with the data folder>:/data -e WORKFLOW_DIR='data' -e BATCH_NAME='batch' -e OPERATOR_IN_DIR='dcm-converter' -e OPERATOR_OUT_DIR='segmented-nrrd'  -it <docker-registry><docker-repo>/example-extract-study-id:0.1.0 /bin/sh
 
 * Finally you need to push the docker container to make it available for the workflow
 
@@ -173,7 +173,7 @@ Deploy a Flask Application on the platform
 
 Step 1: Create and run our Flask app locally
 --------------------------------------------
-As a starting point, we first develop a Flask application and run in locally. The source code of the Flask application can be downloaded from here TODO. In case you have never worked with Flask `this  <https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world>`_ tutorial will get you started!
+As a starting point, we first develop a Flask application and run in locally. The source code of the Hello-World Flask application can be found in the ``templates_and_examples/examples/services/hello-world``! In case you have never worked with Flask `this  <https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world>`_ tutorial will get you started!
 
 
 First of all install the requirements.

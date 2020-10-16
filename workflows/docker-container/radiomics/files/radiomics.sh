@@ -77,7 +77,7 @@ function radiomics {
         
         install -Dv / $csv_filepath
         
-        /mitk/MitkCLGlobalImageFeatures --xml -i $file -o $csv_filepath -m $maskfile -rm 1 -sp 1 -head 1 -fl-head 1 -fo 1 -cooc 1    
+        /mitk/MitkCLGlobalImageFeatures.sh --xml -i $file -o $csv_filepath -m $maskfile -rm 1 -sp 1 -head 1 -fl-head 1 -fo 1 -cooc 1    
         
         retVal=$?
         if [ $retVal -ne 0 ]; then

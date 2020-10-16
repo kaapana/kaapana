@@ -1,6 +1,6 @@
 FROM ubuntu:20.04 as build_container
 
-LABEL IMAGE="mitk-radiomics"
+LABEL IMAGE="radiomics"
 LABEL VERSION="15.10.20-master"
 LABEL CI_IGNORE="False"
 
@@ -74,20 +74,24 @@ RUN cp /opt/MITK-superbuild/MITK-build/MITK-Radiomics-linux-x86_64.tar.gz /opt/f
 ###################################################### Final Container #########################################################
 ################################################################################################################################
 FROM ubuntu:20.04
-WORKDIR /opt
+
+ENV TZ=Europe/Berlin
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglu1-mesa-dev \
     libxt-dev \
     libgomp1 \
     xvfb \
+    qtbase5-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=build_container /opt/final_package/MITK-Radiomics-linux-x86_64.tar.gz /MITK-Radiomics-linux-x86_64.tar.gz
-RUN mkdir /mitk
-RUN tar -xzf /MITK-Radiomics-linux-x86_64.tar.gz -C /mitk/
+RUN mkdir -p /tmp_src /mitk
+WORKDIR /tmp_src
+COPY --from=build_container /opt/final_package/MITK-Radiomics-linux-x86_64.tar.gz ./MITK-Radiomics-linux-x86_64.tar.gz
+RUN tar -xzf MITK-Radiomics-linux-x86_64.tar.gz -C ./ && mv ./MITK-Radiomics-linux-x86_64/* /mitk && rm -rf /tmp_src
 
-
+WORKDIR /
 ENV BATCHES_INPUT_DIR /input
 ENV OPERATOR_IN_DIR initial-input
 ENV OPERATOR_OUT_DIR radiomics

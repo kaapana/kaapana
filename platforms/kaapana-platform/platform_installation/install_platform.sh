@@ -162,7 +162,6 @@ function update_extensions {
     else
         mkdir -p $HOME/.extensions
         find $HOME/.extensions/ -type f -delete
-        helm pull -d $HOME/.extensions/ --version=0.1.0 $CHART_REGISTRY_PROJECT/pull-docker-chart
         helm search repo --devel -l -r '(kaapanadag|kaapanaextension|kaapanaint)' | awk 'NR > 1 { print  $1, "--version " $2}' | xargs -L1 helm pull -d $HOME/.extensions/
         echo -e "${GREEN}Update OK!${NC}"
     fi
@@ -212,6 +211,7 @@ function install_chart {
     fi
 
     update_extensions
+    helm pull -d $HOME/.extensions/ --version=$chart_version $CHART_REGISTRY_PROJECT/pull-docker-chart
 
     if [ ! -z "$CHART_PATH" ]; then
         echo -e "${YELLOW}Installing $PROJECT_NAME: version $chart_version${NC}"

@@ -179,7 +179,7 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
         if 'keywords' in chart and 'kaapanamultiinstallable' in chart['keywords']:
             print('Installing again since its kaapanamultiinstallable')
         else:
-            return "already installed"
+            return "already installed", 'no_helm_command'
 
     helm_sets = ''
     if "sets" in payload:
@@ -210,18 +210,11 @@ def helm_ls(namespace, release_filter=''):
 
 def helm_search_repo(filter_regex):
     try:
-        resp_stable = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} search repo -r "{filter_regex}" -o json', stderr=subprocess.STDOUT, shell=True)
-        resp_devel = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} search repo --devel -r "{filter_regex}" -o json', stderr=subprocess.STDOUT, shell=True)
+        resp = subprocess.check_output(
+            f'{os.environ["HELM_PATH"]} search repo --devel -l -r "{filter_regex}" -o json', stderr=subprocess.STDOUT, shell=True
+            )
         
-        try:
-            resp_combined = json.loads(resp_stable) + json.loads(resp_devel)
-            resp_str = set([json.dumps(el) for el in resp_combined])
-            data = [json.loads(el) for el in resp_str]
-        except json.decoder.JSONDecodeError as e:
-            print('No results found', e)
-            data = []
+        data = json.loads(resp)
     except subprocess.CalledProcessError as e:
         print('Error calling search repo!', e.output)
         data = []

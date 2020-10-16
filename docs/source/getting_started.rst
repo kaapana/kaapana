@@ -1,25 +1,30 @@
 .. _getting_started:
 
+
 Getting started
 ===============
-This manual is intended to provide a quick and easy way to get started with :term:`kaapana`.
-This project should not be considered a finished platform or software. 
-It is much more a toolkit to help you build the infrastructure you need for your specific needs.
 
-The described steps in this tutorial will build an example :term:`platform`, which is a default configuration and contains most of the basic :term:`components<component>`.
-This can be used as a starting-point to derive a customized platform, which covers your project specific requirements.
+This manual is intended to provide a quick and easy way to get started with :term:`Kaapana<kaapana>`.
+
+:term:`Kaapana<kaapana>` is not a ready-to-use software but a toolkit that enables you to build the platform that fits your specific needs.
+
+The steps described in this guide will build an example :term:`platform`, which is a default configuration and contains many of the typical platform :term:`components<component>`. This basic platform can be used as a starting-point to derive a customized platform for your specific project.
 
 Requirements
 ------------
-Before you get started you should be familiar with the basic concepts and components of Kaapana see :ref:`mission_statement`.
+
+Before you get started you should be familiar with the basic concepts and components of Kaapana see :ref:`what_is_kaapana`.
 You should also have the following packages installed on your build-system.
 
 1. Clone the repository:
 
    | :code:`git clone https://github.com/kaapana/kaapana.git`
+   
+   or   
+   
    | :code:`git clone https://phabricator.mitk.org/source/kaapana.git`
 
-2. Check if Snap is installed 
+2. Snap 
 
    .. tabs::
 
@@ -60,15 +65,15 @@ You should also have the following packages installed on your build-system.
 
    :code:`sudo snap install docker --classic`
 
-6. (opt) Helm
+6. (optional) Helm
 
    :code:`sudo snap install helm --classic --channel=3.1/stable`
 
-7. (opt) Helm-push plugin
+7. (optional) Helm-push plugin
 
    :code:`helm plugin install https://github.com/chartmuseum/helm-push`
 
-8. (opt) Helm-kubeval plugin
+8. (optional) Helm-kubeval plugin
 
    :code:`helm plugin install https://github.com/instrumenta/helm-kubeval`
 
@@ -84,9 +89,10 @@ You should also have the following packages installed on your build-system.
 
 To install the platform itself, you'll also need some kind of a :term:`server` (please have a look in the Glossary for more information).
 
-Steps needed
------------- 
-To get the Kaapana-platform running, you need to execute the following steps:
+Creating an example platform
+----------------------------
+ 
+The process of creating a Kaapana-based platform involves the following steps:
 
 1. Build and push all :term:`Dockerfiles<docker>`
 2. Build and push all :term:`Helm Charts<helm>` (optional - you can use our registry)
@@ -94,34 +100,25 @@ To get the Kaapana-platform running, you need to execute the following steps:
 4. Deploy the platform with the :term:`platform-installation-script`
 
 Build modes
------------
+^^^^^^^^^^^
 Currently Kaapana supports three different **build-modes**:
 
 1. **Local build (default)**
 
-   By choosing this option you will need **no external Docker registry** to install the platform. 
-   All Docker containers and Helm charts will be build and used locally on the server. 
-   Therefore you need to execute all of the following steps to build the project directly on your remote server. 
+   By choosing this option you will need **no external Docker registry** to install the platform. All Docker containers and Helm charts will be build and used locally on the server.
    
-
 2. **Dockerhub**
 
-   `Dockerhub <https://hub.docker.com/>`_  offers a **free solution to store Docker containers** in a registry. 
-   The disadvantage of this method is that network access to Dockerhub must be guaranteed and all stored containers are publicly accessible (in the free version).
+   `Dockerhub <https://hub.docker.com/>`_  offers a **free solution to store Docker containers** in a registry. The disadvantage of this method is that network access to Dockerhub must be guaranteed and all stored containers are publicly accessible (in the free version).
 
 3. **Private registry**
 
-   The third option is to use a private Docker Registry to manage the containers used, which is the recommended option for all projects that are developed more seriously.
-   Here you will get many **additional features like access controll or the possibility to manage helm charts** directly in the registry. 
-   The disadvantage of a private registry is, that you have to either host it yourself or at least pay for it. 
-   We recommend `Harbor <https://goharbor.io/>`__ or `Artifactory <https://jfrog.com/artifactory/>`__ as professional solutions for a custom registry.
+   The third option is to use a private Docker Registry to manage the containers used. This option comes with many **additional features like access controll or the possibility to manage helm charts** directly in the registry. The disadvantage of a private registry is, that you have to either host it yourself or at least pay for it. We recommend `Harbor <https://goharbor.io/>`__ or `Artifactory <https://jfrog.com/artifactory/>`__ as professional solutions for a custom registry.
 
-The following steps will always include a configuration example for each of the options where necessary.
+The following sections include a configuration example for each of the options (if applicable).
 
-Step 1&2: Build
----------------
-
-
+Steps 1&2: Build Dockerfiles and Helm Charts
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Step 1&2 will be handeled with a build-script, which you can find it within the repository at :code:`kaapana/build-scripts/start_build.py`.
 
 Before you start the build-process, you should have a look at the build-configuration at :code:`kaapana/build-scripts/build-configuration.yaml`.
@@ -134,6 +131,7 @@ Before you start the build-process, you should have a look at the build-configur
          :emphasize-lines: 2,3,7,8,9,10,11
 
          http_proxy: ""
+         build_mode: "local"
          default_container_registry: "local"
          default_container_project: "" 
          default_chart_registry: "https://dktk-jip-registry.dkfz.de/chartrepo/"
@@ -155,6 +153,7 @@ Before you start the build-process, you should have a look at the build-configur
          :emphasize-lines: 2,3,7,8,9,10,11
 
          http_proxy: ""
+         build_mode: "dockerhub"
          default_container_registry: "johndoe"
          default_container_project: "" 
          default_chart_registry: "https://dktk-jip-registry.dkfz.de/chartrepo/"
@@ -175,6 +174,7 @@ Before you start the build-process, you should have a look at the build-configur
          :emphasize-lines: 2,3,4,5,7,8,9,10,11
 
          http_proxy: ""
+         build_mode: "private"
          default_container_registry: "<registry-url>"
          default_container_project: "<registry-project>" 
          default_chart_registry: "<registry-chart-repo-url>"
@@ -186,7 +186,7 @@ Before you start the build-process, you should have a look at the build-configur
          push_charts: true
          create_package: false
 
-As described in the :ref:`mission_statement`, we will utilize the DKFZ registry for Helm chart as long as there is no other easy alternative.
+As described in the :ref:`what_is_kaapana`, we will utilize the DKFZ registry for Helm chart as long as there is no other easy alternative.
 
 .. important::
 
@@ -200,31 +200,30 @@ Start the build process:
 :code:`python3 kaapana/build-scripts/start_build.py`
 
 Step 3: Server Installation
----------------------------
-
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. hint::
 
   | **GPU support -> Currently only Nvidia GPUs are supported!**
-  | If you want to enable GPU support, you need to install the `Nvidia drivers <https://www.nvidia.de/Download/index.aspx?lang=en>`_ first.
+  | GPU support requires installation of the `Nvidia drivers <https://www.nvidia.de/Download/index.aspx?lang=en>`_ .
   | For Ubuntu Server 20.04 :code:`sudo apt install nvidia-driver-<version>-server`
   | should also work **BUT** check the hibernation settings afterwards --> `see <https://www.unixtutorial.org/disable-sleep-on-ubuntu-server/>`_
   | -> reboot required!
   | Please make sure the :code:`nvidia-smi` command is working as expected!
 
-Before the example platform "Kaapana-platform" can be deployed, all dependencies must be installed on the server first. 
-To do this, you can use the :term:`server-installation-script`, which you can find at :code:`kaapana/server-installation/server_installation.sh`.
-You can just copy the script to your target-system (server):
+Before the example platform "Kaapana-platform" can be deployed, all dependencies must be installed on the server. 
+To do this, you can use the :term:`server-installation-script`, located at :code:`kaapana/server-installation/server_installation.sh`, by following the steps listed below.
 
-1. Make it executable: :code:`chmod +x server_installation.sh`
-2. Execute the script: :code:`sudo ./server_installation.sh`
-3. Reboot the system :code:`sudo reboot`
-4. (opt) Enable GPU support for Microk8s :code:`sudo ./server_installation.sh -gpu`
+1. Copy the script to your target-system (server)
+2. Make it executable: :code:`chmod +x server_installation.sh`
+3. Execute the script: :code:`sudo ./server_installation.sh`
+4. Reboot the system :code:`sudo reboot`
+5. (optional) Enable GPU support for Microk8s :code:`sudo ./server_installation.sh -gpu`
 
 Step 4: Platform Deployment
----------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The platform is deployed using the :term:`platform-installation-script`, which you can find at :code:`kaapana/platforms/kaapana-platform/platform_installation/install_platform.sh`.
 
-To finally deploy the platform you need to use the :term:`platform-installation-script`, which you can find at :code:`kaapana/platforms/kaapana-platform/platform_installation/install_platform.sh`.
-You can just copy the script to your target-system (server) and **adjust some variables within the script**.
+Copy the script to your target-system (server) and **adjust it as described below**:
 
 1. Open the :code:`install_platform.sh` script on the server
    

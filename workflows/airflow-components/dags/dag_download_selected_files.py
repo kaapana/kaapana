@@ -9,8 +9,25 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 
 log = LoggingMixin().log
 
+
+ui_forms = {
+    "workflow_form": {
+        "type": "object",
+        "properties": {
+            "zip_files": {
+                "title": "Do you want to zip the downloaded files?",
+                "default": True,
+                "type": "boolean",
+                "readOnly": True,
+                "required": True,
+            }
+        }
+    }
+}
+
 args = {
     'ui_visible': True,
+    'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),
     'retries': 0,
@@ -26,7 +43,7 @@ dag = DAG(
 )
 
 get_input = LocalGetInputDataOperator(dag=dag)
-put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operator_dirs=['initial-input'], bucket_name="downloads", file_white_tuples=('.zip'), zip_files=True)
+put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operator_dirs=['initial-input'], bucket_name="downloads", file_white_tuples=('.zip', '.dcm'), zip_files=True)
 clean = LocalWorkflowCleanerOperator(dag=dag)
 
 get_input >> put_to_minio >> clean

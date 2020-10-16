@@ -63,7 +63,7 @@ ui_forms = {
                 "description": "Select one of the available tasks.",
                 "type": "string",
                 "enum": available_tasks,
-                "required": "true"
+                "required": True
             },
             "description": {
                 "title": "Task Description",
@@ -114,6 +114,7 @@ ui_forms = {
                 "description": "Select one of the available models.",
                 "type": "string",
                 "default": "3d_lowres",
+                "required": True,
                 "enum": [],
                 "dependsOn": [
                     "task"

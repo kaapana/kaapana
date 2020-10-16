@@ -31,6 +31,9 @@
           span {{ item.releaseMame }} &nbsp;
             a(:href='link', target='_blank' v-for="link in item.links" :key="item.link")
               v-icon(color='primary') mdi-open-in-new
+        template(v-slot:item.versions="{ item }")  
+          v-select(v-if="item.installed==='no'" :items="item.versions" v-model="item.version" hide-details='')
+          span(v-if="item.installed==='yes'") {{ item.version }}
         template(v-slot:item.successful="{ item }")
           v-icon(v-if="item.successful==='yes'" color='green') mdi-check-circle
           v-icon(v-if="item.successful==='no'" color='red') mdi-alert-circle
@@ -79,7 +82,7 @@ export default Vue.extend({
     loading: true,
     launchedAppLinks: [] as any,
     search: '',
-    extensionExperimental: 'All',
+    extensionExperimental: 'Stable',
     extensionKind: 'All',
     headers: [
       {
@@ -90,7 +93,7 @@ export default Vue.extend({
       {
         text: "Version",
         align: "start",
-        value: "version",
+        value: "versions",
       },
       {
         text: "Kind",

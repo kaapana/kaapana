@@ -11,7 +11,6 @@ COPY dags/dag_extract_metadata.py /tmp/dags/
 COPY dags/dag_process_incoming_dcm.py /tmp/dags/
 COPY dags/dag_service_minio_dicom_upload.py /tmp/dags/
 COPY dags/dag_collect_metadata.py /tmp/dags/
-COPY dags/dag_explore_data_in_minio.py /tmp/dags/
 
 COPY dags/dag_service_clean_up_airflow_logs.py /tmp/dags
 COPY dags/dag_service_sync_dag_db.py /tmp/dags/

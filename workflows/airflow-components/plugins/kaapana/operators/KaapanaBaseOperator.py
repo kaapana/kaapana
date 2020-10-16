@@ -269,15 +269,14 @@ class KaapanaBaseOperator(BaseOperator):
 
             self.env_vars.update(form_envs)
 
-            import pprint
-            pprint.pprint(self.env_vars)
+            print("CONTAINER ENVS:")
+            print(json.dumps(self.env_vars,indent=4,sort_keys=True))
 
 
 
         for volume in self.volumes:
             if self.data_dir == volume.configs["hostPath"]["path"]:
                 volume.configs["hostPath"]["path"] = os.path.join(volume.configs["hostPath"]["path"], context["run_id"])
-                print(("replaced: {0}".format(volume.configs["hostPath"]["path"])))
 
         try:
             print("++++++++++++++++++++++++++++++++++++++++++++++++ launch pod!")

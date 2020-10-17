@@ -16,7 +16,7 @@ def process_seg_info(seg_info, series_description):
         series_description_code_meaning = f'{code_meaning.capitalize()}'
 
     if series_description != "":
-        return code_meaning, f'{series_description_code_meaning}-{series_description}'
+        return code_meaning, series_description
     else:
         return code_meaning, series_description_code_meaning
 

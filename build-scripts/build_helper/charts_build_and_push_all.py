@@ -20,7 +20,7 @@ def get_timestamp():
 
 def check_helm_installed():
     command = ["helm", "push", "--help"]
-    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
 
     if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
         print("Helm ist not installed correctly!")
@@ -29,7 +29,7 @@ def check_helm_installed():
         exit(1)
 
     command = ["helm", "kubeval", "--help"]
-    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3)
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
     if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
         print("Helm kubeval ist not installed correctly!")
         print("Make sure Helm kubeval-plugin is installed!")
@@ -69,6 +69,7 @@ class HelmChart:
         self.repo = None
         self.version = None
         self.nested = False
+        self.ignore_linting = False
         self.log_list = []
         self.chartfile = chartfile
 
@@ -90,6 +91,8 @@ class HelmChart:
                     self.repo = line.split(": ")[1].strip()
                 elif "version:" in line:
                     self.version = line.split(": ")[1].strip()
+                elif "ignore_linting:" in line:
+                    self.ignore_linting = line.split(": ")[1].strip().lower() == "true"
 
         if self.repo is None:
             self.repo = HelmChart.default_project
@@ -297,25 +300,7 @@ class HelmChart:
             os.remove(requirements_lock)
 
     def lint_chart(self):
-        os.chdir(self.chart_dir)
-        command = ["helm", "lint"]
-        output = run(command, stdout=PIPE, stderr=PIPE,
-                     universal_newlines=True, timeout=5)
-        log = make_log(std_out=output.stdout, std_err=output.stderr)
-
-        if output.returncode != 0:
-            log_entry = {
-                "suite": suite_tag,
-                "test": "{}:{}".format(self.name, self.version),
-                "step": "Helm lint",
-                "log": log,
-                "loglevel": "ERROR",
-                "timestamp": get_timestamp(),
-                "message": "Helm lint failed: {}".format(self.path),
-                "rel_file": self.path,
-                "test_done": True,
-            }
-        else:
+        if self.ignore_linting:
             log_entry = {
                 "suite": suite_tag,
                 "test": "{}:{}".format(self.name, self.version),
@@ -323,16 +308,45 @@ class HelmChart:
                 "log": "",
                 "loglevel": "DEBUG",
                 "timestamp": get_timestamp(),
-                "message": "Helm lint was successful!",
+                "message": "ignore_linting == true -> Helm lint was skipped!",
                 "rel_file": self.path,
             }
+        else:
+            os.chdir(self.chart_dir)
+            command = ["helm", "lint"]
+            output = run(command, stdout=PIPE, stderr=PIPE,universal_newlines=True, timeout=20)
+            log = make_log(std_out=output.stdout, std_err=output.stderr)
+
+            if output.returncode != 0:
+                log_entry = {
+                    "suite": suite_tag,
+                    "test": "{}:{}".format(self.name, self.version),
+                    "step": "Helm lint",
+                    "log": log,
+                    "loglevel": "ERROR",
+                    "timestamp": get_timestamp(),
+                    "message": "Helm lint failed: {}".format(self.path),
+                    "rel_file": self.path,
+                    "test_done": True,
+                }
+            else:
+                log_entry = {
+                    "suite": suite_tag,
+                    "test": "{}:{}".format(self.name, self.version),
+                    "step": "Helm lint",
+                    "log": "",
+                    "loglevel": "DEBUG",
+                    "timestamp": get_timestamp(),
+                    "message": "Helm lint was successful!",
+                    "rel_file": self.path,
+                }
 
         yield log_entry
 
     def lint_kubeval(self):
         os.chdir(self.chart_dir)
         command = ["helm", "kubeval", "--ignore-missing-schemas", "."]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=20)
         log = make_log(std_out=output.stdout, std_err=output.stderr)
 
         if output.returncode != 0 and "A valid hostname" not in output.stderr:

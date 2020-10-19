@@ -59,30 +59,51 @@ fi
 
 function import_containerd {
     echo "Starting image import into containerd..."
-    docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | while read line; do
-        echo "Generating tar-file: '$line'"
-        docker save $line > ./image.tar
-        if [ $? -eq 0 ]; then
-            echo "ok"
+    while true; do
+        read -e -p "Should the containers be deleted from Docker after the import?" -i " no" yn
+        case $yn in
+            [Yy]* ) echo -e "${GREEN}Containers will be removed from Docker${NC}" && DEL_CONTAINERS="true"; break;;
+            [Nn]* ) echo -e "${YELLOW}Containers will be kept${NC}" && DEL_CONTAINERS="false"; break;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
+    containerd_imgs=( $(microk8s ctr images ls -q) )
+    docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | while read IMAGE; do
+        hash=$(docker images --no-trunc --quiet $IMAGE)
+        if [[ ! " ${containerd_imgs[@]} " =~ " ${hash} " ]]; then
+            echo "Container $IMAGE already found: $hash"
         else
-            echo "Failed!"
-            exit 1
+            echo "Not found: generating tar-file: '$IMAGE'"
+            docker save $IMAGE > ./image.tar
+            if [ $? -eq 0 ]; then
+                echo "ok"
+            else
+                echo "Failed!"
+                exit 1
+            fi
+            echo "Import image into containerd..."
+            microk8s ctr image import image.tar
+            if [ $? -eq 0 ]; then
+                echo "ok"
+            else
+                echo "Failed!"
+                exit 1
+            fi
+            echo "Remove tmp image.tar file..."
+            rm image.tar
+            if [ $? -eq 0 ]; then
+                echo "ok"
+            else
+                echo "Failed!"
+                exit 1
+            fi
         fi
-        echo "Import image into containerd..."
-        microk8s ctr image import image.tar
-        if [ $? -eq 0 ]; then
-            echo "ok"
-        else
-            echo "Failed!"
-            exit 1
-        fi
-        echo "Remove tmp image.tar file..."
-        rm image.tar
-        if [ $? -eq 0 ]; then
-            echo "ok"
-        else
-            echo "Failed!"
-            exit 1
+
+        echo ""
+        if [ "$DEL_CONTAINERS" = "true" ];then
+            echo -e "Deleting Docker-image: $IMAGE"
+            docker rmi $IMAGE
+            echo "deleted."
         fi
     done
     echo "All images successfully imported!"

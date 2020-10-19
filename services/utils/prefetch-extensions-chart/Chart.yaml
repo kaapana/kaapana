@@ -4,4 +4,4 @@ appVersion: "0.1.0-rc.1"
 description: Init Job to prefetch all docker container
 name: prefetch-extensions-chart
 # Has to be same as the platform due to the installer script!
-version: 0.1.0-rc.1
+version: "0.1.0-rc.1"

@@ -2,11 +2,11 @@
 dependencies:
 # JIP-SYSTEM
   - name: error-pages-chart
-    version: 0.1.1
+    version: "0.1.1"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: traefik-chart
-    version: 2.3
+    version: "2.3"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: kube-dashboard-chart
-    version: 2.0.3
+    version: "2.0.3"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public

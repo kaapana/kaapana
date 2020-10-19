@@ -3,4 +3,4 @@ apiVersion: v1
 appVersion: "9.5-kc"
 description: A Helm chart for Kubernetes
 name: keycloak-postgres
-version: 9.5-kc
+version: "9.5-kc"

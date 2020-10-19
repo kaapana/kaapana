@@ -67,36 +67,43 @@ function import_containerd {
             * ) echo "Please answer yes or no.";;
         esac
     done
-    docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | while read line; do
-        echo "Generating tar-file: '$line'"
-        docker save $line > ./image.tar
-        if [ $? -eq 0 ]; then
-            echo "ok"
+    containerd_imgs=( $(microk8s ctr images ls -q) )
+    docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | while read IMAGE; do
+        hash=$(docker images --no-trunc --quiet $IMAGE)
+        if [[ ! " ${containerd_imgs[@]} " =~ " ${hash} " ]]; then
+            echo "Container $IMAGE already found: $hash"
         else
-            echo "Failed!"
-            exit 1
-        fi
-        echo "Import image into containerd..."
-        microk8s ctr image import image.tar
-        if [ $? -eq 0 ]; then
-            echo "ok"
-        else
-            echo "Failed!"
-            exit 1
-        fi
-        echo "Remove tmp image.tar file..."
-        rm image.tar
-        if [ $? -eq 0 ]; then
-            echo "ok"
-            echo ""
-            if [ ! "$DEL_CONTAINERS" = "true" ];then
-                echo -e "Deleting Docker-image: $line"
-                docker rm $line
-                echo "deleted."
+            echo "Not found: generating tar-file: '$IMAGE'"
+            docker save $IMAGE > ./image.tar
+            if [ $? -eq 0 ]; then
+                echo "ok"
+            else
+                echo "Failed!"
+                exit 1
             fi
-        else
-            echo "Failed!"
-            exit 1
+            echo "Import image into containerd..."
+            microk8s ctr image import image.tar
+            if [ $? -eq 0 ]; then
+                echo "ok"
+            else
+                echo "Failed!"
+                exit 1
+            fi
+            echo "Remove tmp image.tar file..."
+            rm image.tar
+            if [ $? -eq 0 ]; then
+                echo "ok"
+            else
+                echo "Failed!"
+                exit 1
+            fi
+        fi
+
+        echo ""
+        if [ "$DEL_CONTAINERS" = "true" ];then
+            echo -e "Deleting Docker-image: $IMAGE"
+            docker rmi $IMAGE
+            echo "deleted."
         fi
     done
     echo "All images successfully imported!"

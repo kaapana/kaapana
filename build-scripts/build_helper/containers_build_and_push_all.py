@@ -115,7 +115,7 @@ class DockerContainer:
             self.project_name = default_project
 
         if self.image_version != None and self.image_name != None and self.image_version != "" and self.image_name != "":
-            if self.project_name is not None:
+            if self.project_name is not None and self.docker_registry != "local" and self.docker_registry != "local-only":
                 self.tag = self.docker_registry+"/"+self.project_name + "/"+self.image_name+":"+self.image_version
             else:
                 self.tag = self.docker_registry+"/"+self.image_name+":"+self.image_version

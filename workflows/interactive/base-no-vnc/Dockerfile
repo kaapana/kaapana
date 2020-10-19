@@ -22,6 +22,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     xvfb \
     qtbase5-dev \
+    qtscript5-dev \
+    libqt5svg5-dev \
+    libqt5opengl5-dev \
+    libqt5xmlpatterns5-dev \
+    qtwebengine5-dev \
+    qttools5-dev \
+    libqt5x11extras5-dev \
+    qtxmlpatterns5-dev-tools \
+    libqt5webengine-data \
     at-spi2-core  \
     gedit \
     && rm -rf /var/lib/apt/lists/*

@@ -1,7 +1,7 @@
 echo '==============================='
 echo 'Run an awesome MITK Application'
 echo '==============================='
-env QTWEBENGINE_DISABLE_SANDBOX=1 /mitk/MitkWorkbench &
+env QTWEBENGINE_DISABLE_SANDBOX=1 /mitk/MitkWorkbench.sh &
 PID=$!
 # wait until Workbench is ready
 tail -f  /root/Desktop/logfile | while read LOGLINE

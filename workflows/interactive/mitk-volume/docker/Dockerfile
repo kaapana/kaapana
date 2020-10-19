@@ -39,11 +39,28 @@ RUN cp /opt/MITK-superbuild/MITK-build/MITK-MitkVolume-linux-x86_64.tar.gz /opt/
 #############################################################################################
 FROM local-only/no-vnc-base:0.1.0
 
-RUN apt-get update && apt-get install -q -y --no-install-recommends \
-    qtwebengine5-dev \
+# RUN apt-get update && apt-get install -q -y --no-install-recommends \
+#     qtwebengine5-dev \
     # libqt5svg5-dev \
     # libqt5opengl5-dev \
     # libqt5xmlpatterns5-dev \
+    # && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get -y update && apt-get -y install \
+    ca-certificates \
+    libglu1-mesa-dev \
+    libtiff5-dev \
+    libwrap0-dev \
+    libxcomposite1 \
+    libxcursor1 \
+    libxi-dev \
+    libxkbcommon-x11-0 \
+    libxt-dev \
+    mesa-common-dev \
+    libssl-dev \
+    wmctrl \
+    at-spi2-core  \
+    gedit \
     && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /tmp_src /mitk

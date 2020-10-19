@@ -59,6 +59,14 @@ fi
 
 function import_containerd {
     echo "Starting image import into containerd..."
+    while true; do
+        read -e -p "Should the containers be deleted from Docker after the import?" -i " no" yn
+        case $yn in
+            [Yy]* ) echo -e "${GREEN}Containers will be removed from Docker${NC}" && DEL_CONTAINERS="true"; break;;
+            [Nn]* ) echo -e "${YELLOW}Containers will be kept${NC}" && DEL_CONTAINERS="false"; break;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
     docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | while read line; do
         echo "Generating tar-file: '$line'"
         docker save $line > ./image.tar
@@ -80,6 +88,12 @@ function import_containerd {
         rm image.tar
         if [ $? -eq 0 ]; then
             echo "ok"
+            echo ""
+            if [ ! "$DEL_CONTAINERS" = "true" ];then
+                echo -e "Deleting Docker-image: $line"
+                docker rm $line
+                echo "deleted."
+            fi
         else
             echo "Failed!"
             exit 1

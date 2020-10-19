@@ -51,13 +51,15 @@ function radiomics {
 
         filename="${filename%.*}";
         xml_filepath=$OUTPUTDIR/$seg_name'_radiomics.xml';
-        
+        csv_filepath=$OUTPUTDIR/$seg_name'_radiomics.csv';
+
         sleep 5
         echo "###################################################################### CONFIG"
         echo ""
         echo ""
         echo ""
         echo 'xml_filepath: ' $xml_filepath
+        echo 'csv_filepath: ' $csv_filepath
         echo "INPUT-FILE: " $file
         echo "MASK-DIR: "$MASKDIR/
         echo "MASKF-FILE: " $maskfile
@@ -72,10 +74,9 @@ function radiomics {
             exit 1
         fi
 
-        
         install -Dv / $xml_filepath
-        
-        /mitk/MitkCLGlobalImageFeatures.sh --xml $xml_filepath -i $file -m $maskfile -rm 1 -sp 1 -head 1 -fl-head 1 -fo 1 -cooc 1    
+
+        /mitk/MitkCLGlobalImageFeatures.sh -i $file -o $csv_filepath -x $xml_filepath -m $maskfile -rm 1 -sp 1 -head 1 -fl-head 1 -fo 1 -cooc 1
         
         retVal=$?
         if [ $retVal -ne 0 ]; then

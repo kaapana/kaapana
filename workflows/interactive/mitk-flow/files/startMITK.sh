@@ -14,7 +14,7 @@ do
 	    echo "$OUTPUTDIR does not exist"
 	    mkdir $OUTPUTDIR
 	fi
-        /mitk/bin/MitkFlowBench /$INPUTDIR/input.mitksceneindex --flow.outputdir $OUTPUTDIR --flow.outputextension dcm &
+        /mitk/MitkFlowBench.sh /$INPUTDIR/input.mitksceneindex --flow.outputdir $OUTPUTDIR --flow.outputextension dcm &
 	PID=$!
 	# wait until Workbench is ready
 	tail -f  /home/mitk/Desktop/logfile | while read LOGLINE

@@ -45,11 +45,12 @@ COPY --from=build_container /opt/final_package/MITK-MitkVolume-linux-x86_64.tar.
 RUN tar -xzf mitk.tar.gz -C ./ && mv ./MITK-MitkVolume-linux-x86_64/* /mitk && rm -rf /tmp_src
 
 # Application start definition, here a shell script is used to start the application
-COPY files/Pic3D.nrrd /root/Desktop/data/
 COPY files/startMITK.sh /root/Desktop/
 RUN chmod 0777 /root/Desktop/startMITK.sh
 RUN ln -s /data /root/Desktop/
 WORKDIR /data
+RUN mkdir /root/Desktop/test-data
+COPY files/Pic3D.nrrd /test-data/
 
 # A supervisord config is used to make the application managed
 COPY files/supervisord.conf /etc/supervisor/conf.d/

@@ -5,3 +5,4 @@ description: Chart pull docker container
 name: pull-docker-chart
 # Has to be same as the platform due to the installer script!
 version: "0.1.0-rc.1"
+ignore_linting: true

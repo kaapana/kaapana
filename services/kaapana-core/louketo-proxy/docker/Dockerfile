@@ -1,7 +1,7 @@
 FROM golang:1.14.4 AS build-env
 
 LABEL IMAGE="louketo-proxy"
-LABEL VERSION="0.1-vdev"
+LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
 WORKDIR /opt

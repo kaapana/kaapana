@@ -27,7 +27,7 @@ spec:
             value: "10"
       containers: 
         - name: keycloak-container
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/keycloak:11.0.2-vdev
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/keycloak:11.0.2
           imagePullPolicy:  Always
           # args: ["-b","0.0.0.0","-c", "standalone-ha.xml", "-Dkeycloak.migration.action=export", "-Dkeycloak.migration.provider=dir","-Dkeycloak.migration.dir=/opt/jboss/keycloak/standalone/configuration/export" ]
           # args: ["-b","0.0.0.0","-c", "standalone-ha.xml", "-Dkeycloak.migration.action=import", "-Dkeycloak.migration.provider=dir","-Dkeycloak.migration.dir=/opt/jboss/keycloak/standalone/configuration/import","-Dkeycloak.migration.strategy=IGNORE_EXISTING"]

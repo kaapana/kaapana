@@ -1,7 +1,7 @@
 ---
 apiVersion: v1
-appVersion: "0.9-vdev"
+appVersion: "0.1.0-rc.1"
 description: Base platform
 name: base-platform
-version: 0.9-vdev
+version: 0.1.0-rc.1
 

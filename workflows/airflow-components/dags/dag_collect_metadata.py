@@ -25,7 +25,10 @@ args = {
 dag = DAG(
     dag_id='collect-metadata',
     default_args=args,
-    schedule_interval=None)
+    concurrency=50,
+    max_active_runs=50,
+    schedule_interval=None
+    )
 
 get_input = LocalGetInputDataOperator(dag=dag)
 anonymizer = LocalDcmAnonymizerOperator(dag=dag, single_slice=True)

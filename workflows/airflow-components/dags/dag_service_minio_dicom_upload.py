@@ -25,7 +25,10 @@ args = {
 dag = DAG(
     dag_id='service-minio-dicom-upload',
     default_args=args,
-    schedule_interval=None)
+    schedule_interval=None,
+    concurrency=10,
+    max_active_runs=5
+    )
 
 
 get_object_from_minio = LocalMinioOperator(dag=dag, action_operator_dirs=['dicoms'], operator_out_dir='dicoms')

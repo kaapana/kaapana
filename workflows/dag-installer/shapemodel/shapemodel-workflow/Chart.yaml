@@ -1,8 +1,8 @@
 ---
 apiVersion: v1
-appVersion: "0.1-vdev"
-description: Interactive MITK segmenation
+appVersion: "0.1.0"
+description: DKFZ MIC automatic organ segmenation (3D Statistical Shapemodel)
 name: shapemodel-workflow
-version: 0.1-vdev
+version: 0.1.0
 keywords:
 - kaapanadag

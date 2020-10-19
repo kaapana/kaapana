@@ -66,7 +66,7 @@ spec:
     spec:
       initContainers:
       - name: init
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/airflow:1.10.12-vdev
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/airflow:1.10.12
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["init"]
         resources:
@@ -96,7 +96,7 @@ spec:
               key: sql_alchemy_conn
       containers:
       - name: webserver
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/airflow:1.10.12-vdev
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/airflow:1.10.12
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         ports:
         - name: webserver
@@ -147,7 +147,7 @@ spec:
         #     path: /flow
         #     port: 8080
       - name: scheduler
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/airflow:1.10.12-vdev
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/airflow:1.10.12
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["scheduler"]
         env:

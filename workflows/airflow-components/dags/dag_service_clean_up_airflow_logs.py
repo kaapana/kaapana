@@ -94,7 +94,9 @@ dag = DAG(
     DAG_ID,
     default_args=default_args,
     schedule_interval=SCHEDULE_INTERVAL,
-    start_date=START_DATE
+    start_date=START_DATE,
+    concurrency=5,
+    max_active_runs=1
 )
 if hasattr(dag, 'doc_md'):
     dag.doc_md = __doc__

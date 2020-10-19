@@ -6,6 +6,8 @@ import zipfile
 max_retries = 3
 models_dir = os.path.join(os.getenv('MODELDIR', "/models"), "nnUNet")
 task_ids = os.getenv('TASK', None)
+model = os.getenv('MODEL', None)
+
 
 def delete_zip_file(target_file):
     try:
@@ -17,6 +19,9 @@ if task_ids is None:
     print("No ENV 'TASK' found!")
     print("Abort.")
     exit(1)
+
+if model is None:
+    model="2d"
 
 if task_ids == "all":
     print("Downloading all nnUnet-task-models...")
@@ -48,8 +53,10 @@ else:
     task_ids = [task_ids]
 
 for task_id in task_ids:
-    model_path = os.path.join(models_dir, "2d", task_id)
+    model_path = os.path.join(models_dir, model, task_id)
     print("Check if model already present: {}".format(model_path))
+    print("TASK: {}".format(task_id))
+    print("MODEL: {}".format(model))
     if os.path.isdir(model_path):
         print("Model {} found!".format(task_id))
         continue
@@ -107,7 +114,7 @@ print("------------------------------------")
 print("Check if all models are now present: {}".format(model_path))
 print("------------------------------------")
 for task_id in task_ids:
-    model_path = os.path.join(models_dir, "2d", task_id)
+    model_path = os.path.join(models_dir, model, task_id)
     if os.path.isdir(model_path):
         print("Model {} found!".format(task_id))
         print("------------------------------------")

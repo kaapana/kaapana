@@ -1,7 +1,7 @@
 FROM nvidia/cuda:10.2-runtime-ubuntu18.04
 
 LABEL IMAGE="jupyterlab"
-LABEL VERSION="1.0-vdev"
+LABEL VERSION="2.2.8"
 LABEL CI_IGNORE="False"
 
 # Install Python and basic tools

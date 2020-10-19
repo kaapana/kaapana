@@ -4,11 +4,14 @@ import json
 import pydicom
 from datetime import datetime
 
-# os.environ["WORKFLOW_DIR"] = "/home/klaus/private_data/example_data/download-selected-files_20-04-28-12_31_44375625/data/download-selected-files-200428103133952606"
+# For local testng
+
+# os.environ["WORKFLOW_DIR"] = "<your data directory>"
 # os.environ["BATCH_NAME"] = "batch"
 # os.environ["OPERATOR_IN_DIR"] = "initial-input"
 # os.environ["OPERATOR_OUT_DIR"] = "output"
 
+# From the template
 batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
 
 for batch_element_dir in batch_folders:
@@ -18,6 +21,8 @@ for batch_element_dir in batch_folders:
     if not os.path.exists(element_output_dir):
         os.makedirs(element_output_dir)
 
+    # The processing algorithm
+    print(f'Checking {element_input_dir} for dcm files and writing results to {element_output_dir}')
     dcm_files = sorted(glob.glob(os.path.join(element_input_dir, "*.dcm*"), recursive=True))
 
     if len(dcm_files) == 0:

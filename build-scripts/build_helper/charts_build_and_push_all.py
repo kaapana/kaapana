@@ -233,8 +233,7 @@ class HelmChart:
                     line = line.rstrip()
                     if "dktk-jip-registry.dkfz.de" in line and "image" in line and "#" not in line:
                         docker_container = "dktk-jip-registry.dkfz.de" + \
-                            line.split(
-                                "dktk-jip-registry.dkfz.de")[1].replace(" ", "").replace(",", "").lower()
+                            line.split("dktk-jip-registry.dkfz.de")[1].replace(" ", "").replace(",", "").lower()
                         if docker_container not in HelmChart.docker_containers_used.keys():
                             HelmChart.docker_containers_used[docker_container] = yaml_file
 

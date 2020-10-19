@@ -63,7 +63,7 @@ ui_forms = {
                 "description": "Select one of the available tasks.",
                 "type": "string",
                 "enum": available_tasks,
-                "required": "true"
+                "required": True
             },
             "description": {
                 "title": "Task Description",
@@ -74,7 +74,7 @@ ui_forms = {
                     "task"
                 ]
             },
-            "url": {
+            "task_url": {
                 "title": "Website",
                 "description": "Website to the task.",
                 "type": "string",
@@ -114,6 +114,7 @@ ui_forms = {
                 "description": "Select one of the available models.",
                 "type": "string",
                 "default": "3d_lowres",
+                "required": True,
                 "enum": [],
                 "dependsOn": [
                     "task"
@@ -135,8 +136,11 @@ args = {
 dag = DAG(
     dag_id='nnunet-predict',
     default_args=args,
+    concurrency=50,
+    max_active_runs=30,
     schedule_interval=None
 )
+
 get_task_model = GetTaskModelOperator(dag=dag)
 get_input = LocalGetInputDataOperator(dag=dag)
 dcm2nifti = DcmConverterOperator(dag=dag, output_format='nii.gz')

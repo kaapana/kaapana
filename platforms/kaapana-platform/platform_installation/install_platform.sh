@@ -4,7 +4,7 @@ set -euf -o pipefail
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
 PROJECT_NAME="kaapana-platform"
-DEFAULT_VERSION="0.1.0-vdev"
+DEFAULT_VERSION="0.1.0-rc.1"
 
 CHART_REGISTRY_URL="https://dktk-jip-registry.dkfz.de/chartrepo"
 CHART_REGISTRY_PROJECT="kaapana-public"
@@ -121,7 +121,7 @@ function delete_deployment {
     echo -e "${YELLOW}Uninstalling releases${NC}"
     helm ls --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 helm delete
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
-    WAIT_UNINSTALL_COUNT=60
+    WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
     do
         sleep 3
@@ -162,11 +162,20 @@ function update_extensions {
     else
         mkdir -p $HOME/.extensions
         find $HOME/.extensions/ -type f -delete
-        helm pull -d $HOME/.extensions/ --version=1.0-vdev $CHART_REGISTRY_PROJECT/pull-docker-chart
-        helm search repo -r '(kaapanadag|kaapanaextension|kaapanaint)' | awk 'NR > 1 { print  $1, "--version " $2}' | xargs -L1 helm pull -d $HOME/.extensions/
-        helm search repo --devel -r '(kaapanadag|kaapanaextension|kaapanaint)' | awk 'NR > 1 { print  $1, "--version " $2}' | xargs -L1 helm pull -d $HOME/.extensions/
+        helm search repo --devel -l -r '(kaapanadag|kaapanaextension|kaapanaint)' | awk 'NR > 1 { print  $1, "--version " $2}' | xargs -L1 helm pull -d $HOME/.extensions/
         echo -e "${GREEN}Update OK!${NC}"
     fi
+}
+
+function shell_update_extensions {
+
+    if [ ! "$QUIET" = "true" ];then
+        read -e -p "${YELLOW}Which pull-docker-chart version should be used? If you have no idea, press enter and accept the default: ${NC}" -i $DEFAULT_VERSION chart_version;
+    else
+        chart_version=$DEFAULT_VERSION
+    fi
+    update_extensions
+    helm pull -d $HOME/.extensions/ --version=$chart_version $CHART_REGISTRY_PROJECT/pull-docker-chart
 }
 
 function install_chart {
@@ -213,6 +222,7 @@ function install_chart {
     fi
 
     update_extensions
+    helm pull -d $HOME/.extensions/ --version=$chart_version $CHART_REGISTRY_PROJECT/pull-docker-chart
 
     if [ ! -z "$CHART_PATH" ]; then
         echo -e "${YELLOW}Installing $PROJECT_NAME: version $chart_version${NC}"
@@ -236,6 +246,7 @@ function install_chart {
         --set global.gpu_support=$GPU_SUPPORT \
         --set global.registry_url=$CONTAINER_REGISTRY_URL \
         --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
+        --set global.chart_registry_project=$CHART_REGISTRY_PROJECT \
         --name-template $PROJECT_NAME
     else
         echo -e "${YELLOW}Installing $CHART_REGISTRY_PROJECT/$PROJECT_NAME version: $chart_version${NC}"
@@ -258,6 +269,7 @@ function install_chart {
         --set global.gpu_support=$GPU_SUPPORT \
         --set global.registry_url=$CONTAINER_REGISTRY_URL \
         --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
+        --set global.chart_registry_project=$CHART_REGISTRY_PROJECT \
         --name-template $PROJECT_NAME
     fi
     
@@ -486,7 +498,7 @@ do
         ;;
 
         --update-extensions)
-            update_extensions
+            shell_update_extensions
             exit 0
         ;;
 

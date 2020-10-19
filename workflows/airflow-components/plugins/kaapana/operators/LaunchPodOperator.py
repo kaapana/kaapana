@@ -3,9 +3,9 @@ import os
 import json
 from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
-from kaapana.operators.KaapanaApplicationBaseOperator import KaapanaApplicationBaseOperator
+from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
 
-class LaunchPodOperator(KaapanaApplicationBaseOperator):
+class LaunchPodOperator(KaapanaApplicationOperator):
 
     def pre_execute(self, context):
         print("Starting moule LaunchPodOperator...")

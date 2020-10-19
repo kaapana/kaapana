@@ -30,7 +30,10 @@ args = {
 dag = DAG(
     dag_id='service-sync-dags-with-db',
     default_args=args,
-    schedule_interval="@hourly")
+    schedule_interval="@hourly",
+    concurrency=1,
+    max_active_runs=1
+)
 
 remove_delete_dags = LocalServiceSyncDagsDbOperator(dag=dag)
 

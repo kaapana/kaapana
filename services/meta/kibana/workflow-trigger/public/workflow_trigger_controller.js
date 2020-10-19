@@ -104,7 +104,7 @@ class VisController {
       this.workflow_dialog.style.backgroundColor = "#F5F5F5";
       this.workflow_dialog.style.opacity = "1";
       this.workflow_dialog.style.position = "fixed";
-      this.workflow_dialog.style.top = "30%";
+      this.workflow_dialog.style.top = "5%";
       this.workflow_dialog.style.zIndex = "100";
       this.workflow_dialog.style.width = "50%";
       this.workflow_dialog.style.borderColor = "#FF851B";
@@ -475,3 +475,4 @@ document.onkeydown = function (evt) {
     }
   }
 };
+

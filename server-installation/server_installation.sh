@@ -256,11 +256,20 @@ function install_microk8s {
         set +e
         insert_text "HTTP_PROXY=$http_proxy" /var/snap/microk8s/current/args/containerd-env 
         insert_text "HTTPS_PROXY=$https_proxy" /var/snap/microk8s/current/args/containerd-env 
-        insert_text "no_proxy=$no_proxy" /var/snap/microk8s/current/args/containerd-env 
         set -e
     else
         echo "No proxy needed..."
     fi
+
+    if [ -v no_proxy ]; then
+        echo "${YELLOW}setting containerd no_proxy...${NC}"
+        set +e
+        insert_text "no_proxy=$no_proxy" /var/snap/microk8s/current/args/containerd-env 
+        set -e
+    else
+        echo "No_proxy proxy not needed..."
+    fi
+       
     # set +e
     # echo "${YELLOW}Enable --authentication-token-webhook=true @kubelet ${NC}"
     # insert_text "--authentication-token-webhook=true" /var/snap/microk8s/current/args/kubelet
@@ -328,7 +337,8 @@ function install_microk8s {
         echo "${YELLOW}Chown $homedir/.kube${NC}"
         echo "${YELLOW}Chown $homedir/.cache${NC}"
         echo "${YELLOW}Chown $homedir/snap${NC}"
-        
+
+        chmod 600 $homedir/.kube/config
         chown -R $SUDO_USER:$user_group $homedir/.kube
         chown -R $SUDO_USER:$user_group $homedir/.cache
         chown -R $SUDO_USER:$user_group $homedir/snap
@@ -336,7 +346,7 @@ function install_microk8s {
 
     mkdir -p /root/.kube
     microk8s.kubectl config view --raw > /root/.kube/config
-    
+    chmod 600 $HOME/.kube/config
 
     echo ""
     echo ""
@@ -504,7 +514,7 @@ where opt is:
 
 QUIET=NA
 DEFAULT_MICRO_VERSION=1.18/stable
-HELM_VERSION=3.1/stable
+HELM_VERSION=3.3/stable
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]

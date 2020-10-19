@@ -1,0 +1,12 @@
+---
+global:
+    registry_url: ""
+    registry_project: ""
+    pull_policy_pods: "IfNotPresent"
+    base_namespace: "default"
+    fast_data_dir: /home/kaapana
+    slow_data_dir: /home/kaapana
+
+ingress_path: "mitk"
+mount_path:
+multi_instance_suffix:

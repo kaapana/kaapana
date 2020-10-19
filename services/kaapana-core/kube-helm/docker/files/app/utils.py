@@ -117,11 +117,11 @@ def helm_prefetch_extension_docker():
             helm_delete(dag['release_name'], app.config['NAMESPACE'], helm_command_addons='--no-hooks')
 
 
-def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url='dktk-jip-registry.dkfz.de', docker_registry_project='/kaapana', timeout='120m0s'):
+def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, docker_registry_project, timeout='120m0s'):
     print(f'Pulling {docker_registry_url}{docker_registry_project}/{docker_image}:{docker_version}')   
     payload = {
-        'name': f'kaapana-public/pull-docker-chart',
-        'version': '1.0-vdev',
+        'name': f'{app.config["CHART_REGISTRY_PROJECT"]}/pull-docker-chart',
+        'version': f'{app.config["VERSION"]}',
         'sets': {
             'registry_url': docker_registry_url or os.getenv('REGISTRY_URL'),
             'registry_project': docker_registry_project or os.getenv('REGISTRY_PROJECT'),
@@ -179,7 +179,7 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
         if 'keywords' in chart and 'kaapanamultiinstallable' in chart['keywords']:
             print('Installing again since its kaapanamultiinstallable')
         else:
-            return "already installed"
+            return "already installed", 'no_helm_command'
 
     helm_sets = ''
     if "sets" in payload:
@@ -210,15 +210,11 @@ def helm_ls(namespace, release_filter=''):
 
 def helm_search_repo(filter_regex):
     try:
-        resp_stable = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} search repo -r "{filter_regex}" -o json', stderr=subprocess.STDOUT, shell=True)
-        resp_devel = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} search repo --devel -r "{filter_regex}" -o json', stderr=subprocess.STDOUT, shell=True)
-        try:
-            data = json.loads(resp_stable) + json.loads(resp_devel)
-        except json.decoder.JSONDecodeError as e:
-            print('No results found', e)
-            data = []
+        resp = subprocess.check_output(
+            f'{os.environ["HELM_PATH"]} search repo --devel -l -r "{filter_regex}" -o json', stderr=subprocess.STDOUT, shell=True
+            )
+        
+        data = json.loads(resp)
     except subprocess.CalledProcessError as e:
         print('Error calling search repo!', e.output)
         data = []

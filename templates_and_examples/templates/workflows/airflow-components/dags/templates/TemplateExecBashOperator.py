@@ -15,7 +15,7 @@ class TemplateExecBashOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name='temp-exec-bash',
-            image="{}{}/bash-template:0.1-vdev".format(default_registry, default_project),
+            image="{}{}/bash-template:0.1.0".format(default_registry, default_project),
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             *args,

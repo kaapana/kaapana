@@ -17,7 +17,10 @@ args = {
 dag = DAG(
     dag_id='process_incoming_dcm',
     default_args=args,
-    schedule_interval=None)
+    schedule_interval=None,
+    concurrency=50,
+    max_active_runs=50
+)
 
 
 def process_incoming(ds, **kwargs):
@@ -87,6 +90,7 @@ def process_incoming(ds, **kwargs):
     import shutil
     print(("Deleting temp data: %s" % dcm_path))
     shutil.rmtree(dcm_path, ignore_errors=True)
+
 
 run_this = PythonOperator(
     task_id='trigger_dags',

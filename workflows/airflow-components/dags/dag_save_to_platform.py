@@ -18,7 +18,10 @@ args = {
 dag = DAG(
     dag_id='save_to_platfrom',
     default_args=args,
-    schedule_interval=None)
+    schedule_interval=None,
+    concurrency=20,
+    max_active_runs=10,
+    )
 
 
 save_to_local_pacs = DcmSendOperator(dag=dag, task_id='save_to_local_pacs')

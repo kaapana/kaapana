@@ -98,10 +98,10 @@ args = {
 dag = DAG(
     dag_id='shapemodel-organ-seg',
     default_args=args,
-    schedule_interval=None)
-
-timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-
+    schedule_interval=None,
+    concurrency=40,
+    max_active_runs=30
+    )
 
 get_input = LocalGetInputDataOperator(dag=dag)
 # Convert DICOM to NRRD
@@ -122,10 +122,17 @@ organSeg_kidney_left = OrganSegmentationOperator(
 
 
 # Convert NRRD segmentations to DICOM segmentation objects
-nrrd2dcmSeg_liver = Itk2DcmSegOperator(dag=dag, segmentation_operator=organSeg_liver, single_label_seg_info="Liver", parallel_id='liver')
-nrrd2dcmSeg_spleen = Itk2DcmSegOperator(dag=dag, segmentation_operator=organSeg_spleen, single_label_seg_info="Spleen", parallel_id='spleen')
-nrrd2dcmSeg_kidney_right = Itk2DcmSegOperator(dag=dag, segmentation_operator=organSeg_kidney_right, single_label_seg_info="Right@Kidney", parallel_id='kidney-right')
-nrrd2dcmSeg_kidney_left = Itk2DcmSegOperator(dag=dag, segmentation_operator=organSeg_kidney_left, single_label_seg_info="Left@Kidney", parallel_id='kidney-left')
+alg_name = organSeg_unityCS.image.split("/")[-1]
+nrrd2dcmSeg_liver = Itk2DcmSegOperator(dag=dag, segmentation_operator=organSeg_liver, single_label_seg_info="Liver",
+                                       parallel_id='liver', alg_name=alg_name, series_description=f'{alg_name} - Liver')
+nrrd2dcmSeg_spleen = Itk2DcmSegOperator(dag=dag, segmentation_operator=organSeg_spleen, single_label_seg_info="Spleen",
+                                        parallel_id='spleen', alg_name=alg_name, series_description=f'{alg_name} - Spleen')
+nrrd2dcmSeg_kidney_right = Itk2DcmSegOperator(dag=dag, segmentation_operator=organSeg_kidney_right,
+                                              single_label_seg_info="Right@Kidney", parallel_id='kidney-right',
+                                              alg_name=alg_name, series_description=f'{alg_name} - Kidney-Right')
+nrrd2dcmSeg_kidney_left = Itk2DcmSegOperator(dag=dag, segmentation_operator=organSeg_kidney_left,
+                                             single_label_seg_info="Left@Kidney", parallel_id='kidney-left',
+                                             alg_name=alg_name, series_description=f'{alg_name} - Kidney-Left')
 
 # Send DICOM segmentation objects to pacs
 dcmseg_send_liver = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_liver)

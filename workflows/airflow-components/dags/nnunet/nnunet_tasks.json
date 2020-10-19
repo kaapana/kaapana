@@ -20,7 +20,8 @@
         ],
         "supported": false,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task001_BrainTumour.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task001_BrainTumour.zip?download=1",
+        "task_url": "http://medicaldecathlon.com/"
     },
     "Task002_Heart": {
         "description": "Left Atrium Segmentation.",
@@ -40,7 +41,8 @@
         ],
         "supported": true,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task002_Heart.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task002_Heart.zip?download=1",
+        "task_url": "http://medicaldecathlon.com/"
     },
     "Task003_Liver": {
         "description": "Liver and Liver Tumor Segmentation.",
@@ -61,7 +63,8 @@
         ],
         "supported": true,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task003_Liver.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task003_Liver.zip?download=1",
+        "task_url": "http://medicaldecathlon.com/"
     },
     "Task004_Hippocampus": {
         "description": "Hippocampus Segmentation.",
@@ -81,7 +84,8 @@
         ],
         "supported": true,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task004_Hippocampus.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task004_Hippocampus.zip?download=1",
+        "task_url": "http://medicaldecathlon.com/"
     },
     "Task005_Prostate": {
         "description": "Prostate Segmentation.",
@@ -102,7 +106,8 @@
         ],
         "supported": false,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task005_Prostate.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task005_Prostate.zip?download=1",
+        "task_url": "http://medicaldecathlon.com/"
     },
     "Task006_Lung": {
         "description": "Lung Nodule Segmentation.",
@@ -122,7 +127,8 @@
         ],
         "supported": true,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task006_Lung.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task006_Lung.zip?download=1",
+        "task_url": "http://medicaldecathlon.com/"
     },
     "Task007_Pancreas": {
         "description": "Pancreas Segmentation.",
@@ -142,7 +148,8 @@
         ],
         "supported": true,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task007_Pancreas.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task007_Pancreas.zip?download=1",
+        "task_url": "http://medicaldecathlon.com/"
     },
     "Task008_HepaticVessel": {
         "description": "Hepatic Vessel Segmentation.",
@@ -163,7 +170,8 @@
         ],
         "supported": true,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task008_HepaticVessel.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task008_HepaticVessel.zip?download=1",
+        "task_url": "http://medicaldecathlon.com/"
     },
     "Task009_Spleen": {
         "description": "Spleen Segmentation.",
@@ -183,7 +191,8 @@
         ],
         "supported": true,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task009_Spleen.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task009_Spleen.zip?download=1",
+        "task_url": "http://medicaldecathlon.com/"
     },
     "Task010_Colon": {
         "description": "Colon Cancer Segmentation.",
@@ -203,7 +212,8 @@
         ],
         "supported": true,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task010_Colon.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task010_Colon.zip?download=1",
+        "task_url": "http://medicaldecathlon.com/"
     },
     "Task017_AbdominalOrganSegmentation": {
         "description": "Multi-Atlas Labeling Beyond the Cranial Vault - Abdomen.",
@@ -236,7 +246,8 @@
         ],
         "supported": true,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task017_AbdominalOrganSegmentation.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task017_AbdominalOrganSegmentation.zip?download=1",
+        "task_url": "https://www.synapse.org/#!Synapse:syn3193805/wiki/217754"
     },
     "Task024_Promise": {
         "description": "Prostate MR Image Segmentation 2012.",
@@ -256,7 +267,8 @@
         ],
         "supported": true,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task024_Promise.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task024_Promise.zip?download=1",
+        "task_url": "https://promise12.grand-challenge.org/"
     },
     "Task027_ACDC": {
         "description": "Automatic Cardiac Diagnosis Challenge.",
@@ -278,7 +290,8 @@
         ],
         "supported": true,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task027_ACDC.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task027_ACDC.zip?download=1",
+        "task_url": "https://acdc.creatis.insa-lyon.fr/"
     },
     "Task029_LITS": {
         "description": "Liver and Liver Tumor Segmentation Challenge.",
@@ -299,7 +312,8 @@
         ],
         "supported": true,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task029_LITS.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task029_LITS.zip?download=1",
+        "task_url": "https://competitions.codalab.org/competitions/17094"
     },
     "Task035_ISBILesionSegmentation": {
         "description": "Longitudinal multiple sclerosis lesion segmentation Challenge.",
@@ -322,7 +336,8 @@
         ],
         "supported": false,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task035_ISBILesionSegmentation.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task035_ISBILesionSegmentation.zip?download=1",
+        "task_url": "https://smart-stats-tools.org/lesion-challenge"
     },
     "Task038_CHAOS_Task_3_5_Variant2": {
         "description": "CHAOS - Combined (CT-MR) Healthy Abdominal Organ Segmentation Challenge (Task 3 & 5).",
@@ -346,7 +361,8 @@
         ],
         "supported": false,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task038_CHAOS_Task_3_5_Variant2.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task038_CHAOS_Task_3_5_Variant2.zip?download=1",
+        "task_url": "https://chaos.grand-challenge.org/"
     },
     "Task048_KiTS_clean": {
         "description": "Kidney and Kidney Tumor Segmentation Challenge.",
@@ -367,7 +383,8 @@
         ],
         "supported": true,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task048_KiTS_clean.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task048_KiTS_clean.zip?download=1",
+        "task_url": "https://kits19.grand-challenge.org/"
     },
     "Task055_SegTHOR": {
         "description": "SegTHOR: Segmentation of THoracic Organs at Risk in CT images.",
@@ -390,7 +407,8 @@
         ],
         "supported": true,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task055_SegTHOR.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task055_SegTHOR.zip?download=1",
+        "task_url": "https://competitions.codalab.org/competitions/21145"
     },
     "Task061_CREMI": {
         "description": "MICCAI Challenge on Circuit Reconstruction from Electron Microscopy Images (Synaptic Cleft segmentation task).",
@@ -410,7 +428,8 @@
         ],
         "supported": false,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task061_CREMI.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task061_CREMI.zip?download=1",
+        "task_url": "https://cremi.org/"
     },
     "Task075_Fluo_C3DH_A549_ManAndSim": {
         "description": "Fluo-C3DH-A549-SIM and Fluo-C3DH-A549 datasets of the cell tracking challenge. Segmentation target are C3DH cells in fluorescence microscopy images",
@@ -430,7 +449,8 @@
         ],
         "supported": false,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task075_Fluo_C3DH_A549_ManAndSim.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task075_Fluo_C3DH_A549_ManAndSim.zip?download=1",
+        "task_url": "http://celltrackingchallenge.net/"
     },
     "Task076_Fluo_N3DH_SIM": {
         "description": "Fluo-N3DH-SIM dataset of the cell tracking challenge. Segmentation target are N3DH cells and cell borders in fluorescence microscopy images.",
@@ -451,7 +471,8 @@
         ],
         "supported": false,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task076_Fluo_N3DH_SIM.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task076_Fluo_N3DH_SIM.zip?download=1",
+        "task_url": "http://celltrackingchallenge.net/"
     },
     "Task089_Fluo-N2DH-SIM_thickborder_time": {
         "description": "Fluo-N2DH-SIM dataset of the cell tracking challenge. Segmentation target are nuclei of N2DH cells and cell borders in fluorescence microscopy images.",
@@ -472,6 +493,7 @@
         ],
         "supported": false,
         "info": "",
-        "url": "https://zenodo.org/record/4003545/files/Task089_Fluo-N2DH-SIM_thickborder_time.zip?download=1"
+        "url": "https://zenodo.org/record/4003545/files/Task089_Fluo-N2DH-SIM_thickborder_time.zip?download=1",
+        "task_url": "http://celltrackingchallenge.net/"
     }
 }

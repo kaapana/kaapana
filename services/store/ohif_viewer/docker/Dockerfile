@@ -1,7 +1,7 @@
 FROM node:lts-alpine as build
 
 LABEL IMAGE="ohif"
-LABEL VERSION="4.5.9-vdev"
+LABEL VERSION="4.5.9"
 LABEL CI_IGNORE="False"
 
 RUN apk add --no-cache ca-certificates git

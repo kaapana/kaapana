@@ -545,7 +545,7 @@ def quick_check():
     list_size_containers = len(docker_containers_list)
     while i < list_size_containers:
         container = docker_containers_list[i]
-        if container.docker_registry.lower() == "local":
+        if container.docker_registry.lower() == "local-only":
             docker_containers_list.insert(0, docker_containers_list.pop(i))
             i += 1
             continue

@@ -1,14 +1,18 @@
 .. _dev_guide_doc:
 
-Development Guide
+Development guide
 =================
 
 This guide is intended to provide a quick and easy way to get started with developments on the platform.
  
 The guide currently consists of three parts. The parts :ref:`Write your first own DAG` and :ref:`Deploy an own processing algorithm to the platform` focus on the implementation of pipelines for Airflow in order to apply processing steps to images. The part :ref:`Deploy a Flask Application on the platform` explains how to develop a flask web application and integrate it as an extension into the Kaapana technology stack.
 
+
+Getting started
+^^^^^^^^^^^^^^^
+
 List of the technologies used within this guide
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------------------------------
 These tutorials/technologies are good references, when starting with the Kaapana deployment:
 
 * `Docker <https://docs.docker.com/get-docker/>`_: Necessary when you want to build container on your local machine
@@ -36,7 +40,7 @@ Preparations for the development
 
 ::
 
-   dcmsend -v 10.128.129.28 11112  --scan-directories --call <aetitle of images, used for filtering> --scan-pattern '*'  --recurse <data-dir-of-DICOM images>
+   dcmsend -v <ip-address of server> 11112  --scan-directories --call <aetitle of images, used for filtering> --scan-pattern '*'  --recurse <data-dir-of-DICOM images>
 
 * Go to Meta on the landing page to check if the images were successfully uploaded
 * In order to create a development environment to add new DAGs to the platform go to the extension section on the landing page and install the code-server-chart. Clicking on the link you will be served with a Visual Studio Code environment in the directory of Airflow, where you will finde the Kaapana plugin (``workflows/plugins``), the data during processing (``workflows/data``), the models (``workflows/models``) and the directory for the DAGs definition (``workflows/dags``). 

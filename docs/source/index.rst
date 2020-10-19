@@ -12,7 +12,9 @@ Welcome to Kaapana's documentation!
    what_is_kaapana
    getting_started
    user_guide
+   workflows_and_extensions
    development_guide
+   faq
    glossary
    releases
    main_license

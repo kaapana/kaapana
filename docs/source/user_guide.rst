@@ -2,29 +2,122 @@
 
 User guide
 ==========
-This manual is intended to provide a quick and easy way to get started with :term:`kaapana`.
-This project should not be considered a finished platform or software. 
+This manual is intended to provide a quick and easy way to get started with :term:`kaapana`. In detail, after given default configurations we will introduce the storage, the processing and the core stack of the platform and show examples of how to use them.
 
-Sending images to the platform and appling a processing pipeline to the images
-------------------------------------------------------------------------------
+.. hint::
+    | This project should not be considered a finished platform or software. 
+
+
+Default configuration
+---------------------
+
+Default credentials
+^^^^^^^^^^^^^^^^^^^
+
+**Main Kaapana Login:**
+  | username: kaapana
+  | password: kaapana
+
+**Keycloak Usermanagement Administrator:**
+  | username: admin
+  | password: Kaapana2020
+
+**Minio:**
+  | username: kaapanaminio
+  | password: Kaapana2020
+
+Port Configuration
+^^^^^^^^^^^^^^^^^^
+In the default configuration only four ports are open on the server:
+
+1. Port  **80**:   Redirects to https port 443
+
+2. Port **443**:   Main https communication with the server
+
+3. Port **11112**: DICOM receiver port, which should be used as DICOM node in your pacs
+
+4. Port **6443**:  Kubernetes API port -> used for external kubectl communication and secured via the certificate
+
+
+Filesystem directories
+^^^^^^^^^^^^^^^^^^^^^^
+In the default configuration there are two locations on the filesystem:
+
+1. **/home/jip/data/** SSD is mounted here and all persistant data from the platform is saved here
+
+2. **/mnt/dicom/**     HDD is mounted here and all received dicom files are stored here
+
+
+Storage stack: Kibana, Elasticsearch, OHIF and DCM4CHEE
+-------------------------------------------------------
+
+The platofrm is in general processing platform, which means that all the data on the platform should only form a copy of the original data. In general, data that are in DICOM format are stored in an internal PACS called  DCM4CHEE. For all non-dicom data, an object store called Minio is available. In Minio, data are stored in buckets and are accessible via the GUI for download. Most of the results that are generated during a pipeline will be saved in Minio. Finally a component called Clinical Trial Processor (CTP) was added to manage the distribution and acceptance of images. It will opens the port ``11112`` on the server to accept DICOM images directly from your clinic PACS.
+
+If you are more interested in the technologies, you can get started here:
+
+* `Kibana <https://www.elastic.co/guide/en/kibana/current/getting-started.html>`_
+* `Elasticsearch <https://www.elastic.co/guide/en/elasticsearch/reference/current/elasticsearch-intro.html>`_
+* `Minio <https://min.io/>`_
+* `OHIF <https://ohif.org/>`_
+* `Clinical Trial Processor (CTP) <https://mircwiki.rsna.org/index.php?title=CTP-The_RSNA_Clinical_Trial_Processor#Clinical_Trial_Processor_.28CTP.29>`_
+
+
+Getting images into the platform
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In order to get started with the platform, first you will have to send images to the platform. There are two ways to get images into the ploatform. The preferred way is to use the provided DICOM receiver on port ``11112``. If you have images locally you can use e.g. `DCMTK <https://dicom.offis.de/dcmtk.php.en>`_. Howevery, any tool that sends images to a DICOM receiver can be used. Alternatively, you can upload DICOM images via drag&drop on the landing page, however, we only recommend this for small image sizes. Also the upload expects a zip file of images with a ``.dcm`` ending.
+
+Here is an example of sending images with DCMTK:
+
+::
+
+   dcmsend -v <ip-address of server> 11112  --scan-directories --call <aetitle of images, used for filtering> --scan-pattern '*'  --recurse <data-dir-of-DICOM images>
+
+The AE title should represent your dataset since we use for filtering images on our Meta-Dashboard in Kibana.
+
+
+When DICOMs are sent to the DICOM receiver of the platform two things happen. Firstly, the DICOMs are saved in the local PACs system called DCM4CHEE. Secondly, the meta data of the DICOMs are extracted and indexed by a search engine (powered by Elasticsearch) which makes the meta data available for Kibana. A Kibana dashboard called Meta dashboard, which you can access via the landing page, is mainly responsible for visualizing the metadata but also serves as a filtering tool in order to select images and to trigger a processing pipeline on the selected images. Image cohorts on the Meta dashboard can be selected via custom filters at the top. To ease this process, it is also possible to add filters automatically by clicking on the graphs (``+/-`` popups).
+
+Deleting images from the platform
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Information of the images are saved in the PACS and in Elasticsearch. A workflow called ``delete-series-from-platform`` is provided. Simply go to the Meta Dashboard. Select the images you want to delete and start the workflow. On the Airflow dashboard you can see when the DAG ``delete-series-from-platform`` has finished, then all your selected images should be deleted form the platform. For more information check out the documentation of the workflow at TODO workflow delete.
+
+Viewing images with OHIF
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+A web-based DICOM viewer (OHIF) has been integrated to show images in the browser. The functionality of this viewer is limited at the moment, but more features will come soon. To view an images, go to OHIF and click on the study. When e.g. an segmentation is available you can vizualize the segmentation by dragging it into to the main window. 
+
+
+Processing stack: Airflow, Kubernetes namespace ``flow-jobs`` and the working directory
+---------------------------------------------------------------------------------------
+
+
+In order to apply processing pipelines in which different operations are performed in a certain order to images, a framework is necessary which allows us to define and trigger such a pipeline. We decided to use Airflow for that. In Airflow, a workflow is called a DAG (directed acyclic graph, a graph type where you can only traverse forwards). It consists of operators which are the bricks of your pipeline. Ideally, every operator triggers a Docker container in which some kind of task is performed. A detailed overview of the concepts can be found `here <https://airflow.apache.org/docs/stable/concepts.html>`_.
+
+Besides Airflow, Kubernetes is used to manage the Docker containers that are triggered by Airflow. On the platform, we introduce a namespace called ``flow-jobs`` in which all containers initiated by Airflow are started. 
+
+If you are more interested in the technologies, you can get started here:
+
+* `Airflow <https://airflow.apache.org/docs/stable/tutorial.html>`_
+* `Kubernetes <https://kubernetes.io/docs/concepts/>`_
 
 Triggering workflows with Kibana
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-As mentioned above, Kibana visualizes all the metadata of the images and is therefore a good option to also filter the images to which a workflow should be applied. To trigger a workflow from Kibana, a panel 'send_cohort' was added to the Kibana dashboard which contains a dropdown to select a workflow, the option between single and batch file processing and a send button, which will send the request to Airflow.
 
-Handling of the Kibana request to provide PACS images for the upcoming workflow
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Once Kibana has sent its request to the custom Airflow API, we use the query of Kibana to download the selected images from the local PACS system DCM4CHEE to a predefined directory in the local file system so that the images are available for the upcoming workflow.
+As mentioned above, Kibana visualizes all the metadata of the images and is therefore a good option to also filter the images to which a workflow should be applied. To trigger a workflow from Kibana, a panel ``send_cohort`` was added to the Kibana dashboard which contains a dropdown to select a workflow, the option between single and batch file processing and a send button to send the request to Airflow our processing tool.
 
-Airflow: DAGs, operators and the UI in action
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-This section will introduce a basic DAG as well as the usage of the UI to examine a running DAG and its operators. As an example DAG, let us take a look at the 'download-selected-files' workflow. This can be done via the UI of Airflow. First, go to Airflow and then click on the 'download-selected-files' DAG. Now you should see the 'Graph View' of the DAG which shows the two operators of the pipeline. On the same level as the 'Graph View' tab, a tab called 'Code' is available, which shows the code of the DAG. After importing the necessary dependencies, a DAG object is created which contains, among other things, the id of the DAG (its name). Then, the two operators objects are created. The ``LocalPushFiles2MinioOperator`` will push the files to Minio. The last line of the DAG defines the pipeline, therefore, the ``LocalPushFiles2MinioOperator`` is executed.
+.. hint::
 
-To see the DAG in action, go to the Kibana dashboard, select a few images and trigger the DAG 'download-selected-files' with the batch file processing option. Once you have triggered the workflow, go to the main page of Airflow. As mentioned above, the images get first downloaded from the local PACS and are saved to a directory called ``initial-input`` within the workflows folder on the server. This is done by a different DAG called 'processing_incoming_elastic'. You will see that this DAG is working right now. The colored circles in the 'Recent Tasks' section indicate the current status of the operators. The 'processing_incoming_elastic' DAG will trigger then the 'download-selected-files' DAG. If you go to the 'Graph View' of the 'download-selected-files' DAG, you will see how the operators also get colored. By clicking on an operator, a small window opens where you can click, for example, on 'View Log' to see the output of the operator. This is very helpful to debug an operator.
+  | Check out the difference between :term:`single and batch file processing` 
 
+In order to trigger a workflow on images filter the images to which you want to apply the pipeline and trigger a workflow e.g. ``collect-metadata``, ``batch processing``, ``Send x results``.
+
+Once Kibana has sent its request, the Airflow pipeline is trigger. If you navigate to Airflow via the landing page, you should see that the DAG collect-meta data is running. By clicking on the DAG you will see different processing steps, that are called ``operators``. In the operators, first the query of Kibana is used to download the selected images from the local PACS system DCM4CHEE to a predefined directory of the server so that the images are available for the upcoming operators (``get-input-data``), then the dicoms are anonymized (``dcm-anonmyizer``), the meta data are extracted and converted to jsons (``dcm2json``), the generated jsons are concatenated (``concatenated-metadata``), the concatenated json is send to Minio (``minio-actions-put``) and finally, the local directory is cleaned again. You can check out the :ref:`dev_guide_doc` to learn how to write own dags. 
 
 Debugging
--------------------------------------------------
+^^^^^^^^^
+
 This short section will show you how to debug in case a workflow throws an error.
 
 **Syntax errors**:
@@ -34,46 +127,71 @@ If there is a syntax error in the implementation of a DAG or in the implementati
 **Operator errors during execution**:
 
 * Via Airflow: when you click in Airflow on the DAG you are guided to the 'Graph View'. Clicking on the red, failed operator a popup opens where you can click on 'View Log' to see what happened.
-* Via Kubernetes: in the namespace flow-jobs, you should find the running pod that was triggered from Airflow. Here you can click on the logs to see why the container failed. If the container is still running, you can also click on 'Exec into pod' to debug directly into the container.
+* Via Kubernetes: in the namespace ``flow-jobs``, you should find the running pod that was triggered from Airflow. Here you can click on the logs to see why the container failed. If the container is still running, you can also click on 'Exec into pod' to debug directly into the container.
 
 After you resolved the bug in the operator, you can either restart the whole workflow from Kibana or you can click on the operator in the 'Graph View', select 'Clear' in the popup and confirm the next dialog. This will restart the operator.
 
+Core stack: Landing Page, Traefik, Louketo, Keycloak, Grafana, Kubernetes and Helm
+----------------------------------------------------------------------------------
 
-Behind the scence: Concepts and technology stack for large-scale image processing
----------------------------------------------------------------------------------
+From a technical point of view you the core stack of the platform is Kubernetes, which is a container-orchestration system managing all the docker containers. Helm is the tool that we use to ship out our Kubernetes deployments. Traefik is a reverse proxy, managing the conversation between all components. Louketo and Keycloak form the base for user authentication. Finally, the landing page wraps all of the services in :term:`kaapana` into one uniform webpage.
 
-This section gives an overview of the technologies that are implemented to make large-scale image processing possible. The first section will explain where data are stored within the platform and the second part will introduce how processing pipelines are realized within the platform.
+To find out more about the technologies checkout:
 
-Core stack: Kubernetes, Traefik, Louketo
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Comments about the core stack
-
-Storage stack: Kibana, Elasticsearch and DCM4CHEE
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-When DICOMs are sent to the DICOM receiver of the platform two things happen. Firstly, the DICOMs are saved in the local PACs system called DCM4CHEE. Secondly, the meta data of the DICOMs are extracted and indexed by a search engine (powered by Elasticsearch) which makes the meta data available for Kibana. Kibana is mainly responsible for visualizing the metadata but it also serves as a filter to select images and to trigger a processing pipeline on the selected images. Images in Kibana (meta dashboard) can be selected via custom filters at the top. To ease this process, it is also possible to add filters automatically by clicking on the graphs.
-
-In general, data that are in the DICOM format should be stored in the DCM4CHEE PACS. Since some processing pipelines might generate data that are not DICOMs, an object store called Minio is available. In Minio, data are stored in buckets and are accessible via the GUI for download.
-
-If you are more interested in the technologies, you can get started here:
-
-* `Kibana <https://www.elastic.co/guide/en/kibana/current/getting-started.html>`_
-* `Elasticsearch <https://www.elastic.co/guide/en/elasticsearch/reference/current/elasticsearch-intro.html>`_
-
-Processing stack: Airflow, Kubernetes namespace 'flow-jobs' and the working directory
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-In order to apply processing pipelines in which different operations are performed in a certain order to images, a framework is necessary which allows us to define and trigger such a pipeline. We decided to use Airflow for that. In Airflow, a workflow is called a DAG (directed acyclic graph, a graph type where you can only traverse forwards). It consists of operators which are the bricks of your pipeline. Ideally, every operator triggers a Docker container in which some kind of task is performed. A detailed overview of the concepts can be found `here <https://airflow.apache.org/docs/stable/concepts.html>`_.
-
-Besides Airflow, Kubernetes is used to manage the Docker containers that are triggered by Airflow. On the platform, we introduce a namespace called 'flow-jobs' in which all containers initiated by Airflow are started.
-
-Finally, we are introducing the working directory of Airflow which should be in the ``data`` directory of the platform in a folder called ``workflows`` (e.g. ``/home/kaapana/workflows)`` in which three other directories appear:
-
-* The ``dags`` directory is the place where all DAGs and most of the operators are defined.
-* The ``plugins`` directory contains the kaapana plugin that was written by us. Here we define some basic operators, the connection to Kubernetes as well as an own API to communicate with Airflow. It is for example used to trigger a DAG externally or to get an overview over existing workflows.
-* The ``data`` directory is the place where all the data that are generated during a pipeline are temporarily stored.
-
-If you are more interested in the technologies, you can get started here:
-
-* `Airflow <https://airflow.apache.org/docs/stable/tutorial.html>`_
+* `Helm <https://helm.sh/>`_
 * `Kubernetes <https://kubernetes.io/docs/concepts/>`_
+* `Grafana <https://grafana.com/>`_
+* `Traefik <https://doc.traefik.io/traefik/>`_
+* `Keycloak <https://www.keycloak.org/documentation.html>`_
+
+Launching extensions via the landing page
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+On the landing page you can find a section called ``Extensions``. Extensions can be workflows (that are used in Airflow) or static applications like a Jupyter Notebook. In general, the extensions can be understood like an App store, where new services and workflows can be installed and managed. Under the hood, Helm Charts are installed and uninstalled via the GUI. Most of the applications that are launched mount the Minio directory, so that you can directly work with the data that are generated in a workflow. In example, one can trigger the ``download-selected-files`` DAG to download images to Minio and then watch the data starting an MITK-Volume instance. In the :ref:`dev_guide_doc` you will learn how to write and add your own extensions.
+
+Keycloak: Add users to the platform
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Keycloak is an open source Identity and Access Management solution that we integrated in our platform to manage authentication and different user roles. 
+You can access keycloak via the dashboard (only if you have admin rights) or directly via */auth/*.
+
+Please check out the `documentation of Keycloak <https://www.keycloak.org/documentation.html>`_ to find out, to what Keycloak is cabable of. Here is an example of how to add new users to the platform:
+
+Depending on your needs you can add users manually or connect Keycloak instance i.e. to an Active Directory.
+
+* **Adding a user manually**: Once you are logged in you can add users in the section **Users**. By selecting a user you can change i.e. his password in the tab **Credentials** or change his role under **Role mappings**. Try i.e. to add a user who has no admin rights, only user rights. Currently there are only two user roles. The **admin** has some more privileges than a normal **user**, i.e. a **user** can not access the Kubernetes dashboard and can not see all components on the landing page.
+* **Connecting with an Active Directory**: In order to connect to an active direcotry go to the tap **User Federation**. Depending on your needs select *ldap* or *kerberos*. The necessary configuration you should be able to get from your institution. If everything is configured correctly you should be able to login with your credentials form the Active Directory.
+
+Grafana and Prometheus: Have an eye on resource
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+As with all platforms, a system to monitor the current system status is needed.
+To provide this, the kaapana utilized a commonly used combination of `Prometheus <https://prometheus.io/>`_ and `Grafana <https://grafana.com/>`_.
+The graphical dashboards present states such as disk space, CPU and GPU memory usage, network pressure etc.
+
+
+Kubernetes: Your first place to look if something does not work
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+As mentioned above, Kubernetes is the basis of the whole platform. You can talk to Kubernetes either via the Kubernetes Dashboard, accesible via the landing page or via the terminal diretly on your server. You can even talk to the Kuberentes cluster from another machine by setting up a connection to it (see here TOTO). In case anything on the platform is not working, Kubernetes is the first place to go. Here are two cases, when you might need to access Kubernetes.
+
+**Case 1: Service is down**
+
+In case you can't access a resource anymore most probably a Pod is down. In this case you first need to check why. For this you go to the Kubernetes-Dashboard. Select at the top a Namespace and then click on Pods. The pod which is down should appear in a red/orange color. Click ont he pod. Add the top right you see four buttons. First click on the left one, this will show the logs of the container. In the best case you see here, why your pod is down. To restart the pod you need to simply delete the pod. In case it was not triggered by an Airflow-Dag it should restart automatically (The same steps can be down via the console, see below). In case the component/service crashes again, there might be some deeper error.
+
+**Case 2: Platform is not responding**
+
+When your platform does not respond this can have different reasons.
+
+- Pods are down: In order to check if and which services are down please log in to your server, where you can check if pods are down with:
+
+::
+
+    kubectl get pods --all-namespaces
+
+If all pods are running, most probably there are network errors. If not, a first try would be to delete the pod manually. It will then be automatically restarted. To delete a pod via the console. You need do copy the "NAME" and remember the NAMESPACE of the pod you want to delete and then execute:
+::
+
+    kubectl delete pods -n <THE NAMESPACE> <NAME OF THE POD>
+
+- Network errors: In case of network erros, there seems to be an error within your local network. E.g. your server domain might not work.

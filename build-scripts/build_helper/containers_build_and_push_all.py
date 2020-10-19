@@ -328,7 +328,7 @@ class DockerContainer:
         print()
         print("############################ Push Container: {}".format(self.tag))
 
-        if self.docker_registry == "local":
+        if self.docker_registry == "local" or self.docker_registry == "local-only":
             print("############################ Push skipped -> local registry found!")
             log_entry = {
                 "suite": suite_tag,

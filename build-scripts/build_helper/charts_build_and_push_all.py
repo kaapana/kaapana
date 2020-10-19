@@ -20,7 +20,7 @@ def get_timestamp():
 
 def check_helm_installed():
     command = ["helm", "push", "--help"]
-    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
 
     if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
         print("Helm ist not installed correctly!")
@@ -29,7 +29,7 @@ def check_helm_installed():
         exit(1)
 
     command = ["helm", "kubeval", "--help"]
-    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3)
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
     if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
         print("Helm kubeval ist not installed correctly!")
         print("Make sure Helm kubeval-plugin is installed!")
@@ -314,8 +314,7 @@ class HelmChart:
         else:
             os.chdir(self.chart_dir)
             command = ["helm", "lint"]
-            output = run(command, stdout=PIPE, stderr=PIPE,
-                         universal_newlines=True, timeout=5)
+            output = run(command, stdout=PIPE, stderr=PIPE,universal_newlines=True, timeout=20)
             log = make_log(std_out=output.stdout, std_err=output.stderr)
 
             if output.returncode != 0:
@@ -347,7 +346,7 @@ class HelmChart:
     def lint_kubeval(self):
         os.chdir(self.chart_dir)
         command = ["helm", "kubeval", "--ignore-missing-schemas", "."]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=20)
         log = make_log(std_out=output.stdout, std_err=output.stderr)
 
         if output.returncode != 0 and "A valid hostname" not in output.stderr:

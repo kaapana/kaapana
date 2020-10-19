@@ -60,7 +60,7 @@ fi
 function import_containerd {
     echo "Starting image import into containerd..."
     while true; do
-        read -e -p "Should the containers be deleted from Docker after the import?" -i " no" yn
+        read -e -p "Should all Docker containers be deleted after the import?" -i " no" yn
         case $yn in
             [Yy]* ) echo -e "${GREEN}Containers will be removed from Docker${NC}" && DEL_CONTAINERS="true"; break;;
             [Nn]* ) echo -e "${YELLOW}Containers will be kept${NC}" && DEL_CONTAINERS="false"; break;;
@@ -106,6 +106,12 @@ function import_containerd {
             echo "deleted."
         fi
     done
+
+    if [ "$DEL_CONTAINERS" = "true" ];then
+        echo -e "Deleting all remaining Docker-images..."
+        docker system prune --all --force
+        echo "done"
+    fi
     echo "All images successfully imported!"
 }
 

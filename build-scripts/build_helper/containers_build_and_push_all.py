@@ -547,6 +547,7 @@ def quick_check():
         container = docker_containers_list[i]
         if container.docker_registry.lower() == "local":
             docker_containers_list.insert(0, docker_containers_list.pop(i))
+            i += 1
             continue
 
         for base_image in container.base_images:

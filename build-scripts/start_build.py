@@ -107,11 +107,9 @@ if __name__ == '__main__':
     build_containers = False if charts_only else configuration["build_containers"]
     push_containers = False if charts_only else configuration["push_containers"]
     push_containers = False if build_only else push_containers
-    print("build_containers: {}".format(build_containers))
-    print("push_containers: {}".format(push_containers))
 
     create_package = configuration["create_package"]
-    if build_mode == "local":
+    if build_mode == "local" and not create_package:
         print("local build: Forcing create_package = True !")
         create_package = True
 
@@ -131,6 +129,9 @@ if __name__ == '__main__':
         print("local build: Forcing push_containers = False !")
         push_containers = False
 
+    print()
+    print("build_containers: {}".format(build_containers))
+    print("push_containers: {}".format(push_containers))
     print()
     print("build_charts: {}".format(build_charts))
     print("push_charts: {}".format(push_charts))

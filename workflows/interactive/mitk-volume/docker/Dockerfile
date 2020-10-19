@@ -27,7 +27,9 @@ RUN git config --global url.https://github.com/.insteadOf git://github.com/
 RUN cmake --build MITK-superbuild
 
 # Build MitkFileConverter app
-RUN cmake -D MITK_BUILD_org.mitk.gui.qt.measurementtoolbox:Bool=OFF -D MITK_BUILD_org.mitk.gui.qt.segmentation:Bool=ON --build MITK-superbuild/MITK-build --target package 
+RUN cmake --build MITK-superbuild/MITK-build --target package 
+
+#-D MITK_BUILD_org.mitk.gui.qt.measurementtoolbox:Bool=OFF -D MITK_BUILD_org.mitk.gui.qt.segmentation:Bool=ON 
 
 RUN mkdir /opt/final_package
 RUN cp /opt/MITK-superbuild/MITK-build/MITK-MitkVolume-linux-x86_64.tar.gz /opt/final_package/MITK-MitkVolume-linux-x86_64.tar.gz

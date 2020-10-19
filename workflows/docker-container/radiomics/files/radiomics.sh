@@ -1,7 +1,6 @@
 #bin/bash
 
 function radiomics {
-
     echo "Starting Radiomics-Module..."
     Xvfb :99 -screen 0 1024x768x24 &
     export DISPLAY=:99
@@ -51,15 +50,14 @@ function radiomics {
 
 
         filename="${filename%.*}";
-        csv_filepath=$OUTPUTDIR/$seg_name'_radiomics.csv';
-        json_filepath=$OUTPUTDIR/$seg_name'_radiomics.json';
+        xml_filepath=$OUTPUTDIR/$seg_name'_radiomics.xml';
         
         sleep 5
         echo "###################################################################### CONFIG"
         echo ""
         echo ""
         echo ""
-        echo 'csv_filepath: ' $csv_filepath
+        echo 'xml_filepath: ' $xml_filepath
         echo "INPUT-FILE: " $file
         echo "MASK-DIR: "$MASKDIR/
         echo "MASKF-FILE: " $maskfile
@@ -75,9 +73,9 @@ function radiomics {
         fi
 
         
-        install -Dv / $csv_filepath
+        install -Dv / $xml_filepath
         
-        /mitk/MitkCLGlobalImageFeatures.sh --xml -i $file -o $csv_filepath -m $maskfile -rm 1 -sp 1 -head 1 -fl-head 1 -fo 1 -cooc 1    
+        /mitk/MitkCLGlobalImageFeatures.sh --xml $xml_filepath -i $file -m $maskfile -rm 1 -sp 1 -head 1 -fl-head 1 -fo 1 -cooc 1    
         
         retVal=$?
         if [ $retVal -ne 0 ]; then
@@ -86,30 +84,6 @@ function radiomics {
         else
             echo "MitkCLGlobalImageFeatures DONE!"
         fi
-        
-        echo "CONVERTING CSV TO JSON..."
-        export "CSV_FILE"=$csv_filepath
-        export "JSON_FILE"=$json_filepath
-        python -u /radiomics.py
-        retVal=$?
-        if [ $retVal -ne 0 ]; then
-            echo "Error in: radiomics.py !"
-            exit 1;
-        else
-            echo "JSON generated!"
-        fi
-        
-        [ ! -f "$json_filepath" ] && { echo "Error: Result JSON not found!."; exit 2; }
-        if [ -s "$json_filepath" ]
-        then
-            echo "Result JSON found and has some data."
-            
-        else
-            echo "Result JSON found but is empty!"
-            rm -rf $json_filepath
-            exit 1;
-        fi
-        
     done
 
     if [ "$loop_counter" -gt 0 ]

@@ -1,4 +1,4 @@
-FROM local/dag-installer:0.1.0
+FROM local-only/dag-installer:0.1.0
 
 LABEL IMAGE="dag-example"
 LABEL VERSION="0.1.0"

@@ -16,6 +16,8 @@ Requirements
 Before you get started you should be familiar with the basic concepts and components of Kaapana see :ref:`what_is_kaapana`.
 You should also have the following packages installed on your build-system.
 
+We expect the sudo systemctl restart snapd
+
 1. Clone the repository:
 
    | :code:`git clone https://github.com/kaapana/kaapana.git`
@@ -67,13 +69,17 @@ You should also have the following packages installed on your build-system.
 
 6. (optional) Helm
 
-   :code:`sudo snap install helm --classic --channel=3.1/stable`
+   :code:`sudo snap install helm --classic --channel=3.3/stable`
 
-7. (optional) Helm-push plugin
+7. Reboot
+
+   :code:`sudo reboot`
+
+8. (optional) Helm-push plugin
 
    :code:`helm plugin install https://github.com/chartmuseum/helm-push`
 
-8. (optional) Helm-kubeval plugin
+9. (optional) Helm-kubeval plugin
 
    :code:`helm plugin install https://github.com/instrumenta/helm-kubeval`
 

@@ -70,6 +70,7 @@ function import_containerd {
     containerd_imgs=( $(microk8s ctr images ls -q) )
     docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | while read IMAGE; do
         hash=$(docker images --no-trunc --quiet $IMAGE)
+        echo ""
         if [[ ! " ${containerd_imgs[@]} " =~ " ${hash} " ]]; then
             echo "Container $IMAGE already found: $hash"
         else
@@ -99,7 +100,6 @@ function import_containerd {
             fi
         fi
 
-        echo ""
         if [ "$DEL_CONTAINERS" = "true" ];then
             echo -e "Deleting Docker-image: $IMAGE"
             docker rmi $IMAGE

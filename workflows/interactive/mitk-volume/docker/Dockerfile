@@ -50,7 +50,7 @@ RUN chmod 0777 /root/Desktop/startMITK.sh
 RUN ln -s /data /root/Desktop/
 WORKDIR /data
 RUN mkdir /root/Desktop/test-data
-COPY files/Pic3D.nrrd /test-data/
+COPY files/Pic3D.nrrd /root/Desktop/test-data
 
 # A supervisord config is used to make the application managed
 COPY files/supervisord.conf /etc/supervisor/conf.d/

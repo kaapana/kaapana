@@ -15,7 +15,7 @@ RUN mkdir /opt/bin
 ENV MITK_BRANCH=master
 # ENV MITK_REV=4bcb66b70182b06fcef1dcbd1f3e334b9b88 -> not existing
 
-RUN git clone --single-branch --branch ${MITK_BRANCH} https://phabricator.mitk.org/source/mitk.git mitk-src && cd mitk-src 
+RUN git clone --single-branch --branch ${MITK_BRANCH} https://phabricator.mitk.org/source/mitk.git MITK && cd MITK 
 # && git checkout ${MITK_REV}
 
 # Generate Ninja build script for MITK to build a minimum configuration with apps in Release mode into MITK-superbuild directory

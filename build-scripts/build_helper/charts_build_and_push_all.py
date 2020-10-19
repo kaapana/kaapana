@@ -517,19 +517,7 @@ class HelmChart:
 
         charts_list = []
         for chartfile in chartfiles:
-            if "node_modules" in chartfile:
-                log_entry = {
-                    "suite": suite_tag,
-                    "test": chartfile.split("/")[-2],
-                    "step": "NODE_MODULE Check",
-                    "log": "",
-                    "loglevel": "WARN",
-                    "timestamp": get_timestamp(),
-                    "message": "Found node_module chartfile.",
-                    "rel_file": chartfile,
-                    "test_done": True,
-                }
-                yield log_entry
+            if "templates_and_examples" in chartfile:
                 continue
 
             chart_object = HelmChart(chartfile)

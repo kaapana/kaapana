@@ -484,6 +484,9 @@ def quick_check():
     docker_containers_list = []
     docker_containers_pending_list = []
     for dockerfile in dockerfiles:
+        if "templates_and_examples" in chartfile:
+            continue
+            
         docker_container = DockerContainer(dockerfile)
         for log_entry in docker_container.log_list:
             yield log_entry

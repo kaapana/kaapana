@@ -121,13 +121,17 @@ if __name__ == '__main__':
     push_charts = False if docker_only else configuration["push_charts"]
     push_charts = False if build_only else push_charts
 
-    if build_mode == "local" and push_charts:
-        print("local build: Forcing push_charts = False !")
+    if (build_mode == "local" or build_mode == "dockerhub") and push_charts:
+        print("build-mode {}: Forcing push_charts = False !".format(build_mode))
         push_charts = False
 
     if build_mode == "local" and push_containers:
         print("local build: Forcing push_containers = False !")
         push_containers = False
+
+    if build_mode == "dockerhub" and not push_containers:
+        print("Dockerhub build: Forcing push_containers = True !")
+        push_containers = True
 
     print()
     print("build_containers: {}".format(build_containers))

@@ -3,16 +3,27 @@
 
 Getting started
 ===============
+This manual is intended to provide a quick and easy way to get started with :ref:`Kaapana<what_is_kaapana>`.
 
-This manual is intended to provide a quick and easy way to get started with :term:`Kaapana<kaapana-platform>`.
-
-:term:`Kaapana<kaapana-platform>` is not a ready-to-use software but a toolkit that enables you to build the platform that fits your specific needs.
+Kaapana is not a ready-to-use software but a toolkit that enables you to build the platform that fits your specific needs.
 
 The steps described in this guide will build an example :term:`platform`, which is a default configuration and contains many of the typical platform :term:`components<component>`. This basic platform can be used as a starting-point to derive a customized platform for your specific project.
 
+Target-system
+-------------
+| You will need some kind of :term:`server` to run the platform on.
+| Minimum specs:
+
+- OS: CentOS 8, Ubuntu 20.04 or Ubuntu Server 20.04
+- CPU: 4 cores 
+- Memory: 8GB (for processing > 30GB recommended) 
+- Storage: 100GB (deploy only) / 150GB (local build)  -> (recommended >200GB) 
+
+| The **domain,hostname or IP-address** has to be known and correctly configured for the system. 
+| If a **proxy** is needed, it should already configured at ``/etc/environment`` (reboot needed after configuration!). 
+
 Requirements
 ------------
-
 Before you get started you should be familiar with the basic concepts and components of Kaapana see :ref:`what_is_kaapana`.
 You should also have the following packages installed on your build-system.
 
@@ -106,19 +117,35 @@ The process of creating a Kaapana-based platform involves the following steps th
 
 Build modes
 ^^^^^^^^^^^
-Currently Kaapana supports three different **build-modes**:
+If you **don't** have access to a Docker registry with **already built containers** for Kaapana, you need to build them first.
+This is comparable to a binary of regular software projects - if you already have access to it, you can continue with **step 3**.
 
-1. **Local build (default)**
+| The complete build will take **~4h** (depending on the system)! 
+| Currently Kaapana supports three different **build-modes**:
 
-   By choosing this option you will need **no external Docker registry** to install the platform. All Docker containers and Helm charts will be build and used locally on the server.
+1. **Local build**
+
+   | By choosing this option you will need **no external Docker registry** to install the platform.
+   | All Docker containers will be build and used locally on the server.
+   | The Helm charts will still be downloaded from the DKFZ registry, as long as there is no local solution.
+   | **Extensions don't work with this mode yet**
    
 2. **Dockerhub**
 
-   `Dockerhub <https://hub.docker.com/>`_  offers a **free solution to store Docker containers** in a registry. The disadvantage of this method is that network access to Dockerhub must be guaranteed and all stored containers are publicly accessible (in the free version).
+   | `Dockerhub <https://hub.docker.com/>`_  offers a **free solution to store Docker containers** in a registry.
+   | The disadvantage of this method is that network access to Dockerhub must be guaranteed and all stored containers are publicly accessible (in the free version).
+   | All containers from Kaapana will be built locally, and then pushed to Dockerhub afterwards.
+   | When you deploy the platform, the images will then be downloaded directly from Dockerhub. 
+   | It is therefore possible to build the containers on a **different** system than the server.
 
 3. **Private registry**
 
-   The third option is to use a private Docker Registry to manage the containers used. This option comes with many **additional features like access controll or the possibility to manage helm charts** directly in the registry. The disadvantage of a private registry is, that you have to either host it yourself or at least pay for it. We recommend `Harbor <https://goharbor.io/>`__ or `Artifactory <https://jfrog.com/artifactory/>`__ as professional solutions for a custom registry.
+   This option will use a private Docker Registry to manage the containers needed.
+   Here, you will have additional features like **access controll** or the possibility to manage **Helm charts** etc.
+   When you deploy the platform, the images will then be downloaded directly from your own registry. 
+   It is therefore possible to build the containers on a **different** system than the server.
+   The disadvantage of a private registry is, that you have to either host it yourself or at least pay for it.
+   We recommend `Harbor <https://goharbor.io/>`__ or `Artifactory <https://jfrog.com/artifactory/>`__ as professional solutions for a custom registry.
 
 The following sections include a configuration example for each of the options (if applicable).
 

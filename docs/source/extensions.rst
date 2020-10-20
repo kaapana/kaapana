@@ -17,7 +17,7 @@ Automatic organ segmentation
 | **What's going on?**
 | 1) DICOM will be converted to .nrrd files
 | 2) Normalization of input images
-| 3) Parallel segmentation of liver,spleen and kindeys (left and right)
+| 3) Parallel segmentation of liver,spleen and kidneys (left and right)
 | 4) .nrrd segmentations will be converted to DICOM Segmentation (DICOM SEG) object.
 | 5) DICOM SEGs will be sent to the internal platform PACS 
 | 6) DICOM SEGs will also trigger the :ref:`extensions extractmetadata` workflow
@@ -26,7 +26,7 @@ Automatic organ segmentation
 | **Input data:**  
 | Filter for **abdominal CT** scans within the meta dashboard. 
 |
-| **Start processsing:**
+| **Start processing:**
 | Select  *organ-segmentation* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
 
@@ -46,7 +46,7 @@ Radiomics
 | **Input data:**  
 | DICOM Segmentations 
 |
-| **Start processsing:**
+| **Start processing:**
 | Ideally the dag is triggered within the organ-segmentation workflow. In case you want to manually trigger the dag,
 | select  *radiomics* + *BACTH FILE PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
@@ -55,7 +55,7 @@ Radiomics
 Collect metadata
 ----------------
 | **What's going on?**
-| 1) DICOMs are annoymized by removing a list of personal tags
+| 1) DICOMs are anonymized by removing a list of personal tags
 | 2) Meta data of the DICOMs are extracted and written to JSON files
 | 3) JSON files are concatenated to one JSON file.
 | 4) JSON file is zipped and send with a timestamp to the bucket *download* in Minio, where the file can be downloaded
@@ -63,7 +63,7 @@ Collect metadata
 | **Input data:**
 | DICOMs
 |
-| **Start processsing:**
+| **Start processing:**
 | Select  *collect-metadata*  + *BACTH FILE PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
 .. _extensions delete:
@@ -77,7 +77,7 @@ Delete images (dcm)
 | **Input data:**
 | Filter for DICOMs that you want to remove from the platform. Since in the current verison the files are copied to the local SSD drive, please, do not select too many images at once. 
 |
-| **Start processsing:**
+| **Start processing:**
 | Select  *delete-dcm-from-platform* + *BATCH FILE PROCESSING* and click *SEND x RESULTS*
 
 | **Attention**
@@ -94,7 +94,7 @@ Re-index dicoms
 **Input data:**  
 | None
 |
-| **Start processsing:**
+| **Start processing:**
 | Trigger the *reindex-pacs* dag manually in Airflow
 
 .. _extensions download:
@@ -102,12 +102,12 @@ Re-index dicoms
 Download selected files
 -----------------------
 | **What's going on?**
-| 1) DICOMs are zipped and send with a timestamp to the bucket *download* in Minio, where the file can be downloaded
+| 1) DICOMs are send to the bucket *download* in Minio. If the option zipped is used, they are saved with a timestamp in the *download* bucket.
 
 | **Input data:**  
 | DICOMs
 |
-| **Start processsing:**
+| **Start processing:**
 | Select  *download-selected-files* + *BACTH FILE PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
 .. _extensions extractmetadata:
@@ -121,7 +121,7 @@ Extract metadata
 | **Input data:**  
 | DICOMs
 |
-| **Start processsing:**
+| **Start processing:**
 | Select  *extract-metadata* + *BACTH FILE PROCESSING* or *SINGLE FILE PRCIESSING* and click *SEND x RESULTS*
 
 .. _extensions incomingdcm:
@@ -135,7 +135,7 @@ Process incoming dicom
 | **Input data:**  
 | None
 |
-| **Start processsing:**
+| **Start processing:**
 | Dag is triggered automatically, once DICOM objects are sent to the server. It should not be triggered manually or with the Kibana dashboard
 
 
@@ -147,7 +147,7 @@ Applications
 Code server
 -----------
 | **What's going on?**
-| The code server is used for developing new DAGs and operator for Airflow. It mount the workflows directory of the kaapana
+| The code server is used for developing new DAGs and operators for Airflow. It mount the workflows directory of the kaapana
 
 | **Mount point:**  
 | <fast_data_dir>/workflows
@@ -157,7 +157,7 @@ Code server
 Jupyter lab
 -----------
 | **What's going on?**
-| The Jupyter lab can be used to quickly analyse data that are saved to the object store Minio. We tried to preinstalled most of the common python packages. Please do not use the Jupyter notebook for sophisticated calculations. Here, it is better to write an Airflow DAG
+| The Jupyter lab can be used to quickly analyse data that are saved to the object store Minio. We tried to preinstall most of the common python packages. Please do not use the Jupyter notebook for sophisticated calculations. Here, it is better to write an Airflow DAG
 
 | **Mount point:**  
 | <slow_data_dir>/minio
@@ -181,6 +181,5 @@ Tensorboard
 
 | **Mount point:**  
 | <slow_data_dir>/minio
-
 
 

@@ -71,7 +71,7 @@ function import_containerd {
     docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | while read IMAGE; do
         hash=$(docker images --no-trunc --quiet $IMAGE)
         echo ""
-        if [[ ! " ${containerd_imgs[@]} " =~ " ${hash} " ]]; then
+        if [[ " ${containerd_imgs[*]} " == *"$hash"* ]]; then
             echo "Container $IMAGE already found: $hash"
         else
             echo "Not found: generating tar-file: '$IMAGE'"

@@ -484,7 +484,7 @@ def quick_check():
     docker_containers_list = []
     docker_containers_pending_list = []
     for dockerfile in dockerfiles:
-        if "templates_and_examples" in chartfile:
+        if "templates_and_examples" in dockerfile:
             continue
             
         docker_container = DockerContainer(dockerfile)

@@ -4,7 +4,5 @@ description: A Helm chart for MITK-flow
 name: mitk-flow-chart
 version: "0.1.0"
 keywords:
-- kaapanaextension
 - kaapanaint
-- kaapanamultiinstallable
 

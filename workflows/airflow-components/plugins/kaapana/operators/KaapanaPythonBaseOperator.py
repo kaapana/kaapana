@@ -20,7 +20,7 @@ class KaapanaPythonBaseOperator(PythonOperator):
         trigger_rule='all_success',
         retries=0,
         retry_delay=timedelta(seconds=30),
-        execution_timeout=timedelta(minutes=90),
+        execution_timeout=timedelta(minutes=10),
         task_concurrency=None,
         pool=None,
         pool_slots=None,

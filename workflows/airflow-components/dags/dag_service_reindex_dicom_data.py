@@ -20,7 +20,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='re-index-dicom-data',
+    dag_id='service-re-index-dicom-data',
     default_args=args,
     schedule_interval=None,
     concurrency=1,

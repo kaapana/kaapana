@@ -12,7 +12,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 log = LoggingMixin().log
 
 args = {
-    'ui_visible': True,
+    'ui_visible': False,
     'owner': 'kaapana',
     'start_date': days_ago(0),
     'retries': 2,

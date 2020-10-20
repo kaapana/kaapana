@@ -15,7 +15,7 @@ args = {
 
 
 dag = DAG(
-    dag_id='process_incoming_dcm',
+    dag_id='service-process-incoming-dcm',
     default_args=args,
     schedule_interval=None,
     concurrency=50,

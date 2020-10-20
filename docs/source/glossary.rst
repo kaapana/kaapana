@@ -15,7 +15,7 @@ Glossary
       A registry is a storage and content delivery system, holding named Docker images, available in different tagged versions. 
     
     workflow
-      Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. 
+      A workflow in our definition is basically an Airflow DAG. It is a number of processing steps applied to a cohort of images. Synonyms used for workflow are pipeline or DAG.
     
     dag
       A DAG (Directed Acyclic Graph) is a python script describing an Airflow pipeline. It links multiple operators (output to input) to realize a multi-step processing workflow, typically starting with an operator that collects that data and ending with an operator that pushes the processing results back to some data storage.

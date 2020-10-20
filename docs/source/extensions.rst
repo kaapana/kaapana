@@ -124,19 +124,6 @@ Extract metadata
 | **Start processing:**
 | Select  *extract-metadata* + *BACTH FILE PROCESSING* or *SINGLE FILE PRCIESSING* and click *SEND x RESULTS*
 
-.. _extensions incomingdcm:
-
-Process incoming dicom
-----------------------
-| **What's going on?**
-| 1) DICOMs sent to the server are saved in the /dcmdata directory and then copied to the local workflow data folder.
-| 2) The dag extract-metadata is triggered
-
-| **Input data:**  
-| None
-|
-| **Start processing:**
-| Dag is triggered automatically, once DICOM objects are sent to the server. It should not be triggered manually or with the Kibana dashboard
 
 
 Applications

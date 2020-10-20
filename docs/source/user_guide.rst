@@ -83,7 +83,7 @@ When DICOMs are sent to the DICOM receiver of the platform two things happen. Fi
 Deleting images from the platform
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Information of the images are saved in the PACS and in Elasticsearch. A workflow called ``delete-series-from-platform`` is provided to delete images from the platform. Simply go to the Meta Dashboard, select the images you want to delete and start the workflow. On the Airflow dashboard you can see when the DAG ``delete-series-from-platform`` has finished, then all your selected images should be deleted from the platform. For more information check out the documentation of the workflow at TODO workflow delete.
+Information of the images are saved in the PACS and in Elasticsearch. A workflow called ``delete-series-from-platform`` is provided to delete images from the platform. Simply go to the Meta Dashboard, select the images you want to delete and start the workflow. On the Airflow dashboard you can see when the DAG ``delete-series-from-platform`` has finished, then all your selected images should be deleted from the platform. For more information check out the documentation of the workflow at :ref:`workflows_and_extensions delete`.
 
 Viewing images with OHIF
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -175,7 +175,7 @@ The graphical dashboards present states such as disk space, CPU and GPU memory u
 Kubernetes: Your first place to look if something does not work
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-As mentioned above, Kubernetes is the basis of the whole platform. You can talk to Kubernetes either via the Kubernetes Dashboard, accessible via the landing page or via the terminal directly on your server. You can even talk to the Kuberentes cluster from another machine by setting up a connection to it (see here TODO). In case anything on the platform is not working, Kubernetes is the first place to go. Here are two use cases, when you might need to access Kubernetes.
+As mentioned above, Kubernetes is the basis of the whole platform. You can talk to Kubernetes either via the Kubernetes Dashboard, accessible via the landing page or via the terminal directly on your server. You can even talk to the Kuberentes cluster from another machine by setting up a connection to it (see :ref:`here <faq_doc kubernetes_connection>`). In case anything on the platform is not working, Kubernetes is the first place to go. Here are two use cases, when you might need to access Kubernetes.
 
 **Case 1: Service is down**
 

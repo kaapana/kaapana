@@ -20,8 +20,8 @@ Automatic organ segmentation
 | 3) Parallel segmentation of liver,spleen and kindeys (left and right)
 | 4) .nrrd segmentations will be converted to DICOM Segmentation (DICOM SEG) object.
 | 5) DICOM SEGs will be sent to the internal platform PACS 
-| 6) DICOM SEGs will also trigger the :ref:`workflow extractmetadata` workflow
-| 7) DICOM SEGs will also be used to trigger the :ref:`workflow radiomics` workflow for feature extraction 
+| 6) DICOM SEGs will also trigger the :ref:`workflows_and_extensions extractmetadata` workflow
+| 7) DICOM SEGs will also be used to trigger the :ref:`workflows_and_extensions radiomics` workflow for feature extraction 
 
 | **Input data:**  
 | Filter for **abdominal CT** scans within the meta dashboard. 
@@ -172,7 +172,7 @@ MITK Flow
 | **Mount point:**  
 | <slow_data_dir>/minio
 
-.. _workflows_and_extensions mitk_flow:
+.. _workflows_and_extensions tensorboard:
 
 Tensorboard
 -----------

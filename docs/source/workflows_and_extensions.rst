@@ -6,7 +6,7 @@ List of workflows and extensions
 Workflows
 ^^^^^^^^^
 
-.. _workflow organseg:
+.. _workflows_and_extensions organseg:
 
 Automatic organ segmentation
 ----------------------------
@@ -30,7 +30,7 @@ Automatic organ segmentation
 | Select  *organ-segmentation* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
 
-.. _workflow radiomics:
+.. _workflows_and_extensions radiomics:
 
 Radiomics
 ---------
@@ -50,7 +50,7 @@ Radiomics
 | Ideally the dag is triggered within the organ-segmentation workflow. In case you want to manually trigger the dag,
 | select  *radiomics* + *BACTH FILE PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
-.. _workflow collect:
+.. _workflows_and_extensions collect:
 
 Collect metadata
 ----------------
@@ -66,7 +66,7 @@ Collect metadata
 | **Start processsing:**
 | Select  *collect-metadata*  + *BACTH FILE PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
-.. _workflow delete:
+.. _workflows_and_extensions delete:
 
 Delete images (dcm)
 -------------------
@@ -83,7 +83,7 @@ Delete images (dcm)
 | **Attention**
 | In case, you want to resend the images to the server you need to restart the CTP Pod in Kubernetes. In order to this go to Kubernetes, select Namespace "flow", click on "Pods" select the pod named "ctp-..." and then delete the pod by clicking on the trash can on the upper right.
 
-.. _workflow reindex:
+.. _workflows_and_extensions reindex:
 
 Re-index dicoms
 ---------------
@@ -97,7 +97,7 @@ Re-index dicoms
 | **Start processsing:**
 | Trigger the *reindex-pacs* dag manually in Airflow
 
-.. _workflow download:
+.. _workflows_and_extensions download:
 
 Download selected files
 -----------------------
@@ -110,7 +110,7 @@ Download selected files
 | **Start processsing:**
 | Select  *download-selected-files* + *BACTH FILE PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
-.. _workflow extractmetadata:
+.. _workflows_and_extensions extractmetadata:
 
 Extract metadata
 -----------------
@@ -124,7 +124,7 @@ Extract metadata
 | **Start processsing:**
 | Select  *extract-metadata* + *BACTH FILE PROCESSING* or *SINGLE FILE PRCIESSING* and click *SEND x RESULTS*
 
-.. _workflow incomingdcm:
+.. _workflows_and_extensions incomingdcm:
 
 Process incoming dicom
 ----------------------
@@ -141,3 +141,46 @@ Process incoming dicom
 
 Extensions
 ^^^^^^^^^^
+
+.. _workflows_and_extensions code_server:
+
+Code server
+-----------
+| **What's going on?**
+| The code server is used for developing new DAGs and operator for Airflow. It mount the workflows directory of the kaapana
+
+| **Mount point:**  
+| <fast_data_dir>/workflows
+
+.. _workflows_and_extensions jupyterlab:
+
+Jupyter lab
+-----------
+| **What's going on?**
+| The Jupyter lab can be used to quickly analyse data that are saved to the object store Minio. We tried to preinstalled most of the common python packages. Please do not use the Jupyter notebook for sophisticated calculations. Here, it is better to write an Airflow DAG
+
+| **Mount point:**  
+| <slow_data_dir>/minio
+
+.. _workflows_and_extensions mitk_flow:
+
+MITK Flow
+---------
+| **What's going on?**
+| The MITK Flow is an instance of MITK to watch image data.
+
+| **Mount point:**  
+| <slow_data_dir>/minio
+
+.. _workflows_and_extensions mitk_flow:
+
+Tensorboard
+-----------
+| **What's going on?**
+| Tensorboard can be launched to analyse generated results during an training, which will come in the future. It also mounts to the Minio directory.
+
+| **Mount point:**  
+| <slow_data_dir>/minio
+
+
+

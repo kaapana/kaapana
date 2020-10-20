@@ -26,6 +26,8 @@ Default credentials
   | username: kaapanaminio
   | password: Kaapana2020
 
+Most likely you will not need the Minio admin password. Use the ``Login with OpenID`` instead.
+
 Port Configuration
 ^^^^^^^^^^^^^^^^^^
 In the default configuration only four ports are open on the server:

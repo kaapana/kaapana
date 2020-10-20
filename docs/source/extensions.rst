@@ -1,12 +1,12 @@
-.. _workflows_and_extensions start:
+.. _extensions start:
 
-List of workflows and extensions
-================================
+Extensions
+==========
 
 Workflows
 ^^^^^^^^^
 
-.. _workflows_and_extensions organseg:
+.. _extensions organseg:
 
 Automatic organ segmentation
 ----------------------------
@@ -20,8 +20,8 @@ Automatic organ segmentation
 | 3) Parallel segmentation of liver,spleen and kindeys (left and right)
 | 4) .nrrd segmentations will be converted to DICOM Segmentation (DICOM SEG) object.
 | 5) DICOM SEGs will be sent to the internal platform PACS 
-| 6) DICOM SEGs will also trigger the :ref:`workflows_and_extensions extractmetadata` workflow
-| 7) DICOM SEGs will also be used to trigger the :ref:`workflows_and_extensions radiomics` workflow for feature extraction 
+| 6) DICOM SEGs will also trigger the :ref:`extensions extractmetadata` workflow
+| 7) DICOM SEGs will also be used to trigger the :ref:`extensions radiomics` workflow for feature extraction 
 
 | **Input data:**  
 | Filter for **abdominal CT** scans within the meta dashboard. 
@@ -30,7 +30,7 @@ Automatic organ segmentation
 | Select  *organ-segmentation* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
 
-.. _workflows_and_extensions radiomics:
+.. _extensions radiomics:
 
 Radiomics
 ---------
@@ -50,7 +50,7 @@ Radiomics
 | Ideally the dag is triggered within the organ-segmentation workflow. In case you want to manually trigger the dag,
 | select  *radiomics* + *BACTH FILE PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
-.. _workflows_and_extensions collect:
+.. _extensions collect:
 
 Collect metadata
 ----------------
@@ -66,7 +66,7 @@ Collect metadata
 | **Start processsing:**
 | Select  *collect-metadata*  + *BACTH FILE PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
-.. _workflows_and_extensions delete:
+.. _extensions delete:
 
 Delete images (dcm)
 -------------------
@@ -83,7 +83,7 @@ Delete images (dcm)
 | **Attention**
 | In case, you want to resend the images to the server you need to restart the CTP Pod in Kubernetes. In order to this go to Kubernetes, select Namespace "flow", click on "Pods" select the pod named "ctp-..." and then delete the pod by clicking on the trash can on the upper right.
 
-.. _workflows_and_extensions reindex:
+.. _extensions reindex:
 
 Re-index dicoms
 ---------------
@@ -97,7 +97,7 @@ Re-index dicoms
 | **Start processsing:**
 | Trigger the *reindex-pacs* dag manually in Airflow
 
-.. _workflows_and_extensions download:
+.. _extensions download:
 
 Download selected files
 -----------------------
@@ -110,7 +110,7 @@ Download selected files
 | **Start processsing:**
 | Select  *download-selected-files* + *BACTH FILE PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
-.. _workflows_and_extensions extractmetadata:
+.. _extensions extractmetadata:
 
 Extract metadata
 -----------------
@@ -124,7 +124,7 @@ Extract metadata
 | **Start processsing:**
 | Select  *extract-metadata* + *BACTH FILE PROCESSING* or *SINGLE FILE PRCIESSING* and click *SEND x RESULTS*
 
-.. _workflows_and_extensions incomingdcm:
+.. _extensions incomingdcm:
 
 Process incoming dicom
 ----------------------
@@ -139,10 +139,10 @@ Process incoming dicom
 | Dag is triggered automatically, once DICOM objects are sent to the server. It should not be triggered manually or with the Kibana dashboard
 
 
-Extensions
-^^^^^^^^^^
+Applications
+^^^^^^^^^^^^
 
-.. _workflows_and_extensions code_server:
+.. _extensions code_server:
 
 Code server
 -----------
@@ -152,7 +152,7 @@ Code server
 | **Mount point:**  
 | <fast_data_dir>/workflows
 
-.. _workflows_and_extensions jupyterlab:
+.. _extensions jupyterlab:
 
 Jupyter lab
 -----------
@@ -162,7 +162,7 @@ Jupyter lab
 | **Mount point:**  
 | <slow_data_dir>/minio
 
-.. _workflows_and_extensions mitk_flow:
+.. _extensions mitk_flow:
 
 MITK Flow
 ---------
@@ -172,7 +172,7 @@ MITK Flow
 | **Mount point:**  
 | <slow_data_dir>/minio
 
-.. _workflows_and_extensions tensorboard:
+.. _extensions tensorboard:
 
 Tensorboard
 -----------

@@ -83,7 +83,7 @@ When DICOMs are sent to the DICOM receiver of the platform two things happen. Fi
 Deleting images from the platform
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Information of the images are saved in the PACS and in Elasticsearch. A workflow called ``delete-series-from-platform`` is provided to delete images from the platform. Simply go to the Meta Dashboard, select the images you want to delete and start the workflow. On the Airflow dashboard you can see when the DAG ``delete-series-from-platform`` has finished, then all your selected images should be deleted from the platform. For more information check out the documentation of the workflow at :ref:`workflows_and_extensions delete`.
+Information of the images are saved in the PACS and in Elasticsearch. A workflow called ``delete-series-from-platform`` is provided to delete images from the platform. Simply go to the Meta Dashboard, select the images you want to delete and start the workflow. On the Airflow dashboard you can see when the DAG ``delete-series-from-platform`` has finished, then all your selected images should be deleted from the platform. For more information check out the documentation of the workflow at :ref:`extensions delete`.
 
 Viewing images with OHIF
 ^^^^^^^^^^^^^^^^^^^^^^^^

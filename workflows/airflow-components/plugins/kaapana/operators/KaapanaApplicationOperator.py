@@ -32,7 +32,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
         payload = {
             'name': f'{self.chart_repo_name}/{self.chart_name}',
             'version': self.version,
-            'custom_release_name': release_name,
+            'release_name': release_name,
             'sets': {
                 'mount_path': f'{self.data_dir}/{kwargs["run_id"]}',
                 "workflow_dir": str(WORKFLOW_DIR),

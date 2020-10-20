@@ -154,6 +154,15 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
     
     values = helm_show_values(repo_name, chart_name, version)
     
+    if 'keywords' not in payload:
+        chart = helm_show_chart(repo_name, chart_name, version)
+        if 'keywords' in chart:
+            keywords = chart['keywords']
+        else:
+            keywords = []
+    else:
+        keywords = payload['keywords']
+
     if 'global' in values:
         for key, value in values['global'].items():
             if value != '':
@@ -168,7 +177,7 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
 
     if "release_name" in payload:
         release_name = payload["release_name"]
-    elif 'kaapanamultiinstallable' in payload["keywords"]:
+    elif 'kaapanamultiinstallable' in keywords:
         release_name = f'{chart_name}-{secrets.token_hex(10)}'
     else:
         release_name = chart_name

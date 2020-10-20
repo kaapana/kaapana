@@ -100,7 +100,7 @@ def pending_applications():
                 'releaseMame': chart['name'],
                 'links': ingress_paths,
                 'helmStatus': chart['status'].capitalize(),
-                'experimental': 'yes' if 'kaapanaexperimental' in chart['keywords'] else 'no',
+                'experimental': 'yes' if 'keywords' in chart and 'kaapanaexperimental' in chart['keywords'] else 'no',
                 'successful': utils.all_successful(set(kube_status['status'] + [chart['status']])),
                 'kubeStatus': ", ".join(kube_status['status'])
             }            

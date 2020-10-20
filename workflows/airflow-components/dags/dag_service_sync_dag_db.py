@@ -15,15 +15,11 @@ import os
 
 log = LoggingMixin().log
 
-dag_info = {
-    "ui_visible": False,
-}
-
 args = {
+    'ui_visible': False,
     'owner': 'kaapana',
     'start_date': days_ago(0),
     'retries': 0,
-    'dag_info': dag_info,
     'retry_delay': timedelta(seconds=30)
 }
 

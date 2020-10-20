@@ -37,7 +37,7 @@ def helm_repo_update():
             mkdir -p /root/\.extensions; \
             find /root/\.extensions -type f -delete;' + \
             f'helm pull -d /root/.extensions/ --version={app.config["VERSION"]} {app.config["CHART_REGISTRY_PROJECT"]}/pull-docker-chart;' + \
-            'helm search repo --devel -l -r \'(kaapanadag|kaapanaextension|kaapanaint)\' | awk \'NR > 1 { print  $1, "--version " $2}\' | xargs -L1 helm pull -d /root/\.extensions/'
+            'helm search repo --devel -l -r \'(kaapanadag|kaapanaextension|kaapanaint)\' -o json | jq -r \'.[] | "\(.name) --version \(.version)"\' | xargs -L1 helm pull -d /root/\.extensions/'
         subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
         return Response(f"Successfully updated the extension list!", 200)
     except subprocess.CalledProcessError as e:

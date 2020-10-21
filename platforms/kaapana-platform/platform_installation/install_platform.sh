@@ -407,6 +407,9 @@ function install_certs {
 }
 
 function prefetch_extensions {
+
+    helm repo update
+    
     if [ ! "$QUIET" = "true" ];then
         read -e -p "${YELLOW}Which prefetch-extensions-chart version should be use? If you have no idea, press enter and accept the default: ${NC}" -i $DEFAULT_VERSION chart_version;
     else

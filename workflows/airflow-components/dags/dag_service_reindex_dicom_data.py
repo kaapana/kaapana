@@ -36,7 +36,7 @@ def start_reindexing(ds, **kwargs):
 
     pacs_data_dir = '/pacsdata'
     workflowdata_dir = "/data/"
-    dag_id = "extract-metadata"
+    dag_id = "service-extract-metadata"
 
     print("Start re-index")
 

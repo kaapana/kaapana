@@ -86,7 +86,7 @@ Re-index dicoms
 ---------------
 | **What's going on?**
 | 1) All meta data saved in Elasticsearch are deleted
-| 2) For every DICOM within the PACs the dag extract-metadata is triggered to write the meta data back to Elasticsearch 
+| 2) For every DICOM within the PACs the dag service-extract-metadata is triggered to write the meta data back to Elasticsearch 
  
 **Input data:**  
 | None
@@ -119,7 +119,7 @@ Extract metadata
 | DICOMs
 |
 | **Start processsing:**
-| Select  *extract-metadata* + *BACTH FILE PROCESSING* or *SINGLE FILE PRCIESSING* and click *SEND x RESULTS*
+| Select  *service-extract-metadata* + *BACTH FILE PROCESSING* or *SINGLE FILE PRCIESSING* and click *SEND x RESULTS*
 
 .. _workflow incomingdcm:
 
@@ -127,7 +127,7 @@ Process incoming dicom
 ----------------------
 | **What's going on?**
 | 1) DICOMs sent to the server are saved in the /dcmdata directory and then copied to the local workflow data folder.
-| 2) The dag extract-metadata is triggered
+| 2) The dag service-extract-metadata is triggered
 
 | **Input data:**  
 | None

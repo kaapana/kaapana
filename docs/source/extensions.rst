@@ -19,9 +19,7 @@ Automatic organ segmentation
 | 2) Normalization of input images
 | 3) Parallel segmentation of liver,spleen and kidneys (left and right)
 | 4) .nrrd segmentations will be converted to DICOM Segmentation (DICOM SEG) object.
-| 5) DICOM SEGs will be sent to the internal platform PACS 
-| 6) DICOM SEGs will also trigger the :ref:`extensions extractmetadata` workflow
-| 7) DICOM SEGs will also be used to trigger the :ref:`extensions radiomics` workflow for feature extraction 
+| 5) DICOM SEGs will be sent to the internal platform PACS
 
 | **Input data:**  
 | Filter for **abdominal CT** scans within the meta dashboard. 
@@ -89,7 +87,7 @@ Re-index dicoms
 ---------------
 | **What's going on?**
 | 1) All meta data saved in Elasticsearch are deleted
-| 2) For every DICOM within the PACs the dag extract-metadata is triggered to write the meta data back to Elasticsearch 
+| 2) For every DICOM within the PACs the dag service-extract-metadata is triggered to write the meta data back to Elasticsearch 
  
 **Input data:**  
 | None
@@ -109,21 +107,6 @@ Download selected files
 |
 | **Start processing:**
 | Select  *download-selected-files* + *BACTH FILE PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
-
-.. _extensions extractmetadata:
-
-Extract metadata
------------------
-| **What's going on?**
-| 1) Meta data of the DICOM are extracted and written to a JSON file
-| 2) The meta data in the JSON file are sent to Elasticsearch
-
-| **Input data:**  
-| DICOMs
-|
-| **Start processing:**
-| Select  *extract-metadata* + *BACTH FILE PROCESSING* or *SINGLE FILE PRCIESSING* and click *SEND x RESULTS*
-
 
 
 Applications

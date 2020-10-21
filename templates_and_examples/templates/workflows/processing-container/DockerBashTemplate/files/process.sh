@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for dir in /$WORKFLOW_DIR/$BATCH_NAME/*    
+for dir in /$WORKFLOW_DIR/$BATCH_NAME/*
 do
         ELEMENT_INPUT_DIR="$dir/$OPERATOR_IN_DIR"
         echo 'Here you find the files you want to work with on a batch element level'

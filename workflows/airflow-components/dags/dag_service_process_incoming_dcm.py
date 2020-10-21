@@ -71,7 +71,7 @@ def process_incoming(ds, **kwargs):
     dcm_files = check_all_files_arrived(dcm_path)
     incoming_dcm = pydicom.dcmread(dcm_files[0])
     # @all images
-    trigger_it(dag_id="extract-metadata",
+    trigger_it(dag_id="service-extract-metadata",
                dcm_path=dcm_path, series_uid=series_uid)
     try:
         print(("SeriesDescription: %s" % incoming_dcm.SeriesDescription))

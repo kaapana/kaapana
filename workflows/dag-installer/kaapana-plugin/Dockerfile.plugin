@@ -7,7 +7,7 @@ LABEL CI_IGNORE="False"
 COPY dags/dag_delete_series_from_platform.py /tmp/dags/
 
 COPY dags/dag_download_selected_files.py /tmp/dags/
-COPY dags/dag_extract_metadata.py /tmp/dags/
+COPY dags/dag_service_extract_metadata.py /tmp/dags/
 COPY dags/dag_collect_metadata.py /tmp/dags/
 
 COPY dags/dag_service_process_incoming_dcm.py /tmp/dags/

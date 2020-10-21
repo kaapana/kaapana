@@ -124,7 +124,7 @@ def helm_prefetch_extension_docker():
 def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, docker_registry_project, timeout='120m0s'):
     print(f'Pulling {docker_registry_url}{docker_registry_project}/{docker_image}:{docker_version}')
     payload = {
-        'name': f'{app.config["CHART_REGISTRY_PROJECT"]}/pull-docker-chart',
+        'name': f'pull-docker-chart',
         'version': f'{app.config["VERSION"]}',
         'sets': {
             'registry_url': docker_registry_url or os.getenv('REGISTRY_URL'),

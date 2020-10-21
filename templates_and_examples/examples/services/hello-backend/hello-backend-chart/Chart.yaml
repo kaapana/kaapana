@@ -5,5 +5,5 @@ description: Chart for Hello World with backend
 name: hello-backend-chart
 version: "0.1.0"
 keywords:
-- kaapanaextension
+- kaapanaapplication
 - kaapanaexperimental

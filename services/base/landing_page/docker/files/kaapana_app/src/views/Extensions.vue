@@ -45,7 +45,7 @@
               v-icon(color='primary' dark='' v-bind='attrs' v-on='on')
                 | mdi-chart-timeline-variant
             span A workflow or algorithm that will be added to Airflow DAGs
-          v-tooltip(bottom='' v-if="item.kind==='extension'")
+          v-tooltip(bottom='' v-if="item.kind==='application'")
             template(v-slot:activator='{ on, attrs }')
               v-icon(color='primary' dark='' v-bind='attrs' v-on='on')
                 | mdi-laptop
@@ -144,7 +144,7 @@ export default Vue.extend({
           experimentalFilter = false
         }
 
-        if (this.extensionKind=='Workflows' && i.kind==='extension') {
+        if (this.extensionKind=='Workflows' && i.kind==='application') {
           kindFilter = false
         } else if (this.extensionKind=='Applications' && i.kind==='dag') {
           kindFilter = false

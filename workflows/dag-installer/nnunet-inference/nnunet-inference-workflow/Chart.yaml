@@ -5,4 +5,4 @@ description: nnUNet-inference (~ 60GB models)
 name: nnunet-inference-workflow
 version: "0.1.0"
 keywords:
-- kaapanadag
+- kaapanaworkflow

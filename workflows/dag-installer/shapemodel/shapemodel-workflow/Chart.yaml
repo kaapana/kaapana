@@ -5,4 +5,4 @@ description: DKFZ MIC automatic organ segmenation (3D Statistical Shapemodel)
 name: shapemodel-workflow
 version: "0.1.0"
 keywords:
-- kaapanadag
+- kaapanaworkflow

@@ -4,7 +4,7 @@ description: A Helm chart for tensorboard
 name: tensorboard-chart
 version: "2.3.0"
 keywords:
-- kaapanaextension
+- kaapanaapplication
 - kaapanaint
 - kaapanamultiinstallable
     

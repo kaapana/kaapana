@@ -5,6 +5,6 @@ description: Template Airflow Dag
 name: template-workflow
 version: "0.1.0"
 keywords:
-- kaapanadag
+- kaapanaworkflow
 - kaapanaexperimental
     

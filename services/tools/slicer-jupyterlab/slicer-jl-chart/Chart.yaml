@@ -4,7 +4,7 @@ description: A Helm chart for Kubernetes
 name: slicer-jl-chart
 version: "2020-05-15-89b6bb5"
 keywords:
-- kaapanaextension
+- kaapanaapplication
 - kaapanaint
 - kaapanamultiinstallable
 - kaapanaexperimental

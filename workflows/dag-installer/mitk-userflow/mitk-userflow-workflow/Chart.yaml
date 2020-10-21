@@ -5,4 +5,4 @@ description: Interactive MITK segmenation
 name: mitk-userflow-workflow
 version: "0.1.0"
 keywords:
-- kaapanadag
+- kaapanaworkflow

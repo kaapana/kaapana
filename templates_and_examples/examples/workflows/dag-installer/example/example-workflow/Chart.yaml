@@ -5,6 +5,6 @@ description: example Airflow Dag
 name: example-workflow
 version: "0.1.0"
 keywords:
-- kaapanadag
+- kaapanaworkflow
 - kaapanaexperimental
     

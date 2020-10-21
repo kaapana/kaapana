@@ -178,21 +178,21 @@ function delete_deployment {
 
 
 function update_extensions {
-    echo -e "Downloading all kaapanadag|kaapanaextensions|kaapanaint to $HOME/.extensions"
+    echo -e "${GREEN} Downloading all kaapanaworkflows, kaapanaapplications and kaapanaint to $HOME/.extensions ${NC}"
     
     set +euf
     updates_output=$(helm repo update)
     set -euf
 
     if echo "$updates_output" | grep -q 'failed to'; then
-        echo -e "${RED}updates failed!${NC}"
+        echo -e "${RED}Update failed!${NC}"
         echo -e "${RED}You seem to have no internet connection!${NC}"
         echo "$updates_output"
         exit 1
     else
         mkdir -p $HOME/.extensions
         find $HOME/.extensions/ -type f -delete
-        helm search repo --devel -l -r '(kaapanadag|kaapanaextension|kaapanaint)' -o json | jq -r '.[] | "\(.name) --version \(.version)"' | xargs -L1 helm pull -d $HOME/.extensions/
+        helm search repo --devel -l -r '(kaapanaworkflow|kaapanaapplication|kaapanaint)' -o json | jq -r '.[] | "\(.name) --version \(.version)"' | xargs -L1 helm pull -d $HOME/.extensions/
         echo -e "${GREEN}Update OK!${NC}"
     fi
 }

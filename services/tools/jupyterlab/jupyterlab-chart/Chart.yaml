@@ -4,6 +4,6 @@ description: A Helm chart for Jupyterlab
 name: jupyterlab-chart
 version: "2.2.8"
 keywords:
-- kaapanaextension
+- kaapanaapplication
 - kaapanaint
 - kaapanamultiinstallable

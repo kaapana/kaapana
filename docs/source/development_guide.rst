@@ -326,7 +326,7 @@ Also here the chart can be deleted again with:
 
    helm delete hello-world-chart
 
-Since in the ``Chart.yaml`` definition we have added ``kaapanextension`` to the keywords, your application should also appear in the extension list. If it does not you might need to update the extension list via:
+Since in the ``Chart.yaml`` definition we have added ``kaapanaapplication`` to the keywords, your application should also appear in the extension list. If it does not you might need to update the extension list via:
 
 ::
    

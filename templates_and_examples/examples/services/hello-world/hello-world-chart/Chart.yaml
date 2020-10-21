@@ -5,5 +5,5 @@ description: Chart for Hello World
 name: hello-world-chart
 version: "0.1.0"
 keywords:
-- kaapanaextension
+- kaapanaapplication
 - kaapanaexperimental

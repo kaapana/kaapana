@@ -37,7 +37,7 @@ def helm_repo_update():
             mkdir -p /root/\.extensions; \
             find /root/\.extensions -type f -delete;' + \
             f'helm pull -d /root/.extensions/ --version={app.config["VERSION"]} {app.config["CHART_REGISTRY_PROJECT"]}/pull-docker-chart;' + \
-            'helm search repo --devel -l -r \'(kaapanadag|kaapanaextension|kaapanaint)\' -o json | jq -r \'.[] | "\(.name) --version \(.version)"\' | xargs -L1 helm pull -d /root/\.extensions/'
+            'helm search repo --devel -l -r \'(kaapanaworkflow|kaapanaapplication|kaapanaint)\' -o json | jq -r \'.[] | "\(.name) --version \(.version)"\' | xargs -L1 helm pull -d /root/\.extensions/'
         subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
         return Response(f"Successfully updated the extension list!", 200)
     except subprocess.CalledProcessError as e:
@@ -113,7 +113,7 @@ def pending_applications():
 @app.route("/extensions")
 def extensions():
     try:
-        available_charts = utils.helm_search_repo(keywords_filter=['kaapanaextension', 'kaapanadag'])
+        available_charts = utils.helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
         chart_version_dict = {}
         for chart_name, chart in available_charts.items():
             if chart['name'] not in chart_version_dict:
@@ -129,10 +129,10 @@ def extensions():
             extension['version'] = latest_version
             extension['experimental'] = 'yes' if 'kaapanaexperimental' in extension['keywords'] else 'no' 
             extension['multiinstallable'] = 'yes' if 'kaapanamultiinstallable' in extension['keywords'] else 'no'             
-            if 'kaapanadag' in extension['keywords']: 
+            if 'kaapanaworkflow' in extension['keywords']: 
                 extension['kind'] = 'dag'
-            elif 'kaapanaextension' in extension['keywords']:
-                extension['kind'] = 'extension'
+            elif 'kaapanaapplication' in extension['keywords']:
+                extension['kind'] = 'application'
             else:
                 continue
             extension['releaseMame'] = extension["name"]

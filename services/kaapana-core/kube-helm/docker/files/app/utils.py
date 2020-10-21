@@ -68,7 +68,7 @@ def helm_status(release_name, namespace):
 
 def helm_prefetch_extension_docker():
     regex = r'image: ([\w\-\.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)'
-    extensions = utils.helm_search_repo(keywords_filter=['kaapanaextension', 'kaapanaint', 'kaapanadag'])
+    extensions = utils.helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaint', 'kaapanaworkflow'])
 
     dags = []
     for extension in extensions:
@@ -85,7 +85,7 @@ def helm_prefetch_extension_docker():
         if 'kaapanaexperimental' in extension["keywords"]:
             print(f'Skipping {extension["name"]}, since its experimental')
             continue
-        elif 'kaapanadag' in extension["keywords"]:
+        elif 'kaapanaworkflow' in extension["keywords"]:
             dags.append(payload)
         else:
             print(f'Prefetching {extension["name"]}')

@@ -7,7 +7,8 @@ import re
 import json
 import time
 import requests
-import subprocess, json
+import subprocess
+import json
 from flask import render_template, Response, request, jsonify
 from app import app
 
@@ -24,7 +25,7 @@ def helm_show_values(name, version):
 
 def helm_show_chart(name=None, version=None, package=None):
     helm_command = f'{os.environ["HELM_PATH"]} show chart'
-    
+
     if package is not None:
         helm_command = f'{helm_command} {package}'
     else:
@@ -32,7 +33,7 @@ def helm_show_chart(name=None, version=None, package=None):
     try:
         chart = subprocess.check_output(helm_command, stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as e:
-        print('Nothing online, nothing local!')      
+        print('Nothing online, nothing local!')
         return {}
     return yaml.load(chart)
 
@@ -43,7 +44,7 @@ def helm_get_manifest(release_name, namespace):
             f'{os.environ["HELM_PATH"]} -n {namespace} get manifest {release_name}', stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as e:
         return []
-    return list(yaml.load_all(manifest))    
+    return list(yaml.load_all(manifest))
 
 
 def helm_get_values(release_name, namespace):
@@ -52,7 +53,7 @@ def helm_get_values(release_name, namespace):
             f'{os.environ["HELM_PATH"]} -n {namespace} get values -o json {release_name}', stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as e:
         return dict()
-    if values==b'null\n':
+    if values == b'null\n':
         return dict()
     return json.loads(values)
 
@@ -121,7 +122,7 @@ def helm_prefetch_extension_docker():
 
 
 def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, docker_registry_project, timeout='120m0s'):
-    print(f'Pulling {docker_registry_url}{docker_registry_project}/{docker_image}:{docker_version}')   
+    print(f'Pulling {docker_registry_url}{docker_registry_project}/{docker_image}:{docker_version}')
     payload = {
         'name': f'{app.config["CHART_REGISTRY_PROJECT"]}/pull-docker-chart',
         'version': f'{app.config["VERSION"]}',
@@ -143,7 +144,7 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
     chart_name = payload["name"]
     version = payload["version"]
 
-    default_sets =  {
+    default_sets = {
         'global.registry_url': os.getenv('REGISTRY_URL'),
         'global.registry_project': os.getenv('REGISTRY_PROJECT'),
         'global.base_namespace': os.getenv('BASE_NAMESPACE'),
@@ -154,50 +155,61 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
         'global.pull_policy_pods': os.getenv('PULL_POLICY_PODS'),
         'global.pull_policy_jobs': os.getenv('PULL_POLICY_JOBS')
     }
-    
-    values = helm_show_values(chart_name, version)
 
+    http_proxy = os.getenv('http_proxy', None)
+    if http_proxy is not None and http_proxy != "":
+         default_sets.update({
+        'global.http_proxy': os.getenv('http_proxy')
+         }
+
+    https_proxy=os.getenv('https_proxy', None)
+    if https_proxy is not None and https_proxy != "":
+         default_sets.update({
+        'global.https_proxy': os.getenv('https_proxy')
+         }
+
+    values=helm_show_values(chart_name, version)
     if 'keywords' not in payload:
-        chart = helm_show_chart(chart_name, version)
+        chart=helm_show_chart(chart_name, version)
         if 'keywords' in chart:
-            keywords = chart['keywords']
+            keywords=chart['keywords']
         else:
-            keywords = []
+            keywords=[]
     else:
-        keywords = payload['keywords']
+        keywords=payload['keywords']
 
     if 'global' in values:
         for key, value in values['global'].items():
             if value != '':
-                default_sets.update({f'global.{key}': value })
-    
+                default_sets.update({f'global.{key}': value})
+
     if 'sets' not in payload:
-        payload['sets'] = default_sets
-    else: 
+        payload['sets']=default_sets
+    else:
         for key, value in default_sets.items():
             if key not in payload['sets'] or payload['sets'][key] == '':
                 payload['sets'].update({key: value})
 
     if "release_name" in payload:
-        release_name = payload["release_name"]
+        release_name=payload["release_name"]
     elif 'kaapanamultiinstallable' in keywords:
-        release_name = f'{chart_name}-{secrets.token_hex(10)}'
+        release_name=f'{chart_name}-{secrets.token_hex(10)}'
     else:
-        release_name = chart_name
+        release_name=chart_name
 
-    status = helm_status(release_name, namespace)
+    status=helm_status(release_name, namespace)
     if status:
         if 'kaapanamultiinstallable' in keywords:
             print('Installing again since its kaapanamultiinstallable')
         else:
             return "already installed", 'no_helm_command'
 
-    helm_sets = ''
+    helm_sets=''
     if "sets" in payload:
         for key, value in payload["sets"].items():
-            helm_sets = helm_sets + f" --set {key}='{value}'"
+            helm_sets=helm_sets + f" --set {key}='{value}'"
 
-    helm_command = f'{os.environ["HELM_PATH"]} install {helm_command_addons} -n {namespace} {release_name} {helm_sets} {app.config["HELM_REPOSITORY_CACHE"]}/{chart_name}-{version}.tgz -o json {helm_comman_suffix}'
+    helm_command=f'{os.environ["HELM_PATH"]} install {helm_command_addons} -n {namespace} {release_name} {helm_sets} {app.config["HELM_REPOSITORY_CACHE"]}/{chart_name}-{version}.tgz -o json {helm_comman_suffix}'
     print('helm_command', helm_command)
     if in_background is False:
         return subprocess.check_output(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command
@@ -206,33 +218,33 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
 
 
 def helm_delete(release_name, namespace, helm_command_addons=''):
-    helm_command = f'{os.environ["HELM_PATH"]} delete {helm_command_addons} -n {namespace} {release_name}'
+    helm_command=f'{os.environ["HELM_PATH"]} delete {helm_command_addons} -n {namespace} {release_name}'
     subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
 
 
 def helm_ls(namespace, release_filter=''):
     try:
-        resp = subprocess.check_output(
+        resp=subprocess.check_output(
             f'{os.environ["HELM_PATH"]} -n {namespace} --filter {release_filter} ls --deployed --pending --failed --uninstalling -o json', stderr=subprocess.STDOUT, shell=True)
         return json.loads(resp)
     except subprocess.CalledProcessError as e:
         return []
-        
+
 
 def helm_search_repo(keywords_filter):
 
-    keywords_filter = set(keywords_filter)
-    helm_packages = [f for f in glob.glob(os.path.join(app.config["HELM_REPOSITORY_CACHE"], '*.tgz'))]
-    charts = {}
+    keywords_filter=set(keywords_filter)
+    helm_packages=[f for f in glob.glob(os.path.join(app.config["HELM_REPOSITORY_CACHE"], '*.tgz'))]
+    charts={}
     for helm_package in helm_packages:
-        chart = helm_show_chart(package=helm_package)
+        chart=helm_show_chart(package=helm_package)
         if 'keywords' in chart and (set(chart['keywords']) & keywords_filter):
-            charts[f'{chart["name"]}-{chart["version"]}'] = chart
+            charts[f'{chart["name"]}-{chart["version"]}']=chart
     return charts
 
 def get_kube_status(kind, name, namespace):
-    states = {
-        "name": [], 
+    states={
+        "name": [],
         "ready": [],
         "status": [],
         "restarts": [],
@@ -240,13 +252,13 @@ def get_kube_status(kind, name, namespace):
     }
 
     try:
-        resp = subprocess.check_output(
+        resp=subprocess.check_output(
             f'kubectl -n {namespace} get pod -l={kind}-name={name}',
             stderr=subprocess.STDOUT,
             shell=True
         )
         for row in re.findall(r'(.*\n)', resp.decode("utf-8"))[1:]:
-            name, ready, status, restarts, age = row.split()
+            name, ready, status, restarts, age=row.split()
             states['name'].append(name)
             states['ready'].append(ready)
             states['status'].append(status)
@@ -259,10 +271,10 @@ def get_kube_status(kind, name, namespace):
 
 
 def get_manifest_infos(manifest):
-    ingress_paths = []
-    
-    concatenated_states = {
-        "name": [], 
+    ingress_paths=[]
+
+    concatenated_states={
+        "name": [],
         "ready": [],
         "status": [],
         "restarts": [],
@@ -271,24 +283,24 @@ def get_manifest_infos(manifest):
 
 
     for config in manifest:
-        ingress_path = ''
+        ingress_path=''
         if config['kind'] == 'Ingress':
-            ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']
+            ingress_path=config['spec']['rules'][0]['http']['paths'][0]['path']
             ingress_paths.append(ingress_path)
         if config['kind'] == 'Deployment':
-            kube_status = get_kube_status('app', config['spec']['selector']['matchLabels']['app-name'], config['metadata']['namespace'])
+            kube_status=get_kube_status('app', config['spec']['selector']['matchLabels']['app-name'], config['metadata']['namespace'])
             for key, value in kube_status.items():
-                concatenated_states[key]  = concatenated_states[key] + value
+                concatenated_states[key]=concatenated_states[key] + value
         if config['kind'] == 'Job':
-            kube_status = get_kube_status('job',config['metadata']['name'], config['metadata']['namespace'])
+            kube_status=get_kube_status('job', config['metadata']['name'], config['metadata']['namespace'])
             for key, value in kube_status.items():
-                concatenated_states[key]  = concatenated_states[key] + value
+                concatenated_states[key]=concatenated_states[key] + value
 
     return concatenated_states, ingress_paths
 
 
 def all_successful(status):
-    successfull = ['Completed', 'Running', 'deployed']
+    successfull=['Completed', 'Running', 'deployed']
     for i in status:
         if i not in successfull:
             return 'no'

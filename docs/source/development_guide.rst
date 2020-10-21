@@ -85,11 +85,11 @@ First of all, it is important that your script works. For this, we will simulate
 
 * Now we create the following python script ``extract_study_id.px``. Make sure that we have Pydicom installed:
 
-.. literalinclude:: ../../templates_and_examples/examples/workflows/docker-container/extract-study-id/files/extract_study_id.py
+.. literalinclude:: ../../templates_and_examples/examples/workflows/processing-container/extract-study-id/files/extract_study_id.py
 
 .. hint::
 
-  | When creating a new algorithm you can always take our templates (``templates_and_examples/templates/docker-container``) as a starting point and simply add your code snippet in between for the processing.
+  | When creating a new algorithm you can always take our templates (``templates_and_examples/templates/processing-container``) as a starting point and simply add your code snippet in between for the processing.
 
 In order to test the script we uncomment the os.environ sections and adapt the ``WORKFLOW_DIR`` to the ``data`` location on our local file system. Then we execute the script. On the platform all the environment variables will be set automatically. If the algorithm runs without errors, the most difficult part is already done, we have a running workflow!
 
@@ -98,7 +98,7 @@ Step 2: Check if our scripts runs inside a Docker container
 
 The next step is to put the algorithm into a Docker container and test if everything works as expected. For this we will put the ``extract_study_id.py`` in a folder called ``files``, comment again the os.environ section and create the following file called ``Dockerfile`` next to the files directory:
 
-.. literalinclude:: ../../templates_and_examples/examples/workflows/docker-container/extract-study-id/Dockerfile
+.. literalinclude:: ../../templates_and_examples/examples/workflows/processing-container/extract-study-id/Dockerfile
 
 The Dockerfile basically copies the python script and executes it.
 

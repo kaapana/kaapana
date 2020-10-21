@@ -1,16 +1,21 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
+import os
+import glob
 from datetime import timedelta
+import pydicom
+
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+
 
 class DcmSendOperator(KaapanaBaseOperator):
 
     def __init__(self,
                  dag,
-                 ae_title='dataset',
+                 ae_title='KAAPANA',
                  pacs_host= 'ctp-service.flow.svc',
                  pacs_port='11112',
-                 dicom_dir='',
                  env_vars=None,
-                 execution_timeout=timedelta(minutes=5),
+                 execution_timeout=timedelta(minutes=10),
                  *args, **kwargs
                  ):
 
@@ -21,7 +26,6 @@ class DcmSendOperator(KaapanaBaseOperator):
             "HOST": str(pacs_host),
             "PORT": str(pacs_port),
             "AETITLE": str(ae_title),
-            "DICOM_DIR": str(dicom_dir)
         }
 
         env_vars.update(envs)

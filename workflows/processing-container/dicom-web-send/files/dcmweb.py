@@ -60,10 +60,10 @@ def uploadDicomObject(pathToFile):
     return
 
 
-def init(host, port, aetitle):
+def init(pacs_origin, port, aetitle):
     global client
 
-    pacsURL = host+":"+port+"/dcm4chee-arc/aets/"+aetitle.upper()
+    pacsURL = pacs_origin+":"+port+"/dcm4chee-arc/aets/"+aetitle.upper()
 
     client = DICOMwebClient(
         url=pacsURL, qido_url_prefix="rs", wado_url_prefix="rs", stow_url_prefix="rs"
@@ -88,10 +88,10 @@ if __name__ == "__main__":
 
     file_list = sorted(file_list)
 
-    host = os.getenv("HOST", None)
+    pacs_origin = os.getenv("PACS_ORIGIN", None)
     port = os.getenv("PORT", None)
     aetitle = os.getenv("AETITLE", None)
-    init(host=host, port=port, aetitle=aetitle)
+    init(pacs_origin=pacs_origin, port=port, aetitle=aetitle)
     # file_list = glob.glob(input_dir+"/*/*.dcm")
 
     file_count = 0

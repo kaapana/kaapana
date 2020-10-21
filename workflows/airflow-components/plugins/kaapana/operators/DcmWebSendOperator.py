@@ -6,10 +6,10 @@ class DcmWebSendOperator(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  ae_title='KAAPANA',
-                 pacs_host='http://dcm4chee-service.store.svc',
-                 pacs_port='8080',
+                 pacs_origin= 'http://ctp-service.flow.svc',
+                 pacs_port='7777',
                  env_vars=None,
-                 execution_timeout=timedelta(minutes=5),
+                 execution_timeout=timedelta(minutes=10),
                  *args, **kwargs
                  ):
 
@@ -17,7 +17,7 @@ class DcmWebSendOperator(KaapanaBaseOperator):
             env_vars = {}
         
         envs = {
-            "HOST": str(pacs_host),
+            "PACS_ORIGIN": str(pacs_origin),
             "PORT": str(pacs_port),
             "AETITLE": str(ae_title),
         }

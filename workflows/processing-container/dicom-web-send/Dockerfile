@@ -10,10 +10,10 @@ LABEL CI_IGNORE="False"
 WORKDIR /
 RUN pip3 install --upgrade pip
 
-COPY requirements.txt /
+COPY files/requirements.txt /
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-ADD dcmweb.py /
+COPY files/dcmweb.py /
 
 
 CMD ["python","-u","/dcmweb.py"]

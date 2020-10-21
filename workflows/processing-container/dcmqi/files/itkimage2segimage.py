@@ -6,6 +6,8 @@ import re
 import math
 import pandas as pd
 import subprocess
+import pydicom
+
 
 def process_seg_info(seg_info, series_description):
     split_seg_info = seg_info.split('@')
@@ -47,7 +49,24 @@ def create_segment_attribute(segment_algorithm_type, segment_algorithm_name, cod
         "CodeMeaning": code_meaning.capitalize()
     }
     return segment_attribute
-        
+
+
+def get_aetitle(element_input_dir):
+    dcm_files = sorted(glob.glob(os.path.join(element_input_dir, "*.dcm*"), recursive=True))
+
+    if len(dcm_files) == 0:
+        print("No dicom file found!")
+        exit(1)
+
+    dcm_file = dcm_files[0]
+    print("dcm-file: {}".format(dcm_file))
+    try:
+        aetitle = pydicom.dcmread(dcm_file)[0x0012, 0x0020].value
+    except KeyError:
+        aetitle = 'DCMTKUndefined'
+    print('ae title', aetitle)
+    return aetitle
+
 # Example: https://github.com/QIICR/dcmqi/blob/master/doc/examples/seg-example.json
 # SegmentedPropertyCategoryCodeSequence: Sequence defining the general category of the property the segment represents: https://dicom.innolitics.com/ciods/rt-structure-set/rt-roi-observations/30060080/00620003
 # SegmentedPropertyTypeCodeSequence: https://dicom.innolitics.com/ciods/segmentation/segmentation-image/00620002/0062000f
@@ -159,6 +178,7 @@ for batch_element_dir in batch_folders:
         "@schema": "https://raw.githubusercontent.com/qiicr/dcmqi/master/doc/schemas/seg-schema.json#"
     }
 
+    segmentation_information["ClinicalTrialSeriesID"] = get_aetitle(element_input_dir)
     segmentation_information["ContentCreatorName"] = content_creator_name
     segmentation_information["SeriesNumber"] = series_number
     segmentation_information["InstanceNumber"] = instance_number

@@ -30,7 +30,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
         release_name = KaapanaApplicationOperator._get_release_name(kwargs)
 
         payload = {
-            'name': f'{self.chart_repo_name}/{self.chart_name}',
+            'name': f'{self.chart_name}',
             'version': self.version,
             'release_name': release_name,
             'sets': {
@@ -97,12 +97,10 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
                  chart_name,
                  version,
                  name="helm-chart",
-                 chart_repo_name=None,
                  data_dir=None,
                  sets=None,
                  *args, **kwargs):
 
-        self.chart_repo_name = chart_repo_name or 'kaapana-public'
         self.chart_name = chart_name
         self.version = version
         self.sets = sets or dict()

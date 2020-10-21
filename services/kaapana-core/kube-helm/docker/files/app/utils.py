@@ -1,4 +1,5 @@
 import os
+import glob
 import yaml
 import functools
 import secrets
@@ -11,7 +12,7 @@ from flask import render_template, Response, request, jsonify
 from app import app
 
 
-def helm_show_values(repo, name, version):
+def helm_show_values(name, version):
     try:
         chart = subprocess.check_output(
             f'{os.environ["HELM_PATH"]} show values {app.config["HELM_REPOSITORY_CACHE"]}/{name}-{version}.tgz', stderr=subprocess.STDOUT, shell=True)
@@ -21,10 +22,15 @@ def helm_show_values(repo, name, version):
     return yaml.load(chart)
 
 
-def helm_show_chart(repo, name, version):
+def helm_show_chart(name=None, version=None, package=None):
+    helm_command = f'{os.environ["HELM_PATH"]} show chart'
+    
+    if package is not None:
+        helm_command = f'{helm_command} {package}'
+    else:
+        helm_command = f'{helm_command} {app.config["HELM_REPOSITORY_CACHE"]}/{name}-{version}.tgz'
     try:
-        chart = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} show chart {app.config["HELM_REPOSITORY_CACHE"]}/{name}-{version}.tgz', stderr=subprocess.STDOUT, shell=True)
+        chart = subprocess.check_output(helm_command, stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as e:
         print('Nothing online, nothing local!')      
         return {}
@@ -62,27 +68,24 @@ def helm_status(release_name, namespace):
 
 def helm_prefetch_extension_docker():
     regex = r'image: ([\w\-\.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)'
-    extensions = helm_search_repo("(kaapanaextension|kaapanaint|kaapanadag)")
+    extensions = utils.helm_search_repo(keywords_filter=['kaapanaextension', 'kaapanaint', 'kaapanadag'])
+
     dags = []
     for extension in extensions:
-        repo_name, chart_name = extension["name"].split('/')
-        print(chart_name, extension["version"], f'{app.config["HELM_REPOSITORY_CACHE"]}/{chart_name}-{extension["version"]}.tgz')
-        if os.path.isfile(f'{app.config["HELM_REPOSITORY_CACHE"]}/{chart_name}-{extension["version"]}.tgz') is not True:
-            print(f'{extension["name"]} not found')
+        if os.path.isfile(f'{app.config["HELM_REPOSITORY_CACHE"]}/{extension["name"]}-{extension["version"]}.tgz') is not True:
+            print(f'{extension["name"]}-{extension["version"]} not found')
             continue
-        chart = helm_show_chart(repo_name, chart_name, extension['version'])
-        print(chart)
         payload = {
             'name': extension["name"],
             'version': extension["version"],
-            'keywords': chart["keywords"],
-            'release_name': f'prefetch-{chart_name}'
+            'keywords': extension["keywords"],
+            'release_name': f'prefetch-{extension["name"]}-{extension["version"]}'
             }
 
-        if 'kaapanaexperimental' in chart["keywords"]:
+        if 'kaapanaexperimental' in extension["keywords"]:
             print(f'Skipping {extension["name"]}, since its experimental')
             continue
-        elif 'kaapanadag' in chart["keywords"]:
+        elif 'kaapanadag' in extension["keywords"]:
             dags.append(payload)
         else:
             print(f'Prefetching {extension["name"]}')
@@ -137,7 +140,7 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
 
 def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix='', in_background=True):
 
-    repo_name, chart_name = payload["name"].split('/')
+    chart_name = payload["name"]
     version = payload["version"]
 
     default_sets =  {
@@ -152,10 +155,10 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
         'global.pull_policy_jobs': os.getenv('PULL_POLICY_JOBS')
     }
     
-    values = helm_show_values(repo_name, chart_name, version)
-    chart = helm_show_chart(repo_name, chart_name, version)
+    values = helm_show_values(chart_name, version)
 
     if 'keywords' not in payload:
+        chart = helm_show_chart(chart_name, version)
         if 'keywords' in chart:
             keywords = chart['keywords']
         else:
@@ -216,18 +219,16 @@ def helm_ls(namespace, release_filter=''):
         return []
         
 
-def helm_search_repo(filter_regex):
-    try:
-        resp = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} search repo --devel -l -r "{filter_regex}" -o json', stderr=subprocess.STDOUT, shell=True
-            )
-        
-        data = json.loads(resp)
-    except subprocess.CalledProcessError as e:
-        print('Error calling search repo!', e.output)
-        data = []
-    return data
+def helm_search_repo(keywords_filter):
 
+    keywords_filter = set(keywords_filter)
+    helm_packages = [f for f in glob.glob(os.path.join(app.config["HELM_REPOSITORY_CACHE"], '*.tgz'))]
+    charts = {}
+    for helm_package in helm_packages:
+        chart = helm_show_chart(package=helm_package)
+        if 'keywords' in chart and (set(chart['keywords']) & keywords_filter):
+            charts[f'{chart["name"]}-{chart["version"]}'] = chart
+    return charts
 
 def get_kube_status(kind, name, namespace):
     states = {

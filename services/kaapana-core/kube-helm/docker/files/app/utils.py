@@ -69,7 +69,7 @@ def helm_status(release_name, namespace):
 
 def helm_prefetch_extension_docker():
     regex = r'image: ([\w\-\.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)'
-    extensions = utils.helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaint', 'kaapanaworkflow'])
+    extensions = helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaint', 'kaapanaworkflow'])
 
     dags = []
     for extension in extensions:
@@ -167,7 +167,7 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
         default_sets.update({
             'global.https_proxy': os.getenv('https_proxy')
         })
-        
+
     values = helm_show_values(chart_name, version)
     if 'keywords' not in payload:
         chart = helm_show_chart(chart_name, version)

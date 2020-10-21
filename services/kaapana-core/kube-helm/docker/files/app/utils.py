@@ -159,7 +159,7 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
     http_proxy = os.getenv('PROXY', None)
     if http_proxy is not None and http_proxy != "":
         default_sets.update({
-            'global.http_proxy': os.getenv('http_proxy')
+            'global.http_proxy': os.getenv('http_proxy'),
             'global.https_proxy': os.getenv('https_proxy')
         })
 

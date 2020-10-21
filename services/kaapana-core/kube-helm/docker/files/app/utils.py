@@ -156,15 +156,10 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
         'global.pull_policy_jobs': os.getenv('PULL_POLICY_JOBS')
     }
 
-    http_proxy = os.getenv('http_proxy', None)
+    http_proxy = os.getenv('PROXY', None)
     if http_proxy is not None and http_proxy != "":
         default_sets.update({
             'global.http_proxy': os.getenv('http_proxy')
-        })
-
-    https_proxy = os.getenv('https_proxy', None)
-    if https_proxy is not None and https_proxy != "":
-        default_sets.update({
             'global.https_proxy': os.getenv('https_proxy')
         })
 

@@ -53,12 +53,8 @@ spec:
         - name: SLOW_DATA_DIR
           value: {{  .Values.global.slow_data_dir }}
 {{ if .Values.global.http_proxy }}
-        - name: http_proxy
+        - name: PROXY
           value: {{ .Values.global.http_proxy }}
-{{ end }}
-{{ if .Values.global.https_proxy }}
-        - name: https_proxy
-          value: {{ .Values.global.https_proxy }}
 {{ end }}
         ports: # Port(s) on which your application runs
           - containerPort: 5000

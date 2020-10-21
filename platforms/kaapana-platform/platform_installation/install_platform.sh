@@ -35,6 +35,11 @@ if [ "$DEV_MODE" == "true" ]; then
     PULL_POLICY_OPERATORS="Always"
 fi
 
+if [ -z ${http_proxy+x} ] || [ -z ${https_proxy+x} ]; then
+    http_proxy=""
+    https_proxy=""
+fi
+
 CHART_PATH=""
 declare -a NEEDED_REPOS=("$CHART_REGISTRY_PROJECT")
 script_name=`basename "$0"`

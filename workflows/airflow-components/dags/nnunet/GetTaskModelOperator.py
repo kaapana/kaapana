@@ -53,7 +53,7 @@ class GetTaskModelOperator(KaapanaBaseOperator):
             volume_mounts=volume_mounts,
             execution_timeout=execution_timeout,
             env_vars=env_vars,
-            host_network=True,
+            enable_proxy=True,
             ram_mem_mb=50,
             *args,
             **kwargs

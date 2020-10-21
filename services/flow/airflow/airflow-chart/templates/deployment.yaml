@@ -159,6 +159,8 @@ spec:
           value: "/root/airflow"
         - name: DATADIR
           value: {{ .Values.global.fast_data_dir }}/workflows/data
+        - name: PROXY
+          value: {{ .Values.global.http_proxy }}
         - name: HOSTDOMAIN
           value: {{ .Values.global.hostname }}
         - name: MINIOUSER

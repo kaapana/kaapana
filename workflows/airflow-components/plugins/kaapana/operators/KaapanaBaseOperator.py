@@ -26,8 +26,10 @@ from pprint import pprint
 import uuid
 import json
 
-default_registry = os.getenv("DEFAULT_REGISTRY","")
-default_project = os.getenv("DEFAULT_PROJECT","")
+default_registry = os.getenv("DEFAULT_REGISTRY", "")
+default_project = os.getenv("DEFAULT_PROJECT", "")
+http_proxy = os.getenv("PROXY", None)
+
 
 class KaapanaBaseOperator(BaseOperator):
     """
@@ -114,7 +116,8 @@ class KaapanaBaseOperator(BaseOperator):
                  volume_mounts=None,
                  volumes=None,
                  pod_resources=None,
-                 host_network = False,
+                 enable_proxy=False,
+                 host_network=False,
                  in_cluster=False,
                  cluster_context=None,
                  labels=None,
@@ -184,6 +187,7 @@ class KaapanaBaseOperator(BaseOperator):
         self.data_dir = os.getenv('DATADIR', "")
         self.result_message = None
         self.host_network = host_network
+        self.enable_proxy = enable_proxy
 
         self.volume_mounts.append(VolumeMount(
             'dcmdata', mount_path='/data', sub_path=None, read_only=False))
@@ -224,6 +228,16 @@ class KaapanaBaseOperator(BaseOperator):
             "OPERATOR_IN_DIR": str(self.operator_in_dir),
             "BATCHES_INPUT_DIR": "/{}/{}".format(WORKFLOW_DIR, BATCH_NAME)
         }
+
+        if http_proxy is not None and http_proxy != "" and self.enable_proxy:
+            envs.update(
+                {
+                    "http_proxy": http_proxy,
+                    "https_proxy": http_proxy,
+                    "HTTP_PROXY": http_proxy,
+                    "HTTPS_PROXY": http_proxy,
+                }
+            )
 
         envs.update(self.env_vars)
         self.env_vars = envs
@@ -272,9 +286,7 @@ class KaapanaBaseOperator(BaseOperator):
             self.env_vars.update(form_envs)
 
             print("CONTAINER ENVS:")
-            print(json.dumps(self.env_vars,indent=4,sort_keys=True))
-
-
+            print(json.dumps(self.env_vars, indent=4, sort_keys=True))
 
         for volume in self.volumes:
             if self.data_dir == volume.configs["hostPath"]["path"]:

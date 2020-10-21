@@ -274,6 +274,8 @@ function install_chart {
         --set global.credentials.registry_username="$REGISTRY_USERNAME" \
         --set global.credentials.registry_password="$REGISTRY_PASSWORD" \
         --set global.gpu_support=$GPU_SUPPORT \
+        --set global.http_proxy=$http_proxy \
+        --set global.https_proxy=$https_proxy \
         --set global.registry_url=$CONTAINER_REGISTRY_URL \
         --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
         --set global.chart_registry_project=$CHART_REGISTRY_PROJECT \
@@ -297,6 +299,8 @@ function install_chart {
         --set global.credentials.registry_username="$REGISTRY_USERNAME" \
         --set global.credentials.registry_password="$REGISTRY_PASSWORD" \
         --set global.gpu_support=$GPU_SUPPORT \
+        --set global.http_proxy=$http_proxy \
+        --set global.https_proxy=$https_proxy \
         --set global.registry_url=$CONTAINER_REGISTRY_URL \
         --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
         --set global.chart_registry_project=$CHART_REGISTRY_PROJECT \

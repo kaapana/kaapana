@@ -16,14 +16,10 @@ spec:
         env:
         - name: TASK
           value: "all"
-{{ if .Values.global.http_proxy }}
         - name: http_proxy
           value: {{ .Values.global.http_proxy }}
-{{ end }}
-{{ if .Values.global.https_proxy }}
         - name: https_proxy
           value: {{ .Values.global.https_proxy }}
-{{ end }}
         volumeMounts:
         - name: models-dir
           mountPath: /models

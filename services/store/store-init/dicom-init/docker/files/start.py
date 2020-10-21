@@ -10,12 +10,6 @@ from zipfile import ZipFile
 from subprocess import PIPE, run
 from elasticsearch import Elasticsearch
 
-# tmp_data_dir = "/home/jonas/resend-dcm/dicom_data/TMP"
-# os.environ['DCMDICTPATH']="/home/jonas/software/dcmtk-3.6.4-linux-x86_64-static/share/dcmtk/dicom.dic"
-# dcm_host = "vm-129-79.cloud.dkfz-heidelberg.de"
-# dcm_port = "11112"
-
-
 tmp_data_dir = "/slow_data_dir/TMP"
 dcm_host = os.getenv("CTP_HOST", "ctp-service.flow.svc")
 dcm_port = os.getenv("CTP_PORT", "11112")

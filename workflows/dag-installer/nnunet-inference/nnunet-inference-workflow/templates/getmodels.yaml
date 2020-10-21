@@ -9,6 +9,7 @@ spec:
     metadata:
       name: get-nnunet-models
     spec:
+      hostNetwork: true
       containers:
       - name: nnunet-models
         image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/nnunet-get-models:0.1.0

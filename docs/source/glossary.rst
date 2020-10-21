@@ -24,7 +24,7 @@ Glossary
       Each method or algorithm that is included in Kaapana as Docker container requires an associated Operator. An operator is a python script that can be included in an Airflow DAG as a processing step and interfacing the Docker container.
     
     server
-      A dedicated physical or virtual machine with a suppoerted operating sytsem on which the platform can run. Depending on the planned workflows, the hardware requirements requirements vary but for the basic platform installation the following minimal specification is recommended: 150GB disk space (only for the platform, not for data), 16 CPU cores, 64GB RAM, Nvidia GPU with 16GB RAM
+      A dedicated physical or virtual machine with a supported operating system on which the platform can run.
     
     helm
       Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. 

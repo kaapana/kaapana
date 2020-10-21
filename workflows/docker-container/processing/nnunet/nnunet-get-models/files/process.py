@@ -127,6 +127,7 @@ for task_id in task_ids:
         print("Model NOT found: {}".format(models_dir))
         print("------------------------------------")
         print("------------------------------------")
+        exit(1)
 
 print("All models successfully downloaded and extracted!")
 print("DONE")

@@ -110,7 +110,7 @@ class Pod():
         # spec
         pod_spec = kubernetes.client.V1PodSpec(containers=[])
         pod_spec.restart_policy=self.restart_policy
-        pod_spec.hostNetwork = self.host_network
+        pod_spec.host_network = self.host_network
 
 
         # spec - node_selector

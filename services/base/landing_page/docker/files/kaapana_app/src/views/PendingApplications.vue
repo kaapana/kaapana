@@ -23,12 +23,6 @@
             span {{ item.releaseMame }} &nbsp;
               a(:href='link', target='_blank' v-for="link in item.links" :key="item.link")
                 v-icon(color='primary') mdi-open-in-new
-          template(v-slot:item.experimental="{ item }")
-            v-tooltip(bottom='' v-if="item.experimental==='yes'")
-              template(v-slot:activator='{ on, attrs }')
-                v-icon(color='primary' dark='' v-bind='attrs' v-on='on')
-                  | mdi-test-tube
-              span Experimental extension or DAG, not tested yet!
           template(v-slot:item.successful="{ item }")
             v-icon(v-if="item.successful==='yes'" color='green') mdi-check-circle
             v-icon(v-if="item.successful==='no'" color='red') mdi-alert-circle
@@ -64,11 +58,6 @@ export default Vue.extend({
         text: "Kube Status",
         align: "start",
         value: "kubeStatus",
-      },
-      {
-        text: "Experimental",
-        align: "start",
-        value: "experimental",
       },
       {
         text: "Ready",

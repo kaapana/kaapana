@@ -80,8 +80,8 @@ def helm_prefetch_extension_docker():
             }
 
         if 'kaapanaexperimental' in chart["keywords"]:
-            continue
             print(f'Skipping {extension["name"]}, since its experimental')
+            continue
         elif 'kaapanadag' in chart["keywords"]:
             dags.append(payload)
         else:
@@ -153,9 +153,9 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
     }
     
     values = helm_show_values(repo_name, chart_name, version)
-    
+    chart = helm_show_chart(repo_name, chart_name, version)
+
     if 'keywords' not in payload:
-        chart = helm_show_chart(repo_name, chart_name, version)
         if 'keywords' in chart:
             keywords = chart['keywords']
         else:
@@ -184,8 +184,7 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
 
     status = helm_status(release_name, namespace)
     if status:
-        chart = helm_show_chart(repo_name, chart_name, version)
-        if 'keywords' in chart and 'kaapanamultiinstallable' in chart['keywords']:
+        if 'kaapanamultiinstallable' in keywords:
             print('Installing again since its kaapanamultiinstallable')
         else:
             return "already installed", 'no_helm_command'

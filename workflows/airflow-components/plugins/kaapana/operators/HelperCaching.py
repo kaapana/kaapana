@@ -37,6 +37,8 @@ def cache_operator_output(func):
 
         if 'context' in kwargs:
             run_id = kwargs['context']['run_id']
+        elif type(args) == tuple and "run_id" in args[0]:
+            run_id = args[0]['run_id']
         else:
             run_id = kwargs['run_id']
 

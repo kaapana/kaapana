@@ -44,7 +44,7 @@ class GetTaskModelOperator(KaapanaBaseOperator):
         }
         volumes.append(Volume(name='models', configs=volume_config))
 
-        super(GetTaskModelOperator, self).__init__(
+        super().__init__(
             dag=dag,
             image="{}{}/nnunet-get-models:0.1.0".format(default_registry, default_project),
             name="get-task-model",
@@ -53,6 +53,7 @@ class GetTaskModelOperator(KaapanaBaseOperator):
             volume_mounts=volume_mounts,
             execution_timeout=execution_timeout,
             env_vars=env_vars,
+            host_network=True,
             ram_mem_mb=50,
             *args,
             **kwargs

@@ -3,10 +3,9 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 from datetime import datetime
-
-# from nnunet.LocalSplitLabelOperator import LocalSplitLabelOperator
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
+# from nnunet.GetContainerModelOperator import GetContainerModelOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
@@ -141,8 +140,9 @@ dag = DAG(
     schedule_interval=None
 )
 
-get_task_model = GetTaskModelOperator(dag=dag)
 get_input = LocalGetInputDataOperator(dag=dag)
+get_task_model = GetTaskModelOperator(dag=dag)
+# get_task_model = GetContainerModelOperator(dag=dag)
 dcm2nifti = DcmConverterOperator(dag=dag, output_format='nii.gz')
 nnunet_predict = NnUnetOperator(dag=dag, input_dirs=[dcm2nifti.operator_out_dir], input_operator=dcm2nifti)
 

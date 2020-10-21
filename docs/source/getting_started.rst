@@ -1,6 +1,5 @@
 .. _getting_started:
 
-
 Getting started
 ===============
 This manual is intended to provide a quick and easy way to get started with :ref:`Kaapana<what_is_kaapana>`.
@@ -272,10 +271,10 @@ Copy the script to your target-system (server) and **adjust it as described belo
       .. code-block:: python
 
          ...
+         DEV_MODE="false"
+         
          CONTAINER_REGISTRY_URL="local"
          CONTAINER_REGISTRY_PROJECT=""
-         ...
-         DEV_MODE="false"
          ...
 
    .. tab:: Dockerhub

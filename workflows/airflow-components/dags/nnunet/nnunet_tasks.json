@@ -4,8 +4,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -28,8 +27,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -49,8 +47,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -70,9 +67,7 @@
         "description": "Hippocampus Segmentation.",
         "model": [
             "2d",
-            "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -92,8 +87,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -114,8 +108,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -135,8 +128,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -156,8 +148,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -178,8 +169,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -199,8 +189,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -220,8 +209,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -254,8 +242,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -275,8 +262,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -298,8 +284,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -320,8 +305,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -344,8 +328,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "any",
         "input": [
@@ -369,8 +352,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -391,8 +373,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -415,8 +396,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -436,8 +416,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -457,8 +436,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [
@@ -479,8 +457,7 @@
         "model": [
             "2d",
             "3d_lowres",
-            "3d_fullres",
-            "3d_cascade_fullres"
+            "3d_fullres"
         ],
         "input-mode": "all",
         "input": [

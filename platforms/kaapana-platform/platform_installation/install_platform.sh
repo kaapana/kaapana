@@ -3,29 +3,32 @@ set -euf -o pipefail
 
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
-PROJECT_NAME="kaapana-platform"
-DEFAULT_VERSION="0.1.0-rc.1"
+PROJECT_NAME="kaapana-platform" # name of the platform Helm chart
+DEFAULT_VERSION="0.1.0-rc.1"    # version of the platform Helm chart
 
-CHART_REGISTRY_URL="https://dktk-jip-registry.dkfz.de/chartrepo"
-CHART_REGISTRY_PROJECT="kaapana-public"
+DEV_MODE="false" # dev-mode -> containers will always be re-downloaded after pod-restart
 
-CONTAINER_REGISTRY_URL="dktk-jip-registry.dkfz.de"
-CONTAINER_REGISTRY_PROJECT="/kaapana"
+CONTAINER_REGISTRY_URL="dktk-jip-registry.dkfz.de" # URL for the Docker registry (has to be 'local' for build-mode 'local' and the username for build-mode 'dockerhub')
+CONTAINER_REGISTRY_PROJECT="/kaapana"              # eg '/kaapana' -> The slash (/) in front of the project is important!!
+                                                   # Project of the Docker registry (not all have seperated projects then it shuould be empty-> '')
+                                                   # For build-mode 'local' and 'dockerhub' this should also be empty 
 
-HTTP_PORT=80
-HTTPS_PORT=443
-DICOM_PORT=11112
-DEV_MODE="true"
-DEV_PORTS="false"
-GPU_SUPPORT="false"
+CHART_REGISTRY_URL="https://dktk-jip-registry.dkfz.de/chartrepo" # eg https://xx.xx.xx.xx/chartrepo -> URL for the chart repository 
+CHART_REGISTRY_PROJECT="kaapana-public"                          # project name for the Helm charts
 
-FAST_DATA_DIR="/home/kaapana"
-SLOW_DATA_DIR="/home/kaapana"
+FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
+SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
+
+HTTP_PORT=80      # not working yet -> has to be 80
+HTTPS_PORT=443    # not working yet -> has to be 443
+DICOM_PORT=11112  # configure DICOM receiver port
 
 PULL_POLICY_PODS="IfNotPresent"
 PULL_POLICY_JOBS="IfNotPresent"
 PULL_POLICY_OPERATORS="IfNotPresent"
 
+DEV_PORTS="false"
+GPU_SUPPORT="false"
 if [ "$DEV_MODE" == "true" ]; then
     PULL_POLICY_PODS="Always"
     PULL_POLICY_JOBS="Always"

@@ -114,6 +114,7 @@ class KaapanaBaseOperator(BaseOperator):
                  volume_mounts=None,
                  volumes=None,
                  pod_resources=None,
+                 host_network = False,
                  in_cluster=False,
                  cluster_context=None,
                  labels=None,
@@ -182,6 +183,7 @@ class KaapanaBaseOperator(BaseOperator):
         self.kind = kind
         self.data_dir = os.getenv('DATADIR', "")
         self.result_message = None
+        self.host_network = host_network
 
         self.volume_mounts.append(VolumeMount(
             'dcmdata', mount_path='/data', sub_path=None, read_only=False))
@@ -299,6 +301,7 @@ class KaapanaBaseOperator(BaseOperator):
                 image_pull_secrets=self.image_pull_secrets,
                 resources=self.pod_resources,
                 annotations=self.annotations,
+                host_network=self.host_network,
                 affinity=self.affinity
             )
             launcher = pod_launcher.PodLauncher(extract_xcom=self.xcom_push)

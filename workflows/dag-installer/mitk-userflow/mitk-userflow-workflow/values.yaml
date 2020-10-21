@@ -2,6 +2,6 @@
 global:
     pull_policy_jobs: "Always"
     fast_data_dir: "/home/kaapana"
-image: "dag-mitk-userflow"
+image: "dag-mitk-flow"
 version: "0.1.0"
 action: "copy"

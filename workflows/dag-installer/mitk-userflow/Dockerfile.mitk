@@ -1,6 +1,6 @@
 FROM local-only/dag-installer:0.1.0
 
-LABEL IMAGE="dag-mitk-userflow"
+LABEL IMAGE="dag-mitk-flow"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 

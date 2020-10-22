@@ -107,11 +107,11 @@ If you are more interested in the technologies, you can get started here:
 Triggering workflows with Kibana
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-As mentioned above, Kibana visualizes all the metadata of the images and is therefore a good option to also filter the images to which a workflow should be applied. To trigger a workflow from Kibana, a panel ``send_cohort`` was added to the Kibana dashboard which contains a dropdown to select a workflow, the option between single and batch file processing and a send button to send the request to Airflow.
+As mentioned above, Kibana visualizes all the metadata of the images and is therefore a good option to also filter the images to which a workflow should be applied. To trigger a workflow from Kibana, a panel ``send_cohort`` was added to the Kibana dashboard which contains a dropdown to select a workflow, the option between single file and batch processing and a send button to send the request to Airflow.
 
 .. hint::
 
-  | Check out the difference between :term:`single and batch file processing` 
+  | Check out the difference between :term:`single file and batch processing` 
 
 In order to trigger a workflow on images filter the images to which you want to apply the pipeline and trigger a workflow e.g. ``collect-metadata``, ``batch processing``, ``Send x results``.
 

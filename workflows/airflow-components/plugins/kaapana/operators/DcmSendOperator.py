@@ -15,9 +15,16 @@ class DcmSendOperator(KaapanaBaseOperator):
                  pacs_host= 'ctp-service.flow.svc',
                  pacs_port='11112',
                  env_vars=None,
+                 level='element',
                  execution_timeout=timedelta(minutes=10),
                  *args, **kwargs
                  ):
+
+        if level not in ['element', 'pile']:
+            raise NameError('level must be either "element" or "pile". \
+                If pile, an operator folder next to the batch folder with .dcm files is expected. \
+                If element, *.dcm are expected in the corresponding operator with .dcm files is expected.'
+            )
 
         if env_vars is None:
             env_vars = {}
@@ -26,6 +33,7 @@ class DcmSendOperator(KaapanaBaseOperator):
             "HOST": str(pacs_host),
             "PORT": str(pacs_port),
             "AETITLE": str(ae_title),
+            "LEVEL": str(level)
         }
 
         env_vars.update(envs)

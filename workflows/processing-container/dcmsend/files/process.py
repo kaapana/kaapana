@@ -13,7 +13,7 @@ AETITLE = os.getenv('AETITLE')
 
 def send_dicom_data(send_dir, aetitle=AETITLE, timeout=60):
 
-    if not glob.glob(f'{send_dir}/**/*.dcm'):
+    if not glob.glob(f'{send_dir}/**/*.dcm', recursive=True):
         print("############### no dicoms found!")
         exit(1)  
     print(f'Sending {send_dir} to {HOST} {PORT} with aetitle {aetitle}')

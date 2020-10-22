@@ -16,8 +16,11 @@ def send_dicom_data(send_dir, aetitle=AETITLE):
     command = ['dcmsend','-v',f'{HOST}',f'{PORT}','-aet','kaapana','-aec',f'{aetitle}','--scan-directories','--recurse',f'{send_dir}'] 
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
     if output.returncode != 0:
-        print("Something went wrong with dcmsend!")
-        print(str(output))
+        print("############### Something went wrong with dcmsend!")
+        for line in str(output).split("\\n"):
+            print(line)
+
+        print("##################################################")
         exit(1)
 
 batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]

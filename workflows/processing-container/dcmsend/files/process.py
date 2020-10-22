@@ -32,8 +32,6 @@ batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR
 for batch_element_dir in batch_folders:
     
     element_input_dir = os.path.join(batch_element_dir, os.environ['OPERATOR_IN_DIR'])
-
-    print('Here you find the files you want to work with on a batch element level')
     print(element_input_dir)
 
     dcm_files = sorted(glob.glob(os.path.join(element_input_dir, "*.dcm*"), recursive=True))

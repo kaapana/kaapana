@@ -51,7 +51,7 @@ def create_segment_attribute(segment_algorithm_type, segment_algorithm_name, cod
     return segment_attribute
 
 
-def get_aetitle(element_input_dir):
+def adding_aetitle(element_input_dir, output_dcm_file):
     dcm_files = sorted(glob.glob(os.path.join(element_input_dir, "*.dcm*"), recursive=True))
 
     if len(dcm_files) == 0:
@@ -65,7 +65,11 @@ def get_aetitle(element_input_dir):
     except KeyError:
         aetitle = 'DCMTKUndefined'
     print('ae title', aetitle)
-    return aetitle
+
+    dcmseg_file = pydicom.dcmread(output_dcm_file)
+
+    dcmseg_file.add_new([0x012, 0x020], 'LO', aetitle) # Clinical Trial Protocol ID
+    dcmseg_file.save_as(output_dcm_file)
 
 # Example: https://github.com/QIICR/dcmqi/blob/master/doc/examples/seg-example.json
 # SegmentedPropertyCategoryCodeSequence: Sequence defining the general category of the property the segment represents: https://dicom.innolitics.com/ciods/rt-structure-set/rt-roi-observations/30060080/00620003
@@ -178,7 +182,6 @@ for batch_element_dir in batch_folders:
         "@schema": "https://raw.githubusercontent.com/qiicr/dcmqi/master/doc/schemas/seg-schema.json#"
     }
 
-    segmentation_information["ClinicalTrialSeriesID"] = get_aetitle(element_input_dir)
     segmentation_information["ContentCreatorName"] = content_creator_name
     segmentation_information["SeriesNumber"] = series_number
     segmentation_information["InstanceNumber"] = instance_number
@@ -240,6 +243,8 @@ for batch_element_dir in batch_folders:
                     print(resp)
                 except subprocess.CalledProcessError as e:
                     raise AssertionError(f'Something weng wrong while creating the single-label-dcm object {e.output}')
+
+            adding_aetitle(element_input_dir, output_dcm_file)
 
     elif input_type == 'multi_label_seg':
         print("input_type == 'multi_label_seg'")
@@ -304,6 +309,6 @@ for batch_element_dir in batch_folders:
                 print(resp)
             except subprocess.CalledProcessError as e:
                 raise AssertionError(f'Something weng wrong while creating the multi-label-dcm object {e.output}')
-        
+        adding_aetitle(element_input_dir, output_dcm_file)
     print("End of script.")
     print("DONE")

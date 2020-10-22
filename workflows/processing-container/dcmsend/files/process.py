@@ -5,9 +5,11 @@ from datetime import datetime
 
 import pydicom
 
+
 HOST = os.getenv('HOST')
 PORT = os.getenv('PORT')
 AETITLE = os.getenv('AETITLE')
+
 
 def send_dicom_data(send_dir, aetitle=AETITLE):
     try:
@@ -35,12 +37,11 @@ for batch_element_dir in batch_folders:
     dcm_file = dcm_files[0]
     print("dcm-file: {}".format(dcm_file))
     try:
-        aetitle = pydicom.dcmread(dcm_file)[0x0012, 0x020].value
+        aetitle = pydicom.dcmread(dcm_file)[0x012, 0x020].value
+        print(f'Found aetitle {aetitle}')
     except KeyError:
-        try:
-            aetitle = pydicom.dcmread(dcm_file)[0x012, 0x071].value # (0012, 0071) Clinical Trial Series ID DCI  https://github.com/QIICR/dcmqi/blob/master/doc/schemas/seg-schema.json
-        except KeyError:
-            aetitle = AETITLE
+        aetitle = AETITLE
+        print(f'Using default aetitle {aetitle}')
 
     send_dicom_data(element_input_dir, aetitle)
 

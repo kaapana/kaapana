@@ -141,7 +141,7 @@ dcmseg_send_spleen = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_spleen)
 dcmseg_send_kidney_right = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_kidney_right)
 dcmseg_send_kidney_left = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_kidney_left)
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
+clean = LocalWorkflowCleanerOperator(dag=dag)
 
 get_input >> dcm2nrrd >> organSeg_unityCS
 

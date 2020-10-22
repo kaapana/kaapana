@@ -68,9 +68,9 @@ fi
 function import_containerd {
     echo "Starting image import into containerd..."
     while true; do
-        read -e -p "Should all Docker containers be deleted after the import?" -i " no" yn
+        read -e -p "Should all locally built Docker containers be deleted after the import?" -i " no" yn
         case $yn in
-            [Yy]* ) echo -e "${GREEN}Containers will be removed from Docker${NC}" && DEL_CONTAINERS="true"; break;;
+            [Yy]* ) echo -e "${GREEN}Local containers will be removed from Docker after the upload to microk8s${NC}" && DEL_CONTAINERS="true"; break;;
             [Nn]* ) echo -e "${YELLOW}Containers will be kept${NC}" && DEL_CONTAINERS="false"; break;;
             * ) echo "Please answer yes or no.";;
         esac
@@ -183,7 +183,7 @@ function delete_deployment {
 
 
 function update_extensions {
-    echo -e "${GREEN} Downloading all kaapanaworkflows, kaapanaapplications and kaapanaint to $HOME/.extensions ${NC}"
+    echo -e "${GREEN}Downloading all kaapanaworkflows, kaapanaapplications and kaapanaint to $HOME/.extensions${NC}"
     
     set +euf
     updates_output=$(helm repo update)

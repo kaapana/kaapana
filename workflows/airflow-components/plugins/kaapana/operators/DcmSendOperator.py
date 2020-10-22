@@ -16,7 +16,7 @@ class DcmSendOperator(KaapanaBaseOperator):
                  pacs_port='11112',
                  env_vars=None,
                  level='element',
-                 execution_timeout=timedelta(minutes=10),
+                 execution_timeout=timedelta(minutes=20),
                  *args, **kwargs
                  ):
 

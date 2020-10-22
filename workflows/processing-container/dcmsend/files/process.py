@@ -12,9 +12,13 @@ AETITLE = os.getenv('AETITLE')
 
 
 def send_dicom_data(send_dir, aetitle=AETITLE):
+
+    if not glob.glob(f'{send_dir}/**/*.dcm'):
+        print("############### no dicoms found!")
+        exit(1)  
     print(f'Sending {send_dir} to {HOST} {PORT} with aetitle {aetitle}')
     command = ['dcmsend','-v',f'{HOST}',f'{PORT}','-aet','kaapana','-aec',f'{aetitle}','--scan-directories','--recurse',f'{send_dir}'] 
-    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=30)
     if output.returncode != 0:
         print("############### Something went wrong with dcmsend!")
         for line in str(output).split("\\n"):

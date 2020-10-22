@@ -261,7 +261,7 @@ for batch_element_dir in batch_folders:
             exit(1)
 
         if "algorithm" in data:
-            multi_label_seg_name = "{}-{}".format(segment_algorithm_name,data["algorithm"])
+            series_description = "{}-{}".format(segment_algorithm_name,data["algorithm"])
 
         segment_attributes = [[]]
         for idx, single_label_seg_info in enumerate(data['seg_info']):

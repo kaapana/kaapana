@@ -77,7 +77,7 @@ We expect the sudo systemctl restart snapd
 
    :code:`sudo snap install docker --classic`
 
-6. (optional) Helm
+6. Helm
 
    :code:`sudo snap install helm --classic --channel=3.3/stable`
 
@@ -85,11 +85,11 @@ We expect the sudo systemctl restart snapd
 
    :code:`sudo reboot`
 
-8. (optional) Helm-push plugin
+8. Helm-push plugin
 
    :code:`helm plugin install https://github.com/chartmuseum/helm-push`
 
-9. (optional) Helm-kubeval plugin
+9. Helm-kubeval plugin
 
    :code:`helm plugin install https://github.com/instrumenta/helm-kubeval`
 

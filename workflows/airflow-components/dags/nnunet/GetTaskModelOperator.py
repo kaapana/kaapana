@@ -55,7 +55,7 @@ class GetTaskModelOperator(KaapanaBaseOperator):
             env_vars=env_vars,
             enable_proxy=True,
             host_network=True,
-            ram_mem_mb=500,
+            ram_mem_mb=1000,
             *args,
             **kwargs
         )

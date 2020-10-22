@@ -1,6 +1,6 @@
 import sys, os
 import glob
-import subprocess
+from subprocess import PIPE, run
 from datetime import datetime
 
 import pydicom
@@ -12,16 +12,14 @@ AETITLE = os.getenv('AETITLE')
 
 
 def send_dicom_data(send_dir, aetitle=AETITLE):
-    try:
-        print(f'Sending {send_dir} to {HOST} {PORT} with aetitle {aetitle}')
-        dcmsend = subprocess.check_output(
-            f'dcmsend -v {HOST} {PORT}  --scan-directories --call {aetitle} --scan-pattern \'*\'  --recurse {send_dir}', stderr=subprocess.STDOUT, shell=True)
-        print(dcmsend)
-    except subprocess.CalledProcessError as e:
-        print(e)
-        print(f'No images found in {send_dir}')
+    print(f'Sending {send_dir} to {HOST} {PORT} with aetitle {aetitle}')
+    command = ['dcmsend','-v',f'{HOST} {PORT}','--scan-directories', '--call',f'{aetitle}','--scan-pattern','\'*\'','--recurse',f'{send_dir}' ]
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
+    if output.returncode != 0:
+        print("Something went wrong with dcmsend!")
+        print(str(output))
         exit(1)
-         
+
 batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
 
 for batch_element_dir in batch_folders:

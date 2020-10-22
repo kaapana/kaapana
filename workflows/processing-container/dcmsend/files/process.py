@@ -18,8 +18,10 @@ def send_dicom_data(send_dir, aetitle=AETITLE):
             f'dcmsend -v {HOST} {PORT}  --scan-directories --call {aetitle} --scan-pattern \'*\'  --recurse {send_dir}', stderr=subprocess.STDOUT, shell=True)
         print(dcmsend)
     except subprocess.CalledProcessError as e:
+        print(e)
         print(f'No images found in {send_dir}')
-    
+        exit(1)
+         
 batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
 
 for batch_element_dir in batch_folders:

@@ -229,7 +229,7 @@ spec:
           type: DirectoryOrCreate
       - name: dicomdir
         hostPath:
-          path: {{ .Values.global.slow_data_dir }}
+          path: {{ .Values.global.slow_data_dir }}/dcm4che/dicom_data
           type: DirectoryOrCreate
       imagePullSecrets:
       - name: registry-secret

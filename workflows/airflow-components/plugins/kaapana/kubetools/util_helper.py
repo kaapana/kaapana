@@ -7,6 +7,7 @@ import time
 import os
 
 from airflow.models import Variable
+from airflow.api.common.experimental import pool as pool_api
 from kubernetes.client.models.v1_container_image import V1ContainerImage
 
 
@@ -82,7 +83,7 @@ class NodeUtil():
             print("+++++++++++++++++++++++++++++++++++++++++ Could not fetch node-info!")
             return_code = False
 
-        if not isinstance(result_value,int):
+        if not isinstance(result_value, int):
             result_value = 0
             if logger is not None:
                 logger.error("'result_value' was not an integer! -> set to 0 !")
@@ -129,7 +130,7 @@ class NodeUtil():
                 stats["mem_alloc"] = Q_(allocatable["memory"])
                 stats["gpu_dev_count"] = Q_(capacity["nvidia.com/gpu"] if "nvidia.com/gpu" in capacity else 0)
                 stats["gpu_dev_free"] = Q_(allocatable["nvidia.com/gpu"] if "nvidia.com/gpu" in allocatable else 0)
-               
+
                 pods = NodeUtil.core_v1.list_pod_for_all_namespaces(limit=max_pods, field_selector=field_selector).items
                 # compute the allocated resources
                 cpureqs, cpulmts, memreqs, memlmts = [], [], [], []
@@ -169,6 +170,13 @@ class NodeUtil():
             NodeUtil.memory_pressure = node_info["memory_pressure"]
             NodeUtil.disk_pressure = node_info["disk_pressure"]
             NodeUtil.pid_pressure = node_info["pid_pressure"]
+            gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
+            if gpu_count_pool is None or gpu_count_pool.slots != NodeUtil.gpu_dev_count:
+                pool_api.create_pool(
+                    name="GPU_COUNT",
+                    slots=NodeUtil.gpu_dev_count,
+                    description="Count of GPUs of the node"
+                )
 
             if NodeUtil.gpu_dev_count > 0:
                 NodeUtil.gpu_mem_alloc, return_code = NodeUtil.get_node_info(query=NodeUtil.gpu_mem_available_query, logger=logger)
@@ -189,7 +197,7 @@ class NodeUtil():
 
             Variable.set("CPU_NODE", "{}/{}".format(NodeUtil.cpu_lmt, NodeUtil.cpu_alloc))
             Variable.set("CPU_FREE", "{}".format(NodeUtil.cpu_available_req))
-            Variable.set("RAM_NODE", "{}/{}".format(NodeUtil.mem_req,NodeUtil.mem_alloc))
+            Variable.set("RAM_NODE", "{}/{}".format(NodeUtil.mem_req, NodeUtil.mem_alloc))
             Variable.set("RAM_FREE", "{}".format(NodeUtil.memory_available_req))
             Variable.set("GPU_DEV", "{}/{}".format(NodeUtil.gpu_dev_free, NodeUtil.gpu_dev_count))
             Variable.set("GPU_DEV_FREE", "{}".format(NodeUtil.gpu_dev_free))
@@ -367,13 +375,13 @@ class NodeUtil():
             NodeUtil.memory_available_req = tmp_memory_available_req
             NodeUtil.cpu_available_req = tmp_cpu_available_req
             NodeUtil.gpu_memory_available = tmp_gpu_memory_available
-            NodeUtil.gpu_dev_free =max(0, NodeUtil.gpu_dev_free)
+            NodeUtil.gpu_dev_free = max(0, NodeUtil.gpu_dev_free)
             NodeUtil.mem_req = NodeUtil.mem_req + ti_ram_mem_mb
             NodeUtil.mem_lmt = NodeUtil.mem_lmt + ti_ram_mem_mb
 
             Variable.set("CPU_NODE", "{}/{}".format(NodeUtil.cpu_lmt, NodeUtil.cpu_alloc))
             Variable.set("CPU_FREE", "{}".format(NodeUtil.cpu_available_req))
-            Variable.set("RAM_NODE", "{}/{}".format(NodeUtil.mem_req,NodeUtil.mem_alloc))
+            Variable.set("RAM_NODE", "{}/{}".format(NodeUtil.mem_req, NodeUtil.mem_alloc))
             Variable.set("RAM_FREE", "{}".format(NodeUtil.memory_available_req))
             Variable.set("GPU_DEV", "{}/{}".format(NodeUtil.gpu_dev_free, NodeUtil.gpu_dev_count))
             Variable.set("GPU_DEV_FREE", "{}".format(NodeUtil.gpu_dev_free))

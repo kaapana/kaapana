@@ -48,7 +48,7 @@ dag = DAG(
 
 get_input = LocalGetInputDataOperator(dag=dag)
 dcmseg2nrrd = DcmSeg2ItkOperator(dag=dag)
-get_dicom = LocalGetRefSeriesOperator(dag=dag, ser='segct')
+get_dicom = LocalGetRefSeriesOperator(dag=dag)
 dcm2nrrd = DcmConverterOperator(dag=dag, input_operator=get_dicom, output_format='nrrd')
 radiomics = RadiomicsOperator(dag=dag, mask_operator=dcmseg2nrrd, input_operator=dcm2nrrd)
 put_radiomics_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[radiomics], file_white_tuples=('.xml'))

@@ -1,4 +1,4 @@
-FROM python:3.6-alpine
+FROM python:3.8-alpine
 
 LABEL IMAGE="hello-backend"
 LABEL VERSION="0.1.0"

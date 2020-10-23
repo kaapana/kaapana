@@ -18,7 +18,7 @@ Core components of Kaapana are:
 * [Docker](https://www.docker.com/): container system to provide algorithms as well as the platform components itself
 
 Kaapana is constantly developing and currently includes the following key-features:
-* Large-scale image processing with SOTA deep learning algorithms, such as [nnU-Net](https://github.com/MIC-DKFZ/nnunet)image segmentation
+* Large-scale image processing with SOTA deep learning algorithms, such as [nnU-Net](https://github.com/MIC-DKFZ/nnunet) image segmentation
 * Analysing, evaluation and viewing of processed images and data
 * Simple integration of new, customized algorithms and applications into the framework
 * System monitoring

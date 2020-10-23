@@ -6,7 +6,7 @@ Glossary
 .. glossary::
 
     platform
-      Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. 
+      A platform describes a sysem that runs on a remote server and is accessible via the browser. The kaapana-plaform is an example platform. Using kaapana, you can basically build your own platform by putting the services and extensions that you need together.
     
     kaapana-platform
       The kaapana-platform is an example platform with a default configuration that contains many of the typical platform components. This basic platform can be used as a starting-point to derive a customized platform for your specific project. 

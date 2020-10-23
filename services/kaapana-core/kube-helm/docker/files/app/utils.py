@@ -72,24 +72,24 @@ def helm_prefetch_extension_docker():
     extensions = helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaint', 'kaapanaworkflow'])
 
     dags = []
-    for extension in extensions:
-        if os.path.isfile(f'{app.config["HELM_REPOSITORY_CACHE"]}/{extension["name"]}-{extension["version"]}.tgz') is not True:
-            print(f'{extension["name"]}-{extension["version"]} not found')
+    for chart_name, chart in extensions.items():
+        if os.path.isfile(f'{app.config["HELM_REPOSITORY_CACHE"]}/{chart_name}.tgz') is not True:
+            print(f'{chart_name} not found')
             continue
         payload = {
-            'name': extension["name"],
-            'version': extension["version"],
-            'keywords': extension["keywords"],
-            'release_name': f'prefetch-{extension["name"]}-{extension["version"]}'
+            'name': chart["name"],
+            'version': chart["version"],
+            'keywords': chart["keywords"],
+            'release_name': f'prefetch-{chart_name}'
         }
 
-        if 'kaapanaexperimental' in extension["keywords"]:
-            print(f'Skipping {extension["name"]}, since its experimental')
+        if 'kaapanaexperimental' in chart["keywords"]:
+            print(f'Skipping {chart_name}, since its experimental')
             continue
-        elif 'kaapanaworkflow' in extension["keywords"]:
+        elif 'kaapanaworkflow' in chart["keywords"]:
             dags.append(payload)
         else:
-            print(f'Prefetching {extension["name"]}')
+            print(f'Prefetching {chart_name}')
             try:
                 release, _ = helm_install(payload, app.config["NAMESPACE"], helm_command_addons='--dry-run', in_background=False)
                 manifest = json.loads(release.decode("utf-8"))["manifest"]
@@ -107,7 +107,7 @@ def helm_prefetch_extension_docker():
                             helm_delete(release_name, app.config['NAMESPACE'])
                             print(e)
             except subprocess.CalledProcessError as e:
-                print(f'Skipping {extension["name"]} due to {e.output.decode("utf-8")}')
+                print(f'Skipping {chart_name} due to {e.output.decode("utf-8")}')
     for dag in dags:
         try:
             print(f'Prefetching {dag["name"]}')
@@ -141,7 +141,7 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
 
 def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix='', in_background=True):
 
-    chart_name = payload["name"]
+    name = payload["name"]
     version = payload["version"]
 
     default_sets = {
@@ -163,9 +163,9 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
             'global.https_proxy': http_proxy
         })
 
-    values = helm_show_values(chart_name, version)
+    values = helm_show_values(name, version)
     if 'keywords' not in payload:
-        chart = helm_show_chart(chart_name, version)
+        chart = helm_show_chart(name, version)
         if 'keywords' in chart:
             keywords = chart['keywords']
         else:
@@ -188,9 +188,9 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
     if "release_name" in payload:
         release_name = payload["release_name"]
     elif 'kaapanamultiinstallable' in keywords:
-        release_name = f'{chart_name}-{secrets.token_hex(10)}'
+        release_name = f'{name}-{secrets.token_hex(10)}'
     else:
-        release_name = chart_name
+        release_name = name
 
     status = helm_status(release_name, namespace)
     if status:
@@ -204,7 +204,7 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
         for key, value in payload["sets"].items():
             helm_sets = helm_sets + f" --set {key}='{value}'"
 
-    helm_command = f'{os.environ["HELM_PATH"]} install {helm_command_addons} -n {namespace} {release_name} {helm_sets} {app.config["HELM_REPOSITORY_CACHE"]}/{chart_name}-{version}.tgz -o json {helm_comman_suffix}'
+    helm_command = f'{os.environ["HELM_PATH"]} install {helm_command_addons} -n {namespace} {release_name} {helm_sets} {app.config["HELM_REPOSITORY_CACHE"]}/{name}-{version}.tgz -o json {helm_comman_suffix}'
     print('helm_command', helm_command)
     if in_background is False:
         return subprocess.check_output(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command

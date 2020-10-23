@@ -85,9 +85,17 @@ do
         if [ $? -eq 0 ]; then
             echo "Segmentation found!!"
         else
+            echo ""
+            echo "#########################################################"
+            echo ""
+            echo ""
             echo "No segmentation found!"
             echo "The segmentatiion NIFTI has no mask -> no label found."
             echo "Abort"
+            echo ""
+            echo ""
+            echo "#########################################################"
+            echo ""
             exit 1
         fi
 

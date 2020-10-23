@@ -3,6 +3,8 @@ import os
 import urllib.request
 import zipfile
 import time
+from pathlib import Path
+
 
 max_retries = 3
 models_dir = os.path.join(os.getenv('MODELDIR', "/models"), "nnUNet")
@@ -10,11 +12,12 @@ task_ids = os.getenv('TASK', None)
 model = os.getenv('MODEL', None)
 
 
-def check_dl_running(task_id, model_path):
-    model_path_dl_running = os.path.join(models_dir, "2d", task_id)
+def check_dl_running(model_path_dl_running, model_path):
     if os.path.isfile(model_path_dl_running):
         print("Download already running -> sleep!")
-        while os.path.isdir(model_path):
+        while not os.path.isdir(model_path):
+            print("")
+            print("Still waiting -> sleep 15s")
             time.sleep(15)
         return True
     else:
@@ -77,7 +80,8 @@ for task_id in task_ids:
 
     print("Model not present: {}".format(model_path))
 
-    if check_dl_running(task_id=task_id, model_path=model_path):
+    model_path_dl_running = os.path.join(models_dir,"dl_{}.txt".format(task_id))
+    if check_dl_running(model_path_dl_running=model_path_dl_running, model_path=model_path):
         continue
 
     file_name = "{}.zip".format(task_id)
@@ -93,6 +97,7 @@ for task_id in task_ids:
         print("Try: {} - Start download: {}".format(try_count, model_url))
         try_count += 1
         try:
+            Path(model_path_dl_running).touch()
             urllib.request.urlretrieve(model_url, target_file)
         except Exception as e:
             print("Could not download model: {}".format(model_url))
@@ -105,6 +110,7 @@ for task_id in task_ids:
         print("Max retries reached!")
         print("Skipping...")
         print("------------------------------------")
+        os.remove(model_path_dl_running) if os.path.isfile(model_path_dl_running) else None
         continue
 
     print("------------------------------------")
@@ -114,6 +120,7 @@ for task_id in task_ids:
     print("------------------------------------")
     print("Target-dir: {}".format(models_dir))
     print("------------------------------------")
+    os.remove(model_path_dl_running) if os.path.isfile(model_path_dl_running) else None
 
     try:
         with zipfile.ZipFile(target_file, "r") as zip_ref:

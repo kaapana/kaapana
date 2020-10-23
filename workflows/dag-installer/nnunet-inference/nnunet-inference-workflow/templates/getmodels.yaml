@@ -34,7 +34,7 @@ spec:
           requests:
             memory: 500Mi
           limits:
-            memory: 1500Mi
+            memory: 3000Mi
       volumes:
       - name: models-dir
         hostPath:

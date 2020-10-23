@@ -46,7 +46,7 @@ Radiomics
 |
 | **Start processing:**
 | Ideally the dag is triggered within the organ-segmentation workflow. In case you want to manually trigger the dag,
-| select  *radiomics* + *BACTH FILE PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
+| select  *radiomics* + *BATCH PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
 .. _extensions collect:
 
@@ -62,7 +62,7 @@ Collect metadata
 | DICOMs
 |
 | **Start processing:**
-| Select  *collect-metadata*  + *BACTH FILE PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
+| Select  *collect-metadata*  + *BATCH PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
 .. _extensions delete:
 
@@ -106,7 +106,7 @@ Download selected files
 | DICOMs
 |
 | **Start processing:**
-| Select  *download-selected-files* + *BACTH FILE PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
+| Select  *download-selected-files* + *BATCH PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
 
 Applications

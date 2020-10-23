@@ -43,7 +43,7 @@ Preparations for the development
    dcmsend -v <ip-address of server> 11112  --scan-directories --call <aetitle of images, used for filtering> --scan-pattern '*'  --recurse <data-dir-of-DICOM images>
 
 * Go to Meta on the landing page to check if the images were successfully uploaded
-* In order to create a development environment to add new DAGs to the platform go to the extension section on the landing page and install the code-server-chart. Clicking on the link you will be served with a Visual Studio Code environment in the directory of Airflow, where you will finde the Kaapana plugin (``workflows/plugins``), the data during processing (``workflows/data``), the models (``workflows/models``) and the directory for the DAGs definition (``workflows/dags``). 
+* In order to create a development environment to add new DAGs to the platform go to the extension section on the landing page and install the code-server-chart. Clicking on the link you will be served with a Visual Studio Code environment in the directory of Airflow, where you will find the Kaapana plugin (``workflows/plugins``), the data during processing (``workflows/data``), the models (``workflows/models``) and the directory for the DAGs definition (``workflows/dags``). 
 
 In order to get a general idea about how to use the platform checkout TODO. Furthermore, it might be helpful to check out the TODO in order to get an idea of the concepts of the Kaapana platform.
 
@@ -60,13 +60,13 @@ In order to deploy now a new DAG that convert DICOMs to nrrds, create a file cal
     
 That's it basically. Now we can check if the DAG is successfully added to Airflow and then we can test our workflow!
 
-* Go to Airflow via the landing page and check if your newly added DAG ``example-dcm2nrrd`` appears under DAGs (it might take up to five minutes that airflow recognizes the DAG! Alternatively you could restart the Airflow Pod in Kubernetes)
+* Go to Airflow and check if your newly added DAG ``example-dcm2nrrd`` appears under DAGs (it might take up to five minutes that airflow recognizes the DAG! Alternatively you could restart the Airflow Pod in Kubernetes)
 * If there is an error in the created DAG file like indexing, library imports, etc, you will see an error at the top of the Airflow page
-* Go to the Meta-Dashboard via the landing page 
+* Go to the Meta-Dashboard 
 * Filter via the name of your dataset and with ``+/-`` icons on the different charts your images to which you want to apply the algorithm 
 * From the drop-down, choose the DAG you have created i.e. ``example-dcm2nrrd``, and in the second dropdown choose ``batch processing``, like this, one single instead of multiple processing pipelines are triggered for all the images selected.
 * In order to check if your DAG runs successfully, you can go back to Airflow and watch how the pipeline jumps from one operator to the next. If an error occurs please check out the TODO section.
-* If everything was successful you can go to Minio via the landing page where you will find a bucket called ``example-dcm2nrrd``. Inside this folder you will find the ``.nrrd`` files of the selected images.
+* If everything was successful you can go to Minio where you will find a bucket called ``example-dcm2nrrd``. Inside this folder you will find the ``.nrrd`` files of the selected images.
 
 .. _Deploy an own processing algorithm to the platform:
 
@@ -83,7 +83,7 @@ First of all, it is important that your script works. For this, we will simulate
 
   | In case your algorithm works with ``.nrrd`` files you could simply download the batch folder that we generated in the example-dcm2nrrd folder
 
-* Now we create the following python script ``extract_study_id.px``. Make sure that we have Pydicom installed:
+* Now we create the following python script ``extract_study_id.py``. Make sure that we have Pydicom installed:
 
 .. literalinclude:: ../../templates_and_examples/examples/workflows/processing-container/extract-study-id/files/extract_study_id.py
 
@@ -177,7 +177,7 @@ Deploy a Flask Application on the platform
 
 Step 1: Create and run our Flask app locally
 --------------------------------------------
-As a starting point, we first develop a Flask application and run in locally. The source code of the Hello-World Flask application can be found in the ``templates_and_examples/examples/services/hello-world``! In case you have never worked with Flask `this  <https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world>`_ tutorial will get you started!
+As a starting point, we first develop a Flask application and run it locally. The source code of the Hello-World Flask application can be found in the ``templates_and_examples/examples/services/hello-world``! In case you have never worked with Flask `this  <https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world>`_ tutorial will get you started!
 
 
 First of all install the requirements.
@@ -331,5 +331,7 @@ Since in the ``Chart.yaml`` definition we have added ``kaapanaapplication`` to t
 ::
    
    ./install_platform.sh --update-extensions
+
+
 
 

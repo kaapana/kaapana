@@ -6,7 +6,7 @@ Frequently Asked Questions (FAQ)
 There seems to be something wrong with the landing-page visualization in the Browser
 ------------------------------------------------------------------------------------
 
-Most probably the Browser-Version is not supportet. We try to support as many Browsers as possible.
+Most probably the Browser-Version is not supported. We try to support as many Browsers as possible.
 
 
 Kibana dashboard does not work
@@ -19,20 +19,20 @@ You open Kibana/Meta and you see something like this?
    :align: center
    :scale: 25%
 
-The error occured, because the dashboard was opened while not all the meta-data of the images where extracted. You can resolve this by going to
+The error occurred, because the dashboard was opened while not all the meta-data of the images were extracted. You can resolve this by going to
 
 ::
 
     https://<server-domain>/meta
 
-this is the Kibana dashboard. Select "Management" on the left hand side and then "Index Patterns". Then you should see a pannel called "meta-index". On the top right corner there
+this is the Kibana dashboard. Select "Management" on the left hand side and then "Index Patterns''. Then you should see a panel called "meta-index". On the top right corner there
 is a refresh button. By clicking this button the meta-data will be updated for the view. Now your dashboard should work as expected!
 
 
 Proxy configuration
 -------------------
 
-If you need to configure a proxy in your institution to access interent, you can do this as following:
+If you need to configure a proxy in your institution to access internet, you can do this as following:
 
 | Open **/etc/environment** with vi insert:
 
@@ -112,7 +112,7 @@ Check if the datetime is correct by:
 Failing to install an extension 
 -------------------------------
 
-Since we use deletion hooks for extension, there might be the problem that the helm release of the extension get stuck in the uninstalling process. To check if this is the case or if the release is stuck in another stage, get a terminal on your server and execute
+Since we use deletion hooks for extension, there might be the problem that the helm release of the extension gets stuck in the uninstalling process. To check if this is the case or if the release is stuck in another stage, get a terminal on your server and execute
 
 ::
 

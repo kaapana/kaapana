@@ -41,15 +41,6 @@ In the default configuration only four ports are open on the server:
 4. Port **6443**:  Kubernetes API port -> used for external kubectl communication and secured via the certificate
 
 
-Filesystem directories
-^^^^^^^^^^^^^^^^^^^^^^
-In the default configuration there are two locations on the filesystem. Per default, the two locations are the same, if you have a SSD and a HDD mount, you should change it accordingly.
-
-1. ``fast_data_dir=/home/kaapana``: Location of data that do not take a lot of space and should be loaded fast. Preferably, a SSD is mounted here.
-
-2. ``slow_data_dir=/home/kaapana``:  Location of huge files, like images or our object store is located here.  Preferably, a HDD is mounted here.
-
-
 Storage stack: Kibana, Elasticsearch, OHIF and DCM4CHEE
 -------------------------------------------------------
 
@@ -78,7 +69,7 @@ Here is an example of sending images with DCMTK:
 The AE title should represent your dataset since we use it for filtering images on our Meta-Dashboard in Kibana.
 
 
-When DICOMs are sent to the DICOM receiver of the platform two things happen. Firstly, the DICOMs are saved in the local PACs system called DCM4CHEE. Secondly, the meta data of the DICOMs are extracted and indexed by a search engine (powered by Elasticsearch) which makes the meta data available for Kibana. A Kibana dashboard called Meta dashboard, accessible via the landing page, is mainly responsible for visualizing the metadata but also serves as a filtering tool in order to select images and to trigger a processing pipeline. Image cohorts on the Meta dashboard can be selected via custom filters at the top. To ease this process, it is also possible to add filters automatically by clicking on the graphs (``+/-`` pop ups).
+When DICOMs are sent to the DICOM receiver of the platform two things happen. Firstly, the DICOMs are saved in the local PACs system called DCM4CHEE. Secondly, the meta data of the DICOMs are extracted and indexed by a search engine (powered by Elasticsearch) which makes the meta data available for Kibana. The Kibana dashboard called "Meta dashboard" is mainly responsible for visualizing the metadata but also serves as a filtering tool in order to select images and to trigger a processing pipeline. Image cohorts on the Meta dashboard can be selected via custom filters at the top. To ease this process, it is also possible to add filters automatically by clicking on the graphs (``+/-`` pop ups).
 
 Deleting images from the platform
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -115,7 +106,7 @@ As mentioned above, Kibana visualizes all the metadata of the images and is ther
 
 In order to trigger a workflow on images filter the images to which you want to apply the pipeline and trigger a workflow e.g. ``collect-metadata``, ``batch processing``, ``Send x results``.
 
-Once Kibana has sent its request, the Airflow pipeline is triggered. If you navigate to Airflow via the landing page, you should see that the DAG collect-meta data is running. By clicking on the DAG you will see different processing steps, that are called ``operators``. In the operators, first the query of Kibana is used to download the selected images from the local PACS system DCM4CHEE to a predefined directory of the server so that the images are available for the upcoming operators (``get-input-data``), then the dicoms are anonymized (``dcm-anonmyizer``), the meta data are extracted and converted to jsons (``dcm2json``), the generated jsons are concatenated (``concatenated-metadata``), the concatenated json is send to Minio (``minio-actions-put``) and finally, the local directory is cleaned again. You can check out the :ref:`dev_guide_doc` to learn how to write your own DAGs. Also you can go to Minio to see if you find the collected meta data. 
+Once Kibana has sent its request, the Airflow pipeline is triggered. If you navigate to Airflow, you should see that the DAG collect-meta data is running. By clicking on the DAG you will see different processing steps, that are called ``operators``. In the operators, first the query of Kibana is used to download the selected images from the local PACS system DCM4CHEE to a predefined directory of the server so that the images are available for the upcoming operators (``get-input-data``), then the dicoms are anonymized (``dcm-anonmyizer``), the meta data are extracted and converted to jsons (``dcm2json``), the generated jsons are concatenated (``concatenated-metadata``), the concatenated json is send to Minio (``minio-actions-put``) and finally, the local directory is cleaned again. You can check out the :ref:`dev_guide_doc` to learn how to write your own DAGs. Also you can go to Minio to see if you find the collected meta data. 
 
 Debugging
 ^^^^^^^^^
@@ -175,7 +166,7 @@ The graphical dashboards present states such as disk space, CPU and GPU memory u
 Kubernetes: Your first place to look if something does not work
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-As mentioned above, Kubernetes is the basis of the whole platform. You can talk to Kubernetes either via the Kubernetes Dashboard, accessible via the landing page or via the terminal directly on your server. You can even talk to the Kuberentes cluster from another machine by setting up a connection to it (see :ref:`here <faq_doc kubernetes_connection>`). In case anything on the platform is not working, Kubernetes is the first place to go. Here are two use cases, when you might need to access Kubernetes.
+As mentioned above, Kubernetes is the basis of the whole platform. You can talk to Kubernetes either via the Kubernetes Dashboard, accessible on the landing page or via the terminal directly on your server. You can even talk to the Kuberentes cluster from another machine by setting up a connection to it (see :ref:`here <faq_doc kubernetes_connection>`). In case anything on the platform is not working, Kubernetes is the first place to go. Here are two use cases, when you might need to access Kubernetes.
 
 **Case 1: Service is down**
 

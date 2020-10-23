@@ -25,7 +25,7 @@ def check_dl_running(model_path_dl_running, model_path):
         return False
 
 
-def delete_zip_file(target_file):
+def delete_file(target_file):
     try:
         os.remove(target_file)
     except OSError:
@@ -103,14 +103,14 @@ for task_id in task_ids:
             print("Could not download model: {}".format(model_url))
             print("Abort.")
             print('MSG: ' + str(e))
-            delete_zip_file(target_file)
+            delete_file(target_file)
 
     if try_count >= max_retries:
         print("------------------------------------")
         print("Max retries reached!")
         print("Skipping...")
         print("------------------------------------")
-        os.remove(model_path_dl_running) if os.path.isfile(model_path_dl_running) else None
+        delete_file(model_path_dl_running)
         continue
 
     print("------------------------------------")
@@ -120,7 +120,6 @@ for task_id in task_ids:
     print("------------------------------------")
     print("Target-dir: {}".format(models_dir))
     print("------------------------------------")
-    os.remove(model_path_dl_running) if os.path.isfile(model_path_dl_running) else None
 
     try:
         with zipfile.ZipFile(target_file, "r") as zip_ref:
@@ -130,9 +129,11 @@ for task_id in task_ids:
         print("Target dir: {}".format(models_dir))
         print("Abort.")
         print('MSG: ' + str(e))
-        delete_zip_file(target_file)
+        delete_file(target_file)
+        delete_file(model_path_dl_running)
         continue
 
+    delete_file(model_path_dl_running)
 
 print("------------------------------------")
 print("------------------------------------")

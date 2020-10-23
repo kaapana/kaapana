@@ -95,8 +95,11 @@ class KaapanaBaseOperator(BaseOperator):
                  parallel_id=None,
                  trigger_rule=TriggerRule.ALL_SUCCESS,
                  ram_mem_mb=500,
+                 ram_mem_mb_lmt=None,
                  cpu_millicores=None,
+                 cpu_millicores_lmt=None,
                  gpu_mem_mb=None,
+                 gpu_mem_mb_lmt=None,
                  retries=1,
                  retry_delay=timedelta(seconds=60),
                  priority_weight=1,
@@ -146,8 +149,11 @@ class KaapanaBaseOperator(BaseOperator):
             pool=pool,
             pool_slots=pool_slots,
             ram_mem_mb=ram_mem_mb,
+            ram_mem_mb_lmt=ram_mem_mb_lmt,
             cpu_millicores=cpu_millicores,
+            cpu_millicores_lmt=cpu_millicores_lmt,
             gpu_mem_mb=gpu_mem_mb,
+            gpu_mem_mb_lmt=gpu_mem_mb_lmt,
             manage_cache=manage_cache
         )
 
@@ -217,7 +223,7 @@ class KaapanaBaseOperator(BaseOperator):
                 request_cpu="{}m".format(self.cpu_millicores) if self.cpu_millicores != None else None,
                 limit_cpu="{}m".format(self.cpu_millicores+100) if self.cpu_millicores != None else None,
                 request_memory="{}Mi".format(self.ram_mem_mb),
-                limit_memory="{}Mi".format(self.ram_mem_mb+100),
+                limit_memory="{}Mi".format(self.ram_mem_mb_lmt if self.ram_mem_mb_lmt is not None else self.ram_mem_mb+100),
             )
             self.pod_resources = pod_resources
 
@@ -399,8 +405,11 @@ class KaapanaBaseOperator(BaseOperator):
         pool,
         pool_slots,
         ram_mem_mb,
+        ram_mem_mb_lmt,
         cpu_millicores,
+        cpu_millicores_lmt,
         gpu_mem_mb,
+        gpu_mem_mb_lmt,
         manage_cache
     ):
 
@@ -414,8 +423,11 @@ class KaapanaBaseOperator(BaseOperator):
         obj.pool = pool
         obj.pool_slots = pool_slots
         obj.ram_mem_mb = ram_mem_mb
+        obj.ram_mem_mb_lmt = ram_mem_mb_lmt
         obj.cpu_millicores = cpu_millicores
+        obj.cpu_millicores_lmt = cpu_millicores_lmt
         obj.gpu_mem_mb = gpu_mem_mb
+        obj.gpu_mem_mb_lmt = gpu_mem_mb_lmt
         obj.manage_cache = manage_cache or 'ignore'
 
         if obj.task_id is None:

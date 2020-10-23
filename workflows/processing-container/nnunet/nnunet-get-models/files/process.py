@@ -2,11 +2,24 @@ import sys
 import os
 import urllib.request
 import zipfile
+import time
 
 max_retries = 3
 models_dir = os.path.join(os.getenv('MODELDIR', "/models"), "nnUNet")
 task_ids = os.getenv('TASK', None)
 model = os.getenv('MODEL', None)
+
+
+def check_dl_running(task_id, model_path):
+    model_path_dl_running = os.path.join(models_dir, "2d", task_id)
+    if os.path.isfile(model_path_dl_running):
+        print("Download already running -> sleep!")
+        while os.path.isdir(model_path):
+            time.sleep(15)
+        return True
+    else:
+        print("Download not running -> download!")
+        return False
 
 
 def delete_zip_file(target_file):
@@ -15,13 +28,14 @@ def delete_zip_file(target_file):
     except OSError:
         pass
 
+
 if task_ids is None:
     print("No ENV 'TASK' found!")
     print("Abort.")
     exit(1)
 
 if model is None:
-    model="2d"
+    model = "2d"
 
 if task_ids == "all":
     print("Downloading all nnUnet-task-models...")
@@ -62,10 +76,14 @@ for task_id in task_ids:
         continue
 
     print("Model not present: {}".format(model_path))
+
+    if check_dl_running(task_id=task_id, model_path=model_path):
+        continue
+
     file_name = "{}.zip".format(task_id)
     model_url = "https://zenodo.org/record/4003545/files/{}?download=1".format(file_name)
 
-    output_dir = os.path.join('/', os.getenv("WORKFLOW_DIR","tmp"), os.getenv("OPERATOR_OUT_DIR",""))
+    output_dir = os.path.join('/', os.getenv("WORKFLOW_DIR", "tmp"), os.getenv("OPERATOR_OUT_DIR", ""))
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 

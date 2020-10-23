@@ -136,8 +136,8 @@ def extensions():
             else:
                 continue
             extension['releaseMame'] = extension["name"]
-            extension['helmStatus'] = 'Not installed' 
-            extension['kubeStatus'] = 'Not deployed'
+            extension['helmStatus'] = '' 
+            extension['kubeStatus'] = ''
             extension['successful'] = 'none'
           
             status = utils.helm_status(extension["name"], app.config['NAMESPACE'])

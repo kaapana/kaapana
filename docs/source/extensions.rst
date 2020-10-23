@@ -6,6 +6,75 @@ Extensions
 Workflows
 ^^^^^^^^^
 
+.. _extensions collect:
+
+Collect metadata
+----------------
+| **What's going on?**
+| 1) DICOMs are anonymized by removing a list of personal tags
+| 2) Meta data of the DICOMs are extracted and written to JSON files
+| 3) JSON files are concatenated to one JSON file.
+| 4) JSON file is zipped and send with a timestamp to the bucket *download* in Minio, where the file can be downloaded
+
+| **Input data:**
+| DICOMs
+|
+| **Start processing:**
+| Select  *collect-metadata*  + *BATCH PROCESSING* and click *SEND x RESULTS*
+
+
+.. _extensions delete:
+
+Delete series from platform
+---------------------------
+| **What's going on?**
+| 1) DICOMsare deleted from the PACS.
+| 2) Meta data of DICOMs are deleted from the Elasticsearch database.
+
+| **Input data:**
+| Filter for DICOMs that you want to remove from the platform. Since in the current verison the files are copied to the local SSD drive, please, do not select too many images at once. 
+|
+| **Start processing:**
+| Select  *delete-dcm-from-platform* + *BATCH PROCESSING* and click *SEND x RESULTS*
+
+
+.. _extensions download:
+
+Download series from platform
+-----------------------------
+| **What's going on?**
+| 1) DICOMs are send to the bucket *download* in Minio. If the option zipped is used, they are saved with a timestamp in the *download* bucket.
+
+| **Input data:**  
+| DICOMs
+|
+| **Start processing:**
+| Select  *download-selected-files* + *BATCH PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
+
+
+.. _extensions nnunet:
+
+NNunet
+------
+| **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
+| **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
+| **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
+
+| **What's going on?**
+| 1) Model is downloaded
+| 2) DICOM will be converted to .nrrd files
+| 3) Selected task is applied on input image
+| 4) .nrrd segmentations will be converted to DICOM Segmentation (DICOM SEG) object.
+| 5) DICOM SEGs will be sent to the internal platform PACS
+
+| **Input data:**  
+| Depending on the Task see for more information on `Github <https://github.com/MIC-DKFZ/nnUNet>`
+|
+| **Start processing:**
+| Select  *nnunet* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
+
+
+
 .. _extensions organseg:
 
 Automatic organ segmentation
@@ -45,68 +114,7 @@ Radiomics
 | DICOM Segmentations 
 |
 | **Start processing:**
-| Ideally the dag is triggered within the organ-segmentation workflow. In case you want to manually trigger the dag,
-| select  *radiomics* + *BATCH PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
-
-.. _extensions collect:
-
-Collect metadata
-----------------
-| **What's going on?**
-| 1) DICOMs are anonymized by removing a list of personal tags
-| 2) Meta data of the DICOMs are extracted and written to JSON files
-| 3) JSON files are concatenated to one JSON file.
-| 4) JSON file is zipped and send with a timestamp to the bucket *download* in Minio, where the file can be downloaded
-
-| **Input data:**
-| DICOMs
-|
-| **Start processing:**
-| Select  *collect-metadata*  + *BATCH PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
-
-.. _extensions delete:
-
-Delete images (dcm)
--------------------
-| **What's going on?**
-| 1) DICOMsare deleted from the PACS.
-| 2) Meta data of DICOMs are deleted from the Elasticsearch database.
-
-| **Input data:**
-| Filter for DICOMs that you want to remove from the platform. Since in the current verison the files are copied to the local SSD drive, please, do not select too many images at once. 
-|
-| **Start processing:**
-| Select  *delete-dcm-from-platform* + *BATCH FILE PROCESSING* and click *SEND x RESULTS*
-
-| **Attention**
-| In case, you want to resend the images to the server you need to restart the CTP Pod in Kubernetes. In order to this go to Kubernetes, select Namespace "flow", click on "Pods" select the pod named "ctp-..." and then delete the pod by clicking on the trash can on the upper right.
-
-.. _extensions reindex:
-
-Re-index dicoms
----------------
-| **What's going on?**
-| 1) All meta data saved in Elasticsearch are deleted
-| 2) For every DICOM within the PACs the dag service-extract-metadata is triggered to write the meta data back to Elasticsearch 
- 
-**Input data:**  
-| None
-|
-| **Start processing:**
-| Trigger the *reindex-pacs* dag manually in Airflow
-
-.. _extensions download:
-
-Download selected files
------------------------
-| **What's going on?**
-| 1) DICOMs are send to the bucket *download* in Minio. If the option zipped is used, they are saved with a timestamp in the *download* bucket.
-
-| **Input data:**  
-| DICOMs
-|
-| **Start processing:**
-| Select  *download-selected-files* + *BATCH PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
+| Select  *radiomics* + *BATCH PROCESSING* or *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
 
 Applications

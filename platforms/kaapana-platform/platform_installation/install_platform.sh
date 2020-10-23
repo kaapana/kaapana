@@ -256,9 +256,6 @@ function install_chart {
         chart_version=$DEFAULT_VERSION
     fi
 
-    update_extensions
-    helm pull -d $HOME/.extensions/ --version=$chart_version $CHART_REGISTRY_PROJECT/pull-docker-chart
-
     if [ ! -z "$CHART_PATH" ]; then
         echo -e "${YELLOW}Installing $PROJECT_NAME: version $chart_version${NC}"
         echo -e "${YELLOW}Chart-tgz-path $CHART_PATH${NC}"
@@ -286,6 +283,8 @@ function install_chart {
         --set global.chart_registry_project=$CHART_REGISTRY_PROJECT \
         --name-template $PROJECT_NAME
     else
+        update_extensions
+        helm pull -d $HOME/.extensions/ --version=$chart_version $CHART_REGISTRY_PROJECT/pull-docker-chart
         echo -e "${YELLOW}Installing $CHART_REGISTRY_PROJECT/$PROJECT_NAME version: $chart_version${NC}"
         helm install --devel --version $chart_version  $CHART_REGISTRY_PROJECT/$PROJECT_NAME \
         --set global.version="$chart_version" \

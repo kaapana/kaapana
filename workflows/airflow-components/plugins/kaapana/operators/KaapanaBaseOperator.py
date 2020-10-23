@@ -224,6 +224,7 @@ class KaapanaBaseOperator(BaseOperator):
                 limit_cpu="{}m".format(self.cpu_millicores+100) if self.cpu_millicores != None else None,
                 request_memory="{}Mi".format(self.ram_mem_mb),
                 limit_memory="{}Mi".format(self.ram_mem_mb_lmt if self.ram_mem_mb_lmt is not None else self.ram_mem_mb+100),
+                limit_gpu=1 if self.gpu_mem_mb is not None else None
             )
             self.pod_resources = pod_resources
 
@@ -447,13 +448,10 @@ class KaapanaBaseOperator(BaseOperator):
         else:
             obj.operator_in_dir = INITIAL_INPUT_DIR
 
-        # if obj.pool == None:
-        #     obj.pool = "default_pool"
-        #     obj.pool_slots = 1
         if obj.pool == None:
-            if False and obj.gpu_mem_mb != None:
-                obj.pool = "GPU_MEM"
-                obj.pool_slots = obj.gpu_mem_mb
+            if obj.gpu_mem_mb != None:
+                obj.pool = "GPU_COUNT"
+                obj.pool_slots = 1
             else:
                 obj.pool = "MEMORY"
                 obj.pool_slots = obj.ram_mem_mb

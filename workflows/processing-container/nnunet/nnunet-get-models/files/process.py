@@ -11,6 +11,9 @@ models_dir = os.path.join(os.getenv('MODELDIR', "/models"), "nnUNet")
 task_ids = os.getenv('TASK', None)
 model = os.getenv('MODEL', None)
 
+Path(models_dir).mkdir(parents=True, exist_ok=True)
+
+
 
 def check_dl_running(model_path_dl_running, model_path):
     if os.path.isfile(model_path_dl_running):
@@ -28,7 +31,8 @@ def check_dl_running(model_path_dl_running, model_path):
 def delete_file(target_file):
     try:
         os.remove(target_file)
-    except OSError:
+    except Exception as e:
+        print(e)
         pass
 
 

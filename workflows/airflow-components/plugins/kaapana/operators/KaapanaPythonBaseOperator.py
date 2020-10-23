@@ -46,7 +46,9 @@ class KaapanaPythonBaseOperator(PythonOperator):
             pool_slots=pool_slots,
             ram_mem_mb=ram_mem_mb,
             ram_mem_mb_lmt=ram_mem_mb_lmt,
+            cpu_millicores=cpu_millicores,
             cpu_millicores_lmt=cpu_millicores_lmt,
+            gpu_mem_mb=gpu_mem_mb,
             gpu_mem_mb_lmt=gpu_mem_mb_lmt,
             manage_cache=manage_cache
         )

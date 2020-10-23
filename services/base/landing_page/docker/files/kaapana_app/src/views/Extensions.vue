@@ -12,7 +12,9 @@
                     | mdi-cloud-download-outline
                 span By clicking on this icon it will try to download the latest extensions. In case you do not have internet connection this can also be done on the terminal via ./install-platform --update-extensions.
             br
-            span(style='font-size: 14px') In readthedocs you find a description of each application and workflow
+            span(style='font-size: 14px') On 
+              a(href="https://kaapana.readthedocs.io/", target="_blank") readthedocs
+              |  you find a description of each extension
           v-col(cols='12' sm='2')
             v-select(label='Kind' :items="['All', 'Workflows', 'Applications']" v-model='extensionKind' hide-details='')
           v-col(cols='12' sm='2')

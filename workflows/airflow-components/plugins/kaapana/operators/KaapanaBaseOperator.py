@@ -284,7 +284,7 @@ class KaapanaBaseOperator(BaseOperator):
     @cache_operator_output
     def execute(self, context):
         self.set_context_variables(context)
-        if context['dag_run'].conf is not None and "conf" in context['dag_run'].conf and "form_data" in context['dag_run'].conf["conf"]:
+        if context['dag_run'].conf is not None and "conf" in context['dag_run'].conf and "form_data" in context['dag_run'].conf["conf"] and context['dag_run'].conf["conf"]["form_data"] is not None:
             form_data = context['dag_run'].conf["conf"]["form_data"]
             form_envs = {}
             for form_key in form_data.keys():

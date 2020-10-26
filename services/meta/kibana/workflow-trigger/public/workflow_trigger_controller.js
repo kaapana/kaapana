@@ -151,6 +151,7 @@ class VisController {
               alert("Could not fetch DAG information from kaapana-api!");
               return;
             }
+            this.dag_form_data = null
             var dag_entry = dag_list[VisController.selected_dag_id]
 
             if (dag_entry.hasOwnProperty('ui_dag_info')) {

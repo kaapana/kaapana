@@ -17,7 +17,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         conf = kwargs['dag_run'].conf
         print('conf', conf)
-        if 'conf' in conf and 'form_data' in conf['conf'] and 'zip_files' in conf['conf']['form_data']:
+        if 'conf' in conf and 'form_data' in conf['conf'] and conf['conf']['form_data'] is not None and 'zip_files' in conf['conf']['form_data']:
                 self.zip_files = conf['conf']['form_data']['zip_files']
                 print('Zip files set by form data', self.zip_files)
 

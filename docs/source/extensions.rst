@@ -54,7 +54,7 @@ Download series from platform (download-selected-files)
 
 .. _extensions nnunet:
 
-NNunet (nnunet-predict)
+nnUNet (nnunet-predict)
 -----------------------
 | **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
 | **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
@@ -68,7 +68,7 @@ NNunet (nnunet-predict)
 | 5) DICOM SEGs will be sent to the internal platform PACS
 
 | **Input data:**  
-| Depending on the Task see for more information on `Github <https://github.com/MIC-DKFZ/nnUNet>`
+| Depending on the Task see for more information on `Github <https://github.com/MIC-DKFZ/nnUNet>`_
 |
 | **Start processing:**
 | Select  *nnunet* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*

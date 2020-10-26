@@ -40,11 +40,10 @@ We expect the sudo systemctl restart snapd
 
 1. Clone the repository:
 
-   | :code:`git clone https://github.com/kaapana/kaapana.git`
-   
-   or   
-   
+   | :code:`git clone https://github.com/kaapana/kaapana.git` **or**   
    | :code:`git clone https://phabricator.mitk.org/source/kaapana.git`
+   
+   | :code:`git checkout master`
 
 2. Snap 
 
@@ -247,8 +246,9 @@ Step 3: Server Installation
   | **GPU support -> Currently only Nvidia GPUs are supported!**
   | GPU support requires installation of the `Nvidia drivers <https://www.nvidia.de/Download/index.aspx?lang=en>`_ .
   | For Ubuntu Server 20.04 :code:`sudo apt install nvidia-driver-<version>-server`
-  | should also work **BUT** check the hibernation settings afterwards --> `see <https://www.unixtutorial.org/disable-sleep-on-ubuntu-server/>`_
-  | -> reboot required!
+  | should also work **BUT** check the hibernation settings afterwards (`see <https://www.unixtutorial.org/disable-sleep-on-ubuntu-server/>`_) 
+  | -> :code:`sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target`
+  | --> reboot required!
   | Please make sure the :code:`nvidia-smi` command is working as expected!
 
 Before the example platform "Kaapana-platform" can be deployed, all dependencies must be installed on the server. 

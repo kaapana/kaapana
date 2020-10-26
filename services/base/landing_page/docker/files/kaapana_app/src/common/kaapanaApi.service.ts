@@ -3,15 +3,13 @@ import request from '@/request.ts'
 
 const kaapanaApiService = {
 
-
   helmApiPost(subUrl: any, payload: any) {
     return new Promise((resolve, reject) => {
       request.post('/kube-helm-api' + subUrl, payload).then( (response:any) => {
         console.log(response)
         resolve(response)
       }).catch((error: any) => {
-        console.log('Something went wrong loading the default external wepages', error)
-        alert('Helm command failed because of ' + error)
+        alert('Failed: ' + error.response.data)
         reject(error)
       })   
     }) 
@@ -22,76 +20,11 @@ const kaapanaApiService = {
       request.get('/kube-helm-api' + subUrl, { params } ).then( (response: any) => {
           resolve(response)
       }).catch((error: any) => {
-        console.log('Something went wrong getting the dags', error)
-        alert('Helm command failed because of ' + error)
+        alert('Failed: ' + error.response.data)
         reject(error)
       })
     }) 
   },
-
-  // launchApplication(payload: any) {
-  //   return new Promise((resolve, reject) => {
-  //     request.post('/flow/kaapana/api/trigger/launch-app', payload).then(response => {
-  //         console.log(response)
-  //         resolve(response)
-  //     }).catch(error => {
-  //       console.log('Something went wrong loading the default external wepages', error)
-  //       // reject(error)
-  //     })
-  //   })
-  // },
-
-  // deleteApplication(payload: any) {
-  //   return new Promise((resolve, reject) => {
-  //     request.post('/flow/kaapana/api/deleteappbyrunid', payload).then(response => {
-  //         console.log(response)
-  //         resolve(response)
-  //     }).catch(error => {
-  //       console.log('Something went wrong loading the default external wepages', error)
-  //       // reject(error)
-  //     })
-  //   })
-  // },
-  
-  
-  // getDagRuns() {
-  //   return new Promise((resolve, reject) => {
-  //     let getDagRunsUrl = ''
-  //     if (Vue.config.productionTip === true) {
-  //       getDagRunsUrl = '/flow/kaapana/api/getdagruns'
-  //     } else {
-  //       getDagRunsUrl = '/jsons/dagruns.json'
-  //     }
-
-  //     let params = { dag_id: 'launch-app', state: 'running' }
-  //     request.get(getDagRunsUrl, { params } ).then(response => {
-  //         resolve(response)
-  //     }).catch(error => {
-  //       console.log('Something went wrong getting the dags', error)
-  //       // reject(error)
-  //     })
-  //   })
-  // },
-
-  // getIngressByRunId(params: any) {
-  //   return new Promise((resolve, reject) => {
-  //     let getIngressByRunIdUrl = ''
-  //     if (Vue.config.productionTip === true) {
-  //       getIngressByRunIdUrl = '/flow/kaapana/api/getingressbyrunid'
-  //     } else {
-  //       getIngressByRunIdUrl = '/jsons/getingressbyrunid.json'
-  //     }
-      
-  //     request.get(getIngressByRunIdUrl, { params } ).then(response => {
-  //         resolve(response)
-  //     }).catch(error => {
-  //         resolve('deleted') // ingress is deleted earlier than pod
-  //         console.log('The ingress seems to be delete already', error)
-  //       // reject(error)
-  //     })
-  //   })
-  // },
-
 
   getExternalWebpages() {
     return new Promise((resolve, reject) => {

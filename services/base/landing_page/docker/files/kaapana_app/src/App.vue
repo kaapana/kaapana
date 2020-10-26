@@ -14,17 +14,23 @@
             v-list-item-title {{section.label}}
           v-list-item(v-for="(subSection, subSectionKey) in section.subSections" :key="subSection.id" :to="{ name: 'ew-section-view', params: { ewSection: sectionKey, ewSubSection: subSectionKey }}")
             v-list-item-title(v-text="subSection.label")
-        v-list-item(:to="'/application-links'" v-if="isAuthenticated")
-          v-list-item-action
-            v-icon mdi-gamepad-variant
-          v-list-item-content
-            v-list-item-title Pending applications
-          v-list-item-icon
         v-list-item(:to="'/data-upload'" v-if="isAuthenticated")
           v-list-item-action
             v-icon mdi-cloud-upload
           v-list-item-content
             v-list-item-title Data upload
+          v-list-item-icon
+        v-list-item(:to="'/pending-applications'" v-if="isAuthenticated")
+          v-list-item-action
+            v-icon mdi-gamepad-variant
+          v-list-item-content
+            v-list-item-title Pending applications
+          v-list-item-icon
+        v-list-item(:to="'/extensions'", v-if="isAuthenticated")
+          v-list-item-action
+            v-icon mdi-apps
+          v-list-item-content
+            v-list-item-title Extensions
           v-list-item-icon
     v-app-bar(color="primary" dark dense clipped-left app)
       v-app-bar-nav-icon(@click.stop="drawer = !drawer")
@@ -61,7 +67,7 @@ import request from '@/request';
 
 import { mapGetters } from 'vuex';
 import { LOGIN, LOGOUT, CHECK_AUTH } from '@/store/actions.type';
-import { CHECK_AVAILABLE_WEBISTES, LOAD_COMMON_DATA, LOAD_LAUNCH_APPLICATION_DATA} from '@/store/actions.type';
+import { CHECK_AVAILABLE_WEBISTES, LOAD_COMMON_DATA} from '@/store/actions.type';
 
 export default Vue.extend({
   name: 'App',
@@ -85,10 +91,8 @@ export default Vue.extend({
     },
     minioCall() {
          request.get('/flow/kaapana/api/getaccesstoken').then(response => {
-            console.log(response)
             let payload = {"id":1,"jsonrpc":"2.0","params":{"token": response.data["xAuthToken"]},"method":"Web.LoginSTS"}
             request.post('/minio/webrpc', payload).then(response => {
-                console.log(response)
                 storage.setItem('token', `${response.data.result["token"]}`)
             }).catch(error => {
               console.log('Could not generate the minio token...', error)
@@ -101,7 +105,6 @@ export default Vue.extend({
   beforeCreate () {
     this.$store.dispatch(CHECK_AVAILABLE_WEBISTES)
     this.$store.dispatch(LOAD_COMMON_DATA)
-    this.$store.dispatch(LOAD_LAUNCH_APPLICATION_DATA)
   },
   onIdle() {
     console.log('checking', this.$store.getters.isAuthenticated)

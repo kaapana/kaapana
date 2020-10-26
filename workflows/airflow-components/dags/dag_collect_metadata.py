@@ -14,23 +14,21 @@ from airflow.models import DAG
 
 log = LoggingMixin().log
 
-dag_info = {
-    "visible": True,
-}
-
-
 args = {
-    'owner': 'airflow',
+    'ui_visible': True,
+    'owner': 'kaapana',
     'start_date': days_ago(0),
     'retries': 2,
-    'dag_info': dag_info,
     'retry_delay': timedelta(seconds=30),
 }
 
 dag = DAG(
     dag_id='collect-metadata',
     default_args=args,
-    schedule_interval=None)
+    concurrency=50,
+    max_active_runs=50,
+    schedule_interval=None
+    )
 
 get_input = LocalGetInputDataOperator(dag=dag)
 anonymizer = LocalDcmAnonymizerOperator(dag=dag, single_slice=True)

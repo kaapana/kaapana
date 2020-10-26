@@ -1,7 +1,6 @@
 ---
 apiVersion: v1
-appVersion: "6.8.12dev"
+appVersion: "6.8.12"
 description: A Helm chart for Kubernetes
 name: meta-init-chart
-version: 6.8.12-vdev
-
+version: "6.8.12"

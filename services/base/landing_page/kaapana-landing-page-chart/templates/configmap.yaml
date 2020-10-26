@@ -4,84 +4,10 @@ data:
   commonData.json: |-
     {
       "id": "kaapana",
-      "name": "kaapana platform",
-      "shortName": "kaapana",
-      "infoText": "kaapana is a technology platform for Distributed Computational Image-based PHEnotyping and Radiomics. It is designed to establish a better link between clinical (imaging) data, computational power and methodical tools.",
+      "name": "Kaapana platform",
+      "shortName": "Kaapana",
+      "infoText": "Kaapana (from the hawaiian word kaʻāpana, meaning “distributor” or “part”) is an open source toolkit for state of the art platform provisioning in the field of medical data analysis. The applications comprise AI-based workflows and federated learning scenarios with a focus on radiological and radiotherapeutic imaging.",
       "version": "{{ .Values.global.version }}"
-    }
-  launchApplication.json: |-
-    {
-      "Code Server": 
-        {
-          "repoName": "kaapana-public",
-          "chartName": "code-server",
-          "version": "3.5.0-vdev",
-          "sets": {
-            "global.registry_url": "{{ .Values.global.registry_url }}",
-            "global.registry_project": "{{ .Values.global.registry_project }}",
-            "global.base_namespace": "{{ .Values.global.base_namespace }}",
-            "global.pull_policy_jobs": "{{ .Values.global.pull_policy_pods }}",
-            "global.slow_data_dir": "{{ .Values.global.slow_data_dir }}",
-            "global.fast_data_dir": "{{ .Values.global.fast_data_dir }}",
-            "ingress_path": "/code"
-          }
-      },
-      "MITK in Minio": 
-        {
-          "repoName": "kaapana-public",
-          "chartName": "mitk-volume",
-          "version": "1.0-vdev",
-          "sets": {
-            "global.registry_url": "{{ .Values.global.registry_url }}",
-            "global.registry_project": "{{ .Values.global.registry_project }}",
-            "global.base_namespace": "{{ .Values.global.base_namespace }}",
-            "global.pull_policy_jobs": "{{ .Values.global.pull_policy_pods }}",
-            "mount_path": "{{ .Values.global.slow_data_dir }}/minio/",
-            "ingress_path": "/mitk"
-          }
-      },
-      "Tensorboard in Minio": 
-        {
-          "repoName": "kaapana-public",
-          "chartName": "tensorboard",
-          "version": "1.0-vdev",
-          "sets": {
-            "global.registry_url": "{{ .Values.global.registry_url }}",
-            "global.registry_project": "{{ .Values.global.registry_project }}",
-            "global.base_namespace": "{{ .Values.global.base_namespace }}",
-            "global.pull_policy_jobs": "{{ .Values.global.pull_policy_pods }}",
-            "mount_path": "{{ .Values.global.slow_data_dir }}/minio/",
-            "ingress_path": "/tensorboard"
-          }
-      },
-      "Tensorboard in workflow data": 
-        {
-          "repoName": "kaapana-public",
-          "chartName": "tensorboard",
-          "version": "1.0-vdev",
-          "sets": {
-            "global.registry_url": "{{ .Values.global.registry_url }}",
-            "global.registry_project": "{{ .Values.global.registry_project }}",
-            "global.base_namespace": "{{ .Values.global.base_namespace }}",
-            "global.pull_policy_jobs": "{{ .Values.global.pull_policy_pods }}",
-            "mount_path": "{{ .Values.global.fast_data_dir }}/workflows/",
-            "ingress_path": "/tensorboard"
-          }
-      },
-      "Jupyterlab in Minio": 
-        {
-          "repoName": "kaapana-public",
-          "chartName": "jupyterlab",
-          "version": "1.0-vdev",
-          "sets": {
-            "global.registry_url": "{{ .Values.global.registry_url }}",
-            "global.registry_project": "{{ .Values.global.registry_project }}",
-            "global.base_namespace": "{{ .Values.global.base_namespace }}",
-            "global.pull_policy_jobs": "{{ .Values.global.pull_policy_pods }}",
-            "global.slow_data_dir": "{{ .Values.global.slow_data_dir }}",
-            "ingress_path": "/jupyterlab"
-          }
-      }
     }
   defaultExternalWebpages.json: |-
     {

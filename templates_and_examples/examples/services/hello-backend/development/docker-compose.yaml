@@ -1,0 +1,20 @@
+version: '3'
+services:
+  hello-backend:
+    image: <docker-registry><docker-repo>/hello-backend:1.0-dkfz
+    environment:
+      SECRET_KEY: jip-secret
+      HELLO_WORLD_USER: Klaus
+      DATABASE_URL: postgresql://someuser:somepassword@postgres-backend:5432
+      APPLICATION_ROOT: '/hello-backend'
+    ports:
+    - 5000:5000
+  postgres-backend:
+    image: postgres:12.0-alpine
+    volumes:
+      - ./postgres
+    environment:
+      POSTGRES_USER: "someuser"
+      POSTGRES_PASSWORD: "somepassword"
+    ports:
+      - "5432:5432"

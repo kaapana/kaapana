@@ -1,4 +1,4 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 from datetime import timedelta
 
 
@@ -34,10 +34,10 @@ class OrganSegmentationOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="dktk-jip-registry.dkfz.de/processing-external/organseg:1.1-vdev",
+            image="{}{}/shape-organseg:0.1.1".format(default_registry, default_project),
             name="organ-segmentation",
             parallel_id=parallel_id,
-            image_pull_secrets=["camic-registry"],
+            image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             env_vars=env_vars,
             task_concurrency=10,

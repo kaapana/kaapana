@@ -30,7 +30,7 @@ spec:
               value: "10"
       containers:
       - name: minio
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/minio:2020.09.17-vdev
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/minio:2020.09.17
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args:
         - server
@@ -66,5 +66,5 @@ spec:
           path: {{ .Values.global.slow_data_dir }}/minio
           type: DirectoryOrCreate
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---

@@ -29,7 +29,7 @@ spec:
               name: tmp-volume
       containers:
         - name: dashboard-metrics-scraper
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/kube-dashboard-metrics:1.0.4-vdev
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/kube-dashboard-metrics:1.0.4
           ports:
             - containerPort: 8000
               protocol: TCP
@@ -60,5 +60,5 @@ spec:
             path: {{ .Values.global.fast_data_dir }}/dashboard-metrics
             type: DirectoryOrCreate
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---

@@ -1,6 +1,6 @@
 {
   "name": "kaapana",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve --port 5000 --skip-plugins @vue/cli-plugin-eslint",

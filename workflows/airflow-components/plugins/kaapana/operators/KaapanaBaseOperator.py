@@ -26,6 +26,10 @@ from pprint import pprint
 import uuid
 import json
 
+default_registry = os.getenv("DEFAULT_REGISTRY", "")
+default_project = os.getenv("DEFAULT_PROJECT", "")
+http_proxy = os.getenv("PROXY", None)
+
 
 class KaapanaBaseOperator(BaseOperator):
     """
@@ -91,8 +95,11 @@ class KaapanaBaseOperator(BaseOperator):
                  parallel_id=None,
                  trigger_rule=TriggerRule.ALL_SUCCESS,
                  ram_mem_mb=500,
+                 ram_mem_mb_lmt=None,
                  cpu_millicores=None,
+                 cpu_millicores_lmt=None,
                  gpu_mem_mb=None,
+                 gpu_mem_mb_lmt=None,
                  retries=1,
                  retry_delay=timedelta(seconds=60),
                  priority_weight=1,
@@ -112,6 +119,8 @@ class KaapanaBaseOperator(BaseOperator):
                  volume_mounts=None,
                  volumes=None,
                  pod_resources=None,
+                 enable_proxy=False,
+                 host_network=False,
                  in_cluster=False,
                  cluster_context=None,
                  labels=None,
@@ -140,8 +149,11 @@ class KaapanaBaseOperator(BaseOperator):
             pool=pool,
             pool_slots=pool_slots,
             ram_mem_mb=ram_mem_mb,
+            ram_mem_mb_lmt=ram_mem_mb_lmt,
             cpu_millicores=cpu_millicores,
+            cpu_millicores_lmt=cpu_millicores_lmt,
             gpu_mem_mb=gpu_mem_mb,
+            gpu_mem_mb_lmt=gpu_mem_mb_lmt,
             manage_cache=manage_cache
         )
 
@@ -180,6 +192,8 @@ class KaapanaBaseOperator(BaseOperator):
         self.kind = kind
         self.data_dir = os.getenv('DATADIR', "")
         self.result_message = None
+        self.host_network = host_network
+        self.enable_proxy = enable_proxy
 
         self.volume_mounts.append(VolumeMount(
             'dcmdata', mount_path='/data', sub_path=None, read_only=False))
@@ -209,7 +223,8 @@ class KaapanaBaseOperator(BaseOperator):
                 request_cpu="{}m".format(self.cpu_millicores) if self.cpu_millicores != None else None,
                 limit_cpu="{}m".format(self.cpu_millicores+100) if self.cpu_millicores != None else None,
                 request_memory="{}Mi".format(self.ram_mem_mb),
-                limit_memory="{}Mi".format(self.ram_mem_mb+100),
+                limit_memory="{}Mi".format(self.ram_mem_mb_lmt if self.ram_mem_mb_lmt is not None else self.ram_mem_mb+100),
+                limit_gpu=1 if self.gpu_mem_mb is not None else None
             )
             self.pod_resources = pod_resources
 
@@ -220,6 +235,16 @@ class KaapanaBaseOperator(BaseOperator):
             "OPERATOR_IN_DIR": str(self.operator_in_dir),
             "BATCHES_INPUT_DIR": "/{}/{}".format(WORKFLOW_DIR, BATCH_NAME)
         }
+
+        if http_proxy is not None and http_proxy != "" and self.enable_proxy:
+            envs.update(
+                {
+                    "http_proxy": http_proxy,
+                    "https_proxy": http_proxy,
+                    "HTTP_PROXY": http_proxy,
+                    "HTTPS_PROXY": http_proxy,
+                }
+            )
 
         envs.update(self.env_vars)
         self.env_vars = envs
@@ -259,11 +284,7 @@ class KaapanaBaseOperator(BaseOperator):
     @cache_operator_output
     def execute(self, context):
         self.set_context_variables(context)
-        self.log.info("using envs: \n {0}".format(self.env_vars))
-        self.log.info("Conf: ")
-        self.log.info(context['dag_run'].conf)
-
-        if "conf" in context['dag_run'].conf and "form_data" in context['dag_run'].conf["conf"]:
+        if context['dag_run'].conf is not None and "conf" in context['dag_run'].conf and "form_data" in context['dag_run'].conf["conf"] and context['dag_run'].conf["conf"]["form_data"] is not None:
             form_data = context['dag_run'].conf["conf"]["form_data"]
             form_envs = {}
             for form_key in form_data.keys():
@@ -271,15 +292,12 @@ class KaapanaBaseOperator(BaseOperator):
 
             self.env_vars.update(form_envs)
 
-            import pprint
-            pprint.pprint(self.env_vars)
-
-
+            print("CONTAINER ENVS:")
+            print(json.dumps(self.env_vars, indent=4, sort_keys=True))
 
         for volume in self.volumes:
             if self.data_dir == volume.configs["hostPath"]["path"]:
                 volume.configs["hostPath"]["path"] = os.path.join(volume.configs["hostPath"]["path"], context["run_id"])
-                print(("replaced: {0}".format(volume.configs["hostPath"]["path"])))
 
         try:
             print("++++++++++++++++++++++++++++++++++++++++++++++++ launch pod!")
@@ -302,6 +320,7 @@ class KaapanaBaseOperator(BaseOperator):
                 image_pull_secrets=self.image_pull_secrets,
                 resources=self.pod_resources,
                 annotations=self.annotations,
+                host_network=self.host_network,
                 affinity=self.affinity
             )
             launcher = pod_launcher.PodLauncher(extract_xcom=self.xcom_push)
@@ -387,8 +406,11 @@ class KaapanaBaseOperator(BaseOperator):
         pool,
         pool_slots,
         ram_mem_mb,
+        ram_mem_mb_lmt,
         cpu_millicores,
+        cpu_millicores_lmt,
         gpu_mem_mb,
+        gpu_mem_mb_lmt,
         manage_cache
     ):
 
@@ -402,8 +424,11 @@ class KaapanaBaseOperator(BaseOperator):
         obj.pool = pool
         obj.pool_slots = pool_slots
         obj.ram_mem_mb = ram_mem_mb
+        obj.ram_mem_mb_lmt = ram_mem_mb_lmt
         obj.cpu_millicores = cpu_millicores
+        obj.cpu_millicores_lmt = cpu_millicores_lmt
         obj.gpu_mem_mb = gpu_mem_mb
+        obj.gpu_mem_mb_lmt = gpu_mem_mb_lmt
         obj.manage_cache = manage_cache or 'ignore'
 
         if obj.task_id is None:
@@ -423,13 +448,10 @@ class KaapanaBaseOperator(BaseOperator):
         else:
             obj.operator_in_dir = INITIAL_INPUT_DIR
 
-        # if obj.pool == None:
-        #     obj.pool = "default_pool"
-        #     obj.pool_slots = 1
         if obj.pool == None:
-            if False and obj.gpu_mem_mb != None:
-                obj.pool = "GPU_MEM"
-                obj.pool_slots = obj.gpu_mem_mb
+            if obj.gpu_mem_mb != None:
+                obj.pool = "GPU_COUNT"
+                obj.pool_slots = 1
             else:
                 obj.pool = "MEMORY"
                 obj.pool_slots = obj.ram_mem_mb

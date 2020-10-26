@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+appVersion: "0.1.0"
+description: example Airflow Dag
+name: example-workflow
+version: "0.1.0"
+keywords:
+- kaapanaworkflow
+- kaapanaexperimental
+    

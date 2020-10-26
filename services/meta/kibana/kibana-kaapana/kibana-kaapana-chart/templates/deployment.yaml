@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: kibana-meta-container          
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/kibana-kaapana:6.8.12-vdev          
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/kibana-kaapana:6.8.12          
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           # env:
           # - name: NODE_OPTIONS
@@ -40,5 +40,5 @@ spec:
           - key: kibana.yml
             path: kibana.yml
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---

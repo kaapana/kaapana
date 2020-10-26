@@ -20,7 +20,7 @@ def get_timestamp():
 
 def check_helm_installed():
     command = ["helm", "push", "--help"]
-    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
 
     if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
         print("Helm ist not installed correctly!")
@@ -29,7 +29,7 @@ def check_helm_installed():
         exit(1)
 
     command = ["helm", "kubeval", "--help"]
-    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3)
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
     if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
         print("Helm kubeval ist not installed correctly!")
         print("Make sure Helm kubeval-plugin is installed!")
@@ -65,19 +65,20 @@ class HelmChart:
         return "{}:{}".format(self.name, self.version) == "{}:{}".format(other.name, other.version)
 
     def __init__(self, chartfile):
-        name = None
-        repo = None
-        version = None
-        nested = False
+        self.name = None
+        self.repo = None
+        self.version = None
+        self.nested = False
+        self.ignore_linting = False
         self.log_list = []
-
+        self.chartfile = chartfile
 
         if not os.path.isfile(chartfile):
             print("ERROR: Chartfile not found.")
             exit(1)
 
         if os.path.dirname(os.path.dirname(chartfile)).split("/")[-1] == "charts":
-            nested = True
+            self.nested = True
 
         with open(chartfile) as f:
             read_file = f.readlines()
@@ -85,41 +86,38 @@ class HelmChart:
 
             for line in read_file:
                 if "name:" in line:
-                    name = line.split(": ")[1].strip()
+                    self.name = line.split(": ")[1].strip()
                 elif "repo:" in line:
-                    repo = line.split(": ")[1].strip()
+                    self.repo = line.split(": ")[1].strip()
                 elif "version:" in line:
-                    version = line.split(": ")[1].strip()
+                    self.version = line.split(": ")[1].strip()
+                elif "ignore_linting:" in line:
+                    self.ignore_linting = line.split(": ")[1].strip().lower() == "true"
 
-        if repo is None:
-            repo = HelmChart.default_project
+        if self.repo is None:
+            self.repo = HelmChart.default_project
 
-        if name is not None and version is not None and repo is not None:
-            self.name = name
-            self.repo = repo
-            self.version = version
-            self.path = chartfile
+        if self.name is not None and self.version is not None and self.repo is not None:
+            self.path = self.chartfile
             self.chart_dir = os.path.dirname(chartfile)
             self.dev = False
             self.requirements_ready = False
-            self.nested = nested
             self.requirements = []
 
-            if "-vdev" in version:
+            if "-vdev" in self.version:
                 self.dev = True
 
-            self.chart_id = "{}/{}:{}".format(self.repo,
-                                              self.name, self.version)
+            self.chart_id = "{}/{}:{}".format(self.repo, self.name, self.version)
 
             print("")
             print("Adding new chart:")
-            print("name: {}".format(name))
-            print("version: {}".format(version))
-            print("repo: {}".format(repo))
+            print("name: {}".format(self.name))
+            print("version: {}".format(self.version))
+            print("repo: {}".format(self.repo))
             print("chart_id: {}".format(self.chart_id))
             print("dev: {}".format(self.dev))
             print("nested: {}".format(self.nested))
-            print("file: {}".format(chartfile))
+            print("file: {}".format(self.chartfile))
             print("")
 
             if self.repo not in HelmChart.repos_needed:
@@ -159,10 +157,10 @@ class HelmChart:
             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
             print("")
             print("ERROR: Cound not extract all infos from chart...")
-            print("name: {}".format(name))
-            print("version: {}".format(version))
-            print("repo: {}".format(repo))
-            print("file: {}".format(chartfile))
+            print("name: {}".format(self.name if self.name is not None else chartfile))
+            print("version: {}".format(self.version if self.name is not None else ""))
+            print("repo: {}".format(self.repo if self.name is not None else ""))
+            print("file: {}".format(self.chartfile if self.name is not None else ""))
             print("")
             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
             print("")
@@ -238,8 +236,7 @@ class HelmChart:
                     line = line.rstrip()
                     if "dktk-jip-registry.dkfz.de" in line and "image" in line and "#" not in line:
                         docker_container = "dktk-jip-registry.dkfz.de" + \
-                            line.split(
-                                "dktk-jip-registry.dkfz.de")[1].replace(" ", "").replace(",", "").lower()
+                            line.split("dktk-jip-registry.dkfz.de")[1].replace(" ", "").replace(",", "").lower()
                         if docker_container not in HelmChart.docker_containers_used.keys():
                             HelmChart.docker_containers_used[docker_container] = yaml_file
 
@@ -303,25 +300,7 @@ class HelmChart:
             os.remove(requirements_lock)
 
     def lint_chart(self):
-        os.chdir(self.chart_dir)
-        command = ["helm", "lint"]
-        output = run(command, stdout=PIPE, stderr=PIPE,
-                     universal_newlines=True, timeout=5)
-        log = make_log(std_out=output.stdout, std_err=output.stderr)
-
-        if output.returncode != 0:
-            log_entry = {
-                "suite": suite_tag,
-                "test": "{}:{}".format(self.name, self.version),
-                "step": "Helm lint",
-                "log": log,
-                "loglevel": "ERROR",
-                "timestamp": get_timestamp(),
-                "message": "Helm lint failed: {}".format(self.path),
-                "rel_file": self.path,
-                "test_done": True,
-            }
-        else:
+        if self.ignore_linting:
             log_entry = {
                 "suite": suite_tag,
                 "test": "{}:{}".format(self.name, self.version),
@@ -329,16 +308,45 @@ class HelmChart:
                 "log": "",
                 "loglevel": "DEBUG",
                 "timestamp": get_timestamp(),
-                "message": "Helm lint was successful!",
+                "message": "ignore_linting == true -> Helm lint was skipped!",
                 "rel_file": self.path,
             }
+        else:
+            os.chdir(self.chart_dir)
+            command = ["helm", "lint"]
+            output = run(command, stdout=PIPE, stderr=PIPE,universal_newlines=True, timeout=20)
+            log = make_log(std_out=output.stdout, std_err=output.stderr)
+
+            if output.returncode != 0:
+                log_entry = {
+                    "suite": suite_tag,
+                    "test": "{}:{}".format(self.name, self.version),
+                    "step": "Helm lint",
+                    "log": log,
+                    "loglevel": "ERROR",
+                    "timestamp": get_timestamp(),
+                    "message": "Helm lint failed: {}".format(self.path),
+                    "rel_file": self.path,
+                    "test_done": True,
+                }
+            else:
+                log_entry = {
+                    "suite": suite_tag,
+                    "test": "{}:{}".format(self.name, self.version),
+                    "step": "Helm lint",
+                    "log": "",
+                    "loglevel": "DEBUG",
+                    "timestamp": get_timestamp(),
+                    "message": "Helm lint was successful!",
+                    "rel_file": self.path,
+                }
 
         yield log_entry
 
     def lint_kubeval(self):
         os.chdir(self.chart_dir)
         command = ["helm", "kubeval", "--ignore-missing-schemas", "."]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=20)
         log = make_log(std_out=output.stdout, std_err=output.stderr)
 
         if output.returncode != 0 and "A valid hostname" not in output.stderr:
@@ -367,6 +375,39 @@ class HelmChart:
             }
 
         yield log_entry
+
+    def package(self):
+        os.chdir(os.path.dirname(self.chart_dir))
+        command = ["helm", "package", self.name]
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+        log = make_log(std_out=output.stdout, std_err=output.stderr)
+        if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
+            log_entry = {
+                "suite": suite_tag,
+                "test": "{}:{}".format(self.name, self.version),
+                "step": "Helm package",
+                "log": log,
+                "loglevel": "ERROR",
+                "timestamp": get_timestamp(),
+                "message": "package failed: {}".format(self.name),
+                "rel_file": self.path,
+                "test_done": True,
+            }
+            yield log_entry
+
+        else:
+            log_entry = {
+                "suite": suite_tag,
+                "test": "{}:{}".format(self.name, self.version),
+                "step": "Helm package",
+                "log": log,
+                "loglevel": "DEBUG",
+                "timestamp": get_timestamp(),
+                "message": "Chart package successfully!",
+                "rel_file": self.path,
+                "test_done": True,
+            }
+            yield log_entry
 
     def push(self):
         os.chdir(os.path.dirname(self.chart_dir))
@@ -412,7 +453,7 @@ class HelmChart:
     def check_repos(user, pwd):
         for repo in HelmChart.repos_needed:
             command = ["helm", "repo", "add", "--username", user, "--password", pwd, repo, HelmChart.default_registry + repo]
-            output = run(command, stdout=PIPE, stderr=PIPE,universal_newlines=True, timeout=30)
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=30)
             log = make_log(std_out=output.stdout, std_err=output.stderr)
 
             if output.returncode != 0 and '401 Unauthorized' in output.stderr:
@@ -476,19 +517,7 @@ class HelmChart:
 
         charts_list = []
         for chartfile in chartfiles:
-            if "node_modules" in chartfile:
-                log_entry = {
-                    "suite": suite_tag,
-                    "test": chartfile.split("/")[-2],
-                    "step": "NODE_MODULE Check",
-                    "log": "",
-                    "loglevel": "WARN",
-                    "timestamp": get_timestamp(),
-                    "message": "Found node_module chartfile.",
-                    "rel_file": chartfile,
-                    "test_done": True,
-                }
-                yield log_entry
+            if "templates_and_examples" in chartfile:
                 continue
 
             chart_object = HelmChart(chartfile)
@@ -501,7 +530,6 @@ class HelmChart:
         resolve_tries = 0
 
         while resolve_tries <= HelmChart.max_tries and len(charts_list) != 0:
-            print("Try count: {}".format(resolve_tries))
             resolve_tries += 1
 
             to_do_charts = []
@@ -542,9 +570,7 @@ class HelmChart:
             for chart in reversed(charts_list):
                 miss_deps = []
                 for req in chart.requirements:
-                    print(req)
                     miss_deps.append(req)
-                print()
 
                 log_entry = {
                     "suite": suite_tag,
@@ -579,11 +605,12 @@ class HelmChart:
 ######################   START   ###########################
 ############################################################
 
-def init_helm_charts(kaapana_dir,chart_registry,default_project):
+def init_helm_charts(kaapana_dir, chart_registry, default_project):
     HelmChart.kaapana_dir = kaapana_dir
     HelmChart.default_registry = chart_registry
     HelmChart.default_project = default_project
     check_helm_installed()
+
 
 if __name__ == '__main__':
     print("Please use the 'start_build.py' script to launch the build-process.")

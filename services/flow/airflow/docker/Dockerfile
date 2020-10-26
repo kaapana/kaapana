@@ -1,7 +1,7 @@
 FROM ubuntu:20.04
 
 LABEL IMAGE="airflow"
-LABEL VERSION="1.10.12-vdev"
+LABEL VERSION="1.10.12"
 LABEL CI_IGNORE="False"
 
 ENV SLUGIFY_USES_TEXT_UNIDECODE=yes
@@ -42,6 +42,6 @@ COPY files/scripts/ /scripts
 COPY files/bootstrap.sh /bootstrap.sh
 RUN chmod +x /bootstrap.sh
 
-COPY files/scheduler_job.py /usr/local/lib/python3.6/dist-packages/airflow/jobs/
+COPY files/scheduler_job.py /usr/local/lib/python3.8/dist-packages/airflow/jobs/
 
 ENTRYPOINT ["./bootstrap.sh"]

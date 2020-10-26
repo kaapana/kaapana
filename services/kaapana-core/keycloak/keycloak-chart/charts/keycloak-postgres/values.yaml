@@ -1,6 +1,4 @@
 ---
 global:
-    registry_url: ""
-    registry_project: ""
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana/dcm_data

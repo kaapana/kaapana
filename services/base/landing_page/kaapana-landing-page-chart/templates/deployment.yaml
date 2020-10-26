@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: landingpage
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/landing-page:1.1.1-vdev
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/landing-page:0.1.1
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         ports:
         - name: landing-http
@@ -42,4 +42,4 @@ spec:
         configMap:
           name: landing-page-config
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret

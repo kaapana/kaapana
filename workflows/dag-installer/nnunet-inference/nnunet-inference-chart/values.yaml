@@ -1,9 +1,0 @@
----
-global:
-    registry_url: ""
-    registry_project: ""
-    pull_policy_operators: "Always"
-    flow_namespace: "flow"
-    fast_data_dir: "/home/kaapana"
-    pull_policy_operators: "Always"
-    

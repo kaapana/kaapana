@@ -107,5 +107,5 @@ spec:
             path: {{ .Values.global.fast_data_dir }}/prometheus
             type: DirectoryOrCreate
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---

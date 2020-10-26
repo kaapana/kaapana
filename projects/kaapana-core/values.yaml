@@ -1,10 +1,8 @@
 ---
 global:
-    registry_url: ""
-    registry_project: ""
     pull_policy_pods: "IfNotPresent"
-    pull_policy_jobs: "Always"
-    pull_policy_operators: "Always"
+    pull_policy_jobs: "IfNotPresent"
+    pull_policy_operators: "IfNotPresent"
     core_namespace: "kube-system"
     base_namespace: "base"
     meta_namespace: "meta"
@@ -12,9 +10,7 @@ global:
     flow_namespace: "flow"
     flow_jobs_namespace: "flow-jobs"
     monitoring_namespace: "monitoring"
-    hostname: 
     gpu_support: false
-
     credentials:
         minio_username: "admin"
         minio_password: "Kaapana2019"
@@ -24,15 +20,11 @@ global:
         keycloak_admin_password: "KaapanA"
         keycloak_user_username: "admin"
         keycloak_user_password: "KaapanA"
-        registry_username: "na"
-        registry_password: "na"
-        
     dicom_port: 11112
     http_port: 80
     https_port: 443
     fast_data_dir: /home/kaapana
-    slow_data_dir: /home/kaapana/dcm_data
-    home_dir: /root
+    slow_data_dir: /home/kaapana
     default_base_requests_mem: "50Mi"
     default_base_limits_mem: "50Mi"
     # default_base_requests_cpu: 0.5
@@ -62,3 +54,5 @@ global:
     default_system_limits_mem: "50Mi"
     # default_system_requests_cpu: 0.5
     # default_system_limits_cpu: 1
+    http_proxy: ""
+    https_proxy: ""

@@ -1,0 +1,16 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+sphinx-rtd-theme = "*"
+sphinxcontrib-mermaid = "*"
+Sphinx = "*"
+docutils = "==0.12"
+"rst2pdf" = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "2.7"

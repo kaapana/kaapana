@@ -23,7 +23,7 @@ spec:
             value: "10"
       containers:
       - name: init-meta
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/init-meta:6.8.12-vdev
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/init-meta:6.8.12
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
           - name: DOMAIN
@@ -62,5 +62,5 @@ spec:
           - key: kibana-dashboard.json
             path: kibana-dashboard.json
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
   backoffLimit: 0

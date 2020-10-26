@@ -1,20 +1,20 @@
 ---
 dependencies:
   - name: dcm4chee-chart
-    version: 5.22.4-vdev
+    version: "5.22.4"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: ohif-chart
-    version: 4.5.9-vdev
+    version: "4.5.9"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: minio-chart
-    version: 2020.09.17-vdev
+    version: "2020.09.17"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: minio-init-chart
-    version: 1.0.1-vdev
+    version: "0.1.1"
     condition: Release.IsInstall
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   # TESTS
   - name: dicom-init-chart
-    version: 0.9-vdev
+    version: "0.1.0"
     condition: Release.IsInstall
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public

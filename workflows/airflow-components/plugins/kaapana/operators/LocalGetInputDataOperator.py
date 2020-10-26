@@ -9,7 +9,38 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.HelperElasticsearch import HelperElasticsearch
 
+
 class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
+
+    def check_dag_modality(self, input_modality):
+        config = self.conf["conf"] if "conf" in self.conf else None
+        input_modality = input_modality.lower()
+        if config is not None and "form_data" in config and config["form_data"] is not None and "input" in config["form_data"]:
+            dag_modality = config["form_data"]["input"].lower()
+            if dag_modality == "ct" or dag_modality == "mri" or dag_modality == "mrt" or dag_modality == "seg":
+                if input_modality != dag_modality:
+                    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                    print("")
+                    print("check_dag_modality failed!")
+                    print("DAG modality vs input modality: {} vs {}".format(dag_modality, input_modality))
+                    print("Wrong modality for this DAG!")
+                    print("ABORT")
+                    print("")
+                    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                    exit(1)
+
+            else:
+                print("DAG modality: {} is not supported!")
+                print("Supported modalities: CT,MRI,MRT,SEG")
+                print("Skipping 'check_dag_modality'")
+                return
+
+        else:
+            print("Could not find DAG modality in DAG-run conf!")
+            print("Skipping 'check_dag_modality'")
+            return
 
     def get_data(self, studyUID, seriesUID, dag_run_id):
         target_dir = os.path.join(WORKFLOW_DIR, dag_run_id, BATCH_NAME, f'{seriesUID}', INITIAL_INPUT_DIR)
@@ -18,7 +49,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             os.makedirs(target_dir)
 
         if self.data_type == "dicom":
-            HelperDcmWeb.downloadSeries(studyUID=studyUID, seriesUID=seriesUID, dag_run_id=dag_run_id, target_dir=target_dir)
+            HelperDcmWeb.downloadSeries(studyUID=studyUID, seriesUID=seriesUID, target_dir=target_dir)
 
         elif self.data_type == "json":
             meta_data = HelperElasticsearch.get_series_metadata(series_uid=seriesUID)
@@ -38,22 +69,15 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         print("Starting moule LocalGetInputDataOperator...")
-        conf = kwargs['dag_run'].conf
+        self.conf = kwargs['dag_run'].conf
         dag_run_id = kwargs['dag_run'].run_id
-        print(conf)
 
-        if conf == None:
-            print("No config found!")
+        if self.conf == None or not "inputs" in self.conf:
+            print("No config or inputs in config found!")
             print("Skipping...")
             return
 
-        if not "inputs" in conf:
-            print("Error with dag-config!")
-            print("Could not identify 'inputs'")
-            print("Dag-conf: {}".format(conf))
-            exit(1)
-
-        inputs = conf["inputs"]
+        inputs = self.conf["inputs"]
 
         if not isinstance(inputs, list):
             inputs = [inputs]
@@ -85,10 +109,14 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     print(("studyUID %s" % study_uid))
                     print(("seriesUID %s" % series_uid))
                     print(("modality %s" % modality))
+                    if self.check_modality:
+                        self.check_dag_modality(input_modality=modality)
+
                     self.get_data(studyUID=study_uid, seriesUID=series_uid, dag_run_id=dag_run_id)
 
             elif "dcm-uid" in input:
                 dcm_uid = input["dcm-uid"]
+
                 if "study-uid" not in dcm_uid:
                     print("'study-uid' not found in 'dcm-uid': {}".format(input))
                     print("abort...")
@@ -97,6 +125,10 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     print("'series-uid' not found in 'dcm-uid': {}".format(input))
                     print("abort...")
                     exit(1)
+
+                if "modality" in dcm_uid and self.check_modality:
+                    modality = dcm_uid["modality"]
+                    self.check_dag_modality(input_modality=modality)
 
                 study_uid = dcm_uid["study-uid"]
                 series_uid = dcm_uid["series-uid"]
@@ -107,15 +139,17 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 print("Error with dag-config!")
                 print("Unknown input: {}".format(input))
                 print("Supported 'dcm-uid' and 'elastic-query' ")
-                print("Dag-conf: {}".format(conf))
+                print("Dag-conf: {}".format(self.conf))
                 exit(1)
 
     def __init__(self,
                  dag,
                  data_type="dicom",
+                 check_modality=False,
                  *args,
                  **kwargs):
         self.data_type = data_type
+        self.check_modality = check_modality
 
         super().__init__(
             dag,

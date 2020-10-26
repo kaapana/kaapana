@@ -3,41 +3,9 @@ import os
 import json
 from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
-from kaapana.operators.KaapanaApplicationBaseOperator import KaapanaApplicationBaseOperator
+from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
 
-# Trigge example:
-
-# AIRFLOW_API='http://airflow-service.flow.svc:8080/flow/kaapana/api/'
-# url = AIRFLOW_API + 'trigger/' + 'launch-app'
-# payload={
-#     'conf': {
-#         'image': 'dktk-jip-registry.dkfz.de/kaapana/jupyterlab:1.0-vdev',
-#         'port': 8888,
-#         'ingress_path': f'/jupyterlab-{str(uuid.uuid1())[:10]}',
-#         'volume_mounts': [{
-#             'name': 'jupyterlabdata',
-#             'mount_path': '/appdata',
-#             'sub_path': None,
-#             'read_only': False
-#             }],
-#         'volumes': [{
-#             'name': 'jupyterlabdata',
-#             'configs': {
-#                 'hostPath':
-#                     {
-#                         'type': 'DirectoryOrCreate',
-#                         'path': '/home/jip/data/minio/'
-#                     }
-#                 }
-#             }]
-#     }
-# }
-# r = requests.post(url, json=payload)
-# print(r)
-# print(r.json())
-
-
-class LaunchPodOperator(KaapanaApplicationBaseOperator):
+class LaunchPodOperator(KaapanaApplicationOperator):
 
     def pre_execute(self, context):
         print("Starting moule LaunchPodOperator...")
@@ -96,7 +64,7 @@ class LaunchPodOperator(KaapanaApplicationBaseOperator):
         super().__init__(
             dag=dag,
             name='launch-pod',
-            image_pull_secrets=["camic-registry"],
+            image_pull_secrets=["registry-secret"],
             service=True,
             ingress=True,
             execution_timeout=execution_timeout,

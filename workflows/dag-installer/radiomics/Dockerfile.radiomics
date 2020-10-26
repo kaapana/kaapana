@@ -1,13 +1,8 @@
-FROM busybox:1.31
+FROM local-only/dag-installer:0.1.0
 
-LABEL REGISTRY="dktk-jip-registry.dkfz.de"
-LABEL REGISTRY_PROJECT="processing-external"
 LABEL IMAGE="dag-radiomics"
-LABEL VERSION="1.0.0"
+LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-
-COPY dags/dag_radiomics_dcmseg.py /workflows/dags/
-COPY dags/radiomics /workflows/dags/radiomics
-
-CMD ["cp","-rf","/workflows/.","/mount_data/"]
+COPY dags/dag_radiomics_dcmseg.py /tmp/dags/
+COPY dags/radiomics /tmp/dags/radiomics

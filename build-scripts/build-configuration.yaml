@@ -1,10 +1,12 @@
 http_proxy: ""
-default_container_registry: "jonasscherer"
-default_container_project: ""
-# default_registry: "dktk-jip-registry.dkfz.de"
-# default_project: "kaapana"
+build_mode: "private"                # possible options: local, dockerhub, private
+default_container_registry: ""
+default_container_project: "" 
 default_chart_registry: "https://dktk-jip-registry.dkfz.de/chartrepo/"
 default_chart_project: "kaapana-public"
 log_level: "WARN"
 build_containers: true
+push_containers: true
 build_charts: true
+push_charts: true
+create_package: false

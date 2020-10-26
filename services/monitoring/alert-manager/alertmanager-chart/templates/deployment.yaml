@@ -40,4 +40,4 @@ spec:
           - key: alertmanager.yml
             path: alertmanager.yml
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret

@@ -21,17 +21,20 @@ def get_node_info(query):
         if isinstance(result, list) and len(result) > 0:
             result_value = int(response.json()["data"]["result"][0]["value"][1])
             print("Got result for query: {}: {} - ok!".format(query,result_value))
-        elif "nvidia" in query:
-            print("No GPU found... - OK!")
-            result_value = 0
         else:
+            if "nvidia" in query:
+                tries += 4    
             print("Could not retrieve node-info -> waiting 5s ...")
             time.sleep(5)
             tries += 1
     
     if tries >= 10:
-        print("+++++++++++++++++++++++++++++++++++++++++ Could not fetch node-info!")
-        exit(1)
+        if "nvidia" in query:
+            print("No GPU found... - OK!")
+            result_value = 0
+        else:
+            print("+++++++++++++++++++++++++++++++++++++++++ Could not fetch node-info!")
+            exit(1)
 
     return result_value
 

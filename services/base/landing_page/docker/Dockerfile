@@ -2,7 +2,7 @@
 FROM node:lts-alpine as build-stage
 
 LABEL IMAGE="landing-page"
-LABEL VERSION="1.1.1-vdev"
+LABEL VERSION="0.1.1"
 LABEL CI_IGNORE="False"
 
 WORKDIR /landing/app
@@ -24,7 +24,7 @@ RUN npm run build
 ###############################
 ######### Production ##########
 ###############################
-FROM nginx
+FROM nginx:1.19.3-alpine
 
 RUN mkdir /app
 COPY --from=build-stage /landing/app/dist /app

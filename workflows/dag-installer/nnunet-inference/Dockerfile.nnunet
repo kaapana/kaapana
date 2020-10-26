@@ -1,12 +1,9 @@
-FROM busybox:1.31
+FROM local-only/dag-installer:0.1.0
 
-LABEL REGISTRY="dktk-jip-registry.dkfz.de"
-LABEL REGISTRY_PROJECT="processing-external"
 LABEL IMAGE="dag-nnunet-inference"
-LABEL VERSION="0.1-vdev"
+LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-COPY dags/nnunet /workflows/dags/nnunet
-COPY dags/dag_nnunet_inference.py /workflows/dags/dag_nnunet_inference.py
-
-CMD ["cp","-rf","/workflows/.","/mount_data/"]
+COPY dags/nnunet /tmp/dags/nnunet
+COPY dags/dag_nnunet_inference.py /tmp/dags/
+# COPY dags/dag_download_all_models.py /tmp/dags/

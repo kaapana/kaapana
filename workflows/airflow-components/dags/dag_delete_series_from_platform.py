@@ -11,26 +11,25 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 
 log = LoggingMixin().log
 
-dag_info = {
-    "visible": True,
-}
-
 args = {
-    'owner': 'airflow',
+    'ui_visible': True,
+    'owner': 'kaapana',
     'start_date': days_ago(0),
     'retries': 1,
-    'dag_info': dag_info,
     'retry_delay': timedelta(seconds=30)
 }
 
 dag = DAG(
     dag_id='delete-series-from-platform',
     default_args=args,
-    schedule_interval=None)
+    concurrency=30,
+    max_active_runs=10,
+    schedule_interval=None
+)
 
 get_input = LocalGetInputDataOperator(dag=dag, data_type="json")
-delete_dcm_pacs = LocalDeleteFromPacsOperator(dag=dag,delete_complete_study=False)
-delete_dcm_elastic = LocalDeleteFromElasticOperator(dag=dag,delete_complete_study=False)
+delete_dcm_pacs = LocalDeleteFromPacsOperator(dag=dag, delete_complete_study=False)
+delete_dcm_elastic = LocalDeleteFromElasticOperator(dag=dag, delete_complete_study=False)
 clean = LocalWorkflowCleanerOperator(dag=dag)
 
 get_input >> delete_dcm_pacs >> delete_dcm_elastic >> clean

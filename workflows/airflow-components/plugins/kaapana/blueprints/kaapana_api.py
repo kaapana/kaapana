@@ -20,10 +20,9 @@ import json
 import time
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.blueprints.kaapana_utils import generate_minio_credentials
-from kaapana.kubetools.delete_apps import delete_apps_by_run_id
-from kaapana.kubetools.ingress_finder import IngressFinder
 from airflow.api.common.experimental.trigger_dag import trigger_dag as trigger
 from kaapana.operators.HelperElasticsearch import HelperElasticsearch
+from flask import current_app as app
 
 _log = LoggingMixin().log
 
@@ -32,12 +31,10 @@ Represents a blueprint kaapanaApi
 """
 kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
 
-
 @csrf.exempt
 @kaapanaApi.route('/api/trigger/<string:dag_id>', methods=['POST'])
 def trigger_dag(dag_id):
     data = request.get_json(force=True)
-    print(data)
     if 'conf' in data:
         tmp_conf = data['conf']
     else:
@@ -76,16 +73,14 @@ def trigger_dag(dag_id):
                 seriesUID = hit[HelperElasticsearch.series_uid_tag]
                 SOPInstanceUID = hit[HelperElasticsearch.SOPInstanceUID_tag]
                 modality = hit[HelperElasticsearch.modality_tag]
-                print(("studyUID %s" % studyUID))
-                print(("seriesUID %s" % seriesUID))
-                print(("modality %s" % modality))
 
                 conf = {
                     "inputs": [
                         {
                             "dcm-uid": {
                                 "study-uid": studyUID,
-                                "series-uid": seriesUID
+                                "series-uid": seriesUID,
+                                "modality": modality
                             }
                         }
                     ],
@@ -204,13 +199,16 @@ def get_dags_endpoint():
             continue
 
         dag_id = dag_dict['dag_id']
-        print("DAG-ID: {}".format(dag_id))
-        if dag_id in dag_objects and dag_objects[dag_id] is not None and hasattr(dag_objects[dag_id], 'default_args') and 'dag_info' in dag_objects[dag_id].default_args:
-            dag_dict["dag_info"] = dag_objects[dag_id].default_args["dag_info"]
+        if dag_id in dag_objects and dag_objects[dag_id] is not None and hasattr(dag_objects[dag_id], 'default_args'):
+            default_args = dag_objects[dag_id].default_args
+            for default_arg in default_args.keys():
+                if default_arg[:3] == "ui_":
+                    dag_dict[default_arg] = default_args[default_arg]
 
         del dag_dict['_sa_instance_state']
         dags[dag_id] = dag_dict
-
+    
+    app.config['JSON_SORT_KEYS'] = False
     return jsonify(dags)
 
 
@@ -282,43 +280,6 @@ def dag_run_status(dag_id, run_id):
     )
 
 
-@csrf.exempt
-@kaapanaApi.route('/api/deleteappbyrunid', methods=['POST'])
-def delete_app_by_run_id():
-    """
-    Removes all pods, ingresses and services that contain the run_id in their name
-    """
-    data = request.get_json(force=True)
-
-    delete_apps_by_run_id(data['run_id'], data['namespace'], stop_ingresses=True, stop_services=True, stop_pods=True)
-
-    message = ['Pods, ingresses and services of {} deleted!'.format(data['run_id'])]
-    response = jsonify(message=message)
-    return response
-
-
-@csrf.exempt
-@kaapanaApi.route('/api/getingressbyrunid', methods=['GET'])
-def get_ingress_by_run_id():
-    """
-    Removes all pods, ingresses and services that contain the run_id in their name
-    """
-    run_id = request.args.get('run_id')
-    namespace = request.args.get('namespace')
-
-    ingress_finder = IngressFinder()
-    ingresses = ingress_finder.find_ingress(namespace).items
-    for ingress in ingresses:
-        if ingress.metadata.labels is not None:
-            if 'run_id' in ingress.metadata.labels:
-                if run_id == ingress.metadata.labels['run_id']:
-                    print(ingress)
-                    print(type(ingress))
-                    response = jsonify(ingress.to_dict())
-                    return response
-    return Response('For the RunId {} no ingress was found'.format(run_id), HTTPStatus.BAD_REQUEST)
-
-
 # Authorization topics
 @kaapanaApi.route('/api/getaccesstoken')
 @csrf.exempt
@@ -327,6 +288,7 @@ def get_access_token():
     if x_auth_token is None:
         return jsonify({'message': 'No X-Auth-Token found in your request, seems that you are calling me from the backend!'}), 404
     return jsonify(xAuthToken=x_auth_token)
+
 
 @kaapanaApi.route('/api/getminiocredentials')
 @csrf.exempt

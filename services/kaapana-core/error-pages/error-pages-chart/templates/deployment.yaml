@@ -27,5 +27,5 @@ spec:
         - name: http-port
           containerPort: 5000
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---

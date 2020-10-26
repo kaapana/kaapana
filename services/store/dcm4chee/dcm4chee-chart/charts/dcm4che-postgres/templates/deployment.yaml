@@ -47,5 +47,5 @@ spec:
            path: {{ .Values.global.fast_data_dir }}/postgres-dcm4che
            type: DirectoryOrCreate
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---

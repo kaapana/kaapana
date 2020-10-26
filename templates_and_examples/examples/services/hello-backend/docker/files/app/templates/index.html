@@ -1,0 +1,23 @@
+<html>
+    <head>
+        <title>{{ title }} - Hello-World</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    </head>
+    <body>
+        <h1>Hello, {{ hello_world_user }}! Register more user!</h1>
+        <form action="" method="post" novalidate>
+            {{ form.hidden_tag() }}
+            <p>
+                {{ form.username.label }}<br>
+                {{ form.username(size=32) }}
+            </p>
+            <p>{{ form.submit() }}</p>
+        </form>
+
+        <h1>List of users</h1>
+        {% for user in users %}
+        <p>{{ user.username }}</p>
+        {% endfor %}
+
+    </body>
+</html>

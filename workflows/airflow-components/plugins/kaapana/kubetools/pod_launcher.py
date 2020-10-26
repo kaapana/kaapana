@@ -89,7 +89,7 @@ class PodLauncher(LoggingMixin):
             raise
         return resp
 
-    def run_pod(self, pod, startup_timeout=360,heal_timeout=360, get_logs=True):
+    def run_pod(self, pod, startup_timeout=360, heal_timeout=360, get_logs=True):
         # type: (Pod) -> (State, result)
         """
         Launches the pod synchronously and waits for completion.
@@ -100,21 +100,24 @@ class PodLauncher(LoggingMixin):
         """
         resp = self.run_pod_async(pod)
         curr_time = dt.now()
-        
+
         last_status = None
         return_msg = None
+        pull_time_reset = 0
 
         if resp.status.start_time is None:
             while self.pod_not_started(pod):
                 if last_status != pod.last_kube_status:
+                    pull_image = False
                     last_status = pod.last_kube_status
-                    if pod.last_kube_status == "NONE" or pod.last_kube_status == None or pod.last_kube_status == "UNKNOWN" :
+                    if pod.last_kube_status == "NONE" or pod.last_kube_status == None or pod.last_kube_status == "UNKNOWN":
                         self.log.error("Pod has status {} -> This is unexpected and treated as an fatal error!".format(pod.last_kube_status))
                         self.log.error("ABORT!")
                         exit(1)
 
                     elif pod.last_kube_status == "PENDING" or pod.last_kube_status == "ContainerCreating":
                         self.log.debug("Pod has status {} -> waiting...!".format(pod.last_kube_status))
+                        pull_image = True
 
                     if pod.last_kube_status == "UNSCHEDULABLE":
                         self.log.warning("Pod has status {} -> Problems with POD-Quotas!".format(pod.last_kube_status))
@@ -132,13 +135,20 @@ class PodLauncher(LoggingMixin):
                     elif pod.last_kube_status == "RUNNING":
                         self.log.debug("Pod has status {} -> container still running.".format(pod.last_kube_status))
 
+
                 delta = dt.now() - curr_time
+                if delta.seconds >= startup_timeout and pull_image and pull_time_reset <= 3:
+                    pull_time_reset += 1
+                    self.log.warning("Pod is still downloading the container! -> reset startup-timeout! counter: {}".format(pull_time_reset))
+                    curr_time = dt.now()
+                    continue
+
                 if delta.seconds >= startup_timeout:
                     self.log.exception('Pod took too long to start! startup_timeout: {}'.format(startup_timeout))
-                    return_msg = ("No message" , pod.last_kube_status)
+                    return_msg = ("No message", pod.last_kube_status)
                     break
                     # raise AirflowException("Pod took too long to start")
-                
+
                 time.sleep(1)
 
         if return_msg is None:
@@ -164,7 +174,7 @@ class PodLauncher(LoggingMixin):
                 self.log.info(log)
                 # log = log.decode("utf-8").replace("\n","").split("\\n")
                 # for line in log:
-                    # self.log.info(line)
+                # self.log.info(line)
 
         result = None
         if self.extract_xcom:

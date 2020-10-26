@@ -1,7 +1,7 @@
 ---
 apiVersion: v1
-appVersion: "6.4.4-vdev"
+appVersion: "6.4.4"
 description: Chart for Grafana
 name: grafana-chart
-version: 6.4.4-vdev
+version: "6.4.4"
 

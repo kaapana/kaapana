@@ -58,7 +58,7 @@ spec:
     spec:
       containers:
         - name: kubernetes-dashboard
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/kube-dashboard:2.0.3-vdev
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/kube-dashboard:2.0.3
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           ports:
             - containerPort: 9090
@@ -95,6 +95,6 @@ spec:
           emptyDir: {}
       serviceAccountName: kubernetes-dashboard
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 
 ---

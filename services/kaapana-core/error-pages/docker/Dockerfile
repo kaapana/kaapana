@@ -1,4 +1,4 @@
-FROM python:3.4-alpine3.7
+FROM python:3.9-alpine3.12
 
 LABEL IMAGE="error-pages"
 LABEL VERSION="1.0.1"

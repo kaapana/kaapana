@@ -2,13 +2,13 @@ from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
 from kaapana.kubetools.resources import Resources as PodResources
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 from datetime import timedelta
 import os
 
 
 class GetTaskModelOperator(KaapanaBaseOperator):
-    execution_timeout = timedelta(minutes=120)
+    execution_timeout = timedelta(minutes=240)
 
     def __init__(self,
                  dag,
@@ -44,16 +44,18 @@ class GetTaskModelOperator(KaapanaBaseOperator):
         }
         volumes.append(Volume(name='models', configs=volume_config))
 
-        super(GetTaskModelOperator, self).__init__(
+        super().__init__(
             dag=dag,
-            image="dktk-jip-registry.dkfz.de/kaapana/nnunet-get-models:0.1-vdev",
+            image="{}{}/nnunet-get-models:0.1.0".format(default_registry, default_project),
             name="get-task-model",
-            image_pull_secrets=["camic-registry"],
+            image_pull_secrets=["registry-secret"],
             volumes=volumes,
             volume_mounts=volume_mounts,
             execution_timeout=execution_timeout,
             env_vars=env_vars,
-            ram_mem_mb=50,
+            enable_proxy=True,
+            host_network=True,
+            ram_mem_mb=1000,
             *args,
             **kwargs
         )

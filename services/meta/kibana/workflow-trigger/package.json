@@ -30,8 +30,5 @@
     "eslint-plugin-react": "^7.0.1",
     "expect.js": "^0.3.1"
   },
-  "dependencies": {
-    "@rjsf/core": "^2.4.0",
-    "bootstrap": "^4.1.1"
-  }
+  "dependencies": {}
 }

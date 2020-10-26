@@ -86,6 +86,6 @@ spec:
             path: {{ .Values.global.fast_data_dir }}/postgres-airflow
             type: DirectoryOrCreate
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---
 

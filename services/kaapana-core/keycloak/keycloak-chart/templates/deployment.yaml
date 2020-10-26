@@ -17,7 +17,7 @@ spec:
       initContainers:
       - name: init
         image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/service_checker:1.1
-        imagePullPolicy:  Always
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env:
           - name: WAIT
             value: "postgres,postgres-keycloak-service.kube-system.svc,5432"
@@ -27,8 +27,8 @@ spec:
             value: "10"
       containers: 
         - name: keycloak-container
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/keycloak:11.0.2-vdev
-          imagePullPolicy:  Always
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/keycloak:11.0.2
+          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           # args: ["-b","0.0.0.0","-c", "standalone-ha.xml", "-Dkeycloak.migration.action=export", "-Dkeycloak.migration.provider=dir","-Dkeycloak.migration.dir=/opt/jboss/keycloak/standalone/configuration/export" ]
           # args: ["-b","0.0.0.0","-c", "standalone-ha.xml", "-Dkeycloak.migration.action=import", "-Dkeycloak.migration.provider=dir","-Dkeycloak.migration.dir=/opt/jboss/keycloak/standalone/configuration/import","-Dkeycloak.migration.strategy=IGNORE_EXISTING"]
           # args: ["-Djboss.socket.binding.port-offset=100","-Dkeycloak.migration.action=export","-Dkeycloak.migration.provider=singleFile","-Dkeycloak.migration.realmName=kaapana","-Dkeycloak.migration.usersExportStrategy=REALM_FILE","-Dkeycloak.migration.file=/tmp/kaapana.json"]
@@ -100,5 +100,5 @@ spec:
         secret:
           secretName: certificate
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret
 ---

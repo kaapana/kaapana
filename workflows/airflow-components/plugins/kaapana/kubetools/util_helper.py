@@ -7,6 +7,7 @@ import time
 import os
 
 from airflow.models import Variable
+from airflow.api.common.experimental import pool as pool_api
 from kubernetes.client.models.v1_container_image import V1ContainerImage
 
 
@@ -74,13 +75,18 @@ class NodeUtil():
                 result_value = 0
             else:
                 if logger is not None:
-                    logger.warning("Could not retrieve node-info -> waiting 1s ...")
+                    logger.error("Could not retrieve node-info -> waiting 1s ...")
                 time.sleep(1)
                 tries += 1
 
         if tries >= 10:
             print("+++++++++++++++++++++++++++++++++++++++++ Could not fetch node-info!")
             return_code = False
+
+        if not isinstance(result_value, int):
+            result_value = 0
+            if logger is not None:
+                logger.error("'result_value' was not an integer! -> set to 0 !")
 
         return result_value, return_code
 
@@ -103,16 +109,29 @@ class NodeUtil():
             for node in NodeUtil.core_v1.list_node().items:
                 stats = {}
                 node_name = node.metadata.name
+                capacity = node.status.capacity
                 allocatable = node.status.allocatable
+                conditions = node.status.conditions
+                stats["memory_pressure"] = False
+                stats["disk_pressure"] = False
+                stats["pid_pressure"] = False
+                for condition in conditions:
+                    if condition.type == "MemoryPressure":
+                        stats["memory_pressure"] = True if condition.status == "True" else False
+                    elif condition.type == "DiskPressure":
+                        stats["disk_pressure"] = True if condition.status == "True" else False
+                    elif condition.type == "PIDPressure":
+                        stats["pid_pressure"] = True if condition.status == "True" else False
+
                 max_pods = int(int(allocatable["pods"]) * 1.5)
                 field_selector = ("status.phase!=Succeeded,status.phase!=Failed,"+"spec.nodeName=" + node_name)
 
                 stats["cpu_alloc"] = Q_(allocatable["cpu"])
                 stats["mem_alloc"] = Q_(allocatable["memory"])
-                stats["gpu_count"] = Q_(allocatable["nvidia.com/gpu"] if "nvidia.com/gpu" in allocatable else 0)
+                stats["gpu_dev_count"] = Q_(capacity["nvidia.com/gpu"] if "nvidia.com/gpu" in capacity else 0)
+                stats["gpu_dev_free"] = Q_(allocatable["nvidia.com/gpu"] if "nvidia.com/gpu" in allocatable else 0)
 
                 pods = NodeUtil.core_v1.list_pod_for_all_namespaces(limit=max_pods, field_selector=field_selector).items
-
                 # compute the allocated resources
                 cpureqs, cpulmts, memreqs, memlmts = [], [], [], []
                 for pod in pods:
@@ -135,70 +154,86 @@ class NodeUtil():
                 stats["mem_lmt_per"] = (stats["mem_lmt"] / stats["mem_alloc"] * 100)
                 data[node_name] = stats
 
+            node_info = next(iter(data.values()))
+            NodeUtil.cpu_alloc = node_info["cpu_alloc"].to_base_units().magnitude * 1000
+            NodeUtil.cpu_req = node_info["cpu_req"].to_base_units().magnitude * 1000
+            NodeUtil.cpu_lmt = node_info["cpu_lmt"].to_base_units().magnitude * 1000
+            NodeUtil.cpu_req_per = int(node_info["cpu_req_per"].to_base_units().magnitude * 1000)
+            NodeUtil.cpu_lmt_per = int(node_info["cpu_lmt_per"].to_base_units().magnitude * 1000)
+            NodeUtil.mem_alloc = int(node_info["mem_alloc"].to_base_units().magnitude // 1024 // 1024)
+            NodeUtil.mem_req = int(node_info["mem_req"].to_base_units().magnitude // 1024 // 1024)
+            NodeUtil.mem_lmt = int(node_info["mem_lmt"].to_base_units().magnitude // 1024 // 1024)
+            NodeUtil.mem_req_per = int(node_info["mem_req_per"].to_base_units().magnitude)
+            NodeUtil.mem_lmt_per = int(node_info["mem_lmt_per"].to_base_units().magnitude)
+            NodeUtil.gpu_dev_count = int(node_info["gpu_dev_count"])
+            NodeUtil.gpu_dev_free = int(node_info["gpu_dev_free"])
+            NodeUtil.memory_pressure = node_info["memory_pressure"]
+            NodeUtil.disk_pressure = node_info["disk_pressure"]
+            NodeUtil.pid_pressure = node_info["pid_pressure"]
+            gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
+            if gpu_count_pool is None or gpu_count_pool.slots != NodeUtil.gpu_dev_count:
+                pool_api.create_pool(
+                    name="GPU_COUNT",
+                    slots=NodeUtil.gpu_dev_count,
+                    description="Count of GPUs of the node"
+                )
+
+            if NodeUtil.gpu_dev_count > 0:
+                NodeUtil.gpu_mem_alloc, return_code = NodeUtil.get_node_info(query=NodeUtil.gpu_mem_available_query, logger=logger)
+                if not return_code and logger is not None:
+                    logger.warning("############################################# Could not fetch gpu_alloc utilization from prometheus!!")
+                NodeUtil.gpu_mem_used, return_code = NodeUtil.get_node_info(query=NodeUtil.gpu_mem_used_query, logger=logger)
+                if not return_code and logger is not None:
+                    logger.warning("############################################# Could not fetch gpu_used utilization from prometheus!!")
+            else:
+                NodeUtil.gpu_mem_alloc = 0
+                NodeUtil.gpu_mem_used = 0
+
+            NodeUtil.cpu_available_req = NodeUtil.cpu_alloc - NodeUtil.cpu_req
+            NodeUtil.cpu_available_limit = NodeUtil.cpu_alloc - NodeUtil.cpu_lmt
+            NodeUtil.memory_available_req = NodeUtil.mem_alloc - NodeUtil.mem_req
+            NodeUtil.memory_available_limit = NodeUtil.mem_alloc - NodeUtil.mem_lmt
+            NodeUtil.gpu_memory_available = NodeUtil.gpu_mem_alloc - NodeUtil.gpu_mem_used
+
+            Variable.set("CPU_NODE", "{}/{}".format(NodeUtil.cpu_lmt, NodeUtil.cpu_alloc))
+            Variable.set("CPU_FREE", "{}".format(NodeUtil.cpu_available_req))
+            Variable.set("RAM_NODE", "{}/{}".format(NodeUtil.mem_req, NodeUtil.mem_alloc))
+            Variable.set("RAM_FREE", "{}".format(NodeUtil.memory_available_req))
+            Variable.set("GPU_DEV", "{}/{}".format(NodeUtil.gpu_dev_free, NodeUtil.gpu_dev_count))
+            Variable.set("GPU_DEV_FREE", "{}".format(NodeUtil.gpu_dev_free))
+            Variable.set("GPU_MEM", "{}/{}".format(NodeUtil.gpu_mem_used, NodeUtil.gpu_mem_alloc))
+            Variable.set("GPU_MEM_FREE", "{}".format(NodeUtil.gpu_memory_available))
+            Variable.set("UPDATED", datetime.utcnow())
+
+            # Variable.set("cpu_alloc", "{}".format(NodeUtil.cpu_alloc))
+            # Variable.set("cpu_req", "{}".format(NodeUtil.cpu_req))
+            # Variable.set("cpu_lmt", "{}".format(NodeUtil.cpu_lmt))
+            # Variable.set("cpu_req_per", "{}".format(NodeUtil.cpu_req_per))
+            # Variable.set("cpu_lmt_per", "{}".format(NodeUtil.cpu_lmt_per))
+            # Variable.set("cpu_available_req", "{}".format(NodeUtil.cpu_available_req))
+            # Variable.set("cpu_available_limit", "{}".format(NodeUtil.cpu_available_limit))
+            # Variable.set("mem_alloc", "{}".format(NodeUtil.mem_alloc))
+            # Variable.set("mem_req", "{}".format(NodeUtil.mem_req))
+            # Variable.set("mem_lmt", "{}".format(NodeUtil.mem_lmt))
+            # Variable.set("mem_req_per", "{}".format(NodeUtil.mem_req_per))
+            # Variable.set("mem_lmt_per", "{}".format(NodeUtil.mem_lmt_per))
+            # Variable.set("memory_available_req", "{}".format(NodeUtil.memory_available_req))
+            # Variable.set("memory_available_limit", "{}".format(NodeUtil.memory_available_limit))
+            # Variable.set("gpu_count", "{}".format(NodeUtil.gpu_count))
+            # Variable.set("gpu_alloc", "{}".format(NodeUtil.gpu_alloc))
+            # Variable.set("gpu_used", "{}".format(NodeUtil.gpu_used))
+            # Variable.set("gpu_memory_available", "{}".format(NodeUtil.gpu_memory_available))
+            return True
+
         except Exception as e:
             print("+++++++++++++++++++++++++++++++++++++++++ COULD NOT FETCH NODES!")
+            print(e)
             return False
-
-        node_info = next(iter(data.values()))
-        NodeUtil.cpu_alloc = node_info["cpu_alloc"].to_base_units().magnitude * 1000
-        NodeUtil.cpu_req = node_info["cpu_req"].to_base_units().magnitude * 1000
-        NodeUtil.cpu_lmt = node_info["cpu_lmt"].to_base_units().magnitude * 1000
-        NodeUtil.cpu_req_per = int(node_info["cpu_req_per"].to_base_units().magnitude * 1000)
-        NodeUtil.cpu_lmt_per = int(node_info["cpu_lmt_per"].to_base_units().magnitude * 1000)
-        NodeUtil.mem_alloc = int(node_info["mem_alloc"].to_base_units().magnitude // 1024 // 1024)
-        NodeUtil.mem_req = int(node_info["mem_req"].to_base_units().magnitude // 1024 // 1024)
-        NodeUtil.mem_lmt = int(node_info["mem_lmt"].to_base_units().magnitude // 1024 // 1024)
-        NodeUtil.mem_req_per = int(node_info["mem_req_per"].to_base_units().magnitude)
-        NodeUtil.mem_lmt_per = int(node_info["mem_lmt_per"].to_base_units().magnitude)
-        NodeUtil.gpu_count = int(node_info["gpu_count"].to_base_units().magnitude)
-
-        if NodeUtil.gpu_count > 0:
-            NodeUtil.gpu_alloc, return_code = NodeUtil.get_node_info(query=NodeUtil.gpu_mem_available_query, logger=logger)
-            NodeUtil.gpu_used, return_code = NodeUtil.get_node_info(query=NodeUtil.gpu_mem_used_query, logger=logger)
-        else:
-            NodeUtil.gpu_alloc = 0
-            NodeUtil.gpu_used = 0
-
-        NodeUtil.cpu_available_req = NodeUtil.cpu_alloc - NodeUtil.cpu_req
-        NodeUtil.cpu_available_limit = NodeUtil.cpu_alloc - NodeUtil.cpu_lmt
-        NodeUtil.memory_available_req = NodeUtil.mem_alloc - NodeUtil.mem_req
-        NodeUtil.memory_available_limit = NodeUtil.mem_alloc - NodeUtil.mem_lmt
-        NodeUtil.gpu_memory_available = NodeUtil.gpu_alloc - NodeUtil.gpu_used
-
-        Variable.set("RAM-Node", "{}".format(NodeUtil.mem_alloc))
-        Variable.set("RAM-Available", "{}".format(NodeUtil.memory_available_req))
-        Variable.set("RAM-Requested", "{}".format(NodeUtil.mem_req))
-        Variable.set("RAM-Limit", "{}".format(NodeUtil.mem_req))
-        Variable.set("CPU", "{}/{}".format(NodeUtil.cpu_lmt, NodeUtil.cpu_alloc))
-        Variable.set("CPU-Available", "{}".format(NodeUtil.cpu_available_limit))
-        Variable.set("GPU", "{}/{}".format(NodeUtil.gpu_used, NodeUtil.gpu_alloc))
-        Variable.set("GPU-Available", "{}".format(NodeUtil.gpu_memory_available))
-        Variable.set("UPDATED", datetime.utcnow())
-
-        # Variable.set("cpu_alloc", "{}".format(NodeUtil.cpu_alloc))
-        # Variable.set("cpu_req", "{}".format(NodeUtil.cpu_req))
-        # Variable.set("cpu_lmt", "{}".format(NodeUtil.cpu_lmt))
-        # Variable.set("cpu_req_per", "{}".format(NodeUtil.cpu_req_per))
-        # Variable.set("cpu_lmt_per", "{}".format(NodeUtil.cpu_lmt_per))
-        # Variable.set("cpu_available_req", "{}".format(NodeUtil.cpu_available_req))
-        # Variable.set("cpu_available_limit", "{}".format(NodeUtil.cpu_available_limit))
-        # Variable.set("mem_alloc", "{}".format(NodeUtil.mem_alloc))
-        # Variable.set("mem_req", "{}".format(NodeUtil.mem_req))
-        # Variable.set("mem_lmt", "{}".format(NodeUtil.mem_lmt))
-        # Variable.set("mem_req_per", "{}".format(NodeUtil.mem_req_per))
-        # Variable.set("mem_lmt_per", "{}".format(NodeUtil.mem_lmt_per))
-        # Variable.set("memory_available_req", "{}".format(NodeUtil.memory_available_req))
-        # Variable.set("memory_available_limit", "{}".format(NodeUtil.memory_available_limit))
-        # Variable.set("gpu_count", "{}".format(NodeUtil.gpu_count))
-        # Variable.set("gpu_alloc", "{}".format(NodeUtil.gpu_alloc))
-        # Variable.set("gpu_used", "{}".format(NodeUtil.gpu_used))
-        # Variable.set("gpu_memory_available", "{}".format(NodeUtil.gpu_memory_available))
-
-        return True
 
     @staticmethod
     def check_ti_scheduling(ti, logger):
         if NodeUtil.ureg is None:
+            logger.warning("Inititalize Util-Helper!")
             NodeUtil.enable = Variable.get(key="util_scheduling", default_var=None)
             if NodeUtil.enable == None:
                 Variable.set("util_scheduling", True)
@@ -228,7 +263,6 @@ class NodeUtil():
             return True
 
         else:
-            
             config = ti.executor_config
             if "ram_mem_mb" not in config:
                 logger.warning("Execuexecutor_config not found!")
@@ -240,15 +274,13 @@ class NodeUtil():
             NodeUtil.max_util_cpu = Variable.get(key="max_util_cpu", default_var=None)
             NodeUtil.max_util_ram = Variable.get(key="max_util_ram", default_var=None)
             if NodeUtil.max_util_cpu is None and NodeUtil.max_util_ram is None:
-                    Variable.set("max_util_cpu", default_cpu)
-                    Variable.set("max_util_ram", default_ram)
-                    NodeUtil.max_util_cpu = default_cpu
-                    NodeUtil.max_util_ram = default_ram
+                Variable.set("max_util_cpu", default_cpu)
+                Variable.set("max_util_ram", default_ram)
+                NodeUtil.max_util_cpu = default_cpu
+                NodeUtil.max_util_ram = default_ram
             else:
-                NodeUtil.max_util_cpu=int(NodeUtil.max_util_cpu)
-                NodeUtil.max_util_ram=int(NodeUtil.max_util_ram)
-            
-
+                NodeUtil.max_util_cpu = int(NodeUtil.max_util_cpu)
+                NodeUtil.max_util_ram = int(NodeUtil.max_util_ram)
 
             now = datetime.now()
             if NodeUtil.last_update is None or (now - NodeUtil.last_update).seconds >= 3:
@@ -259,16 +291,18 @@ class NodeUtil():
 
             NodeUtil.cpu_percent, return_code_cpu = NodeUtil.get_node_info(query=NodeUtil.cpu_util_per_query, logger=logger)
             if not return_code_cpu:
-                logger.warning("############################################# Could not fetch cpu utilization!!")
+                logger.warning("############################################# Could not fetch cpu utilization from prometheus!!")
 
-            Variable.set("CPU-Percent", "{}".format(NodeUtil.cpu_percent))
+            Variable.set("CPU_PERCENT", "{}".format(NodeUtil.cpu_percent))
             if NodeUtil.cpu_percent is None or NodeUtil.cpu_percent > NodeUtil.max_util_cpu:
                 logger.warning("############################################# High CPU utilization -> waiting!")
                 logger.warning("############################################# cpu_percent: {}".format(NodeUtil.cpu_percent))
                 return False
 
             NodeUtil.mem_percent, return_code_ram = NodeUtil.get_node_info(query=NodeUtil.mem_util_per_query, logger=logger)
-            Variable.set("RAM-Percent", "{}".format(NodeUtil.mem_percent))
+            if not return_code_ram:
+                logger.warning("############################################# Could not fetch ram utilization from prometheus!!")
+            Variable.set("RAM_PERCENT", "{}".format(NodeUtil.mem_percent))
             if NodeUtil.mem_percent is None or NodeUtil.mem_percent > NodeUtil.max_util_ram:
                 logger.warning("############################################# High RAM utilization -> waiting!")
                 logger.warning("############################################# mem_percent: {}".format(NodeUtil.mem_percent))
@@ -276,6 +310,27 @@ class NodeUtil():
 
             if not return_code_cpu or not return_code_ram:
                 logger.warning("############################################# Could not fetch util from prometheus! -> waiting!")
+                return False
+
+            if NodeUtil.memory_pressure:
+                logger.warning("##########################################################################################")
+                logger.warning("#################################### Instable system! ####################################")
+                logger.warning("##################################### memory_pressure ####################################")
+                logger.warning("##########################################################################################")
+                return False
+
+            if NodeUtil.disk_pressure:
+                logger.warning("##########################################################################################")
+                logger.warning("#################################### Instable system! ####################################")
+                logger.warning("##################################### disk_pressure ####################################")
+                logger.warning("##########################################################################################")
+                return False
+
+            if NodeUtil.pid_pressure:
+                logger.warning("##########################################################################################")
+                logger.warning("#################################### Instable system! ####################################")
+                logger.warning("##################################### pid_pressure ####################################")
+                logger.warning("##########################################################################################")
                 return False
 
             ti_ram_mem_mb = 0 if config["ram_mem_mb"] == None else config["ram_mem_mb"]
@@ -294,6 +349,10 @@ class NodeUtil():
                 logger.warning("Not enough CPU cores -> not scheduling")
                 logger.warning("CPU LIMIT: {}/{}".format(ti_cpu_millicores, NodeUtil.cpu_available_req))
                 logger.warning("CPU REQ:   {}/{}".format(ti_cpu_millicores, NodeUtil.cpu_available_req))
+                return False
+
+            if ti_gpu_mem_mb > 0 and NodeUtil.gpu_dev_free <= 1:
+                logger.warning("All GPUs are in currently in use -> not scheduling")
                 return False
 
             if ti_gpu_mem_mb > NodeUtil.gpu_memory_available:
@@ -316,17 +375,18 @@ class NodeUtil():
             NodeUtil.memory_available_req = tmp_memory_available_req
             NodeUtil.cpu_available_req = tmp_cpu_available_req
             NodeUtil.gpu_memory_available = tmp_gpu_memory_available
+            NodeUtil.gpu_dev_free = max(0, NodeUtil.gpu_dev_free)
             NodeUtil.mem_req = NodeUtil.mem_req + ti_ram_mem_mb
             NodeUtil.mem_lmt = NodeUtil.mem_lmt + ti_ram_mem_mb
 
-            Variable.set("RAM-Node", "{}".format(NodeUtil.mem_alloc))
-            Variable.set("RAM-Available", "{}".format(NodeUtil.memory_available_req))
-            Variable.set("RAM-Requested", "{}".format(NodeUtil.mem_req))
-            Variable.set("RAM-Limit", "{}".format(NodeUtil.mem_lmt))
-            Variable.set("CPU", "{}/{}".format(NodeUtil.cpu_lmt+ti_cpu_millicores, NodeUtil.cpu_alloc))
-            Variable.set("CPU-Available", "{}".format(NodeUtil.cpu_available_limit))
-            Variable.set("GPU", "{}/{}".format(NodeUtil.gpu_used+ti_gpu_mem_mb, NodeUtil.gpu_alloc))
-            Variable.set("GPU-Available", "{}".format(NodeUtil.gpu_memory_available))
+            Variable.set("CPU_NODE", "{}/{}".format(NodeUtil.cpu_lmt, NodeUtil.cpu_alloc))
+            Variable.set("CPU_FREE", "{}".format(NodeUtil.cpu_available_req))
+            Variable.set("RAM_NODE", "{}/{}".format(NodeUtil.mem_req, NodeUtil.mem_alloc))
+            Variable.set("RAM_FREE", "{}".format(NodeUtil.memory_available_req))
+            Variable.set("GPU_DEV", "{}/{}".format(NodeUtil.gpu_dev_free, NodeUtil.gpu_dev_count))
+            Variable.set("GPU_DEV_FREE", "{}".format(NodeUtil.gpu_dev_free))
+            Variable.set("GPU_MEM", "{}/{}".format(NodeUtil.gpu_mem_used, NodeUtil.gpu_mem_alloc))
+            Variable.set("GPU_MEM_FREE", "{}".format(NodeUtil.gpu_memory_available))
             Variable.set("UPDATED", datetime.utcnow())
 
             return True

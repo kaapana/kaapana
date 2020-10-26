@@ -52,4 +52,4 @@ spec:
           path: {{ .Values.global.fast_data_dir }}/postgres-keycloak
           type: DirectoryOrCreate
       imagePullSecrets:
-      - name: camic-registry
+      - name: registry-secret

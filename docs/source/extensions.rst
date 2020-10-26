@@ -8,8 +8,8 @@ Workflows
 
 .. _extensions collect:
 
-Collect metadata
-----------------
+Collect metadata (collect-metadata)
+-----------------------------------
 | **What's going on?**
 | 1) DICOMs are anonymized by removing a list of personal tags
 | 2) Meta data of the DICOMs are extracted and written to JSON files
@@ -25,8 +25,8 @@ Collect metadata
 
 .. _extensions delete:
 
-Delete series from platform
----------------------------
+Delete series from platform (delete-series-from-platform)
+---------------------------------------------------------
 | **What's going on?**
 | 1) DICOMs are deleted from the PACS.
 | 2) Meta data of DICOMs are deleted from the Elasticsearch database.
@@ -40,8 +40,8 @@ Delete series from platform
 
 .. _extensions download:
 
-Download series from platform
------------------------------
+Download series from platform (download-selected-files)
+-------------------------------------------------------
 | **What's going on?**
 | 1) DICOMs are send to the bucket *download* in Minio. If the option zipped is used, they are saved with a timestamp in the *download* bucket.
 
@@ -54,8 +54,8 @@ Download series from platform
 
 .. _extensions nnunet:
 
-NNunet
-------
+NNunet (nnunet-predict)
+-----------------------
 | **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
 | **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
 | **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
@@ -77,8 +77,8 @@ NNunet
 
 .. _extensions organseg:
 
-Automatic organ segmentation
-----------------------------
+Automatic organ segmentation (shapemodel-organ-seg)
+---------------------------------------------------
 | **Method:** "3D Statistical Shape Models Incorporating Landmark-Wise Random Regression Forests for Omni-Directional Landmark Detection"
 | **Authors:**  Tobias Norajitra and Klaus H. Maier-Hein
 | **DOI:** `10.1109/TMI.2016.2600502 <https://ieeexplore.ieee.org/document/7544533>`_
@@ -99,15 +99,15 @@ Automatic organ segmentation
 
 .. _extensions radiomics:
 
-Radiomics
----------
+Radiomics (radiomics-dcmseg)
+----------------------------
 **TBA**
 
 | **What's going on?**
 | 1) Selected DICOM SEGs are converted not .nrrd files
 | 2) Corresponding CT file is downloaded form the PACS
 | 3) Downloaded CT files are converted to \*.nrrd
-| 4) Radiomics is done on selected DICOMs
+| 4) Radiomics is applied on selected DICOMs
 | 5) Extracted radiomics data are pushed to the bucket *radiomics* in Minio and can be downloaded there
 
 | **Input data:**  

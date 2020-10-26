@@ -3,10 +3,12 @@ import os
 import urllib.request
 import zipfile
 import time
+from datetime import datetime
 from pathlib import Path
 
 
 max_retries = 3
+max_hours_since_creation = 3
 models_dir = os.path.join(os.getenv('MODELDIR', "/models"), "nnUNet")
 task_ids = os.getenv('TASK', None)
 model = os.getenv('MODEL', None)
@@ -14,11 +16,17 @@ model = os.getenv('MODEL', None)
 Path(models_dir).mkdir(parents=True, exist_ok=True)
 
 
-
-def check_dl_running(model_path_dl_running, model_path):
+def check_dl_running(model_path_dl_running, model_path, wait=True):
     if os.path.isfile(model_path_dl_running):
+        hours_since_creation = int((datetime.now() - datetime.fromtimestamp(os.path.getmtime(model_path_dl_running))).total_seconds()/3600)
+        if hours_since_creation > max_hours_since_creation:
+            print("Download lock-file present! -> waiting until it is finished!")
+            print("File older than {} hours! -> removing and triggering download!".format(max_hours_since_creation))
+            delete_file(model_path_dl_running)
+            return False    
+
         print("Download already running -> waiting until it is finished!")
-        while not os.path.isdir(model_path):
+        while not os.path.isdir(model_path) and wait:
             time.sleep(15)
         return True
     else:
@@ -82,8 +90,9 @@ for task_id in task_ids:
 
     print("Model not present: {}".format(model_path))
 
-    model_path_dl_running = os.path.join(models_dir,"dl_{}.txt".format(task_id))
-    if check_dl_running(model_path_dl_running=model_path_dl_running, model_path=model_path):
+    model_path_dl_running = os.path.join(models_dir, "dl_{}.txt".format(task_id))
+    wait = True if len(task_ids) == 1 else False
+    if check_dl_running(model_path_dl_running=model_path_dl_running, model_path=model_path, wait=wait):
         continue
 
     file_name = "{}.zip".format(task_id)

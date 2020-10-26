@@ -454,13 +454,13 @@ else
     echo -e "${YELLOW}USER: $USER ${NC}";
 fi
 
-SIZE=`df -k --output=size "/var/lib" | tail -n1`
+SIZE=`df -k --output=size "/var/snap/docker" | tail -n1`
 if [[ $SIZE -lt 81920 ]]; then
     echo -e "${RED}Your disk space is too small to install the system.${NC}";
-    echo -e "${RED}There should be at least 80 GiBytes available @ /var/lib/docker${NC}";
+    echo -e "${RED}There should be at least 80 GiBytes available @ /var/snap/docker${NC}";
     exit 1;
 else
-    SIZE=`df -h --output=size "/var/lib" | tail -n1`
+    SIZE=`df -h --output=size "/var/snap/docker" | tail -n1`
     echo -e "${GREEN}Check disk space: ok${NC}";
     echo -e "${GREEN}SIZE: $SIZE ${NC}";
 fi;

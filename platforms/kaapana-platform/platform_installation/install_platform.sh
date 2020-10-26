@@ -8,8 +8,8 @@ DEFAULT_VERSION="0.1.0-rc.1"    # version of the platform Helm chart
 
 DEV_MODE="false" # dev-mode -> containers will always be re-downloaded after pod-restart
 
-CONTAINER_REGISTRY_URL="dktk-jip-registry.dkfz.de" # URL for the Docker registry (has to be 'local' for build-mode 'local' and the username for build-mode 'dockerhub')
-CONTAINER_REGISTRY_PROJECT="/kaapana"              # eg '/kaapana' -> The slash (/) in front of the project is important!!
+CONTAINER_REGISTRY_URL=""                          # eg 'dktk-jip-registry.dkfz.de' -> URL for the Docker registry (has to be 'local' for build-mode 'local' and the username for build-mode 'dockerhub')
+CONTAINER_REGISTRY_PROJECT=""                      # eg '/kaapana' -> The slash (/) in front of the project is important!!
                                                    # Project of the Docker registry (not all have seperated projects then it shuould be empty-> '')
                                                    # For build-mode 'local' and 'dockerhub' this should also be empty 
 
@@ -457,8 +457,7 @@ fi
 SIZE=`df -k --output=size "/var/snap" | tail -n1`
 if [[ $SIZE -lt 81920 ]]; then
     echo -e "${RED}Your disk space is too small to install the system.${NC}";
-    echo -e "${RED}There should be at least 80 GiBytes available @ /var/lib/docker${NC}";
-    exit 1;
+    echo -e "${RED}There should be at least 80 GiBytes available @ /var/snap ${NC}";
 else
     SIZE=`df -h --output=size "/var/snap" | tail -n1`
     echo -e "${GREEN}Check disk space: ok${NC}";

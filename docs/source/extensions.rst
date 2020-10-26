@@ -37,6 +37,9 @@ Delete series from platform (delete-series-from-platform)
 | **Start processing:**
 | Select  *delete-dcm-from-platform* + *BATCH PROCESSING* and click *SEND x RESULTS*
 
+.. hint::
+
+  | DCM4CHEE needs some time (maybe around 10-15 min) to fully delete the images.
 
 .. _extensions download:
 

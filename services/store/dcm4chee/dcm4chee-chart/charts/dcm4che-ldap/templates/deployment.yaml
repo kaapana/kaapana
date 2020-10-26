@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: ldap-container
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/dcm4chee-ldap:2.4.50-22.4
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/dcm4chee-ldap:2.4.50-22.6
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
           - name: ARCHIVE_HOST

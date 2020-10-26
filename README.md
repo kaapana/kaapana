@@ -46,7 +46,6 @@ You should have received a copy of the GNU Affero General Public License
 along with this program (see file LICENCE).  
 If not, see <https://www.gnu.org/licenses/>.
 
-
 ## Considerations on our license choice
 
 You can use Kaapana to build any product you like, including commercial closed source ones since it is a highly modular system. Kaapana is licensed under the [GNU Affero General Public License](https://www.gnu.org/licenses/agpl-3.0.en.html) for now since we want to ensure that we can integrate all developments and contributions to its core system for maximum benefit to the community and give everything back. We consider switching to a more liberal license in the future. This decision will depend on how our project develops and what the feedback from the community is regarding the license. 

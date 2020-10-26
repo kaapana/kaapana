@@ -140,7 +140,7 @@ dag = DAG(
     schedule_interval=None
 )
 
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = LocalGetInputDataOperator(dag=dag,check_modality=True)
 get_task_model = GetTaskModelOperator(dag=dag)
 # get_task_model = GetContainerModelOperator(dag=dag)
 dcm2nifti = DcmConverterOperator(dag=dag, output_format='nii.gz')

@@ -101,9 +101,9 @@ dag = DAG(
     schedule_interval=None,
     concurrency=40,
     max_active_runs=30
-    )
+)
 
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = LocalGetInputDataOperator(dag=dag, check_modality=True)
 
 # Convert DICOM to NRRD
 dcm2nrrd = DcmConverterOperator(dag=dag, output_format='nrrd')

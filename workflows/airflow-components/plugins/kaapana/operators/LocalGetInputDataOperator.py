@@ -145,7 +145,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
     def __init__(self,
                  dag,
                  data_type="dicom",
-                 check_modality=True,
+                 check_modality=False,
                  *args,
                  **kwargs):
         self.data_type = data_type

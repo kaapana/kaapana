@@ -46,7 +46,7 @@ dag = DAG(
     max_active_runs=15
 )
 
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = LocalGetInputDataOperator(dag=dag,check_modality=True)
 dcmseg2nrrd = DcmSeg2ItkOperator(dag=dag)
 get_dicom = LocalGetRefSeriesOperator(dag=dag)
 dcm2nrrd = DcmConverterOperator(dag=dag, input_operator=get_dicom, output_format='nrrd')

@@ -28,7 +28,7 @@ Collect metadata
 Delete series from platform
 ---------------------------
 | **What's going on?**
-| 1) DICOMsare deleted from the PACS.
+| 1) DICOMs are deleted from the PACS.
 | 2) Meta data of DICOMs are deleted from the Elasticsearch database.
 
 | **Input data:**
@@ -49,7 +49,7 @@ Download series from platform
 | DICOMs
 |
 | **Start processing:**
-| Select  *download-selected-files* + *BATCH PROCESSING* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
+| Select  *download-selected-files* + *BATCH PROCESSING* or *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
 
 .. _extensions nnunet:

@@ -66,7 +66,7 @@ Glossary
       It will also add some commands to the :code:`.bashrc` of each user to enable a shortcut to the :code:`kubectl` command and to enable auto-completion.
     
     platform-installation-script
-      This script is used to install a platform into the Kubernetes cluster. Basically this is done by installing the kaapana-platform chart. In addition, it can be used to reinstall, update and to uninstall the platform. Moreover, it can be used to update the extensions, to prefetch all docker containers needed for the extensions or to install certs. To see its full functionally simply execute it with the flag `--help`. For changes on a running platform itself. execute it without any flag.   
+      This script is used to install a platform into the Kubernetes cluster. Basically this is done by installing the kaapana-platform chart. In addition, it can be used to reinstall, update and to uninstall the platform. Moreover, it can be used to update the extensions, to prefetch all docker containers needed for the extensions or to install certs. To see its full functionally simply execute it with the flag :code:`--help`. For changes on a running platform itself. execute it without any flag.   
 
     service
       Every docker container that runs statically inside in kaapana is service. Examples for services are Minio, OHIF, etc. 

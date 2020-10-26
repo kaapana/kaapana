@@ -1,7 +1,6 @@
 ---
 global:
-    pull_policy_jobs: "Always"
-    fast_data_dir: "/home/kaapana"
+    pull_policy_jobs: ""
 image: "dag-radiomics"
 version: "0.1.0"
 action: "copy"

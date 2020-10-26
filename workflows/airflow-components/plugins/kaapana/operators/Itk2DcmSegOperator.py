@@ -9,7 +9,7 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
                  dag,
                  segmentation_operator,
                  input_type='single_label_segs',
-                 alg_name="kaapana",
+                 alg_name= None,
                  creator_name="kaapana",
                  alg_type="AUTOMATIC",
                  single_label_seg_info=None,
@@ -25,8 +25,6 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
         if env_vars is None:
             env_vars = {}
 
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    
         envs = {
             "INPUT_TYPE": input_type,  # multi_label_seg or single_label_segs
             # Relevant if input is single label seg objects or multiple single label seg objects
@@ -37,8 +35,8 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
             # Always relevant:
             "MULTI_LABEL_SEG_NAME": multi_label_seg_name,  # Name used for multi-label segmentation object, if it will be created
             "OPERATOR_IMAGE_LIST_INPUT_DIR":  segmentation_operator.operator_out_dir, # directory that contains segmentaiton objects
-            "SERIES_DISCRIPTION": "{}-{}".format(series_description or '', timestamp),
-            "ALGORITHM_NAME": alg_name,
+            "SERIES_DISCRIPTION": "{}".format(series_description or alg_name or 'UNKOWN SEGMENTATION ALGORITHM'),
+            "ALGORITHM_NAME": f'{alg_name or "kaapana"}',
             "CREATOR_NAME": creator_name,
             "ALGORITHM_TYPE": alg_type,
             "SERIES_NUMBER": "300",
@@ -49,7 +47,7 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="{}{}/dcmqi:1.3-vdev".format(default_registry, default_project),
+            image="{}{}/dcmqi:v1.2.2".format(default_registry, default_project),
             name="nrrd2dcmseg",
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],

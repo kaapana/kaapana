@@ -5,7 +5,6 @@
         div(v-if="isAuthenticated")
           v-layout(row='', wrap='')
             v-flex(sm12)
-              JIPWelcome(v-if='commonData.id == "jip"')
               KaapanaWelcome(v-if='commonData.id == "kaapana"')
             v-flex(sm12)
               v-layout(row='', wrap='')
@@ -38,12 +37,10 @@
 
 import { Component, Vue } from 'vue-property-decorator';
 import { mapGetters } from "vuex";
-import JIPWelcome from "@/components/WelcomeViews/JIPWelcome.vue";
 import KaapanaWelcome from "@/components/WelcomeViews/KaapanaWelcome.vue";
 
 @Component({
   components: {
-    JIPWelcome,
     KaapanaWelcome
   },
   computed: {

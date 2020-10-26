@@ -12,7 +12,7 @@ global:
     monitoring_namespace: "monitoring"
     gpu_support: false
     credentials:
-        minio_username: "kaapana-minio"
+        minio_username: "kaapanaminio"
         minio_password: "Kaapana2020"
         grafana_username: "admin"
         grafana_password: "admin"
@@ -24,5 +24,5 @@ global:
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana
     home_dir: /root
-    version: "0.1.0-vdev"
+    version: "0.1.0-rc.1"
 ---

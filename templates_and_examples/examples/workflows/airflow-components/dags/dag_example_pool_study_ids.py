@@ -24,7 +24,8 @@ args = {
 dag = DAG(
     dag_id='example-dcm-pool-study-ids',
     default_args=args,
-    schedule_interval=None)
+    schedule_interval=None
+    )
 
 
 get_input = LocalGetInputDataOperator(dag=dag)

@@ -30,7 +30,7 @@ data:
         <KaapanaDagTrigger
             class="org.rsna.ctp.dkfz.KaapanaDagTrigger"
             condition_tag="0008103E"
-            dagnames="process_incoming_dcm"
+            dagnames="service-process-incoming-dcm"
             debug_log="no"
             triggerurl="http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger"
             name="MetaExtraction"
@@ -70,7 +70,7 @@ data:
         <KaapanaDagTrigger
             class="org.rsna.ctp.dkfz.KaapanaDagTrigger"
             condition_tag="0008103E"
-            dagnames="process_incoming_dcm"
+            dagnames="service-process-incoming-dcm"
             debug_log="no"
             triggerurl="http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger"
             name="MetaExtraction"

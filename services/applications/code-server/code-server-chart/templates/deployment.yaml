@@ -1,0 +1,50 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: code-server
+  namespace: {{ .Values.global.base_namespace }}
+  labels:
+    k8s-app: code-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: code-server
+  template:
+    metadata:
+      labels:
+        app-name: code-server
+    spec:
+      securityContext:
+        runAsUser: 0
+      containers:
+      - name: code-server
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/code-server:3.5.0
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        args: ["--auth","none","--disable-telemetry"]        
+        resources:
+          requests:
+            memory: 200Mi
+          limits:
+            memory: 500Mi
+        volumeMounts:
+          - name: workflowdata
+            mountPath: /home/coder/workflows
+          - name: keybindings-config
+            mountPath: /home/coder/keybindings.json
+            subPath: keybindings.json
+      volumes:
+      - name: workflowdata
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}/workflows/
+          type: DirectoryOrCreate
+      - name: keybindings-config
+        configMap:
+          name: code-server-config
+          items:
+          - key: keybindings.json
+            path: keybindings.json
+      imagePullSecrets:
+      - name: registry-secret
+---

@@ -115,7 +115,7 @@ class DockerContainer:
             self.project_name = default_project
 
         if self.image_version != None and self.image_name != None and self.image_version != "" and self.image_name != "":
-            if self.project_name is not None:
+            if self.project_name is not None and self.docker_registry != "local" and self.docker_registry != "local-only":
                 self.tag = self.docker_registry+"/"+self.project_name + "/"+self.image_name+":"+self.image_version
             else:
                 self.tag = self.docker_registry+"/"+self.image_name+":"+self.image_version
@@ -328,7 +328,7 @@ class DockerContainer:
         print()
         print("############################ Push Container: {}".format(self.tag))
 
-        if self.docker_registry == "local":
+        if self.docker_registry == "local" or self.docker_registry == "local-only":
             print("############################ Push skipped -> local registry found!")
             log_entry = {
                 "suite": suite_tag,
@@ -484,6 +484,9 @@ def quick_check():
     docker_containers_list = []
     docker_containers_pending_list = []
     for dockerfile in dockerfiles:
+        if "templates_and_examples" in dockerfile:
+            continue
+            
         docker_container = DockerContainer(dockerfile)
         for log_entry in docker_container.log_list:
             yield log_entry
@@ -545,8 +548,9 @@ def quick_check():
     list_size_containers = len(docker_containers_list)
     while i < list_size_containers:
         container = docker_containers_list[i]
-        if container.docker_registry.lower() == "local":
+        if container.docker_registry.lower() == "local-only":
             docker_containers_list.insert(0, docker_containers_list.pop(i))
+            i += 1
             continue
 
         for base_image in container.base_images:

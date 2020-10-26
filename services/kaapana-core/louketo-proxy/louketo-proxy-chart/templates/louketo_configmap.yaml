@@ -46,6 +46,10 @@ data:
       white-listed: true
     - uri: /uploads/*
       white-listed: true
+    - uri: /downloads
+      white-listed: true
+    - uri: /downloads/*
+      white-listed: true
     - uri: /auth
       white-listed: true
     - uri: /auth/*

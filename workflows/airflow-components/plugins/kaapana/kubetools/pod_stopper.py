@@ -45,9 +45,6 @@ class PodStopper(LoggingMixin):
     def stop_pod_by_name(self, pod_id, namespace="flow-jobs"):
         req = client.V1DeleteOptions()
         try:
-            self.log.info("In 'stop_pod_by_name'")
-            self.log.info("Delete Pod: {}".format(pod_id))
-            self.log.info("Namespace: {}".format(namespace))
             resp = self._client.delete_namespaced_pod(name=pod_id, body=req, namespace=namespace, grace_period_seconds=0, pretty=True)
             return resp
         except ApiException:

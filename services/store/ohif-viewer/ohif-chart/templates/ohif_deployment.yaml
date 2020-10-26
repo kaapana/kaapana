@@ -1,0 +1,31 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ohif
+  namespace: {{ .Values.global.store_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: ohif
+  template:
+    metadata:
+      labels:
+        app-name: ohif
+    spec:
+      containers:
+        - name: ohif-container
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/ohif:4.5.9
+          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: 50Mi
+            limits:
+              memory: 100Mi
+      imagePullSecrets:
+      - name: registry-secret
+---
+

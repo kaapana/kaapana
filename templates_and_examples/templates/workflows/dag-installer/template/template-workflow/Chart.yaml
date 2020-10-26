@@ -1,10 +1,10 @@
 ---
 apiVersion: v1
-appVersion: "0.1-vdev"
+appVersion: "0.1.0"
 description: Template Airflow Dag
 name: template-workflow
-version: 0.1-vdev
+version: "0.1.0"
 keywords:
-- kaapanadag
+- kaapanaworkflow
 - kaapanaexperimental
     

@@ -1,6 +1,6 @@
 ---
 dependencies:
   - name: kaapana-plugin-chart
-    version: 0.8-vdev
+    version: "0.1.0"
     # condition: Release.IsInstall
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public

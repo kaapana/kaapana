@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: kube-helm
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/kube-helm:1.0-vdev
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/kube-helm:0.1.0
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         resources:
           limits:
@@ -34,6 +34,10 @@ spec:
           value: {{  .Values.global.registry_url }}
         - name: REGISTRY_PROJECT
           value: {{  .Values.global.registry_project }}
+        - name: CHART_REGISTRY_PROJECT
+          value: {{  .Values.global.chart_registry_project }}
+        - name: VERSION
+          value: {{ .Values.global.version }}
         - name: BASE_NAMESPACE
           value: {{  .Values.global.base_namespace }}
         - name: FLOW_NAMESPACE
@@ -48,6 +52,10 @@ spec:
           value: {{  .Values.global.fast_data_dir }}
         - name: SLOW_DATA_DIR
           value: {{  .Values.global.slow_data_dir }}
+{{ if .Values.global.http_proxy }}
+        - name: PROXY
+          value: {{ .Values.global.http_proxy }}
+{{ end }}
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         volumeMounts:

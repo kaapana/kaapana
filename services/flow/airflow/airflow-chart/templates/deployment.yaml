@@ -66,7 +66,7 @@ spec:
     spec:
       initContainers:
       - name: init
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/airflow:1.10.12-vdev
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/airflow:1.10.12
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["init"]
         resources:
@@ -96,7 +96,7 @@ spec:
               key: sql_alchemy_conn
       containers:
       - name: webserver
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/airflow:1.10.12-vdev
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/airflow:1.10.12
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         ports:
         - name: webserver
@@ -120,7 +120,7 @@ spec:
           requests:
             memory: 600Mi
           limits:
-            memory: 800Mi
+            memory: 3000Mi
         volumeMounts:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg
@@ -147,7 +147,7 @@ spec:
         #     path: /flow
         #     port: 8080
       - name: scheduler
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/airflow:1.10.12-vdev
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/airflow:1.10.12
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["scheduler"]
         env:
@@ -159,6 +159,8 @@ spec:
           value: "/root/airflow"
         - name: DATADIR
           value: {{ .Values.global.fast_data_dir }}/workflows/data
+        - name: PROXY
+          value: {{ .Values.global.http_proxy }}
         - name: HOSTDOMAIN
           value: {{ .Values.global.hostname }}
         - name: MINIOUSER
@@ -178,7 +180,7 @@ spec:
           requests:
             memory: 2500Mi
           limits:
-            memory: 8000Mi
+            memory: 20000Mi
         volumeMounts:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg
@@ -227,7 +229,7 @@ spec:
           type: DirectoryOrCreate
       - name: dicomdir
         hostPath:
-          path: {{ .Values.global.slow_data_dir }}
+          path: {{ .Values.global.slow_data_dir }}/dcm4che/dicom_data
           type: DirectoryOrCreate
       imagePullSecrets:
       - name: registry-secret

@@ -1,8 +1,6 @@
 ---
 global:
-    pull_policy_jobs: "Always"
-    store_namespace: "store"
-    slow_data_dir: /home/kaapana
+    pull_policy_jobs: ""
     credentials:
         minio_username: "minioadmin"
         minio_password: "admin"

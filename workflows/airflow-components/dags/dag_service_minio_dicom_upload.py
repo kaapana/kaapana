@@ -25,12 +25,15 @@ args = {
 dag = DAG(
     dag_id='service-minio-dicom-upload',
     default_args=args,
-    schedule_interval=None)
+    schedule_interval=None,
+    concurrency=10,
+    max_active_runs=5
+    )
 
 
 get_object_from_minio = LocalMinioOperator(dag=dag, action_operator_dirs=['dicoms'], operator_out_dir='dicoms')
 unzip_files = LocalUnzipFileOperator(dag=dag, input_operator=get_object_from_minio)
-dicom_send = DcmSendOperator(dag=dag, input_operator=unzip_files, ae_title='uploaded')
+dicom_send = DcmSendOperator(dag=dag, input_operator=unzip_files, ae_title='uploaded', level='pile')
 remove_object_from_minio = LocalMinioOperator(dag=dag, parallel_id='removing', action='remove', trigger_rule=TriggerRule.ALL_DONE)
 clean = LocalWorkflowCleanerOperator(dag=dag)
 

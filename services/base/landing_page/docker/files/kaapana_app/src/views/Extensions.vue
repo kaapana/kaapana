@@ -5,12 +5,16 @@
       v-card-title
         v-row()
           v-col(cols='12' sm='5')
-            span List of extensions &nbsp;
+            span Applications and workflows &nbsp;
               v-tooltip(bottom='')
                 template(v-slot:activator='{ on, attrs }')
                   v-icon(@click="updateExtensions()", color='primary' dark='' v-bind='attrs' v-on='on')
                     | mdi-cloud-download-outline
                 span By clicking on this icon it will try to download the latest extensions. In case you do not have internet connection this can also be done on the terminal via ./install-platform --update-extensions.
+            br
+            span(style='font-size: 14px') On 
+              a(href="https://kaapana.readthedocs.io/", target="_blank") readthedocs
+              |  you find a description of each extension
           v-col(cols='12' sm='2')
             v-select(label='Kind' :items="['All', 'Workflows', 'Applications']" v-model='extensionKind' hide-details='')
           v-col(cols='12' sm='2')
@@ -31,6 +35,9 @@
           span {{ item.releaseMame }} &nbsp;
             a(:href='link', target='_blank' v-for="link in item.links" :key="item.link")
               v-icon(color='primary') mdi-open-in-new
+        template(v-slot:item.versions="{ item }")  
+          v-select(v-if="item.installed==='no'" :items="item.versions" v-model="item.version" hide-details='')
+          span(v-if="item.installed==='yes'") {{ item.version }}
         template(v-slot:item.successful="{ item }")
           v-icon(v-if="item.successful==='yes'" color='green') mdi-check-circle
           v-icon(v-if="item.successful==='no'" color='red') mdi-alert-circle
@@ -40,7 +47,7 @@
               v-icon(color='primary' dark='' v-bind='attrs' v-on='on')
                 | mdi-chart-timeline-variant
             span A workflow or algorithm that will be added to Airflow DAGs
-          v-tooltip(bottom='' v-if="item.kind==='extension'")
+          v-tooltip(bottom='' v-if="item.kind==='application'")
             template(v-slot:activator='{ on, attrs }')
               v-icon(color='primary' dark='' v-bind='attrs' v-on='on')
                 | mdi-laptop
@@ -79,7 +86,7 @@ export default Vue.extend({
     loading: true,
     launchedAppLinks: [] as any,
     search: '',
-    extensionExperimental: 'All',
+    extensionExperimental: 'Stable',
     extensionKind: 'All',
     headers: [
       {
@@ -90,7 +97,7 @@ export default Vue.extend({
       {
         text: "Version",
         align: "start",
-        value: "version",
+        value: "versions",
       },
       {
         text: "Kind",
@@ -139,7 +146,7 @@ export default Vue.extend({
           experimentalFilter = false
         }
 
-        if (this.extensionKind=='Workflows' && i.kind==='extension') {
+        if (this.extensionKind=='Workflows' && i.kind==='application') {
           kindFilter = false
         } else if (this.extensionKind=='Applications' && i.kind==='dag') {
           kindFilter = false

@@ -30,7 +30,7 @@ class DcmConverterOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="{}{}/mitk-fileconverter:1.1-vdev".format(default_registry,default_project),
+            image="{}{}/mitk-fileconverter:01.10.2020-master".format(default_registry,default_project),
             name='dcm-converter',
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],

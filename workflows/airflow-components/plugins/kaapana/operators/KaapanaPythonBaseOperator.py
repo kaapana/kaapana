@@ -19,14 +19,17 @@ class KaapanaPythonBaseOperator(PythonOperator):
         parallel_id=None,
         trigger_rule='all_success',
         retries=0,
-        retry_delay=timedelta(seconds=10),
-        execution_timeout=timedelta(minutes=1),
+        retry_delay=timedelta(seconds=30),
+        execution_timeout=timedelta(minutes=10),
         task_concurrency=None,
         pool=None,
         pool_slots=None,
         ram_mem_mb=100,
+        ram_mem_mb_lmt=None,
         cpu_millicores=None,
+        cpu_millicores_lmt=None,
         gpu_mem_mb=None,
+        gpu_mem_mb_lmt=None,
         manage_cache=None,
         *args, **kwargs
     ):
@@ -42,8 +45,11 @@ class KaapanaPythonBaseOperator(PythonOperator):
             pool=pool,
             pool_slots=pool_slots,
             ram_mem_mb=ram_mem_mb,
+            ram_mem_mb_lmt=ram_mem_mb_lmt,
             cpu_millicores=cpu_millicores,
+            cpu_millicores_lmt=cpu_millicores_lmt,
             gpu_mem_mb=gpu_mem_mb,
+            gpu_mem_mb_lmt=gpu_mem_mb_lmt,
             manage_cache=manage_cache
         )
 

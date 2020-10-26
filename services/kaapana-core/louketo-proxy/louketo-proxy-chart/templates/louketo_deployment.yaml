@@ -27,7 +27,7 @@ spec:
             value: "10"
       containers:
         - name: louketo-container
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/louketo-proxy:0.1-vdev
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/louketo-proxy:0.1.0
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           args: ["--config","/app/louketo.cfg"]
           ports:

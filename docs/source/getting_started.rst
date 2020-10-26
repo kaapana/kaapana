@@ -1,24 +1,49 @@
 .. _getting_started:
 
+Getting started
+===============
+This manual is intended to provide a quick and easy way to get started with :ref:`Kaapana<what_is_kaapana>`.
 
-# Getting started
+Kaapana is not a ready-to-use software but a toolkit that enables you to build the platform that fits your specific needs.
 
-This manual is intended to provide a quick and easy way to get started with :term:`Kaapana`.
+The steps described in this guide will build an example :term:`platform`, which is a default configuration and contains many of the typical platforms :term:`components<component>`. This basic platform can be used as a starting-point to derive a customized platform for your specific project.
 
-:term:`Kaapana` is not a ready-to-use software but a toolkit that enables you to build the platform that fits your specific needs.
+Target-system
+-------------
+| You will need some kind of :term:`server` to run the platform on.
+| Minimum specs:
 
-The steps described in this guide will build an example :term:`platform`, which is a default configuration and contains many of the typical platform :term:`components<component>`. This basic platform can be used as a starting-point to derive a customized platform for your specific project.
+- OS: CentOS 8, Ubuntu 20.04 or Ubuntu Server 20.04
+- CPU: 4 cores 
+- Memory: 8GB (for processing > 30GB recommended) 
+- Storage: 100GB (deploy only) / 150GB (local build)  -> (recommended >200GB) 
 
-## Requirements
+| The **domain,hostname or IP-address** has to be known and correctly configured for the system. 
+| If a **proxy** is needed, it should already be configured at ``/etc/environment`` (reboot needed after configuration!). 
 
-Before you get started you should be familiar with the basic concepts and components of Kaapana see :ref:`mission_statement`.
+
+**Filesystem directories:** In the default configuration there are two locations on the filesystem. Per default, the two locations are the same, if you have a SSD and a HDD mount, you should adapt the directory, which are defined in the :term:`platform-installation-script` accordingly, before executing the script.
+
+1. ``fast_data_dir=/home/kaapana``: Location of data that do not take a lot of space and should be loaded fast. Preferably, a SSD is mounted here.
+
+2. ``slow_data_dir=/home/kaapana``:  Location of huge files, like images or our object store is located here.  Preferably, a HDD is mounted here.
+
+**Supported browsers:** As browsers to access the installed platform we support the newest versions of Google Chrome and Firefox. With Safari it is currently not possible to access Traefik as well as services that are no vnc desktops. Moreover, Some functionalities in OHIF viewer do not work with Safari. Internet Explorer and Microsoft Edge are not really tested. 
+
+
+Requirements
+------------
+Before you get started you should be familiar with the basic concepts and components of Kaapana see :ref:`what_is_kaapana`.
 You should also have the following packages installed on your build-system.
+
+We expect the sudo systemctl restart snapd
 
 1. Clone the repository:
 
-   | :code:`git clone https://github.com/kaapana/kaapana.git`
-   or   
+   | :code:`git clone https://github.com/kaapana/kaapana.git` **or**   
    | :code:`git clone https://phabricator.mitk.org/source/kaapana.git`
+   
+   | :code:`git checkout master`
 
 2. Snap 
 
@@ -61,15 +86,19 @@ You should also have the following packages installed on your build-system.
 
    :code:`sudo snap install docker --classic`
 
-6. (optional) Helm
+6. Helm
 
-   :code:`sudo snap install helm --classic --channel=3.1/stable`
+   :code:`sudo snap install helm --classic --channel=3.3/stable`
 
-7. (optional) Helm-push plugin
+7. Reboot
+
+   :code:`sudo reboot`
+
+8. Helm-push plugin
 
    :code:`helm plugin install https://github.com/chartmuseum/helm-push`
 
-8. (optional) Helm-kubeval plugin
+9. Helm-kubeval plugin
 
    :code:`helm plugin install https://github.com/instrumenta/helm-kubeval`
 
@@ -83,40 +112,56 @@ You should also have the following packages installed on your build-system.
   | :code:`docker run hello-world` -> this should work now without root privileges
   | For more information visit the `Docker docs <https://docs.docker.com/engine/install/linux-postinstall/>`_ 
 
-To install the platform itself, you'll also need some kind of a :term:`server` (please have a look in the Glossary for more information).
 
-## Creating an example platform
+Creating an example platform
+----------------------------
  
-The process of creating a Kaapana-based platform involves the following steps:
+The process of creating a Kaapana-based platform involves the following steps that should be executed on a dedicated physical or virtual server:
 
 1. Build and push all :term:`Dockerfiles<docker>`
 2. Build and push all :term:`Helm Charts<helm>` (optional - you can use our registry)
 3. Install all server requirements with the :term:`server-installation-script`
 4. Deploy the platform with the :term:`platform-installation-script`
 
-### Build modes
+Build modes
+^^^^^^^^^^^
+If you **don't** have access to a Docker registry with **already built containers** for Kaapana, you need to build them first.
+This is comparable to a binary of regular software projects - if you already have access to it, you can continue with **step 3**.
 
-Currently Kaapana supports three different **build-modes**:
+| The complete build will take **~4h** (depending on the system)! 
+| Currently Kaapana supports three different **build-modes**:
 
-1. **Local build (default)**
+1. **Local build**
 
-   By choosing this option you will need **no external Docker registry** to install the platform. All Docker containers and Helm charts will be build and used locally on the server.
+   | By choosing this option you will need **no external Docker registry** to install the platform.
+   | All Docker containers will be build and used locally on the server.
+   | The Helm charts will still be downloaded from the DKFZ registry, as long as there is no local solution.
+   | **Extensions don't work with this mode yet**
    
 2. **Dockerhub**
 
-   `Dockerhub <https://hub.docker.com/>`_  offers a **free solution to store Docker containers** in a registry. The disadvantage of this method is that network access to Dockerhub must be guaranteed and all stored containers are publicly accessible (in the free version).
+   | `Dockerhub <https://hub.docker.com/>`_  offers a **free solution to store Docker containers** in a registry.
+   | The disadvantage of this method is that network access to Dockerhub must be guaranteed and all stored containers are publicly accessible (in the free version).
+   | All containers from Kaapana will be built locally, and then pushed to Dockerhub afterwards.
+   | When you deploy the platform, the images will then be downloaded directly from Dockerhub. 
+   | It is therefore possible to build the containers on a **different** system than the server.
 
 3. **Private registry**
 
-   The third option is to use a private Docker Registry to manage the containers used. This option comes with many **additional features like access controll or the possibility to manage helm charts** directly in the registry. The disadvantage of a private registry is, that you have to either host it yourself or at least pay for it. We recommend `Harbor <https://goharbor.io/>`__ or `Artifactory <https://jfrog.com/artifactory/>`__ as professional solutions for a custom registry.
+   This option will use a private Docker Registry to manage the containers needed.
+   Here, you will have additional features like **access control** or the possibility to manage **Helm charts** etc.
+   When you deploy the platform, the images will then be downloaded directly from your own registry. 
+   It is therefore possible to build the containers on a **different** system than the server.
+   The disadvantage of a private registry is, that you have to either host it yourself or at least pay for it.
+   We recommend `Harbor <https://goharbor.io/>`__ or `Artifactory <https://jfrog.com/artifactory/>`__ as professional solutions for a custom registry.
 
 The following sections include a configuration example for each of the options (if applicable).
 
-### Steps 1&2: Build Dockerfiles and Helm Charts
+Steps 1&2: Build Dockerfiles and Helm Charts
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Step 1&2 will be handled with a build-script, which you can find within the repository at :code:`kaapana/build-scripts/start_build.py`.
 
-Step 1&2 will be handeled with a build-script, which you can find it within the repository at :code:`kaapana/build-scripts/start_build.py`.
-
-Before you start the build-process, you should have a look at the build-configuration at :code:`kaapana/build-scripts/build-configuration.yaml`.
+Before you start the build-process, you should have a look at the build-configuration at :code:`kaapana/build-scripts/build-configuration.yaml` and adapt it accordingly to your chosen build configuration as shown below.
 
 .. tabs::
 
@@ -126,6 +171,7 @@ Before you start the build-process, you should have a look at the build-configur
          :emphasize-lines: 2,3,7,8,9,10,11
 
          http_proxy: ""
+         build_mode: "local"
          default_container_registry: "local"
          default_container_project: "" 
          default_chart_registry: "https://dktk-jip-registry.dkfz.de/chartrepo/"
@@ -147,6 +193,7 @@ Before you start the build-process, you should have a look at the build-configur
          :emphasize-lines: 2,3,7,8,9,10,11
 
          http_proxy: ""
+         build_mode: "dockerhub"
          default_container_registry: "johndoe"
          default_container_project: "" 
          default_chart_registry: "https://dktk-jip-registry.dkfz.de/chartrepo/"
@@ -167,6 +214,7 @@ Before you start the build-process, you should have a look at the build-configur
          :emphasize-lines: 2,3,4,5,7,8,9,10,11
 
          http_proxy: ""
+         build_mode: "private"
          default_container_registry: "<registry-url>"
          default_container_project: "<registry-project>" 
          default_chart_registry: "<registry-chart-repo-url>"
@@ -178,7 +226,7 @@ Before you start the build-process, you should have a look at the build-configur
          push_charts: true
          create_package: false
 
-As described in the :ref:`mission_statement`, we will utilize the DKFZ registry for Helm chart as long as there is no other easy alternative.
+We will utilize the DKFZ registry for Helm chart as long as there is no other easy alternative.
 
 .. important::
 
@@ -191,15 +239,16 @@ As described in the :ref:`mission_statement`, we will utilize the DKFZ registry 
 Start the build process:
 :code:`python3 kaapana/build-scripts/start_build.py`
 
-### Step 3: Server Installation
-
+Step 3: Server Installation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. hint::
 
   | **GPU support -> Currently only Nvidia GPUs are supported!**
   | GPU support requires installation of the `Nvidia drivers <https://www.nvidia.de/Download/index.aspx?lang=en>`_ .
   | For Ubuntu Server 20.04 :code:`sudo apt install nvidia-driver-<version>-server`
-  | should also work **BUT** check the hibernation settings afterwards --> `see <https://www.unixtutorial.org/disable-sleep-on-ubuntu-server/>`_
-  | -> reboot required!
+  | should also work **BUT** check the hibernation settings afterwards (`see <https://www.unixtutorial.org/disable-sleep-on-ubuntu-server/>`_) 
+  | -> :code:`sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target`
+  | --> reboot required!
   | Please make sure the :code:`nvidia-smi` command is working as expected!
 
 Before the example platform "Kaapana-platform" can be deployed, all dependencies must be installed on the server. 
@@ -211,8 +260,8 @@ To do this, you can use the :term:`server-installation-script`, located at :code
 4. Reboot the system :code:`sudo reboot`
 5. (optional) Enable GPU support for Microk8s :code:`sudo ./server_installation.sh -gpu`
 
-### Step 4: Platform Deployment
-
+Step 4: Platform Deployment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The platform is deployed using the :term:`platform-installation-script`, which you can find at :code:`kaapana/platforms/kaapana-platform/platform_installation/install_platform.sh`.
 
 Copy the script to your target-system (server) and **adjust it as described below**:
@@ -232,10 +281,10 @@ Copy the script to your target-system (server) and **adjust it as described belo
       .. code-block:: python
 
          ...
+         DEV_MODE="false"
+         
          CONTAINER_REGISTRY_URL="local"
          CONTAINER_REGISTRY_PROJECT=""
-         ...
-         DEV_MODE="false"
          ...
 
    .. tab:: Dockerhub
@@ -311,3 +360,6 @@ After a successful installation you'll get the following message:
    Initial credentials:
    username: kaapana
    password: kaapana
+
+
+

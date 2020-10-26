@@ -1,18 +1,30 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
+import os
+import glob
 from datetime import timedelta
+import pydicom
+
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+
 
 class DcmSendOperator(KaapanaBaseOperator):
 
     def __init__(self,
                  dag,
-                 ae_title='dataset',
+                 ae_title='KAAPANA',
                  pacs_host= 'ctp-service.flow.svc',
                  pacs_port='11112',
-                 dicom_dir='',
                  env_vars=None,
-                 execution_timeout=timedelta(minutes=5),
+                 level='element',
+                 execution_timeout=timedelta(minutes=20),
                  *args, **kwargs
                  ):
+
+        if level not in ['element', 'pile']:
+            raise NameError('level must be either "element" or "pile". \
+                If pile, an operator folder next to the batch folder with .dcm files is expected. \
+                If element, *.dcm are expected in the corresponding operator with .dcm files is expected.'
+            )
 
         if env_vars is None:
             env_vars = {}
@@ -21,14 +33,14 @@ class DcmSendOperator(KaapanaBaseOperator):
             "HOST": str(pacs_host),
             "PORT": str(pacs_port),
             "AETITLE": str(ae_title),
-            "DICOM_DIR": str(dicom_dir)
+            "LEVEL": str(level)
         }
 
         env_vars.update(envs)
 
         super().__init__(
             dag=dag,
-            image="{}{}/dcmsend:1.0-vdev".format(default_registry, default_project),
+            image="{}{}/dcmsend:3.6.2".format(default_registry, default_project),
             name="dcmsend",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,

@@ -2,7 +2,7 @@ FROM jboss/keycloak:11.0.2
 
 
 LABEL IMAGE="keycloak"
-LABEL VERSION="11.0.2-vdev"
+LABEL VERSION="11.0.2"
 LABEL CI_IGNORE="False"
 
 

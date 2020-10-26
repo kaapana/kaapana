@@ -1,7 +1,7 @@
-FROM local/dag-installer:1.0-vdev
+FROM local-only/dag-installer:0.1.0
 
 LABEL IMAGE="dag-radiomics"
-LABEL VERSION="0.1-vdev"
+LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
 COPY dags/dag_radiomics_dcmseg.py /tmp/dags/

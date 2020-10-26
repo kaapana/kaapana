@@ -4,9 +4,9 @@ data:
   commonData.json: |-
     {
       "id": "kaapana",
-      "name": "kaapana platform",
-      "shortName": "kaapana",
-      "infoText": "kaapana is a technology platform for Distributed Computational Image-based PHEnotyping and Radiomics. It is designed to establish a better link between clinical (imaging) data, computational power and methodical tools.",
+      "name": "Kaapana platform",
+      "shortName": "Kaapana",
+      "infoText": "Kaapana (from the hawaiian word kaʻāpana, meaning “distributor” or “part”) is an open source toolkit for state of the art platform provisioning in the field of medical data analysis. The applications comprise AI-based workflows and federated learning scenarios with a focus on radiological and radiotherapeutic imaging.",
       "version": "{{ .Values.global.version }}"
     }
   defaultExternalWebpages.json: |-

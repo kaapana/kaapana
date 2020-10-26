@@ -3,10 +3,9 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 from datetime import datetime
-
-# from nnunet.LocalSplitLabelOperator import LocalSplitLabelOperator
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
+# from nnunet.GetContainerModelOperator import GetContainerModelOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
@@ -63,7 +62,7 @@ ui_forms = {
                 "description": "Select one of the available tasks.",
                 "type": "string",
                 "enum": available_tasks,
-                "required": "true"
+                "required": True
             },
             "description": {
                 "title": "Task Description",
@@ -74,7 +73,7 @@ ui_forms = {
                     "task"
                 ]
             },
-            "url": {
+            "task_url": {
                 "title": "Website",
                 "description": "Website to the task.",
                 "type": "string",
@@ -114,6 +113,7 @@ ui_forms = {
                 "description": "Select one of the available models.",
                 "type": "string",
                 "default": "3d_lowres",
+                "required": True,
                 "enum": [],
                 "dependsOn": [
                     "task"
@@ -135,14 +135,18 @@ args = {
 dag = DAG(
     dag_id='nnunet-predict',
     default_args=args,
+    concurrency=50,
+    max_active_runs=30,
     schedule_interval=None
 )
+
+get_input = LocalGetInputDataOperator(dag=dag,check_modality=True)
 get_task_model = GetTaskModelOperator(dag=dag)
-get_input = LocalGetInputDataOperator(dag=dag)
+# get_task_model = GetContainerModelOperator(dag=dag)
 dcm2nifti = DcmConverterOperator(dag=dag, output_format='nii.gz')
 nnunet_predict = NnUnetOperator(dag=dag, input_dirs=[dcm2nifti.operator_out_dir], input_operator=dcm2nifti)
 
-alg_name = nnunet_predict.image.split("/")[-1]
+alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     dag=dag,
     segmentation_operator=nnunet_predict,

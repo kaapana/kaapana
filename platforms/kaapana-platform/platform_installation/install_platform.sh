@@ -3,33 +3,41 @@ set -euf -o pipefail
 
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
-PROJECT_NAME="kaapana-platform"
-DEFAULT_VERSION="0.1.0-vdev"
+PROJECT_NAME="kaapana-platform" # name of the platform Helm chart
+DEFAULT_VERSION="0.1.0-rc.1"    # version of the platform Helm chart
 
-CHART_REGISTRY_URL="https://dktk-jip-registry.dkfz.de/chartrepo"
-CHART_REGISTRY_PROJECT="kaapana-public"
+DEV_MODE="false" # dev-mode -> containers will always be re-downloaded after pod-restart
 
-CONTAINER_REGISTRY_URL="dktk-jip-registry.dkfz.de"
-CONTAINER_REGISTRY_PROJECT="/kaapana"
+CONTAINER_REGISTRY_URL=""                          # eg 'dktk-jip-registry.dkfz.de' -> URL for the Docker registry (has to be 'local' for build-mode 'local' and the username for build-mode 'dockerhub')
+CONTAINER_REGISTRY_PROJECT=""                      # eg '/kaapana' -> The slash (/) in front of the project is important!!
+                                                   # Project of the Docker registry (not all have seperated projects then it shuould be empty-> '')
+                                                   # For build-mode 'local' and 'dockerhub' this should also be empty 
 
-HTTP_PORT=80
-HTTPS_PORT=443
-DICOM_PORT=11112
-DEV_MODE="true"
-DEV_PORTS="false"
-GPU_SUPPORT="false"
+CHART_REGISTRY_URL="https://dktk-jip-registry.dkfz.de/chartrepo" # eg https://xx.xx.xx.xx/chartrepo -> URL for the chart repository 
+CHART_REGISTRY_PROJECT="kaapana-public"                          # project name for the Helm charts
 
-FAST_DATA_DIR="/home/kaapana"
-SLOW_DATA_DIR="/home/kaapana"
+FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
+SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
+
+HTTP_PORT=80      # not working yet -> has to be 80
+HTTPS_PORT=443    # not working yet -> has to be 443
+DICOM_PORT=11112  # configure DICOM receiver port
 
 PULL_POLICY_PODS="IfNotPresent"
 PULL_POLICY_JOBS="IfNotPresent"
 PULL_POLICY_OPERATORS="IfNotPresent"
 
+DEV_PORTS="false"
+GPU_SUPPORT="false"
 if [ "$DEV_MODE" == "true" ]; then
     PULL_POLICY_PODS="Always"
     PULL_POLICY_JOBS="Always"
     PULL_POLICY_OPERATORS="Always"
+fi
+
+if [ -z ${http_proxy+x} ] || [ -z ${https_proxy+x} ]; then
+    http_proxy=""
+    https_proxy=""
 fi
 
 CHART_PATH=""
@@ -59,32 +67,59 @@ fi
 
 function import_containerd {
     echo "Starting image import into containerd..."
-    docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | while read line; do
-        echo "Generating tar-file: '$line'"
-        docker save $line > ./image.tar
-        if [ $? -eq 0 ]; then
-            echo "ok"
+    while true; do
+        read -e -p "Should all locally built Docker containers be deleted after the import?" -i " no" yn
+        case $yn in
+            [Yy]* ) echo -e "${GREEN}Local containers will be removed from Docker after the upload to microk8s${NC}" && DEL_CONTAINERS="true"; break;;
+            [Nn]* ) echo -e "${YELLOW}Containers will be kept${NC}" && DEL_CONTAINERS="false"; break;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
+    containerd_imgs=( $(microk8s ctr images ls -q) )
+    docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | while read IMAGE; do
+        hash=$(docker images --no-trunc --quiet $IMAGE)
+        echo ""
+        if [[ " ${containerd_imgs[*]} " == *"$hash"* ]]; then
+            echo "Container $IMAGE already found: $hash"
         else
-            echo "Failed!"
-            exit 1
+            echo "Not found: generating tar-file: '$IMAGE'"
+            docker save $IMAGE > ./image.tar
+            if [ $? -eq 0 ]; then
+                echo "ok"
+            else
+                echo "Failed!"
+                exit 1
+            fi
+            echo "Import image into containerd..."
+            microk8s ctr image import image.tar
+            if [ $? -eq 0 ]; then
+                echo "ok"
+            else
+                echo "Failed!"
+                exit 1
+            fi
+            echo "Remove tmp image.tar file..."
+            rm image.tar
+            if [ $? -eq 0 ]; then
+                echo "ok"
+            else
+                echo "Failed!"
+                exit 1
+            fi
         fi
-        echo "Import image into containerd..."
-        microk8s ctr image import image.tar
-        if [ $? -eq 0 ]; then
-            echo "ok"
-        else
-            echo "Failed!"
-            exit 1
-        fi
-        echo "Remove tmp image.tar file..."
-        rm image.tar
-        if [ $? -eq 0 ]; then
-            echo "ok"
-        else
-            echo "Failed!"
-            exit 1
+
+        if [ "$DEL_CONTAINERS" = "true" ];then
+            echo -e "Deleting Docker-image: $IMAGE"
+            docker rmi $IMAGE
+            echo "deleted."
         fi
     done
+
+    if [ "$DEL_CONTAINERS" = "true" ];then
+        echo -e "Deleting all remaining Docker-images..."
+        docker system prune --all --force
+        echo "done"
+    fi
     echo "All images successfully imported!"
 }
 
@@ -121,7 +156,7 @@ function delete_deployment {
     echo -e "${YELLOW}Uninstalling releases${NC}"
     helm ls --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 helm delete
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
-    WAIT_UNINSTALL_COUNT=60
+    WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
     do
         sleep 3
@@ -148,25 +183,34 @@ function delete_deployment {
 
 
 function update_extensions {
-    echo -e "Downloading all kaapanadag|kaapanaextensions|kaapanaint to $HOME/.extensions"
+    echo -e "${GREEN}Downloading all kaapanaworkflows, kaapanaapplications and kaapanaint to $HOME/.extensions${NC}"
     
     set +euf
     updates_output=$(helm repo update)
     set -euf
 
     if echo "$updates_output" | grep -q 'failed to'; then
-        echo -e "${RED}updates failed!${NC}"
+        echo -e "${RED}Update failed!${NC}"
         echo -e "${RED}You seem to have no internet connection!${NC}"
         echo "$updates_output"
         exit 1
     else
         mkdir -p $HOME/.extensions
         find $HOME/.extensions/ -type f -delete
-        helm pull -d $HOME/.extensions/ --version=1.0-vdev $CHART_REGISTRY_PROJECT/pull-docker-chart
-        helm search repo -r '(kaapanadag|kaapanaextension|kaapanaint)' | awk 'NR > 1 { print  $1, "--version " $2}' | xargs -L1 helm pull -d $HOME/.extensions/
-        helm search repo --devel -r '(kaapanadag|kaapanaextension|kaapanaint)' | awk 'NR > 1 { print  $1, "--version " $2}' | xargs -L1 helm pull -d $HOME/.extensions/
+        helm search repo --devel -l -r '(kaapanaworkflow|kaapanaapplication|kaapanaint)' -o json | jq -r '.[] | "\(.name) --version \(.version)"' | xargs -L1 helm pull -d $HOME/.extensions/
         echo -e "${GREEN}Update OK!${NC}"
     fi
+}
+
+function shell_update_extensions {
+
+    if [ ! "$QUIET" = "true" ];then
+        read -e -p "${YELLOW}Which pull-docker-chart version should be used? If you have no idea, press enter and accept the default: ${NC}" -i $DEFAULT_VERSION chart_version;
+    else
+        chart_version=$DEFAULT_VERSION
+    fi
+    update_extensions
+    helm pull -d $HOME/.extensions/ --version=$chart_version $CHART_REGISTRY_PROJECT/pull-docker-chart
 }
 
 function install_chart {
@@ -212,8 +256,6 @@ function install_chart {
         chart_version=$DEFAULT_VERSION
     fi
 
-    update_extensions
-
     if [ ! -z "$CHART_PATH" ]; then
         echo -e "${YELLOW}Installing $PROJECT_NAME: version $chart_version${NC}"
         echo -e "${YELLOW}Chart-tgz-path $CHART_PATH${NC}"
@@ -234,10 +276,15 @@ function install_chart {
         --set global.credentials.registry_username="$REGISTRY_USERNAME" \
         --set global.credentials.registry_password="$REGISTRY_PASSWORD" \
         --set global.gpu_support=$GPU_SUPPORT \
+        --set global.http_proxy=$http_proxy \
+        --set global.https_proxy=$https_proxy \
         --set global.registry_url=$CONTAINER_REGISTRY_URL \
         --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
+        --set global.chart_registry_project=$CHART_REGISTRY_PROJECT \
         --name-template $PROJECT_NAME
     else
+        update_extensions
+        helm pull -d $HOME/.extensions/ --version=$chart_version $CHART_REGISTRY_PROJECT/pull-docker-chart
         echo -e "${YELLOW}Installing $CHART_REGISTRY_PROJECT/$PROJECT_NAME version: $chart_version${NC}"
         helm install --devel --version $chart_version  $CHART_REGISTRY_PROJECT/$PROJECT_NAME \
         --set global.version="$chart_version" \
@@ -256,8 +303,11 @@ function install_chart {
         --set global.credentials.registry_username="$REGISTRY_USERNAME" \
         --set global.credentials.registry_password="$REGISTRY_PASSWORD" \
         --set global.gpu_support=$GPU_SUPPORT \
+        --set global.http_proxy=$http_proxy \
+        --set global.https_proxy=$https_proxy \
         --set global.registry_url=$CONTAINER_REGISTRY_URL \
         --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
+        --set global.chart_registry_project=$CHART_REGISTRY_PROJECT \
         --name-template $PROJECT_NAME
     fi
     
@@ -356,6 +406,9 @@ function install_certs {
 }
 
 function prefetch_extensions {
+
+    helm repo update
+    
     if [ ! "$QUIET" = "true" ];then
         read -e -p "${YELLOW}Which prefetch-extensions-chart version should be use? If you have no idea, press enter and accept the default: ${NC}" -i $DEFAULT_VERSION chart_version;
     else
@@ -401,13 +454,12 @@ else
     echo -e "${YELLOW}USER: $USER ${NC}";
 fi
 
-SIZE=`df -k --output=size "/var/lib" | tail -n1`
+SIZE=`df -k --output=size "/var/snap" | tail -n1`
 if [[ $SIZE -lt 81920 ]]; then
     echo -e "${RED}Your disk space is too small to install the system.${NC}";
-    echo -e "${RED}There should be at least 80 GiBytes available @ /var/lib/docker${NC}";
-    exit 1;
+    echo -e "${RED}There should be at least 80 GiBytes available @ /var/snap ${NC}";
 else
-    SIZE=`df -h --output=size "/var/lib" | tail -n1`
+    SIZE=`df -h --output=size "/var/snap" | tail -n1`
     echo -e "${GREEN}Check disk space: ok${NC}";
     echo -e "${GREEN}SIZE: $SIZE ${NC}";
 fi;
@@ -486,7 +538,7 @@ do
         ;;
 
         --update-extensions)
-            update_extensions
+            shell_update_extensions
             exit 0
         ;;
 

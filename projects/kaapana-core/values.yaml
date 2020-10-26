@@ -54,3 +54,5 @@ global:
     default_system_limits_mem: "50Mi"
     # default_system_requests_cpu: 0.5
     # default_system_limits_cpu: 1
+    http_proxy: ""
+    https_proxy: ""

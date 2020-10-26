@@ -104,7 +104,7 @@ class VisController {
       this.workflow_dialog.style.backgroundColor = "#F5F5F5";
       this.workflow_dialog.style.opacity = "1";
       this.workflow_dialog.style.position = "fixed";
-      this.workflow_dialog.style.top = "30%";
+      this.workflow_dialog.style.top = "5%";
       this.workflow_dialog.style.zIndex = "100";
       this.workflow_dialog.style.width = "50%";
       this.workflow_dialog.style.borderColor = "#FF851B";
@@ -151,6 +151,7 @@ class VisController {
               alert("Could not fetch DAG information from kaapana-api!");
               return;
             }
+            this.dag_form_data = null
             var dag_entry = dag_list[VisController.selected_dag_id]
 
             if (dag_entry.hasOwnProperty('ui_dag_info')) {
@@ -475,3 +476,4 @@ document.onkeydown = function (evt) {
     }
   }
 };
+

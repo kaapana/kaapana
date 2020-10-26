@@ -17,10 +17,8 @@ Path(models_dir).mkdir(parents=True, exist_ok=True)
 
 def check_dl_running(model_path_dl_running, model_path):
     if os.path.isfile(model_path_dl_running):
-        print("Download already running -> sleep!")
+        print("Download already running -> waiting until it is finished!")
         while not os.path.isdir(model_path):
-            print("")
-            print("Still waiting -> sleep 15s")
             time.sleep(15)
         return True
     else:

@@ -29,7 +29,9 @@ Currently the most widely used platform realized using Kaapana is the Joint Imag
 
 For more information, please also take a look at our recent publication of the Kaapana-based Joint Imaging Platform in JCO Clinical Cancer Informatics (LINK WILL COME SOONISH).
 
-Please take a look at our [documentation](https://kaapana.readthedocs.io/en/latest/) for further information about Kaapana and how to use it!
+## Documentation
+
+Check out our [documentation](https://kaapana.readthedocs.io/en/latest/) for further information about Kaapana and how to use it!
 
 ## Licence
 

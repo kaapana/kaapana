@@ -1,3 +1,4 @@
+[![Documentation Status](https://readthedocs.org/projects/kaapana/badge/?version=release-0.1.0)](https://kaapana.readthedocs.io/en/release-0.1.0/?badge=release-0.1.0)
 ## What is Kaapana?
 
 Kaapana (from the hawaiian word kaʻāpana, meaning "distributor" or "part") is an open source toolkit for state of the art platform provisioning in the field of medical data analysis. The applications comprise  AI-based workflows and federated learning scenarios with a focus on radiological and radiotherapeutic imaging. 
@@ -53,5 +54,3 @@ You can use Kaapana to build any product you like, including commercial closed s
 Kaapana is built upon the great work of many other open source projects, see the documentation for details. For now we only release source code we created ourselves, since providing pre-built docker containers and licensing for highly modular container based systems is [a complex task](https://www.linuxfoundation.org/blog/2020/04/docker-containers-what-are-the-open-source-licensing-considerations/). We have done our very best to fulfil all requirements, and the choice of AGPL was motivated mainly to make sure we can improve and advance Kaapana in the best way for the whole community. If you have thoughts about this or if you disagree with our way using a particular third-party toolkit or miss something please let us know and get in touch. We are open for any feedback and advice on this challenging topic.
 
 Copyright (C) 2020  German Cancer Research Center (DKFZ)
-
-[![Documentation Status](https://readthedocs.org/projects/kaapana-test/badge/?version=latest)](https://kaapana-test.readthedocs.io/en/latest/?badge=latest)

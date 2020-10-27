@@ -163,6 +163,8 @@ spec:
           value: {{ .Values.global.http_proxy }}
         - name: HOSTDOMAIN
           value: {{ .Values.global.hostname }}
+        - name: PULL_POLICY_PODS
+          value: {{  .Values.global.pull_policy_pods }}
         - name: MINIOUSER
           value: {{ .Values.global.credentials.minio_username }}
         - name: MINIOPASSWORD

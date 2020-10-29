@@ -13,6 +13,6 @@ dependencies:
   - name: elasticsearch-chart
     version: "6.8.12"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
-  - name: kaapana-landing-page-chart
-    version: "0.1.1"
+  - name: landing-page-kaapana-chart
+    version: "0.1.2-vdev"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public

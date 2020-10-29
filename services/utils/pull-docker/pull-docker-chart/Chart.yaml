@@ -1,8 +1,8 @@
 ---
 apiVersion: v1
-appVersion: "0.1.0"
+appVersion: "0.1.1-vdev"
 description: Chart pull docker container
 name: pull-docker-chart
 # Has to be same as the platform due to the installer script!
-version: "0.1.0"
+version: "0.1.1-vdev"
 ignore_linting: true

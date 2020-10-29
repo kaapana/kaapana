@@ -5,7 +5,7 @@
         div(v-if="isAuthenticated")
           v-layout(row='', wrap='')
             v-flex(sm12)
-              KaapanaWelcome(v-if='commonData.id == "kaapana"')
+              KaapanaWelcome
             v-flex(sm12)
               v-layout(row='', wrap='')
                 v-flex.text-left(v-if='section.roles.indexOf(currentUser.role) > -1' v-for='(section, sectionKey) in this.externalWebpages', :key='section.id', d-flex, v-bind:class="{ sm8: sectionKey=='system', sm4: sectionKey!='system'}")

@@ -173,7 +173,7 @@ $kaapana-green: #ff7a20;
   color: white;
   text-align: center;
   min-height: calc(100vh - 105px);
-  background: url(assets/img/bg2.jpg) no-repeat center center;
+  background: url(assets/img/bg.jpg) no-repeat center center;
   background-size: cover;
 }
 

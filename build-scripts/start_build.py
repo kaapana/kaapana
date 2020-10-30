@@ -62,6 +62,7 @@ if __name__ == '__main__':
     parser.add_argument("-bo", "--build-only", dest="build_only", default=False, action='store_true', help="Just building the containers and charts -> no pushing")
     parser.add_argument("-co", "--charts-only", dest="charts_only", default=False, action='store_true', help="Just build all helm charts.")
     parser.add_argument("-do", "--docker-only", dest="docker_only", default=False, action='store_true', help="Just build all Docker containers charts.")
+    parser.add_argument("-bd", "--build-dir", dest="build_dir", default=None, help="base dir to search for containers and charts.")
 
     args = parser.parse_args()
     registry_user = args.username
@@ -70,8 +71,9 @@ if __name__ == '__main__':
     charts_only = args.charts_only
     docker_only = args.docker_only
     config_filepath = args.config_filepath
+    build_dir = args.build_dir
 
-    kaapana_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    kaapana_dir = build_dir if build_dir is not None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if not os.path.isdir(os.path.join(kaapana_dir, "platforms")):
         print("The dir 'platforms' was not found! -> wrong kaapana_dir? -> exit!")
         print("-----------------------------------------------------------")

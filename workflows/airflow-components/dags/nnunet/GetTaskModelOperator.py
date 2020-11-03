@@ -46,7 +46,7 @@ class GetTaskModelOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="{}{}/nnunet-get-models:0.1.0".format(default_registry, default_project),
+            image="{}{}/nnunet-get-models:0.1.1-vdev".format(default_registry, default_project),
             name="get-task-model",
             image_pull_secrets=["registry-secret"],
             volumes=volumes,

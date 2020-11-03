@@ -161,7 +161,7 @@ for task_id in task_ids:
         print("------------------------------------")
         print("------------   ERROR!  -------------")
         print("------------------------------------")
-        print("Model NOT found: {}".format(models_dir))
+        print("Model NOT found: {}".format(model_path))
         print("------------------------------------")
         print("------------------------------------")
         exit(1)

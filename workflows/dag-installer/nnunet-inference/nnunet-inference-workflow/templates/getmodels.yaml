@@ -12,7 +12,7 @@ spec:
       hostNetwork: true
       containers:
       - name: nnunet-models
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/nnunet-get-models:0.1.0
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/nnunet-get-models:0.1.1-vdev
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
         - name: TASK

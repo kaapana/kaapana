@@ -423,7 +423,7 @@ function prefetch_extensions {
     --name-template $release_name \
     --wait \
     --atomic \
-    --timeout 1m0s
+    --timeout 60m0s
     sleep 10
     helm delete $release_name
     echo -e "${GREEN}OK!${NC}"

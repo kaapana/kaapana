@@ -1,0 +1,81 @@
+---
+{{- $uuid := uuidv4 | trunc 10 }}
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: jupyter-{{ $uuid }}
+  namespace: flow
+  labels:
+    k8s-app: jupyter-{{ $uuid }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: jupyter-{{ $uuid }}
+  template:
+    metadata:
+      labels:
+        app-name: jupyter-{{ $uuid }}
+    spec:
+      containers:
+      - name: pysyft-nb
+        image: {{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/openmined:0.1.0-vdev
+        name: jupyter-{{ $uuid }}
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        # memory space
+        resources:
+          requests:
+            memory: "100Mi"
+          limits:
+            memory: "1Gi"
+        env:
+        - name: INGRESS_PATH
+          value: {{ .Values.ingress_path}}
+        ports:
+        - name: pysyft-nb-http
+          containerPort: {{ .Values.container_port }}
+        volumeMounts:
+          - name: pysyftdata
+            mountPath: {{ .Values.mount_path }}
+      volumes:
+      - name: pysyftdata
+        hostPath:
+          path: /home/kaapana/minio
+          type: DirectoryOrCreate
+      imagePullSecrets:
+      - name: registry-secret
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: jupyter-{{ $uuid }}
+  namespace: flow
+spec:
+  selector:
+    app-name: jupyter-{{ $uuid }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.port }}
+      targetPort: pysyft-nb-http
+      name: log-http-port
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: jupyter-{{ $uuid }}
+  namespace: flow
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/preserve-host: "true"
+    #traefik.frontend.rule.type: PathPrefixStrip
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+      - path: {{ .Values.ingress_path }}
+        backend:
+          serviceName: jupyter-{{ $uuid }}
+          servicePort: log-http-port

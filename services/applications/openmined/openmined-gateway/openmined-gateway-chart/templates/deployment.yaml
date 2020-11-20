@@ -1,0 +1,59 @@
+{{- $uuid := uuidv4 | trunc 10 }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # This name uniquely identifies the Deployment
+  name: grid-gateway-{{ $uuid }}
+  namespace: flow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: grid-gateway-{{ $uuid }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: grid-gateway-{{ $uuid }}
+    spec:
+      # Refer to the PVC created earlier
+      containers:
+      - name: grid-gateway-{{ $uuid }}
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/grid-network:development
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        # memory space
+        resources:
+          requests:
+            memory: "100Mi"
+          limits:
+            memory: "1Gi"
+        env:
+        - name: PORT
+          value: "{{ .Values.port }}"
+        - name: SECRET_KEY
+          value: "aj20kale7762j2ds"
+        - name: DATABASE_URL
+          value: 'sqlite:///databasenetwork.db'
+        ports:
+        - containerPort: {{ .Values.container_port }}
+      imagePullSecrets:
+      - name: registry-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grid-gateway-{{ $uuid }}
+  namespace: flow
+  labels:
+    app-name: grid-gateway-{{ $uuid }}
+spec:
+  selector:
+    app-name: grid-gateway-{{ $uuid }}
+  type: NodePort
+  ports:
+    - name: grid-gateway-{{ $uuid }}
+      port: {{ .Values.port }}
+      protocol: TCP
+      targetPort: {{ .Values.port }}
+      nodePort: {{ .Values.port }}

@@ -1,0 +1,60 @@
+{{- $uuid := uuidv4 | trunc 10 }}
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: grid-node-{{ $uuid }}
+  namespace: flow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: grid-node-{{ $uuid }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: grid-node-{{ $uuid }}
+    spec:
+      containers:
+      - name: grid-node-{{ $uuid }}
+        image: {{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/grid-node:development
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        resources:
+          requests:
+            memory: "100Mi"
+          limits:
+            memory: "1Gi"
+        env:
+        - name: NODE_ID
+          value: {{ .Values.id }}
+        - name: ADDRESS
+          value: "http://{{ .Values.hostname }}:{{ .Values.port }}"
+        - name: PORT
+          value: "{{ .Values.port }}"
+        - name: NETWORK
+          value: {{ .Values.grid_network_url }}
+        - name: DATABASE_URL
+          value: 'sqlite:///databasenode.db'
+        ports:
+        - containerPort: {{ .Values.port }}
+      imagePullSecrets:
+      - name: registry-secret
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: grid-node-{{ $uuid }}
+  namespace: flow
+  labels:
+    app-name: grid-node-{{ $uuid }}
+spec:
+  selector:
+    app-name: grid-node-{{ $uuid }}
+  type: NodePort
+  ports:
+    - name: {{ .Values.id }}
+      port: {{ .Values.port }}
+      protocol: TCP
+      targetPort: {{ .Values.port }}
+      nodePort: {{ .Values.port }}

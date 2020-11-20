@@ -1,0 +1,14 @@
+---
+global:
+    registry_url: ""
+    registry_project: "openmined"
+    pull_policy_pods: "Always"
+    flow_namespace: "flow"
+    fast_data_dir: /home/kaapana
+    slow_data_dir: /home/kaapana
+id: ""
+port: 5000
+grid_network_url:
+hostname:
+multi_instance_suffix: ""
+containerPort: 5000

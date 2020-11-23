@@ -1,18 +1,18 @@
 # Copy me and only adapt values.yaml and Chart.yaml!
-{{ if eq .Values.action "prefetch" }}
+{{ if eq .Values.global.action "prefetch" }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: prefetch-{{ .Values.image }}
+  name: prefetch-{{ .Values.global.image }}
   namespace: default
 spec:
   selector:
     matchLabels:
-      app-name: prefetch-{{ .Values.image }}-{{ .Values.version }}
+      app-name: prefetch-{{ .Values.global.image }}-{{ .Values.global.version }}
   template:
     metadata:
       labels:
-        app-name: prefetch-{{ .Values.image }}-{{ .Values.version }}
+        app-name: prefetch-{{ .Values.global.image }}-{{ .Values.global.version }}
     spec:
       initContainers:
         - name: init
@@ -26,11 +26,11 @@ spec:
             - name: TIMEOUT
               value: "10"
       containers:
-      - name: prefetch-{{ .Values.image }}
-        image: "{{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
+      - name: prefetch-{{ .Values.global.image }}
+        image: "{{- if .Values.global.custom_registry_url }}{{ .Values.global.custom_registry_url }}{{- else}}{{ .Values.global.registry_url }}{{- end }}{{- if .Values.global.custom_registry_project }}{{ .Values.global.custom_registry_project }}{{- else}}{{ .Values.global.registry_project }}{{- end }}/{{ .Values.global.image }}:{{ .Values.global.version }}"
         env:
           - name: ACTION
-            value: {{ .Values.action }}
+            value: {{ .Values.global.action }}
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
       imagePullSecrets:
         - name: registry-secret
@@ -38,7 +38,7 @@ spec:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .Values.image }}
+  name: {{ .Values.global.image }}
   namespace: default
 spec:
   template:
@@ -55,12 +55,12 @@ spec:
             - name: TIMEOUT
               value: "10"
       containers:
-      - name: copy-{{ .Values.image }}
-        image: "{{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
+      - name: copy-{{ .Values.global.image }}
+        image: "{{- if .Values.global.custom_registry_url }}{{ .Values.global.custom_registry_url }}{{- else}}{{ .Values.global.registry_url }}{{- end }}{{- if .Values.global.custom_registry_project }}{{ .Values.global.custom_registry_project }}{{- else}}{{ .Values.global.registry_project }}{{- end }}/{{ .Values.global.image }}:{{ .Values.global.version }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
         - name: ACTION
-          value: {{ .Values.action }}
+          value: {{ .Values.global.action }}
         volumeMounts:
         - name: data
           mountPath: "/workflows"

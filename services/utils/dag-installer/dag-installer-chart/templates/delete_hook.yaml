@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: remove-{{ .Values.image }}
+  name: remove-{{ .Values.global.image }}
   namespace: default
   annotations:
     "helm.sh/hook": post-delete
@@ -12,8 +12,8 @@ spec:
   template:
     spec:
       containers:
-      - name: remove-{{ .Values.image }}
-        image: "{{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
+      - name: remove-{{ .Values.global.image }}
+        image: "{{- if .Values.global.custom_registry_url }}{{ .Values.global.custom_registry_url }}{{- else}}{{ .Values.global.registry_url }}{{- end }}{{- if .Values.global.custom_registry_project }}{{ .Values.global.custom_registry_project }}{{- else}}{{ .Values.global.registry_project }}{{- end }}/{{ .Values.global.image }}:{{ .Values.global.version }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
         - name: ACTION

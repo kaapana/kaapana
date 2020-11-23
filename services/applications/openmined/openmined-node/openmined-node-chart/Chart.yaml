@@ -4,6 +4,6 @@ description: A Helm chart for Kubernetes
 name: openmined-node
 version: 0.1.0-vdev
 keywords:
-- kaapanaapplication
-- kaapanamultiinstallable
-- kaapanaexperimental
+# - kaapanaapplication
+# - kaapanamultiinstallable
+# - kaapanaexperimental

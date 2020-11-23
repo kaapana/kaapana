@@ -1,13 +1,9 @@
 ---
 global:
-    registry_url: "dktk-jip-registry.dkfz.de"
-    registry_project: "kaapana"
-    pull_policy_pods: "Always"
-    flow_namespace: "flow"
-    fast_data_dir: /home/kaapana
-    slow_data_dir: /home/kaapana
-ingress_path: /pysyft-nb
-mount_path: /workspace
-multi_instance_suffix: ""
-port: 8888
-container_port: 8888
+    registry_url: ""
+    registry_project: ""
+    pull_policy_pods: ""
+    base_namespace: ""
+    fast_data_dir: ""
+    slow_data_dir: ""
+mount_path: ""

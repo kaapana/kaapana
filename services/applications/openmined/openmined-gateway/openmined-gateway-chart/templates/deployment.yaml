@@ -4,7 +4,7 @@ kind: Deployment
 metadata:
   # This name uniquely identifies the Deployment
   name: grid-gateway-{{ $uuid }}
-  namespace: flow
+  namespace: {{ .Values.global.base_namespace }}
 spec:
   replicas: 1
   selector:
@@ -32,7 +32,7 @@ spec:
         - name: PORT
           value: "{{ .Values.port }}"
         - name: SECRET_KEY
-          value: "aj20kale7762j2ds"
+          value: "kaapana-secret-key"
         - name: DATABASE_URL
           value: 'sqlite:///databasenetwork.db'
         ports:
@@ -44,7 +44,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: grid-gateway-{{ $uuid }}
-  namespace: flow
+  namespace: {{ .Values.global.base_namespace }}
   labels:
     app-name: grid-gateway-{{ $uuid }}
 spec:

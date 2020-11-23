@@ -5,7 +5,7 @@ sed -i "s+^.*NotebookApp.base_url.*$+c.NotebookApp.base_url = '$INGRESS_PATH'+g"
 # Use the passed WORKSPACE DIRECTORY
 # Otherwise use /workspace
 if [ -z "${WORKSPACE_DIR}" ]; then
-  WORKSPACE="/workspace"
+  WORKSPACE="/appdata"
 else
   WORKSPACE="${WORKSPACE_DIR}"
 fi

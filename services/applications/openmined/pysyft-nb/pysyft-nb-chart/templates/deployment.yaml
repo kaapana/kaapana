@@ -3,24 +3,23 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: jupyter-{{ $uuid }}
-  namespace: flow
+  name: pysyft-nb-{{ $uuid }}
+  namespace: {{ .Values.global.base_namespace }}
   labels:
-    k8s-app: jupyter-{{ $uuid }}
+    k8s-app: pysyft-nb-{{ $uuid }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: jupyter-{{ $uuid }}
+      app-name: pysyft-nb-{{ $uuid }}
   template:
     metadata:
       labels:
-        app-name: jupyter-{{ $uuid }}
+        app-name: pysyft-nb-{{ $uuid }}
     spec:
       containers:
-      - name: pysyft-nb
+      - name: pysyft-nb-{{ $uuid }}
         image: {{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/openmined:0.1.0-vdev
-        name: jupyter-{{ $uuid }}
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         # memory space
         resources:
@@ -28,19 +27,23 @@ spec:
             memory: "100Mi"
           limits:
             memory: "1Gi"
-        env:
-        - name: INGRESS_PATH
-          value: {{ .Values.ingress_path}}
         ports:
         - name: pysyft-nb-http
-          containerPort: {{ .Values.container_port }}
+          containerPort: 8888
+        env:
+        - name: INGRESS_PATH
+          value: "/pysyft-nb-{{ $uuid }}"
         volumeMounts:
           - name: pysyftdata
-            mountPath: {{ .Values.mount_path }}
+            mountPath: /appdata
       volumes:
       - name: pysyftdata
         hostPath:
-          path: /home/kaapana/minio
+          {{- if .Values.mount_path }}
+          path: {{ .Values.mount_path }}
+          {{- else }}
+          path: {{ .Values.global.slow_data_dir }}/minio
+          {{- end }}
           type: DirectoryOrCreate
       imagePullSecrets:
       - name: registry-secret
@@ -48,14 +51,14 @@ spec:
 kind: Service
 apiVersion: v1
 metadata:
-  name: jupyter-{{ $uuid }}
-  namespace: flow
+  name: pysyft-nb-{{ $uuid }}
+  namespace: {{ .Values.global.base_namespace }}
 spec:
   selector:
-    app-name: jupyter-{{ $uuid }}
+    app-name: pysyft-nb-{{ $uuid }}
   ports:
     - protocol: TCP
-      port: {{ .Values.port }}
+      port: 8888
       targetPort: pysyft-nb-http
       name: log-http-port
   type: ClusterIP
@@ -63,8 +66,8 @@ spec:
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
-  name: jupyter-{{ $uuid }}
-  namespace: flow
+  name: pysyft-nb-{{ $uuid }}
+  namespace: {{ .Values.global.base_namespace }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
@@ -75,7 +78,7 @@ spec:
   - host: 
     http:
       paths:
-      - path: {{ .Values.ingress_path }}
+      - path: "/pysyft-nb-{{ $uuid }}"
         backend:
-          serviceName: jupyter-{{ $uuid }}
+          serviceName: pysyft-nb-{{ $uuid }}
           servicePort: log-http-port

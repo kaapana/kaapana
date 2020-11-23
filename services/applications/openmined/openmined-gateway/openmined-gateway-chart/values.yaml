@@ -2,9 +2,9 @@
 global:
     registry_url: ""
     registry_project: "openmined"
-    pull_policy_pods: "Always"
-    flow_namespace: "flow"
-    fast_data_dir: /home/kaapana
-    slow_data_dir: /home/kaapana
-port: 7000
-container_port: 7000
+    pull_policy_pods: "IfNotPresent"
+    base_namespace: "base"
+    fast_data_dir: ""
+    slow_data_dir: ""
+port: ""
+container_port: ""

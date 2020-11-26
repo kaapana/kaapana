@@ -1,5 +1,5 @@
 [![Documentation Status](https://readthedocs.org/projects/kaapana/badge/?version=release-0.1.0)](https://kaapana.readthedocs.io/en/release-0.1.0/?badge=release-0.1.0)
-<a href="https://join.slack.com/t/kaapana/shared_invite/zt-hilvek0w-ucabihas~jn9PDAM0O3gVQ/"><img src="https://img.shields.io/badge/chat-slack-red.svg" /></a>
+<a href="https://join.slack.com/t/kaapana/shared_invite/zt-hilvek0w-ucabihas~jn9PDAM0O3gVQ/"><img src="https://img.shields.io/badge/chat-slack-blueviolet" /></a>
 
 ## What is Kaapana?
 

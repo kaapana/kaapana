@@ -35,7 +35,7 @@ spec:
         - name: NETWORK
           value: {{ .Values.grid_network_url }}
         - name: DATABASE_URL
-          value: 'sqlite:///databasenode.db'
+          value: 'postgresql://node:node@postgres-node.base:5432/node'
         ports:
         - containerPort: {{ .Values.port }}
       imagePullSecrets:

@@ -18,24 +18,24 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: postgres-node-{{ .Values.global.id }}
+  name: postgres-gateway-{{ .Values.global.id }}
   namespace: {{ .Values.global.base_namespace }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: postgres-node-{{ .Values.global.id }}
+      app-name: postgres-gateway-{{ .Values.global.id }}
   template:
     metadata:
       labels:
-        app-name: postgres-node-{{ .Values.global.id }}
+        app-name: postgres-gateway-{{ .Values.global.id }}
     spec:
       restartPolicy: Always
       containers:
         - name: postgres
           image: {{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/postgres:9.6-alpine
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
-          args: ["-c", "max_connections=200"]
+          args: ["-c", "max_connections=200"]          
           ports:
             - containerPort: 5432
               protocol: TCP
@@ -50,11 +50,11 @@ spec:
               subPath: pgdata
           env:
             - name: POSTGRES_USER
-              value: node
+              value: gateway
             - name: POSTGRES_PASSWORD
-              value: node
+              value: gateway
             - name: POSTGRES_DB
-              value: node
+              value: gateway
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
             - name: POD_IP
@@ -81,7 +81,7 @@ spec:
         - name: dbvol
           # emptyDir: {}
           hostPath:
-            path: {{ .Values.global.fast_data_dir }}/postgres-node
+            path: {{ .Values.global.fast_data_dir }}/postgres-gateway
             type: DirectoryOrCreate
       imagePullSecrets:
       - name: registry-secret
@@ -89,11 +89,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgres-node-{{ .Values.global.id }}
+  name: postgres-gateway-{{ .Values.global.id }}
   namespace: {{ .Values.global.base_namespace }}
 spec:
   selector:
-    app-name: postgres-node-{{ .Values.global.id }}
+    app-name: postgres-gateway-{{ .Values.global.id }}
   ports:
     - port: 5432
       targetPort: 5432

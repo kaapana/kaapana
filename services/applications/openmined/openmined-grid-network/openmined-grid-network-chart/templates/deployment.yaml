@@ -1,26 +1,24 @@
-{{- $uuid := uuidv4 | trunc 10 }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  # This name uniquely identifies the Deployment
-  name: grid-gateway-{{ $uuid }}
+  name: grid-gateway-{{ .Values.global.id }}
   namespace: {{ .Values.global.base_namespace }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: grid-gateway-{{ $uuid }}
+      app-name: grid-gateway-{{ .Values.global.id }}
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app-name: grid-gateway-{{ $uuid }}
+        app-name: grid-gateway-{{ .Values.global.id }}
     spec:
-      # Refer to the PVC created earlier
       containers:
-      - name: grid-gateway-{{ $uuid }}
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/grid-network:development
+      - name: grid-gateway-{{ .Values.global.id }}
+        #image: {{ .Values.registry_url }}{{ .Values.registry_project }}/openmined-grid-network:0.1.0-vdev
+        image: {{  .Values.global.registry_url }}{{ .Values.global.registry_project }}/openmined-grid-network:0.1.0-vdev
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         # memory space
         resources:
@@ -34,7 +32,7 @@ spec:
         - name: SECRET_KEY
           value: "kaapana-secret-key"
         - name: DATABASE_URL
-          value: 'sqlite:///databasenetwork.db'
+          value: 'postgresql://gateway:gateway@postgres-gateway-{{ .Values.global.id }}.base:5432/gateway'
         ports:
         - containerPort: {{ .Values.container_port }}
       imagePullSecrets:
@@ -43,16 +41,16 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: grid-gateway-{{ $uuid }}
+  name: grid-gateway-{{ .Values.global.id }}
   namespace: {{ .Values.global.base_namespace }}
   labels:
-    app-name: grid-gateway-{{ $uuid }}
+    app-name: grid-gateway-{{ .Values.global.id }}
 spec:
   selector:
-    app-name: grid-gateway-{{ $uuid }}
+    app-name: grid-gateway-{{ .Values.global.id }}
   type: NodePort
   ports:
-    - name: grid-gateway-{{ $uuid }}
+    - name: grid-gateway-{{ .Values.global.id }}
       port: {{ .Values.port }}
       protocol: TCP
       targetPort: {{ .Values.port }}

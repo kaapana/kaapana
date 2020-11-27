@@ -8,7 +8,6 @@ global:
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana
 port: ""
-grid_network_url: ""
-hostname: ""
+container_port: ""
 registry_url: ""
 registry_project: "openmined"

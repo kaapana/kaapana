@@ -1,24 +1,23 @@
-{{- $uuid := uuidv4 | trunc 10 }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: grid-node-{{ $uuid }}
+  name: grid-node-{{ .Values.global.id }}
   namespace: {{ .Values.global.base_namespace }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: grid-node-{{ $uuid }}
+      app-name: grid-node-{{ .Values.global.id }}
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app-name: grid-node-{{ $uuid }}
+        app-name: grid-node-{{ .Values.global.id }}
     spec:
       containers:
-      - name: grid-node-{{ $uuid }}
-        image: {{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/grid-node:development
+      - name: grid-node-{{ .Values.global.id }}
+        image: {{ .Values.registry_url }}{{ .Values.registry_project }}/grid-node:development
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
         resources:
           requests:
@@ -27,7 +26,7 @@ spec:
             memory: "1Gi"
         env:
         - name: NODE_ID
-          value: {{ .Values.id }}
+          value: {{ .Values.global.id }}
         - name: ADDRESS
           value: "http://{{ .Values.hostname }}:{{ .Values.port }}"
         - name: PORT
@@ -35,7 +34,7 @@ spec:
         - name: NETWORK
           value: {{ .Values.grid_network_url }}
         - name: DATABASE_URL
-          value: 'postgresql://node:node@postgres-node.base:5432/node'
+          value: 'postgresql://node:node@postgres-node-{{ .Values.global.id }}.base:5432/node'
         ports:
         - containerPort: {{ .Values.port }}
       imagePullSecrets:
@@ -44,16 +43,16 @@ spec:
 kind: Service
 apiVersion: v1
 metadata:
-  name: grid-node-{{ $uuid }}
+  name: grid-node-{{ .Values.global.id }}
   namespace: {{ .Values.global.base_namespace }}
   labels:
-    app-name: grid-node-{{ $uuid }}
+    app-name: grid-node-{{ .Values.global.id }}
 spec:
   selector:
-    app-name: grid-node-{{ $uuid }}
+    app-name: grid-node-{{ .Values.global.id }}
   type: NodePort
   ports:
-    - name: {{ .Values.id }}
+    - name: {{ .Values.global.id }}
       port: {{ .Values.port }}
       protocol: TCP
       targetPort: {{ .Values.port }}

@@ -1,7 +1,7 @@
 ---
 dependencies:
   - name: airflow-chart
-    version: "1.10.12"
+    version: "1.10.13-vdev"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: ctp-chart
     version: "0.1.1"

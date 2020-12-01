@@ -28,8 +28,8 @@ dag = DAG(
 )
 
 get_input = LocalGetInputDataOperator(dag=dag, data_type="json")
-delete_dcm_pacs = LocalDeleteFromPacsOperator(dag=dag, delete_complete_study=False)
-delete_dcm_elastic = LocalDeleteFromElasticOperator(dag=dag, delete_complete_study=False)
-clean = LocalWorkflowCleanerOperator(dag=dag)
+delete_dcm_pacs = LocalDeleteFromPacsOperator(dag=dag,input_operator=get_input, delete_complete_study=False)
+delete_dcm_elastic = LocalDeleteFromElasticOperator(dag=dag,input_operator=get_input, delete_complete_study=False)
+clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
 get_input >> delete_dcm_pacs >> delete_dcm_elastic >> clean

@@ -22,3 +22,4 @@ dependencies:
   - name: kube-helm-chart
     version: "0.1.0"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+    

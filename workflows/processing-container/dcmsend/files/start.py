@@ -1,8 +1,6 @@
 import sys, os
 import glob
 from subprocess import PIPE, run
-from datetime import datetime
-
 import pydicom
 from pathlib import Path
 

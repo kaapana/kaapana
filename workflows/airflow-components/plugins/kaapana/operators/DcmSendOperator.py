@@ -40,7 +40,7 @@ class DcmSendOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="{}{}/dcmsend:3.6.2".format(default_registry, default_project),
+            image="{}{}/dcmsend:3.6.4-vdev".format(default_registry, default_project),
             name="dcmsend",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,

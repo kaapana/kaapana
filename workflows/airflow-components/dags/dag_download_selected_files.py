@@ -43,7 +43,7 @@ dag = DAG(
 )
 
 get_input = LocalGetInputDataOperator(dag=dag)
-put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operator_dirs=['initial-input'], bucket_name="downloads", file_white_tuples=('.zip', '.dcm'), zip_files=True)
-clean = LocalWorkflowCleanerOperator(dag=dag)
+put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operator_dirs=[get_input.operator_out_dir], bucket_name="downloads", file_white_tuples=('.zip', '.dcm'), zip_files=True)
+clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
 get_input >> put_to_minio >> clean

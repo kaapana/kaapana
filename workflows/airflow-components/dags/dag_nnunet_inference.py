@@ -140,15 +140,16 @@ dag = DAG(
     schedule_interval=None
 )
 
-get_input = LocalGetInputDataOperator(dag=dag,check_modality=True)
+get_input = LocalGetInputDataOperator(dag=dag, check_modality=True)
 get_task_model = GetTaskModelOperator(dag=dag)
 # get_task_model = GetContainerModelOperator(dag=dag)
-dcm2nifti = DcmConverterOperator(dag=dag, output_format='nii.gz')
+dcm2nifti = DcmConverterOperator(dag=dag, input_operator=get_input, output_format='nii.gz')
 nnunet_predict = NnUnetOperator(dag=dag, input_dirs=[dcm2nifti.operator_out_dir], input_operator=dcm2nifti)
 
 alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     dag=dag,
+    input_operator=get_input,
     segmentation_operator=nnunet_predict,
     input_type="multi_label_seg",
     multi_label_seg_name=alg_name,
@@ -156,6 +157,6 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
 )
 
 dcmseg_send_multi = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi)
-clean = LocalWorkflowCleanerOperator(dag=dag)
+clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
 get_input >> get_task_model >> dcm2nifti >> nnunet_predict >> nrrd2dcmSeg_multi >> dcmseg_send_multi >> clean

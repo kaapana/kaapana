@@ -107,7 +107,7 @@ class DockerContainer:
                 elif line.__contains__('FROM') and not line.__contains__('#ignore'):
                     self.base_images.append(line.split("FROM ")[1].split(" ")[0].rstrip().strip().replace("\"", ""))
                 elif line.__contains__('LABEL CI_IGNORE='):
-                    self.ci_ignore = True if line.split("=")[1].rstrip().strip().replace("\"", "").lower() == "true" else False
+                    self.ci_ignore = True if line.split("=")[1].rstrip().lower().replace("\"","").replace("'","") == "true" else False
 
         if self.docker_registry == None:
             self.docker_registry = default_registry

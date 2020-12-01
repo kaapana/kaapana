@@ -5,7 +5,7 @@ import pydicom
 from dicomweb_client.api import DICOMwebClient
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INITIAL_INPUT_DIR
 
 
 class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
@@ -13,7 +13,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     def get_files(self, ds, **kwargs):
         print("Starting module LocalGetRefSeriesOperator")
 
-        if self.search_policy != 'reference_uid':
+        if self.search_policy != 'reference_uid' and self.modality == None:
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
             print("")
             print("Parameter 'modality' has to be set for search_policy: {} !".format(self.search_policy))
@@ -30,7 +30,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
         for batch_element_dir in batch_folder:
             print("batch_element_dir: {}".format(batch_element_dir))
-            dcm_files = sorted(glob.glob(os.path.join(batch_element_dir, "initial-input", "*.dcm*"), recursive=True))
+            dcm_files = sorted(glob.glob(os.path.join(batch_element_dir, self.operator_in_dir, "*.dcm*"), recursive=True))
             if len(dcm_files) > 0:
                 incoming_dcm = pydicom.dcmread(dcm_files[0])
 
@@ -134,7 +134,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
     def __init__(self,
                  dag,
-                 search_policy="reference_uid",
+                 search_policy="reference_uid", # reference_uid , study_uid , patient_uid
                  modality = None,
                  pacs_dcmweb_host='http://dcm4chee-service.store.svc',
                  pacs_dcmweb_port='8080',

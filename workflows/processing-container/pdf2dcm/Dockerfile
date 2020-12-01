@@ -1,6 +1,6 @@
 FROM local-only/dcmtk-base:3.6.4-vdev
 
-LABEL IMAGE="dcmsend"
+LABEL IMAGE="pdf2dcm"
 LABEL VERSION="3.6.4-vdev"
 LABEL CI_IGNORE="False"
 

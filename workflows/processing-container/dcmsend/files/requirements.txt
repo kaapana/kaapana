@@ -1,2 +1,0 @@
-pydicom==2.0.0
-dicomweb-client==0.50.0

@@ -6,7 +6,7 @@ set -euf -o pipefail
 PROJECT_NAME="kaapana-platform" # name of the platform Helm chart
 DEFAULT_VERSION="0.1.1-vdev"    # version of the platform Helm chart
 
-DEV_MODE="false" # dev-mode -> containers will always be re-downloaded after pod-restart
+DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart
 
 CONTAINER_REGISTRY_URL=""                          # eg 'dktk-jip-registry.dkfz.de' -> URL for the Docker registry (has to be 'local' for build-mode 'local' and the username for build-mode 'dockerhub')
 CONTAINER_REGISTRY_PROJECT=""                      # eg '/kaapana' -> The slash (/) in front of the project is important!!

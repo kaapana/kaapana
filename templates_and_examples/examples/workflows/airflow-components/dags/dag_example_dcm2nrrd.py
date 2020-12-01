@@ -29,7 +29,7 @@ dag = DAG(
 get_input = LocalGetInputDataOperator(dag=dag)
 convert = DcmConverterOperator(dag=dag, output_format='nrrd')
 put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[convert], file_white_tuples=('.nrrd'))
-clean = LocalWorkflowCleanerOperator(dag=dag)
+clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
 get_input >> convert >> put_to_minio >> clean
 

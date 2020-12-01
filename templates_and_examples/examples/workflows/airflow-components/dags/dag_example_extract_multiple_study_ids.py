@@ -33,7 +33,7 @@ extract_two = ExtractStudyIdOperator(dag=dag, parallel_id='two')
 pool_jsons_one = PoolJsonsOperator(dag=dag, input_operator=extract_one)
 pool_jsons_two = PoolJsonsOperator(dag=dag, input_operator=extract_two)
 put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[pool_jsons_one, pool_jsons_two])
-clean = LocalWorkflowCleanerOperator(dag=dag)
+clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
 get_input >> extract_one >> pool_jsons_one >> put_to_minio
 get_input >> extract_two >> pool_jsons_two >> put_to_minio

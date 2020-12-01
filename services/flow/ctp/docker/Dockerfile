@@ -1,8 +1,8 @@
 FROM ubuntu:20.04 as build
 
-LABEL IMAGE=ctp
-LABEL VERSION=0.1.1
-LABEL CI_IGNORE=False
+LABEL IMAGE="ctp"
+LABEL VERSION="0.1.1"
+LABEL CI_IGNORE="False"
 
 ENV TZ=Europe/Berlin
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone

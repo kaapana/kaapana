@@ -194,6 +194,14 @@ class KaapanaBaseOperator(BaseOperator):
         self.host_network = host_network
         self.enable_proxy = enable_proxy
 
+        if self.parallel_id is None:
+            self.kube_name = f'{self.name}'
+        else:
+            self.kube_name = f'{self.name}-{self.parallel_id}'
+
+        self.kube_name = self.kube_name + "-" + str(uuid.uuid4())[:4]
+        self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63)
+
         self.volume_mounts.append(VolumeMount(
             'dcmdata', mount_path='/data', sub_path=None, read_only=False))
         volume_config = {
@@ -295,7 +303,7 @@ class KaapanaBaseOperator(BaseOperator):
             print(json.dumps(self.env_vars, indent=4, sort_keys=True))
 
         for volume in self.volumes:
-            if self.data_dir == volume.configs["hostPath"]["path"]:
+            if "hostPath" in volume.configs and self.data_dir == volume.configs["hostPath"]["path"]:
                 volume.configs["hostPath"]["path"] = os.path.join(volume.configs["hostPath"]["path"], context["run_id"])
 
         try:
@@ -344,6 +352,7 @@ class KaapanaBaseOperator(BaseOperator):
     @staticmethod
     def on_failure(info_dict):
         print("##################################################### ON FAILURE!")
+        print("## POD: {}".format(info_dict["ti"].task.kube_name))
         keep_pod_messages = [
             State.SUCCESS,
             State.FAILED
@@ -362,6 +371,7 @@ class KaapanaBaseOperator(BaseOperator):
     @staticmethod
     def on_retry(info_dict):
         print("##################################################### on_retry!")
+        print("## POD: {}".format(info_dict["ti"].task.kube_name))
         keep_pod_messages = [
             State.SUCCESS,
             State.FAILED
@@ -383,14 +393,6 @@ class KaapanaBaseOperator(BaseOperator):
         print(result)
 
     def set_context_variables(self, context):
-        if self.parallel_id is None:
-            self.kube_name = f'{self.name}'
-        else:
-            self.kube_name = f'{self.name}-{self.parallel_id}'
-
-        self.kube_name = self.kube_name + "-" + str(uuid.uuid4())[:4]
-        self.kube_name = self.kube_name + f'-{self.extract_timestamp(context["run_id"])}'
-        self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63)
         self.labels['run_id'] = cure_invalid_name(context["run_id"], r'(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?')
 
     @staticmethod

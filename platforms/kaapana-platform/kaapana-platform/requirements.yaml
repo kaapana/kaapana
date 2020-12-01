@@ -1,7 +1,7 @@
 ---
 dependencies:
   - name: kaapana-core
-    version: "0.1.0"
+    version: "0.1.1-vdev"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: kibana-kaapana-chart
     version: "6.8.12"

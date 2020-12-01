@@ -71,7 +71,7 @@ def start_reindexing(ds, **kwargs):
 
 
 clean_elasticsearch = LocalDeleteFromElasticOperator(dag=dag, delete_all_documents=True)
-clean = LocalWorkflowCleanerOperator(dag=dag)
+clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
 reindex_pacs = PythonOperator(
     task_id='reindex-pacs',

@@ -35,6 +35,6 @@ get_object_from_minio = LocalMinioOperator(dag=dag, action_operator_dirs=['dicom
 unzip_files = LocalUnzipFileOperator(dag=dag, input_operator=get_object_from_minio)
 dicom_send = DcmSendOperator(dag=dag, input_operator=unzip_files, ae_title='uploaded', level='pile')
 remove_object_from_minio = LocalMinioOperator(dag=dag, parallel_id='removing', action='remove', trigger_rule=TriggerRule.ALL_DONE)
-clean = LocalWorkflowCleanerOperator(dag=dag)
+clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
 get_object_from_minio >> unzip_files >> dicom_send >> remove_object_from_minio >> clean

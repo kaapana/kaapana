@@ -43,7 +43,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             return
 
     def get_data(self, studyUID, seriesUID, dag_run_id):
-        target_dir = os.path.join(WORKFLOW_DIR, dag_run_id, BATCH_NAME, f'{seriesUID}', INITIAL_INPUT_DIR)
+        target_dir = os.path.join(WORKFLOW_DIR, dag_run_id, BATCH_NAME, f'{seriesUID}', self.operator_out_dir)
 
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)

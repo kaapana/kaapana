@@ -29,6 +29,6 @@ dag = DAG(
 get_input = LocalGetInputDataOperator(dag=dag)
 extract = ExtractStudyIdOperator(dag=dag)
 put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[extract])
-clean = LocalWorkflowCleanerOperator(dag=dag)
+clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
 get_input >> extract >>  put_to_minio >> clean

@@ -15,4 +15,4 @@ minio
 bleach
 pint
 timeloop
-apache-airflow==1.10.12
+apache-airflow==1.10.13

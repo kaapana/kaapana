@@ -1,6 +1,5 @@
 import sys, os
 import glob
-from datetime import datetime
 
 batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
 

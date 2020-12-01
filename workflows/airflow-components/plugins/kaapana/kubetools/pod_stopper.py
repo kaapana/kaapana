@@ -21,6 +21,7 @@ from kubernetes import client
 from airflow import AirflowException
 from kaapana.kubetools.kube_client import get_kube_client
 import json
+import time
 
 
 class PodStopper(LoggingMixin):
@@ -43,11 +44,34 @@ class PodStopper(LoggingMixin):
             raise
 
     def stop_pod_by_name(self, pod_id, namespace="flow-jobs"):
+        max_tries= 10
+        delay=6
+        tries = 0 
+        found = False 
         req = client.V1DeleteOptions()
+        print("")
+        self.log.info("################ Deleting Pod: {}".format(pod_id))
         try:
-            resp = self._client.delete_namespaced_pod(name=pod_id, body=req, namespace=namespace, grace_period_seconds=0, pretty=True)
-            return resp
-        except ApiException:
-            self.log.exception('Exception when attempting to delete namespaced Pod.')
-            self.log.warn("Could not delete pod: {}".format(pod_id))
-            # raise
+            pods_list = [pod.metadata.name for pod in self._client.list_namespaced_pod(namespace=namespace, pretty=True).items]    
+            while pod_id in pods_list and tries < max_tries:
+                self.log.info("### attempt: {}".format(tries))
+                found = True
+                self._client.delete_namespaced_pod(name=pod_id, body=req, namespace=namespace, grace_period_seconds=0)  
+                time.sleep(delay+tries)
+                pods_list = [pod.metadata.name for pod in self._client.list_namespaced_pod(namespace=namespace, pretty=True).items]
+                tries+=1
+            
+            if tries >= max_tries:
+                self.log.info("################ Could not delete pod!")
+            elif not found:
+                self.log.info("################ Pod not found!")
+            else:
+                self.log.info("################ Pod deleted.")
+
+            print("")
+
+        except Exception as e:
+            self.log.exception("Exception when attempting to delete namespaced Pod.")
+            self.log.exceptionrint("Could not delete pod: {}".format(pod_id))
+            self.log.exception(e)
+

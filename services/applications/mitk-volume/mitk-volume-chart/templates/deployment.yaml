@@ -22,9 +22,9 @@ spec:
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           requests:
-            memory: "100Mi"
+            memory: "5Gi"
           limits:
-            memory: "1Gi"
+            memory: "8Gi"
         env:
         - name: INGRESS_PATH
           value: mitk-vol-{{ $uuid }}

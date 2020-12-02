@@ -205,7 +205,9 @@ function update_extensions {
 function shell_update_extensions {
 
     if [ ! "$QUIET" = "true" ];then
-        read -e -p "${YELLOW}Which pull-docker-chart version should be used? If you have no idea, press enter and accept the default: ${NC}" -i $DEFAULT_VERSION chart_version;
+        echo -e "${YELLOW}Which pull-docker-chart version should be used? ${NC}";
+        echo -e "${YELLOW}If you have no idea, press enter and accept the default. ${NC}";
+        read -e -p "${YELLOW}version: ${NC}" -i $DEFAULT_VERSION chart_version;
     else
         chart_version=$DEFAULT_VERSION
     fi

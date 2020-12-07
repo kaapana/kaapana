@@ -174,12 +174,21 @@ def getAllDagRuns():
             all_dagruns = all_dagruns.filter(DagRun.state == state)
 
         all_dagruns = list(all_dagruns.order_by(DagRun.execution_date).all())
+        _log.error(DagRun.execution_date)
 
         if limit is not None:
             all_dagruns = all_dagruns[:int(limit)]
 
         dagruns = []
         for dagrun in all_dagruns:
+
+            # Returns the task instances for this dag run.
+            task_instances = dagrun.get_task_instances(session=session)
+            failed_task_instance = []
+
+            for task_instance in task_instances:
+                if task_instance.state == 'failed':
+                    failed_task_instance.append(task_instance)
 
             conf = dagrun.conf
             if conf is not None and "user_public_id" in conf:
@@ -200,6 +209,7 @@ def getAllDagRuns():
                 # In most cases [0] will be the only element of the list but if there are more than one element,
                 # the [0] include the first task which is failed in the dagrun.
                 task_id = failed_task_instance[0].task_id
+
                 dagruns.append({
                     'user': user,
                     'dag_id': dagrun.dag_id,
@@ -351,14 +361,17 @@ def get_minio_credentials():
 def post_clear_task_instances(dag_id: str, execution_time: str, session=None):
     session = settings.Session()
     all_dagruns = session.query(DagRun)
-    dagrun = all_dagruns.filter(DagRun.dag_id == dag_id & DagRun.execution_date == execution_time)
+
+    dagruns = all_dagruns.filter(DagRun.dag_id == dag_id and DagRun.execution_date == execution_time)
 
     data = {
         'reset_dag_runs': True,
-        'start_date': dagrun.start_date,
-        'end_date': dagrun.end_date,
+        'start_date': dagruns[0].start_date,
+        'end_date': dagruns[0].end_date,
     }
-    dag = app.dag_bag.get_dag(dag_id)
+    dag_bag = session.query(DagBag)
+    dag = dag_bag.get_dag(dag_id)
+    # dag = app.dag_bag.get_dag(dag_id)
     if not dag:
         error_message = f"Dag id {dag_id} not found"
         print(error_message)

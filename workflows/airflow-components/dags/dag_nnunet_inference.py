@@ -135,8 +135,8 @@ args = {
 dag = DAG(
     dag_id='nnunet-predict',
     default_args=args,
-    concurrency=50,
-    max_active_runs=30,
+    concurrency=10,
+    max_active_runs=10,
     schedule_interval=None
 )
 

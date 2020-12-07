@@ -132,7 +132,7 @@ class LocalNnUnetPrepOperator(KaapanaPythonBaseOperator):
                 print("")
                 exit(1)
 
-            target_dicom_path = os.path.join(self.output_dir, "imagesTr", os.path.basename(seg_nifti[0]).replace(".nii.gz", "_0000.nii.gz"))
+            target_dicom_path = os.path.join(self.output_dir, "imagesTr", os.path.basename(dicom_nifti[0]).replace(".nii.gz", "_0000.nii.gz"))
             self.move_file(source=dicom_nifti[0], target=target_dicom_path)
 
             target_seg_path = os.path.join(self.output_dir, "labelsTr", os.path.basename(seg_nifti[0]))
@@ -140,8 +140,8 @@ class LocalNnUnetPrepOperator(KaapanaPythonBaseOperator):
 
             template_dataset_json["training"].append(
                 {
-                    "image": target_dicom_path,
-                    "label": target_seg_path
+                    "image": target_dicom_path.replace(self.run_dir,""),
+                    "label": target_seg_path.replace(self.run_dir,"")
                 }
             )
 
@@ -172,10 +172,10 @@ class LocalNnUnetPrepOperator(KaapanaPythonBaseOperator):
                 print("")
                 exit(1)
 
-            target_dicom_path = os.path.join(self.output_dir, "imagesTs", os.path.basename(seg_nifti[0]))
+            target_dicom_path = os.path.join(self.output_dir, "imagesTs", os.path.basename(dicom_nifti[0]))
             self.move_file(source=dicom_nifti[0], target=target_dicom_path)
 
-            template_dataset_json["test"].append(target_dicom_path)
+            template_dataset_json["test"].append(target_dicom_path.replace(self.run_dir,""))
 
         with open(os.path.join(self.output_dir, 'dataset.json'), 'w') as fp:
             json.dump(template_dataset_json, fp, indent=4, sort_keys=True)
@@ -199,7 +199,7 @@ class LocalNnUnetPrepOperator(KaapanaPythonBaseOperator):
                  tensor_size="3D",
                  shuffle_seed=None,
                  test_percentage=10,
-                 copy_target_data=True,
+                 copy_target_data=False,
                  operator_out_dir='datasets',
                  file_extensions='*.nii.gz',
                  *args, **kwargs):

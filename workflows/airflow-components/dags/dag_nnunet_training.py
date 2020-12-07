@@ -99,7 +99,7 @@ training_data_preparation = LocalNnUnetPrepOperator(
     test_percentage=10,
     operator_out_dir='datasets',
     file_extensions='*.nii.gz',
-    copy_target_data=False,
+    copy_target_data=True,
 )
 
 

@@ -1,7 +1,7 @@
 ---
 apiVersion: v1
 appVersion: "0.1.0-vdev"
-description: Radiomcis Airflow Dag
+description: Dag installer
 name: dag-installer
 version: "0.1.0-vdev"
     

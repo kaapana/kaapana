@@ -47,7 +47,7 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="{}{}/dcmqi:v1.2.2".format(default_registry, default_project),
+            image="{}{}/dcmqi:v1.2.2.1-vdev".format(default_registry, default_project),
             name="nrrd2dcmseg",
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],

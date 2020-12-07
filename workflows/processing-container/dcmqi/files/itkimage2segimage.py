@@ -4,7 +4,10 @@ import json
 import glob
 import re
 import math
+import random
 import pandas as pd
+import numpy as np
+from matplotlib import cm
 import subprocess
 import pydicom
 
@@ -23,7 +26,7 @@ def process_seg_info(seg_info, series_description):
         return code_meaning, series_description_code_meaning
 
 
-def create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, labelID=1):
+def create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, color, labelID=1):
     try:
         coding_scheme = code_lookup_table.loc[code_meaning.lower()]
     except KeyError:
@@ -33,6 +36,8 @@ def create_segment_attribute(segment_algorithm_type, segment_algorithm_name, cod
     segment_attribute["labelID"] = labelID
     segment_attribute["SegmentAlgorithmType"] = segment_algorithm_type
     segment_attribute["SegmentAlgorithmName"] = segment_algorithm_name
+    segment_attribute["recommendedDisplayRGBValue"] = color
+
     segment_attribute["SegmentedPropertyCategoryCodeSequence"] = {
         "CodeValue": str(coding_scheme['Code Value']),
         "CodingSchemeDesignator": coding_scheme['Coding Scheme Designator'],
@@ -85,7 +90,7 @@ DCMQI = '/dcmqi/dcmqi-1.2.2-linux/bin/'
 
 
 # os.environ['BATCH_NAME'] = 'batch'
-# os.environ['OPERATOR_IN_DIR'] = 'initial-input'
+# os.environ['OPERATOR_IN_DIR'] = 'input'
 # os.environ['WORKFLOW_DIR'] = '/home/klaus/private_data/jip-data/dcmqi/nnunet_test-200727123756236842/'
 
 # # Case 1 single label segs with seg info
@@ -201,7 +206,7 @@ for batch_element_dir in batch_folders:
                 single_label_seg_info = rootname
 
             code_meaning, segmentation_information["SeriesDescription"] = process_seg_info(single_label_seg_info, series_description)
-            segment_attribute = create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning)
+            segment_attribute = create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, np.round(np.array(cm.get_cmap('gist_ncar', 20)(random.randint(0, 19))[:3])*255).astype(int).tolist())
 
             if create_multi_label_dcm_from_single_label_segs.lower() == 'true':
                 segment_attributes.append([segment_attribute])
@@ -261,13 +266,16 @@ for batch_element_dir in batch_folders:
             exit(1)
 
         if "algorithm" in data:
-            series_description = "{}-{}".format(segment_algorithm_name,data["algorithm"])
+            series_description = "{}-{}".format(segment_algorithm_name, data["algorithm"])
 
         segment_attributes = [[]]
+        label_counts = len(data['seg_info'])
+        colors = [np.round(np.array(cm.get_cmap('gist_ncar', label_counts)(idx)[:3])*255).astype(int).tolist() for idx in range(label_counts)]
+        random.shuffle(colors)
         for idx, single_label_seg_info in enumerate(data['seg_info']):
             print("process idx: {} - {}".format(idx,single_label_seg_info))
             code_meaning, segmentation_information["SeriesDescription"] = process_seg_info(single_label_seg_info, series_description)
-            segment_attribute = create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, labelID=idx+1)
+            segment_attribute = create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, colors[idx], labelID=idx+1)
             segment_attributes[0].append(segment_attribute)
         
     if input_type == 'multi_label_seg' or create_multi_label_dcm_from_single_label_segs.lower() == 'true':

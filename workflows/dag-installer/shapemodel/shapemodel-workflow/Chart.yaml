@@ -1,8 +1,9 @@
 ---
 apiVersion: v1
-appVersion: "0.1.0"
+appVersion: "0.1.1-vdev"
 description: DKFZ MIC automatic organ segmentation (3D Statistical Shapemodel)
-name: shapemodel-workflow
-version: "0.1.0"
+name: shapemodel-workflow-vdev
+version: "0.1.1-vdev"
 keywords:
 - kaapanaworkflow
+- kaapanaexperimental

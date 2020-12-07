@@ -1,0 +1,6 @@
+---
+global:
+    pull_policy_jobs:
+    image:
+    version:
+    action: "copy"

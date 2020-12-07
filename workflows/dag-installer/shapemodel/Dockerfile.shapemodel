@@ -1,7 +1,7 @@
 FROM local-only/dag-installer:0.1.0
 
 LABEL IMAGE="dag-shapemodel"
-LABEL VERSION="0.1.0"
+LABEL VERSION="0.1.1-vdev"
 LABEL CI_IGNORE="False"
 
 COPY dags/dag_shapemodel_organ_seg.py /tmp/dags/

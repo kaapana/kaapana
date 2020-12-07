@@ -13,7 +13,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     def get_files(self, ds, **kwargs):
         print("Starting module LocalGetRefSeriesOperator")
 
-        if self.search_policy != 'reference_uid' and self.modality == None:
+        if self.search_policy != 'reference_uid' and self.modality is None:
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
             print("")
             print("Parameter 'modality' has to be set for search_policy: {} !".format(self.search_policy))
@@ -134,7 +134,12 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
     def __init__(self,
                  dag,
+<<<<<<< HEAD
                  search_policy="reference_uid", # reference_uid , study_uid , patient_uid
+=======
+                 name='get-ref-series',
+                 search_policy="reference_uid",
+>>>>>>> fixed minibug in LocalGetRefSeriesOperator
                  modality = None,
                  pacs_dcmweb_host='http://dcm4chee-service.store.svc',
                  pacs_dcmweb_port='8080',
@@ -147,7 +152,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
         super().__init__(
             dag,
-            name='get-ref-series',
+            name=name,
             python_callable=self.get_files,
             *args, **kwargs
         )

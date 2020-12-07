@@ -29,16 +29,6 @@ class LocalNnUnetPrepOperator(KaapanaPythonBaseOperator):
         print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         print("Starting DatsetSplitOperator:")
         print()
-        print("batches_input_dir: {}".format(self.batches_input_dir))
-        print("input_dir: {}".format(self.input_dir))
-        print("operator_out_dir: {}".format(self.operator_out_dir))
-        print("file_extensions: {}".format(self.file_extensions))
-        print("keep_dir_structure: {}".format(self.keep_dir_structure))
-        print("copy_target_data: {}".format(self.copy_target_data))
-        print("train_percentage: {}".format(self.train_percentage))
-        print("test_percentage: {}".format(self.test_percentage))
-        print("validation_percentage: {}".format(self.validation_percentage))
-        print("shuffle_seed: {}".format(self.shuffle_seed))
         print()
 
         # case_identifier_XXXX.nii.gz
@@ -142,10 +132,10 @@ class LocalNnUnetPrepOperator(KaapanaPythonBaseOperator):
                 print("")
                 exit(1)
 
-            target_dicom_path = os.path.join(self.output_dir, "imagesTr", seg_nifti[0].replace(".nii.gz", "_0000.nii.gz"))
+            target_dicom_path = os.path.join(self.output_dir, "imagesTr", os.path.basename(seg_nifti[0]).replace(".nii.gz", "_0000.nii.gz"))
             self.move_file(source=dicom_nifti[0], target=target_dicom_path)
 
-            target_seg_path = os.path.join(self.output_dir, "labelsTr", seg_nifti[0])
+            target_seg_path = os.path.join(self.output_dir, "labelsTr", os.path.basename(seg_nifti[0]))
             self.move_file(source=seg_nifti[0], target=target_seg_path)
 
             template_dataset_json["training"].append(
@@ -182,12 +172,12 @@ class LocalNnUnetPrepOperator(KaapanaPythonBaseOperator):
                 print("")
                 exit(1)
 
-            target_dicom_path = os.path.join(self.output_dir, "imagesTs", seg_nifti[0])
+            target_dicom_path = os.path.join(self.output_dir, "imagesTs", os.path.basename(seg_nifti[0]))
             self.move_file(source=dicom_nifti[0], target=target_dicom_path)
 
             template_dataset_json["test"].append(target_dicom_path)
 
-        with open(self.output_dir, 'dataset.json', 'w') as fp:
+        with open(os.path.join(self.output_dir, 'dataset.json'), 'w') as fp:
             json.dump(template_dataset_json, fp, indent=4, sort_keys=True)
 
     def __init__(self,
@@ -196,11 +186,11 @@ class LocalNnUnetPrepOperator(KaapanaPythonBaseOperator):
                  seg_input_operator,
                  dicom_input_operator,
                  modality={
-                    "0": "CT"
-                }, 
-                 labels = {
-                    "0": "background", 
-                    "1": "Liver", 
+                     "0": "CT"
+                 },
+                 labels={
+                     "0": "background",
+                     "1": "Liver",
                  },
                  licence="NA",
                  version="NA",
@@ -209,7 +199,7 @@ class LocalNnUnetPrepOperator(KaapanaPythonBaseOperator):
                  tensor_size="3D",
                  shuffle_seed=None,
                  test_percentage=10,
-                 copy_target_data=False,
+                 copy_target_data=True,
                  operator_out_dir='datasets',
                  file_extensions='*.nii.gz',
                  *args, **kwargs):

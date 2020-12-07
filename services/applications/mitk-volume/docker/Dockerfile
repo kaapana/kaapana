@@ -1,7 +1,7 @@
 FROM local-only/mitk-base:0.1.0 as build_container
 
 LABEL IMAGE="mitk-volume"
-LABEL VERSION="0.1.0"
+LABEL VERSION="2020-12-01-vdev"
 LABEL CI_IGNORE="False"
 
 # =================================================================================================
@@ -12,8 +12,9 @@ RUN mkdir /opt/mitk-bin
 RUN mkdir /opt/bin
 
 # MITK config
-ENV MITK_BRANCH=master
-ENV MITK_REV=0f33cec9e310c3f69b6c46795f29c026f7e90dc6
+# 01.12.20 develop
+ENV MITK_BRANCH=develop
+ENV MITK_REV=7cdad74bd60adc8c32a00979a4ae96839e273076  
 
 RUN git clone --single-branch --branch ${MITK_BRANCH} https://phabricator.mitk.org/source/mitk.git MITK && cd MITK && git checkout ${MITK_REV}
 

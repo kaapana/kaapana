@@ -6,3 +6,5 @@ name: nnunet-inference-workflow
 version: "0.1.1-vdev"
 keywords:
 - kaapanaworkflow
+- kaapanaexperimental
+

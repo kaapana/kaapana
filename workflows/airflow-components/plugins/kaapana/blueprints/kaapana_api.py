@@ -10,8 +10,10 @@ from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun, DagModel, DAG, DagBag
+from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow import settings
 from airflow.utils import timezone
+from airflow.utils.state import State
 from airflow.bin.cli import get_dags
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.app import csrf
@@ -172,6 +174,7 @@ def getAllDagRuns():
             all_dagruns = all_dagruns.filter(DagRun.state == state)
 
         all_dagruns = list(all_dagruns.order_by(DagRun.execution_date).all())
+        _log.error(DagRun.execution_date)
 
         if limit is not None:
             all_dagruns = all_dagruns[:int(limit)]
@@ -179,19 +182,43 @@ def getAllDagRuns():
         dagruns = []
         for dagrun in all_dagruns:
 
+            # Returns the task instances for this dag run.
+            task_instances = dagrun.get_task_instances(session=session)
+            failed_task_instance = []
+
+            for task_instance in task_instances:
+                if task_instance.state == 'failed':
+                    failed_task_instance.append(task_instance)
+
             conf = dagrun.conf
             if conf is not None and "user_public_id" in conf:
                 user = conf["user_public_id"]
             else:
                 user = "0000-0000-0000-0000-0000"
 
-            dagruns.append({
-                'user': user,
-                'dag_id': dagrun.dag_id,
-                'run_id': dagrun.run_id,
-                'state': dagrun.state,
-                'execution_time': dagrun.execution_date
-            })
+            if failed_task_instance:
+                # Needs to be a single object, because a list doesn't work.
+                # In most cases [0] will be the only element of the list but if there are more than one element,
+                # the [0] include the first task which is failed in the dagrun.
+                task_id = failed_task_instance[0].task_id
+
+                dagruns.append({
+                    'user': user,
+                    'dag_id': dagrun.dag_id,
+                    'run_id': dagrun.run_id,
+                    'state': dagrun.state,
+                    'execution_time': dagrun.execution_date.isoformat(),
+                    'failed_task_id': task_id,
+                                
+                })
+            else:
+                dagruns.append({
+                    'user': user,
+                    'dag_id': dagrun.dag_id,
+                    'run_id': dagrun.run_id,
+                    'state': dagrun.state,
+                    'execution_time': dagrun.execution_date.isoformat(),                                
+                })
 
         if count is not None:
             dagruns = len(all_dagruns)
@@ -318,4 +345,40 @@ def get_access_token():
 def get_minio_credentials():
     x_auth_token = request.args.get('x-auth-token')
     access_key, secret_key, session_token = generate_minio_credentials(x_auth_token)
-    return jsonify({'accessKey': access_key, 'secretKey': secret_key, 'sessionToken': session_token}), 200
+    return jsonify({'accessKey': access_key, 'secretKey': secret_key, 'sessionToken': session_token }), 200
+
+
+@kaapanaApi.route('/api/clear/<string:dag_id>/<string:execution_time>', methods=['POST'])
+@csrf.exempt
+def post_clear_task_instances(dag_id: str, execution_time: str, session=None):
+    session = settings.Session()
+    all_dagruns = session.query(DagRun)
+    dagrun = all_dagruns.filter(DagRun.dag_id == dag_id & DagRun.execution_date == execution_time)
+
+    data = {
+        'reset_dag_runs': True,
+        'start_date': dagrun.start_date,
+        'end_date': dagrun.end_date,
+    }
+    dag = app.dag_bag.get_dag(dag_id)
+    if not dag:
+        error_message = f"Dag id {dag_id} not found"
+        print(error_message)
+    reset_dag_runs = data.pop('reset_dag_runs')
+    task_instances = dag.clear(get_tis=True, **data)
+    clear_task_instances(
+        task_instances,
+        session,
+        dag=dag,
+        activate_dag_runs=False,  # We will set DagRun state later.
+    )
+    if reset_dag_runs:
+        dag.set_dag_runs_state(
+            session=session,
+            start_date=data["start_date"],
+            end_date=data["end_date"],
+            state=State.RUNNING,
+        )
+    task_instances = task_instances.join(
+        DagRun, and_(DagRun.dag_id == TI.dag_id, DagRun.execution_date == TI.execution_date)
+    ).add_column(DagRun.run_id)

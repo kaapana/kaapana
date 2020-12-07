@@ -1,7 +1,7 @@
 FROM python:3
 
 LABEL IMAGE="dcmqi"
-LABEL VERSION="v1.2.2"
+LABEL VERSION="v1.2.2-fix-vdev"
 LABEL CI_IGNORE="False"
 
 

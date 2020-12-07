@@ -21,6 +21,11 @@ print(seg_filter)
 if output_type not in ['nrrd','mhd', 'mha', 'nii','nii.gz', 'nifti', 'hdr', 'img']:
     raise AssertionError('Output type must be <nrrd|mhd|mha|nii|nii.gz|nifti|hdr|img>')
 
+if output_type == "nii.gz":
+    output_type_dcmqi = "nii"
+else:
+    output_type_dcmqi = output_type
+
 batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
 
 print("Found {} batches".format(len(batch_folders)))
@@ -44,7 +49,7 @@ for batch_element_dir in batch_folders:
         try: 
             dcmqi_command = [
                 f"{DCMQI}/segimage2itkimage", 
-                "--outputType", output_type,
+                "--outputType", output_type_dcmqi,
                 "-p", f'{json_output}' ,
                 "--outputDirectory", element_output_dir,
                 "--inputDICOM",  dcm_filepath

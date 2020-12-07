@@ -79,7 +79,7 @@ get_input = LocalGetInputDataOperator(dag=dag, check_modality=True)
 dcm2nifti_seg = DcmSeg2ItkOperator(
     dag=dag,
     input_operator=get_input,
-    output_type="nii",
+    output_type="nii.gz",
     seg_filter="liver",
     parallel_id='seg',
 )

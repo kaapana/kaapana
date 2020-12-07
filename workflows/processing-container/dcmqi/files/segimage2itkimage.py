@@ -18,8 +18,8 @@ else:
     seg_filter = None
 print(seg_filter)
 
-if output_type not in ['nrrd','mhd', 'mha', 'nii', 'nifti', 'hdr', 'img']:
-    raise AssertionError('Output type must be <nrrd|mhd|mha|nii|nifti|hdr|img>')
+if output_type not in ['nrrd','mhd', 'mha', 'nii','nii.gz', 'nifti', 'hdr', 'img']:
+    raise AssertionError('Output type must be <nrrd|mhd|mha|nii|nii.gz|nifti|hdr|img>')
 
 batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
 

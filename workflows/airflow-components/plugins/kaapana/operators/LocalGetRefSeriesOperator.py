@@ -134,12 +134,8 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
     def __init__(self,
                  dag,
-<<<<<<< HEAD
-                 search_policy="reference_uid", # reference_uid , study_uid , patient_uid
-=======
                  name='get-ref-series',
                  search_policy="reference_uid",
->>>>>>> fixed minibug in LocalGetRefSeriesOperator
                  modality = None,
                  pacs_dcmweb_host='http://dcm4chee-service.store.svc',
                  pacs_dcmweb_port='8080',

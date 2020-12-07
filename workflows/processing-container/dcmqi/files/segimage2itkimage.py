@@ -73,10 +73,10 @@ for batch_element_dir in batch_folders:
             print(segment_info['SegmentLabel'])
             print(segment_info['labelID'])
             if seg_filter is None or segment_info['SegmentLabel'].lower() in seg_filter:
-                os.rename(os.path.join(element_output_dir, f'{json_output}-{segment_info["labelID"]}.nrrd'), os.path.join(element_output_dir, f'{json_output}-{segment_info["SegmentLabel"]}.nrrd'))
+                os.rename(os.path.join(element_output_dir, f'{json_output}-{segment_info["labelID"]}.{output_type}'), os.path.join(element_output_dir, f'{json_output}-{segment_info["SegmentLabel"]}.{output_type}'))
             else:
                 to_remove_indexes.append(idx)
-                os.remove(os.path.join(element_output_dir, f'{json_output}-{segment_info["labelID"]}.nrrd'))
+                os.remove(os.path.join(element_output_dir, f'{json_output}-{segment_info["labelID"]}.{output_type}'))
         
         # Updating meta-data-json
         for idx in sorted(to_remove_indexes, reverse=True):

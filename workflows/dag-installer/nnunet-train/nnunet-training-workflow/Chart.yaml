@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+appVersion: "1.6.5-vdev"
+description: nnUNet-training
+name: nnunet-training-workflow
+version: "1.6.5-vdev"
+keywords:
+- kaapanaworkflow
+- kaapanaexperimental
+

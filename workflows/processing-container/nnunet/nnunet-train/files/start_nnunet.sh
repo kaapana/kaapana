@@ -9,40 +9,40 @@ PL=12
 PF=8
 
 echo "#####################################################################"
-echo ""
+echo "\n"
 echo "  Starting nnUNet..."
-echo ""
+echo "\n"
 if [ "$MODE" != "training" ] && [ "$MODE" != "inference" ]  && [ "$MODE" != "preprocess" ] ; then
-    echo ""
+    echo "\n"
     echo "#####################################################################"
-    echo ""
+    echo "\n"
     echo "MODE ($MODE) NOT SUPPORTED";
     echo "OPTIONS: preprocess, training, inference";
-    echo ""
+    echo "\n"
     echo "#####################################################################"
-    echo ""
+    echo "\n"
     exit 1
 fi
 
 DATASET_DIR="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
 if [ "$MODE" == "training" ] || [ "$MODE" == "preprocess" ] && ! [ -d "$DATASET_DIR" ]; then
-    echo ""
+    echo "\n"
     echo "#####################################################################"
-    echo ""
+    echo "\n"
     echo "Error datset-dir not found: ${DATASET_DIR}"
     echo "Can not continue."
-    echo ""
+    echo "\n"
     echo "#####################################################################"
-    echo ""
+    echo "\n"
     exit 1
 fi
 
 nnUNet_raw_data_base="$DATASET_DIR"
 nnUNet_preprocessed="$DATASET_DIR/nnUNet_preprocessed"
 
-echo ""
+echo "\n"
 echo "  MODE: $MODE"
-echo ""
+echo "\n"
 if [ "$MODE" = "preprocess" ]; then
 
     preprocess_processes_low=$PL
@@ -59,21 +59,21 @@ if [ "$MODE" = "preprocess" ]; then
         preprocess_verify=""
     fi
 
-    echo ""
+    echo "\n"
     echo "  Verify dataset itegrity..."
     echo "  TASK_NUM" $TASK_NUM
-    echo ""
-    echo "COMMAND: nnUNet_plan_and_preprocess -t $TASK_NUM -tl $preprocess_processes_low -tf $preprocess_processes_full $preprocess_verify $preprocess_verify"
-    echo ""
+    echo "\n"
+    echo "  COMMAND: nnUNet_plan_and_preprocess -t $TASK_NUM -tl $preprocess_processes_low -tf $preprocess_processes_full $preprocess_verify $preprocess_verify"
+    echo "\n"
     nnUNet_plan_and_preprocess -t $TASK_NUM -tl $preprocess_processes_low -tf $preprocess_processes_full $preprocess_verify $preprocess_verify
-    echo ""
+    echo "\n"
     echo "  Dataset itegrity OK!"
-    echo ""
+    echo "\n"
 
 elif [ "$MODE" = "training" ]; then
-    echo ""
+    echo "\n"
     echo "  Starting training..."
-    echo ""
+    echo "\n"
     echo "DONE"
 
 elif [ "$MODE" = "inference" ]; then
@@ -90,17 +90,17 @@ elif [ "$MODE" = "inference" ]; then
     echo "Found $BATCH_COUNT batches."
     fi
 
-    echo ""
+    echo "\n"
     echo "BATCHES_INPUT_DIR:" $BATCHES_INPUT_DIR
     ls $BATCHES_INPUT_DIR
     echo "BATCH_COUNT: " $BATCH_COUNT
     echo "NUM_THREADS_PREPROCESSING: " $NUM_THREADS_PREPROCESSING
     echo "NUM_THREADS_NIFTISAVE: " $NUM_THREADS_NIFTISAVE
-    echo ""
+    echo "\n"
 
-    echo "";
+    echo "\n";
     echo "Starting batch loop...";
-    echo "";
+    echo "\n";
 
     for batch_dir in $BATCHES_INPUT_DIR/*
     do
@@ -113,8 +113,8 @@ elif [ "$MODE" = "inference" ]; then
         echo "batch_dir" $batch_dir
         echo "batch_name" $batch_name
         echo "MODE" $MODE
-        echo ""
-        echo ""
+        echo "\n"
+        echo "\n"
         
         operator_input_dir=${batch_dir}/${OPERATOR_IN_DIR}
         prepare_output_dir=${batch_dir}/${PREP_DIR}
@@ -152,17 +152,17 @@ elif [ "$MODE" = "inference" ]; then
         if [ $? -eq 0 ]; then
             echo "Segmentation found!!"
         else
-            echo ""
+            echo "\n"
             echo "#########################################################"
-            echo ""
-            echo ""
+            echo "\n"
+            echo "\n"
             echo "No segmentation found!"
             echo "The segmentatiion NIFTI has no mask -> no label found."
             echo "Abort"
-            echo ""
-            echo ""
+            echo "\n"
+            echo "\n"
             echo "#########################################################"
-            echo ""
+            echo "\n"
             exit 1
         fi
     done

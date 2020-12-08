@@ -124,13 +124,15 @@ training_data_preparation = LocalNnUnetDatasetOperator(
 nnunet_check_dataset = NnUnetOperator(
     dag=dag,
     task_num=TASK_ID,
-    mode="check-dataset",
+    parallel_id="prep",
+    mode="preprocess",
     input_operator=training_data_preparation
 )
 
 nnunet_train = NnUnetOperator(
     dag=dag,
     task_num=TASK_ID,
+    parallel_id="training",
     mode="training",
     input_operator=training_data_preparation
 )

@@ -10,7 +10,7 @@ PF=8
 
 echo "#####################################################################"
 echo "\n"
-echo "  Starting nnUNet..."
+echo "Starting nnUNet..."
 echo "\n"
 if [ "$MODE" != "training" ] && [ "$MODE" != "inference" ]  && [ "$MODE" != "preprocess" ] ; then
     echo "\n"
@@ -41,7 +41,7 @@ nnUNet_raw_data_base="$DATASET_DIR"
 nnUNet_preprocessed="$DATASET_DIR/nnUNet_preprocessed"
 
 echo "\n"
-echo "  MODE: $MODE"
+echo "MODE: $MODE"
 echo "\n"
 if [ "$MODE" = "preprocess" ]; then
 
@@ -60,19 +60,19 @@ if [ "$MODE" = "preprocess" ]; then
     fi
 
     echo "\n"
-    echo "  Verify dataset itegrity..."
-    echo "  TASK_NUM" $TASK_NUM
+    echo "Verify dataset itegrity..."
+    echo "TASK_NUM" $TASK_NUM
     echo "\n"
-    echo "  COMMAND: nnUNet_plan_and_preprocess -t $TASK_NUM -tl $preprocess_processes_low -tf $preprocess_processes_full $preprocess_verify $preprocess_verify"
+    echo "COMMAND: nnUNet_plan_and_preprocess -t $TASK_NUM -tl $preprocess_processes_low -tf $preprocess_processes_full $preprocess_verify $preprocess_verify"
     echo "\n"
     nnUNet_plan_and_preprocess -t $TASK_NUM -tl $preprocess_processes_low -tf $preprocess_processes_full $preprocess_verify $preprocess_verify
     echo "\n"
-    echo "  Dataset itegrity OK!"
+    echo "Dataset itegrity OK!"
     echo "\n"
 
 elif [ "$MODE" = "training" ]; then
     echo "\n"
-    echo "  Starting training..."
+    echo "Starting training..."
     echo "\n"
     echo "DONE"
 

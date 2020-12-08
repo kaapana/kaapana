@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/pytorch:20.09-py3
+FROM nvcr.io/nvidia/pytorch:20.11-py3
 
 LABEL IMAGE="nnunet"
 LABEL VERSION="1.6.5-vdev"
@@ -39,4 +39,4 @@ RUN cd /nnunet-pip-package && pip install ./
 COPY files/ /src
  
 
-CMD ["bash","/src/start.sh"]
+CMD ["bash","/src/start_nnunet.sh"]

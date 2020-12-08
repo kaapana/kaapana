@@ -13,7 +13,8 @@ class NnUnetOperator(KaapanaBaseOperator):
 
     def __init__(self,
                  dag,
-                 mode="training",
+                 mode,
+                 task_num,
                  env_vars={},
                  input_dirs=[],
                  parallel_id=None,
@@ -29,6 +30,7 @@ class NnUnetOperator(KaapanaBaseOperator):
         # └── labelsTr -> GT Labels
         envs = {
             "MODE": mode,
+            "TASK_NUM": task_num,
             "INPUT_DIRS": ";".join(str(dir) for dir in input_dirs),
             "nnUNet_raw_data_base": "/input", 
             "nnUNet_preprocessed": "/input/nnUNet_preprocessed",

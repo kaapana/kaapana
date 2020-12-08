@@ -10,7 +10,7 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from nnunet_training.NnUnetOperator import NnUnetOperator
-from nnunet_training.LocalNnUnetPrepOperator import LocalNnUnetPrepOperator
+from nnunet_training.LocalNnUnetDatasetOperator import LocalNnUnetDatasetOperator
 
 
 ui_forms = {
@@ -87,23 +87,27 @@ dcm2nifti_seg = DcmSeg2ItkOperator(
 get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(dag=dag, input_operator=get_input, search_policy="reference_uid", modality=None)
 dcm2nifti_ct = DcmConverterOperator(dag=dag, input_operator=get_ref_ct_series_from_seg, parallel_id='ct', output_format='nii.gz')
 
-training_data_preparation = LocalNnUnetPrepOperator(
+training_data_preparation = LocalNnUnetDatasetOperator(
     dag=dag,
-    training_name="liver_test",
+    training_name="LiverTest",
+    task_num=42,
+    input_operators=dcm2nifti_ct,
     seg_input_operator=dcm2nifti_seg,
-    dicom_input_operator=dcm2nifti_ct,
     licence="NA",
     version="NA",
     tensor_size="3D",
-    shuffle_seed=None,
     test_percentage=10,
-    operator_out_dir='datasets',
-    file_extensions='*.nii.gz',
     copy_target_data=True,
+    shuffle_seed=None,
 )
 
 
-# nnunet_train = NnUnetOperator(dag=dag,mode="training" input_dirs=[dcm2nifti.operator_out_dir], input_operator=dcm2nifti)
+nnunet_train = NnUnetOperator(
+    dag=dag,
+    task_num=42,
+    mode="training",
+    input_operator=training_data_preparation
+)
 #clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
 get_input >> dcm2nifti_seg >> training_data_preparation

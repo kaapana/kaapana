@@ -9,9 +9,10 @@ import json
 import shutil
 from pathlib import Path
 import random
+import pydicom
 
 
-class LocalNnUnetPrepOperator(KaapanaPythonBaseOperator):
+class LocalNnUnetDatasetOperator(KaapanaPythonBaseOperator):
 
     def move_file(self, source, target):
         Path(os.path.dirname(target)).mkdir(parents=True, exist_ok=True)
@@ -25,11 +26,22 @@ class LocalNnUnetPrepOperator(KaapanaPythonBaseOperator):
         self.batches_input_dir = os.path.join(self.run_dir, BATCH_NAME)
         self.input_dir = os.path.join(self.run_dir, self.operator_in_dir)
         self.output_dir = os.path.join(self.run_dir, self.operator_out_dir)
+        self.task_dir = os.path.join(self.output_dir, "nnUNet_raw_data", f"Task{self.task_num.zfill(3)}_{self.training_name}")
 
         print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        print("")
         print("Starting DatsetSplitOperator:")
-        print()
-        print()
+        print("")
+
+        if len(self.modality) != len(self.input_operators):
+            print("")
+            print("len(modality) != len(input_operators)")
+            print("You have to specify {} input_operators!".format(len(self.modality)))
+            print("Expected modalities:")
+            print(json.dumps(self.modality, indent=4, sort_keys=True))
+            print("")
+            print("")
+            exit(1)
 
         # case_identifier_XXXX.nii.gz
         # Label files are saved as case_identifier.nii.gz
@@ -107,84 +119,107 @@ class LocalNnUnetPrepOperator(KaapanaPythonBaseOperator):
 
         for series in train_series:
             print("Preparing train series: {}".format(series))
-            seg_dir = os.path.join(series, self.seg_input_operator.operator_out_dir)
-            dicom_dir = os.path.join(series, self.dicom_input_operator.operator_out_dir)
+            base_file_path = os.path.join("imagesTr", f"{os.path.basename(series)}.nii.gz")
+            base_seg_path = os.path.join("labelsTr", f"{os.path.basename(series)}_seg.nii.gz")
 
-            seg_nifti = glob.glob(os.path.join(seg_dir, "*.nii.gz"), recursive=True)
+            for i in range(0, len(self.input_operators)):
+                modality_nifti_dir = os.path.join(series, self.input_operators[i].operator_out_dir)
+                # modality = pydicom.dcmread(dcm_file)[0x0008, 0x0060].value
+
+                modality_nifti = glob.glob(os.path.join(modality_nifti_dir, "*.nii.gz"), recursive=True)
+                if len(modality_nifti) != 1:
+                    print("")
+                    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                    print("")
+                    print("Error with training image-file!")
+                    print("Found {} files at: {}".format(len(modality_nifti), modality_nifti_dir))
+                    print("Expected only one file! -> abort.")
+                    print("")
+                    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                    print("")
+                    exit(1)
+
+                target_modality_path = os.path.join(self.task_dir, base_file_path.replace(".nii.gz", f"_{i:04}.nii.gz")
+                self.move_file(source=modality_nifti[0], target=target_modality_path)
+
+
+            seg_dir=os.path.join(series, self.seg_input_operator.operator_out_dir)
+            seg_nifti=glob.glob(os.path.join(seg_dir, "*.nii.gz"), recursive=True)
             if len(seg_nifti) != 1:
+                print("")
                 print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                 print("")
                 print("Error with training seg-file!")
                 print("Found {} files at: {}".format(len(seg_nifti), seg_dir))
                 print("Expected only one file! -> abort.")
+                print("")
                 print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                 print("")
                 exit(1)
 
-            dicom_nifti = glob.glob(os.path.join(dicom_dir, "*.nii.gz"), recursive=True)
-            if len(dicom_nifti) != 1:
-                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                print("")
-                print("Error with training image-file!")
-                print("Found {} files at: {}".format(len(dicom_nifti), dicom_dir))
-                print("Expected only one file! -> abort.")
-                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                print("")
-                exit(1)
-
-            target_dicom_path = os.path.join(self.output_dir, "imagesTr", os.path.basename(dicom_nifti[0]).replace(".nii.gz", "_0000.nii.gz"))
-            self.move_file(source=dicom_nifti[0], target=target_dicom_path)
-
-            target_seg_path = os.path.join(self.output_dir, "labelsTr", os.path.basename(seg_nifti[0]))
+            target_seg_path=os.path.join(self.task_dir, base_seg_path)
             self.move_file(source=seg_nifti[0], target=target_seg_path)
 
             template_dataset_json["training"].append(
                 {
-                    "image": target_dicom_path.replace(self.run_dir,""),
-                    "label": target_seg_path.replace(self.run_dir,"")
+                    "image": os.path.join("./", base_file_path),
+                    "label": os.path.join("./", seg_path_meta)
                 }
             )
 
         for series in test_series:
             print("Preparing test series: {}".format(series))
-            seg_dir = os.path.join(series, self.seg_input_operator.operator_out_dir)
-            dicom_dir = os.path.join(series, self.dicom_input_operator.operator_out_dir)
+            base_file_path=os.path.join("imagesTs", f"{os.path.basename(series)}.nii.gz")
+            base_seg_path=os.path.join("labelsTr", f"{os.path.basename(series)}_seg.nii.gz")
 
-            seg_nifti = glob.glob(os.path.join(seg_dir, "*.nii.gz"), recursive=True)
-            if len(seg_nifti) != 1:
-                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                print("")
-                print("Error with test seg-file!")
-                print("Found {} files at: {}".format(len(seg_nifti), seg_dir))
-                print("Expected only one file! -> abort.")
-                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                print("")
-                exit(1)
+            for i in range(0, len(self.input_operators)):
+                modality_nifti_dir=os.path.join(series, self.input_operators[i].operator_out_dir)
+                # modality = pydicom.dcmread(dcm_file)[0x0008, 0x0060].value
 
-            dicom_nifti = glob.glob(os.path.join(dicom_dir, "*.nii.gz"), recursive=True)
-            if len(dicom_nifti) != 1:
-                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                print("")
-                print("Error with test image-file!")
-                print("Found {} files at: {}".format(len(dicom_nifti), dicom_dir))
-                print("Expected only one file! -> abort.")
-                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                print("")
-                exit(1)
+                modality_nifti=glob.glob(os.path.join(modality_nifti_dir, "*.nii.gz"), recursive=True)
+                if len(modality_nifti) != 1:
+                    print("")
+                    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                    print("")
+                    print("Error with test image-file!")
+                    print("Found {} files at: {}".format(len(modality_nifti), modality_nifti_dir))
+                    print("Expected only one file! -> abort.")
+                    print("")
+                    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                    print("")
+                    exit(1)
 
-            target_dicom_path = os.path.join(self.output_dir, "imagesTs", os.path.basename(dicom_nifti[0]))
-            self.move_file(source=dicom_nifti[0], target=target_dicom_path)
+                target_modality_path=os.path.join(self.task_dir, base_file_path.replace(".nii.gz", f"_{i:04}.nii.gz")
+                self.move_file(source=modality_nifti[0], target=target_modality_path)
 
-            template_dataset_json["test"].append(target_dicom_path.replace(self.run_dir,""))
 
-        with open(os.path.join(self.output_dir, 'dataset.json'), 'w') as fp:
+            # seg_dir = os.path.join(series, self.seg_input_operator.operator_out_dir)
+            # seg_nifti = glob.glob(os.path.join(seg_dir, "*.nii.gz"), recursive=True)
+            # if len(seg_nifti) != 1:
+            #     print("")
+            #     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+            #     print("")
+            #     print("Error with test seg-file!")
+            #     print("Found {} files at: {}".format(len(seg_nifti), seg_dir))
+            #     print("Expected only one file! -> abort.")
+            #     print("")
+            #     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+            #     print("")
+            #     exit(1)
+            # target_seg_path = os.path.join(self.task_dir, base_seg_path)
+            # self.move_file(source=seg_nifti[0], target=target_seg_path)
+
+            template_dataset_json["test"].append(os.path.join("./", base_file_path))
+
+        with open(os.path.join(self.task_dir, 'dataset.json'), 'w') as fp:
             json.dump(template_dataset_json, fp, indent=4, sort_keys=True)
 
     def __init__(self,
                  dag,
                  training_name,
+                 task_num,
+                 input_operators,
                  seg_input_operator,
-                 dicom_input_operator,
                  modality={
                      "0": "CT"
                  },
@@ -198,34 +233,35 @@ class LocalNnUnetPrepOperator(KaapanaPythonBaseOperator):
                  training_reference="nnUnet",
                  tensor_size="3D",
                  shuffle_seed=None,
-                 test_percentage=10,
+                 test_percentage=0,
                  copy_target_data=False,
-                 operator_out_dir='datasets',
+                 operator_out_dir='dataset',
                  file_extensions='*.nii.gz',
                  *args, **kwargs):
 
-        self.seg_input_operator = seg_input_operator
-        self.dicom_input_operator = dicom_input_operator
-        self.training_name = training_name
-        self.training_description = training_description
-        self.training_reference = training_reference
-        self.licence = licence
-        self.version = version
-        self.tensor_size = tensor_size
-        self.modality = modality
-        self.labels = labels
-        self.training_count = None
-        self.test_count = None
+        self.task_num=str(task_num)
+        self.seg_input_operator=seg_input_operator
+        self.input_operators=input_operators if isinstance(input_operators, list) else [input_operators]
+        self.training_name=training_name
+        self.training_description=training_description
+        self.training_reference=training_reference
+        self.licence=licence
+        self.version=version
+        self.tensor_size=tensor_size
+        self.modality=modality
+        self.labels=labels
+        self.training_count=None
+        self.test_count=None
 
-        self.test_percentage = test_percentage
-        self.shuffle_seed = shuffle_seed
-        self.operator_out_dir = operator_out_dir
-        self.file_extensions = file_extensions
-        self.copy_target_data = copy_target_data
+        self.test_percentage=test_percentage
+        self.shuffle_seed=shuffle_seed
+        self.operator_out_dir=operator_out_dir
+        self.file_extensions=file_extensions
+        self.copy_target_data=copy_target_data
 
         super().__init__(
             dag,
-            name='dataset-split',
+            name='nnunet-dataset',
             python_callable=self.start,
             operator_out_dir=self.operator_out_dir,
             *args,

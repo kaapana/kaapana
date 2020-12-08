@@ -8,41 +8,41 @@ CHECK_INTEGRITY=true
 PL=12
 PF=8
 
-echo "#####################################################################"
-echo "\n"
-echo "Starting nnUNet..."
-echo "\n"
+echo "# #####################################################################"
+echo "#"
+echo "# Starting nnUNet..."
+echo "#"
 if [ "$MODE" != "training" ] && [ "$MODE" != "inference" ]  && [ "$MODE" != "preprocess" ] ; then
-    echo "\n"
-    echo "#####################################################################"
-    echo "\n"
-    echo "MODE ($MODE) NOT SUPPORTED";
-    echo "OPTIONS: preprocess, training, inference";
-    echo "\n"
-    echo "#####################################################################"
-    echo "\n"
+    echo "#"
+    echo "# #####################################################################"
+    echo "#"
+    echo "# MODE ($MODE) NOT SUPPORTED";
+    echo "# OPTIONS: preprocess, training, inference";
+    echo "#"
+    echo "# #####################################################################"
+    echo "#"
     exit 1
 fi
 
 DATASET_DIR="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
 if [ "$MODE" == "training" ] || [ "$MODE" == "preprocess" ] && ! [ -d "$DATASET_DIR" ]; then
-    echo "\n"
-    echo "#####################################################################"
-    echo "\n"
-    echo "Error datset-dir not found: ${DATASET_DIR}"
-    echo "Can not continue."
-    echo "\n"
-    echo "#####################################################################"
-    echo "\n"
+    echo "#"
+    echo "# #####################################################################"
+    echo "#"
+    echo "# Error datset-dir not found: ${DATASET_DIR}"
+    echo "# Can not continue."
+    echo "#"
+    echo "# #####################################################################"
+    echo "#"
     exit 1
 fi
 
 nnUNet_raw_data_base="$DATASET_DIR"
 nnUNet_preprocessed="$DATASET_DIR/nnUNet_preprocessed"
 
-echo "\n"
-echo "MODE: $MODE"
-echo "\n"
+echo "#"
+echo "# MODE: $MODE"
+echo "#"
 if [ "$MODE" = "preprocess" ]; then
 
     preprocess_processes_low=$PL
@@ -59,22 +59,22 @@ if [ "$MODE" = "preprocess" ]; then
         preprocess_verify=""
     fi
 
-    echo "\n"
-    echo "Verify dataset itegrity..."
-    echo "TASK_NUM" $TASK_NUM
-    echo "\n"
-    echo "COMMAND: nnUNet_plan_and_preprocess -t $TASK_NUM -tl $preprocess_processes_low -tf $preprocess_processes_full $preprocess_verify $preprocess_verify"
-    echo "\n"
+    echo "#"
+    echo "# Verify dataset itegrity..."
+    echo "# TASK_NUM" $TASK_NUM
+    echo "#"
+    echo "# COMMAND: nnUNet_plan_and_preprocess -t $TASK_NUM -tl $preprocess_processes_low -tf $preprocess_processes_full $preprocess_verify $preprocess_verify"
+    echo "#"
     nnUNet_plan_and_preprocess -t $TASK_NUM -tl $preprocess_processes_low -tf $preprocess_processes_full $preprocess_verify $preprocess_verify
-    echo "\n"
-    echo "Dataset itegrity OK!"
-    echo "\n"
+    echo "#"
+    echo "# Dataset itegrity OK!"
+    echo "#"
 
 elif [ "$MODE" = "training" ]; then
-    echo "\n"
-    echo "Starting training..."
-    echo "\n"
-    echo "DONE"
+    echo "#"
+    echo "# Starting training..."
+    echo "#"
+    echo "# DONE"
 
 elif [ "$MODE" = "inference" ]; then
     NUM_THREADS_PREPROCESSING="1"
@@ -84,37 +84,37 @@ elif [ "$MODE" = "inference" ]; then
     BATCH_COUNT=$(find "$BATCHES_INPUT_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l)
 
     if [ $BATCH_COUNT -eq 0 ]; then
-    echo "No batch-data found -> abort."
+    echo "# No batch-data found -> abort."
     exit 1
     else
-    echo "Found $BATCH_COUNT batches."
+    echo "# Found $BATCH_COUNT batches."
     fi
 
-    echo "\n"
-    echo "BATCHES_INPUT_DIR:" $BATCHES_INPUT_DIR
+    echo "#"
+    echo "# BATCHES_INPUT_DIR:" $BATCHES_INPUT_DIR
     ls $BATCHES_INPUT_DIR
-    echo "BATCH_COUNT: " $BATCH_COUNT
-    echo "NUM_THREADS_PREPROCESSING: " $NUM_THREADS_PREPROCESSING
-    echo "NUM_THREADS_NIFTISAVE: " $NUM_THREADS_NIFTISAVE
-    echo "\n"
+    echo "# BATCH_COUNT: " $BATCH_COUNT
+    echo "# NUM_THREADS_PREPROCESSING: " $NUM_THREADS_PREPROCESSING
+    echo "# NUM_THREADS_NIFTISAVE: " $NUM_THREADS_NIFTISAVE
+    echo "#"
 
-    echo "\n";
-    echo "Starting batch loop...";
-    echo "\n";
+    echo "#";
+    echo "# Starting batch loop...";
+    echo "#";
 
     for batch_dir in $BATCHES_INPUT_DIR/*
     do
 
         batch_name=$(basename -- "$batch_dir")
         
-        echo "TASK" $TASK
-        echo "MODEL" $MODEL
-        echo "INPUT_DIRS" $INPUT_DIRS
-        echo "batch_dir" $batch_dir
-        echo "batch_name" $batch_name
-        echo "MODE" $MODE
-        echo "\n"
-        echo "\n"
+        echo "# TASK" $TASK
+        echo "# MODEL" $MODEL
+        echo "# INPUT_DIRS" $INPUT_DIRS
+        echo "# batch_dir" $batch_dir
+        echo "# batch_name" $batch_name
+        echo "# MODE" $MODE
+        echo "#"
+        echo "#"
         
         operator_input_dir=${batch_dir}/${OPERATOR_IN_DIR}
         prepare_output_dir=${batch_dir}/${PREP_DIR}
@@ -124,52 +124,52 @@ elif [ "$MODE" = "inference" ]; then
         mkdir -p $operator_output_dir
 
         if [ "$PREPARATION" = "true" ] ; then
-            echo "########### Starting nnUNet file preparation..."
+            echo "# ########### Starting nnUNet file preparation..."
             python3 -u ./preparation.py
             if [ $? -eq 0 ]; then
-                echo "Data preparation successful!"
+                echo "# Data preparation successful!"
             else
-                echo "Data preparation failed!"
+                echo "# Data preparation failed!"
                 exit 1
             fi
         else
-            echo "########### nnUNet file preparation is turned off! (PREPARATION: '$PREPARATION')"
+            echo "# ########### nnUNet file preparation is turned off! (PREPARATION: '$PREPARATION')"
             find . -name $operator_input_dir\*.nii* -exec cp {} $prepare_output_dir \;
 
         fi
 
-        echo "########### Starting nnUNet prediction..."
+        echo "# ########### Starting nnUNet prediction..."
         #CONFIGURATION can be 2d, 3d_lowres or 3d_fullres        
         nnUNet_predict -t $TASK -i $prepare_output_dir -o $operator_output_dir -m $MODEL --num_threads_preprocessing $NUM_THREADS_PREPROCESSING --num_threads_nifti_save $NUM_THREADS_NIFTISAVE --disable_tta --mode fast --all_in_gpu False
         if [ $? -eq 0 ]; then
-            echo "########### Prediction successful!"
+            echo "# ########### Prediction successful!"
         else
-            echo "########### Prediction failed!"
+            echo "# ########### Prediction failed!"
             exit 1
         fi
-        echo "########### Testing if segmentation is present..."
+        echo "# ########### Testing if segmentation is present..."
         python3 -u ./check_empty.py $operator_output_dir
         if [ $? -eq 0 ]; then
-            echo "Segmentation found!!"
+            echo "# Segmentation found!!"
         else
-            echo "\n"
-            echo "#########################################################"
-            echo "\n"
-            echo "\n"
-            echo "No segmentation found!"
-            echo "The segmentatiion NIFTI has no mask -> no label found."
-            echo "Abort"
-            echo "\n"
-            echo "\n"
-            echo "#########################################################"
-            echo "\n"
+            echo "#"
+            echo "# #########################################################"
+            echo "#"
+            echo "#"
+            echo "# No segmentation found!"
+            echo "# The segmentatiion NIFTI has no mask -> no label found."
+            echo "# Abort"
+            echo "#"
+            echo "#"
+            echo "# #########################################################"
+            echo "#"
             exit 1
         fi
     done
 
 fi;
 
-echo "########### DONE"
+echo "# ########### DONE"
 exit 0
 
 # usage: nnUNet_plan_and_preprocess [-h] [-t TASK_IDS [TASK_IDS ...]]

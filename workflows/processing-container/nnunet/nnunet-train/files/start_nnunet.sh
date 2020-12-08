@@ -8,18 +8,22 @@ CHECK_INTEGRITY=true
 PL=12
 PF=8
 
-echo "# #####################################################################"
+nnUNet_raw_data_base="$DATASET_DIR"
+nnUNet_preprocessed="$DATASET_DIR/nnUNet_preprocessed"
+RESULTS_FOLDER="$DATASET_DIR/results"
+
+echo "#######################################################################"
 echo "#"
 echo "# Starting nnUNet..."
 echo "#"
 if [ "$MODE" != "training" ] && [ "$MODE" != "inference" ]  && [ "$MODE" != "preprocess" ] ; then
     echo "#"
-    echo "# #####################################################################"
+    echo "#######################################################################"
     echo "#"
     echo "# MODE ($MODE) NOT SUPPORTED";
     echo "# OPTIONS: preprocess, training, inference";
     echo "#"
-    echo "# #####################################################################"
+    echo "#######################################################################"
     echo "#"
     exit 1
 fi
@@ -27,18 +31,15 @@ fi
 DATASET_DIR="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
 if [ "$MODE" == "training" ] || [ "$MODE" == "preprocess" ] && ! [ -d "$DATASET_DIR" ]; then
     echo "#"
-    echo "# #####################################################################"
+    echo "#######################################################################"
     echo "#"
     echo "# Error datset-dir not found: ${DATASET_DIR}"
     echo "# Can not continue."
     echo "#"
-    echo "# #####################################################################"
+    echo "#######################################################################"
     echo "#"
     exit 1
 fi
-
-nnUNet_raw_data_base="$DATASET_DIR"
-nnUNet_preprocessed="$DATASET_DIR/nnUNet_preprocessed"
 
 echo "#"
 echo "# MODE: $MODE"
@@ -73,6 +74,14 @@ if [ "$MODE" = "preprocess" ]; then
 elif [ "$MODE" = "training" ]; then
     echo "#"
     echo "# Starting training..."
+    echo "#"
+    echo "# TASK_NUM" $TASK_NUM
+    echo "#"
+    echo "# COMMAND: nnUNet_train 2d nnUNetTrainerV2 $TASK_NUM 5"
+    #nnUNet_train CONFIGURATION TRAINER_CLASS_NAME TASK_NAME_OR_ID FOLD (additional options)
+    nnUNet_train 2d nnUNetTrainerV2 $TASK_NUM 5
+
+
     echo "#"
     echo "# DONE"
 
@@ -124,7 +133,7 @@ elif [ "$MODE" = "inference" ]; then
         mkdir -p $operator_output_dir
 
         if [ "$PREPARATION" = "true" ] ; then
-            echo "# ########### Starting nnUNet file preparation..."
+            echo "############# Starting nnUNet file preparation..."
             python3 -u ./preparation.py
             if [ $? -eq 0 ]; then
                 echo "# Data preparation successful!"
@@ -133,27 +142,27 @@ elif [ "$MODE" = "inference" ]; then
                 exit 1
             fi
         else
-            echo "# ########### nnUNet file preparation is turned off! (PREPARATION: '$PREPARATION')"
+            echo "############# nnUNet file preparation is turned off! (PREPARATION: '$PREPARATION')"
             find . -name $operator_input_dir\*.nii* -exec cp {} $prepare_output_dir \;
 
         fi
 
-        echo "# ########### Starting nnUNet prediction..."
+        echo "############# Starting nnUNet prediction..."
         #CONFIGURATION can be 2d, 3d_lowres or 3d_fullres        
         nnUNet_predict -t $TASK -i $prepare_output_dir -o $operator_output_dir -m $MODEL --num_threads_preprocessing $NUM_THREADS_PREPROCESSING --num_threads_nifti_save $NUM_THREADS_NIFTISAVE --disable_tta --mode fast --all_in_gpu False
         if [ $? -eq 0 ]; then
-            echo "# ########### Prediction successful!"
+            echo "############# Prediction successful!"
         else
-            echo "# ########### Prediction failed!"
+            echo "############# Prediction failed!"
             exit 1
         fi
-        echo "# ########### Testing if segmentation is present..."
+        echo "############# Testing if segmentation is present..."
         python3 -u ./check_empty.py $operator_output_dir
         if [ $? -eq 0 ]; then
             echo "# Segmentation found!!"
         else
             echo "#"
-            echo "# #########################################################"
+            echo "###########################################################"
             echo "#"
             echo "#"
             echo "# No segmentation found!"
@@ -161,7 +170,7 @@ elif [ "$MODE" = "inference" ]; then
             echo "# Abort"
             echo "#"
             echo "#"
-            echo "# #########################################################"
+            echo "###########################################################"
             echo "#"
             exit 1
         fi
@@ -169,7 +178,11 @@ elif [ "$MODE" = "inference" ]; then
 
 fi;
 
-echo "# ########### DONE"
+echo "#"
+echo "#"
+echo "##########################        DONE       ##########################"
+echo "#"
+echo "#######################################################################"
 exit 0
 
 # usage: nnUNet_plan_and_preprocess [-h] [-t TASK_IDS [TASK_IDS ...]]

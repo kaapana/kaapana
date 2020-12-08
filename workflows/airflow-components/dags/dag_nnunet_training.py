@@ -109,7 +109,7 @@ training_data_preparation = LocalNnUnetDatasetOperator(
     labels={
         "0": "background",
         "1": "Liver",
-        "2": "Tumor"
+        # "2": "Tumor"
     },
     input_operators=dcm2nifti_ct,
     seg_input_operator=dcm2nifti_seg,

@@ -17,6 +17,8 @@ ENV MODEL="3d_lowres"
 ENV TASK=""
 ENV OMP_NUM_THREADS=1
 
+ENV BRANCH=master
+ENV NNUNET_VERSION=v1.6.5
 
 RUN apt-get update && apt-get install -y \
     git \
@@ -32,7 +34,7 @@ COPY files/requirements.txt /src
 RUN pip install -r /src/requirements.txt
 
 RUN mkdir /nnunet-pip-package
-RUN git clone https://github.com/MIC-DKFZ/nnUNet.git /nnunet-pip-package
+RUN git clone  --single-branch --branch ${BRANCH} https://github.com/MIC-DKFZ/nnUNet.git /nnunet-pip-package && cd /nnunet-pip-package && git checkout ${NNUNET_VERSION}
 
 RUN cd /nnunet-pip-package && pip install ./
 

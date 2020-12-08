@@ -2,47 +2,79 @@
 
 set -e
 
+PREPROCESS=true
+CHECK_INTEGRITY=true
+
+PL=12
+PF=8
+
 echo "#####################################################################"
 echo ""
 echo "  Starting nnUNet..."
 echo ""
-if [ "$MODE" != "training" ] && [ "$MODE" != "inference" ] ; then
+if [ "$MODE" != "training" ] && [ "$MODE" != "inference" ]  && [ "$MODE" != "preprocess" ] ; then
     echo ""
     echo "#####################################################################"
     echo ""
     echo "MODE ($MODE) NOT SUPPORTED";
-    echo "OPTIONS: training, inference";
+    echo "OPTIONS: preprocess, training, inference";
     echo ""
     echo "#####################################################################"
     echo ""
     exit 1
 fi
 
+DATASET_DIR="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
+if [ "$MODE" == "training" ] || [ "$MODE" == "preprocess" ] && ! [ -d "$DATASET_DIR" ]; then
+    echo ""
+    echo "#####################################################################"
+    echo ""
+    echo "Error datset-dir not found: ${DATASET_DIR}"
+    echo "Can not continue."
+    echo ""
+    echo "#####################################################################"
+    echo ""
+    exit 1
+fi
+
+nnUNet_raw_data_base="$DATASET_DIR"
+nnUNet_preprocessed="$DATASET_DIR/nnUNet_preprocessed"
 
 echo ""
 echo "  MODE: $MODE"
 echo ""
-if [ "$MODE" = "training" ]; then
-    DATASET_DIR="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
+if [ "$MODE" = "preprocess" ]; then
 
-    if ! [ -d "$DATASET_DIR" ]; then
-        echo ""
-        echo "#####################################################################"
-        echo ""
-        echo "Error datset-dir not found: ${DATASET_DIR}"
-        echo "Can not continue."
-        echo ""
-        echo "#####################################################################"
-        echo ""
-        exit 1
+    preprocess_processes_low=$PL
+    preprocess_processes_full=$PF
+    if [ "$CHECK_INTEGRITY" = "True" ] || [ "$CHECK_INTEGRITY" = "true" ]; then
+        preprocess_verify="--verify_dataset_integrity"
+    else
+        preprocess_verify=""
     fi
-    nnUNet_raw_data_base="$DATASET_DIR"
+
+    if [ "$PREPROCESS" = "True" ] || [ "$PREPROCESS" = "true" ]; then
+        preprocess_verify="-no_pp"
+    else
+        preprocess_verify=""
+    fi
+
     echo ""
-    echo "  Verify datset itegrity..."
+    echo "  Verify dataset itegrity..."
     echo "  TASK_NUM" $TASK_NUM
     echo ""
-    # nnUNet_raw_data_base/nnUNet_raw_data/TaskXXX_MYTASK
-    nnUNet_plan_and_preprocess -t $TASK_NUM --verify_dataset_integrity
+    echo "COMMAND: nnUNet_plan_and_preprocess -t $TASK_NUM -tl $preprocess_processes_low -tf $preprocess_processes_full $preprocess_verify $preprocess_verify"
+    echo ""
+    nnUNet_plan_and_preprocess -t $TASK_NUM -tl $preprocess_processes_low -tf $preprocess_processes_full $preprocess_verify $preprocess_verify
+    echo ""
+    echo "  Dataset itegrity OK!"
+    echo ""
+
+elif [ "$MODE" = "training" ]; then
+    echo ""
+    echo "  Starting training..."
+    echo ""
+    echo "DONE"
 
 elif [ "$MODE" = "inference" ]; then
     NUM_THREADS_PREPROCESSING="1"
@@ -140,3 +172,38 @@ fi;
 echo "########### DONE"
 exit 0
 
+# usage: nnUNet_plan_and_preprocess [-h] [-t TASK_IDS [TASK_IDS ...]]
+#                                   [-pl3d PLANNER3D] [-pl2d PLANNER2D] [-no_pp]
+#                                   [-tl TL] [-tf TF]
+#                                   [--verify_dataset_integrity]
+
+# optional arguments:
+#   -h, --help            show this help message and exit
+#   -t TASK_IDS [TASK_IDS ...], --task_ids TASK_IDS [TASK_IDS ...]
+#                         List of integers belonging to the task ids you wish to
+#                         run experiment planning and preprocessing for. Each of
+#                         these ids must, have a matching folder 'TaskXXX_' in
+#                         the raw data folder
+#   -pl3d PLANNER3D, --planner3d PLANNER3D
+#                         Name of the ExperimentPlanner class for the full
+#                         resolution 3D U-Net and U-Net cascade. Default is
+#                         ExperimentPlanner3D_v21. Can be 'None', in which case
+#                         these U-Nets will not be configured
+#   -pl2d PLANNER2D, --planner2d PLANNER2D
+#                         Name of the ExperimentPlanner class for the 2D U-Net.
+#                         Default is ExperimentPlanner2D_v21. Can be 'None', in
+#                         which case this U-Net will not be configured
+#   -no_pp                Set this flag if you dont want to run the
+#                         preprocessing. If this is set then this script will
+#                         only run the experiment planning and create the plans
+#                         file
+#   -tl TL                Number of processes used for preprocessing the low
+#                         resolution data for the 3D low resolution U-Net. This
+#                         can be larger than -tf. Don't overdo it or you will
+#                         run out of RAM
+#   -tf TF                Number of processes used for preprocessing the full
+#                         resolution data of the 2D U-Net and 3D U-Net. Don't
+#                         overdo it or you will run out of RAM
+#   --verify_dataset_integrity
+#                         set this flag to check the dataset integrity. This is
+#                         useful and should be done once for each dataset!

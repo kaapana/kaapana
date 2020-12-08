@@ -11,7 +11,10 @@ from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperato
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from nnunet_training.NnUnetOperator import NnUnetOperator
 from nnunet_training.LocalNnUnetDatasetOperator import LocalNnUnetDatasetOperator
+from nnunet_training.LocalDagTriggerOperator import LocalDagTriggerOperator
 
+TASK_ID = 42
+TASK_NAME = "LiverTest"
 
 ui_forms = {
     "publication_form": {
@@ -87,29 +90,52 @@ dcm2nifti_seg = DcmSeg2ItkOperator(
 get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(dag=dag, input_operator=get_input, search_policy="reference_uid", modality=None)
 dcm2nifti_ct = DcmConverterOperator(dag=dag, input_operator=get_ref_ct_series_from_seg, parallel_id='ct', output_format='nii.gz')
 
+# trigger_preprocessing = LocalDagTriggerOperator(dag=dag,
+#                                                 trigger_dag_id='ct-pet-prep',
+#                                                 cache_operators=["modality-nifti","seg-nifti"],
+#                                                 target_bucket="nnunet-prep",
+#                                                 trigger_mode="single",
+#                                                 wait_till_done=True,
+#                                                 use_dcm_files=False
+#                                                 )
+
 training_data_preparation = LocalNnUnetDatasetOperator(
     dag=dag,
-    training_name="LiverTest",
-    task_num=42,
+    training_name=TASK_NAME,
+    task_num=TASK_ID,
+    modality={
+        "0": "CT"
+    },
+    labels={
+        "0": "background",
+        "1": "Liver",
+        "2": "Tumor"
+    },
     input_operators=dcm2nifti_ct,
     seg_input_operator=dcm2nifti_seg,
     licence="NA",
     version="NA",
     tensor_size="3D",
-    test_percentage=10,
+    test_percentage=0,
     copy_target_data=True,
     shuffle_seed=None,
 )
 
+nnunet_check_dataset = NnUnetOperator(
+    dag=dag,
+    task_num=TASK_ID,
+    mode="check-dataset",
+    input_operator=training_data_preparation
+)
 
 nnunet_train = NnUnetOperator(
     dag=dag,
-    task_num=42,
+    task_num=TASK_ID,
     mode="training",
     input_operator=training_data_preparation
 )
 #clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
 get_input >> dcm2nifti_seg >> training_data_preparation
-get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> training_data_preparation
+get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> training_data_preparation >> nnunet_check_dataset >> nnunet_train
 # >> clean

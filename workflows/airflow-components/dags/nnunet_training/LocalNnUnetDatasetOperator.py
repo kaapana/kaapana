@@ -120,7 +120,7 @@ class LocalNnUnetDatasetOperator(KaapanaPythonBaseOperator):
         for series in train_series:
             print("Preparing train series: {}".format(series))
             base_file_path = os.path.join("imagesTr", f"{os.path.basename(series)}.nii.gz")
-            base_seg_path = os.path.join("labelsTr", f"{os.path.basename(series)}_seg.nii.gz")
+            base_seg_path = os.path.join("labelsTr", f"{os.path.basename(series)}.nii.gz")
 
             for i in range(0, len(self.input_operators)):
                 modality_nifti_dir = os.path.join(series, self.input_operators[i].operator_out_dir)
@@ -139,7 +139,7 @@ class LocalNnUnetDatasetOperator(KaapanaPythonBaseOperator):
                     print("")
                     exit(1)
 
-                target_modality_path = os.path.join(self.task_dir, base_file_path.replace(".nii.gz", f"_{i:04}.nii.gz")
+                target_modality_path = os.path.join(self.task_dir, base_file_path.replace(".nii.gz", f"_{i:04}.nii.gz"))
                 self.move_file(source=modality_nifti[0], target=target_modality_path)
 
 
@@ -163,14 +163,14 @@ class LocalNnUnetDatasetOperator(KaapanaPythonBaseOperator):
             template_dataset_json["training"].append(
                 {
                     "image": os.path.join("./", base_file_path),
-                    "label": os.path.join("./", seg_path_meta)
+                    "label": os.path.join("./", base_seg_path)
                 }
             )
 
         for series in test_series:
             print("Preparing test series: {}".format(series))
             base_file_path=os.path.join("imagesTs", f"{os.path.basename(series)}.nii.gz")
-            base_seg_path=os.path.join("labelsTr", f"{os.path.basename(series)}_seg.nii.gz")
+            base_seg_path=os.path.join("labelsTr", f"{os.path.basename(series)}.nii.gz")
 
             for i in range(0, len(self.input_operators)):
                 modality_nifti_dir=os.path.join(series, self.input_operators[i].operator_out_dir)
@@ -189,7 +189,7 @@ class LocalNnUnetDatasetOperator(KaapanaPythonBaseOperator):
                     print("")
                     exit(1)
 
-                target_modality_path=os.path.join(self.task_dir, base_file_path.replace(".nii.gz", f"_{i:04}.nii.gz")
+                target_modality_path=os.path.join(self.task_dir, base_file_path.replace(".nii.gz", f"_{i:04}.nii.gz"))
                 self.move_file(source=modality_nifti[0], target=target_modality_path)
 
 
@@ -220,13 +220,8 @@ class LocalNnUnetDatasetOperator(KaapanaPythonBaseOperator):
                  task_num,
                  input_operators,
                  seg_input_operator,
-                 modality={
-                     "0": "CT"
-                 },
-                 labels={
-                     "0": "background",
-                     "1": "Liver",
-                 },
+                 modality,
+                 labels,
                  licence="NA",
                  version="NA",
                  training_description="nnUnet Segmentation",

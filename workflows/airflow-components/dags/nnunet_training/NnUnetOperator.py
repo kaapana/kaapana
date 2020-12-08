@@ -16,22 +16,14 @@ class NnUnetOperator(KaapanaBaseOperator):
                  mode,
                  task_num,
                  env_vars={},
-                 input_dirs=[],
-                 parallel_id=None,
                  execution_timeout=execution_timeout,
                  *args,
                  **kwargs
                  ):
         
-        # /input/Task001_BrainTumour/
-        # ├── dataset.json -> metadata of the dataset
-        # ├── imagesTr -> TrainingSet data
-        # ├── (imagesTs) -> opt TestSet
-        # └── labelsTr -> GT Labels
         envs = {
-            "MODE": mode,
-            "TASK_NUM": task_num,
-            "INPUT_DIRS": ";".join(str(dir) for dir in input_dirs),
+            "MODE": str(mode),
+            "TASK_NUM": str(task_num),
             "nnUNet_raw_data_base": "/input", 
             "nnUNet_preprocessed": "/input/nnUNet_preprocessed",
             "RESULTS_FOLDER": "/models",
@@ -55,11 +47,10 @@ class NnUnetOperator(KaapanaBaseOperator):
         }
         volumes.append(Volume(name='models', configs=volume_config))
 
-        super(NnUnetOperator, self).__init__(
+        super().__init__(
             dag=dag,
             image="{}{}/nnunet:1.6.5-vdev".format(default_registry, default_project),
             name="nnunet",
-            parallel_id=parallel_id,
             image_pull_secrets=["registry-secret"],
             volumes=volumes,
             volume_mounts=volume_mounts,

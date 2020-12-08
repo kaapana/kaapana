@@ -77,7 +77,8 @@ elif [ "$MODE" = "training" ]; then
     echo "#"
     echo "# TASK_NUM" $TASK_NUM
     echo "#"
-    echo "# COMMAND: nnUNet_train 2d nnUNetTrainerV2 $TASK_NUM 5"
+    echo "# COMMAND: nnUNet_train 2d nnUNetTrainerV2 Task042_LiverTest 5"
+    # echo "# COMMAND: nnUNet_train 2d nnUNetTrainerV2 $TASK_NUM 5"
     #nnUNet_train CONFIGURATION TRAINER_CLASS_NAME TASK_NAME_OR_ID FOLD (additional options)
     nnUNet_train 2d nnUNetTrainerV2 $TASK_NUM 5
 

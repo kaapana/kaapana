@@ -29,7 +29,7 @@ def process_seg_info(seg_info, series_description):
 
 def create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, color, labelID=1):
     try:
-        coding_scheme = code_lookup_table.loc[code_meaning.lower()]
+        coding_scheme = code_lookup_table.loc[code_meaning.split("-")[0].lower()]
     except KeyError:
         raise AssertionError(f'The specified code meaning {code_meaning.lower()} does not exist. Check here for available code names: http://dicom.nema.org/medical/dicom/current/output/chtml/part16/chapter_L.html#chapter_L from Table L-1.')
 

@@ -216,8 +216,7 @@ class LocalNnUnetDatasetOperator(KaapanaPythonBaseOperator):
 
     def __init__(self,
                  dag,
-                 training_name,
-                 task_num,
+                 task_name,
                  input_operators,
                  seg_input_operator,
                  modality,
@@ -234,10 +233,10 @@ class LocalNnUnetDatasetOperator(KaapanaPythonBaseOperator):
                  file_extensions='*.nii.gz',
                  *args, **kwargs):
 
-        self.task_num=str(task_num)
+        self.task_num=task_name[4:].split("_")[0]
+        self.training_name=task_name.split("_")[1]
         self.seg_input_operator=seg_input_operator
         self.input_operators=input_operators if isinstance(input_operators, list) else [input_operators]
-        self.training_name=training_name
         self.training_description=training_description
         self.training_reference=training_reference
         self.licence=licence

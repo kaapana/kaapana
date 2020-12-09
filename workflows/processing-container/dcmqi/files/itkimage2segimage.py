@@ -215,7 +215,7 @@ for batch_element_dir in batch_folders:
             meta_data_file = f"{input_image_list_input_dir}/{rootname}.json"
 
             with open(meta_data_file, "w") as write_file:
-                json.dump(segmentation_information, write_file)
+                json.dump(segmentation_information, write_file,indent=4,sort_keys=True)
 
             # Creating dcm_object
             output_dcm_file = f"{element_output_dir}/{rootname}.dcm"
@@ -285,7 +285,7 @@ for batch_element_dir in batch_folders:
         meta_data_file = f"{input_image_list_input_dir}/{multi_label_seg_name.lower()}.json"
         with open(meta_data_file, "w") as write_file:
             print("Writing JSON:: {}".format(meta_data_file))
-            json.dump(segmentation_information, write_file)
+            json.dump(segmentation_information, write_file,indent=4,sort_keys=True)
 
         output_dcm_file = f"{element_output_dir}/{multi_label_seg_name.lower()}.dcm"
         print("Output SEG.dcm file:: {}".format(output_dcm_file))

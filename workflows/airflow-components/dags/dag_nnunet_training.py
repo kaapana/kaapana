@@ -13,8 +13,7 @@ from nnunet_training.NnUnetOperator import NnUnetOperator
 from nnunet_training.LocalNnUnetDatasetOperator import LocalNnUnetDatasetOperator
 from nnunet_training.LocalDagTriggerOperator import LocalDagTriggerOperator
 
-TASK_ID = 42
-TASK_NAME = "LiverTest"
+TASK_NAME = "Task042_LiverTest"
 
 ui_forms = {
     "publication_form": {
@@ -101,15 +100,14 @@ dcm2nifti_ct = DcmConverterOperator(dag=dag, input_operator=get_ref_ct_series_fr
 
 training_data_preparation = LocalNnUnetDatasetOperator(
     dag=dag,
-    training_name=TASK_NAME,
-    task_num=TASK_ID,
+    task_name=TASK_NAME,
     modality={
         "0": "CT"
     },
     labels={
         "0": "background",
         "1": "Liver",
-        # "2": "Tumor"
+        "2": "Tumor"
     },
     input_operators=dcm2nifti_ct,
     seg_input_operator=dcm2nifti_seg,
@@ -123,17 +121,19 @@ training_data_preparation = LocalNnUnetDatasetOperator(
 
 nnunet_check_dataset = NnUnetOperator(
     dag=dag,
-    task_num=TASK_ID,
-    parallel_id="prep",
     mode="preprocess",
+    processes_low=8,
+    processes_full=6,
+    parallel_id="prep",
+    task_name=TASK_NAME,
     input_operator=training_data_preparation
 )
 
 nnunet_train = NnUnetOperator(
     dag=dag,
-    task_num=TASK_ID,
-    parallel_id="training",
     mode="training",
+    parallel_id="training",
+    task_name=TASK_NAME,
     input_operator=training_data_preparation
 )
 #clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)

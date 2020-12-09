@@ -2,19 +2,25 @@
 
 set -e
 
-PREPROCESS=true
-CHECK_INTEGRITY=true
+DATASET_DIR="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
 
-PL=12
-PF=8
+# General Config
+export nnUNet_raw_data_base="$DATASET_DIR"
+export nnUNet_preprocessed="$DATASET_DIR/nnUNet_preprocessed"
+export RESULTS_FOLDER="$DATASET_DIR/results"
 
-nnUNet_raw_data_base="$DATASET_DIR"
-nnUNet_preprocessed="$DATASET_DIR/nnUNet_preprocessed"
-RESULTS_FOLDER="$DATASET_DIR/results"
 
 echo "#######################################################################"
 echo "#"
 echo "# Starting nnUNet..."
+echo "#"
+echo "# MODE:      $MODE";
+echo "# MODEL:     $MODEL";
+echo "# TASK_NAME: $TASK_NAME";
+echo "#"
+echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
+echo "# nnUNet_preprocessed: $nnUNet_preprocessed"
+echo "# RESULTS_FOLDER: $RESULTS_FOLDER"
 echo "#"
 if [ "$MODE" != "training" ] && [ "$MODE" != "inference" ]  && [ "$MODE" != "preprocess" ] ; then
     echo "#"
@@ -28,7 +34,6 @@ if [ "$MODE" != "training" ] && [ "$MODE" != "inference" ]  && [ "$MODE" != "pre
     exit 1
 fi
 
-DATASET_DIR="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
 if [ "$MODE" == "training" ] || [ "$MODE" == "preprocess" ] && ! [ -d "$DATASET_DIR" ]; then
     echo "#"
     echo "#######################################################################"
@@ -45,9 +50,15 @@ echo "#"
 echo "# MODE: $MODE"
 echo "#"
 if [ "$MODE" = "preprocess" ]; then
+    echo "#"
+    echo "# Starting preprocessing..."
+    echo "#"
+    # Preprocessing Config
+    echo "# PREPROCESS: $PREPROCESS";
+    echo "# CHECK_INTEGRITY: $CHECK_INTEGRITY";
+    echo "# PL: $PL";
+    echo "# PF: $PF";
 
-    preprocess_processes_low=$PL
-    preprocess_processes_full=$PF
     if [ "$CHECK_INTEGRITY" = "True" ] || [ "$CHECK_INTEGRITY" = "true" ]; then
         preprocess_verify="--verify_dataset_integrity"
     else
@@ -55,18 +66,18 @@ if [ "$MODE" = "preprocess" ]; then
     fi
 
     if [ "$PREPROCESS" = "True" ] || [ "$PREPROCESS" = "true" ]; then
-        preprocess_verify="-no_pp"
+        preprocess=""
     else
-        preprocess_verify=""
+        preprocess="-no_pp"
     fi
 
     echo "#"
     echo "# Verify dataset itegrity..."
     echo "# TASK_NUM" $TASK_NUM
     echo "#"
-    echo "# COMMAND: nnUNet_plan_and_preprocess -t $TASK_NUM -tl $preprocess_processes_low -tf $preprocess_processes_full $preprocess_verify $preprocess_verify"
+    echo "# COMMAND: nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PL -tf $PF $preprocess_verify $preprocess"
     echo "#"
-    nnUNet_plan_and_preprocess -t $TASK_NUM -tl $preprocess_processes_low -tf $preprocess_processes_full $preprocess_verify $preprocess_verify
+    nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PL $preprocess -tf $PF $preprocess_verify 
     echo "#"
     echo "# Dataset itegrity OK!"
     echo "#"
@@ -75,21 +86,27 @@ elif [ "$MODE" = "training" ]; then
     echo "#"
     echo "# Starting training..."
     echo "#"
-    echo "# TASK_NUM" $TASK_NUM
+    # Training Config
+    echo "# FOLDS: $FOLDS";
+    echo "# TRAIN_CONFIG: $TRAIN_CONFIG";
     echo "#"
-    echo "# COMMAND: nnUNet_train 2d nnUNetTrainerV2 Task042_LiverTest 5"
-    # echo "# COMMAND: nnUNet_train 2d nnUNetTrainerV2 $TASK_NUM 5"
+    echo "# COMMAND: nnUNet_train 2d nnUNetTrainerV2 $TASK_NUM 5"
     #nnUNet_train CONFIGURATION TRAINER_CLASS_NAME TASK_NAME_OR_ID FOLD (additional options)
-    nnUNet_train 2d nnUNetTrainerV2 $TASK_NUM 5
+    nnUNet_train 2d $TRAIN_CONFIG $TASK_NAME $FOLDS --npz
 
 
     echo "#"
     echo "# DONE"
 
 elif [ "$MODE" = "inference" ]; then
-    NUM_THREADS_PREPROCESSING="1"
-    NUM_THREADS_NIFTISAVE="1"
+    echo "#"
+    echo "# Starting inference..."
+    echo "#"
 
+    # Inference Config
+    echo "# NUM_THREADS_PREPROCESSING: $NUM_THREADS_PREPROCESSING";
+    echo "# NUM_THREADS_NIFTISAVE: $NUM_THREADS_NIFTISAVE";
+    
     shopt -s globstar
     BATCH_COUNT=$(find "$BATCHES_INPUT_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l)
 
@@ -186,14 +203,14 @@ echo "#"
 echo "#######################################################################"
 exit 0
 
-# usage: nnUNet_plan_and_preprocess [-h] [-t TASK_IDS [TASK_IDS ...]]
+# usage: nnUNet_plan_and_preprocess [-h] [-t TASK_NAMES [TASK_NAMES ...]]
 #                                   [-pl3d PLANNER3D] [-pl2d PLANNER2D] [-no_pp]
 #                                   [-tl TL] [-tf TF]
 #                                   [--verify_dataset_integrity]
 
 # optional arguments:
 #   -h, --help            show this help message and exit
-#   -t TASK_IDS [TASK_IDS ...], --task_ids TASK_IDS [TASK_IDS ...]
+#   -t TASK_NAMES [TASK_NAMES ...], --TASK_NAMEs TASK_NAMES [TASK_NAMES ...]
 #                         List of integers belonging to the task ids you wish to
 #                         run experiment planning and preprocessing for. Each of
 #                         these ids must, have a matching folder 'TaskXXX_' in
@@ -221,3 +238,43 @@ exit 0
 #   --verify_dataset_integrity
 #                         set this flag to check the dataset integrity. This is
 #                         useful and should be done once for each dataset!
+
+# usage: nnUNet_train [-h] [-val] [-c] [-p P] [--use_compressed_data]
+#                     [--deterministic] [--npz] [--find_lr] [--valbest] [--fp32]
+#                     [--val_folder VAL_FOLDER]
+#                     network network_trainer task fold
+
+# positional arguments:
+#   network
+#   network_trainer
+#   task                  can be task name or task id
+#   fold                  0, 1, ..., 5 or 'all'
+
+# optional arguments:
+#   -h, --help            show this help message and exit
+#   -val, --validation_only
+#                         use this if you want to only run the validation
+#   -c, --continue_training
+#                         use this if you want to continue a training
+#   -p P                  plans identifier. Only change this if you created a
+#                         custom experiment planner
+#   --use_compressed_data
+#                         If you set use_compressed_data, the training cases
+#                         will not be decompressed. Reading compressed data is
+#                         much more CPU and RAM intensive and should only be
+#                         used if you know what you are doing
+#   --deterministic       Makes training deterministic, but reduces training
+#                         speed substantially. I (Fabian) think this is not
+#                         necessary. Deterministic training will make you
+#                         overfit to some random seed. Don't use that.
+#   --npz                 if set then nnUNet will export npz files of predicted
+#                         segmentations in the validation as well. This is
+#                         needed to run the ensembling step so unless you are
+#                         developing nnUNet you should enable this
+#   --find_lr             not used here, just for fun
+#   --valbest             hands off. This is not intended to be used
+#   --fp32                disable mixed precision training and run old school
+#                         fp32
+#   --val_folder VAL_FOLDER
+#                         name of the validation folder. No need to use this for
+#                         most people

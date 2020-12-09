@@ -14,19 +14,29 @@ class NnUnetOperator(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  mode,
-                 task_num,
+                 task_name,
+                 processes_low=12,
+                 processes_full=8,
+                 folds=5,
+                 train_config="nnUNetTrainerV2",
+                 preprocess="true",
+                 check_integrity="true",
                  env_vars={},
                  execution_timeout=execution_timeout,
                  *args,
                  **kwargs
                  ):
-        
+        # Task042_LiverTest
         envs = {
             "MODE": str(mode),
-            "TASK_NUM": str(task_num),
-            "nnUNet_raw_data_base": "/input", 
-            "nnUNet_preprocessed": "/input/nnUNet_preprocessed",
-            "RESULTS_FOLDER": "/models",
+            "TASK_NAME": task_name,
+            "TASK_NUM": task_name[4:].split("_")[0],
+            "PREPROCESS": preprocess,
+            "PL": str(processes_low),
+            "PF": str(processes_full),
+            "FOLDS": str(folds),
+            "TRAIN_CONFIG": train_config,
+            "CHECK_INTEGRITY": check_integrity,
         }
         env_vars.update(envs)
 
@@ -47,6 +57,20 @@ class NnUnetOperator(KaapanaBaseOperator):
         }
         volumes.append(Volume(name='models', configs=volume_config))
 
+
+
+        volume_mounts.append(VolumeMount(
+            'dshm', mount_path='/dev/shm', sub_path=None, read_only=False))
+        volume_config = {
+            'emptyDir':
+            {
+                'medium': 'Memory',
+            }
+        }
+        volumes.append(Volume(name='dshm', configs=volume_config))
+
+        pod_resources = PodResources(request_memory=None, request_cpu=None,limit_memory=None, limit_cpu=None, limit_gpu=1)
+
         super().__init__(
             dag=dag,
             image="{}{}/nnunet:1.6.5-vdev".format(default_registry, default_project),
@@ -55,9 +79,10 @@ class NnUnetOperator(KaapanaBaseOperator):
             volumes=volumes,
             volume_mounts=volume_mounts,
             execution_timeout=execution_timeout,
-            ram_mem_mb=15000,
-            ram_mem_mb_lmt=30000,
-            gpu_mem_mb=5000,
+            ram_mem_mb=10000,
+            ram_mem_mb_lmt=10000,
+            gpu_mem_mb=None,
+            pod_resources=pod_resources,
             env_vars=env_vars,
             *args,
             **kwargs

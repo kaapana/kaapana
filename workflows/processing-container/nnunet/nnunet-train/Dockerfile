@@ -16,12 +16,14 @@ ENV PREPARATION="true"
 ENV MODEL="3d_lowres"
 ENV TASK=""
 ENV OMP_NUM_THREADS=1
+ENV PYTHONUNBUFFERED=1
 
 ENV BRANCH=master
 ENV NNUNET_VERSION=v1.6.5
 
 RUN apt-get update && apt-get install -y \
     git \
+    htop \
  && rm -rf /var/lib/apt/lists/*
 
 RUN pip install 'pillow<7.1' --force-reinstall
@@ -39,6 +41,5 @@ RUN git clone  --single-branch --branch ${BRANCH} https://github.com/MIC-DKFZ/nn
 RUN cd /nnunet-pip-package && pip install ./
 
 COPY files/ /src
- 
 
 CMD ["bash","/src/start_nnunet.sh"]

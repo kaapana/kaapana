@@ -4,10 +4,11 @@ LABEL IMAGE="dcmqi"
 LABEL VERSION="v1.2.2-fix-vdev"
 LABEL CI_IGNORE="False"
 
-
 # set work directory
 WORKDIR /dcmqi
-RUN pip3 install pandas pydicom
+
+COPY files/requirements.txt ./
+RUN pip3 install -r ./requirements.txt
 
 #Release 1.0.4
 RUN curl -L -O https://github.com/QIICR/dcmqi/releases/download/v1.2.2/dcmqi-1.2.2-linux.tar.gz

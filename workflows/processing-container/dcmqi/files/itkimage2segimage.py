@@ -42,17 +42,17 @@ def create_segment_attribute(segment_algorithm_type, segment_algorithm_name, cod
     segment_attribute["SegmentedPropertyCategoryCodeSequence"] = {
         "CodeValue": str(coding_scheme['Code Value']),
         "CodingSchemeDesignator": coding_scheme['Coding Scheme Designator'],
-        "CodeMeaning": code_meaning.capitalize()
+        "CodeMeaning": code_meaning
     }
     segment_attribute["SegmentedPropertyTypeCodeSequence"] = {
         "CodeValue": str(coding_scheme['Code Value']),
         "CodingSchemeDesignator": coding_scheme['Coding Scheme Designator'],
-        "CodeMeaning": code_meaning.capitalize()
+        "CodeMeaning": code_meaning
     }
     segment_attribute["SegmentedPropertyTypeModifierCodeSequence"] = {
         "CodeValue": str(coding_scheme['Code Value']),
         "CodingSchemeDesignator": coding_scheme['SNOMED-RT ID (Retired)'] if not math.isnan else "unkown",
-        "CodeMeaning": code_meaning.capitalize()
+        "CodeMeaning": code_meaning
     }
     return segment_attribute
 

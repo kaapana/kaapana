@@ -17,6 +17,7 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
                  multi_label_seg_info_json=None,          
                  multi_label_seg_name=None,
                  series_description=None,
+                 skip_empty_slices=False,
                  env_vars=None,
                  execution_timeout=timedelta(minutes=5),
                  *args,
@@ -41,6 +42,7 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
             "ALGORITHM_TYPE": alg_type,
             "SERIES_NUMBER": "300",
             "INSTANCE_NUMBER": "1",
+            "SKIP_EMPTY_SLICES": f"{skip_empty_slices}",
             "DCMQI_COMMAND": 'itkimage2segimage'
         }
         env_vars.update(envs)

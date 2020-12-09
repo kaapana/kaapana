@@ -2,5 +2,5 @@
 global:
     pull_policy_jobs: ""
 image: "dag-nnunet-training"
-version: "training"
+version: "1.6.5-vdev"
 action: "copy"

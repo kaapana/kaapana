@@ -7,6 +7,8 @@ import sched
 import time
 from tensorboardX import SummaryWriter
 
+timeout=30
+
 args_got = sys.argv[1:]
 if (len(args_got) != 2):
     print("Arg0: experiment_path")
@@ -24,7 +26,7 @@ writer = None
 last_written_epoch = -1
 
 def get_logs(sc):
-    global writer, last_written_epoch, experiment_path, tensorboard_dir_path
+    global writer, last_written_epoch, experiment_path, tensorboard_dir_path, timeout
     print("Checking log files...")
     log_files = sorted(glob.glob(os.path.join(experiment_path, "training_log_*.txt*"), recursive=True))
     experiment_name = f'nnunet-train-{log_files[-1].split("training_log_")[-1].replace(".txt","")}'
@@ -69,7 +71,7 @@ def get_logs(sc):
         writer.add_scalar('time', epoch["time"], epoch["count"])
         last_written_epoch = epoch["count"]
         print("Wrote new Epoch: {}".format(last_written_epoch))
-    s.enter(10, 1, get_logs, (sc,))
+    s.enter(timeout, 1, get_logs, (sc,))
 
 
 s.enter(1, 1, get_logs, (s,))

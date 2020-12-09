@@ -14,16 +14,12 @@ import pydicom
 
 def process_seg_info(seg_info, series_description):
     split_seg_info = seg_info.split('@')
-    code_meaning = split_seg_info[-1]
-    print("Process_seg_info: ")
-    print("seg_info: {}".format(seg_info))
-    print("split_seg_info: {}".format(split_seg_info))
-    print("Code-Meaning: {}".format(code_meaning))
-    print("series_description: {}".format(series_description))
     if len(split_seg_info) > 1:
-        series_description_code_meaning = f'{code_meaning.capitalize()}-{split_seg_info[0]}'
+        code_meaning = f'{split_seg_info[-1].capitalize()}-{split_seg_info[0].capitalize()}'
     else:
-        series_description_code_meaning = f'{code_meaning.capitalize()}'
+        code_meaning = f'{split_seg_info[0].capitalize()}'
+
+    series_description_code_meaning = f'{code_meaning}'
 
     if series_description != "":
         return code_meaning, series_description

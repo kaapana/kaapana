@@ -90,6 +90,13 @@ elif [ "$MODE" = "training" ]; then
     echo "# FOLDS: $FOLDS";
     echo "# TRAIN_CONFIG: $TRAIN_CONFIG";
     echo "#"
+    if ! [ -z "${TENSORBOARD_DIR}" ]; then
+        echo "# Starting monitoring:";
+        python3 -u /src/monitoring.py $RESULTS_FOLDER $TENSORBOARD_DIR &
+        echo "#"
+    fi
+
+    echo "#"
     echo "# COMMAND: nnUNet_train 2d nnUNetTrainerV2 $TASK_NUM 5"
     #nnUNet_train CONFIGURATION TRAINER_CLASS_NAME TASK_NAME_OR_ID FOLD (additional options)
     nnUNet_train 2d $TRAIN_CONFIG $TASK_NAME $FOLDS --npz
@@ -111,10 +118,10 @@ elif [ "$MODE" = "inference" ]; then
     BATCH_COUNT=$(find "$BATCHES_INPUT_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l)
 
     if [ $BATCH_COUNT -eq 0 ]; then
-    echo "# No batch-data found -> abort."
-    exit 1
+        echo "# No batch-data found -> abort."
+        exit 1
     else
-    echo "# Found $BATCH_COUNT batches."
+        echo "# Found $BATCH_COUNT batches."
     fi
 
     echo "#"

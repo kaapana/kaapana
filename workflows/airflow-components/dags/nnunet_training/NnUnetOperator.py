@@ -37,6 +37,7 @@ class NnUnetOperator(KaapanaBaseOperator):
             "FOLDS": str(folds),
             "TRAIN_CONFIG": train_config,
             "CHECK_INTEGRITY": check_integrity,
+            "TENSORBOARD_DIR": '/tensorboard',
         }
         env_vars.update(envs)
 

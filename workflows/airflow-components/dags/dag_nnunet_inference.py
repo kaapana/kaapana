@@ -149,7 +149,7 @@ dcm2nifti = DcmConverterOperator(dag=dag, input_operator=get_input, output_forma
 nnunet_predict = NnUnetOperator(
     dag=dag,
     mode="inference",
-    input_operator=dcm2nifti
+    modality_dirs=[dcm2nifti.operator_out_dir]
 )
 
 alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]

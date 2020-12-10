@@ -31,7 +31,8 @@ def create_segment_attribute(segment_algorithm_type, segment_algorithm_name, cod
     try:
         coding_scheme = code_lookup_table.loc[code_meaning.split("-")[0].lower()]
     except KeyError:
-        raise AssertionError(f'The specified code meaning {code_meaning.lower()} does not exist. Check here for available code names: http://dicom.nema.org/medical/dicom/current/output/chtml/part16/chapter_L.html#chapter_L from Table L-1.')
+        raise AssertionError(
+            f'The specified code meaning {code_meaning.lower()} does not exist. Check here for available code names: http://dicom.nema.org/medical/dicom/current/output/chtml/part16/chapter_L.html#chapter_L from Table L-1.')
 
     segment_attribute = {}
     segment_attribute["labelID"] = labelID
@@ -57,7 +58,7 @@ def create_segment_attribute(segment_algorithm_type, segment_algorithm_name, cod
     return segment_attribute
 
 
-def adding_aetitle(element_input_dir, output_dcm_file):
+def adding_aetitle(element_input_dir, output_dcm_file, seg_infos):
     dcm_files = sorted(glob.glob(os.path.join(element_input_dir, "*.dcm*"), recursive=True))
 
     if len(dcm_files) == 0:
@@ -73,8 +74,17 @@ def adding_aetitle(element_input_dir, output_dcm_file):
     print('ae title', aetitle)
 
     dcmseg_file = pydicom.dcmread(output_dcm_file)
+    dcmseg_file.add_new([0x012, 0x020], 'LO', aetitle)  # Clinical Trial Protocol ID
 
-    dcmseg_file.add_new([0x012, 0x020], 'LO', aetitle) # Clinical Trial Protocol ID
+    bpe = ""
+    for seg_info in seg_infos:
+        if bpe != "":
+            bpe += " "
+        split_seg_info = seg_info.split('@')
+        bpe += f'{split_seg_info[-1].capitalize()}-{split_seg_info[0].capitalize()}' if len(split_seg_info) > 1 else f'{split_seg_info[0].capitalize()}'
+
+    dcmseg_file.add_new([0x0018, 0x0015], 'LO', bpe)  # Body Part Examined
+
     dcmseg_file.save_as(output_dcm_file)
 
 # Example: https://github.com/QIICR/dcmqi/blob/master/doc/examples/seg-example.json
@@ -122,8 +132,8 @@ DCMQI = '/dcmqi/dcmqi-1.2.2-linux/bin/'
 
 # If input type is set to "multi_label_seg" you must create a json inside the OPERATOR_IMAGE_LIST_INPUT_DIR that contains the parts as follows: {"seg_info": ["spleen", "right@kidney"]}
 
-input_type = os.environ.get('INPUT_TYPE') # multi_label_seg or single_label_segs
-multi_label_seg_name = os.environ.get('MULTI_LABEL_SEG_NAME', 'multi-label') # Name used for multi-label segmentation object, if it will be created
+input_type = os.environ.get('INPUT_TYPE')  # multi_label_seg or single_label_segs
+multi_label_seg_name = os.environ.get('MULTI_LABEL_SEG_NAME', 'multi-label')  # Name used for multi-label segmentation object, if it will be created
 segment_algorithm_name = os.environ.get('ALGORITHM_NAME', 'kaapana')
 segment_algorithm_type = os.environ.get('ALGORITHM_TYPE', 'AUTOMATIC')
 content_creator_name = os.environ.get('CREATOR_NAME', 'kaapana')
@@ -134,14 +144,14 @@ skip_empty_slices = True if os.environ.get('SKIP_EMPTY_SLICES', 'false').lower()
 
 get_seg_info_from_file = False
 if input_type == 'multi_label_seg':
-    multi_label_seg_info_json = os.environ.get('MULTI_LABEL_SEG_INFO_JSON', 'seg_info.json') # name of json file that contain the parts as follows e.g. {"seg_info": ["spleen", "right@kidney"]}        
-    
+    multi_label_seg_info_json = os.environ.get('MULTI_LABEL_SEG_INFO_JSON', 'seg_info.json')  # name of json file that contain the parts as follows e.g. {"seg_info": ["spleen", "right@kidney"]}
+
     if multi_label_seg_info_json == "":
         multi_label_seg_info_json = "seg_info.json"
 
 elif input_type == 'single_label_segs':
-    single_label_seg_info = os.environ.get('SINGLE_LABEL_SEG_INFO') # SINGLE_LABEL_SEG_INFO must be either "from_file_name" or a e.g. "right@kidney"
-    create_multi_label_dcm_from_single_label_segs = os.environ.get('CREATE_MULIT_LABEL_DCM_FROM_SINGLE_LABEL_SEGS', 'false') # true or false
+    single_label_seg_info = os.environ.get('SINGLE_LABEL_SEG_INFO')  # SINGLE_LABEL_SEG_INFO must be either "from_file_name" or a e.g. "right@kidney"
+    create_multi_label_dcm_from_single_label_segs = os.environ.get('CREATE_MULIT_LABEL_DCM_FROM_SINGLE_LABEL_SEGS', 'false')  # true or false
     if single_label_seg_info == '':
         raise AssertionError('SINGLE_LABEL_SEG_INFO must be either "from_file_name" or a e.g. "right@kidney"]}')
     elif single_label_seg_info == 'from_file_name':
@@ -166,7 +176,6 @@ print("Found {} batches".format(len(batch_folders)))
 
 for batch_element_dir in batch_folders:
     print("process: {}".format(batch_element_dir))
-
 
     element_input_dir = os.path.join(batch_element_dir, os.environ['OPERATOR_IN_DIR'])
     input_image_list_input_dir = os.path.join(batch_element_dir, os.environ['OPERATOR_IMAGE_LIST_INPUT_DIR'])
@@ -195,10 +204,10 @@ for batch_element_dir in batch_folders:
 
     if input_type == 'single_label_segs':
         print("input_type == 'single_label_segs'")
-        
+
         segment_attributes = []
         for idx, seg_filepath in enumerate(segmentation_paths):
-            print("process idx: {} - {}".format(idx,seg_filepath))
+            print("process idx: {} - {}".format(idx, seg_filepath))
 
             seg_filename = os.path.basename(seg_filepath)
             m = re.compile(r'(.*?)(\.nii.gz|\.nii|\.nrrd)').search(seg_filename)
@@ -208,7 +217,8 @@ for batch_element_dir in batch_folders:
                 single_label_seg_info = rootname
 
             code_meaning, segmentation_information["SeriesDescription"] = process_seg_info(single_label_seg_info, series_description)
-            segment_attribute = create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, np.round(np.array(cm.get_cmap('gist_ncar', 20)(random.randint(0, 19))[:3])*255).astype(int).tolist())
+            segment_attribute = create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, np.round(
+                np.array(cm.get_cmap('gist_ncar', 20)(random.randint(0, 19))[:3])*255).astype(int).tolist())
 
             if create_multi_label_dcm_from_single_label_segs.lower() == 'true':
                 segment_attributes.append([segment_attribute])
@@ -217,11 +227,11 @@ for batch_element_dir in batch_folders:
             meta_data_file = f"{input_image_list_input_dir}/{rootname}.json"
 
             with open(meta_data_file, "w") as write_file:
-                json.dump(segmentation_information, write_file,indent=4,sort_keys=True)
+                json.dump(segmentation_information, write_file, indent=4, sort_keys=True)
 
             # Creating dcm_object
             output_dcm_file = f"{element_output_dir}/{rootname}.dcm"
-            
+
             print("Starting dcmqi-subprocess for: {}".format(output_dcm_file))
             try:
                 dcmqi_command = [
@@ -253,12 +263,13 @@ for batch_element_dir in batch_folders:
                         raise AssertionError(f'Something weng wrong while creating the single-label-dcm object {e.output}')
                 else:
                     raise AssertionError(f'Something weng wrong while creating the single-label-dcm object {e.output}')
-            adding_aetitle(element_input_dir, output_dcm_file)
+
+            adding_aetitle(element_input_dir, output_dcm_file, seg_info=[single_label_seg_info])
 
     elif input_type == 'multi_label_seg':
         print("input_type == 'multi_label_seg'")
 
-        json_path=os.path.join(input_image_list_input_dir, multi_label_seg_info_json)
+        json_path = os.path.join(input_image_list_input_dir, multi_label_seg_info_json)
         with open(json_path) as f:
             data = json.load(f)
 
@@ -277,11 +288,11 @@ for batch_element_dir in batch_folders:
         colors = [np.round(np.array(cm.get_cmap('gist_ncar', label_counts)(idx)[:3])*255).astype(int).tolist() for idx in range(label_counts)]
         random.shuffle(colors)
         for idx, single_label_seg_info in enumerate(data['seg_info']):
-            print("process idx: {} - {}".format(idx,single_label_seg_info))
+            print("process idx: {} - {}".format(idx, single_label_seg_info))
             code_meaning, segmentation_information["SeriesDescription"] = process_seg_info(single_label_seg_info, series_description)
             segment_attribute = create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, colors[idx], labelID=idx+1)
             segment_attributes[0].append(segment_attribute)
-        
+
     if input_type == 'multi_label_seg' or create_multi_label_dcm_from_single_label_segs.lower() == 'true':
         _, segmentation_information["SeriesDescription"] = process_seg_info(multi_label_seg_name, series_description)
 
@@ -289,7 +300,7 @@ for batch_element_dir in batch_folders:
         meta_data_file = f"{input_image_list_input_dir}/{multi_label_seg_name.lower()}.json"
         with open(meta_data_file, "w") as write_file:
             print("Writing JSON:: {}".format(meta_data_file))
-            json.dump(segmentation_information, write_file,indent=4,sort_keys=True)
+            json.dump(segmentation_information, write_file, indent=4, sort_keys=True)
 
         output_dcm_file = f"{element_output_dir}/{multi_label_seg_name.lower()}.dcm"
         print("Output SEG.dcm file:: {}".format(output_dcm_file))
@@ -324,7 +335,7 @@ for batch_element_dir in batch_folders:
                     raise AssertionError(f'Something weng wrong while creating the multi-label-dcm object {e.output}')
             else:
                 raise AssertionError(f'Something weng wrong while creating the multi-label-dcm object {e.output}')
-        
-        adding_aetitle(element_input_dir, output_dcm_file)
+
+        adding_aetitle(element_input_dir, output_dcm_file, seg_infos=data['seg_info'])
     print("End of script.")
     print("DONE")

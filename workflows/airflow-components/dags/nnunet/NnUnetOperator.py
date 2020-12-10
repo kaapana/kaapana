@@ -17,6 +17,8 @@ class NnUnetOperator(KaapanaBaseOperator):
                  processes_low=6,
                  processes_full=4,
                  folds=5,
+                 modality_nifti_dirs=[],
+                 modality_dicom_dirs=[],
                  train_config="nnUNetTrainerV2",
                  preprocess="true",
                  check_integrity="true",
@@ -27,6 +29,8 @@ class NnUnetOperator(KaapanaBaseOperator):
                  ):
         # Task042_LiverTest
         envs = {
+            "INPUT_NIFTI_DIRS": ";".join(str(dir) for dir in modality_nifti_dirs),
+            "INPUT_DICOM_DIRS": ";".join(str(dir) for dir in modality_dicom_dirs),
             "MODE": str(mode),
             "PREPROCESS": preprocess,
             "PL": str(processes_low),
@@ -55,8 +59,6 @@ class NnUnetOperator(KaapanaBaseOperator):
         }
         volumes.append(Volume(name='models', configs=volume_config))
 
-
-
         volume_mounts.append(VolumeMount(
             'dshm', mount_path='/dev/shm', sub_path=None, read_only=False))
         volume_config = {
@@ -67,7 +69,7 @@ class NnUnetOperator(KaapanaBaseOperator):
         }
         volumes.append(Volume(name='dshm', configs=volume_config))
 
-        pod_resources = PodResources(request_memory=None, request_cpu=None,limit_memory=None, limit_cpu=None, limit_gpu=1)
+        pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=1) if mode == "training" or mode == "inference" else None
 
         super().__init__(
             dag=dag,

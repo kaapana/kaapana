@@ -50,19 +50,68 @@ ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            "input": {
-                "title": "Input Modality",
-                "default": "SEG",
-                "description": "Expected input modality.",
-                "type": "string",
-                "readOnly": True,
-            },
             "task": {
                 "title": "TASK_NAME",
                 "description": "Specify a name for the training task",
                 "type": "string",
                 "default": TASK_NAME,
                 "required": True
+            },
+            "training_description": {
+                "title": "Training description",
+                "default": "nnUnet Segmentation",
+                "description": "Specify a version.",
+                "type": "string",
+                "readOnly": False,
+            },
+            "licence": {
+                "title": "Licence",
+                "default": "None",
+                "description": "Specify a licence.",
+                "type": "string",
+                "readOnly": False,
+            },
+            "version": {
+                "title": "Version",
+                "default": "None",
+                "description": "Specify a version.",
+                "type": "string",
+                "readOnly": False,
+            },
+            "training_reference": {
+                "title": "Training reference",
+                "default": "nnUNet",
+                "description": "Set a reference.",
+                "type": "string",
+                "readOnly": False,
+            },
+            "shuffle_seed": {
+                "title": "Shuffle seed",
+                "default": 0,
+                "description": "Set a seed.",
+                "type": "integer",
+                "readOnly": False,
+            },
+            "test_percentage": {
+                "title": "Test percentage",
+                "default": 0,
+                "description": "Set % of data for the test-set.",
+                "type": "integer",
+                "readOnly": False,
+            },
+            "copy_data": {
+                "title": "Copy_data",
+                "description": "Copy data?",
+                "default": False,
+                "type": "boolean",
+                "readOnly": False,
+            },
+            "input": {
+                "title": "Input Modality",
+                "default": "SEG",
+                "description": "Expected input modality.",
+                "type": "string",
+                "readOnly": True,
             },
         }
     }
@@ -105,35 +154,36 @@ dcm2nifti_ct = DcmConverterOperator(dag=dag, input_operator=get_ref_ct_series_fr
 #                                                 use_dcm_files=False
 #                                                 )
 
-training_data_preparation = LocalNnUnetDatasetOperator(
-    dag=dag,
-    task_name=TASK_NAME,
-    modality={
-        "0": "CT"
-    },
-    labels={
-        "0": "background",
-        "1": "Liver",
-        # "2": "Tumor"
-    },
-    input_operators=dcm2nifti_ct,
-    seg_input_operator=dcm2nifti_seg,
-    licence="NA",
-    version="NA",
-    tensor_size="3D",
-    test_percentage=0,
-    copy_target_data=True,
-    shuffle_seed=None,
-)
+# training_data_preparation = LocalNnUnetDatasetOperator(
+#     dag=dag,
+#     task_name=TASK_NAME,
+#     modality={
+#         "0": "CT"
+#     },
+#     labels={
+#         "0": "background",
+#         "1": "Liver",
+#         # "2": "Tumor"
+#     },
+#     input_operators=dcm2nifti_ct,
+#     seg_input_operator=dcm2nifti_seg,
+#     licence="NA",
+#     version="NA",
+#     tensor_size="3D",
+#     test_percentage=0,
+#     copy_target_data=True,
+#     shuffle_seed=None,
+# )
 
-nnunet_check_dataset = NnUnetOperator(
+nnunet_preprocess = NnUnetOperator(
     dag=dag,
     mode="preprocess",
+    input_operator=dcm2nifti_seg,
+    modality_nifti_dirs=[dcm2nifti_ct.operator_out_dir],
+    modality_dicom_dirs=[get_ref_ct_series_from_seg.operator_out_dir],
     processes_low=8,
     processes_full=6,
     parallel_id="prep",
-    task_name=TASK_NAME,
-    input_operator=training_data_preparation
 )
 
 nnunet_train = NnUnetOperator(
@@ -141,10 +191,10 @@ nnunet_train = NnUnetOperator(
     mode="training",
     parallel_id="training",
     task_name=TASK_NAME,
-    input_operator=training_data_preparation
+    input_operator=nnunet_preprocess
 )
 #clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
-get_input >> dcm2nifti_seg >> training_data_preparation
-get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> training_data_preparation >> nnunet_check_dataset >> nnunet_train
+get_input >> dcm2nifti_seg >> nnunet_preprocess
+get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> nnunet_preprocess >> nnunet_train
 # >> clean

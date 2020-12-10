@@ -226,11 +226,11 @@ class LocalNnUnetDatasetOperator(KaapanaPythonBaseOperator):
                  training_description="nnUnet Segmentation",
                  training_reference="nnUnet",
                  tensor_size="3D",
-                 shuffle_seed=None,
                  test_percentage=0,
                  copy_target_data=False,
                  operator_out_dir='dataset',
                  file_extensions='*.nii.gz',
+                 shuffle_seed=None,
                  *args, **kwargs):
 
         self.task_num=task_name[4:].split("_")[0]

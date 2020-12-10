@@ -295,7 +295,7 @@ class KaapanaBaseOperator(BaseOperator):
             form_data = context['dag_run'].conf["conf"]["form_data"]
             form_envs = {}
             for form_key in form_data.keys():
-                form_envs[form_key.upper()] = form_data[form_key]
+                form_envs[str(form_key.upper())] = str(form_data[form_key])
 
             self.env_vars.update(form_envs)
 

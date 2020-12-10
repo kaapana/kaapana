@@ -15,8 +15,8 @@ args = {
     'ui_visible': True,
     'owner': 'kaapana',
     'start_date': days_ago(0),
-    'retries': 1,
-    'retry_delay': timedelta(seconds=30)
+    'retries': 2,
+    'retry_delay': timedelta(seconds=15)
 }
 
 dag = DAG(

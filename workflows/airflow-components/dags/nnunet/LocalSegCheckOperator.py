@@ -47,7 +47,7 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
         return [x, y, z]
 
     def start(self, ds, **kwargs):
-        print("Split-Labels started..")
+        print("Check SEG files started..")
 
         run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
         batch_folders = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
@@ -63,6 +63,7 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
             if len(batch_input_files) == 0:
                 print("No NIFTI file was found -> checking for DICOM SEG...")
                 batch_input_files = sorted(glob.glob(os.path.join(nifti_input_dir, "**", "*.dcm*"), recursive=True))
+                print("Found {} DICOM SEG files at {}.".format(len(batch_input_files), nifti_input_dir))
                 if len(batch_input_files) == 0:
                     print("")
                     print("No DICOM SEG file was found -> abort!")
@@ -83,9 +84,11 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
             print("Loading Input files...")
             for input in batch_input_files:
                 if ".dcm" in input:
-                    input_dimensions = self.get_nifti_dimensions(nifti_path=input)
-                elif ".nii" in input:
+                    print(f"Loading DICOM dimensions for {input}")
                     input_dimensions = self.get_dicom_dimensions(dcm_path=input)
+                elif ".nii" in input:
+                    print(f"Loading NIFTI dimensions for {input}")
+                    input_dimensions = self.get_nifti_dimensions(nifti_path=input)
                 else:
                     print(f"Unexpected file: {input} !")
                     print("abort.")

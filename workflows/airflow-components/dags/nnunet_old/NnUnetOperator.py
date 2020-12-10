@@ -8,33 +8,24 @@ import json
 
 
 class NnUnetOperator(KaapanaBaseOperator):
-    execution_timeout = timedelta(days=2)
+    execution_timeout = timedelta(minutes=120)
     task_dict = {}
 
     def __init__(self,
                  dag,
-                 mode,
-                 processes_low=6,
-                 processes_full=4,
-                 folds=5,
-                 train_config="nnUNetTrainerV2",
-                 preprocess="true",
-                 check_integrity="true",
                  env_vars={},
+                 input_dirs=[],
+                 parallel_id=None,
                  execution_timeout=execution_timeout,
                  *args,
                  **kwargs
                  ):
-        # Task042_LiverTest
+
         envs = {
-            "MODE": str(mode),
-            "PREPROCESS": preprocess,
-            "PL": str(processes_low),
-            "PF": str(processes_full),
-            "FOLDS": str(folds),
-            "TRAIN_CONFIG": train_config,
-            "CHECK_INTEGRITY": check_integrity,
-            "TENSORBOARD_DIR": '/tensorboard',
+            "INPUT_DIRS": ";".join(str(dir) for dir in input_dirs),
+            "nnUNet_raw_data_base": "/input",
+            "nnUNet_preprocessed": "/input/nnUNet_preprocessed",
+            "RESULTS_FOLDER": "/models",
         }
         env_vars.update(envs)
 
@@ -55,32 +46,18 @@ class NnUnetOperator(KaapanaBaseOperator):
         }
         volumes.append(Volume(name='models', configs=volume_config))
 
-
-
-        volume_mounts.append(VolumeMount(
-            'dshm', mount_path='/dev/shm', sub_path=None, read_only=False))
-        volume_config = {
-            'emptyDir':
-            {
-                'medium': 'Memory',
-            }
-        }
-        volumes.append(Volume(name='dshm', configs=volume_config))
-
-        pod_resources = PodResources(request_memory=None, request_cpu=None,limit_memory=None, limit_cpu=None, limit_gpu=1)
-
-        super().__init__(
+        super(NnUnetOperator, self).__init__(
             dag=dag,
-            image="{}{}/nnunet:1.6.5-vdev".format(default_registry, default_project),
-            name="nnunet",
+            image="{}{}/nnunet-predict:0.1.0".format(default_registry, default_project),
+            name="nnunet-predict",
+            parallel_id=parallel_id,
             image_pull_secrets=["registry-secret"],
             volumes=volumes,
             volume_mounts=volume_mounts,
             execution_timeout=execution_timeout,
-            ram_mem_mb=10000,
-            ram_mem_mb_lmt=10000,
-            gpu_mem_mb=None,
-            pod_resources=pod_resources,
+            ram_mem_mb=15000,
+            ram_mem_mb_lmt=30000,
+            gpu_mem_mb=5000,
             env_vars=env_vars,
             *args,
             **kwargs

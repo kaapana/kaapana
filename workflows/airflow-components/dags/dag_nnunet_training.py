@@ -9,11 +9,11 @@ from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from nnunet_training.NnUnetOperator import NnUnetOperator
-from nnunet_training.LocalNnUnetDatasetOperator import LocalNnUnetDatasetOperator
-from nnunet_training.LocalDagTriggerOperator import LocalDagTriggerOperator
+from nnunet.NnUnetOperator import NnUnetOperator
+from nnunet.LocalNnUnetDatasetOperator import LocalNnUnetDatasetOperator
+from nnunet.LocalDagTriggerOperator import LocalDagTriggerOperator
 
-TASK_NAME = "Task042_LiverTest"
+TASK_NAME = "Task042_Training"
 
 ui_forms = {
     "publication_form": {
@@ -56,7 +56,14 @@ ui_forms = {
                 "description": "Expected input modality.",
                 "type": "string",
                 "readOnly": True,
-            }
+            },
+            "task": {
+                "title": "TASK_NAME",
+                "description": "Specify a name for the training task",
+                "type": "string",
+                "default": TASK_NAME,
+                "required": True
+            },
         }
     }
 }

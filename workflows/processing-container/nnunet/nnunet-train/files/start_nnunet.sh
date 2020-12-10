@@ -9,14 +9,16 @@ export nnUNet_raw_data_base="$DATASET_DIR"
 export nnUNet_preprocessed="$DATASET_DIR/nnUNet_preprocessed"
 export RESULTS_FOLDER="$DATASET_DIR/results"
 
+TASK_NUM=$(echo "$TASK" | tr -dc '0-9')
 
 echo "#######################################################################"
 echo "#"
 echo "# Starting nnUNet..."
 echo "#"
-echo "# MODE:      $MODE";
-echo "# MODEL:     $MODEL";
-echo "# TASK_NAME: $TASK_NAME";
+echo "# MODE:     $MODE";
+echo "# MODEL:    $MODEL";
+echo "# TASK:     $TASK";
+echo "# TASK_NUM: $TASK_NUM";
 echo "#"
 echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
 echo "# nnUNet_preprocessed: $nnUNet_preprocessed"
@@ -99,7 +101,7 @@ elif [ "$MODE" = "training" ]; then
     echo "#"
     echo "# COMMAND: nnUNet_train 2d nnUNetTrainerV2 $TASK_NUM 5"
     #nnUNet_train CONFIGURATION TRAINER_CLASS_NAME TASK_NAME_OR_ID FOLD (additional options)
-    nnUNet_train 2d $TRAIN_CONFIG $TASK_NAME $FOLDS --npz
+    nnUNet_train 2d $TRAIN_CONFIG $TASK $FOLDS --npz
 
 
     echo "#"
@@ -179,24 +181,6 @@ elif [ "$MODE" = "inference" ]; then
             echo "############# Prediction successful!"
         else
             echo "############# Prediction failed!"
-            exit 1
-        fi
-        echo "############# Testing if segmentation is present..."
-        python3 -u ./check_empty.py $operator_output_dir
-        if [ $? -eq 0 ]; then
-            echo "# Segmentation found!!"
-        else
-            echo "#"
-            echo "###########################################################"
-            echo "#"
-            echo "#"
-            echo "# No segmentation found!"
-            echo "# The segmentatiion NIFTI has no mask -> no label found."
-            echo "# Abort"
-            echo "#"
-            echo "#"
-            echo "###########################################################"
-            echo "#"
             exit 1
         fi
     done

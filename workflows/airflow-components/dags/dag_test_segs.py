@@ -5,7 +5,7 @@ from airflow.models import DAG
 from datetime import datetime
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
-from nnunet_training.LocalSegCheckOperator import LocalSegCheckOperator
+from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
 # from nnunet.GetContainerModelOperator import GetContainerModelOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
@@ -14,13 +14,121 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
 
+
 import pathlib
 import json
 import os
 
+tasks_json_path = os.path.join("/root/airflow/dags", "nnunet", "nnunet_tasks.json")
+with open(tasks_json_path) as f:
+    tasks = json.load(f)
 
+available_tasks = [*{k: v for (k, v) in tasks.items() if "supported" in tasks[k] and tasks[k]["supported"]}]
+
+ui_forms = {
+    "publication_form": {
+        "type": "object",
+        "properties": {
+            "title": {
+                "title": "Title",
+                "default": "Automated Design of Deep Learning Methods\n for Biomedical Image Segmentation",
+                "type": "string",
+                "readOnly": True,
+            },
+            "authors": {
+                "title": "Authors",
+                "default": "Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein",
+                "type": "string",
+                "readOnly": True,
+            },
+            "link": {
+                "title": "DOI",
+                "default": "https://arxiv.org/abs/1904.08128",
+                "description": "DOI",
+                "type": "string",
+                "readOnly": True,
+            },
+            "confirmation": {
+                "title": "Accept",
+                "default": False,
+                "type": "boolean",
+                "readOnly": True,
+                "required": True,
+            }
+        }
+    },
+    "workflow_form": {
+        "type": "object",
+        "properties": {
+            "task": {
+                "title": "Tasks available",
+                "description": "Select one of the available tasks.",
+                "type": "string",
+                "enum": available_tasks,
+                "required": True
+            },
+            "description": {
+                "title": "Task Description",
+                "description": "Description of the task.",
+                "type": "string",
+                "readOnly": True,
+                "dependsOn": [
+                    "task"
+                ]
+            },
+            "task_url": {
+                "title": "Website",
+                "description": "Website to the task.",
+                "type": "string",
+                "readOnly": True,
+                "dependsOn": [
+                    "task"
+                ]
+            },
+            "input": {
+                "title": "Input Modalities",
+                "description": "Expected input modalities.",
+                "type": "string",
+                "readOnly": True,
+                "dependsOn": [
+                    "task"
+                ]
+            },
+            "body_part": {
+                "title": "Body Part",
+                "description": "Body part, which needs to be present in the image.",
+                "type": "string",
+                "readOnly": True,
+                "dependsOn": [
+                    "task"
+                ]
+            },
+            "targets": {
+                "title": "Segmentation Targets",
+                "type": "string",
+                "readOnly": True,
+                "dependsOn": [
+                    "task"
+                ]
+            },
+            "model": {
+                "title": "Pre-trained models",
+                "description": "Select one of the available models.",
+                "type": "string",
+                "default": "3d_lowres",
+                "required": True,
+                "enum": [],
+                "dependsOn": [
+                    "task"
+                ]
+            }
+        }
+    }
+}
 args = {
     'ui_visible': True,
+    'ui_dag_info': tasks,
+    'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),
     'retries': 0,

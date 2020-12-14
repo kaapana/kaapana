@@ -264,7 +264,7 @@ for batch_element_dir in batch_folders:
                 else:
                     raise AssertionError(f'Something weng wrong while creating the single-label-dcm object {e.output}')
 
-            adding_aetitle(element_input_dir, output_dcm_file, seg_info=[single_label_seg_info])
+            adding_aetitle(element_input_dir, output_dcm_file, seg_infos=[single_label_seg_info])
 
     elif input_type == 'multi_label_seg':
         print("input_type == 'multi_label_seg'")

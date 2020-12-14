@@ -4,17 +4,6 @@ LABEL IMAGE="nnunet"
 LABEL VERSION="1.6.5-vdev"
 LABEL CI_IGNORE="False"
 
-RUN mkdir /nnunet
-ENV nnUNet_raw_data_base="/nnunet"
-ENV nnUNet_preprocessed="/nnUNet_preprocessed"
-RUN mkdir /nnunet/nnUNet_preprocessed
-RUN mkdir /models
-ENV RESULTS_FOLDER="/models"
-ENV MODE="predict"
-ENV PREP_DIR="nnunet-prep"
-ENV PREPARATION="true"
-ENV MODEL="3d_lowres"
-ENV TASK=""
 ENV OMP_NUM_THREADS=1
 ENV PYTHONUNBUFFERED=1
 

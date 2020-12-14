@@ -81,7 +81,7 @@ Path(task_dir).mkdir(parents=True, exist_ok=True)
 
 print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 print("")
-print("Starting DatasetCreateOperator:")
+print("  Starting DatasetCreateOperator:")
 print("")
 
 series_list = [f.path for f in os.scandir(batch_dir) if f.is_dir()]
@@ -152,7 +152,7 @@ for series in train_series:
     base_seg_path = os.path.join("labelsTr", f"{os.path.basename(series)}.nii.gz")
 
     for i in range(0, len(input_nifti_dirs)):
-        modality_nifti_dir = input_nifti_dirs[i]
+        modality_nifti_dir = os.path.join(series,input_nifti_dirs[i])
 
         modality_nifti = glob.glob(os.path.join(modality_nifti_dir, "*.nii.gz"), recursive=True)
         if len(modality_nifti) != 1:
@@ -170,13 +170,13 @@ for series in train_series:
         target_modality_path = os.path.join(task_dir, base_file_path.replace(".nii.gz", f"_{i:04}.nii.gz"))
         move_file(source=modality_nifti[0], target=target_modality_path)
 
-    seg_nifti = glob.glob(os.path.join(operator_in_dir, "*.nii.gz"), recursive=True)
+    seg_nifti = glob.glob(os.path.join(series,operator_in_dir, "*.nii.gz"), recursive=True)
     if len(seg_nifti) != 1:
         print("")
         print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         print("")
         print("Error with training seg-file!")
-        print("Found {} files at: {}".format(len(seg_nifti), operator_in_dir))
+        print("Found {} files at: {}".format(len(seg_nifti), os.path.join(series,operator_in_dir)))
         print("Expected only one file! -> abort.")
         print("")
         print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")

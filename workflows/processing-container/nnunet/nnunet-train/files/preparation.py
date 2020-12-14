@@ -20,8 +20,7 @@ if __name__ == "__main__":
     print("Starting nnUNet data preparation...")
 
     task = os.getenv("TASK", None)
-    input_dirs = os.getenv("INPUT_DIRS", "").split(";")
-    preparation_output_dir = os.getenv("PREP_DIR", "nnunet-prep")
+    input_dirs = os.getenv("INPUT_NIFTI_DIRS", "").split(";")
     operator_output_dir = os.getenv("OPERATOR_OUT_DIR", None)
 
     if operator_output_dir == None:
@@ -44,12 +43,10 @@ if __name__ == "__main__":
     print("batches_dir {}".format(batches_dir))
     print("Found {} batches".format(len(batch_folders)))
 
+    output_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], operator_output_dir)
+    pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
     for batch_element_dir in batch_folders:
-        output_dir = os.path.join(batch_element_dir, preparation_output_dir)
         write_organs_json(task_organs=task_organs, batch_element_dir=batch_element_dir)
-
-        pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
-
         if len(input_dirs) != len(task_protocolls):
             print("Wrong input-protocol-count!")
             print("Count input operators: {}".format(len(input_dirs)))

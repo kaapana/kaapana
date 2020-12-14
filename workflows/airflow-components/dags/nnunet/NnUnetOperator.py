@@ -17,10 +17,11 @@ class NnUnetOperator(KaapanaBaseOperator):
                  processes_low=6,
                  processes_full=4,
                  folds=5,
-                 modality_nifti_dirs=[],
-                 modality_dicom_dirs=[],
+                 nifti_input_operators=[],
+                 dicom_input_operators=[],
                  train_config="nnUNetTrainerV2",
                  preprocess="true",
+                 preparation="true",
                  check_integrity="true",
                  env_vars={},
                  execution_timeout=execution_timeout,
@@ -29,15 +30,16 @@ class NnUnetOperator(KaapanaBaseOperator):
                  ):
         # Task042_LiverTest
         envs = {
-            "INPUT_NIFTI_DIRS": ";".join(str(dir) for dir in modality_nifti_dirs),
-            "INPUT_DICOM_DIRS": ";".join(str(dir) for dir in modality_dicom_dirs),
+            "INPUT_NIFTI_DIRS": ";".join(str(dir.operator_out_dir) for dir in nifti_input_operators),
+            "INPUT_DICOM_DIRS": ";".join(str(dir.operator_out_dir) for dir in dicom_input_operators),
             "MODE": str(mode),
-            "PREPROCESS": preprocess,
             "PL": str(processes_low),
             "PF": str(processes_full),
             "FOLDS": str(folds),
             "TRAIN_CONFIG": train_config,
             "CHECK_INTEGRITY": check_integrity,
+            "PREPROCESS": preprocess,
+            "PREPARATION": preparation,
             "TENSORBOARD_DIR": '/tensorboard',
         }
         env_vars.update(envs)
@@ -70,6 +72,7 @@ class NnUnetOperator(KaapanaBaseOperator):
         volumes.append(Volume(name='dshm', configs=volume_config))
 
         pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=1) if mode == "training" or mode == "inference" else None
+        gpu_mem_mb = 5000 if mode == "training" or mode == "inference" else None
 
         super().__init__(
             dag=dag,
@@ -81,7 +84,7 @@ class NnUnetOperator(KaapanaBaseOperator):
             execution_timeout=execution_timeout,
             ram_mem_mb=10000,
             ram_mem_mb_lmt=10000,
-            gpu_mem_mb=None,
+            gpu_mem_mb=gpu_mem_mb,
             pod_resources=pod_resources,
             env_vars=env_vars,
             *args,

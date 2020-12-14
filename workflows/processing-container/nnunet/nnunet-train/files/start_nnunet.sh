@@ -2,13 +2,6 @@
 
 set -e
 
-DATASET_DIR="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
-
-# General Config
-export nnUNet_raw_data_base="$DATASET_DIR"
-export nnUNet_preprocessed="$DATASET_DIR/nnUNet_preprocessed"
-export RESULTS_FOLDER="$DATASET_DIR/results"
-
 TASK_NUM=$(echo "$TASK" | tr -dc '0-9')
 
 NUM_THREADS_PREPROCESSING="1"
@@ -23,10 +16,6 @@ echo "# MODEL:    $MODEL";
 echo "# TASK:     $TASK";
 echo "# TASK_NUM: $TASK_NUM";
 echo "#"
-echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
-echo "# nnUNet_preprocessed: $nnUNet_preprocessed"
-echo "# RESULTS_FOLDER: $RESULTS_FOLDER"
-echo "#"
 if [ "$MODE" != "training" ] && [ "$MODE" != "inference" ]  && [ "$MODE" != "preprocess" ] ; then
     echo "#"
     echo "#######################################################################"
@@ -39,18 +28,18 @@ if [ "$MODE" != "training" ] && [ "$MODE" != "inference" ]  && [ "$MODE" != "pre
     exit 1
 fi
 
-if [ "$MODE" == "training" ] && ! [ -d "$DATASET_DIR" ]; then
-# if [ "$MODE" == "training" ] || [ "$MODE" == "preprocess" ] && ! [ -d "$DATASET_DIR" ]; then
-    echo "#"
-    echo "#######################################################################"
-    echo "#"
-    echo "# Error datset-dir not found: ${DATASET_DIR}"
-    echo "# Can not continue."
-    echo "#"
-    echo "#######################################################################"
-    echo "#"
-    exit 1
-fi
+# if [ "$MODE" == "training" ] && ! [ -d "$DATASET_DIR" ]; then
+# # if [ "$MODE" == "training" ] || [ "$MODE" == "preprocess" ] && ! [ -d "$DATASET_DIR" ]; then
+#     echo "#"
+#     echo "#######################################################################"
+#     echo "#"
+#     echo "# Error datset-dir not found: ${DATASET_DIR}"
+#     echo "# Can not continue."
+#     echo "#"
+#     echo "#######################################################################"
+#     echo "#"
+#     exit 1
+# fi
 
 echo "#"
 echo "# MODE: $MODE"
@@ -58,6 +47,16 @@ echo "#"
 if [ "$MODE" = "preprocess" ]; then
     echo "#"
     echo "# Starting create_dataset..."
+    export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR"
+    export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
+    export RESULTS_FOLDER="$nnUNet_raw_data_base/results"
+
+    echo "#"
+    echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
+    echo "# nnUNet_preprocessed: $nnUNet_preprocessed"
+    echo "# RESULTS_FOLDER: $RESULTS_FOLDER"
+    echo "#"
+    
     python3 -u ./create_dataset.py
     
     echo "#"
@@ -66,9 +65,14 @@ if [ "$MODE" = "preprocess" ]; then
     echo "#"
     # Preprocessing Config
     echo "# PREPROCESS: $PREPROCESS";
+    echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base";
+    echo "# nnUNet_preprocessed:  $nnUNet_preprocessed";
+    echo "# RESULTS_FOLDER:       $RESULTS_FOLDER";
     echo "# CHECK_INTEGRITY: $CHECK_INTEGRITY";
     echo "# PL: $PL";
     echo "# PF: $PF";
+    echo "#"
+    echo "#"
     
     if [ "$CHECK_INTEGRITY" = "True" ] || [ "$CHECK_INTEGRITY" = "true" ]; then
         preprocess_verify="--verify_dataset_integrity"
@@ -94,6 +98,16 @@ if [ "$MODE" = "preprocess" ]; then
     echo "#"
     
 elif [ "$MODE" = "training" ]; then
+    export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
+    export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
+    export RESULTS_FOLDER="$nnUNet_raw_data_base/results"
+
+    echo "#"
+    echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
+    echo "# nnUNet_preprocessed: $nnUNet_preprocessed"
+    echo "# RESULTS_FOLDER: $RESULTS_FOLDER"
+    echo "#"
+
     echo "#"
     echo "# Starting training..."
     echo "#"
@@ -120,12 +134,22 @@ elif [ "$MODE" = "inference" ]; then
     echo "#"
     echo "# Starting inference..."
     echo "#"
-    
-    export RESULTS_FOLDER="/models"
-    
     # Inference Config
     echo "# NUM_THREADS_PREPROCESSING: $NUM_THREADS_PREPROCESSING";
     echo "# NUM_THREADS_NIFTISAVE: $NUM_THREADS_NIFTISAVE";
+    echo "# WORKFLOW_DIR:     $WORKFLOW_DIR"
+    echo "# OPERATOR_OUT_DIR: $OPERATOR_OUT_DIR"
+    echo "#"
+
+    export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR"
+    export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
+    export RESULTS_FOLDER="/models"
+
+    echo "#"
+    echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
+    echo "# nnUNet_preprocessed: $nnUNet_preprocessed"
+    echo "# RESULTS_FOLDER: $RESULTS_FOLDER"
+    echo "#"
     
     shopt -s globstar
     BATCH_COUNT=$(find "$BATCHES_INPUT_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l)
@@ -164,8 +188,6 @@ elif [ "$MODE" = "inference" ]; then
         echo "#"
         
         operator_input_dir=${batch_dir}/${OPERATOR_IN_DIR}
-        prepare_output_dir=${batch_dir}/${PREP_DIR}
-        mkdir -p $prepare_output_dir
         
         operator_output_dir=${batch_dir}/${OPERATOR_OUT_DIR}
         mkdir -p $operator_output_dir
@@ -181,13 +203,14 @@ elif [ "$MODE" = "inference" ]; then
             fi
         else
             echo "############# nnUNet file preparation is turned off! (PREPARATION: '$PREPARATION')"
-            find . -name $operator_input_dir\*.nii* -exec cp {} $prepare_output_dir \;
+            find . -name $operator_input_dir\*.nii* -exec cp {} $nnUNet_raw_data_base \;
             
         fi
         
         echo "############# Starting nnUNet prediction..."
         #CONFIGURATION can be 2d, 3d_lowres or 3d_fullres
-        nnUNet_predict -t $TASK -i $prepare_output_dir -o $operator_output_dir -m $MODEL --num_threads_preprocessing $NUM_THREADS_PREPROCESSING --num_threads_nifti_save $NUM_THREADS_NIFTISAVE --disable_tta --mode fast --all_in_gpu False
+        echo "COMMAND:         nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL --num_threads_preprocessing $NUM_THREADS_PREPROCESSING --num_threads_nifti_save $NUM_THREADS_NIFTISAVE --disable_tta --mode fast --all_in_gpu False"
+        nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL --num_threads_preprocessing $NUM_THREADS_PREPROCESSING --num_threads_nifti_save $NUM_THREADS_NIFTISAVE --disable_tta --mode fast --all_in_gpu False
         if [ $? -eq 0 ]; then
             echo "############# Prediction successful!"
         else

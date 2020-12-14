@@ -9,6 +9,8 @@ from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
+
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.LocalNnUnetDatasetOperator import LocalNnUnetDatasetOperator
 from nnunet.LocalDagTriggerOperator import LocalDagTriggerOperator
@@ -102,7 +104,7 @@ ui_forms = {
             "copy_data": {
                 "title": "Copy_data",
                 "description": "Copy data?",
-                "default": False,
+                "default": True,
                 "type": "boolean",
                 "readOnly": False,
             },
@@ -145,6 +147,11 @@ dcm2nifti_seg = DcmSeg2ItkOperator(
 get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(dag=dag, input_operator=get_input, search_policy="reference_uid", modality=None)
 dcm2nifti_ct = DcmConverterOperator(dag=dag, input_operator=get_ref_ct_series_from_seg, parallel_id='ct', output_format='nii.gz')
 
+check_seg = LocalSegCheckOperator(
+    dag=dag,
+    input_operator=dcm2nifti_seg,
+    dicom_input_operator=get_ref_ct_series_from_seg
+)
 # trigger_preprocessing = LocalDagTriggerOperator(dag=dag,
 #                                                 trigger_dag_id='ct-pet-prep',
 #                                                 cache_operators=["modality-nifti","seg-nifti"],
@@ -178,12 +185,12 @@ dcm2nifti_ct = DcmConverterOperator(dag=dag, input_operator=get_ref_ct_series_fr
 nnunet_preprocess = NnUnetOperator(
     dag=dag,
     mode="preprocess",
-    input_operator=dcm2nifti_seg,
-    modality_nifti_dirs=[dcm2nifti_ct.operator_out_dir],
-    modality_dicom_dirs=[get_ref_ct_series_from_seg.operator_out_dir],
+    label_operator=dcm2nifti_seg,
+    nifti_input_operators=[dcm2nifti_ct],
+    dicom_input_operators=[get_ref_ct_series_from_seg],
     processes_low=8,
     processes_full=6,
-    parallel_id="prep",
+    parallel_id="dataset",
 )
 
 nnunet_train = NnUnetOperator(
@@ -193,8 +200,9 @@ nnunet_train = NnUnetOperator(
     task_name=TASK_NAME,
     input_operator=nnunet_preprocess
 )
+
 #clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
-get_input >> dcm2nifti_seg >> nnunet_preprocess
-get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> nnunet_preprocess >> nnunet_train
+get_input >> dcm2nifti_seg >> check_seg >>nnunet_preprocess
+get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess >> nnunet_train
 # >> clean

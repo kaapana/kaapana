@@ -95,15 +95,15 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
                     print("")
                     exit(1)
 
+                print(f"Dimensions INPUT: {input_dimensions}")
+                print(f"Dimensions DICOM: {dicom_dimensions}")
+                print("")
                 if dicom_dimensions != input_dimensions:
-                    print("")
                     print("Dimensions are different!!!")
-                    print(f"Dimensions INPUT: {input_dimensions}")
-                    print(f"Dimensions DICOM: {dicom_dimensions}")
-                    print("")
                     exit(1)
                 else:
                     print(f"{input}: Dimensions ok!")
+                print("")
 
     def __init__(self,
                  dag,

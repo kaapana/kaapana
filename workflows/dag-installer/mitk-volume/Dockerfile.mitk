@@ -1,0 +1,9 @@
+FROM local-only/dag-installer:0.1.0
+
+LABEL IMAGE="dag-mitk-volume"
+LABEL VERSION="2020-12-01-vdev"
+LABEL CI_IGNORE="False"
+
+COPY dags/dag_minio_structure_stacker.py /tmp/dags/
+COPY dags/dag_minio_seg_to_pacs.py /tmp/dags/
+COPY dags/mitk_minio_pacs_interaction /tmp/dags/mitk_minio_pacs_interaction

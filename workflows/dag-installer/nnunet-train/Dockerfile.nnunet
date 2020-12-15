@@ -4,6 +4,6 @@ LABEL IMAGE="dag-nnunet-training"
 LABEL VERSION="1.6.5-vdev"
 LABEL CI_IGNORE="False"
 
-COPY dags/nnunet_training /tmp/dags/nnunet_training
+COPY dags/nnunet /tmp/dags/nnunet
 COPY dags/dag_nnunet_training.py /tmp/dags/
 # COPY dags/dag_download_all_models.py /tmp/dags/

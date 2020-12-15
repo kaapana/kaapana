@@ -73,8 +73,9 @@ class NnUnetOperator(KaapanaBaseOperator):
         }
         volumes.append(Volume(name='dshm', configs=volume_config))
 
-        pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=1) if mode == "training" or mode == "inference" else None
-        gpu_mem_mb = 5000 if mode == "training" or mode == "inference" else None
+        pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=None)
+        if mode == "training":
+            pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=1)
 
         super().__init__(
             dag=dag,
@@ -84,9 +85,9 @@ class NnUnetOperator(KaapanaBaseOperator):
             volumes=volumes,
             volume_mounts=volume_mounts,
             execution_timeout=execution_timeout,
-            ram_mem_mb=10000,
-            ram_mem_mb_lmt=10000,
-            gpu_mem_mb=gpu_mem_mb,
+            ram_mem_mb=None,
+            ram_mem_mb_lmt=None,
+            gpu_mem_mb=None,
             pod_resources=pod_resources,
             training_operator=True if mode == "training" else False,
             env_vars=env_vars,

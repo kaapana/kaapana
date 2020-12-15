@@ -94,7 +94,7 @@ if [ "$MODE" = "preprocess" ]; then
     echo "#"
     export OMP_THREAD_LIMIT=1
     export OMP_NUM_THREADS=1
-    nnUNet_plan_and_preprocess -t $TASK_NUM -tl 12 -tf 8 $preprocess $preprocess_verify
+    nnUNet_plan_and_preprocess -t $TASK_NUM -tl 10 -tf 8 $preprocess $preprocess_verify
     # nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PL $preprocess -tf $PF $preprocess_verify
     echo "#"
     echo "# Dataset itegrity OK!"

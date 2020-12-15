@@ -188,8 +188,8 @@ nnunet_preprocess = NnUnetOperator(
     label_operator=dcm2nifti_seg,
     nifti_input_operators=[dcm2nifti_ct],
     dicom_input_operators=[get_ref_ct_series_from_seg],
-    processes_low=8,
-    processes_full=6,
+    processes_low=1,
+    processes_full=1,
     parallel_id="dataset",
 )
 
@@ -203,6 +203,6 @@ nnunet_train = NnUnetOperator(
 
 #clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
-get_input >> dcm2nifti_seg >> check_seg >>nnunet_preprocess
+get_input >> dcm2nifti_seg >> check_seg >> nnunet_preprocess
 get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess >> nnunet_train
 # >> clean

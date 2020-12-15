@@ -15,7 +15,7 @@ import pydicom
 def process_seg_info(seg_info, series_description):
     split_seg_info = seg_info.split('@')
     if len(split_seg_info) > 1:
-        code_meaning = f'{split_seg_info[-1].capitalize()}-{split_seg_info[0].capitalize()}'
+        code_meaning = f'{split_seg_info[-1].capitalize()}_{split_seg_info[0].capitalize()}'
     else:
         code_meaning = f'{split_seg_info[0].capitalize()}'
 
@@ -29,7 +29,10 @@ def process_seg_info(seg_info, series_description):
 
 def create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, color, labelID=1):
     try:
-        coding_scheme = code_lookup_table.loc[code_meaning.split("-")[0].lower()]
+        search_key = code_meaning.split("_")[0].lower()
+        print("Searching coding-scheme for code-meaning: {}".format(code_meaning))
+        print("Search-key: {}".format(search_key))
+        coding_scheme = code_lookup_table.loc[search_key]
     except KeyError:
         raise AssertionError(
             f'The specified code meaning {code_meaning.lower()} does not exist. Check here for available code names: http://dicom.nema.org/medical/dicom/current/output/chtml/part16/chapter_L.html#chapter_L from Table L-1.')

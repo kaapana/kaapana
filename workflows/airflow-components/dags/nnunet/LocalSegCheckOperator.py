@@ -1,9 +1,10 @@
 import os
 import glob
+import json
+import shutil
+import pydicom
 import numpy as np
 import nibabel as nib
-import pydicom
-import json
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
@@ -23,12 +24,16 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
         return [x, y, z]
 
     def get_dicom_dimensions(self, dcm_path, check_labels=True):
-        data = pydicom.dcmread(dcm_path).pixel_array
-        if len(data.shape) == 3:
-            z, x, y = data.shape
-        elif len(data.shape) == 2:
-            x, y = data.shape
-            z = len(next(os.walk(os.path.dirname(dcm_path)))[2])
+        data = pydicom.dcmread(dcm_path)
+        # labels = data.BodyPartExamined
+        columns = data.Columns
+        rows = data.Rows
+        if data.Modality == "SEG" and hasattr(data, 'NumberOfFrames'):
+            numberOfFrames = data.NumberOfFrames
+            label_count = len(data.SegmentSequence)
+            numberOfFrames //= label_count
+        elif not hasattr(data, 'NumberOfFrames'):
+            numberOfFrames = len(next(os.walk(os.path.dirname(dcm_path)))[2])
         else:
             print("")
             print("")
@@ -39,10 +44,7 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
             print("")
             exit(1)
 
-        if check_labels and data.max() == 0:
-            print("Could not find any label in {}!".format(dcm_path))
-            print("ABORT")
-            exit(1)
+        x, y, z = rows, columns, numberOfFrames
 
         return [x, y, z]
 
@@ -84,10 +86,10 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
             print("Loading Input files...")
             for input in batch_input_files:
                 if ".dcm" in input:
-                    print(f"Loading DICOM dimensions for {input}")
+                    print("Loading DICOM dimensions...")
                     input_dimensions = self.get_dicom_dimensions(dcm_path=input)
                 elif ".nii" in input:
-                    print(f"Loading NIFTI dimensions for {input}")
+                    print("Loading NIFTI dimensions...")
                     input_dimensions = self.get_nifti_dimensions(nifti_path=input)
                 else:
                     print(f"Unexpected file: {input} !")
@@ -95,22 +97,34 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
                     print("")
                     exit(1)
 
-                print(f"Dimensions INPUT: {input_dimensions}")
-                print(f"Dimensions DICOM: {dicom_dimensions}")
+                print(f"Dimensions INPUT {input.split('/')[-1]}: {input_dimensions}")
+                print(f"Dimensions DICOM {batch_dcm_files[0].split('/')[-1]}: {dicom_dimensions}")
                 print("")
                 if dicom_dimensions != input_dimensions:
-                    print("Dimensions are different!!!")
-                    exit(1)
+                    print("#######################################################")
+                    print("")
+                    print("  Dimensions are different!!!")
+                    print("")
+                    print("#######################################################")
+                    if self.abort_on_error:
+                        exit(1)
+                    else:
+                        target_dir = batch_element_dir.replace(BATCH_NAME, "dimension_issue")
+                        print(f"Moving batch-data to {target_dir}")
+                        shutil.move(batch_element_dir, target_dir)
+
                 else:
-                    print(f"{input}: Dimensions ok!")
+                    print(f"{input.split('/')[-1]}: Dimensions ok!")
                 print("")
 
     def __init__(self,
                  dag,
                  dicom_input_operator,
+                 abort_on_error=False,
                  *args,
                  **kwargs):
 
+        self.abort_on_error = abort_on_error
         self.dicom_input_operator = dicom_input_operator
 
         super().__init__(

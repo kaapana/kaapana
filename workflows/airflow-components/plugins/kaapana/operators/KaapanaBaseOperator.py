@@ -455,7 +455,7 @@ class KaapanaBaseOperator(BaseOperator):
                 obj.pool_slots = 1
             else:
                 obj.pool = "MEMORY"
-                obj.pool_slots = obj.ram_mem_mb
+                obj.pool_slots = obj.ram_mem_mb if obj.ram_mem_mb is not None else 1
 
         obj.executor_config = {
             "cpu_millicores": obj.cpu_millicores,

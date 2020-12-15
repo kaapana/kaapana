@@ -22,6 +22,7 @@ tensor_size = os.getenv("TENSOR_SIZE", "3D")
 modality = os.getenv("MODALITY", "")
 labels = os.getenv("LABELS", "")
 
+
 def extract_labels(nifti_seg_dirs):
     print(f"Extract labels from: {nifti_seg_dirs}")
     count = 1
@@ -58,12 +59,13 @@ def extract_modality(dicom_dirs):
     print("Extracted modality:")
     print(json.dumps(modality, indent=4, sort_keys=True))
     print("")
-    
+
     if len(modality) == 0:
         print(f"No modality extracted!")
         exit(1)
 
     return modality
+
 
 def move_file(source, target):
     Path(os.path.dirname(target)).mkdir(parents=True, exist_ok=True)
@@ -74,7 +76,7 @@ def move_file(source, target):
 
 
 batch_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'])
-operator_in_dir = os.environ['OPERATOR_IN_DIR']
+label_in_dir = os.environ['LABEL_DIR']
 operator_out_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_OUT_DIR'])
 task_dir = os.path.join(operator_out_dir, "nnUNet_raw_data", os.environ['TASK'])
 Path(task_dir).mkdir(parents=True, exist_ok=True)
@@ -90,10 +92,10 @@ series_list.sort()
 input_nifti_dirs = os.getenv("INPUT_NIFTI_DIRS", "").split(";")
 input_dicom_dirs = os.getenv("INPUT_DICOM_DIRS", "").split(";")
 
-modality_extraction_dirs = [os.path.join(series_list[0],input_dir) for input_dir in input_dicom_dirs]
+modality_extraction_dirs = [os.path.join(series_list[0], input_dir) for input_dir in input_dicom_dirs]
 modality = extract_modality(dicom_dirs=modality_extraction_dirs)
 
-labels_extraction_dirs = [os.path.join(series_list[0],operator_in_dir)]
+labels_extraction_dirs = [os.path.join(series_list[0], label_in_dir)]
 labels = extract_labels(nifti_seg_dirs=labels_extraction_dirs)
 
 template_dataset_json = {
@@ -152,7 +154,7 @@ for series in train_series:
     base_seg_path = os.path.join("labelsTr", f"{os.path.basename(series)}.nii.gz")
 
     for i in range(0, len(input_nifti_dirs)):
-        modality_nifti_dir = os.path.join(series,input_nifti_dirs[i])
+        modality_nifti_dir = os.path.join(series, input_nifti_dirs[i])
 
         modality_nifti = glob.glob(os.path.join(modality_nifti_dir, "*.nii.gz"), recursive=True)
         if len(modality_nifti) != 1:
@@ -170,13 +172,13 @@ for series in train_series:
         target_modality_path = os.path.join(task_dir, base_file_path.replace(".nii.gz", f"_{i:04}.nii.gz"))
         move_file(source=modality_nifti[0], target=target_modality_path)
 
-    seg_nifti = glob.glob(os.path.join(series,operator_in_dir, "*.nii.gz"), recursive=True)
+    seg_nifti = glob.glob(os.path.join(series, label_in_dir, "*.nii.gz"), recursive=True)
     if len(seg_nifti) != 1:
         print("")
         print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         print("")
         print("Error with training seg-file!")
-        print("Found {} files at: {}".format(len(seg_nifti), os.path.join(series,operator_in_dir)))
+        print("Found {} files at: {}".format(len(seg_nifti), os.path.join(series, label_in_dir)))
         print("Expected only one file! -> abort.")
         print("")
         print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")

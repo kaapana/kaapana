@@ -92,7 +92,10 @@ if [ "$MODE" = "preprocess" ]; then
     echo "#"
     echo "# COMMAND: nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PL -tf $PF $preprocess_verify $preprocess"
     echo "#"
-    nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PL $preprocess -tf $PF $preprocess_verify
+    export OMP_THREAD_LIMIT=1
+    export OMP_NUM_THREADS=1
+    nnUNet_plan_and_preprocess -t $TASK_NUM -tl 12 -tf 8 $preprocess $preprocess_verify
+    # nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PL $preprocess -tf $PF $preprocess_verify
     echo "#"
     echo "# Dataset itegrity OK!"
     echo "#"
@@ -124,7 +127,9 @@ elif [ "$MODE" = "training" ]; then
     echo "#"
     echo "# COMMAND: nnUNet_train 2d nnUNetTrainerV2 $TASK_NUM 5"
     #nnUNet_train CONFIGURATION TRAINER_CLASS_NAME TASK_NAME_OR_ID FOLD (additional options)
-    nnUNet_train 2d $TRAIN_CONFIG $TASK $FOLDS --npz
+    # nnUNet_train 2d $TRAIN_CONFIG $TASK $FOLDS --npz
+    # nnUNet_train 2d $TRAIN_CONFIG $TASK 0
+    nnUNet_train 2d nnUNetTrainerV2 Task042_Training 0
     
     
     echo "#"

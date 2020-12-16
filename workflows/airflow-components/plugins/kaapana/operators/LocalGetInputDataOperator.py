@@ -5,9 +5,9 @@ import json
 from datetime import timedelta
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INITIAL_INPUT_DIR
-
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.HelperElasticsearch import HelperElasticsearch
+from multiprocessing.pool import ThreadPool
 
 
 class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
@@ -42,7 +42,9 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             print("Skipping 'check_dag_modality'")
             return
 
-    def get_data(self, studyUID, seriesUID, dag_run_id):
+    def get_data(self, series_dict):
+        studyUID, seriesUID, dag_run_id = series_dict["studyUID"], series_dict["seriesUID"], series_dict["dag_run_id"]
+        print(f"Start download series: {seriesUID}")
         target_dir = os.path.join(WORKFLOW_DIR, dag_run_id, BATCH_NAME, f'{seriesUID}', self.operator_out_dir)
 
         if not os.path.exists(target_dir):
@@ -67,6 +69,9 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             print("abort...")
             exit(1)
 
+        message = f"OK: Series: {seriesUID}"
+        return message
+
     def start(self, ds, **kwargs):
         print("Starting moule LocalGetInputDataOperator...")
         self.conf = kwargs['dag_run'].conf
@@ -82,6 +87,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         if not isinstance(inputs, list):
             inputs = [inputs]
 
+        download_list = []
         for input in inputs:
             if "elastic-query" in input:
                 elastic_query = input["elastic-query"]
@@ -112,7 +118,13 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     if self.check_modality:
                         self.check_dag_modality(input_modality=modality)
 
-                    self.get_data(studyUID=study_uid, seriesUID=series_uid, dag_run_id=dag_run_id)
+                    download_list.append(
+                        {
+                            "studyUID": study_uid,
+                            "seriesUID": series_uid,
+                            "dag_run_id": dag_run_id
+                        }
+                    )
 
             elif "dcm-uid" in input:
                 dcm_uid = input["dcm-uid"]
@@ -133,7 +145,13 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 study_uid = dcm_uid["study-uid"]
                 series_uid = dcm_uid["series-uid"]
 
-                self.get_data(studyUID=study_uid, seriesUID=series_uid, dag_run_id=dag_run_id)
+                download_list.append(
+                    {
+                        "studyUID": study_uid,
+                        "seriesUID": series_uid,
+                        "dag_run_id": dag_run_id
+                    }
+                )
 
             else:
                 print("Error with dag-config!")
@@ -142,14 +160,20 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 print("Dag-conf: {}".format(self.conf))
                 exit(1)
 
+        results = ThreadPool(self.parallel_downloads).imap_unordered(self.get_data, download_list)
+        for result in results:
+            print(result)
+
     def __init__(self,
                  dag,
                  data_type="dicom",
                  check_modality=False,
+                 parallel_downloads=3,
                  *args,
                  **kwargs):
         self.data_type = data_type
         self.check_modality = check_modality
+        self.parallel_downloads = parallel_downloads
 
         super().__init__(
             dag,

@@ -10,9 +10,24 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
+ui_forms = {
+    "workflow_form": {
+        "type": "object",
+        "properties": {
+            "single_execution": {
+                "title": "Should each series be processed separately?",
+                "type": "boolean",
+                "default": True,
+                "readOnly": False,
+            }
+        }
+    }
+}
+
 
 args = {
     'ui_visible': True,
+    'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),
     'retries': 2,

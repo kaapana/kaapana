@@ -17,10 +17,17 @@ from kaapana.operators.DcmSendOperator import DcmSendOperator
 
 log = LoggingMixin().log
 
+
 ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
+            "single_execution": {
+                "title": "Should each series be processed separately?",
+                "type": "boolean",
+                "default": True,
+                "readOnly": False,
+            },
             "input": {
                 "title": "Input",
                 "default": "SEG",

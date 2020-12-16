@@ -22,6 +22,7 @@ train_network="2d"
 train_network_trainer="nnUNetTrainerV2"
 train_folds=0
 
+
 ui_forms = {
     "publication_form": {
         "type": "object",
@@ -95,7 +96,7 @@ ui_forms = {
             "seg_filter": {
                 "title": "Seg",
                 "default": seg_filter,
-                "description": "Select organ for multi-label DICOM SEGs: eg 'liver' or 'spleen,liver'",
+                "description": "Select organ for multi-label DICOM SEGs: eg 'liver' or 'spleen;liver'",
                 "type": "string",
                 "readOnly": False,
             },

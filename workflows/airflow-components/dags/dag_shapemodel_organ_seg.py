@@ -81,6 +81,12 @@ ui_forms = {
                 "description": "Liver, Spleen, Left-Kidney, Right-Kidney",
                 "type": "string",
                 "readOnly": True,
+            },
+            "single_execution": {
+                "title": "Should each series be processed separately?",
+                "type": "boolean",
+                "default": True,
+                "readOnly": False,
             }
         }
     }

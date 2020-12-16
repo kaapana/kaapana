@@ -12,12 +12,12 @@ import subprocess
 DCMQI = '/dcmqi/dcmqi-1.2.2-linux/bin/'
 
 output_type = os.environ.get('OUTPUT_TYPE', 'nrrd')
-seg_filter = os.environ.get('SEG_FILTER')
-if seg_filter != '':
-    seg_filter = seg_filter.lower().split(",")
+seg_filter = os.environ.get('SEG_FILTER', "")
+if seg_filter is not "":
+    seg_filter = seg_filter.lower().split(";")
+    print(f"Set filters: {seg_filter}")
 else:
     seg_filter = None
-print(seg_filter)
 
 if output_type not in ['nrrd', 'mhd', 'mha', 'nii', 'nii.gz', 'nifti', 'hdr', 'img']:
     raise AssertionError('Output type must be <nrrd|mhd|mha|nii|nii.gz|nifti|hdr|img>')
@@ -93,3 +93,11 @@ for batch_element_dir in batch_folders:
             print("Overwriting JSON: {}".format(meta_data_file))
             json.dump(meta_data, write_file, indent=4, sort_keys=True)
         print(meta_data)
+
+        if seg_filter is not None and seg_filter != "":
+            len_output_files = len(sorted(glob.glob(os.path.join(element_output_dir, f"*{output_type_dcmqi}*"), recursive=False)))
+            if len_output_files != len(seg_filter):
+                print(f"Found {len_output_files} files -> expected {len(seg_filter)}!")
+                print(f"Filter: {seg_filter}")
+                print("Abort!")
+                exit(1)

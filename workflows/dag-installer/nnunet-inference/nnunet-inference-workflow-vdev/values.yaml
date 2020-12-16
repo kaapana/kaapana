@@ -1,6 +1,0 @@
----
-global:
-    pull_policy_jobs: ""
-    image: "dag-nnunet-inference"
-    version: "1.6.5-vdev"
-    action: "copy"

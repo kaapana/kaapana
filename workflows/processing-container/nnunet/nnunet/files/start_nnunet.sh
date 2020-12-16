@@ -2,17 +2,16 @@
 
 set -e
 
-TASK_NUM=$(echo "$TASK" | tr -dc '0-9')
+export OMP_THREAD_LIMIT=1
+export OMP_NUM_THREADS=1
 
-NUM_THREADS_PREPROCESSING="1"
-NUM_THREADS_NIFTISAVE="1"
+TASK_NUM=$(echo "$TASK" | tr -dc '0-9')
 
 echo "#######################################################################"
 echo "#"
 echo "# Starting nnUNet..."
 echo "#"
 echo "# MODE:     $MODE";
-echo "# MODEL:    $MODEL";
 echo "# TASK:     $TASK";
 echo "# TASK_NUM: $TASK_NUM";
 echo "#"
@@ -28,74 +27,49 @@ if [ "$MODE" != "training" ] && [ "$MODE" != "inference" ]  && [ "$MODE" != "pre
     exit 1
 fi
 
-# if [ "$MODE" == "training" ] && ! [ -d "$DATASET_DIR" ]; then
-# # if [ "$MODE" == "training" ] || [ "$MODE" == "preprocess" ] && ! [ -d "$DATASET_DIR" ]; then
-#     echo "#"
-#     echo "#######################################################################"
-#     echo "#"
-#     echo "# Error datset-dir not found: ${DATASET_DIR}"
-#     echo "# Can not continue."
-#     echo "#"
-#     echo "#######################################################################"
-#     echo "#"
-#     exit 1
-# fi
-
-echo "#"
-echo "# MODE: $MODE"
-echo "#"
 if [ "$MODE" = "preprocess" ]; then
-    echo "#"
-    echo "# Starting create_dataset..."
     export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR"
     export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
     export RESULTS_FOLDER="$nnUNet_raw_data_base/results"
-
-    echo "#"
-    echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
-    echo "# nnUNet_preprocessed: $nnUNet_preprocessed"
-    echo "# RESULTS_FOLDER: $RESULTS_FOLDER"
-    echo "#"
     
-    python3 -u ./create_dataset.py
-    
-    echo "#"
     echo "#"
     echo "# Starting preprocessing..."
     echo "#"
-    # Preprocessing Config
-    echo "# PREPROCESS: $PREPROCESS";
+    echo "# PREPROCESS:      $PREP_PREPROCESS";
+    echo "# CHECK_INTEGRITY: $PREP_CHECK_INTEGRITY";
+    echo "#"
+    echo "# OMP_THREAD_LIMIT" $OMP_THREAD_LIMIT
+    echo "# OMP_NUM_THREADS" $OMP_NUM_THREADS
+    echo "# PREP_TL" $PREP_TL
+    echo "# PREP_TF" $PREP_TF
+    echo "#"
+    echo "# NIFTI_DIRS: $INPUT_NIFTI_DIRS";
+    echo "# LABEL_DIR: $PREP_LABEL_DIR";
+    echo "# MODALITIES: $PREP_MODALITIES";
+    echo "#"
     echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base";
     echo "# nnUNet_preprocessed:  $nnUNet_preprocessed";
     echo "# RESULTS_FOLDER:       $RESULTS_FOLDER";
-    echo "# CHECK_INTEGRITY: $CHECK_INTEGRITY";
-    echo "# PL: $PL";
-    echo "# PF: $PF";
     echo "#"
+    echo "# Starting create_dataset..."
     echo "#"
+    python3 -u ./create_dataset.py
     
-    if [ "$CHECK_INTEGRITY" = "True" ] || [ "$CHECK_INTEGRITY" = "true" ]; then
+    if [ "$PREP_CHECK_INTEGRITY" = "True" ] || [ "$PREP_CHECK_INTEGRITY" = "true" ]; then
         preprocess_verify="--verify_dataset_integrity"
     else
         preprocess_verify=""
     fi
     
-    if [ "$PREPROCESS" = "True" ] || [ "$PREPROCESS" = "true" ]; then
+    if [ "$PREP_PREPROCESS" = "True" ] || [ "$PREP_PREPROCESS" = "true" ]; then
         preprocess=""
     else
         preprocess="-no_pp"
     fi
 
+    echo "# COMMAND: nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify"
     echo "#"
-    echo "# Verify dataset itegrity..."
-    echo "# TASK_NUM" $TASK_NUM
-    echo "#"
-    echo "# COMMAND: nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PL -tf $PF $preprocess_verify $preprocess"
-    echo "#"
-    export OMP_THREAD_LIMIT=1
-    export OMP_NUM_THREADS=1
-    nnUNet_plan_and_preprocess -t $TASK_NUM -tl 10 -tf 8 $preprocess $preprocess_verify
-    # nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PL $preprocess -tf $PF $preprocess_verify
+    nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify
     echo "#"
     echo "# Dataset itegrity OK!"
     echo "#"
@@ -106,17 +80,16 @@ elif [ "$MODE" = "training" ]; then
     export RESULTS_FOLDER="$nnUNet_raw_data_base/results"
 
     echo "#"
-    echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
-    echo "# nnUNet_preprocessed: $nnUNet_preprocessed"
-    echo "# RESULTS_FOLDER: $RESULTS_FOLDER"
-    echo "#"
-
-    echo "#"
     echo "# Starting training..."
     echo "#"
-    # Training Config
-    echo "# FOLDS: $FOLDS";
-    echo "# TRAIN_CONFIG: $TRAIN_CONFIG";
+    echo "# FOLDS: $TRAIN_FOLDS";
+    echo "# NETWORK: $TRAIN_NETWORK";
+    echo "# NETWORK_TRAINER: $TRAIN_NETWORK_TRAINER";
+    echo "#"
+    echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
+    echo "# nnUNet_preprocessed:  $nnUNet_preprocessed"
+    echo "# RESULTS_FOLDER:       $RESULTS_FOLDER"
+    echo "# TENSORBOARD_DIR:      $TENSORBOARD_DIR"
     echo "#"
     if ! [ -z "${TENSORBOARD_DIR}" ]; then
         echo "# Starting monitoring:";
@@ -125,39 +98,38 @@ elif [ "$MODE" = "training" ]; then
     fi
     
     echo "#"
-    echo "# COMMAND: nnUNet_train 2d nnUNetTrainerV2 $TASK_NUM 5"
-    #nnUNet_train CONFIGURATION TRAINER_CLASS_NAME TASK_NAME_OR_ID FOLD (additional options)
-    # nnUNet_train 2d $TRAIN_CONFIG $TASK $FOLDS --npz
-    # nnUNet_train 2d $TRAIN_CONFIG $TASK 0
-    nnUNet_train 2d nnUNetTrainerV2 Task042_Training 0
+    echo "# COMMAND: nnUNet_train $TRAIN_NETWORK $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLDS --npz"
+    nnUNet_train $TRAIN_NETWORK $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLDS --npz
     
     
     echo "#"
     echo "# DONE"
     
 elif [ "$MODE" = "inference" ]; then
-    echo "#"
-    echo "# Starting inference..."
-    echo "#"
-    # Inference Config
-    echo "# NUM_THREADS_PREPROCESSING: $NUM_THREADS_PREPROCESSING";
-    echo "# NUM_THREADS_NIFTISAVE: $NUM_THREADS_NIFTISAVE";
-    echo "# WORKFLOW_DIR:     $WORKFLOW_DIR"
-    echo "# OPERATOR_OUT_DIR: $OPERATOR_OUT_DIR"
-    echo "#"
-
     export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR"
     export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
     export RESULTS_FOLDER="/models"
-
+    shopt -s globstar
+    BATCH_COUNT=$(find "$BATCHES_INPUT_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l)
+    
+    echo "#"
+    echo "# Starting inference..."
+    echo "#"
+    echo "# THREADS_PREP:  $INF_THREADS_PREP";
+    echo "# THREADS_NIFTI: $INF_THREADS_NIFTI";
+    echo "# PREPARATION:   $INF_PREPARATION";
+    echo "#"
+    echo "# INPUT_NIFTI_DIRS: $INPUT_NIFTI_DIRS";
+    echo "#"
+    echo "# WORKFLOW_DIR:     $WORKFLOW_DIR"
+    echo "# OPERATOR_OUT_DIR: $OPERATOR_OUT_DIR"
     echo "#"
     echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
     echo "# nnUNet_preprocessed: $nnUNet_preprocessed"
     echo "# RESULTS_FOLDER: $RESULTS_FOLDER"
     echo "#"
-    
-    shopt -s globstar
-    BATCH_COUNT=$(find "$BATCHES_INPUT_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l)
+    echo "# BATCH_COUNT: " $BATCH_COUNT
+    echo "#"
     
     if [ $BATCH_COUNT -eq 0 ]; then
         echo "# No batch-data found -> abort."
@@ -165,15 +137,6 @@ elif [ "$MODE" = "inference" ]; then
     else
         echo "# Found $BATCH_COUNT batches."
     fi
-    
-    echo "#"
-    echo "# BATCHES_INPUT_DIR:" $BATCHES_INPUT_DIR
-    ls $BATCHES_INPUT_DIR
-    echo "# BATCH_COUNT: " $BATCH_COUNT
-    echo "# NUM_THREADS_PREPROCESSING: " $NUM_THREADS_PREPROCESSING
-    echo "# NUM_THREADS_NIFTISAVE: " $NUM_THREADS_NIFTISAVE
-    echo "#"
-    
     echo "#";
     echo "# Starting batch loop...";
     echo "#";
@@ -197,7 +160,7 @@ elif [ "$MODE" = "inference" ]; then
         operator_output_dir=${batch_dir}/${OPERATOR_OUT_DIR}
         mkdir -p $operator_output_dir
         
-        if [ "$PREPARATION" = "true" ] ; then
+        if [ "$INF_PREPARATION" = "true" ] ; then
             echo "############# Starting nnUNet file preparation..."
             python3 -u ./preparation.py
             if [ $? -eq 0 ]; then
@@ -207,15 +170,14 @@ elif [ "$MODE" = "inference" ]; then
                 exit 1
             fi
         else
-            echo "############# nnUNet file preparation is turned off! (PREPARATION: '$PREPARATION')"
+            echo "############# nnUNet file preparation is turned off! (PREPARATION: '$INF_PREPARATION')"
             find . -name $operator_input_dir\*.nii* -exec cp {} $nnUNet_raw_data_base \;
             
         fi
         
         echo "############# Starting nnUNet prediction..."
-        #CONFIGURATION can be 2d, 3d_lowres or 3d_fullres
-        echo "COMMAND:         nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL --num_threads_preprocessing $NUM_THREADS_PREPROCESSING --num_threads_nifti_save $NUM_THREADS_NIFTISAVE --disable_tta --mode fast --all_in_gpu False"
-        nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL --num_threads_preprocessing $NUM_THREADS_PREPROCESSING --num_threads_nifti_save $NUM_THREADS_NIFTISAVE --disable_tta --mode fast --all_in_gpu False
+        echo "COMMAND: nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL --num_threads_preprocessing $INF_THREADS_PREP --num_threads_nifti_save $INF_THREADS_NIFTI --disable_tta --mode fast --all_in_gpu False"
+        nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL --num_threads_preprocessing $INF_THREADS_PREP --num_threads_nifti_save $INF_THREADS_NIFTI --disable_tta --mode fast --all_in_gpu False
         if [ $? -eq 0 ]; then
             echo "############# Prediction successful!"
         else

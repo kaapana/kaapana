@@ -17,7 +17,7 @@ class DcmSeg2ItkOperator(KaapanaBaseOperator):
 
         envs = {
             "OUTPUT_TYPE": output_type or 'nrrd',
-            "SEG_FILTER": seg_filter or '', # a bash list i.e.: 'liver aorta'
+            "SEG_FILTER": seg_filter or '', # a bash list i.e.: 'liver,aorta'
             "DCMQI_COMMAND": "segimage2itkimage",
         }
 

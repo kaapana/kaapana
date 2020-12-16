@@ -6,7 +6,6 @@ import shutil
 import pathlib
 from getTaskInfo import get_task_info
 
-
 def write_organs_json(task_organs, batch_element_dir):
     organs_json = {"seg_info": task_organs}
     organs_json["algorithm"] = os.getenv("TASK", "na").lower()

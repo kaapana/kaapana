@@ -14,7 +14,7 @@ DCMQI = '/dcmqi/dcmqi-1.2.2-linux/bin/'
 output_type = os.environ.get('OUTPUT_TYPE', 'nrrd')
 seg_filter = os.environ.get('SEG_FILTER')
 if seg_filter != '':
-    seg_filter = seg_filter.lower().split(" ")
+    seg_filter = seg_filter.lower().split(",")
 else:
     seg_filter = None
 print(seg_filter)

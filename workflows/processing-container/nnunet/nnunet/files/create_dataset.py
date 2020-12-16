@@ -8,8 +8,8 @@ import random
 import pydicom
 
 task_name = os.getenv("TASK", "")
-licence = os.getenv("LICENCE", "")
-version = os.getenv("VERSION", "")
+licence = os.getenv("LICENCE", "NA")
+version = os.getenv("VERSION", "NA")
 training_name = task_name
 training_description = os.getenv("TRAINING_DESCRIPTION", "nnUNet training")
 training_reference = os.getenv("TRAINING_REFERENCE", "nnUNet")
@@ -44,29 +44,6 @@ def extract_labels(nifti_seg_dirs):
     return labels
 
 
-def extract_modality(dicom_dirs):
-    print(f"Extract modality from: {dicom_dirs}")
-    count = 0
-    modality = {}
-    for dicom_dir in dicom_dirs:
-        dcm_files = glob.glob(os.path.join(dicom_dir, "*.dcm"), recursive=True)
-        if len(dcm_files) == 0:
-            print(f"No DICOM files could be found at {dicom_dir}")
-            exit(1)
-        modality[f"{count}"] = pydicom.dcmread(dcm_files[0])[0x0008, 0x0060].value
-        count += 1
-
-    print("Extracted modality:")
-    print(json.dumps(modality, indent=4, sort_keys=True))
-    print("")
-
-    if len(modality) == 0:
-        print(f"No modality extracted!")
-        exit(1)
-
-    return modality
-
-
 def move_file(source, target):
     Path(os.path.dirname(target)).mkdir(parents=True, exist_ok=True)
     if copy_target_data:
@@ -75,8 +52,26 @@ def move_file(source, target):
         shutil.move(source, target)
 
 
+label_in_dir = os.getenv('PREP_LABEL_DIR', "")
+input_modalities = os.getenv("PREP_MODALITIES", "")
+input_nifti_dirs = os.getenv("INPUT_NIFTI_DIRS", "")
+
+if label_in_dir == "" or input_modalities == "" or input_nifti_dirs == "":
+    print("")
+    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+    print("")
+    print("Needed Env not set!")
+    print(f"PREP_LABEL_DIR: {label_in_dir}")
+    print(f"PREP_MODALITIES: {input_modalities}")
+    print(f"INPUT_NIFTI_DIRS: {input_nifti_dirs}")
+    print("")
+    print("-> ABORT!")
+    print("")
+    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+    print("")
+    exit(1)
+
 batch_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'])
-label_in_dir = os.environ['LABEL_DIR']
 operator_out_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_OUT_DIR'])
 task_dir = os.path.join(operator_out_dir, "nnUNet_raw_data", os.environ['TASK'])
 Path(task_dir).mkdir(parents=True, exist_ok=True)
@@ -89,11 +84,11 @@ print("")
 series_list = [f.path for f in os.scandir(batch_dir) if f.is_dir()]
 series_list.sort()
 
-input_nifti_dirs = os.getenv("INPUT_NIFTI_DIRS", "").split(";")
-input_dicom_dirs = os.getenv("INPUT_DICOM_DIRS", "").split(";")
-
-modality_extraction_dirs = [os.path.join(series_list[0], input_dir) for input_dir in input_dicom_dirs]
-modality = extract_modality(dicom_dirs=modality_extraction_dirs)
+modality = {}
+input_modalities = input_modalities.split(";")
+input_nifti_dirs = input_nifti_dirs.split(";")
+for i in range(0, len(input_modalities)):
+    modality[f"{i}"] = input_modalities[i]
 
 labels_extraction_dirs = [os.path.join(series_list[0], label_in_dir)]
 labels = extract_labels(nifti_seg_dirs=labels_extraction_dirs)
@@ -148,8 +143,8 @@ print("")
 train_series = series_list[:train_count]
 test_series = series_list[train_count:]
 
+print("Preparing all train series: {}".format(len(train_series)))
 for series in train_series:
-    print("Preparing train series: {}".format(series))
     base_file_path = os.path.join("imagesTr", f"{os.path.basename(series)}.nii.gz")
     base_seg_path = os.path.join("labelsTr", f"{os.path.basename(series)}.nii.gz")
 

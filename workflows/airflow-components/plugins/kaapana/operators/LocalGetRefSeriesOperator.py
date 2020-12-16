@@ -3,12 +3,25 @@ import json
 import glob
 import pydicom
 from dicomweb_client.api import DICOMwebClient
+from multiprocessing.pool import ThreadPool
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INITIAL_INPUT_DIR
 
 
 class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
+    def download_series(self, series):
+        print("Downloading series: {}".format(series["reference_series_uid"]))
+        try:
+            HelperDcmWeb.downloadSeries(studyUID=series["reference_study_uid"], seriesUID=series["reference_series_uid"], target_dir=series['target_dir'])
+            message = f"OK: Series {series['reference_series_uid']}"
+        except Exception as e:
+            print("### Something went wrong!")
+            print("series: {}".format(series["reference_series_uid"]))
+            print(e)
+            message = f"ERROR: Series {series['reference_series_uid']}"
+
+        return message
 
     def get_files(self, ds, **kwargs):
         print("Starting module LocalGetRefSeriesOperator")
@@ -29,7 +42,6 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         download_series_list = []
 
         for batch_element_dir in batch_folder:
-            print("batch_element_dir: {}".format(batch_element_dir))
             dcm_files = sorted(glob.glob(os.path.join(batch_element_dir, self.operator_in_dir, "*.dcm*"), recursive=True))
             if len(dcm_files) > 0:
                 incoming_dcm = pydicom.dcmread(dcm_files[0])
@@ -127,16 +139,17 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
             exit(1)
 
-        for series in download_series_list:
-            print("Downloading series: {}".format(series["reference_series_uid"]))
-            HelperDcmWeb.downloadSeries(studyUID=series["reference_study_uid"], seriesUID=series["reference_series_uid"], target_dir=series['target_dir'])
+        results = ThreadPool(self.parallel_downloads).imap_unordered(self.download_series, download_series_list)
 
+        for result in results:
+            print(result)
 
     def __init__(self,
                  dag,
                  name='get-ref-series',
                  search_policy="reference_uid",
-                 modality = None,
+                 modality=None,
+                 parallel_downloads=3,
                  pacs_dcmweb_host='http://dcm4chee-service.store.svc',
                  pacs_dcmweb_port='8080',
                  aetitle="KAAPANA",
@@ -145,6 +158,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         self.modality = modality
         self.search_policy = search_policy
         self.pacs_dcmweb = pacs_dcmweb_host+":"+pacs_dcmweb_port + "/dcm4chee-arc/aets/"+aetitle.upper()
+        self.parallel_downloads = parallel_downloads
 
         super().__init__(
             dag,

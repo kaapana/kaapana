@@ -22,7 +22,7 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
         with open(filePath, "wb") as f:
             f.write(response.content)
 
-        return filePath
+        return fileName
 
     def downloadSeries(self, studyUID, seriesUID, target_dir):
         import requests
@@ -38,7 +38,7 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
         print(payload)
         print(httpResponse)
         status = ""
-        fileName = ""
+        file_names = []
         if httpResponse.status_code == 204:
             print("No results from pacs...")
         elif httpResponse.status_code == 200:
@@ -51,16 +51,15 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
                     resultObject["00080018"]["Value"][0])  # objectUID
 
             print("Start downloading series: {0}".format(seriesUID))
-
+            file_name_list = []
             for objectUID in objectUIDList:
-                self.downloadObject(studyUID, seriesUID,
-                                    objectUID, target_dir)
-            if objectUIDList[0]:
-                fileName = objectUIDList[0] + ".dcm"
+                file_name_list.append(self.downloadObject(studyUID, seriesUID,
+                                                          objectUID, target_dir))
+
         else:
             print("Error at PACS request!")
             status = "failed"
-        return status, fileName
+        return status, file_name_list
 
     def createScene(self, mitk_scenes):
         print("Creating MITK scene file!")
@@ -77,7 +76,7 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
                 node2 = ElementTree.Element("node", UID="Node_2")
                 ElementTree.SubElement(node2, "source", UID="Node_1")
                 data = ElementTree.Element("data", {'type': "LabelSetImage", 'file': element['file_seg']})
-                ElementTree.SubElement(data,  "properties", file="segmetation_data_props")
+                ElementTree.SubElement(data, "properties", file="segmetation_data_props")
                 node2.append(data)
                 ElementTree.SubElement(node2, "properties", file="segmetation_props")
                 xmlstr = ElementTree.tostring(node2, encoding='utf-8', method="xml").decode()
@@ -95,18 +94,19 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
                 # Setting the referenceFile is a workaround, because of limitations saving existing dicm-seg objects
                 # https://phabricator.mitk.org/T26953
                 output_file = os.path.join(element['scene_dir'], "segmetation_data_props")
-                property = ElementTree.Element("property", {'key': "referenceFiles", 'type': "StringLookupTableProperty"})
+                property = ElementTree.Element("property",
+                                               {'key': "referenceFiles", 'type': "StringLookupTableProperty"})
                 string_lookup_table = ElementTree.Element("StringLookupTable")
-                file_path = element['file_image_absolute_container']
-                ElementTree.SubElement(string_lookup_table,
-                                       "LUTValue",
-                                       value= element['file_image_absolute_container'])
+                # Setting absolut path
+                # It has to have an index, first tests show that the index number must not match the dcm index
+                # TODO: this has to be verified
+
+                for idx, file in enumerate(element['file_image_container_list']):
+                    ElementTree.SubElement(string_lookup_table, "LUTValue", id=str(idx), value=os.path.join("/", file))
                 property.append(string_lookup_table)
                 segmetation_data_props = ElementTree.ElementTree(property)
                 print('Writing segmetation_data_props')
                 segmetation_data_props.write(output_file, xml_declaration=True, encoding='utf-8', method="xml")
-
-
 
     def get_files(self, ds, **kwargs):
         from dicomweb_client.api import DICOMwebClient
@@ -123,9 +123,8 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
         run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
         batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
 
-
         print("Starting module MtikInputOperator")
-    
+
         mitk_scenes = []
         for batch_element_dir in batch_folder:
             print("batch_element_dir: " + batch_element_dir)
@@ -146,22 +145,24 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
                     if not os.path.exists(target_dir):
                         os.makedirs(target_dir)
 
-                        status, fileName = self.downloadSeries(studyUID=incoming_dcm.StudyInstanceUID,
-                                                               seriesUID=seriesUID,
-                                                               target_dir=target_dir)
-                        if status == 'ok':
-                            data_path = os.path.join(WORKFLOW_DIR, BATCH_NAME, path_dir, REF_IMG, fileName )
-                            abs_container_path = "/" + data_path
-                            mitk_scenes.append({
-                                'hasSegementation': True,
-                                'file_image': os.path.join(REF_IMG, fileName),
-                                'file_seg': os.path.join(self.operator_in_dir, os.path.basename(dcm_files[0])),
-                                'scene_dir': batch_element_dir,
-                                'file_image_absolute_container' : abs_container_path
-                            })
-                        else:
-                            print('Reference images to segmentation not found!')
-                            exit(1)
+                    status, file_names = self.downloadSeries(studyUID=incoming_dcm.StudyInstanceUID,
+                                                             seriesUID=seriesUID,
+                                                             target_dir=target_dir)
+                    data_path_list = []
+                    for file_name in file_names:
+                        data_path_list.append(
+                            os.path.join("/", WORKFLOW_DIR, BATCH_NAME, path_dir, REF_IMG, file_name))
+                    if status == 'ok':
+                        mitk_scenes.append({
+                            'hasSegementation': True,
+                            'file_image': os.path.join(REF_IMG, file_names[0]),
+                            'file_seg': os.path.join(self.operator_in_dir, os.path.basename(dcm_files[0])),
+                            'scene_dir': batch_element_dir,
+                            'file_image_container_list': data_path_list
+                        })
+                    else:
+                        print('Reference images to segmentation not found!')
+                        exit(1)
                 # otherwise only open images without segmentation
                 else:
                     print("No segementaion, create scene with image only")

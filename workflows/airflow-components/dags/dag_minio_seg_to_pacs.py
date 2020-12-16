@@ -30,6 +30,6 @@ upload_folder_tree = 'segmentation_tree'
 pull_object_from_minio = LocalMinioOperator(dag=dag, bucket_name=bucket_name, action_operator_dirs=[upload_folder_tree],
                                                   operator_out_dir=upload_folder_tree, file_white_tuples='.dcm', split_level=1)
 dicom_send = DcmSendOperator(dag=dag, input_operator=pull_object_from_minio, ae_title='mitk-seg', level='pile')
-#clean = LocalWorkflowCleanerOperator(dag=dag)
+clean = LocalWorkflowCleanerOperator(dag=dag)
 
-pull_object_from_minio >> dicom_send# >> clean
+pull_object_from_minio >> dicom_send >> clean

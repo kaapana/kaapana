@@ -1,12 +1,9 @@
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
-
 from datetime import timedelta
-
 from airflow.models import DAG
-
-from mitk_userflow.MitkInputOperator import MitkInputOperator
+from mitk_flow.MitkInputOperator import MitkInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator

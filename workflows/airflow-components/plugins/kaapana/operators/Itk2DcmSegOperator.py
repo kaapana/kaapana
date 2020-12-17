@@ -19,7 +19,7 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
                  series_description=None,
                  skip_empty_slices=False,
                  env_vars=None,
-                 execution_timeout=timedelta(minutes=5),
+                 execution_timeout=timedelta(minutes=90),
                  *args,
                  **kwargs):
 

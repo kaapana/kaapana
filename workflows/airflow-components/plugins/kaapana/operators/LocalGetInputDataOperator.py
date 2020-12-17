@@ -75,6 +75,12 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         print("Starting moule LocalGetInputDataOperator...")
         self.conf = kwargs['dag_run'].conf
+        
+        cohort_limit = None
+        if "conf" in self.conf:
+            trigger_conf=self.conf["conf"]
+            cohort_limit = int(trigger_conf["cohort_limit"] if "cohort_limit" in trigger_conf else None)
+
         dag_run_id = kwargs['dag_run'].run_id
 
         if self.conf == None or not "inputs" in self.conf:
@@ -160,6 +166,12 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 print("Dag-conf: {}".format(self.conf))
                 exit(1)
 
+        
+        download_list = download_list[:cohort_limit] if cohort_limit is not None else download_list
+        print("")
+        print("## SERIES TO LOAD: {}".format(len(download_list)))
+        print("")
+
         results = ThreadPool(self.parallel_downloads).imap_unordered(self.get_data, download_list)
         for result in results:
             print(result)
@@ -180,6 +192,6 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             name="get-input-data",
             python_callable=self.start,
             task_concurrency=10,
-            execution_timeout=timedelta(minutes=15),
+            execution_timeout=timedelta(minutes=60),
             *args, **kwargs
         )

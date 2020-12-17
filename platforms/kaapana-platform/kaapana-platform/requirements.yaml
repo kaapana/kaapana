@@ -4,7 +4,7 @@ dependencies:
     version: "0.1.1-vdev"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: kibana-kaapana-chart
-    version: "6.8.12"
+    version: "6.8.12-vdev"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: meta-init-chart
     condition: Release.IsInstall

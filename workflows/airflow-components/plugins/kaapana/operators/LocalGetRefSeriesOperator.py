@@ -2,6 +2,7 @@ import os
 import json
 import glob
 import pydicom
+from datetime import timedelta
 from dicomweb_client.api import DICOMwebClient
 from multiprocessing.pool import ThreadPool
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
@@ -164,5 +165,6 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             dag,
             name=name,
             python_callable=self.get_files,
+            execution_timeout=timedelta(minutes=60),
             *args, **kwargs
         )

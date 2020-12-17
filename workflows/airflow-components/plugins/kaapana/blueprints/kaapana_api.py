@@ -51,8 +51,8 @@ def trigger_dag(dag_id):
         query = tmp_conf["query"]
         index = tmp_conf["index"]
         dag_id = tmp_conf["dag"]
-        bulk = tmp_conf["bulk"]
         form_data = tmp_conf["form_data"]
+        cohort_limit = int(tmp_conf["cohort_limit"] if "cohort_limit" in tmp_conf else None)
         single_execution = True if "single_execution" in form_data and form_data["single_execution"] else False
 
         print(f"query: {query}")
@@ -68,6 +68,8 @@ def trigger_dag(dag_id):
                 response.status_code = 500
                 return response
 
+            hits = hits[:cohort_limit] if cohort_limit is not None else hits
+            
             print("SERIES TO LOAD: {}".format(len(hits)))
             for hit in hits:
                 hit = hit["_source"]

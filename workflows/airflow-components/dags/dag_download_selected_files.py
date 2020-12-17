@@ -19,7 +19,8 @@ ui_forms = {
                 "default": True,
             },
             "single_execution": {
-                "title": "Should each series be processed separately?",
+                "title": "single execution",
+                "description": "Should each series be processed separately?",
                 "type": "boolean",
                 "default": False,
                 "readOnly": False,

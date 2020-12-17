@@ -14,14 +14,19 @@ from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.LocalNnUnetDatasetOperator import LocalNnUnetDatasetOperator
 from nnunet.LocalDagTriggerOperator import LocalDagTriggerOperator
+from airflow.api.common.experimental import pool as pool_api
 
 TASK_NAME = "Task042_Training"
-seg_filter=""
-prep_modalities="CT"
-train_network="2d"
-train_network_trainer="nnUNetTrainerV2"
-train_folds=0
+seg_filter = ""
+prep_modalities = "CT"
+train_network = "2d"
+train_network_trainer = "nnUNetTrainerV2"
+train_folds = 0
 
+cpu_count_pool = pool_api.get_pool(name="CPU")
+prep_threads = int(cpu_count_pool.slots//8) if cpu_count_pool is not None else 4
+prep_threads = 2 if prep_threads < 2 else prep_threads
+prep_threads = 9 if prep_threads > 9 else prep_threads
 
 ui_forms = {
     "publication_form": {
@@ -162,7 +167,11 @@ dag = DAG(
     schedule_interval=None
 )
 
-get_input = LocalGetInputDataOperator(dag=dag, check_modality=True)
+get_input = LocalGetInputDataOperator(
+    dag=dag,
+    check_modality=True,
+    parallel_downloads=5
+)
 dcm2nifti_seg = DcmSeg2ItkOperator(
     dag=dag,
     input_operator=get_input,
@@ -171,13 +180,18 @@ dcm2nifti_seg = DcmSeg2ItkOperator(
     parallel_id='seg',
 )
 
-get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(dag=dag, input_operator=get_input, search_policy="reference_uid", modality=None)
+get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
+    dag=dag,
+    input_operator=get_input,
+    search_policy="reference_uid",
+    parallel_downloads=5,
+    modality=None
+)
 dcm2nifti_ct = DcmConverterOperator(dag=dag, input_operator=get_ref_ct_series_from_seg, parallel_id='ct', output_format='nii.gz')
 
 check_seg = LocalSegCheckOperator(
     dag=dag,
-    input_operator=dcm2nifti_seg,
-    dicom_input_operator=get_ref_ct_series_from_seg
+    input_operators=[dcm2nifti_seg, get_ref_ct_series_from_seg]
 )
 
 nnunet_preprocess = NnUnetOperator(
@@ -186,6 +200,8 @@ nnunet_preprocess = NnUnetOperator(
     input_nifti_operators=[dcm2nifti_ct],
     prep_label_operator=dcm2nifti_seg,
     prep_modalities=prep_modalities.split(","),
+    prep_processes_low=prep_threads+1,
+    prep_processes_full=prep_threads,
     prep_preprocess=True,
     prep_check_integrity=True,
 )

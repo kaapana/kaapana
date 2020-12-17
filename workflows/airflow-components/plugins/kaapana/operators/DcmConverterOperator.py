@@ -8,7 +8,7 @@ class DcmConverterOperator(KaapanaBaseOperator):
                  dag,
                  output_format="nrrd",
                  env_vars=None,
-                 execution_timeout=timedelta(minutes=15),
+                 execution_timeout=timedelta(minutes=90),
                  *args, **kwargs
                  ):
 

@@ -121,7 +121,8 @@ ui_forms = {
                 ]
             },
             "single_execution": {
-                "title": "Should each series be processed separately?",
+                "title": "single execution",
+                "description": "Should each series be processed separately?",
                 "type": "boolean",
                 "default": True,
                 "readOnly": False,
@@ -147,7 +148,11 @@ dag = DAG(
     schedule_interval=None
 )
 
-get_input = LocalGetInputDataOperator(dag=dag, check_modality=True)
+get_input = LocalGetInputDataOperator(
+    dag=dag,
+    parallel_downloads=5,
+    check_modality=True
+)
 get_task_model = GetTaskModelOperator(dag=dag)
 # get_task_model = GetContainerModelOperator(dag=dag)
 dcm2nifti = DcmConverterOperator(dag=dag, input_operator=get_input, output_format='nii.gz')
@@ -173,8 +178,7 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
 
 check_seg = LocalSegCheckOperator(
     dag=dag,
-    input_operator=nrrd2dcmSeg_multi,
-    dicom_input_operator=get_input
+    input_operators=[nrrd2dcmSeg_multi, get_input]
 )
 
 dcmseg_send_multi = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi)

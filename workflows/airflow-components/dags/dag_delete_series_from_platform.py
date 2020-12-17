@@ -15,7 +15,8 @@ ui_forms = {
         "type": "object",
         "properties": {
             "single_execution": {
-                "title": "Should each series be processed separately?",
+                "title": "single execution",
+                "description": "Should each series be processed separately?",
                 "type": "boolean",
                 "default": True,
                 "readOnly": False,
@@ -43,8 +44,8 @@ dag = DAG(
 )
 
 get_input = LocalGetInputDataOperator(dag=dag, data_type="json")
-delete_dcm_pacs = LocalDeleteFromPacsOperator(dag=dag,input_operator=get_input, delete_complete_study=False)
-delete_dcm_elastic = LocalDeleteFromElasticOperator(dag=dag,input_operator=get_input, delete_complete_study=False)
-clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
+delete_dcm_pacs = LocalDeleteFromPacsOperator(dag=dag, input_operator=get_input, delete_complete_study=False, retries=1)
+delete_dcm_elastic = LocalDeleteFromElasticOperator(dag=dag, input_operator=get_input, delete_complete_study=False, retries=1)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_input >> delete_dcm_pacs >> delete_dcm_elastic >> clean

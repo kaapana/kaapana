@@ -8,7 +8,7 @@ class DcmSeg2ItkOperator(KaapanaBaseOperator):
                  output_type=None,
                  seg_filter=None,
                  env_vars=None,
-                 execution_timeout=timedelta(minutes=5),
+                 execution_timeout=timedelta(minutes=90),
                  *args, **kwargs
                  ):
 

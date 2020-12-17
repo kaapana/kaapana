@@ -23,7 +23,8 @@ ui_forms = {
         "type": "object",
         "properties": {
             "single_execution": {
-                "title": "Should each series be processed separately?",
+                "title": "single execution",
+                "description": "Should each series be processed separately?",
                 "type": "boolean",
                 "default": True,
                 "readOnly": False,

@@ -1,5 +1,4 @@
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
-#from prostata_package.LocalMinioFileToPacsOperator import LocalMinioFileToPacsOperator
+from mitk_minio_pacs_interaction.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from airflow.utils.log.logging_mixin import LoggingMixin

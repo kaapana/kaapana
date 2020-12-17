@@ -11,7 +11,7 @@ class Pdf2DcmOperator(KaapanaBaseOperator):
 
     def __init__(self,
                  dag,
-                 dicom_operator,
+                 dicom_operator = None,
                  pdf_title='KAAPANA PDF',
                  env_vars=None,
                  execution_timeout=timedelta(minutes=10),
@@ -22,7 +22,7 @@ class Pdf2DcmOperator(KaapanaBaseOperator):
             env_vars = {}
 
         envs = {
-            "DICOM_IN_DIR": str(dicom_operator.operator_out_dir),
+            "DICOM_IN_DIR": str(dicom_operator.operator_out_dir) if dicom_operator is not None else "NONE",
             "PDF_TITLE": str(pdf_title),
         }
 

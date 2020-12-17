@@ -191,7 +191,8 @@ dcm2nifti_ct = DcmConverterOperator(dag=dag, input_operator=get_ref_ct_series_fr
 
 check_seg = LocalSegCheckOperator(
     dag=dag,
-    input_operators=[dcm2nifti_seg, get_ref_ct_series_from_seg]
+    move_data = True,
+    input_operators=[get_input,dcm2nifti_seg,get_ref_ct_series_from_seg,dcm2nifti_ct]
 )
 
 nnunet_preprocess = NnUnetOperator(

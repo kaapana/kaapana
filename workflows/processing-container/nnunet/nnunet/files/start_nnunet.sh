@@ -15,7 +15,7 @@ echo "# MODE:     $MODE";
 echo "# TASK:     $TASK";
 echo "# TASK_NUM: $TASK_NUM";
 echo "#"
-if [ "$MODE" != "training" ] && [ "$MODE" != "inference" ]  && [ "$MODE" != "preprocess" ] ; then
+if [ "$MODE" != "training" ] && [ "$MODE" != "inference" ]  && [ "$MODE" != "preprocess" ] && [ "$MODE" != "model_export" ] ; then
     echo "#"
     echo "#######################################################################"
     echo "#"
@@ -99,7 +99,7 @@ elif [ "$MODE" = "training" ]; then
     
     echo "#"
     echo "# COMMAND: nnUNet_train $TRAIN_NETWORK $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLDS --npz"
-    nnUNet_train $TRAIN_NETWORK $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLDS --npz
+    nnUNet_train $TRAIN_NETWORK $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLDS --npz --continue_training
     
     
     echo "#"
@@ -185,6 +185,31 @@ elif [ "$MODE" = "inference" ]; then
             exit 1
         fi
     done
+
+elif [ "$MODE" = "model_export" ]; then
+    export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
+    export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
+    export RESULTS_FOLDER="$nnUNet_raw_data_base/results"
+
+    model_output_path="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnunet_model_$TRAIN_NETWORK.zip"
+    echo "#"
+    echo "# Starting model_export..."
+    echo "#"
+    echo "#"
+    echo "# model_output_path:    $model_output_path"
+    echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
+    echo "# nnUNet_preprocessed:  $nnUNet_preprocessed"
+    echo "# RESULTS_FOLDER:       $RESULTS_FOLDER"
+    echo "#"
+    echo "# RESULTS_FOLDER:       $RESULTS_FOLDER"
+    echo "# RESULTS_FOLDER:       $RESULTS_FOLDER"
+    echo "# TRAIN_NETWORK_TRAINER:       $TRAIN_NETWORK_TRAINER"
+    echo "#"
+    echo "#"
+    echo "# COMMAND: nnUNet_export_model_to_zip -t $TASK -m $TRAIN_NETWORK -tr $TRAIN_NETWORK_TRAINER -o $model_output_path "
+    nnUNet_export_model_to_zip -t $TASK -m $TRAIN_NETWORK -tr $TRAIN_NETWORK_TRAINER -o $model_output_path 
+    echo "#"
+    echo "# DONE"
     
 fi;
 

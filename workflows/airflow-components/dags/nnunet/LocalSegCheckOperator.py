@@ -147,7 +147,7 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
                  **kwargs):
 
         self.abort_on_error = abort_on_error
-        self.move_data = move_data
+        self.move_data = True
         self.input_operators = input_operators
         self.parallel_checks = parallel_checks
 

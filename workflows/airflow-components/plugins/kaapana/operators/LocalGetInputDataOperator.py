@@ -77,7 +77,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         self.conf = kwargs['dag_run'].conf
         
         cohort_limit = None
-        if "conf" in self.conf:
+        if self.conf is not None and "conf" in self.conf:
             trigger_conf=self.conf["conf"]
             cohort_limit = int(trigger_conf["cohort_limit"] if "cohort_limit" in trigger_conf else None)
 

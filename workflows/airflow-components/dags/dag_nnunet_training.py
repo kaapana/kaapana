@@ -216,8 +216,16 @@ nnunet_train = NnUnetOperator(
     train_folds=train_folds
 )
 
+nnunet_export = NnUnetOperator(
+    dag=dag,
+    mode="model_export",
+    input_operator=nnunet_preprocess,
+    train_network=train_network,
+    train_network_trainer=train_network_trainer,
+)
+
 #clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
 get_input >> dcm2nifti_seg >> check_seg >> nnunet_preprocess
-get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess >> nnunet_train
+get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess >> nnunet_train >> nnunet_export
 # >> clean

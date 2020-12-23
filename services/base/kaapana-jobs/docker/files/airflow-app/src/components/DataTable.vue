@@ -84,8 +84,13 @@
                       <v-list-item>
                         <v-row>
                           <v-list-item-title>
+                            <!--
+                              :key is important for rerendering.
+                              Rule: Every the value in :key changes,
+                                    the element rerenders.
+                            -->
                             <v-btn
-                              data-tooltip=""
+                              :key="loader"
                               class="ma-2"
                               :loading="loaders[displayDags.indexOf(dag)]"
                               :disabled="loaders[displayDags.indexOf(dag)]"
@@ -189,18 +194,6 @@
 <script>
 export default {
   mounted() {
-    /* fetch('https://e230-pc07:8081/flow/kaapana/api/getdags')// + <domain> at the beginning
-      .then((response) => response.json())
-      .then((data) => {
-        this.dags = data;
-        console.log(data);
-      });
-   fetch('https://e230-pc07/flow/kaapana/api/getdagruns')// + <domain> at the beginning
-      .then((response) => response.json())
-      .then((data) => {
-        this.dagRuns = data;
-        console.log(data);
-      }); */
     this.fetchDags();
     this.fetchDagRuns();
   },
@@ -211,7 +204,12 @@ export default {
       dagRuns: [],
       items: ['nonServiceDags', 'service'], // Here you can add new categories for filtering.
       values: ['nonServiceDags'], // Those are the default categories which you want to show in the table.
+      // Contains the index of which loader in loaders should be activated.
       loader: null,
+      /*
+      Contains a list of booleans, which are responsible
+      for the animation of the buttons (are they active or not).
+      */
       loaders: [],
     };
   },
@@ -230,15 +228,18 @@ export default {
       this.loader = null;
     },
   },
-  updated: {
-
-  },
   methods: {
     async fetchDags() {
       try {
+        // const res = await fetch('https://e230-pc07/flow/kaapana/api/getdags'); Fetch for implementation in Kaapana.
         const res = await fetch('getdags.json');
         const val = await res.json();
         this.dags = val;
+        /*
+        Those methods are necessary because it's important they get first executed,
+        when all data are fetch. If they would be in mounted,
+        there weren't data which they need for working.
+        */
         this.filterDags();
         this.createLoader();
       } catch (e) {
@@ -247,6 +248,7 @@ export default {
     },
     async fetchDagRuns() {
       try {
+        // const res = await fetch('https://e230-pc07/flow/kaapana/api/getdagruns'); Fetch for implementation in Kaapana.
         const res = await fetch('getdagruns.json');
         const val = await res.json();
         this.dagRuns = val;

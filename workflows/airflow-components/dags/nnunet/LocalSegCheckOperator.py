@@ -5,6 +5,7 @@ import shutil
 import pydicom
 import numpy as np
 import nibabel as nib
+from datetime import timedelta
 from multiprocessing.pool import ThreadPool
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
@@ -155,6 +156,7 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
             dag,
             name="check-seg-data",
             python_callable=self.start,
+            execution_timeout=timedelta(minutes=60),
             *args,
             **kwargs
         )

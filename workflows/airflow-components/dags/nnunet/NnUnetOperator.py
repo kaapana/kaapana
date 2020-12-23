@@ -8,12 +8,12 @@ import json
 
 
 class NnUnetOperator(KaapanaBaseOperator):
-    execution_timeout = timedelta(days=2)
+    execution_timeout = timedelta(days=5)
     task_dict = {}
 
     def __init__(self,
                  dag,
-                 mode,
+                 mode,  # preprocess, training, inference,export-model,install-model
                  input_nifti_operators=[],
                  prep_label_operator=None,
                  prep_processes_low=8,
@@ -21,9 +21,13 @@ class NnUnetOperator(KaapanaBaseOperator):
                  prep_modalities=[],
                  prep_preprocess=True,
                  prep_check_integrity=True,
+                 train_fold=0,
                  train_network="2d",
                  train_network_trainer="nnUNetTrainerV2",
-                 train_folds=5,
+                 train_continue=False,
+                 train_npz=False,
+                 train_strict=True,
+                 train_max_epochs=15,
                  inf_preparation=True,
                  inf_threads_prep=1,
                  inf_threads_nifti=1,
@@ -40,14 +44,18 @@ class NnUnetOperator(KaapanaBaseOperator):
             "PREP_TF": str(prep_processes_full),
             "PREP_LABEL_DIR": str(prep_label_operator.operator_out_dir) if prep_label_operator is not None else "",
             "PREP_MODALITIES": ";".join(str(modality) for modality in prep_modalities),
-            "PREP_PREPROCESS": "true" if prep_preprocess else "false",
-            "PREP_CHECK_INTEGRITY": "true" if prep_check_integrity else "false",
-            "TRAIN_FOLDS": str(train_folds),
+            "PREP_PREPROCESS": str(prep_preprocess),
+            "PREP_CHECK_INTEGRITY": str(prep_check_integrity),
+            "TRAIN_FOLD": str(train_fold),
             "TRAIN_NETWORK": train_network,
             "TRAIN_NETWORK_TRAINER": train_network_trainer,
+            "TRAIN_CONTINUE": str(train_continue),
+            "TRAIN_MAX_EPOCHS": str(train_max_epochs),
+            "TRAIN_NPZ": str(train_npz),
+            "TRAIN_STRICT": str(train_strict),
             "INF_THREADS_PREP": str(inf_threads_prep),
             "INF_THREADS_NIFTI": str(inf_threads_prep),
-            "INF_PREPARATION": "true" if inf_preparation else "false",
+            "INF_PREPARATION": str(inf_preparation),
             "TENSORBOARD_DIR": '/tensorboard',
         }
         env_vars.update(envs)

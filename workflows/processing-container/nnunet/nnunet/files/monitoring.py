@@ -11,16 +11,26 @@ from tensorboardX import SummaryWriter
 timeout = 60
 
 args_got = sys.argv[1:]
-if (len(args_got) != 2):
+if (len(args_got) != 3):
     print("Arg0: experiment_path")
-    print("Arg1: tensorboard_dir_path")
+    print("Arg1: fold")
+    print("Arg2: tensorboard_dir_path")
     print("GOT: ")
     print(args_got)
     print("-> exit")
     exit(1)
 else:
     experiment_path = args_got[0]
-    tensorboard_dir_path = args_got[1]
+    fold = args_got[1]
+    tensorboard_dir_path = args_got[2]
+
+print("")
+print("Starting monitoring....")
+print("")
+print(f"experiment_path:      {experiment_path}")
+print(f"tensorboard_dir_path: {tensorboard_dir_path}")
+print(f"fold:                  {fold}")
+print("")
 
 s = sched.scheduler(time.time, time.sleep)
 writer = None
@@ -29,9 +39,10 @@ last_training_log_file = None
 experiment_name = f"nnunet-train_{datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d_%H_%M')}"
 
 def get_logs(sc):
-    global experiment_name, writer, last_written_epoch, experiment_path, tensorboard_dir_path, timeout, last_training_log_file
+    global experiment_name, writer, last_written_epoch, experiment_path,fold, tensorboard_dir_path, timeout, last_training_log_file
     logs_path = os.path.join(experiment_path, "**", "training_log_*.txt*")
     log_files = sorted(glob.glob(logs_path, recursive=True))
+    logs_path = [i for i in logs_path if f"fold_{fold}" in i]
     # print(f"Checking log files...")
     if len(log_files) > 0:
 

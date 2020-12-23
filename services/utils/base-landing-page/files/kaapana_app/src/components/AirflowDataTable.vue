@@ -209,11 +209,9 @@ export default {
     loader() {
       const l = this.loader;
       this.loaders[l] = true;
-
       setTimeout(() => {
         this.loaders[l] = false;
       }, 3000);
-
       this.loader = null;
     },
   },

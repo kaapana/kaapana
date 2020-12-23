@@ -275,7 +275,7 @@ put_to_minio = LocalMinioOperator(
     zip_files=False
 )
 
-clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
+#clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
 get_input >> dcm2nifti_seg >> check_seg >> nnunet_preprocess
 get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess
@@ -286,5 +286,5 @@ nnunet_preprocess >> nnunet_train_fold2 >> identify_best
 nnunet_preprocess >> nnunet_train_fold3 >> identify_best
 nnunet_preprocess >> nnunet_train_fold4 >> identify_best
 
-identify_best >> nnunet_export >> put_to_minio >> clean
+identify_best >> nnunet_export >> put_to_minio #>> clean
 

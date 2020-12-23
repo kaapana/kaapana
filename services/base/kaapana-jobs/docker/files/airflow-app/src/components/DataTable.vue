@@ -1,127 +1,237 @@
 <template>
   <div>
-    <b-table-simple class="table table-dark">
-        <b-thead>
-          <b-th>
-            <b-icon
-              icon="info-circle"
-              scale="1"
-              variant="info"
-              title="Use this toggle to pause a DAG.
-                  The scheduler won't schedule new tasks instances
-                  for a paused DAG. Tasks already running at pause time won't be affected."
-            ></b-icon>
-          </b-th>
-          <b-th>Dag_Id</b-th>
-          <b-th>
-            Recent Tasks
-            <b-icon
-              icon="info-circle"
-              scale="1"
-              variant="info"
-              title="Execution Date/Time of Highest Dag Run."
-            ></b-icon>
-          </b-th>
-          <b-th>Last Run</b-th>
-        </b-thead>
-        <tbody>
-          <b-tr v-for="dag in nonServiceDags" :key="dag.dag_id">
-            <b-td>
-              <b-form-checkbox
-                switch
-                :checked="dag.is_active"
-              ></b-form-checkbox>
-            </b-td>
-            <b-td>{{ dag.dag_id }}</b-td>
-            <b-td>{{ dag.last_scheduler_run }}</b-td>
-            <b-td>
-              <router-link
-                v-if="countSuccesfulDagRuns(dag.dag_id) > 0"
-                :to="{
-                  name: 'LastRuns',
-                  params: { dagRuns, state: 'success', dagId: dag.dag_id },
-                }"
-              >
-                <b-button
-                  pill
-                  variant="outline-success"
-                  style="margin-right: 3px"
-                >
-                  {{ countSuccesfulDagRuns(dag.dag_id) }}
-                </b-button>
-              </router-link>
-              <b-button
-                v-if="countSuccesfulDagRuns(dag.dag_id) == 0"
-                disabled
-                pill
-                variant="outline-success"
-                style="margin-right: 3px"
-              >
-                {{ countSuccesfulDagRuns(dag.dag_id) }}
-              </b-button>
-              <router-link
-                v-if="countFailedDagRuns(dag.dag_id) > 0"
-                :to="{
-                  name: 'LastRuns',
-                  params: { dagRuns, state: 'failed', dagId: dag.dag_id },
-                }"
-              >
-                <b-button
-                  pill
-                  variant="outline-danger"
-                  style="margin-left: 3px"
-                >
-                  {{ countFailedDagRuns(dag.dag_id) }}
-                </b-button>
-              </router-link>
-              <b-button
-                v-if="countFailedDagRuns(dag.dag_id) == 0"
-                disabled
-                pill
-                variant="outline-danger"
-                style="margin-left: 3px"
-              >
-                {{ countFailedDagRuns(dag.dag_id) }}
-              </b-button>
-            </b-td>
-          </b-tr>
-        </tbody>
-      </b-table-simple>
-    <serviceDagsTable :serviceDags="serviceDags" :dagRuns="dagRuns"></serviceDagsTable>
+    <v-app id="inspire">
+    <v-card
+      color="grey lighten-4"
+      flat
+      tile
+    >
+      <v-toolbar dense color="primary" style="color: white">
+        <v-app-bar-nav-icon color="white"></v-app-bar-nav-icon>
+        <v-toolbar-title>Overview</v-toolbar-title>
+        <v-spacer></v-spacer>
+      </v-toolbar>
+        <v-col cols="12">
+        <v-autocomplete
+          v-model="values"
+          :items="items"
+          dense
+          chips
+          small-chips
+          label="Solo"
+          multiple
+          solo
+          @change="filterDags()"
+        ></v-autocomplete>
+        </v-col>
+          <v-simple-table style="margin: 20px">
+          <template v-slot:default>
+            <thead>
+              <tr>
+                <th class="text-left">Dag ID</th>
+                <th class="text-left">Last Run</th>
+                <th>Dag Runs</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="dag in displayDags" :key="dag.dag_id">
+                <td>
+                  <a
+                    v-bind:href="`https://e230-pc07/flow/admin/airflow/graph?dag_id=${
+                      dag.dag_id
+                    }&execution_date=${new Date(
+                      dag.last_scheduler_run
+                    ).toISOString()}`"
+                  >
+                    {{ dag.dag_id }}
+                  </a>
+                </td>
+                <td v-if="getLastDagRunOfDag(dag.dag_id)">
+                  <v-list>
+                    <v-list-group :value="false">
+                      <template v-slot:activator>
+                        <v-list-item-title>
+                          {{ new Date (
+                            getLastDagRunOfDag(dag.dag_id).execution_time
+                            ).toGMTString() }}
+                          <v-btn
+                            v-if="
+                              getLastDagRunOfDag(dag.dag_id).state == 'success'
+                            "
+                            class="ma-2"
+                            style="margin-left: 3px"
+                            color="success"
+                            dark
+                            icon
+                            title="Successful"
+                          >
+                            <v-icon dark> mdi-checkbox-marked-circle </v-icon>
+                          </v-btn>
+                          <v-btn
+                            v-if="
+                              getLastDagRunOfDag(dag.dag_id).state == 'failed'
+                            "
+                            class="ma-2"
+                            color="red"
+                            dark
+                            icon
+                            title="Failed"
+                          >
+                            <v-icon dark> mdi-cancel </v-icon>
+                          </v-btn>
+                        </v-list-item-title>
+                      </template>
+                      <v-list-item>
+                        <v-row>
+                          <v-list-item-title>
+                            <v-btn
+                              data-tooltip=""
+                              class="ma-2"
+                              :loading="loaders[displayDags.indexOf(dag)]"
+                              :disabled="loaders[displayDags.indexOf(dag)]"
+                              icon
+                              color="green"
+                              title="Clear Dag Run."
+                              @click="
+                                loader = displayDags.indexOf(dag);
+                                clearDagRun(
+                                  dag.dag_id,
+                                  getLastDagRunOfDag(dag.dag_id).execution_time
+                                  );
+                                "
+                            >
+                              <v-icon>mdi-cached</v-icon>
+                              <template v-slot:loader>
+                                <span class="custom-loader">
+                                  <v-icon light>mdi-cached</v-icon>
+                                </span>
+                              </template>
+                            </v-btn>
+                            <a
+                              v-if="
+                                getLastDagRunOfDag(dag.dag_id).state == 'failed'
+                              "
+                              v-bind:href="`https://e230-pc07/flow/admin/airflow/log?task_id=${
+                                getLastDagRunOfDag(dag.dag_id).failed_task_id
+                              }&dag_id=${dag.dag_id}&execution_date=${encodeURIComponent(
+                                  getLastDagRunOfDag(dag.dag_id).execution_time
+                              )}&format=json`"
+                            >
+                              <v-btn
+                                class="ma-2"
+                                outlined
+                                x-small
+                                fab
+                                color="teal"
+                                title="Get Log of Failed Dag Run."
+                              >
+                                <v-icon>mdi-format-list-bulleted-square</v-icon>
+                              </v-btn>
+                            </a>
+                          </v-list-item-title>
+                        </v-row>
+                      </v-list-item>
+                    </v-list-group>
+                  </v-list>
+                </td>
+                <td v-else>
+                  <span></span>
+                </td>
+                <td>
+                  <a
+                    v-bind:href="`https://e230-pc07/flow/admin/airflow/graph?dag_id=${
+                      dag.dag_id
+                    }&execution_date=${new Date(
+                      dag.last_scheduler_run
+                    ).toISOString()}`"
+                  >
+                    <v-btn
+                      color="success"
+                      depressed
+                      style="margin-right: 3px; padding: 17px"
+                      small
+                      icon
+                      outlined
+                      title="Succesful Dag Runs."
+                    >
+                      {{ countSuccesfulDagRuns(dag.dag_id) }}
+                    </v-btn>
+                  </a>
+                  <a
+                    v-bind:href="`https://e230-pc07/flow/admin/airflow/graph?dag_id=${
+                      dag.dag_id
+                    }&execution_date=${new Date(
+                      dag.last_scheduler_run
+                    ).toISOString()}`"
+                  >
+                    <v-btn
+                      color="error"
+                      depressed
+                      style="margin-left: 3px; padding: 17px"
+                      small
+                      icon
+                      outlined
+                      title="Failed Dag Runs."
+                    >
+                      {{ countFailedDagRuns(dag.dag_id) }}
+                    </v-btn>
+                  </a>
+                </td>
+              </tr>
+            </tbody>
+          </template>
+        </v-simple-table>
+      </v-card>
+    </v-app>
   </div>
 </template>
 
 <script>
-import ServiceDagsTable from './ServiceDagsTable.vue';
-
 export default {
-  components: {
-    serviceDagsTable: ServiceDagsTable,
-  },
   mounted() {
-    /* fetch('http://e230-pc07:8081/flow/kaapana/api/getdags')// + <domain> at the beginning
+    /* fetch('https://e230-pc07:8081/flow/kaapana/api/getdags')// + <domain> at the beginning
       .then((response) => response.json())
       .then((data) => {
         this.dags = data;
         console.log(data);
       });
-   fetch('https://e230-pc07/flow/kaapana/api/getdags')// + <domain> at the beginning
+   fetch('https://e230-pc07/flow/kaapana/api/getdagruns')// + <domain> at the beginning
       .then((response) => response.json())
       .then((data) => {
-        this.dags = data;
+        this.dagRuns = data;
         console.log(data);
       }); */
     this.fetchDags();
     this.fetchDagRuns();
-    // this.filterAfterServiceDags();
   },
   data() {
     return {
-      serviceDags: [],
-      nonServiceDags: [],
+      displayDags: [],
       dags: [],
       dagRuns: [],
+      items: ['nonServiceDags', 'service'], // Here you can add new categories for filtering.
+      values: ['nonServiceDags'], // Those are the default categories which you want to show in the table.
+      loader: null,
+      loaders: [],
     };
+  },
+  watch: {
+    loader() {
+      const l = this.loader;
+      console.log(l);
+      console.log(this.loaders[l]);
+      this.loaders[l] = true;
+      console.log(this.loaders[l]);
+
+      setTimeout(() => {
+        this.loaders[l] = false;
+      }, 3000);
+
+      this.loader = null;
+    },
+  },
+  updated: {
+
   },
   methods: {
     async fetchDags() {
@@ -129,7 +239,8 @@ export default {
         const res = await fetch('getdags.json');
         const val = await res.json();
         this.dags = val;
-        this.filterAfterServiceDags();
+        this.filterDags();
+        this.createLoader();
       } catch (e) {
         console.log(e);
       }
@@ -157,18 +268,64 @@ export default {
       );
       return equalDagRuns.length;
     },
-    filterAfterServiceDags() {
+    filterDags() {
       /* eslint no-plusplus: ["error", { "allowForLoopAfterthoughts": true }] */
       /* Simple iteration with forEach doesn't work,
          because function isn't able to iterate over directory. */
+      // Is necessary so the displayDags will be empty if you update filter list in a session.
+      this.displayDags = [];
       const dagKeys = Object.keys(this.dags);
+      let j;
       let i;
-      for (i = 0; i < dagKeys.length; i++) {
-        if (dagKeys[i].substring(0, 7) === 'service') {
-          this.serviceDags.push(this.dags[dagKeys[i]]);
-        } else {
-          this.nonServiceDags.push(this.dags[[dagKeys[i]]]);
+      for (j = 0; j < this.values.length; j++) {
+        for (i = 0; i < dagKeys.length; i++) {
+          if (dagKeys[i].substring(0, 7) === this.values[j]) {
+            this.displayDags.push(this.dags[dagKeys[i]]);
+          } else if (
+            dagKeys[i].substring(0, 7) !== this.values[j]
+            && dagKeys[i].substring(0, 7) !== 'service'
+            && this.values[j] !== 'service'
+          ) {
+            this.displayDags.push(this.dags[dagKeys[i]]);
+          }
         }
+      }
+    },
+    getLastDagRunOfDag(dagId) {
+      let lastDagRuns = [];
+      let lastDagRun;
+      lastDagRuns = this.dagRuns.filter((dagRun) => dagRun.dag_id === dagId);
+      if (!lastDagRuns) {
+        lastDagRun = 'No match';
+      } else {
+        lastDagRun = lastDagRuns[lastDagRuns.length - 1];
+      }
+      return lastDagRun;
+    },
+    createLoader() {
+      this.loaders = [];
+      this.displayDags.forEach((dag) => {
+        const newLoaderObject = false;
+        this.loaders.push(newLoaderObject);
+      });
+    },
+    async clearDagRun(dagId, executionTime) {
+      try {
+        console.log('Start');
+        const requestOptions = {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dag_id: dagId,
+            execution_time: executionTime,
+          }),
+        };
+        const response = await fetch(`https://e230-pc07/flow/kaapana/api/clear/${dagId}/${executionTime}`, requestOptions);
+        console.log(response);
+        console.log('End');
+      } catch (e) {
+        console.log('Failed');
+        console.log(e);
       }
     },
   },
@@ -176,4 +333,40 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+.custom-loader {
+  animation: loader 1s infinite;
+  display: flex;
+}
+@-moz-keyframes loader {
+  from {
+    transform: rotate(0);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@-webkit-keyframes loader {
+  from {
+    transform: rotate(0);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@-o-keyframes loader {
+  from {
+    transform: rotate(0);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes loader {
+  from {
+    transform: rotate(0);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
 </style>

@@ -27,7 +27,7 @@ class NnUnetOperator(KaapanaBaseOperator):
                  train_continue=False,
                  train_npz=False,
                  train_strict=True,
-                 train_max_epochs=15,
+                 train_max_epochs=1000,
                  inf_preparation=True,
                  inf_threads_prep=1,
                  inf_threads_nifti=1,

@@ -178,7 +178,7 @@ elif [ "$MODE" = "inference" ]; then
         operator_output_dir=${batch_dir}/${OPERATOR_OUT_DIR}
         mkdir -p $operator_output_dir
         
-        if [ "$INF_PREPARATION" = "true" ] ; then
+        if [ "$INF_PREPARATION" = "true" ] || [ "$INF_PREPARATION" = "True" ] ; then
             echo "############# Starting nnUNet file preparation..."
             python3 -u ./preparation.py
             if [ $? -eq 0 ]; then

@@ -23,7 +23,6 @@
     "vue-filepond": "^6.0.2",
     "vue-property-decorator": "^8.5.1",
     "vue-router": "^3.4.3",
-    "vue2-dropzone": "^3.6.0",
     "vuetify": "^2.3.10",
     "vuex": "^3.5.1"
   },

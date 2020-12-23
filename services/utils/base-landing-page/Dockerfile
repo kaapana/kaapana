@@ -11,16 +11,17 @@ COPY files/kaapana_app/package*.json ./
 RUN npm install
 RUN npm install local-storage-fallback
 COPY files/kaapana_app .
-# RUN npm run build
 
-# # ###############################
-# # ############# Dev #############
-# # ###############################
-# # WORKDIR / 
-# # COPY files/kaapana_app/dev.sh .
-# # RUN chmod +x dev.sh
-# # CMD ["/bin/sh", "dev.sh"]
-# # ###############################
+# ###############################
+# ############# Dev #############
+# ###############################
+# # In the landing-page deployment, adjust the resource limits to at least 12Gi and change the docker image to the one you are pushing 
+# RUN npm run build
+# WORKDIR / 
+# COPY files/kaapana_app/dev.sh .
+# RUN chmod +x dev.sh
+# CMD ["/bin/sh", "dev.sh"]
+# ###############################
 
 # ###############################
 # ######### Production ##########

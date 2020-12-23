@@ -32,6 +32,12 @@
           v-list-item-content
             v-list-item-title Extensions
           v-list-item-icon
+        v-list-item(:to="'/airflow-app'", v-if="isAuthenticated")
+          v-list-item-action
+            v-icon mdi-call-split
+          v-list-item-content
+            v-list-item-title Airflow App
+          v-list-item-icon
     v-app-bar(color="primary" dark dense clipped-left app)
       v-app-bar-nav-icon(@click.stop="drawer = !drawer")
       v-toolbar-title {{ commonData.name }}

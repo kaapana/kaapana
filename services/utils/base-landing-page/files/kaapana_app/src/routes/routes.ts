@@ -61,6 +61,15 @@ const routes = [
             ],
         },
     },
+    {
+        name: 'airflow-app',
+        path: '/airflow-app',
+        component: () => import('@/views/AirflowApp.vue'),
+        title: 'AirflowApp',
+        permissions: {
+            isPublic: false,
+        },
+    },
 ]
 
 export default routes

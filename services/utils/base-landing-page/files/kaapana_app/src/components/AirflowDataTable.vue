@@ -216,10 +216,7 @@ export default {
   watch: {
     loader() {
       const l = this.loader;
-      // console.log(l);
-      // console.log(this.loaders[l]);
       this.loaders[l] = true;
-      // console.log(this.loaders[l]);
 
       setTimeout(() => {
         this.loaders[l] = false;
@@ -231,8 +228,7 @@ export default {
   methods: {
     async fetchDags() {
       try {
-        // const res = await fetch('https://e230-pc07/flow/kaapana/api/getdags'); Fetch for implementation in Kaapana.
-        const res = await fetch('getdags.json');
+        const res = await fetch('https://e230-pc07/flow/kaapana/api/getdags');
         const val = await res.json();
         this.dags = val;
         /*
@@ -248,8 +244,7 @@ export default {
     },
     async fetchDagRuns() {
       try {
-        // const res = await fetch('https://e230-pc07/flow/kaapana/api/getdagruns'); Fetch for implementation in Kaapana.
-        const res = await fetch('getdagruns.json');
+        const res = await fetch('https://e230-pc07/flow/kaapana/api/getdagruns');
         const val = await res.json();
         this.dagRuns = val;
       } catch (e) {

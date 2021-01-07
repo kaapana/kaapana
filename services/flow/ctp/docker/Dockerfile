@@ -1,7 +1,7 @@
 FROM ubuntu:20.04 as build
 
 LABEL IMAGE="ctp"
-LABEL VERSION="0.1.1"
+LABEL VERSION="0.1.1-vdev"
 LABEL CI_IGNORE="False"
 
 ENV TZ=Europe/Berlin

@@ -66,10 +66,8 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         if dcm_file is not None:
             self.instanceUID = pydicom.dcmread(dcm_file)[0x0020, 0x000e].value
             self.patient_id = pydicom.dcmread(dcm_file)[0x0010, 0x0020].value
-            self.modality = pydicom.dcmread(dcm_file)[0x0008, 0x0060].value
             print(("Dicom instanceUID: %s" % self.instanceUID))
             print(("Dicom Patient ID: %s" % self.patient_id))
-            print(("Dicom Modality: %s" % self.modality))
         elif self.set_dag_id:
             self.instanceUID = self.run_id
         else:

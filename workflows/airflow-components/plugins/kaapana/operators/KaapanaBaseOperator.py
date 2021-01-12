@@ -93,6 +93,7 @@ class KaapanaBaseOperator(BaseOperator):
                  # Airflow
                  task_id=None,
                  parallel_id=None,
+                 keep_parallel_id=True,
                  trigger_rule=TriggerRule.ALL_SUCCESS,
                  ram_mem_mb=500,
                  ram_mem_mb_lmt=None,
@@ -144,6 +145,7 @@ class KaapanaBaseOperator(BaseOperator):
             operator_out_dir=operator_out_dir,
             input_operator=input_operator,
             parallel_id=parallel_id,
+            keep_parallel_id=keep_parallel_id,
             trigger_rule=trigger_rule,
             pool=pool,
             pool_slots=pool_slots,
@@ -403,6 +405,7 @@ class KaapanaBaseOperator(BaseOperator):
         operator_out_dir,
         input_operator,
         parallel_id,
+        keep_parallel_id,
         trigger_rule,
         pool,
         pool_slots,
@@ -435,7 +438,7 @@ class KaapanaBaseOperator(BaseOperator):
         if obj.task_id is None:
             obj.task_id = obj.name
 
-        if input_operator is not None and obj.parallel_id is None and input_operator.parallel_id is not None:
+        if input_operator is not None and obj.parallel_id is None and input_operator.parallel_id is not None and keep_parallel_id:
             obj.parallel_id = input_operator.parallel_id
 
         if obj.parallel_id is not None:

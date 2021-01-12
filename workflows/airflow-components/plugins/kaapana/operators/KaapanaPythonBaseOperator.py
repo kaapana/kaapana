@@ -17,6 +17,7 @@ class KaapanaPythonBaseOperator(PythonOperator):
         input_operator=None,
         task_id=None,
         parallel_id=None,
+        keep_parallel_id=True,
         trigger_rule='all_success',
         retries=1,
         retry_delay=timedelta(seconds=30),
@@ -41,6 +42,7 @@ class KaapanaPythonBaseOperator(PythonOperator):
             operator_out_dir=operator_out_dir,
             input_operator=input_operator,
             parallel_id=parallel_id,
+            keep_parallel_id=keep_parallel_id,
             trigger_rule=trigger_rule,
             pool=pool,
             pool_slots=pool_slots,
@@ -66,10 +68,9 @@ class KaapanaPythonBaseOperator(PythonOperator):
             executor_config=self.executor_config,
             pool=self.pool,
             pool_slots=self.pool_slots,
-            *args, 
+            *args,
             **kwargs
         )
 
     def post_execute(self, context, result=None):
         pass
-

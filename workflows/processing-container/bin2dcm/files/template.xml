@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<file-format>
+<meta-header xfer="1.2.840.10008.1.2.1" name="Little Endian Explicit">
+<element tag="0002,0000" vr="UL" vm="1" len="4" name="FileMetaInformationGroupLength">202</element>
+<element tag="0002,0001" vr="OB" vm="1" len="2" name="FileMetaInformationVersion" binary="yes">00\01</element>
+<element tag="0002,0002" vr="UI" vm="1" len="26" name="MediaStorageSOPClassUID">1.2.840.10008.5.1.4.1.1.7</element>
+<element tag="0002,0003" vr="UI" vm="1" len="56" name="MediaStorageSOPInstanceUID">1.2.276.0.7230010.3.1.4.8323329.27565.1610357811.460788</element>
+<element tag="0002,0010" vr="UI" vm="1" len="22" name="TransferSyntaxUID">1.2.840.10008.1.2.5</element>
+<element tag="0002,0012" vr="UI" vm="1" len="28" name="ImplementationClassUID">1.2.276.0.7230010.3.0.3.6.2</element>
+<element tag="0002,0013" vr="SH" vm="1" len="16" name="ImplementationVersionName">OFFIS_DCMTK_362</element>
+</meta-header>
+<data-set xfer="1.2.840.10008.1.2.5" name="RLE Lossless">
+<element tag="0008,0060" vr="CS" vm="1" len="10" name="Modality">OT</element>
+<element tag="0008,0005" vr="CS" vm="1" len="10" name="SpecificCharacterSet">ISO_IR 100</element>
+<element tag="0008,0016" vr="UI" vm="1" len="26" name="SOPClassUID">1.2.840.10008.5.1.4.1.1.7</element>
+<element tag="0008,0018" vr="UI" vm="1" len="56" name="SOPInstanceUID">1.2.276.0.7230010.3.1.4.8323329.27565.1610357811.460788</element>
+<element tag="0008,1030" vr="LO" vm="0" len="0" name="StudyDescription">replace</element>
+<element tag="0008,0020" vr="DA" vm="0" len="0" name="StudyDate">replace</element>
+<element tag="0008,0030" vr="TM" vm="0" len="0" name="StudyTime">replace</element>
+<element tag="0008,0050" vr="SH" vm="0" len="0" name="AccessionNumber"></element>
+<element tag="0008,0064" vr="CS" vm="1" len="4" name="ConversionType">WSD</element>
+<element tag="0008,0090" vr="PN" vm="0" len="0" name="ReferringPhysicianName"></element>
+<element tag="0010,0010" vr="PN" vm="1" len="0" name="PatientName">replace</element>
+<element tag="0010,4000" vr="LT" vm="1" len="0" name="PatientComments">replace</element>
+<element tag="0010,0020" vr="LO" vm="0" len="0" name="PatientID"></element>
+<element tag="0010,0030" vr="DA" vm="0" len="0" name="PatientBirthDate"></element>
+<element tag="0010,0040" vr="CS" vm="0" len="0" name="PatientSex"></element>
+<element tag="0020,000d" vr="UI" vm="1" len="56" name="StudyInstanceUID">replace</element>
+<element tag="0020,000e" vr="UI" vm="1" len="56" name="SeriesInstanceUID">replace</element>
+<element tag="0020,0010" vr="SH" vm="0" len="0" name="StudyID"></element>
+<element tag="0020,0011" vr="IS" vm="0" len="0" name="SeriesNumber"></element>
+<element tag="0020,0013" vr="IS" vm="0" len="0" name="InstanceNumber"></element>
+<element tag="0020,0020" vr="CS" vm="0" len="0" name="PatientOrientation"></element>
+<sequence tag="7fe0,0010" vr="OB" card="2" name="PixelData">
+<pixel-item len="replace" binary="yes" >replace</pixel-item>
+</sequence>
+</data-set>
+</file-format>

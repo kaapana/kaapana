@@ -42,8 +42,7 @@ def get_logs(sc):
     global experiment_name, writer, last_written_epoch, experiment_path,fold, tensorboard_dir_path, timeout, last_training_log_file
     logs_path = os.path.join(experiment_path, "**", "training_log_*.txt*")
     log_files = sorted(glob.glob(logs_path, recursive=True))
-    logs_path = [i for i in logs_path if f"fold_{fold}" in i]
-    # print(f"Checking log files...")
+    log_files = [i for i in log_files if f"fold_{fold}" in i]
     if len(log_files) > 0:
 
         if log_files[-1] != last_training_log_file:

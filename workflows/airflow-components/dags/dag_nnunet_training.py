@@ -15,6 +15,7 @@ from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.LocalNnUnetDatasetOperator import LocalNnUnetDatasetOperator
 from nnunet.LocalDagTriggerOperator import LocalDagTriggerOperator
 from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
+from nnunet.Bin2DcmOperator import Bin2DcmOperator
 from airflow.api.common.experimental import pool as pool_api
 
 TASK_NAME = "Task042_Training"
@@ -23,6 +24,8 @@ prep_modalities = "CT"
 train_network = "2d"
 train_network_trainer = "nnUNetTrainerV2"
 
+gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
+gpu_count = int(gpu_count_pool.slots) if gpu_count_pool is not None else 1
 cpu_count_pool = pool_api.get_pool(name="CPU")
 prep_threads = int(cpu_count_pool.slots//8) if cpu_count_pool is not None else 4
 prep_threads = 2 if prep_threads < 2 else prep_threads
@@ -155,7 +158,7 @@ args = {
 dag = DAG(
     dag_id='nnunet-train',
     default_args=args,
-    concurrency=1,
+    concurrency=gpu_count,
     max_active_runs=1,
     schedule_interval=None
 )
@@ -266,12 +269,18 @@ nnunet_export = NnUnetOperator(
     train_network_trainer=train_network_trainer,
 )
 
+bin2dcm = Bin2DcmOperator(
+    dag=dag,
+    input_operator=nnunet_export,
+    file_extensions="*.zip"
+)
+
 put_to_minio = LocalMinioOperator(
     dag=dag,
     action='put',
     action_operators=[nnunet_export],
     bucket_name="nnunet-models",
-    file_white_tuples=('.zip'),
+    file_white_tuples=('.dcm'),
     zip_files=False
 )
 
@@ -286,5 +295,5 @@ nnunet_preprocess >> nnunet_train_fold2 >> identify_best
 nnunet_preprocess >> nnunet_train_fold3 >> identify_best
 nnunet_preprocess >> nnunet_train_fold4 >> identify_best
 
-identify_best >> nnunet_export >> put_to_minio #>> clean
+identify_best >> nnunet_export >> bin2dcm >> put_to_minio #>> clean
 

@@ -14,7 +14,11 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     def download_series(self, series):
         print("Downloading series: {}".format(series["reference_series_uid"]))
         try:
-            HelperDcmWeb.downloadSeries(studyUID=series["reference_study_uid"], seriesUID=series["reference_series_uid"], target_dir=series['target_dir'])
+            download_successful = HelperDcmWeb.downloadSeries(studyUID=series["reference_study_uid"], seriesUID=series["reference_series_uid"], target_dir=series['target_dir'])
+            if not download_successful:
+                print("Could not download DICOM data!")
+                exit(1)
+
             message = f"OK: Series {series['reference_series_uid']}"
         except Exception as e:
             print("### Something went wrong!")
@@ -63,7 +67,8 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                             if len(pacs_series) != 1:
                                 print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                                 print("")
-                                print("Could not find referenced SeriesUID in the PACS: {} !".format(reference_series_uid))
+                                print(f"Could not find referenced SeriesUID in the PACS: {reference_series_uid} !")
+                                print(f"Series found: {pacs_series}")
                                 print("Abort.")
                                 print("")
                                 print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -85,11 +90,12 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                         exit(1)
                 if self.search_policy == 'study_uid':
                     pacs_series = client.search_for_series(search_filters={'0020000D': incoming_dcm.StudyInstanceUID, '00080060': self.modality.upper()})
-                    if len(pacs_series) != 1:
+                    if len(pacs_series) == 0 or (self.expected_file_count != "all" and len(pacs_series) != self.expected_file_count):
                         print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                         print("")
-                        print("Could not identify the searched modality: {} from the studyUID: {} !".format(self.modality, incoming_dcm.StudyInstanceUID))
-                        print("Number of possible DICOMs in the PACS: {}".format(len(pacs_series)))
+                        print(f"Could not identify the searched modality: {self.modality} from the studyUID: {incoming_dcm.StudyInstanceUID} !")
+                        print(f"Expected {self.expected_file_count} series of modality {self.modality} - found {len(pacs_series)} series")
+                        print(f"Found series: {pacs_series}")
                         print("Abort.")
                         print("")
                         print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -114,11 +120,12 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
                     patient_uid = incoming_dcm[0x0010, 0x0020].value
                     pacs_series = client.search_for_series(search_filters={'00100020': patient_uid, '00080060': self.modality.upper()})
-                    if len(pacs_series) != 1:
+                    if len(pacs_series) == 0 or (self.expected_file_count != "all" and len(pacs_series) != self.expected_file_count):
                         print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                         print("")
-                        print("Could not identify the searched modality: {} from the PatientUID: {} !".format(self.modality, patient_uid))
-                        print("Number of possible DICOMs in the PACS: {}".format(len(pacs_series)))
+                        print(f"Could not identify the searched modality: {self.modality} from the studyUID: {incoming_dcm.StudyInstanceUID} !")
+                        print(f"Expected {self.expected_file_count} series of modality {self.modality} - found {len(pacs_series)} series")
+                        print(f"Found series: {pacs_series}")
                         print("Abort.")
                         print("")
                         print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -148,8 +155,9 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     def __init__(self,
                  dag,
                  name='get-ref-series',
-                 search_policy="reference_uid",
+                 search_policy="reference_uid",  # reference_uid, study_uid, patient_uid
                  modality=None,
+                 expected_file_count=1,
                  parallel_downloads=3,
                  pacs_dcmweb_host='http://dcm4chee-service.store.svc',
                  pacs_dcmweb_port='8080',
@@ -157,6 +165,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                  *args, **kwargs):
 
         self.modality = modality
+        self.expected_file_count = expected_file_count
         self.search_policy = search_policy
         self.pacs_dcmweb = pacs_dcmweb_host+":"+pacs_dcmweb_port + "/dcm4chee-arc/aets/"+aetitle.upper()
         self.parallel_downloads = parallel_downloads

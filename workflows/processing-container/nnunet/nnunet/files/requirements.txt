@@ -4,3 +4,4 @@ graphviz
 nibabel
 pydicom
 tensorboardX
+pillow

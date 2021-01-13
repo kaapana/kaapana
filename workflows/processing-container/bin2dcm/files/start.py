@@ -11,9 +11,10 @@ from subprocess import PIPE, run
 
 converter_count = 0
 
+
 def combine_split_files(split_files_dir):
     input_files = sorted(glob.glob(os.path.join(split_files_dir, "*.part*")))
-    final_filename=input_files[0][:-7]
+    final_filename = input_files[0][:-7]
 
     my_cmd = ['cat'] + input_files
     with open(final_filename, "w") as outfile:
@@ -26,7 +27,7 @@ def combine_split_files(split_files_dir):
     else:
         print(f"# Successfully created {split_file}!")
         for part_file in input_files:
-            os.remove(part_file) 
+            os.remove(part_file)
 
     return final_filename
 
@@ -41,15 +42,8 @@ def split_file(file_path, size_limit):
         exit(1)
 
     part_files = sorted(glob.glob(f"{file_path}.part*"))
-    part_count = len(part_files)
-
-    for part in part_files:
-        extension = "".join(pathlib.Path(part).suffixes)
-        new_filename = part.replace(extension,f"-{part_count}{extension}")
-        os.rename(part, new_filename)
-
-    part_files = sorted(glob.glob(f"{file_path.split('.')[0]}*{file_path.split('.')[1]}.part*"))
     return part_files
+
 
 def xml_to_dicom(generated_xml_list):
     global converter_count
@@ -79,8 +73,8 @@ def xml_to_dicom(generated_xml_list):
 def dicom_to_xml(dcm_path, target_dir):
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
-    xml_path = dcm_path.replace(os.path.dirname(dcm_path), target_dir).replace("dcm", "xml")
-    
+    xml_path = dcm_path.replace(os.path.dirname(dcm_path), target_dir).replace("dcm", "xml").replace(".zip", "")
+
     print("#")
     print(f"# convert DICOM to XML: {dcm_path} -> {xml_path}")
 
@@ -96,21 +90,25 @@ def dicom_to_xml(dcm_path, target_dir):
         exit(1)
     else:
         print("# XML created!")
-        os.remove(dcm_path)
 
     return xml_path
 
 
 def xml_to_binary(xml_dir):
     global converter_count
-
     xml_files = sorted(glob.glob(os.path.join(xml_dir, "*.xml")))
-    expected_file_count=int(xml_files[0].split(".")[0].split("-")[1])
+    print("#")
+    print("# starting xml_to_binary")
+    print(f"# xml-dir:      {xml_dir}")
+    print(f"# xml-files:    {xml_files}")
+    expected_file_count = int(xml_files[0].split(".")[0].split("---")[1])
+    print(f"# files needed: {expected_file_count}")
+    print("#")
 
     if len(xml_files) != expected_file_count:
         print("# ERROR!!")
         print("#")
-        print(f"# Expected {expected_file_count} files -> found {len(split_files)}")
+        print(f"# Expected {expected_file_count} files -> found {len(xml_files)}")
         print("# Abort")
         print("#")
         exit(1)
@@ -147,11 +145,12 @@ def xml_to_binary(xml_dir):
 
         print(f"# Successfully extracted file: {filename} !")
         os.remove(xml_file)
-    
+
     if expected_file_count > 1:
         combine_split_files(split_files_dir=xml_dir)
 
     converter_count += 1
+
 
 def generate_xml(binary_path, target_dir, template_path="/template.xml"):
     if not os.path.exists(target_dir):
@@ -159,18 +158,18 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
     size_limit = int(os.getenv("SIZE_LIMIT_MB", "100"))
     study_description = os.getenv("STUDY_DESCRIPTION", "Binary file")
+    study_uid = os.getenv("STUDY_UID", pydicom.uid.generate_uid())
 
-    study_uid = pydicom.uid.generate_uid()
     study_date = datetime.now().strftime("%Y%m%d")
     study_time = datetime.now().strftime("%H%M%S")
     print(f"# study_date: {study_date}")
     print(f"# study_time: {study_time}")
 
-    binary_path_list = [binary_path]
     xml_output_list = []
 
     binary_file_size = os.path.getsize(binary_path) >> 20
 
+    binary_path_list = [binary_path]
     if size_limit != 0 and binary_file_size > size_limit:
         binary_path_list = split_file(file_path=binary_path, size_limit=size_limit)
 
@@ -180,7 +179,7 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
         series_uid = pydicom.uid.generate_uid()
 
         filename = os.path.basename(binary_path)
-        xml_output_path = os.path.join(target_dir, f"{filename}.xml")
+        xml_output_path = os.path.join(target_dir, f"{filename.split('.')[0]}---{split_part_count}{''.join(pathlib.Path(filename).suffixes)}.xml")
 
         xml_template = minidom.parse(template_path)
         elements = xml_template.getElementsByTagName('element')
@@ -236,6 +235,7 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
     return xml_output_list
 
+
 # START
 binary_file_extensions = os.getenv("EXTENSIONS", "*.zip").split(",")
 batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
@@ -283,11 +283,6 @@ for batch_element_dir in batch_folders:
         xml_to_binary(xml_dir=element_output_dir)
         print("#")
 
-import time
-while True:
-    print("sleep...")
-    time.sleep(5)
-
 print("##################################################")
 print("#")
 print("# Searching for files on batch-level....")
@@ -297,6 +292,12 @@ print("#")
 
 batch_input_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
 batch_output_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_OUT_DIR'])
+
+print(f"# batch_input_dir:  {batch_input_dir}")
+print(f"# batch_output_dir: {batch_output_dir}")
+# if "bcm2bin" in batch_output_dir:
+#     batch_output_dir="/data/dcm2bin"
+# print(f"# batch_output_dir: {batch_output_dir}")
 
 binaries_found = []
 for extension in binary_file_extensions:
@@ -319,7 +320,7 @@ for binary in binaries_found:
         print(f"# --> extract xml: {binary} -> {batch_output_dir}")
         extracted_xml = dicom_to_xml(dcm_path=binary, target_dir=batch_output_dir)
         print("#")
-        convert_binary = False
+        convert_binary = True
 
     else:
         print("# --> no DICOM --> execute bin2dcm")
@@ -333,7 +334,7 @@ for binary in binaries_found:
 
 if convert_binary:
     print("# --> get_binary_from_xml")
-    xml_to_binary(xml_dir=element_output_dir)
+    xml_to_binary(xml_dir=batch_output_dir)
     print("#")
 
 
@@ -347,6 +348,7 @@ if converter_count == 0:
     print("#")
     print("##################################################")
     print("#")
+    exit(1)
 
 print("#")
 print("#")
@@ -357,5 +359,3 @@ print("#")
 print("##################################################")
 print("#")
 print("#")
-
-#dcm2xml +Eh +Wb --load-all /data/bin2dcm/nnunet_model_2d.zip.dcm /data/bin2xml-xml2bin/nnunet_model_2d.zip.xml

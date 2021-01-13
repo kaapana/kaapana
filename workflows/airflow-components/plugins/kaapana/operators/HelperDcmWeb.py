@@ -15,7 +15,7 @@ class HelperDcmWeb():
         if httpResponse.status_code == 204:
             print("No results from pacs...")
             print("Can't request series!")
-            exit(1)
+            return False
         elif httpResponse.status_code == 200:
             response = httpResponse.json()
             print(("Collecting objects for series {0}".format(seriesUID)))
@@ -29,9 +29,10 @@ class HelperDcmWeb():
                 HelperDcmWeb.downloadObject(
                     studyUID=studyUID, seriesUID=seriesUID, objectUID=objectUID, target_dir=target_dir)
             print("Done.")
+            return True
         else:
             print("Error at PACS request!")
-            exit(1)
+            return False
 
     @staticmethod
     def downloadObject(studyUID, seriesUID, objectUID, target_dir):

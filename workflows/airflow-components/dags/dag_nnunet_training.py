@@ -3,26 +3,32 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 from datetime import datetime
+from airflow.api.common.experimental import pool as pool_api
+import pydicom
+
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator 
+from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.LocalNnUnetDatasetOperator import LocalNnUnetDatasetOperator
 from nnunet.LocalDagTriggerOperator import LocalDagTriggerOperator
 from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
 from nnunet.Bin2DcmOperator import Bin2DcmOperator
-from airflow.api.common.experimental import pool as pool_api
+
+from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
 
 TASK_NAME = "Task042_Training"
 seg_filter = ""
 prep_modalities = "CT"
 train_network = "2d"
 train_network_trainer = "nnUNetTrainerV2"
+
+study_uid = pydicom.uid.generate_uid()
 
 gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
 gpu_count = int(gpu_count_pool.slots) if gpu_count_pool is not None else 1
@@ -253,6 +259,8 @@ nnunet_train_fold4 = NnUnetOperator(
     train_fold=4
 )
 
+# pdf2dcm = Pdf2DcmOperator(dag=dag, dicom_operator=get_input, input_operator=stats2pdf,pdf_title=f"Training Report {study_uid}")
+
 identify_best = NnUnetOperator(
     dag=dag,
     mode="identify-best",
@@ -272,17 +280,25 @@ nnunet_export = NnUnetOperator(
 bin2dcm = Bin2DcmOperator(
     dag=dag,
     input_operator=nnunet_export,
+    study_uid=study_uid,
     file_extensions="*.zip"
 )
 
-put_to_minio = LocalMinioOperator(
+dcmseg_send = DcmSendOperator(
     dag=dag,
-    action='put',
-    action_operators=[nnunet_export],
-    bucket_name="nnunet-models",
-    file_white_tuples=('.dcm'),
-    zip_files=False
+    level="batch",
+    ae_title="nnunet-models",
+    input_operator=bin2dcm
 )
+
+# put_to_minio = LocalMinioOperator(
+#     dag=dag,
+#     action='put',
+#     action_operators=[dcm2bin],
+#     bucket_name="nnunet-models",
+#     file_white_tuples=('.dcm'),
+#     zip_files=False
+# )
 
 #clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
@@ -295,5 +311,4 @@ nnunet_preprocess >> nnunet_train_fold2 >> identify_best
 nnunet_preprocess >> nnunet_train_fold3 >> identify_best
 nnunet_preprocess >> nnunet_train_fold4 >> identify_best
 
-identify_best >> nnunet_export >> bin2dcm >> put_to_minio #>> clean
-
+identify_best >> nnunet_export >> bin2dcm >> dcmseg_send  # >> put_to_minio #>> clean

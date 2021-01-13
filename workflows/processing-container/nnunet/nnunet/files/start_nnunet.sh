@@ -225,6 +225,12 @@ elif [ "$MODE" = "identify-best" ]; then
     echo "#"
     echo "#"
 
+    echo "# Starting create_report ..."
+    operator_output_dir=${batch_dir}/${OPERATOR_OUT_DIR}
+    python3 -u /src/create_report.py $RESULTS_FOLDER $operator_output_dir
+    echo "# Report created."
+    echo "#"
+
     # models="2d 3d_fullres 3d_lowres 3d_cascade_fullres"
 
     if [ "$TRAIN_STRICT" = "True" ] || [ "$TRAIN_STRICT" = "true" ]; then
@@ -263,10 +269,9 @@ elif [ "$MODE" = "export-model" ]; then
     echo "#"
     echo "#"
     echo "# COMMAND: nnUNet_export_model_to_zip -t $TASK -m $TRAIN_NETWORK -tr $TRAIN_NETWORK_TRAINER -o $model_output_path "
-    nnUNet_export_model_to_zip -t $TASK -m $TRAIN_NETWORK -o $model_output_path -f $TRAIN_FOLD
-    # nnUNet_export_model_to_zip -t $TASK -m $TRAIN_NETWORK -tr $TRAIN_NETWORK_TRAINER -o $model_output_path -f $TRAIN_FOLD
     echo "#"
     echo "# DONE"
+    nnUNet_export_model_to_zip -t $TASK -m $TRAIN_NETWORK -tr $TRAIN_NETWORK_TRAINER -o $model_output_path -f 0 1 2 3 4
     
 elif [ "$MODE" = "install-model" ]; then
     export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"

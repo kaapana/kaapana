@@ -20,9 +20,9 @@ class DcmSendOperator(KaapanaBaseOperator):
                  *args, **kwargs
                  ):
 
-        if level not in ['element', 'pile']:
-            raise NameError('level must be either "element" or "pile". \
-                If pile, an operator folder next to the batch folder with .dcm files is expected. \
+        if level not in ['element', 'batch']:
+            raise NameError('level must be either "element" or "batch". \
+                If batch, an operator folder next to the batch folder with .dcm files is expected. \
                 If element, *.dcm are expected in the corresponding operator with .dcm files is expected.'
             )
 

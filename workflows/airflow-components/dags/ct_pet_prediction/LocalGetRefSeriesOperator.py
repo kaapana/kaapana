@@ -161,8 +161,10 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
         for series in download_series_list:
             print("Downloading series: {}".format(series["reference_series_uid"]))
-            HelperDcmWeb.downloadSeries(studyUID=series["reference_study_uid"], seriesUID=series["reference_series_uid"], target_dir=series['target_dir'])
-
+            download_successful=HelperDcmWeb.downloadSeries(studyUID=series["reference_study_uid"], seriesUID=series["reference_series_uid"], target_dir=series['target_dir'])
+            if not download_successful:
+                print("Could not download DICOM data!")
+                exit(1)
 
     def __init__(self,
                  dag,

@@ -6,6 +6,7 @@ import pathlib
 import sched
 import time
 import datetime
+import shutil
 from tensorboardX import SummaryWriter
 
 timeout = 60
@@ -102,7 +103,7 @@ def get_logs(sc):
             writer.add_scalar('time', epoch["time"], epoch["count"])
             last_written_epoch = epoch["count"]
             print("# Tensorboard: Wrote new epoch: {}".format(last_written_epoch))
-
+            
         writer.flush()
 
     else:

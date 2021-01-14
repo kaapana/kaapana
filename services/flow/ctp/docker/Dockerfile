@@ -51,7 +51,8 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /opt/CTP
 
 ADD /files/config.xml ./config.xml
+ADD /files/Launcher.properties ./Launcher.properties
 COPY --from=build /build-ctp/build/CTP/ ./
 
-CMD ["java","-Xms512M","","Xmx1g","-jar","Runner.jar"]
+CMD ["java","-jar","Runner.jar"]
 

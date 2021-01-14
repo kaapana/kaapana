@@ -225,11 +225,14 @@ elif [ "$MODE" = "identify-best" ]; then
     echo "#"
     echo "#"
 
-    echo "# Starting create_report ..."
-    operator_output_dir=${batch_dir}/${OPERATOR_OUT_DIR}
-    python3 -u /src/create_report.py $RESULTS_FOLDER $operator_output_dir
-    echo "# Report created."
-    echo "#"
+    CREATE_REPORT="True"
+
+    if [ "$CREATE_REPORT" = "True" ] || [ "$CREATE_REPORT" = "true" ]; then
+        echo "# Starting create_report ..."
+        python3 -u /src/create_report.py $RESULTS_FOLDER "/data/$OPERATOR_OUT_DIR"
+        echo "# Report created."
+        echo "#"
+    fi
 
     # models="2d 3d_fullres 3d_lowres 3d_cascade_fullres"
 

@@ -32,7 +32,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     exit(1)
 
             else:
-                print("DAG modality: {} is not supported!")
+                print(f"DAG modality: {dag_modality} is not supported!")
                 print("Supported modalities: CT,MRI,MRT,SEG")
                 print("Skipping 'check_dag_modality'")
                 return
@@ -43,6 +43,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             return
 
     def get_data(self, series_dict):
+        download_successful = True
         studyUID, seriesUID, dag_run_id = series_dict["studyUID"], series_dict["seriesUID"], series_dict["dag_run_id"]
         print(f"Start download series: {seriesUID}")
         target_dir = os.path.join(WORKFLOW_DIR, dag_run_id, BATCH_NAME, f'{seriesUID}', self.operator_out_dir)
@@ -51,10 +52,10 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             os.makedirs(target_dir)
 
         if self.data_type == "dicom":
-            download_successful=HelperDcmWeb.downloadSeries(studyUID=studyUID, seriesUID=seriesUID, target_dir=target_dir)
+            download_successful = HelperDcmWeb.downloadSeries(studyUID=studyUID, seriesUID=seriesUID, target_dir=target_dir)
             if not download_successful:
                 print("Could not download DICOM data!")
-                exit(1)
+                download_successful = False
 
         elif self.data_type == "json":
             meta_data = HelperElasticsearch.get_series_metadata(series_uid=seriesUID)
@@ -65,23 +66,23 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         elif self.data_type == "minio":
             print("Not supported yet!")
             print("abort...")
-            exit(1)
+            download_successful = False
 
         else:
             print("unknown data-mode!")
             print("abort...")
-            exit(1)
+            download_successful = False
 
-        message = f"OK: Series: {seriesUID}"
-        return message
+        message = f"Series: {seriesUID}"
+        return download_successful, message
 
     def start(self, ds, **kwargs):
         print("Starting moule LocalGetInputDataOperator...")
         self.conf = kwargs['dag_run'].conf
-        
+
         cohort_limit = None
         if self.conf is not None and "conf" in self.conf:
-            trigger_conf=self.conf["conf"]
+            trigger_conf = self.conf["conf"]
             cohort_limit = int(trigger_conf["cohort_limit"] if "cohort_limit" in trigger_conf else None)
 
         dag_run_id = kwargs['dag_run'].run_id
@@ -169,15 +170,17 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 print("Dag-conf: {}".format(self.conf))
                 exit(1)
 
-        
         download_list = download_list[:cohort_limit] if cohort_limit is not None else download_list
         print("")
         print("## SERIES TO LOAD: {}".format(len(download_list)))
         print("")
 
         results = ThreadPool(self.parallel_downloads).imap_unordered(self.get_data, download_list)
-        for result in results:
-            print(result)
+        for download_successful,message in results:
+            print(f"Finished: {message}")
+            if not download_successful:
+                print("Something went wrong.")
+                exit(1)
 
     def __init__(self,
                  dag,

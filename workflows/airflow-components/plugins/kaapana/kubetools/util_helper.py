@@ -58,10 +58,11 @@ class NodeUtil():
         logger = None
 
         tries = 0
+        max_tries = 4
         result_value = None
         return_code = True
 
-        while result_value == None and tries < 4:
+        while result_value == None and tries < max_tries:
             request_url = "{}{}".format(NodeUtil.prometheus_url, query)
             response = requests.get(request_url)
             result = response.json()["data"]["result"]
@@ -79,7 +80,7 @@ class NodeUtil():
                 time.sleep(1)
                 tries += 1
 
-        if tries >= 10:
+        if tries >= max_tries:
             print("+++++++++++++++++++++++++++++++++++++++++ Could not fetch node-info!")
             return_code = False
 
@@ -182,9 +183,11 @@ class NodeUtil():
                 NodeUtil.gpu_mem_alloc, return_code = NodeUtil.get_node_info(query=NodeUtil.gpu_mem_available_query, logger=logger)
                 if not return_code and logger is not None:
                     logger.warning("############################################# Could not fetch gpu_alloc utilization from prometheus!!")
+                    NodeUtil.gpu_mem_alloc = None
                 NodeUtil.gpu_mem_used, return_code = NodeUtil.get_node_info(query=NodeUtil.gpu_mem_used_query, logger=logger)
                 if not return_code and logger is not None:
                     logger.warning("############################################# Could not fetch gpu_used utilization from prometheus!!")
+                    NodeUtil.gpu_mem_used = None
             else:
                 NodeUtil.gpu_mem_alloc = 0
                 NodeUtil.gpu_mem_used = 0
@@ -193,7 +196,7 @@ class NodeUtil():
             NodeUtil.cpu_available_limit = NodeUtil.cpu_alloc - NodeUtil.cpu_lmt
             NodeUtil.memory_available_req = NodeUtil.mem_alloc - NodeUtil.mem_req
             NodeUtil.memory_available_limit = NodeUtil.mem_alloc - NodeUtil.mem_lmt
-            NodeUtil.gpu_memory_available = NodeUtil.gpu_mem_alloc - NodeUtil.gpu_mem_used
+            NodeUtil.gpu_memory_available = None if (NodeUtil.gpu_mem_alloc is None or NodeUtil.gpu_mem_used is None) else (NodeUtil.gpu_mem_alloc - NodeUtil.gpu_mem_used)
 
             Variable.set("CPU_NODE", "{}/{}".format(NodeUtil.cpu_lmt, NodeUtil.cpu_alloc))
             Variable.set("CPU_FREE", "{}".format(NodeUtil.cpu_available_req))
@@ -355,7 +358,7 @@ class NodeUtil():
                 logger.warning("All GPUs are in currently in use -> not scheduling")
                 return False
 
-            if ti_gpu_mem_mb > NodeUtil.gpu_memory_available:
+            if NodeUtil.gpu_memory_available is not None and ti_gpu_mem_mb > NodeUtil.gpu_memory_available:
                 logger.warning("Not enough GPU memory -> not scheduling")
                 logger.warning("GPU: {}/{}".format(ti_gpu_mem_mb, NodeUtil.gpu_memory_available))
                 return False

@@ -12,6 +12,8 @@ class Pdf2DcmOperator(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  dicom_operator = None,
+                 study_uid = None,
+                 aetitle = None,
                  pdf_title='KAAPANA PDF',
                  env_vars=None,
                  execution_timeout=timedelta(minutes=10),
@@ -22,6 +24,8 @@ class Pdf2DcmOperator(KaapanaBaseOperator):
             env_vars = {}
 
         envs = {
+            "AETITLE": aetitle if aetitle is not None else "NONE",
+            "STUDY_UID": study_uid if study_uid is not None else "NONE",
             "DICOM_IN_DIR": str(dicom_operator.operator_out_dir) if dicom_operator is not None else "NONE",
             "PDF_TITLE": str(pdf_title),
         }

@@ -12,9 +12,10 @@ from subprocess import PIPE, run
 converter_count = 0
 
 
-def combine_split_files(split_files_dir):
+def combine_split_files(split_files_dir, final_filename, delete_parts=True):
     input_files = sorted(glob.glob(os.path.join(split_files_dir, "*.part*")))
-    final_filename = input_files[0][:-7]
+    input_files = [i for i in input_files if "part" in i.split(".")[-1]]
+    print(f"# Start combining *.part files: {input_files}!")
 
     my_cmd = ['cat'] + input_files
     with open(final_filename, "w") as outfile:
@@ -26,8 +27,10 @@ def combine_split_files(split_files_dir):
         exit(1)
     else:
         print(f"# Successfully created {split_file}!")
-        for part_file in input_files:
-            os.remove(part_file)
+
+        if delete_parts:
+            for part_file in input_files:
+                os.remove(part_file)
 
     return final_filename
 
@@ -45,12 +48,14 @@ def split_file(file_path, size_limit):
     return part_files
 
 
-def xml_to_dicom(generated_xml_list):
+def xml_to_dicom(target_dir, delete_xml=True):
     global converter_count
+
+    xml_files = sorted(glob.glob(os.path.join(target_dir, "*.xml")))
 
     dicom_list = []
 
-    for xml_path in generated_xml_list:
+    for xml_path in xml_files:
         dcm_path = xml_path.replace("xml", "dcm")
         print("#")
         print(f"# convert XML to DICOM: {xml_path} -> {dcm_path}")
@@ -63,8 +68,9 @@ def xml_to_dicom(generated_xml_list):
             exit(1)
         else:
             print("# DICOM created!")
-            os.remove(xml_path)
             dicom_list.append(dcm_path)
+            if delete_xml:
+                os.remove(xml_path)
 
     converter_count += 1
     return dicom_list
@@ -73,7 +79,7 @@ def xml_to_dicom(generated_xml_list):
 def dicom_to_xml(dcm_path, target_dir):
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
-    xml_path = dcm_path.replace(os.path.dirname(dcm_path), target_dir).replace("dcm", "xml").replace(".zip", "")
+    xml_path = dcm_path.replace(os.path.dirname(dcm_path), target_dir).replace("dcm", "xml")
 
     print("#")
     print(f"# convert DICOM to XML: {dcm_path} -> {xml_path}")
@@ -94,14 +100,21 @@ def dicom_to_xml(dcm_path, target_dir):
     return xml_path
 
 
-def xml_to_binary(xml_dir):
+def xml_to_binary(target_dir, delete_xml=True):
     global converter_count
-    xml_files = sorted(glob.glob(os.path.join(xml_dir, "*.xml")))
+    xml_files = sorted(glob.glob(os.path.join(target_dir, "*.xml")))
     print("#")
     print("# starting xml_to_binary")
-    print(f"# xml-dir:      {xml_dir}")
+    print(f"# xml-dir:      {target_dir}")
     print(f"# xml-files:    {xml_files}")
-    expected_file_count = int(xml_files[0].split(".")[0].split("---")[1])
+
+    suffixes=pathlib.Path(xml_files[0]).suffixes
+    filename=xml_files[0].replace("".join(suffixes),"").split("---")
+    expected_file_count = int(filename[1])
+    if expected_file_count > 1:
+        final_filename = f"{filename[0]}{''.join(suffixes[:-2])}"
+    else:
+        final_filename = f"{filename[0]}{''.join(suffixes[:-1])}"
     print(f"# files needed: {expected_file_count}")
     print("#")
 
@@ -125,8 +138,8 @@ def xml_to_binary(xml_dir):
                 filename = el.text
                 print(f"# Found filename: {filename}")
                 root.clear()
-            elif ev == 'end' and el.tag == 'pixel-item' and el.attrib['len'] != "0":
-                hex_data = el.text.strip().replace("\\", "")
+            elif ev == 'end' and el.tag == 'element' and el.attrib['tag'] == "7fe0,0010":
+                hex_data = el.text
                 print("# Found Hex-Data!")
                 root.clear()
 
@@ -139,17 +152,26 @@ def xml_to_binary(xml_dir):
             exit(1)
 
         binary_path = os.path.join(os.path.dirname(xml_file), filename)
-        binstr = binascii.unhexlify(hex_data)
+        hex_data = hex_data.strip().replace("\\", "")
+        
+        switched_hex=""
+        for x in range(0, len(hex_data), 4):
+            switched_hex += hex_data[x+2:x+4]
+            switched_hex += hex_data[x:x+2]
+        
+        binstr = binascii.unhexlify(switched_hex)
         with open(binary_path, "wb") as f:
             f.write(binstr)
 
         print(f"# Successfully extracted file: {filename} !")
-        os.remove(xml_file)
+        if delete_xml:
+            os.remove(xml_file)
 
     if expected_file_count > 1:
-        combine_split_files(split_files_dir=xml_dir)
+        combine_split_files(split_files_dir=target_dir, final_filename=final_filename)
 
     converter_count += 1
+
 
 
 def generate_xml(binary_path, target_dir, template_path="/template.xml"):
@@ -162,6 +184,7 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
     study_date = datetime.now().strftime("%Y%m%d")
     study_time = datetime.now().strftime("%H%M%S")
+    study_datetime = datetime.now().strftime("%Y%m%d%H%M%S")  # YYYYMMDDHHMMSS
     print(f"# study_date: {study_date}")
     print(f"# study_time: {study_time}")
 
@@ -177,6 +200,8 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
     full_filename = os.path.basename(binary_path)
     for binary_path in binary_path_list:
         series_uid = pydicom.uid.generate_uid()
+        mediaStorageSOPInstanceUID = pydicom.uid.generate_uid()
+        sopInstanceUID = pydicom.uid.generate_uid()
 
         filename = os.path.basename(binary_path)
         xml_output_path = os.path.join(target_dir, f"{filename.split('.')[0]}---{split_part_count}{''.join(pathlib.Path(filename).suffixes)}.xml")
@@ -187,45 +212,46 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
         for element in elements:
             el_name = element.attributes['name'].value
 
-            if el_name == "StudyInstanceUID":
-                element.firstChild.data = study_uid
-                print(f"# StudyInstanceUID: {element.firstChild.data}")
+            if el_name == "PatientName":
+                element.firstChild.data = filename
 
-            elif el_name == "StudyDate":
+            # elif el_name == "PatientID":
+            #     element.firstChild.data = mediaStorageSOPInstanceUID
+
+            elif el_name == "InstanceCreationDate" or el_name == "StudyDate" or el_name == "ContentDate":
                 element.firstChild.data = study_date
-                print(f"# StudyDate: {element.firstChild.data}")
 
-            elif el_name == "StudyTime":
+            elif el_name == "InstanceCreationTime" or el_name == "StudyTime" or el_name == "ContentTime":
                 element.firstChild.data = study_time
-                print(f"# StudyTime: {element.firstChild.data}")
+
+            elif el_name == "AcquisitionDateTime":
+                element.firstChild.data = study_datetime
+
+            elif el_name == "SOPInstanceUID":
+                element.firstChild.data = sopInstanceUID
+
+            elif el_name == "StudyInstanceUID":
+                element.firstChild.data = study_uid
 
             elif el_name == "StudyDescription":
                 element.firstChild.data = study_description
-                print(f"# StudyDescription: {element.firstChild.data}")
 
             elif el_name == "SeriesInstanceUID":
                 element.firstChild.data = series_uid
-                print(f"# SeriesInstanceUID: {element.firstChild.data}")
 
-            elif el_name == "PatientName":
-                element.firstChild.data = filename
-                print(f"# PatientName: {element.firstChild.data}")
+            elif el_name == "SeriesInstanceUID":
+                element.firstChild.data = series_uid
 
-            elif el_name == "PatientComments":
-                patient_comments = f"full_filename={full_filename};part_count={split_part_count}"
-                element.firstChild.data = patient_comments
-                print(f"# PatientComments: {element.firstChild.data}")
+            elif el_name == "MediaStorageSOPInstanceUID":
+                element.firstChild.data = mediaStorageSOPInstanceUID
 
-        file_size = os.path.getsize(binary_path)
+            elif el_name == "file":
+                element.firstChild.data = binary_path
 
-        with open(binary_path, 'rb') as f:
-            hex_data = f.read().hex("\\")
-
-        print(f"# Loaded file {binary_path}: {file_size}")
-
-        binary_item = xml_template.getElementsByTagName('pixel-item')[0]
-        binary_item.attributes['len'].value = f"{file_size}"
-        binary_item.firstChild.data = hex_data
+            if 'len' in element.attributes and len(element.childNodes) > 0:
+                element.attributes['len'].value = str(len(element.firstChild.data))
+                element.attributes['vm'].value = "1"
+                print(f"# {el_name}: {element.firstChild.data} : {element.attributes['len'].value}")
 
         print("# Generated XML from template -> export file...")
         with open(xml_output_path, "w") as xml_file:
@@ -275,12 +301,12 @@ for batch_element_dir in batch_folders:
             generated_xml_list = generate_xml(binary_path=binary, target_dir=element_output_dir)
             print("#")
             print("# --> xml_to_dicom")
-            dcm_path_list = xml_to_dicom(generated_xml_list=generated_xml_list)
+            dcm_path_list = xml_to_dicom(target_dir=element_output_dir)
             print("#")
 
     if convert_binary:
         print("# --> get_binary_from_xml")
-        xml_to_binary(xml_dir=element_output_dir)
+        xml_to_binary(target_dir=element_output_dir)
         print("#")
 
 print("##################################################")
@@ -330,11 +356,11 @@ for binary in binaries_found:
         generated_xml_list = generate_xml(binary_path=binary, target_dir=batch_output_dir)
         print(f"# --> xml_to_dicom: {generated_xml_list} -> {batch_output_dir}")
         print("#")
-        dcm_path_list = xml_to_dicom(generated_xml_list=generated_xml_list)
+        dcm_path_list = xml_to_dicom(target_dir=batch_output_dir)
 
 if convert_binary:
     print("# --> get_binary_from_xml")
-    xml_to_binary(xml_dir=batch_output_dir)
+    xml_to_binary(target_dir=batch_output_dir)
     print("#")
 
 

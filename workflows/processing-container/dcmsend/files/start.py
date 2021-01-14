@@ -29,6 +29,9 @@ def send_dicom_data(send_dir, aetitle=AETITLE, timeout=60):
             print(line)
         print("##################################################")
         exit(1)
+    else:
+        print(f"Success! output: {output}")
+        print("")
     dicom_sent_count += 1
 
 
@@ -56,7 +59,7 @@ if LEVEL == 'element':
         send_dicom_data(element_input_dir, aetitle)
 elif LEVEL == 'batch':
     batch_input_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
-    print(batch_input_dir)
+    print(f"Sending DICOM data from batch-level: {batch_input_dir}")
     send_dicom_data(batch_input_dir, timeout=3600)
 else:
     raise NameError('level must be either "element" or "batch". \

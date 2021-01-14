@@ -32,7 +32,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     exit(1)
 
             else:
-                print("DAG modality: {} is not supported!")
+                print(f"DAG modality: {dag_modality} is not supported!")
                 print("Supported modalities: CT,MRI,MRT,SEG")
                 print("Skipping 'check_dag_modality'")
                 return

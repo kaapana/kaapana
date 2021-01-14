@@ -4,9 +4,21 @@ import glob
 import pydicom
 from subprocess import PIPE, run
 
+converter_count = 0 
 
-def generate_dicom(pdf_path, dicom_path, output_dir, title="PDF", timeout=20):
-    dcm_pdf_path = os.path.join(output_dir, f"{title.lower().replace(" ","_")}.dcm")
+def generate_dicom(pdf_path, output_dir, title="PDF", timeout=20):
+    global converter_count
+
+    study_uid = os.getenv("STUDY_UID", "NONE") 
+    study_uid = study_uid if study_uid != "NONE" else None
+
+    aetitle = os.getenv("AETITLE", "NONE")
+    aetitle = aetitle if aetitle != "NONE" else None
+
+    dicom_input = os.path.join(batch_element_dir, os.getenv("DICOM_IN_DIR", "NONE"))
+    dicom_path
+
+    dcm_pdf_path = os.path.join(output_dir, f"{title.lower().replace(' ','')}.dcm")
     command = [
         "pdf2dcm",
         "-q",
@@ -49,11 +61,11 @@ def generate_dicom(pdf_path, dicom_path, output_dir, title="PDF", timeout=20):
     else:
         print("############### No DICOM specified -> generate study and series IDs...")
         command.append("--generate")
-    
+
     command.append(f"{pdf_path}")
     command.append(f"{dcm_pdf_path}")
 
-    output= run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
     if output.returncode != 0:
         print("############### Something went wrong with pdf2dcm!")
         for line in str(output).split("\\n"):
@@ -62,37 +74,80 @@ def generate_dicom(pdf_path, dicom_path, output_dir, title="PDF", timeout=20):
         print("##################################################")
         exit(1)
 
-pdf_title = os.getenv("PDF_TITLE", "PDF")
-batch_folders= [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
 
+# START
+pdf_title = os.getenv("PDF_TITLE", "PDF")
+
+batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
 for batch_element_dir in batch_folders:
-    element_dicom_dir = os.path.join(batch_element_dir, os.getenv("DICOM_IN_DIR", "NONE"))
     element_input_dir = os.path.join(batch_element_dir, os.getenv("OPERATOR_IN_DIR", ""))
     element_output_dir = os.path.join(batch_element_dir, os.getenv("OPERATOR_OUT_DIR", ""))
-    if not os.path.exists(element_output_dir):
-        os.makedirs(element_output_dir)
+    
 
     pdf_list = glob.glob(os.path.join(element_input_dir, "*.pdf"))
     if len(pdf_list) == 0:
         print("############### no *.pdf file found at {} ".format(element_input_dir))
-        raise FileNotFoundError
+        continue
 
     for pdf in pdf_list:
-        print("Found PDF file: {}".format(pdf))
-        generate_dicom(pdf_path=pdf, dicom_path=element_dicom_dir, output_dir=element_output_dir, title=pdf_title)
-        print("")
+        if not os.path.exists(element_output_dir):
+            os.makedirs(element_output_dir)
         print("##################################################")
-        print("")
+        print("#")
+        print("# Found file: {}".format(pdf))
+        print("#")
+        generate_dicom(pdf_path=pdf, dicom_path=element_dicom_dir, output_dir=element_output_dir, title=pdf_title)
 
-    print("")
-    print("")
+
+print("##################################################")
+print("#")
+print("# Searching for files on batch-level....")
+print("#")
+print("##################################################")
+print("#")
+
+batch_input_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
+batch_output_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_OUT_DIR'])
+
+print(f"# batch_input_dir:  {batch_input_dir}")
+print(f"# batch_output_dir: {batch_output_dir}")
+
+pdf_list = glob.glob(os.path.join(batch_input_dir, "*.pdf"))
+if len(pdf_list) == 0:
+    print("############### no *.pdf file found at {} ".format(batch_input_dir))
+    continue
+
+for pdf in pdf_list:
+    if not os.path.exists(element_output_dir):
+        os.makedirs(element_output_dir)
     print("##################################################")
-    print("")
-    print("##################  DONE  ########################")
-    print("")
+    print("#")
+    print("# Found file: {}".format(pdf))
+    print("#")
+    generate_dicom(pdf_path=pdf, dicom_path=None, output_dir=batch_output_dir, title=pdf_title)
+
+
+if converter_count == 0:
+    print("#")
     print("##################################################")
-    print("")
-    print("")
+    print("#")
+    print("#################  ERROR  #######################")
+    print("#")
+    print("# ----> NO FILES HAVE BEEN CONVERTED!")
+    print("#")
+    print("##################################################")
+    print("#")
+    exit(1)
+
+print("#")
+print("#")
+print("##################################################")
+print("#")
+print("##################  DONE  ########################")
+print("#")
+print("##################################################")
+print("#")
+print("#")
 
 
 # DCMTK DOCS:

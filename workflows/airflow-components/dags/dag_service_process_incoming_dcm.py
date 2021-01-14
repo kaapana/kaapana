@@ -71,21 +71,7 @@ def process_incoming(ds, **kwargs):
     dcm_files = check_all_files_arrived(dcm_path)
     incoming_dcm = pydicom.dcmread(dcm_files[0])
     # @all images
-    trigger_it(dag_id="service-extract-metadata",
-               dcm_path=dcm_path, series_uid=series_uid)
-    try:
-        print(("SeriesDescription: %s" % incoming_dcm.SeriesDescription))
-        print(("StudyDescription: %s" % incoming_dcm.StudyDescription))
-
-        # if incoming_dcm.SeriesDescription == "Abdomen pv 3.0  B31f DE mint  F_0.5" or incoming_dcm.SeriesDescription == "Abdomen pv  3.0  B31f":
-        #     trigger_it(dag_id="organ_segmentation",
-        #                 dcm_path=dcm_path, series_uid=series_uid)
-
-        # if "head" in incoming_dcm.StudyDescription.lower() or "kopf" in incoming_dcm.StudyDescription.lower():
-        #     trigger_it(dag_id="brain_extraction", dcm_path=dcm_path)
-    except Exception as e:
-        print("ERROR!")
-        logging.error(traceback.format_exc())
+    trigger_it(dag_id="service-extract-metadata",dcm_path=dcm_path, series_uid=series_uid)
 
     import shutil
     print(("Deleting temp data: %s" % dcm_path))

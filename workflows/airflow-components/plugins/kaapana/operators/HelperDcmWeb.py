@@ -10,8 +10,9 @@ class HelperDcmWeb():
         payload = {'StudyInstanceUID': studyUID,'SeriesInstanceUID': seriesUID}
         url = HelperDcmWeb.pacs_dcmweb + "/rs/instances"
         httpResponse = requests.get(url, params=payload)
-        print(payload)
-        print(httpResponse)
+        print(f"Requesting URL: {url}")
+        print(f"httpResponse: {httpResponse}")
+        print(f"payload: {payload}")
         if httpResponse.status_code == 204:
             print("No results from pacs...")
             print("Can't request series!")

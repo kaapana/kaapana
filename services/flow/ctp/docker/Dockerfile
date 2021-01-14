@@ -1,7 +1,7 @@
 FROM ubuntu:20.04 as build
 
 LABEL IMAGE="ctp"
-LABEL VERSION="0.1.1"
+LABEL VERSION="0.1.2-vdev"
 LABEL CI_IGNORE="False"
 
 ENV TZ=Europe/Berlin
@@ -53,5 +53,5 @@ WORKDIR /opt/CTP
 ADD /files/config.xml ./config.xml
 COPY --from=build /build-ctp/build/CTP/ ./
 
-CMD ["java","-jar","Runner.jar"]
+CMD ["java","-Xms512M","","Xmx1g","-jar","Runner.jar"]
 

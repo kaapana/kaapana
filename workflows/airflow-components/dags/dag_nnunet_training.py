@@ -259,8 +259,6 @@ nnunet_train_fold4 = NnUnetOperator(
     train_fold=4
 )
 
-# pdf2dcm = Pdf2DcmOperator(dag=dag, dicom_operator=get_input, input_operator=stats2pdf,pdf_title=f"Training Report {study_uid}")
-
 identify_best = NnUnetOperator(
     dag=dag,
     mode="identify-best",
@@ -268,6 +266,13 @@ identify_best = NnUnetOperator(
     train_network=train_network,
     train_network_trainer=train_network_trainer,
 )
+
+pdf2dcm = Pdf2DcmOperator(
+    dag=dag, 
+    dicom_operator=get_input, 
+    input_operator=identify_best,
+    pdf_title=f"Training Report {study_uid}"
+    )
 
 nnunet_export = NnUnetOperator(
     dag=dag,

@@ -14,6 +14,8 @@ class Bin2DcmOperator(KaapanaBaseOperator):
                  file_extensions="*.zip",
                  size_limit=100,
                  study_description="nnUnet model",
+                 patient_id="",
+                 study_id="bin2dcm",
                  study_uid=pydicom.uid.generate_uid(),
                  name="bin2dcm",
                  env_vars={},
@@ -26,7 +28,9 @@ class Bin2DcmOperator(KaapanaBaseOperator):
             "EXTENSIONS": file_extensions,
             "SIZE_LIMIT_MB": str(size_limit),
             "STUDY_UID": str(study_uid),
-            "STUDY_DESCRIPTION": str(study_description)
+            "STUDY_DESCRIPTION": str(study_description),
+            "PATIENT_ID": str(patient_id),
+            "STUDY_ID": str(study_id)
         }
         env_vars.update(envs)
 

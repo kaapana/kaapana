@@ -12,10 +12,11 @@ from subprocess import PIPE, run
 converter_count = 0
 
 
-def combine_split_files(split_files_dir, final_filename, delete_parts=True):
+def combine_split_files(split_files_dir,delete_parts=True):
     input_files = sorted(glob.glob(os.path.join(split_files_dir, "*.part*")))
     input_files = [i for i in input_files if "part" in i.split(".")[-1]]
-    print(f"# Start combining *.part files: {input_files}!")
+
+    final_filename = input_files[0][:-7]
 
     my_cmd = ['cat'] + input_files
     with open(final_filename, "w") as outfile:
@@ -27,7 +28,7 @@ def combine_split_files(split_files_dir, final_filename, delete_parts=True):
         exit(1)
     else:
         print(f"# Successfully created {split_file}!")
-
+        
         if delete_parts:
             for part_file in input_files:
                 os.remove(part_file)
@@ -79,7 +80,7 @@ def xml_to_dicom(target_dir, delete_xml=True):
 def dicom_to_xml(dcm_path, target_dir):
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
-    xml_path = dcm_path.replace(os.path.dirname(dcm_path), target_dir).replace("dcm", "xml")
+    xml_path = dcm_path.replace(os.path.dirname(dcm_path), target_dir).replace("dcm", "xml").replace(".zip", "")
 
     print("#")
     print(f"# convert DICOM to XML: {dcm_path} -> {xml_path}")
@@ -100,21 +101,14 @@ def dicom_to_xml(dcm_path, target_dir):
     return xml_path
 
 
-def xml_to_binary(target_dir, delete_xml=True):
+def xml_to_binary(target_dir,delete_xml=True):
     global converter_count
     xml_files = sorted(glob.glob(os.path.join(target_dir, "*.xml")))
     print("#")
     print("# starting xml_to_binary")
     print(f"# xml-dir:      {target_dir}")
     print(f"# xml-files:    {xml_files}")
-
-    suffixes=pathlib.Path(xml_files[0]).suffixes
-    filename=xml_files[0].replace("".join(suffixes),"").split("---")
-    expected_file_count = int(filename[1])
-    if expected_file_count > 1:
-        final_filename = f"{filename[0]}{''.join(suffixes[:-2])}"
-    else:
-        final_filename = f"{filename[0]}{''.join(suffixes[:-1])}"
+    expected_file_count = int(xml_files[0].split(".")[0].split("---")[1])
     print(f"# files needed: {expected_file_count}")
     print("#")
 
@@ -134,12 +128,16 @@ def xml_to_binary(target_dir, delete_xml=True):
         filename = None
         hex_data = None
         for ev, el in context:
-            if ev == 'start' and el.tag == 'element' and el.attrib['name'] == "PatientName":
+            if ev == 'start' and el.tag == 'element' and el.attrib['name'] == "SeriesDescription":
                 filename = el.text
                 print(f"# Found filename: {filename}")
                 root.clear()
-            elif ev == 'end' and el.tag == 'element' and el.attrib['tag'] == "7fe0,0010":
-                hex_data = el.text
+            elif ev == 'end' and el.tag == 'element' and el.attrib['tag'] == "7fe0,0010" and el.attrib['name'] == "PixelData":
+                hex_data = el.text.strip().replace("\\", "")
+                print("# Found Hex-Data!")
+                root.clear()
+            elif ev == 'end' and el.tag == 'pixel-item' and el.attrib['binary'] == "yes":
+                hex_data = el.text.strip().replace("\\", "")
                 print("# Found Hex-Data!")
                 root.clear()
 
@@ -152,14 +150,7 @@ def xml_to_binary(target_dir, delete_xml=True):
             exit(1)
 
         binary_path = os.path.join(os.path.dirname(xml_file), filename)
-        hex_data = hex_data.strip().replace("\\", "")
-        
-        switched_hex=""
-        for x in range(0, len(hex_data), 4):
-            switched_hex += hex_data[x+2:x+4]
-            switched_hex += hex_data[x:x+2]
-        
-        binstr = binascii.unhexlify(switched_hex)
+        binstr = binascii.unhexlify(hex_data)
         with open(binary_path, "wb") as f:
             f.write(binstr)
 
@@ -168,10 +159,9 @@ def xml_to_binary(target_dir, delete_xml=True):
             os.remove(xml_file)
 
     if expected_file_count > 1:
-        combine_split_files(split_files_dir=target_dir, final_filename=final_filename)
+        combine_split_files(split_files_dir=target_dir)
 
     converter_count += 1
-
 
 
 def generate_xml(binary_path, target_dir, template_path="/template.xml"):
@@ -181,6 +171,10 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
     size_limit = int(os.getenv("SIZE_LIMIT_MB", "100"))
     study_description = os.getenv("STUDY_DESCRIPTION", "Binary file")
     study_uid = os.getenv("STUDY_UID", pydicom.uid.generate_uid())
+    series_uid = pydicom.uid.generate_uid()
+
+    patient_id = os.getenv("PATIENT_ID", "Kaapana bin2dcm")
+    study_id = os.getenv("STUDY_ID", "Kaapana bin2dcm")
 
     study_date = datetime.now().strftime("%Y%m%d")
     study_time = datetime.now().strftime("%H%M%S")
@@ -198,25 +192,29 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
     split_part_count = len(binary_path_list)
     full_filename = os.path.basename(binary_path)
-    for binary_path in binary_path_list:
+    for i in range(0,len(binary_path_list)):
+        binary_path = binary_path_list[i]
         series_uid = pydicom.uid.generate_uid()
-        mediaStorageSOPInstanceUID = pydicom.uid.generate_uid()
         sopInstanceUID = pydicom.uid.generate_uid()
+        version_uid = pydicom.uid.generate_uid()
 
         filename = os.path.basename(binary_path)
         xml_output_path = os.path.join(target_dir, f"{filename.split('.')[0]}---{split_part_count}{''.join(pathlib.Path(filename).suffixes)}.xml")
 
         xml_template = minidom.parse(template_path)
-        elements = xml_template.getElementsByTagName('element')
 
+        with open(binary_path, 'rb') as f:
+            hex_data = f.read().hex("\\")
+
+        xml_template.getElementsByTagName('pixel-item')[0].firstChild.data = hex_data
+
+        elements = xml_template.getElementsByTagName('element')
         for element in elements:
             el_name = element.attributes['name'].value
 
             if el_name == "PatientName":
-                element.firstChild.data = filename
-
-            # elif el_name == "PatientID":
-            #     element.firstChild.data = mediaStorageSOPInstanceUID
+                pass
+                # element.firstChild.data = patient_id
 
             elif el_name == "InstanceCreationDate" or el_name == "StudyDate" or el_name == "ContentDate":
                 element.firstChild.data = study_date
@@ -227,11 +225,26 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
             elif el_name == "AcquisitionDateTime":
                 element.firstChild.data = study_datetime
 
-            elif el_name == "SOPInstanceUID":
-                element.firstChild.data = sopInstanceUID
-
             elif el_name == "StudyInstanceUID":
                 element.firstChild.data = study_uid
+
+            elif el_name == "StudyID":
+                element.firstChild.data = study_id
+
+            elif el_name == "PatientID":
+                element.firstChild.data = patient_id
+
+            elif el_name == "SeriesNumber":
+                element.firstChild.data = "1"
+
+            elif el_name == "SeriesDescription":
+                element.firstChild.data = filename
+
+            elif el_name == "InstanceNumber" or el_name == "ReferencedFrameNumber":
+                element.firstChild.data = str(i)
+
+            elif el_name == "CreatorVersionUID":
+                element.firstChild.data = version_uid
 
             elif el_name == "StudyDescription":
                 element.firstChild.data = study_description
@@ -239,16 +252,13 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
             elif el_name == "SeriesInstanceUID":
                 element.firstChild.data = series_uid
 
-            elif el_name == "SeriesInstanceUID":
-                element.firstChild.data = series_uid
+            elif el_name == "MediaStorageSOPInstanceUID" or el_name == "SOPInstanceUID":
+                element.firstChild.data = sopInstanceUID
 
-            elif el_name == "MediaStorageSOPInstanceUID":
-                element.firstChild.data = mediaStorageSOPInstanceUID
+            # elif el_name == "file":
+            #     element.firstChild.data = binary_path
 
-            elif el_name == "file":
-                element.firstChild.data = binary_path
-
-            if 'len' in element.attributes and len(element.childNodes) > 0:
+            if el_name != "file" and 'len' in element.attributes and len(element.childNodes) > 0:
                 element.attributes['len'].value = str(len(element.firstChild.data))
                 element.attributes['vm'].value = "1"
                 print(f"# {el_name}: {element.firstChild.data} : {element.attributes['len'].value}")

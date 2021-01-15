@@ -64,11 +64,11 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                                 exit(1)
                             reference_series_uid = ref_series[0x0020, 0x000E].value
                             pacs_series = client.search_for_series(search_filters={'0020000E': reference_series_uid})
+                            print(f"Found series: {len(pacs_series)} for reference_series_uid: {reference_series_uid}")
                             if len(pacs_series) != 1:
                                 print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                                 print("")
                                 print(f"Could not find referenced SeriesUID in the PACS: {reference_series_uid} !")
-                                print(f"Series found: {pacs_series}")
                                 print("Abort.")
                                 print("")
                                 print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -90,23 +90,24 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                         exit(1)
                 if self.search_policy == 'study_uid':
                     pacs_series = client.search_for_series(search_filters={'0020000D': incoming_dcm.StudyInstanceUID, '00080060': self.modality.upper()})
+                    print(f"Found series: {len(pacs_series)} for modality {self.modality.upper()} in study: {incoming_dcm.StudyInstanceUID}")
                     if len(pacs_series) == 0 or (self.expected_file_count != "all" and len(pacs_series) != self.expected_file_count):
                         print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                         print("")
                         print(f"Could not identify the searched modality: {self.modality} from the studyUID: {incoming_dcm.StudyInstanceUID} !")
                         print(f"Expected {self.expected_file_count} series of modality {self.modality} - found {len(pacs_series)} series")
-                        print(f"Found series: {pacs_series}")
                         print("Abort.")
                         print("")
                         print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                         exit(1)
-                    download_series_list.append(
-                        {
-                            "reference_study_uid": pacs_series[0]['0020000D']['Value'][0],
-                            "reference_series_uid": pacs_series[0]['0020000E']['Value'][0],
-                            "target_dir": os.path.join(batch_element_dir, self.operator_out_dir)
-                        }
-                    )
+                    for series in pacs_series:
+                        download_series_list.append(
+                            {
+                                "reference_study_uid": series['0020000D']['Value'][0],
+                                "reference_series_uid": series['0020000E']['Value'][0],
+                                "target_dir": os.path.join(batch_element_dir, self.operator_out_dir)
+                            }
+                        )
 
                 if self.search_policy == 'patient_uid':
                     if not (0x0010, 0x0020) in incoming_dcm:
@@ -120,23 +121,24 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
                     patient_uid = incoming_dcm[0x0010, 0x0020].value
                     pacs_series = client.search_for_series(search_filters={'00100020': patient_uid, '00080060': self.modality.upper()})
+                    print(f"Found series: {len(pacs_series)} for modality {self.modality.upper()} in patient_uid: {patient_uid}")
                     if len(pacs_series) == 0 or (self.expected_file_count != "all" and len(pacs_series) != self.expected_file_count):
                         print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                         print("")
                         print(f"Could not identify the searched modality: {self.modality} from the studyUID: {incoming_dcm.StudyInstanceUID} !")
                         print(f"Expected {self.expected_file_count} series of modality {self.modality} - found {len(pacs_series)} series")
-                        print(f"Found series: {pacs_series}")
                         print("Abort.")
                         print("")
                         print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                         exit(1)
-                    download_series_list.append(
-                        {
-                            "reference_study_uid": pacs_series[0]['0020000D']['Value'][0],
-                            "reference_series_uid": pacs_series[0]['0020000E']['Value'][0],
-                            "target_dir": os.path.join(batch_element_dir, self.operator_out_dir)
-                        }
-                    )
+                    for series in pacs_series:
+                        download_series_list.append(
+                            {
+                                "reference_study_uid": series['0020000D']['Value'][0],
+                                "reference_series_uid": series['0020000E']['Value'][0],
+                                "target_dir": os.path.join(batch_element_dir, self.operator_out_dir)
+                            }
+                        )
 
         if len(download_series_list) == 0:
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")

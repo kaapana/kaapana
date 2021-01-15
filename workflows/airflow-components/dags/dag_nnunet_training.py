@@ -267,12 +267,12 @@ identify_best = NnUnetOperator(
     train_network_trainer=train_network_trainer,
 )
 
-pdf2dcm = Pdf2DcmOperator(
-    dag=dag, 
-    dicom_operator=get_input, 
-    input_operator=identify_best,
-    pdf_title=f"Training Report {study_uid}"
-    )
+# pdf2dcm = Pdf2DcmOperator(
+#     dag=dag, 
+#     dicom_operator=get_input, 
+#     input_operator=identify_best,
+#     pdf_title=f"Training Report {study_uid}"
+#     )
 
 nnunet_export = NnUnetOperator(
     dag=dag,

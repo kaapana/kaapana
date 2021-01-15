@@ -148,9 +148,13 @@ def xml_to_binary(target_dir,delete_xml=True):
             print(f"# hex_data: {hex_data}")
             print("#")
             exit(1)
+        
+        switched_hex = ""
+        for x in range(0,len(hex_data),4):
+            switched_hex+=hex_data[x+2:x+4]+hex_data[x:x+2]
 
         binary_path = os.path.join(os.path.dirname(xml_file), filename)
-        binstr = binascii.unhexlify(hex_data)
+        binstr = binascii.unhexlify(switched_hex)
         with open(binary_path, "wb") as f:
             f.write(binstr)
 
@@ -203,10 +207,9 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
         xml_template = minidom.parse(template_path)
 
-        with open(binary_path, 'rb') as f:
-            hex_data = f.read().hex("\\")
-
-        xml_template.getElementsByTagName('pixel-item')[0].firstChild.data = hex_data
+        # with open(binary_path, 'rb') as f:
+        #     hex_data = f.read().hex("\\")
+        # xml_template.getElementsByTagName('pixel-item')[0].firstChild.data = hex_data
 
         elements = xml_template.getElementsByTagName('element')
         for element in elements:
@@ -255,8 +258,8 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
             elif el_name == "MediaStorageSOPInstanceUID" or el_name == "SOPInstanceUID":
                 element.firstChild.data = sopInstanceUID
 
-            # elif el_name == "file":
-            #     element.firstChild.data = binary_path
+            elif el_name == "file":
+                element.firstChild.data = binary_path
 
             if el_name != "file" and 'len' in element.attributes and len(element.childNodes) > 0:
                 element.attributes['len'].value = str(len(element.firstChild.data))
@@ -272,53 +275,7 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
     return xml_output_list
 
 
-# START
-binary_file_extensions = os.getenv("EXTENSIONS", "*.zip").split(",")
-batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
-
-for batch_element_dir in batch_folders:
-    element_input_dir = os.path.join(batch_element_dir, os.getenv("OPERATOR_IN_DIR", ""))
-    element_output_dir = os.path.join(batch_element_dir, os.getenv("OPERATOR_OUT_DIR", ""))
-
-    binaries_found = []
-    for extension in binary_file_extensions:
-        binaries_found.extend(glob.glob(os.path.join(element_input_dir, extension)))
-
-    if len(binaries_found) == 0:
-        print("############### No binaries found at {} ".format(element_input_dir))
-        print("############### Extensions: {} ".format(binary_file_extensions))
-        continue
-
-    convert_binary = False
-    for binary in binaries_found:
-        if not os.path.exists(element_output_dir):
-            os.makedirs(element_output_dir)
-        print("##################################################")
-        print("#")
-        print("# Found file: {}".format(binary))
-        print("#")
-        if ".dcm" in binary:
-            print("# --> identified DICOM --> execute dcm2binary")
-            print("#")
-            print("# --> extract xml")
-            extracted_xml = dicom_to_xml(dcm_path=binary, target_dir=element_output_dir)
-            print("#")
-            convert_binary = True
-
-        else:
-            print("# --> no DICOM --> execute bin2dcm")
-            print(f"# --> generate_xml -> {element_output_dir}")
-            generated_xml_list = generate_xml(binary_path=binary, target_dir=element_output_dir)
-            print("#")
-            print("# --> xml_to_dicom")
-            dcm_path_list = xml_to_dicom(target_dir=element_output_dir)
-            print("#")
-
-    if convert_binary:
-        print("# --> get_binary_from_xml")
-        xml_to_binary(target_dir=element_output_dir)
-        print("#")
-
+    
 print("##################################################")
 print("#")
 print("# Searching for files on batch-level....")

@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <file-format>
-<meta-header xfer="1.2.840.10008.1.2.5" name="RLE Lossless">
+<meta-header xfer="1.2.840.10008.1.2.1" name="Little Endian Explicit">
 <element tag="0002,0000" vr="UL" vm="0" len="0" name="FileMetaInformationGroupLength">204</element>
 <element tag="0002,0002" vr="UI" vm="0" len="0" name="MediaStorageSOPClassUID">1.2.840.10008.5.1.4.1.1.66</element>
 <element tag="0002,0003" vr="UI" vm="0" len="0" name="MediaStorageSOPInstanceUID">replace</element>
-<element tag="0002,0010" vr="UI" vm="0" len="0" name="TransferSyntaxUID">1.2.840.10008.1.2.5</element>
+<element tag="0002,0010" vr="UI" vm="0" len="0" name="TransferSyntaxUID">1.2.840.10008.1.2.1</element>
 <element tag="0002,0012" vr="UI" vm="0" len="0" name="ImplementationClassUID">1.2.276.0.7230010.3.0.3.6.4</element>
 <element tag="0002,0013" vr="SH" vm="0" len="0" name="ImplementationVersionName">OFFIS_DCMTK_362</element>
 </meta-header>
-<data-set xfer="1.2.840.10008.1.2.5" name="RLE Lossless">
+<data-set xfer="1.2.840.10008.1.2.1" name="Little Endian Explicit">
 <element tag="0008,0016" vr="UI" vm="0" len="0" name="SOPClassUID">1.2.840.10008.5.1.4.1.1.66</element>
 <element tag="0008,0018" vr="UI" vm="0" len="0" name="SOPInstanceUID">replace</element>
 <element tag="0008,0005" vr="CS" vm="0" len="0" name="SpecificCharacterSet">ISO_IR 100</element>
@@ -37,8 +37,6 @@
 <element tag="0020,0060" vr="CS" vm="0" len="0" name="Laterality">R</element>
 <element tag="0008,9123" vr="UI" vm="0" len="0" name="CreatorVersionUID">replace</element>
 <sequence tag="0040,0555" vr="SQ" vm="0" len="0" name="AcquisitionContextSequence"></sequence>
-<sequence tag="7fe0,0010" vr="OB" card="2" name="PixelData">
-<pixel-item len="0" binary="yes">replace</pixel-item>
-</sequence>
+<element tag="7fe0,0010" vr="OW" vm="0" len="0" name="file" binary="file">replace</element>
 </data-set>
 </file-format>

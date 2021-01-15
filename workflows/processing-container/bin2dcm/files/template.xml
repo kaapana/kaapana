@@ -25,6 +25,7 @@
 <element tag="0008,0013" vr="TM" vm="0" len="0" name="InstanceCreationTime">replace</element>
 <element tag="0020,000e" vr="UI" vm="0" len="0" name="SeriesInstanceUID">replace</element>
 <element tag="0008,103E" vr="LO" vm="0" len="0" name="SeriesDescription">replace</element>
+<element tag="0020,4000" vr="LT" vm="0" len="0" name="ImageComments">replace</element>
 <element tag="0008,0033" vr="TM" vm="0" len="0" name="ContentTime">replace</element>
 <element tag="0008,0023" vr="DA" vm="0" len="0" name="ContentDate">replace</element>
 <element tag="0008,002a" vr="DT" vm="0" len="0" name="AcquisitionDateTime">replace</element>

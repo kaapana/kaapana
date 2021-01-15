@@ -23,11 +23,11 @@ def combine_split_files(split_files_dir,delete_parts=True):
         output = run(my_cmd, stdout=outfile)
 
     if output.returncode != 0:
-        print(f"# Could not combine split files for {split_file}!")
+        print(f"# Could not combine split files for {final_filename}!")
         print(output)
         exit(1)
     else:
-        print(f"# Successfully created {split_file}!")
+        print(f"# Successfully created {final_filename}!")
         
         if delete_parts:
             for part_file in input_files:
@@ -128,7 +128,7 @@ def xml_to_binary(target_dir,delete_xml=True):
         filename = None
         hex_data = None
         for ev, el in context:
-            if ev == 'start' and el.tag == 'element' and el.attrib['name'] == "SeriesDescription":
+            if ev == 'start' and el.tag == 'element' and el.attrib['name'] == "ImageComments":
                 filename = el.text
                 print(f"# Found filename: {filename}")
                 root.clear()
@@ -240,8 +240,11 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
             elif el_name == "SeriesNumber":
                 element.firstChild.data = "1"
 
-            elif el_name == "SeriesDescription":
+            elif el_name == "ImageComments":
                 element.firstChild.data = filename
+
+            elif el_name == "SeriesDescription":
+                element.firstChild.data = ""
 
             elif el_name == "InstanceNumber" or el_name == "ReferencedFrameNumber":
                 element.firstChild.data = str(i)
@@ -273,6 +276,7 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
         xml_output_list.append(xml_output_path)
 
     return xml_output_list
+
 
 
 # START

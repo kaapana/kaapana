@@ -15,8 +15,8 @@ converter_count = 0
 def combine_split_files(split_files_dir,delete_parts=True):
     input_files = sorted(glob.glob(os.path.join(split_files_dir, "*.part*")))
     input_files = [i for i in input_files if "part" in i.split(".")[-1]]
-
-    final_filename = input_files[0][:-7]
+    suffixes = ''.join(pathlib.Path(input_files[0].split(".part")[0]).suffixes)
+    final_filename = f"{input_files[0].split('---')[0]}{suffixes}"
 
     my_cmd = ['cat'] + input_files
     with open(final_filename, "w") as outfile:
@@ -77,48 +77,50 @@ def xml_to_dicom(target_dir, delete_xml=True):
     return dicom_list
 
 
-def dicom_to_xml(dcm_path, target_dir):
+def dicom_to_xml(dicom_dir, target_dir):
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
-    xml_path = dcm_path.replace(os.path.dirname(dcm_path), target_dir).replace("dcm", "xml").replace(".zip", "")
 
-    print("#")
-    print(f"# convert DICOM to XML: {dcm_path} -> {xml_path}")
-
-    command = ["dcm2xml", "+Eh", "+Wb", "--load-all", dcm_path, xml_path]
-    print("#")
-    print(f"# command: {command}")
-    print("#")
-    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=320)
-
-    if output.returncode != 0:
-        print("# Could not convert dicom to xml!")
-        print(output)
+    dcm_files = sorted(glob.glob(os.path.join(dicom_dir, "*.dcm")))
+    if len(dcm_files) == 0:
+        print("#")
+        print(f"# No DICOM file found at {dicom_dir} !")
+        print("# ABORT")
+        print("#")
         exit(1)
-    else:
-        print("# XML created!")
+    
+    generated_xml_list = []
+    for dcm_file in dcm_files:
+        xml_path = dcm_file.replace("dcm","xml")
+        
+        print("#")
+        print(f"# convert DICOM to XML: {dcm_file} -> {xml_path}")
 
-    return xml_path
+        command = ["dcm2xml", "+Eh", "+Wb", "--load-all", dcm_file, xml_path]
+        print("#")
+        print(f"# command: {command}")
+        print("#")
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=320)
+
+        if output.returncode != 0:
+            print("# Could not convert dicom to xml!")
+            print(output)
+            exit(1)
+        else:
+            print("# XML created!")
+            generated_xml_list.append(xml_path)
+
+    return generated_xml_list
 
 
 def xml_to_binary(target_dir,delete_xml=True):
     global converter_count
     xml_files = sorted(glob.glob(os.path.join(target_dir, "*.xml")))
+
     print("#")
     print("# starting xml_to_binary")
     print(f"# xml-dir:      {target_dir}")
-    print(f"# xml-files:    {xml_files}")
-    expected_file_count = int(xml_files[0].split(".")[0].split("---")[1])
-    print(f"# files needed: {expected_file_count}")
     print("#")
-
-    if len(xml_files) != expected_file_count:
-        print("# ERROR!!")
-        print("#")
-        print(f"# Expected {expected_file_count} files -> found {len(xml_files)}")
-        print("# Abort")
-        print("#")
-        exit(1)
 
     for xml_file in xml_files:
         context = et.iterparse(xml_file, events=("start", "end"))
@@ -131,6 +133,16 @@ def xml_to_binary(target_dir,delete_xml=True):
             if ev == 'start' and el.tag == 'element' and el.attrib['name'] == "ImageComments":
                 filename = el.text
                 print(f"# Found filename: {filename}")
+                expected_file_count = int(filename.split(".")[0].split("---")[1])
+                if len(xml_files) != expected_file_count:
+                    print("# ERROR!!")
+                    print("#")
+                    print(f"# Expected {expected_file_count} files -> found {len(xml_files)}")
+                    print("# Abort")
+                    print("#")
+                    exit(1)
+
+                filename = filename.replace("---1","")
                 root.clear()
             elif ev == 'end' and el.tag == 'element' and el.attrib['tag'] == "7fe0,0010" and el.attrib['name'] == "PixelData":
                 hex_data = el.text.strip().replace("\\", "")
@@ -203,7 +215,8 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
         version_uid = pydicom.uid.generate_uid()
 
         filename = os.path.basename(binary_path)
-        xml_output_path = os.path.join(target_dir, f"{filename.split('.')[0]}---{split_part_count}{''.join(pathlib.Path(filename).suffixes)}.xml")
+        new_filename = filename.split('.')[0]+f"---{split_part_count}{''.join(pathlib.Path(filename).suffixes)}"
+        xml_output_path = os.path.join(target_dir, f"{new_filename}.xml")
 
         xml_template = minidom.parse(template_path)
 
@@ -241,7 +254,7 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
                 element.firstChild.data = "1"
 
             elif el_name == "ImageComments":
-                element.firstChild.data = filename
+                element.firstChild.data = new_filename
 
             elif el_name == "SeriesDescription":
                 element.firstChild.data = ""

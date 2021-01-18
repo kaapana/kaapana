@@ -102,7 +102,7 @@ class KaapanaBaseOperator(BaseOperator):
                  gpu_mem_mb=None,
                  gpu_mem_mb_lmt=None,
                  retries=1,
-                 retry_delay=timedelta(seconds=60),
+                 retry_delay=timedelta(seconds=30),
                  priority_weight=1,
                  execution_timeout=timedelta(minutes=90),
                  task_concurrency=None,

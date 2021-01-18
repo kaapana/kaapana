@@ -157,8 +157,8 @@ args = {
     'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),
-    'retries': 0,
-    'retry_delay': timedelta(seconds=60)
+    'retries': 1,
+    'retry_delay': timedelta(seconds=30)
 }
 
 dag = DAG(
@@ -207,6 +207,7 @@ nnunet_preprocess = NnUnetOperator(
     prep_processes_full=prep_threads,
     prep_preprocess=True,
     prep_check_integrity=True,
+    retries=0
 )
 
 nnunet_train_fold0 = NnUnetOperator(
@@ -216,7 +217,8 @@ nnunet_train_fold0 = NnUnetOperator(
     input_operator=nnunet_preprocess,
     train_network=train_network,
     train_network_trainer=train_network_trainer,
-    train_fold=0
+    train_fold=0,
+    retries=0
 )
 
 nnunet_train_fold1 = NnUnetOperator(
@@ -226,7 +228,8 @@ nnunet_train_fold1 = NnUnetOperator(
     input_operator=nnunet_preprocess,
     train_network=train_network,
     train_network_trainer=train_network_trainer,
-    train_fold=1
+    train_fold=1,
+    retries=0
 )
 
 nnunet_train_fold2 = NnUnetOperator(
@@ -236,7 +239,8 @@ nnunet_train_fold2 = NnUnetOperator(
     input_operator=nnunet_preprocess,
     train_network=train_network,
     train_network_trainer=train_network_trainer,
-    train_fold=2
+    train_fold=2,
+    retries=0
 )
 
 nnunet_train_fold3 = NnUnetOperator(
@@ -246,7 +250,8 @@ nnunet_train_fold3 = NnUnetOperator(
     input_operator=nnunet_preprocess,
     train_network=train_network,
     train_network_trainer=train_network_trainer,
-    train_fold=3
+    train_fold=3,
+    retries=0
 )
 
 nnunet_train_fold4 = NnUnetOperator(
@@ -256,7 +261,8 @@ nnunet_train_fold4 = NnUnetOperator(
     input_operator=nnunet_preprocess,
     train_network=train_network,
     train_network_trainer=train_network_trainer,
-    train_fold=4
+    train_fold=4,
+    retries=0
 )
 
 identify_best = NnUnetOperator(
@@ -265,6 +271,7 @@ identify_best = NnUnetOperator(
     input_operator=nnunet_preprocess,
     train_network=train_network,
     train_network_trainer=train_network_trainer,
+    retries=0
 )
 
 # pdf2dcm = Pdf2DcmOperator(
@@ -280,6 +287,7 @@ nnunet_export = NnUnetOperator(
     input_operator=nnunet_preprocess,
     train_network=train_network,
     train_network_trainer=train_network_trainer,
+    retries=0
 )
 
 bin2dcm = Bin2DcmOperator(

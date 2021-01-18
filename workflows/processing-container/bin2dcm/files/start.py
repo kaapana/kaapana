@@ -78,8 +78,6 @@ def xml_to_dicom(target_dir, delete_xml=True):
 
 
 def dicom_to_xml(dicom_dir, target_dir):
-    if not os.path.exists(target_dir):
-        os.makedirs(target_dir)
 
     dcm_files = sorted(glob.glob(os.path.join(dicom_dir, "*.dcm")))
     if len(dcm_files) == 0:
@@ -91,7 +89,7 @@ def dicom_to_xml(dicom_dir, target_dir):
     
     generated_xml_list = []
     for dcm_file in dcm_files:
-        xml_path = dcm_file.replace("dcm","xml")
+        xml_path = dcm_file.replace(os.path.dirname(dcm_file),target_dir).replace("dcm","xml")
         
         print("#")
         print(f"# convert DICOM to XML: {dcm_file} -> {xml_path}")
@@ -129,6 +127,7 @@ def xml_to_binary(target_dir,delete_xml=True):
 
         filename = None
         hex_data = None
+        expected_file_count = None
         for ev, el in context:
             if ev == 'start' and el.tag == 'element' and el.attrib['name'] == "ImageComments":
                 filename = el.text
@@ -153,7 +152,7 @@ def xml_to_binary(target_dir,delete_xml=True):
                 print("# Found Hex-Data!")
                 root.clear()
 
-        if filename is None or hex_data is None:
+        if filename is None or hex_data is None or expected_file_count is None:
             print("# Could not extract needed data!")
             print("#")
             print(f"# filename: {filename}")
@@ -309,24 +308,23 @@ for batch_element_dir in batch_folders:
         print("############### Extensions: {} ".format(binary_file_extensions))
         continue
 
-    convert_binary = False
-    for binary in binaries_found:
-        if not os.path.exists(element_output_dir):
-            os.makedirs(element_output_dir)
-        print("##################################################")
+    if not os.path.exists(element_output_dir):
+        os.makedirs(element_output_dir)
+    if ".dcm" in binaries_found[0]:
+        print("# --> identified DICOM --> execute dcm2binary")
         print("#")
-        print("# Found file: {}".format(binary))
+        print("# --> extract xml")
+        extracted_xml = dicom_to_xml(dicom_dir=element_input_dir, target_dir=element_output_dir)
         print("#")
-        if ".dcm" in binary:
-            print("# --> identified DICOM --> execute dcm2binary")
+        print("# --> get_binary_from_xml")
+        xml_to_binary(target_dir=element_output_dir)
+        print("#")
+    else:
+        for binary in binaries_found:
+            print("##################################################")
             print("#")
-            print("# --> extract xml")
-            extracted_xml = dicom_to_xml(dcm_path=binary, target_dir=element_output_dir)
+            print("# Found file: {}".format(binary))
             print("#")
-            convert_binary = True
-
-        else:
-            print("# --> no DICOM --> execute bin2dcm")
             print(f"# --> generate_xml -> {element_output_dir}")
             generated_xml_list = generate_xml(binary_path=binary, target_dir=element_output_dir)
             print("#")
@@ -334,10 +332,6 @@ for batch_element_dir in batch_folders:
             dcm_path_list = xml_to_dicom(target_dir=element_output_dir)
             print("#")
 
-    if convert_binary:
-        print("# --> get_binary_from_xml")
-        xml_to_binary(target_dir=element_output_dir)
-        print("#")
 
 print("##################################################")
 print("#")
@@ -359,40 +353,34 @@ binaries_found = []
 for extension in binary_file_extensions:
     binaries_found.extend(glob.glob(os.path.join(batch_input_dir, extension)))
 
+if not os.path.exists(batch_output_dir) and len(binaries_found) != 0:
+    os.makedirs(batch_output_dir)
+
 if len(binaries_found) == 0:
     print("############### No binaries found at {} ".format(batch_input_dir))
     print("############### Extensions: {} ".format(binary_file_extensions))
 
-convert_binary = False
-for binary in binaries_found:
-    if not os.path.exists(batch_output_dir):
-        os.makedirs(batch_output_dir)
+elif ".dcm" in binaries_found[0]:
+    print("# --> identified DICOM --> execute dcm2binary")
     print("#")
-    print("# Found file: {}".format(binary))
+    print("# --> extract xml")
+    extracted_xml = dicom_to_xml(dicom_dir=batch_input_dir, target_dir=batch_output_dir)
     print("#")
-    if ".dcm" in binary:
-        print("# --> identified DICOM --> execute dcm2binary")
-        print("#")
-        print(f"# --> extract xml: {binary} -> {batch_output_dir}")
-        extracted_xml = dicom_to_xml(dcm_path=binary, target_dir=batch_output_dir)
-        print("#")
-        convert_binary = True
-
-    else:
-        print("# --> no DICOM --> execute bin2dcm")
-        print("#")
-        print(f"# --> generate_xml: {binary} -> {batch_output_dir}")
-        print("#")
-        generated_xml_list = generate_xml(binary_path=binary, target_dir=batch_output_dir)
-        print(f"# --> xml_to_dicom: {generated_xml_list} -> {batch_output_dir}")
-        print("#")
-        dcm_path_list = xml_to_dicom(target_dir=batch_output_dir)
-
-if convert_binary:
     print("# --> get_binary_from_xml")
     xml_to_binary(target_dir=batch_output_dir)
     print("#")
-
+else:
+    for binary in binaries_found:
+        print("##################################################")
+        print("#")
+        print("# Found file: {}".format(binary))
+        print("#")
+        print(f"# --> generate_xml -> {batch_output_dir}")
+        generated_xml_list = generate_xml(binary_path=binary, target_dir=batch_output_dir)
+        print("#")
+        print("# --> xml_to_dicom")
+        dcm_path_list = xml_to_dicom(target_dir=batch_output_dir)
+        print("#")
 
 if converter_count == 0:
     print("#")

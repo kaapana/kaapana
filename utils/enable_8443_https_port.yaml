@@ -25,7 +25,6 @@ spec:
     targetPort: admin
     protocol: TCP
 ---
----
 kind: Service
 apiVersion: v1
 metadata:
@@ -38,7 +37,6 @@ spec:
     - protocol: TCP
       port: 8080
       targetPort: http
-      nodePort: 8080
       name: http-port
     - protocol: TCP
       port: 8443
@@ -51,7 +49,7 @@ apiVersion: v1
 data:
   louketo.cfg: |-
     client-secret: 1c4645f0-e654-45a1-a8b6-cf28790104ea # require for access_type: confidential
-    discovery-url: http://<URL>:8081/auth/realms/kaapana
+    discovery-url: http://127.0.0.1:8081/auth/realms/kaapana
     openid-provider-proxy: https://keycloak-service.kube-system.svc:443
     client-id: kaapana
     skip-token-verification: false

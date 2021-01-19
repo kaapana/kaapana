@@ -8,15 +8,6 @@
             v-flex(xs12, py-1)
               div(style={'margin': '9px', 'margin-top': '50px'})
                 img(src='../../assets/kaapana.png', alt='Vuetify', width='100%')
-            // v-flex(xs7, py-1)
-            //   span.kaapana-headline(style={'line-height': '55px','font-size': '50px'})
-            //     | Welcome 
-            //     br 
-            //     | to the
-            //     br 
-            //     | {{ commonData.name }}
-            v-flex(xs12, py-1)
-              h3.text-left(style={'font-size': '18px'}) {{ commonData.infoText }}
     v-flex.text-xs-left(sm4 d-flex)
       v-card.kaapana-opacity-card(width='100%')
         v-card-text.text-xs-left

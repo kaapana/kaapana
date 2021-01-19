@@ -9,17 +9,21 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 
 log = LoggingMixin().log
 
-
 ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
             "zip_files": {
                 "title": "Do you want to zip the downloaded files?",
-                "default": True,
                 "type": "boolean",
-                "readOnly": True,
-                "required": True,
+                "default": True,
+            },
+            "single_execution": {
+                "title": "single execution",
+                "description": "Should each series be processed separately?",
+                "type": "boolean",
+                "default": False,
+                "readOnly": False,
             }
         }
     }

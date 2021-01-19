@@ -5,6 +5,7 @@ from airflow.models import DAG
 from datetime import datetime
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
+from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
 # from nnunet.GetContainerModelOperator import GetContainerModelOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
@@ -118,6 +119,13 @@ ui_forms = {
                 "dependsOn": [
                     "task"
                 ]
+            },
+            "single_execution": {
+                "title": "single execution",
+                "description": "Should each series be processed separately?",
+                "type": "boolean",
+                "default": True,
+                "readOnly": False,
             }
         }
     }
@@ -135,16 +143,28 @@ args = {
 dag = DAG(
     dag_id='nnunet-predict',
     default_args=args,
-    concurrency=50,
-    max_active_runs=30,
+    concurrency=10,
+    max_active_runs=10,
     schedule_interval=None
 )
 
-get_input = LocalGetInputDataOperator(dag=dag, check_modality=True)
+get_input = LocalGetInputDataOperator(
+    dag=dag,
+    parallel_downloads=5,
+    check_modality=True
+)
 get_task_model = GetTaskModelOperator(dag=dag)
 # get_task_model = GetContainerModelOperator(dag=dag)
 dcm2nifti = DcmConverterOperator(dag=dag, input_operator=get_input, output_format='nii.gz')
-nnunet_predict = NnUnetOperator(dag=dag, input_dirs=[dcm2nifti.operator_out_dir], input_operator=dcm2nifti)
+
+nnunet_predict = NnUnetOperator(
+    dag=dag,
+    mode="inference",
+    input_nifti_operators=[dcm2nifti],
+    inf_preparation=True,
+    inf_threads_prep=1,
+    inf_threads_nifti=1
+)
 
 alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
@@ -156,7 +176,12 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     alg_name=alg_name
 )
 
-dcmseg_send_multi = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi)
-clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
+check_seg = LocalSegCheckOperator(
+    dag=dag,
+    input_operators=[nrrd2dcmSeg_multi, get_input]
+)
 
-get_input >> get_task_model >> dcm2nifti >> nnunet_predict >> nrrd2dcmSeg_multi >> dcmseg_send_multi >> clean
+dcmseg_send_multi = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+
+get_input >> get_task_model >> dcm2nifti >> nnunet_predict >> nrrd2dcmSeg_multi >> check_seg >> dcmseg_send_multi >> clean

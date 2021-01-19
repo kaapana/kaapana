@@ -31,6 +31,7 @@ Represents a blueprint kaapanaApi
 """
 kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
 
+
 @csrf.exempt
 @kaapanaApi.route('/api/trigger/<string:dag_id>', methods=['POST'])
 def trigger_dag(dag_id):
@@ -50,15 +51,16 @@ def trigger_dag(dag_id):
         query = tmp_conf["query"]
         index = tmp_conf["index"]
         dag_id = tmp_conf["dag"]
-        bulk = tmp_conf["bulk"]
-        single_processing = False if bulk == "BATCH PROCESSING" else True
+        form_data = tmp_conf["form_data"]
+        cohort_limit = int(tmp_conf["cohort_limit"] if "cohort_limit" in tmp_conf else None)
+        single_execution = True if "single_execution" in form_data and form_data["single_execution"] else False
 
-        print("query: {}".format(query))
-        print("index: {}".format(index))
-        print("dag_id: {}".format(dag_id))
-        print("single_processing: {}".format(single_processing))
+        print(f"query: {query}")
+        print(f"index: {index}")
+        print(f"dag_id: {dag_id}")
+        print(f"single_execution: {single_execution}")
 
-        if single_processing:
+        if single_execution:
             hits = HelperElasticsearch.get_query_cohort(elastic_query=query, elastic_index=index)
             if hits is None:
                 message = ["Error in HelperElasticsearch: {}!".format(dag_id)]
@@ -66,6 +68,8 @@ def trigger_dag(dag_id):
                 response.status_code = 500
                 return response
 
+            hits = hits[:cohort_limit] if cohort_limit is not None else hits
+            
             print("SERIES TO LOAD: {}".format(len(hits)))
             for hit in hits:
                 hit = hit["_source"]
@@ -123,6 +127,7 @@ def trigger_dag(dag_id):
         message = ["{} created!".format(dr.dag_id)]
         response = jsonify(message=message)
         return response
+
 
 @kaapanaApi.route('/api/getdagruns', methods=['GET'])
 @csrf.exempt
@@ -207,7 +212,7 @@ def get_dags_endpoint():
 
         del dag_dict['_sa_instance_state']
         dags[dag_id] = dag_dict
-    
+
     app.config['JSON_SORT_KEYS'] = False
     return jsonify(dags)
 
@@ -295,5 +300,4 @@ def get_access_token():
 def get_minio_credentials():
     x_auth_token = request.args.get('x-auth-token')
     access_key, secret_key, session_token = generate_minio_credentials(x_auth_token)
-    return jsonify({'accessKey': access_key, 'secretKey': secret_key, 'sessionToken': session_token }), 200
-
+    return jsonify({'accessKey': access_key, 'secretKey': secret_key, 'sessionToken': session_token}), 200

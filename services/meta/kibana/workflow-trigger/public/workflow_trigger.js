@@ -23,7 +23,7 @@ function ButtonVisProvider(Private) {
       defaults: {
         fontSize: 30,
         margin: 10,
-        buttonTitle: 'SEND {{value}} RESULTS',
+        buttonTitle: 'START',
         filterprovider: queryFilter,
       },
     },

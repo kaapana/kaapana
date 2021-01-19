@@ -8,7 +8,7 @@ class DcmSeg2ItkOperator(KaapanaBaseOperator):
                  output_type=None,
                  seg_filter=None,
                  env_vars=None,
-                 execution_timeout=timedelta(minutes=5),
+                 execution_timeout=timedelta(minutes=90),
                  *args, **kwargs
                  ):
 
@@ -17,7 +17,7 @@ class DcmSeg2ItkOperator(KaapanaBaseOperator):
 
         envs = {
             "OUTPUT_TYPE": output_type or 'nrrd',
-            "SEG_FILTER": seg_filter or '', # a bash list i.e.: 'liver aorta'
+            "SEG_FILTER": seg_filter or '', # a bash list i.e.: 'liver,aorta'
             "DCMQI_COMMAND": "segimage2itkimage",
         }
 
@@ -25,7 +25,7 @@ class DcmSeg2ItkOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="{}{}/dcmqi:v1.2.2.1-vdev".format(default_registry, default_project),
+            image="{}{}/dcmqi:v1.2.2-fix-vdev".format(default_registry, default_project),
             name="dcmseg2nrrd",
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],

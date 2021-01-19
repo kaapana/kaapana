@@ -4,5 +4,5 @@ dependencies:
     version: "1.10.13-vdev"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: ctp-chart
-    version: "0.1.1"
+    version: "0.1.2-vdev"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public

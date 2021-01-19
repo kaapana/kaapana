@@ -5,7 +5,7 @@ data:
     {
       "name": "Kaapana platform",
       "shortName": "Kaapana",
-      "infoText": "Kaapana (from the hawaiian word kaʻāpana, meaning “distributor” or “part”) is an open source toolkit for state of the art platform provisioning in the field of medical data analysis. The applications comprise AI-based workflows and federated learning scenarios with a focus on radiological and radiotherapeutic imaging.",
+      "infoText": "Welcome to Kaapana",
       "version": "{{ .Values.global.version }}"
     }
   defaultExternalWebpages.json: |-

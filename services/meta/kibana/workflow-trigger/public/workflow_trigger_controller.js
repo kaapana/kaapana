@@ -5,7 +5,6 @@ import "./brutusin-json-forms.min.css"
 class VisController {
   static metricBtn = document.createElement(`button`);
   static metricDag = document.createElement(`select`);
-  static metricBulk = document.createElement(`select`);
   static airflow_url = null;
   static selected_dag_id = null;
   static selected_dag_info = null;
@@ -43,9 +42,8 @@ class VisController {
 
     var query = (this.vis.searchSource.history[0].fetchParams.body.query);
     var index = this.vis.searchSource.history[0].fetchParams.index.title;
-    var bulk = VisController.metricBulk.options[VisController.metricBulk.selectedIndex].text;
     var conf = {
-      "conf": { "query": query, "index": index, "dag": dag_id, bulk: bulk, "form_data": this.dag_form_data }
+      "conf": { "query": query, "index": index, "dag": dag_id, "cohort_limit": VisController.cohort_limit, "form_data": this.dag_form_data }
     };
 
     var conf_json = JSON.stringify(conf)
@@ -142,7 +140,6 @@ class VisController {
         metrics.forEach(metric => {
           VisController.metricBtn = document.createElement(`button`);
           VisController.metricDag = document.createElement(`select`);
-          VisController.metricBulk = document.createElement(`select`);
 
 
           VisController.metricBtn.addEventListener('click', () => {
@@ -151,7 +148,6 @@ class VisController {
               alert("Could not fetch DAG information from kaapana-api!");
               return;
             }
-            this.dag_form_data = null
             var dag_entry = dag_list[VisController.selected_dag_id]
 
             if (dag_entry.hasOwnProperty('ui_dag_info')) {
@@ -199,9 +195,8 @@ class VisController {
                 return
               }
               if (bf_status && bf_status.validate()) {
-                if (bf_status.getData().hasOwnProperty("sure") && !bf_status.getData().sure) {
-                  alert("Please confirm the execution (checkbox: ok)!");
-                  return
+                if (bf_status.getData().hasOwnProperty("cohort_limit")) {
+                  VisController.cohort_limit = bf_status.getData().cohort_limit
                 }
               } else if (bf_status) {
                 alert("Input for status-form in not vaild!")
@@ -319,31 +314,22 @@ class VisController {
               }
             }
 
-            if (VisController.series_count > 100) {
-              const status_form_div = document.createElement(`div`);
-              var status_schema = {
-                "type": "object",
-                "properties": {
-                  "warning": {
-                    "title": "Warning",
-                    "description": "Warning because of many series.",
-                    "type": "string",
-                    "default": "Trigger " + VisController.series_count + " series?",
-                    "readOnly": true
-                  },
-                  "sure": {
-                    "title": "OK",
-                    "description": "Yes, I want to trigger that many!",
-                    "type": "boolean",
-                    "default": false,
-                    "required": true
-                  }
+            const status_form_div = document.createElement(`div`);
+            var status_schema = {
+              "type": "object",
+              "properties": {
+                "cohort_limit": {
+                  "title": "Limit cohort-size",
+                  "type": "integer",
+                  "description": "Limit Cohort to this many cases.",
+                  "default": VisController.series_count,
+                  "required": true
                 }
-              };
-              bf_status = BrutusinForms.create(status_schema);
-              bf_status.render(status_form_div);
-              this.workflow_dialog.appendChild(status_form_div)
-            }
+              }
+            };
+            bf_status = BrutusinForms.create(status_schema);
+            bf_status.render(status_form_div);
+            this.workflow_dialog.appendChild(status_form_div)
 
             this.workflow_dialog.appendChild(button_div)
             $('#series_count_div').innerHTML = "<h3>Series-Count: " + VisController.series_count + "</h3>";
@@ -384,25 +370,6 @@ class VisController {
             + 'text-align-last:center;'
             + 'width: 95%;');
 
-
-          var option_bulk1 = document.createElement("option");
-          option_bulk1.value = 'SINGLE FILE PROCESSING';
-          option_bulk1.innerHTML = option_bulk1.value;
-          var option_bulk2 = document.createElement("option");
-          option_bulk2.value = 'BATCH PROCESSING';
-          option_bulk2.innerHTML = option_bulk2.value;
-          VisController.metricBulk.appendChild(option_bulk1);
-          VisController.metricBulk.appendChild(option_bulk2);
-
-
-          VisController.metricBulk.style.width = VisController.metricBtn.style.width;
-          VisController.metricBulk.setAttribute('class', 'btn btn-primary dropdown-toggle')
-          VisController.metricBulk.setAttribute('style', `font-size: ${this.vis.params.fontSize}pt;`
-            + `margin: ${this.vis.params.margin}px;`
-            + 'text-align-last:center;'
-            + 'width: 95%');
-
-
           VisController.metricBtn.innerHTML = this.vis.params.buttonTitle.replace("{{value}}", String(VisController.series_count))
             .replace("{{row}}", metric.row)
             .replace("{{column}}", metric.column);
@@ -414,7 +381,6 @@ class VisController {
 
           VisController.metricBtn.setAttribute('class', 'btn btn-primary')
           this.container.appendChild(VisController.metricDag);
-          this.container.appendChild(VisController.metricBulk);
           this.container.appendChild(VisController.metricBtn);
 
           function getDags(callback, vis) {
@@ -457,8 +423,6 @@ class VisController {
       return new Promise(resolve => {
         resolve('when done rendering');
       });
-    } else {
-      VisController.metricBtn.innerHTML = this.vis.params.buttonTitle.replace("{{value}}", VisController.series_count)
     }
   }
 };

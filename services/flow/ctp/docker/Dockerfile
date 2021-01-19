@@ -1,7 +1,7 @@
 FROM ubuntu:20.04 as build
 
 LABEL IMAGE="ctp"
-LABEL VERSION="0.1.1-vdev"
+LABEL VERSION="0.1.2-vdev"
 LABEL CI_IGNORE="False"
 
 ENV TZ=Europe/Berlin
@@ -51,6 +51,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /opt/CTP
 
 ADD /files/config.xml ./config.xml
+ADD /files/Launcher.properties ./Launcher.properties
 COPY --from=build /build-ctp/build/CTP/ ./
 
 CMD ["java","-jar","Runner.jar"]

@@ -1,0 +1,9 @@
+FROM local-only/dag-installer:0.1.0
+
+LABEL IMAGE="dag-nnunet"
+LABEL VERSION="1.6.5-vdev"
+LABEL CI_IGNORE="False"
+
+COPY dags/nnunet /tmp/dags/nnunet
+COPY dags/dag_nnunet_inference.py /tmp/dags/
+COPY dags/dag_nnunet_training.py /tmp/dags/

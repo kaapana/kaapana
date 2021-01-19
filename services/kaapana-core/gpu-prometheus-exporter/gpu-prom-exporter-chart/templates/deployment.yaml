@@ -25,8 +25,8 @@ spec:
           containerPort: 9445
         resources:
           requests:
-            memory: 10Mi
+            memory: 50Mi
           limits:
-            memory: 20Mi
+            memory: 100Mi
       imagePullSecrets:
       - name: registry-secret

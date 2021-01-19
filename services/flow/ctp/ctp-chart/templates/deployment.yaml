@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: ctp-container
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/ctp:0.1.1
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/ctp:0.1.2-vdev
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           ports:
             - containerPort: 11112
@@ -24,9 +24,9 @@ spec:
             - containerPort: 7777
           resources:
             requests:
-              memory: 250Mi
+              memory: 512Mi
             limits:
-              memory: 2500Mi
+              memory: 1500Mi
           volumeMounts:
             - name: ctp-data
               mountPath: /data/

@@ -1,0 +1,7 @@
+requests
+numpy
+graphviz
+nibabel
+pydicom
+tensorboardX
+pillow

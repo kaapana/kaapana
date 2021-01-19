@@ -1,3 +1,5 @@
+numpy
+nibabel
 python-dateutil
 pytz
 elasticsearch
@@ -5,14 +7,13 @@ pathlib
 pydicom
 dicomweb-client
 slackclient
-numpy
 scikit-learn
-kubernetes==11.0.0
 cryptography
 SQLAlchemy
 psycopg2-binary
-minio
 bleach
 pint
 timeloop
+minio == 6.0.2
+kubernetes==11.0.0
 apache-airflow==1.10.13

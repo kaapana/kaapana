@@ -10,13 +10,29 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
+ui_forms = {
+    "workflow_form": {
+        "type": "object",
+        "properties": {
+            "single_execution": {
+                "title": "single execution",
+                "description": "Should each series be processed separately?",
+                "type": "boolean",
+                "default": True,
+                "readOnly": False,
+            }
+        }
+    }
+}
+
 
 args = {
     'ui_visible': True,
+    'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),
-    'retries': 1,
-    'retry_delay': timedelta(seconds=30)
+    'retries': 2,
+    'retry_delay': timedelta(seconds=15)
 }
 
 dag = DAG(
@@ -28,8 +44,8 @@ dag = DAG(
 )
 
 get_input = LocalGetInputDataOperator(dag=dag, data_type="json")
-delete_dcm_pacs = LocalDeleteFromPacsOperator(dag=dag,input_operator=get_input, delete_complete_study=False)
-delete_dcm_elastic = LocalDeleteFromElasticOperator(dag=dag,input_operator=get_input, delete_complete_study=False)
-clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
+delete_dcm_pacs = LocalDeleteFromPacsOperator(dag=dag, input_operator=get_input, delete_complete_study=False, retries=1)
+delete_dcm_elastic = LocalDeleteFromElasticOperator(dag=dag, input_operator=get_input, delete_complete_study=False, retries=1)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_input >> delete_dcm_pacs >> delete_dcm_elastic >> clean

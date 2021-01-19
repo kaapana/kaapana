@@ -249,7 +249,11 @@ function install_microk8s {
     fi
     
     set +e
+    echo "Enable port-range=80-32000";
     insert_text "--service-node-port-range=80-32000" /var/snap/microk8s/current/args/kube-apiserver
+    
+    echo "Set limit of completed pods to 200";
+    insert_text "--terminated-pod-gc-threshold=200" /var/snap/microk8s/current/args/kube-controller-manager
     set -e
     if [ -v http_proxy ]; then
         echo "${YELLOW}setting containerd proxy...${NC}"

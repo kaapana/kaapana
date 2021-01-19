@@ -93,6 +93,7 @@ class KaapanaBaseOperator(BaseOperator):
                  # Airflow
                  task_id=None,
                  parallel_id=None,
+                 keep_parallel_id=True,
                  trigger_rule=TriggerRule.ALL_SUCCESS,
                  ram_mem_mb=500,
                  ram_mem_mb_lmt=None,
@@ -101,7 +102,7 @@ class KaapanaBaseOperator(BaseOperator):
                  gpu_mem_mb=None,
                  gpu_mem_mb_lmt=None,
                  retries=1,
-                 retry_delay=timedelta(seconds=60),
+                 retry_delay=timedelta(seconds=30),
                  priority_weight=1,
                  execution_timeout=timedelta(minutes=90),
                  task_concurrency=None,
@@ -144,6 +145,7 @@ class KaapanaBaseOperator(BaseOperator):
             operator_out_dir=operator_out_dir,
             input_operator=input_operator,
             parallel_id=parallel_id,
+            keep_parallel_id=keep_parallel_id,
             trigger_rule=trigger_rule,
             pool=pool,
             pool_slots=pool_slots,
@@ -295,7 +297,7 @@ class KaapanaBaseOperator(BaseOperator):
             form_data = context['dag_run'].conf["conf"]["form_data"]
             form_envs = {}
             for form_key in form_data.keys():
-                form_envs[form_key.upper()] = form_data[form_key]
+                form_envs[str(form_key.upper())] = str(form_data[form_key])
 
             self.env_vars.update(form_envs)
 
@@ -403,6 +405,7 @@ class KaapanaBaseOperator(BaseOperator):
         operator_out_dir,
         input_operator,
         parallel_id,
+        keep_parallel_id,
         trigger_rule,
         pool,
         pool_slots,
@@ -435,7 +438,7 @@ class KaapanaBaseOperator(BaseOperator):
         if obj.task_id is None:
             obj.task_id = obj.name
 
-        if input_operator is not None and obj.parallel_id is None and input_operator.parallel_id is not None:
+        if input_operator is not None and obj.parallel_id is None and input_operator.parallel_id is not None and keep_parallel_id:
             obj.parallel_id = input_operator.parallel_id
 
         if obj.parallel_id is not None:
@@ -455,7 +458,7 @@ class KaapanaBaseOperator(BaseOperator):
                 obj.pool_slots = 1
             else:
                 obj.pool = "MEMORY"
-                obj.pool_slots = obj.ram_mem_mb
+                obj.pool_slots = obj.ram_mem_mb if obj.ram_mem_mb is not None else 1
 
         obj.executor_config = {
             "cpu_millicores": obj.cpu_millicores,

@@ -10,11 +10,25 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 
-
-
 log = LoggingMixin().log
 
+ui_forms = {
+    "workflow_form": {
+        "type": "object",
+        "properties": {
+            "single_execution": {
+                "title": "single execution",
+                "description": "Should each series be processed separately?",
+                "type": "boolean",
+                "default": False,
+                "readOnly": False,
+            }
+        }
+    }
+}
+
 args = {
+    'ui_forms': ui_forms,
     'ui_visible': True,
     'owner': 'kaapana',
     'start_date': days_ago(0),

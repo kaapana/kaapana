@@ -125,6 +125,8 @@ spec:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg
           subPath: airflow.cfg
+        - name: airflow-models
+          mountPath: /root/airflow/models
         - name: airflow-dags
           mountPath: /root/airflow/dags
         - name: airflow-plugins

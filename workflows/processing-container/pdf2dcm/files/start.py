@@ -4,34 +4,36 @@ import glob
 import pydicom
 from subprocess import PIPE, run
 
-converter_count = 0 
+converter_count = 0
+
 
 def generate_dicom(pdf_path, output_dir, title="PDF", timeout=20):
     global converter_count
 
-    study_uid = os.getenv("STUDY_UID", "NONE") 
+    dcm_pdf_path = os.path.join(output_dir, f"{title.lower().replace(' ','')}.dcm")
+
+    study_uid = os.getenv("STUDY_UID", "NONE")
     study_uid = study_uid if study_uid != "NONE" else None
 
     aetitle = os.getenv("AETITLE", "NONE")
     aetitle = aetitle if aetitle != "NONE" else None
 
-    dicom_input = os.path.join(batch_element_dir, os.getenv("DICOM_IN_DIR", "NONE"))
-    dicom_path
+    dicom_input_dir = os.getenv("DICOM_IN_DIR", "NONE")
+    dicom_input_dir = None if dicom_input_dir == "NONE" else os.path.join(batch_element_dir, dicom_input_dir)
 
-    dcm_pdf_path = os.path.join(output_dir, f"{title.lower().replace(' ','')}.dcm")
-    command = [
-        "pdf2dcm",
-        "-q",
-        "--key", "0012,0020={}".format(aetitle),
-        "--study-from", "{}".format(input_dcm_files[0]),
-        "--title", "{}".format(title),
-
-    ]
-
-    if dicom_path.split("/")[-1].lower() != "none":
-        input_dcm_files = sorted(glob.glob(os.path.join(dicom_path, "*.dcm*"), recursive=True))
+    if dicom_input_dir is None:
+        print("############### No DICOM specified -> generate study and series IDs...")
+        command = [
+            "pdf2dcm",
+            "-q",
+            "--key", "0012,0020={}".format(aetitle),
+            "--generate",
+            "--title", "{}".format(title),
+        ]
+    else:
+        input_dcm_files = sorted(glob.glob(os.path.join(dicom_input_dir, "*.dcm*"), recursive=True))
         if len(input_dcm_files) == 0:
-            print("No DICOM found at: {}".format(dicom_path))
+            print("No DICOM found at: {}".format(dicom_input_dir))
             print("abort.")
             exit(1)
 
@@ -51,16 +53,14 @@ def generate_dicom(pdf_path, output_dir, title="PDF", timeout=20):
             print(e)
             print("abort.")
             exit(1)
-        command.append("--key")
-        command.append(f"0012,0020={aetitle}")
-        command.append("--study-from")
-        command.append(f"{input_dcm_files[0]}")
-        command.append("--title")
-        command.append(f"{title}")
 
-    else:
-        print("############### No DICOM specified -> generate study and series IDs...")
-        command.append("--generate")
+        command = [
+            "pdf2dcm",
+            "-q",
+            "--key", "0012,0020={}".format(aetitle),
+            "--title", "{}".format(title),
+            "--study-from", "{}".format(input_dcm_files[0]),
+        ]
 
     command.append(f"{pdf_path}")
     command.append(f"{dcm_pdf_path}")
@@ -73,6 +73,8 @@ def generate_dicom(pdf_path, output_dir, title="PDF", timeout=20):
 
         print("##################################################")
         exit(1)
+    
+    converter_count += 1
 
 
 # START
@@ -82,7 +84,6 @@ batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR
 for batch_element_dir in batch_folders:
     element_input_dir = os.path.join(batch_element_dir, os.getenv("OPERATOR_IN_DIR", ""))
     element_output_dir = os.path.join(batch_element_dir, os.getenv("OPERATOR_OUT_DIR", ""))
-    
 
     pdf_list = glob.glob(os.path.join(element_input_dir, "*.pdf"))
     if len(pdf_list) == 0:
@@ -96,7 +97,7 @@ for batch_element_dir in batch_folders:
         print("#")
         print("# Found file: {}".format(pdf))
         print("#")
-        generate_dicom(pdf_path=pdf, dicom_path=element_dicom_dir, output_dir=element_output_dir, title=pdf_title)
+        generate_dicom(pdf_path=pdf, output_dir=element_output_dir, title=pdf_title)
 
 
 print("##################################################")
@@ -115,7 +116,6 @@ print(f"# batch_output_dir: {batch_output_dir}")
 pdf_list = glob.glob(os.path.join(batch_input_dir, "*.pdf"))
 if len(pdf_list) == 0:
     print("############### no *.pdf file found at {} ".format(batch_input_dir))
-    continue
 
 for pdf in pdf_list:
     if not os.path.exists(element_output_dir):
@@ -124,7 +124,7 @@ for pdf in pdf_list:
     print("#")
     print("# Found file: {}".format(pdf))
     print("#")
-    generate_dicom(pdf_path=pdf, dicom_path=None, output_dir=batch_output_dir, title=pdf_title)
+    generate_dicom(pdf_path=pdf, output_dir=batch_output_dir, title=pdf_title)
 
 
 if converter_count == 0:

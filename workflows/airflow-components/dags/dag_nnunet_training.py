@@ -105,7 +105,7 @@ ui_forms = {
             "seg_filter": {
                 "title": "Seg",
                 "default": seg_filter,
-                "description": "Select organ for multi-label DICOM SEGs: eg 'liver' or 'spleen;liver'",
+                "description": "Select organ for multi-label DICOM SEGs: eg 'liver' or 'spleen,liver'",
                 "type": "string",
                 "readOnly": False,
             },

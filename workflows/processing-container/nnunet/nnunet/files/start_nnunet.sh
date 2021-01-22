@@ -97,6 +97,10 @@ elif [ "$MODE" = "training" ]; then
     echo "# TRAIN_CONTINUE:       $TRAIN_CONTINUE"
     echo "# TRAIN_NPZ:            $TRAIN_NPZ"
     echo "#"
+
+    echo "# Writing model_info.json ...:";
+    python3 -u /src/write_model_info.py $RESULTS_FOLDER
+    
     if ! [ -z "${TENSORBOARD_DIR}" ]; then
         echo "# Starting monitoring:";
         python3 -u /src/monitoring.py $RESULTS_FOLDER $TRAIN_FOLD $TENSORBOARD_DIR &

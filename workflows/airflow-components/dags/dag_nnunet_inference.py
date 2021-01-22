@@ -15,34 +15,64 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 
 import json
 import os
-from os.path import join, basename, dirname, normpath
+from os.path import join, basename, dirname, normpath, exists
 
 af_home_path = "/root/airflow"
 models_path = join(af_home_path, "models", "nnUNet")
 tasks_json_path = join(af_home_path, "dags", "nnunet", "nnunet_tasks.json")
 
-installed_tasks = {}
-
 with open(tasks_json_path) as f:
     tasks = json.load(f)
 
 available_tasks = [*{k: v for (k, v) in tasks.items() if "supported" in tasks[k] and tasks[k]["supported"]}]
+models_available = [basename(normpath(f.path)) for f in os.scandir(models_path) if f.is_dir() and "ensembles" not in f.name ]
 
-print(f"Models dir: {models_path}")
-models_available = [basename(normpath(f.path)) for f in os.scandir(models_path) if f.is_dir()]
-
+print("################### Start")
 for model in models_available:
     model_path = join(models_path, model)
     task_dirs = [basename(normpath(f.path)) for f in os.scandir(model_path) if f.is_dir()]
     for task in task_dirs:
-        if task not in installed_tasks:
-            installed_tasks[task] = []
-        installed_tasks[task].append(model)
-        installed_tasks[task].sort()
+        if task not in tasks:
+            print(f"################### Adding task:{model}: {task}")
+            model_info_path = join(model_path, task, "model_info.json")
+            if exists(model_info_path):
+                print(f"Found model_info.json at {model_info_path}")
+                with open(model_info_path) as f:
+                    model_info = json.load(f)
+            else:
+                print(f"Could not find model_info.json at {model_info_path}")
+                model_info = {
+                    "description": f"Custom model: {task}",
+                    "model": [],
+                    "input-mode": "all",
+                    "input": ["UNKNOWN"],
+                    "body_part": "UNKNOWN",
+                    "targets": [
+                        "UNKNOWN"
+                    ],
+                    "supported": True,
+                    "info": "",
+                    "url": "-",
+                    "task_url": "-"
+                }
 
-print("Installed Tasks:")
-print(installed_tasks)
-print("Start")
+            available_tasks.append(task)
+            available_tasks.sort()
+            tasks[task] = {
+                "description": model_info["description"],
+                "model": [],
+                "input-mode": model_info["input-mode"],
+                "input": model_info["input"],
+                "body_part": model_info["body_part"],
+                "targets": model_info["targets"],
+                "supported": model_info["supported"],
+                "info": model_info["info"],
+                "url": model_info["url"],
+                "task_url": model_info["task_url"]
+            }
+        if model not in tasks[task]['model']:
+            tasks[task]['model'].append(model)
+        tasks[task]['model'].sort()
 
 ui_forms = {
     "publication_form": {

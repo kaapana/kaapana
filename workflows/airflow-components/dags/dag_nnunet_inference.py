@@ -13,15 +13,36 @@ from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
-import pathlib
 import json
 import os
+from os.path import join, basename, dirname, normpath
 
-tasks_json_path = os.path.join("/root/airflow/dags", "nnunet", "nnunet_tasks.json")
+af_home_path = "/root/airflow"
+models_path = join(af_home_path, "models", "nnUNet")
+tasks_json_path = join(af_home_path, "dags", "nnunet", "nnunet_tasks.json")
+
+installed_tasks = {}
+
 with open(tasks_json_path) as f:
     tasks = json.load(f)
 
 available_tasks = [*{k: v for (k, v) in tasks.items() if "supported" in tasks[k] and tasks[k]["supported"]}]
+
+print(f"Models dir: {models_path}")
+models_available = [basename(normpath(f.path)) for f in os.scandir(models_path) if f.is_dir()]
+
+for model in models_available:
+    model_path = join(models_path, model)
+    task_dirs = [basename(normpath(f.path)) for f in os.scandir(model_path) if f.is_dir()]
+    for task in task_dirs:
+        if task not in installed_tasks:
+            installed_tasks[task] = []
+        installed_tasks[task].append(model)
+        installed_tasks[task].sort()
+
+print("Installed Tasks:")
+print(installed_tasks)
+print("Start")
 
 ui_forms = {
     "publication_form": {
@@ -115,7 +136,7 @@ ui_forms = {
                 "type": "string",
                 "default": "3d_lowres",
                 "required": True,
-                "enum": [],
+                "enum": models_available,
                 "dependsOn": [
                     "task"
                 ]

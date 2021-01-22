@@ -25,7 +25,7 @@ from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
 TASK_NAME = "Task042_Training"
 seg_filter = ""
 prep_modalities = "CT"
-train_network = "2d"
+train_network = "3d_lowres"
 train_network_trainer = "nnUNetTrainerV2"
 
 study_uid = pydicom.uid.generate_uid()
@@ -83,8 +83,10 @@ ui_forms = {
                 "title": "Network",
                 "default": train_network,
                 "description": "2d, 3d_lowres, 3d_fullres or 3d_cascade_fullres",
+                "enum": ["2d", "3d_lowres", "3d_fullres", "3d_cascade_fullres"],
                 "type": "string",
                 "readOnly": False,
+                "required": True
             },
             "train_network_trainer": {
                 "title": "Network-trainer",
@@ -275,8 +277,8 @@ identify_best = NnUnetOperator(
 )
 
 # pdf2dcm = Pdf2DcmOperator(
-#     dag=dag, 
-#     dicom_operator=get_input, 
+#     dag=dag,
+#     dicom_operator=get_input,
 #     input_operator=identify_best,
 #     pdf_title=f"Training Report {study_uid}"
 #     )

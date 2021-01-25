@@ -13,6 +13,8 @@ ENV NNUNET_VERSION=v1.6.5
 RUN apt-get update && apt-get install -y \
     git \
     htop \
+    zip \
+    unzip \
  && rm -rf /var/lib/apt/lists/*
 
 RUN pip install 'pillow<7.1' --force-reinstall

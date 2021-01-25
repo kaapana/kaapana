@@ -11,13 +11,7 @@ if (len(args_got) != 1):
     print("-> exit")
     exit(1)
 else:
-    model_info_path = os.path.join(args_got[0],"model_info.json")
-
-print("# ")
-print("# Starting wite-model-info...")
-print("# ")
-print(f"# path: {model_info_path}")
-print("# ")
+    print(f"RESULT_DIR: {args_got[0]}")
 
 task_name = os.getenv("TASK", "N/A")
 model_architecture = os.getenv("TRAIN_NETWORK", "UNKNOWN")  # -> model 2d,3d_lowres etc
@@ -29,6 +23,18 @@ shuffle_seed = int(os.getenv("SHUFFLE_SEED", "0"))
 test_percentage = int(os.getenv("TEST_PERCENTAGE", "0"))
 input_modality = os.getenv("INPUT", "N/A")
 prep_modalities = os.getenv("PREP_MODALITIES", "N/A").split(",")
+
+model_dir = os.path.join(args_got[0], "nnUNet", model_architecture, task_name)
+model_info_path = os.path.join(model_dir, "model_info.json")
+
+if not os.path.exists(model_dir):
+    os.makedirs(model_dir, exist_ok=True)
+
+print("# ")
+print("# Starting wite-model-info...")
+print("# ")
+print(f"# path: {model_info_path}")
+print("# ")
 
 model_info = {
     "description": training_description,

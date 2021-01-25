@@ -14,11 +14,12 @@ from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperato
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 
-from nnunet.NnUnetOperator import NnUnetOperator
-from nnunet.LocalNnUnetDatasetOperator import LocalNnUnetDatasetOperator
-from nnunet.LocalDagTriggerOperator import LocalDagTriggerOperator
-from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
-from nnunet.Bin2DcmOperator import Bin2DcmOperator
+from racoon_training.NnUnetOperator import NnUnetOperator
+from racoon_training.LocalNnUnetDatasetOperator import LocalNnUnetDatasetOperator
+from racoon_training.LocalDagTriggerOperator import LocalDagTriggerOperator
+from racoon_training.LocalSegCheckOperator import LocalSegCheckOperator
+from racoon_training.Bin2DcmOperator import Bin2DcmOperator
+from racoon_training.ZipUnzipOperator import ZipUnzipOperator
 
 from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
 import random
@@ -165,7 +166,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='nnunet-train',
+    dag_id='racoon-train',
     default_args=args,
     concurrency=gpu_count,
     max_active_runs=1,
@@ -213,77 +214,13 @@ nnunet_preprocess = NnUnetOperator(
     retries=0
 )
 
-nnunet_train_fold0 = NnUnetOperator(
+nnunet_train = NnUnetOperator(
     dag=dag,
     mode="training",
-    parallel_id="all",
     input_operator=nnunet_preprocess,
     train_network=train_network,
     train_network_trainer=train_network_trainer,
     train_fold='all',
-    retries=0
-)
-# nnunet_train_fold0 = NnUnetOperator(
-#     dag=dag,
-#     mode="training",
-#     parallel_id="fold-0",
-#     input_operator=nnunet_preprocess,
-#     train_network=train_network,
-#     train_network_trainer=train_network_trainer,
-#     train_fold='all',
-#     retries=0
-# )
-
-# nnunet_train_fold1 = NnUnetOperator(
-#     dag=dag,
-#     mode="training",
-#     parallel_id="fold-1",
-#     input_operator=nnunet_preprocess,
-#     train_network=train_network,
-#     train_network_trainer=train_network_trainer,
-#     train_fold=1,
-#     retries=0
-# )
-
-# nnunet_train_fold2 = NnUnetOperator(
-#     dag=dag,
-#     mode="training",
-#     parallel_id="fold-2",
-#     input_operator=nnunet_preprocess,
-#     train_network=train_network,
-#     train_network_trainer=train_network_trainer,
-#     train_fold=2,
-#     retries=0
-# )
-
-# nnunet_train_fold3 = NnUnetOperator(
-#     dag=dag,
-#     mode="training",
-#     parallel_id="fold-3",
-#     input_operator=nnunet_preprocess,
-#     train_network=train_network,
-#     train_network_trainer=train_network_trainer,
-#     train_fold=3,
-#     retries=0
-# )
-
-# nnunet_train_fold4 = NnUnetOperator(
-#     dag=dag,
-#     mode="training",
-#     parallel_id="fold-4",
-#     input_operator=nnunet_preprocess,
-#     train_network=train_network,
-#     train_network_trainer=train_network_trainer,
-#     train_fold=4,
-#     retries=0
-# )
-
-identify_best = NnUnetOperator(
-    dag=dag,
-    mode="identify-best",
-    input_operator=nnunet_preprocess,
-    train_network=train_network,
-    train_network_trainer=train_network_trainer,
     retries=0
 )
 
@@ -294,18 +231,18 @@ identify_best = NnUnetOperator(
 #     pdf_title=f"Training Report {study_uid}"
 #     )
 
-nnunet_export = NnUnetOperator(
+zip_model = ZipUnzipOperator(
     dag=dag,
-    mode="zip-model",
-    input_operator=nnunet_preprocess,
-    train_network=train_network,
-    train_network_trainer=train_network_trainer,
-    retries=0
+    target_filename = "nnunet_model.zip",
+    subdir="results/nnUNet",
+    mode="zip",
+    batch_level=True,
+    input_operator=nnunet_train
 )
 
 bin2dcm = Bin2DcmOperator(
     dag=dag,
-    input_operator=nnunet_export,
+    input_operator=zip_model,
     study_uid=study_uid,
     file_extensions="*.zip"
 )
@@ -317,24 +254,10 @@ dcmseg_send = DcmSendOperator(
     input_operator=bin2dcm
 )
 
-# put_to_minio = LocalMinioOperator(
-#     dag=dag,
-#     action='put',
-#     action_operators=[dcm2bin],
-#     bucket_name="nnunet-models",
-#     file_white_tuples=('.dcm'),
-#     zip_files=False
-# )
 
 #clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
 get_input >> dcm2nifti_seg >> check_seg >> nnunet_preprocess
 get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess
 
-nnunet_preprocess >> nnunet_train_fold0 >> identify_best
-# nnunet_preprocess >> nnunet_train_fold1 >> identify_best
-# nnunet_preprocess >> nnunet_train_fold2 >> identify_best
-# nnunet_preprocess >> nnunet_train_fold3 >> identify_best
-# nnunet_preprocess >> nnunet_train_fold4 >> identify_best
-
-identify_best >> nnunet_export >> bin2dcm >> dcmseg_send  # >> put_to_minio #>> clean
+nnunet_preprocess >> nnunet_train >> zip_model >> bin2dcm >> dcmseg_send  # >> clean

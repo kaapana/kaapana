@@ -43,21 +43,25 @@ def get_logs(sc):
     global experiment_name, writer, last_written_epoch, experiment_path,fold, tensorboard_dir_path, timeout, last_training_log_file
     logs_path = os.path.join(experiment_path, "**", "training_log_*.txt*")
     log_files = sorted(glob.glob(logs_path, recursive=True))
-    log_files = [i for i in log_files if f"fold_{fold}" in i]
+    log_files = [i for i in log_files if "fold" not in i or f"fold_{fold}" in i]
     if len(log_files) > 0:
 
         if log_files[-1] != last_training_log_file:
             last_training_log_file = log_files[-1]
             debug_json_path = os.path.join(os.path.dirname(last_training_log_file), "debug.json")
-            fold_no = int(os.path.basename(os.path.dirname(last_training_log_file)).replace("fold_", ""))
-            experiment_log_path = os.path.join(tensorboard_dir_path, experiment_name, f"fold_{fold_no}")
+            if "fold" in last_training_log_file:
+                fold_no = int(os.path.basename(os.path.dirname(last_training_log_file)).replace("fold_", ""))
+                experiment_log_path = os.path.join(tensorboard_dir_path, experiment_name, f"fold_{fold_no}")
+                print(f"Fold_No: {fold_no}..")
+            else:
+                experiment_log_path = os.path.join(tensorboard_dir_path, experiment_name)
+
             pathlib.Path(experiment_log_path).parent.mkdir(parents=True, exist_ok=True)
 
             print("")
             print(f"New log-file found: {last_training_log_file}")
             print(f"Experiment-Log-Path: {experiment_log_path}")
             print(f"Debug.json: {debug_json_path}..")
-            print(f"Fold_No: {fold_no}..")
             print("")
             writer = SummaryWriter(logdir=experiment_log_path)
 

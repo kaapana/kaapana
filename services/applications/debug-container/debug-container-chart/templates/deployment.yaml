@@ -1,0 +1,34 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: debug
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: debug
+  template:
+    metadata:
+      labels:
+        app-name: debug
+    spec:
+      serviceAccountName: kubernetes-dashboard
+      containers:
+      - name: debug
+        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/debug_container:1.0-vdev
+        imagePullPolicy:  Always
+        # env:
+        # - name: http_proxy
+        #   value: "http://www-int2.inet.dkfz-heidelberg.de:3128"
+        # - name: https_proxy
+        #   value: "https://www-int2.inet.dkfz-heidelberg.de:3128"
+        # - name: no_proxy
+        #   value: "127.0.0.1,localhost,.local"
+        ports:
+        - name: debug-http
+          containerPort: 5000
+      imagePullSecrets:
+      - name: registry-secret
+

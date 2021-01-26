@@ -190,6 +190,7 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
     patient_id = os.getenv("PATIENT_ID", "Kaapana bin2dcm")
     study_id = os.getenv("STUDY_ID", "Kaapana bin2dcm")
+    protocol_name = os.getenv("PROTOCOL_NAME", "Kaapana Bin2Dcm")
 
     study_date = datetime.now().strftime("%Y%m%d")
     study_time = datetime.now().strftime("%H%M%S")
@@ -207,9 +208,10 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
     split_part_count = len(binary_path_list)
     full_filename = os.path.basename(binary_path)
+    
+    series_uid = pydicom.uid.generate_uid()
     for i in range(0,len(binary_path_list)):
         binary_path = binary_path_list[i]
-        series_uid = pydicom.uid.generate_uid()
         sopInstanceUID = pydicom.uid.generate_uid()
         version_uid = pydicom.uid.generate_uid()
 
@@ -258,11 +260,14 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
             elif el_name == "SeriesDescription":
                 element.firstChild.data = ""
 
+            elif el_name == "ProtocolName":
+                element.firstChild.data = protocol_name
+
             elif el_name == "InstanceNumber" or el_name == "ReferencedFrameNumber":
                 element.firstChild.data = str(i)
 
             elif el_name == "CreatorVersionUID":
-                element.firstChild.data = version_uid
+                element.firstChild.data = ""
 
             elif el_name == "StudyDescription":
                 element.firstChild.data = study_description

@@ -7,7 +7,8 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
-from nnunet.Bin2DcmOperator import Bin2DcmOperator
+from racoon_training.Bin2DcmOperator import Bin2DcmOperator
+from racoon_training.GetTaskModelOperator import GetTaskModelOperator
 
 ui_forms = {
     "workflow_form": {
@@ -53,22 +54,19 @@ get_input = LocalGetInputDataOperator(
     parallel_downloads=5
 )
 
-get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
-    dag=dag,
-    input_operator=get_input,
-    search_policy="study_uid",
-    expected_file_count="all",
-    modality="OT",
-    parallel_downloads=5,
-)
-
 dcm2bin = Bin2DcmOperator(
     dag=dag,
-    input_operator=get_ref_ct_series_from_seg,
+    input_operator=get_input,
     name="extract-binary",
     file_extensions="*.dcm"
 )
 
+# extract_model = GetTaskModelOperator(
+#     dag=dag,
+#     input_operator=dcm2bin,
+#     zip_file=True
+# )
+
 #clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
-get_input >> get_ref_ct_series_from_seg >> dcm2bin #>> clean
+get_input >> dcm2bin #>> extract_model #>> clean

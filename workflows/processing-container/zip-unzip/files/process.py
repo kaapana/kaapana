@@ -47,7 +47,7 @@ def zip_dir(zip_dir_path, target_file):
             
             if not skip_file:
                 print(f"# zip: {file}")
-                zipf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), os.path.join(zip_dir_path, '..')))
+                zipf.write(os.path.join(root, file), os.path.relpath(os.path.join(root.replace(zip_dir_path,""), file), '/..'))
                 processed_count += 1
             else:
                 print(f"# skipping: {file}")

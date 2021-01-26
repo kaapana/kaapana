@@ -9,7 +9,7 @@ metadata:
 spec:
   selector:
     app-name: ctp
-{{ if not .Values.global.dicom_port }}
+{{ if .Values.global.dicom_port }}
   type: NodePort
   externalTrafficPolicy: Local
   ports:

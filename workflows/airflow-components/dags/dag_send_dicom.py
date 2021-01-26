@@ -31,7 +31,7 @@ ui_forms = {
                 "default": pacs_port,
                 "required": True
             },
-            "aetitel": {
+            "aetitle": {
                 "title": "Receiver AE-title",
                 "description": "Specify the port of the DICOM receiver.",
                 "type": "string",

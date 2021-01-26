@@ -13,6 +13,7 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
 
 from racoon_training.NnUnetOperator import NnUnetOperator
 from racoon_training.LocalNnUnetDatasetOperator import LocalNnUnetDatasetOperator
@@ -21,16 +22,14 @@ from racoon_training.LocalSegCheckOperator import LocalSegCheckOperator
 from racoon_training.Bin2DcmOperator import Bin2DcmOperator
 from racoon_training.ZipUnzipOperator import ZipUnzipOperator
 
-from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
-
 TASK_NAME = "Task100_RACOON"
 seg_filter = ""
 prep_modalities = "CT"
 train_network = "3d_lowres"
 train_network_trainer = "nnUNetTrainerV2"
+ae_title="RACOON-training"
 
 study_uid = pydicom.uid.generate_uid()
-
 cpu_count_pool = pool_api.get_pool(name="CPU")
 prep_threads = int(cpu_count_pool.slots//8) if cpu_count_pool is not None else 4
 prep_threads = 2 if prep_threads < 2 else prep_threads
@@ -165,7 +164,7 @@ args = {
 dag = DAG(
     dag_id='racoon-train',
     default_args=args,
-    concurrency=1,
+    concurrency=2,
     max_active_runs=1,
     schedule_interval=None
 )
@@ -221,12 +220,14 @@ nnunet_train = NnUnetOperator(
     retries=0
 )
 
-# pdf2dcm = Pdf2DcmOperator(
-#     dag=dag,
-#     dicom_operator=get_input,
-#     input_operator=identify_best,
-#     pdf_title=f"Training Report {study_uid}"
-#     )
+pdf2dcm = Pdf2DcmOperator(
+    dag=dag,
+    dicom_operator=get_input,
+    input_operator=identify_best,
+    study_uid=study_uid,
+    aetitle=ae_title,
+    pdf_title=f"Training Report {study_uid}"
+    )
 
 zip_model = ZipUnzipOperator(
     dag=dag,
@@ -252,7 +253,7 @@ bin2dcm = Bin2DcmOperator(
 dcmseg_send = DcmSendOperator(
     dag=dag,
     level="batch",
-    ae_title="racoon-models",
+    ae_title=ae_title,
     input_operator=bin2dcm
 )
 

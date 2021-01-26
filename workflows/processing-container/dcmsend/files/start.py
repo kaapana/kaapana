@@ -9,6 +9,8 @@ HOST = os.getenv('HOST')
 PORT = os.getenv('PORT')
 AETITLE = os.getenv('AETITLE')
 LEVEL = os.getenv('LEVEL', 'element')
+print(f"Proxy http: {os.getenv('http_proxy')}")
+print(f"Proxy https: {os.getenv('https_proxy')}")
 
 dicom_sent_count = 0
 

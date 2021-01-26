@@ -53,7 +53,8 @@ if LEVEL == 'element':
         try:
             aetitle = pydicom.dcmread(dcm_file)[0x012, 0x020].value
             print(f'Found aetitle {aetitle}')
-        except KeyError:
+        except Exception as e:
+            print(f'Could not load aetitle: {e}')
             aetitle = AETITLE
             print(f'Using default aetitle {aetitle}')
         send_dicom_data(element_input_dir, aetitle)

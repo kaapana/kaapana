@@ -22,9 +22,8 @@ from racoon_training.Bin2DcmOperator import Bin2DcmOperator
 from racoon_training.ZipUnzipOperator import ZipUnzipOperator
 
 from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
-import random
 
-TASK_NAME = f"Task{random.randint(100,999):03}_Training"
+TASK_NAME = "Task100_RACOON"
 seg_filter = ""
 prep_modalities = "CT"
 train_network = "3d_lowres"
@@ -32,8 +31,6 @@ train_network_trainer = "nnUNetTrainerV2"
 
 study_uid = pydicom.uid.generate_uid()
 
-gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
-gpu_count = int(gpu_count_pool.slots) if gpu_count_pool is not None else 1
 cpu_count_pool = pool_api.get_pool(name="CPU")
 prep_threads = int(cpu_count_pool.slots//8) if cpu_count_pool is not None else 4
 prep_threads = 2 if prep_threads < 2 else prep_threads
@@ -168,7 +165,7 @@ args = {
 dag = DAG(
     dag_id='racoon-train',
     default_args=args,
-    concurrency=gpu_count,
+    concurrency=1,
     max_active_runs=1,
     schedule_interval=None
 )
@@ -233,7 +230,7 @@ nnunet_train = NnUnetOperator(
 
 zip_model = ZipUnzipOperator(
     dag=dag,
-    target_filename = "nnunet_model.zip",
+    target_filename = f"racoon_nnunet_{train_network}.zip",
     subdir="results/nnUNet",
     mode="zip",
     batch_level=True,
@@ -242,15 +239,20 @@ zip_model = ZipUnzipOperator(
 
 bin2dcm = Bin2DcmOperator(
     dag=dag,
-    input_operator=zip_model,
+    name="model2dicom",
+    patient_id="",
     study_uid=study_uid,
+    study_description="nnUNet model trained for RACOON",
+    study_id="RACOON",
+    size_limit=100,
+    input_operator=zip_model,
     file_extensions="*.zip"
 )
 
 dcmseg_send = DcmSendOperator(
     dag=dag,
     level="batch",
-    ae_title="nnunet-models",
+    ae_title="racoon-models",
     input_operator=bin2dcm
 )
 

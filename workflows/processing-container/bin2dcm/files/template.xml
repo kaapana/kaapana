@@ -25,6 +25,7 @@
 <element tag="0008,0013" vr="TM" vm="0" len="0" name="InstanceCreationTime">replace</element>
 <element tag="0020,000e" vr="UI" vm="0" len="0" name="SeriesInstanceUID">replace</element>
 <element tag="0008,103E" vr="LO" vm="0" len="0" name="SeriesDescription">replace</element>
+<element tag="0018,1030" vr="LO" vm="0" len="0" name="ProtocolName">replace</element>
 <element tag="0020,4000" vr="LT" vm="0" len="0" name="ImageComments">replace</element>
 <element tag="0008,0033" vr="TM" vm="0" len="0" name="ContentTime">replace</element>
 <element tag="0008,0023" vr="DA" vm="0" len="0" name="ContentDate">replace</element>
@@ -35,7 +36,7 @@
 <element tag="0008,0090" vr="PN" vm="0" len="0" name="ReferringPhysicianName"></element>
 <element tag="0020,0011" vr="IS" vm="0" len="0" name="SeriesNumber">replace</element>
 <element tag="0020,0013" vr="IS" vm="0" len="0" name="InstanceNumber">replace</element>
-<element tag="0020,0060" vr="CS" vm="0" len="0" name="Laterality">R</element>
+<element tag="0020,0060" vr="CS" vm="0" len="0" name="Laterality">replace</element>
 <element tag="0008,9123" vr="UI" vm="0" len="0" name="CreatorVersionUID">replace</element>
 <sequence tag="0040,0555" vr="SQ" vm="0" len="0" name="AcquisitionContextSequence"></sequence>
 <element tag="7fe0,0010" vr="OW" vm="0" len="0" name="file" binary="file">replace</element>

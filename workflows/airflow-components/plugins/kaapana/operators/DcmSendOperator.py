@@ -12,7 +12,7 @@ class DcmSendOperator(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  ae_title='KAAPANA',
-                 pacs_host= 'ctp-service.flow.svc',
+                 pacs_host='ctp-service.flow.svc',
                  pacs_port='11112',
                  env_vars=None,
                  level='element',
@@ -24,11 +24,11 @@ class DcmSendOperator(KaapanaBaseOperator):
             raise NameError('level must be either "element" or "batch". \
                 If batch, an operator folder next to the batch folder with .dcm files is expected. \
                 If element, *.dcm are expected in the corresponding operator with .dcm files is expected.'
-            )
+                            )
 
         if env_vars is None:
             env_vars = {}
-        
+
         envs = {
             "HOST": str(pacs_host),
             "PORT": str(pacs_port),
@@ -42,8 +42,9 @@ class DcmSendOperator(KaapanaBaseOperator):
             dag=dag,
             image="{}{}/dcmsend:3.6.4-vdev".format(default_registry, default_project),
             name="dcmsend",
+            host_network=False,
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             execution_timeout=execution_timeout,
             *args, **kwargs
-            )
+        )

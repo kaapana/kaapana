@@ -124,6 +124,15 @@ elif [ "$MODE" = "training" ]; then
     echo "# COMMAND: nnUNet_train $TRAIN_NETWORK $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $npz $continue"
     nnUNet_train $TRAIN_NETWORK $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $npz $continue
     
+    CREATE_REPORT="True"
+
+    if [ "$CREATE_REPORT" = "True" ] || [ "$CREATE_REPORT" = "true" ]; then
+        echo "# Starting create_report ..."
+        python3 -u /src/create_report.py $RESULTS_FOLDER "/data/$OPERATOR_OUT_DIR"
+        echo "# Report created."
+        echo "#"
+    fi
+
     
     echo "#"
     echo "# DONE"
@@ -229,15 +238,6 @@ elif [ "$MODE" = "identify-best" ]; then
     echo "# model_output_path:     $model_output_path"
     echo "#"
     echo "#"
-
-    CREATE_REPORT="True"
-
-    if [ "$CREATE_REPORT" = "True" ] || [ "$CREATE_REPORT" = "true" ]; then
-        echo "# Starting create_report ..."
-        python3 -u /src/create_report.py $RESULTS_FOLDER "/data/$OPERATOR_OUT_DIR"
-        echo "# Report created."
-        echo "#"
-    fi
 
     # models="2d 3d_fullres 3d_lowres 3d_cascade_fullres"
 

@@ -38,12 +38,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxt-dev \
     libgomp1 \
     libfreetype6 \
+    libgtk2.0-0:i386 \
+    libidn11:i386 \
+    libglu1-mesa:i386 \
+    libpangox-1.0-0:i386 \ 
+    libpangoxft-1.0-0:i386 \
     && rm -rf /var/lib/apt/lists/*
-    # libgtk2.0-0:i386 \
-    # libidn11:i386 \
-    # libglu1-mesa:i386 \
-    # libpangox-1.0-0:i386 \ 
-    # libpangoxft-1.0-0:i386 \
 
 COPY --from=build_container /opt/final_package/MITK-FileConverter-linux-x86_64 /opt/
 

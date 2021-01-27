@@ -11,11 +11,13 @@ class DcmSendOperator(KaapanaBaseOperator):
 
     def __init__(self,
                  dag,
-                 ae_title='KAAPANA',
+                 ae_title='NONE',
                  pacs_host='ctp-service.flow.svc',
                  pacs_port='11112',
                  env_vars=None,
                  level='element',
+                 enable_proxy = False,
+                 host_network = False,
                  execution_timeout=timedelta(minutes=20),
                  *args, **kwargs
                  ):
@@ -42,9 +44,10 @@ class DcmSendOperator(KaapanaBaseOperator):
             dag=dag,
             image="{}{}/dcmsend:3.6.4-vdev".format(default_registry, default_project),
             name="dcmsend",
-            host_network=False,
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
+            host_network=host_network,
+            enable_proxy=enable_proxy,
             execution_timeout=execution_timeout,
             *args, **kwargs
         )

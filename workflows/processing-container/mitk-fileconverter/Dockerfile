@@ -1,7 +1,7 @@
 FROM local-only/mitk-base:0.1.0 as build_container
 
 LABEL IMAGE="mitk-fileconverter"
-LABEL VERSION="01.10.2020-master"
+LABEL VERSION="25.01.2021-develop"
 LABEL CI_IGNORE="False"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -9,9 +9,9 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 WORKDIR /opt
 
 # Shallow-clone latest master branch of MITK into MITK directory
-ENV MITK_BRANCH=master
-# master @ Tue Sep 1 16:36:16 2020 +0200
-ENV MITK_COMMIT=96eff29e7367179328b5a7ff93e2b269e869f6bd
+ENV MITK_BRANCH=develop
+# develop @ 25.01.2021 
+ENV MITK_COMMIT=3ec0dd08e0e6e69d38be4f64161e037b15d3e498
 RUN git clone --single-branch --branch ${MITK_BRANCH} https://phabricator.mitk.org/source/mitk.git MITK && cd MITK && git checkout ${MITK_COMMIT}
 
 # Generate Ninja build script for MITK to build a minimum configuration with apps in Release mode into MITK-superbuild directory

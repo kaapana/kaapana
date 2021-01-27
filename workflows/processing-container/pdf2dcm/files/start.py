@@ -3,6 +3,7 @@ import os
 import glob
 import pydicom
 from subprocess import PIPE, run
+from pathlib import Path
 
 converter_count = 0
 
@@ -10,7 +11,8 @@ converter_count = 0
 def generate_dicom(pdf_path, output_dir, title="PDF", timeout=20):
     global converter_count
 
-    dcm_pdf_path = os.path.join(output_dir, f"{title.lower().replace(' ','')}.dcm")
+    dcm_pdf_path = os.path.join(output_dir, os.path.basename(pdf_path).replace('pdf','dcm'))
+    Path(os.path.dirname(dcm_pdf_path)).mkdir(parents=True, exist_ok=True)
 
     study_uid = os.getenv("STUDY_UID", "NONE")
     study_uid = study_uid if study_uid != "NONE" else None
@@ -25,8 +27,8 @@ def generate_dicom(pdf_path, output_dir, title="PDF", timeout=20):
         print("############### No DICOM specified -> generate study and series IDs...")
         command = [
             "pdf2dcm",
-            "-q",
             "--key", "0012,0020={}".format(aetitle),
+            "--key", "0020,000D={}".format(study_uid),
             "--generate",
             "--title", "{}".format(title),
         ]
@@ -56,7 +58,6 @@ def generate_dicom(pdf_path, output_dir, title="PDF", timeout=20):
 
         command = [
             "pdf2dcm",
-            "-q",
             "--key", "0012,0020={}".format(aetitle),
             "--title", "{}".format(title),
             "--study-from", "{}".format(input_dcm_files[0]),

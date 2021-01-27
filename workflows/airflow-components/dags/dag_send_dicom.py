@@ -6,10 +6,9 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
-
 log = LoggingMixin().log
 
-ae_title = "Kaapana"
+ae_title = "NONE"
 pacs_host = ""
 pacs_port = 11112
 
@@ -38,6 +37,13 @@ ui_forms = {
                 "default": ae_title,
                 "required": True
             },
+            "single_execution": {
+                "title": "single execution",
+                "description": "Should each series be processed separately?",
+                "type": "boolean",
+                "default": False,
+                "readOnly": False,
+            }
         }
     }
 }
@@ -66,11 +72,9 @@ dcm_send = DcmSendOperator(
     ae_title=ae_title,
     pacs_host=pacs_host,
     pacs_port=pacs_port,
-    env_vars=None,
-    level='element',
-
+    host_network=True,
+    level='element'
 )
-
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 

@@ -9,9 +9,25 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from example.ExtractStudyIdOperator import ExtractStudyIdOperator
 
 
+ui_forms = {
+    "workflow_form": {
+        "type": "object",
+        "properties": {
+            "single_execution": {
+                "title": "single execution",
+                "description": "Should each series be processed separately?",
+                "type": "boolean",
+                "default": False,
+                "readOnly": False,
+            }
+        }
+    }
+}
+
 log = LoggingMixin().log
 
 args = {
+    'ui_forms': ui_forms,
     'ui_visible': True,
     'owner': 'kaapana',
     'start_date': days_ago(0),
@@ -27,7 +43,7 @@ dag = DAG(
 
 
 get_input = LocalGetInputDataOperator(dag=dag)
-extract = ExtractStudyIdOperator(dag=dag)
+extract = ExtractStudyIdOperator(dag=dag, input_operator=get_input)
 put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[extract])
 clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 

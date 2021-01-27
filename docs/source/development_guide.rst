@@ -64,7 +64,7 @@ That's it basically. Now we can check if the DAG is successfully added to Airflo
 * If there is an error in the created DAG file like indexing, library imports, etc, you will see an error at the top of the Airflow page
 * Go to the Meta-Dashboard 
 * Filter via the name of your dataset and with ``+/-`` icons on the different charts your images to which you want to apply the algorithm 
-* From the drop-down, choose the DAG you have created i.e. ``example-dcm2nrrd``, and in the second dropdown choose ``batch processing``, like this, one single instead of multiple processing pipelines are triggered for all the images selected.
+* From the drop-down, choose the DAG you have created i.e. ``example-dcm2nrrd`` and press the start button. In the appearing pop-up window press start again and the execution of your DAG is triggered.
 * In order to check if your DAG runs successfully, you can go back to Airflow and watch how the pipeline jumps from one operator to the next. If an error occurs please check out the TODO section.
 * If everything was successful you can go to Minio where you will find a bucket called ``example-dcm2nrrd``. Inside this folder you will find the ``.nrrd`` files of the selected images.
 

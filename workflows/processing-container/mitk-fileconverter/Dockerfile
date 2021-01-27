@@ -1,7 +1,7 @@
 FROM ubuntu:20.04
 
 LABEL IMAGE="mitk-fileconverter"
-LABEL VERSION="25.01.2021-develop"
+LABEL VERSION="25.01.2021-vdev"
 LABEL CI_IGNORE="False"
 
 WORKDIR /opt

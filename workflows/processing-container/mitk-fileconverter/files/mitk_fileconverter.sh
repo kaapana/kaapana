@@ -3,6 +3,8 @@ shopt -s globstar
 BATCH_COUNT=$(find "$BATCHES_INPUT_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l)
 
 echo ""
+echo "SNAPSHOT VERSION!"
+echo ""
 echo "BATCHES_INPUT_DIR:" $BATCHES_INPUT_DIR
 echo "BATCH_COUNT: " $BATCH_COUNT
 echo ""

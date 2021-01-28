@@ -1,5 +1,0 @@
----
-global:
-    image: "dag-racoon-train"
-    version: "1.6.5-vdev"
-    action: "copy"

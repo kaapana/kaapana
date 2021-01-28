@@ -1,8 +1,0 @@
-FROM local-only/dag-installer:0.1.0
-
-LABEL IMAGE="dag-racoon-train"
-LABEL VERSION="1.6.5-vdev"
-LABEL CI_IGNORE="False"
-
-COPY dags/racoon_training /tmp/dags/racoon_training
-COPY dags/dag_racoon_training.py /tmp/dags/

@@ -1,0 +1,45 @@
+# template: openmined-grid-node
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: adminer
+  namespace: {{ .Values.global.base_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: adminer
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: adminer
+    spec:
+      containers:
+      - name: adminer
+        image: adminer:4.7.6
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - containerPort: {{ .Values.port }}
+          protocol: TCP
+      imagePullSecrets:
+      - name: registry-secret
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: adminer 
+  namespace: {{ .Values.global.base_namespace }}
+  labels:
+    app-name: adminer
+spec:
+  selector:
+    app-name: adminer
+  type: NodePort
+  ports:
+    - name: adminer-http
+      port: {{ .Values.port }}
+      protocol: TCP
+      targetPort: {{ .Values.port }}
+      nodePort: {{ .Values.port }}

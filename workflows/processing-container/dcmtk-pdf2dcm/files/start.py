@@ -17,7 +17,7 @@ def process_file(input_file, output_dir, input_dir=None, timeout=20):
     pdf_title = None if pdf_title == "None" else pdf_title
 
     dicom_input_dir = os.getenv("DICOM_IN_DIR", "None")
-    dicom_input_dir = None if dicom_input_dir == "None" else os.path.join(input_dir, dicom_input_dir)
+    dicom_input_dir = None if dicom_input_dir == "None" else os.path.join(os.path.dirname(input_dir), dicom_input_dir)
 
     output_file = os.path.join(output_dir, os.path.basename(input_file).replace('pdf', 'dcm'))
 
@@ -136,7 +136,7 @@ for batch_element_dir in batch_folders:
         files_grabbed.extend(glob.glob(os.path.join(element_input_dir, extension), recursive=True))
 
     if len(files_grabbed) == 0:
-        print(f"############### No {extensions} files found at {element_input_dir} -> continue ")
+        print(f"############### No {file_extensions} files found at {element_input_dir} -> continue ")
         continue
 
     for file_found in files_grabbed:

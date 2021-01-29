@@ -146,7 +146,6 @@ for batch_element_dir in batch_folders:
         print("#")
         process_file(input_file=file_found, output_dir=element_output_dir, input_dir=element_input_dir)
 
-
 print("##################################################")
 print("#")
 print("# Searching for files on batch-level....")
@@ -161,10 +160,10 @@ batch_output_dir=os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERA
 
 files_grabbed=[]
 for extension in file_extensions:
-    files_grabbed.extend(glob.glob(os.path.join(batch_input_dir, extension), recursive=True)
+    files_grabbed.extend(glob.glob(os.path.join(batch_input_dir, extension), recursive=True))
 
 if len(files_grabbed) == 0:
-    print(f"############### No {extensions} files found at {batch_input_dir} -> continue ")
+    print(f"############### No {file_extensions} files found at {batch_input_dir} -> continue ")
 
 else:
     for file_found in files_grabbed:

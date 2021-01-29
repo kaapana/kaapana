@@ -182,15 +182,18 @@ def xml_to_binary(target_dir,delete_xml=True):
 def generate_xml(binary_path, target_dir, template_path="/template.xml"):
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
-
-    size_limit = int(os.getenv("SIZE_LIMIT_MB", "100"))
-    study_description = os.getenv("STUDY_DESCRIPTION", "Binary file")
-    study_uid = os.getenv("STUDY_UID", pydicom.uid.generate_uid())
+    
     series_uid = pydicom.uid.generate_uid()
 
-    patient_id = os.getenv("PATIENT_ID", "Kaapana bin2dcm")
-    study_id = os.getenv("STUDY_ID", "Kaapana bin2dcm")
-    protocol_name = os.getenv("PROTOCOL_NAME", "Kaapana Bin2Dcm")
+    study_id = os.getenv("STUDY_ID", "")
+    study_uid = os.getenv("STUDY_UID", pydicom.uid.generate_uid())
+    study_description = os.getenv("STUDY_DESCRIPTION", "")
+
+    patient_name = os.getenv("PATIENT_NAME", "")
+    patient_id = os.getenv("PATIENT_ID", "")
+    
+    protocol_name = os.getenv("PROTOCOL_NAME", "Bin2Dcm")
+    size_limit = int(os.getenv("SIZE_LIMIT_MB", "100"))
 
     study_date = datetime.now().strftime("%Y%m%d")
     study_time = datetime.now().strftime("%H%M%S")
@@ -250,6 +253,9 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
             elif el_name == "PatientID":
                 element.firstChild.data = patient_id
+
+            elif el_name == "PATIENT_NAME":
+                element.firstChild.data = patient_name
 
             elif el_name == "SeriesNumber":
                 element.firstChild.data = "1"

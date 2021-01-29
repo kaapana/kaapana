@@ -12,7 +12,8 @@
 <element tag="0008,0016" vr="UI" vm="0" len="0" name="SOPClassUID">1.2.840.10008.5.1.4.1.1.66</element>
 <element tag="0008,0018" vr="UI" vm="0" len="0" name="SOPInstanceUID">replace</element>
 <element tag="0008,0005" vr="CS" vm="0" len="0" name="SpecificCharacterSet">ISO_IR 100</element>
-<element tag="0010,0010" vr="PN" vm="0" len="0" name="PatientName"></element>
+<element tag="0010,0010" vr="PN" vm="0" len="0" name="PatientName">replace</element>
+<element tag="0010,0020" vr="LO" vm="0" len="0" name="PatientID">replace</element>
 <element tag="0010,0030" vr="DA" vm="0" len="0" name="PatientBirthDate"></element>
 <element tag="0010,0040" vr="CS" vm="0" len="0" name="PatientSex"></element>
 <element tag="0008,0020" vr="DA" vm="0" len="0" name="StudyDate">replace</element>
@@ -20,7 +21,6 @@
 <element tag="0020,000d" vr="UI" vm="0" len="0" name="StudyInstanceUID">replace</element>
 <element tag="0008,1030" vr="LO" vm="0" len="0" name="StudyDescription">replace</element>
 <element tag="0020,0010" vr="SH" vm="0" len="0" name="StudyID">replace</element>
-<element tag="0010,0020" vr="LO" vm="0" len="0" name="PatientID">replace</element>
 <element tag="0008,0012" vr="DA" vm="0" len="0" name="InstanceCreationDate">replace</element>
 <element tag="0008,0013" vr="TM" vm="0" len="0" name="InstanceCreationTime">replace</element>
 <element tag="0020,000e" vr="UI" vm="0" len="0" name="SeriesInstanceUID">replace</element>

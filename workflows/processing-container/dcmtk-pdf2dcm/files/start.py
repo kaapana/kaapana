@@ -16,8 +16,8 @@ def process_file(input_file, output_dir, input_dir=None, timeout=20):
     pdf_title = os.getenv("PDF_TITLE", "None")
     pdf_title = None if pdf_title == "None" else pdf_title
 
-    dicom_in_dir = os.getenv("DICOM_IN_DIR", "None")
-    dicom_in_dir = None if dicom_in_dir == "None" else os.path.join(input_dir, dicom_input_dir)
+    dicom_input_dir = os.getenv("DICOM_IN_DIR", "None")
+    dicom_input_dir = None if dicom_input_dir == "None" else os.path.join(input_dir, dicom_input_dir)
 
     output_file = os.path.join(output_dir, os.path.basename(input_file).replace('pdf', 'dcm'))
 

@@ -133,7 +133,7 @@ for batch_element_dir in batch_folders:
 
     files_grabbed = []
     for extension in file_extensions:
-        files_grabbed.extend(glob.glob(os.path.join(element_input_dir, extension), recursive=True)
+        files_grabbed.extend(glob.glob(os.path.join(element_input_dir, extension), recursive=True))
 
     if len(files_grabbed) == 0:
         print(f"############### No {extensions} files found at {element_input_dir} -> continue ")

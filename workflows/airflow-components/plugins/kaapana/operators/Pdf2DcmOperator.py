@@ -33,7 +33,7 @@ class Pdf2DcmOperator(KaapanaBaseOperator):
             "PAT_ID": str(patient_id),
             "PAT_NAME": str(patient_name),
             "PDF_TITLE": str(pdf_title),
-            "DICOM_IN_DIR": str(dicom_operator.operator_out_dir) if dicom_operator is not None else "NONE",
+            "DICOM_IN_DIR": str(dicom_operator.operator_out_dir) if dicom_operator is not None else str(None),
         }
 
         env_vars.update(envs)

@@ -11,7 +11,6 @@ from subprocess import PIPE, run
 
 converter_count = 0
 
-
 def combine_split_files(split_files_dir,delete_parts=True):
     input_files = sorted(glob.glob(os.path.join(split_files_dir, "*.part*")))
     input_files = [i for i in input_files if "part" in i.split(".")[-1]]

@@ -10,6 +10,15 @@ spec:
   selector:
     app-name: ctp
 {{ if .Values.global.dicom_port }}
+  ports:
+  - name: ctp-port
+    port: 80
+    targetPort: 1050
+    protocol: TCP
+  - name: ctp-dcm-port
+    port: 11112
+    targetPort: 11112
+{{ else }}
   type: NodePort
   externalTrafficPolicy: Local
   ports:
@@ -20,15 +29,6 @@ spec:
   - name: ctp-dcm-port
     port: 11112
     nodePort: {{ .Values.global.dicom_port }}
-    targetPort: 11112
-{{ else }}
-  ports:
-  - name: ctp-port
-    port: 80
-    targetPort: 1050
-    protocol: TCP
-  - name: ctp-dcm-port
-    port: 11112
     targetPort: 11112
 {{ end }}
   - name: ctp-http-port

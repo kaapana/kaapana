@@ -166,7 +166,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='racoon-train',
+    dag_id='nnunet-training',
     default_args=args,
     concurrency=gpu_count,
     max_active_runs=1,
@@ -198,6 +198,7 @@ dcm2nifti_ct = DcmConverterOperator(dag=dag, input_operator=get_ref_ct_series_fr
 
 check_seg = LocalSegCheckOperator(
     dag=dag,
+    abort_on_error=False,
     move_data=True,
     input_operators=[get_input, dcm2nifti_seg, get_ref_ct_series_from_seg, dcm2nifti_ct]
 )
@@ -244,7 +245,7 @@ dcmseg_send_pdf = DcmSendOperator(
 
 zip_model = ZipUnzipOperator(
     dag=dag,
-    target_filename=f"racoon_nnunet_{train_network}.zip",
+    target_filename=f"nnunet_model_{train_network}.zip",
     whitelist_files="model_final_checkpoint.model,model_final_checkpoint.model.pkl,*.png,*.json,*.txt,*.pdf",
     subdir="results/nnUNet",
     mode="zip",

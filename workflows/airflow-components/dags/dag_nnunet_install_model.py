@@ -6,8 +6,8 @@ from airflow.models import DAG
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 
-from nnunet.Bin2DcmOperator import Bin2DcmOperator
 
 ui_forms = {
     "workflow_form": {

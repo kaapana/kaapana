@@ -13,7 +13,7 @@ class Bin2DcmOperator(KaapanaBaseOperator):
                  dag,
                  file_extensions="*.zip",
                  size_limit=100,
-                 study_description="nnUnet model",
+                 study_description="Kaapana Bin2Dcm",
                  patient_id="",
                  study_id="bin2dcm",
                  study_uid=pydicom.uid.generate_uid(),

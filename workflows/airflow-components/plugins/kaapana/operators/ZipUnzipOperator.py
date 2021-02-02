@@ -14,8 +14,8 @@ class ZipUnzipOperator(KaapanaBaseOperator):
                  subdir = None,
                  mode = None, # 'zip' or 'unzip'
                  batch_level = False,
-                 whitelist_extensions = None, # 'eg: *.txt,*.png'
-                 blacklist_extensions = None, # 'eg: *.txt,*.png'
+                 whitelist_files = None, # eg: "*.txt,*.png" or whole filenames
+                 blacklist_files = None, # eg: "*.txt,*.png" or whole filenames
                  env_vars = None,
                  execution_timeout=timedelta(minutes=10),
                  *args, **kwargs
@@ -29,15 +29,15 @@ class ZipUnzipOperator(KaapanaBaseOperator):
             "MODE": mode if mode is not None else "NONE",
             "SUBDIR": subdir if subdir is not None else "NONE",
             "BATCH_LEVEL": str(batch_level),
-            "WHITELIST_EXTENSIONS": whitelist_extensions if whitelist_extensions is not None else "NONE",
-            "BLACKLIST_EXTENSIONS": blacklist_extensions if blacklist_extensions is not None else "NONE",
+            "WHITELIST_FILES": whitelist_files if whitelist_files is not None else "NONE",
+            "BLACKLIST_FILES": blacklist_files if blacklist_files is not None else "NONE",
         }
 
         env_vars.update(envs)
 
         super().__init__(
             dag=dag,
-            image="{}{}/zip-unzip:3.0-vdev".format(default_registry, default_project),
+            image="{}{}/zip-unzip:3.0.0".format(default_registry, default_project),
             name="zip-unzip",
             image_pull_secrets=["registry-secret"],
             image_pull_policy="Always",

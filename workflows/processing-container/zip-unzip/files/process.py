@@ -19,38 +19,52 @@ def zip_dir(zip_dir_path, target_file):
     print(f"# Zipping {zip_dir_path} --> {target_file}")
 
     zipf = zipfile.ZipFile(target_file, 'w', zipfile.ZIP_DEFLATED)
-    whitelist_extensions=os.getenv("WHITELIST_EXTENSIONS","NONE").split(",")
-    whitelist_extensions=None if whitelist_extensions[0] == "NONE" else whitelist_extensions
-    blacklist_extensions=os.getenv("BLACKLIST_EXTENSIONS","NONE").split(",")
-    blacklist_extensions=None if blacklist_extensions[0] == "NONE" else blacklist_extensions
+    whitelist_files=os.getenv("WHITELIST_FILES","NONE").split(",")
+    whitelist_files=None if whitelist_files[0] == "NONE" else whitelist_files
+    blacklist_files=os.getenv("BLACKLIST_FILES","NONE").split(",")
+    blacklist_files=None if blacklist_files[0] == "NONE" else blacklist_files
     print("#")
-    print(f"# whitelist_extensions: {whitelist_extensions}")
-    print(f"# blacklist_extensions: {blacklist_extensions}")
+    print(f"# whitelist_files: {whitelist_files}")
+    print(f"# blacklist_files: {blacklist_files}")
     print("#")
 
     for root, dirs, files in os.walk(zip_dir_path):
         for file in files:
-            skip_file = False
-            present_extensions = "".join(pathlib.Path(file).suffixes).replace("*","").replace(".","")
+            skip_file = None
             
-            if blacklist_extensions != None: 
-                for blacklist_extension in blacklist_extensions:
-                    if blacklist_extension.replace("*","").replace(".","") in present_extensions:
+            print("#")
+            print(f"# Checking file {file}")
+            
+            if blacklist_files != None: 
+                skip_file = False
+                for blacklist_file in blacklist_files:
+                    blacklist_file = blacklist_file.replace("*","")
+                    index_found = file.find(blacklist_file)
+                    if index_found != -1 and index_found + len(blacklist_file) == len(file):
+                        print(f"# blacklist skip: {blacklist_file}")
                         skip_file=True
                         break
+            
+            if skip_file != None and skip_file:
+                continue 
 
-            if whitelist_extensions != None: 
-                for whitelist_extension in whitelist_extensions:
-                    if whitelist_extension.replace("*","").replace(".","") not in present_extensions:
-                        skip_file=True
+            if whitelist_files != None: 
+                skip_file = True
+                for whitelist_file in whitelist_files:
+                    whitelist_file = whitelist_file.replace("*","")
+                    index_found = file.find(whitelist_file)
+                    if index_found != -1 and index_found + len(whitelist_file) == len(file):
+                        print(f"# whitelist add {whitelist_file}")
+                        skip_file=False
                         break
             
-            if not skip_file:
-                print(f"# zip: {file}")
+            if skip_file == None or not skip_file:
+                print(f"# Adding: {file}")
                 zipf.write(os.path.join(root, file), os.path.relpath(os.path.join(root.replace(zip_dir_path,""), file), '/..'))
                 processed_count += 1
             else:
                 print(f"# skipping: {file}")
+            print("#")
             
     print("#")
     print("# ZIPPING DONE")

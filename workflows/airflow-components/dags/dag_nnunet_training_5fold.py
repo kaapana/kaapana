@@ -162,7 +162,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='nnunet-train',
+    dag_id='nnunet-training-5fold',
     default_args=args,
     concurrency=gpu_count,
     max_active_runs=1,

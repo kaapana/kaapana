@@ -13,6 +13,7 @@ class GetTaskModelOperator(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  task_id=None,
+                 zip_file=False,
                  env_vars={},
                  execution_timeout=execution_timeout,
                  *args,
@@ -21,6 +22,7 @@ class GetTaskModelOperator(KaapanaBaseOperator):
 
         envs = {
             "MODELDIR": "/models",
+            "ZIP_FILE": str(zip_file)
         }
         env_vars.update(envs)
 

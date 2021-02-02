@@ -22,7 +22,7 @@ class NnUnetOperator(KaapanaBaseOperator):
                  prep_preprocess=True,
                  prep_check_integrity=True,
                  train_fold=0,
-                 train_network="2d",
+                 train_network="3d_lowres",
                  train_network_trainer="nnUNetTrainerV2",
                  train_continue=False,
                  train_npz=False,

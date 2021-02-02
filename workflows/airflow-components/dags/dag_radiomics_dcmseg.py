@@ -7,16 +7,14 @@ from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
-from radiomics.RadiomicsOperator import RadiomicsOperator
 
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
-from kaapana.operators.Statistics2PdfOperator import Statistics2PdfOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
-
+from radiomics.RadiomicsOperator import RadiomicsOperator
+from radiomics.Statistics2PdfOperator import Statistics2PdfOperator
 log = LoggingMixin().log
-
 
 ui_forms = {
     "workflow_form": {

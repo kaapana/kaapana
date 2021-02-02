@@ -15,7 +15,7 @@ echo "# MODE:     $MODE";
 echo "# TASK:     $TASK";
 echo "# TASK_NUM: $TASK_NUM";
 echo "#"
-if [ "$MODE" != "training" ] && [ "$MODE" != "inference" ]  && [ "$MODE" != "preprocess" ] && [ "$MODE" != "export-model" ] && [ "$MODE" != "install-model" ] && [ "$MODE" != "identify-best" ]; then
+if [ "$MODE" != "training" ] && [ "$MODE" != "inference" ]  && [ "$MODE" != "preprocess" ] && [ "$MODE" != "export-model" ] && [ "$MODE" != "zip-model" ] && [ "$MODE" != "install-model" ] && [ "$MODE" != "identify-best" ]; then
     echo "#"
     echo "#######################################################################"
     echo "#"
@@ -77,9 +77,10 @@ if [ "$MODE" = "preprocess" ]; then
 elif [ "$MODE" = "training" ]; then
     export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
     export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
-    export RESULTS_FOLDER="$nnUNet_raw_data_base/results"
+    export RESULTS_FOLDER="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/results"
+    # export RESULTS_FOLDER="$nnUNet_raw_data_base/results"
     
-    TENSORBOARD_DIR="$nnUNet_raw_data_base/tensorboard"
+    TENSORBOARD_DIR="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/tensorboard"
 
     echo "#"
     echo "# Starting training..."
@@ -123,6 +124,15 @@ elif [ "$MODE" = "training" ]; then
     echo "# COMMAND: nnUNet_train $TRAIN_NETWORK $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $npz $continue"
     nnUNet_train $TRAIN_NETWORK $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $npz $continue
     
+    CREATE_REPORT="True"
+
+    if [ "$CREATE_REPORT" = "True" ] || [ "$CREATE_REPORT" = "true" ]; then
+        echo "# Starting create_report ..."
+        python3 -u /src/create_report.py $RESULTS_FOLDER "/data/$OPERATOR_OUT_DIR"
+        echo "# Report created."
+        echo "#"
+    fi
+
     
     echo "#"
     echo "# DONE"
@@ -229,15 +239,6 @@ elif [ "$MODE" = "identify-best" ]; then
     echo "#"
     echo "#"
 
-    CREATE_REPORT="True"
-
-    if [ "$CREATE_REPORT" = "True" ] || [ "$CREATE_REPORT" = "true" ]; then
-        echo "# Starting create_report ..."
-        python3 -u /src/create_report.py $RESULTS_FOLDER "/data/$OPERATOR_OUT_DIR"
-        echo "# Report created."
-        echo "#"
-    fi
-
     # models="2d 3d_fullres 3d_lowres 3d_cascade_fullres"
 
     if [ "$TRAIN_STRICT" = "True" ] || [ "$TRAIN_STRICT" = "true" ]; then
@@ -250,6 +251,35 @@ elif [ "$MODE" = "identify-best" ]; then
     nnUNet_find_best_configuration -m $TRAIN_NETWORK -t $TASK_NUM $strict
 
     echo "#"
+    echo "# DONE"
+
+elif [ "$MODE" = "zip-model" ]; then
+    export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
+    export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
+    export RESULTS_FOLDER="$nnUNet_raw_data_base/results"
+    
+    mkdir -p "/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/"
+    TIMESTAMP=`date +%Y-%m-%d_%H-%M`
+    model_output_path="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnunet_$TASK_$TRAIN_NETWORK_$TIMESTAMP.zip"
+    
+    echo "#"
+    echo "# Starting export-model..."
+    echo "#"
+    echo "#"
+    echo "# nnUNet_raw_data_base:  $nnUNet_raw_data_base"
+    echo "# nnUNet_preprocessed:   $nnUNet_preprocessed"
+    echo "# RESULTS_FOLDER:        $RESULTS_FOLDER"
+    echo "#"
+    echo "# FOLD:                  $TRAIN_FOLD"
+    echo "# TASK:                  $TASK"
+    echo "# TRAIN_NETWORK:         $TRAIN_NETWORK"
+    echo "# TRAIN_NETWORK_TRAINER: $TRAIN_NETWORK_TRAINER"
+    echo "# model_output_path:     $model_output_path"
+    echo "#"
+    echo "# COMMAND: zip -r $model_output_path $RESULTS_FOLDER/nnUNet/"
+    echo "#"
+    zip -r "$model_output_path" "$RESULTS_FOLDER/nnUNet/"
+    
     echo "# DONE"
 
 elif [ "$MODE" = "export-model" ]; then

@@ -29,6 +29,8 @@ PULL_POLICY_OPERATORS="IfNotPresent"
 
 DEV_PORTS="false"
 GPU_SUPPORT="false"
+ENABLE_DICOM="true"
+
 if [ "$DEV_MODE" == "true" ]; then
     PULL_POLICY_PODS="Always"
     PULL_POLICY_JOBS="Always"
@@ -264,6 +266,7 @@ function install_chart {
         helm install $CHART_PATH \
         --set global.version="$chart_version" \
         --set global.hostname="$DOMAIN" \
+        --set global.enable_dicom="$ENABLE_DICOM" \
         --set global.dev_ports="$DEV_PORTS" \
         --set global.dev_mode="$DEV_MODE" \
         --set global.dicom_port="$DICOM_PORT" \
@@ -291,6 +294,7 @@ function install_chart {
         helm install --devel --version $chart_version  $CHART_REGISTRY_PROJECT/$PROJECT_NAME \
         --set global.version="$chart_version" \
         --set global.hostname="$DOMAIN" \
+        --set global.enable_dicom="$ENABLE_DICOM" \
         --set global.dev_ports="$DEV_PORTS" \
         --set global.dev_mode="$DEV_MODE" \
         --set global.dicom_port="$DICOM_PORT" \

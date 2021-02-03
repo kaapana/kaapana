@@ -15,9 +15,10 @@ spec:
       labels:
         app-name: adminer
     spec:
+      restartPolicy: Always
       containers:
       - name: adminer
-        image: adminer:4.7.6
+        image: {{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/adminer:4.7.6
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
         ports:
         - containerPort: {{ .Values.port }}

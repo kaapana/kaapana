@@ -174,13 +174,18 @@ def getAllDagRuns():
             all_dagruns = all_dagruns.filter(DagRun.state == state)
 
         all_dagruns = list(all_dagruns.order_by(DagRun.execution_date).all())
-        _log.error(DagRun.execution_date)
 
         if limit is not None:
             all_dagruns = all_dagruns[:int(limit)]
 
         dagruns = []
         for dagrun in all_dagruns:
+
+            conf = dagrun.conf
+            if conf is not None and "user_public_id" in conf:
+                user = conf["user_public_id"]
+            else:
+                user = "0000-0000-0000-0000-0000"
 
             # Returns the task instances for this dag run.
             task_instances = dagrun.get_task_instances(session=session)
@@ -189,13 +194,7 @@ def getAllDagRuns():
             for task_instance in task_instances:
                 if task_instance.state == 'failed':
                     failed_task_instance.append(task_instance)
-
-            conf = dagrun.conf
-            if conf is not None and "user_public_id" in conf:
-                user = conf["user_public_id"]
-            else:
-                user = "0000-0000-0000-0000-0000"
-
+                    
             if failed_task_instance:
                 # Needs to be a single object, because a list doesn't work.
                 # In most cases [0] will be the only element of the list but if there are more than one element,

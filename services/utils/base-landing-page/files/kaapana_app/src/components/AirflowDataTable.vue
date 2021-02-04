@@ -1,26 +1,14 @@
 <template>
   <div>
-    <v-app id="inspire">
-    <v-card
-      color="grey lighten-4"
-      flat
-      tile
-    >
-      <v-toolbar dense color="primary" style="color: white">
-        <v-app-bar-nav-icon color="white"></v-app-bar-nav-icon>
-        <v-toolbar-title>Overview</v-toolbar-title>
-        <v-spacer></v-spacer>
-      </v-toolbar>
+    <v-container grid-list-lg text-left>
+      <v-card>
         <v-col cols="12">
         <v-autocomplete
           v-model="values"
           :items="items"
-          dense
           chips
-          small-chips
           label="Solo"
           multiple
-          solo
           @change="filterDags()"
         ></v-autocomplete>
         </v-col>
@@ -37,11 +25,12 @@
               <tr v-for="dag in displayDags" :key="dag.dag_id">
                 <td>
                   <a
-                    v-bind:href="`https://e230-pc07/flow/admin/airflow/graph?dag_id=${
+                    v-bind:href="`/flow/admin/airflow/graph?dag_id=${
                       dag.dag_id
                     }&execution_date=${new Date(
                       dag.last_scheduler_run
                     ).toISOString()}`"
+                    target="_blank"
                   >
                     {{ dag.dag_id }}
                   </a>
@@ -116,11 +105,12 @@
                               v-if="
                                 getLastDagRunOfDag(dag.dag_id).state == 'failed'
                               "
-                              v-bind:href="`https://e230-pc07/flow/admin/airflow/log?task_id=${
+                              v-bind:href="`/flow/admin/airflow/log?task_id=${
                                 getLastDagRunOfDag(dag.dag_id).failed_task_id
                               }&dag_id=${dag.dag_id}&execution_date=${encodeURIComponent(
                                   getLastDagRunOfDag(dag.dag_id).execution_time
                               )}&format=json`"
+                              target="_blank"
                             >
                               <v-btn
                                 class="ma-2"
@@ -144,11 +134,12 @@
                 </td>
                 <td>
                   <a
-                    v-bind:href="`https://e230-pc07/flow/admin/airflow/graph?dag_id=${
+                    v-bind:href="`/flow/admin/airflow/graph?dag_id=${
                       dag.dag_id
                     }&execution_date=${new Date(
                       dag.last_scheduler_run
                     ).toISOString()}`"
+                    target="_blank"
                   >
                     <v-btn
                       color="success"
@@ -163,11 +154,12 @@
                     </v-btn>
                   </a>
                   <a
-                    v-bind:href="`https://e230-pc07/flow/admin/airflow/graph?dag_id=${
+                    v-bind:href="`/flow/admin/airflow/graph?dag_id=${
                       dag.dag_id
                     }&execution_date=${new Date(
                       dag.last_scheduler_run
                     ).toISOString()}`"
+                    target="_blank"
                   >
                     <v-btn
                       color="error"
@@ -187,7 +179,7 @@
           </template>
         </v-simple-table>
       </v-card>
-    </v-app>
+    </v-container>
   </div>
 </template>
 
@@ -228,7 +220,7 @@ export default {
   methods: {
     async fetchDags() {
       try {
-        const res = await fetch('https://e230-pc07/flow/kaapana/api/getdags');
+        const res = await fetch('/flow/kaapana/api/getdags');
         const val = await res.json();
         this.dags = val;
         /*
@@ -244,7 +236,7 @@ export default {
     },
     async fetchDagRuns() {
       try {
-        const res = await fetch('https://e230-pc07/flow/kaapana/api/getdagruns');
+        const res = await fetch('/flow/kaapana/api/getdagruns');
         const val = await res.json();
         this.dagRuns = val;
       } catch (e) {
@@ -317,7 +309,7 @@ export default {
             execution_time: executionTime,
           }),
         };
-        const response = await fetch(`https://e230-pc07/flow/kaapana/api/clear/${dagId}/${executionTime}`, requestOptions);
+        const response = await fetch(`/flow/kaapana/api/clear/${dagId}/${executionTime}`, requestOptions);
         console.log(response);
         console.log('End');
       } catch (e) {

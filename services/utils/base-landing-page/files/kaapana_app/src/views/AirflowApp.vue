@@ -1,7 +1,5 @@
-<template>
-  <v-container>
-    <dataTable></dataTable>
-  </v-container>
+<template lang="pug">
+  dataTable
 </template>
 
 <script lang="ts">

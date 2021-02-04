@@ -1,5 +1,5 @@
 http_proxy: ""
-build_mode: "private"                # possible options: local, dockerhub, private
+build_mode: "local"                # possible options: local, dockerhub, private
 default_container_registry: ""
 default_container_project: "" 
 default_chart_registry: "https://dktk-jip-registry.dkfz.de/chartrepo/"

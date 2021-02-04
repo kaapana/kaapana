@@ -201,20 +201,12 @@ def getAllDagRuns():
                 # In most cases [0] will be the only element of the list but if there are more than one element,
                 # the [0] include the first task which is failed in the dagrun.
                 task_id = failed_task_instance[0].task_id
-<<<<<<< HEAD
-
-=======
->>>>>>> Edited Kaapana API so the method 'getdagruns' return also the ID of the failed task. Necessary as parameter for triggering log function.
                 dagruns.append({
                     'user': user,
                     'dag_id': dagrun.dag_id,
                     'run_id': dagrun.run_id,
                     'state': dagrun.state,
-<<<<<<< HEAD
                     'execution_time': dagrun.execution_date.isoformat(),
-=======
-                    'execution_time': dagrun.execution_date,
->>>>>>> Edited Kaapana API so the method 'getdagruns' return also the ID of the failed task. Necessary as parameter for triggering log function.
                     'failed_task_id': task_id,
                                 
                 })
@@ -224,11 +216,7 @@ def getAllDagRuns():
                     'dag_id': dagrun.dag_id,
                     'run_id': dagrun.run_id,
                     'state': dagrun.state,
-<<<<<<< HEAD
                     'execution_time': dagrun.execution_date.isoformat(),                                
-=======
-                    'execution_time': dagrun.execution_date,                                
->>>>>>> Edited Kaapana API so the method 'getdagruns' return also the ID of the failed task. Necessary as parameter for triggering log function.
                 })
 
         if count is not None:

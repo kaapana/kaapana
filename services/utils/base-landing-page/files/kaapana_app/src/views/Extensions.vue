@@ -18,7 +18,7 @@
           v-col(cols='12' sm='2')
             v-select(label='Kind' :items="['All', 'Workflows', 'Applications']" v-model='extensionKind' hide-details='')
           v-col(cols='12' sm='2')
-            v-select(label='Version' :items="['All', 'Stable', 'Experimental']" v-model='extensionExperimental' hide-details='')
+            v-select(label='Version' :items="['All', 'Stable', 'Dev']" v-model='extensionDev' hide-details='')
           v-col(cols='12' sm='3')
             v-text-field(v-model='search' append-icon='mdi-magnify' label='Search' hide-details='')
        
@@ -86,7 +86,7 @@ export default Vue.extend({
     loading: true,
     launchedAppLinks: [] as any,
     search: '',
-    extensionExperimental: 'Stable',
+    extensionDev: 'Stable',
     extensionKind: 'All',
     headers: [
       {
@@ -138,20 +138,23 @@ export default Vue.extend({
   computed: {
     filteredLaunchedAppLinks(): any {
       return this.launchedAppLinks.filter((i: any) => {
-        let experimentalFilter = true
+        let devFilter = true
         let kindFilter = true
-        if (this.extensionExperimental=='Stable' && i.experimental==='yes') {
-          experimentalFilter = false
-        } else if (this.extensionExperimental=='Experimental' && i.experimental==='no') {
-          experimentalFilter = false
-        }
 
+        for (const idx in i.versions) {
+          if (this.extensionDev=='Stable' && i.versions[idx].endsWith("-vdev")) {
+            devFilter = false
+          } else if (this.extensionDev=='Dev' && !i.versions[idx].endsWith("-vdev")) {
+            devFilter = false
+          }
+        }
+      
         if (this.extensionKind=='Workflows' && i.kind==='application') {
           kindFilter = false
         } else if (this.extensionKind=='Applications' && i.kind==='dag') {
           kindFilter = false
         }
-        return experimentalFilter && kindFilter
+        return devFilter && kindFilter
       })
     },
 

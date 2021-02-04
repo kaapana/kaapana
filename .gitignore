@@ -19,3 +19,4 @@ __pycache__
 *~
 history
 build-scripts/build-configuration.yaml
+/platforms/kaapana-platform/platform-installation/install_platform.sh

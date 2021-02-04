@@ -174,13 +174,18 @@ def getAllDagRuns():
             all_dagruns = all_dagruns.filter(DagRun.state == state)
 
         all_dagruns = list(all_dagruns.order_by(DagRun.execution_date).all())
-        _log.error(DagRun.execution_date)
 
         if limit is not None:
             all_dagruns = all_dagruns[:int(limit)]
 
         dagruns = []
         for dagrun in all_dagruns:
+
+            conf = dagrun.conf
+            if conf is not None and "user_public_id" in conf:
+                user = conf["user_public_id"]
+            else:
+                user = "0000-0000-0000-0000-0000"
 
             # Returns the task instances for this dag run.
             task_instances = dagrun.get_task_instances(session=session)
@@ -203,6 +208,7 @@ def getAllDagRuns():
             for task_instance in task_instances:
                 if task_instance.state == 'failed':
                     failed_task_instance.append(task_instance)
+
                     
             if failed_task_instance:
                 # Needs to be a single object, because a list doesn't work.
@@ -364,32 +370,56 @@ def post_clear_task_instances(dag_id: str, execution_time: str, session=None):
 
     dagruns = all_dagruns.filter(DagRun.dag_id == dag_id and DagRun.execution_date == execution_time)
 
+    # List of DagRuns is sorted by execution date. So the last dagrun is 'dagruns[-1]'
     data = {
         'reset_dag_runs': True,
-        'start_date': dagruns[0].start_date,
-        'end_date': dagruns[0].end_date,
+        'start_date': dagruns[-1].start_date,
+        'end_date': dagruns[-1].end_date,
     }
-    dag_bag = session.query(DagBag)
-    dag = dag_bag.get_dag(dag_id)
-    # dag = app.dag_bag.get_dag(dag_id)
+    _log.error('------------------DAG_RUN_DATE: ' + str(dagruns[-1].start_date) + '------------------------')
+
+    dag_model = DagModel.get_dagmodel(dag_id)
+    _log.error('------------------DAG_MODEL: ' + str(dag_model) + '------------------------')
+    dag = dag_model.get_dag()
+    _log.error('------------------DAG: ' + str(dag) + '------------------------')
     if not dag:
         error_message = f"Dag id {dag_id} not found"
         print(error_message)
     reset_dag_runs = data.pop('reset_dag_runs')
-    task_instances = dag.clear(get_tis=True, **data)
+    tis = session.query(TI).filter(TI.dag_id == dag.dag_id)
+    tis = tis.filter(TI.task_id.in_(dag.task_ids))
+    for ti in tis:
+        TIS = []
+        if (ti.execution_date.strptime(ti.execution_date, "%Y-%m-%d %H:%M:%S") >= dagruns[-1].start_date.strftime("%Y-%m-%d %H:%M:%S")):
+            TIS.append(ti)
+        tis = TIS
+    #tis = tis.filter(TI.execution_date.strptime("%Y-%m-%d %H:%M:%S") >= dagruns[-1].start_date.strftime("%Y-%m-%d %H:%M:%S"))
+    #tis = tis.filter(TI.execution_date.strptime("%Y-%m-%d %H:%M:%S") <= dagruns[-1].end_date.strftime("%Y-%m-%d %H:%M:%S"))
+    tis = tis.filter(TI.state == State.FAILED or TI.state == State.UPSTREAM_FAILED)
+    # task_instances = dag.clear(get_tis=True, **data)
+    for ti in tis:
+        _log.error('---------------------TASK_INSTANCE: ' + str(ti.task_id) + ' | ' + str(ti.state) + ' | '+ str(ti.execution_date) +' ---------------------------------------')
+        _log.error('--------------------------------' + str(dagruns[-1].start_date.strftime("%Y-%m-%d %H:%M:%S")) + ' | ' + str(dagruns[-1].end_date.strftime("%Y-%m-%d %H:%M:%S")) + '--------------------------')
     clear_task_instances(
-        task_instances,
+        tis,
         session,
         dag=dag,
-        activate_dag_runs=False,  # We will set DagRun state later.
+        # activate_dag_runs=False,  # We will set DagRun state later.
     )
-    if reset_dag_runs:
-        dag.set_dag_runs_state(
-            session=session,
-            start_date=data["start_date"],
-            end_date=data["end_date"],
-            state=State.RUNNING,
-        )
-    task_instances = task_instances.join(
+    #if reset_dag_runs:
+    #    dag.set_dag_runs_state(
+    #        session=session,
+    #        start_date=data["start_date"],
+    #        end_date=data["end_date"],
+    #        state=State.RUNNING,
+    #    )
+
+    task_instances = tis.join(
         DagRun, and_(DagRun.dag_id == TI.dag_id, DagRun.execution_date == TI.execution_date)
     ).add_column(DagRun.run_id)
+
+    # trigger_dag(dag_id)
+
+    message = ["{} cleared!".format(dag.dag_id)]
+    response = jsonify(message=message)
+    return response

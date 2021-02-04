@@ -194,8 +194,8 @@ export default {
       displayDags: [],
       dags: [],
       dagRuns: [],
-      items: ['nonServiceDags', 'service'], // Here you can add new categories for filtering.
-      values: ['nonServiceDags'], // Those are the default categories which you want to show in the table.
+      items: ['own', 'service'], // Here you can add new categories for filtering.
+      values: ['own'], // Those are the default categories which you want to show in the table.
       // Contains the index of which loader in loaders should be activated.
       loader: null,
       /*
@@ -209,9 +209,11 @@ export default {
     loader() {
       const l = this.loader;
       this.loaders[l] = true;
+
       setTimeout(() => {
         this.loaders[l] = false;
       }, 3000);
+
       this.loader = null;
     },
   },

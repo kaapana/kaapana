@@ -1,7 +1,7 @@
 FROM local-only/mitk-base:0.1.0 as build_container
 
 LABEL IMAGE="mitk-resample"
-LABEL VERSION="04.02.2021-develop"
+LABEL VERSION="04.02.2021-vdev"
 LABEL CI_IGNORE="False"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -46,10 +46,20 @@ ENV BATCHES_INPUT_DIR /input
 ENV OPERATOR_IN_DIR initial-input
 ENV OPERATOR_OUT_DIR mitk-resample
 
-COPY files/MitkCLResampleImageToReference.sh /opt/MitkCLResampleImageToReference.sh
 ENV EXECUTABLE /opt/MitkCLResampleImageToReference.sh
 
 COPY files/start.sh /start.sh
 CMD ["/bin/bash", "/start.sh"]
 
-#  docker run --rm -it -e OPERATOR_IN_DIR="" -e CONVERTTO=nifti dktk-jip-registry.dkfz.de/public/mitk-fileconverter
+# root@cd72f914f1cd:/opt# ./MitkCLResampleImageToReference.sh 
+# Running Command Line Utility *Resample Image To Reference*
+# Command Line Utility *Resample Image To Reference* in Category *Classification Tools*
+# Resamples an image (moving) to an given image (fix) without additional registration.
+# German Cancer Research Center (DKFZ)
+
+# Use --xml to generate an XML description parsable as a CTK Command Line Module Plugin.
+# Use --version to print MITK revision information.
+#   -f, --fix, fixed image file, Type: Image, Channel: input
+#   -m, --moving, moving image file, Type: File, Channel: output
+#   -o, --output, output image, Type: File, Channel: output
+#   --interpolator, interpolator type: 0=linear (default), 1=nearest neighbor, 2=sinc (optional), (default: 0), Type: Int

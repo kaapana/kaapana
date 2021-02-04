@@ -8,14 +8,6 @@ echo ""
 echo "BATCHES_INPUT_DIR:" $BATCHES_INPUT_DIR
 echo "BATCH_COUNT: " $BATCH_COUNT
 echo ""
-echo "CONVERTFROM:" $CONVERTFROM
-echo "CONVERTTO:  " $CONVERTTO
-
-if [ "$CONVERTTO" != "nrrd" ] && [ "$CONVERTTO" != "nii" ] && [ "$CONVERTTO" != "nii.gz" ] ; then
-    echo "CONVERT-TO-FORMAT ($CONVERTTO) NOT SUPPORTED"
-    echo "OPTIONS: nrrd,nii,nii.gz"
-    exit 1
-fi
 
 echo ""
 echo "Starting batch loop..."

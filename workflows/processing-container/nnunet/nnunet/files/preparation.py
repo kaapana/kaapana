@@ -19,7 +19,7 @@ if __name__ == "__main__":
     print("Starting nnUNet data preparation...")
 
     task = os.getenv("TASK", None)
-    input_dirs = os.getenv("INPUT_NIFTI_DIRS", "").split(";")
+    input_dirs = os.getenv("INPUT_NIFTI_DIRS", "").split(",")
     operator_output_dir = os.getenv("OPERATOR_OUT_DIR", None)
 
     if operator_output_dir == None:
@@ -33,9 +33,9 @@ if __name__ == "__main__":
 
     task_info = get_task_info(task)
     task_body_part = task_info["body_part"]
-    task_modalities = task_info["modalities"].split(";")
-    task_protocolls = task_info["protocols"].split(";")
-    task_organs = task_info["organs"].split(";")
+    task_modalities = task_info["modalities"].split(",")
+    task_protocolls = task_info["protocols"].split(",")
+    task_organs = task_info["organs"].split(",")
 
     batches_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'])
     batch_folders = [f for f in glob.glob(os.path.join(batches_dir, '*'))]

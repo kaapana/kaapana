@@ -132,27 +132,6 @@ ui_forms = {
                 "type": "string",
                 "readOnly": False,
             },
-            # "version": {
-            #     "title": "Version",
-            #     "default": "0.0.1-alpha",
-            #     "description": "Specify a version.",
-            #     "type": "string",
-            #     "readOnly": False,
-            # },
-            # "training_reference": {
-            #     "title": "Training reference",
-            #     "default": "nnUNet",
-            #     "description": "Set a reference.",
-            #     "type": "string",
-            #     "readOnly": False,
-            # },
-            "input": {
-                "title": "Input Modality",
-                "default": "SEG",
-                "description": "Expected input modality.",
-                "type": "string",
-                "readOnly": True,
-            },
         }
     }
 }
@@ -166,9 +145,9 @@ args = {
 }
 
 dag = DAG(
-    dag_id='nnunet-training',
+    dag_id='nnunet-train-test',
     default_args=args,
-    concurrency=gpu_count,
+    concurrency=2,
     max_active_runs=1,
     schedule_interval=None
 )
@@ -179,101 +158,107 @@ get_input = LocalGetInputDataOperator(
     parallel_downloads=5
 )
 
-dcm2nifti_seg = DcmSeg2ItkOperator(
+dcm2nifti_input = DcmConverterOperator(
     dag=dag,
     input_operator=get_input,
-    output_format="nii.gz",
-    seg_filter=seg_filter,
-    parallel_id='seg',
+    parallel_id='input',
+    output_format='nii.gz'
 )
 
 get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     dag=dag,
     input_operator=get_input,
-    search_policy="reference_uid",
+    search_policy="study_uid",
     parallel_downloads=5,
-    modality=None
+    modality="SEG",
+    expected_file_count="all"
 )
-dcm2nifti_ct = DcmConverterOperator(dag=dag, input_operator=get_ref_ct_series_from_seg, parallel_id='ct', output_format='nii.gz')
+
+dcm2nifti_seg = DcmSeg2ItkOperator(
+    dag=dag,
+    input_operator=get_ref_ct_series_from_seg,
+    output_type="nii.gz",
+    parallel_id='seg',
+)
 
 check_seg = LocalSegCheckOperator(
     dag=dag,
     abort_on_error=False,
     move_data=True,
-    input_operators=[get_input, dcm2nifti_seg, get_ref_ct_series_from_seg, dcm2nifti_ct]
+    input_operators=[get_input, dcm2nifti_input, dcm2nifti_seg, get_ref_ct_series_from_seg]
 )
 
-nnunet_preprocess = NnUnetOperator(
-    dag=dag,
-    mode="preprocess",
-    input_nifti_operators=[dcm2nifti_ct],
-    prep_label_operator=dcm2nifti_seg,
-    prep_modalities=prep_modalities.split(","),
-    prep_processes_low=prep_threads+1,
-    prep_processes_full=prep_threads,
-    prep_preprocess=True,
-    prep_check_integrity=True,
-    retries=0
-)
+# nnunet_preprocess = NnUnetOperator(
+#     dag=dag,
+#     mode="preprocess",
+#     input_nifti_operators=[dcm2nifti_ct],
+#     prep_label_operator=dcm2nifti_seg,
+#     prep_modalities=prep_modalities.split(","),
+#     prep_processes_low=prep_threads+1,
+#     prep_processes_full=prep_threads,
+#     prep_preprocess=True,
+#     prep_check_integrity=True,
+#     retries=0
+# )
 
-nnunet_train = NnUnetOperator(
-    dag=dag,
-    mode="training",
-    train_max_epochs=1000,
-    input_operator=nnunet_preprocess,
-    train_network=train_network,
-    train_network_trainer=train_network_trainer,
-    train_fold='all',
-    retries=0
-)
+# nnunet_train = NnUnetOperator(
+#     dag=dag,
+#     mode="training",
+#     train_max_epochs=1000,
+#     input_operator=nnunet_preprocess,
+#     train_network=train_network,
+#     train_network_trainer=train_network_trainer,
+#     train_fold='all',
+#     retries=0
+# )
 
-pdf2dcm = Pdf2DcmOperator(
-    dag=dag,
-    input_operator=nnunet_train,
-    study_uid=study_uid,
-    aetitle=ae_title,
-    pdf_title=f"Training Report nnUNet {timestamp}"
-)
+# pdf2dcm = Pdf2DcmOperator(
+#     dag=dag,
+#     input_operator=nnunet_train,
+#     study_uid=study_uid,
+#     aetitle=ae_title,
+#     pdf_title=f"Training Report nnUNet {timestamp}"
+# )
 
-dcmseg_send_pdf = DcmSendOperator(
-    dag=dag,
-    parallel_id="pdf",
-    level="batch",
-    ae_title=ae_title,
-    input_operator=pdf2dcm
-)
+# dcmseg_send_pdf = DcmSendOperator(
+#     dag=dag,
+#     parallel_id="pdf",
+#     level="batch",
+#     ae_title=ae_title,
+#     input_operator=pdf2dcm
+# )
 
-zip_model = ZipUnzipOperator(
-    dag=dag,
-    target_filename=f"nnunet_model_{train_network}.zip",
-    whitelist_files="model_final_checkpoint.model,model_final_checkpoint.model.pkl,*.png,*.json,*.txt,*.pdf",
-    subdir="results/nnUNet",
-    mode="zip",
-    batch_level=True,
-    input_operator=nnunet_train
-)
+# zip_model = ZipUnzipOperator(
+#     dag=dag,
+#     target_filename=f"nnunet_model_{train_network}.zip",
+#     whitelist_files="model_final_checkpoint.model,model_final_checkpoint.model.pkl,*.png,*.json,*.txt,*.pdf",
+#     subdir="results/nnUNet",
+#     mode="zip",
+#     batch_level=True,
+#     input_operator=nnunet_train
+# )
 
-bin2dcm = Bin2DcmOperator(
-    dag=dag,
-    name="model2dicom",
-    study_uid=study_uid,
-    study_description="DICOM encoded nnUNet model",
-    study_id="Kaapana nnUNet model",
-    size_limit=100,
-    input_operator=zip_model,
-    file_extensions="*.zip"
-)
+# bin2dcm = Bin2DcmOperator(
+#     dag=dag,
+#     name="model2dicom",
+#     study_uid=study_uid,
+#     study_description="DICOM encoded nnUNet model",
+#     study_id="Kaapana nnUNet model",
+#     size_limit=100,
+#     input_operator=zip_model,
+#     file_extensions="*.zip"
+# )
 
-dcmseg_send_int = DcmSendOperator(
-    dag=dag,
-    level="batch",
-    ae_title=ae_title,
-    input_operator=bin2dcm
-)
+# dcmseg_send_int = DcmSendOperator(
+#     dag=dag,
+#     level="batch",
+#     ae_title=ae_title,
+#     input_operator=bin2dcm
+# )
 
-clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
-get_input >> dcm2nifti_seg >> check_seg >> nnunet_preprocess
-get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess >> nnunet_train
+# clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+get_input >> dcm2nifti_input >> check_seg #>> nnunet_preprocess
+get_input >> get_ref_ct_series_from_seg >> dcm2nifti_seg >> check_seg #>> nnunet_preprocess >> nnunet_train
 
-nnunet_train >> pdf2dcm >> dcmseg_send_pdf
-nnunet_train >> zip_model >> bin2dcm >> dcmseg_send_int >> clean
+# nnunet_train >> pdf2dcm >> dcmseg_send_pdf
+# nnunet_train >> zip_model >> bin2dcm >> dcmseg_send_int >> clean

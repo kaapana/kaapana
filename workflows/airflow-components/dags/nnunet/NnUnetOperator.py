@@ -39,11 +39,11 @@ class NnUnetOperator(KaapanaBaseOperator):
                  ):
         envs = {
             "MODE": str(mode),
-            "INPUT_NIFTI_DIRS": ";".join(str(operator.operator_out_dir) for operator in input_nifti_operators),
+            "INPUT_NIFTI_DIRS": ",".join(str(operator.operator_out_dir) for operator in input_nifti_operators),
             "PREP_TL": str(prep_processes_low),
             "PREP_TF": str(prep_processes_full),
             "PREP_LABEL_DIR": str(prep_label_operator.operator_out_dir) if prep_label_operator is not None else "",
-            "PREP_MODALITIES": ";".join(str(modality) for modality in prep_modalities),
+            "PREP_MODALITIES": ",".join(str(modality) for modality in prep_modalities),
             "PREP_PREPROCESS": str(prep_preprocess),
             "PREP_CHECK_INTEGRITY": str(prep_check_integrity),
             "TRAIN_FOLD": str(train_fold),

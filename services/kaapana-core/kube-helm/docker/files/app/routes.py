@@ -127,7 +127,7 @@ def extensions():
             extension = available_charts[f'{name}-{latest_version}']
             extension['versions'] = versions
             extension['version'] = latest_version
-            extension['experimental'] = 'yes' if 'kaapanaexperimental' in extension['keywords'] else 'no' 
+            extension['experimental'] = 'yes' if extension['version'].endswith('-vdev') else 'no' 
             extension['multiinstallable'] = 'yes' if 'kaapanamultiinstallable' in extension['keywords'] else 'no'             
             if 'kaapanaworkflow' in extension['keywords']: 
                 extension['kind'] = 'dag'

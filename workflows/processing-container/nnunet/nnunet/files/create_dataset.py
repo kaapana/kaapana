@@ -85,8 +85,8 @@ series_list = [f.path for f in os.scandir(batch_dir) if f.is_dir()]
 series_list.sort()
 
 modality = {}
-input_modalities = input_modalities.split(";")
-input_nifti_dirs = input_nifti_dirs.split(";")
+input_modalities = input_modalities.split(",")
+input_nifti_dirs = input_nifti_dirs.split(",")
 for i in range(0, len(input_modalities)):
     modality[f"{i}"] = input_modalities[i]
 

@@ -13,7 +13,7 @@ DCMQI = '/dcmqi/dcmqi-1.2.2-linux/bin/'
 
 output_type = os.environ.get('OUTPUT_TYPE', 'nrrd')
 seg_filter = os.environ.get('SEG_FILTER', "")
-if seg_filter is not "":
+if seg_filter != "":
     seg_filter = seg_filter.lower().split(";")
     print(f"Set filters: {seg_filter}")
 else:
@@ -94,7 +94,7 @@ for batch_element_dir in batch_folders:
             json.dump(meta_data, write_file, indent=4, sort_keys=True)
         print(meta_data)
 
-        if seg_filter is not None and seg_filter != "":
+        if seg_filter != None and seg_filter != "":
             len_output_files = len(sorted(glob.glob(os.path.join(element_output_dir, f"*{output_type_dcmqi}*"), recursive=False)))
             if len_output_files != len(seg_filter):
                 print(f"Found {len_output_files} files -> expected {len(seg_filter)}!")

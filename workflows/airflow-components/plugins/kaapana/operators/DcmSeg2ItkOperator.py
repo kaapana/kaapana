@@ -5,7 +5,7 @@ class DcmSeg2ItkOperator(KaapanaBaseOperator):
 
     def __init__(self,
                  dag,
-                 output_type=None,
+                 output_format=None,
                  seg_filter=None,
                  env_vars=None,
                  execution_timeout=timedelta(minutes=90),
@@ -16,7 +16,7 @@ class DcmSeg2ItkOperator(KaapanaBaseOperator):
             env_vars = {}
 
         envs = {
-            "OUTPUT_TYPE": output_type or 'nrrd',
+            "OUTPUT_TYPE": output_format or 'nrrd',
             "SEG_FILTER": seg_filter or '', # a bash list i.e.: 'liver,aorta'
             "DCMQI_COMMAND": "segimage2itkimage",
         }

@@ -9,7 +9,7 @@ metadata:
 spec:
   selector:
     app-name: keycloak
-{{ if .Values.global.dev_ports }}
+{{- if .Values.global.dev_ports }}
   type: NodePort
   ports:
   - name: kc-http-port
@@ -27,7 +27,7 @@ spec:
     targetPort: admin
     nodePort: 3090
     protocol: TCP
-{{ else }}
+{{- else }}
   type: ClusterIP
   ports:
   - name: kc-http-port
@@ -42,7 +42,7 @@ spec:
     port: 9090
     targetPort: admin
     protocol: TCP
-{{ end }}
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress

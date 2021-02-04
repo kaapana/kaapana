@@ -1,9 +1,9 @@
 ---
 apiVersion: v1
 data:
-{{ if .Values.global.gpu_support }}
+{{- if .Values.global.gpu_support }}
 {{ (.Files.Glob "files/gpu-dashboard.json").AsConfig | indent 2 }}
-{{ end }}
+{{- end }}
 {{ (.Files.Glob "files/kubernetes-dashboard.json").AsConfig | indent 2 }}
 {{ (.Files.Glob "files/traefik-dashboard.json").AsConfig | indent 2 }}
 {{ (.Files.Glob "files/prometheus-dashboard.json").AsConfig | indent 2 }}

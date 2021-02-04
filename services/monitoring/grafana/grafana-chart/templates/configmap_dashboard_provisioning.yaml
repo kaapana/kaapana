@@ -1,9 +1,9 @@
 ---
 apiVersion: v1
 data:
-{{ if .Values.global.gpu_support }}
+{{- if .Values.global.gpu_support }}
 {{ (.Files.Glob "files/gpu.yaml").AsConfig | indent 2 }}
-{{ end }}
+{{- end }}
 {{ (.Files.Glob "files/kubernetes.yaml").AsConfig | indent 2 }}
 {{ (.Files.Glob "files/prometheus.yaml").AsConfig | indent 2 }}
 {{ (.Files.Glob "files/traefik.yaml").AsConfig | indent 2 }}

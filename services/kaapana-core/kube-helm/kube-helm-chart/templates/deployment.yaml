@@ -52,10 +52,10 @@ spec:
           value: {{  .Values.global.fast_data_dir }}
         - name: SLOW_DATA_DIR
           value: {{  .Values.global.slow_data_dir }}
-{{ if .Values.global.http_proxy }}
+{{- if .Values.global.http_proxy }}
         - name: PROXY
           value: {{ .Values.global.http_proxy }}
-{{ end }}
+{{- end }}
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         volumeMounts:

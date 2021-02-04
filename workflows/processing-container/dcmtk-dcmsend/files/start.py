@@ -12,6 +12,8 @@ AETITLE = None if AETITLE == "NONE" else AETITLE
 LEVEL = os.getenv('LEVEL', 'element')
 print(f"Proxy http: {os.getenv('http_proxy')}")
 print(f"Proxy https: {os.getenv('https_proxy')}")
+print(f"AETITLE: {AETITLE}")
+print(f"LEVEL: {LEVEL}")
 
 dicom_sent_count = 0
 
@@ -19,14 +21,14 @@ dicom_sent_count = 0
 def send_dicom_data(send_dir, aetitle=AETITLE, timeout=60):
     global dicom_sent_count
 
-    dicom_list = list(Path(send_dir).rglob('*.dcm'))
+    if aetitle is None:
+        dicom_list = list(Path(send_dir).rglob('*.dcm'))
 
-    if len(dicom_list) == 0:
-        print(send_dir)
-        print("############### no dicoms found...!")
-        raise FileNotFoundError
+        if len(dicom_list) == 0:
+            print(send_dir)
+            print("############### no dicoms found...!")
+            raise FileNotFoundError
 
-    elif aetitle is None:
         try:
             aetitle = pydicom.dcmread(dicom_list[0])[0x012, 0x020].value
             print(f'Found aetitle {aetitle}')
@@ -34,6 +36,7 @@ def send_dicom_data(send_dir, aetitle=AETITLE, timeout=60):
             print(f'Could not load aetitle: {e}')
             aetitle = "KAAPANA export"
             print(f'Using default aetitle {aetitle}')
+            
     print(f'Sending {send_dir} to {HOST} {PORT} with aetitle {aetitle}')
     command = ['dcmsend', '-v', f'{HOST}', f'{PORT}', '-aet', 'kaapana', '-aec', f'{aetitle}', '--scan-directories', '--recurse', f'{send_dir}']
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)

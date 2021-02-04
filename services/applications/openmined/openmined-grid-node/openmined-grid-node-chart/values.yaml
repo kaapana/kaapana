@@ -7,8 +7,8 @@ global:
     base_namespace: "base"
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana
-port: ""
-grid_network_url: ""
-hostname: ""
-registry_url: ""
+port: 5000
+grid_network_url:
+hostname:
+registry_url:
 registry_project: "openmined"

@@ -7,7 +7,7 @@ global:
     base_namespace: "base"
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana
-port: ""
-container_port: ""
+port: 7000
+container_port: 7000
 registry_url: ""
 registry_project: "openmined"

@@ -69,12 +69,12 @@ do
 
     echo "# Starting conversion...."
     $EXECUTABLE -f "$original_file" -m "$input_file" -o "$output_filepath" --interpolator $INTERPOLATOR;
-    echo "# DONE"
     if [ $? -ne 0 ]; then
         echo "# ERROR!"
         echo "# $EXECUTABLE FAILED"
         exit 1
     fi
+    echo "# DONE"
     [ ! -f "$output_filepath" ] && { echo "# Error: Converted file not found!."; exit 2; }
     
     ((++loop_counter))
@@ -130,12 +130,12 @@ if [ "$original_file_count" -eq "1" ] && [ "$input_file_count" -eq "1" ]; then
 
     echo "# Starting conversion...."
     $EXECUTABLE -f "$original_file" -m "$input_file" -o "$output_filepath" --interpolator $INTERPOLATOR;
-    echo "# DONE"
     if [ $? -ne 0 ]; then
         echo "# ERROR!"
         echo "# $EXECUTABLE FAILED"
         exit 1
     fi
+    echo "# DONE"
     [ ! -f "$output_filepath" ] && { echo "# Error: Converted file not found!."; exit 2; }
 
     ((++loop_counter))

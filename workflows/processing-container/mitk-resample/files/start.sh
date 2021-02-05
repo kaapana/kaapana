@@ -55,8 +55,8 @@ do
         exit 1;
     fi
 
-    input_file=$(ls -lR $batch_input_dir/$extension_query)
-    original_file=$(ls -lR $batch_original_img_dir/$extension_query)
+    input_file=$(ls $batch_input_dir/$extension_query)
+    original_file=$(ls $batch_original_img_dir/$extension_query)
     output_filepath=${batch_output_dir}/$(basename -- "$input_file")
 
     echo "# "
@@ -68,7 +68,7 @@ do
     install -Dv / $output_filepath
 
     echo "# Starting conversion...."
-    $EXECUTABLE -f "$original_file" -m -o "$output_filepath" --interpolator $INTERPOLATOR;
+    $EXECUTABLE -f "$original_file" -m "$input_file" -o "$output_filepath" --interpolator $INTERPOLATOR;
     echo "# DONE"
     if [ $? -ne 0 ]; then
         echo "# ERROR!"
@@ -116,8 +116,8 @@ original_file_count=$(ls -lR $batch_original_img_dir/$extension_query | wc -l)
 
 if [ "$original_file_count" -eq "1" ] && [ "$input_file_count" -eq "1" ]; then
 
-    input_file=$(ls -lR $batch_input_dir/$extension_query)
-    original_file=$(ls -lR $batch_original_img_dir/$extension_query)
+    input_file=$(ls $batch_input_dir/$extension_query)
+    original_file=$(ls $batch_original_img_dir/$extension_query)
     output_filepath=${batch_output_dir}/$(basename -- "$input_file")
 
     echo "# "
@@ -129,7 +129,7 @@ if [ "$original_file_count" -eq "1" ] && [ "$input_file_count" -eq "1" ]; then
     install -Dv / $output_filepath
 
     echo "# Starting conversion...."
-    $EXECUTABLE -f "$original_file" -m -o "$output_filepath" --interpolator $INTERPOLATOR;
+    $EXECUTABLE -f "$original_file" -m "$input_file" -o "$output_filepath" --interpolator $INTERPOLATOR;
     echo "# DONE"
     if [ $? -ne 0 ]; then
         echo "# ERROR!"

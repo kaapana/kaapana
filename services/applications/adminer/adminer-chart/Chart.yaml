@@ -1,0 +1,7 @@
+apiVersion: v1
+appVersion: "4.7.6-vdev"
+description: Tool for viewing databases
+name:  adminer-chart
+version: 4.7.6-vdev
+keywords:
+- kaapanaapplication

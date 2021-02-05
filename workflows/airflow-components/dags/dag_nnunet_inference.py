@@ -4,6 +4,7 @@ from datetime import timedelta
 from airflow.models import DAG
 from datetime import datetime
 from nnunet.NnUnetOperator import NnUnetOperator
+from kaapana.operators.ResampleOperator import ResampleOperator
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
 from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
 # from nnunet.GetContainerModelOperator import GetContainerModelOperator
@@ -206,7 +207,11 @@ get_input = LocalGetInputDataOperator(
 )
 get_task_model = GetTaskModelOperator(dag=dag)
 # get_task_model = GetContainerModelOperator(dag=dag)
-dcm2nifti = DcmConverterOperator(dag=dag, input_operator=get_input, output_format='nii.gz')
+dcm2nifti = DcmConverterOperator(
+    dag=dag, 
+    input_operator=get_input, 
+    output_format='nii.gz'
+    )
 
 nnunet_predict = NnUnetOperator(
     dag=dag,
@@ -215,6 +220,13 @@ nnunet_predict = NnUnetOperator(
     inf_preparation=True,
     inf_threads_prep=1,
     inf_threads_nifti=1
+)
+
+resample_seg = ResampleOperator(
+    dag=dag,
+    input_operator=nnunet_predict,
+    original_img_operator=dcm2nifti,
+    operator_out_dir = nnunet_predict.operator_out_dir
 )
 
 alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]

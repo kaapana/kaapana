@@ -19,7 +19,7 @@ class ResampleOperator(KaapanaBaseOperator):
 
         envs = {
             "FORMAT": format,
-            "ORG_IMG_IN_DIR": str(original_img_operator),
+            "ORG_IMG_IN_DIR": str(original_img_operator.operator_out_dir),
             "INTERPOLATOR": str(interpolator)
         }
 

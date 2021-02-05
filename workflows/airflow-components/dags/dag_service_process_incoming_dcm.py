@@ -49,7 +49,7 @@ def process_incoming(ds, **kwargs):
     def trigger_it(dag_id, dcm_path, series_uid):
         dag_run_id = generate_run_id(dag_id)
 
-        target = os.path.join("/data", dag_run_id, "batch", series_uid, "initial-input")
+        target = os.path.join("/data", dag_run_id, "batch", series_uid, 'extract-metadata-input')
         print("MOVE!")
         print("SRC: {}".format(dcm_path))
         print("TARGET: {}".format(target))
@@ -71,7 +71,7 @@ def process_incoming(ds, **kwargs):
     dcm_files = check_all_files_arrived(dcm_path)
     incoming_dcm = pydicom.dcmread(dcm_files[0])
     # @all images
-    trigger_it(dag_id="service-extract-metadata",dcm_path=dcm_path, series_uid=series_uid)
+    trigger_it(dag_id="service-extract-metadata", dcm_path=dcm_path, series_uid=series_uid)
 
     import shutil
     print(("Deleting temp data: %s" % dcm_path))
@@ -90,6 +90,6 @@ run_this = PythonOperator(
     python_callable=process_incoming,
     dag=dag)
 
-check_ctp = LocalCtpQuarantineCheckOperator(dag=dag)
+check_ctp = LocalCtpQuarantineCheckOperator(dag=dag, operator_in_dir='extract-metadata-input')
 
 run_this >> check_ctp

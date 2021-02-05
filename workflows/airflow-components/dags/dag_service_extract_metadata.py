@@ -27,9 +27,10 @@ dag = DAG(
     schedule_interval=None
 )
 
-get_input = LocalGetInputDataOperator(dag=dag)
-extract_metadata = LocalDcm2JsonOperator(dag=dag, delete_private_tags=True)
-push_json = LocalJson2MetaOperator(dag=dag, json_operator=extract_metadata)
+# get_input = LocalGetInputDataOperator(dag=dag)
+#
+extract_metadata = LocalDcm2JsonOperator(dag=dag, operator_in_dir='extract-metadata-input', delete_private_tags=True)
+push_json = LocalJson2MetaOperator(dag=dag, operator_in_dir='extract-metadata-input', json_operator=extract_metadata)
 clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
-get_input >> extract_metadata >> push_json >> clean
+extract_metadata >> push_json >> clean

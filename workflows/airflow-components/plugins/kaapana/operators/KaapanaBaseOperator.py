@@ -20,7 +20,7 @@ from random import randint
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 from kaapana.blueprints.kaapana_utils import generate_run_id, cure_invalid_name
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INITIAL_INPUT_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperCaching import cache_operator_output
 from pprint import pprint
 import uuid
@@ -90,6 +90,7 @@ class KaapanaBaseOperator(BaseOperator):
                  # Directories
                  operator_out_dir=None,
                  input_operator=None,
+                 operator_in_dir=None,
                  # Airflow
                  task_id=None,
                  parallel_id=None,
@@ -144,6 +145,7 @@ class KaapanaBaseOperator(BaseOperator):
             task_id=task_id,
             operator_out_dir=operator_out_dir,
             input_operator=input_operator,
+            operator_in_dir=operator_in_dir,
             parallel_id=parallel_id,
             keep_parallel_id=keep_parallel_id,
             trigger_rule=trigger_rule,
@@ -241,9 +243,10 @@ class KaapanaBaseOperator(BaseOperator):
             "WORKFLOW_DIR": str(WORKFLOW_DIR),
             "BATCH_NAME": str(BATCH_NAME),
             "OPERATOR_OUT_DIR": str(self.operator_out_dir),
-            "OPERATOR_IN_DIR": str(self.operator_in_dir),
             "BATCHES_INPUT_DIR": "/{}/{}".format(WORKFLOW_DIR, BATCH_NAME)
         }
+        if hasattr(self, 'operator_in_dir'):
+            envs["OPERATOR_IN_DIR"] = str(self.operator_in_dir)
 
         if http_proxy is not None and http_proxy != "" and self.enable_proxy:
             envs.update(
@@ -404,6 +407,7 @@ class KaapanaBaseOperator(BaseOperator):
         task_id,
         operator_out_dir,
         input_operator,
+        operator_in_dir,
         parallel_id,
         keep_parallel_id,
         trigger_rule,
@@ -447,10 +451,12 @@ class KaapanaBaseOperator(BaseOperator):
         if obj.operator_out_dir is None:
             obj.operator_out_dir = obj.task_id
 
+        if input_operator is not None and operator_in_dir is not None:
+            raise NameError('You need to define either input_operator or operator_in_dir!')
         if input_operator is not None:
             obj.operator_in_dir = input_operator.operator_out_dir
-        else:
-            obj.operator_in_dir = INITIAL_INPUT_DIR
+        elif operator_in_dir is not None:
+            obj.operator_in_dir = operator_in_dir
 
         if obj.pool == None:
             if obj.gpu_mem_mb != None:

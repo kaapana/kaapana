@@ -6,7 +6,7 @@ import pydicom
 from shutil import copyfile
 from airflow.utils.dates import days_ago
 from kaapana.blueprints.kaapana_utils import generate_run_id
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, INITIAL_INPUT_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME
 from kaapana.operators.LocalDeleteFromElasticOperator import LocalDeleteFromElasticOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
@@ -59,7 +59,7 @@ def start_reindexing(ds, **kwargs):
         incoming_dcm = pydicom.dcmread(dcm_file)
         seriesUID = incoming_dcm.SeriesInstanceUID
 
-        target_dir = os.path.join(workflowdata_dir, dag_run_id, BATCH_NAME, "{}".format(seriesUID), INITIAL_INPUT_DIR)
+        target_dir = os.path.join(workflowdata_dir, dag_run_id, BATCH_NAME, "{}".format(seriesUID), 'extract-metadata-input')
         print(target_dir)
 
         if not os.path.exists(target_dir):
@@ -70,8 +70,8 @@ def start_reindexing(ds, **kwargs):
         trigger(dag_id=dag_id, run_id=dag_run_id, replace_microseconds=False)
 
 
-clean_elasticsearch = LocalDeleteFromElasticOperator(dag=dag, delete_all_documents=True)
-clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
+clean_elasticsearch = LocalDeleteFromElasticOperator(dag=dag, operator_in_dir='extract-metadata-input', delete_all_documents=True)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 reindex_pacs = PythonOperator(
     task_id='reindex-pacs',

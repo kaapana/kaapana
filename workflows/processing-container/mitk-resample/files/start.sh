@@ -41,6 +41,7 @@ do
     fi
 
     input_file_count=$(ls -lR $batch_input_dir/$extension_query | wc -l)
+    echo "# ls -lR $batch_input_dir/$extension_query | wc -l"
     echo "# Found $input_file_count input files."
 
     original_file_count=$(ls -lR $batch_original_img_dir/$extension_query | wc -l)
@@ -77,8 +78,8 @@ do
             ((++loop_counter))
         done
     else
-        echo "Wrong file-count for $batch_original_img_dir/$extension_query!"
-        echo "Expected 1 - got: $original_file_count";
+        echo "# Wrong file-count for $batch_original_img_dir/$extension_query!"
+        echo "# Expected 1 - got: $original_file_count";
         exit 1;
     fi
 
@@ -111,10 +112,10 @@ if [ -d "$batch_input_dir" ] || [ -d "$batch_original_img_dir" ]; then
         extension_query="*.nii.gz"
     fi
 
-    input_file_count=$(ls -lR $batch_original_img_dir/$extension_query | wc -l)
+    input_file_count=$(ls -lR $batch_input_dir/$extension_query | wc -l)
     echo "# Found $input_file_count input files."
     
-    original_file_count=$(ls -lR $batch_input_dir/$extension_query | wc -l)
+    original_file_count=$(ls -lR $batch_original_img_dir/$extension_query | wc -l)
 
 
     if [ "$original_file_count" -eq "1" ]; then

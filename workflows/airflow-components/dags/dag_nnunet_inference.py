@@ -248,4 +248,4 @@ check_seg = LocalSegCheckOperator(
 dcmseg_send_multi = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> get_task_model >> dcm2nifti >> nnunet_predict >> nrrd2dcmSeg_multi >> check_seg >> dcmseg_send_multi >> clean
+get_input >> get_task_model >> dcm2nifti >> nnunet_predict >> nrrd2dcmSeg_multi >> resample_seg >> check_seg >> dcmseg_send_multi >> clean

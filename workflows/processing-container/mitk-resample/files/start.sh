@@ -40,45 +40,46 @@ do
         extension_query="*.nii.gz"
     fi
 
-    input_file_count=$(ls -lR $batch_input_dir/$extension_query | wc -l)
     original_file_count=$(ls -lR $batch_original_img_dir/$extension_query | wc -l)
 
-    if [ "$input_file_count" -ne "1" ]; then
-        echo "Wrong file-count for $batch_input_dir/$extension_query!"
-        echo "Expected 1 - got: $input_file_count";
-        exit 1;
-    fi
+    if [ "$original_file_count" -eq "1" ]; then
 
-    if [ "$original_file_count" -ne "1" ]; then
+        shopt -s nullglob
+        for input_file in $batch_input_dir/$extension_query; do
+            echo "# "
+            echo "# processing input-file: $input_file"
+            echo "# "
+
+            original_file=$(ls $batch_original_img_dir/$extension_query)
+            output_filepath=${batch_output_dir}/$(basename -- "$input_file")
+            install -Dv / $output_filepath
+
+            echo "# "
+            echo "# input_file:    " $input_file
+            echo "# original_file: " $original_file
+            echo "# output_file:   " $output_filepath
+            echo "# "
+
+
+            echo "# Starting conversion...."
+            $EXECUTABLE -f "$original_file" -m "$input_file" -o "$output_filepath" --interpolator $INTERPOLATOR;
+            if [ $? -ne 0 ]; then
+                echo "# ERROR!"
+                echo "# $EXECUTABLE FAILED"
+                exit 1
+            fi
+            echo "# DONE"
+            [ ! -f "$output_filepath" ] && { echo "# Error: Converted file not found!."; exit 2; }
+            
+            ((++loop_counter))
+            
+    else
         echo "Wrong file-count for $batch_original_img_dir/$extension_query!"
         echo "Expected 1 - got: $original_file_count";
         exit 1;
     fi
 
-    input_file=$(ls $batch_input_dir/$extension_query)
-    original_file=$(ls $batch_original_img_dir/$extension_query)
-    output_filepath=${batch_output_dir}/$(basename -- "$input_file")
 
-    echo "# "
-    echo "# input_file:    " $input_file
-    echo "# original_file: " $original_file
-    echo "# output_file:   " $output_filepath
-    echo "# "
-
-    install -Dv / $output_filepath
-
-    echo "# Starting conversion...."
-    $EXECUTABLE -f "$original_file" -m "$input_file" -o "$output_filepath" --interpolator $INTERPOLATOR;
-    if [ $? -ne 0 ]; then
-        echo "# ERROR!"
-        echo "# $EXECUTABLE FAILED"
-        exit 1
-    fi
-    echo "# DONE"
-    [ ! -f "$output_filepath" ] && { echo "# Error: Converted file not found!."; exit 2; }
-    
-    ((++loop_counter))
-    
 done
 
 
@@ -107,34 +108,37 @@ if [ -d "$batch_input_dir" ] || [ -d "$batch_original_img_dir" ]; then
         extension_query="*.nii.gz"
     fi
 
-    input_file_count=$(ls -lR $batch_input_dir/$extension_query | wc -l)
     original_file_count=$(ls -lR $batch_original_img_dir/$extension_query | wc -l)
+    if [ "$original_file_count" -eq "1" ]; then
 
-    if [ "$original_file_count" -eq "1" ] && [ "$input_file_count" -eq "1" ]; then
+        shopt -s nullglob
+        for input_file in $batch_input_dir/$extension_query; do
+            echo "# "
+            echo "# processing input-file: $input_file"
+            echo "# "
 
-        input_file=$(ls $batch_input_dir/$extension_query)
-        original_file=$(ls $batch_original_img_dir/$extension_query)
-        output_filepath=${batch_output_dir}/$(basename -- "$input_file")
+            original_file=$(ls $batch_original_img_dir/$extension_query)
+            output_filepath=${batch_output_dir}/$(basename -- "$input_file")
+            install -Dv / $output_filepath
 
-        echo "# "
-        echo "# input_file:    " $input_file
-        echo "# original_file: " $original_file
-        echo "# output_file:   " $output_filepath
-        echo "# "
+            echo "# "
+            echo "# input_file:    " $input_file
+            echo "# original_file: " $original_file
+            echo "# output_file:   " $output_filepath
+            echo "# "
 
-        install -Dv / $output_filepath
 
-        echo "# Starting conversion...."
-        $EXECUTABLE -f "$original_file" -m "$input_file" -o "$output_filepath" --interpolator $INTERPOLATOR;
-        if [ $? -ne 0 ]; then
-            echo "# ERROR!"
-            echo "# $EXECUTABLE FAILED"
-            exit 1
-        fi
-        echo "# DONE"
-        [ ! -f "$output_filepath" ] && { echo "# Error: Converted file not found!."; exit 2; }
+            echo "# Starting conversion...."
+            $EXECUTABLE -f "$original_file" -m "$input_file" -o "$output_filepath" --interpolator $INTERPOLATOR;
+            if [ $? -ne 0 ]; then
+                echo "# ERROR!"
+                echo "# $EXECUTABLE FAILED"
+                exit 1
+            fi
+            echo "# DONE"
+            [ ! -f "$output_filepath" ] && { echo "# Error: Converted file not found!."; exit 2; }
 
-        ((++loop_counter))
+            ((++loop_counter))
     else
         echo "# ";
         echo "No valid files found on BATCH-LEVEL."

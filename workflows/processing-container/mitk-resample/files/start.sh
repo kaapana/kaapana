@@ -40,6 +40,9 @@ do
         extension_query="*.nii.gz"
     fi
 
+    input_file_count=$(ls -lR $batch_original_img_dir/$extension_query | wc -l)
+    echo "# Found $input_file_count input files."
+    
     original_file_count=$(ls -lR $batch_original_img_dir/$extension_query | wc -l)
 
     if [ "$original_file_count" -eq "1" ]; then
@@ -72,7 +75,7 @@ do
             [ ! -f "$output_filepath" ] && { echo "# Error: Converted file not found!."; exit 2; }
             
             ((++loop_counter))
-            
+        done
     else
         echo "Wrong file-count for $batch_original_img_dir/$extension_query!"
         echo "Expected 1 - got: $original_file_count";
@@ -108,7 +111,12 @@ if [ -d "$batch_input_dir" ] || [ -d "$batch_original_img_dir" ]; then
         extension_query="*.nii.gz"
     fi
 
-    original_file_count=$(ls -lR $batch_original_img_dir/$extension_query | wc -l)
+    input_file_count=$(ls -lR $batch_original_img_dir/$extension_query | wc -l)
+    echo "# Found $input_file_count input files."
+    
+    original_file_count=$(ls -lR $batch_input_dir/$extension_query | wc -l)
+
+
     if [ "$original_file_count" -eq "1" ]; then
 
         shopt -s nullglob
@@ -139,10 +147,10 @@ if [ -d "$batch_input_dir" ] || [ -d "$batch_original_img_dir" ]; then
             [ ! -f "$output_filepath" ] && { echo "# Error: Converted file not found!."; exit 2; }
 
             ((++loop_counter))
+        done
     else
         echo "# ";
         echo "No valid files found on BATCH-LEVEL."
-        echo "input_file_count:    $input_file_count";
         echo "original_file_count: $original_file_count";
         echo "# ";
     fi

@@ -55,8 +55,8 @@ do
         exit 1;
     fi
 
-    input_file=$(ls /$batch_input_dir/$extension_query)
-    original_file=$(ls /$batch_original_img_dir/$extension_query)
+    input_file=$(ls $batch_input_dir/$extension_query)
+    original_file=$(ls $batch_original_img_dir/$extension_query)
     output_filepath=${batch_output_dir}/$(basename -- "$input_file")
 
     echo "# "
@@ -98,53 +98,52 @@ echo "# BATCH ORIGINAL IMG: " $batch_original_img_dir
 echo "# BATCH OUTPUT DIR:   " $batch_output_dir
 echo "# "
 
-if [ ! -d "$batch_input_dir" ] || [ ! -d "$batch_original_img_dir" ]; then
-    echo "# One of the input dirs does not exists. " 
-    echo "# Skipping batch..."
-    continue
-fi
+if [ -d "$batch_input_dir" ] || [ -d "$batch_original_img_dir" ]; then
 
-# check if no dcm extension is set
-if [[ $FORMAT = *[!\ ]* ]]; then
-    extension_query="*.$FORMAT"
-else
-    extension_query="*.nii.gz"
-fi
-
-input_file_count=$(ls -lR $batch_input_dir/$extension_query | wc -l)
-original_file_count=$(ls -lR $batch_original_img_dir/$extension_query | wc -l)
-
-if [ "$original_file_count" -eq "1" ] && [ "$input_file_count" -eq "1" ]; then
-
-    input_file=$(ls /$batch_input_dir/$extension_query)
-    original_file=$(ls /$batch_original_img_dir/$extension_query)
-    output_filepath=${batch_output_dir}/$(basename -- "$input_file")
-
-    echo "# "
-    echo "# input_file:    " $input_file
-    echo "# original_file: " $original_file
-    echo "# output_file:   " $output_filepath
-    echo "# "
-
-    install -Dv / $output_filepath
-
-    echo "# Starting conversion...."
-    $EXECUTABLE -f "$original_file" -m "$input_file" -o "$output_filepath" --interpolator $INTERPOLATOR;
-    if [ $? -ne 0 ]; then
-        echo "# ERROR!"
-        echo "# $EXECUTABLE FAILED"
-        exit 1
+    # check if no dcm extension is set
+    if [[ $FORMAT = *[!\ ]* ]]; then
+        extension_query="*.$FORMAT"
+    else
+        extension_query="*.nii.gz"
     fi
-    echo "# DONE"
-    [ ! -f "$output_filepath" ] && { echo "# Error: Converted file not found!."; exit 2; }
 
-    ((++loop_counter))
+    input_file_count=$(ls -lR $batch_input_dir/$extension_query | wc -l)
+    original_file_count=$(ls -lR $batch_original_img_dir/$extension_query | wc -l)
+
+    if [ "$original_file_count" -eq "1" ] && [ "$input_file_count" -eq "1" ]; then
+
+        input_file=$(ls $batch_input_dir/$extension_query)
+        original_file=$(ls $batch_original_img_dir/$extension_query)
+        output_filepath=${batch_output_dir}/$(basename -- "$input_file")
+
+        echo "# "
+        echo "# input_file:    " $input_file
+        echo "# original_file: " $original_file
+        echo "# output_file:   " $output_filepath
+        echo "# "
+
+        install -Dv / $output_filepath
+
+        echo "# Starting conversion...."
+        $EXECUTABLE -f "$original_file" -m "$input_file" -o "$output_filepath" --interpolator $INTERPOLATOR;
+        if [ $? -ne 0 ]; then
+            echo "# ERROR!"
+            echo "# $EXECUTABLE FAILED"
+            exit 1
+        fi
+        echo "# DONE"
+        [ ! -f "$output_filepath" ] && { echo "# Error: Converted file not found!."; exit 2; }
+
+        ((++loop_counter))
+    else
+        echo "# ";
+        echo "No valid files found on BATCH-LEVEL."
+        echo "input_file_count:    $input_file_count";
+        echo "original_file_count: $original_file_count";
+        echo "# ";
+    fi
 else
-    echo "# ";
-    echo "No valid files found on BATCH-LEVEL."
-    echo "input_file_count:    $input_file_count";
-    echo "original_file_count: $original_file_count";
-    echo "# ";
+        echo "# Nothing found on BATCH-LEVEL..."
 fi
 
 if [[ "$loop_counter" -gt 0 ]] ; then

@@ -1,4 +1,5 @@
 import os
+import pathlib
 from datetime import timedelta
 
 from minio import Minio
@@ -58,7 +59,13 @@ class HelperMinio():
                 HelperMinio.apply_action_to_file(minioClient, action, bucket_name, object_name, file_path, file_white_tuples)
             
     @staticmethod
-    def apply_action_to_object_dirs(minioClient, action, bucket_name, local_root_dir, object_dirs=None, file_white_tuples=None):
+    def apply_action_to_object_dirs(minioClient,
+                                    action,
+                                    bucket_name,
+                                    local_root_dir,
+                                    object_dirs=None,
+                                    file_white_tuples=None,
+                                    split_level=None):
         object_dirs= object_dirs or []
         if action == 'put':
             if not object_dirs:
@@ -77,7 +84,13 @@ class HelperMinio():
                 for bucket_obj in minioClient.list_objects(bucket_name, recursive=True):
                     object_name = bucket_obj.object_name
                     file_path = os.path.join(local_root_dir, object_name)
-                    if not object_dirs or os.path.dirname(object_name) in object_dirs:
+                    path_object_name = pathlib.Path(object_name)
+                    # select folder level to look into
+                    if split_level and split_level > 0:
+                        path_object_dir = os.path.join(*path_object_name.parts[:split_level])
+                    else:
+                        path_object_dir = os.path.join(path_object_name.parent)
+                    if not object_dirs or path_object_dir in object_dirs:
                         HelperMinio.apply_action_to_file(minioClient, action, bucket_name, object_name, file_path, file_white_tuples)
             except NoSuchBucket as err:
                 print(f'Skipping since bucket {bucket_name} does not exist')

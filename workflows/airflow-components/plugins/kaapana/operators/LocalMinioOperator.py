@@ -119,7 +119,13 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
             else:
                 print(f'Applying action "{self.action}" to files in: {object_dirs}')
                 
-            HelperMinio.apply_action_to_object_dirs(minioClient, self.action, self.bucket_name, run_dir, object_dirs, self.file_white_tuples)
+            HelperMinio.apply_action_to_object_dirs(minioClient,
+                                                    self.action,
+                                                    self.bucket_name,
+                                                    run_dir,
+                                                    object_dirs,
+                                                    self.file_white_tuples,
+                                                    self.split_level)
         
         return
 
@@ -134,6 +140,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         minio_port='9000',
         file_white_tuples=None,
         zip_files=False,
+        split_level=None,
         *args, **kwargs
         ):
     
@@ -152,7 +159,8 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         self.minio_port = minio_port
         self.file_white_tuples = file_white_tuples
         self.zip_files = zip_files
-        
+        self.split_level = split_level
+
         super(LocalMinioOperator, self).__init__(
            dag,
            name=f'minio-actions-{action}',

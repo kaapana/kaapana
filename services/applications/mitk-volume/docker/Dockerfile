@@ -26,6 +26,8 @@ RUN git config --global url.https://github.com/.insteadOf git://github.com/
 # Build MITK superbuild and configure MITK build
 RUN cmake --build MITK-superbuild
 
+RUN cmake -S MITK -B MITK-superbuild/MITK-build \
+            -D MITK_BUILD_org.mitk.gui.qt.segmentation:Bool=ON 
 # Build MitkFileConverter app
 RUN cmake --build MITK-superbuild/MITK-build --target package 
 

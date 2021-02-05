@@ -40,9 +40,9 @@ do
         extension_query="*.nii.gz"
     fi
 
-    input_file_count=$(ls -lR $batch_original_img_dir/$extension_query | wc -l)
+    input_file_count=$(ls -lR $batch_input_dir/$extension_query | wc -l)
     echo "# Found $input_file_count input files."
-    
+
     original_file_count=$(ls -lR $batch_original_img_dir/$extension_query | wc -l)
 
     if [ "$original_file_count" -eq "1" ]; then
@@ -159,6 +159,7 @@ else
 fi
 
 if [[ "$loop_counter" -gt 0 ]] ; then
+    echo "# Processed $loop_counter files - ok";
     echo "# File-Resample done!";
     exit 0;
 else

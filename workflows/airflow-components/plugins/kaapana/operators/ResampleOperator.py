@@ -6,6 +6,7 @@ class ResampleOperator(KaapanaBaseOperator):
 
     def __init__(self,
                  dag,
+                 original_img_operator,
                  format="nii.gz",
                  interpolator=1,  # 0=linear (default), 1=nearest neighbor, 2=sinc (optional), (default: 0), Type: Int
                  env_vars=None,
@@ -18,6 +19,7 @@ class ResampleOperator(KaapanaBaseOperator):
 
         envs = {
             "FORMAT": format,
+            "ORG_IMG_IN_DIR": str(original_img_operator),
             "INTERPOLATOR": str(interpolator)
         }
 

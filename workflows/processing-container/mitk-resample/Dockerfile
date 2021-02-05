@@ -49,6 +49,7 @@ ENV FORMAT "nii.gz"
 ENV OPERATOR_OUT_DIR mitk-resample
 #0=linear (default), 1=nearest neighbor, 2=sinc (optional), (default: 0), Type: Int
 ENV INTERPOLATOR 1 
+ENV ORG_IMG_IN_DIR ""
 
 ENV EXECUTABLE /opt/MitkCLResampleImageToReference.sh
 

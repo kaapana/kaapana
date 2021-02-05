@@ -16,7 +16,7 @@ loop_counter=0
 for batch_dir in $BATCHES_INPUT_DIR/*
 do
     batch_input_dir=${batch_dir}/${OPERATOR_IN_DIR}
-    batch_original_img_dir=${batch_dir}/${OPERATOR_IN_DIR}
+    batch_original_img_dir=${batch_dir}/${ORG_IMG_IN_DIR}
     
     batch_output_dir=${batch_dir}/${OPERATOR_OUT_DIR}
     batch_name=$(basename -- "$batch_dir")
@@ -87,7 +87,7 @@ echo "# Starting BATCH-LEVEL ..."
 echo "# "
 
 batch_input_dir=${WORKFLOW_DIR}/${OPERATOR_IN_DIR}
-batch_original_img_dir=${WORKFLOW_DIR}/${OPERATOR_IN_DIR}
+batch_original_img_dir=${WORKFLOW_DIR}/${ORG_IMG_IN_DIR}
 
 batch_output_dir=${WORKFLOW_DIR}/${OPERATOR_OUT_DIR}
 batch_name=$(basename -- "$WORKFLOW_DIR")

@@ -177,7 +177,7 @@ get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
 dcm2nifti_seg = DcmSeg2ItkOperator(
     dag=dag,
     input_operator=get_ref_ct_series_from_seg,
-    output_type="nii.gz",
+    output_format="nii.gz",
     parallel_id='seg',
 )
 

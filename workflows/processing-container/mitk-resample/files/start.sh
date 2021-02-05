@@ -55,8 +55,8 @@ do
         exit 1;
     fi
 
-    input_file=$(ls $batch_input_dir/$extension_query)
-    original_file=$(ls $batch_original_img_dir/$extension_query)
+    input_file=$(ls /$batch_input_dir/$extension_query)
+    original_file=$(ls /$batch_original_img_dir/$extension_query)
     output_filepath=${batch_output_dir}/$(basename -- "$input_file")
 
     echo "# "
@@ -116,8 +116,8 @@ original_file_count=$(ls -lR $batch_original_img_dir/$extension_query | wc -l)
 
 if [ "$original_file_count" -eq "1" ] && [ "$input_file_count" -eq "1" ]; then
 
-    input_file=$(ls $batch_input_dir/$extension_query)
-    original_file=$(ls $batch_original_img_dir/$extension_query)
+    input_file=$(ls /$batch_input_dir/$extension_query)
+    original_file=$(ls /$batch_original_img_dir/$extension_query)
     output_filepath=${batch_output_dir}/$(basename -- "$input_file")
 
     echo "# "

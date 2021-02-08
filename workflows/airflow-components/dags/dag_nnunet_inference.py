@@ -229,6 +229,13 @@ resample_seg = ResampleOperator(
     operator_out_dir = nnunet_predict.operator_out_dir
 )
 
+check_seg = LocalSegCheckOperator(
+    dag=dag,
+    abort_on_error=True,
+    move_data=False,
+    input_operators=[nnunet_predict, dcm2nifti]
+)
+
 alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     dag=dag,
@@ -239,14 +246,8 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     alg_name=alg_name
 )
 
-check_seg = LocalSegCheckOperator(
-    dag=dag,
-    abort_on_error=True,
-    move_data=False,
-    input_operators=[nrrd2dcmSeg_multi, get_input]
-)
 
 dcmseg_send_multi = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> get_task_model >> dcm2nifti >> nnunet_predict >> nrrd2dcmSeg_multi >> resample_seg >> check_seg >> dcmseg_send_multi >> clean
+get_input >> get_task_model >> dcm2nifti >> nnunet_predict >> resample_seg >> check_seg >> nrrd2dcmSeg_multi >> dcmseg_send_multi >> clean

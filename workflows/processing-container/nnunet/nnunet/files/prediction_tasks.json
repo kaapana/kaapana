@@ -3,9 +3,9 @@
         "description": "Segmentation targets are edema, enhancing tumor and necrosis",
         "body_part": "head",
         "modalities": "MRI",
-        "protocols": "FLAIR;T1;T1-contrast-agent;T2",
+        "protocols": "FLAIR,T1,T1-contrast-agent,T2",
         "input_mode": "all",
-        "organs": "tumor-edema@brain;tumor-enhancing@brain;tumor-necrosis@brain",
+        "organs": "tumor-edema@brain,tumor-enhancing@brain,tumor-necrosis@brain",
         "link": "http://medicaldecathlon.com/"
     },
     "Task002_Heart": {
@@ -23,7 +23,7 @@
         "modalities": "CT",
         "protocols": "-",
         "input_mode": "all",
-        "organs": "liver;tumor@liver",
+        "organs": "liver,tumor@liver",
         "link": "http://medicaldecathlon.com/"
     },
     "Task004_Hippocampus": {
@@ -39,9 +39,9 @@
         "description": "Segmentation targets are peripheral and central zone",
         "body_part": "-",
         "modalities": "MRI",
-        "protocols": "T2;ADC",
+        "protocols": "T2,ADC",
         "input_mode": "all",
-        "organs": "peripheral@prostate;central-zone@prostate",
+        "organs": "peripheral@prostate,central-zone@prostate",
         "link": "http://medicaldecathlon.com/"
     },
     "Task006_Lung": {
@@ -59,7 +59,7 @@
         "modalities": "CT",
         "protocols": "-",
         "input_mode": "all",
-        "organs": "pancreas;tumor@pancreas",
+        "organs": "pancreas,tumor@pancreas",
         "link": "http://medicaldecathlon.com/"
     },
     "Task008_HepaticVessel": {
@@ -68,7 +68,7 @@
         "modalities": "CT",
         "protocols": "-",
         "input_mode": "all",
-        "organs": "vessels@liver;tumor@liver",
+        "organs": "vessels@liver,tumor@liver",
         "link": "http://medicaldecathlon.com/"
     },
     "Task009_Spleen": {
@@ -95,7 +95,7 @@
         "modalities": "CT",
         "protocols": "-",
         "input_mode": "all",
-        "organs": "spleen;right@kidney;left@kidney;gallbladder;esophagus;liver;stomach;aorta;inferior-vena-cava;portal-vein;splenic-vein;pancreas;right@adrenal-gland;left@adrenal-gland",
+        "organs": "spleen,right@kidney,left@kidney,gallbladder,esophagus,liver,stomach,aorta,inferior-vena-cava,portal-vein,splenic-vein,pancreas,right@adrenal-gland,left@adrenal-gland",
         "link": "www.synapse.org/#!Synapse:syn3193805/wiki/217754"
     },
     "Task024_Promise": {
@@ -113,7 +113,7 @@
         "modalities": "MRI",
         "protocols": "cine-MRI",
         "input_mode": "all",
-        "organs": "right-ventricle@heart;left-ventricular-cavity@heart;myocardium-left@heart",
+        "organs": "right-ventricle@heart,left-ventricular-cavity@heart,myocardium-left@heart",
         "link": "acdc.creatis.insa-lyon.fr"
     },
     "Task029_LITS": {
@@ -122,14 +122,14 @@
         "modalities": "CT",
         "protocols": "-",
         "input_mode": "all",
-        "organs": "liver;tumor@liver",
+        "organs": "liver,tumor@liver",
         "link": "competitions.codalab.org/competitions/17094"
     },
     "Task035_ISBILesionSegmentation": {
         "description": "Segmentation target is MS lesions",
         "body_part": "-",
         "modalities": "MRI",
-        "protocols": "FLAIR;MPRAGE;proton-density;T2",
+        "protocols": "FLAIR,MPRAGE,proton-density,T2",
         "input_mode": "all",
         "organs": "ms-lesions@brain",
         "link": "smart-stats-tools.org/lesion-challenge"
@@ -140,16 +140,16 @@
         "modalities": "CT",
         "protocols": "-",
         "input_mode": "any",
-        "organs": "kidney;tumors@kidney",
+        "organs": "kidney,tumors@kidney",
         "link": "https://kits19.grand-challenge.org/"
     },
     "Task038_CHAOS_Task_3_5_Variant2": {
         "description": "Segmentation targets are left and right kidney, liver, spleen",
         "body_part": "-",
         "modalities": "MRI",
-        "protocols": "T1 in-phase;T1 out-phase;T2",
+        "protocols": "T1 in-phase,T1 out-phase,T2",
         "input_mode": "any",
-        "organs": "kidney-left;kidney-right;liver;spleen",
+        "organs": "kidney-left,kidney-right,liver,spleen",
         "link": "chaos.grand-challenge.org"
     },
     "Task055_SegTHOR": {
@@ -158,7 +158,7 @@
         "modalities": "CT",
         "protocols": "-",
         "input_mode": "all",
-        "organs": "aorta;esophagus;heart;trachea",
+        "organs": "aorta,esophagus,heart,trachea",
         "link": "competitions.codalab.org/competitions/21145"
     },
     "Task061_CREMI": {

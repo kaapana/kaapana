@@ -44,6 +44,8 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
             else:
                 self.reject_series_icom_quality(study_uid=dcm_to_delete['study_uid'], series_uid=dcm_to_delete['series_uid'])
 
+            print("Waiting for the PACs to reorganize...")
+            time.sleep(self.wait_time)
             # self.delete_icom_quality_study_from_pacs(rejected_study_uid=dcm_to_delete['study_uid'])
             self.delete_all_icom_quality_studies_from_pacs()
             self.check_all_clean(study_uid=dcm_to_delete['study_uid'], series_uid=dcm_to_delete['series_uid'])
@@ -131,12 +133,14 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
                  pacs_host='dcm4chee-service.store.svc',
                  pacs_port=8080,
                  delete_complete_study=False,
+                 wait_time=5,
                  *args, **kwargs):
 
         self.pacs_host = pacs_host
         self.pacs_port = pacs_port
         self.pacs_dcmweb_endpoint = "http://{}:{}".format(pacs_host, pacs_port)
         self.delete_complete_study = delete_complete_study
+        self.wait_time = wait_time
 
         super().__init__(
             dag,

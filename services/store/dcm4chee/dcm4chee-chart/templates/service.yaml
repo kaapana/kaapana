@@ -9,7 +9,7 @@ metadata:
 spec:
   selector:
     app-name: dcm4chee
-{{ if .Values.global.dev_ports }}
+{{- if .Values.global.dev_ports }}
   type: NodePort
   ports:
   - name: dcm4che-http
@@ -37,7 +37,7 @@ spec:
     targetPort: 2575
     nodePort: 2575
     protocol: TCP
-{{ else }}
+{{- else }}
   type: ClusterIP
   ports:
   - name: dcm4che-http
@@ -60,7 +60,7 @@ spec:
     port: 2575
     targetPort: 2575
     protocol: TCP
-{{ end }}
+{{- end }}
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware

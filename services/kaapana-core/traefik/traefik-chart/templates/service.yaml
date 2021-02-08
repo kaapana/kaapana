@@ -4,7 +4,7 @@ metadata:
   name: traefik
   namespace: kube-system
 spec:
-{{ if .Values.global.traefik_nodeport }}
+{{- if .Values.global.traefik_nodeport }}
   type: NodePort
   ports:
     - name: tr-admin
@@ -19,8 +19,8 @@ spec:
       port: 443
       nodePort: 443
       protocol: TCP
-{{ else }}
-{{ if .Values.global.dev_ports }}
+{{- else }}
+{{- if .Values.global.dev_ports }}
   type: NodePort
   ports:
     - protocol: TCP
@@ -35,7 +35,7 @@ spec:
       port: 443
       nodePort: 8443
       name: traefik-https
-{{ else }}
+{{- else }}
   type: ClusterIP
   ports:
     - protocol: TCP
@@ -47,8 +47,8 @@ spec:
     - protocol: TCP
       port: 443
       name: traefik-https
-{{ end }}
-{{ end }}
+{{- end }}
+{{- end }}
   selector:
     app: traefik
 ---

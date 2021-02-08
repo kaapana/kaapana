@@ -9,7 +9,7 @@ metadata:
 spec:
   selector:
     app-name: elastic-meta
-{{ if .Values.global.dev_ports }}
+{{- if .Values.global.dev_ports }}
   type: NodePort
   ports:
   - name: elastic-rest
@@ -17,14 +17,14 @@ spec:
     targetPort: 9200
     nodePort: 9200
     protocol: TCP
-{{ else }}
+{{- else }}
   type: ClusterIP
   ports:
   - name: elastic-rest
     port: 9200
     targetPort: 9200
     protocol: TCP
-{{ end }}
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress

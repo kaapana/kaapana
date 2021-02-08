@@ -16,6 +16,8 @@ from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperato
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.ResampleOperator import ResampleOperator
+
 
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
@@ -178,7 +180,7 @@ get_input = LocalGetInputDataOperator(
 dcm2nifti_seg = DcmSeg2ItkOperator(
     dag=dag,
     input_operator=get_input,
-    output_type="nii.gz",
+    output_format="nii.gz",
     seg_filter=seg_filter,
     parallel_id='seg',
 )
@@ -190,13 +192,25 @@ get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     parallel_downloads=5,
     modality=None
 )
-dcm2nifti_ct = DcmConverterOperator(dag=dag, input_operator=get_ref_ct_series_from_seg, parallel_id='ct', output_format='nii.gz')
+dcm2nifti_ct = DcmConverterOperator(
+    dag=dag,
+    input_operator=get_ref_ct_series_from_seg,
+    parallel_id='ct',
+    output_format='nii.gz'
+)
+
+resample_seg = ResampleOperator(
+    dag=dag,
+    input_operator=dcm2nifti_seg,
+    original_img_operator=dcm2nifti_ct,
+    operator_out_dir=dcm2nifti_seg.operator_out_dir
+)
 
 check_seg = LocalSegCheckOperator(
     dag=dag,
-    move_data=True,
-    abort_on_error=False,
-    input_operators=[get_input, dcm2nifti_seg, get_ref_ct_series_from_seg, dcm2nifti_ct]
+    abort_on_error=True,
+    move_data=False,
+    input_operators=[dcm2nifti_seg, dcm2nifti_ct]
 )
 
 nnunet_preprocess = NnUnetOperator(
@@ -305,10 +319,10 @@ dcmseg_send = DcmSendOperator(
     input_operator=bin2dcm
 )
 
-clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> dcm2nifti_seg >> check_seg >> nnunet_preprocess
-get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess
+get_input >> dcm2nifti_seg >> resample_seg >> check_seg >> nnunet_preprocess
+get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> resample_seg >> check_seg >> nnunet_preprocess
 
 nnunet_preprocess >> nnunet_train_fold0 >> identify_best
 nnunet_preprocess >> nnunet_train_fold1 >> identify_best

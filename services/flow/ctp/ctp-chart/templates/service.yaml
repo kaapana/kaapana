@@ -9,7 +9,7 @@ metadata:
 spec:
   selector:
     app-name: ctp
-{{ if .Values.global.dicom_port }}
+{{- if .Values.global.dicom_port }}
   type: NodePort
   externalTrafficPolicy: Local
   ports:
@@ -21,7 +21,7 @@ spec:
     port: 11112
     nodePort: {{ .Values.global.dicom_port }}
     targetPort: 11112
-{{ else }}
+{{- else }}
   ports:
   - name: ctp-port
     port: 80
@@ -30,7 +30,7 @@ spec:
   - name: ctp-dcm-port
     port: 11112
     targetPort: 11112
-{{ end }}
+{{- end }}
   - name: ctp-http-port
     port: {{ .Values.global.dicom_web_port }}
     targetPort: 7777

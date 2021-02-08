@@ -1,12 +1,14 @@
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project, default_registry, default_project
 from datetime import timedelta
 
-class DcmSeg2ItkOperator(KaapanaBaseOperator):
+
+class ResampleOperator(KaapanaBaseOperator):
 
     def __init__(self,
                  dag,
-                 output_format=None,
-                 seg_filter=None,
+                 original_img_operator,
+                 format="nii.gz",
+                 interpolator=1,  # 0=linear (default), 1=nearest neighbor, 2=sinc (optional), (default: 0), Type: Int
                  env_vars=None,
                  execution_timeout=timedelta(minutes=90),
                  *args, **kwargs
@@ -16,20 +18,20 @@ class DcmSeg2ItkOperator(KaapanaBaseOperator):
             env_vars = {}
 
         envs = {
-            "OUTPUT_TYPE": output_format or 'nrrd',
-            "SEG_FILTER": seg_filter or '', # a bash list i.e.: 'liver,aorta'
-            "DCMQI_COMMAND": "segimage2itkimage",
+            "FORMAT": format,
+            "ORG_IMG_IN_DIR": str(original_img_operator.operator_out_dir),
+            "INTERPOLATOR": str(interpolator)
         }
 
         env_vars.update(envs)
 
         super().__init__(
             dag=dag,
-            image="{}{}/dcmqi:v1.2.2-fix-vdev".format(default_registry, default_project),
-            name="dcmseg2nrrd",
+            image="{}{}/mitk-resample:04.02.2021-vdev".format(default_registry, default_project),
+            name='mitk-resample',
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
-            ram_mem_mb=3000,
+            ram_mem_mb=2000,
             *args, **kwargs
-            )
+        )

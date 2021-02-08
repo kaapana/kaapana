@@ -212,9 +212,9 @@ resample_seg = ResampleOperator(
 
 check_seg = LocalSegCheckOperator(
     dag=dag,
-    abort_on_error=False,
-    move_data=True,
-    input_operators=[get_input, dcm2nifti_seg, get_ref_ct_series_from_seg, dcm2nifti_ct]
+    abort_on_error=True,
+    move_data=False,
+    input_operators=[dcm2nifti_seg, dcm2nifti_ct]
 )
 
 nnunet_preprocess = NnUnetOperator(

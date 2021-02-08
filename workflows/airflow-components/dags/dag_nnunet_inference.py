@@ -242,6 +242,7 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
 check_seg = LocalSegCheckOperator(
     dag=dag,
     abort_on_error=True,
+    move_data=False,
     input_operators=[nrrd2dcmSeg_multi, get_input]
 )
 

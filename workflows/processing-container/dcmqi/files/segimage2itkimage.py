@@ -9,6 +9,7 @@ import pydicom
 from datetime import datetime
 import subprocess
 
+processed_count = 0
 DCMQI = '/dcmqi/dcmqi-1.2.2-linux/bin/'
 
 output_type = os.environ.get('OUTPUT_TYPE', 'nrrd')
@@ -101,3 +102,26 @@ for batch_element_dir in batch_folders:
                 print(f"Filter: {seg_filter}")
                 print("Abort!")
                 exit(1)
+
+        processed_count += 1
+        
+print("#")
+print("#")
+print("#")
+print("#")
+print(f"# Processed file_count: {processed_count}")
+print("#")
+print("#")
+if processed_count == 0:
+    print("#")
+    print("##################################################")
+    print("#")
+    print("#################  ERROR  #######################")
+    print("#")
+    print("# ----> NO FILES HAVE BEEN PROCESSED!")
+    print("#")
+    print("##################################################")
+    print("#")
+    exit(1)
+else:
+    print("# DONE #")

@@ -11,6 +11,7 @@ from matplotlib import cm
 import subprocess
 import pydicom
 
+processed_count = 0
 
 def process_seg_info(seg_info, series_description):
     split_seg_info = seg_info.split('@')
@@ -268,6 +269,7 @@ for batch_element_dir in batch_folders:
                     raise AssertionError(f'Something weng wrong while creating the single-label-dcm object {e.output}')
 
             adding_aetitle(element_input_dir, output_dcm_file, seg_infos=[single_label_seg_info])
+            processed_count += 1
 
     elif input_type == 'multi_label_seg':
         print("input_type == 'multi_label_seg'")
@@ -340,5 +342,26 @@ for batch_element_dir in batch_folders:
                 raise AssertionError(f'Something weng wrong while creating the multi-label-dcm object {e.output}')
 
         adding_aetitle(element_input_dir, output_dcm_file, seg_infos=data['seg_info'])
-    print("End of script.")
-    print("DONE")
+        processed_count += 1
+
+
+print("#")
+print("#")
+print("#")
+print("#")
+print(f"# Processed file_count: {processed_count}")
+print("#")
+print("#")
+if processed_count == 0:
+    print("#")
+    print("##################################################")
+    print("#")
+    print("#################  ERROR  #######################")
+    print("#")
+    print("# ----> NO FILES HAVE BEEN PROCESSED!")
+    print("#")
+    print("##################################################")
+    print("#")
+    exit(1)
+else:
+    print("# DONE #")

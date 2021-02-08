@@ -7,7 +7,7 @@ from dicomweb_client.api import DICOMwebClient
 from multiprocessing.pool import ThreadPool
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INITIAL_INPUT_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
 class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):

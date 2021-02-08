@@ -14,7 +14,7 @@ import errno
 import time
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INITIAL_INPUT_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
 class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
@@ -31,7 +31,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         if self.dicom_operator is not None:
             self.rel_dicom_dir = self.dicom_operator.operator_out_dir
         else:
-            self.rel_dicom_dir = INITIAL_INPUT_DIR
+            self.rel_dicom_dir = self.operator_in_dir
 
         self.run_id = kwargs['dag_run'].run_id
         print(("RUN_ID: %s" % self.run_id))

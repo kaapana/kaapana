@@ -2,7 +2,7 @@
 import os
 import glob
 import functools
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INITIAL_INPUT_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperMinio import HelperMinio
 
 def cache_action(cache_operator_dirs, action, dag_run_dir):

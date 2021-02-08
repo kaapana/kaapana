@@ -2,7 +2,7 @@ import glob, os, shutil
 from pathlib import Path
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INITIAL_INPUT_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from airflow.api.common.experimental.trigger_dag import trigger_dag as trigger
 
 class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
@@ -13,7 +13,7 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
         if path_list:
                 dag_run_id = generate_run_id(self.trigger_dag_id)
                 series_uid = kwargs['dag_run'].conf.get('seriesInstanceUID')
-                target = os.path.join("/data", dag_run_id, "batch", series_uid, "initial-input")
+                target = os.path.join("/data", dag_run_id, "batch", series_uid, self.operator_in_dir)
 
                 if not os.path.exists(target):
                     os.makedirs(target)

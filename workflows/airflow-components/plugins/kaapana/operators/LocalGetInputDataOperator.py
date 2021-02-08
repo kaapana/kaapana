@@ -4,7 +4,7 @@ import os
 import json
 from datetime import timedelta
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INITIAL_INPUT_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.HelperElasticsearch import HelperElasticsearch
 from multiprocessing.pool import ThreadPool

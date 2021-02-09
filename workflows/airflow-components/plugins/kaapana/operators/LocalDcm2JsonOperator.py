@@ -507,11 +507,10 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         # for multiple data elements. The string shall not have Control Characters except ESC.
                         new_key = new_key+"_keyword"
                         new_meta_data[new_key] = str(value_str)
-                    
+
                     elif vr == "UC":
                         new_key = new_key+"_keyword"
                         new_meta_data[new_key] = str(value_str)
-                    
 
                     elif vr == "SL":
                         # Signed Long
@@ -752,41 +751,46 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         if "0008002A AcquisitionDateTime_datetime" in new_meta_data:
             time_tag_used = "AcquisitionDateTime_datetime"
             date_time_formatted = new_meta_data["0008002A AcquisitionDateTime_datetime"]
-
-        elif "00080032 AcquisitionTime_time" in new_meta_data and "00080022 AcquisitionDate_date" in new_meta_data:
-            time_tag_used = "AcquisitionDate & AcquisitionTime"
-            AcquisitionTime = new_meta_data["00080032 AcquisitionTime_time"]
-            AcquisitionDate = new_meta_data["00080022 AcquisitionDate_date"]
-            date_time_string = AcquisitionDate+" "+AcquisitionTime
-            date_time_formatted = parser.parse(
-                date_time_string).strftime(self.format_date_time)
-
-        elif "00080031 SeriesTime_time" in new_meta_data and "00080021 SeriesDate_date" in new_meta_data:
-            time_tag_used = "SeriesTime & SeriesDate"
-            SeriesTime = new_meta_data["00080031 SeriesTime_time"]
-            SeriesDate = new_meta_data["00080021 SeriesDate_date"]
-
-            date_time_string = SeriesDate+" "+SeriesTime
-            date_time_formatted = parser.parse(
-                date_time_string).strftime(self.format_date_time)
-
-        elif "00080030 StudyTime_time" in new_meta_data and "00080020 StudyDate_date" in new_meta_data:
-            time_tag_used = "StudyDate & StudyTime"
-            StudyDate = new_meta_data["00080020 StudyDate_date"]
-            StudyTime = new_meta_data["00080030 StudyTime_time"]
-
-            date_time_string = StudyDate+" "+StudyTime
-            date_time_formatted = parser.parse(
-                date_time_string).strftime(self.format_date_time)
-
         else:
-            time_tag_used = "NONE"
-            print("###################################################################                NO AcquisitionTime!")
-            if self.exit_on_error:
-                exit(1)
-            date_time_string = "1999-09-09 09:09:09.000000"
+            time_tag_used = ""
+            extracted_date = None
+            extracted_time = None
+            if "00080022 AcquisitionDate_date" in new_meta_data:
+                time_tag_used = "AcquisitionDate"
+                extracted_date = new_meta_data["00080022 AcquisitionDate_date"]
+            elif "00080021 SeriesDate_date" in new_meta_data:
+                time_tag_used = "SeriesDate"
+                extracted_date = new_meta_data["00080021 SeriesDate_date"]
+            elif "00080020 StudyDate_date" in new_meta_data:
+                time_tag_used = "StudyDate"
+                extracted_date = new_meta_data["00080020 StudyDate_date"]
+
+            if "00080032 AcquisitionTime_time" in new_meta_data:
+                time_tag_used +=" + AcquisitionTime"
+                extracted_time = new_meta_data["00080032 AcquisitionTime_time"]
+        
+            elif "00080031 SeriesTime_time" in new_meta_data:
+                time_tag_used +=" + AcquisitionTime"
+                extracted_time = new_meta_data["00080031 SeriesTime_time"]
+        
+            elif "00080030 StudyTime_time" in new_meta_data:
+                time_tag_used +=" + AcquisitionTime"
+                extracted_time = new_meta_data["00080030 StudyTime_time"]
+            
+            if extracted_date == None:
+                print("###########################        NO AcquisitionDate! -> set to today")
+                time_tag_used +="not found -> arriving date"
+                extracted_date = datetime.now().strftime(self.format_date)
+
+            if extracted_time == None:
+                print("###########################        NO AcquisitionTime! -> set to now")
+                time_tag_used +=" + not found -> arriving time"
+                extracted_time = datetime.now().strftime(self.format_time)
+
+            date_time_string = extracted_date+" "+extracted_time
             date_time_formatted = parser.parse(date_time_string).strftime(self.format_date_time)
 
+        
         date_time_formatted = self.convert_time_to_utc(date_time_formatted, self.format_date_time)
         new_meta_data["timestamp"] = date_time_formatted
 

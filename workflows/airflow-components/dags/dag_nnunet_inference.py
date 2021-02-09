@@ -28,7 +28,6 @@ with open(tasks_json_path) as f:
 available_tasks = [*{k: v for (k, v) in tasks.items() if "supported" in tasks[k] and tasks[k]["supported"]}]
 models_available = [basename(normpath(f.path)) for f in os.scandir(models_path) if f.is_dir() and "ensembles" not in f.name ]
 
-print("################### Start")
 for model in models_available:
     model_path = join(models_path, model)
     task_dirs = [basename(normpath(f.path)) for f in os.scandir(model_path) if f.is_dir()]

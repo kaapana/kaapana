@@ -22,6 +22,7 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperCaching import cache_operator_output
 
+
 class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
     @cache_operator_output
@@ -506,6 +507,11 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         # for multiple data elements. The string shall not have Control Characters except ESC.
                         new_key = new_key+"_keyword"
                         new_meta_data[new_key] = str(value_str)
+                    
+                    elif vr == "UC":
+                        new_key = new_key+"_keyword"
+                        new_meta_data[new_key] = str(value_str)
+                    
 
                     elif vr == "SL":
                         # Signed Long
@@ -658,13 +664,24 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         new_meta_data[new_key] = (value_str)
 
                     else:
-                        dt = parser.parse(value_str)
-                        date_output = dt.isoformat(' ')
+                        print(f"################ VR in ELSE!: {vr}")
+                        print(f"DICOM META: {dicom_meta[key]}")
+                        new_key = new_key+"_keyword"
+                        new_meta_data[new_key] = (value_str)
 
                 except Exception as e:
+                    logging.error("#")
+                    logging.error("#")
+                    logging.error("#")
+                    logging.error("################################### EXCEPTION #######################################")
+                    logging.error("#")
+                    logging.error(f"DICOM META: {dicom_meta[key]}")
                     logging.error(traceback.format_exc())
-                    print(value_str)
-                    print(e)
+                    logging.error(value_str)
+                    logging.error(e)
+                    logging.error("#")
+                    logging.error("#")
+                    logging.error("#")
                     exit(1)
 
             else:
@@ -840,5 +857,6 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             dag,
             name="dcm2json",
             python_callable=self.start,
+            ram_mem_mb=10,
             *args, **kwargs
         )

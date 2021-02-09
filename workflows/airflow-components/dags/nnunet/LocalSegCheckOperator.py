@@ -24,8 +24,12 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
         x, y, z = img.shape
 
         if check_labels and np.max(img.get_fdata()) == 0:
-            print("Could not find any label in {}!".format(nifti_path))
-            print("ABORT")
+            print("# ")
+            print("# ")
+            print("# Could not find any label in {}!".format(nifti_path))
+            print("# ABORT")
+            print("# ")
+            print("# ")
             return [input_dir]
 
         return [input_dir, [x, y, z]]
@@ -49,13 +53,13 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
         elif not hasattr(data, 'NumberOfFrames'):
             numberOfFrames = len(next(os.walk(os.path.dirname(dcm_path)))[2])
         else:
-            print("")
-            print("")
-            print("Could not extract DICOM dimensions!")
-            print(f"File: {dcm_path}")
-            print(f"Dimensions: {data.shape}")
-            print("")
-            print("")
+            print("# ")
+            print("# ")
+            print("# Could not extract DICOM dimensions!")
+            print(f"# File: {dcm_path}")
+            print(f"# Dimensions: {data.shape}")
+            print("# ")
+            print("# ")
             return [input_dir]
 
         x, y, z = rows, columns, numberOfFrames
@@ -63,23 +67,23 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
         return [input_dir, [x, y, z]]
 
     def start(self, ds, **kwargs):
-        print("Check files started...")
+        print("# Check files started...")
 
         run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
         batch_folders = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
 
-        print("Found {} batches".format(len(batch_folders)))
+        print("# Found {} batches".format(len(batch_folders)))
 
         input_dirs = [dir.operator_out_dir for dir in self.input_operators]
 
-        print(f"Processing input dirs: {input_dirs}")
+        print(f"# Processing input dirs: {input_dirs}")
 
         for batch_element_dir in batch_folders:
-            print("")
+            print("# ")
             print("##############################################################################################################")
-            print("")
-            print(f"Testing: {batch_element_dir.split('/')[-1]}")
-            print("")
+            print("# ")
+            print(f"# Testing: {batch_element_dir.split('/')[-1]}")
+            print("# ")
             dimensions_list = []
             input_dirs_complete = [os.path.join(batch_element_dir, dir) for dir in input_dirs]
 
@@ -100,9 +104,9 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
                         dimensions_list.append(nifti_result[1])
                     else:
                         dimensions_list.append(None)
-                        print("")
-                        print(f"Could not extract dimensions: {nifti_check_list[0]}")
-                        print("")
+                        print("# ")
+                        print(f"# Could not extract dimensions: {nifti_check_list[0]}")
+                        print("# ")
 
             last_dimension = None
             error = False
@@ -116,10 +120,10 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
                 if last_dimension != None:
                     if dimension != last_dimension:
                         error = True
-                        print("")
+                        print("# ")
                         print(f"{input_dirs[i-1]} vs {input_dirs[i]}: {last_dimension} <-> {dimension}: ERROR")
-                        print("ERROR: Dimensions are different!!!")
-                        print("")
+                        print("# ERROR: Dimensions are different!!!")
+                        print("# ")
                     else:
                         print(f"{input_dirs[i-1]} vs {input_dirs[i]}: {last_dimension} <-> {dimension}: OK")
 
@@ -128,27 +132,27 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
             if error:
                 if self.move_data:
                     target_dir = batch_element_dir.replace(BATCH_NAME, "dimension_issue")
-                    print("")
-                    print("Moving batch-data:")
+                    print("# ")
+                    print("# Moving batch-data:")
                     print(f"{batch_element_dir} -> {target_dir}")
-                    print("")
+                    print("# ")
                     shutil.move(batch_element_dir, target_dir)
-                elif self.abort_on_error:
+                if self.abort_on_error:
                     exit(1)
 
-        print("")
+        print("# ")
 
     def __init__(self,
                  dag,
                  input_operators,
-                 abort_on_error=False,
-                 move_data=True,
+                 move_data=False,
+                 abort_on_error=True,
                  parallel_checks=3,
                  *args,
                  **kwargs):
 
         self.abort_on_error = abort_on_error
-        self.move_data = True
+        self.move_data = move_data
         self.input_operators = input_operators
         self.parallel_checks = parallel_checks
 

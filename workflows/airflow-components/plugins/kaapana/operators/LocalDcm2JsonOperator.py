@@ -761,12 +761,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             elif "00080021 SeriesDate_date" in new_meta_data:
                 time_tag_used = "SeriesDate"
                 extracted_date = new_meta_data["00080021 SeriesDate_date"]
-            elif "00080020 StudyDate_date" in new_meta_data:
-                time_tag_used = "StudyDate"
-                extracted_date = new_meta_data["00080020 StudyDate_date"]
             elif "00080023 ContentDate_date" in new_meta_data:
                 time_tag_used = "ContentDate"
                 extracted_date = new_meta_data["00080023 ContentDate_date"]
+            elif "00080020 StudyDate_date" in new_meta_data:
+                time_tag_used = "StudyDate"
+                extracted_date = new_meta_data["00080020 StudyDate_date"]
 
             if "00080032 AcquisitionTime_time" in new_meta_data:
                 time_tag_used +=" + AcquisitionTime"
@@ -774,12 +774,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             elif "00080031 SeriesTime_time" in new_meta_data:
                 time_tag_used +=" + SeriesTime"
                 extracted_time = new_meta_data["00080031 SeriesTime_time"]
-            elif "00080030 StudyTime_time" in new_meta_data:
-                time_tag_used +=" + StudyTime"
-                extracted_time = new_meta_data["00080030 StudyTime_time"]
             elif "00080033 ContentTime_time" in new_meta_data:
                 time_tag_used +=" + ContentTime"
                 extracted_time = new_meta_data["00080033 ContentTime_time"]
+            elif "00080030 StudyTime_time" in new_meta_data:
+                time_tag_used +=" + StudyTime"
+                extracted_time = new_meta_data["00080030 StudyTime_time"]
             
             if extracted_date == None:
                 print("###########################        NO AcquisitionDate! -> set to today")

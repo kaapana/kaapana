@@ -6,6 +6,9 @@ import shutil
 from pathlib import Path
 import random
 import pydicom
+import nibabel as nib
+import numpy as np
+from collections import OrderedDict
 
 task_name = os.getenv("TASK", "")
 licence = os.getenv("LICENCE", "NA")
@@ -22,24 +25,58 @@ tensor_size = os.getenv("TENSOR_SIZE", "3D")
 modality = os.getenv("MODALITY", "")
 labels = os.getenv("LABELS", "")
 
+use_nifti_labels= True if os.getenv("PREP_USE_NIFITI_LABELS", "False").lower() == "true" else False
 
 def extract_labels(nifti_seg_dirs):
-    print(f"Extract labels from: {nifti_seg_dirs}")
-    count = 1
+    print(f"# Extract labels from: {nifti_seg_dirs}")
+    count = 0
     labels = {
-        "0": "background",
+        "0": "Clear Label",
     }
     for nifti_seg_dir in nifti_seg_dirs:
         seg_niftis = glob.glob(os.path.join(nifti_seg_dir, "*.nii.gz"), recursive=True)
         for seg_nifti in seg_niftis:
-            labels[f"{count}"] = seg_nifti.split("_")[-1].split(".")[0]
-            count += 1
 
-    print("Extracted labels:")
+            if use_nifti_labels:
+                print("# Using NIFTI labels...")
+                nifti_labels = [int(i) for i in np.unique(nib.load(seg_nifti).get_fdata())]
+                if 0 in nifti_labels:
+                    nifti_labels.remove(0)
+                else:
+                    print("#")
+                    print(f"# Couldn't find a 'Clear Label' 0 in NIFTI: {seg_nifti}")
+                    print("#")
+                    exit(1)
+
+                if len(nifti_labels) != 1:
+                    print("#")
+                    print(f"# More than one label found in NIFTI: {seg_nifti}")
+                    print(f"# Single label segmentation NIFTIs expected -> error")
+                    print("# ")
+                    exit(1)
+                count = nifti_labels[0]
+            else:
+                count += 1
+                print(f"# Generating label-count: {count}")
+
+            dict_key = f"{count}"
+            if dict_key not in labels:
+                labels[dict_key] = seg_nifti.split("_")[-1].split(".")[0]
+                
+            else:
+                print("#")
+                print(f"# Label {dict_key} already found in labels.")
+                print(json.dumps(labels, indent=4, sort_keys=True))
+                print(f"# Label repetition -> error !")
+                print("#")
+                exit(1)
+
+    print("# Extracted labels:")
+    labels = OrderedDict(sorted(labels.items(), key=lambda t: t[0]))
     print(json.dumps(labels, indent=4, sort_keys=True))
-    print("")
+    print("#")
     if len(labels) == 1:
-        print(f"No labels could be extracted!")
+        print(f"# No labels could be extracted!")
         exit(1)
     return labels
 

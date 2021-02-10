@@ -43,8 +43,8 @@ if [ "$MODE" = "preprocess" ]; then
     echo "# PREP_TL" $PREP_TL
     echo "# PREP_TF" $PREP_TF
     echo "#"
-    echo "# NIFTI_DIRS: $INPUT_NIFTI_DIRS";
-    echo "# LABEL_DIR: $PREP_LABEL_DIR";
+    echo "# NIFTI_DIRS: $INPUT_MODALITY_DIRS";
+    echo "# LABEL_DIR: $PREP_LABEL_DIRS";
     echo "# MODALITIES: $PREP_MODALITIES";
     echo "#"
     echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base";
@@ -151,7 +151,7 @@ elif [ "$MODE" = "inference" ]; then
     echo "# THREADS_NIFTI: $INF_THREADS_NIFTI";
     echo "# PREPARATION:   $INF_PREPARATION";
     echo "#"
-    echo "# INPUT_NIFTI_DIRS: $INPUT_NIFTI_DIRS";
+    echo "# INPUT_MODALITY_DIRS: $INPUT_MODALITY_DIRS";
     echo "#"
     echo "# WORKFLOW_DIR:     $WORKFLOW_DIR"
     echo "# OPERATOR_OUT_DIR: $OPERATOR_OUT_DIR"

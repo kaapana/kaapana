@@ -19,7 +19,7 @@ if __name__ == "__main__":
     print("Starting nnUNet data preparation...")
 
     task = os.getenv("TASK", None)
-    input_dirs = os.getenv("INPUT_NIFTI_DIRS", "").split(",")
+    input_dirs = os.getenv("INPUT_MODALITY_DIRS", "").split(",")
     operator_output_dir = os.getenv("OPERATOR_OUT_DIR", None)
 
     if operator_output_dir == None:
@@ -58,9 +58,20 @@ if __name__ == "__main__":
         for input_nfiti in input_dirs:
             nifti_dir = os.path.join(batch_element_dir, input_nfiti)
             nifti_files = sorted(glob.glob(os.path.join(nifti_dir, "*.nii*"), recursive=True))
+            nifti_count = len(nifti_files)
 
             print("NIFTI_DIR: {}".format(nifti_dir))
-            print("NIFTI_COUNT: {}".format(len(nifti_files)))
+            print("NIFTI_COUNT: {}".format(nifti_count))
+
+            if nifti_count == 0:
+                print("#")
+                print("#")
+                print("# No NIFTI found!")
+                print("# Abort!")
+                print("#")
+                print("#")
+                exit(1)
+
 
             for nifti_file in nifti_files:
                 file_name = os.path.basename(nifti_file).split(".nii.gz")[0]

@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+appVersion: "0.1.10-vdev"
+description: Openmined Airflow Dags
+name: openmined-workflow-vdev
+version: "0.1.0-vdev"
+keywords:
+- kaapanaworkflow
+- kaapanaexperimental

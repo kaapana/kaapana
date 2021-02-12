@@ -1,0 +1,5 @@
+---
+dependencies:
+  - name: dag-installer
+    version: "0.1.0-vdev"
+    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public

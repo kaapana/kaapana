@@ -289,17 +289,16 @@ nnunet_train_fold4 = NnUnetOperator(
 identify_best = NnUnetOperator(
     dag=dag,
     mode="identify-best",
-    input_operator=nnunet_preprocess,
+    input_operator=nnunet_train_fold4,
     train_network=train_network,
     train_network_trainer=train_network_trainer,
     retries=0
 )
 
-
 nnunet_export = NnUnetOperator(
     dag=dag,
     mode="zip-model",
-    input_operator=nnunet_preprocess,
+    input_operator=identify_best,
     train_network=train_network,
     train_network_trainer=train_network_trainer,
     retries=0

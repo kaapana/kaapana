@@ -108,6 +108,7 @@ class KaapanaBaseOperator(BaseOperator):
                  execution_timeout=timedelta(minutes=90),
                  task_concurrency=None,
                  manage_cache=None,
+                 delete_input_on_success=False,
                  # Other stuff
                  cmds=None,
                  arguments=None,
@@ -157,7 +158,8 @@ class KaapanaBaseOperator(BaseOperator):
             cpu_millicores_lmt=cpu_millicores_lmt,
             gpu_mem_mb=gpu_mem_mb,
             gpu_mem_mb_lmt=gpu_mem_mb_lmt,
-            manage_cache=manage_cache
+            manage_cache=manage_cache,
+            delete_input_on_success=delete_input_on_success
         )
 
         # Airflow
@@ -371,7 +373,17 @@ class KaapanaBaseOperator(BaseOperator):
 
     @staticmethod
     def on_success(info_dict):
-        pass
+        print("##################################################### on_success!")
+        ti = info_dict["ti"].task
+        if ti.delete_input_on_success:
+            print("#### deleting input-dirs...!")
+            batch_folders = [f for f in glob.glob(os.path.join(data_dir,'batch', '*'))]
+            for batch_element_dir in batch_folders:
+                element_input_dir = os.path.join(batch_element_dir, ti.operator_in_dir)
+                shutil.rmtree(element_input_dir, ignore_errors=True)
+
+            batch_input_dir = os.path.join(data_dir, ti.operator_in_dir)
+            shutil.rmtree(batch_input_dir, ignore_errors=True)
 
     @staticmethod
     def on_retry(info_dict):
@@ -419,7 +431,8 @@ class KaapanaBaseOperator(BaseOperator):
         cpu_millicores_lmt,
         gpu_mem_mb,
         gpu_mem_mb_lmt,
-        manage_cache
+        manage_cache,
+        delete_input_on_success
     ):
 
         obj.name = name
@@ -438,6 +451,7 @@ class KaapanaBaseOperator(BaseOperator):
         obj.gpu_mem_mb = gpu_mem_mb
         obj.gpu_mem_mb_lmt = gpu_mem_mb_lmt
         obj.manage_cache = manage_cache or 'ignore'
+        obj.delete_input_on_success = delete_input_on_success
 
         if obj.task_id is None:
             obj.task_id = obj.name

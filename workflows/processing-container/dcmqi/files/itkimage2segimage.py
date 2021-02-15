@@ -101,7 +101,7 @@ def adding_aetitle(element_input_dir, output_dcm_file, seg_infos):
 
 
 print("Started: 'itkimage2segimage' ")
-DCMQI = '/dcmqi/dcmqi-1.2.2-linux/bin/'
+DCMQI = '/dcmqi/dcmqi-1.2.3-linux/bin/'
 
 
 # os.environ['BATCH_NAME'] = 'batch'
@@ -211,7 +211,7 @@ for batch_element_dir in batch_folders:
 
         segment_attributes = []
         for idx, seg_filepath in enumerate(segmentation_paths):
-            print("process idx: {} - {}".format(idx, seg_filepath))
+            print(f"process idx: {idx} - {seg_filepath}")
 
             seg_filename = os.path.basename(seg_filepath)
             m = re.compile(r'(.*?)(\.nii.gz|\.nii|\.nrrd)').search(seg_filename)
@@ -293,7 +293,8 @@ for batch_element_dir in batch_folders:
         colors = [np.round(np.array(cm.get_cmap('gist_ncar', label_counts)(idx)[:3])*255).astype(int).tolist() for idx in range(label_counts)]
         random.shuffle(colors)
         for idx, single_label_seg_info in enumerate(data['seg_info']):
-            print("process idx: {} - {}".format(idx, single_label_seg_info))
+            print(f"process: {single_label_seg_info}: {idx}")
+
             code_meaning, segmentation_information["SeriesDescription"] = process_seg_info(single_label_seg_info, series_description)
             segment_attribute = create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, colors[idx], labelID=idx+1)
             segment_attributes[0].append(segment_attribute)

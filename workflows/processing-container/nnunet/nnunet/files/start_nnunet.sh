@@ -98,13 +98,10 @@ elif [ "$MODE" = "training" ]; then
     echo "# TRAIN_CONTINUE:       $TRAIN_CONTINUE"
     echo "# TRAIN_NPZ:            $TRAIN_NPZ"
     echo "#"
-
-    echo "# Writing model_info.json ...:";
-    python3 -u /src/write_model_info.py $RESULTS_FOLDER
     
     if ! [ -z "${TENSORBOARD_DIR}" ]; then
         echo "# Starting monitoring:";
-        python3 -u /src/monitoring.py $RESULTS_FOLDER $TRAIN_FOLD $TENSORBOARD_DIR &
+        python3 -u /src/monitoring.py $RESULTS_FOLDER $TRAIN_FOLD $TENSORBOARD_DIR $nnUNet_raw_data_base &
         echo "#"
     fi
     
@@ -221,8 +218,9 @@ elif [ "$MODE" = "inference" ]; then
 elif [ "$MODE" = "identify-best" ]; then
     export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
     export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
-    export RESULTS_FOLDER="$nnUNet_raw_data_base/results"
-    
+    export RESULTS_FOLDER="/$WORKFLOW_DIR/$OPERATOR_IN_DIR/results"
+    # export RESULTS_FOLDER="$nnUNet_raw_data_base/results"
+
     echo "#"
     echo "# Starting identify-best..."
     echo "#"

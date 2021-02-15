@@ -109,16 +109,16 @@ class HelmChart:
 
             self.chart_id = "{}/{}:{}".format(self.repo, self.name, self.version)
 
-            print("")
-            print("Adding new chart:")
-            print("name: {}".format(self.name))
-            print("version: {}".format(self.version))
-            print("repo: {}".format(self.repo))
-            print("chart_id: {}".format(self.chart_id))
-            print("dev: {}".format(self.dev))
-            print("nested: {}".format(self.nested))
-            print("file: {}".format(self.chartfile))
-            print("")
+            # print("")
+            # print("Adding new chart:")
+            # print("name: {}".format(self.name))
+            # print("version: {}".format(self.version))
+            # print("repo: {}".format(self.repo))
+            # print("chart_id: {}".format(self.chart_id))
+            # print("dev: {}".format(self.dev))
+            # print("nested: {}".format(self.nested))
+            # print("file: {}".format(self.chartfile))
+            # print("")
 
             if self.repo not in HelmChart.repos_needed:
                 HelmChart.repos_needed.append(self.repo)

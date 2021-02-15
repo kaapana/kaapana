@@ -187,6 +187,7 @@ dcm2nifti_seg = DcmSeg2ItkOperator(
     output_format="nii.gz",
     seg_filter=seg_filter,
     parallel_id='seg',
+    delete_input_on_success=True
 )
 
 get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
@@ -194,27 +195,31 @@ get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     input_operator=get_input,
     search_policy="reference_uid",
     parallel_downloads=5,
-    modality=None
+    modality=None,
+    delete_input_on_success=True
 )
 dcm2nifti_ct = DcmConverterOperator(
     dag=dag,
     input_operator=get_ref_ct_series_from_seg,
     parallel_id='ct',
-    output_format='nii.gz'
+    output_format='nii.gz',
+    delete_input_on_success=True
 )
 
 resample_seg = ResampleOperator(
     dag=dag,
     input_operator=dcm2nifti_seg,
     original_img_operator=dcm2nifti_ct,
-    operator_out_dir=dcm2nifti_seg.operator_out_dir
+    operator_out_dir=dcm2nifti_seg.operator_out_dir,
+    delete_input_on_success=False
 )
 
 check_seg = LocalSegCheckOperator(
     dag=dag,
     abort_on_error=True,
     move_data=False,
-    input_operators=[dcm2nifti_seg, dcm2nifti_ct]
+    input_operators=[dcm2nifti_seg, dcm2nifti_ct],
+    delete_input_on_success=False
 )
 
 nnunet_preprocess = NnUnetOperator(
@@ -227,18 +232,21 @@ nnunet_preprocess = NnUnetOperator(
     prep_processes_full=prep_threads,
     prep_preprocess=True,
     prep_check_integrity=True,
-    retries=0
+    prep_copy_data=True,
+    retries=0,
+    delete_input_on_success=True
 )
 
 nnunet_train = NnUnetOperator(
     dag=dag,
     mode="training",
-    train_max_epochs=1000,
+    train_max_epochs=1,
     input_operator=nnunet_preprocess,
     train_network=train_network,
     train_network_trainer=train_network_trainer,
     train_fold='all',
-    retries=0
+    retries=0,
+    delete_input_on_success=True
 )
 
 pdf2dcm = Pdf2DcmOperator(
@@ -246,7 +254,8 @@ pdf2dcm = Pdf2DcmOperator(
     input_operator=nnunet_train,
     study_uid=study_uid,
     aetitle=ae_title,
-    pdf_title=f"Training Report nnUNet {timestamp}"
+    pdf_title=f"Training Report nnUNet {timestamp}",
+    delete_input_on_success=False
 )
 
 dcmseg_send_pdf = DcmSendOperator(
@@ -254,17 +263,19 @@ dcmseg_send_pdf = DcmSendOperator(
     parallel_id="pdf",
     level="batch",
     ae_title=ae_title,
-    input_operator=pdf2dcm
+    input_operator=pdf2dcm,
+    delete_input_on_success=True
 )
 
 zip_model = ZipUnzipOperator(
     dag=dag,
     target_filename=f"nnunet_model_{train_network}.zip",
-    whitelist_files="model_latest.model.pkl,model_latest.model,model_final_checkpoint.model,model_final_checkpoint.model.pkl,*.png,*.json,*.txt,*.pdf",
+    whitelist_files="model_latest.model.pkl,model_latest.model,model_final_checkpoint.model,model_final_checkpoint.model.pkl,dataset.json,*.png,*.txt,*.pdf",
     subdir="results/nnUNet",
     mode="zip",
     batch_level=True,
-    input_operator=nnunet_train
+    input_operator=nnunet_train,
+    delete_input_on_success=False
 )
 
 bin2dcm = Bin2DcmOperator(
@@ -275,17 +286,19 @@ bin2dcm = Bin2DcmOperator(
     study_id="Kaapana nnUNet model",
     size_limit=100,
     input_operator=zip_model,
-    file_extensions="*.zip"
+    file_extensions="*.zip",
+    delete_input_on_success=True
 )
 
 dcmseg_send_int = DcmSendOperator(
     dag=dag,
     level="batch",
     ae_title=ae_title,
-    input_operator=bin2dcm
+    input_operator=bin2dcm,
+    delete_input_on_success=True
 )
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
 get_input >> dcm2nifti_seg >> resample_seg >> check_seg >> nnunet_preprocess
 get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> resample_seg >> check_seg >> nnunet_preprocess >> nnunet_train
 

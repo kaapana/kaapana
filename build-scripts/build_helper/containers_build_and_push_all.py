@@ -395,7 +395,7 @@ class DockerContainer:
         elif output.returncode != 0 and "configured as immutable" in output.stderr:
             print(
                 "############################ Push -> immutable -> no -vdev version -> ok")
-            if "-vdev" not in self.tag:
+            if not self.dev:
                 log_entry = {
                     "suite": suite_tag,
                     "test": self.tag.replace(self.docker_registry, "")[1:],

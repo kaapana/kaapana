@@ -10,115 +10,17 @@ import nibabel as nib
 import numpy as np
 from collections import OrderedDict
 
-
-def extract_labels(label_extraction_dirs):
-    use_nifti_labels = True if os.getenv("PREP_USE_NIFITI_LABELS", "False").lower() == "true" else False
-    verify_all_datasets = True if os.getenv("PREP_VERIFY_ALL_LABELS", "False").lower() == "true" else False
-    print("#")
-    print("# Starting extract_labels ...")
-    print("#")
-    print(f"# use_nifti_labels:    {use_nifti_labels}")
-    print(f"# verify_all_datasets: {verify_all_datasets}")
-    print("#")
-
-    labels_dict = {}
-    for input_series, label_dirs in label_extraction_dirs.items():
-        count = 0
-        labels = {
-            "0": "Clear Label",
-        }
-        for label_dir in label_dirs:
-            seg_niftis = glob.glob(os.path.join(input_series, label_dir, "*.nii.gz"), recursive=True)
-            for seg_nifti in seg_niftis:
-
-                if use_nifti_labels:
-                    nifti_labels = [int(i) for i in np.unique(nib.load(seg_nifti).get_fdata())]
-                    if 0 in nifti_labels:
-                        nifti_labels.remove(0)
-                    else:
-                        print("#")
-                        print(f"# Couldn't find a 'Clear Label' 0 in NIFTI: {seg_nifti}")
-                        print("#")
-                        exit(1)
-
-                    if len(nifti_labels) != 1:
-                        print("#")
-                        print(f"# More than one label found in NIFTI: {seg_nifti}")
-                        print(f"# Single label segmentation NIFTIs expected -> error")
-                        print("# ")
-                        exit(1)
-
-                    count = nifti_labels[0]
-                else:
-                    count += 1
-
-                dict_key = f"{count}"
-                if dict_key not in labels:
-                    labels[dict_key] = seg_nifti.split("_")[-1].split(".")[0]
-
-                else:
-                    print("#")
-                    print(f"# Label {dict_key} already found in labels.")
-                    print(json.dumps(labels, indent=4, sort_keys=True))
-                    print(f"# Label repetition -> error !")
-                    print("#")
-                    exit(1)
-
-        labels_dict[os.path.join(input_series, label_dir)] = labels
-        if not verify_all_datasets:
-            break
-
-    if verify_all_datasets:
-        print("# Checking all extracted labels...")
-        last_labels = None
-        last_label_dir = None
-
-        for label_dir, labels in labels_dict.items():
-            if last_labels != None and last_labels != labels:
-                print("#")
-                print("# Error while checking all labels!")
-                print(f"# last: {last_label_dir}")
-                print(json.dumps(last_labels, indent=4, sort_keys=True))
-                print("#")
-                print(f"# last: {label_dir}")
-                print(json.dumps(labels, indent=4, sort_keys=True))
-                print("#")
-                print("# ABORT")
-                print("#")
-                exit(1)
-
-            last_labels = labels
-            last_label_dir = label_dir
-
-        print("# Done")
-
-    print("# Extracted labels:")
-    labels = OrderedDict(sorted(labels.items(), key=lambda t: t[0]))
-    print(json.dumps(labels, indent=4, sort_keys=True))
-    print("#")
-    if len(labels) == 1:
-        print(f"# No labels could be extracted!")
-        exit(1)
-    return labels
-
-
-def move_file(source, target):
-    Path(os.path.dirname(target)).mkdir(parents=True, exist_ok=True)
-    if copy_target_data:
-        shutil.copy2(source, target)
-    else:
-        shutil.move(source, target)
-
-
 task_name = os.getenv("TASK", "")
-licence = os.getenv("LICENCE", "NA")
-version = os.getenv("VERSION", "NA")
+licence = os.getenv("LICENCE", "N/A")
+version = os.getenv("VERSION", "N/A")
 training_name = task_name
 training_description = os.getenv("TRAINING_DESCRIPTION", "nnUNet training")
 training_reference = os.getenv("TRAINING_REFERENCE", "nnUNet")
 shuffle_seed = int(os.getenv("SHUFFLE_SEED", "0")),
+network_trainer = os.getenv("TRAIN_NETWORK_TRAINER", "N/A")
+model_architecture = os.getenv("TRAIN_NETWORK", "UNKNOWN")  # -> model 2d,3d_lowres etc
 test_percentage = int(os.getenv("TEST_PERCENTAGE", "0"))
-copy_target_data = True if os.getenv("COPY_DATA", "False").lower() == "true" else False
+copy_target_data = True if os.getenv("PREP_COPY_DATA", "False").lower() == "true" else False
 tensor_size = os.getenv("TENSOR_SIZE", "3D")
 
 input_modalities = os.getenv("PREP_MODALITIES", "")
@@ -128,6 +30,10 @@ input_modality_dirs = os.getenv("INPUT_MODALITY_DIRS", "")
 batch_dir = os.path.join('/', os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"])
 operator_out_dir = os.path.join('/', os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"])
 task_dir = os.path.join(operator_out_dir, "nnUNet_raw_data", os.environ["TASK"])
+
+use_nifti_labels = True if os.getenv("PREP_USE_NIFITI_LABELS", "False").lower() == "true" else False
+
+
 
 if input_label_dirs == "" or input_modalities == "" or input_modality_dirs == "":
     print("#")
@@ -168,16 +74,18 @@ for input_series in series_list:
     for input_label_dir in input_label_dirs:
         label_extraction_dirs[input_series].append(input_label_dir)
 
-labels, nifti_seg_path_list = extract_labels(label_extraction_dirs=label_extraction_dirs)
 template_dataset_json = {
     "name": training_name,
+    "shuffle_seed": shuffle_seed,
+    "network_trainer": network_trainer,
+    "model": [model_architecture],
     "description": training_description,
     "reference": training_reference,
     "licence": licence,
     "relase": version,
     "tensorImageSize": tensor_size,
     "modality": modality,
-    "labels": labels,
+    "labels": None,
     "numTraining": 0,
     "numTest": 0,
     "training": [],
@@ -192,9 +100,12 @@ template_dataset_json["numTraining"] = train_count
 template_dataset_json["numTest"] = test_count
 
 print("# ")
-print("# All series count:  {}".format(series_count))
-print("# Train-datset-size: {}".format(train_count))
-print("# Test-datset-size:  {}".format(test_count))
+print(f"# All series count:  {series_count}")
+print(f"# Train-datset-size: {train_count}")
+print(f"# Test-datset-size:  {test_count}")
+print("# ")
+print(f"# copy_target_data:    {copy_target_data}")
+print(f"# use_nifti_labels:    {use_nifti_labels}")
 print("# ")
 
 if len(modality) != len(input_modality_dirs):
@@ -202,7 +113,7 @@ if len(modality) != len(input_modality_dirs):
     print("# len(modality) != len(input_operators)")
     print("# You have to specify {} input_operators!".format(len(modality)))
     print("# Expected modalities:")
-    print(json.dumps(modality, indent=4, sort_keys=True))
+    print(json.dumps(modality, indent=4, sort_keys=False))
     print("# ")
     print("# ")
     exit(1)
@@ -219,9 +130,15 @@ print("# ")
 train_series = series_list[:train_count]
 test_series = series_list[train_count:]
 
+count = 0
+labels = {
+    "0": "Clear Label",
+}
+
 print("# Preparing all train series: {}".format(len(train_series)))
 for series in train_series:
-    base_file_path = os.path.join("imagesTr", f"{os.path.basename(series)}.nii.gz")
+    imagesTr_path=os.path.join(task_dir, "imagesTr")
+    base_file_path = f"{os.path.basename(series)}.nii.gz"
 
     for i in range(0, len(input_modality_dirs)):
         modality_nifti_dir = os.path.join(series, input_modality_dirs[i])
@@ -233,38 +150,81 @@ for series in train_series:
             print("# ")
             print("# Error with training image-file!")
             print("# Found {} files at: {}".format(len(modality_nifti), modality_nifti_dir))
-            print("# Expected only one file! -> abort.")
+            print("# Expected exactly one file! -> abort.")
             print("# ")
             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
             print("# ")
             exit(1)
+        modality_nifti = modality_nifti[0]
+        target_modality_path = os.path.join(imagesTr_path, base_file_path.replace(".nii.gz", f"_{i:04}.nii.gz"))
+        Path(os.path.dirname(target_modality_path)).mkdir(parents=True, exist_ok=True)
+        if copy_target_data:
+            shutil.copy2(modality_nifti, target_modality_path)
+        else:
+            shutil.move(modality_nifti, target_modality_path)
 
-        target_modality_path = os.path.join(task_dir, base_file_path.replace(".nii.gz", f"_{i:04}.nii.gz"))
-        move_file(source=modality_nifti[0], target=target_modality_path)
-
-    
-    target_seg_path = os.path.join(task_dir, "labelsTr", f"{os.path.basename(series)}.nii.gz")
+    target_seg_path = os.path.join(task_dir, "labelsTr", base_file_path)
     seg_nifti_list = []
     for label_dir in input_label_dirs:
         seg_niftis = glob.glob(os.path.join(series, label_dir, "*.nii.gz"), recursive=True)
         seg_nifti_list.extend(seg_niftis)
 
+    print(f"# Found {len(seg_nifti_list)} seg NIFTIs -> start merging")
+
     example_img = nib.load(seg_nifti_list[0])
-    combined = nib.funcs.concat_images(seg_nifti_list, check_affines=True, axis=None)
-    combined = np.maximum.reduce(combined.get_fdata(), axis=3)
+    combined = np.zeros_like(example_img.get_fdata().astype(int))
+    for seg_nifti in seg_nifti_list:
+        nii_array=nib.load(seg_nifti).get_fdata().astype(int)
+        combined=np.maximum(combined,nii_array)
+        if use_nifti_labels:
+            nifti_labels = list(np.unique(nii_array))
+            if 0 in nifti_labels:
+                nifti_labels.remove(0)
+            else:
+                print("#")
+                print(f"# Couldn't find a 'Clear Label' 0 in NIFTI: {seg_nifti}")
+                print("#")
+                exit(1)
+
+            if len(nifti_labels) != 1:
+                print("#")
+                print(f"# More than one label found in NIFTI: {seg_nifti}")
+                print(f"# Single label segmentation NIFTIs expected -> error")
+                print("# ")
+                exit(1)
+            count = nifti_labels[0]
+        else:
+            count += 1
+
+        dict_key = f"{count}"
+        label_tag=seg_nifti.split("--")[-1].split(".")[0].replace("_"," ")
+        labels[dict_key] = label_tag
+        print(f"# merged {seg_nifti.split('/')[-1]}")
+        print(f"# -> label: {dict_key} -> {label_tag}")
+
     combined = nib.Nifti1Image(combined, example_img.affine, example_img.header)
+    Path(os.path.dirname(target_seg_path)).mkdir(parents=True, exist_ok=True)
     combined.to_filename(target_seg_path)
+    
+    if not copy_target_data:
+        for file_path in seg_nifti_list:
+            os.remove(file_path)
 
     template_dataset_json["training"].append(
         {
-            "image": os.path.join("./", base_file_path),
-            "label": os.path.join("./", base_seg_path)
+            "image": os.path.join("./","imagesTr", base_file_path),
+            "label": os.path.join("./","labelsTr", base_file_path)
         }
     )
 
+print("# Extracted labels:")
+print(json.dumps(labels, indent=4, sort_keys=False))
+template_dataset_json["labels"] = labels
+
 print("# Preparing all test series: {}".format(len(test_series)))
 for series in test_series:
-    base_file_path = os.path.join("imagesTr", f"{os.path.basename(series)}.nii.gz")
+    imagesTr_path=os.path.join(task_dir, "imagesTr")
+    base_file_path = f"{os.path.basename(series)}.nii.gz"
 
     for i in range(0, len(input_modality_dirs)):
         modality_nifti_dir = os.path.join(series, input_modality_dirs[i])
@@ -281,32 +241,47 @@ for series in test_series:
             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
             print("# ")
             exit(1)
+        modality_nifti = modality_nifti[0]
+        target_modality_path = os.path.join(imagesTr_path, base_file_path.replace(".nii.gz", f"_{i:04}.nii.gz"))
+        Path(os.path.dirname(target_modality_path)).mkdir(parents=True, exist_ok=True)
+        if copy_target_data:
+            shutil.copy2(modality_nifti, target_modality_path)
+        else:
+            shutil.move(modality_nifti, target_modality_path)
 
-        target_modality_path = os.path.join(task_dir, base_file_path.replace(".nii.gz", f"_{i:04}.nii.gz"))
-        move_file(source=modality_nifti[0], target=target_modality_path)
-
-    
-    target_seg_path = os.path.join(task_dir, "labelsTr", f"{os.path.basename(series)}.nii.gz")
+    target_seg_path = os.path.join(task_dir, "labelsTr", base_file_path)
     seg_nifti_list = []
     for label_dir in input_label_dirs:
         seg_niftis = glob.glob(os.path.join(series, label_dir, "*.nii.gz"), recursive=True)
         seg_nifti_list.extend(seg_niftis)
 
+    print(f"# Found {len(seg_nifti_list)} seg NIFTIs -> start merging")
     example_img = nib.load(seg_nifti_list[0])
-    combined = nib.funcs.concat_images(seg_nifti_list, check_affines=True, axis=None)
-    combined = np.maximum.reduce(combined.get_fdata(), axis=3)
+    combined = np.zeros_like(example_img.get_fdata().astype(int))
+    for nii_seg in seg_nifti_list:
+        nii_array=nib.load(nii_seg).get_fdata().astype(int)
+        combined=np.maximum(combined,nii_array)
+        print(f"# merged {seg_nifti.split('/')[-1]}")
+
     combined = nib.Nifti1Image(combined, example_img.affine, example_img.header)
+    Path(os.path.dirname(target_seg_path)).mkdir(parents=True, exist_ok=True)
     combined.to_filename(target_seg_path)
+    
+    if not copy_target_data:
+        for file_path in seg_nifti_list:
+            os.remove(file_path)
 
     template_dataset_json["test"].append(
         {
-            "image": os.path.join("./", base_file_path),
-            "label": os.path.join("./", base_seg_path)
+            "image": os.path.join("./","imagesTr", base_file_path),
+            "label": os.path.join("./","labelsTr", base_file_path)
         }
     )
 
+
+
 with open(os.path.join(task_dir, 'dataset.json'), 'w') as fp:
-    json.dump(template_dataset_json, fp, indent=4, sort_keys=True)
+    json.dump(template_dataset_json, fp, indent=4, sort_keys=False)
 
 print("#############################################################")
 print("#")

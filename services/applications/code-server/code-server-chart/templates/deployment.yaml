@@ -32,7 +32,8 @@ spec:
           - name: workflowdata
             mountPath: /home/coder/workflows
           - name: keybindings-config
-            mountPath: /home/coder/keybindings.json
+            # mountPath: /home/coder/keybindings.json
+            mountPath: /root/.local/share/code-server/User/keybindings.json
             subPath: keybindings.json
       volumes:
       - name: workflowdata

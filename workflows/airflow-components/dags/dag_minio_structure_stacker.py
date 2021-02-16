@@ -6,11 +6,31 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from mitk_minio_pacs_interaction.LocalFolderStructureConverterOperator import LocalFolderStructureConverterOperator
-# finished
 
 log = LoggingMixin().log
+# finished
+
+
+ui_forms = {
+    "workflow_form": {
+        "type": "object",
+        "properties": {
+            "single_execution": {
+                "title": "single execution",
+                "description": "Should each series be processed separately?",
+                "type": "boolean",
+                "default": False,
+                "readOnly": False,
+            }
+        }
+    }
+}
+
+
 
 args = {
+    'ui_visible': True,
+    'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),
     'retries': 1,

@@ -2,6 +2,6 @@
 global:
     pull_policy_jobs: "Always"
     fast_data_dir: "/home/kaapana"
-image: "dag-mitk-volume"
-version: "2020-12-01-vdev"
+image: "dag-mitk-workbench"
+version: "2021.02-vdev"
 action: "copy"

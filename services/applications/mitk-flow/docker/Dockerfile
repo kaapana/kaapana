@@ -1,11 +1,11 @@
 FROM local-only/mitk-base:0.1.0 as build_container
 
 LABEL IMAGE="mitk-flow"
-LABEL VERSION="2020-12-01-vdev"
+LABEL VERSION="2021.02-vdev"
 LABEL CI_IGNORE="False"
 
 # =================================================================================================
-# APPLICATION BUILD / EXECUTABLE CREATION
+# APPLICATION BUILD / EECUTABLE CREATION
 # =================================================================================================
 
 # Create application binary directories
@@ -13,9 +13,9 @@ RUN mkdir /opt/mitk-bin
 RUN mkdir /opt/bin
 
 # MITK config
-# 01.12.20 develop
-ENV MITK_BRANCH=develop
-ENV MITK_REV=7cdad74bd60adc8c32a00979a4ae96839e273076  
+# https://phabricator.mitk.org/rMITK24935707b96301ba264664ac9735d64599611461
+ENV MITK_BRANCH=master
+ENV MITK_REV=24935707b96301ba264664ac9735d64599611461
 # ENV MITK_REV=4bcb66b70182b06fcef1dcbd1f3e334b9b88 -> not existing
 
 RUN git clone --single-branch --branch ${MITK_BRANCH} https://phabricator.mitk.org/source/mitk.git MITK && cd MITK && git checkout ${MITK_REV}

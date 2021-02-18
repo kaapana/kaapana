@@ -205,7 +205,7 @@ class KaapanaBaseOperator(BaseOperator):
         else:
             self.kube_name = f'{self.name}-{self.parallel_id}'
 
-        self.kube_name = self.kube_name + "-" + str(uuid.uuid4())[:4]
+        self.kube_name = self.kube_name.lower() + "-" + str(uuid.uuid4())[:4]
         self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63)
 
         self.volume_mounts.append(VolumeMount(

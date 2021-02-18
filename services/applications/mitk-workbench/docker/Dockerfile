@@ -1,7 +1,7 @@
 FROM local-only/mitk-base:0.1.0 as build_container
 
-LABEL IMAGE="mitk-volume"
-LABEL VERSION="2020-12-01-vdev"
+LABEL IMAGE="mitk-workbench"
+LABEL VERSION="2021.02-vdev"
 LABEL CI_IGNORE="False"
 
 # =================================================================================================
@@ -12,15 +12,15 @@ RUN mkdir /opt/mitk-bin
 RUN mkdir /opt/bin
 
 # MITK config
-# 01.12.20 develop
-ENV MITK_BRANCH=develop
-ENV MITK_REV=7cdad74bd60adc8c32a00979a4ae96839e273076  
+# https://phabricator.mitk.org/rMITK24935707b96301ba264664ac9735d64599611461
+ENV MITK_BRANCH=master
+ENV MITK_REV=24935707b96301ba264664ac9735d64599611461
 
 RUN git clone --single-branch --branch ${MITK_BRANCH} https://phabricator.mitk.org/source/mitk.git MITK && cd MITK && git checkout ${MITK_REV}
 
 # Generate Ninja build script for MITK to build a minimum configuration with apps in Release mode into MITK-superbuild directory
 RUN cmake -G Ninja -S MITK -B MITK-superbuild
-RUN cmake -S MITK -B MITK-superbuild -D CMAKE_BUILD_TYPE:STRING=Release -D BUILD_TESTING:BOOL=OFF -D MITK_CUSTOM_REVISION_DESC:STRING=MitkVolume
+RUN cmake -S MITK -B MITK-superbuild -D CMAKE_BUILD_TYPE:STRING=Release -D BUILD_TESTING:BOOL=OFF -D MITK_CUSTOM_REVISION_DESC:STRING=MitkWorkbench
 
 RUN git config --global url.https://github.com/.insteadOf git://github.com/
 # Build MITK superbuild and configure MITK build
@@ -34,7 +34,7 @@ RUN cmake --build MITK-superbuild/MITK-build --target package
 #-D MITK_BUILD_org.mitk.gui.qt.measurementtoolbox:Bool=OFF -D MITK_BUILD_org.mitk.gui.qt.segmentation:Bool=ON 
 
 RUN mkdir /opt/final_package
-RUN cp /opt/MITK-superbuild/MITK-build/MITK-MitkVolume-linux-x86_64.tar.gz /opt/final_package/MITK-MitkVolume-linux-x86_64.tar.gz
+RUN cp /opt/MITK-superbuild/MITK-build/MITK-MitkWorkbench-linux-x86_64.tar.gz /opt/final_package/MITK-MitkWorkbench-linux-x86_64.tar.gz
 
 #############################################################################################
 ###############################           2nd STAGE           ###############################
@@ -43,8 +43,8 @@ FROM local-only/no-vnc-base:0.1.0
 
 RUN mkdir -p /tmp_src /mitk
 WORKDIR /tmp_src
-COPY --from=build_container /opt/final_package/MITK-MitkVolume-linux-x86_64.tar.gz ./mitk.tar.gz
-RUN tar -xzf mitk.tar.gz -C ./ && mv ./MITK-MitkVolume-linux-x86_64/* /mitk && rm -rf /tmp_src
+COPY --from=build_container /opt/final_package/MITK-MitkWorkbench-linux-x86_64.tar.gz ./mitk.tar.gz
+RUN tar -xzf mitk.tar.gz -C ./ && mv ./MITK-MitkWorkbench-linux-x86_64/* /mitk && rm -rf /tmp_src
 
 # Application start definition, here a shell script is used to start the application
 COPY files/startMITK.sh /root/Desktop/

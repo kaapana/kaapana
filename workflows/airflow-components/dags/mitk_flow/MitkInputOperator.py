@@ -176,7 +176,6 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
 
     def __init__(self,
                  dag,
-                 parallel_id=None,
                  pacs_dcmweb_host='http://dcm4chee-service.store.svc',
                  pacs_dcmweb_port='8080',
                  aetitle="KAAPANA",
@@ -184,14 +183,11 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
 
         self.pacs_dcmweb = pacs_dcmweb_host + ":" + pacs_dcmweb_port + "/dcm4chee-arc/aets/" + aetitle.upper()
 
-        # parallel_id=from_to
-
         super().__init__(
             dag,
             name='get-mitk-input',
             python_callable=self.get_files,
             *args, **kwargs
-            # parallel_id=parallel_id,
         )
 
 

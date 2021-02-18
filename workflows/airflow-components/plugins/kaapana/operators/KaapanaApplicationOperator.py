@@ -80,17 +80,10 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
         KaapanaApplicationOperator.uninstall_helm_chart(info_dict)
 
     @staticmethod
-    def on_success(info_dict):
-        pass
-
-    @staticmethod
     def on_retry(info_dict):
         print("##################################################### ON RETRY!")
         KaapanaApplicationOperator.uninstall_helm_chart(info_dict)
 
-    @staticmethod
-    def on_execute(info_dict):
-        pass
 
     def __init__(self,
                  dag,
@@ -111,10 +104,6 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
             name=name,
             python_callable=self.start,
             execution_timeout=timedelta(seconds=KaapanaApplicationOperator.TIMEOUT),
-            on_failure_callback=KaapanaApplicationOperator.on_failure,
-            on_success_callback=KaapanaApplicationOperator.on_success,
-            on_retry_callback=KaapanaApplicationOperator.on_retry,
-            on_execute_callback=KaapanaApplicationOperator.on_execute,
             *args, **kwargs
         )
 

@@ -77,9 +77,6 @@ class HelmChart:
             print("ERROR: Chartfile not found.")
             exit(1)
 
-        if os.path.dirname(os.path.dirname(chartfile)).split("/")[-1] == "charts":
-            self.nested = True
-
         with open(chartfile) as f:
             read_file = f.readlines()
             read_file = [x.strip() for x in read_file]
@@ -107,6 +104,8 @@ class HelmChart:
             if "-vdev" in self.version:
                 self.dev = True
 
+            if os.path.dirname(os.path.dirname(chartfile)).split("/")[-1] == "deps":
+                self.repo = 'file://deps/{}'.format(self.name)
             self.chart_id = "{}/{}:{}".format(self.repo, self.name, self.version)
 
             # print("")
@@ -188,8 +187,10 @@ class HelmChart:
                     last_req_version = line.split(": ")[1].strip()
                 if "repository:" in line and "#" not in line:
                     req_repo_count += 1
-                    req_repo = line.split("/")[-1].strip()
-
+                    if 'file://' in line:
+                        req_repo = line.split("repository: ")[-1].strip()
+                    else: 
+                        req_repo = line.split("/")[-1].strip()
                 if req_repo != "" and last_req_name != "" and last_req_version != "":
                     req_id = "{}/{}:{}".format(req_repo,
                                                last_req_name, last_req_version)

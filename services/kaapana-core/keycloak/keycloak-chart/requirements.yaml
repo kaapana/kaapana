@@ -1,0 +1,5 @@
+---
+dependencies:
+  - name: keycloak-postgres
+    version: "9.5-kc"
+    repository: file://deps/keycloak-postgres

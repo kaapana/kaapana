@@ -4,6 +4,7 @@ from datetime import timedelta
 from airflow.models import DAG
 from datetime import datetime
 from nnunet.NnUnetOperator import NnUnetOperator
+from nnunet.getTasks import get_tasks
 from kaapana.operators.ResampleOperator import ResampleOperator
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
 from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
@@ -14,79 +15,7 @@ from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
-import json
-import os
-from os.path import join, basename, dirname, normpath, exists
-
-af_home_path = "/root/airflow"
-installed_models_path = join(af_home_path, "models", "nnUNet")
-tasks_json_path = join(af_home_path, "dags", "nnunet", "nnunet_tasks.json")
-
-with open(tasks_json_path) as f:
-    tasks = json.load(f)
-
-available_tasks = [*{k: v for (k, v) in tasks.items()
-                     if "supported" in tasks[k] and tasks[k]["supported"]}]
-installed_models_available = [basename(normpath(f.path)) for f in os.scandir(
-    installed_models_path) if f.is_dir() and "ensembles" not in f.name]
-
-for installed_model in installed_models_available:
-    model_path = join(installed_models_path, installed_model)
-    installed_task_dirs = [basename(normpath(f.path))
-                           for f in os.scandir(model_path) if f.is_dir()]
-    for installed_task in installed_task_dirs:
-        if installed_task not in tasks:
-            print(
-                f"################### Adding task: {installed_task}: {installed_model}")
-            model_info_path = join(
-                model_path, installed_task, installed_model, "dataset.json")
-            if exists(model_info_path):
-                print(f"Found dataset.json at {model_info_path}")
-                with open(model_info_path) as f:
-                    model_info = json.load(f)
-            else:
-                print(f"Could not find dataset.json at {model_info_path}")
-                model_info = {
-                    "description": "N/A",
-                    "labels": None,
-                    "licence": "N/A",
-                    "modality": {
-                        "0": "CT"
-                    },
-                    "model": [
-                        "3d_lowres"
-                    ],
-                    "name": "Task530_Training",
-                    "network_trainer": "nnUNetTrainerV2",
-                    "numTest": 0,
-                    "numTraining": 1,
-                    "reference": "nnUNet",
-                    "relase": "N/A",
-                    "shuffle_seed": [
-                        0
-                    ],
-                    "supported": true,
-                    "tensorImageSize": "3D"
-                }
-
-            available_tasks.append(installed_task)
-            available_tasks.sort()
-            tasks[installed_task] = {
-                "description": model_info["description"],
-                "model": [],
-                "input-mode": model_info["input-mode"],
-                "input": model_info["input"],
-                "body_part": model_info["body_part"],
-                "targets": model_info["targets"],
-                "supported": model_info["supported"],
-                "info": model_info["info"],
-                "url": model_info["url"],
-                "task_url": model_info["task_url"]
-            }
-        if installed_model not in tasks[installed_task]['model']:
-            tasks[installed_task]['model'].append(installed_model)
-        tasks[installed_task]['model'].sort()
-
+available_pretrained_task_names, installed_tasks, all_selectable_tasks = get_tasks()
 ui_forms = {
     "publication_form": {
         "type": "object",
@@ -126,7 +55,7 @@ ui_forms = {
                 "title": "Tasks available",
                 "description": "Select one of the available tasks.",
                 "type": "string",
-                "enum": available_tasks,
+                "enum": sorted(list(all_selectable_tasks.keys())),
                 "required": True
             },
             "description": {
@@ -179,7 +108,7 @@ ui_forms = {
                 "type": "string",
                 "default": "3d_lowres",
                 "required": True,
-                "enum": installed_models_available,
+                "enum": [],
                 "dependsOn": [
                     "task"
                 ]
@@ -196,7 +125,7 @@ ui_forms = {
 }
 args = {
     'ui_visible': True,
-    'ui_dag_info': tasks,
+    'ui_dag_info': all_selectable_tasks,
     'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),

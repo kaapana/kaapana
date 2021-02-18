@@ -32,7 +32,8 @@
 <element tag="0008,002a" vr="DT" vm="0" len="0" name="AcquisitionDateTime">replace</element>
 <element tag="0008,0050" vr="SH" vm="0" len="0" name="AccessionNumber"></element>
 <element tag="0008,0060" vr="CS" vm="0" len="0" name="Modality">OT</element>
-<element tag="0008,0070" vr="LO" vm="0" len="0" name="Manufacturer">KAAPANA</element>
+<element tag="0008,0070" vr="LO" vm="0" len="0" name="Manufacturer">replace</element>
+<element tag="0008,1090" vr="LO" vm="0" len="0" name="ManufacturerModelName">replace</element>
 <element tag="0008,0090" vr="PN" vm="0" len="0" name="ReferringPhysicianName"></element>
 <element tag="0020,0011" vr="IS" vm="0" len="0" name="SeriesNumber">replace</element>
 <element tag="0020,0013" vr="IS" vm="0" len="0" name="InstanceNumber">replace</element>

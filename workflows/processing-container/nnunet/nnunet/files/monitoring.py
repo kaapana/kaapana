@@ -44,8 +44,7 @@ last_written_epoch = -1
 last_training_log_file = None
 experiment_name = f"nnunet-train_{datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d_%H_%M')}"
 
-dataset_json_path = join(nnUNet_raw_data_base,
-                         "nnUNet_raw_data", "**", "dataset.json")
+dataset_json_path = join(nnUNet_raw_data_base,"nnUNet_raw_data", "**", "dataset.json")
 dataset_json_path = glob.glob(dataset_json_path, recursive=True)
 if len(dataset_json_path) == 1:
     dataset_json_path = dataset_json_path[0]

@@ -205,8 +205,18 @@ elif [ "$MODE" = "inference" ]; then
         fi
         
         echo "############# Starting nnUNet prediction..."
-        echo "COMMAND: nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL --num_threads_preprocessing $INF_THREADS_PREP --num_threads_nifti_save $INF_THREADS_NIFTI --disable_tta --mode fast --all_in_gpu False"
-        nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL --num_threads_preprocessing $INF_THREADS_PREP --num_threads_nifti_save $INF_THREADS_NIFTI --disable_tta --mode fast --all_in_gpu False
+        echo "# COMMAND: nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL --num_threads_preprocessing $INF_THREADS_PREP --num_threads_nifti_save $INF_THREADS_NIFTI --disable_tta --mode fast --all_in_gpu False"
+        echo "#"
+        if test $(find /models/nnUNet/$TRAIN_NETWORK/$TASK/ -name all | wc -c) -eq 0
+        then
+            echo "# "
+            nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL --num_threads_preprocessing $INF_THREADS_PREP --num_threads_nifti_save $INF_THREADS_NIFTI --disable_tta --mode fast --all_in_gpu False
+        else
+            echo "Executing with FOLDS = all"
+            nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL -f "all" --num_threads_preprocessing $INF_THREADS_PREP --num_threads_nifti_save $INF_THREADS_NIFTI --disable_tta --mode fast --all_in_gpu False
+        fi
+        echo "# "
+
         if [ $? -eq 0 ]; then
             echo "############# Prediction successful!"
         else

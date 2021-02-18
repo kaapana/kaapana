@@ -182,23 +182,30 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
     
-    series_uid = pydicom.uid.generate_uid()
-
-    study_id = os.getenv("STUDY_ID", "")
-    study_uid = os.getenv("STUDY_UID", pydicom.uid.generate_uid())
-    study_description = os.getenv("STUDY_DESCRIPTION", "")
-
-    patient_name = os.getenv("PATIENT_NAME", "")
-    patient_id = os.getenv("PATIENT_ID", "")
-    
-    protocol_name = os.getenv("PROTOCOL_NAME", "Bin2Dcm")
-    size_limit = int(os.getenv("SIZE_LIMIT_MB", "100"))
-
     study_date = datetime.now().strftime("%Y%m%d")
     study_time = datetime.now().strftime("%H%M%S")
     study_datetime = datetime.now().strftime("%Y%m%d%H%M%S")  # YYYYMMDDHHMMSS
     print(f"# study_date: {study_date}")
     print(f"# study_time: {study_time}")
+
+    study_id = os.getenv("STUDY_ID", "")
+    study_uid = os.getenv("STUDY_UID", pydicom.uid.generate_uid())
+    study_description = os.getenv("STUDY_DESCRIPTION", "None")
+    study_description = study_description if study_description.lower() != "none" else f"bin2dcm {study_datetime}"
+
+    series_uid = pydicom.uid.generate_uid()
+    series_description = os.getenv("SERIES_DESCRIPTION", "None")
+    series_description = series_description if series_description.lower() != "none" else f"bin2dcm {study_datetime}"
+
+    patient_name = os.getenv("PATIENT_NAME", "")
+    patient_id = os.getenv("PATIENT_ID", "")
+    
+    manufacturer = os.getenv("MANUFACTURER", "KAAPANA")
+    manufacturer_model_name = os.getenv("MANUFACTURER_MODEL", "bin2dcm")
+
+    protocol_name = os.getenv("PROTOCOL_NAME", "Bin2Dcm")
+    size_limit = int(os.getenv("SIZE_LIMIT_MB", "100"))
+
 
     xml_output_list = []
 
@@ -253,17 +260,20 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
             elif el_name == "PatientID":
                 element.firstChild.data = patient_id
 
-            elif el_name == "PATIENT_NAME":
+            elif el_name == "PatientName":
                 element.firstChild.data = patient_name
+
+            elif el_name == "Manufacturer":
+                element.firstChild.data = manufacturer
+
+            elif el_name == "ManufacturerModelName":
+                element.firstChild.data = manufacturer_model_name
 
             elif el_name == "SeriesNumber":
                 element.firstChild.data = "1"
 
             elif el_name == "ImageComments":
                 element.firstChild.data = new_filename
-
-            elif el_name == "SeriesDescription":
-                element.firstChild.data = ""
 
             elif el_name == "ProtocolName":
                 element.firstChild.data = protocol_name
@@ -276,6 +286,9 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
             elif el_name == "StudyDescription":
                 element.firstChild.data = study_description
+            
+            elif el_name == "SeriesDescription":
+                element.firstChild.data = series_description
 
             elif el_name == "SeriesInstanceUID":
                 element.firstChild.data = series_uid

@@ -15,7 +15,7 @@ RUN curl -L -O https://github.com/QIICR/dcmqi/releases/download/v1.2.3/dcmqi-1.2
 RUN tar xzvf dcmqi-1.2.3-linux.tar.gz
 
 #COPY files/create_segmentation_json.py .
-COPY files/code_lookup_table.csv .
+COPY files/code_lookup_table.json .
 COPY files/itkimage2segimage.py .
 COPY files/segimage2itkimage.py .
 COPY files/tid1500writer.py .

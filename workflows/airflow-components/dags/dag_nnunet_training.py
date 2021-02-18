@@ -1,7 +1,6 @@
 import pydicom
 import random
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
@@ -38,8 +37,6 @@ cpu_count_pool = pool_api.get_pool(name="CPU")
 prep_threads = int(cpu_count_pool.slots//8) if cpu_count_pool is not None else 4
 prep_threads = 2 if prep_threads < 2 else prep_threads
 prep_threads = 9 if prep_threads > 9 else prep_threads
-
-timestamp = datetime.now().strftime("%d.%m.%Y %H:%M")
 
 ui_forms = {
     "publication_form": {
@@ -233,6 +230,7 @@ nnunet_preprocess = NnUnetOperator(
     prep_preprocess=True,
     prep_check_integrity=True,
     prep_copy_data=True,
+    prep_exit_on_issue=True,
     retries=0,
     delete_input_on_success=True
 )
@@ -254,7 +252,7 @@ pdf2dcm = Pdf2DcmOperator(
     input_operator=nnunet_train,
     study_uid=study_uid,
     aetitle=ae_title,
-    pdf_title=f"Training Report nnUNet {timestamp}",
+    pdf_title=f"Training Report nnUNet {TASK_NAME} {datetime.now().strftime('%d.%m.%Y %H:%M')}",
     delete_input_on_success=False
 )
 
@@ -270,7 +268,7 @@ dcmseg_send_pdf = DcmSendOperator(
 zip_model = ZipUnzipOperator(
     dag=dag,
     target_filename=f"nnunet_model_{train_network}.zip",
-    whitelist_files="model_latest.model.pkl,model_latest.model,model_final_checkpoint.model,model_final_checkpoint.model.pkl,dataset.json,*.png,*.txt,*.pdf",
+    whitelist_files="model_latest.model.pkl,model_latest.model,model_final_checkpoint.model,model_final_checkpoint.model.pkl,dataset.json,training_log*.json,plans.pkl,*.png,*.pdf",
     subdir="results/nnUNet",
     mode="zip",
     batch_level=True,
@@ -281,9 +279,13 @@ zip_model = ZipUnzipOperator(
 bin2dcm = Bin2DcmOperator(
     dag=dag,
     name="model2dicom",
+    manufacturer="Kaapana",
+    manufacturer_model="nnUNet",
+    patient_id=f"{TASK_NAME}",
+    study_id=f"{TASK_NAME}",
     study_uid=study_uid,
-    study_description="DICOM encoded nnUNet model",
-    study_id="Kaapana nnUNet model",
+    study_description=f"nnUNet {TASK_NAME} model",
+    series_description=f"nnUNet model {datetime.now().strftime('%d.%m.%Y %H:%M')}",
     size_limit=100,
     input_operator=zip_model,
     file_extensions="*.zip",
@@ -302,5 +304,5 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
 get_input >> dcm2nifti_seg >> resample_seg >> check_seg >> nnunet_preprocess
 get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> resample_seg >> check_seg >> nnunet_preprocess >> nnunet_train
 
-nnunet_train >> pdf2dcm >> dcmseg_send_pdf
+nnunet_train >> pdf2dcm >> dcmseg_send_pdf >> clean
 nnunet_train >> zip_model >> bin2dcm >> dcmseg_send_int >> clean

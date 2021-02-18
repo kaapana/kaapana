@@ -13,6 +13,23 @@ import pydicom
 
 processed_count = 0
 
+
+def find_code_meaning(tag):
+    result = None
+    for entry in code_lookup_table:
+        if tag.lower() in entry["Code Meaning"].lower():
+            result = entry
+            break
+        elif tag in entry["Body Part Examined"].lower():
+            result = entry
+            break
+
+    if result == None:
+        raise AssertionError(f"Could not find the tag: '{tag}' in the lookup table!")
+
+    return result
+
+
 def process_seg_info(seg_info, series_description):
     split_seg_info = seg_info.split('@')
     if len(split_seg_info) > 1:
@@ -33,7 +50,7 @@ def create_segment_attribute(segment_algorithm_type, segment_algorithm_name, cod
         search_key = code_meaning.split("_")[0].lower()
         print("Searching coding-scheme for code-meaning: {}".format(code_meaning))
         print("Search-key: {}".format(search_key))
-        coding_scheme = code_lookup_table.loc[search_key]
+        coding_scheme = find_code_meaning(tag=search_key)
     except KeyError:
         raise AssertionError(
             f'The specified code meaning {code_meaning.lower()} does not exist. Check here for available code names: http://dicom.nema.org/medical/dicom/current/output/chtml/part16/chapter_L.html#chapter_L from Table L-1.')
@@ -167,12 +184,9 @@ else:
     raise NameError('Input_type must be either multi_label_seg or single_label_segs')
 
 
-code_lookup_table = pd.read_csv('code_lookup_table.csv', sep=';')
-code_lookup_table = code_lookup_table[~code_lookup_table['Code Value'].apply(math.isnan)]
-code_lookup_table['Code Meaning'] = code_lookup_table['Code Meaning'].str.lower()
-code_lookup_table['Code Meaning'] = code_lookup_table['Code Meaning'].str.replace(" ", "-")
-code_lookup_table = code_lookup_table.set_index('Code Meaning')
-code_lookup_table['Code Value'] = code_lookup_table['Code Value'].apply(int)
+code_lookup_table_path = "code_lookup_table.json"
+with open(code_lookup_table_path) as f:
+    code_lookup_table = json.load(f)
 
 batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
 
@@ -237,35 +251,35 @@ for batch_element_dir in batch_folders:
             output_dcm_file = f"{element_output_dir}/{rootname}.dcm"
 
             print("Starting dcmqi-subprocess for: {}".format(output_dcm_file))
-            try:
-                dcmqi_command = [
-                    f"{DCMQI}/itkimage2segimage",
-                    "--inputImageList", seg_filepath,
-                    "--inputMetadata", meta_data_file,
-                    "--outputDICOM", output_dcm_file,
-                    "--inputDICOMDirectory",  element_input_dir
-                ]
-                print('Executing', " ".join(dcmqi_command))
-                resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
-                print(resp)
-            except subprocess.CalledProcessError as e:
-                if skip_empty_slices:
-                    try:
-                        print(f'The image seems to have empty slices, we will skip them! This might make the segmentation no usable anymore for MITK. Error: {e.output}')
-                        dcmqi_command = [
-                            f"{DCMQI}/itkimage2segimage",
-                            "--skip",
-                            "--inputImageList", seg_filepath,
-                            "--inputMetadata", meta_data_file,
-                            "--outputDICOM", output_dcm_file,
-                            "--inputDICOMDirectory",  element_input_dir
-                        ]
-                        print('Executing', " ".join(dcmqi_command))
-                        resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
-                        print(resp)
-                    except subprocess.CalledProcessError as e:
-                        raise AssertionError(f'Something weng wrong while creating the single-label-dcm object {e.output}')
-                else:
+            if skip_empty_slices:
+                try:
+                    dcmqi_command = [
+                        f"{DCMQI}/itkimage2segimage",
+                        "--skip",
+                        "--inputImageList", seg_filepath,
+                        "--inputMetadata", meta_data_file,
+                        "--outputDICOM", output_dcm_file,
+                        "--inputDICOMDirectory",  element_input_dir
+                    ]
+                    print('Executing', " ".join(dcmqi_command))
+                    resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
+                    print(resp)
+                except subprocess.CalledProcessError as e:
+                    raise AssertionError(f'Something weng wrong while creating the single-label-dcm object {e.output}')
+            else:
+                try:
+                    dcmqi_command = [
+                        f"{DCMQI}/itkimage2segimage",
+                        "--inputImageList", seg_filepath,
+                        "--inputMetadata", meta_data_file,
+                        "--outputDICOM", output_dcm_file,
+                        "--inputDICOMDirectory",  element_input_dir
+                    ]
+                    print('Executing', " ".join(dcmqi_command))
+                    resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
+                    print(resp)
+                except subprocess.CalledProcessError as e:
+                    print(f'The image seems to have empty slices, we will skip them! This might make the segmentation no usable anymore for MITK. Error: {e.output}')
                     raise AssertionError(f'Something weng wrong while creating the single-label-dcm object {e.output}')
 
             adding_aetitle(element_input_dir, output_dcm_file, seg_infos=[single_label_seg_info])
@@ -311,35 +325,35 @@ for batch_element_dir in batch_folders:
         output_dcm_file = f"{element_output_dir}/{multi_label_seg_name.lower()}.dcm"
         print("Output SEG.dcm file:: {}".format(output_dcm_file))
         print("Starting dcmqi-subprocess for: {}".format(output_dcm_file))
-        try:
-            dcmqi_command = [
-                f"{DCMQI}/itkimage2segimage",
-                "--inputImageList", ",".join(segmentation_paths),
-                "--inputMetadata", meta_data_file,
-                "--outputDICOM", output_dcm_file,
-                "--inputDICOMDirectory",  element_input_dir
-            ]
-            print('Executing', " ".join(dcmqi_command))
-            resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
-            print(resp)
-        except subprocess.CalledProcessError as e:
-            if skip_empty_slices:
-                try:
-                    print(f'The image seems to have emtpy slices, we will skip them! This might make the segmentation no usable anymore for MITK. Error: {e.output}')
-                    dcmqi_command = [
-                        f"{DCMQI}/itkimage2segimage",
-                        "--skip",
-                        "--inputImageList", ",".join(segmentation_paths),
-                        "--inputMetadata", meta_data_file,
-                        "--outputDICOM", output_dcm_file,
-                        "--inputDICOMDirectory",  element_input_dir
-                    ]
-                    print('Executing', " ".join(dcmqi_command))
-                    resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
-                    print(resp)
-                except subprocess.CalledProcessError as e:
-                    raise AssertionError(f'Something weng wrong while creating the multi-label-dcm object {e.output}')
-            else:
+        if skip_empty_slices:
+            try:
+                dcmqi_command = [
+                    f"{DCMQI}/itkimage2segimage",
+                    "--skip",
+                    "--inputImageList", ",".join(segmentation_paths),
+                    "--inputMetadata", meta_data_file,
+                    "--outputDICOM", output_dcm_file,
+                    "--inputDICOMDirectory",  element_input_dir
+                ]
+                print('Executing', " ".join(dcmqi_command))
+                resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
+                print(resp)
+            except subprocess.CalledProcessError as e:
+                raise AssertionError(f'Something weng wrong while creating the multi-label-dcm object {e.output}')
+        else:
+            try:
+                dcmqi_command = [
+                    f"{DCMQI}/itkimage2segimage",
+                    "--inputImageList", ",".join(segmentation_paths),
+                    "--inputMetadata", meta_data_file,
+                    "--outputDICOM", output_dcm_file,
+                    "--inputDICOMDirectory",  element_input_dir
+                ]
+                print('Executing', " ".join(dcmqi_command))
+                resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
+                print(resp)
+            except subprocess.CalledProcessError as e:
+                print(f'The image seems to have emtpy slices, we will skip them! This might make the segmentation no usable anymore for MITK. Error: {e.output}')
                 raise AssertionError(f'Something weng wrong while creating the multi-label-dcm object {e.output}')
 
         adding_aetitle(element_input_dir, output_dcm_file, seg_infos=data['seg_info'])

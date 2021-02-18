@@ -176,16 +176,12 @@ function delete_deployment {
         echo "${RED}Once everything is delete you can reinstall the platform!${NC}"
         exit 1
     fi
-
     delete_helm_repos
-
     echo -e "${GREEN}####################################  UNINSTALLATION DONE  ############################################${NC}"
 }
 
-
 function update_extensions {
     echo -e "${GREEN}Downloading all kaapanaworkflows, kaapanaapplications and kaapanaint to $HOME/.extensions${NC}"
-    
     set +euf
     updates_output=$(helm repo update)
     set -euf
@@ -198,7 +194,9 @@ function update_extensions {
     else
         mkdir -p $HOME/.extensions
         find $HOME/.extensions/ -type f -delete
+        set +euf
         helm search repo --devel -l -r '(kaapanaworkflow|kaapanaapplication|kaapanaint)' -o json | jq -r '.[] | "\(.name) --version \(.version)"' | xargs -L1 helm pull -d $HOME/.extensions/
+        set -euf
         echo -e "${GREEN}Update OK!${NC}"
     fi
 }

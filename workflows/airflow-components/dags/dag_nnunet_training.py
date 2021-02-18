@@ -29,7 +29,8 @@ train_network = "3d_lowres"
 train_network_trainer = "nnUNetTrainerV2"
 ae_title = "nnUnet-results"
 
-study_uid = pydicom.uid.generate_uid()
+# training_results_study_uid = pydicom.uid.generate_uid()
+training_results_study_uid="1.2.826.0.1.3680043.8.498.73386889396401605965136848941191845553"
 
 gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
 gpu_count = int(gpu_count_pool.slots) if gpu_count_pool is not None else 1
@@ -250,7 +251,7 @@ nnunet_train = NnUnetOperator(
 pdf2dcm = Pdf2DcmOperator(
     dag=dag,
     input_operator=nnunet_train,
-    study_uid=study_uid,
+    study_uid=training_results_study_uid,
     aetitle=ae_title,
     pdf_title=f"Training Report nnUNet {TASK_NAME} {datetime.now().strftime('%d.%m.%Y %H:%M')}",
     delete_input_on_success=False
@@ -283,7 +284,7 @@ bin2dcm = Bin2DcmOperator(
     manufacturer_model="nnUNet",
     patient_id=f"{TASK_NAME}",
     study_id=f"{TASK_NAME}",
-    study_uid=study_uid,
+    study_uid=training_results_study_uid,
     study_description=f"nnUNet {TASK_NAME} model",
     series_description=f"nnUNet model {datetime.now().strftime('%d.%m.%Y %H:%M')}",
     size_limit=100,

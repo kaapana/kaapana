@@ -13,20 +13,69 @@ import pydicom
 
 processed_count = 0
 
-
 def find_code_meaning(tag):
     result = None
+    print("#####################################################")
+    print("#")
+    print(f"Searching for identical hit for {tag}...")
     for entry in code_lookup_table:
-        if tag.lower() in entry["Code Meaning"].lower():
+        if tag.lower() == entry["Code Meaning"].lower():
+            print(f"Found Code Meaning: {entry['Code Meaning'].lower()} for search term: {tag.lower()}")
             result = entry
             break
-        elif tag in entry["Body Part Examined"].lower():
+        elif tag.lower() == entry["Body Part Examined"].lower():
+            print(f"Found Code Meaning: {entry['Body Part Examined'].lower()} for search term: {tag.lower()}")
             result = entry
             break
 
     if result == None:
+        print(f"Nothing found -> Searching if {tag} is in one of the entires...")
+        for entry in code_lookup_table:
+            if tag.lower() in entry["Code Meaning"].lower():
+                print(f"Found Code Meaning: {entry['Code Meaning'].lower()} for search term: {tag.lower()}")
+                result = entry
+                break
+            elif tag.lower() in entry["Body Part Examined"].lower():
+                print(f"Found Code Meaning: {entry['Body Part Examined'].lower()} for search term: {tag.lower()}")
+                result = entry
+                break
+
+    if result == None:
+        print(f"Nothing found -> Searching if {tag} parts equals one of the entires...")
+        for entry in code_lookup_table:
+            for tag_part in tag.lower().split(" "):
+                if tag_part == entry["Code Meaning"].lower():
+                    print(f"Found Code Meaning: {entry['Code Meaning'].lower()} for search term: {tag_part.lower()}")
+                    result = entry
+                    break
+                elif tag_part == entry["Body Part Examined"].lower():
+                    print(f"Found Code Meaning: {entry['Body Part Examined'].lower()} for search term: {tag_part.lower()}")
+                    result = entry
+                    break
+            if result != None:
+                break
+
+    if result == None:
+        print(f"Nothing found -> Searching if {tag} parts can be found in one of the entires...")
+        for entry in code_lookup_table:
+            for tag_part in tag.lower().split(" "):
+                if tag_part in entry["Code Meaning"].lower():
+                    print(f"Found Code Meaning: {entry['Code Meaning'].lower()} for search term: {tag_part.lower()}")
+                    result = entry
+                    break
+                elif tag_part in entry["Body Part Examined"].lower():
+                    print(f"Found Code Meaning: {entry['Body Part Examined'].lower()} for search term: {tag_part.lower()}")
+                    result = entry
+                    break
+            if result != None:
+                break
+            
+
+    if result == None:
         raise AssertionError(f"Could not find the tag: '{tag}' in the lookup table!")
 
+    print("#")
+    print("#####################################################")
     return result
 
 

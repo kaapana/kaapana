@@ -34,6 +34,8 @@ class NnUnetOperator(KaapanaBaseOperator):
                  inf_preparation=True,
                  inf_threads_prep=1,
                  inf_threads_nifti=1,
+                 inf_softmax=False,
+                 models_dir="/models",
                  env_vars={},
                  parallel_id=None,
                  execution_timeout=execution_timeout,
@@ -42,6 +44,7 @@ class NnUnetOperator(KaapanaBaseOperator):
                  ):
         envs = {
             "MODE": str(mode),
+            "MODELS_DIR": str(models_dir),
             "INPUT_MODALITY_DIRS": ",".join(str(operator.operator_out_dir) for operator in input_modality_operators),
             "PREP_TL": str(prep_processes_low),
             "PREP_TF": str(prep_processes_full),
@@ -62,6 +65,7 @@ class NnUnetOperator(KaapanaBaseOperator):
             "INF_THREADS_PREP": str(inf_threads_prep),
             "INF_THREADS_NIFTI": str(inf_threads_nifti),
             "INF_PREPARATION": str(inf_preparation),
+            "INF_SOFTMAX": str(inf_softmax),
             "TENSORBOARD_DIR": '/tensorboard',
         }
         env_vars.update(envs)

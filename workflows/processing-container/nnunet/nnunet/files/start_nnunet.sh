@@ -137,7 +137,11 @@ elif [ "$MODE" = "training" ]; then
 elif [ "$MODE" = "inference" ]; then
     export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR"
     export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
-    export RESULTS_FOLDER="/models"
+    if [ $MODELS_DIR = "/models" ]; then
+        export RESULTS_FOLDER="$MODELS_DIR"
+    else
+        export RESULTS_FOLDER="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
+    fi
     shopt -s globstar
     BATCH_COUNT=$(find "$BATCHES_INPUT_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l)
     
@@ -156,6 +160,7 @@ elif [ "$MODE" = "inference" ]; then
     echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
     echo "# nnUNet_preprocessed: $nnUNet_preprocessed"
     echo "# RESULTS_FOLDER: $RESULTS_FOLDER"
+    echo "# SOFTMAX: $INF_SOFTMAX"
     echo "#"
     echo "# BATCH_COUNT: " $BATCH_COUNT
     echo "#"
@@ -205,24 +210,31 @@ elif [ "$MODE" = "inference" ]; then
         fi
         
         echo "############# Starting nnUNet prediction..."
-        echo "# COMMAND: nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL --num_threads_preprocessing $INF_THREADS_PREP --num_threads_nifti_save $INF_THREADS_NIFTI --disable_tta --mode fast --all_in_gpu False"
         echo "#"
-        if test $(find /models/nnUNet/$TRAIN_NETWORK/$TASK/ -name all | wc -c) -eq 0
-        then
-            echo "# "
-            nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL --num_threads_preprocessing $INF_THREADS_PREP --num_threads_nifti_save $INF_THREADS_NIFTI --disable_tta --mode fast --all_in_gpu False
-        else
-            echo "Executing with FOLDS = all"
-            nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL -f "all" --num_threads_preprocessing $INF_THREADS_PREP --num_threads_nifti_save $INF_THREADS_NIFTI --disable_tta --mode fast --all_in_gpu False
-        fi
-        echo "# "
 
+        if test $(find $RESULTS_FOLDER/nnUNet/$TRAIN_NETWORK/$TASK/ -name all | wc -c) -eq 0; then
+            folds=""
+        else
+            echo "# Enabling folds = all ..."
+            folds="-f all"
+        fi
+
+        if [ "$INF_SOFTMAX" = "True" ] || [ "$INF_SOFTMAX" = "true" ]; then
+            echo "# Enabling softmax ..."
+            softmax="--npz"
+        else
+            softmax=""
+        fi
+
+        echo "# COMMAND: nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL $folds $softmax --num_threads_preprocessing $INF_THREADS_PREP --num_threads_nifti_save $INF_THREADS_NIFTI --disable_tta --mode fast --all_in_gpu False"
+        nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL $folds $softmax --num_threads_preprocessing $INF_THREADS_PREP --num_threads_nifti_save $INF_THREADS_NIFTI --disable_tta --mode fast --all_in_gpu False
         if [ $? -eq 0 ]; then
             echo "############# Prediction successful!"
         else
             echo "############# Prediction failed!"
             exit 1
         fi
+        echo "# "
     done
     
 elif [ "$MODE" = "identify-best" ]; then
@@ -321,7 +333,7 @@ elif [ "$MODE" = "export-model" ]; then
 elif [ "$MODE" = "install-model" ]; then
     export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
     export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
-    export RESULTS_FOLDER="/models"
+    export RESULTS_FOLDER="$MODELS_DIR"
     
     mkdir -p "/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/"
     model_output_path="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnunet_model_$TRAIN_NETWORK.zip"

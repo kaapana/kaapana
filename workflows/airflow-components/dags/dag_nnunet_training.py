@@ -30,7 +30,7 @@ train_network_trainer = "nnUNetTrainerV2"
 ae_title = "nnUnet-results"
 
 # training_results_study_uid = pydicom.uid.generate_uid()
-training_results_study_uid="1.2.826.0.1.3680043.8.498.73386889396401605965136848941191845553"
+training_results_study_uid = "1.2.826.0.1.3680043.8.498.73386889396401605965136848941191845553"
 
 gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
 gpu_count = int(gpu_count_pool.slots) if gpu_count_pool is not None else 1
@@ -193,13 +193,14 @@ get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     input_operator=get_input,
     search_policy="reference_uid",
     parallel_downloads=5,
+    parallel_id="ct",
     modality=None,
     delete_input_on_success=True
 )
+
 dcm2nifti_ct = DcmConverterOperator(
     dag=dag,
     input_operator=get_ref_ct_series_from_seg,
-    parallel_id='ct',
     output_format='nii.gz',
     delete_input_on_success=True
 )
@@ -302,7 +303,7 @@ dcmseg_send_int = DcmSendOperator(
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
-get_input >> dcm2nifti_seg >> resample_seg >> check_seg >> nnunet_preprocess
+get_input >> dcm2nifti_seg >> resample_seg
 get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> resample_seg >> check_seg >> nnunet_preprocess >> nnunet_train
 
 nnunet_train >> pdf2dcm >> dcmseg_send_pdf >> clean

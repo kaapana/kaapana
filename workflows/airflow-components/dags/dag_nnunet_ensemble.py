@@ -2,26 +2,25 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
-
+from datetime import datetime
+from nnunet.NnUnetOperator import NnUnetOperator
+from nnunet.getTasks import get_tasks
+from kaapana.operators.ResampleOperator import ResampleOperator
+from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
+# from nnunet.GetContainerModelOperator import GetContainerModelOperator
+from kaapana.operators.DcmConverterOperator import DcmConverterOperator
+from kaapana.operators.DcmSendOperator import DcmSendOperator
+from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
-
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
-
+from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
+from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 
 ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            "combination_method": {
-                "title": "method",
-                "description": "Select the method for model merging.",
-                "enum": ["averaging", "test2", "test3"],
-                "default": 'averaging',
-                "required": True
-            },
             "input": {
                 "title": "Input Modality",
                 "default": "OT",
@@ -29,9 +28,17 @@ ui_forms = {
                 "type": "string",
                 "readOnly": True,
             },
+            "single_execution": {
+                "title": "single execution",
+                "description": "Should each series be processed separately?",
+                "type": "boolean",
+                "default": False,
+                "readOnly": False,
+            }
         }
     }
 }
+
 args = {
     'ui_visible': True,
     'ui_forms': ui_forms,
@@ -42,7 +49,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='nnunet-model-install',
+    dag_id='nnunet-ensemble',
     default_args=args,
     concurrency=1,
     max_active_runs=1,
@@ -66,11 +73,9 @@ extract_model = GetTaskModelOperator(
     dag=dag,
     name="install-model-zip",
     input_operator=dcm2bin,
+    operator_out_dir="model-exports",
     mode="install_zip"
 )
-clean = LocalWorkflowCleanerOperator(
-    dag=dag,
-    clean_workflow_dir=True
-)
 
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
 get_input >> dcm2bin >> extract_model >> clean

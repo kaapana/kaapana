@@ -88,9 +88,9 @@ class KaapanaBaseOperator(BaseOperator):
                  name,
                  image=None,
                  # Directories
-                 operator_out_dir=None,
                  input_operator=None,
                  operator_in_dir=None,
+                 operator_out_dir=None,
                  # Airflow
                  task_id=None,
                  parallel_id=None,

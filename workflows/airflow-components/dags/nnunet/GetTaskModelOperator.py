@@ -13,6 +13,7 @@ class GetTaskModelOperator(KaapanaBaseOperator):
                  name="get-task-model",
                  task_id=None,
                  zip_file=False,
+                 operator_out_dir="/models",
                  mode="install_pretrained",
                  env_vars={},
                  execution_timeout=execution_timeout,
@@ -21,7 +22,6 @@ class GetTaskModelOperator(KaapanaBaseOperator):
                  ):
 
         envs = {
-            "MODELDIR": "/models",
             "MODE": str(mode),
             "ZIP_FILE": str(zip_file)
         }
@@ -51,6 +51,7 @@ class GetTaskModelOperator(KaapanaBaseOperator):
             dag=dag,
             image="{}{}/nnunet-get-models:0.1.1-vdev".format(default_registry, default_project),
             name=name,
+            operator_out_dir=operator_out_dir,
             image_pull_secrets=["registry-secret"],
             volumes=volumes,
             volume_mounts=volume_mounts,

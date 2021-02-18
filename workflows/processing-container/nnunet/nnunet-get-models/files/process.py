@@ -12,7 +12,13 @@ from os.path import join, basename, normpath
 processed_count = 0
 max_retries = 3
 max_hours_since_creation = 3
-models_dir = os.path.join(os.getenv('MODELDIR', "/models"), "nnUNet")
+output_dir = os.getenv('OPERATOR_OUT_DIR', "/models")
+if output_dir == "/models":
+    models_dir = join(output_dir, "nnUNet")
+else:
+    workflow_dir = os.getenv('WORKFLOW_DIR', "data")
+    models_dir = os.path.join(workflow_dir,output_dir)
+
 task_ids = os.getenv('TASK', "NONE")
 task_ids = None if task_ids == "NONE" else task_ids
 model = os.getenv('MODEL', "NONE")

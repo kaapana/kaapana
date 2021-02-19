@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-resource-limits
+  namespace: {{ .Values.global.monitoring_namespace }}
+spec:
+  limits:
+  - default:
+      # cpu: {{ .Values.global.default_monitoring_limits_cpu }}
+      memory: {{ .Values.global.default_monitoring_limits_mem }}
+    defaultRequest:
+      # cpu: {{ .Values.global.default_monitoring_requests_cpu }}
+      memory: {{ .Values.global.default_monitoring_requests_mem }}
+    type: Container
+---

@@ -20,11 +20,27 @@ dag_info = {
     "ui_visible": True,
 }
 
+ui_forms = {
+    "workflow_form": {
+        "type": "object",
+        "properties": {
+            "single_execution": {
+                "title": "single execution",
+                "description": "Should each series be processed separately?",
+                "type": "boolean",
+                "default": True,
+                "readOnly": False,
+            }
+        }
+    }
+}
+
 args = {
+    'ui_visible': True,
+    'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),
-    'retries': 0,
-    'dag_info': dag_info,
+    'retries': 1,
     'retry_delay': timedelta(seconds=30)
 }
 
@@ -39,7 +55,11 @@ dag = DAG(
 get_input = LocalGetInputDataOperator(dag=dag)
 mitk_input = MitkInputOperator(dag=dag, input_operator=get_input)
 
-launch_app = KaapanaApplicationOperator(dag=dag, name="application-mitk-flow", chart_name='mitk-flow-chart', version='2020-12-01-vdev')
+launch_app = KaapanaApplicationOperator(dag=dag,
+                                        name="application-mitk-flow",
+                                        input_operator=mitk_input,
+                                        chart_name='mitk-flow-chart',
+                                        version='2021.02-vdev')
 send_dicom = DcmSendOperator(dag=dag, input_operator=launch_app, ae_title="MITK-flow")
 clean = LocalWorkflowCleanerOperator(dag=dag)
 

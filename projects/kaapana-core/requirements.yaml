@@ -1,5 +1,20 @@
 ---
 dependencies:
+  - name: base
+    version: "0.1.1-vdev"
+    repository: file://deps/base
+  - name: flow
+    version: "0.1.1-vdev"
+    repository: file://deps/flow
+  - name: meta
+    version: "0.1.1-vdev"
+    repository: file://deps/meta
+  - name: monitoring
+    version: "0.1.1-vdev"
+    repository: file://deps/monitoring
+  - name: store
+    version: "0.1.1-vdev"
+    repository: file://deps/store
   - name: error-pages-chart
     version: "0.1.1"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
@@ -7,7 +22,7 @@ dependencies:
     version: "0.1"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: keycloak-chart
-    version: "11.0.2"
+    version: "11.0.3-vdev"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: gpu-prom-exporter-chart
     condition: global.gpu_support

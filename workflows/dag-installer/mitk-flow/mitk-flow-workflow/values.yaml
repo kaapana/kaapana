@@ -3,5 +3,5 @@ global:
     pull_policy_jobs: "Always"
     fast_data_dir: "/home/kaapana"
 image: "dag-mitk-flow"
-version: "2020-12-01-vdev"
+version: "2021.02-vdev"
 action: "copy"

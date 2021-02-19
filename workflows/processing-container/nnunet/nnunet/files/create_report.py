@@ -86,7 +86,7 @@ def create_json_report(log_files, target_path):
         with open(report_json_path, 'w', encoding='utf-8') as f:
             json.dump(fold_data, f, indent=4, sort_keys=False)
 
-    report_json_path = join(target_path, basename(log_file).replace(".txt", ".json"))
+    report_json_path = join(target_path, ("training_log.json"))
     with open(report_json_path, 'w', encoding='utf-8') as f:
         json.dump(fold_data, f, indent=4, sort_keys=False)
 

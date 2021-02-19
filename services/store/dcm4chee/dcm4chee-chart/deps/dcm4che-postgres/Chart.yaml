@@ -1,7 +1,7 @@
 ---
 apiVersion: v1
-appVersion: "9.6.17-22"
+appVersion: "9.6.17-22.1-vdev"
 description: A Helm chart for dcm4che-postgres
 name: dcm4che-postgres
-version: "9.6.17-22"
+version: "9.6.17-22.1-vdev"
 

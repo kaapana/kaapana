@@ -8,6 +8,6 @@ global:
     slow_data_dir: ""
 network:
     id: "default"
-    port: ""
-    container_port: ""
+    port: "7000"
+    container_port: "7000"
 mount_path: ""

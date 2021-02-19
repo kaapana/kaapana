@@ -32,7 +32,7 @@ spec:
           containerPort: 8888
         env:
         - name: INGRESS_PATH
-          value: "/pysyft-nb"
+          value: "/pysyft-nb-{{ $uuid }}"
         volumeMounts:
           - name: pysyftdata
             mountPath: /appdata

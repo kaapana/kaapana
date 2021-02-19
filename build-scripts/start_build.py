@@ -326,7 +326,7 @@ if __name__ == '__main__':
                                 copy(package, build_dir)
                                 os.remove(package)
 
-                if push_charts:
+                if push_charts and not chart.repo.startswith('file://'):
                     for log_entry in chart.push():
                         print_log_entry(log_entry, kind="CHARTS")
                         if log_entry['loglevel'].upper() == "ERROR":

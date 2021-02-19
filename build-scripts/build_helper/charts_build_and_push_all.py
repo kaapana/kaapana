@@ -453,6 +453,8 @@ class HelmChart:
     @staticmethod
     def check_repos(user, pwd):
         for repo in HelmChart.repos_needed:
+            if repo.startswith('file://'):
+                continue
             command = ["helm", "repo", "add", "--username", user, "--password", pwd, repo, HelmChart.default_registry + repo]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=30)
             log = make_log(std_out=output.stdout, std_err=output.stderr)

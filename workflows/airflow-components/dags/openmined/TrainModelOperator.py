@@ -11,8 +11,12 @@ class OpenminedTrainModelOperator(KaapanaBaseOperator):
 
     def __init__(self,
                  dag,
+                 dataset=None,
                  grid_host=None,
                  grid_port=None,
+                 epochs=None,
+                 batch_size=None,
+                 learning_rate=None,
                  env_vars=None,
                  execution_timeout=timedelta(minutes=10),
                  *args, **kwargs
@@ -22,8 +26,12 @@ class OpenminedTrainModelOperator(KaapanaBaseOperator):
             env_vars = {}
         
         envs = {
+            "DATASET": str(dataset),
             "GRID_HOST": str(grid_host),
-            "GRID_PORT": str(grid_port)
+            "GRID_PORT": str(grid_port),
+            "EPOCHS": str(epochs),
+            "BATCH_SIZE": str(batch_size),
+            "LEARNING_RATE": str(learning_rate)
         }
 
         env_vars.update(envs)
@@ -35,6 +43,6 @@ class OpenminedTrainModelOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             execution_timeout=execution_timeout,
-            image_pull_policy='Always',
+            #image_pull_policy='Always',
             *args, **kwargs
             )

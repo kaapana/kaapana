@@ -14,7 +14,7 @@ class OpenminedProvideDataOperator(KaapanaBaseOperator):
                  dataset=None,
                  node_host=None,
                  node_port=None,
-                 lifespan='15',
+                 lifespan=None,
                  env_vars=None,
                  execution_timeout=timedelta(minutes=15),
                  *args, **kwargs

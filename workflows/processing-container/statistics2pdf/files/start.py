@@ -99,6 +99,7 @@ for batch_element_dir in batch_folders:
             elements = []
             # Name of file
             conteo = conteo + 1
+            print(f" Writing PDF to {pdf_output_path}")
             archivo_pdf = SimpleDocTemplate(pdf_output_path, pagesize = letter, rightMargin = 40, leftMargin = 40, topMargin = 40, bottomMargin = 28)
             #Send the data and build the file
             elements.append(Paragraph(line1, styleNormal))

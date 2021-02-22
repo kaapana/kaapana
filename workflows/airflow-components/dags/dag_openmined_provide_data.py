@@ -1,13 +1,15 @@
+from datetime import timedelta
+
+from airflow.models import DAG
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.trigger_rule import TriggerRule
+
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalUnzipFileOperator import LocalUnzipFileOperator
-from openmined.openmined.OpenminedProvideDataOperator import OpenminedProvideDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
-from airflow.utils.trigger_rule import TriggerRule
-from datetime import timedelta
-from airflow.models import DAG
+from openmined.ProvideDataOperator import OpenminedProvideDataOperator
 
 
 DATASET = 'mnist' #'xray'

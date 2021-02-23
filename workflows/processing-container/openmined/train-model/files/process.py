@@ -15,10 +15,16 @@ from utils.dataset import OpenminedDataset
 hook = sy.TorchHook(th)
 
 # set parameter
-BATCH_SIZE = 256
-N_EPOCS = 20
+N_EPOCS = int(os.environ['EPOCHS'])
+BATCH_SIZE = int(os.environ['BATCH_SIZE'])
+LEARNING_RATE = float(os.environ['LEARNING_RATE'])
+
 SAVE_MODEL = True
 SAVE_MODEL_PATH = '../models'
+
+# check gpu support
+device = th.device('cuda:0' if th.cuda.is_available() else 'cpu')
+print(f'Using device: {device}')
 
 
 # Model Architecture
@@ -41,12 +47,10 @@ class Net(nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-device = th.device('cuda:0' if th.cuda.is_available() else 'cpu')
-print(f'Using device: {device}')
-    
+# create model
 model = Net()
 model.to(device)
-optimizer = optim.SGD(model.parameters(), lr=0.01)
+optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE)
 criterion = nn.CrossEntropyLoss()
 
 # Openmined Grid
@@ -54,14 +58,19 @@ grid_addr = 'http://' + os.environ['GRID_HOST'] + ':' + os.environ['GRID_PORT']
 grid = PublicGridNetwork(hook, grid_addr)
 
 # Get data references
-data = grid.search('#X', '#mnist', '#dataset')
+data = grid.search("#X", f"#{os.environ['DATASET']}", "#dataset")
 print(f"Data: {data}")
-labels = grid.search('#Y', '#mnist', '#dataset')
+labels = grid.search("#Y", f"#{os.environ['DATASET']}", "#dataset")
 print(f"Labels: {labels}")
 
 # Get Workers and their locations
 workers = {worker : data[worker][0].location for worker in data.keys()}
 print(f'Workers: {workers}')
+
+# raise exception if no data/labels available
+assert (workers), "No nodes/workers registered to PyGrid."
+assert (data), "No data found in PyGrid."
+assert (labels), "No labels found in PyGrid."
 
 # Dataloader using the pointers-datasets
 dataloaders = dict()
@@ -71,7 +80,7 @@ for worker in workers.items():
                                    batch_size=BATCH_SIZE,
                                    shuffle=True,
                                    num_workers=0)
-print(f'Dataloaders: {dataloaders}')
+print(f'Dataloader: {dataloaders}')
 
 def epoch_total_size(data):
     total = 0
@@ -114,7 +123,7 @@ def train(epoch):
                   epoch, str(worker.id).upper(), current_epoch_size, epoch_total,
                         100. *  current_epoch_size / epoch_total, loss.item()))
 
-# RUN TRAINING 
+# Run training
 print('\n### RUN TRAINING ###')
 
 for epoch in range(N_EPOCS):

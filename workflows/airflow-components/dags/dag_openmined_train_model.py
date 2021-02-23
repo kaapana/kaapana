@@ -16,6 +16,7 @@ GRID_HOST = '10.128.129.76'
 GRID_PORT = '7000'
 
 # training/model hyperparameter
+MODEL = 'mnist'
 EPOCHS = 20
 BATCH_SIZE = 256
 LEARNING_RATE = 0.01
@@ -38,6 +39,6 @@ dag = DAG(
     max_active_runs=5
     ) 
 
-train_model = OpenminedTrainModelOperator(dag=dag, grid_host=GRID_HOST, grid_port=GRID_PORT, epochs=EPOCHS, batch_size=BATCH_SIZE, learning_rate=LEARNING_RATE)
+train_model = OpenminedTrainModelOperator(dag=dag, grid_host=GRID_HOST, grid_port=GRID_PORT, model=MODEL, epochs=EPOCHS, batch_size=BATCH_SIZE, learning_rate=LEARNING_RATE)
 
 train_model

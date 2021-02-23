@@ -5,16 +5,17 @@ from syft.grid.public_grid import PublicGridNetwork
 import torch as th
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
 from utils.dataset import OpenminedDataset
+from utils.models import get_model
 
 # hooking PyTorch
 hook = sy.TorchHook(th)
 
 # set parameter
+MODEL = str(os.environ['MODEL'])
 N_EPOCS = int(os.environ['EPOCHS'])
 BATCH_SIZE = int(os.environ['BATCH_SIZE'])
 LEARNING_RATE = float(os.environ['LEARNING_RATE'])
@@ -26,29 +27,8 @@ SAVE_MODEL_PATH = '../models'
 device = th.device('cuda:0' if th.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
 
-
-# Model Architecture
-class Net(nn.Module):
-    def __init__(self):
-        super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 20, 5, 1)
-        self.conv2 = nn.Conv2d(20, 50, 5, 1)
-        self.fc1 = nn.Linear(4*4*50, 500)
-        self.fc2 = nn.Linear(500, 10)
-
-    def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = F.max_pool2d(x, 2, 2)
-        x = F.relu(self.conv2(x))
-        x = F.max_pool2d(x, 2, 2)
-        x = x.view(-1, 4*4*50)
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        return F.log_softmax(x, dim=1)
-
-
 # create model
-model = Net()
+model = get_model(architecture=MODEL)
 model.to(device)
 optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE)
 criterion = nn.CrossEntropyLoss()

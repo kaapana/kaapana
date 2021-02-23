@@ -14,6 +14,7 @@ class OpenminedTrainModelOperator(KaapanaBaseOperator):
                  dataset=None,
                  grid_host=None,
                  grid_port=None,
+                 model=None,
                  epochs=None,
                  batch_size=None,
                  learning_rate=None,
@@ -29,6 +30,7 @@ class OpenminedTrainModelOperator(KaapanaBaseOperator):
             "DATASET": str(dataset),
             "GRID_HOST": str(grid_host),
             "GRID_PORT": str(grid_port),
+            "MODEL": str(model),
             "EPOCHS": str(epochs),
             "BATCH_SIZE": str(batch_size),
             "LEARNING_RATE": str(learning_rate)

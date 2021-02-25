@@ -1,5 +1,4 @@
 import os
-import pydicom
 from datetime import timedelta
 from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
@@ -20,7 +19,7 @@ class Bin2DcmOperator(KaapanaBaseOperator):
                  study_description=None,
                  series_description=None,
                  study_id="bin2dcm",
-                 study_uid=pydicom.uid.generate_uid(),
+                 study_uid=None,
                  name="bin2dcm",
                  env_vars={},
                  execution_timeout=execution_timeout,

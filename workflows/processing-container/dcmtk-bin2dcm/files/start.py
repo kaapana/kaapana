@@ -11,7 +11,8 @@ from subprocess import PIPE, run
 
 converter_count = 0
 
-def combine_split_files(split_files_dir,delete_parts=True):
+
+def combine_split_files(split_files_dir, delete_parts=True):
     input_files = sorted(glob.glob(os.path.join(split_files_dir, "*.part*")))
     input_files = [i for i in input_files if "part" in i.split(".")[-1]]
     suffixes = ''.join(pathlib.Path(input_files[0].split(".part")[0]).suffixes)
@@ -27,7 +28,7 @@ def combine_split_files(split_files_dir,delete_parts=True):
         exit(1)
     else:
         print(f"# Successfully created {final_filename}!")
-        
+
         if delete_parts:
             for part_file in input_files:
                 os.remove(part_file)
@@ -85,11 +86,11 @@ def dicom_to_xml(dicom_dir, target_dir):
         print("# ABORT")
         print("#")
         exit(1)
-    
+
     generated_xml_list = []
     for dcm_file in dcm_files:
-        xml_path = dcm_file.replace(os.path.dirname(dcm_file),target_dir).replace("dcm","xml")
-        
+        xml_path = dcm_file.replace(os.path.dirname(dcm_file), target_dir).replace("dcm", "xml")
+
         print("#")
         print(f"# convert DICOM to XML: {dcm_file} -> {xml_path}")
 
@@ -110,7 +111,7 @@ def dicom_to_xml(dicom_dir, target_dir):
     return generated_xml_list
 
 
-def xml_to_binary(target_dir,delete_xml=True):
+def xml_to_binary(target_dir, delete_xml=True):
     global converter_count
     xml_files = sorted(glob.glob(os.path.join(target_dir, "*.xml")))
 
@@ -140,7 +141,7 @@ def xml_to_binary(target_dir,delete_xml=True):
                     print("#")
                     exit(1)
 
-                filename = filename.replace("---1","")
+                filename = filename.replace("---1", "")
                 root.clear()
             elif ev == 'end' and el.tag == 'element' and el.attrib['tag'] == "7fe0,0010" and el.attrib['name'] == "PixelData":
                 hex_data = el.text.strip().replace("\\", "")
@@ -158,10 +159,10 @@ def xml_to_binary(target_dir,delete_xml=True):
             print(f"# hex_data: {hex_data}")
             print("#")
             exit(1)
-        
+
         switched_hex = ""
-        for x in range(0,len(hex_data),4):
-            switched_hex+=hex_data[x+2:x+4]+hex_data[x:x+2]
+        for x in range(0, len(hex_data), 4):
+            switched_hex += hex_data[x+2:x+4]+hex_data[x:x+2]
 
         binary_path = os.path.join(os.path.dirname(xml_file), filename)
         binstr = binascii.unhexlify(switched_hex)
@@ -181,31 +182,37 @@ def xml_to_binary(target_dir,delete_xml=True):
 def generate_xml(binary_path, target_dir, template_path="/template.xml"):
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
-    
-    study_date = datetime.now().strftime("%Y%m%d")
-    study_time = datetime.now().strftime("%H%M%S")
-    study_datetime = datetime.now().strftime("%Y%m%d%H%M%S")  # YYYYMMDDHHMMSS
-    print(f"# study_date: {study_date}")
-    print(f"# study_time: {study_time}")
+
+    content_date = datetime.now().strftime("%H%M%S")
+    content_time = datetime.now().strftime("%Y%m%d")
+    content_datetime = datetime.now().strftime("%Y%m%d%H%M%S")  # YYYYMMDDHHMMSS
+    pretty_datetime_now = datetime.now().strftime('%d.%m.%Y %H:%M')
 
     study_id = os.getenv("STUDY_ID", "")
-    study_uid = os.getenv("STUDY_UID", pydicom.uid.generate_uid())
+    study_uid = os.getenv("STUDY_UID", "None")
+    study_date = content_date if study_uid.lower() == "none" else "" 
+    study_time = content_time if study_uid.lower() == "none" else ""
+    study_datetime = study_date + study_time
+    study_uid = study_uid if study_uid.lower() != "none" else pydicom.uid.generate_uid()
     study_description = os.getenv("STUDY_DESCRIPTION", "None")
-    study_description = study_description if study_description.lower() != "none" else f"bin2dcm {study_datetime}"
+    study_description = study_description if study_description.lower() != "none" else "bin2dcm"
+
+    print(f"# study_date:     {study_date}")
+    print(f"# study_time:     {study_time}")
+    print(f"# study_datetime: {study_datetime}")
 
     series_uid = pydicom.uid.generate_uid()
     series_description = os.getenv("SERIES_DESCRIPTION", "None")
-    series_description = series_description if series_description.lower() != "none" else f"bin2dcm {study_datetime}"
+    series_description = series_description if series_description.lower() != "none" else f"bin2dcm {pretty_datetime_now}"
 
     patient_name = os.getenv("PATIENT_NAME", "")
     patient_id = os.getenv("PATIENT_ID", "")
-    
+
     manufacturer = os.getenv("MANUFACTURER", "KAAPANA")
     manufacturer_model_name = os.getenv("MANUFACTURER_MODEL", "bin2dcm")
 
     protocol_name = os.getenv("PROTOCOL_NAME", "Bin2Dcm")
     size_limit = int(os.getenv("SIZE_LIMIT_MB", "100"))
-
 
     xml_output_list = []
 
@@ -217,9 +224,9 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
     split_part_count = len(binary_path_list)
     full_filename = os.path.basename(binary_path)
-    
+
     series_uid = pydicom.uid.generate_uid()
-    for i in range(0,len(binary_path_list)):
+    for i in range(0, len(binary_path_list)):
         binary_path = binary_path_list[i]
         sopInstanceUID = pydicom.uid.generate_uid()
         version_uid = pydicom.uid.generate_uid()
@@ -238,18 +245,20 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
         for element in elements:
             el_name = element.attributes['name'].value
 
-            if el_name == "PatientName":
-                pass
-                # element.firstChild.data = patient_id
-
-            elif el_name == "InstanceCreationDate" or el_name == "StudyDate" or el_name == "ContentDate":
+            if el_name == "InstanceCreationDate" or el_name == "StudyDate" or el_name == "ContentDate":
                 element.firstChild.data = study_date
 
-            elif el_name == "InstanceCreationTime" or el_name == "StudyTime" or el_name == "ContentTime":
+            elif el_name == "InstanceCreationTime" or el_name == "StudyTime":
                 element.firstChild.data = study_time
 
+            if el_name == "ContentDate":
+                element.firstChild.data = content_date
+
+            elif el_name == "ContentTime":
+                element.firstChild.data = content_time
+
             elif el_name == "AcquisitionDateTime":
-                element.firstChild.data = study_datetime
+                element.firstChild.data = content_datetime
 
             elif el_name == "StudyInstanceUID":
                 element.firstChild.data = study_uid
@@ -279,14 +288,14 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
                 element.firstChild.data = protocol_name
 
             elif el_name == "InstanceNumber" or el_name == "ReferencedFrameNumber":
-                element.firstChild.data = str(i)
+                element.firstChild.data = str(i+1)
 
             elif el_name == "CreatorVersionUID":
-                element.firstChild.data = ""
+                element.firstChild.data = "1.0.0"
 
             elif el_name == "StudyDescription":
                 element.firstChild.data = study_description
-            
+
             elif el_name == "SeriesDescription":
                 element.firstChild.data = series_description
 
@@ -311,7 +320,6 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
         xml_output_list.append(xml_output_path)
 
     return xml_output_list
-
 
 
 # START

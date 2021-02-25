@@ -1,5 +1,6 @@
 import requests
 import os
+from os.path import join
 from pathlib import Path
 
 
@@ -7,16 +8,15 @@ class HelperDcmWeb():
     pacs_dcmweb = "http://dcm4chee-service.store.svc:8080/dcm4chee-arc/aets/KAAPANA"
 
     @staticmethod
-    def downloadSeries(seriesUID, target_dir):
-        Path(target_dir).mkdir(parents=True, exist_ok=True)
+    def downloadSeries(seriesUID, target_dir, include_series_dir=False):
         payload = {
             'SeriesInstanceUID': seriesUID
         }
         url = HelperDcmWeb.pacs_dcmweb + "/rs/instances"
         httpResponse = requests.get(url, params=payload)
-        print(f"Requesting URL: {url}")
-        print(f"httpResponse: {httpResponse}")
-        print(f"payload: {payload}")
+        # print(f"Requesting URL: {url}")
+        # print(f"httpResponse: {httpResponse}")
+        # print(f"payload: {payload}")
         if httpResponse.status_code == 204:
             print("No results from pacs...")
             print("Can't request series!")
@@ -34,6 +34,9 @@ class HelperDcmWeb():
                 )  # objectUID
 
             print(("Start downloading series: {0}".format(seriesUID)))
+            if include_series_dir:
+                target_dir = join(target_dir, seriesUID)
+            Path(target_dir).mkdir(parents=True, exist_ok=True)
             for objectUID in objectUIDList:
                 studyUID = objectUID[0]
                 objectUID = objectUID[1]

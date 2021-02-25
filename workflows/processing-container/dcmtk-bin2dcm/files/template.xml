@@ -37,9 +37,11 @@
 <element tag="0008,0090" vr="PN" vm="0" len="0" name="ReferringPhysicianName"></element>
 <element tag="0020,0011" vr="IS" vm="0" len="0" name="SeriesNumber">replace</element>
 <element tag="0020,0013" vr="IS" vm="0" len="0" name="InstanceNumber">replace</element>
-<element tag="0020,0060" vr="CS" vm="0" len="0" name="Laterality">replace</element>
+<element tag="0020,0060" vr="CS" vm="0" len="0" name="Laterality">R</element>
 <element tag="0008,9123" vr="UI" vm="0" len="0" name="CreatorVersionUID">replace</element>
-<sequence tag="0040,0555" vr="SQ" vm="0" len="0" name="AcquisitionContextSequence"></sequence>
+<sequence tag="0040,0555" vr="SQ" vm="0" len="0" name="AcquisitionContextSequence">
+<element tag="0040,A160" vr="UT" vm="0" len="0" name="TextValue">AcquisitionContext</element>
+</sequence>
 <element tag="7fe0,0010" vr="OW" vm="0" len="0" name="file" binary="file">replace</element>
 </data-set>
 </file-format>

@@ -4,6 +4,10 @@ BATCH_COUNT=$(find "$BATCHES_INPUT_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l)
 
 echo "# "
 echo "# BATCHES_INPUT_DIR:" $BATCHES_INPUT_DIR
+echo "# "
+echo "# ORG_IMG_IN_DIR:" $ORG_IMG_IN_DIR
+echo "# OPERATOR_OUT_DIR:" $OPERATOR_OUT_DIR
+echo "# "
 echo "# BATCH_COUNT: " $BATCH_COUNT
 echo "# "
 
@@ -11,13 +15,21 @@ echo "# "
 echo "# Starting BATCH-ELEMENT-LEVEL ..."
 echo "# "
 
-loop_counter=0
+if [ "$ORG_IMG_BATCH_NAME" = "None" ]; then
+    echo "No ORG_IMG_BATCH_NAME was set -> setting to default: $BATCH_NAME"
+    ORG_IMG_BATCH_NAME=$BATCH_NAME
+else
+    echo "# ORIGINAL IMAGE BATCH_NAME:" $ORG_IMG_BATCH_NAME
+fi
+echo "# "
 
+loop_counter=0
 for batch_dir in $BATCHES_INPUT_DIR/*
 do
     batch_input_dir=${batch_dir}/${OPERATOR_IN_DIR}
-    batch_original_img_dir=${batch_dir}/${ORG_IMG_IN_DIR}
-    
+    batch_original_img_dir=/${batch_dir}/${ORG_IMG_IN_DIR}
+    # batch_original_img_dir=/${WORKFLOW_DIR}/${ORG_IMG_BATCH_NAME}/${ORG_IMG_IN_DIR}
+
     batch_output_dir=${batch_dir}/${OPERATOR_OUT_DIR}
     batch_name=$(basename -- "$batch_dir")
     

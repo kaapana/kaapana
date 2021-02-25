@@ -15,7 +15,7 @@ COPY files/requirements.txt /home/coder/
 RUN python3 -m pip install --no-cache-dir -r ~/requirements.txt && rm ~/requirements.txt 
 
 # extensions to code-server
-RUN code-server --install-extension ms-python.python
+# RUN code-server --install-extension ms-python.python
 
 #v2020.10.332292344 
 # RUN curl https://extensions.coder.com/api/publishers/ms-python/vsextensions/python/2020.10.332292344/vspackage --output /tmp/python.vsix \

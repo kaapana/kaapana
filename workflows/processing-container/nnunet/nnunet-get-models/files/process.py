@@ -17,7 +17,7 @@ if output_dir == "/models":
     models_dir = join(output_dir, "nnUNet")
 else:
     workflow_dir = os.getenv('WORKFLOW_DIR', "data")
-    models_dir = os.path.join(workflow_dir,output_dir)
+    models_dir = os.path.join(workflow_dir, output_dir)
 
 task_ids = os.getenv('TASK', "NONE")
 task_ids = None if task_ids == "NONE" else task_ids
@@ -26,6 +26,7 @@ model = None if model == "NONE" else model
 mode = os.getenv('MODE', "install_pretrained")
 
 Path(models_dir).mkdir(parents=True, exist_ok=True)
+
 
 def check_dl_running(model_path_dl_running, model_path, wait=True):
     if os.path.isfile(model_path_dl_running):
@@ -51,6 +52,7 @@ def delete_file(target_file):
     except Exception as e:
         print(e)
         pass
+
 
 print("------------------------------------")
 print(f"--     MODE: {mode}")
@@ -156,7 +158,9 @@ elif mode == "install_pretrained":
         print("Check if model already present: {}".format(model_path))
         print("TASK: {}".format(task_id))
         print("MODEL: {}".format(model))
-        if os.path.isdir(model_path):
+
+        tasks_found = glob.glob(join(models_dir,"**",task_id),recursive=True)
+        if len(tasks_found) > 0:
             print("Model {} found!".format(task_id))
             continue
 
@@ -254,7 +258,7 @@ elif mode == "uninstall":
         installed_tasks_dirs = [basename(normpath(f.path)) for f in os.scandir(model_path) if f.is_dir()]
         for installed_task in installed_tasks_dirs:
             if installed_task.lower() == task_ids.lower():
-                task_path = join(models_dir,installed_model,installed_task)
+                task_path = join(models_dir, installed_model, installed_task)
                 print(f"Removing: {task_path}")
                 rmtree(task_path)
 else:

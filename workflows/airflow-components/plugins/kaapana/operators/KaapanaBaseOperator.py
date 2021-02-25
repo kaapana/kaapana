@@ -110,6 +110,8 @@ class KaapanaBaseOperator(BaseOperator):
                  manage_cache=None,
                  delete_input_on_success=False,
                  # Other stuff
+                 batch_name = None,
+                 workflow_dir = None,
                  cmds=None,
                  arguments=None,
                  env_vars=None,
@@ -159,6 +161,8 @@ class KaapanaBaseOperator(BaseOperator):
             gpu_mem_mb=gpu_mem_mb,
             gpu_mem_mb_lmt=gpu_mem_mb_lmt,
             manage_cache=manage_cache,
+            batch_name = batch_name,
+            workflow_dir = workflow_dir,
             delete_input_on_success=delete_input_on_success
         )
 
@@ -242,10 +246,10 @@ class KaapanaBaseOperator(BaseOperator):
             self.pod_resources = pod_resources
 
         envs = {
-            "WORKFLOW_DIR": str(WORKFLOW_DIR),
-            "BATCH_NAME": str(BATCH_NAME),
+            "WORKFLOW_DIR": str(self.workflow_dir),
+            "BATCH_NAME": str(self.batch_name),
             "OPERATOR_OUT_DIR": str(self.operator_out_dir),
-            "BATCHES_INPUT_DIR": "/{}/{}".format(WORKFLOW_DIR, BATCH_NAME)
+            "BATCHES_INPUT_DIR": f"/{self.workflow_dir}/{self.batch_name}"
         }
         if hasattr(self, 'operator_in_dir'):
             envs["OPERATOR_IN_DIR"] = str(self.operator_in_dir)
@@ -432,6 +436,8 @@ class KaapanaBaseOperator(BaseOperator):
         gpu_mem_mb,
         gpu_mem_mb_lmt,
         manage_cache,
+        batch_name,
+        workflow_dir,
         delete_input_on_success
     ):
 
@@ -452,6 +458,9 @@ class KaapanaBaseOperator(BaseOperator):
         obj.gpu_mem_mb_lmt = gpu_mem_mb_lmt
         obj.manage_cache = manage_cache or 'ignore'
         obj.delete_input_on_success = delete_input_on_success
+
+        obj.batch_name = batch_name if batch_name != None else BATCH_NAME
+        obj.workflow_dir = workflow_dir if workflow_dir != None else WORKFLOW_DIR
 
         if obj.task_id is None:
             obj.task_id = obj.name

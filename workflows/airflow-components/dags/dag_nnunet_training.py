@@ -29,8 +29,8 @@ train_network = "3d_lowres"
 train_network_trainer = "nnUNetTrainerV2"
 ae_title = "nnUnet-results"
 
-# training_results_study_uid = pydicom.uid.generate_uid()
-training_results_study_uid = "1.2.826.0.1.3680043.8.498.73386889396401605965136848941191845553"
+# training_results_study_uid = "1.2.826.0.1.3680043.8.498.73386889396401605965136848941191845554"
+training_results_study_uid = None
 
 gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
 gpu_count = int(gpu_count_pool.slots) if gpu_count_pool is not None else 1

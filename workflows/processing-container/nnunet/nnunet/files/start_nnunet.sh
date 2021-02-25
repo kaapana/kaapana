@@ -15,17 +15,6 @@ echo "# MODE:     $MODE";
 echo "# TASK:     $TASK";
 echo "# TASK_NUM: $TASK_NUM";
 echo "#"
-if [ "$MODE" != "training" ] && [ "$MODE" != "inference" ]  && [ "$MODE" != "preprocess" ] && [ "$MODE" != "export-model" ] && [ "$MODE" != "zip-model" ] && [ "$MODE" != "install-model" ] && [ "$MODE" != "identify-best" ]; then
-    echo "#"
-    echo "#######################################################################"
-    echo "#"
-    echo "# MODE ($MODE) NOT SUPPORTED";
-    echo "# OPTIONS: preprocess, training, inference,identify-best,export-model,install-model";
-    echo "#"
-    echo "#######################################################################"
-    echo "#"
-    exit 1
-fi
 
 if [ "$MODE" = "preprocess" ]; then
     export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR"
@@ -135,107 +124,19 @@ elif [ "$MODE" = "training" ]; then
     echo "# DONE"
     
 elif [ "$MODE" = "inference" ]; then
-    export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR"
-    export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
-    if [ $MODELS_DIR = "/models" ]; then
-        export RESULTS_FOLDER="$MODELS_DIR"
-    else
-        export RESULTS_FOLDER="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
-    fi
-    shopt -s globstar
-    BATCH_COUNT=$(find "$BATCHES_INPUT_DIR" -mindepth 1 -maxdepth 1 -type d | wc -l)
-    
     echo "#"
     echo "# Starting inference..."
     echo "#"
-    echo "# THREADS_PREP:  $INF_THREADS_PREP";
-    echo "# THREADS_NIFTI: $INF_THREADS_NIFTI";
-    echo "# PREPARATION:   $INF_PREPARATION";
-    echo "#"
-    echo "# INPUT_MODALITY_DIRS: $INPUT_MODALITY_DIRS";
-    echo "#"
-    echo "# WORKFLOW_DIR:     $WORKFLOW_DIR"
-    echo "# OPERATOR_OUT_DIR: $OPERATOR_OUT_DIR"
-    echo "#"
-    echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
-    echo "# nnUNet_preprocessed: $nnUNet_preprocessed"
-    echo "# RESULTS_FOLDER: $RESULTS_FOLDER"
-    echo "# SOFTMAX: $INF_SOFTMAX"
-    echo "#"
-    echo "# BATCH_COUNT: " $BATCH_COUNT
-    echo "#"
+
+    python3 -u ./simple_predict.py
     
-    if [ $BATCH_COUNT -eq 0 ]; then
-        echo "# No batch-data found -> abort."
-        exit 1
-    else
-        echo "# Found $BATCH_COUNT batches."
-    fi
-    echo "#";
-    echo "# Starting batch loop...";
-    echo "#";
+elif [ "$MODE" = "ensemble" ]; then
+    echo "#"
+    echo "# Starting ensemble..."
+    echo "#"
+
+    python3 -u ./ensemble.py
     
-    for batch_dir in $BATCHES_INPUT_DIR/*
-    do
-        
-        batch_name=$(basename -- "$batch_dir")
-        
-        echo "# TASK" $TASK
-        echo "# MODEL" $MODEL
-        echo "# INPUT_DIRS" $INPUT_DIRS
-        echo "# batch_dir" $batch_dir
-        echo "# batch_name" $batch_name
-        echo "# MODE" $MODE
-        echo "#"
-        echo "#"
-        
-        operator_input_dir=${batch_dir}/${OPERATOR_IN_DIR}
-        
-        operator_output_dir=${batch_dir}/${OPERATOR_OUT_DIR}
-        mkdir -p $operator_output_dir
-        
-        if [ "$INF_PREPARATION" = "true" ] || [ "$INF_PREPARATION" = "True" ] ; then
-            echo "############# Starting nnUNet file preparation..."
-            python3 -u ./preparation.py
-            if [ $? -eq 0 ]; then
-                echo "# Data preparation successful!"
-            else
-                echo "# Data preparation failed!"
-                exit 1
-            fi
-        else
-            echo "############# nnUNet file preparation is turned off! (PREPARATION: '$INF_PREPARATION')"
-            find . -name $operator_input_dir\*.nii* -exec cp {} $nnUNet_raw_data_base \;
-            
-        fi
-        
-        echo "############# Starting nnUNet prediction..."
-        echo "#"
-
-        if test $(find $RESULTS_FOLDER/nnUNet/$TRAIN_NETWORK/$TASK/ -name all | wc -c) -eq 0; then
-            folds=""
-        else
-            echo "# Enabling folds = all ..."
-            folds="-f all"
-        fi
-
-        if [ "$INF_SOFTMAX" = "True" ] || [ "$INF_SOFTMAX" = "true" ]; then
-            echo "# Enabling softmax ..."
-            softmax="--npz"
-        else
-            softmax=""
-        fi
-
-        echo "# COMMAND: nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL $folds $softmax --num_threads_preprocessing $INF_THREADS_PREP --num_threads_nifti_save $INF_THREADS_NIFTI --disable_tta --mode fast --all_in_gpu False"
-        nnUNet_predict -t $TASK -i $nnUNet_raw_data_base -o $operator_output_dir -m $MODEL $folds $softmax --num_threads_preprocessing $INF_THREADS_PREP --num_threads_nifti_save $INF_THREADS_NIFTI --disable_tta --mode fast --all_in_gpu False
-        if [ $? -eq 0 ]; then
-            echo "############# Prediction successful!"
-        else
-            echo "############# Prediction failed!"
-            exit 1
-        fi
-        echo "# "
-    done
     
 elif [ "$MODE" = "identify-best" ]; then
     export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"

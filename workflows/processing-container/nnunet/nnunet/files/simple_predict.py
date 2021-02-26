@@ -61,7 +61,7 @@ def create_dataset(search_dir):
                     print(f"# Moving file {nifti} to {target_filename}")
                     shutil.move(nifti, target_filename)
                 input_count += 1
-    
+
     input_count = len(glob(join(input_data_dir, "*.nii.gz"), recursive=True))
 
     return input_data_dir, input_count
@@ -75,14 +75,15 @@ def get_model_paths(batch_element_dir):
         print(f"# Default models dir: {model_path} -> continue")
         model_paths.append(model_path)
     else:
-        model_path = join(batch_element_dir, models_dir, "nnUNet", train_network)
-        print(f"# Batch models dir: {model_path} -> checking ...")
+        model_path = join(batch_element_dir, models_dir, train_network)
         batch_models_dir = join('/', workflow_dir, models_dir, train_network)
+        print(f"# Batch-element models dir: {model_path}")
+        print(f"# Batch models dir: {batch_models_dir}")
         if exists(model_path):
-            print("# Found -> continue")
+            print("# Found batch-element models dir -> continue")
             model_paths.append(model_path)
         elif exists(batch_models_dir):
-            print(f"# Found model in default batch: {input_data_dir}")
+            print("# Found batch models dir -> continue")
             model_paths.append(batch_models_dir)
         else:
             print("# Could not find models !")
@@ -100,14 +101,17 @@ def get_model_paths(batch_element_dir):
             print("# Task not set!")
             tasks = [f.name for f in os.scandir(model_path) if f.is_dir()]
             if len(tasks) == 1:
-                task = tasks[0]
-                print(f"# Task indenified: {task}")
+                task_idenified = tasks[0]
+                print(f"# Task idenified: {task_idenified}")
             else:
                 print("# Task could not be identified...")
-                print(f"# Tasks found: {tasks}")
+                print(f"# model_path:  {model_path}")
+                print(f"# Tasks found: {task_idenified}")
                 print("# ABORT !")
                 exit(1)
-        model_path = join(model_path, task)
+            model_path = join(model_path, task_idenified)
+        else:
+            model_path = join(model_path, task)
         trainer = [f.name for f in os.scandir(model_path) if f.is_dir()]
         if len(trainer) == 1:
             model_path = join(model_path, trainer[0])

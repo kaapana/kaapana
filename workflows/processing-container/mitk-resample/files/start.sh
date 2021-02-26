@@ -27,7 +27,7 @@ loop_counter=0
 for batch_dir in $BATCHES_INPUT_DIR/*
 do
     batch_input_dir=${batch_dir}/${OPERATOR_IN_DIR}
-    batch_original_img_dir=/${batch_dir}/${ORG_IMG_IN_DIR}
+    batch_original_img_dir=${batch_dir}/${ORG_IMG_IN_DIR}
     # batch_original_img_dir=/${WORKFLOW_DIR}/${ORG_IMG_BATCH_NAME}/${ORG_IMG_IN_DIR}
 
     batch_output_dir=${batch_dir}/${OPERATOR_OUT_DIR}
@@ -39,8 +39,13 @@ do
     echo "# BATCH OUTPUT DIR:   " $batch_output_dir
     echo "# "
     
-    if [ ! -d "$batch_input_dir" ] || [ ! -d "$batch_original_img_dir" ]; then
-        echo "# One of the input dirs does not exists. " 
+    if [ ! -d "$batch_input_dir" ]; then
+        echo "# batch_input_dir: $batch_input_dir does not exist. " 
+        echo "# Skipping batch..."
+        continue
+    fi
+    if [ ! -d "$batch_original_img_dir" ]; then
+        echo "# batch_original_img_dir: $batch_original_img_dir does not exist. " 
         echo "# Skipping batch..."
         continue
     fi

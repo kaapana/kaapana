@@ -32,12 +32,16 @@ ae_title = "nnUnet-results"
 # training_results_study_uid = "1.2.826.0.1.3680043.8.498.73386889396401605965136848941191845554"
 training_results_study_uid = None
 
+max_active_runs = 1
 gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
 gpu_count = int(gpu_count_pool.slots) if gpu_count_pool is not None else 1
 cpu_count_pool = pool_api.get_pool(name="CPU")
 prep_threads = int(cpu_count_pool.slots//8) if cpu_count_pool is not None else 4
 prep_threads = 2 if prep_threads < 2 else prep_threads
 prep_threads = 9 if prep_threads > 9 else prep_threads
+
+prep_threads = prep_threads // max_active_runs
+prep_threads = prep_threads // max_active_runs
 
 ui_forms = {
     "publication_form": {
@@ -169,7 +173,7 @@ dag = DAG(
     dag_id='nnunet-training',
     default_args=args,
     concurrency=gpu_count,
-    max_active_runs=1,
+    max_active_runs=max_active_runs,
     schedule_interval=None
 )
 

@@ -5,6 +5,7 @@ from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_r
 from datetime import timedelta
 import os
 
+
 class GetTaskModelOperator(KaapanaBaseOperator):
     execution_timeout = timedelta(minutes=240)
 
@@ -13,6 +14,7 @@ class GetTaskModelOperator(KaapanaBaseOperator):
                  name="get-task-model",
                  task_id=None,
                  zip_file=False,
+                 target_level="default",
                  operator_out_dir="/models",
                  mode="install_pretrained",
                  env_vars={},
@@ -23,6 +25,7 @@ class GetTaskModelOperator(KaapanaBaseOperator):
 
         envs = {
             "MODE": str(mode),
+            "TARGET_LEVEL": str(target_level),
             "ZIP_FILE": str(zip_file)
         }
         env_vars.update(envs)

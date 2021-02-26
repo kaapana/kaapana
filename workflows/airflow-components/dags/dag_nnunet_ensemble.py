@@ -120,6 +120,7 @@ dcm2bin = Bin2DcmOperator(
 extract_model = GetTaskModelOperator(
     dag=dag,
     name="unzip-models",
+    target_level="batch_element",
     input_operator=dcm2bin,
     operator_out_dir="model-exports",
     mode="install_zip"
@@ -188,9 +189,10 @@ evaluation = LocalDiceOperator(
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
 
-get_test_images >> dcm2nifti_gt >> resample_gt >> evaluation
-get_test_images >> get_ref_ct_series_from_gt >> dcm2nifti_ct >> nnunet_predict
 get_input >> dcm2bin >> extract_model >> nnunet_predict >> nnunet_ensemble >> data_organizer
 data_organizer >> resample_single >> evaluation
 data_organizer >> resample_ensemble >> evaluation
-evaluation >> clean
+get_test_images >> dcm2nifti_gt >> resample_gt >> evaluation >> clean
+get_test_images >> get_ref_ct_series_from_gt >> dcm2nifti_ct
+dcm2nifti_ct >> nnunet_predict
+dcm2nifti_ct >> resample_gt

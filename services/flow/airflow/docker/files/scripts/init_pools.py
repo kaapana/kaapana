@@ -1,6 +1,10 @@
 from airflow.api.common.experimental import pool as pool_api
+from airflow.models import Variable
+
 import requests
 import time
+from uuid import getnode
+
 # Will show up under airflow.hooks.test_plugin.PluginHook
 
 cpu_core_query = "sum(machine_cpu_cores)"
@@ -37,6 +41,11 @@ def get_node_info(query):
             exit(1)
 
     return result_value
+
+def init_vars():
+    node_uid = Variable.get(key="node_uid", default_var=None)
+    if node_uid == None:
+        Variable.set("node_uid", f"node_uid_{getnode()}")
 
 def init_pools():
 
@@ -88,4 +97,4 @@ def init_pools():
             exit(1)
 
 init_pools()
-
+init_vars()

@@ -196,7 +196,7 @@ spec:
         - name: airflow-plugins
           mountPath: /root/airflow/plugins
         - name: airflow-models
-          mountPath: /root/airflow/models
+          mountPath: /models
         - name: ctpinput
           mountPath: /ctpinput
         - name: workflowdata

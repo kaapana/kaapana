@@ -30,7 +30,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
 
         return labels, model_id
 
-    def prep_nifti(nifti_path):
+    def prep_nifti(self, nifti_path):
         nifti_numpy = nib.load(nifti_path).get_fdata().astype(int)
         nifti_labels = list(np.unique(nifti_numpy))
 
@@ -112,55 +112,69 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                     exit(1)
                 result_scores_sm[model_id][file_id]["gt_file"] = gt_file
                 result_scores_sm[model_id][file_id]["pred_file"] = single_model_pred_file
-                gt_numpy, gt_labels = self.prep_nifti(nifti_path=gt_file)
-                sm_numpy, sm_labels = self.prep_nifti(nifti_path=single_model_pred_file)
+                gt_numpy, gt_labels = self.prep_nifti(gt_file)
+                sm_numpy, sm_labels = self.prep_nifti(single_model_pred_file)
 
                 result_scores_sm[model_id][file_id]["label_predictions"] = {}
                 for pred_label in sm_labels:
-                    label_key = labels[str(pred_label)] if str(pred_label) in labels else str(pred_label)
-                    if pred_label not in gt_labels:
+                    label_key = labels[str(pred_label)] if labels != None and str(pred_label) in labels else None
+                    if label_key == None and labels != None:
+                        print("##################################################")
+                        print("#")
+                        print("##################### INFO ######################")
+                        print("#")
                         print(f"# predicted label {pred_label}: {label_key} can't be found in gt!")
-                        assert pred_label in gt_labels
+                        print(f"# pred_label in gt_labels: {pred_label in gt_labels}")
+                        print("#")
+                        print("##################################################")
+                        # assert pred_label in gt_labels
                     else:
                         label_strip_gt = (gt_numpy == pred_label).astype(int)
                         label_strip_sm = (sm_numpy == pred_label).astype(int)
                         dice_result = self.calc_dice(pred=label_strip_sm, gt=label_strip_gt)
                         print("#")
-                        print("# Single Model evalualtion: {model_id}")
+                        print(f"# Single Model evalualtion: {model_id}")
                         print(f"Label: {pred_label} -> {label_key}")
                         print(f"Dice:  {dice_result}")
                         print("#")
                         result_scores_sm[model_id][file_id]["label_predictions"]["label_id"] = pred_label
                         result_scores_sm[model_id][file_id]["label_predictions"]["label_name"] = label_key
-                        result_scores_sm[model_id][file_id]["label_predictions"]["dice"] = dice_result
+                        result_scores_sm[model_id][file_id]["label_predictions"]["dice"] = str(dice_result)
 
                 ensemble_numyp = None
                 ensemble_labels = None
                 if self.ensemble_dir != None and file_id not in result_scores_ensemble:
-                    result_scores_ensemble[result_scores_ensemble] = {}
+                    result_scores_ensemble[file_id] = {}
                     ensemble_file = join(self.ensemble_dir, basename(single_model_pred_file))
-                    ensemble_numyp, ensemble_labels = self.prep_nifti(nifti_path=ensemble_file)
+                    ensemble_numyp, ensemble_labels = self.prep_nifti(ensemble_file)
 
-                    result_scores_ensemble[result_scores_ensemble]["ensemble_file"] = ensemble_file
-                    result_scores_ensemble[result_scores_ensemble]["gt_file"] = gt_file
-                    result_scores_ensemble[result_scores_ensemble]["label_predictions"] = {}
+                    result_scores_ensemble[file_id]["ensemble_file"] = ensemble_file
+                    result_scores_ensemble[file_id]["gt_file"] = gt_file
+                    result_scores_ensemble[file_id]["label_predictions"] = {}
                     for pred_label in ensemble_labels:
                         label_key = labels[str(pred_label)] if str(pred_label) in labels else str(pred_label)
-                        if pred_label not in gt_labels:
+                        if label_key == None and labels != None:
+                            print("##################################################")
+                            print("#")
+                            print("##################### INFO ######################")
+                            print("#")
                             print(f"# predicted label {pred_label}: {label_key} can't be found in gt!")
-                            assert pred_label in gt_labels
+                            print(f"# pred_label in gt_labels: {pred_label in gt_labels}")
+                            print("#")
+                            print("##################################################")
+                            # assert pred_label in gt_labels
                         else:
                             label_strip_gt = (gt_numpy == pred_label).astype(int)
                             label_strip_ensemble = (ensemble_numyp == pred_label).astype(int)
                             dice_result = self.calc_dice(pred=label_strip_ensemble, gt=label_strip_gt)
                             print("#")
-                            print("# Ensemble evalualtion: {model_id}")
+                            print(f"# Ensemble evalualtion: {model_id}")
                             print(f"Label: {pred_label} -> {label_key}")
                             print(f"Dice:  {dice_result}")
                             print("#")
-                            result_scores_ensemble[result_scores_ensemble]["label_predictions"]["label_id"] = pred_label
-                            result_scores_ensemble[result_scores_ensemble]["label_predictions"]["label_name"] = label_key
-                            result_scores_ensemble[result_scores_ensemble]["label_predictions"]["dice"] = dice_result
+                            result_scores_ensemble[file_id]["label_predictions"]["label_id"] = pred_label
+                            result_scores_ensemble[file_id]["label_predictions"]["label_name"] = label_key
+                            result_scores_ensemble[file_id]["label_predictions"]["dice"] = str(dice_result)
 
                 print("##################################################")
 
@@ -168,10 +182,12 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
         print("# RESULTS: ")
         print("# ")
         print("# SINGLE MODEL")
-        print(json.dumps(result_scores_sm,indent=4,sort_keys=True))
+        print(result_scores_sm)
+        print(f"# type(result_scores_sm): {type(result_scores_sm)}")
+        print(json.dumps(result_scores_sm, indent=4, sort_keys=True, default=str))
         print("# ")
         print("# ENSEMBLE")
-        print(json.dumps(result_scores_ensemble,indent=4,sort_keys=True))
+        print(json.dumps(result_scores_ensemble, indent=4, sort_keys=True, default=str))
         print("# ")
         print("#")
         print(f"# Processed file_count: {processed_count}")

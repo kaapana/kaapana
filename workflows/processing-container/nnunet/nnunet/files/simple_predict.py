@@ -227,9 +227,12 @@ print(f"# train_network_trainer: {train_network_trainer}")
 print("#")
 print("##################################################")
 print("#")
+print("# Starting processing on batch-element-level ...")
+print("#")
+print("##################################################")
+print("#")
 
 processed_count = 0
-
 batch_folders = [f for f in glob(join('/', workflow_dir, batch_name, '*'))]
 for batch_element_dir in batch_folders:
     input_data_dir, input_count = create_dataset(search_dir=batch_element_dir)
@@ -284,61 +287,61 @@ for batch_element_dir in batch_folders:
         print(f"#")
 
 
-print("##################################################")
-print("#")
-print("# Starting processing on batch-level ...")
-print("#")
-print("##################################################")
-
-input_data_dir, input_count = create_dataset(search_dir=workflow_dir)
-
-if input_count == 0:
+if processed_count == 0:
+    print("##################################################")
     print("#")
-    print("# No files on batch-level found -> continue")
+    print("# Starting processing on batch-level ...")
     print("#")
-else:
-    # element_input_dir = join(batch_element_dir, operator_in_dir)
-    output_dir = join(workflow_dir, operator_out_dir)
+    print("##################################################")
+    input_data_dir, input_count = create_dataset(search_dir=workflow_dir)
 
-    # models/nnUNet/3d_lowres/Task003_Liver/nnUNetTrainerV2__nnUNetPlansv2.1/fold_1
-    model_paths = get_model_paths(batch_element_dir=workflow_dir)
-    if folds == None and exists(join(model_paths, "all")):
-        folds = "all"
+    if input_count == 0:
+        print("#")
+        print("# No files on batch-level found -> continue")
+        print("#")
+    else:
+        # element_input_dir = join(batch_element_dir, operator_in_dir)
+        output_dir = join(workflow_dir, operator_out_dir)
 
-    for model in model_paths:
-        if folds == None and exists(join(model, "all")):
+        # models/nnUNet/3d_lowres/Task003_Liver/nnUNetTrainerV2__nnUNetPlansv2.1/fold_1
+        model_paths = get_model_paths(batch_element_dir=workflow_dir)
+        if folds == None and exists(join(model_paths, "all")):
             folds = "all"
-        print(f"#")
-        print(f"# Start prediction....")
-        print(f"# model:      {model}")
-        print(f"# folds:      {folds}")
 
-        print(f"# Start prediction....")
-        Path(output_dir).mkdir(parents=True, exist_ok=True)
-        write_seg_info(task=task, targets=task_targets, target_dir=output_dir)
-        predict_from_folder(
-            model=model,
-            input_folder=input_data_dir,
-            output_folder=output_dir,
-            folds=folds,
-            save_npz=enable_softmax,
-            num_threads_preprocessing=threads_preprocessing,
-            num_threads_nifti_save=threads_nifiti,
-            lowres_segmentations=None,
-            part_id=part_id,
-            num_parts=num_parts,
-            tta=tta,
-            mixed_precision=mixed_precision,
-            overwrite_existing=override_existing,
-            mode=inf_mode,
-            overwrite_all_in_gpu=overwrite_all_in_gpu,
-            step_size=step_size,
-            checkpoint_name=checkpoint_name
-        )
-        torch.cuda.empty_cache()
-        processed_count += 1
-        print(f"# Prediction ok.")
-        print(f"#")
+        for model in model_paths:
+            if folds == None and exists(join(model, "all")):
+                folds = "all"
+            print(f"#")
+            print(f"# Start prediction....")
+            print(f"# model:      {model}")
+            print(f"# folds:      {folds}")
+
+            print(f"# Start prediction....")
+            Path(output_dir).mkdir(parents=True, exist_ok=True)
+            write_seg_info(task=task, targets=task_targets, target_dir=output_dir)
+            predict_from_folder(
+                model=model,
+                input_folder=input_data_dir,
+                output_folder=output_dir,
+                folds=folds,
+                save_npz=enable_softmax,
+                num_threads_preprocessing=threads_preprocessing,
+                num_threads_nifti_save=threads_nifiti,
+                lowres_segmentations=None,
+                part_id=part_id,
+                num_parts=num_parts,
+                tta=tta,
+                mixed_precision=mixed_precision,
+                overwrite_existing=override_existing,
+                mode=inf_mode,
+                overwrite_all_in_gpu=overwrite_all_in_gpu,
+                step_size=step_size,
+                checkpoint_name=checkpoint_name
+            )
+            torch.cuda.empty_cache()
+            processed_count += 1
+            print(f"# Prediction ok.")
+            print(f"#")
 
 if processed_count == 0:
     print("#")

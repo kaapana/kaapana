@@ -51,6 +51,8 @@ We expect the sudo systemctl restart snapd
 
       .. tab:: Ubuntu
 
+         | Install curl
+         | :code:`sudo apt install curl`
          | Check if snap is already installed: :code:`snap help --all`
          | If **not** run the following commands:
          | :code:`sudo apt install snapd`

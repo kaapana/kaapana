@@ -194,6 +194,7 @@ class KaapanaBaseOperator(BaseOperator):
         self.secrets = secrets
         self.kind = kind
         self.data_dir = os.getenv('DATADIR', "")
+        self.models_dir = os.getenv('MODELSDIR', "")
         self.result_message = None
         self.host_network = host_network
         self.enable_proxy = enable_proxy
@@ -213,6 +214,17 @@ class KaapanaBaseOperator(BaseOperator):
             {
                 'type': 'DirectoryOrCreate',
                 'path': self.data_dir
+            }
+        }
+        self.volumes.append(Volume(name='dcmdata', configs=volume_config))
+
+        self.volume_mounts.append(VolumeMount(
+            'models', mount_path='/models', sub_path=None, read_only=False))
+        volume_config = {
+            'hostPath':
+            {
+                'type': 'DirectoryOrCreate',
+                'path': self.models_dir
             }
         }
         self.volumes.append(Volume(name='dcmdata', configs=volume_config))

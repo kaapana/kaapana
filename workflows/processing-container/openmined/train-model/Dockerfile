@@ -11,11 +11,9 @@ RUN apt-get update && apt-get install -y gcc
 RUN python -m pip install git+https://github.com/OpenMined/PySyft.git@3852ca9e78d5163b52776b231f469e32e6c8be01
 
 RUN mkdir /utils
-RUN mkdir /models
+COPY files/dataset.py files/models.py ./utils/
 
 COPY files/process.py ./
-COPY files/dataset.py files/models.py ./utils/
-COPY models ./models
 
 #CMD tail -f  /dev/null
 CMD ["python3","-u","/process.py"]

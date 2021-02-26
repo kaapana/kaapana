@@ -7,11 +7,13 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
+import torchvision.models as models
 
 from utils.dataset import OpenminedDataset
-from utils.models import get_model
+from utils.models import get_model, get_model_from_minio
 
-# hooking PyTorch
+
+# hooking PyTorch to PySyft
 hook = sy.TorchHook(th)
 
 # set parameter
@@ -20,15 +22,20 @@ N_EPOCS = int(os.environ['EPOCHS'])
 BATCH_SIZE = int(os.environ['BATCH_SIZE'])
 LEARNING_RATE = float(os.environ['LEARNING_RATE'])
 
-SAVE_MODEL = True
-SAVE_MODEL_PATH = '../models'
+#SAVE_MODEL = True
+#SAVE_MODEL_PATH = '../models'
 
-# check gpu support
+# check gpu availability
 device = th.device('cuda:0' if th.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
 
-# create model
-model = get_model(architecture=MODEL)
+# build/load model
+if MODEL in ['mnist_example', 'xray_example']:
+    model = get_model(example=MODEL)
+else:
+    model = get_model_from_minio(model_file_name=MODEL)
+assert (model is not None), "No model found - Please check model and given parameter!"
+
 model.to(device)
 optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE)
 criterion = nn.CrossEntropyLoss()
@@ -48,7 +55,6 @@ workers = {worker : data[worker][0].location for worker in data.keys()}
 print(f'Workers: {workers}')
 
 # raise exception if no data/labels available
-assert (workers), "No nodes/workers registered to PyGrid."
 assert (data), "No data found in PyGrid."
 assert (labels), "No labels found in PyGrid."
 
@@ -70,7 +76,6 @@ def epoch_total_size(data):
 #             total += data[elem][i].shape[0]
     return total
 
-
 # Training on all nodes
 def train(epoch):
     current_epoch_size = 0
@@ -78,6 +83,7 @@ def train(epoch):
     
     ''' iterate over the remote workers - send model to its location '''
     for worker in workers.values():
+        
         model.train()
         model.send(worker)
         current_epoch_size += len(data[worker.id][0])
@@ -85,13 +91,16 @@ def train(epoch):
         ''' iterate over batches of remote data '''
         for batch_idx, (imgs, labels) in enumerate(dataloaders[worker.id]):
 
+            ''' reset gradients '''
+            optimizer.zero_grad()
+            
             ''' forward step '''
             pred = model(imgs)
 
             ''' compute loss, backprob, update parameter '''
             loss = criterion(pred, labels)
-
-            optimizer.zero_grad()
+            
+            ''' backward pass and optimizer step '''
             loss.backward()
             optimizer.step()
             
@@ -105,7 +114,11 @@ def train(epoch):
 
 # Run training
 print('\n### RUN TRAINING ###')
-
 for epoch in range(N_EPOCS):
     print(f'# Epoch: {epoch}')
     train(epoch)
+
+# save trained model
+if not os.path.isdir('models/trained'):
+    os.mkdir('models/trained')
+th.save(model, f'models/trained/{MODEL}_trained.pt')

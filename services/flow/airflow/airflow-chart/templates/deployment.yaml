@@ -125,14 +125,16 @@ spec:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg
           subPath: airflow.cfg
-        - name: airflow-models
-          mountPath: /root/airflow/models
         - name: airflow-dags
           mountPath: /root/airflow/dags
         - name: airflow-plugins
           mountPath: /root/airflow/plugins
         - name: airflow-logs
           mountPath: /root/airflow/logs
+        - name: workflowdata
+          mountPath: /data
+        - name: airflow-models
+          mountPath: /models
         # readinessProbe:
         #   initialDelaySeconds: 120
         #   timeoutSeconds: 5

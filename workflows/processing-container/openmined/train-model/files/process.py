@@ -18,7 +18,7 @@ hook = sy.TorchHook(th)
 
 # set parameter
 MODEL = str(os.environ['MODEL'])
-N_EPOCS = int(os.environ['EPOCHS'])
+N_EPOCHS = int(os.environ['EPOCHS'])
 BATCH_SIZE = int(os.environ['BATCH_SIZE'])
 LEARNING_RATE = float(os.environ['LEARNING_RATE'])
 
@@ -112,11 +112,23 @@ def train(epoch):
                   epoch, str(worker.id).upper(), current_epoch_size, epoch_total,
                         100. *  current_epoch_size / epoch_total, loss.item()))
 
-# Run training
-print('\n### RUN TRAINING ###')
-for epoch in range(N_EPOCS):
+# print training information
+print(f"""
+\n{'-'*40}
+### RUN TRAINING with ###
+{'-'*40}
+# Epochs:\t\t{N_EPOCHS}
+# Batch size:\t\t{BATCH_SIZE}
+# Learning rate:\t{LEARNING_RATE}
+#
+{'-'*40}
+""")
+
+# run training
+for epoch in range(N_EPOCHS):
     print(f'# Epoch: {epoch}')
     train(epoch)
+print("Model training finished!")
 
 # save trained model
 if not os.path.isdir('models/trained'):

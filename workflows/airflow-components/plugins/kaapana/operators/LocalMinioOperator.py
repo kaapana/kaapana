@@ -50,7 +50,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                             secure=False)
 
 
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
+        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id) if self.run_dir is None else os.path.join(self.run_dir)
         batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
         print(batch_folder)
         

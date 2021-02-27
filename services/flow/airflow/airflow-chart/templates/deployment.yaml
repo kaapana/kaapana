@@ -107,7 +107,7 @@ spec:
           value: "/root/airflow"
         - name: DATADIR
           value: {{ .Values.global.fast_data_dir }}/workflows/data
-        - name: MODELSDIR
+        - name: MODELDIR
           value: {{ .Values.global.fast_data_dir }}/workflows/models
         - name: HOSTDOMAIN
           value: {{ .Values.global.hostname }}
@@ -135,7 +135,7 @@ spec:
           mountPath: /root/airflow/logs
         - name: workflowdata
           mountPath: /data
-        - name: airflow-models
+        - name: modeldata
           mountPath: /models
         # readinessProbe:
         #   initialDelaySeconds: 120
@@ -165,7 +165,7 @@ spec:
           value: "/root/airflow"
         - name: DATADIR
           value: {{ .Values.global.fast_data_dir }}/workflows/data
-        - name: MODELSDIR
+        - name: MODELDIR
           value: {{ .Values.global.fast_data_dir }}/workflows/models
         - name: PROXY
           value: {{ .Values.global.http_proxy }}
@@ -201,7 +201,7 @@ spec:
           mountPath: /root/airflow/logs
         - name: airflow-plugins
           mountPath: /root/airflow/plugins
-        - name: airflow-models
+        - name: modeldata
           mountPath: /models
         - name: ctpinput
           mountPath: /ctpinput
@@ -225,7 +225,7 @@ spec:
         hostPath:
           path: {{ .Values.global.fast_data_dir }}/workflows/plugins
           type: DirectoryOrCreate
-      - name: airflow-models
+      - name: modeldata
         hostPath:
           path: {{ .Values.global.fast_data_dir }}/workflows/models
           type: DirectoryOrCreate

@@ -194,7 +194,7 @@ class KaapanaBaseOperator(BaseOperator):
         self.secrets = secrets
         self.kind = kind
         self.data_dir = os.getenv('DATADIR', "")
-        self.models_dir = os.getenv('MODELSDIR', "")
+        self.model_dir = os.getenv('MODELDIR', "")
         self.result_message = None
         self.host_network = host_network
         self.enable_proxy = enable_proxy
@@ -208,7 +208,7 @@ class KaapanaBaseOperator(BaseOperator):
         self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63)
 
         self.volume_mounts.append(VolumeMount(
-            'dcmdata', mount_path='/data', sub_path=None, read_only=False))
+            'workflowdata', mount_path='/data', sub_path=None, read_only=False))
         volume_config = {
             'hostPath':
             {
@@ -216,18 +216,18 @@ class KaapanaBaseOperator(BaseOperator):
                 'path': self.data_dir
             }
         }
-        self.volumes.append(Volume(name='dcmdata', configs=volume_config))
+        self.volumes.append(Volume(name='workflowdata', configs=volume_config))
 
         self.volume_mounts.append(VolumeMount(
-            'models', mount_path='/models', sub_path=None, read_only=False))
+            'modeldata', mount_path='/models', sub_path=None, read_only=False))
         volume_config = {
             'hostPath':
             {
                 'type': 'DirectoryOrCreate',
-                'path': self.models_dir
+                'path': self.model_dir
             }
         }
-        self.volumes.append(Volume(name='dcmdata', configs=volume_config))
+        self.volumes.append(Volume(name='modeldata', configs=volume_config))
 
         if self.training_operator:
             self.volume_mounts.append(VolumeMount(

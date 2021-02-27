@@ -133,6 +133,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
     def __init__(self,
         dag,
         action='get',
+        run_dir=None,
         bucket_name=None,
         action_operators=None,
         action_operator_dirs=None,
@@ -150,8 +151,9 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         
         if action == 'put':
             file_white_tuples = file_white_tuples or ('.json', '.mat', '.py', '.zip', '.txt', '.gz', '.csv', 'pdf', 'png', 'jpg')
-
+        
         self.action = action
+        self.run_dir = run_dir
         self.bucket_name = bucket_name
         self.action_operator_dirs = action_operator_dirs or []
         self.action_operators = action_operators or []

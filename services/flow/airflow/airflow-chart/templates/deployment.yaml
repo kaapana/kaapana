@@ -133,8 +133,6 @@ spec:
           mountPath: /root/airflow/plugins
         - name: airflow-logs
           mountPath: /root/airflow/logs
-        - name: workflowdata
-          mountPath: /data
         - name: modeldata
           mountPath: /models
         # readinessProbe:

@@ -84,8 +84,7 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
 
     def delete_icom_quality_study_from_pacs(self, rejected_study_uid):
         print("Delete_icom_quality_study_from_pacs StudyID: {}".format(rejected_study_uid))
-        reject_url = "{}/dcm4chee-arc/aets/IOCM_QUALITY/rs/studies/{}".format(self.pacs_dcmweb_endpoint,
-                                                                              rejected_study_uid)
+        reject_url = "{}/dcm4chee-arc/aets/IOCM_QUALITY/rs/studies/{}".format(self.pacs_dcmweb_endpoint, rejected_study_uid)
         r = requests.delete(reject_url, verify=False)
         if r.status_code != requests.codes.ok and r.status_code != 204:
             print('error delete_icom_quality_study_from_pacs ?!')
@@ -94,7 +93,6 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
             exit(1)
         else:
             print("Deleted: {}".format(rejected_study_uid))
-
 
     def check_all_clean(self, study_uid, series_uid):
         print("Check if there are no more traces of the UID", series_uid)

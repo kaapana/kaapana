@@ -129,7 +129,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                         print("##################################################")
                         # assert pred_label in gt_labels
                     else:
-                        result_scores_sm[model_id][file_id]["label_predictions"][pred_label]={}
+                        result_scores_sm[model_id][file_id]["label_predictions"][str(pred_label)]={}
                         label_strip_gt = (gt_numpy == pred_label).astype(int)
                         label_strip_sm = (sm_numpy == pred_label).astype(int)
                         dice_result = self.calc_dice(pred=label_strip_sm, gt=label_strip_gt)
@@ -138,9 +138,9 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                         print(f"Label: {pred_label} -> {label_key}")
                         print(f"Dice:  {dice_result}")
                         print("#")
-                        result_scores_sm[model_id][file_id]["label_predictions"][pred_label]["label_id"] = pred_label
-                        result_scores_sm[model_id][file_id]["label_predictions"][pred_label]["label_name"] = label_key
-                        result_scores_sm[model_id][file_id]["label_predictions"][pred_label]["dice"] = dice_result
+                        result_scores_sm[model_id][file_id]["label_predictions"][str(pred_label)]["label_id"] = pred_label
+                        result_scores_sm[model_id][file_id]["label_predictions"][str(pred_label)]["label_name"] = label_key
+                        result_scores_sm[model_id][file_id]["label_predictions"][str(pred_label)]["dice"] = dice_result
 
                 ensemble_numyp = None
                 ensemble_labels = None
@@ -165,7 +165,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                             print("##################################################")
                             # assert pred_label in gt_labels
                         else:
-                            result_scores_ensemble[file_id]["label_predictions"][pred_label]={}
+                            result_scores_ensemble[file_id]["label_predictions"][str(pred_label)]={}
                             label_strip_gt = (gt_numpy == pred_label).astype(int)
                             label_strip_ensemble = (ensemble_numyp == pred_label).astype(int)
                             dice_result = self.calc_dice(pred=label_strip_ensemble, gt=label_strip_gt)
@@ -174,9 +174,9 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                             print(f"Label: {pred_label} -> {label_key}")
                             print(f"Dice:  {dice_result}")
                             print("#")
-                            result_scores_ensemble[file_id]["label_predictions"][pred_label]["label_id"] = pred_label
-                            result_scores_ensemble[file_id]["label_predictions"][pred_label]["label_name"] = label_key
-                            result_scores_ensemble[file_id]["label_predictions"][pred_label]["dice"] = dice_result
+                            result_scores_ensemble[file_id]["label_predictions"][str(pred_label)]["label_id"] = pred_label
+                            result_scores_ensemble[file_id]["label_predictions"][str(pred_label)]["label_name"] = label_key
+                            result_scores_ensemble[file_id]["label_predictions"][str(pred_label)]["dice"] = dice_result
 
                 print("##################################################")
 

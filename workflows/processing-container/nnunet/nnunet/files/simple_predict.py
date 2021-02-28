@@ -2,6 +2,8 @@ from nnunet.inference.predict import predict_from_folder
 from pathlib import Path
 import os
 import json
+import nibabel as nib
+import numpy as np
 from os import getenv, replace
 from os.path import join, dirname, basename, exists
 from glob import glob
@@ -9,8 +11,87 @@ import torch
 import shutil
 
 
-def predict():
-    pass
+def predict(model, input_folder, output_folder, folds, save_npz, num_threads_preprocessing, num_threads_nifti_save, part_id, num_parts, tta, mixed_precision, overwrite_existing, mode, overwrite_all_in_gpu, step_size, checkpoint_name, lowres_segmentations=None):
+    global task, task_body_part, task_targets, task_protocols
+    print(f"#")
+    print(f"# Start prediction....")
+    print(f"# model:      {model}")
+    print(f"# folds:      {folds}")
+
+    Path(element_output_dir).mkdir(parents=True, exist_ok=True)
+    predict_from_folder(
+        model=model,
+        input_folder=input_folder,
+        output_folder=output_folder,
+        folds=folds,
+        save_npz=save_npz,
+        num_threads_preprocessing=num_threads_preprocessing,
+        num_threads_nifti_save=num_threads_nifti_save,
+        part_id=part_id,
+        num_parts=num_parts,
+        tta=tta,
+        mixed_precision=mixed_precision,
+        overwrite_existing=overwrite_existing,
+        mode=mode,
+        overwrite_all_in_gpu=overwrite_all_in_gpu,
+        step_size=step_size,
+        checkpoint_name=checkpoint_name,
+        lowres_segmentations=lowres_segmentations,
+    )
+    torch.cuda.empty_cache()
+    print("#")
+    print(f"# Checking NIFTI output for {output_folder}")
+    print("#")
+    nifti_files = sorted(glob(join(output_folder, "*.nii*"), recursive=False))
+    assert len(nifti_files) == 1
+
+    nib_img = nib.load(nifti_files[0])
+    # x, y, z = img.shape
+    # print(f"# Dimensions: {[x, y, z]}")
+
+    nii_array = nib_img.get_fdata().astype(int)
+    nifti_labels = list(np.unique(nii_array))
+
+    print(f"# Task-targets:     {task_targets}")
+    print(f"# SEG NIFTI Labels: {nifti_labels}")
+    seg_info_json = {}
+    seg_info_json["task_id"] = task
+    seg_info_json["task_body_part"] = task_body_part
+    seg_info_json["task_protocols"] = task_protocols
+    seg_info_json["task_targets"] = task
+    seg_info_json["algorithm"] = task.lower()
+
+    if 0 in nifti_labels:
+        nifti_labels.remove(0)
+    else:
+        print("#")
+        print(f"# Couldn't find a 'Clear Label' 0 in NIFTI: {nifti_files[0]}")
+        print("#")
+        exit(1)
+
+    if len(nifti_labels) == 1:
+        print("##################################################### ")
+        print("#")
+        print("# No segmentation was found in result-NIFTI-file!")
+        print(f"# NIFTI-file {nifti_files[0]}")
+        print("# ABORT")
+        print("#")
+        print("##################################################### ")
+        exit(1)
+    labels_found = []
+    for label_bin in nifti_labels:
+        labels_found.append({
+            "label_name": str(task_targets[label_bin]),
+            "label_int": label_bin
+        })
+
+    seg_info_json["seg_info"] = labels_found
+    seg_json_path = join(output_folder, 'seg_info.json')
+    print(f"# Writing seg_info: {seg_json_path}")
+    with open(seg_json_path, 'w') as outfile:
+        json.dump(seg_info_json, outfile, sort_keys=True, indent=4, default=str)
+    print("#")
+    print("##################################################### ")
 
 
 def create_dataset(search_dir):
@@ -41,6 +122,7 @@ def create_dataset(search_dir):
                         shutil.move(nifti, target_filename)
                     input_count += 1
     else:
+        input_count = 0
         input_data_dir = join(search_dir, "nnunet-input-data")
         for input_modality in input_modality_dirs:
             nifti_dir = join(search_dir, input_modality, "*.nii.gz")
@@ -137,17 +219,17 @@ def get_model_paths(batch_element_dir):
     return result_model_paths
 
 
-def write_seg_info(task, targets, target_dir):
-    print("# Writing seg_info.json ...")
-    seg_info = {"seg_info": targets}
-    seg_info["algorithm"] = task
-    json_path = os.path.join(target_dir, 'seg_info.json')
+# def write_seg_info(task, targets, target_dir):
+#     print("# Writing seg_info.json ...")
+#     seg_info = {"seg_info": targets}
+#     seg_info["algorithm"] = task
+#     json_path = os.path.join(target_dir, 'seg_info.json')
 
-    with open(json_path, 'w') as outfile:
-        json.dump(seg_info, outfile, sort_keys=True, indent=4)
+#     with open(json_path, 'w') as outfile:
+#         json.dump(seg_info, outfile, sort_keys=True, indent=4)
 
-    print(json.dumps(seg_info, indent=4, sort_keys=True))
-    print("#")
+#     print(json.dumps(seg_info, indent=4, sort_keys=True))
+#     print("#")
 
 
 folds = getenv("TRAIN_FOLD", "None")
@@ -159,8 +241,16 @@ batch_name = batch_name if batch_name.lower() != "none" else None
 
 task = getenv("TASK", "None")
 task = task if task.lower() != "none" else None
+
 task_targets = os.getenv("TARGETS", "None")
 task_targets = task_targets.split(",") if task_targets.lower() != "none" else None
+
+if task_targets[0] != "Clear Label":
+    task_targets.insert(0, "Clear Label")
+
+task_body_part = getenv("BODY_PART", "ENV NOT FOUND!")
+task_protocols = getenv("PROTOCOLS", "ENV NOT FOUND!").split(",")
+
 mode = getenv("MODE", "None")
 mode = mode if mode.lower() != "none" else None
 models_dir = getenv("MODELS_DIR", "None")
@@ -172,9 +262,7 @@ threads_nifiti = int(threads_nifiti) if threads_nifiti.lower() != "none" else 2
 batch_dataset = getenv("INF_BATCH_DATASET", "False")
 batch_dataset = True if batch_dataset.lower() == "true" else False
 input_modality_dirs = getenv("INPUT_MODALITY_DIRS", "None")
-input_modality_dirs = input_modality_dirs if input_modality_dirs.lower() != "none" else None
-
-input_modality_dirs = input_modality_dirs.split(",")
+input_modality_dirs = input_modality_dirs.split(",") if input_modality_dirs.lower() != "none" else None
 
 workflow_dir = getenv("WORKFLOW_DIR", "None")
 workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
@@ -260,9 +348,7 @@ for batch_element_dir in batch_folders:
         print(f"# model:      {model}")
         print(f"# folds:      {folds}")
 
-        Path(element_output_dir).mkdir(parents=True, exist_ok=True)
-        write_seg_info(task=task, targets=task_targets, target_dir=element_output_dir)
-        predict_from_folder(
+        predict(
             model=model,
             input_folder=input_data_dir,
             output_folder=element_output_dir,
@@ -281,7 +367,6 @@ for batch_element_dir in batch_folders:
             step_size=step_size,
             checkpoint_name=checkpoint_name
         )
-        torch.cuda.empty_cache()
         processed_count += 1
         print(f"# Prediction ok.")
         print(f"#")
@@ -316,10 +401,7 @@ if processed_count == 0:
             print(f"# model:      {model}")
             print(f"# folds:      {folds}")
 
-            print(f"# Start prediction....")
-            Path(output_dir).mkdir(parents=True, exist_ok=True)
-            write_seg_info(task=task, targets=task_targets, target_dir=output_dir)
-            predict_from_folder(
+            predict(
                 model=model,
                 input_folder=input_data_dir,
                 output_folder=output_dir,
@@ -338,7 +420,6 @@ if processed_count == 0:
                 step_size=step_size,
                 checkpoint_name=checkpoint_name
             )
-            torch.cuda.empty_cache()
             processed_count += 1
             print(f"# Prediction ok.")
             print(f"#")

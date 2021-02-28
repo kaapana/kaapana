@@ -129,6 +129,7 @@ elif [ "$MODE" = "inference" ]; then
     echo "#"
 
     python3 -u ./simple_predict.py
+    echo "#"
     
 elif [ "$MODE" = "ensemble" ]; then
     echo "#"
@@ -136,6 +137,7 @@ elif [ "$MODE" = "ensemble" ]; then
     echo "#"
 
     python3 -u ./ensemble.py
+    echo "#"
     
     
 elif [ "$MODE" = "identify-best" ]; then

@@ -5,14 +5,6 @@ import pydicom
 import shutil
 import pathlib
 
-def write_organs_json(task_organs, batch_element_dir):
-    organs_json = {"seg_info": task_organs}
-    organs_json["algorithm"] = os.getenv("TASK", "N/A").lower()
-    output_dir = os.path.join(batch_element_dir, operator_output_dir, 'seg_info.json')
-
-    with open(output_dir, 'w') as outfile:
-        json.dump(organs_json, outfile, sort_keys=True, indent=4)
-
 
 if __name__ == "__main__":
     print("# Starting nnUNet data preparation...")
@@ -52,7 +44,6 @@ if __name__ == "__main__":
     output_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], operator_output_dir)
     pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
     for batch_element_dir in batch_folders:
-        write_organs_json(task_organs=task_organs, batch_element_dir=batch_element_dir)
         if len(input_dirs) != len(task_protocols):
             print("# Wrong input-protocol-count!")
             print("# Count input operators: {}".format(len(input_dirs)))

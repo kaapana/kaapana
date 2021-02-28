@@ -11,7 +11,7 @@ class ResampleOperator(KaapanaBaseOperator):
                  format="nii.gz",
                  interpolator=1,  # 0=linear (default), 1=nearest neighbor, 2=sinc (optional), (default: 0), Type: Int
                  env_vars=None,
-                 execution_timeout=timedelta(minutes=90),
+                 execution_timeout=timedelta(minutes=320),
                  *args, **kwargs
                  ):
 

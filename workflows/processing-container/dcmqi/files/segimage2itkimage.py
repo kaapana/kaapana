@@ -90,9 +90,9 @@ for batch_element_dir in batch_folders:
             del meta_data['segmentAttributes'][idx]
 
         with open(meta_data_file, "w") as write_file:
-            print("Overwriting JSON: {}".format(meta_data_file))
             json.dump(meta_data, write_file, indent=4, sort_keys=True)
-        print(json.dumps(meta_data, indent=4, sort_keys=True))
+            # print("Overwriting JSON: {}".format(meta_data_file))
+        # print(json.dumps(meta_data, indent=4, sort_keys=True))
 
         if seg_filter != None and seg_filter != "":
             len_output_files = len(sorted(glob.glob(os.path.join(element_output_dir, f"*{output_type_dcmqi}*"), recursive=False)))

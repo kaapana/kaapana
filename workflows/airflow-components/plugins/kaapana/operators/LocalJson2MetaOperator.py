@@ -4,18 +4,15 @@ import json
 import elasticsearch
 import elasticsearch.helpers
 from datetime import datetime
-import sys
-import fileinput
 import glob
 import traceback
 import logging
 import pydicom
 import errno
 import time
-
+from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
-
 
 class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
 
@@ -36,8 +33,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         self.run_id = kwargs['dag_run'].run_id
         print(("RUN_ID: %s" % self.run_id))
 
-        es = elasticsearch.Elasticsearch(
-            [{'host': self.elastic_host, 'port': self.elastic_port}])
+        es = elasticsearch.Elasticsearch([{'host': self.elastic_host, 'port': self.elastic_port}])
 
         for batch_element_dir in batch_folder:
             dcm_files = sorted(glob.glob(os.path.join(batch_element_dir, self.rel_dicom_dir, "*.dcm*"), recursive=True))
@@ -77,8 +73,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         global es
         if (es.indices.exists(self.elastic_index)):
             try:
-                print(("Index", self.elastic_index,
-                       "exists, producing inserts and streaming them into ES."))
+                print(("Index", self.elastic_index, "exists, producing inserts and streaming them into ES."))
                 for ok, item in elasticsearch.helpers.streaming_bulk(es, self.produce_inserts(json_file), chunk_size=500, raise_on_error=True):
                     print(("status: %s" % item['index']['result']))
                     if not ok:
@@ -122,6 +117,22 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                 print("Could not find SeriesUID...")
                 exit(1)
 
+        print("#")
+        print("# Checking if series available in PACS...")
+        check_count = 0
+        while not HelperDcmWeb.checkIfSeriesAvailable(seriesUID=self.instanceUID):
+            print("#")
+            print(f"# Series {self.instanceUID} not found in PACS-> try: {check_count}")
+            if check_count >= self.avalability_check_max_tries:
+                print(f"# check_count >= avalability_check_max_tries {self.avalability_check_max_tries}")
+                print("# Error! ")
+                print("#")
+                exit(1)
+
+            print(f"# -> waiting {self.avalability_check_delay} s")
+            time.sleep(self.avalability_check_delay)
+            check_count += 1
+
         with open(json_file, encoding='utf-8') as f:
             new_json = json.load(f)
 
@@ -154,8 +165,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
 
             yield doc
         except (KeyError) as e:
-            print(('KeyError in produce_inserts():', e, ', from input line: ',
-                   line[line.find('InstanceUID')-32:line.find('InstanceUID')+172]))
+            print(('KeyError in produce_inserts():', e, ', from input line: ', line[line.find('InstanceUID')-32:line.find('InstanceUID')+172]))
             pass
 
     def __init__(self,
@@ -164,6 +174,8 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                  json_operator=None,
                  set_dag_id=False,
                  no_update=False,
+                 avalability_check_delay = 10,
+                 avalability_check_max_tries = 15,
                  elastic_host='elastic-meta-service.meta.svc',
                  elastic_port=9200,
                  elastic_index="meta-index",
@@ -172,6 +184,8 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         self.dicom_operator = dicom_operator
         self.json_operator = json_operator
 
+        self.avalability_check_delay = avalability_check_delay
+        self.avalability_check_max_tries = avalability_check_max_tries
         self.set_dag_id = set_dag_id
         self.no_update = no_update
         self.elastic_host = elastic_host

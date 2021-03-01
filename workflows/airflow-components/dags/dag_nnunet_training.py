@@ -230,6 +230,7 @@ nnunet_preprocess = NnUnetOperator(
     mode="preprocess",
     input_modality_operators=[dcm2nifti_ct],
     prep_label_operators=[dcm2nifti_seg],
+    prep_use_nifti_labels=False,
     prep_modalities=prep_modalities.split(","),
     prep_processes_low=prep_threads+1,
     prep_processes_full=prep_threads,

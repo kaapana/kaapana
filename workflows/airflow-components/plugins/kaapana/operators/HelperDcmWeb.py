@@ -8,7 +8,20 @@ class HelperDcmWeb():
     pacs_dcmweb = "http://dcm4chee-service.store.svc:8080/dcm4chee-arc/aets/KAAPANA"
 
     @staticmethod
+    def checkIfSeriesAvailable(seriesUID):
+        payload = {
+            'SeriesInstanceUID': seriesUID
+        }
+        url = HelperDcmWeb.pacs_dcmweb + "/rs/instances"
+        httpResponse = requests.get(url, params=payload)
+        if httpResponse.status_code == 200:
+            return True
+        else:
+            return False
+    
+    @staticmethod
     def downloadSeries(seriesUID, target_dir, include_series_dir=False):
+        print(f"# Collecting objects for series {seriesUID}")
         payload = {
             'SeriesInstanceUID': seriesUID
         }
@@ -17,13 +30,8 @@ class HelperDcmWeb():
         # print(f"Requesting URL: {url}")
         # print(f"httpResponse: {httpResponse}")
         # print(f"payload: {payload}")
-        if httpResponse.status_code == 204:
-            print("No results from pacs...")
-            print("Can't request series!")
-            return False
-        elif httpResponse.status_code == 200:
+        if httpResponse.status_code == 200:
             response = httpResponse.json()
-            print(("Collecting objects for series {0}".format(seriesUID)))
             objectUIDList = []
             for resultObject in response:
                 objectUIDList.append(
@@ -46,10 +54,15 @@ class HelperDcmWeb():
                     objectUID=objectUID,
                     target_dir=target_dir
                 )
-            print("Done.")
             return True
         else:
-            print("Error at PACS request!")
+            print("################################")
+            print("#")
+            print("# Can't request series objects from PACS!")
+            print(f"# UID: {seriesUID}")
+            print(f"# Status code: {httpResponse.status_code}")
+            print("#")
+            print("################################")
             return False
 
     @ staticmethod

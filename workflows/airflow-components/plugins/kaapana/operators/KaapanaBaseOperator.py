@@ -209,7 +209,7 @@ class KaapanaBaseOperator(BaseOperator):
         else:
             self.kube_name = f'{self.name}-{self.parallel_id}'
 
-        self.kube_name = self.kube_name.lower() + "-" + str(uuid.uuid4())[:4]
+        self.kube_name = self.kube_name.lower() + "-" + str(uuid.uuid4())[:8]
         self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63)
 
         self.volume_mounts.append(VolumeMount(
@@ -381,12 +381,15 @@ class KaapanaBaseOperator(BaseOperator):
         ti = info_dict["ti"].task
         if ti.delete_input_on_success:
             print("#### deleting input-dirs...!")
+            data_dir = "/data"
             batch_folders = [f for f in glob.glob(os.path.join(data_dir,'batch', '*'))]
             for batch_element_dir in batch_folders:
                 element_input_dir = os.path.join(batch_element_dir, ti.operator_in_dir)
+                print(f"# Deleting: {element_input_dir} ...")
                 shutil.rmtree(element_input_dir, ignore_errors=True)
 
             batch_input_dir = os.path.join(data_dir, ti.operator_in_dir)
+            print(f"# Deleting: {batch_input_dir} ...")
             shutil.rmtree(batch_input_dir, ignore_errors=True)
 
     @staticmethod

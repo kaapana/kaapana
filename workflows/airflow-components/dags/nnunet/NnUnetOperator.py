@@ -21,7 +21,7 @@ class NnUnetOperator(KaapanaBaseOperator):
                  prep_modalities=[],
                  prep_preprocess=True,
                  prep_check_integrity=True,
-                 prep_use_nifti_labels=True,
+                 prep_use_nifti_labels=False,
                  prep_copy_data=False,
                  prep_exit_on_issue=True,
                  train_fold=None,

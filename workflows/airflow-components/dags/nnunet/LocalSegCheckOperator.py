@@ -5,16 +5,17 @@ import shutil
 import pydicom
 import numpy as np
 import nibabel as nib
+from os.path import join, basename, dirname, exists
+from os import remove
 from datetime import timedelta
 from multiprocessing.pool import ThreadPool
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
-
 class LocalSegCheckOperator(KaapanaPythonBaseOperator):
 
     def get_nifti_dimensions(self, input_dir, check_labels=True):
-        input_files = sorted(glob.glob(os.path.join(input_dir, "**", "*.nii*"), recursive=True))
+        input_files = sorted(glob.glob(join(input_dir, "**", "*.nii*"), recursive=True))
         # print(f"Check for NIFTI at {input_dir}: found {len(input_files)} files.")
         if len(input_files) == 0:
             return [input_dir]
@@ -26,16 +27,17 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
         if check_labels and np.max(img.get_fdata()) == 0:
             print("# ")
             print("# ")
-            print("# Could not find any label in {}!".format(nifti_path))
+            print(f"# Could not find any label in {nifti_path}!")
             print("# ABORT")
             print("# ")
             print("# ")
+
             return [input_dir]
 
         return [input_dir, [x, y, z]]
 
     def get_dicom_dimensions(self, input_dir, check_labels=True):
-        input_files = sorted(glob.glob(os.path.join(input_dir, "**", "*.dcm"), recursive=True))
+        input_files = sorted(glob.glob(join(input_dir, "**", "*.dcm"), recursive=True))
         # print(f"Check for DICOM at {input_dir}: found {len(input_files)} files.")
         if len(input_files) == 0:
             return [input_dir]
@@ -51,7 +53,7 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
             label_count = len(data.SegmentSequence)
             numberOfFrames //= label_count
         elif not hasattr(data, 'NumberOfFrames'):
-            numberOfFrames = len(next(os.walk(os.path.dirname(dcm_path)))[2])
+            numberOfFrames = len(next(os.walk(dirname(dcm_path)))[2])
         else:
             print("# ")
             print("# ")
@@ -69,8 +71,8 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         print("# Check files started...")
 
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-        batch_folders = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
+        run_dir = join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
+        batch_folders = [f for f in glob.glob(join(run_dir, BATCH_NAME, '*'))]
 
         print("# Found {} batches".format(len(batch_folders)))
 
@@ -85,7 +87,7 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
             print(f"# Testing: {batch_element_dir.split('/')[-1]}")
             print("# ")
             dimensions_list = []
-            input_dirs_complete = [os.path.join(batch_element_dir, dir) for dir in input_dirs]
+            input_dirs_complete = [join(batch_element_dir, dir) for dir in input_dirs]
 
             dcm_results = ThreadPool(self.parallel_checks).imap_unordered(self.get_dicom_dimensions, input_dirs_complete)
 

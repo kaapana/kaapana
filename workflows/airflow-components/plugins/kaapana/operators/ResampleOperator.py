@@ -7,9 +7,10 @@ class ResampleOperator(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  original_img_operator,
-                 original_img_batch_name = None,
+                 original_img_batch_name=None,
                  format="nii.gz",
                  interpolator=1,  # 0=linear (default), 1=nearest neighbor, 2=sinc (optional), (default: 0), Type: Int
+                 copy_target_data=False,
                  env_vars=None,
                  execution_timeout=timedelta(minutes=320),
                  *args, **kwargs
@@ -22,6 +23,7 @@ class ResampleOperator(KaapanaBaseOperator):
             "FORMAT": format,
             "ORG_IMG_IN_DIR": str(original_img_operator.operator_out_dir),
             "ORG_IMG_BATCH_NAME": str(original_img_batch_name),
+            "COPY_DATA": str(copy_target_data),
             "INTERPOLATOR": str(interpolator)
         }
         env_vars.update(envs)

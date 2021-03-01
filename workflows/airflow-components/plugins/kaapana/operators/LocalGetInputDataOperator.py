@@ -76,8 +76,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             print("abort...")
             download_successful = False
 
-        message = f"Series: {seriesUID}"
-        return download_successful, message
+        return download_successful, seriesUID
 
     def start(self, ds, **kwargs):
         print("Starting moule LocalGetInputDataOperator...")
@@ -175,15 +174,33 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
         download_list = download_list[:cohort_limit] if cohort_limit is not None else download_list
         print("")
-        print("## SERIES TO LOAD: {}".format(len(download_list)))
+        print(f"## SERIES TO LOAD: {len(download_list)}")
         print("")
+        if len(download_list) == 0:
+            print("#####################################################")
+            print("#")
+            print(f"# No series to download !! ")
+            print("#")
+            print("#####################################################")
+            exit(1)
 
+        series_download_fail = []
         results = ThreadPool(self.parallel_downloads).imap_unordered(self.get_data, download_list)
-        for download_successful, message in results:
-            print(f"Finished: {message}")
+        for download_successful, series_uid in results:
+            print(f"# Series download ok: {series_uid}")
             if not download_successful:
-                print("Something went wrong.")
-                exit(1)
+                series_download_fail.append(series_uid)
+
+        if len(series_download_fail) > 0:
+            print("#####################################################")
+            print("#")
+            print(f"# Some series could not be downloaded! ")
+            for series_uid in series_download_fail:
+                print("#")
+                print(f"# Series: {series_uid} failed !")
+                print("#")
+            print("#####################################################")
+            exit(1)
 
     def __init__(self,
                  dag,

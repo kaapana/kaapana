@@ -69,7 +69,7 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
         print("#")
         exit(1)
 
-    if len(nifti_labels) == 1:
+    if len(nifti_labels) == 0:
         print("##################################################### ")
         print("#")
         print("# No segmentation was found in result-NIFTI-file!")

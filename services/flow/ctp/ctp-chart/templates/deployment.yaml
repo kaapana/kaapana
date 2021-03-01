@@ -24,9 +24,9 @@ spec:
             - containerPort: 7777
           resources:
             requests:
-              memory: 512Mi
+              memory: 1024Mi
             limits:
-              memory: 1500Mi
+              memory: 3000Mi
           volumeMounts:
             - name: ctp-data
               mountPath: /data/

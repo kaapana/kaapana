@@ -1,32 +1,20 @@
-FROM ubuntu:20.04
+FROM local-only/mitk-phenotyping:2021-02-18-vdev
 
 LABEL IMAGE="mitk-fileconverter"
-LABEL VERSION="25.01.2021-vdev"
+LABEL VERSION="2021-02-18-vdev"
 LABEL CI_IGNORE="False"
-
-WORKDIR /src
-ADD https://www.mitk.org/download/ci/snapshots/Ubuntu%2020.04/MITK-snapshots_2021-01-25-linux-x86_64.tar.gz /src/mitk.tar.gz
-RUN tar -xzf /src/mitk.tar.gz --strip 1 -C /opt/ && rm -rf /src/mitk.tar.gz
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libglu1-mesa-dev \
-    libxt-dev \
-    libfreetype6 \
-    && rm -rf /var/lib/apt/lists/*
 
 ENV BATCHES_INPUT_DIR /input
 ENV OPERATOR_IN_DIR initial-input
 ENV OPERATOR_OUT_DIR mitk-fileconverter
 
-ENV CONVERTFROM dcm
-
 # nrrd nii nii.gz
 ENV CONVERTTO nrrd 
+ENV CONVERTFROM dcm
 ENV FORCE_SINGLE_FILE false
-ENV FILECONVERTER /opt/MitkFileConverter.sh
+ENV FILECONVERTER /src/MitkFileConverter.sh
 
 COPY files/mitk_fileconverter.sh /mitk_fileconverter.sh
-WORKDIR /opt
 
 CMD ["/bin/bash", "/mitk_fileconverter.sh"]
 

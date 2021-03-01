@@ -12,7 +12,7 @@ RUN apk add jq
 RUN pip install psycopg2
 
 ENV KUBE_LATEST_VERSION="v1.19.2"
-ENV HELM_VERSION="v3.3.4"
+ENV HELM_VERSION="v3.5.2"
 
 RUN apk add --no-cache ca-certificates bash git openssh curl \
     && curl https://storage.googleapis.com/kubernetes-release/release/${KUBE_LATEST_VERSION}/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl \

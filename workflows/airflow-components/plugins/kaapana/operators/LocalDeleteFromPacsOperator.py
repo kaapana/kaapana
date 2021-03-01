@@ -39,28 +39,38 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
             print(dcm['series_uid'])
 
         for dcm_to_delete in dicoms_to_delete:
-            if self.delete_complete_study:
-                self.reject_study_icom_quality(dcm_to_delete['study_uid'])
-            else:
-                self.reject_series_icom_quality(study_uid=dcm_to_delete['study_uid'], series_uid=dcm_to_delete['series_uid'])
+            self.reject_files(dcm_to_delete['study_uid'], dcm_to_delete['series_uid'])
 
             self.delete_icom_quality_study_from_pacs(dcm_to_delete['study_uid'])
             self.check_all_clean(study_uid=dcm_to_delete['study_uid'], series_uid=dcm_to_delete['series_uid'])
 
+    def reject_files(self, study_uid, series_uid):
+        print("Check if the series UID", series_uid, "can be found in AET ", self.pacs_aet)
+        r = self.qido_rs_get(study_uid, series_uid, self.pacs_aet)
+        if r.status_code == requests.codes.ok:
+            if self.delete_complete_study:
+                self.reject_study_icom_quality(study_uid)
+            else:
+                self.reject_series_icom_quality(study_uid=study_uid, series_uid=series_uid)
+        elif r.status_code == 204:
+            print("The search completed successfully, but there were zero results.")
+        else:
+            print('Error while searching and rejecting for study: {}'.format(study_uid))
+            print(r.reason)
+            print(r.content)
+            exit(1)
+
+
     def reject_study_icom_quality(self, study_uid):
         print("Reject_study_icom_quality:")
         print("StudyUID: {}".format(study_uid))
-
         reject_url = "{}/dcm4chee-arc/aets/KAAPANA/rs/studies/{}/reject/113001%5EDCM".format(self.pacs_dcmweb_endpoint, study_uid)
         r = requests.post(reject_url, verify=False)
         if r.status_code != requests.codes.ok and r.status_code != 204:
             print('error while rejecting study: {}'.format(study_uid))
             print(r.reason)
             print(r.content)
-            if r.status_code == 404:
-                print("Study not found, continue checking if in rejected.")
-            else:
-                exit(1)
+            exit(1)
         else:
             print("Rejected: {}".format(study_uid))
 
@@ -70,44 +80,53 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
         print("SeriesUID: {}".format(series_uid))
         reject_url = "{}/dcm4chee-arc/aets/KAAPANA/rs/studies/{}/series/{}/reject/113001%5EDCM".format(self.pacs_dcmweb_endpoint, study_uid, series_uid)
         r = requests.post(reject_url, verify=False)
-        # {"count":1}
         if r.status_code != requests.codes.ok and r.status_code != 204:
             print('error while rejecting series: {}'.format(series_uid))
             print(r.reason)
             print(r.content)
-            if r.status_code == 404:
-                print("Series not found, continue checking if already deleted.")
-            else:
-                exit(1)
+            exit(1)
         else:
             print("Rejected: {}".format(study_uid))
 
     def delete_icom_quality_study_from_pacs(self, rejected_study_uid):
-        print("Delete_icom_quality_study_from_pacs StudyID: {}".format(rejected_study_uid))
-        reject_url = "{}/dcm4chee-arc/aets/IOCM_QUALITY/rs/studies/{}".format(self.pacs_dcmweb_endpoint,
-                                                                              rejected_study_uid)
-        r = requests.delete(reject_url, verify=False)
-        if r.status_code != requests.codes.ok and r.status_code != 204:
-            print('error delete_icom_quality_study_from_pacs ?!')
+        print("Check if the series UID", rejected_study_uid, "can be found in AET ", "IOCM_QUALITY")
+        r = requests.get("{}/dcm4chee-arc/aets/{}/rs/studies/{}/instances"
+                         .format(self.pacs_dcmweb_endpoint, "IOCM_QUALITY", rejected_study_uid), verify=False)
+        if r.status_code == requests.codes.ok:
+            print("Delete_icom_quality_study_from_pacs StudyID: {}".format(rejected_study_uid))
+            reject_url = "{}/dcm4chee-arc/aets/IOCM_QUALITY/rs/studies/{}".format(self.pacs_dcmweb_endpoint,
+                                                                                  rejected_study_uid)
+            r = requests.delete(reject_url, verify=False)
+            if r.status_code != requests.codes.ok and r.status_code != 204:
+                print('error delete_icom_quality_study_from_pacs ?!')
+                print(r.reason)
+                print(r.content)
+                exit(1)
+            else:
+                print("Deleted: {}".format(rejected_study_uid))
+        elif r.status_code == 204:
+            print("The search completed successfully, but there were zero results in IOCM_QUALITY.")
+        else:
+            print('Error while searching and rejecting for study: {} in IOCM_QUALITY'.format(rejected_study_uid))
             print(r.reason)
             print(r.content)
             exit(1)
-        else:
-            print("Deleted: {}".format(rejected_study_uid))
 
+
+    def qido_rs_get(self, study_uid, series_uid, aet):
+        return requests.get("{}/dcm4chee-arc/aets/{}/rs/studies/{}/series/{}/instances"
+                         .format(self.pacs_dcmweb_endpoint, aet, study_uid, series_uid), verify=False)
 
     def check_all_clean(self, study_uid, series_uid):
         print("Check if there are no more traces of the UID", series_uid)
-        r = requests.get("{}/dcm4chee-arc/aets/KAAPANA/rs/studies/{}/series/{}/instances"
-                         .format(self.pacs_dcmweb_endpoint, study_uid, series_uid), verify=False)
+        r = self.qido_rs_get(study_uid, series_uid, self.pacs_aet)
         if r.status_code != 204:
-            print('error series still found in PACs, AET KAAPANA')
+            print('error series still found in PACs, AET ', self.pacs_aet)
             print(r.reason)
             print(r.content)
             exit(1)
 
-        r = requests.get("{}/dcm4chee-arc/aets/IOCM_QUALITY/rs/studies/{}/series/{}/instances"
-                         .format(self.pacs_dcmweb_endpoint, study_uid, series_uid), verify=False)
+        r = self.qido_rs_get(study_uid, series_uid, "IOCM_QUALITY")
         if r.status_code != 204:
             print('error series still found in PACs, AET IOCM_QUALITY')
             print(r.reason)
@@ -120,12 +139,14 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
                  delete_operator=None,
                  pacs_host='dcm4chee-service.store.svc',
                  pacs_port=8080,
+                 pacs_aet='KAAPANA',
                  delete_complete_study=False,
                  *args, **kwargs):
 
         self.pacs_host = pacs_host
         self.pacs_port = pacs_port
         self.pacs_dcmweb_endpoint = "http://{}:{}".format(pacs_host, pacs_port)
+        self.pacs_aet = pacs_aet
         self.delete_complete_study = delete_complete_study
 
         super().__init__(

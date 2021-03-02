@@ -22,6 +22,8 @@ RUN cp ./libraries/util.jar /tmp/ \
  && git checkout tags/x101 \
  && mv /tmp/util.jar ./libraries/util.jar
 
+ADD /files/Runner.java ./source/java/org/rsna/runner/
+
 # use java 8 for correct build process
 ENV JAVA_HOME /usr/lib/jvm/java-1.8.0-openjdk-amd64 
 RUN ant -buildfile build.xml

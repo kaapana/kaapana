@@ -10,7 +10,6 @@ import org.rsna.ctp.objects.DicomObject;
 import org.rsna.ctp.objects.FileObject;
 import org.rsna.ctp.pipeline.*;
 import org.rsna.ctp.stdstages.*;
-import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import java.net.HttpURLConnection;
 import org.w3c.dom.Element;
@@ -39,7 +38,6 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
     String patientID;
     String studyInstanceUID;
     String seriesInstanceUID;
-    String current_uid = "";
     String fix_aetitle;
     String limitTriggerOnRunningDagsUrl;
     int runningDagLimits = Integer.MAX_VALUE;
@@ -52,7 +50,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
      *
      * @param element the configuration element.
      */
-    public KaapanaDagTrigger(Element element) throws Exception {
+    public KaapanaDagTrigger(Element element) {
         super(element);
         trigger_url = element.getAttribute("triggerurl");
         dag_id = element.getAttribute("dagnames");
@@ -69,6 +67,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
         if(!unChangedString.isEmpty())
             unchangedCounter =Integer.parseInt(unChangedString.trim());
         syncObject = new Object();
+        handleOldDicomStorageDir();
     }
 
 
@@ -130,7 +129,6 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                 }
 
                 seriesInstanceUID = getElementValue(dicomObject, "0020000E");
-                current_uid = seriesInstanceUID;
 
                 if( 1 == fileCount){
                     studyDescription = getElementValue(dicomObject, "00081030");
@@ -142,7 +140,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                 }
                 else {
                     if (debug_log.equals("yes")) {
-                        logger.warn("UID already triggered: " + current_uid);
+                        logger.warn("UID already triggered: " + seriesInstanceUID);
                         logger.warn("Number of files in folder " + fileCount);
                     }
                 }
@@ -163,13 +161,52 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
         }
     }
 
+
+    /**
+     * A CTP restart with untransferred dirs to Airflow have to be handled:
+     * An Airflow trigger is created for each dicom dir, during CTP start
+     *
+     */
+    private void handleOldDicomStorageDir() {
+        File storageDir = super.root;
+        File[] directories = storageDir.listFiles();
+        if(directories == null)
+            return;
+        for(File directory : directories ) {
+            if(directory.isDirectory()){
+                File[] listOfFiles = directory.listFiles();
+                if(listOfFiles == null || listOfFiles.length == 0){
+                    continue;
+                }
+                File fileEntry = listOfFiles[0];
+                if(!fileEntry.isFile()){
+                    continue;
+                }
+                try {
+                    DicomObject dicomObject = new DicomObject(fileEntry);
+                    seriesInstanceUID = getElementValue(dicomObject, "0020000E");
+                    studyDescription = getElementValue(dicomObject, "00081030");
+                    patientName = getElementValue(dicomObject, "00100010");
+                    patientID = getElementValue(dicomObject, "00100020");
+                    studyInstanceUID = getElementValue(dicomObject, "0020000D");
+                    logger.warn("Send to Airflow seriesInstanceUID " + seriesInstanceUID);
+                    send(directory);
+                }
+                catch (Exception ex) {
+                    logger.warn("No Dicom Dir!");
+
+                }
+            }
+        }
+    }
+
     /**
      *
      * @param storedFileParentDir the parent dir of the stored file
      * @throws Exception
      */
     private void send(File storedFileParentDir) throws Exception {
-        logger.warn(name + ": Triggering: " + dag_id + " - " + current_uid);
+        logger.warn(name + ": Triggering: " + dag_id + " - " + seriesInstanceUID);
         JSONObject post_data = new JSONObject();
         JSONObject conf = new JSONObject();
 
@@ -181,7 +218,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
         conf.put("seriesInstanceUID", seriesInstanceUID);
 
         String timestampString = new SimpleDateFormat("_yyyyMMddHHmmss").format(new Date());
-        String dicomPath = current_uid + timestampString;
+        String dicomPath = seriesInstanceUID + timestampString;
         logger.warn("Dicom Path: " + dicomPath);
         conf.put("dicom_path", dicomPath);
 
@@ -365,6 +402,8 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                         quarantine.insert(fileEntry);
                         logger.warn(fileEntry.getName() + " added to quarantine");
                     }
+                    //delete storedFileParentDir in incoming.
+                    folder.delete();
                 }
             }
             catch (Exception e){

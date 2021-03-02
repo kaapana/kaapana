@@ -7,7 +7,7 @@ data:
   config.xml: |+
     <Configuration>
         <Server
-            maxThreads="20"
+            maxThreads="12"
             port="1050"/>
         <Pipeline name="Pipeline">
             <DicomImportService
@@ -19,17 +19,6 @@ data:
                 port="11112"
                 quarantine="/data/incoming/.quarantines/DicomImportService"
                 root="/data/incoming/.roots/DicomImportService"/>
-        <DicomSTOWRSExportService
-            name="DicomSTOWRSExportService"
-            id="DicomSTOWRSExportService"
-            class="org.rsna.ctp.stdstages.DicomSTOWRSExportService"
-            quarantine="/data/incoming/.quarantines/DicomSTOWRSExportService"
-            root="/data/incoming/.roots/DicomSTOWRSExportService"
-            url="http://dcm4chee-service.store.svc:8080/dcm4chee-arc/aets/KAAPANA/rs/studies"
-            includeContentDispositionHeader="no"
-            logDuplicates="no"
-            auditLogID="id"
-            auditLogTags="PatientID;SOPInstanceUID;StudyInstanceUID;InstanceNumber" />
         <KaapanaDagTrigger
             class="org.rsna.ctp.dkfz.KaapanaDagTrigger"
             condition_tag="0008103E"

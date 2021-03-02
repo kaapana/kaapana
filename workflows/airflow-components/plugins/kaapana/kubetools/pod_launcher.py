@@ -223,9 +223,7 @@ class PodLauncher(LoggingMixin):
             return self._client.read_namespaced_pod(pod.name, pod.namespace)
 
         except HTTPError as e:
-            raise AirflowException(
-                'There was an error reading the kubernetes API: {}'.format(e)
-            )
+            raise AirflowException(f'There was an error reading the kubernetes API: {e}')
 
     def _extract_xcom(self, pod):
         resp = kubernetes_stream(self._client.connect_get_namespaced_pod_exec,

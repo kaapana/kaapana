@@ -74,7 +74,7 @@ def get_logs(sc):
             last_training_log_file = log_files[-1]
             if dataset_json != None:
                 with open(join(dirname(last_training_log_file), "dataset.json"), 'w') as outfile:
-                    json.dump(dataset_json, outfile, indent=4, sort_keys=True)
+                    json.dump(dataset_json, outfile, indent=4, sort_keys=False)
 
             # debug_json_path = join(dirname(last_training_log_file), "debug.json")
             if "fold" in last_training_log_file:

@@ -24,12 +24,28 @@ def timing(f):
 def check_if_encoding_in_use(label_encoding):
     global label_names_found
     found = False
-    for key, value in label_names_found.items():
-        if label_encoding == value:
-            found = True
-            break
+    next_free_label = None
 
-    return found
+    existing_label_encodings = list(label_names_found.values())
+    if label_encoding in existing_label_encodings:
+        for i in range(1, 100):
+        # for i in range(max(existing_label_encodings), 100):
+            if i not in list(label_names_found.values()):
+                next_free_label = i
+                break
+
+        assert next_free_label is not None
+        print("#")
+        print("###################################### WARNING ###################################### ")
+        print("#")
+        print(f"# Label encoding '{label_encoding}' has already been used for a different label!!")
+        print(f"# -> switching to next free label: {label_encoding} -> {next_free_label}")
+        print("#")
+        print("##################################################################################### ")
+        print("#")
+        label_encoding = next_free_label
+
+    return label_encoding
 
 
 def process_seg_nifti(seg_nifti):
@@ -68,34 +84,33 @@ def process_seg_nifti(seg_nifti):
             label_int += 1
             print(f"# -> using default encoding: {label_int}")
 
-        if check_if_encoding_in_use(label_int):
-            print("#")
-            print("###################### ERROR ###################### ")
-            print("#")
-            print(f"# Label encoding '{label_int}' has already been used for a different label!!")
-            print("# Abort")
-            print("#")
-            print("##################################################### ")
-            print("#")
-            exit(1)
+        label_int = check_if_encoding_in_use(label_int)
+
+        if label_int != nifti_bin_encoding:
+            print(f"# replacing labels: {label_tag} -> from {nifti_bin_encoding} -> to {label_int}")
+            nii_array = np.where(nii_array == nifti_bin_encoding, label_int, nii_array)
+            nifti_bin_encoding = label_int
 
         label_names_found[label_tag] = label_int
     else:
-        print("# Label already present -> checking NIFTI encoding...")
+        print(f"# Label {label_tag} already present -> checking NIFTI encoding...")
         if label_names_found[label_tag] != nifti_bin_encoding:
-            print("#")
-            print("###################### WARNING ###################### ")
-            print("#")
-            print(f"# Label '{label_tag}' has already been found and the integer encoding differs to the NIFTI !")
-            print(f"# New NIFTI encoding:  {nifti_bin_encoding}")
-            print(f"# Existing encoding:   {label_names_found[label_tag] }")
-            print("#")
-            print(f"# -> replacing with original integer encoding: {nifti_bin_encoding} -> {label_names_found[label_tag]}")
-            print("#")
-            print("##################################################### ")
-            print("#")
+            if use_nifti_labels:
+                print("#")
+                print("###################### WARNING ###################### ")
+                print("#")
+                print(f"# Label '{label_tag}' has already been found but the integer encoding differs to the NIFTI !")
+                print(f"# New NIFTI encoding:  {nifti_bin_encoding}")
+                print(f"# Existing encoding:   {label_names_found[label_tag] }")
+                print("#")
+                print(f"# replacing labels: {label_tag} -> from {nifti_bin_encoding} -> to {label_names_found[label_tag]}")
+                print("#")
+                print("##################################################### ")
+                print("#")
+            else:
+                print(f"# replacing labels: {label_tag} -> from {nifti_bin_encoding} -> to {label_names_found[label_tag]}")
             nii_array = np.where(nii_array == nifti_bin_encoding, label_names_found[label_tag], nii_array)
-            exit(1)
+            nifti_bin_encoding = label_names_found[label_tag]
         else:
             print("# NIFTI encoding -> ok")
 

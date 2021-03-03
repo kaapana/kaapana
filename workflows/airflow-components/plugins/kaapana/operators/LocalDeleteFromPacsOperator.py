@@ -12,6 +12,8 @@ import json
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+
+
 class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
@@ -30,20 +32,24 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
                         'series_uid':  metadata['0020000E SeriesInstanceUID_keyword']
                     })
 
-        print('dicoms to delete')
-        for dcm in dicoms_to_delete:
-            print('####################')
-            print(dcm['study_uid'])
-            print(dcm['series_uid'])
-
         for dcm_to_delete in dicoms_to_delete:
+            print("####################")
+            print("#")
+            print("# Deleting:")
+            print("#")
+            print(f"Study: {dcm_to_delete['study_uid']}")
+            print(f"Series: {dcm_to_delete['series_uid']}")
+            print("#")
+            print("# -> rejecting ...")
             self.reject_files(dcm_to_delete['study_uid'], dcm_to_delete['series_uid'])
-
+            print('# -> deleting ...')
             self.delete_icom_quality_study_from_pacs(dcm_to_delete['study_uid'])
+            print('# -> check if removed ...')
             self.check_all_clean(study_uid=dcm_to_delete['study_uid'], series_uid=dcm_to_delete['series_uid'])
+            print('#')
 
     def reject_files(self, study_uid, series_uid):
-        print("Check if the series UID", series_uid, "can be found in AET ", self.pacs_aet)
+        print(f"Check if the series UID {series_uid} can be found in AET {self.pacs_aet}")
         r = self.qido_rs_get(study_uid, series_uid, self.pacs_aet)
         if r.status_code == requests.codes.ok:
             if self.delete_complete_study:
@@ -57,7 +63,6 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
             print(r.reason)
             print(r.content)
             exit(1)
-
 
     def reject_study_icom_quality(self, study_uid):
         print("Reject_study_icom_quality:")
@@ -88,12 +93,12 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
 
     def delete_icom_quality_study_from_pacs(self, rejected_study_uid):
         print("Check if the series UID", rejected_study_uid, "can be found in AET ", "IOCM_QUALITY")
-        r = requests.get("{}/dcm4chee-arc/aets/{}/rs/studies/{}/instances"
-                         .format(self.pacs_dcmweb_endpoint, "IOCM_QUALITY", rejected_study_uid), verify=False)
+        request_url = "{}/dcm4chee-arc/aets/{}/rs/studies/{}/instances".format(self.pacs_dcmweb_endpoint, "IOCM_QUALITY", rejected_study_uid)
+        print(f"Request_url: {request_url}")
+        r = requests.get("{}/dcm4chee-arc/aets/{}/rs/studies/{}/instances".format(self.pacs_dcmweb_endpoint, "IOCM_QUALITY", rejected_study_uid), verify=False)
         if r.status_code == requests.codes.ok:
             print("Delete_icom_quality_study_from_pacs StudyID: {}".format(rejected_study_uid))
-            reject_url = "{}/dcm4chee-arc/aets/IOCM_QUALITY/rs/studies/{}".format(self.pacs_dcmweb_endpoint,
-                                                                                  rejected_study_uid)
+            reject_url = "{}/dcm4chee-arc/aets/IOCM_QUALITY/rs/studies/{}".format(self.pacs_dcmweb_endpoint, rejected_study_uid)
             r = requests.delete(reject_url, verify=False)
             if r.status_code != requests.codes.ok and r.status_code != 204:
                 print('error delete_icom_quality_study_from_pacs ?!')
@@ -110,10 +115,8 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
             print(r.content)
             exit(1)
 
-
     def qido_rs_get(self, study_uid, series_uid, aet):
-        return requests.get("{}/dcm4chee-arc/aets/{}/rs/studies/{}/series/{}/instances"
-                         .format(self.pacs_dcmweb_endpoint, aet, study_uid, series_uid), verify=False)
+        return requests.get("{}/dcm4chee-arc/aets/{}/rs/studies/{}/series/{}/instances".format(self.pacs_dcmweb_endpoint, aet, study_uid, series_uid), verify=False)
 
     def check_all_clean(self, study_uid, series_uid):
         print("Check if there are no more traces of the UID", series_uid)

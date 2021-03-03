@@ -17,7 +17,10 @@ def get_dataset_json(model_path, installed_task):
 
     targets = []
     if "labels" in dataset_json:
-        for key, label in dataset_json["labels"].items():
+        keys = list(dataset_json["labels"].keys())
+        keys.sort(key=int)
+        for key in keys:
+            label = dataset_json["labels"][key]
             if key == "0" and label == "Clear Label":
                 continue
             targets.append(label)

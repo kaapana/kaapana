@@ -204,14 +204,6 @@ class KaapanaBaseOperator(BaseOperator):
         self.host_network = host_network
         self.enable_proxy = enable_proxy
 
-        if self.parallel_id is None:
-            self.kube_name = f'{self.name}'
-        else:
-            self.kube_name = f'{self.name}-{self.parallel_id}'
-
-        self.kube_name = self.kube_name.lower() + "-" + str(uuid.uuid4())[:8]
-        self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63)
-
         self.volume_mounts.append(VolumeMount(
             'dcmdata', mount_path='/data', sub_path=None, read_only=False))
         volume_config = {
@@ -302,6 +294,15 @@ class KaapanaBaseOperator(BaseOperator):
     @cache_operator_output
     def execute(self, context):
         self.set_context_variables(context)
+
+        if self.parallel_id is None:
+            self.kube_name = f'{self.name}'
+        else:
+            self.kube_name = f'{self.name}-{self.parallel_id}'
+
+        self.kube_name = self.kube_name.lower() + "-" + str(uuid.uuid4())[:8]
+        self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63)
+        
         if context['dag_run'].conf is not None and "conf" in context['dag_run'].conf and "form_data" in context['dag_run'].conf["conf"] and context['dag_run'].conf["conf"]["form_data"] is not None:
             form_data = context['dag_run'].conf["conf"]["form_data"]
             form_envs = {}

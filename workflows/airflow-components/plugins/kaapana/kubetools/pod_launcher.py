@@ -160,34 +160,37 @@ class PodLauncher(LoggingMixin):
 
     def _monitor_pod(self, pod, get_logs):
         # type: (Pod) -> (State, content)
+        try:
+            if get_logs:
+                _pod = self.read_pod(pod)
+                logs = self._client.read_namespaced_pod_log(
+                    name=_pod.metadata.name,
+                    namespace=_pod.metadata.namespace,
+                    container=_pod.spec.containers[0].name,
+                    follow=True,
+                    tail_lines=10,
+                    _preload_content=False)
+                for log in logs:
+                    self.log.info(log)
+                    # log = log.decode("utf-8").replace("\n","").split("\\n")
+                    # for line in log:
+                    # self.log.info(line)
 
-        if get_logs:
-            _pod = self.read_pod(pod)
-            logs = self._client.read_namespaced_pod_log(
-                name=_pod.metadata.name,
-                namespace=_pod.metadata.namespace,
-                container=_pod.spec.containers[0].name,
-                follow=True,
-                tail_lines=10,
-                _preload_content=False)
-            for log in logs:
-                self.log.info(log)
-                # log = log.decode("utf-8").replace("\n","").split("\\n")
-                # for line in log:
-                # self.log.info(line)
-
-        result = None
-        if self.extract_xcom:
-            while self.base_container_is_running(pod):
-                self.log.info('Container %s has state %s', pod.name, State.RUNNING)
+            result = None
+            if self.extract_xcom:
+                while self.base_container_is_running(pod):
+                    self.log.info('Container %s has state %s', pod.name, State.RUNNING)
+                    time.sleep(2)
+                result = self._extract_xcom(pod)
+                self.log.info(result)
+                result = json.loads(result)
+            while self.pod_is_running(pod):
+                self.log.debug('Pod %s has state %s', pod.name, State.RUNNING)
                 time.sleep(2)
-            result = self._extract_xcom(pod)
-            self.log.info(result)
-            result = json.loads(result)
-        while self.pod_is_running(pod):
-            self.log.debug('Pod %s has state %s', pod.name, State.RUNNING)
-            time.sleep(2)
-        return (self._task_status(pod=pod, event=self.read_pod(pod)), result)
+            return (self._task_status(pod=pod, event=self.read_pod(pod)), result)
+        except Exception as e:
+            self.log.warn(f"################# ISSUE! Could not _monitor_pod: {pod}")
+            self.log.warn(f"################# ISSUE! message: {e}")
 
     def _task_status(self, pod, event):
         af_status, kube_status = self.process_status(event=event, pod=pod)

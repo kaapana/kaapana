@@ -36,6 +36,6 @@ class DcmConverterOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             ram_mem_mb=2000,
-            ram_mem_mb_lmt=4000,
+            ram_mem_mb_lmt=10000,
             *args, **kwargs
             )

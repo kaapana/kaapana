@@ -105,10 +105,15 @@ elif [ "$MODE" = "training" ]; then
     else
         npz=""
     fi
+    if [ "$TRAIN_DISABLE_POSTPROCESSING" = "True" ] || [ "$TRAIN_DISABLE_POSTPROCESSING" = "true" ]; then
+        disable_postprocessing="--disable_postprocessing_on_folds"
+    else
+        disable_postprocessing=""
+    fi
     
     echo "#"
-    echo "# COMMAND: nnUNet_train $TRAIN_NETWORK $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $npz $continue"
-    nnUNet_train $TRAIN_NETWORK $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $npz $continue
+    echo "# COMMAND: nnUNet_train $TRAIN_NETWORK $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $npz $continue "
+    nnUNet_train $TRAIN_NETWORK $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $npz $continue 
     
     CREATE_REPORT="True"
 

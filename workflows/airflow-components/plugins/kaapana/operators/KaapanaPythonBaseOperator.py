@@ -8,16 +8,25 @@ from airflow.utils.decorators import apply_defaults
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 
 def rest_self_udpate(func):
+    '''
+    Every operator which should be adjustable from an api call should add this as an decorator above the python_callable:
+    @rest_self_udpate
+    '''
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
         if kwargs["dag_run"]  is not None and 'rest_call' in kwargs["dag_run"].conf and kwargs["dag_run"].conf['rest_call'] is not None:
             payload = kwargs["dag_run"].conf['rest_call']
-            if self.name in payload:
-                operator_conf = payload[self.name]       
-                for k, v in operator_conf.items():
-                    if k in self.__dict__.keys():
-                        print(f'Adjusting {k} from {self.__dict__[k]} to {v}')
-                        self.__dict__[k] =v
+            operator_conf = {}
+            if 'operators' in payload and self.name in payload['operators']:
+                operator_conf.update(payload['operators'][self.name])
+            if 'global' in payload:
+                operator_conf.update(payload['global'])
+   
+            for k, v in operator_conf.items():
+                if k in self.__dict__.keys():
+                    print(f'Adjusting {k} from {self.__dict__[k]} to {v}')
+                    self.__dict__[k] = v
+
         return func(self, *args, **kwargs)
     return wrapper
 

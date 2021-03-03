@@ -7,13 +7,14 @@ from zipfile import ZipFile
 import datetime
 from datetime import timedelta
 
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator, rest_self_udpate
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.blueprints.kaapana_utils import generate_minio_credentials
 from kaapana.operators.HelperMinio import HelperMinio
 
 class LocalMinioOperator(KaapanaPythonBaseOperator):
 
+    @rest_self_udpate
     def start(self, ds, **kwargs):
         conf = kwargs['dag_run'].conf
         print('conf', conf)

@@ -293,17 +293,49 @@ class KaapanaBaseOperator(BaseOperator):
 
         super.clear(start_date=start_date, end_date=end_date, upstream=upstream, downstream=downstream, session=session)
 
+    def rest_env_vars_update(self, payload):
+        operator_conf = {}
+        if 'operators' in payload and self.name in payload['operators']:
+            operator_conf.update(payload['operators'][self.name])
+        if 'global' in payload:
+            operator_conf.update(payload['global'])
+
+        for k, v in operator_conf.items():
+            k = k.upper()
+            if k in self.env_vars:
+                print(f'Adjusting {k} from {self.env_vars[k]} to {v}')
+                self.env_vars[k] = str(v)
+
     @cache_operator_output
     def execute(self, context):
         self.set_context_variables(context)
+        # First if condition could be removed when the api calls are adapted to:
+        # json_data = {
+        #     'rest_call': {
+        #         'global': {
+        #             'bucket_name': 'custom-dicom-upload'
+        #         },
+        #         'operators': {
+        #             'minio-actions-get':{'action_operator_dirs': ['dicoms']},
+        #             'dcmsend': {'host': '10.128.129.28'}
+        #             #'minio-actions-remove-removin': {'action_operator_dirs': ['dicoms']}
+        #         }
+        #     }
+        # }
+
         if context['dag_run'].conf is not None and "conf" in context['dag_run'].conf and "form_data" in context['dag_run'].conf["conf"] and context['dag_run'].conf["conf"]["form_data"] is not None:
             form_data = context['dag_run'].conf["conf"]["form_data"]
-            form_envs = {}
-            for form_key in form_data.keys():
-                form_envs[str(form_key.upper())] = str(form_data[form_key])
+            print(form_data)
+            # form_envs = {}
+            # for form_key in form_data.keys():
+            #     form_envs[str(form_key.upper())] = str(form_data[form_key])
 
-            self.env_vars.update(form_envs)
-
+            # self.env_vars.update(form_envs)
+            # print("CONTAINER ENVS:")
+            # print(json.dumps(self.env_vars, indent=4, sort_keys=True))
+            context['dag_run'].conf["rest_call"] = {'global': form_data}
+        if context['dag_run'].conf is not None and "rest_call" in context['dag_run'].conf and context['dag_run'].conf["rest_call"] is not None:
+            self.rest_env_vars_update(context['dag_run'].conf["rest_call"]) 
             print("CONTAINER ENVS:")
             print(json.dumps(self.env_vars, indent=4, sort_keys=True))
 

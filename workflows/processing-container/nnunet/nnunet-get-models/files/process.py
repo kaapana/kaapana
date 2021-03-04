@@ -24,6 +24,15 @@ model = os.getenv('MODEL', "NONE")
 model = None if model == "NONE" else model
 mode = os.getenv('MODE', "install_pretrained")
 
+print("# Starting GetModelOperator ...")
+print("#")
+print(f"# mode: {mode}")
+print(f"# task_ids: {task_ids}")
+print(f"# output_dir: {output_dir}")
+print(f"# workflow_dir: {workflow_dir}")
+print(f"# target_level: {target_level}")
+print("#")
+print("#")
 
 def check_dl_running(model_path_dl_running, model_path, wait=True):
     if os.path.isfile(model_path_dl_running):

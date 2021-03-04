@@ -29,7 +29,7 @@ def check_if_encoding_in_use(label_encoding):
     existing_label_encodings = list(label_names_found.values())
     if label_encoding in existing_label_encodings:
         for i in range(1, 100):
-        # for i in range(max(existing_label_encodings), 100):
+            # for i in range(max(existing_label_encodings), 100):
             if i not in list(label_names_found.values()):
                 next_free_label = i
                 break
@@ -49,11 +49,25 @@ def check_if_encoding_in_use(label_encoding):
 
 
 def process_seg_nifti(seg_nifti):
-    global label_names_found, label_names_found, label_int
+    global label_names_found, label_names_found, label_int, tracking_ids
 
     print(f"# Processing NIFTI: {seg_nifti}")
     if "--" in seg_nifti:
-        label_tag = seg_nifti.split("--")[-1].split(".")[0].replace("_", " ")
+        seg_info = seg_nifti.split("--")
+        label_tag = seg_info[-1].split(".")[0].replace("_", " ")
+        meta_info_json_path = join(dirname(seg_nifti), f"{seg_info[0]}-meta.json")
+        if len(seg_info) == 3 and exists(meta_info_json_path):
+            print(f"# Loading DCMQI meta-json: {meta_info_json_path}")
+            seg_id = int(seg_info[1])
+            with open(meta_info_json_path, 'r') as f:
+                meta_info = json.load(f)
+            if "segmentAttributes" in meta_info:
+                for entry in meta_info["segmentAttributes"][0]:
+                    if "labelID" in entry and entry["labelID"] == seg_id and "TrackingIdentifier" in entry:
+                        tracking_id = entry["TrackingIdentifier"]
+                        print(f"# Setting tracking-id: {tracking_id}")
+                        tracking_ids[str(seg_id)] = tracking_id
+
     else:
         label_tag = str(label_int)
     # your code here
@@ -235,6 +249,8 @@ use_nifti_labels = True if os.getenv("PREP_USE_NIFITI_LABELS", "False").lower() 
 
 thread_count = 5
 
+tracking_ids = {}
+
 if input_label_dirs == "" or input_modalities == "" or input_modality_dirs == "":
     print("#")
     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -350,6 +366,14 @@ print(json.dumps(labels, indent=4, sort_keys=False))
 template_dataset_json["labels"] = labels
 print("#")
 print("#")
+
+if len(tracking_ids) > 0:
+    print("# Adding tracking_ids:")
+    print(json.dumps(tracking_ids, indent=4, sort_keys=False))
+    template_dataset_json["tracking_ids"] = tracking_ids
+    print("#")
+    print("#")
+
 
 with open(join(task_dir, 'dataset.json'), 'w') as fp:
     json.dump(template_dataset_json, fp, indent=4, sort_keys=False)

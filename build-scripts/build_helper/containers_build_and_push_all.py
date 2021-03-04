@@ -352,7 +352,7 @@ class DockerContainer:
 
         while retries < max_retires:
             retries += 1
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3600)
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
             if output.returncode == 0 or "configured as immutable" in output.stderr:
                 break
 

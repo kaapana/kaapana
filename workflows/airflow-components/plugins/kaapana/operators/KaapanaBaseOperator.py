@@ -305,16 +305,18 @@ class KaapanaBaseOperator(BaseOperator):
 
     def rest_env_vars_update(self, payload):
         operator_conf = {}
-        if 'operators' in payload and self.name in payload['operators']:
-            operator_conf.update(payload['operators'][self.name])
         if 'global' in payload:
             operator_conf.update(payload['global'])
+        if 'operators' in payload and self.name in payload['operators']:
+            operator_conf.update(payload['operators'][self.name])
 
         for k, v in operator_conf.items():
             k = k.upper()
             if k in self.env_vars:
                 print(f'Adjusting {k} from {self.env_vars[k]} to {v}')
-                self.env_vars[k] = str(v)
+            else:
+                print(f'Adding {k}={v} to env_vars')
+            self.env_vars[k] = str(v)
 
     @cache_operator_output
     def execute(self, context):

@@ -5,5 +5,7 @@ LABEL VERSION="1.6.5-vdev"
 LABEL CI_IGNORE="False"
 
 COPY dags/nnunet /tmp/dags/nnunet
+COPY dags/dag_nnunet_model_install.py /tmp/dags/
+COPY dags/dag_nnunet_model_uninstall.py /tmp/dags/
 COPY dags/dag_nnunet_inference.py /tmp/dags/
 COPY dags/dag_nnunet_training.py /tmp/dags/

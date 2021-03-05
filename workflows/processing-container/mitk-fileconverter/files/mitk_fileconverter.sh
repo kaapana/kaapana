@@ -140,6 +140,9 @@ do
     
 done
 
+echo "#"
+echo "# Converted $loop_counter files!"
+echo "#"
 if [[ "$loop_counter" -gt 0 ]] ; then
     echo "Fileconverter done!";
     exit 0;

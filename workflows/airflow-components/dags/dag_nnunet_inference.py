@@ -4,9 +4,8 @@ from datetime import timedelta
 from airflow.models import DAG
 from datetime import datetime
 from nnunet.NnUnetOperator import NnUnetOperator
-from kaapana.operators.ResampleOperator import ResampleOperator
+from nnunet.getTasks import get_tasks
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
-from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
 # from nnunet.GetContainerModelOperator import GetContainerModelOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
@@ -14,66 +13,7 @@ from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
-import json
-import os
-from os.path import join, basename, dirname, normpath, exists
-
-af_home_path = "/root/airflow"
-models_path = join(af_home_path, "models", "nnUNet")
-tasks_json_path = join(af_home_path, "dags", "nnunet", "nnunet_tasks.json")
-
-with open(tasks_json_path) as f:
-    tasks = json.load(f)
-
-available_tasks = [*{k: v for (k, v) in tasks.items() if "supported" in tasks[k] and tasks[k]["supported"]}]
-models_available = [basename(normpath(f.path)) for f in os.scandir(models_path) if f.is_dir() and "ensembles" not in f.name ]
-
-for model in models_available:
-    model_path = join(models_path, model)
-    task_dirs = [basename(normpath(f.path)) for f in os.scandir(model_path) if f.is_dir()]
-    for task in task_dirs:
-        if task not in tasks:
-            print(f"################### Adding task:{model}: {task}")
-            model_info_path = join(model_path, task, "model_info.json")
-            if exists(model_info_path):
-                print(f"Found model_info.json at {model_info_path}")
-                with open(model_info_path) as f:
-                    model_info = json.load(f)
-            else:
-                print(f"Could not find model_info.json at {model_info_path}")
-                model_info = {
-                    "description": f"Custom model: {task}",
-                    "model": [],
-                    "input-mode": "all",
-                    "input": ["UNKNOWN"],
-                    "body_part": "UNKNOWN",
-                    "targets": [
-                        "UNKNOWN"
-                    ],
-                    "supported": True,
-                    "info": "",
-                    "url": "-",
-                    "task_url": "-"
-                }
-
-            available_tasks.append(task)
-            available_tasks.sort()
-            tasks[task] = {
-                "description": model_info["description"],
-                "model": [],
-                "input-mode": model_info["input-mode"],
-                "input": model_info["input"],
-                "body_part": model_info["body_part"],
-                "targets": model_info["targets"],
-                "supported": model_info["supported"],
-                "info": model_info["info"],
-                "url": model_info["url"],
-                "task_url": model_info["task_url"]
-            }
-        if model not in tasks[task]['model']:
-            tasks[task]['model'].append(model)
-        tasks[task]['model'].sort()
-
+available_pretrained_task_names, installed_tasks, all_selectable_tasks = get_tasks()
 ui_forms = {
     "publication_form": {
         "type": "object",
@@ -113,7 +53,7 @@ ui_forms = {
                 "title": "Tasks available",
                 "description": "Select one of the available tasks.",
                 "type": "string",
-                "enum": available_tasks,
+                "enum": sorted(list(all_selectable_tasks.keys())),
                 "required": True
             },
             "description": {
@@ -166,7 +106,7 @@ ui_forms = {
                 "type": "string",
                 "default": "3d_lowres",
                 "required": True,
-                "enum": models_available,
+                "enum": [],
                 "dependsOn": [
                     "task"
                 ]
@@ -183,7 +123,7 @@ ui_forms = {
 }
 args = {
     'ui_visible': True,
-    'ui_dag_info': tasks,
+    'ui_dag_info': all_selectable_tasks,
     'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),
@@ -207,32 +147,18 @@ get_input = LocalGetInputDataOperator(
 get_task_model = GetTaskModelOperator(dag=dag)
 # get_task_model = GetContainerModelOperator(dag=dag)
 dcm2nifti = DcmConverterOperator(
-    dag=dag, 
-    input_operator=get_input, 
+    dag=dag,
+    input_operator=get_input,
     output_format='nii.gz'
-    )
+)
 
 nnunet_predict = NnUnetOperator(
     dag=dag,
     mode="inference",
-    input_nifti_operators=[dcm2nifti],
+    input_modality_operators=[dcm2nifti],
     inf_preparation=True,
     inf_threads_prep=1,
     inf_threads_nifti=1
-)
-
-resample_seg = ResampleOperator(
-    dag=dag,
-    input_operator=nnunet_predict,
-    original_img_operator=dcm2nifti,
-    operator_out_dir = nnunet_predict.operator_out_dir
-)
-
-check_seg = LocalSegCheckOperator(
-    dag=dag,
-    abort_on_error=True,
-    move_data=False,
-    input_operators=[nnunet_predict, dcm2nifti]
 )
 
 alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]
@@ -242,11 +168,11 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     segmentation_operator=nnunet_predict,
     input_type="multi_label_seg",
     multi_label_seg_name=alg_name,
+    skip_empty_slices=True,
     alg_name=alg_name
 )
-
 
 dcmseg_send_multi = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> get_task_model >> dcm2nifti >> nnunet_predict >> resample_seg >> check_seg >> nrrd2dcmSeg_multi >> dcmseg_send_multi >> clean
+get_input >> get_task_model >> dcm2nifti >> nnunet_predict >> nrrd2dcmSeg_multi >> dcmseg_send_multi >> clean

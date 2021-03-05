@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxt-dev \
     xvfb \
     qtbase5-dev \
+    python3 \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
@@ -23,4 +25,4 @@ RUN wget --no-check-certificate https://www.mitk.org/download/kaapana/phenotypin
 
 WORKDIR /src
 
-CMD ["/bin/bash", "echo","Do not use this container directly - only as base-image!"]
+CMD ["echo","Do not use this container directly - only as base-image!"]

@@ -37,9 +37,9 @@ spec:
             containerPort: 8443
           resources:
             requests:
-              memory: 20Mi
-            limits:
               memory: 50Mi
+            limits:
+              memory: 150Mi
           volumeMounts:
             - name: config-file
               mountPath: /app

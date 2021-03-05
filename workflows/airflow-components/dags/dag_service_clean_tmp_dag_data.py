@@ -24,7 +24,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='service-clean-up-expired-workflow-data',
+    dag_id='service-cleanup-tmp-data',
     default_args=args,
     schedule_interval='@daily',
     concurrency=5,

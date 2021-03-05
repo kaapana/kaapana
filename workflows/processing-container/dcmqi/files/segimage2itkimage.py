@@ -10,7 +10,7 @@ from datetime import datetime
 import subprocess
 
 processed_count = 0
-DCMQI = '/dcmqi/dcmqi-1.2.2-linux/bin/'
+DCMQI = '/dcmqi/dcmqi-1.2.3-linux/bin/'
 
 output_type = os.environ.get('OUTPUT_TYPE', 'nrrd')
 seg_filter = os.environ.get('SEG_FILTER', "")
@@ -77,11 +77,12 @@ for batch_element_dir in batch_folders:
         to_remove_indexes = []
         for idx, segment in enumerate(meta_data['segmentAttributes']):
             segment_info = segment[0]
-            print(segment_info['SegmentLabel'])
-            print(segment_info['labelID'])
-            if seg_filter is None or segment_info['SegmentLabel'].lower() in seg_filter:
+            segment_label = segment_info['SegmentLabel'].lower()
+            print(f"SEG-INFO: {segment_label} -> Label: {segment_info['labelID']}")
+            if seg_filter is None or segment_label in seg_filter:
+                segment_label = segment_label.replace("/", "++")
                 os.rename(os.path.join(element_output_dir, f'{json_output}-{segment_info["labelID"]}.{output_type}'),
-                          os.path.join(element_output_dir, f'{json_output}_{segment_info["SegmentLabel"]}.{output_type}'))
+                          os.path.join(element_output_dir, f'{json_output}--{segment_info["labelID"]}--{segment_label}.{output_type}'))
             else:
                 to_remove_indexes.append(idx)
                 os.remove(os.path.join(element_output_dir, f'{json_output}-{segment_info["labelID"]}.{output_type}'))
@@ -91,9 +92,9 @@ for batch_element_dir in batch_folders:
             del meta_data['segmentAttributes'][idx]
 
         with open(meta_data_file, "w") as write_file:
-            print("Overwriting JSON: {}".format(meta_data_file))
             json.dump(meta_data, write_file, indent=4, sort_keys=True)
-        print(meta_data)
+            # print("Overwriting JSON: {}".format(meta_data_file))
+        # print(json.dumps(meta_data, indent=4, sort_keys=True))
 
         if seg_filter != None and seg_filter != "":
             len_output_files = len(sorted(glob.glob(os.path.join(element_output_dir, f"*{output_type_dcmqi}*"), recursive=False)))
@@ -104,7 +105,7 @@ for batch_element_dir in batch_folders:
                 exit(1)
 
         processed_count += 1
-        
+
 print("#")
 print("#")
 print("#")

@@ -8,6 +8,8 @@ from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperato
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 
+from nnunet.GetTaskModelOperator import GetTaskModelOperator
+
 
 ui_forms = {
     "workflow_form": {
@@ -16,7 +18,7 @@ ui_forms = {
             "combination_method": {
                 "title": "method",
                 "description": "Select the method for model merging.",
-                "enum": ["averaging","test2","test3"],
+                "enum": ["averaging", "test2", "test3"],
                 "default": 'averaging',
                 "required": True
             },
@@ -40,7 +42,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='nnunet-install-model',
+    dag_id='nnunet-model-install',
     default_args=args,
     concurrency=1,
     max_active_runs=1,
@@ -53,22 +55,22 @@ get_input = LocalGetInputDataOperator(
     parallel_downloads=5
 )
 
-get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
-    dag=dag,
-    input_operator=get_input,
-    search_policy="study_uid",
-    expected_file_count="all",
-    modality="OT",
-    parallel_downloads=5,
-)
-
 dcm2bin = Bin2DcmOperator(
     dag=dag,
-    input_operator=get_ref_ct_series_from_seg,
+    input_operator=get_input,
     name="extract-binary",
     file_extensions="*.dcm"
 )
 
-#clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
+extract_model = GetTaskModelOperator(
+    dag=dag,
+    name="install-model-zip",
+    input_operator=dcm2bin,
+    mode="install_zip"
+)
+clean = LocalWorkflowCleanerOperator(
+    dag=dag,
+    clean_workflow_dir=True
+)
 
-get_input >> get_ref_ct_series_from_seg >> dcm2bin #>> clean
+get_input >> dcm2bin >> extract_model >> clean

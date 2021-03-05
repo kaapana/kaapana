@@ -4,17 +4,24 @@ LABEL IMAGE="code-server"
 LABEL VERSION="3.8.0"
 LABEL CI_IGNORE="False"
 
-USER root
-
-RUN apt-get update && apt-get install -y \
+# ubuntu installations (e.g. Python)
+RUN sudo -E apt-get update && sudo -E apt-get install -y \
+    python3 \
     python3-pip \
-    python3-dev \
-    && rm -rf /var/lib/apt/lists/*
+ && sudo rm -rf /var/lib/apt/lists/*
 
-USER coder
+# python requirements
+COPY files/requirements.txt /home/coder/
+RUN python3 -m pip install --no-cache-dir -r ~/requirements.txt && rm ~/requirements.txt 
 
+# extensions to code-server
+# RUN code-server --install-extension ms-python.python
 
-COPY files/requirements.txt ./
-RUN python3 -m pip install --no-cache-dir -r requirements.txt
+#v2020.10.332292344 
+# RUN curl https://extensions.coder.com/api/publishers/ms-python/vsextensions/python/2020.10.332292344/vspackage --output /tmp/python.vsix \
+# RUN curl https://open-vsx.org/api/ms-python/python/2020.10.332292344/file/ms-python.python-2020.10.332292344.vsix --output /tmp/python.vsix \
+# RUN curl https://extensions.coder.com/api/publishers/ms-python/vsextensions/python/2021.1.502429796/vspackage --output /tmp/python.vsix \
+#     && code-server --install-extension /tmp/python.vsix \
+#     && rm -rf /tmp/python.vsix
 
-RUN curl https://extensions.coder.com/api/publishers/ms-python/vsextensions/python/2020.4.76186/vspackage --output /home/coder/vspackage
+CMD ["code-server", "--allow-http", "--no-auth"]

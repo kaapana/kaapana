@@ -7,6 +7,7 @@ default_chart_project: "kaapana-public"
 log_level: "WARN"
 build_containers: true
 push_containers: true
+push_dev_containers_only: true
 build_charts: true
 push_charts: true
 create_package: false

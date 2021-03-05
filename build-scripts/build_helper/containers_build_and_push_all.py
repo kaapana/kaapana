@@ -352,7 +352,7 @@ class DockerContainer:
 
         while retries < max_retires:
             retries += 1
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3600)
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
             if output.returncode == 0 or "configured as immutable" in output.stderr:
                 break
 
@@ -395,7 +395,7 @@ class DockerContainer:
         elif output.returncode != 0 and "configured as immutable" in output.stderr:
             print(
                 "############################ Push -> immutable -> no -vdev version -> ok")
-            if "-vdev" not in self.tag:
+            if not self.dev:
                 log_entry = {
                     "suite": suite_tag,
                     "test": self.tag.replace(self.docker_registry, "")[1:],

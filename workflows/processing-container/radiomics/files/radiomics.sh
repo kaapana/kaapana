@@ -8,9 +8,10 @@ function radiomics {
 
     loop_counter=0
     organ=$(echo "$ORGAN" | awk '{print tolower($0)}')
-    echo 'INPUTDIR: ' $INPUTDIR
-    echo 'OUTPUTDIR: ' $OUTPUTDIR
-    echo 'MASKDIR: ' $MASKDIR
+    echo 'INPUTDIR: '   $INPUTDIR
+    echo 'OUTPUTDIR: '  $OUTPUTDIR
+    echo 'MASKDIR: '    $MASKDIR
+    echo 'PARAMETERS: ' $PARAMETERS
 
     export BULK="False"
 
@@ -76,7 +77,8 @@ function radiomics {
 
         install -Dv / $xml_filepath
 
-        /src/MitkCLGlobalImageFeatures.sh -i $file -o $csv_filepath -x $xml_filepath -m $maskfile -rm 1 -sp 1 -head 1 -fl-head 1 -fo 1 -cooc 1
+        /src/MitkCLGlobalImageFeatures.sh -i $file -o $csv_filepath -x $xml_filepath -m $maskfile -rm 1 -sp 1 -head 1 -fl-head 1 $PARAMETERS
+        # /src/MitkCLGlobalImageFeatures.sh -i $file -o $csv_filepath -x $xml_filepath -m $maskfile -rm 1 -sp 1 -head 1 -fl-head 1 -fo 1 -cooc 1
         
         retVal=$?
         if [ $retVal -ne 0 ]; then

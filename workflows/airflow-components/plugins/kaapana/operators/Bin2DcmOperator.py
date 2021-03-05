@@ -1,10 +1,10 @@
 import os
-import pydicom
 from datetime import timedelta
 from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
 from kaapana.kubetools.resources import Resources as PodResources
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
+
 
 class Bin2DcmOperator(KaapanaBaseOperator):
     execution_timeout = timedelta(minutes=10)
@@ -13,10 +13,13 @@ class Bin2DcmOperator(KaapanaBaseOperator):
                  dag,
                  file_extensions="*.zip",
                  size_limit=100,
-                 study_description="Kaapana Bin2Dcm",
                  patient_id="",
+                 manufacturer="KAAPANA",
+                 manufacturer_model="bin2dcm",
+                 study_description=None,
+                 series_description=None,
                  study_id="bin2dcm",
-                 study_uid=pydicom.uid.generate_uid(),
+                 study_uid=None,
                  name="bin2dcm",
                  env_vars={},
                  execution_timeout=execution_timeout,
@@ -27,10 +30,13 @@ class Bin2DcmOperator(KaapanaBaseOperator):
         envs = {
             "EXTENSIONS": file_extensions,
             "SIZE_LIMIT_MB": str(size_limit),
+            "STUDY_ID": str(study_id),
             "STUDY_UID": str(study_uid),
             "STUDY_DESCRIPTION": str(study_description),
+            "SERIES_DESCRIPTION": str(series_description),
             "PATIENT_ID": str(patient_id),
-            "STUDY_ID": str(study_id)
+            "MANUFACTURER": str(manufacturer),
+            "MANUFACTURER_MODEL": str(manufacturer_model)
         }
         env_vars.update(envs)
 

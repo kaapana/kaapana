@@ -77,10 +77,12 @@ for batch_element_dir in batch_folders:
         to_remove_indexes = []
         for idx, segment in enumerate(meta_data['segmentAttributes']):
             segment_info = segment[0]
-            print(f"SEG-INFO: {segment_info['SegmentLabel']} -> Label: {segment_info['labelID']}")
-            if seg_filter is None or segment_info['SegmentLabel'].lower() in seg_filter:
+            segment_label = segment_info['SegmentLabel'].lower()
+            print(f"SEG-INFO: {segment_label} -> Label: {segment_info['labelID']}")
+            if seg_filter is None or segment_label in seg_filter:
+                segment_label = segment_label.replace("/", "++")
                 os.rename(os.path.join(element_output_dir, f'{json_output}-{segment_info["labelID"]}.{output_type}'),
-                          os.path.join(element_output_dir, f'{json_output}--{segment_info["labelID"]}--{segment_info["SegmentLabel"]}.{output_type}'))
+                          os.path.join(element_output_dir, f'{json_output}--{segment_info["labelID"]}--{segment_label}.{output_type}'))
             else:
                 to_remove_indexes.append(idx)
                 os.remove(os.path.join(element_output_dir, f'{json_output}-{segment_info["labelID"]}.{output_type}'))
@@ -103,7 +105,7 @@ for batch_element_dir in batch_folders:
                 exit(1)
 
         processed_count += 1
-        
+
 print("#")
 print("#")
 print("#")

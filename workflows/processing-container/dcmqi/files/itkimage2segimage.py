@@ -144,13 +144,13 @@ def adding_aetitle(element_input_dir, output_dcm_file, seg_infos):
         aetitle = pydicom.dcmread(dcm_file)[0x0012, 0x0020].value
     except KeyError:
         aetitle = 'DCMTKUndefined'
-    print('ae title', aetitle)
 
     dcmseg_file = pydicom.dcmread(output_dcm_file)
     dcmseg_file.add_new([0x012, 0x020], 'LO', aetitle)  # Clinical Trial Protocol ID
 
     bpe = ""
     for seg_info in seg_infos:
+        print(f"seg_info: {seg_info}")
         if bpe != "":
             bpe += " "
         split_seg_info = seg_info["label_name"].split('@')
@@ -335,7 +335,7 @@ for batch_element_dir in batch_folders:
                     print(f'The image seems to have empty slices, we will skip them! This might make the segmentation no usable anymore for MITK. Error: {e.output}')
                     raise AssertionError(f'Something weng wrong while creating the single-label-dcm object {e.output}')
 
-            adding_aetitle(element_input_dir, output_dcm_file, seg_infos={"label_name": [single_label_seg_info]})
+            adding_aetitle(element_input_dir, output_dcm_file, seg_infos=[{"label_name": single_label_seg_info}])
             processed_count += 1
 
     elif input_type == 'multi_label_seg':

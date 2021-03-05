@@ -54,7 +54,7 @@ def process_seg_nifti(seg_nifti):
     print(f"# Processing NIFTI: {seg_nifti}")
     if "--" in seg_nifti:
         seg_info = seg_nifti.split("--")
-        label_tag = seg_info[-1].split(".")[0].replace("_", " ")
+        label_tag = seg_info[-1].split(".")[0].replace("_", " ").replace("++", "/")
         meta_info_json_path = join(dirname(seg_nifti), f"{seg_info[0]}-meta.json")
         if len(seg_info) == 3 and exists(meta_info_json_path):
             print(f"# Loading DCMQI meta-json: {meta_info_json_path}")
@@ -63,10 +63,12 @@ def process_seg_nifti(seg_nifti):
                 meta_info = json.load(f)
             if "segmentAttributes" in meta_info:
                 for entry in meta_info["segmentAttributes"][0]:
-                    if "labelID" in entry and entry["labelID"] == seg_id and "TrackingIdentifier" in entry:
-                        tracking_id = entry["TrackingIdentifier"]
-                        print(f"# Setting tracking-id: {tracking_id}")
-                        tracking_ids[str(seg_id)] = tracking_id
+                    if "labelID" in entry and entry["labelID"] == seg_id 
+                        if "SegmentLabel" in entry:
+                            label_tag = entry["SegmentLabel"]
+                        
+                        if "TrackingIdentifier" in entry:
+                            tracking_ids[str(seg_id)] = entry["TrackingIdentifier"]
 
     else:
         label_tag = str(label_int)

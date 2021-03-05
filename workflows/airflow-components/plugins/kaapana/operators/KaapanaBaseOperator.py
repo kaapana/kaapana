@@ -200,6 +200,7 @@ class KaapanaBaseOperator(BaseOperator):
         self.secrets = secrets
         self.kind = kind
         self.data_dir = os.getenv('DATADIR', "")
+        self.model_dir = os.getenv('MODELDIR', "")
         self.result_message = None
         self.host_network = host_network
         self.enable_proxy = enable_proxy
@@ -214,6 +215,26 @@ class KaapanaBaseOperator(BaseOperator):
             }
         }
         self.volumes.append(Volume(name='dcmdata', configs=volume_config))
+
+        self.volume_mounts = self.volume_mounts + [
+            VolumeMount('workflowdata', mount_path='/data', sub_path=None, read_only=False),
+            VolumeMount('modeldata', mount_path='/models', sub_path=None, read_only=False)
+        ]
+
+        self.volumes = self.volumes + [
+            Volume(name='workflowdata', configs={'hostPath':
+                {
+                    'type': 'DirectoryOrCreate',
+                    'path': self.data_dir
+                }
+            }),
+            Volume(name='modeldata', configs={'hostPath':
+                {
+                    'type': 'DirectoryOrCreate',
+                    'path': self.model_dir
+                }
+            })
+        ]
 
         if self.training_operator:
             self.volume_mounts.append(VolumeMount(
@@ -293,16 +314,18 @@ class KaapanaBaseOperator(BaseOperator):
 
     def rest_env_vars_update(self, payload):
         operator_conf = {}
-        if 'operators' in payload and self.name in payload['operators']:
-            operator_conf.update(payload['operators'][self.name])
         if 'global' in payload:
             operator_conf.update(payload['global'])
+        if 'operators' in payload and self.name in payload['operators']:
+            operator_conf.update(payload['operators'][self.name])
 
         for k, v in operator_conf.items():
             k = k.upper()
             if k in self.env_vars:
                 print(f'Adjusting {k} from {self.env_vars[k]} to {v}')
-                self.env_vars[k] = str(v)
+            else:
+                print(f'Adding {k}={v} to env_vars')
+            self.env_vars[k] = str(v)
 
     @cache_operator_output
     def execute(self, context):

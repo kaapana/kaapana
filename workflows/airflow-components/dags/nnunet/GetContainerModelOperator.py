@@ -63,7 +63,7 @@ class GetContainerModelOperator(KaapanaBaseOperator):
         self.registry_url = registry_url or default_registry
         self.registry_project = registry_project or default_project
         self.model_version = model_version
-        self.af_models_dir = "/root/airflow/models"
+        self.af_models_dir = "/models"
         
         host_models_dir = os.path.join(os.path.dirname(os.getenv('DATADIR', "")), "models")
         envs = {

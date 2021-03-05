@@ -78,7 +78,7 @@ spec:
   - host: 
     http:
       paths:
-      - path: "/pysyft-nb"
+      - path: "/pysyft-nb-{{ $uuid }}"
         backend:
           serviceName: pysyft-nb-{{ $uuid }}
           servicePort: log-http-port

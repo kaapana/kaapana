@@ -63,10 +63,10 @@ def process_seg_nifti(seg_nifti):
                 meta_info = json.load(f)
             if "segmentAttributes" in meta_info:
                 for entry in meta_info["segmentAttributes"][0]:
-                    if "labelID" in entry and entry["labelID"] == seg_id 
+                    if "labelID" in entry and entry["labelID"] == seg_id:
                         if "SegmentLabel" in entry:
                             label_tag = entry["SegmentLabel"]
-                        
+
                         if "TrackingIdentifier" in entry:
                             tracking_ids[str(seg_id)] = entry["TrackingIdentifier"]
 

@@ -205,17 +205,6 @@ class KaapanaBaseOperator(BaseOperator):
         self.host_network = host_network
         self.enable_proxy = enable_proxy
 
-        self.volume_mounts.append(VolumeMount(
-            'dcmdata', mount_path='/data', sub_path=None, read_only=False))
-        volume_config = {
-            'hostPath':
-            {
-                'type': 'DirectoryOrCreate',
-                'path': self.data_dir
-            }
-        }
-        self.volumes.append(Volume(name='dcmdata', configs=volume_config))
-
         self.volume_mounts = self.volume_mounts + [
             VolumeMount('workflowdata', mount_path='/data', sub_path=None, read_only=False),
             VolumeMount('modeldata', mount_path='/models', sub_path=None, read_only=False)

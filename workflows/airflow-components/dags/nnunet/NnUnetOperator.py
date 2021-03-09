@@ -79,17 +79,6 @@ class NnUnetOperator(KaapanaBaseOperator):
         volumes = []
 
         volume_mounts.append(VolumeMount(
-            'models', mount_path='/models', sub_path=None, read_only=False))
-        volume_config = {
-            'hostPath':
-            {
-                'type': 'DirectoryOrCreate',
-                'path': models_dir
-            }
-        }
-        volumes.append(Volume(name='models', configs=volume_config))
-
-        volume_mounts.append(VolumeMount(
             'dshm', mount_path='/dev/shm', sub_path=None, read_only=False))
         volume_config = {
             'emptyDir':

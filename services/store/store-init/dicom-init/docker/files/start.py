@@ -17,7 +17,8 @@ dcm4chee_host = os.getenv("DCM4CHEE", "http://dcm4chee-service.store.svc:8080")
 aet = os.getenv("AET", "KAAPANA")
 _elastichost = os.getenv("ELASTIC_HOST", "elastic-meta-service.meta.svc:9200")
 airflow_host = os.getenv("AIRFLOW_TRIGGER", "http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger")
-example_files = os.getenv("EXAMPLE","/example/Winfried_phantom.zip")
+example_files = os.getenv("EXAMPLE", "/example/Winfried_phantom.zip")
+
 
 def send_file():
     files_sent = 0
@@ -82,6 +83,8 @@ def send_file():
         print("Sent dicoms: {}".format(files_sent))
 
 # first file will init meta
+
+
 def send_meta_init():
     print("Send Dicom init meta image....")
     print("")
@@ -132,10 +135,15 @@ def check_file_on_platform(examples_send):
         if not quido_success:
             print("File not found in PACs!")
             exit(0)
-        max_counter = 100
+        max_counter = 20
         counter = 0
         meta_query_success = False
-        while counter < max_counter:
+        while True:
+            if counter > max_counter:
+                print("Could not find series in Elastic-search!")
+                print(f" counter {counter} > max_counter {max_counter} !")
+                exit(1)
+
             es = Elasticsearch(hosts=_elastichost)
             queryDict = {}
             queryDict["query"] = {'bool': {
@@ -148,12 +156,12 @@ def check_file_on_platform(examples_send):
 
             queryDict["_source"] = {}
             try:
-                res = es.search(index=["meta-index"], body=queryDict,
-                                size=10000, from_=0)
+                res = es.search(index=["meta-index"], body=queryDict, size=10000, from_=0)
             except Exception as e:
-                print("ERROR in elasticsearch search!")
+                print("Could not request Elastic-search! Error:")
                 print(e)
-                exit(1)
+                counter += 1
+                time.sleep(10)
 
             hits = res['hits']['hits']
             print(("GOT %s results, wait and retry!" % len(hits)))
@@ -186,7 +194,7 @@ def trigger_delete_dag(examples_send):
         data['conf'] = conf
         dag_id = "delete-series-from-platform"
         print("data", data)
-        print("trigger url: ",'{}/{}'.format(airflow_host, dag_id))
+        print("trigger url: ", '{}/{}'.format(airflow_host, dag_id))
         dump = json.dumps(data)
         response = requests.post('{}/{}'.format(airflow_host, dag_id), headers=headers,
                                  data=dump, verify=False)
@@ -196,6 +204,7 @@ def trigger_delete_dag(examples_send):
             print("Error response: %s !" % response.status_code)
             print(response.content)
 
+
 def send_example():
     print("Unzipping example files")
     example_dir = "/example_files"
@@ -203,7 +212,7 @@ def send_example():
     with ZipFile(example_files, "r") as zip_ref:
         zip_ref.extractall(example_dir)
     command = ["dcmsend", "+sd", "+r", "-v", dcm_host, dcm_port, "-aet", "example", "-aec", "example",
-                                example_dir]
+               example_dir]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
     if output.returncode == 0:
         print("############################ success send example")
@@ -215,6 +224,7 @@ def send_example():
         print(
             "############################################################################################################## STDERR:")
         print(output.stderr)
+
 
 if __name__ == "__main__":
     print("Started dicom init script...")

@@ -205,27 +205,31 @@ class KaapanaBaseOperator(BaseOperator):
         self.host_network = host_network
         self.enable_proxy = enable_proxy
 
-        self.volume_mounts = self.volume_mounts + [
-            VolumeMount('workflowdata', mount_path='/data', sub_path=None, read_only=False),
-            VolumeMount('modeldata', mount_path='/models', sub_path=None, read_only=False)
-        ]
+        self.volume_mounts.append(VolumeMount(
+            'workflowdata', mount_path='/data', sub_path=None, read_only=False))
 
-        self.volumes = self.volumes + [
+        self.volumes.append(
             Volume(name='workflowdata', configs={'hostPath':
                 {
                     'type': 'DirectoryOrCreate',
                     'path': self.data_dir
                 }
-            }),
-            Volume(name='modeldata', configs={'hostPath':
-                {
-                    'type': 'DirectoryOrCreate',
-                    'path': self.model_dir
-                }
             })
-        ]
+        )
 
         if self.training_operator:
+            self.volume_mounts.append(VolumeMount(
+                'modeldata', mount_path='/models', sub_path=None, read_only=False))
+
+            self.volumes.append(
+                Volume(name='modeldata', configs={'hostPath':
+                    {
+                        'type': 'DirectoryOrCreate',
+                        'path': self.model_dir
+                    }
+                })
+            )
+            
             self.volume_mounts.append(VolumeMount(
                 'tensorboard', mount_path='/tensorboard', sub_path=None, read_only=False))
             tb_config = {

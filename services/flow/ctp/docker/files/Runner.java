@@ -73,7 +73,7 @@ public class Runner {
 
 		else {
 			if (cmd.equals ("start") || cmd.equals("toggle")) {
-				clearLogs();
+				//clearLogs();
 				System.out.println("Starting CTP");
 				Thread runner = startup();
 				while (runner.isAlive()) {
@@ -276,7 +276,7 @@ public class Runner {
 			for (File f : files) deleteAll(f);
 		}
 	}
-	
+
 	public static void deleteAll(File file) {
 		if (file.isFile()) file.delete();
 		else {

@@ -44,6 +44,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
     boolean isTagSet = false;
     String removeTags = "no";
     final Object syncObject;
+    String dagRunUrl;
 
     /**
      * Class constructor; creates a new instance of the ExportService.
@@ -52,7 +53,9 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
      */
     public KaapanaDagTrigger(Element element) {
         super(element);
-        trigger_url = element.getAttribute("triggerurl");
+        String airflowUrl = element.getAttribute("airflowUrl");
+        trigger_url = airflowUrl + element.getAttribute("triggerurl");
+        dagRunUrl = airflowUrl + element.getAttribute("dagRunUrl");
         dag_id = element.getAttribute("dagnames");
         debug_log = element.getAttribute("debug_log");
         name = element.getAttribute("name");
@@ -135,7 +138,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                     patientName = getElementValue(dicomObject, "00100010");
                     patientID = getElementValue(dicomObject, "00100020");
                     studyInstanceUID = getElementValue(dicomObject, "0020000D");
-                    logger.warn("Send to Airflow seriesInstanceUID " + seriesInstanceUID);
+                    //logger.warn("Send to Airflow seriesInstanceUID " + seriesInstanceUID);
                     send(storedFileParentDir);
                 }
                 else {
@@ -193,8 +196,9 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                     send(directory);
                 }
                 catch (Exception ex) {
-                    logger.warn("No Dicom Dir!");
-
+                    logger.warn("Exeption while reading old dicom dir");
+                    ex.printStackTrace();
+                    logger.warn(ex);
                 }
             }
         }
@@ -205,8 +209,8 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
      * @param storedFileParentDir the parent dir of the stored file
      * @throws Exception
      */
-    private void send(File storedFileParentDir) throws Exception {
-        logger.warn(name + ": Triggering: " + dag_id + " - " + seriesInstanceUID);
+    private void send(File storedFileParentDir) {
+        //logger.warn(name + ": Triggering: " + dag_id + " - " + seriesInstanceUID);
         JSONObject post_data = new JSONObject();
         JSONObject conf = new JSONObject();
 
@@ -219,7 +223,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
 
         String timestampString = new SimpleDateFormat("_yyyyMMddHHmmss").format(new Date());
         String dicomPath = seriesInstanceUID + timestampString;
-        logger.warn("Dicom Path: " + dicomPath);
+        //logger.warn("Dicom Path: " + dicomPath);
         conf.put("dicom_path", dicomPath);
 
         post_data.put("conf", conf);
@@ -318,16 +322,31 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
          *
          */
         public void run() {
+            processAirlfowCall(1);
+
+        }
+
+        /**
+         * process and call Airflow when data is finish to be processed
+         * @param timeDelayExtender slow down the retry on high load
+         */
+        private void processAirlfowCall(int timeDelayExtender){
             try {
-                int dicomFileCount = checkFileUnchanged(unchangedCounter);
+                int counter = unchangedCounter;
+                if(timeDelayExtender > counter){
+                    counter = timeDelayExtender;
+                }
+                int dicomFileCount = checkFileUnchanged(counter);
                 //if an URL is provided, this will check running Airflow dagruns and will wait, if number is to high
                 if(!limitTriggerOnRunningDagsUrl.isEmpty()) {
                     int numberOfQueuedDagRuns = checkAirflowRunningQueue();
                     if (numberOfQueuedDagRuns > runningDagLimits){
-                        run();
+                        //approximate the time to the next retry to the time of active dag runs
+                        timeDelayExtender = numberOfQueuedDagRuns/4;
+                        logger.warn("Trigger time delay: " + timeDelayExtender);
+                        processAirlfowCall(timeDelayExtender);
                         return;
                     }
-
                 }
                 //lock writing to folder while renaming
                 synchronized (syncObject) {
@@ -341,18 +360,20 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                 logger.warn(e);
                 folderFilesToQuarantine(storedFileParentDir);
             }
+
         }
+
         /**
          * checks if in a certain timeslot no new data of this series arrives at the CTP node
          */
         private int checkFileUnchanged(int unchangedLimit) throws InterruptedException {
             int dicomFileCount = Objects.requireNonNull(storedFileParentDir.list()).length;
             int noChangeCount = 0;
-            //with 2 secs sleep the
-            // min time without changes is 2*unchangedCounter secs
-            // the max less then 2+2*unchangedCounter secs
+            //with 4 secs sleep the
+            // min time without changes is 4*unchangedCounter secs
+            // the max less then 4+4*unchangedCounter secs
             while (noChangeCount < unchangedLimit) {
-                Thread.sleep(2000);
+                Thread.sleep(4000);
                 int newDicomFileCount = Objects.requireNonNull(storedFileParentDir.list()).length;
                 if (newDicomFileCount == dicomFileCount) {
                     noChangeCount++;
@@ -364,32 +385,36 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
         }
 
         private int checkAirflowRunningQueue() throws IOException, ParseException {
-            String url = limitTriggerOnRunningDagsUrl;
-            logger.warn(name + ": URL: " + url);
-            URL object = new URL(url);
-            HttpURLConnection con = (HttpURLConnection) object.openConnection();
-            con.setDoOutput(true);
-            con.setDoInput(true);
-            con.setRequestProperty("Content-Type", "application/json");
-            con.setRequestProperty("Accept", "application/json");
-            con.setRequestMethod("GET");
+            String[] parts = limitTriggerOnRunningDagsUrl.split(" ");
+            int sumNumberOfDagRuns = 0;
+            for (String part : parts) {
+                String url = String.format(dagRunUrl, part);
+                URL object = new URL(url);
+                HttpURLConnection con = (HttpURLConnection) object.openConnection();
+                con.setDoOutput(true);
+                con.setDoInput(true);
+                con.setRequestProperty("Content-Type", "application/json");
+                con.setRequestProperty("Accept", "application/json");
+                con.setRequestMethod("GET");
 
-            // display what returns the POST request
-            int HttpResult = con.getResponseCode();
-            if (HttpResult == HttpURLConnection.HTTP_OK) {
-                JSONParser jsonParser = new JSONParser();
-                JSONArray numberOfRuns = (JSONArray)jsonParser.parse(
-                        new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8));
-                return numberOfRuns.size();
-            } else {
-                logger.warn(name + " HttpResult: " + HttpResult);
-                logger.warn("Airflow was not triggered!");
-                logger.warn("Dicom Folder not send to airflow: " + dicomPath);
-                logger.warn("Response message: ");
-                logger.warn(con.getResponseMessage());
-                folderFilesToQuarantine(storedFileParentDir);
-                return -1;
+                // display what returns the POST request
+                int HttpResult = con.getResponseCode();
+                if (HttpResult == HttpURLConnection.HTTP_OK) {
+                    JSONParser jsonParser = new JSONParser();
+                    JSONArray numberOfRuns = (JSONArray)jsonParser.parse(
+                            new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8));
+                    sumNumberOfDagRuns +=  numberOfRuns.size();
+                } else {
+                    logger.warn(name + " HttpResult: " + HttpResult);
+                    logger.warn("Airflow was not triggered!");
+                    logger.warn("Dicom Folder not send to airflow: " + dicomPath);
+                    logger.warn("Response message: ");
+                    logger.warn(con.getResponseMessage());
+                    folderFilesToQuarantine(storedFileParentDir);
+                    return -1;
+                }
             }
+            return sumNumberOfDagRuns;
         }
 
         /**
@@ -430,7 +455,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
          */
         private boolean triggerAirflow(JSONObject content, String dag_id) throws Exception {
             String url = trigger_url + "/" + dag_id;
-            logger.warn(name + ": URL: " + url);
+            //logger.warn(name + ": URL: " + url);
             URL object = new URL(url);
             HttpURLConnection con = (HttpURLConnection) object.openConnection();
             con.setDoOutput(true);
@@ -454,7 +479,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                     sb.append(line + "\n");
                 }
                 br.close();
-                logger.warn(name + ": " + sb.toString());
+                //logger.warn(name + ": " + sb.toString());
             } else {
                 logger.warn(name + " HttpResult: " + HttpResult);
                 logger.warn("Airflow was not triggered!");
@@ -467,5 +492,6 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
         }
     }
 }
+
 
 

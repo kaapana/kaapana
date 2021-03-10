@@ -1,9 +1,10 @@
 ---
 apiVersion: v1
 data:
-  Launcher.properties: |+
+  Launcher.properties: |
     mx = 2048
     ms = 1024
+    add = -XX:+ExitOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError
   config.xml: |+
     <Configuration>
         <Server
@@ -24,7 +25,8 @@ data:
             condition_tag="0008103E"
             dagnames="service-process-incoming-dcm"
             debug_log="no"
-            triggerurl="http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger"
+            airflowUrl="http://airflow-service.flow.svc:8080/flow"
+            triggerurl="/kaapana/api/trigger"
             name="MetaExtraction"
             acceptDuplicates="yes"
             defaultString=""
@@ -34,6 +36,9 @@ data:
             setStandardExtensions="yes"
             structure="(0020,000E)"
             unchangedCounter = "2"
+            limitTriggerOnRunningDagsUrl="service-extract-metadata service-process-incoming-dcm"
+            dagRunUrl="/api/experimental/dags/%s/dag_runs?state=running"
+            runningDagLimits="100"
             whitespaceReplacement="_"/>
         </Pipeline>
         <Pipeline name="DicomSTOWRSImportService">
@@ -48,32 +53,25 @@ data:
                 logDuplicates="no"
                 quarantine="/data/incoming/.quarantines/HttpImportService"
                 root="/data/incoming/.roots/HttpImportService"/>
-        <DicomSTOWRSExportService
-            name="DicomSTOWRSExportService"
-            id="DicomSTOWRSExportService"
-            class="org.rsna.ctp.stdstages.DicomSTOWRSExportService"
-            quarantine="/data/incoming/.quarantines/DicomSTOWRSExportService"
-            root="/data/incoming/.roots/DicomSTOWRSExportService"
-            url="http://dcm4chee-service.store.svc:8080/dcm4chee-arc/aets/KAAPANA/rs/studies"
-            includeContentDispositionHeader="no"
-            logDuplicates="no"
-            auditLogID="id"
-            auditLogTags="PatientID;SOPInstanceUID;StudyInstanceUID;InstanceNumber" />
         <KaapanaDagTrigger
             class="org.rsna.ctp.dkfz.KaapanaDagTrigger"
             condition_tag="0008103E"
             dagnames="service-process-incoming-dcm"
             debug_log="no"
-            triggerurl="http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger"
+            airflowUrl="http://airflow-service.flow.svc:8080/flow"
+            triggerurl="/kaapana/api/trigger"
             name="MetaExtraction"
             acceptDuplicates="yes"
             defaultString=""
-            logDuplicates="yes"
+            logDuplicates="no"
             quarantine="/data/incoming/.quarantines/KaapanaDagTrigger"
             root="/data/incoming"
             setStandardExtensions="yes"
             structure="(0020,000E)"
             unchangedCounter = "2"
+            limitTriggerOnRunningDagsUrl="service-extract-metadata service-process-incoming-dcm"
+            dagRunUrl="/api/experimental/dags/%s/dag_runs?state=running"
+            runningDagLimits="100"
             fix_aetitle="DICOM_WEB"
             whitespaceReplacement="_"/>
         </Pipeline>
@@ -81,6 +79,6 @@ data:
 kind: ConfigMap
 metadata:
   name: ctp-config
-  namespace: flow
-#   namespace: {{ .Values.global.flow_namespace }}
+  namespace: {{ .Values.global.flow_namespace }}
+
 

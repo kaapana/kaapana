@@ -36,6 +36,7 @@ class NnUnetOperator(KaapanaBaseOperator):
                  inf_threads_prep=1,
                  inf_threads_nifti=1,
                  inf_softmax=False,
+                 node_uid = "N/A",
                  models_dir="/models",
                  env_vars={},
                  parallel_id=None,
@@ -68,6 +69,7 @@ class NnUnetOperator(KaapanaBaseOperator):
             "INF_THREADS_NIFTI": str(inf_threads_nifti),
             "INF_BATCH_DATASET": str(inf_batch_dataset),
             "INF_SOFTMAX": str(inf_softmax),
+            "NODE_UID": str(node_uid),
             "TENSORBOARD_DIR": '/tensorboard',
         }
         env_vars.update(envs)
@@ -94,14 +96,13 @@ class NnUnetOperator(KaapanaBaseOperator):
         gpu_mem_mb = None
 
         if mode == "training" or mode == "inference":
+            training_operator = True
             pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=1)
             gpu_mem_mb = 6000
             if mode == "training":
                 gpu_mem_mb = None
-                training_operator = True
 
         parallel_id = parallel_id if parallel_id is not None else mode
-
         super().__init__(
             dag=dag,
             image="{}{}/nnunet:1.6.5-vdev".format(default_registry, default_project),

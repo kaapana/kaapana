@@ -11,12 +11,34 @@ import torch
 import shutil
 
 
+def get_model_targets(model_dir):
+    print(f"# Searching for dataset.json @: {model_dir}")
+    dataset_json = glob(join(model_dir, "**", "dataset.json"), recursive=True)
+    if len(dataset_json) == 0:
+        print("# Could not find any dataset.json !")
+        return None
+    else:
+        with open(dataset_json[0]) as f:
+            dataset_json = json.load(f)
+        
+        targets = []
+        for key in sorted(dataset_json["labels"]):
+            targets.append(dataset_json["labels"][key])
+
+    return targets
+
+
 def predict(model, input_folder, output_folder, folds, save_npz, num_threads_preprocessing, num_threads_nifti_save, part_id, num_parts, tta, mixed_precision, overwrite_existing, mode, overwrite_all_in_gpu, step_size, checkpoint_name, lowres_segmentations=None):
     global task, task_body_part, task_targets, task_protocols
+
     print(f"#")
     print(f"# Start prediction....")
+    print(f"# task:       {task}")
     print(f"# model:      {model}")
     print(f"# folds:      {folds}")
+
+    if task_targets == None:
+        task_targets = get_model_targets(model_dir=model)
 
     Path(element_output_dir).mkdir(parents=True, exist_ok=True)
     predict_from_folder(
@@ -43,23 +65,25 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
     print(f"# Checking NIFTI output for {output_folder}")
     print("#")
     nifti_files = sorted(glob(join(output_folder, "*.nii*"), recursive=False))
-    assert len(nifti_files) == 1
+    assert len(nifti_files) > 0
 
-    nib_img = nib.load(nifti_files[0])
-    # x, y, z = img.shape
-    # print(f"# Dimensions: {[x, y, z]}")
+    nifti_labels = []
+    for nifti_file in nifti_files:
+        print(f"# Loading result NIFTI: {nifti_file}")
+        nib_img = nib.load(nifti_file)
+        # x, y, z = img.shape
+        # print(f"# Dimensions: {[x, y, z]}")
+        nifti_labels.extend(list(np.unique(nib_img.get_fdata().astype(int))))
 
-    nii_array = nib_img.get_fdata().astype(int)
-    nifti_labels = list(np.unique(nii_array))
-
+    nifti_labels = list(set(nifti_labels))
     print(f"# Task-targets:     {task_targets}")
     print(f"# SEG NIFTI Labels: {nifti_labels}")
     seg_info_json = {}
-    seg_info_json["task_id"] = task
+    seg_info_json["task_id"] = task if task != None else model.split("/")[-2]
     seg_info_json["task_body_part"] = task_body_part
     seg_info_json["task_protocols"] = task_protocols
     seg_info_json["task_targets"] = task
-    seg_info_json["algorithm"] = task.lower()
+    seg_info_json["algorithm"] = task.lower() if task != None else model.split("/")[-2].lower()
 
     if 0 in nifti_labels:
         nifti_labels.remove(0)
@@ -81,7 +105,7 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
     labels_found = []
     for label_bin in nifti_labels:
         labels_found.append({
-            "label_name": str(task_targets[label_bin]),
+            "label_name": str(task_targets[label_bin]) if task_targets != None else "N/A",
             "label_int": label_bin
         })
 
@@ -215,7 +239,28 @@ def get_model_paths(batch_element_dir):
             print("#")
             exit(1)
 
-        result_model_paths.append(model_path)
+        if len(glob(join(model_path, "**", "model_final_checkpoint.model.pkl"), recursive=True)) > 0:
+            checkpoint_name = "model_final_checkpoint"
+        elif len(glob(join(model_path, "**", "model_latest.model.pkl"), recursive=True)) > 0:
+            checkpoint_name = "model_latest"
+        else:
+            print("#")
+            print("##################################################")
+            print("#")
+            print(f"# Error - model_path: {model_path}")
+            print("#")
+            print(f"# Could not find any checkpoint!")
+            print("#")
+            print("# ABORT")
+            print("#")
+            print("##################################################")
+            print("#")
+            exit(1)
+
+        print(f"# Found model_path:      {model_path}")
+        print(f"# Found checkpoint_name: {checkpoint_name}")
+
+        result_model_paths.append((model_path, checkpoint_name))
     return result_model_paths
 
 
@@ -245,7 +290,7 @@ task = task if task.lower() != "none" else None
 task_targets = os.getenv("TARGETS", "None")
 task_targets = task_targets.split(",") if task_targets.lower() != "none" else None
 
-if task_targets[0] != "Clear Label":
+if task_targets != None and task_targets[0] != "Clear Label":
     task_targets.insert(0, "Clear Label")
 
 task_body_part = getenv("BODY_PART", "ENV NOT FOUND!")
@@ -284,7 +329,7 @@ override_existing = True
 inf_mode = "fast"
 step_size = 0.5
 overwrite_all_in_gpu = False
-checkpoint_name = "model_final_checkpoint"
+# checkpoint_name = "model_final_checkpoint"
 part_id = 0
 num_parts = 1
 
@@ -339,8 +384,7 @@ for batch_element_dir in batch_folders:
 
     # models/nnUNet/3d_lowres/Task003_Liver/nnUNetTrainerV2__nnUNetPlansv2.1/fold_1
     model_paths = get_model_paths(batch_element_dir=batch_element_dir)
-
-    for model in model_paths:
+    for model, checkpoint_name in model_paths:
         if folds == None and exists(join(model, "all")):
             folds = "all"
         print(f"#")
@@ -393,7 +437,7 @@ if processed_count == 0:
         if folds == None and exists(join(model_paths, "all")):
             folds = "all"
 
-        for model in model_paths:
+        for model, checkpoint_name in model_paths:
             if folds == None and exists(join(model, "all")):
                 folds = "all"
             print(f"#")

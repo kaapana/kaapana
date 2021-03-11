@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.models import Variable
 from airflow.api.common.experimental import pool as pool_api
-
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
@@ -22,17 +22,19 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
 
-TASK_NAME = f"Task{random.randint(100,999):03}_Training"
+node_uid = Variable.get(key="node_uid", default_var="N/A")
+# TASK_NAME = f"Task{random.randint(100,999):03}_{node_uid}_train"
+TASK_NAME = f"Task{random.randint(100,999):03}_Training_{datetime.now().strftime('%d%m%y-%H%M')}"
 seg_filter = ""
 prep_modalities = "CT"
 train_network = "3d_lowres"
 train_network_trainer = "nnUNetTrainerV2"
 ae_title = "nnUnet-results"
+max_epochs = 1000
 
 # training_results_study_uid = "1.2.826.0.1.3680043.8.498.73386889396401605965136848941191845554"
 training_results_study_uid = None
 
-max_active_runs = 1
 gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
 gpu_count = int(gpu_count_pool.slots) if gpu_count_pool is not None else 1
 cpu_count_pool = pool_api.get_pool(name="CPU")
@@ -42,6 +44,9 @@ prep_threads = 9 if prep_threads > 9 else prep_threads
 
 prep_threads = prep_threads // max_active_runs
 prep_threads = prep_threads // max_active_runs
+
+# max_active_runs = 1
+max_active_runs = gpu_count
 
 ui_forms = {
     "publication_form": {
@@ -135,6 +140,14 @@ ui_forms = {
                 "description": "Specify a version.",
                 "type": "string",
                 "readOnly": False,
+            },
+            "train_max_epochs": {
+                "title": "Epochs",
+                "default": max_epochs,
+                "description": "Specify max epochs.",
+                "type": "integer",
+                "required": True,
+                "readOnly": False
             },
             # "version": {
             #     "title": "Version",
@@ -239,13 +252,14 @@ nnunet_preprocess = NnUnetOperator(
     prep_copy_data=True,
     prep_exit_on_issue=True,
     retries=0,
+    node_uid=node_uid,
     delete_input_on_success=True
 )
 
 nnunet_train = NnUnetOperator(
     dag=dag,
     mode="training",
-    train_max_epochs=100,
+    train_max_epochs=max_epochs,
     input_operator=nnunet_preprocess,
     train_network=train_network,
     train_network_trainer=train_network_trainer,
@@ -291,7 +305,7 @@ bin2dcm = Bin2DcmOperator(
     patient_id=f"{TASK_NAME}",
     study_id=f"{TASK_NAME}",
     study_uid=training_results_study_uid,
-    study_description=f"nnUNet {TASK_NAME} model",
+    study_description=f"site: {node_uid} - nnunet model",
     series_description=f"nnUNet model {datetime.now().strftime('%d.%m.%Y %H:%M')}",
     size_limit=100,
     input_operator=zip_model,

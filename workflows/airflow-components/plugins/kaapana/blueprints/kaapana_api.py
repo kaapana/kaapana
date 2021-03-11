@@ -23,13 +23,46 @@ from kaapana.blueprints.kaapana_utils import generate_minio_credentials
 from airflow.api.common.experimental.trigger_dag import trigger_dag as trigger
 from kaapana.operators.HelperElasticsearch import HelperElasticsearch
 from flask import current_app as app
+from multiprocessing.pool import ThreadPool
 
 _log = LoggingMixin().log
-
+parallel_processes = 1
 """
 Represents a blueprint kaapanaApi
 """
 kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
+
+
+def async_dag_trigger(queue_entry):
+    hit, dag_id, tmp_conf = queue_entry
+    hit = hit["_source"]
+    studyUID = hit[HelperElasticsearch.study_uid_tag]
+    seriesUID = hit[HelperElasticsearch.series_uid_tag]
+    SOPInstanceUID = hit[HelperElasticsearch.SOPInstanceUID_tag]
+    modality = hit[HelperElasticsearch.modality_tag]
+
+    print(f"# Triggering {dag_id} - series: {seriesUID}")
+
+    conf = {
+        "inputs": [
+            {
+                "dcm-uid": {
+                    "study-uid": studyUID,
+                    "series-uid": seriesUID,
+                    "modality": modality
+                }
+            }
+        ],
+        "conf": tmp_conf
+    }
+
+    dag_run_id = generate_run_id(dag_id)
+    try:
+        result = trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
+    except Exception as e:
+        pass
+
+    return seriesUID, result
 
 
 @csrf.exempt
@@ -69,30 +102,15 @@ def trigger_dag(dag_id):
                 return response
 
             hits = hits[:cohort_limit] if cohort_limit is not None else hits
-            
-            print("SERIES TO LOAD: {}".format(len(hits)))
+
+            queue = []
             for hit in hits:
-                hit = hit["_source"]
-                studyUID = hit[HelperElasticsearch.study_uid_tag]
-                seriesUID = hit[HelperElasticsearch.series_uid_tag]
-                SOPInstanceUID = hit[HelperElasticsearch.SOPInstanceUID_tag]
-                modality = hit[HelperElasticsearch.modality_tag]
+                queue.append((hit, dag_id, tmp_conf))
 
-                conf = {
-                    "inputs": [
-                        {
-                            "dcm-uid": {
-                                "study-uid": studyUID,
-                                "series-uid": seriesUID,
-                                "modality": modality
-                            }
-                        }
-                    ],
-                    "conf": tmp_conf
-                }
+            trigger_results = ThreadPool(parallel_processes).imap_unordered(async_dag_trigger, queue)
+            for seriesUID, result in trigger_results:
+                print(f"#  Done: {seriesUID}:{result}")
 
-                dag_run_id = generate_run_id(dag_id)
-                trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
         else:
             conf = {
                 "inputs": [

@@ -1,7 +1,7 @@
 apiVersion: v1
-appVersion: "3.8.0"
+appVersion: "3.9.1"
 description: A Coding environment for the workflow folder in Airflow
 name: code-server-chart
-version: "3.8.0"
+version: "3.9.1"
 keywords:
 - kaapanaapplication

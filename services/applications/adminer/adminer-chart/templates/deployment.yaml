@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: adminer
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/adminer:4.7.6
+        image: {{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/adminer:4.7.8-vdev
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
       imagePullSecrets:
       - name: registry-secret

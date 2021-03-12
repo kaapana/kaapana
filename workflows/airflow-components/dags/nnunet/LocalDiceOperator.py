@@ -131,8 +131,6 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                     print(f"# gt:   {gt_file}")
                     exit(1)
 
-                if file_id not in result_scores_case_based:
-                    result_scores_case_based[file_id] = {}
                 # result_scores_sm[model_id][file_id]["gt_file"] = gt_file
                 # result_scores_sm[model_id][file_id]["pred_file"] = single_model_pred_file
                 gt_numpy, gt_labels = self.prep_nifti(gt_file)
@@ -157,23 +155,24 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                         print("##################################################")
                         # assert pred_label in gt_labels
                     else:
-                        if str(pred_label) not in result_scores_case_based[file_id]:
-                            result_scores_case_based[file_id][str(pred_label)] = {}
-
                         label_strip_gt = (gt_numpy == pred_label).astype(int)
                         label_strip_sm = (sm_numpy == pred_label).astype(int)
                         dice_result = self.calc_dice(pred=label_strip_sm, gt=label_strip_gt)
-                        result_scores_case_based[file_id][str(pred_label)][model_id] = dice_result
 
                         if model_id not in result_scores_model_based:
                             result_scores_model_based[model_id] = {}
                         if label_key not in result_scores_model_based[model_id]:
                             result_scores_model_based[model_id][label_key] = {}
-                        
                         result_scores_model_based[model_id][label_key][file_id]= dice_result
 
+                        if file_id not in result_scores_case_based:
+                            result_scores_case_based[file_id] = {}
+                        if label_key not in result_scores_case_based[file_id]:
+                            result_scores_case_based[file_id][label_key] = {}
+                        result_scores_case_based[file_id][label_key][model_id]= dice_result
+
                         print(f"# {str(pred_label)}:{label_key} -> dice: {dice_result}")
-                        if "ensemble" in result_scores_case_based[file_id][str(pred_label)]:
+                        if "ensemble" in result_scores_case_based[file_id][label_key]:
                             ensemble_already_processed = True
                 print("#")
 
@@ -184,6 +183,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                     print("#")
                     ensemble_file = join(self.ensemble_dir, basename(single_model_pred_file))
                     ensemble_numyp, ensemble_labels = self.prep_nifti(ensemble_file)
+                    model_id = "ensemble"
                     for pred_label in ensemble_labels:
                         label_key = labels[str(pred_label)] if str(pred_label) in labels else str(pred_label)
                         if label_key == None and labels != None:
@@ -197,12 +197,16 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                             print("##################################################")
                             # assert pred_label in gt_labels
                         else:
-                            result_scores_case_based[file_id][str(pred_label)]
                             label_strip_gt = (gt_numpy == pred_label).astype(int)
                             label_strip_ensemble = (ensemble_numyp == pred_label).astype(int)
                             dice_result = self.calc_dice(pred=label_strip_ensemble, gt=label_strip_gt)
-                            result_scores_case_based[file_id][str(pred_label)]["ensemble"] = dice_result
                             print(f"# {str(pred_label)}:{label_key} -> dice: {dice_result}")
+
+                            if file_id not in result_scores_case_based:
+                                result_scores_case_based[file_id] = {}
+                            if label_key not in result_scores_case_based[file_id]:
+                                result_scores_case_based[file_id][label_key] = {}
+                            result_scores_case_based[file_id][label_key][model_id]= dice_result
                     print("#")
 
                 processed_count += 1

@@ -8,7 +8,7 @@ dependencies:
     version: "v0.21.0"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: grafana-chart
-    version: "6.4.4"
+    version: "7.4.3"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: kube-state-metrics-chart
     version: "v1.9.7"

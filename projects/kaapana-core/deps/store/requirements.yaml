@@ -1,7 +1,7 @@
 ---
 dependencies:
   - name: dcm4chee-chart
-    version: "5.22.5-vdev"
+    version: "5.23.1-vdev"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: ohif-chart
     version: "4.7.2-vdev"

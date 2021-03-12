@@ -4,5 +4,5 @@ dependencies:
     version: "2.4.56-23.1-vdev"
     repository: file://deps/dcm4che-ldap
   - name: dcm4che-postgres
-    version: "9.6.17-22.1-vdev"
+    version: "9.6.20-23-vdev"
     repository: file://deps/dcm4che-postgres

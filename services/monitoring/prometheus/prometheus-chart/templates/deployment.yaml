@@ -37,7 +37,7 @@ subjects:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: prometheus-deployment
+  name: prometheus
   namespace: {{ .Values.global.monitoring_namespace }}
 spec:
   replicas: 1

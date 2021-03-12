@@ -98,7 +98,8 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
         print(f"# workflow_dir {self.workflow_dir}")
         model_count = 0
 
-        result_scores = {}
+        result_scores_case_based = {}
+        result_scores_model_based = {}
 
         run_dir = os.path.join(self.workflow_dir, kwargs['dag_run'].run_id)
         processed_count = 0
@@ -130,8 +131,8 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                     print(f"# gt:   {gt_file}")
                     exit(1)
 
-                if file_id not in result_scores:
-                    result_scores[file_id] = {}
+                if file_id not in result_scores_case_based:
+                    result_scores_case_based[file_id] = {}
                 # result_scores_sm[model_id][file_id]["gt_file"] = gt_file
                 # result_scores_sm[model_id][file_id]["pred_file"] = single_model_pred_file
                 gt_numpy, gt_labels = self.prep_nifti(gt_file)
@@ -156,15 +157,23 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                         print("##################################################")
                         # assert pred_label in gt_labels
                     else:
-                        if str(pred_label) not in result_scores[file_id]:
-                            result_scores[file_id][str(pred_label)] = {}
+                        if str(pred_label) not in result_scores_case_based[file_id]:
+                            result_scores_case_based[file_id][str(pred_label)] = {}
 
                         label_strip_gt = (gt_numpy == pred_label).astype(int)
                         label_strip_sm = (sm_numpy == pred_label).astype(int)
                         dice_result = self.calc_dice(pred=label_strip_sm, gt=label_strip_gt)
-                        result_scores[file_id][str(pred_label)][model_id] = dice_result
+                        result_scores_case_based[file_id][str(pred_label)][model_id] = dice_result
+
+                        if model_id not in result_scores_model_based:
+                            result_scores_model_based[model_id] = {}
+                        if label_key not in result_scores_model_based[model_id]:
+                            result_scores_model_based[model_id][label_key] = {}
+                        
+                        result_scores_model_based[model_id][label_key][file_id]= dice_result
+
                         print(f"# {str(pred_label)}:{label_key} -> dice: {dice_result}")
-                        if "ensemble" in result_scores[file_id][str(pred_label)]:
+                        if "ensemble" in result_scores_case_based[file_id][str(pred_label)]:
                             ensemble_already_processed = True
                 print("#")
 
@@ -188,11 +197,11 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                             print("##################################################")
                             # assert pred_label in gt_labels
                         else:
-                            result_scores[file_id][str(pred_label)]
+                            result_scores_case_based[file_id][str(pred_label)]
                             label_strip_gt = (gt_numpy == pred_label).astype(int)
                             label_strip_ensemble = (ensemble_numyp == pred_label).astype(int)
                             dice_result = self.calc_dice(pred=label_strip_ensemble, gt=label_strip_gt)
-                            result_scores[file_id][str(pred_label)]["ensemble"] = dice_result
+                            result_scores_case_based[file_id][str(pred_label)]["ensemble"] = dice_result
                             print(f"# {str(pred_label)}:{label_key} -> dice: {dice_result}")
                     print("#")
 
@@ -202,7 +211,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
         print("# ")
         print("# RESULTS: ")
         print("# ")
-        print(json.dumps(result_scores, indent=4, sort_keys=True, default=str))
+        print(json.dumps(result_scores_case_based, indent=4, sort_keys=True, default=str))
         print("# ")
         print("#")
         print(f"# Processed file_count: {processed_count}")
@@ -211,9 +220,13 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
         result_dir = join(run_dir, self.operator_out_dir)
         Path(result_dir).mkdir(parents=True, exist_ok=True)
 
-        result_ensemble_path = os.path.join(result_dir, "results.json")
+        result_ensemble_path = os.path.join(result_dir, "results_case_based.json")
         with open(result_ensemble_path, 'w+', encoding='utf-8') as f:
-            json.dump(result_scores, f, ensure_ascii=False, default=str, indent=4, sort_keys=True)
+            json.dump(result_scores_case_based, f, ensure_ascii=False, default=str, indent=4, sort_keys=True)
+
+        result_ensemble_path = os.path.join(result_dir, "results_model_based.json")
+        with open(result_ensemble_path, 'w+', encoding='utf-8') as f:
+            json.dump(result_scores_model_based, f, ensure_ascii=False, default=str, indent=4, sort_keys=True)
 
         if processed_count == 0:
             print("#")

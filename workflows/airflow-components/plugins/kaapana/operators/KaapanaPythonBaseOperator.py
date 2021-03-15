@@ -56,6 +56,9 @@ class KaapanaPythonBaseOperator(PythonOperator):
         gpu_mem_mb=None,
         gpu_mem_mb_lmt=None,
         manage_cache=None,
+        delete_input_on_success=False,
+        batch_name=None,
+        workflow_dir=None,
         *args, **kwargs
     ):
 
@@ -77,7 +80,10 @@ class KaapanaPythonBaseOperator(PythonOperator):
             cpu_millicores_lmt=cpu_millicores_lmt,
             gpu_mem_mb=gpu_mem_mb,
             gpu_mem_mb_lmt=gpu_mem_mb_lmt,
-            manage_cache=manage_cache
+            manage_cache=manage_cache,
+            batch_name=batch_name,
+            workflow_dir=workflow_dir,
+            delete_input_on_success=delete_input_on_success
         )
 
         super().__init__(
@@ -91,6 +97,7 @@ class KaapanaPythonBaseOperator(PythonOperator):
             task_concurrency=task_concurrency,
             execution_timeout=execution_timeout,
             executor_config=self.executor_config,
+            on_success_callback=KaapanaBaseOperator.on_success,
             pool=self.pool,
             pool_slots=self.pool_slots,
             *args,

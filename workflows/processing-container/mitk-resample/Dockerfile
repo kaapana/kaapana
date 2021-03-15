@@ -4,6 +4,9 @@ LABEL IMAGE="mitk-resample"
 LABEL VERSION="2021-02-18-vdev"
 LABEL CI_IGNORE="False"
 
+COPY files/requirements.txt /src
+RUN pip3 install -r /src/requirements.txt
+
 ENV BATCHES_INPUT_DIR /input
 ENV OPERATOR_IN_DIR initial-input
 ENV ORIGINAL_IN_DIR ""
@@ -15,8 +18,8 @@ ENV ORG_IMG_IN_DIR ""
 
 ENV EXECUTABLE /src/MitkCLResampleImageToReference.sh
 
-COPY files/start.sh /start.sh
-CMD ["/bin/bash", "/start.sh"]
+COPY files/start.py /start.py
+CMD ["python3","-u","/start.py"]
 
 # root@cd72f914f1cd:/opt# ./MitkCLResampleImageToReference.sh 
 # Running Command Line Utility *Resample Image To Reference*

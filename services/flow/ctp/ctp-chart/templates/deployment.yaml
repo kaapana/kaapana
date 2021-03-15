@@ -24,9 +24,9 @@ spec:
             - containerPort: 7777
           resources:
             requests:
-              memory: 512Mi
+              memory: 1024Mi
             limits:
-              memory: 1500Mi
+              memory: 3000Mi
           volumeMounts:
             - name: ctp-data
               mountPath: /data/
@@ -35,9 +35,12 @@ spec:
             - name: config-file
               mountPath: /opt/CTP/config.xml
               subPath: config.xml
+            - name: launcher-properties
+              mountPath: /opt/CTP/Launcher.properties
+              subPath: Launcher.properties
           livenessProbe:
             tcpSocket:
-              port: 1050
+              port: 11112
             initialDelaySeconds: 30
             periodSeconds: 120
       volumes:
@@ -55,6 +58,12 @@ spec:
           items:
           - key: config.xml
             path: config.xml
+      - name: launcher-properties
+        configMap:
+          name: ctp-config
+          items:
+          - key: Launcher.properties
+            path: Launcher.properties
       imagePullSecrets:
       - name: registry-secret
 ---

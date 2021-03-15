@@ -34,5 +34,6 @@ RUN cd /nnunet-pip-package && pip install ./
 COPY files/ /src
 
 COPY files/nnUNetTrainerV2.py /opt/conda/lib/python3.6/site-packages/nnunet/training/network_training/nnUNetTrainerV2.py
+COPY files/run_training.py /opt/conda/lib/python3.6/site-packages/nnunet/run/run_training.py
 
 CMD ["bash","/src/start_nnunet.sh"]

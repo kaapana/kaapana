@@ -88,9 +88,9 @@ class KaapanaBaseOperator(BaseOperator):
                  name,
                  image=None,
                  # Directories
-                 operator_out_dir=None,
                  input_operator=None,
                  operator_in_dir=None,
+                 operator_out_dir=None,
                  # Airflow
                  task_id=None,
                  parallel_id=None,
@@ -108,7 +108,10 @@ class KaapanaBaseOperator(BaseOperator):
                  execution_timeout=timedelta(minutes=90),
                  task_concurrency=None,
                  manage_cache=None,
+                 delete_input_on_success=False,
                  # Other stuff
+                 batch_name = None,
+                 workflow_dir = None,
                  cmds=None,
                  arguments=None,
                  env_vars=None,
@@ -157,7 +160,10 @@ class KaapanaBaseOperator(BaseOperator):
             cpu_millicores_lmt=cpu_millicores_lmt,
             gpu_mem_mb=gpu_mem_mb,
             gpu_mem_mb_lmt=gpu_mem_mb_lmt,
-            manage_cache=manage_cache
+            manage_cache=manage_cache,
+            batch_name = batch_name,
+            workflow_dir = workflow_dir,
+            delete_input_on_success=delete_input_on_success
         )
 
         # Airflow
@@ -199,35 +205,31 @@ class KaapanaBaseOperator(BaseOperator):
         self.host_network = host_network
         self.enable_proxy = enable_proxy
 
-        if self.parallel_id is None:
-            self.kube_name = f'{self.name}'
-        else:
-            self.kube_name = f'{self.name}-{self.parallel_id}'
+        self.volume_mounts.append(VolumeMount(
+            'workflowdata', mount_path='/data', sub_path=None, read_only=False))
 
-        self.kube_name = self.kube_name.lower() + "-" + str(uuid.uuid4())[:4]
-        self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63)
-
-        self.volume_mounts = self.volume_mounts + [
-            VolumeMount('workflowdata', mount_path='/data', sub_path=None, read_only=False),
-            VolumeMount('modeldata', mount_path='/models', sub_path=None, read_only=False)
-        ]
-
-        self.volumes = self.volumes + [
+        self.volumes.append(
             Volume(name='workflowdata', configs={'hostPath':
                 {
                     'type': 'DirectoryOrCreate',
                     'path': self.data_dir
                 }
-            }),
-            Volume(name='modeldata', configs={'hostPath':
-                {
-                    'type': 'DirectoryOrCreate',
-                    'path': self.model_dir
-                }
             })
-        ]
+        )
 
         if self.training_operator:
+            self.volume_mounts.append(VolumeMount(
+                'modeldata', mount_path='/models', sub_path=None, read_only=False))
+
+            self.volumes.append(
+                Volume(name='modeldata', configs={'hostPath':
+                    {
+                        'type': 'DirectoryOrCreate',
+                        'path': self.model_dir
+                    }
+                })
+            )
+            
             self.volume_mounts.append(VolumeMount(
                 'tensorboard', mount_path='/tensorboard', sub_path=None, read_only=False))
             tb_config = {
@@ -250,10 +252,10 @@ class KaapanaBaseOperator(BaseOperator):
             self.pod_resources = pod_resources
 
         envs = {
-            "WORKFLOW_DIR": str(WORKFLOW_DIR),
-            "BATCH_NAME": str(BATCH_NAME),
+            "WORKFLOW_DIR": str(self.workflow_dir),
+            "BATCH_NAME": str(self.batch_name),
             "OPERATOR_OUT_DIR": str(self.operator_out_dir),
-            "BATCHES_INPUT_DIR": "/{}/{}".format(WORKFLOW_DIR, BATCH_NAME)
+            "BATCHES_INPUT_DIR": f"/{self.workflow_dir}/{self.batch_name}"
         }
         if hasattr(self, 'operator_in_dir'):
             envs["OPERATOR_IN_DIR"] = str(self.operator_in_dir)
@@ -321,6 +323,15 @@ class KaapanaBaseOperator(BaseOperator):
     @cache_operator_output
     def execute(self, context):
         self.set_context_variables(context)
+
+        if self.parallel_id is None:
+            self.kube_name = f'{self.name}'
+        else:
+            self.kube_name = f'{self.name}-{self.parallel_id}'
+
+        self.kube_name = self.kube_name.lower() + "-" + str(uuid.uuid4())[:8]
+        self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63)
+        
         # First if condition could be removed when the api calls are adapted to:
         # json_data = {
         #     'rest_call': {
@@ -415,7 +426,20 @@ class KaapanaBaseOperator(BaseOperator):
 
     @staticmethod
     def on_success(info_dict):
-        pass
+        print("##################################################### on_success!")
+        ti = info_dict["ti"].task
+        if ti.delete_input_on_success:
+            print("#### deleting input-dirs...!")
+            data_dir = "/data"
+            batch_folders = [f for f in glob.glob(os.path.join(data_dir,'batch', '*'))]
+            for batch_element_dir in batch_folders:
+                element_input_dir = os.path.join(batch_element_dir, ti.operator_in_dir)
+                print(f"# Deleting: {element_input_dir} ...")
+                shutil.rmtree(element_input_dir, ignore_errors=True)
+
+            batch_input_dir = os.path.join(data_dir, ti.operator_in_dir)
+            print(f"# Deleting: {batch_input_dir} ...")
+            shutil.rmtree(batch_input_dir, ignore_errors=True)
 
     @staticmethod
     def on_retry(info_dict):
@@ -463,7 +487,10 @@ class KaapanaBaseOperator(BaseOperator):
         cpu_millicores_lmt,
         gpu_mem_mb,
         gpu_mem_mb_lmt,
-        manage_cache
+        manage_cache,
+        batch_name,
+        workflow_dir,
+        delete_input_on_success
     ):
 
         obj.name = name
@@ -482,6 +509,10 @@ class KaapanaBaseOperator(BaseOperator):
         obj.gpu_mem_mb = gpu_mem_mb
         obj.gpu_mem_mb_lmt = gpu_mem_mb_lmt
         obj.manage_cache = manage_cache or 'ignore'
+        obj.delete_input_on_success = delete_input_on_success
+
+        obj.batch_name = batch_name if batch_name != None else BATCH_NAME
+        obj.workflow_dir = workflow_dir if workflow_dir != None else WORKFLOW_DIR
 
         if obj.task_id is None:
             obj.task_id = obj.name

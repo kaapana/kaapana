@@ -17,18 +17,17 @@ WORKDIR /build-ctp
 RUN git clone -n https://github.com/johnperry/CTP.git .
 # use util FROM newer commit (a bugfix for dicomweb is needed)
 
-RUN git checkout 774d7be96d12164babfe04a875adf603223886a8
-RUN cp ./libraries/util.jar /tmp/ \
- && git checkout tags/x101 \
- && mv /tmp/util.jar ./libraries/util.jar
+RUN git checkout 760aebfd8280d01b408d6a68138a6eba57cf87b0
 
 ADD /files/Runner.java ./source/java/org/rsna/runner/
+#error in file comment
+ADD /files/DICOMECGProcessor.java ./source/java/org/rsna/ctp/stdstages/anonymizer/dicom/
 
 # use java 8 for correct build process
 ENV JAVA_HOME /usr/lib/jvm/java-1.8.0-openjdk-amd64 
 RUN ant -buildfile build.xml
 
-ADD /files/additional-libraries ./build/CTP//libraries
+ADD /files/additional-libraries ./build/CTP/libraries
 
 ADD /files/kaapana-dag-trigger ./build/kaapana-dag-trigger
 RUN cd ./build/kaapana-dag-trigger \
@@ -57,4 +56,5 @@ ADD /files/Launcher.properties ./Launcher.properties
 COPY --from=build /build-ctp/build/CTP/ ./
 
 CMD ["java","-jar","Runner.jar"]
+
 

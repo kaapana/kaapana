@@ -44,8 +44,8 @@ def print_log_entry(log_entry, kind="OTHER"):
     if supported_log_levels.index(log_entry_loglevel) >= log_level:
         print("-----------------------------------------------------------")
         print("Log: {}".format(log_entry["test"]))
-        print("Step: {}".format(log_entry["step"] if "step" in log_entry else "na"))
-        print("Message: {}".format(log_entry["message"] if "message" in log_entry else "na"))
+        print("Step: {}".format(log_entry["step"] if "step" in log_entry else "N/A"))
+        print("Message: {}".format(log_entry["message"] if "message" in log_entry else "N/A"))
         print("-----------------------------------------------------------")
 
     if "container" in log_entry:
@@ -72,6 +72,7 @@ if __name__ == '__main__':
     docker_only = args.docker_only
     config_filepath = args.config_filepath
     build_dir = args.build_dir
+
 
     kaapana_dir = build_dir if build_dir is not None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if not os.path.isdir(os.path.join(kaapana_dir, "platforms")):
@@ -109,6 +110,7 @@ if __name__ == '__main__':
     build_containers = False if charts_only else configuration["build_containers"]
     push_containers = False if charts_only else configuration["push_containers"]
     push_containers = False if build_only else push_containers
+    push_dev_only = configuration["push_dev_containers_only"] if "push_dev_containers_only" in configuration else False
 
     create_package = configuration["create_package"]
     if build_mode == "local" and not create_package:
@@ -251,6 +253,10 @@ if __name__ == '__main__':
                         raise SkipException('SKIP {}: build() failed!'.format(log['test']), log=log)
 
                 if push_containers:
+                    if push_dev_only and not docker_container.dev:
+                        print(f"Skipping push for {docker_container.tag.split('/')[-1]} -> no dev container")
+                        continue
+
                     for log in docker_container.push():
                         print_log_entry(log, kind="CONTAINERS")
                         if log['loglevel'].upper() == "ERROR":

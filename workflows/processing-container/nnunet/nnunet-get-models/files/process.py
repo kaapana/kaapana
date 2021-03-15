@@ -6,19 +6,33 @@ import time
 import glob
 from datetime import datetime
 from pathlib import Path
+from shutil import rmtree
+from os.path import join, basename, normpath
 
 processed_count = 0
 max_retries = 3
 max_hours_since_creation = 3
-models_dir = os.path.join(os.getenv('MODELDIR', "/models"), "nnUNet")
+
+workflow_dir = os.getenv('WORKFLOW_DIR', "data")
+output_dir = os.getenv('OPERATOR_OUT_DIR', "/models")
+
+target_level = os.getenv('TARGET_LEVEL', "default")
+
 task_ids = os.getenv('TASK', "NONE")
 task_ids = None if task_ids == "NONE" else task_ids
 model = os.getenv('MODEL', "NONE")
 model = None if model == "NONE" else model
-zip_file = os.getenv('ZIP_FILE', "NONE")
-zip_file = False if zip_file == "NONE" or zip_file.lower() != "true" else True
+mode = os.getenv('MODE', "install_pretrained")
 
-Path(models_dir).mkdir(parents=True, exist_ok=True)
+print("# Starting GetModelOperator ...")
+print("#")
+print(f"# mode: {mode}")
+print(f"# task_ids: {task_ids}")
+print(f"# output_dir: {output_dir}")
+print(f"# workflow_dir: {workflow_dir}")
+print(f"# target_level: {target_level}")
+print("#")
+print("#")
 
 def check_dl_running(model_path_dl_running, model_path, wait=True):
     if os.path.isfile(model_path_dl_running):
@@ -46,7 +60,10 @@ def delete_file(target_file):
         pass
 
 
-if zip_file:
+print("------------------------------------")
+print(f"--     MODE: {mode}")
+print("------------------------------------")
+if mode == "install_zip":
     print("------------------------------------")
     print("# Search for model-zip-files...")
     print("------------------------------------")
@@ -65,6 +82,23 @@ if zip_file:
 
         try:
             target_file = zip_files[0]
+
+            if target_level == "default":
+                models_dir = "/models/nnUNet"
+            elif target_level == "batch":
+                models_dir = os.path.join(workflow_dir, output_dir)
+            elif target_level == "batch_element":
+                models_dir = os.path.join(batch_element_dir, output_dir)
+            else:
+                print(f"#")
+                print(f"# ERROR")
+                print(f"#")
+                print(f"# target_level: {target_level} not supported!")
+                print(f"#")
+                exit(1)
+
+            Path(models_dir).mkdir(parents=True, exist_ok=True)
+
             print(f"# Unzipping {target_file} -> {models_dir}")
             with zipfile.ZipFile(target_file, "r") as zip_ref:
                 zip_ref.extractall(models_dir)
@@ -75,7 +109,7 @@ if zip_file:
             print("Abort.")
             print('MSG: ' + str(e))
             exit(1)
-    
+
     if processed_count == 0:
         print("# Searching for zip-files on batch-level...")
         batch_input_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
@@ -104,7 +138,10 @@ if zip_file:
     print("# DONE")
     exit(0)
 
-else:
+elif mode == "install_pretrained":
+    models_dir = "/models/nnUNet"
+    Path(models_dir).mkdir(parents=True, exist_ok=True)
+
     if task_ids is None:
         print("No ENV 'TASK' found!")
         print("Abort.")
@@ -147,7 +184,9 @@ else:
         print("Check if model already present: {}".format(model_path))
         print("TASK: {}".format(task_id))
         print("MODEL: {}".format(model))
-        if os.path.isdir(model_path):
+
+        tasks_found = glob.glob(join(models_dir,"**",task_id),recursive=True)
+        if len(tasks_found) > 0:
             print("Model {} found!".format(task_id))
             continue
 
@@ -230,5 +269,34 @@ else:
             exit(1)
 
     print("All models successfully downloaded and extracted!")
+
+elif mode == "uninstall":
+    if task_ids is None:
+        print("No ENV 'TASK' found!")
+        print("Abort.")
+        exit(1)
+
+    models_dir = "/models/nnUNet"
+
+    print(f"Un-installing TASK: {task_ids}")
+    installed_models = [basename(normpath(f.path)) for f in os.scandir(models_dir) if f.is_dir()]
+
+    for installed_model in installed_models:
+        model_path = join(models_dir, installed_model)
+        installed_tasks_dirs = [basename(normpath(f.path)) for f in os.scandir(model_path) if f.is_dir()]
+        for installed_task in installed_tasks_dirs:
+            if installed_task.lower() == task_ids.lower():
+                task_path = join(models_dir, installed_model, installed_task)
+                print(f"Removing: {task_path}")
+                rmtree(task_path)
+else:
+    print("------------------------------------")
+    print("------------   ERROR!  -------------")
+    print("------------------------------------")
+    print(f"---- Mode not supported: {mode} ---- ")
+    print("------------------------------------")
+    print("------------------------------------")
+    exit(1)
+
 print("DONE")
 exit(0)

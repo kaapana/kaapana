@@ -1,11 +1,11 @@
-import time
 import os
+import time
 
 import syft as sy
 from syft.grid.clients.data_centric_fl_client import DataCentricFLClient
+
 import torch
 import torchvision
-
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
@@ -39,8 +39,14 @@ node_addr = 'http://{}:{}/'.format(os.environ['NODE_HOST'],os.environ['NODE_PORT
 node = DataCentricFLClient(hook, node_addr)
 
 print(f'Sending data to node {node_addr}')
-imgs_tag = images.tag('#X', f"#{os.environ['DATASET']}", '#dataset').describe(f"{os.environ['DATASET']} - images")
-targets_tag = targets.tag('#Y', f"#{os.environ['DATASET']}", '#dataset').describe(f"{os.environ['DATASET']} - targets")
+exp_tag = os.getenv('EXP_TAG', '#no-tag-given')
+
+imgs_tag = images.tag('#X', '#dataset', f"#{os.environ['DATASET']}", exp_tag).describe(
+    f"Images used for experiment {exp_tag} ({os.environ['DATASET']})")
+
+targets_tag = targets.tag('#Y', '#dataset', f"#{os.environ['DATASET']}", exp_tag).describe(
+    f"Targets used for experiment {exp_tag} ({os.environ['DATASET']})")
+
 imgs_ptr, targets_ptr = imgs_tag.send(node), targets_tag.send(node)
 
 # sleeper

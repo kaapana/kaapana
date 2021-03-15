@@ -33,7 +33,7 @@ class ResNet18(nn.Module):
         self.num_classes = num_classes
 
         #self.feature_extractor = th.load('models/resnet18.pt') 
-        self.feature_extractor= models.resnet18(pretrained=True) # --> containert needs internet access!
+        self.feature_extractor= models.resnet18(pretrained=True) # --> container needs internet access!
         self.num_fts = self.feature_extractor.fc.in_features # 512 features
 
         self.feature_extractor.fc = nn.Linear(self.num_fts, 256)

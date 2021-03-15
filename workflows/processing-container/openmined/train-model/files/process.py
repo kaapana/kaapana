@@ -24,6 +24,7 @@ LEARNING_RATE = float(os.environ['LEARNING_RATE'])
 
 #SAVE_MODEL = True
 #SAVE_MODEL_PATH = '../models'
+OUTPUT_DIR = os.environ['OPERATOR_OUT_DIR']
 
 # check gpu availability
 device = th.device('cuda:0' if th.cuda.is_available() else 'cpu')
@@ -83,6 +84,7 @@ def train(epoch):
     
     ''' iterate over the remote workers - send model to its location '''
     for worker in workers.values():
+        print(worker)
         
         model.train()
         model.send(worker)
@@ -131,6 +133,6 @@ for epoch in range(N_EPOCHS):
 print("Model training finished!")
 
 # save trained model
-if not os.path.isdir('models/trained'):
-    os.mkdir('models/trained')
-th.save(model, f'models/trained/{MODEL}_trained.pt')
+if not os.path.isdir(OUTPUT_DIR):
+    os.mkdir(OUTPUT_DIR)
+th.save(model, f'{OUTPUT_DIR}/{MODEL}_trained.pt')

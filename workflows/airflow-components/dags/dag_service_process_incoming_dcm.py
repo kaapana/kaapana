@@ -90,6 +90,6 @@ run_this = PythonOperator(
     python_callable=process_incoming,
     dag=dag)
 
-check_ctp = LocalCtpQuarantineCheckOperator(dag=dag, operator_in_dir='extract-metadata-input')
+check_ctp = LocalCtpQuarantineCheckOperator(dag=dag)
 
 run_this >> check_ctp

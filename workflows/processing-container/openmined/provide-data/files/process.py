@@ -17,13 +17,14 @@ hook = sy.TorchHook(torch)
 # define path
 path = os.path.join(os.environ["WORKFLOW_DIR"], os.environ['OPERATOR_IN_DIR'])
 
-# transformations
+# get dataset specific image transforms
 transform_dict = provide_dataset_transforms(dataset=os.environ['DATASET'])
 
 # Image folder
 dataset = ImageFolder(
     root=os.path.join(path, 'train'),
     transform=transform_dict['train'])
+print("Class encoding: {}".format(dataset.class_to_idx))
 
 # data loader
 n_samples = len(dataset)
@@ -51,5 +52,5 @@ imgs_ptr, targets_ptr = imgs_tag.send(node), targets_tag.send(node)
 
 # sleeper
 minutes = int(os.environ["LIFESPAN"])
-print(f'Sleeping for {minutes} min ...')
+print(f'Providing data for {minutes} minutes ...')
 time.sleep(minutes * 60)

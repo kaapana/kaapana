@@ -1,7 +1,7 @@
 FROM node:lts-alpine as build
 
 LABEL IMAGE="ohif"
-LABEL VERSION="4.7.2-vdev"
+LABEL VERSION="4.9.2-vdev"
 LABEL CI_IGNORE="False"
 
 RUN apk add --no-cache ca-certificates git build-base python
@@ -10,7 +10,7 @@ RUN git clone https://github.com/OHIF/Viewers.git /src
 RUN yarn config set workspaces-experimental true
 
 WORKDIR /src
-RUN git checkout @ohif/viewer@4.7.2
+RUN git checkout @ohif/viewer@4.9.2
 
 COPY files/kaapana.js /src/platform/viewer/public/config/kaapana.js
 

@@ -4,7 +4,7 @@ dependencies:
     version: "5.23.1"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: ohif-chart
-    version: "4.7.2-vdev"
+    version: "4.9.2-vdev"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: minio-chart
     version: "2021.03.12"

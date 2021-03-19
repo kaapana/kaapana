@@ -17,8 +17,8 @@ hook = sy.TorchHook(torch)
 
 class Arguments():
     def __init__(self):
-        self.host = os.getenv('NODE_HOST')
-        self.port = os.getenv('NODE_PORT', '5000')
+        self.host = os.getenv('HOSTNAME')
+        self.port = os.getenv('PORT', '5000')
         self.node_addr = 'http://{}:{}/'.format(self.host, self.port)
 
         self.exp_tag = os.getenv('EXP_TAG', '#no-tag-given')

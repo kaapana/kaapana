@@ -61,7 +61,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
 
         if kwargs["dag_run"] is not None and 'rest_call' in kwargs["dag_run"].conf and kwargs["dag_run"].conf['rest_call'] is not None:
             self.rest_sets_update(kwargs["dag_run"].conf['rest_call']) 
-            print("CONTAINER ENVS:")
+            print("CHART INSTALL SETS:")
             print(json.dumps(self.sets, indent=4, sort_keys=True))
 
         for set_key, set_value in self.sets.items():

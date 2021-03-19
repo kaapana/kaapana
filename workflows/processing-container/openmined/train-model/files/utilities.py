@@ -82,10 +82,15 @@ def shutdown_data_provider(ip, exp_tag):
             dag['state'] == 'running' and \
             dag['conf']['rest_call']['operators']['data-provider']['exp_tag'] == exp_tag]
     
-    # call API to shut down dag
+    # call Airlfow API: set data providing operator to success
     for dag in dags:
         run_id, state = dag['run_id'], 'success'
         url = airflow_api + f'/settaskstate/{dag_id}/{run_id}/{task_id}/{state}'
         
         r = requests.post(url, verify=False)
         print(r.json())
+    
+    # call Helm API: uninstall helm chart
+    url = f'http://{ip}/kube-helm-api/helm-delete-chart?release_name=openmined-node'
+    r =requests.get(url, verify=False)
+    print(r.json())

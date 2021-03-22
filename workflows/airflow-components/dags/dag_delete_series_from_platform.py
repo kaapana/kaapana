@@ -20,7 +20,13 @@ ui_forms = {
                 "type": "boolean",
                 "default": True,
                 "readOnly": False,
-            }
+            },
+            "delete_complete_study": {
+                "title": "Delete entire study",
+                "default": False,
+                "type": "boolean",
+                "readOnly": False,
+            },
         }
     }
 }

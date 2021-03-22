@@ -5,7 +5,8 @@ from pathlib import Path
 
 
 class HelperDcmWeb():
-    pacs_dcmweb = "http://dcm4chee-service.store.svc:8080/dcm4chee-arc/aets/KAAPANA"
+    pacs_dcmweb_endpoint = "http://dcm4chee-service.store.svc:8080/dcm4chee-arc/aets/"
+    pacs_dcmweb = pacs_dcmweb_endpoint + "KAAPANA"
 
     @staticmethod
     def checkIfSeriesAvailable(seriesUID):
@@ -80,3 +81,54 @@ class HelperDcmWeb():
         filePath = os.path.join(target_dir, fileName)
         with open(filePath, "wb") as f:
             f.write(response.content)
+
+    @staticmethod
+    def qidoRs(aet, studyUID, seriesUID=None):
+        """
+        Quido a study or series.
+        :param aet: The AETitle of the requested resource.
+        :type studyUID: String
+        :param studyUID: The UID of the study to reject.
+        :type studyUID: String
+        :param seriesUID: The UID of the study to reject.
+        :type seriesUID: String or None
+        :returns: requests.Response
+        """
+        if seriesUID:
+            return requests.get("{}{}/rs/studies/{}/series/{}/instances"
+                                .format(HelperDcmWeb.pacs_dcmweb_endpoint, aet, studyUID, seriesUID), verify=False)
+        return requests.get("{}{}/rs/studies/{}/instances"
+                            .format(HelperDcmWeb.pacs_dcmweb_endpoint, aet, studyUID), verify=False)
+
+
+    @staticmethod
+    def rejectDicoms(studyUID, seriesUID=None):
+        """
+        Rejects a study or a series to IOM_QUALITY
+        :param studyUID: The UID of the study to reject.
+        :type studyUID: String
+        :param seriesUID: The UID of the study to reject.
+        :type seriesUID: String
+        :returns: requests.Response
+        """
+        if seriesUID:
+            rejectUrl = "{}/rs/studies/{}/series/{}/reject/113001%5EDCM".format(HelperDcmWeb.pacs_dcmweb, studyUID,
+                                                                                seriesUID)
+        else:
+            rejectUrl = "{}/rs/studies/{}/reject/113001%5EDCM".format(HelperDcmWeb.pacs_dcmweb, studyUID)
+
+        return requests.post(rejectUrl, verify=False)
+
+    @staticmethod
+    def deleteStudy(rejectedStudyUID):
+        """
+        Delete a study from IOM_QUALITY. It has to be added to IOM_QAULITY frist (by rejectSeries)
+        :param studyUID: The UID of the study to reject.
+        :type studyUID: String
+        :param seriesUID: The UID of the study to reject.
+        :type seriesUID: String
+        :returns: requests.Response
+        """
+        reject_url = "{}IOCM_QUALITY/rs/studies/{}".format(HelperDcmWeb.pacs_dcmweb_endpoint, rejectedStudyUID)
+        return requests.delete(reject_url, verify=False)
+

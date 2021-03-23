@@ -13,7 +13,7 @@ class RunNodeOperator(KaapanaApplicationOperator):
                     global_id=None,
                     hostname=None,
                     port=None,
-                    grid_network=None,
+                    grid_network_url=None,
                     sets=None,
                     release_name=None,
                     execution_timeout=timedelta(hours=6),
@@ -27,7 +27,7 @@ class RunNodeOperator(KaapanaApplicationOperator):
             'global.id': global_id,
             'hostname': hostname,
             'port': port,
-            'grid_network': grid_network
+            'grid_network_url': grid_network_url
         }
 
         sets.update(sets_vars)

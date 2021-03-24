@@ -15,8 +15,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /build-ctp
 
 RUN git clone -n https://github.com/johnperry/CTP.git .
-# use util FROM newer commit (a bugfix for dicomweb is needed)
-
+#current "tested" tag
 RUN git checkout 760aebfd8280d01b408d6a68138a6eba57cf87b0
 
 ADD /files/Runner.java ./source/java/org/rsna/runner/
@@ -52,7 +51,6 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /opt/CTP
 
 ADD /files/config.xml ./config.xml
-ADD /files/Launcher.properties ./Launcher.properties
 COPY --from=build /build-ctp/build/CTP/ ./
 
 CMD ["java","-jar","Runner.jar"]

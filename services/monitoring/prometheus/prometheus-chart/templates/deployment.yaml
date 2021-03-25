@@ -37,7 +37,7 @@ subjects:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: prometheus-deployment
+  name: prometheus
   namespace: {{ .Values.global.monitoring_namespace }}
 spec:
   replicas: 1
@@ -63,7 +63,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: prometheus
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/prometheus:v2.20.1
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/prometheus:v2.25.0
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           args:
             - "--config.file=/etc/prometheus.yaml"

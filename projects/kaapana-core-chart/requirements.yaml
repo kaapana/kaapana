@@ -17,24 +17,24 @@ dependencies:
     repository: file://deps/store
   - name: error-pages-chart
     version: "0.1.1"
-    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+    repository: file://../../services/kaapana-core/error-pages/error-pages-chart
   - name: louketo-proxy-chart
     version: "0.1"
-    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+    repository: file://../../services/kaapana-core/louketo-proxy/louketo-proxy-chart
   - name: keycloak-chart
     version: "11.0.3-vdev"
-    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+    repository: file://../../services/kaapana-core/keycloak/keycloak-chart
   - name: gpu-prom-exporter-chart
     condition: global.gpu_support
     version: "0.1.0"
-    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+    repository: file://../../services/kaapana-core/gpu-prometheus-exporter/gpu-prom-exporter-chart
   - name: traefik-chart
     version: "2.3"
-    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+    repository: file://../../services/kaapana-core/traefik/traefik-chart
   - name: kube-dashboard-chart
     version: "2.0.3"
-    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+    repository: file://../../services/kaapana-core/kubernetes-dashboard/kube-dashboard-chart
   - name: kube-helm-chart
     version: "0.1.1-vdev"
-    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+    repository: file://../../services/kaapana-core/kube-helm/kube-helm-chart
     

@@ -6,7 +6,7 @@ set -euf -o pipefail
 
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
-PROJECT_NAME="starter-platform" # name of the platform Helm chart
+PROJECT_NAME="starter-platform-chart" # name of the platform Helm chart
 DEFAULT_VERSION="0.1.0-vdev"    # version of the platform Helm chart
 PULL_DOCKER_CHART_VERSION="0.1.1-vdev"
 DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart
@@ -338,6 +338,18 @@ function upgrade_chart {
     print_installation_done
 }
 
+function check_chart_credentials {
+    while true; do
+        if [ ! -v CHART_REGISTRY_USERNAME ] || [ ! -v CHART_REGISTRY_PASSWORD ]; then
+            echo -e "${YELLOW}Please enter the credentials for the Container-Registry!${NC}"
+            read -p '**** username: ' CHART_REGISTRY_USERNAME
+            read -s -p '**** password: ' CHART_REGISTRY_PASSWORD
+        else
+            echo -e "${GREEN}Credentials found!${NC}"
+            break
+        fi
+    done
+}
 
 function check_credentials {
     while true; do
@@ -361,6 +373,15 @@ function add_helm_repos {
     done
 
     helm repo update
+}
+
+function helm_registry_login {
+    echo -e "Adding needed helm projects..."
+    for i in "${NEEDED_REPOS[@]}"
+    do
+        echo -e "${YELLOW}Adding project $i.${NC}"
+        helm registry login -u "$REGISTRY_USERNAME" -p "$REGISTRY_PASSWORD" $CHART_REGISTRY_URL/$i
+    done
 }
 
 function delete_helm_repos {

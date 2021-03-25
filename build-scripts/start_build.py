@@ -182,7 +182,12 @@ if __name__ == '__main__':
             print("No default default_chart_registry configured!")
             print("Please specify 'default_chart_registry' within the build-configuration.json")
             exit(1)
+        elif default_chart_registry == "push_to_docker":
+            push_charts_to_docker = True
+            default_chart_registry = configuration["default_container_registry"]
+            print("Using docker registry as default_chart_registry: {}".format(default_chart_registry))
         else:
+            push_charts_to_docker = False
             print("Using default_chart_registry: {}".format(default_chart_registry))
         print("-----------------------------------------------------------")
 
@@ -275,13 +280,14 @@ if __name__ == '__main__':
         init_helm_charts(kaapana_dir=kaapana_dir, chart_registry=default_chart_registry, default_project=default_chart_project)
 
         print("Start quick_check...")
+        # for log_entry in HelmChart.quick_check(push_charts_to_docker):
         for log_entry in HelmChart.quick_check():
             if isinstance(log_entry, dict):
                 print_log_entry(log_entry, kind="CHARTS")
             else:
                 build_ready_list = log_entry
 
-        if push_charts:
+        if push_charts and push_charts_to_docker is False:
             print("Start check_repos...")
             for log_entry in HelmChart.check_repos(user=registry_user, pwd=registry_pwd):
                 print_log_entry(log_entry, kind="CHARTS")
@@ -326,11 +332,22 @@ if __name__ == '__main__':
                                 copy(package, build_dir)
                                 os.remove(package)
 
-                if push_charts and not chart.repo.startswith('file://'):
-                    for log_entry in chart.push():
+                #################TODO add save charts to yaml! ##########
+                if push_charts_to_docker is True and push_charts is True and not chart.repo.startswith('file://'):
+                    for log_entry in chart.chart_save():
                         print_log_entry(log_entry, kind="CHARTS")
                         if log_entry['loglevel'].upper() == "ERROR":
                             raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
+                    for log_entry in chart.chart_push():
+                        print_log_entry(log_entry, kind="CHARTS")
+                        if log_entry['loglevel'].upper() == "ERROR":
+                            raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
+                else:
+                    if push_charts and not chart.repo.startswith('file://'):
+                        for log_entry in chart.push():
+                            print_log_entry(log_entry, kind="CHARTS")
+                            if log_entry['loglevel'].upper() == "ERROR":
+                                raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
 
             except SkipException as error:
                 print("SkipException: {}".format(str(error)))

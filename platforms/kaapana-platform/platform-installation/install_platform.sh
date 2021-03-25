@@ -3,7 +3,7 @@ set -euf -o pipefail
 
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
-PROJECT_NAME="kaapana-platform" # name of the platform Helm chart
+PROJECT_NAME="kaapana-platform-chart" # name of the platform Helm chart
 DEFAULT_VERSION="0.1.1-vdev"    # version of the platform Helm chart
 
 DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart

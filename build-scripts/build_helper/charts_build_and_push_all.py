@@ -87,7 +87,7 @@ class HelmChart:
                 elif "repo:" in line:
                     self.repo = line.split(": ")[1].strip()
                 elif "version:" in line:
-                    self.version = line.split(": ")[1].strip()
+                    self.version = line.split(": ")[1].strip().replace('"', '').replace("'", '')
                 elif "ignore_linting:" in line:
                     self.ignore_linting = line.split(": ")[1].strip().lower() == "true"
 
@@ -450,6 +450,103 @@ class HelmChart:
             }
             yield log_entry
 
+    def chart_push(self):
+        os.chdir(os.path.dirname(self.chart_dir))
+        try_count = 0
+
+        command = ["helm", "chart", "push", "{}/{}/{}:{}".format(HelmChart.default_registry, self.repo, self.name, self.version)]
+
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+        while output.returncode != 0 and try_count < HelmChart.max_tries:
+            print("Error push -> try: {}".format(try_count))
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+            try_count += 1
+        log = make_log(std_out=output.stdout, std_err=output.stderr)
+
+        if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
+            log_entry = {
+                "suite": suite_tag,
+                "test": "{}:{}".format(self.name, self.version),
+                "step": "Helm push chart to docker",
+                "log": log,
+                "loglevel": "ERROR",
+                "timestamp": get_timestamp(),
+                "message": "push failed: {}".format(self.name),
+                "rel_file": self.path,
+                "test_done": True,
+            }
+            yield log_entry
+
+        else:
+            log_entry = {
+                "suite": suite_tag,
+                "test": "{}:{}".format(self.name, self.version),
+                "step": "Helm push",
+                "log": log,
+                "loglevel": "DEBUG",
+                "timestamp": get_timestamp(),
+                "message": "Chart pushed successfully!",
+                "rel_file": self.path,
+                "test_done": True,
+            }
+            yield log_entry
+
+    def chart_save(self):
+        os.chdir(os.path.dirname(self.chart_dir))
+        try_count = 0
+        wrong_naming = False
+        if not (self.name.endswith('chart') or self.name.endswith('workflow')):
+            log_entry = {
+                "suite": suite_tag,
+                "test": "{}:{}".format(self.name, self.version),
+                "step": "Helm save",
+                "log": "",
+                "loglevel": "ERROR",
+                "timestamp": get_timestamp(),
+                "message": "save failed: {} due to name error. Name of chart has to end with -chart or -workflow!".format(self.name),
+                "rel_file": self.path,
+                "test_done": True,
+            }
+            yield log_entry
+        else:
+
+            command = ["helm", "chart", "save", self.name, "{}/{}/{}:{}".format(HelmChart.default_registry, self.repo, self.name, self.version)]
+
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+            while output.returncode != 0 and try_count < HelmChart.max_tries:
+                print("Error save -> try: {}".format(try_count))
+                output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+                try_count += 1
+            log = make_log(std_out=output.stdout, std_err=output.stderr)
+
+            if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
+                log_entry = {
+                    "suite": suite_tag,
+                    "test": "{}:{}".format(self.name, self.version),
+                    "step": "Helm save",
+                    "log": log,
+                    "loglevel": "ERROR",
+                    "timestamp": get_timestamp(),
+                    "message": "save failed: {}".format(self.name),
+                    "rel_file": self.path,
+                    "test_done": True,
+                }
+                yield log_entry
+
+            else:
+                log_entry = {
+                    "suite": suite_tag,
+                    "test": "{}:{}".format(self.name, self.version),
+                    "step": "Helm save",
+                    "log": log,
+                    "loglevel": "DEBUG",
+                    "timestamp": get_timestamp(),
+                    "message": "Chart saved successfully!",
+                    "rel_file": self.path,
+                    "test_done": True,
+                }
+                yield log_entry
+
     @staticmethod
     def check_repos(user, pwd):
         for repo in HelmChart.repos_needed:
@@ -530,6 +627,10 @@ class HelmChart:
                     yield log
                 charts_list.append(chart_object)
 
+        # if push_charts_to_docker is True:
+        #     yield charts_list
+        #     return
+
         resolve_tries = 0
 
         while resolve_tries <= HelmChart.max_tries and len(charts_list) != 0:
@@ -543,9 +644,12 @@ class HelmChart:
                     requirements_left = []
                     for requirement in chart.requirements:
                         found = False
-                        for ready_chart in build_ready_list:
-                            if requirement == ready_chart.chart_id:
-                                found = True
+                        if requirement.startswith('file://'):
+                            found = True
+                        else:
+                            for ready_chart in build_ready_list:
+                                if requirement == ready_chart.chart_id:
+                                    found = True
                         if not found:
                             requirements_left.append(requirement)
 

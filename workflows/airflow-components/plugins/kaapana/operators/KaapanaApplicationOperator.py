@@ -3,10 +3,11 @@ import shutil
 import glob
 import time
 import secrets
+import json
 import requests
 from airflow.exceptions import AirflowException
 from datetime import timedelta
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator, rest_self_udpate
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.blueprints.kaapana_utils import cure_invalid_name
 
@@ -25,9 +26,24 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
         return cure_invalid_name(release_name, r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
                                  max_length=53)
 
+    def rest_sets_update(self, payload):
+        operator_conf = {}
+        if 'global' in payload:
+            operator_conf.update(payload['global'])
+        if 'operators' in payload and self.name in payload['operators']:
+            operator_conf.update(payload['operators'][self.name])
+
+        for k, v in operator_conf.items():
+            if k in self.sets:
+                print(f'Adjusting {k} from {self.sets[k]} to {v}')
+            else:
+                print(f'Adding {k}={v} to env_vars')
+            self.sets[k] = str(v)
+
+    @rest_self_udpate
     def start(self, ds, **kwargs):
-        print(kwargs)        
-        release_name = KaapanaApplicationOperator._get_release_name(kwargs)
+        print(kwargs)
+        release_name = KaapanaApplicationOperator._get_release_name(kwargs) if self.release_name is None else self.release_name
 
         payload = {
             'name': f'{self.chart_name}',
@@ -42,6 +58,11 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
                 "batches_input_dir": "/{}/{}".format(WORKFLOW_DIR, BATCH_NAME)
             }
         }
+
+        if kwargs["dag_run"] is not None and 'rest_call' in kwargs["dag_run"].conf and kwargs["dag_run"].conf['rest_call'] is not None:
+            self.rest_sets_update(kwargs["dag_run"].conf['rest_call']) 
+            print("CHART INSTALL SETS:")
+            print(json.dumps(self.sets, indent=4, sort_keys=True))
 
         for set_key, set_value in self.sets.items():
             payload['sets'][set_key] = set_value
@@ -92,12 +113,14 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
                  name="helm-chart",
                  data_dir=None,
                  sets=None,
+                 release_name=None,
                  *args, **kwargs):
 
         self.chart_name = chart_name
         self.version = version
         self.sets = sets or dict()
         self.data_dir = data_dir or os.getenv('DATADIR', "")
+        self.release_name=release_name
 
         super().__init__(
             dag=dag,
@@ -106,5 +129,3 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
             execution_timeout=timedelta(seconds=KaapanaApplicationOperator.TIMEOUT),
             *args, **kwargs
         )
-
-

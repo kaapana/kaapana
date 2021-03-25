@@ -7,10 +7,10 @@ dependencies:
     version: "4.7.2-vdev"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: minio-chart
-    version: "2020.09.17"
+    version: "2021.03.12"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: minio-init-chart
-    version: "0.1.1"
+    version: "0.1.2"
     condition: Release.IsInstall
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   # TESTS

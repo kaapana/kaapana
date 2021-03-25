@@ -1,42 +1,45 @@
-FROM golang:1.14-alpine as builder
+FROM golang:1.16-alpine as builder
 
 LABEL IMAGE=minio
-LABEL VERSION=2020.09.17
-LABEL CI_IGNORE=False
+LABEL VERSION=2021.03.12
+LABEL maintainer="MinIO Inc <dev@min.io>"
 
 ENV GOPATH /go
 ENV CGO_ENABLED 0
 ENV GO111MODULE on
 
-# Checking out verison RELEASE.2020-09-17T04-49-20Z
 RUN  \
      apk add --no-cache git && \
      git clone https://github.com/minio/minio && cd minio && \
-     git checkout ed78854cead490ca6de6fe2e3255d000519a65e4
+     git checkout feafccf0072a9b5fbddc33553890ff56cb2f83b6
 
 WORKDIR /go/minio
 
-COPY web-handlers.go /go/minio/cmd/
 COPY jwt.go /go/minio/cmd/config/identity/openid/
 
 RUN go install -v -ldflags "$(go run buildscripts/gen-ldflags.go)"
 
-FROM alpine:3.12
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.3
 
-ENV MINIO_UPDATE off
 ENV MINIO_ACCESS_KEY_FILE=access_key \
     MINIO_SECRET_KEY_FILE=secret_key \
+    MINIO_ROOT_USER_FILE=access_key \
+    MINIO_ROOT_PASSWORD_FILE=secret_key \
     MINIO_KMS_MASTER_KEY_FILE=kms_master_key \
-    MINIO_SSE_MASTER_KEY_FILE=sse_master_key
+    MINIO_SSE_MASTER_KEY_FILE=sse_master_key \
+    MINIO_UPDATE_MINISIGN_PUBKEY="RWTx5Zr1tiHQLwG9keckT0c45M3AGeHD6IvimQHpyRywVWGbP1aVSGav"
 
 EXPOSE 9000
 
 COPY --from=builder /go/bin/minio /usr/bin/minio
-COPY --from=builder /go/minio/CREDITS /third_party/
+COPY --from=builder /go/minio/CREDITS /licenses/CREDITS
+COPY --from=builder /go/minio/LICENSE /licenses/LICENSE
 COPY --from=builder /go/minio/dockerscripts/docker-entrypoint.sh /usr/bin/
 
 RUN  \
-     apk add --no-cache ca-certificates 'curl>7.61.0' 'su-exec>=0.2' && \
+     microdnf update --nodocs && \
+     microdnf install curl ca-certificates shadow-utils util-linux --nodocs && \
+     microdnf clean all && \
      echo 'hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4' >> /etc/nsswitch.conf
 
 ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]

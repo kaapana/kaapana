@@ -91,7 +91,7 @@ export default Vue.extend({
     },
     minioCall() {
          request.get('/flow/kaapana/api/getaccesstoken').then(response => {
-            let payload = {"id":1,"jsonrpc":"2.0","params":{"token": response.data["xAuthToken"]},"method":"Web.LoginSTS"}
+            let payload = {"id":1,"jsonrpc":"2.0","params":{"token": response.data["xAuthToken"]},"method":"web.LoginSTS"}
             request.post('/minio/webrpc', payload).then(response => {
                 storage.setItem('token', `${response.data.result["token"]}`)
             }).catch(error => {

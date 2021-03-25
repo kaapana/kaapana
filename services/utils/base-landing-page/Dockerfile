@@ -3,7 +3,7 @@ FROM node:lts-alpine as build-stage
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-landing-page"
-LABEL VERSION="0.1.0-vdev"
+LABEL VERSION="0.1.1-vdev"
 LABEL CI_IGNORE="False"
 
 WORKDIR /landing/app

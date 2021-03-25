@@ -14,5 +14,5 @@ dependencies:
     version: "6.8.12"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
   - name: landing-page-kaapana-chart
-    version: "0.1.2-vdev"
+    version: "0.1.3-vdev"
     repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public

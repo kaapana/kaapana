@@ -627,10 +627,6 @@ class HelmChart:
                     yield log
                 charts_list.append(chart_object)
 
-        # if push_charts_to_docker is True:
-        #     yield charts_list
-        #     return
-
         resolve_tries = 0
 
         while resolve_tries <= HelmChart.max_tries and len(charts_list) != 0:

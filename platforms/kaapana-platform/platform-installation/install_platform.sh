@@ -13,8 +13,8 @@ CONTAINER_REGISTRY_PROJECT=""                      # eg '/kaapana' -> The slash 
                                                    # Project of the Docker registry (not all have seperated projects then it shuould be empty-> '')
                                                    # For build-mode 'local' and 'dockerhub' this should also be empty 
 
-CHART_REGISTRY_URL="https://dktk-jip-registry.dkfz.de/chartrepo" # eg https://xx.xx.xx.xx/chartrepo -> URL for the chart repository 
-CHART_REGISTRY_PROJECT="kaapana-public"                          # project name for the Helm charts
+CHART_REGISTRY_URL="" # Leave this empty if charts were pushed to docker registry, if you use a chart repo specify the url of chart repository # eg https://xx.xx.xx.xx/chartrepo 
+CHART_REGISTRY_PROJECT=""  # Leave this empty if charts were pushed to docker registry, if you use a chart repo specify the project name for the Helm charts
 
 FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
@@ -176,7 +176,10 @@ function delete_deployment {
         echo "${RED}Once everything is delete you can reinstall the platform!${NC}"
         exit 1
     fi
-    delete_helm_repos
+    
+    if [ ! -z "$CHART_REGISTRY_URL" ]; then
+        delete_helm_repos
+    fi
     echo -e "${GREEN}####################################  UNINSTALLATION DONE  ############################################${NC}"
 }
 
@@ -215,14 +218,16 @@ function shell_update_extensions {
 }
 
 function install_chart {
-    if [ ! -z "$CHART_PATH" ]; then
-        CHART_REGISTRY_URL="local"
-        CHART_REGISTRY_PROJECT="local"
-    else
+    if [ ! -z "$CHART_REGISTRY_URL" ]; then
         add_helm_repos
     fi
 
-    if [ -z "$CHART_REGISTRY_URL" ] || [ -z "$CHART_REGISTRY_PROJECT" ] || [ -z "$CONTAINER_REGISTRY_URL" ]; then
+    if [ ! -z "$CHART_PATH" ]; then
+        CHART_REGISTRY_URL="local"
+        CHART_REGISTRY_PROJECT="local"
+    fi
+
+    if [ -z "$CONTAINER_REGISTRY_URL" ]; then
         echo 'CHART_REGISTRY_URL, CHART_REGISTRY_PROJECT, CONTAINER_REGISTRY_URL, CONTAINER_REGISTRY_PROJECT need to be set! -> please adjust the install_platform.sh script!'        
         echo 'ABORT'
         exit 1
@@ -255,6 +260,14 @@ function install_chart {
         read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to install?: ${NC}" -i $DEFAULT_VERSION chart_version;
     else
         chart_version=$DEFAULT_VERSION
+    fi
+
+    if [ -z "$CHART_REGISTRY_URL" ] && [ -z "$CHART_REGISTRY_PROJECT" ]; then
+        export HELM_EXPERIMENTAL_OCI=1
+        helm registry login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD ${CONTAINER_REGISTRY_URL}
+        helm chart pull ${CONTAINER_REGISTRY_URL}${CONTAINER_REGISTRY_PROJECT}/$PROJECT_NAME:$chart_version
+        helm chart export ${CONTAINER_REGISTRY_URL}${CONTAINER_REGISTRY_PROJECT}/$PROJECT_NAME:$chart_version -d $HOME/
+        CHART_PATH=$PROJECT_NAME
     fi
 
     if [ ! -z "$CHART_PATH" ]; then
@@ -311,6 +324,11 @@ function install_chart {
         --set global.chart_registry_project=$CHART_REGISTRY_PROJECT \
         --name-template $PROJECT_NAME
     fi
+
+    if [ -z "$CHART_REGISTRY_URL" ] && [ -z "$CHART_REGISTRY_PROJECT" ]; then
+        rm -r $CHART_PATH
+    fi
+
     
     print_installation_done
     
@@ -565,18 +583,20 @@ else
     echo -e "${GREEN}ok${NC}"
 fi
 
-echo -e "${YELLOW}Update helm repos...${NC}"
+if [ ! -z "$CHART_REGISTRY_URL" ]; then
+    echo -e "${YELLOW}Update helm repos...${NC}"
 
-set +euf
-updates_output=$(helm repo update)
-set -euf
+    set +euf
+    updates_output=$(helm repo update)
+    set -euf
 
-if echo "$updates_output" | grep -q 'failed to'; then
-    echo -e "${RED}updates failed!${NC}"
-    echo "$updates_output"
-    exit 1
-else
-    echo -e "${GREEN}updates ok${NC}" 
+    if echo "$updates_output" | grep -q 'failed to'; then
+        echo -e "${RED}updates failed!${NC}"
+        echo "$updates_output"
+        exit 1
+    else
+        echo -e "${GREEN}updates ok${NC}" 
+    fi
 fi
 
 echo -e "${YELLOW}Get helm deployments...${NC}"

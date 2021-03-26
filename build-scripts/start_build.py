@@ -178,20 +178,15 @@ if __name__ == '__main__':
     if build_charts:
         print("-----------------------------------------------------------")
         default_chart_registry = configuration["default_chart_registry"]
-        if default_chart_registry == "":
-            print("No default default_chart_registry configured!")
-            print("Please specify 'default_chart_registry' within the build-configuration.json")
-            exit(1)
-        elif default_chart_registry == "push_to_docker":
+        if default_chart_registry == "" and default_chart_project == "":
             push_charts_to_docker = True
-            default_chart_registry = configuration["default_container_registry"]
             print("Using docker registry as default_chart_registry: {}".format(default_chart_registry))
         else:
             push_charts_to_docker = False
             print("Using default_chart_registry: {}".format(default_chart_registry))
         print("-----------------------------------------------------------")
 
-        if push_charts and (registry_user is None or registry_pwd is None):
+        if push_charts and (registry_user is None or registry_pwd is None) and push_charts_to_docker is False:
             if os.getenv("REGISTRY_USER", None) is None or os.getenv("REGISTRY_PW", None) is None:
                 print()
                 print("ENVs 'REGISTRY_USER' and 'REGISTRY_PW' not found! ")

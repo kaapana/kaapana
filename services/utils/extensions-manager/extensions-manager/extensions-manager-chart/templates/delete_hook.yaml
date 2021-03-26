@@ -1,0 +1,34 @@
+# Copy me and only adapt values.yaml and Chart.yaml!
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: remove-{{ .Values.global.extensions_image }}
+  namespace: default
+  annotations:
+    "helm.sh/hook": post-delete
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
+spec:
+  template:
+    spec:
+      containers:
+      - name: remove-{{ .Values.global.extensions_image }}
+        image: "{{- if .Values.global.custom_registry_url }}{{ .Values.global.custom_registry_url }}{{- else}}{{ .Values.global.registry_url }}{{- end }}{{- if .Values.global.custom_registry_project }}{{ .Values.global.custom_registry_project }}{{- else}}{{ .Values.global.registry_project }}{{- end }}/{{ .Values.global.extensions_image }}:{{ .Values.global.extensions_version }}"
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: ACTION
+          value: "remove"
+        volumeMounts:
+        - name: data
+          mountPath: "/extensions"
+      securityContext:
+        runAsUser: 0
+      volumes:
+      - name: data
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}/extensions
+          type: DirectoryOrCreate
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: registry-secret
+  backoffLimit: 0

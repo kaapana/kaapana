@@ -178,9 +178,10 @@ if __name__ == '__main__':
     if build_charts:
         print("-----------------------------------------------------------")
         default_chart_registry = configuration["default_chart_registry"]
-        if default_chart_registry == "" and default_chart_project == "":
+        if default_chart_registry == "":
             push_charts_to_docker = True
-            print("Using docker registry as default_chart_registry: {}".format(default_chart_registry))
+            default_chart_registry = configuration["default_container_registry"]
+            print("Using default_container_registry as default_chart_registry {}".format(default_chart_registry))
         else:
             push_charts_to_docker = False
             print("Using default_chart_registry: {}".format(default_chart_registry))
@@ -202,8 +203,8 @@ if __name__ == '__main__':
 
         default_chart_project = configuration["default_chart_project"]
         if default_chart_project == "":
-            print("no default_chart_project configured.")
-            default_chart_project = None
+            default_chart_project = configuration["default_container_project"]
+            print("Using default_container_project as default_chart_project: {}".format(default_chart_registry))
         else:
             print("Using default_chart_project: {}".format(default_chart_project))
         print("-----------------------------------------------------------")

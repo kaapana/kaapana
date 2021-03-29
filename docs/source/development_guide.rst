@@ -30,6 +30,10 @@ Preparations for the development
 * Installation of `Docker <https://docs.docker.com/get-docker/>`_ on your local machine
 * Installation of `DCMTK <https://dicom.offis.de/dcmtk.php.en>`_ (optional: convenient way to send images to the platform)
 
+**Download DICOM images**
+
+In order to be able to upload DICOM images to the platform and to be able to further use them, if you don't already have these, then you need to download such DICOM images from an online open source archive to your local machine. There are various free online archives for getting access to such medical data. One such example is the `Cancer Imaging Archive <https://www.cancerimagingarchive.net/collections/>`. It consists of various collections of different types of data. E.g.: to get started, you can simply get data of one collection for a single patient for a single organ consisting of several images.
+
 **Upload images to the platform**
 
 * You have two options to upload images to the platform

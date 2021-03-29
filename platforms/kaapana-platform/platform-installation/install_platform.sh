@@ -355,6 +355,7 @@ function upgrade_chart {
     if [ ! -z "$CHART_PATH" ]; then
         echo -e "${YELLOW}Charyt-tgz-path $CHART_PATH${NC}"
         helm upgrade $PROJECT_NAME $CHART_PATH --devel --version $chart_version --set global.version="$chart_version" --reuse-values 
+        rm -f $PROJECT_NAME
     else
         helm upgrade $PROJECT_NAME $CHART_REGISTRY_PROJECT/$PROJECT_NAME --devel --version $chart_version --set global.version="$chart_version" --reuse-values 
     fi

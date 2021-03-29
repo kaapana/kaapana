@@ -7,10 +7,21 @@ from multiprocessing.pool import ThreadPool
 from glob import glob
 from os.path import join, basename, dirname, exists
 from pathlib import Path
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class LocalDiceOperator(KaapanaPythonBaseOperator):
+    def create_plots(result_dir, result_table):
+        print(f"# Creating boxplots @: {result_dir}")
+        df_data = pd.DataFrame(result_table, columns=['Series', 'Model', 'label', 'Dice'])
+        df_data = df_data[df_data['label'] == 'liver']
+        box_plot = sns.boxplot(x="Model", y="Dice", hue="label", palette=["m", "g"], data=df_data)
+        box_plot.savefig(join(result_dir, "dice_results.png"))
+        box_plot.savefig(join(result_dir, "dice_results.pdf"))
+
     def get_model_infos(self, model_batch_dir):
         model_batch_dir = join(model_batch_dir, "model-exports")
         print(f"# Searching for dataset.json @: {model_batch_dir}")
@@ -96,10 +107,12 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         print("# Evaluating predictions started ...")
         print(f"# workflow_dir {self.workflow_dir}")
-        model_count = 0
+        model_counter = 0
+        case_counter = 0
 
         result_scores_case_based = {}
         result_scores_model_based = {}
+        result_table = []
 
         run_dir = os.path.join(self.workflow_dir, kwargs['dag_run'].run_id)
         processed_count = 0
@@ -114,17 +127,22 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
         print("# Found {} batches".format(len(batch_folders)))
         for batch_element_dir in batch_folders:
             print(f"# processing batch-element: {batch_element_dir}")
-            model_count += 1
+            model_counter += 1
             single_model_pred_dir = join(batch_element_dir, self.operator_in_dir)
             labels, model_id = self.get_pred_infos(pred_dir=single_model_pred_dir)
             if labels == None or model_id == None:
                 labels, model_id = self.get_model_infos(model_batch_dir=batch_element_dir)
-            model_id = f"{model_id}_{model_count}"
-            
+            model_id = f"{model_id}_{model_counter}"
+
             single_model_pred_files = sorted(glob(join(single_model_pred_dir, "*.nii*"), recursive=False))
             for single_model_pred_file in single_model_pred_files:
+                case_counter += 1
                 ensemble_already_processed = False
-                file_id = basename(single_model_pred_file).replace(".nii.gz", "")
+                if not self.anonymize:
+                    file_id = basename(single_model_pred_file).replace(".nii.gz", "")
+                else:
+                    file_id = f"case_{case_counter}"
+
                 gt_file = join(run_dir, "nnunet-cohort", file_id, self.gt_dir, basename(single_model_pred_file))
                 if not exists(gt_file):
                     print("# Could not find gt-file !")
@@ -159,17 +177,24 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                         label_strip_sm = (sm_numpy == pred_label).astype(int)
                         dice_result = self.calc_dice(pred=label_strip_sm, gt=label_strip_gt)
 
+                        result_table.append([
+                            file_id,
+                            model_id,
+                            label_key,
+                            dice_result
+                        ])
+
                         if model_id not in result_scores_model_based:
                             result_scores_model_based[model_id] = {}
                         if label_key not in result_scores_model_based[model_id]:
                             result_scores_model_based[model_id][label_key] = {}
-                        result_scores_model_based[model_id][label_key][file_id]= dice_result
+                        result_scores_model_based[model_id][label_key][file_id] = dice_result
 
                         if file_id not in result_scores_case_based:
                             result_scores_case_based[file_id] = {}
                         if label_key not in result_scores_case_based[file_id]:
                             result_scores_case_based[file_id][label_key] = {}
-                        result_scores_case_based[file_id][label_key][model_id]= dice_result
+                        result_scores_case_based[file_id][label_key][model_id] = dice_result
 
                         print(f"# {str(pred_label)}:{label_key} -> dice: {dice_result}")
                         if "ensemble" in result_scores_case_based[file_id][label_key]:
@@ -201,12 +226,18 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                             label_strip_ensemble = (ensemble_numyp == pred_label).astype(int)
                             dice_result = self.calc_dice(pred=label_strip_ensemble, gt=label_strip_gt)
                             print(f"# {str(pred_label)}:{label_key} -> dice: {dice_result}")
+                            result_table.append([
+                                file_id,
+                                model_id,
+                                label_key,
+                                dice_result
+                            ])
 
                             if file_id not in result_scores_case_based:
                                 result_scores_case_based[file_id] = {}
                             if label_key not in result_scores_case_based[file_id]:
                                 result_scores_case_based[file_id][label_key] = {}
-                            result_scores_case_based[file_id][label_key][model_id]= dice_result
+                            result_scores_case_based[file_id][label_key][model_id] = dice_result
                     print("#")
 
                 processed_count += 1
@@ -232,6 +263,8 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
         with open(result_ensemble_path, 'w+', encoding='utf-8') as f:
             json.dump(result_scores_model_based, f, ensure_ascii=False, default=str, indent=4, sort_keys=True)
 
+        self.create_plots(result_dir=result_dir, result_table=result_table)
+
         if processed_count == 0:
             print("#")
             print("##################################################")
@@ -252,11 +285,13 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                  ensemble_operator=None,
                  batch_name=None,
                  workflow_dir=None,
+                 anonymize=True,
                  *args,
                  **kwargs):
 
         self.gt_dir = gt_operator.operator_out_dir
         self.ensemble_dir = ensemble_operator.operator_out_dir if ensemble_operator != None else None
+        self.anonymize = anonymize
 
         super().__init__(
             dag,

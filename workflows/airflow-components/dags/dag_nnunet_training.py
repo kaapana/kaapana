@@ -42,11 +42,10 @@ prep_threads = int(cpu_count_pool.slots//8) if cpu_count_pool is not None else 4
 prep_threads = 2 if prep_threads < 2 else prep_threads
 prep_threads = 9 if prep_threads > 9 else prep_threads
 
-prep_threads = prep_threads // max_active_runs
-prep_threads = prep_threads // max_active_runs
-
 # max_active_runs = 1
 max_active_runs = gpu_count
+prep_threads = prep_threads // max_active_runs
+prep_threads = prep_threads // max_active_runs
 
 ui_forms = {
     "publication_form": {

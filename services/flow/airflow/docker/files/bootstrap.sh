@@ -41,6 +41,7 @@ then
 	echo "Airflow init DB..."
 	echo ""
 	airflow initdb || { echo 'ERROR: airflow initdb' ; exit 1; }
+	airflow airflow db upgrade || { echo 'ERROR: airflow db upgrade' ; exit 1; }
 	echo "DONE"
 	echo "Staring init-pools..."
 	python3 -u /scripts/init_pools.py || { echo 'ERROR: init_pools!' ; exit 1; } 

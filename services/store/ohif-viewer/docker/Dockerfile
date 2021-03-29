@@ -4,7 +4,7 @@ LABEL IMAGE="ohif"
 LABEL VERSION="4.5.9"
 LABEL CI_IGNORE="False"
 
-RUN apk add --no-cache ca-certificates git
+RUN apk add --no-cache alpine-sdk python2 ca-certificates git
 RUN git clone https://github.com/OHIF/Viewers.git /src
 
 RUN yarn config set workspaces-experimental true

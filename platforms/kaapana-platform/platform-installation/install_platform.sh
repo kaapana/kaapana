@@ -296,6 +296,9 @@ function install_chart {
         --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
         --set global.chart_registry_project=$CHART_REGISTRY_PROJECT \
         --name-template $PROJECT_NAME
+        if [ -z "$CHART_REGISTRY_URL" ] && [ -z "$CHART_REGISTRY_PROJECT" ]; then
+            rm -rf $CHART_PATH
+        fi
     else
         #update_extensions
         helm pull -d $HOME/.extensions/ --version=$chart_version $CHART_REGISTRY_PROJECT/pull-docker-chart
@@ -355,7 +358,9 @@ function upgrade_chart {
     if [ ! -z "$CHART_PATH" ]; then
         echo -e "${YELLOW}Charyt-tgz-path $CHART_PATH${NC}"
         helm upgrade $PROJECT_NAME $CHART_PATH --devel --version $chart_version --set global.version="$chart_version" --reuse-values 
-        rm -f $PROJECT_NAME
+        if [ -z "$CHART_REGISTRY_URL" ] && [ -z "$CHART_REGISTRY_PROJECT" ]; then
+            rm -rf $CHART_PATH
+        fi
     else
         helm upgrade $PROJECT_NAME $CHART_REGISTRY_PROJECT/$PROJECT_NAME --devel --version $chart_version --set global.version="$chart_version" --reuse-values 
     fi

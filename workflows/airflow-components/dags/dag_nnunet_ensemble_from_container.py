@@ -5,16 +5,22 @@ from airflow.models import DAG
 from datetime import datetime
 from nnunet.LocalDiceOperator import LocalDiceOperator
 from nnunet.LocalDataorganizerOperator import LocalDataorganizerOperator
+from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
+
 from nnunet.NnUnetOperator import NnUnetOperator
 from kaapana.operators.ResampleOperator import ResampleOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
+from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
+
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from nnunet.GetTaskModelOperator import GetTaskModelOperator
+from nnunet.GetEnsembleOperator import GetEnsembleOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
+
+seg_filter = ""
 
 ui_forms = {
     "workflow_form": {
@@ -22,17 +28,10 @@ ui_forms = {
         "properties": {
             "input": {
                 "title": "Input Modality",
-                "default": "OT",
+                "default": "CT",
                 "description": "Expected input modality.",
                 "type": "string",
                 "readOnly": True,
-            },
-            "single_execution": {
-                "title": "single execution",
-                "description": "Should each series be processed separately?",
-                "type": "boolean",
-                "default": False,
-                "readOnly": False,
             }
         }
     }
@@ -48,60 +47,11 @@ args = {
 }
 
 dag = DAG(
-    dag_id='nnunet-ensemble',
+    dag_id='nnunet-racoon-ensemble',
     default_args=args,
     concurrency=3,
     max_active_runs=1,
     schedule_interval=None
-)
-
-get_test_images = LocalGetRefSeriesOperator(
-    dag=dag,
-    name="nnunet-cohort",
-    target_level="batch",
-    expected_file_count="all",
-    limit_file_count=5,
-    dicom_tags=[
-        {
-            'id': 'ClinicalTrialProtocolID',
-            'value': 'tcia-lymph'
-        },
-        {
-            'id': 'Modality',
-            'value': 'SEG'
-        },
-    ],
-    modality=None,
-    search_policy=None,
-    parallel_downloads=5,
-    delete_input_on_success=True
-)
-
-dcm2nifti_gt = DcmConverterOperator(
-    dag=dag,
-    input_operator=get_test_images,
-    parallel_id="gt",
-    batch_name=str(get_test_images.operator_out_dir),
-    output_format='nii.gz'
-)
-
-get_ref_ct_series_from_gt = LocalGetRefSeriesOperator(
-    dag=dag,
-    input_operator=get_test_images,
-    search_policy="reference_uid",
-    parallel_downloads=5,
-    parallel_id="ct",
-    modality=None,
-    batch_name=str(get_test_images.operator_out_dir),
-    delete_input_on_success=True
-)
-
-dcm2nifti_ct = DcmConverterOperator(
-    dag=dag,
-    input_operator=get_ref_ct_series_from_gt,
-    parallel_id="ct",
-    batch_name=str(get_test_images.operator_out_dir),
-    output_format='nii.gz'
 )
 
 get_input = LocalGetInputDataOperator(
@@ -110,31 +60,56 @@ get_input = LocalGetInputDataOperator(
     parallel_downloads=5
 )
 
-dcm2bin = Bin2DcmOperator(
+dcm2nifti_seg = DcmSeg2ItkOperator(
     dag=dag,
     input_operator=get_input,
-    name="extract-binary",
-    file_extensions="*.dcm"
+    output_format="nii.gz",
+    seg_filter=seg_filter,
+    delete_input_on_success=True
 )
 
-extract_model = GetTaskModelOperator(
+get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     dag=dag,
-    name="unzip-models",
-    target_level="batch_element",
-    input_operator=dcm2bin,
-    operator_out_dir="model-exports",
-    mode="install_zip"
+    input_operator=get_input,
+    search_policy="reference_uid",
+    parallel_downloads=5,
+    modality=None,
+    delete_input_on_success=True
 )
+
+dcm2nifti_ct = DcmConverterOperator(
+    dag=dag,
+    input_operator=get_ref_ct_series_from_seg,
+    output_format='nii.gz',
+    delete_input_on_success=True
+)
+
+resample_seg = ResampleOperator(
+    dag=dag,
+    input_operator=dcm2nifti_seg,
+    original_img_operator=dcm2nifti_ct,
+    operator_out_dir=dcm2nifti_seg.operator_out_dir,
+    delete_input_on_success=False
+)
+
+check_seg = LocalSegCheckOperator(
+    dag=dag,
+    abort_on_error=False,
+    move_data=True,
+    input_operators=[dcm2nifti_seg, dcm2nifti_ct],
+    delete_input_on_success=False
+)
+
+extract_ensemble = GetEnsembleOperator(dag=dag)
 
 nnunet_predict = NnUnetOperator(
     dag=dag,
     mode="inference",
     input_modality_operators=[dcm2nifti_ct],
     inf_softmax=True,
-    inf_batch_dataset=True,
     inf_threads_prep=1,
     inf_threads_nifti=1,
-    models_dir=extract_model.operator_out_dir,
+    models_dir=extract_ensemble.operator_out_dir,
 )
 
 nnunet_ensemble = NnUnetOperator(

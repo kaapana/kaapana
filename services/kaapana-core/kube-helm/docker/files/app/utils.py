@@ -9,8 +9,22 @@ import time
 import requests
 import subprocess
 import json
+import hashlib
 from flask import render_template, Response, request, jsonify
 from app import app
+
+charts_cached = None
+charts_hashes = {}
+
+
+def sha256sum(filepath):
+    h = hashlib.sha256()
+    b = bytearray(128*1024)
+    mv = memoryview(b)
+    with open(filepath, 'rb', buffering=0) as f:
+        for n in iter(lambda: f.readinto(mv), 0):
+            h.update(mv[:n])
+    return h.hexdigest()
 
 
 def helm_show_values(name, version):
@@ -227,15 +241,26 @@ def helm_ls(namespace, release_filter=''):
 
 
 def helm_search_repo(keywords_filter):
-
+    global charts_cached, charts_hashes
     keywords_filter = set(keywords_filter)
     helm_packages = [f for f in glob.glob(os.path.join(app.config["HELM_REPOSITORY_CACHE"], '*.tgz'))]
-    charts = {}
+    modified = False
+    new_charts_hashes = {}
     for helm_package in helm_packages:
-        chart = helm_show_chart(package=helm_package)
-        if 'keywords' in chart and (set(chart['keywords']) & keywords_filter):
-            charts[f'{chart["name"]}-{chart["version"]}'] = chart
-    return charts
+        chart_hash = sha256sum(filepath=helm_package)
+        if helm_package not in charts_hashes or chart_hash != charts_hashes[helm_package]:
+            modified = True
+        new_charts_hashes[helm_package] = chart_hash
+    
+    charts_hashes = new_charts_hashes
+    if modified:
+        charts_cached = {}
+        for helm_package in helm_packages:
+            chart = helm_show_chart(package=helm_package)
+            if 'keywords' in chart and (set(chart['keywords']) & keywords_filter):
+                charts_cached[f'{chart["name"]}-{chart["version"]}'] = chart
+
+    return charts_cached
 
 
 def get_kube_status(kind, name, namespace):

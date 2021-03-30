@@ -231,8 +231,8 @@ resample_seg = ResampleOperator(
 
 check_seg = LocalSegCheckOperator(
     dag=dag,
-    abort_on_error=True,
-    move_data=False,
+    abort_on_error=False,
+    move_data=True,
     input_operators=[dcm2nifti_seg, dcm2nifti_ct],
     delete_input_on_success=False
 )

@@ -451,19 +451,8 @@ class HelmChart:
             yield log_entry
 
     def chart_push(self):
-        os.chdir(os.path.dirname(self.chart_dir))
-        try_count = 0
 
-        command = ["helm", "chart", "push", "{}/{}/{}:{}".format(HelmChart.default_registry, self.repo, self.name, self.version)]
-
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
-        while output.returncode != 0 and try_count < HelmChart.max_tries:
-            print("Error push -> try: {}".format(try_count))
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
-            try_count += 1
-        log = make_log(std_out=output.stdout, std_err=output.stderr)
-
-        if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
+        if not (self.name.endswith('chart') or self.name.endswith('workflow')):
             log_entry = {
                 "suite": suite_tag,
                 "test": "{}:{}".format(self.name, self.version),
@@ -471,25 +460,51 @@ class HelmChart:
                 "log": log,
                 "loglevel": "ERROR",
                 "timestamp": get_timestamp(),
-                "message": "push failed: {}".format(self.name),
+                "message": "Chart push failed: {} due to name error. Name of chart has to end with -chart or -workflow!".format(self.name),
                 "rel_file": self.path,
                 "test_done": True,
             }
             yield log_entry
-
         else:
-            log_entry = {
-                "suite": suite_tag,
-                "test": "{}:{}".format(self.name, self.version),
-                "step": "Helm push",
-                "log": log,
-                "loglevel": "DEBUG",
-                "timestamp": get_timestamp(),
-                "message": "Chart pushed successfully!",
-                "rel_file": self.path,
-                "test_done": True,
-            }
-            yield log_entry
+            os.chdir(os.path.dirname(self.chart_dir))
+            try_count = 0
+
+            command = ["helm", "chart", "push", "{}/{}/{}:{}".format(HelmChart.default_registry, self.repo, self.name, self.version)]
+
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+            while output.returncode != 0 and try_count < HelmChart.max_tries:
+                print("Error push -> try: {}".format(try_count))
+                output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+                try_count += 1
+            log = make_log(std_out=output.stdout, std_err=output.stderr)
+
+            if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
+                log_entry = {
+                    "suite": suite_tag,
+                    "test": "{}:{}".format(self.name, self.version),
+                    "step": "Helm push chart to docker",
+                    "log": log,
+                    "loglevel": "ERROR",
+                    "timestamp": get_timestamp(),
+                    "message": "push failed: {}".format(self.name),
+                    "rel_file": self.path,
+                    "test_done": True,
+                }
+                yield log_entry
+
+            else:
+                log_entry = {
+                    "suite": suite_tag,
+                    "test": "{}:{}".format(self.name, self.version),
+                    "step": "Helm push",
+                    "log": log,
+                    "loglevel": "DEBUG",
+                    "timestamp": get_timestamp(),
+                    "message": "Chart pushed successfully!",
+                    "rel_file": self.path,
+                    "test_done": True,
+                }
+                yield log_entry
 
     def chart_save(self):
         os.chdir(os.path.dirname(self.chart_dir))
@@ -503,7 +518,7 @@ class HelmChart:
                 "log": "",
                 "loglevel": "ERROR",
                 "timestamp": get_timestamp(),
-                "message": "save failed: {} due to name error. Name of chart has to end with -chart or -workflow!".format(self.name),
+                "message": "Chart save failed: {} due to name error. Name of chart has to end with -chart or -workflow!".format(self.name),
                 "rel_file": self.path,
                 "test_done": True,
             }

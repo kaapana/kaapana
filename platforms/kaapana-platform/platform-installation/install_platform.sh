@@ -297,7 +297,7 @@ function install_chart {
         --set global.chart_registry_project=$CHART_REGISTRY_PROJECT \
         --name-template $PROJECT_NAME
     else
-        update_extensions
+        #update_extensions
         helm pull -d $HOME/.extensions/ --version=$chart_version $CHART_REGISTRY_PROJECT/pull-docker-chart
         echo -e "${YELLOW}Installing $CHART_REGISTRY_PROJECT/$PROJECT_NAME version: $chart_version${NC}"
         helm install --devel --version $chart_version  $CHART_REGISTRY_PROJECT/$PROJECT_NAME \
@@ -556,15 +556,15 @@ do
             exit 0
         ;;
 
-        --update-extensions)
-            shell_update_extensions
-            exit 0
-        ;;
+        # --update-extensions)
+        #     shell_update_extensions
+        #     exit 0
+        # ;;
 
-        --prefetch-extensions)
-            prefetch_extensions
-            exit 0
-        ;;
+        # --prefetch-extensions)
+        #     prefetch_extensions
+        #     exit 0
+        # ;;
 
         *)    # unknown option
             echo -e "${RED}unknow parameter: $key ${NC}"

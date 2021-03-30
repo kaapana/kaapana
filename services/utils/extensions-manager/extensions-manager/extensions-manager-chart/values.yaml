@@ -1,0 +1,6 @@
+---
+global:
+    pull_policy_jobs:
+    extensions_image:
+    extensions_version:
+    action: "copy"

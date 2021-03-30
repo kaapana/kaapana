@@ -179,19 +179,15 @@ if __name__ == '__main__':
         print("-----------------------------------------------------------")
         default_chart_registry = configuration["default_chart_registry"]
         if default_chart_registry == "":
-            print("No default default_chart_registry configured!")
-            print("Please specify 'default_chart_registry' within the build-configuration.json")
-            exit(1)
-        elif default_chart_registry == "push_to_docker":
             push_charts_to_docker = True
             default_chart_registry = configuration["default_container_registry"]
-            print("Using docker registry as default_chart_registry: {}".format(default_chart_registry))
+            print("Using default_container_registry as default_chart_registry {}".format(default_chart_registry))
         else:
             push_charts_to_docker = False
             print("Using default_chart_registry: {}".format(default_chart_registry))
         print("-----------------------------------------------------------")
 
-        if push_charts and (registry_user is None or registry_pwd is None):
+        if push_charts and (registry_user is None or registry_pwd is None) and push_charts_to_docker is False:
             if os.getenv("REGISTRY_USER", None) is None or os.getenv("REGISTRY_PW", None) is None:
                 print()
                 print("ENVs 'REGISTRY_USER' and 'REGISTRY_PW' not found! ")
@@ -207,8 +203,8 @@ if __name__ == '__main__':
 
         default_chart_project = configuration["default_chart_project"]
         if default_chart_project == "":
-            print("no default_chart_project configured.")
-            default_chart_project = None
+            default_chart_project = configuration["default_container_project"]
+            print("Using default_container_project as default_chart_project: {}".format(default_chart_registry))
         else:
             print("Using default_chart_project: {}".format(default_chart_project))
         print("-----------------------------------------------------------")
@@ -314,12 +310,12 @@ if __name__ == '__main__':
                 for log_entry in chart.lint_chart():
                     print_log_entry(log_entry, kind="CHARTS")
                     if log_entry['loglevel'].upper() == "ERROR":
-                        raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
+                        raise SkipException("SKIP {}: lint_chart() error!".format(log_entry['test']), log=log_entry)
 
                 for log_entry in chart.lint_kubeval():
                     print_log_entry(log_entry, kind="CHARTS")
                     if log_entry['loglevel'].upper() == "ERROR":
-                        raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
+                        raise SkipException("SKIP {}: lint_kubeval() error!".format(log_entry['test']), log=log_entry)
 
                 if "platforms" in chart.chart_dir and create_package:
                     for log_entry in chart.package():
@@ -333,21 +329,23 @@ if __name__ == '__main__':
                                 os.remove(package)
 
                 #################TODO add save charts to yaml! ##########
-                if push_charts_to_docker is True and push_charts is True and not chart.repo.startswith('file://'):
+                if chart.name.endswith('extensions'):
+                    pass
+                elif push_charts_to_docker is True and push_charts is True and not chart.repo.startswith('file://'):
                     for log_entry in chart.chart_save():
                         print_log_entry(log_entry, kind="CHARTS")
                         if log_entry['loglevel'].upper() == "ERROR":
-                            raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
+                            raise SkipException("SKIP {}: chart_save() error!".format(log_entry['test']), log=log_entry)
                     for log_entry in chart.chart_push():
                         print_log_entry(log_entry, kind="CHARTS")
                         if log_entry['loglevel'].upper() == "ERROR":
-                            raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
+                            raise SkipException("SKIP {}: chart_push() error!".format(log_entry['test']), log=log_entry)
                 else:
                     if push_charts and not chart.repo.startswith('file://'):
                         for log_entry in chart.push():
                             print_log_entry(log_entry, kind="CHARTS")
                             if log_entry['loglevel'].upper() == "ERROR":
-                                raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
+                                raise SkipException("SKIP {}: push() error!".format(log_entry['test']), log=log_entry)
 
             except SkipException as error:
                 print("SkipException: {}".format(str(error)))

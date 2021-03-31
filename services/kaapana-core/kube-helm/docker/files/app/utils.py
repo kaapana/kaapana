@@ -347,17 +347,12 @@ def get_manifest_infos(manifest):
 
 
 def all_successful(status):
-    print(f"#### STATUS: {status}", flush=True)
     successfull = ['Completed', 'Running', 'deployed']
-    pending = ['Pending', 'Unknown', 'ContainerCreating', 'Terminating']
-    status_successfull = "yes"
     for i in status:
-        if i in pending and status_successfull == "yes":
-            status_successfull = "pending"
-        elif i not in successfull and status_successfull == "yes":
-            status_successfull = "no"
+        if i not in successfull:
+            return "pending"
     
-    return status_successfull
+    return "yes"
 
 
 def get_extensions_list():

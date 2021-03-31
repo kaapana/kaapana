@@ -124,10 +124,10 @@ Then delete the resource with:
 
 ::
 
-   helm delete <release-name>
+   helm uninstall <release-name>
 
 If the resource is still there delete it with the ``no-hooks`` options:
 
 ::
 
-   helm delete --no-hooks <release-name>
+   helm uninstall --no-hooks <release-name>

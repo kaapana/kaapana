@@ -293,7 +293,7 @@ In order to remove the chart execute:
 
 ::
 
-   helm delete hello-world-chart
+   helm uninstall hello-world-chart
 
 In case you want to push the helm chart to a registry you first need to do the following steps:
 
@@ -324,7 +324,7 @@ Also here the chart can be deleted again with:
 
 ::
 
-   helm delete hello-world-chart
+   helm uninstall hello-world-chart
 
 Since in the ``Chart.yaml`` definition we have added ``kaapanaapplication`` to the keywords, your application should also appear in the extension list. If it does not you might need to update the extension list via:
 

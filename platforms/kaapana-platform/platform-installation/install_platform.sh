@@ -151,7 +151,7 @@ function get_domain {
 
 function delete_deployment {
     echo -e "${YELLOW}Uninstalling releases${NC}"
-    helm ls --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 helm delete
+    helm ls --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 helm uninstall
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
@@ -226,6 +226,10 @@ function install_chart {
         echo -e "${YELLOW}QUIET-MODE active!${NC}"
     fi
     echo -e "${YELLOW}GPU_SUPPORT: $GPU_SUPPORT ${NC}"
+    if [ ! "$GPU_SUPPORT" = "true" ];then
+        echo -e "-> enabling GPU in Microk8s ..."
+        microk8s.enable gpu
+    fi
     get_domain
     if [ ! "$QUIET" = "true" ];then
         echo -e ""

@@ -27,20 +27,21 @@ def create_json_report(log_files, target_path):
 
         print(f"# fold: {fold}..")
         fold_data = {"fold": fold}
-        
+
         if dataset_json != None:
-            fold_data["name"]=dataset_json["name"] if "name" in dataset_json else "N/A"
-            fold_data["description"]=dataset_json["description"] if "description" in dataset_json else "N/A"
-            fold_data["labels"]=dataset_json["labels"] if "labels" in dataset_json else "N/A"
-            fold_data["licence"]=dataset_json["licence"] if "licence" in dataset_json else "N/A"
-            fold_data["modality"]=dataset_json["modality"] if "modality" in dataset_json else "N/A"
-            fold_data["network_trainer"]=dataset_json["network_trainer"] if "network_trainer" in dataset_json else "N/A"
-            fold_data["numTest"]=dataset_json["numTest"] if "numTest" in dataset_json else "N/A"
-            fold_data["numTraining"]=dataset_json["numTraining"] if "numTraining" in dataset_json else "N/A"
-            fold_data["reference"]=dataset_json["reference"] if "reference" in dataset_json else "N/A"
-            fold_data["release"]=dataset_json["release"] if "release" in dataset_json else "N/A"
-            fold_data["shuffle_seed"]=dataset_json["shuffle_seed"] if "shuffle_seed" in dataset_json else "N/A"
-            fold_data["tensorImageSize"]=dataset_json["tensorImageSize"] if "tensorImageSize" in dataset_json else "N/A"
+            fold_data["name"] = dataset_json["name"] if "name" in dataset_json else "N/A"
+            fold_data["description"] = dataset_json["description"] if "description" in dataset_json else "N/A"
+            fold_data["labels"] = dataset_json["labels"] if "labels" in dataset_json else "N/A"
+            fold_data["licence"] = dataset_json["licence"] if "licence" in dataset_json else "N/A"
+            fold_data["modality"] = dataset_json["modality"] if "modality" in dataset_json else "N/A"
+            fold_data["network_trainer"] = dataset_json["network_trainer"] if "network_trainer" in dataset_json else "N/A"
+            fold_data["numTest"] = dataset_json["numTest"] if "numTest" in dataset_json else "N/A"
+            fold_data["numTraining"] = dataset_json["numTraining"] if "numTraining" in dataset_json else "N/A"
+            fold_data["reference"] = dataset_json["reference"] if "reference" in dataset_json else "N/A"
+            fold_data["release"] = dataset_json["release"] if "release" in dataset_json else "N/A"
+            fold_data["shuffle_seed"] = dataset_json["shuffle_seed"] if "shuffle_seed" in dataset_json else "N/A"
+            fold_data["node_uid"] = dataset_json["node_uid"] if "node_uid" in dataset_json else "N/A"
+            fold_data["tensorImageSize"] = dataset_json["tensorImageSize"] if "tensorImageSize" in dataset_json else "N/A"
 
         fold_data["epochs"] = []
         with open(log_file) as f:
@@ -91,7 +92,6 @@ def create_json_report(log_files, target_path):
         json.dump(fold_data, f, indent=4, sort_keys=False)
 
 
-
 # START
 args_got = sys.argv[1:]
 if (len(args_got) != 2):
@@ -138,8 +138,5 @@ for image_path in progress_images_list:
 pdf1_filename = join(target_path, f'nnunet_report_{timestamp}.pdf')
 
 print(f"# Save report pdf at: {pdf1_filename}")
-im_list[0].save(pdf1_filename, "PDF", resolution=100.0,
-                save_all=True, append_images=im_list[1:])
-
-
+im_list[0].save(pdf1_filename, "PDF", resolution=100.0,save_all=True, append_images=im_list[1:])
 print("# saved report.")

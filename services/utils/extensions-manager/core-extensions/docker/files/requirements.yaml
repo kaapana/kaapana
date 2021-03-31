@@ -30,12 +30,13 @@ dependencies:
   - name: pysyft-nb-chart
     version: 0.1.0-vdev
     repository: file://../../../../../../services/applications/openmined/pysyft-nb/pysyft-nb-chart
-  - name: radiomics-vdev-workflow
+  - name: radiomics-workflow
     version: 0.1.1-vdev
-    repository: file://../../../../../../workflows/dag-installer/radiomics/radiomics-vdev-workflow
+    repository: file://../../../../../../workflows/dag-installer/radiomics/radiomics-workflow
   - name: shapemodel-vdev-workflow
     version: 0.1.1-vdev
     repository: file://../../../../../../workflows/dag-installer/shapemodel/shapemodel-vdev-workflow
   - name: tensorboard-chart
     version: 2.4.1
     repository: file://../../../../../../services/applications/tensorboard/tensorboard-chart 
+    

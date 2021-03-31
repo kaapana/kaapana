@@ -10,6 +10,7 @@ from build_helper.charts_build_and_push_all import HelmChart
 from build_helper.containers_build_and_push_all import start_container_build
 from build_helper.charts_build_and_push_all import init_helm_charts
 
+os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
 log_list = {
     "CONTAINERS": [],
     "CHARTS": [],

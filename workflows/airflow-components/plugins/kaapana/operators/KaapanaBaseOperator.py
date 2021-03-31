@@ -110,8 +110,8 @@ class KaapanaBaseOperator(BaseOperator):
                  manage_cache=None,
                  delete_input_on_success=False,
                  # Other stuff
-                 batch_name = None,
-                 workflow_dir = None,
+                 batch_name=None,
+                 workflow_dir=None,
                  cmds=None,
                  arguments=None,
                  env_vars=None,
@@ -161,8 +161,8 @@ class KaapanaBaseOperator(BaseOperator):
             gpu_mem_mb=gpu_mem_mb,
             gpu_mem_mb_lmt=gpu_mem_mb_lmt,
             manage_cache=manage_cache,
-            batch_name = batch_name,
-            workflow_dir = workflow_dir,
+            batch_name=batch_name,
+            workflow_dir=workflow_dir,
             delete_input_on_success=delete_input_on_success
         )
 
@@ -206,30 +206,32 @@ class KaapanaBaseOperator(BaseOperator):
         self.enable_proxy = enable_proxy
 
         self.volume_mounts.append(VolumeMount(
-            'workflowdata', mount_path='/data', sub_path=None, read_only=False))
+            'workflowdata', mount_path='/data', sub_path=None, read_only=False
+        ))
 
         self.volumes.append(
             Volume(name='workflowdata', configs={'hostPath':
-                {
-                    'type': 'DirectoryOrCreate',
-                    'path': self.data_dir
-                }
-            })
+                                                 {
+                                                     'type': 'DirectoryOrCreate',
+                                                     'path': self.data_dir
+                                                 }
+                                                 })
         )
 
         if self.training_operator:
             self.volume_mounts.append(VolumeMount(
-                'modeldata', mount_path='/models', sub_path=None, read_only=False))
+                'modeldata', mount_path='/models', sub_path=None, read_only=False
+            ))
 
             self.volumes.append(
                 Volume(name='modeldata', configs={'hostPath':
-                    {
-                        'type': 'DirectoryOrCreate',
-                        'path': self.model_dir
-                    }
-                })
+                                                  {
+                                                      'type': 'DirectoryOrCreate',
+                                                      'path': self.model_dir
+                                                  }
+                                                  })
             )
-            
+
             self.volume_mounts.append(VolumeMount(
                 'tensorboard', mount_path='/tensorboard', sub_path=None, read_only=False))
             tb_config = {
@@ -331,7 +333,7 @@ class KaapanaBaseOperator(BaseOperator):
 
         self.kube_name = self.kube_name.lower() + "-" + str(uuid.uuid4())[:8]
         self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63)
-        
+
         # First if condition could be removed when the api calls are adapted to:
         # json_data = {
         #     'rest_call': {
@@ -358,7 +360,7 @@ class KaapanaBaseOperator(BaseOperator):
             # print(json.dumps(self.env_vars, indent=4, sort_keys=True))
             context['dag_run'].conf["rest_call"] = {'global': form_data}
         if context['dag_run'].conf is not None and "rest_call" in context['dag_run'].conf and context['dag_run'].conf["rest_call"] is not None:
-            self.rest_env_vars_update(context['dag_run'].conf["rest_call"]) 
+            self.rest_env_vars_update(context['dag_run'].conf["rest_call"])
             print("CONTAINER ENVS:")
             print(json.dumps(self.env_vars, indent=4, sort_keys=True))
 
@@ -431,7 +433,7 @@ class KaapanaBaseOperator(BaseOperator):
         if ti.delete_input_on_success:
             print("#### deleting input-dirs...!")
             data_dir = "/data"
-            batch_folders = [f for f in glob.glob(os.path.join(data_dir,'batch', '*'))]
+            batch_folders = [f for f in glob.glob(os.path.join(data_dir, 'batch', '*'))]
             for batch_element_dir in batch_folders:
                 element_input_dir = os.path.join(batch_element_dir, ti.operator_in_dir)
                 print(f"# Deleting: {element_input_dir} ...")

@@ -7,10 +7,12 @@ import numpy as np
 import nibabel as nib
 from os.path import join, basename, dirname, exists
 from os import remove
+from pathlib import Path
 from datetime import timedelta
 from multiprocessing.pool import ThreadPool
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+
 
 class LocalSegCheckOperator(KaapanaPythonBaseOperator):
 
@@ -71,13 +73,15 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         print("# Check files started...")
 
+        case_count = 0
+        ignored_cases = []
         run_dir = join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
         batch_folders = [f for f in glob.glob(join(run_dir, BATCH_NAME, '*'))]
+        output_dir = join(run_dir, self.operator_out_dir)
 
         print("# Found {} batches".format(len(batch_folders)))
 
         input_dirs = [dir.operator_out_dir for dir in self.input_operators]
-
         print(f"# Processing input dirs: {input_dirs}")
 
         for batch_element_dir in batch_folders:
@@ -126,6 +130,13 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
                         print(f"{input_dirs[i-1]} vs {input_dirs[i]}: {last_dimension} <-> {dimension}: ERROR")
                         print("# ERROR: Dimensions are different!!!")
                         print("# ")
+                        if self.anonymize:
+                            file_id = case_count
+                            case_count +=1
+                        else:
+                            file_id = basename(batch_element_dir)
+
+                        ignored_cases.append(f"{file_id}: {input_dirs[i-1]} vs {input_dirs[i]}: {last_dimension} <-> {dimension}: ERROR")
                     else:
                         print(f"{input_dirs[i-1]} vs {input_dirs[i]}: {last_dimension} <-> {dimension}: OK")
 
@@ -143,18 +154,32 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
                     exit(1)
 
         print("# ")
+        if len(ignored_cases) > 0:
+            print("# ")
+            print(f"# Got {len(ignored_cases)} ignored cases -> writing log-file!")
+            print("# ")
+            Path(output_dir).mkdir(parents=True, exist_ok=True)
+            log_path = join(output_dir, "log_ignored_cases.txt")
+            with open(log_path, 'w') as f:
+                for item in ignored_cases:
+                    f.write("%s\n" % item)
+        print("# ")
+        print("# DONE ")
+        print("# ")
 
     def __init__(self,
                  dag,
                  input_operators,
-                 move_data=False,
-                 abort_on_error=True,
+                 move_data=True,
+                 abort_on_error=False,
+                 anonymize=True,
                  parallel_checks=3,
                  *args,
                  **kwargs):
 
         self.abort_on_error = abort_on_error
         self.move_data = move_data
+        self.anonymize = anonymize
         self.input_operators = input_operators
         self.parallel_checks = parallel_checks
 

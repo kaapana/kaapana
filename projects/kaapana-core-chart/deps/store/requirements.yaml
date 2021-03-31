@@ -1,10 +1,10 @@
 ---
 dependencies:
   - name: dcm4chee-chart
-    version: "5.23.2"
+    version: "5.22.4"
     repository: file://../../../../services/store/dcm4chee/dcm4chee-chart
   - name: ohif-chart
-    version: "4.9.2-vdev"
+    version: "4.9.7-vdev"
     repository: file://../../../../services/store/ohif-viewer/ohif-chart
   - name: minio-chart
     version: "2021.03.12"

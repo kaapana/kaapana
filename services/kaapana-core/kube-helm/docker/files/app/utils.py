@@ -1,16 +1,39 @@
 import os
 import glob
+from os.path import basename
 import yaml
-import functools
 import secrets
 import re
 import json
-import time
-import requests
 import subprocess
 import json
+import hashlib
+import time
+import copy
 from flask import render_template, Response, request, jsonify
+from distutils.version import LooseVersion
+from app.repeat_timer import RepeatedTimer
 from app import app
+
+charts_cached = None
+charts_hashes = {}
+
+refresh_delay = 30
+smth_pending = False
+update_running = False
+
+last_refresh_timestamp = None
+extensions_list_cached = None
+
+
+def sha256sum(filepath):
+    h = hashlib.sha256()
+    b = bytearray(128*1024)
+    mv = memoryview(b)
+    with open(filepath, 'rb', buffering=0) as f:
+        for n in iter(lambda: f.readinto(mv), 0):
+            h.update(mv[:n])
+    return h.hexdigest()
 
 
 def helm_show_values(name, version):
@@ -140,9 +163,12 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
 
 
 def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix='', in_background=True):
+    global smth_pending
+    smth_pending = True
 
     name = payload["name"]
     version = payload["version"]
+
 
     default_sets = {
         'global.registry_url': os.getenv('REGISTRY_URL'),
@@ -206,6 +232,8 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
 
     helm_command = f'{os.environ["HELM_PATH"]} install {helm_command_addons} -n {namespace} {release_name} {helm_sets} {app.config["HELM_REPOSITORY_CACHE"]}/{name}-{version}.tgz -o json {helm_comman_suffix}'
     print('helm_command', helm_command)
+    get_extensions_list()
+    
     if in_background is False:
         return subprocess.check_output(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command
     else:
@@ -213,9 +241,11 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
 
 
 def helm_delete(release_name, namespace, helm_command_addons=''):
+    global smth_pending
+    smth_pending = True
     helm_command = f'{os.environ["HELM_PATH"]} delete {helm_command_addons} -n {namespace} {release_name}'
     subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
-
+    get_extensions_list()
 
 def helm_ls(namespace, release_filter=''):
     try:
@@ -226,16 +256,34 @@ def helm_ls(namespace, release_filter=''):
         return []
 
 
-def helm_search_repo(keywords_filter):
-
-    keywords_filter = set(keywords_filter)
+def check_modified():
+    global charts_hashes
     helm_packages = [f for f in glob.glob(os.path.join(app.config["HELM_REPOSITORY_CACHE"], '*.tgz'))]
-    charts = {}
+    modified = False
+    new_charts_hashes = {}
     for helm_package in helm_packages:
-        chart = helm_show_chart(package=helm_package)
-        if 'keywords' in chart and (set(chart['keywords']) & keywords_filter):
-            charts[f'{chart["name"]}-{chart["version"]}'] = chart
-    return charts
+        chart_hash = sha256sum(filepath=helm_package)
+        if helm_package not in charts_hashes or chart_hash != charts_hashes[helm_package]:
+            print(f"Chart {basename(helm_package)} has been modified!", flush=True)
+            modified = True
+        new_charts_hashes[helm_package] = chart_hash
+    charts_hashes = new_charts_hashes
+    return modified
+
+
+def helm_search_repo(keywords_filter):
+    global charts_cached
+    keywords_filter = set(keywords_filter)
+
+    if check_modified():
+        print("Charts modified -> generating new list.", flush=True)
+        helm_packages = [f for f in glob.glob(os.path.join(app.config["HELM_REPOSITORY_CACHE"], '*.tgz'))]
+        charts_cached = {}
+        for helm_package in helm_packages:
+            chart = helm_show_chart(package=helm_package)
+            if 'keywords' in chart and (set(chart['keywords']) & keywords_filter):
+                charts_cached[f'{chart["name"]}-{chart["version"]}'] = chart
+    return charts_cached
 
 
 def get_kube_status(kind, name, namespace):
@@ -300,3 +348,81 @@ def all_successful(status):
         if i not in successfull:
             return 'no'
     return 'yes'
+
+
+def get_extensions_list():
+    global refresh_delay, extensions_list_cached, last_refresh_timestamp, rt, smth_pending, update_running
+    success = True
+    try:
+        if update_running or (not smth_pending and last_refresh_timestamp != None and extensions_list_cached != None and (time.time() - last_refresh_timestamp) < refresh_delay):
+            # print("Using cached extension-list...", flush=True)
+            pass
+        else:
+            # print("Generating new extension-list...", flush=True)
+            smth_pending = False
+            update_running = True
+            available_charts = helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
+            chart_version_dict = {}
+            for _, chart in available_charts.items():
+                if chart['name'] not in chart_version_dict:
+                    chart_version_dict.update({chart['name']: []})
+                chart_version_dict[chart['name']].append(chart['version'])
+
+            extensions_list = []
+            for name, versions in chart_version_dict.items():
+                versions.sort(key=LooseVersion, reverse=True)
+                latest_version = versions[0]
+                extension = available_charts[f'{name}-{latest_version}']
+                extension['versions'] = versions
+                extension['version'] = latest_version
+                extension['experimental'] = 'yes' if 'kaapanaexperimental' in extension['keywords'] else 'no'
+                extension['multiinstallable'] = 'yes' if 'kaapanamultiinstallable' in extension['keywords'] else 'no'
+                if 'kaapanaworkflow' in extension['keywords']:
+                    extension['kind'] = 'dag'
+                elif 'kaapanaapplication' in extension['keywords']:
+                    extension['kind'] = 'application'
+                else:
+                    continue
+                extension['releaseName'] = extension["name"]
+                extension['helmStatus'] = ''
+                extension['kubeStatus'] = ''
+                extension['successful'] = 'none'
+
+                status = helm_status(extension["name"], app.config['NAMESPACE'])
+                if 'kaapanamultiinstallable' in extension['keywords'] or not status:
+                    extension['installed'] = 'no'
+                    extensions_list.append(extension)
+                for release in helm_ls(app.config['NAMESPACE'], extension["name"]):
+                    for version in extension["versions"]:
+                        if release['chart'] == f'{extension["name"]}-{version}':
+                            manifest = helm_get_manifest(release['name'], app.config['NAMESPACE'])
+                            kube_status, ingress_paths = get_manifest_infos(manifest)
+
+                            running_extension = copy.deepcopy(extension)
+                            running_extension['releaseName'] = release['name']
+                            running_extension['successful'] = all_successful(set(kube_status['status'] + [release['status']]))
+                            running_extension['installed'] = 'yes'
+                            running_extension['links'] = ingress_paths
+                            running_extension['helmStatus'] = release['status'].capitalize()
+                            running_extension['kubeStatus'] = ", ".join(kube_status['status'])
+                            running_extension['version'] = version
+
+                            if running_extension['successful'] != "yes":
+                                print(f"Chart {release['name']} not ready: {running_extension['successful']} -> pending...", flush=True)
+                                smth_pending = True
+                            extensions_list.append(running_extension)
+
+            last_refresh_timestamp = time.time()
+            update_running = False
+            extensions_list_cached = extensions_list
+
+    except subprocess.CalledProcessError as e:
+        success = False
+
+    return success, extensions_list_cached
+
+
+if charts_cached == None:
+    helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
+
+rt = RepeatedTimer(5, get_extensions_list)

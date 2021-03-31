@@ -16,19 +16,19 @@
           :items="launchedAppLinks",
           :items-per-page="20",
           :loading="loading",
-          sort-by='releaseMame',
+          sort-by='releaseName',
           loading-text="Waiting a few seconds..."
         )
           template(v-slot:item.links="{ item }")
-            span {{ item.releaseMame }} &nbsp;
+            span {{ item.releaseName }} &nbsp;
               a(:href='link', target='_blank' v-for="link in item.links" :key="item.link")
                 v-icon(color='primary') mdi-open-in-new
           template(v-slot:item.successful="{ item }")
             v-icon(v-if="item.successful==='yes'" color='green') mdi-check-circle
             v-icon(v-if="item.successful==='no'" color='red') mdi-alert-circle
-          template(v-slot:item.releaseMame="{ item }")
+          template(v-slot:item.releaseName="{ item }")
             v-btn(
-              @click="deleteChart(item.releaseMame)",
+              @click="deleteChart(item.releaseName)",
               color="primary",
             ) Finished manual interaction
 </template>
@@ -64,7 +64,7 @@ export default Vue.extend({
         align: "start",
         value: "successful",
       },
-      { text: "Action", value: "releaseMame" },
+      { text: "Action", value: "releaseName" },
     ],
   }),
   mounted() {

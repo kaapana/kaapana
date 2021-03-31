@@ -1,7 +1,7 @@
-FROM codercom/code-server:3.8.0
+FROM codercom/code-server:3.9.1
 
 LABEL IMAGE="code-server"
-LABEL VERSION="3.8.0"
+LABEL VERSION="3.9.1"
 LABEL CI_IGNORE="False"
 
 # ubuntu installations (e.g. Python)

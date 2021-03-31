@@ -1,7 +1,7 @@
 ---
 apiVersion: v1
-appVersion: "4.9.2-vdev"
+appVersion: "4.9.7-vdev"
 description: OHIF Medical Imaging Viewer
 name: ohif-chart
-version: "4.9.2-vdev"
+version: "4.9.7-vdev"
 

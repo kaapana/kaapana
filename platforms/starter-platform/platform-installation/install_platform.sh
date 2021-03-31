@@ -1,23 +1,17 @@
 #!/bin/bash
-######################################################################
-# Copied from kaapana platform
-######################################################################
 set -euf -o pipefail
-
+export HELM_EXPERIMENTAL_OCI=1
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
 PROJECT_NAME="starter-platform-chart" # name of the platform Helm chart
 DEFAULT_VERSION="0.1.0-vdev"    # version of the platform Helm chart
-PULL_DOCKER_CHART_VERSION="0.1.1-vdev"
+
 DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart
 
 CONTAINER_REGISTRY_URL=""                          # eg 'dktk-jip-registry.dkfz.de' -> URL for the Docker registry (has to be 'local' for build-mode 'local' and the username for build-mode 'dockerhub')
 CONTAINER_REGISTRY_PROJECT=""                      # eg '/kaapana' -> The slash (/) in front of the project is important!!
                                                    # Project of the Docker registry (not all have seperated projects then it shuould be empty-> '')
                                                    # For build-mode 'local' and 'dockerhub' this should also be empty 
-
-CHART_REGISTRY_URL="https://dktk-jip-registry.dkfz.de/chartrepo" # eg https://xx.xx.xx.xx/chartrepo -> URL for the chart repository 
-CHART_REGISTRY_PROJECT="kaapana-public"                          # project name for the Helm charts
 
 FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
@@ -45,7 +39,6 @@ if [ -z ${http_proxy+x} ] || [ -z ${https_proxy+x} ]; then
 fi
 
 CHART_PATH=""
-declare -a NEEDED_REPOS=("$CHART_REGISTRY_PROJECT")
 script_name=`basename "$0"`
 
 # check if stdout is a terminal...
@@ -179,16 +172,12 @@ function delete_deployment {
         echo "${RED}Once everything is delete you can reinstall the platform!${NC}"
         exit 1
     fi
-
-    delete_helm_repos
-
+    
     echo -e "${GREEN}####################################  UNINSTALLATION DONE  ############################################${NC}"
 }
 
-
 function update_extensions {
     echo -e "${GREEN}Downloading all kaapanaworkflows, kaapanaapplications and kaapanaint to $HOME/.extensions${NC}"
-    
     set +euf
     updates_output=$(helm repo update)
     set -euf
@@ -201,34 +190,16 @@ function update_extensions {
     else
         mkdir -p $HOME/.extensions
         find $HOME/.extensions/ -type f -delete
+        set +euf
         helm search repo --devel -l -r '(kaapanaworkflow|kaapanaapplication|kaapanaint)' -o json | jq -r '.[] | "\(.name) --version \(.version)"' | xargs -L1 helm pull -d $HOME/.extensions/
+        set -euf
         echo -e "${GREEN}Update OK!${NC}"
     fi
 }
 
-function shell_update_extensions {
-
-    if [ ! "$QUIET" = "true" ];then
-        echo -e "${YELLOW}Which pull-docker-chart version should be used? ${NC}";
-        echo -e "${YELLOW}If you have no idea, press enter and accept the default. ${NC}";
-        read -e -p "${YELLOW}version: ${NC}" -i $DEFAULT_VERSION chart_version;
-    else
-        chart_version=$DEFAULT_VERSION
-    fi
-    update_extensions
-    helm pull -d $HOME/.extensions/ --version=$PULL_DOCKER_CHART_VERSION $CHART_REGISTRY_PROJECT/pull-docker-chart
-}
-
 function install_chart {
-    if [ ! -z "$CHART_PATH" ]; then
-        CHART_REGISTRY_URL="local"
-        CHART_REGISTRY_PROJECT="local"
-    else
-        add_helm_repos
-    fi
-
-    if [ -z "$CHART_REGISTRY_URL" ] || [ -z "$CHART_REGISTRY_PROJECT" ] || [ -z "$CONTAINER_REGISTRY_URL" ]; then
-        echo 'CHART_REGISTRY_URL, CHART_REGISTRY_PROJECT, CONTAINER_REGISTRY_URL, CONTAINER_REGISTRY_PROJECT need to be set! -> please adjust the install_platform.sh script!'        
+    if [ -z "$CONTAINER_REGISTRY_URL" ]; then
+        echo 'CONTAINER_REGISTRY_URL, CONTAINER_REGISTRY_PROJECT need to be set! -> please adjust the install_platform.sh script!'        
         echo 'ABORT'
         exit 1
     fi
@@ -240,7 +211,8 @@ function install_chart {
         REGISTRY_PASSWORD=""
         import_containerd
     fi
-
+        
+    helm registry login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD ${CONTAINER_REGISTRY_URL}
     if [ ! "$QUIET" = "true" ];then
         while true; do
             read -e -p "Enable GPU support?" -i " no" yn
@@ -261,68 +233,57 @@ function install_chart {
     else
         chart_version=$DEFAULT_VERSION
     fi
-
-    if [ ! -z "$CHART_PATH" ]; then
-        echo -e "${YELLOW}Installing $PROJECT_NAME: version $chart_version${NC}"
-        echo -e "${YELLOW}Chart-tgz-path $CHART_PATH${NC}"
-        helm install $CHART_PATH \
-        --set global.version="$chart_version" \
-        --set global.hostname="$DOMAIN" \
-        --set global.dev_ports="$DEV_PORTS" \
-        --set global.dev_mode="$DEV_MODE" \
-        --set global.dicom_port="$DICOM_PORT" \
-        --set global.http_port="$HTTP_PORT" \
-        --set global.https_port="$HTTPS_PORT" \
-        --set global.fast_data_dir="$FAST_DATA_DIR" \
-        --set global.slow_data_dir="$SLOW_DATA_DIR" \
-        --set global.home_dir="$HOME" \
-        --set global.pull_policy_jobs="$PULL_POLICY_JOBS" \
-        --set global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
-        --set global.pull_policy_pods="$PULL_POLICY_PODS" \
-        --set global.credentials.registry_username="$REGISTRY_USERNAME" \
-        --set global.credentials.registry_password="$REGISTRY_PASSWORD" \
-        --set global.gpu_support=$GPU_SUPPORT \
-        --set global.http_proxy=$http_proxy \
-        --set global.https_proxy=$https_proxy \
-        --set global.registry_url=$CONTAINER_REGISTRY_URL \
-        --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
-        --set global.chart_registry_project=$CHART_REGISTRY_PROJECT \
-        --name-template $PROJECT_NAME
-    else
-        update_extensions
-        helm pull -d $HOME/.extensions/ --version=$PULL_DOCKER_CHART_VERSION $CHART_REGISTRY_PROJECT/pull-docker-chart
-        echo -e "${YELLOW}Installing $CHART_REGISTRY_PROJECT/$PROJECT_NAME version: $chart_version${NC}"
-        helm install --devel --version $chart_version  $CHART_REGISTRY_PROJECT/$PROJECT_NAME \
-        --set global.version="$chart_version" \
-        --set global.hostname="$DOMAIN" \
-        --set global.dev_ports="$DEV_PORTS" \
-        --set global.dev_mode="$DEV_MODE" \
-        --set global.dicom_port="$DICOM_PORT" \
-        --set global.http_port="$HTTP_PORT" \
-        --set global.https_port="$HTTPS_PORT" \
-        --set global.fast_data_dir="$FAST_DATA_DIR" \
-        --set global.slow_data_dir="$SLOW_DATA_DIR" \
-        --set global.home_dir="$HOME" \
-        --set global.pull_policy_jobs="$PULL_POLICY_JOBS" \
-        --set global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
-        --set global.pull_policy_pods="$PULL_POLICY_PODS" \
-        --set global.credentials.registry_username="$REGISTRY_USERNAME" \
-        --set global.credentials.registry_password="$REGISTRY_PASSWORD" \
-        --set global.gpu_support=$GPU_SUPPORT \
-        --set global.http_proxy=$http_proxy \
-        --set global.https_proxy=$https_proxy \
-        --set global.registry_url=$CONTAINER_REGISTRY_URL \
-        --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
-        --set global.chart_registry_project=$CHART_REGISTRY_PROJECT \
-        --name-template $PROJECT_NAME
-    fi
+    pull_chart
     
+    helm chart export ${CONTAINER_REGISTRY_URL}${CONTAINER_REGISTRY_PROJECT}/$PROJECT_NAME:$chart_version -d $HOME/
+    CHART_PATH=$HOME/$PROJECT_NAME
+
+    echo -e "${YELLOW}Installing $PROJECT_NAME: version $chart_version${NC}"
+    helm install $CHART_PATH \
+    --set global.version="$chart_version" \
+    --set global.hostname="$DOMAIN" \
+    --set global.dev_ports="$DEV_PORTS" \
+    --set global.dev_mode="$DEV_MODE" \
+    --set global.dicom_port="$DICOM_PORT" \
+    --set global.http_port="$HTTP_PORT" \
+    --set global.https_port="$HTTPS_PORT" \
+    --set global.fast_data_dir="$FAST_DATA_DIR" \
+    --set global.slow_data_dir="$SLOW_DATA_DIR" \
+    --set global.home_dir="$HOME" \
+    --set global.pull_policy_jobs="$PULL_POLICY_JOBS" \
+    --set global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
+    --set global.pull_policy_pods="$PULL_POLICY_PODS" \
+    --set global.credentials.registry_username="$REGISTRY_USERNAME" \
+    --set global.credentials.registry_password="$REGISTRY_PASSWORD" \
+    --set global.gpu_support=$GPU_SUPPORT \
+    --set global.http_proxy=$http_proxy \
+    --set global.https_proxy=$https_proxy \
+    --set global.registry_url=$CONTAINER_REGISTRY_URL \
+    --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
+    --name-template $PROJECT_NAME
+    rm -rf $HOME/$PROJECT_NAME
+
     print_installation_done
     
     REGISTRY_USERNAME=""
     REGISTRY_PASSWORD=""
 }
 
+
+function pull_chart {
+    for i in 1 2 3 4 5;
+    do
+        echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}${CONTAINER_REGISTRY_PROJECT}/$PROJECT_NAME:$chart_version ${NC}"
+        helm chart pull ${CONTAINER_REGISTRY_URL}${CONTAINER_REGISTRY_PROJECT}/$PROJECT_NAME:$chart_version \
+            && break \
+            || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 );
+        
+        if [ $i -eq 5 ];then
+            echo -e "${RED}Could not pull chart! -> abort${NC}"
+            exit 1
+        fi 
+    done
+}
 
 function upgrade_chart {
     if [ ! "$QUIET" = "true" ];then
@@ -331,24 +292,15 @@ function upgrade_chart {
         chart_version=$DEFAULT_VERSION
     fi
 
-    echo "${YELLOW}Upgrading release: $CHART_REGISTRY_PROJECT/$PROJECT_NAME${NC}"
+    echo "${YELLOW}Upgrading release: $PROJECT_NAME ${NC}"
     echo "${YELLOW}version: $chart_version${NC}"
-
-    helm upgrade $PROJECT_NAME $CHART_REGISTRY_PROJECT/$PROJECT_NAME --devel --version $chart_version --set global.version="$chart_version" --reuse-values 
+    pull_chart
+    helm chart export ${CONTAINER_REGISTRY_URL}${CONTAINER_REGISTRY_PROJECT}/$PROJECT_NAME:$chart_version -d $HOME/
+    CHART_PATH=$HOME/$PROJECT_NAME
+    echo -e "${YELLOW}Charyt-tgz-path $CHART_PATH${NC}"
+    helm upgrade $PROJECT_NAME $CHART_PATH --devel --version $chart_version --set global.version="$chart_version" --reuse-values 
+    rm -rf $CHART_PATH
     print_installation_done
-}
-
-function check_chart_credentials {
-    while true; do
-        if [ ! -v CHART_REGISTRY_USERNAME ] || [ ! -v CHART_REGISTRY_PASSWORD ]; then
-            echo -e "${YELLOW}Please enter the credentials for the Container-Registry!${NC}"
-            read -p '**** username: ' CHART_REGISTRY_USERNAME
-            read -s -p '**** password: ' CHART_REGISTRY_PASSWORD
-        else
-            echo -e "${GREEN}Credentials found!${NC}"
-            break
-        fi
-    done
 }
 
 function check_credentials {
@@ -361,36 +313,6 @@ function check_credentials {
             echo -e "${GREEN}Credentials found!${NC}"
             break
         fi
-    done
-}
-
-function add_helm_repos {
-    echo -e "Adding needed helm projects..."
-    for i in "${NEEDED_REPOS[@]}"
-    do
-        echo -e "${YELLOW}Adding project $i.${NC}"
-        helm repo add $i $CHART_REGISTRY_URL/$i
-    done
-
-    helm repo update
-}
-
-function helm_registry_login {
-    echo -e "Adding needed helm projects..."
-    for i in "${NEEDED_REPOS[@]}"
-    do
-        echo -e "${YELLOW}Adding project $i.${NC}"
-        helm registry login -u "$REGISTRY_USERNAME" -p "$REGISTRY_PASSWORD" $CHART_REGISTRY_URL/$i
-    done
-}
-
-function delete_helm_repos {
-    # helm repo ls |cut -f 1  | tail -n +2 | xargs -L1 helm repo rm # delete all repos
-    echo -e "Deleting needed helm projects..."
-    for i in "${NEEDED_REPOS[@]}"
-    do
-        echo -e "${YELLOW}Deleting project $i.${NC}"
-        helm repo remove $i
     done
 }
 
@@ -430,30 +352,6 @@ function install_certs {
     fi
 
     echo -e "${GREEN}DONE${NC}"
-}
-
-function prefetch_extensions {
-
-    helm repo update
-    
-    if [ ! "$QUIET" = "true" ];then
-        read -e -p "${YELLOW}Which prefetch-extensions-chart version should be use? If you have no idea, press enter and accept the default: ${NC}" -i $DEFAULT_VERSION chart_version;
-    else
-        chart_version=$DEFAULT_VERSION
-    fi
-    echo -e "Prefetching all extension docker container"
-    release_name=prefetch-extensions-chart-$(echo $(uuidgen --hex) | cut -c1-10)
-    helm install --devel --version $chart_version $CHART_REGISTRY_PROJECT/prefetch-extensions-chart \
-    --set global.pull_policy_jobs="$PULL_POLICY_JOBS" \
-    --set global.registry_url=$CONTAINER_REGISTRY_URL \
-    --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
-    --name-template $release_name \
-    --wait \
-    --atomic \
-    --timeout 60m0s
-    sleep 10
-    helm delete $release_name
-    echo -e "${GREEN}OK!${NC}"
 }
 
 function print_installation_done {
@@ -564,15 +462,15 @@ do
             exit 0
         ;;
 
-        --update-extensions)
-            shell_update_extensions
-            exit 0
-        ;;
+        # --update-extensions)
+        #     shell_update_extensions
+        #     exit 0
+        # ;;
 
-        --prefetch-extensions)
-            prefetch_extensions
-            exit 0
-        ;;
+        # --prefetch-extensions)
+        #     prefetch_extensions
+        #     exit 0
+        # ;;
 
         *)    # unknown option
             echo -e "${RED}unknow parameter: $key ${NC}"
@@ -589,20 +487,6 @@ if ! [ -x "$(command -v helm)" ]; then
     exit 1
 else
     echo -e "${GREEN}ok${NC}"
-fi
-
-echo -e "${YELLOW}Update helm repos...${NC}"
-
-set +euf
-updates_output=$(helm repo update)
-set -euf
-
-if echo "$updates_output" | grep -q 'failed to'; then
-    echo -e "${RED}updates failed!${NC}"
-    echo "$updates_output"
-    exit 1
-else
-    echo -e "${GREEN}updates ok${NC}" 
 fi
 
 echo -e "${YELLOW}Get helm deployments...${NC}"

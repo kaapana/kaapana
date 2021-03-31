@@ -7,8 +7,8 @@ from glob import glob
 from time import time
 from argparse import ArgumentParser
 from build_helper.charts_build_and_push_all import HelmChart
-from build_helper.containers_build_and_push_all import start_container_build
-from build_helper.charts_build_and_push_all import init_helm_charts
+from build_helper.containers_build_and_push_all import start_container_build, docker_registry_login
+from build_helper.charts_build_and_push_all import init_helm_charts, helm_registry_login
 
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
 log_list = {
@@ -73,7 +73,6 @@ if __name__ == '__main__':
     docker_only = args.docker_only
     config_filepath = args.config_filepath
     build_dir = args.build_dir
-
 
     kaapana_dir = build_dir if build_dir is not None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if not os.path.isdir(os.path.join(kaapana_dir, "platforms")):
@@ -154,15 +153,13 @@ if __name__ == '__main__':
     else:
         print("Using http_proxy: {}".format(http_proxy))
 
-    if build_containers:
+    if build_mode != "local":
         print("-----------------------------------------------------------")
         default_container_registry = configuration["default_container_registry"]
-        if default_container_registry == "" and build_mode != "local":
+        if default_container_registry == "":
             print("No default registry configured!")
             print("Please specify 'default_container_registry' within the build-configuration.json")
             exit(1)
-        elif default_container_registry == "" and build_mode == "local":
-            default_container_registry = "local"
         else:
             print("Using default_container_registry: {}".format(default_container_registry))
         print("-----------------------------------------------------------")
@@ -173,42 +170,29 @@ if __name__ == '__main__':
         else:
             print("Using default_container_project: {}".format(default_container_project))
         print("-----------------------------------------------------------")
+    elif build_mode == "local":
+        default_container_registry = "local"
 
-    default_chart_registry = configuration["default_chart_registry"] if "default_chart_registry" in configuration else ""
-    default_chart_project = configuration["default_chart_project"] if "default_chart_project" in configuration else ""
-    if build_charts:
-        print("-----------------------------------------------------------")
-        default_chart_registry = configuration["default_chart_registry"]
-        if default_chart_registry == "":
-            push_charts_to_docker = True
-            default_chart_registry = configuration["default_container_registry"]
-            print("Using default_container_registry as default_chart_registry {}".format(default_chart_registry))
-        else:
-            push_charts_to_docker = False
-            print("Using default_chart_registry: {}".format(default_chart_registry))
-        print("-----------------------------------------------------------")
-
-        if push_charts and (registry_user is None or registry_pwd is None) and push_charts_to_docker is False:
+    if push_charts or push_containers: 
+        if registry_user is None or registry_pwd is None:
             if os.getenv("REGISTRY_USER", None) is None or os.getenv("REGISTRY_PW", None) is None:
                 print()
                 print("ENVs 'REGISTRY_USER' and 'REGISTRY_PW' not found! ")
                 print()
 
-                registry_user = input("User for {}: ".format(default_chart_registry))
+                registry_user = input("User for {}: ".format(default_container_registry))
                 print()
                 print("Registry-User: {}".format(registry_user))
                 registry_pwd = getpass.getpass("password: ")
             else:
+                print("Using ENV registry-credentials ...")
                 registry_user = os.getenv("REGISTRY_USER", None)
                 registry_pwd = os.getenv("REGISTRY_PW", None)
 
-        default_chart_project = configuration["default_chart_project"]
-        if default_chart_project == "":
-            default_chart_project = configuration["default_container_project"]
-            print("Using default_container_project as default_chart_project: {}".format(default_chart_registry))
-        else:
-            print("Using default_chart_project: {}".format(default_chart_project))
-        print("-----------------------------------------------------------")
+        if push_containers:
+            docker_registry_login(docker_registry=default_container_registry, username=registry_user, password=registry_pwd)
+        if push_charts:
+            helm_registry_login(docker_registry=default_container_registry, username=registry_user, password=registry_pwd)
 
     log_level = configuration["log_level"].upper()
     if log_level not in supported_log_levels:
@@ -274,7 +258,7 @@ if __name__ == '__main__':
         print("-----------------------------------------------------------")
 
         print("Init HelmCharts...")
-        init_helm_charts(kaapana_dir=kaapana_dir, chart_registry=default_chart_registry, default_project=default_chart_project)
+        init_helm_charts(kaapana_dir=kaapana_dir, chart_registry=default_container_registry, default_project=default_container_project)
 
         print("Start quick_check...")
         # for log_entry in HelmChart.quick_check(push_charts_to_docker):
@@ -283,15 +267,6 @@ if __name__ == '__main__':
                 print_log_entry(log_entry, kind="CHARTS")
             else:
                 build_ready_list = log_entry
-
-        if push_charts and push_charts_to_docker is False:
-            print("Start check_repos...")
-            for log_entry in HelmChart.check_repos(user=registry_user, pwd=registry_pwd):
-                print_log_entry(log_entry, kind="CHARTS")
-                if log_entry['loglevel'].upper() == "ERROR":
-                    print("Could not add repository: {}".format(log_entry["step"]))
-                    print("Message: {}".format(log_entry["message"]))
-                    exit(1)
 
         print("Start build- and push-process ...")
         i = 0
@@ -332,7 +307,7 @@ if __name__ == '__main__':
                 #################TODO add save charts to yaml! ##########
                 if chart.name.endswith('extensions'):
                     pass
-                elif push_charts_to_docker is True and push_charts is True and not chart.repo.startswith('file://'):
+                elif push_charts is True and not chart.repo.startswith('file://'):
                     for log_entry in chart.chart_save():
                         print_log_entry(log_entry, kind="CHARTS")
                         if log_entry['loglevel'].upper() == "ERROR":
@@ -341,12 +316,6 @@ if __name__ == '__main__':
                         print_log_entry(log_entry, kind="CHARTS")
                         if log_entry['loglevel'].upper() == "ERROR":
                             raise SkipException("SKIP {}: chart_push() error!".format(log_entry['test']), log=log_entry)
-                else:
-                    if push_charts and not chart.repo.startswith('file://'):
-                        for log_entry in chart.push():
-                            print_log_entry(log_entry, kind="CHARTS")
-                            if log_entry['loglevel'].upper() == "ERROR":
-                                raise SkipException("SKIP {}: push() error!".format(log_entry['test']), log=log_entry)
 
             except SkipException as error:
                 print("SkipException: {}".format(str(error)))

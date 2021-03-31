@@ -17,6 +17,17 @@ build_ready_list = None
 def get_timestamp():
     return str(int(time() * 1000))
 
+def helm_registry_login(docker_registry, username, password):
+    print(f"-> Helm registry-login: {docker_registry}")
+    command = ["helm", "registry", "login", docker_registry, "--username", username, "--password", password]
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
+
+    if output.returncode != 0:
+        print("Something went wrong!")
+        print(f"Helm couldn't login into registry {docker_registry}")
+        print(f"Message: {output.stdout}")
+        print(f"Error:   {output.stderr}")
+        exit(1)
 
 def check_helm_installed():
     command = ["helm", "push", "--help"]
@@ -189,7 +200,7 @@ class HelmChart:
                     req_repo_count += 1
                     if 'file://' in line:
                         req_repo = line.split("repository: ")[-1].strip()
-                    else: 
+                    else:
                         req_repo = line.split("/")[-1].strip()
                 if req_repo != "" and last_req_name != "" and last_req_version != "":
                     req_id = "{}/{}:{}".format(req_repo,
@@ -315,7 +326,7 @@ class HelmChart:
         else:
             os.chdir(self.chart_dir)
             command = ["helm", "lint"]
-            output = run(command, stdout=PIPE, stderr=PIPE,universal_newlines=True, timeout=20)
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=20)
             log = make_log(std_out=output.stdout, std_err=output.stderr)
 
             if output.returncode != 0:
@@ -451,7 +462,6 @@ class HelmChart:
             yield log_entry
 
     def chart_push(self):
-
         if not (self.name.endswith('chart') or self.name.endswith('workflow')):
             log_entry = {
                 "suite": suite_tag,

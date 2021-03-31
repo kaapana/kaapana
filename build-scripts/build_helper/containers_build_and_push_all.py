@@ -10,6 +10,18 @@ from shutil import which
 suite_tag = "Docker Container"
 
 
+def docker_registry_login(docker_registry, username, password):
+    print(f"-> Docker registry-login: {docker_registry}")
+    command = ["docker", "login", docker_registry, "--username", username, "--password", password]
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
+
+    if output.returncode != 0:
+        print("Something went wrong!")
+        print(f"Docker couldn't login into registry {docker_registry}")
+        print(f"Message: {output.stdout}")
+        print(f"Error:   {output.stderr}")
+        exit(1)
+
 def get_timestamp():
     return str(int(time() * 1000))
 

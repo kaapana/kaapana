@@ -34,7 +34,7 @@ def helm_repo_update():
         helm_command = 'helm repo update; \
             mkdir -p /root/\.extensions; \
             find /root/\.extensions -type f -delete;' + \
-            f'helm pull -d /root/.extensions/ --version={app.config["VERSION"]} {app.config["CHART_REGISTRY_PROJECT"]}/pull-docker-chart;' + \
+            f'helm pull -d /root/.extensions/ --version={app.config["VERSION"]} {app.config["REGISTRY_PROJECT"]}/pull-docker-chart;' + \
             'helm search repo --devel -l -r \'(kaapanaworkflow|kaapanaapplication|kaapanaint)\' -o json | jq -r \'.[] | "\(.name) --version \(.version)"\' | xargs -L1 helm pull -d /root/\.extensions/'
         subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
         return Response(f"Successfully updated the extension list!", 200)

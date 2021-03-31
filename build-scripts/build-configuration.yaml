@@ -1,9 +1,7 @@
 http_proxy: ""
 build_mode: "local"                # possible options: local, dockerhub, private
-default_container_registry: ""
-default_container_project: "" 
-default_chart_registry: "https://dktk-jip-registry.dkfz.de/chartrepo/"
-default_chart_project: "kaapana-public"
+default_container_registry: ""     # eg dktk-jip-registry.dkfz.de or registry.hzdr.de/kaapana
+default_container_project: ""      # eg kaapana
 log_level: "WARN"
 build_containers: true
 push_containers: true

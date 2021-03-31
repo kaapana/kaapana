@@ -20,7 +20,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='service-reload-models-dir',
+    dag_id='service-minio-action',
     default_args=args,
     schedule_interval=None,
     concurrency=10,
@@ -29,7 +29,7 @@ dag = DAG(
 
 reload_models_from_minio = LocalMinioOperator(
     dag=dag,
-    action='get',
+    action='get', # action='put',
     run_dir='/models',
     bucket_name='models'
     )

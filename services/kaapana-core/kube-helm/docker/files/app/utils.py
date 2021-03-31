@@ -169,7 +169,6 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
     name = payload["name"]
     version = payload["version"]
 
-
     default_sets = {
         'global.registry_url': os.getenv('REGISTRY_URL'),
         'global.registry_project': os.getenv('REGISTRY_PROJECT'),
@@ -233,7 +232,7 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
     helm_command = f'{os.environ["HELM_PATH"]} install {helm_command_addons} -n {namespace} {release_name} {helm_sets} {app.config["HELM_REPOSITORY_CACHE"]}/{name}-{version}.tgz -o json {helm_comman_suffix}'
     print('helm_command', helm_command)
     get_extensions_list()
-    
+
     if in_background is False:
         return subprocess.check_output(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command
     else:
@@ -246,6 +245,7 @@ def helm_delete(release_name, namespace, helm_command_addons=''):
     helm_command = f'{os.environ["HELM_PATH"]} delete {helm_command_addons} -n {namespace} {release_name}'
     subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
     get_extensions_list()
+
 
 def helm_ls(namespace, release_filter=''):
     try:
@@ -283,6 +283,9 @@ def helm_search_repo(keywords_filter):
             chart = helm_show_chart(package=helm_package)
             if 'keywords' in chart and (set(chart['keywords']) & keywords_filter):
                 charts_cached[f'{chart["name"]}-{chart["version"]}'] = chart
+    elif charts_cached == None:
+        charts_cached = {}
+
     return charts_cached
 
 

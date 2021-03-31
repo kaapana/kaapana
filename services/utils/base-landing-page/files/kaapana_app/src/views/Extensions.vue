@@ -28,11 +28,11 @@
         :items-per-page="20",
         :loading="loading",
         :search='search',
-        sort-by='releaseMame',
+        sort-by='releaseName',
         loading-text="Waiting a few seconds..."
       )
-        template(v-slot:item.releaseMame="{ item }")
-          span {{ item.releaseMame }} &nbsp;
+        template(v-slot:item.releaseName="{ item }")
+          span {{ item.releaseName }} &nbsp;
             a(:href='link', target='_blank' v-for="link in item.links" :key="item.link")
               v-icon(color='primary') mdi-open-in-new
         template(v-slot:item.versions="{ item }")  
@@ -60,7 +60,7 @@
             span Experimental extension or DAG, not tested yet!
         template(v-slot:item.installed="{ item }")
           v-btn(
-            @click="deleteChart(item.releaseMame, item.name, item.version, item.keywords)",
+            @click="deleteChart(item.releaseName, item.name, item.version, item.keywords)",
             color="primary",
              v-if="item.installed==='yes'"
           ) 
@@ -92,7 +92,7 @@ export default Vue.extend({
       {
         text: "Name",
         align: "start",
-        value: "releaseMame",
+        value: "releaseName",
       },
       {
         text: "Version",

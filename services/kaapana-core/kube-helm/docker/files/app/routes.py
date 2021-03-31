@@ -1,11 +1,9 @@
 import os
-import copy
 import secrets
 import subprocess
 import json
 import yaml
 import re
-from distutils.version import LooseVersion
 
 from flask import render_template, Response, request, jsonify
 from app import app
@@ -97,7 +95,7 @@ def pending_applications():
             manifest = utils.helm_get_manifest(chart['name'], app.config['NAMESPACE'])
             kube_status, ingress_paths = utils.get_manifest_infos(manifest)
             extension = {
-                'releaseMame': chart['name'],
+                'releaseName': chart['name'],
                 'links': ingress_paths,
                 'helmStatus': chart['status'].capitalize(),
                 'successful': utils.all_successful(set(kube_status['status'] + [chart['status']])),
@@ -112,60 +110,7 @@ def pending_applications():
 
 @app.route("/extensions")
 def extensions():
-    try:
-        available_charts = utils.helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
-        chart_version_dict = {}
-        for _, chart in available_charts.items():
-            if chart['name'] not in chart_version_dict:
-                chart_version_dict.update({chart['name']: []})
-            chart_version_dict[chart['name']].append(chart['version'])
-
-        extensions_list = []
-        for name, versions in chart_version_dict.items():
-            versions.sort(key=LooseVersion, reverse=True)
-            latest_version = versions[0]
-            extension = available_charts[f'{name}-{latest_version}']
-            extension['versions'] = versions
-            extension['version'] = latest_version
-            extension['experimental'] = 'yes' if 'kaapanaexperimental' in extension['keywords'] else 'no' 
-            extension['multiinstallable'] = 'yes' if 'kaapanamultiinstallable' in extension['keywords'] else 'no'             
-            if 'kaapanaworkflow' in extension['keywords']: 
-                extension['kind'] = 'dag'
-            elif 'kaapanaapplication' in extension['keywords']:
-                extension['kind'] = 'application'
-            else:
-                continue
-            extension['releaseMame'] = extension["name"]
-            extension['helmStatus'] = '' 
-            extension['kubeStatus'] = ''
-            extension['successful'] = 'none'
-          
-            status = utils.helm_status(extension["name"], app.config['NAMESPACE'])
-            if 'kaapanamultiinstallable' in extension['keywords'] or not status:
-                extension['installed'] = 'no'
-                extensions_list.append(extension)
-            for release in utils.helm_ls(app.config['NAMESPACE'], extension["name"]):
-                for version in extension["versions"]:
-                    if release['chart'] == f'{extension["name"]}-{version}':
-                        manifest = utils.helm_get_manifest(release['name'], app.config['NAMESPACE'])
-                        kube_status, ingress_paths = utils.get_manifest_infos(manifest)
-                        
-                        running_extension = copy.deepcopy(extension)
-                        running_extension['releaseMame'] =  release['name']
-                        running_extension['successful'] = utils.all_successful(set(kube_status['status'] + [release['status']]))
-                        running_extension['installed'] = 'yes'
-                        running_extension['links'] = ingress_paths
-                        running_extension['helmStatus'] = release['status'].capitalize()
-                        running_extension['kubeStatus'] = ", ".join(kube_status['status'])
-                        running_extension['version'] = version
-
-                        extensions_list.append(running_extension)
-
-    except subprocess.CalledProcessError as e:
-        return Response(f"{e.output}Failed to load the extension list!", 500)
-
-    return json.dumps(extensions_list)
-
+    return json.dumps(utils.extensions_list_cached)
 
 @app.route("/list-helm-charts")
 def add_repo():

@@ -275,7 +275,7 @@ def helm_search_repo(keywords_filter):
     global charts_cached
     keywords_filter = set(keywords_filter)
 
-    if check_modified():
+    if check_modified() or charts_cached == None:
         print("Charts modified -> generating new list.", flush=True)
         helm_packages = [f for f in glob.glob(os.path.join(app.config["HELM_REPOSITORY_CACHE"], '*.tgz'))]
         charts_cached = {}
@@ -283,8 +283,6 @@ def helm_search_repo(keywords_filter):
             chart = helm_show_chart(package=helm_package)
             if 'keywords' in chart and (set(chart['keywords']) & keywords_filter):
                 charts_cached[f'{chart["name"]}-{chart["version"]}'] = chart
-    elif charts_cached == None:
-        charts_cached = {}
 
     return charts_cached
 

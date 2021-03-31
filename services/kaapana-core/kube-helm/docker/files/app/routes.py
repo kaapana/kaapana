@@ -45,8 +45,9 @@ def helm_repo_update():
 @app.route("/helm-delete-chart")
 def helm_delete_chart():
     release_name = request.args.get("release_name")
-    try:    
-        utils.helm_delete(release_name, app.config['NAMESPACE'])
+    release_version = request.args.get("release_version")
+    try:
+        utils.helm_delete(release_name=release_name, release_version=release_version, namespace=app.config['NAMESPACE'])
         return jsonify({"message": "Successfully uninstalled", "status": "200"})
     except subprocess.CalledProcessError as e:
         return Response(f"We could not find the release you are trying to delete!", 500)
@@ -81,7 +82,7 @@ def prefetch_extension_docker():
     print('prefechting')
     utils.helm_prefetch_extension_docker()
     try:
-        
+
         return Response(f"Trying to prefetch all docker container of extensions", 200)
     except:
         return Response(f"A error occured!", 500)
@@ -100,17 +101,18 @@ def pending_applications():
                 'helmStatus': chart['status'].capitalize(),
                 'successful': utils.all_successful(set(kube_status['status'] + [chart['status']])),
                 'kubeStatus': ", ".join(kube_status['status'])
-            }            
+            }
             extensions_list.append(extension)
 
     except subprocess.CalledProcessError as e:
-        return Response(f"{e.output}",500)
+        return Response(f"{e.output}", 500)
     return json.dumps(extensions_list)
 
 
 @app.route("/extensions")
 def extensions():
     return json.dumps(utils.extensions_list_cached)
+
 
 @app.route("/list-helm-charts")
 def add_repo():
@@ -129,14 +131,14 @@ def view_helm_env():
         print(resp)
     except subprocess.CalledProcessError as e:
         return Response(
-            f"{e.output}",500)
+            f"{e.output}", 500)
     return jsonify({"message": str(resp), "status": "200"})
 
 
 @app.route("/helm-repo-list")
 def helm_repo_list():
     try:
-        resp = subprocess.check_output(f'{os.environ["HELM_PATH"]} repo list -o json', stderr=subprocess.STDOUT, shell=True) 
+        resp = subprocess.check_output(f'{os.environ["HELM_PATH"]} repo list -o json', stderr=subprocess.STDOUT, shell=True)
         return resp
     except subprocess.CalledProcessError as e:
         return Response(f"{e.output}", 500)

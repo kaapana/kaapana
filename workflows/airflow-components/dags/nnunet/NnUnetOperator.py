@@ -74,9 +74,6 @@ class NnUnetOperator(KaapanaBaseOperator):
         }
         env_vars.update(envs)
 
-        data_dir = os.getenv('DATADIR', "")
-        models_dir = os.path.join(os.path.dirname(data_dir), "models")
-
         volume_mounts = []
         volumes = []
 
@@ -91,16 +88,15 @@ class NnUnetOperator(KaapanaBaseOperator):
         volumes.append(Volume(name='dshm', configs=volume_config))
 
         pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=None)
-
         training_operator = False
         gpu_mem_mb = None
 
         if mode == "training" or mode == "inference":
             training_operator = True
             pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=1)
-            gpu_mem_mb = 6000
-            if mode == "training":
-                gpu_mem_mb = None
+            gpu_mem_mb = 10000
+            # if mode == "training":
+            #     gpu_mem_mb = None
 
         parallel_id = parallel_id if parallel_id is not None else mode
         super().__init__(

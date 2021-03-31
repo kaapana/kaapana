@@ -127,7 +127,7 @@ def helm_prefetch_extension_docker():
                         try:
                             pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, docker_registry_project)
                         except subprocess.CalledProcessError as e:
-                            helm_delete(release_name, app.config['NAMESPACE'])
+                            helm_delete(release_name=release_name, release_version=chart["version"], namespace=app.config['NAMESPACE'])
                             print(e)
             except subprocess.CalledProcessError as e:
                 print(f'Skipping {chart_name} due to {e.output.decode("utf-8")}')
@@ -141,7 +141,7 @@ def helm_prefetch_extension_docker():
             helm_install(dag, app.config["NAMESPACE"], helm_comman_suffix=helm_comman_suffix)
         except subprocess.CalledProcessError as e:
             print(f'Skipping {dag["name"]} due to {e.output.decode("utf-8")}')
-            helm_delete(dag['release_name'], app.config['NAMESPACE'], helm_command_addons='--no-hooks')
+            helm_delete(release_name=dag['release_name'], release_version=chart["version"], namespace=app.config['NAMESPACE'], helm_command_addons='--no-hooks')
 
 
 def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, docker_registry_project, timeout='120m0s'):
@@ -163,7 +163,7 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
 
 
 def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix='', in_background=True):
-    global smth_pending
+    global smth_pending, extensions_list_cached
     smth_pending = True
 
     name = payload["name"]
@@ -230,8 +230,9 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
             helm_sets = helm_sets + f" --set {key}='{value}'"
 
     helm_command = f'{os.environ["HELM_PATH"]} install {helm_command_addons} -n {namespace} {release_name} {helm_sets} {app.config["HELM_REPOSITORY_CACHE"]}/{name}-{version}.tgz -o json {helm_comman_suffix}'
-    print('helm_command', helm_command)
-    get_extensions_list()
+    for item in extensions_list_cached:
+        if item["releaseName"] == release_name and item["version"] == version:
+            item["successful"] = 'pending'
 
     if in_background is False:
         return subprocess.check_output(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command
@@ -239,12 +240,14 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
         return subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command
 
 
-def helm_delete(release_name, namespace, helm_command_addons=''):
-    global smth_pending
+def helm_delete(release_name, release_version, namespace, helm_command_addons=''):
+    global smth_pending, extensions_list_cached
     smth_pending = True
-    helm_command = f'{os.environ["HELM_PATH"]} delete {helm_command_addons} -n {namespace} {release_name}'
+    helm_command = f'{os.environ["HELM_PATH"]} uninstall {helm_command_addons} -n {namespace} {release_name}'
     subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
-    get_extensions_list()
+    for item in extensions_list_cached:
+        if item["releaseName"] == release_name and item["version"] == release_version:
+            item["successful"] = 'pending'
 
 
 def helm_ls(namespace, release_filter=''):
@@ -344,11 +347,17 @@ def get_manifest_infos(manifest):
 
 
 def all_successful(status):
+    print(f"#### STATUS: {status}", flush=True)
     successfull = ['Completed', 'Running', 'deployed']
+    pending = ['Pending', 'Unknown', 'ContainerCreating', 'Terminating']
+    status_successfull = "yes"
     for i in status:
-        if i not in successfull:
-            return 'no'
-    return 'yes'
+        if i in pending and status_successfull == "yes":
+            status_successfull = "pending"
+        elif i not in successfull and status_successfull == "yes":
+            status_successfull = "no"
+    
+    return status_successfull
 
 
 def get_extensions_list():
@@ -359,7 +368,7 @@ def get_extensions_list():
             # print("Using cached extension-list...", flush=True)
             pass
         else:
-            # print("Generating new extension-list...", flush=True)
+            print("Generating new extension-list...", flush=True)
             smth_pending = False
             update_running = True
             available_charts = helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])

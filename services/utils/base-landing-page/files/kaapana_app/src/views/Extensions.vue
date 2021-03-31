@@ -71,6 +71,11 @@
           )
           span(v-if="item.installed === 'yes'") {{ item.version }}
         template(v-slot:item.successful="{ item }")
+          v-progress-circular(
+            v-if="item.successful === 'pending'",
+            indeterminate,
+            color="primary"
+          )
           v-icon(v-if="item.successful === 'yes'", color="green") mdi-check-circle
           v-icon(v-if="item.successful === 'no'", color="red") mdi-alert-circle
         template(v-slot:item.kind="{ item }")
@@ -92,19 +97,28 @@
             span Experimental extension or DAG, not tested yet!
         template(v-slot:item.installed="{ item }")
           v-btn(
-            @click="deleteChart(item.releaseName, item.name, item.version, item.keywords)",
+            @click="deleteChart(item)",
             color="primary",
-            v-if="item.installed === 'yes'"
+            min-width = "160px",
+            v-if="item.installed === 'yes' && item.successful !== 'pending'"
           ) 
             span(v-if="item.multiinstallable === 'yes'") Delete
             span(v-if="item.multiinstallable === 'no'") Uninstall
           v-btn(
-            @click="installChart(item.name, item.version, item.keywords)",
+            @click="installChart(item)",
             color="primary",
-            v-if="item.installed === 'no'"
+            min-width = "160px",
+            v-if="item.installed === 'no' && item.successful !== 'pending'"
           ) 
             span(v-if="item.multiinstallable === 'yes'") Launch
             span(v-if="item.multiinstallable === 'no'") Install
+          v-btn(
+            color="primary",
+            min-width = "160px",
+            disabled=true,
+            v-if="item.successful === 'pending'"
+          ) 
+            span() Pending
 </template>
 
 <script lang="ts">
@@ -165,40 +179,45 @@ export default Vue.extend({
       { text: "Action", value: "installed" },
     ],
   }),
-  created() {
+  created() {},
+  mounted() {
     this.getHelmCharts();
     this.polling = window.setInterval(() => {
       this.getHelmCharts();
     }, 5000);
   },
-  mounted() {},
   computed: {
     filteredLaunchedAppLinks(): any {
-      return this.launchedAppLinks.filter((i: any) => {
-        let devFilter = true;
-        let kindFilter = true;
+      if (this.launchedAppLinks !== null) {
+        return this.launchedAppLinks.filter((i: any) => {
+          let devFilter = true;
+          let kindFilter = true;
 
-        for (const idx in i.versions) {
-          if (
-            this.extensionDev == "Stable" &&
-            i.versions[idx].endsWith("-vdev")
-          ) {
-            devFilter = false;
-          } else if (
-            this.extensionDev == "Dev" &&
-            !i.versions[idx].endsWith("-vdev")
-          ) {
-            devFilter = false;
+          for (const idx in i.versions) {
+            if (
+              this.extensionDev == "Stable" &&
+              i.versions[idx].endsWith("-vdev")
+            ) {
+              devFilter = false;
+            } else if (
+              this.extensionDev == "Dev" &&
+              !i.versions[idx].endsWith("-vdev")
+            ) {
+              devFilter = false;
+            }
           }
-        }
 
-        if (this.extensionKind == "Workflows" && i.kind === "application") {
-          kindFilter = false;
-        } else if (this.extensionKind == "Applications" && i.kind === "dag") {
-          kindFilter = false;
-        }
-        return devFilter && kindFilter;
-      });
+          if (this.extensionKind == "Workflows" && i.kind === "application") {
+            kindFilter = false;
+          } else if (this.extensionKind == "Applications" && i.kind === "dag") {
+            kindFilter = false;
+          }
+          return devFilter && kindFilter;
+        });
+      } else {
+        this.loading = true;
+        return [];
+      }
     },
 
     ...mapGetters([
@@ -218,7 +237,9 @@ export default Vue.extend({
         .helmApiGet("/extensions", params)
         .then((response: any) => {
           this.launchedAppLinks = response.data;
-          this.loading = false;
+          if (this.launchedAppLinks !== null) {
+            this.loading = false;
+          }
         })
         .catch((err: any) => {
           this.loading = false;
@@ -241,18 +262,17 @@ export default Vue.extend({
         });
     },
 
-    deleteChart(releaseName: any, name: any, version: any, keywords: any) {
+    deleteChart(item: any) {
       let params = {
-        release_name: releaseName,
+        release_name: item.releaseName,
+        release_version: item.version,
       };
       this.loading = true;
       kaapanaApiService
         .helmApiGet("/helm-delete-chart", params)
         .then((response: any) => {
-          setTimeout(() => {
-            this.getHelmCharts();
-            //this.loading = false;
-          }, 1000);
+          item.installed = "no";
+          item.successful = "pending";
         })
         .catch((err: any) => {
           this.getHelmCharts();
@@ -261,19 +281,18 @@ export default Vue.extend({
         });
     },
 
-    installChart(name: any, version: any, keywords: any) {
+    installChart(item: any) {
       let payload = {
-        name: name,
-        version: version,
-        keywords: keywords,
+        name: item.name,
+        version: item.version,
+        keywords: item.keywords,
       };
       this.loading = true;
       kaapanaApiService
         .helmApiPost("/helm-install-chart", payload)
         .then((response: any) => {
-          setTimeout(() => {
-            this.getHelmCharts();
-          }, 3000);
+          item.installed = "yes";
+          item.successful = "pending";
         })
         .catch((err: any) => {
           this.getHelmCharts();

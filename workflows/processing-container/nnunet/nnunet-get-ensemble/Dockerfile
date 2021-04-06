@@ -6,7 +6,7 @@ LABEL CI_IGNORE="False"
 
 ENV MODELDIR "/models"
 
-COPY files/models /tmp/ensemble_models
+COPY files/ensemble_models /tmp/ensemble_models
 COPY files/start.py /
 
 CMD ["python3","-u","/start.py"]

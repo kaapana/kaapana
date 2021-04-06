@@ -95,7 +95,7 @@ function import_containerd {
     containerd_imgs=( $(microk8s ctr images ls -q) )
     docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | while read IMAGE; do
         hash=$(docker images --no-trunc --quiet $IMAGE)
-     I  IMAGE_COUNTER=$[$IMAGE_COUNTER +1]
+     I  IMAGE_COUNTER=$((IMAGE_COUNTER+1)) 
         echo ""
         echo "${GREEN}Container $IMAGE_COUNTER: $IMAGE${NC}"
         if [[ " ${containerd_imgs[*]} " == *"$hash"* ]]; then

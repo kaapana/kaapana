@@ -8,10 +8,7 @@ DEFAULT_VERSION="0.1.1-vdev"    # version of the platform Helm chart
 
 DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart
 
-CONTAINER_REGISTRY_URL=""                          # eg 'dktk-jip-registry.dkfz.de' -> URL for the Docker registry (has to be 'local' for build-mode 'local' and the username for build-mode 'dockerhub')
-CONTAINER_REGISTRY_PROJECT=""                      # eg '/kaapana' -> The slash (/) in front of the project is important!!
-                                                   # Project of the Docker registry (not all have seperated projects then it shuould be empty-> '')
-                                                   # For build-mode 'local' and 'dockerhub' this should also be empty 
+CONTAINER_REGISTRY_URL=""                          # eg 'dktk-jip-registry.dkfz.de' -> URL for the Docker registry (has to be empty for build-mode 'local')
 
 FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
@@ -76,48 +73,49 @@ function import_containerd {
     docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | while read IMAGE; do
         hash=$(docker images --no-trunc --quiet $IMAGE)
         echo ""
+        echo "${GREEN}Container: $IMAGE${NC}"
         if [[ " ${containerd_imgs[*]} " == *"$hash"* ]]; then
-            echo "Container $IMAGE already found: $hash"
+            echo "${GREEN}Already found -> ok${NC}"
         else
-            echo "Not found: generating tar-file: '$IMAGE'"
+            echo "${YELLOW}Not found -> generating *.tar ...${NC}"
             docker save $IMAGE > ./image.tar
             if [ $? -eq 0 ]; then
-                echo "ok"
+                echo "${GREEN}created.${NC}"
             else
-                echo "Failed!"
+                echo "${RED}Failed to create *.tar of image!${NC}"
                 exit 1
             fi
-            echo "Import image into containerd..."
+            echo "${GREEN}Import image into containerd...${NC}"
             microk8s ctr image import image.tar
             if [ $? -eq 0 ]; then
-                echo "ok"
+                echo "${GREEN}Import ok.${NC}"
             else
-                echo "Failed!"
+                echo "${RED}Failed to import image!${NC}"
                 exit 1
             fi
-            echo "Remove tmp image.tar file..."
+            echo "${GREEN}Remove tmp image.tar file...${NC}"
             rm image.tar
             if [ $? -eq 0 ]; then
-                echo "ok"
+                echo "${GREEN}deleted.${NC}"
             else
-                echo "Failed!"
+                echo "${RED}Failed to remove image-tar!${NC}"
                 exit 1
             fi
         fi
 
         if [ "$DEL_CONTAINERS" = "true" ];then
-            echo -e "Deleting Docker-image: $IMAGE"
+            echo "${GREEN}Deleting Docker-image: $IMAGE${NC}"
             docker rmi $IMAGE
-            echo "deleted."
+            echo "${GREEN}deleted.${NC}"
         fi
     done
 
     if [ "$DEL_CONTAINERS" = "true" ];then
-        echo -e "Deleting all remaining Docker-images..."
+        echo "${GREEN}Deleting all remaining Docker-images...${NC}"
         docker system prune --all --force
-        echo "done"
+        echo "${GREEN}done.${NC}"
     fi
-    echo "All images successfully imported!"
+    echo "${GREEN}All images successfully imported!${NC}"
 }
 
 function get_domain {
@@ -198,21 +196,33 @@ function update_extensions {
 }
 
 function install_chart {
-    if [ -z "$CONTAINER_REGISTRY_URL" ]; then
-        echo 'CONTAINER_REGISTRY_URL, CONTAINER_REGISTRY_PROJECT need to be set! -> please adjust the install_platform.sh script!'        
-        echo 'ABORT'
-        exit 1
-    fi
-    
-    if [ ! "$CONTAINER_REGISTRY_URL" = "local" ];then
-        check_credentials
-    else
+    if [ ! -z "$CHART_PATH" ]; then
+        echo "${GREEN}Setting local chart config.${NC}"
+        if [ ! -f $CHART_PATH ]; then
+            echo "${RED}Chart file not found at $CHART_PATH!${NC}"
+            echo "${RED}Please specify the full absolute path to the chart.tgz-file!${NC}"
+            exit 1
+        fi
+        
+        echo "${GREEN}Force PULL_POLICY to 'IfNotPresent' !${NC}"
+        PULL_POLICY_PODS="IfNotPresent"
+        PULL_POLICY_JOBS="IfNotPresent"
+        PULL_POLICY_OPERATORS="IfNotPresent"
+
         REGISTRY_USERNAME=""
         REGISTRY_PASSWORD=""
+        CONTAINER_REGISTRY_URL="local"
         import_containerd
+
+    elif [ -z "$CONTAINER_REGISTRY_URL" ]; then
+        echo "${RED}CONTAINER_REGISTRY_URL need to be set! -> please adjust the install_platform.sh script!${NC}"
+        echo "${RED}ABORT${NC}"
+        exit 1
+    else    
+        echo "${YELLOW}Helm login registry...${NC}"
+        helm registry login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD ${CONTAINER_REGISTRY_URL}
     fi
-        
-    helm registry login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD ${CONTAINER_REGISTRY_URL}
+
     if [ ! "$QUIET" = "true" ];then
         while true; do
             read -e -p "Enable GPU support?" -i " no" yn
@@ -237,12 +247,16 @@ function install_chart {
     else
         chart_version=$DEFAULT_VERSION
     fi
-    pull_chart
-    
-    helm chart export ${CONTAINER_REGISTRY_URL}${CONTAINER_REGISTRY_PROJECT}/$PROJECT_NAME:$chart_version -d $HOME/
-    CHART_PATH=$HOME/$PROJECT_NAME
 
-    echo -e "${YELLOW}Installing $PROJECT_NAME: version $chart_version${NC}"
+    if [ -z "$CHART_PATH" ]; then
+        echo "${GREEN}Pulling platform chart from registry...${NC}"
+        pull_chart
+        helm chart export ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version -d $HOME/
+        CHART_PATH=$HOME/$PROJECT_NAME
+    fi
+
+    echo "${GREEN}Installing $PROJECT_NAME:$chart_version${NC}"
+    echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm install $CHART_PATH \
     --set global.version="$chart_version" \
     --set global.hostname="$DOMAIN" \
@@ -263,9 +277,11 @@ function install_chart {
     --set global.http_proxy=$http_proxy \
     --set global.https_proxy=$https_proxy \
     --set global.registry_url=$CONTAINER_REGISTRY_URL \
-    --set global.registry_project=$CONTAINER_REGISTRY_PROJECT \
     --name-template $PROJECT_NAME
-    rm -rf $HOME/$PROJECT_NAME
+
+    if [ -z "$REGISTRY_USERNAME" ] && [ -z "$REGISTRY_PASSWORD" ]; then
+        rm -rf $CHART_PATH
+    fi
 
     print_installation_done
     
@@ -277,8 +293,8 @@ function install_chart {
 function pull_chart {
     for i in 1 2 3 4 5;
     do
-        echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}${CONTAINER_REGISTRY_PROJECT}/$PROJECT_NAME:$chart_version ${NC}"
-        helm chart pull ${CONTAINER_REGISTRY_URL}${CONTAINER_REGISTRY_PROJECT}/$PROJECT_NAME:$chart_version \
+        echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version ${NC}"
+        helm chart pull ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version \
             && break \
             || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 );
         
@@ -298,12 +314,17 @@ function upgrade_chart {
 
     echo "${YELLOW}Upgrading release: $PROJECT_NAME ${NC}"
     echo "${YELLOW}version: $chart_version${NC}"
-    pull_chart
-    helm chart export ${CONTAINER_REGISTRY_URL}${CONTAINER_REGISTRY_PROJECT}/$PROJECT_NAME:$chart_version -d $HOME/
-    CHART_PATH=$HOME/$PROJECT_NAME
+    
+    if [ ! -z "$REGISTRY_USERNAME" ] && [ ! -z "$REGISTRY_PASSWORD" ]; then
+        CHART_PATH=$HOME/$PROJECT_NAME
+        pull_chart
+        helm chart export ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version -d $HOME/
+    fi
     echo -e "${YELLOW}Charyt-tgz-path $CHART_PATH${NC}"
     helm upgrade $PROJECT_NAME $CHART_PATH --devel --version $chart_version --set global.version="$chart_version" --reuse-values 
-    rm -rf $CHART_PATH
+    if [ -z "$REGISTRY_USERNAME" ] && [ -z "$REGISTRY_PASSWORD" ]; then
+        rm -rf $CHART_PATH
+    fi
     print_installation_done
 }
 

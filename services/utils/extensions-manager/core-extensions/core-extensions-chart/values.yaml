@@ -1,6 +1,6 @@
 ---
 global:
-    pull_policy_jobs:
+    pull_policy_jobs: "IfNotPresent"
     extensions_image: "core-extensions"
     extensions_version: "0.1.0-vdev"
     action: "copy"

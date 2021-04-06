@@ -13,6 +13,41 @@ Whats needed to run Kaapana?
 
 #. Registry
 
+.. mermaid::
+
+   graph TD
+      A([Do you have access to an existing container registry?]) -->|Yes| B([Does this registry already contain the Kaapana containers?])
+      B -->|Yes| C([You can skip the Kaapana build and continue with the Kaapana installation]);
+      B -->|No| D([You need to Build Kaapana]);
+      C --> E([Continue with Kaapana installation]);
+      A -->|No| D([You need to Build Kaapana]);
+
+.. mermaid::
+
+   graph TB
+      subgraph registry
+      a1(Do you want to use a remote container registry?)
+      a1-->|No| a2(Use build-mode: 'local')
+      a1-->|Yes| a3(Do you have acces to an existing registry?)
+      a3-->|Yes| a4(Does it contain all Kaapana containers already?)
+      end
+      subgraph build
+      end
+      subgraph installation
+      end
+      a1(Do you have acces to an existing registry containing Kaapana containers?)-->|No| b1
+      a1-->|Yes| c1
+      b1(Build Kaapana)
+      b1-->|local build| b2 
+      b1-->|registry| b3
+      end
+      subgraph install
+      c1(prepare host-system)-->c2(deploy Kaapana)
+      end
+
+To provide the services in Kaapana, the corresponding containers are needed.
+These can be looked at as normal binaries of Kaapana and therefore only need to be built if you do not have access to already built containers via a Docker Registry. 
+
 #. Target-system
 
 | You will need some kind of :term:`server` to run the platform on.

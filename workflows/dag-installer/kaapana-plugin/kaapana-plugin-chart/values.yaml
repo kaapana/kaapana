@@ -1,6 +1,6 @@
 ---
 global:
-    pull_policy_jobs: ""
+    pull_policy_jobs: "IfNotPresent"
 image: "kaapana-plugin"
 version: "0.1.1-vdev"
 action: "copy"

@@ -120,12 +120,11 @@ def helm_prefetch_extension_docker():
                 if matches:
                     for match in matches:
                         docker_registry_url = match[0]
-                        docker_registry_project = match[1]
                         docker_image = match[2]
                         docker_version = match[3]
                         release_name = f'pull-docker-chart-{secrets.token_hex(10)}'
                         try:
-                            pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, docker_registry_project)
+                            pull_docker_image(release_name, docker_image, docker_version, docker_registry_url)
                         except subprocess.CalledProcessError as e:
                             helm_delete(release_name=release_name, release_version=chart["version"], namespace=app.config['NAMESPACE'])
                             print(e)
@@ -144,14 +143,13 @@ def helm_prefetch_extension_docker():
             helm_delete(release_name=dag['release_name'], release_version=chart["version"], namespace=app.config['NAMESPACE'], helm_command_addons='--no-hooks')
 
 
-def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, docker_registry_project, timeout='120m0s'):
-    print(f'Pulling {docker_registry_url}{docker_registry_project}/{docker_image}:{docker_version}')
+def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, timeout='120m0s'):
+    print(f'Pulling {docker_registry_url}/{docker_image}:{docker_version}')
     payload = {
         'name': f'pull-docker-chart',
         'version': f'{app.config["VERSION"]}',
         'sets': {
             'registry_url': docker_registry_url or os.getenv('REGISTRY_URL'),
-            'registry_project': docker_registry_project or os.getenv('REGISTRY_PROJECT'),
             'image': docker_image,
             'version': docker_version
         },
@@ -171,7 +169,6 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
 
     default_sets = {
         'global.registry_url': os.getenv('REGISTRY_URL'),
-        'global.registry_project': os.getenv('REGISTRY_PROJECT'),
         'global.base_namespace': os.getenv('BASE_NAMESPACE'),
         'global.flow_namespace': os.getenv('FLOW_NAMESPACE'),
         'global.flow_jobs_namespace': os.getenv('FLOW_JOBS_NAMESPACE'),

@@ -11,7 +11,7 @@ spec:
     spec:
       initContainers:
       - name: init
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/service_checker:1.1
+        image: {{  .Values.global.registry_url }}/service_checker:1.1
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
           - name: WAIT
@@ -22,7 +22,7 @@ spec:
             value: "10"
       containers:
       - name: dicom-init
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/dicom-init:0.1.0
+        image: {{  .Values.global.registry_url }}/dicom-init:0.1.0
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         resources:
           requests:

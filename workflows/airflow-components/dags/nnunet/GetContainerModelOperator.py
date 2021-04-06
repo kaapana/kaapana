@@ -37,7 +37,7 @@ class GetContainerModelOperator(KaapanaBaseOperator):
     def execute(self, context):
         print("++++++++++++++++++++++++++++ execute operator")
         if not self.skip_execute:
-            self.image = "{}/{}/model-nnunet-{}:{}".format(self.registry_url, self.registry_project, self.task_id.lower().replace("_", "-"), self.model_version)
+            self.image = f"{self.registry_url}/model-nnunet-{self.task_id.lower().replace('_', '-')}:{self.model_version}"
             print("Pulling image: {}".format(self.image))
             super().execute(context)
 
@@ -52,16 +52,14 @@ class GetContainerModelOperator(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  env_vars={},
-                 registry_url="dktk-jip-registry.dkfz.de",
-                 registry_project="kaapana-public",
-                 model_version="0.1.0",
+                 registry_url=None,
+                 model_version=None,
                  execution_timeout=execution_timeout,
                  *args,
                  **kwargs
                  ):
 
         self.registry_url = registry_url or default_registry
-        self.registry_project = registry_project or default_project
         self.model_version = model_version
         self.af_models_dir = "/models"
         

@@ -25,7 +25,7 @@ spec:
       serviceAccountName: traefik-ingress-controller
       containers:
         - name: traefik
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/traefik:v2.3
+          image: {{  .Values.global.registry_url }}/traefik:v2.3
 
           ports:
             - name: web

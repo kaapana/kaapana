@@ -21,7 +21,7 @@ spec:
       containers:
       - name: hello-world
         image: <docker-registry><docker-repo>/hello-world:0.1.0
-        #image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/hello-world:0.1.0
+        #image: {{  .Values.global.registry_url }}/hello-world:0.1.0
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         #imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env: # Environment variables

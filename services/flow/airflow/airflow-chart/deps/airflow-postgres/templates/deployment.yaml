@@ -33,7 +33,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: postgres
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/postgres:9.6-alpine
+          image: {{  .Values.global.registry_url }}/postgres:9.6-alpine
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           args: ["-c", "max_connections=200"]          
           ports:

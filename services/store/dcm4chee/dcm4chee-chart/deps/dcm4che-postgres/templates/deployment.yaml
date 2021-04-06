@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: postgres-dcm4che-container
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/dcm4che-postgres:9.6.20-23
+          image: {{  .Values.global.registry_url }}/dcm4che-postgres:9.6.20-23
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
             - name: STORAGE_DIR

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: grid-node-{{ .Values.global.id }}
-        image: {{ .Values.registry_url }}{{ .Values.registry_project }}/grid-node:development
+        image: {{ .Values.registry_url }}/grid-node:development
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
         resources:
           requests:

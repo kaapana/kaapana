@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: ohif-container
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/ohif:4.9.7-vdev
+          image: {{  .Values.global.registry_url }}/ohif:4.9.7-vdev
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           ports:
             - containerPort: 80

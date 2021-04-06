@@ -20,7 +20,7 @@ spec:
         runAsUser: 1000
       containers:
       - name: slicer-jl
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/slicer-jl:2020-05-15-89b6bb5
+        image: {{  .Values.global.registry_url }}/slicer-jl:2020-05-15-89b6bb5
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           requests:

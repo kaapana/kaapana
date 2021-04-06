@@ -17,12 +17,14 @@ Whats needed to run Kaapana?
 
    flowchart TB
       subgraph registry
-      a1(Do you have access to an existing container registry containing all Kaapana containers?)
-      a1-->|Yes| a2(Skip the build')
-      a1-->|No| a3(Coninue with build)
+      a1(Do you want to use a container registry for your Kaapana installation?)
+      a1-->|Yes| a2(Do you have access to a registry containing all needed containers?)
+      a1-->|No| a3(Use build-mode: 'local')
+      a2-->|Yes| a4(Continue with Kaapana installation)
+      a2-->|No| a5(Coninue with Kaapana build?)
       end
       subgraph build
-      b1-->|local build| b2 
+      b1(local build)--> b2 
       b1-->|registry| b3
       end
       subgraph installation

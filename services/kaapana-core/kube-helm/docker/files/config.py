@@ -6,5 +6,5 @@ class Config(object):
     APPLICATION_ROOT = os.environ['APPLICATION_ROOT']
     NAMESPACE = 'default'
     HELM_REPOSITORY_CACHE="/root/.extensions"
-    REGISTRY_PROJECT = os.environ['REGISTRY_PROJECT']
+    REGISTRY_URL = os.environ['REGISTRY_URL']
     VERSION = os.environ['VERSION']

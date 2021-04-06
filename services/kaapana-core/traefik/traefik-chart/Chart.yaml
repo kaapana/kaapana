@@ -4,4 +4,3 @@ appVersion: "2.3"
 description: Traefik - The Cloud Native Edge Router
 name: traefik-chart
 version: "2.3"
----

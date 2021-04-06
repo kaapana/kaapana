@@ -3,7 +3,7 @@ build_mode: "local"                # possible options: local, dockerhub, private
 default_container_registry: ""     # eg dktk-jip-registry.dkfz.de or registry.hzdr.de/kaapana
 default_container_project: ""      # eg kaapana
 log_level: "WARN"
-build_containers: true
+build_containers: false
 push_containers: false
 push_dev_containers_only: true
 build_charts: true

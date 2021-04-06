@@ -491,8 +491,6 @@ def quick_check():
             continue
             
         docker_container = DockerContainer(dockerfile)
-        if "kaapana-documentation" in docker_container.tag:
-            print("here")
         for log_entry in docker_container.log_list:
             yield log_entry
 

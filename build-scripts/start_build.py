@@ -8,7 +8,7 @@ from glob import glob
 from time import time
 from argparse import ArgumentParser
 from build_helper.charts_build_and_push_all import HelmChart
-from build_helper.containers_build_and_push_all import start_container_build, docker_registry_login
+from build_helper.containers_build_and_push_all import start_container_build, container_registry_login
 from build_helper.charts_build_and_push_all import init_helm_charts, helm_registry_login
 
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
@@ -164,16 +164,8 @@ if __name__ == '__main__':
         else:
             print("Using default_container_registry: {}".format(default_container_registry))
         print("-----------------------------------------------------------")
-        default_container_project = configuration["default_container_project"]
-        if default_container_project == "":
-            print("no default_container_project configured.")
-            default_container_project = None
-        else:
-            print("Using default_container_project: {}".format(default_container_project))
-        print("-----------------------------------------------------------")
     elif build_mode == "local":
         default_container_registry = "local"
-        default_container_project = "local"
 
     if push_charts or push_containers: 
         if registry_user is None or registry_pwd is None:
@@ -192,9 +184,9 @@ if __name__ == '__main__':
                 registry_pwd = os.getenv("REGISTRY_PW", None)
 
         if push_containers:
-            docker_registry_login(docker_registry=default_container_registry, username=registry_user, password=registry_pwd)
+            container_registry_login(container_registry=default_container_registry, username=registry_user, password=registry_pwd)
         if push_charts:
-            helm_registry_login(docker_registry=default_container_registry, username=registry_user, password=registry_pwd)
+            helm_registry_login(container_registry=default_container_registry, username=registry_user, password=registry_pwd)
 
     log_level = configuration["log_level"].upper()
     if log_level not in supported_log_levels:
@@ -210,7 +202,7 @@ if __name__ == '__main__':
         print("-----------------------------------------------------------")
         print("------------------------ CONTAINER ------------------------")
         print("-----------------------------------------------------------")
-        config_list = (kaapana_dir, http_proxy, default_container_registry, default_container_project)
+        config_list = (kaapana_dir, http_proxy, default_container_registry)
         docker_containers_list, logs = start_container_build(config=config_list)
 
         for log in logs:
@@ -223,12 +215,12 @@ if __name__ == '__main__':
         for docker_container in docker_containers_list:
             i += 1
             print()
-            print("Container: {}".format(docker_container.tag.replace(docker_container.docker_registry, "")[1:]))
+            print("Container: {}".format(docker_container.tag.replace(docker_container.container_registry, "")[1:]))
             print("{}/{}".format(i, len(docker_containers_list)))
             print()
             try:
                 if docker_container.ci_ignore:
-                    print('SKIP {}: CI_IGNORE == True!'.format(docker_container.tag.replace(docker_container.docker_registry, "")[1:]))
+                    print('SKIP {}: CI_IGNORE == True!'.format(docker_container.tag.replace(docker_container.container_registry, "")[1:]))
                     continue
                 for log in docker_container.check_prebuild():
                     print_log_entry(log, kind="CONTAINERS")
@@ -260,7 +252,7 @@ if __name__ == '__main__':
         print("-----------------------------------------------------------")
 
         print("Init HelmCharts...")
-        init_helm_charts(kaapana_dir=kaapana_dir, chart_registry=default_container_registry, default_project=default_container_project)
+        init_helm_charts(kaapana_dir=kaapana_dir, chart_registry=default_container_registry)
 
         print("Start quick_check...")
         # for log_entry in HelmChart.quick_check(push_charts_to_docker):

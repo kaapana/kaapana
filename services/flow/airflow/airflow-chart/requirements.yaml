@@ -5,6 +5,7 @@ dependencies:
     # condition: Release.IsInstall
     #repository: "oci://registry.hzdr.de/kaapana/kaapana-public"
     repository: file://../../../../workflows/dag-installer/kaapana-plugin/kaapana-plugin-chart
+    
   - name: airflow-postgres
     version: "9.6.1-vdev"
     repository: file://deps/airflow-postgres

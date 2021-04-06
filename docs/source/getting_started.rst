@@ -8,57 +8,40 @@ Kaapana is not a ready-to-use software but a toolkit that enables you to build t
 The steps described in this guide will build an example :term:`platform`, which is a default configuration and contains many of the typical platforms :term:`components<component>`. 
 This basic platform can be used as a starting-point to derive a customized platform for your specific project.
 
-Whats needed to run Kaapana?
+What's needed to run Kaapana?
 ----------------------------
 
-#. Registry
+#. **Host System**
 
-.. mermaid::
+   | You will need some kind of :term:`server` to run the platform on.
+   | Minimum specs:
 
-   flowchart TB
-      subgraph registry
-      a1(Do you want to use a container registry for your Kaapana installation?)
-      a1-->|Yes| a2(Do you have access to a registry containing all needed containers?)
-      a1-->|No| a3(Use build-mode: 'local')
-      a2-->|Yes| a4(Continue with Kaapana installation)
-      a2-->|No| a5(Coninue with Kaapana build?)
-      end
-      subgraph build
-      b1(local build)--> b2 
-      b1-->|registry| b3
-      end
-      subgraph installation
-      c1(prepare host-system)-->c2(deploy Kaapana)
-      end
-      a3 --> build
-      a2 --> installation
+   - OS: CentOS 8, Ubuntu 20.04 or Ubuntu Server 20.04
+   - CPU: 4 cores 
+   - Memory: 8GB (for processing > 30GB recommended) 
+   - Storage: 100GB (deploy only) / 150GB (local build)  -> (recommended >200GB) 
 
+#. **Container Registry**
 
-To provide the services in Kaapana, the corresponding containers are needed.
-These can be looked at as normal binaries of Kaapana and therefore only need to be built if you do not have access to already built containers via a Docker Registry. 
+   To provide the services in Kaapana, the corresponding containers are needed.
+   These can be looked at as normal binaries of Kaapana and therefore only need to be built if you do not have access to already built containers via a container registry.
+   This flow-chart should help you to decide if you need to build Kaapana and which mode to choose:
 
-#. Target-system
+   .. mermaid::
 
-| You will need some kind of :term:`server` to run the platform on.
-| Minimum specs:
+      flowchart TB
+         a1(Do you want to use a remote container registry for your Kaapana installation?)
+         a1-->|Yes| a2(Do you already have access to a registry containing all needed containers?)
+         a1-->|No| b1
+         a2-->|Yes| c1
+         a2-->|No| b1
+         b1(Build Kaapana) --> c1
+         c1(Install Kaapana)
 
-- OS: CentOS 8, Ubuntu 20.04 or Ubuntu Server 20.04
-- CPU: 4 cores 
-- Memory: 8GB (for processing > 30GB recommended) 
-- Storage: 100GB (deploy only) / 150GB (local build)  -> (recommended >200GB) 
+#. **Build**
 
-| The **domain,hostname or IP-address** has to be known and correctly configured for the system. 
-| If a **proxy** is needed, it should already be configured at ``/etc/environment`` (reboot needed after configuration!). 
+   :ref:`build_kaapana`
 
+#. **Installation**
 
-**Filesystem directories:** In the default configuration there are two locations on the filesystem. Per default, the two locations are the same, if you have a SSD and a HDD mount, you should adapt the directory, which are defined in the :term:`platform-installation-script` accordingly, before executing the script.
-
-1. ``fast_data_dir=/home/kaapana``: Location of data that do not take a lot of space and should be loaded fast. Preferably, a SSD is mounted here.
-
-2. ``slow_data_dir=/home/kaapana``:  Location of huge files, like images or our object store is located here.  Preferably, a HDD is mounted here.
-
-**Supported browsers:** As browsers to access the installed platform we support the newest versions of Google Chrome and Firefox. With Safari it is currently not possible to access Traefik as well as services that are no vnc desktops. Moreover, Some functionalities in OHIF viewer do not work with Safari. Internet Explorer and Microsoft Edge are not really tested. 
-
-
-#. Installation
-
+   :ref:`install_kaapana`

@@ -59,6 +59,28 @@ if test -t 1; then
     fi
 fi
 
+function delete_all_images_docker {
+    while true; do
+        read -e -p "Do you really want to remove all the Docker images from the system?" -i " no" yn
+        case $yn in
+            [Yy]* ) echo "${GREEN}Removing all images...${NC}" && microk8s.ctr images ls | awk {'print $1'} | xargs microk8s.ctr images rm && echo "${GREEN}Done.${NC}"; break;;
+            [Nn]* ) echo "${YELLOW}Images will be kept${NC}"; break;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
+}
+
+function delete_all_images_microk8s {
+    while true; do
+        read -e -p "Do you really want to remove all the container images from Microk8s?" -i " no" yn
+        case $yn in
+            [Yy]* ) echo "${GREEN}Removing all images...${NC}" && microk8s.ctr images ls | awk {'print $1'} | xargs microk8s.ctr images rm && echo "${GREEN}Done.${NC}"; break;;
+            [Nn]* ) echo "${YELLOW}Images will be kept${NC}"; break;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
+}
+
 function import_containerd {
     echo "Starting image import into containerd..."
     while true; do
@@ -69,11 +91,13 @@ function import_containerd {
             * ) echo "Please answer yes or no.";;
         esac
     done
+    IMAGE_COUNTER=0
     containerd_imgs=( $(microk8s ctr images ls -q) )
     docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | while read IMAGE; do
         hash=$(docker images --no-trunc --quiet $IMAGE)
+     I  IMAGE_COUNTER=$[$IMAGE_COUNTER +1]
         echo ""
-        echo "${GREEN}Container: $IMAGE${NC}"
+        echo "${GREEN}Container $IMAGE_COUNTER: $IMAGE${NC}"
         if [[ " ${containerd_imgs[*]} " == *"$hash"* ]]; then
             echo "${GREEN}Already found -> ok${NC}"
         else
@@ -418,9 +442,9 @@ fi;
 ### Parsing command line arguments:
 usage="$(basename "$0")
 
-_Flag: --prefetch-extensions prefetch containers needed for the extensions
-_Flag: --update-extensions Updates the extensions saved to ~/.extensions
-_Flag: --install-certs  set new HTTPS-certificates for the platform
+_Flag: --install-certs set new HTTPS-certificates for the platform
+_Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
+_Flag: --remove-all-images-docker will delete all Docker images from the system
 _Flag: --quiet, meaning non-interactive operation
 
 _Argument: --chart-path [path-to-chart-tgz]
@@ -487,15 +511,15 @@ do
             exit 0
         ;;
 
-        # --update-extensions)
-        #     shell_update_extensions
-        #     exit 0
-        # ;;
+        --remove-all-images-ctr)
+            delete_all_images_microk8s
+            exit 0
+        ;;
 
-        # --prefetch-extensions)
-        #     prefetch_extensions
-        #     exit 0
-        # ;;
+        --remove-all-images-docker)
+            delete_all_images_docker
+            exit 0
+        ;;
 
         *)    # unknown option
             echo -e "${RED}unknow parameter: $key ${NC}"

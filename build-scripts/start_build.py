@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from shutil import which, copy
 import yaml
 import json
@@ -96,25 +96,14 @@ if __name__ == '__main__':
         except yaml.YAMLError as exc:
             print(exc)
 
-    if "build_mode" not in configuration or (configuration["build_mode"] != "local" and configuration["build_mode"] != "private" and configuration["build_mode"] != "dockerhub"):
-        print("-----------------------------------------------------------")
-        print("------------------- CONFIGURATION ERROR -------------------")
-        print("-----------------------------------------------------------")
-        print("Please set the configuration key 'build_mode' to 'local', 'dockerhub', 'private'")
-        print("Please adjust the build-configuration.yaml")
-        print("Abort")
-        exit(1)
-
-    build_mode = configuration["build_mode"]
-    print("Build-mode: {}!".format(build_mode))
-
     build_containers = False if charts_only else configuration["build_containers"]
     push_containers = False if charts_only else configuration["push_containers"]
     push_containers = False if build_only else push_containers
     push_dev_only = configuration["push_dev_containers_only"] if "push_dev_containers_only" in configuration else False
+    default_container_registry = configuration["default_container_registry"] if "default_container_registry" in configuration else ""
 
     create_package = configuration["create_package"]
-    if build_mode == "local" and not create_package:
+    if default_container_registry == "" and not create_package:
         print("local build: Forcing create_package = True !")
         create_package = True
 
@@ -126,17 +115,13 @@ if __name__ == '__main__':
     push_charts = False if docker_only else configuration["push_charts"]
     push_charts = False if build_only else push_charts
 
-    if (build_mode == "local" or build_mode == "dockerhub") and push_charts:
-        print("build-mode {}: Forcing push_charts = False !".format(build_mode))
+    if default_container_registry == "" and push_charts:
+        print("local build: Forcing push_charts = False !")
         push_charts = False
 
-    if build_mode == "local" and push_containers:
+    if default_container_registry == "" and push_containers:
         print("local build: Forcing push_containers = False !")
         push_containers = False
-
-    if build_mode == "dockerhub" and not push_containers:
-        print("Dockerhub build: Forcing push_containers = True !")
-        push_containers = True
 
     print()
     print("build_containers: {}".format(build_containers))
@@ -152,22 +137,15 @@ if __name__ == '__main__':
         print("no proxy configured...")
         http_proxy = None
     else:
-        print("Using http_proxy: {}".format(http_proxy))
+        print(f"Using http_proxy: {http_proxy}")
 
-    if build_mode != "local":
-        print("-----------------------------------------------------------")
-        default_container_registry = configuration["default_container_registry"]
-        if default_container_registry == "":
-            print("No default registry configured!")
-            print("Please specify 'default_container_registry' within the build-configuration.json")
-            exit(1)
-        else:
-            print("Using default_container_registry: {}".format(default_container_registry))
-        print("-----------------------------------------------------------")
-    elif build_mode == "local":
+    if default_container_registry == "":
         default_container_registry = "local"
+    print("-----------------------------------------------------------")
+    print("Using default_container_registry: {}".format(default_container_registry))
+    print("-----------------------------------------------------------")
 
-    if push_charts or push_containers: 
+    if push_charts or push_containers:
         if registry_user is None or registry_pwd is None:
             if os.getenv("REGISTRY_USER", None) is None or os.getenv("REGISTRY_PW", None) is None:
                 print()

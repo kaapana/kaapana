@@ -3,8 +3,8 @@
 Build Kaapana
 =============
 
-Requirements
-------------
+Build Requirements
+------------------
 
 Before you get started you should be familiar with the basic concepts and components of Kaapana see :ref:`what_is_kaapana`.
 You should also have the following packages installed on your build-system.
@@ -17,7 +17,7 @@ We expect the sudo systemctl restart snapd
 
       .. tab:: Ubuntu
 
-         | :code:`sudo apt install -y curl git python3 python3-pip`
+         | :code:`sudo apt update && sudo apt install -y curl git python3 python3-pip`
 
       .. tab:: Centos
 
@@ -31,7 +31,7 @@ We expect the sudo systemctl restart snapd
 
 #. Python requirements 
    
-   :code:`python3 -m pip install -r kaapana/build-scripts/requirements.txt`
+   :code:`python3 -m pip install -r build-scripts/requirements.txt`
 
 #. Snap 
 
@@ -56,7 +56,7 @@ We expect the sudo systemctl restart snapd
 
 #. Docker
 
-   :code:`sudo snap install docker --classic --channel=19.03.13`
+   :code:`sudo snap install docker --classic --channel=latest/stable`
 
 #. In order to docker commands as non-root user you need to execute the following steps:
 
@@ -83,43 +83,42 @@ We expect the sudo systemctl restart snapd
    | :code:`helm plugin install https://github.com/instrumenta/helm-kubeval`
 
 
-Creating an example platform
-----------------------------
+Building the example platform
+------------------------------
  
-The process of creating a Kaapana-based platform involves the following steps that should be executed on a dedicated physical or virtual server:
+The process of creating a Kaapana-based platform involves the following steps that should be executed on a dedicated machine:
 
-1. Build and push all :term:`Dockerfiles<docker>`
-2. Build and push all :term:`Helm Charts<helm>` (optional - you can use our registry)
-3. Install all server requirements with the :term:`server-installation-script`
-4. Deploy the platform with the :term:`platform-installation-script`
+#. Build all :term:`Dockerfiles<docker>` and :term:`Helm Charts<helm>` from the repository
+#. (optional) Push them to an external container regisry
+#. Install all server requirements with the :term:`server-installation-script`
+#. Deploy the platform with the :term:`platform-installation-script`
 
 Build modes
-^^^^^^^^^^^
-If you **don't** have access to a Docker registry with **already built containers** for Kaapana, you need to build them first.
+-----------
+
+If you **don't** have access to a container registry with **already built containers** for Kaapana, you need to build them first.
 This is comparable to a binary of regular software projects - if you already have access to it, you can continue with **step 3**.
 
-| The complete build will take **~4h** (depending on the system)! 
-| Currently Kaapana supports three different **build-modes**:
+| The complete build will take **~1h** (depending on the system)! 
+| Currently Kaapana supports two different **build-modes**:
 
 #. **Local build**
 
-   | By choosing this option you will need **no external Docker registry** to install the platform.
-   | All Docker containers will be build and used locally on the server.
-   | The Helm charts will still be downloaded from the DKFZ registry, as long as there is no local solution.
-   | **Extensions don't work with this mode yet**
+   | By choosing this option you will need **no external container registry** to install the platform.
+   | All containers will be build and used locally on the server.
 
-#. **Contaienr registry**
+#. **Container registry**
 
-   This option will use a remote container registry.
-   Since we're also using charts and other artifacts, the used registry must have `OCI support <https://opencontainers.org/>`__ .
-   We recommend `Gitlab <https://gitlab.com/>`__ or `Harbor <https://goharbor.io/>`__ as registry software.
-   Unfortunately, Dockerhub does not yet support OCI, and thus cannot currently be used with Kaapana. 
-   We recommend `gitlab.com <https://gitlab.com/>`__ as a replacement.
+   | This option will use a remote container registry.
+   | Since we're also using charts and other artifacts, the registry must have `OCI support <https://opencontainers.org/>`__ .
+   | We recommend `Gitlab <https://gitlab.com/>`__ or `Harbor <https://goharbor.io/>`__ as registry software.
+   | Unfortunately, Dockerhub does not yet support OCI, and thus cannot currently be used with Kaapana. We recommend `gitlab.com <https://gitlab.com/>`__ as a replacement.
 
 The following sections include a configuration example for each of the options (if applicable).
 
 Steps 1&2: Build Dockerfiles and Helm Charts
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+--------------------------------------------
+
 Step 1&2 will be handled with a build-script, which you can find within the repository at :code:`kaapana/build-scripts/start_build.py`.
 
 Before you start the build-process, you should have a look at the build-configuration at :code:`kaapana/build-scripts/build-configuration.yaml` and adapt it accordingly to your chosen build configuration as shown below.
@@ -129,12 +128,10 @@ Before you start the build-process, you should have a look at the build-configur
    .. tab:: Local build
 
       .. code-block:: python
-         :emphasize-lines: 2,3,7,8,9,10,11
+         :emphasize-lines: 2,3,4,5,6,7,8,9,10,11
 
          http_proxy: ""
-         build_mode: "local"
-         default_container_registry: "local"
-         default_container_project: "" 
+         default_container_registry: ""
          log_level: "WARN"
          build_containers: true
          push_containers: false
@@ -148,20 +145,16 @@ Before you start the build-process, you should have a look at the build-configur
       | Then you must adjust the configuration as follows:
 
       .. code-block:: python
-         :emphasize-lines: 2,3,4,5,7,8,9,10,11
+         :emphasize-lines: 2,3,4,5,6,7,8,9,10,11
 
          http_proxy: ""
-         build_mode: "private"
-         default_container_registry: "<registry-url>"
-         default_container_project: "<registry-project>" 
+         default_container_registry: "<registry-url>" (e.g. registry.gitlab.com/<user>/<project> .)
          log_level: "WARN"
          build_containers: true
          push_containers: true
          build_charts: true
          push_charts: true
          create_package: false
-
-We will utilize the DKFZ registry for Helm chart as long as there is no other easy alternative.
 
 .. important::
 

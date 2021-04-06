@@ -8,8 +8,13 @@ Kaapana is not a ready-to-use software but a toolkit that enables you to build t
 The steps described in this guide will build an example :term:`platform`, which is a default configuration and contains many of the typical platforms :term:`components<component>`. 
 This basic platform can be used as a starting-point to derive a customized platform for your specific project.
 
-Target-system
--------------
+Whats needed to run Kaapana?
+----------------------------
+
+#. Registry
+
+#. Target-system
+
 | You will need some kind of :term:`server` to run the platform on.
 | Minimum specs:
 
@@ -30,8 +35,6 @@ Target-system
 
 **Supported browsers:** As browsers to access the installed platform we support the newest versions of Google Chrome and Firefox. With Safari it is currently not possible to access Traefik as well as services that are no vnc desktops. Moreover, Some functionalities in OHIF viewer do not work with Safari. Internet Explorer and Microsoft Edge are not really tested. 
 
-Next steps
-----------
 
-To decide how to proceed with the installation, it is important to know if you already have access to a registry with the binary artifacts.
+#. Installation
 

@@ -11,6 +11,8 @@ Welcome to Kaapana's documentation!
    
    what_is_kaapana
    getting_started
+   build_kaapana
+   install_kaapana
    user_guide
    extensions
    development_guide

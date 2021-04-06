@@ -500,6 +500,8 @@ def quick_check():
             continue
             
         docker_container = DockerContainer(dockerfile)
+        if "kaapana-documentation" in docker_container.tag:
+            print("here")
         for log_entry in docker_container.log_list:
             yield log_entry
 
@@ -533,7 +535,7 @@ def quick_check():
         pending_copy = docker_containers_pending_list.copy()
         for pending_container in pending_copy:
             if not pending_container.check_pending():
-                docker_containers_list.append(docker_container)
+                docker_containers_list.append(pending_container)
                 docker_container.used_tags_list.append(docker_container.tag)
                 docker_containers_pending_list.remove(pending_container)
 

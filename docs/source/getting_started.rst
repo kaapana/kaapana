@@ -38,24 +38,28 @@ You should also have the following packages installed on your build-system.
 
 We expect the sudo systemctl restart snapd
 
-#. dependencies 
+#. Dependencies 
 
    .. tabs::
 
       .. tab:: Ubuntu
 
          | Install Curl and Git:
-         | :code:`sudo apt install -y curl git`
+         | :code:`sudo apt install -y curl git python3 python3-pip`
 
       .. tab:: Centos
 
-         | :code:`sudo yum install -y curl git`
+         | :code:`sudo yum install -y curl git python3 python3-pip`
 
 #. Clone the repository:
 
    | :code:`git clone https://github.com/kaapana/kaapana.git` 
    | (**alternative:** :code:`git clone https://phabricator.mitk.org/source/kaapana.git`)
    | :code:`git checkout master`
+
+#. Python requirements 
+   
+   :code:`python3 -m pip install -r kaapana/build-scripts/requirements.txt`
 
 #. Snap 
 
@@ -78,25 +82,9 @@ We expect the sudo systemctl restart snapd
          | :code:`sudo systemctl enable --now snapd.socket`
          | :code:`sudo snap wait system seed.loaded`
 
-#. Python3 
-
-   .. tabs::
-
-      .. tab:: Ubuntu
-
-         | :code:`sudo apt install -y python3 python3-pip`
-
-      .. tab:: Centos
-
-         | :code:`sudo yum install -y python3 python3-pip`
-
-#. Python requirements 
-   
-   :code:`python3 -m pip install -r kaapana/build-scripts/requirements.txt`
-
 #. Docker
 
-   :code:`sudo snap install docker --classic`
+   :code:`sudo snap install docker --classic --channel=19.03.13`
 
 #. In order to docker commands as non-root user you need to execute the following steps:
 
@@ -114,7 +102,8 @@ We expect the sudo systemctl restart snapd
 
 #. Test Docker
 
-  | :code:`docker run hello-world` -> this should work now without root privileges
+  | :code:`docker run hello-world` 
+  | -> this should work now without root privileges
 
 #. Helm-push plugin
 

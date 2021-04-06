@@ -38,14 +38,26 @@ You should also have the following packages installed on your build-system.
 
 We expect the sudo systemctl restart snapd
 
-1. Clone the repository:
+#. dependencies 
 
-   | :code:`git clone https://github.com/kaapana/kaapana.git` **or**   
-   | :code:`git clone https://phabricator.mitk.org/source/kaapana.git`
-   
+   .. tabs::
+
+      .. tab:: Ubuntu
+
+         | Install Curl and Git:
+         | :code:`sudo apt install -y curl git`
+
+      .. tab:: Centos
+
+         | :code:`sudo yum install -y curl git`
+
+#. Clone the repository:
+
+   | :code:`git clone https://github.com/kaapana/kaapana.git` 
+   | (**alternative:** :code:`git clone https://phabricator.mitk.org/source/kaapana.git`)
    | :code:`git checkout master`
 
-2. Snap 
+#. Snap 
 
    .. tabs::
 
@@ -53,7 +65,7 @@ We expect the sudo systemctl restart snapd
 
          | Check if snap is already installed: :code:`snap help --all`
          | If **not** run the following commands:
-         | :code:`sudo apt install snapd`
+         | :code:`sudo apt install -y snapd`
          | A **reboot** is needed afterwards!
 
       .. tab:: Centos
@@ -66,51 +78,52 @@ We expect the sudo systemctl restart snapd
          | :code:`sudo systemctl enable --now snapd.socket`
          | :code:`sudo snap wait system seed.loaded`
 
-3. Python3 
+#. Python3 
 
    .. tabs::
 
       .. tab:: Ubuntu
 
-         | :code:`sudo apt install python3 python3-pip`
+         | :code:`sudo apt install -y python3 python3-pip`
 
       .. tab:: Centos
 
-         | :code:`sudo yum install python3 python3-pip`
+         | :code:`sudo yum install -y python3 python3-pip`
 
-4. Python requirements 
+#. Python requirements 
    
    :code:`python3 -m pip install -r kaapana/build-scripts/requirements.txt`
 
-5. Docker
+#. Docker
 
    :code:`sudo snap install docker --classic`
 
-6. Helm
+#. In order to docker commands as non-root user you need to execute the following steps:
+
+   | :code:`sudo groupadd docker`
+   | :code:`sudo usermod -aG docker $USER`
+   | For more information visit the `Docker docs <https://docs.docker.com/engine/install/linux-postinstall/>`_ 
+
+#. Helm
 
    :code:`sudo snap install helm --classic --channel=3.5/stable`
 
-7. Reboot
+#. Reboot
 
    :code:`sudo reboot`
 
-8. Helm-push plugin
+#. Test Docker
+
+  | :code:`docker run hello-world` -> this should work now without root privileges
+
+#. Helm-push plugin
 
    :code:`helm plugin install https://github.com/chartmuseum/helm-push`
 
-9. Helm-kubeval plugin
+#. Helm-kubeval plugin
 
    :code:`helm plugin install https://github.com/instrumenta/helm-kubeval`
 
-.. hint::
-
-  | **Docker as a non-root user**
-  | In order to docker commands as non-root user you need to execute the following steps:
-  | :code:`sudo groupadd docker`
-  | :code:`sudo usermod -aG docker $USER`
-  | :code:`sudo reboot` -> to reboot the system
-  | :code:`docker run hello-world` -> this should work now without root privileges
-  | For more information visit the `Docker docs <https://docs.docker.com/engine/install/linux-postinstall/>`_ 
 
 
 Creating an example platform

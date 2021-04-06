@@ -467,7 +467,7 @@ class HelmChart:
                 "suite": suite_tag,
                 "test": "{}:{}".format(self.name, self.version),
                 "step": "Helm push chart to docker",
-                "log": log,
+                "log": "",
                 "loglevel": "ERROR",
                 "timestamp": get_timestamp(),
                 "message": "Chart push failed: {} due to name error. Name of chart has to end with -chart or -workflow!".format(self.name),

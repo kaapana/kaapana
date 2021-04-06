@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from shutil import which, copy
 import yaml
 import json
@@ -172,6 +173,7 @@ if __name__ == '__main__':
         print("-----------------------------------------------------------")
     elif build_mode == "local":
         default_container_registry = "local"
+        default_container_project = "local"
 
     if push_charts or push_containers: 
         if registry_user is None or registry_pwd is None:

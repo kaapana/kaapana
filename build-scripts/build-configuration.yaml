@@ -4,8 +4,8 @@ default_container_registry: ""     # eg dktk-jip-registry.dkfz.de or registry.hz
 default_container_project: ""      # eg kaapana
 log_level: "WARN"
 build_containers: true
-push_containers: true
+push_containers: false
 push_dev_containers_only: true
 build_charts: true
-push_charts: true
-create_package: false
+push_charts: false
+create_package: true

@@ -226,7 +226,7 @@ function install_chart {
         echo -e "${YELLOW}QUIET-MODE active!${NC}"
     fi
     echo -e "${YELLOW}GPU_SUPPORT: $GPU_SUPPORT ${NC}"
-    if [ ! "$GPU_SUPPORT" = "true" ];then
+    if [ "$GPU_SUPPORT" = "true" ];then
         echo -e "-> enabling GPU in Microk8s ..."
         microk8s.enable gpu
     fi

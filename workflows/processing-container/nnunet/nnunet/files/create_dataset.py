@@ -238,6 +238,7 @@ test_percentage = int(os.getenv("TEST_PERCENTAGE", "0"))
 copy_target_data = True if os.getenv("PREP_COPY_DATA", "False").lower() == "true" else False
 tensor_size = os.getenv("TENSOR_SIZE", "3D")
 node_uid = os.getenv("NODE_UID", "N/A")
+max_epochs = os.getenv("TRAIN_MAX_EPOCHS", "N/A")
 
 input_modalities = os.getenv("PREP_MODALITIES", "")
 input_label_dirs = os.getenv("PREP_LABEL_DIRS", "")
@@ -308,6 +309,7 @@ template_dataset_json = {
     "numTraining": 0,
     "numTest": 0,
     "node_uid": node_uid,
+    "max_epochs": max_epochs,
     "training": [],
     "test": []
 }

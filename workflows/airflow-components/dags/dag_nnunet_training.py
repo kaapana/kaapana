@@ -31,6 +31,7 @@ train_network = "3d_lowres"
 train_network_trainer = "nnUNetTrainerV2"
 ae_title = "nnUnet-results"
 max_epochs = 1000
+dicom_model_slice_size_limit = 25
 
 # training_results_study_uid = "1.2.826.0.1.3680043.8.498.73386889396401605965136848941191845554"
 training_results_study_uid = None
@@ -304,7 +305,7 @@ bin2dcm = Bin2DcmOperator(
     study_uid=training_results_study_uid,
     study_description=f"site: {node_uid} - nnunet model",
     series_description=f"nnUNet model {datetime.now().strftime('%d.%m.%Y %H:%M')}",
-    size_limit=100,
+    size_limit=dicom_model_slice_size_limit,
     input_operator=zip_model,
     file_extensions="*.zip",
     delete_input_on_success=True

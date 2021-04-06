@@ -82,7 +82,7 @@ function delete_all_images_microk8s {
 }
 
 function import_containerd {
-    echo "Starting image import into containerd..."
+    echo "${GREEN}Starting image import into containerd...${NC}"
     while true; do
         read -e -p "Should all locally built Docker containers be deleted after the import?" -i " no" yn
         case $yn in
@@ -93,11 +93,14 @@ function import_containerd {
     done
     IMAGE_COUNTER=0
     containerd_imgs=( $(microk8s ctr images ls -q) )
+    docker_images_count=$(docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | wc -l)
+    echo "${GREEN}Found $docker_images_count Docker images to import...${NC}"
+    echo 
     docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | while read IMAGE; do
         hash=$(docker images --no-trunc --quiet $IMAGE)
         IMAGE_COUNTER=$((IMAGE_COUNTER+1)) 
         echo ""
-        echo "${GREEN}Container $IMAGE_COUNTER: $IMAGE${NC}"
+        echo "${GREEN}Container $IMAGE_COUNTER/$docker_images_count: $IMAGE${NC}"
         if [[ " ${containerd_imgs[*]} " == *"$hash"* ]]; then
             echo "${GREEN}Already found -> ok${NC}"
         else

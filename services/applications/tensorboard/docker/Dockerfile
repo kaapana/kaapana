@@ -6,8 +6,7 @@ LABEL CI_IGNORE="False"
 
 RUN apk add --no-cache build-base linux-headers
 
-RUN python -m pip install --upgrade pip
-RUN pip3 install tensorboard==2.4.1
+RUN python -m pip install --upgrade pip && pip3 install --no-cache-dir tensorboard==2.4.1
 
 COPY files/tensorboard.sh /
 

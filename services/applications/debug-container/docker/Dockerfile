@@ -29,8 +29,7 @@ RUN apt-get update && apt-get install -y kubectl && rm -rf /var/lib/apt/lists/*
 
 
 # update pip
-RUN python3 -m pip install pip --upgrade
-RUN python3 -m pip install wheel
+RUN python3 -m pip install pip --upgrade && python3 -m pip install --no-cache-dir wheel
 
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app

@@ -9,7 +9,7 @@ WORKDIR /src
 
 RUN apk add --update alpine-sdk zlib-dev jpeg-dev freetype-dev lcms2-dev openjpeg-dev tiff-dev tk-dev tcl-dev
 
-RUN python3 -m pip install -r requirements.txt
+RUN python3 -m pip install --no-cache-dir -r requirements.txt
 RUN make html
 
 

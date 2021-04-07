@@ -11,7 +11,7 @@ RUN jupyter notebook --generate-config \
 RUN pip uninstall -y syft
 
 # pysyft v0.3.0
-RUN python -m pip install git+https://github.com/OpenMined/PySyft.git@b7a52b513a9150a968a59b44d92c406cae05bed8
+RUN python -m pip install --no-cache-dir git+https://github.com/OpenMined/PySyft.git@b7a52b513a9150a968a59b44d92c406cae05bed8
 
 COPY files/bootstrap.sh /
 

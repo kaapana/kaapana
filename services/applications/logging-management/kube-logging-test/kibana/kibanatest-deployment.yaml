@@ -1,0 +1,44 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana-test-de
+  namespace: kube-logging-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: kibana-test
+  template:
+    metadata:
+      labels:
+        app-name: kibana-test
+    spec:
+      containers:
+        - name: kibana-test-container          
+          image: dktk-jip-registry.dkfz.de/kaapana/kibana-kaapana:6.8.12          
+          imagePullPolicy:  IfNotPresent
+          # env:
+          # - name: NODE_OPTIONS
+          #   value: "--max-old-space-size=500"
+          ports:
+            - containerPort: 5601
+          resources:
+            requests:
+              memory: 150Mi
+            limits:
+              memory: 300Mi
+          volumeMounts:
+            - name: kibana-config-file
+              mountPath: /usr/share/kibana/config/kibana.yml
+              subPath: kibana.yml
+      volumes:
+      - name: kibana-config-file
+        configMap:
+          name: kibana-test-config
+          items:
+          - key: kibana.yml
+            path: kibana.yml
+      imagePullSecrets:
+      - name: registry-secret
+---

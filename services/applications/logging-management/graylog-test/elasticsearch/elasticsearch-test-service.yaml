@@ -1,0 +1,37 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-test-service
+  namespace: graylog-test
+  labels:
+    app-name: elasticsearch-test-graylog
+spec:
+  selector:
+    app-name: elasticsearch-test-graylog
+  type: ClusterIP
+  ports:
+  - name: es-test-rest
+    port: 9200
+    targetPort: 9200
+    protocol: TCP
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: elasticsearch-test-ingress
+  namespace: graylog-test
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,kube-system-strip-prefix@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /elasticsearch-test
+        backend:
+          serviceName: elasticsearch-test-service
+          servicePort: es-test-rest
+---

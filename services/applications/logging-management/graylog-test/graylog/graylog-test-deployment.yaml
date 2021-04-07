@@ -1,0 +1,56 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graylog-test-de
+  namespace: graylog-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: graylog-test
+  template:
+    metadata:
+      labels:
+        app-name: graylog-test
+    spec:
+      containers:
+        - name: graylog-test-container          
+          image: graylog/graylog:4.0.3
+          imagePullPolicy:  IfNotPresent
+          # env:
+          # - name: NODE_OPTIONS
+          #   value: "--max-old-space-size=500"
+          env: 
+          - name: "GRAYLOG_MONGODB_URI"
+            value: "mongodb://admin:admin@mongodb-test-service.graylog-test.svc:27017/graylog-test-database"
+          - name: "GRAYLOG_MONGODB_USER"
+            value: admin
+          - name: "GRAYLOG_MONGODB_PASSWORD"
+            value: admin
+          - name: "GRAYLOG_IS_MASTER"
+            value: "true"
+          - name: "GRAYLOG_HTTP_BIND_ADDRESS"
+            value: "0.0.0.0:9000"
+          - name: "GRAYLOG_HTTP_PUBLISH_URI"
+            value: "http://e230-pc07:8080/graylog-test"
+          - name: "GRAYLOG_HTTP_ENABLE_CORS"
+            value: "true"
+          #- name: "GRAYLOG_ROOT_USERNAME"
+          #  value: kaapana
+          #- name: "GRAYLOG_PASSWORD_SECRET"
+          #  value: yourpasswordvier
+          #- name: "GRAYLOG_ROOT_PASSWORD_SHA2"
+          #  value: a14cfbdba7edbe801082ee45754e576b66b05cf11d6f71bc447e5b8bbb741144
+          - name: "GRAYLOG_ELASTICSEARCH_HOSTS"
+            value: "http://elasticsearch-test-service.graylog-test.svc:9200"
+          ports:
+          - containerPort: 9000
+          resources:
+            requests:
+              memory: 150Mi
+            limits:
+              memory: 300Mi
+      imagePullSecrets:
+      - name: registry-secret
+---

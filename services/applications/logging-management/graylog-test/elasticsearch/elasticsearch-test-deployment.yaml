@@ -1,0 +1,44 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch-test-de
+  namespace: graylog-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: elasticsearch-test-graylog
+  template:
+    metadata:
+      labels:
+        app-name: elasticsearch-test-graylog
+    spec:
+      containers:
+        - name: elasticsearch-test-container
+          image: dktk-jip-registry.dkfz.de/kaapana/elasticsearch-oss:6.8.12
+          imagePullPolicy:  IfNotPresent
+          env:
+          - name: "ELASTICSEARCH_NETWORK_HOST"
+            value: "http://elasticsearch-test-service.graylog-test.svc:9200"
+          - name: "ELASTICSEARCH_HTTP_HOST"
+            value: "http://elasticsearch-test-service.graylog-test.svc:9200"
+          - name: "ELASTICSEARCH_VERSION"
+            value: "6.8.12"
+          - name: ES_JAVA_OPTS
+            value: "-Xms1000m -Xmx1000m"
+          ports:
+            - containerPort: 9200
+          resources:
+            requests:
+              memory: 1500Mi
+            limits:
+              memory: 2000Mi
+          livenessProbe:
+            tcpSocket:
+              port: 9200
+            initialDelaySeconds: 15
+            periodSeconds: 120
+      imagePullSecrets:
+      - name: registry-secret
+---

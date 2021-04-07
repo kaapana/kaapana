@@ -279,7 +279,6 @@ function install_chart {
     if [ -z "$CHART_PATH" ]; then
         echo "${GREEN}Pulling platform chart from registry...${NC}"
         pull_chart
-        helm chart export ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version -d $HOME/
         CHART_PATH=$HOME/$PROJECT_NAME
     fi
 
@@ -331,6 +330,8 @@ function pull_chart {
             exit 1
         fi 
     done
+    echo -e "${YELLOW}Exporting chart: $HOME/$PROJECT_NAME ${NC}"
+    helm chart export ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version -d $HOME/
 }
 
 function upgrade_chart {
@@ -346,7 +347,6 @@ function upgrade_chart {
     if [ ! -z "$REGISTRY_USERNAME" ] && [ ! -z "$REGISTRY_PASSWORD" ]; then
         CHART_PATH=$HOME/$PROJECT_NAME
         pull_chart
-        helm chart export ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version -d $HOME/
     fi
     echo -e "${YELLOW}Charyt-tgz-path $CHART_PATH${NC}"
     helm upgrade $PROJECT_NAME $CHART_PATH --devel --version $chart_version --set global.version="$chart_version" --reuse-values 

@@ -241,7 +241,48 @@ if __name__ == '__main__':
             if isinstance(log_entry, dict):
                 print_log_entry(log_entry, kind="CHARTS")
             else:
-                build_ready_list = log_entry
+                all_charts = log_entry
+
+        print("Creating build order ...")
+
+        tries = 0
+        max_tries = 5
+        build_ready_list = []
+        not_ready_list = all_charts.copy()
+        while len(not_ready_list) > 0 and tries < max_tries:
+            tries += 1
+            all_ready = True
+            not_ready_list_tmp = []
+            for chart in not_ready_list:
+                if "platform" in chart.name:
+                    print()
+                chart.dependencies_ready = True
+                for dependency in chart.dependencies:
+                    ready_charts = [ready_chart for ready_chart in build_ready_list if ready_chart.name == dependency["name"] and ready_chart.version == dependency["version"]]
+                    if len(ready_charts) == 0:
+                        chart.dependencies_ready = False
+                        break
+                if chart.dependencies_ready:
+                    build_ready_list.append(chart)
+                else:
+                    not_ready_list_tmp.append(chart)
+
+            not_ready_list = not_ready_list_tmp
+
+        if tries >= max_tries:
+            print("#########################################################################")
+            print("")
+            print("                    Issue with dependencies!")
+            print("")
+            print("#########################################################################")
+            print("")
+            for chart in not_ready_list:
+                print(f"Missing dependencies for chat: {chart.name}")
+                print("")
+                for dependency in chart.dependencies:
+                    print(f"dependency: {dependency['name']}")
+            print("")
+            exit(1)
 
         print("Start build- and push-process ...")
         i = 0
@@ -253,22 +294,26 @@ if __name__ == '__main__':
                 print("{}/{}".format(i, len(build_ready_list)))
                 print()
                 chart.remove_tgz_files()
+                print("dep up ...")
                 for log_entry in chart.dep_up():
                     print_log_entry(log_entry, kind="CHARTS")
                     if log_entry['loglevel'].upper() == "ERROR":
                         raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
 
+                print("linting ...")
                 for log_entry in chart.lint_chart():
                     print_log_entry(log_entry, kind="CHARTS")
                     if log_entry['loglevel'].upper() == "ERROR":
                         raise SkipException("SKIP {}: lint_chart() error!".format(log_entry['test']), log=log_entry)
 
+                print("kubeval ...")
                 for log_entry in chart.lint_kubeval():
                     print_log_entry(log_entry, kind="CHARTS")
                     if log_entry['loglevel'].upper() == "ERROR":
                         raise SkipException("SKIP {}: lint_kubeval() error!".format(log_entry['test']), log=log_entry)
 
                 if "platforms" in chart.chart_dir and create_package:
+                    print("platform-chart! -> exporting package ...")
                     for log_entry in chart.package():
                         print_log_entry(log_entry, kind="CHARTS")
                         if log_entry['loglevel'].upper() == "ERROR":
@@ -283,15 +328,20 @@ if __name__ == '__main__':
                 if chart.name.endswith('extensions'):
                     pass
                 elif push_charts is True and not chart.local_only:
+                    print("saving chart ...")
                     for log_entry in chart.chart_save():
                         print_log_entry(log_entry, kind="CHARTS")
                         if log_entry['loglevel'].upper() == "ERROR":
                             raise SkipException("SKIP {}: chart_save() error!".format(log_entry['test']), log=log_entry)
+
+                    print("pushing chart ...")
                     for log_entry in chart.chart_push():
                         print_log_entry(log_entry, kind="CHARTS")
                         if log_entry['loglevel'].upper() == "ERROR":
                             raise SkipException("SKIP {}: chart_push() error!".format(log_entry['test']), log=log_entry)
 
+                print()
+                print()
             except SkipException as error:
                 print("SkipException: {}".format(str(error)))
                 continue

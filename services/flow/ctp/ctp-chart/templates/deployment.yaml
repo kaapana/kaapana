@@ -38,11 +38,6 @@ spec:
             - name: launcher-properties
               mountPath: /opt/CTP/Launcher.properties
               subPath: Launcher.properties
-          livenessProbe:
-            tcpSocket:
-              port: 11112
-            initialDelaySeconds: 30
-            periodSeconds: 120
       volumes:
       - name: ctp-data
         hostPath:

@@ -111,7 +111,7 @@ class HelmChart:
             self.chart_dir = dirname(chartfile)
 
             if "-vdev" in self.version:
-                self.local_only = True
+                self.dev_version = True
 
             if "/deps/" in chartfile:
                 self.local_only = True

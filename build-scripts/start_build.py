@@ -312,33 +312,34 @@ if __name__ == '__main__':
                     if log_entry['loglevel'].upper() == "ERROR":
                         raise SkipException("SKIP {}: lint_kubeval() error!".format(log_entry['test']), log=log_entry)
 
-                if "platforms" in chart.chart_dir and create_package:
-                    print("platform-chart! -> exporting package ...")
-                    for log_entry in chart.package():
-                        print_log_entry(log_entry, kind="CHARTS")
-                        if log_entry['loglevel'].upper() == "ERROR":
-                            raise SkipException("SKIP {}: package() error!".format(log_entry['test']), log=log_entry)
-                        else:
-                            packages = glob(os.path.join(os.path.dirname(chart.chart_dir), '*.tgz'))
-                            for package in packages:
-                                copy(package, build_dir)
-                                os.remove(package)
+                if "platforms" in chart.chart_dir and not chart.local_only:
+                    if push_charts is True:
+                        print("saving chart ...")
+                        for log_entry in chart.chart_save():
+                            print_log_entry(log_entry, kind="CHARTS")
+                            if log_entry['loglevel'].upper() == "ERROR":
+                                raise SkipException("SKIP {}: chart_save() error!".format(log_entry['test']), log=log_entry)
+
+                        print("pushing chart ...")
+                        for log_entry in chart.chart_push():
+                            print_log_entry(log_entry, kind="CHARTS")
+                            if log_entry['loglevel'].upper() == "ERROR":
+                                raise SkipException("SKIP {}: chart_push() error!".format(log_entry['test']), log=log_entry)
+                    if create_package:
+                        print("platform-chart! -> exporting package ...")
+                        for log_entry in chart.package():
+                            print_log_entry(log_entry, kind="CHARTS")
+                            if log_entry['loglevel'].upper() == "ERROR":
+                                raise SkipException("SKIP {}: package() error!".format(log_entry['test']), log=log_entry)
+                            else:
+                                packages = glob(os.path.join(os.path.dirname(chart.chart_dir), '*.tgz'))
+                                for package in packages:
+                                    copy(package, build_dir)
+                                    os.remove(package)
 
                 #################TODO add save charts to yaml! ##########
                 if chart.name.endswith('extensions'):
                     pass
-                elif push_charts is True and not chart.local_only:
-                    print("saving chart ...")
-                    for log_entry in chart.chart_save():
-                        print_log_entry(log_entry, kind="CHARTS")
-                        if log_entry['loglevel'].upper() == "ERROR":
-                            raise SkipException("SKIP {}: chart_save() error!".format(log_entry['test']), log=log_entry)
-
-                    print("pushing chart ...")
-                    for log_entry in chart.chart_push():
-                        print_log_entry(log_entry, kind="CHARTS")
-                        if log_entry['loglevel'].upper() == "ERROR":
-                            raise SkipException("SKIP {}: chart_push() error!".format(log_entry['test']), log=log_entry)
 
                 print()
                 print()

@@ -14,8 +14,10 @@ from pathlib import Path
 
 suite_tag = "Helm Charts"
 
+
 def get_timestamp():
     return str(int(time() * 1000))
+
 
 def helm_registry_login(container_registry, username, password):
     print(f"-> Helm registry-login: {container_registry}")
@@ -176,7 +178,7 @@ class HelmChart:
                     check_chart_yaml = join(self.chart_dir, dependency["repository"].replace("file://", ""), "Chart.yaml")
                 elif dependency["repository"].startswith('file://'):
                     dep_dir = str(requirements_file)
-                    for i in range(0,dependency["repository"].count("../")+1):
+                    for i in range(0, dependency["repository"].count("../")+1):
                         dep_dir = dirname(dep_dir)
                     check_chart_yaml = join(dep_dir, dependency["repository"].replace("file://", "").replace("../", ""), "Chart.yaml")
                 else:
@@ -241,7 +243,7 @@ class HelmChart:
             }
             log_list.append(log_entry)
             print(f"{self.name}: found {dependencie_count_found}/{dependencie_count_all} dependencies.")
-            
+
             if dependencie_count_found != dependencie_count_all:
                 log_entry = {
                     "suite": suite_tag,
@@ -258,14 +260,26 @@ class HelmChart:
         return log_list
 
     def check_container_use(self):
-        glob_path = '{}/templates/*.yaml'.format(self.chart_dir)
-        for yaml_file in glob.glob(glob_path, recursive=True):
+        template_dirs = (f"{self.chart_dir}/templates/*.yaml", f"{self.chart_dir}/deps/**/templates.yaml")  # the tuple of file types
+        files_grabbed = []
+        for template_dir in template_dirs:
+            files_grabbed.extend(glob.glob(template_dir))
+        for yaml_file in files_grabbed:
             with open(yaml_file, "r") as yaml_content:
                 for line in yaml_content:
                     line = line.rstrip()
-                    if "dktk-jip-registry.dkfz.de" in line and "image" in line and "#" not in line:
-                        docker_container = "dktk-jip-registry.dkfz.de" + \
-                            line.split("dktk-jip-registry.dkfz.de")[1].replace(" ", "").replace(",", "").lower()
+                    if "image:" in line:
+                        line = line.split("image:")
+                        if "#" in line[0]:
+                            print("Commented -> skip")
+                            continue
+                        elif "}}" in line[1]:
+                            docker_container = line[1].split(" }}/")[-1].lower()
+                        elif line[1].count("/") == 2:
+                            docker_container = line[1].split("/")[-1].lower()
+                        else:
+                            print("Issue with image line in template-yaml!")
+                            continue
                         if docker_container not in HelmChart.docker_containers_used.keys():
                             HelmChart.docker_containers_used[docker_container] = yaml_file
 
@@ -511,8 +525,7 @@ class HelmChart:
             yield log_entry
         else:
 
-            command = ["helm", "chart", "save", self.name, "{}/{}/{}:{}".format(HelmChart.default_registry, self.repo, self.name, self.version)]
-
+            command = ["helm", "chart", "save", self.name, f"{HelmChart.default_registry}/{self.name}:{self.version}"]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
             while output.returncode != 0 and try_count < HelmChart.max_tries:
                 print("Error save -> try: {}".format(try_count))

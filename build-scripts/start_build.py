@@ -282,7 +282,7 @@ if __name__ == '__main__':
                 #################TODO add save charts to yaml! ##########
                 if chart.name.endswith('extensions'):
                     pass
-                elif push_charts is True and not chart.repo.startswith('file://'):
+                elif push_charts is True and not chart.local_only:
                     for log_entry in chart.chart_save():
                         print_log_entry(log_entry, kind="CHARTS")
                         if log_entry['loglevel'].upper() == "ERROR":

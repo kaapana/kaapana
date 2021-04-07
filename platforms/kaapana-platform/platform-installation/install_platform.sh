@@ -8,7 +8,7 @@ DEFAULT_VERSION="0.1.1-vdev"    # version of the platform Helm chart
 
 DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart
 
-CONTAINER_REGISTRY_URL=""                          # eg 'dktk-jip-registry.dkfz.de' -> URL for the Docker registry (has to be empty for build-mode 'local')
+CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 
 FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
@@ -63,7 +63,7 @@ function delete_all_images_docker {
     while true; do
         read -e -p "Do you really want to remove all the Docker images from the system?" -i " no" yn
         case $yn in
-            [Yy]* ) echo "${GREEN}Removing all images...${NC}" && docker system prune && echo "${GREEN}Done.${NC}"; break;;
+            [Yy]* ) echo "${GREEN}Removing all images...${NC}" && docker stop `docker ps -qa` && docker system prune --volume --all && docker system prune && echo "${GREEN}Done.${NC}"; break;;
             [Nn]* ) echo "${YELLOW}Images will be kept${NC}"; break;;
             * ) echo "Please answer yes or no.";;
         esac
@@ -247,6 +247,7 @@ function install_chart {
         exit 1
     else    
         echo "${YELLOW}Helm login registry...${NC}"
+        check_credentials
         helm registry login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD ${CONTAINER_REGISTRY_URL}
     fi
 

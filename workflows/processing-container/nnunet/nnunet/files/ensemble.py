@@ -46,9 +46,11 @@ batch_folders = [f for f in glob(join('/', workflow_dir, batch_name, '*'))]
 for batch_element_dir in batch_folders:
     element_input_dir = os.path.join(batch_element_dir, operator_in_dir)
     if exists(element_input_dir):
-        print(f"# Adding {element_input_dir} to the ensemble...")
-        ensemble_dirs.append(batch_folders[0])
-        # ensemble_dirs.append(element_input_dir)
+        if "skip" not in element_input_dir:
+            print(f"# Adding {element_input_dir} to the ensemble...")
+            ensemble_dirs.append(element_input_dir)
+        else:
+            print(f"# Skipping {element_input_dir} to the ensemble...")
     else:
         print(f"# Input-Dir {element_input_dir} not found! -> unexpected -> ABORT")
         print(f"#")

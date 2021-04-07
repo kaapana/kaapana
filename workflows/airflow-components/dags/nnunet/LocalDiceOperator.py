@@ -14,7 +14,7 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 
 
 class LocalDiceOperator(KaapanaPythonBaseOperator):
-    def create_plots(result_dir, result_table):
+    def create_plots(self, result_dir, result_table):
         print(f"# Creating boxplots @: {result_dir}")
         df_data = pd.DataFrame(result_table, columns=['Series', 'Model', 'label', 'Dice'])
         df_data = df_data[df_data['label'] == 'liver']
@@ -138,20 +138,21 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
             for single_model_pred_file in single_model_pred_files:
                 case_counter += 1
                 ensemble_already_processed = False
-                if not self.anonymize:
-                    file_id = basename(single_model_pred_file).replace(".nii.gz", "")
-                else:
-                    file_id = f"case_{case_counter}"
+                file_id = basename(single_model_pred_file).replace(".nii.gz", "")
 
                 gt_file = join(run_dir, "nnunet-cohort", file_id, self.gt_dir, basename(single_model_pred_file))
                 if not exists(gt_file):
                     print("# Could not find gt-file !")
                     print(f"# gt:   {gt_file}")
                     exit(1)
+                if self.anonymize:
+                    file_id = f"case_{case_counter}"
 
                 # result_scores_sm[model_id][file_id]["gt_file"] = gt_file
                 # result_scores_sm[model_id][file_id]["pred_file"] = single_model_pred_file
+                print(f"# Loading gt-file: {gt_file}")
                 gt_numpy, gt_labels = self.prep_nifti(gt_file)
+                print(f"# Loading model-file: {gt_file}")
                 sm_numpy, sm_labels = self.prep_nifti(single_model_pred_file)
                 print("#")
                 print(f"# gt_labels:   {gt_labels}")

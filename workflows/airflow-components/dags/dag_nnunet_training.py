@@ -23,6 +23,7 @@ from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
 
 node_uid = Variable.get(key="node_uid", default_var="N/A")
+study_id = "Kaapana"
 # TASK_NAME = f"Task{random.randint(100,999):03}_{node_uid}_train"
 TASK_NAME = f"Task{random.randint(100,999):03}_Training_{datetime.now().strftime('%d%m%y-%H%M')}"
 seg_filter = ""
@@ -298,12 +299,15 @@ zip_model = ZipUnzipOperator(
 bin2dcm = Bin2DcmOperator(
     dag=dag,
     name="model2dicom",
-    manufacturer="Kaapana",
-    manufacturer_model="nnUNet",
-    patient_id=f"{TASK_NAME}",
-    study_id=f"{TASK_NAME}",
+    patient_name="nnUNet-model",
+    # patient_id=f"{TASK_NAME}",
+    manufacturer=node_uid,
+    manufacturer_model="Kaapana nnUNet",
+    version=nnunet_train.image.split(":")[-1],
+    protocol_name=None,
+    study_id=study_id,
     study_uid=training_results_study_uid,
-    study_description=f"site: {node_uid} - nnunet model",
+    study_description=node_uid,
     series_description=f"nnUNet model {datetime.now().strftime('%d.%m.%Y %H:%M')}",
     size_limit=dicom_model_slice_size_limit,
     input_operator=zip_model,

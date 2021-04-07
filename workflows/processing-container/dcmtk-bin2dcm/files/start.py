@@ -190,7 +190,7 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
     study_id = os.getenv("STUDY_ID", "")
     study_uid = os.getenv("STUDY_UID", "None")
-    study_date = content_date if study_uid.lower() == "none" else "" 
+    study_date = content_date if study_uid.lower() == "none" else ""
     study_time = content_time if study_uid.lower() == "none" else ""
     study_datetime = study_date + study_time
     study_uid = study_uid if study_uid.lower() != "none" else pydicom.uid.generate_uid()
@@ -210,6 +210,7 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
     manufacturer = os.getenv("MANUFACTURER", "KAAPANA")
     manufacturer_model_name = os.getenv("MANUFACTURER_MODEL", "bin2dcm")
+    version = os.getenv("version", "0.0.0")
 
     protocol_name = os.getenv("PROTOCOL_NAME", "Bin2Dcm")
     size_limit = int(os.getenv("SIZE_LIMIT_MB", "100"))
@@ -279,7 +280,7 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
                 element.firstChild.data = manufacturer_model_name
 
             elif el_name == "SeriesNumber":
-                element.firstChild.data = "1"
+                element.firstChild.data = f"i+1"
 
             elif el_name == "ImageComments":
                 element.firstChild.data = new_filename
@@ -291,7 +292,7 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
                 element.firstChild.data = str(i+1)
 
             elif el_name == "CreatorVersionUID":
-                element.firstChild.data = "1.0.0"
+                element.firstChild.data = version
 
             elif el_name == "StudyDescription":
                 element.firstChild.data = study_description

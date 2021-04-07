@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-from shutil import which, copy
+from genericpath import exists
+from shutil import which, copy, rmtree
 import yaml
 import json
 import os
@@ -107,8 +108,10 @@ if __name__ == '__main__':
         print("local build: Forcing create_package = True !")
         create_package = True
 
+    build_dir = os.path.join(kaapana_dir, "build")
+    if exists(build_dir):
+        rmtree(build_dir)
     if create_package:
-        build_dir = os.path.join(kaapana_dir, "build")
         os.makedirs(build_dir, exist_ok=True)
 
     build_charts = False if docker_only else configuration["build_charts"]

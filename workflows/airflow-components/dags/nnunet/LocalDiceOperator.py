@@ -19,8 +19,8 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
         df_data = pd.DataFrame(result_table, columns=['Series', 'Model', 'label', 'Dice'])
         df_data = df_data[df_data['label'] == 'liver']
         box_plot = sns.boxplot(x="Model", y="Dice", hue="label", palette=["m", "g"], data=df_data)
-        box_plot.savefig(join(result_dir, "dice_results.png"))
-        box_plot.savefig(join(result_dir, "dice_results.pdf"))
+        box_plot.get_figure().savefig(join(result_dir, "dice_results.png"))
+        box_plot.get_figure().savefig(join(result_dir, "dice_results.pdf"))
 
     def get_model_infos(self, model_batch_dir):
         model_batch_dir = join(model_batch_dir, "model-exports")

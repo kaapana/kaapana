@@ -1,6 +1,6 @@
 ---
 global:
-    pull_policy_jobs: "Always"
+    pull_policy_jobs: "IfNotPresent"
     fast_data_dir: "/home/kaapana"
 image: "dag-mitk-workbench"
 version: "2021.02-vdev"

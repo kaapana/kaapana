@@ -1,6 +1,6 @@
 ---
 global:
-    pull_policy_jobs:
+    pull_policy_jobs: "IfNotPresent"
     image:
     version:
     action: "copy"

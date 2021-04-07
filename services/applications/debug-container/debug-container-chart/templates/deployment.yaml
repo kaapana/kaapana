@@ -18,7 +18,7 @@ spec:
       containers:
       - name: debug
         image: {{  .Values.global.registry_url }}/debug_container:1.0-vdev
-        imagePullPolicy:  Always
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         # env:
         # - name: http_proxy
         #   value: "http://www-int2.inet.dkfz-heidelberg.de:3128"

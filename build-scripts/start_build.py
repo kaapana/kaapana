@@ -254,8 +254,6 @@ if __name__ == '__main__':
             all_ready = True
             not_ready_list_tmp = []
             for chart in not_ready_list:
-                if "platform" in chart.name:
-                    print()
                 chart.dependencies_ready = True
                 for dependency in chart.dependencies:
                     ready_charts = [ready_chart for ready_chart in build_ready_list if ready_chart.name == dependency["name"] and ready_chart.version == dependency["version"]]
@@ -279,8 +277,6 @@ if __name__ == '__main__':
             for chart in not_ready_list:
                 print(f"Missing dependencies for chat: {chart.name}")
                 print("")
-                for dependency in chart.dependencies:
-                    print(f"dependency: {dependency['name']}")
             print("")
             exit(1)
 

@@ -2,5 +2,4 @@
 dependencies:
   - name: extensions-manager-chart
     version: "0.1.0-vdev"
-    repository: file://../../extensions-manager/extensions-manager-chart
-    
+    repository: file://../../../../../services/utils/extensions-manager/extensions-manager/extensions-manager-chart

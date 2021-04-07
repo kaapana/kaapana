@@ -23,6 +23,7 @@ from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
 
 node_uid = Variable.get(key="node_uid", default_var="N/A")
+study_id = "Kaapana"
 # TASK_NAME = f"Task{random.randint(100,999):03}_{node_uid}_train"
 TASK_NAME = f"Task{random.randint(100,999):03}_Training_{datetime.now().strftime('%d%m%y-%H%M')}"
 seg_filter = ""
@@ -31,7 +32,7 @@ train_network = "3d_lowres"
 train_network_trainer = "nnUNetTrainerV2"
 ae_title = "nnUnet-results"
 max_epochs = 1000
-dicom_model_slice_size_limit = 25
+dicom_model_slice_size_limit = 70
 
 # training_results_study_uid = "1.2.826.0.1.3680043.8.498.73386889396401605965136848941191845554"
 training_results_study_uid = None
@@ -290,6 +291,7 @@ zip_model = ZipUnzipOperator(
     whitelist_files="model_latest.model.pkl,model_latest.model,model_final_checkpoint.model,model_final_checkpoint.model.pkl,dataset.json,plans.pkl,*.json,*.png,*.pdf",
     subdir="results/nnUNet",
     mode="zip",
+    info_files="dataset.json",
     batch_level=True,
     input_operator=nnunet_train,
     delete_input_on_success=False
@@ -298,12 +300,15 @@ zip_model = ZipUnzipOperator(
 bin2dcm = Bin2DcmOperator(
     dag=dag,
     name="model2dicom",
+    patient_name="nnUNet-model",
+    patient_id=node_uid,
     manufacturer="Kaapana",
     manufacturer_model="nnUNet",
-    patient_id=f"{TASK_NAME}",
-    study_id=f"{TASK_NAME}",
+    version=nnunet_train.image.split(":")[-1],
+    study_id=study_id,
     study_uid=training_results_study_uid,
-    study_description=f"site: {node_uid} - nnunet model",
+    protocol_name=None,
+    study_description=None,
     series_description=f"nnUNet model {datetime.now().strftime('%d.%m.%Y %H:%M')}",
     size_limit=dicom_model_slice_size_limit,
     input_operator=zip_model,

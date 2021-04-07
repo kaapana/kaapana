@@ -10,7 +10,7 @@ dependencies:
     version: 1.0.1-vdev
     repository: file://../../../../../../services/applications/debug-container/debug-container-chart
   - name: jupyterlab-chart
-    version: 3.0.10-vdev
+    version: 2.2.8
     repository: file://../../../../../../services/applications/jupyterlab/jupyterlab-chart
   - name: mitk-flow-chart
     version: 2021.02-vdev
@@ -26,7 +26,7 @@ dependencies:
     repository: file://../../../../../../workflows/dag-installer/nnunet/nnunet-workflow
   - name: pull-docker-chart
     version: 0.1.1-vdev
-    repository: file://../../../../pull-docker/pull-docker-chart
+    repository: file://../../../../../../services/utils/pull-docker/pull-docker-chart
   - name: pysyft-nb-chart
     version: 0.1.0-vdev
     repository: file://../../../../../../services/applications/openmined/pysyft-nb/pysyft-nb-chart

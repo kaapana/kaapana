@@ -13,7 +13,6 @@ class Statistics2PdfOperator(KaapanaBaseOperator):
             dag=dag,
             image="{}{}/statistics2pdf:0.1.0-vdev".format(default_registry, default_project),
             name="stats2pdf",
-            image_pull_policy="Always",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             *args, **kwargs

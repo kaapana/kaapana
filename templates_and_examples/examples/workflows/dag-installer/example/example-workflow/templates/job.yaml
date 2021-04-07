@@ -16,7 +16,7 @@ spec:
     spec:
       initContainers:
         - name: init
-          image: {{  .Values.global.registry_url }}{{ .Values.global.registry_project }}/service_checker:1.1
+          image: {{  .Values.global.registry_url }}/service_checker:1.1
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
@@ -27,8 +27,8 @@ spec:
               value: "10"
       containers:
       - name: prefetch-{{ .Values.image }}
-        image: "{{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
-  #      image: "{{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
+        image: "{{  .Values.global.registry_url }}/{{ .Values.image }}:{{ .Values.version }}"
+  #      image: "{{ .Values.global.registry_url }}/{{ .Values.image }}:{{ .Values.version }}"
         env:
           - name: ACTION
             value: {{ .Values.action }}
@@ -46,7 +46,7 @@ spec:
     spec:
       initContainers:
         - name: init
-          image: {{  .Values.global.registry_url }}{{ .Values.global.registry_project }}/service_checker:1.1
+          image: {{  .Values.global.registry_url }}/service_checker:1.1
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
@@ -57,8 +57,8 @@ spec:
               value: "10"
       containers:
       - name: copy-{{ .Values.image }}
-        image: "{{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
-  #      image: "{{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
+        image: "{{  .Values.global.registry_url }}/{{ .Values.image }}:{{ .Values.version }}"
+  #      image: "{{ .Values.global.registry_url }}/{{ .Values.image }}:{{ .Values.version }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
         - name: ACTION

@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: gpu-prom-exporter
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/gpu-prom-exporter:0.1
+        image: {{  .Values.global.registry_url }}/gpu-prom-exporter:0.1
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         ports:
         - name: metrics

@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: pull-{{ .Values.image }}
-        image: "{{ .Values.registry_url }}{{ .Values.registry_project }}/{{ .Values.image }}:{{ .Values.version }}"
+        image: "{{ .Values.registry_url }}/{{ .Values.image }}:{{ .Values.version }}"
         #command: ["echo", "downloaded"] # tail better since otherwise the pod tries to restart after successfull deployment
         command: ["tail"]
         args: ["-f", "/dev/null"]

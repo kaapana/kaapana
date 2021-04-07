@@ -51,7 +51,7 @@ spec:
     spec:
       initContainers:
       - name: volume-permissions
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/busybox:1.31
+        image: {{  .Values.global.registry_url }}/busybox:1.31
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         command: ["sh", "-c", "chown -R 1000:1000 /prometheus"]
         volumeMounts:
@@ -63,7 +63,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: prometheus
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/prometheus:v2.25.0
+          image: {{  .Values.global.registry_url }}/prometheus:v2.25.0
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           args:
             - "--config.file=/etc/prometheus.yaml"

@@ -29,16 +29,14 @@ def get_images(target_dir):
             if matches:
                 for match in matches:
                     docker_registry_url = match[1] if '{' not in match[1] else ''
-                    docker_registry_project = match[2]
                     docker_image = match[3]
                     docker_version = match[4]
-                    image_dict.update({f'{docker_registry_url}{docker_registry_project}/{docker_image}:{docker_version}': {
+                    image_dict.update({f'{docker_registry_url}/{docker_image}:{docker_version}': {
                         'docker_registry_url': docker_registry_url,
-                        'docker_registry_project': docker_registry_project,
                         'docker_image': docker_image,
                         'docker_version': docker_version
                     }})
-                    print(f'{docker_registry_url}{docker_registry_project}/{docker_image}:{docker_version}')
+                    print(f'{docker_registry_url}/{docker_image}:{docker_version}')
         else:
             print(f'Skipping directory: {file_path}')
     print("Found %i images to download..." % len(image_dict))

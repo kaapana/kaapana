@@ -1,6 +1,5 @@
 ---
 dependencies:
-# MONITORING
   - name: prometheus-chart
     version: "v2.25.0"
     repository: file://../../../../services/monitoring/prometheus/prometheus-chart
@@ -13,4 +12,3 @@ dependencies:
   - name: kube-state-metrics-chart
     version: "v1.9.7"
     repository: file://../../../../services/monitoring/kube_state_metrics/kube-state-metrics-chart
----

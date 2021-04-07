@@ -14,6 +14,9 @@ class Bin2DcmOperator(KaapanaBaseOperator):
                  file_extensions="*.zip",
                  size_limit=100,
                  patient_id="",
+                 patient_name="",
+                 protocol_name="",
+                 version="0.0.0",
                  manufacturer="KAAPANA",
                  manufacturer_model="bin2dcm",
                  study_description=None,
@@ -28,15 +31,18 @@ class Bin2DcmOperator(KaapanaBaseOperator):
                  ):
 
         envs = {
-            "EXTENSIONS": file_extensions,
-            "SIZE_LIMIT_MB": str(size_limit),
             "STUDY_ID": str(study_id),
             "STUDY_UID": str(study_uid),
             "STUDY_DESCRIPTION": str(study_description),
             "SERIES_DESCRIPTION": str(series_description),
+            "PATIENT_NAME": str(patient_name),
             "PATIENT_ID": str(patient_id),
             "MANUFACTURER": str(manufacturer),
-            "MANUFACTURER_MODEL": str(manufacturer_model)
+            "MANUFACTURER_MODEL": str(manufacturer_model),
+            "VERSION": str(version),
+            "PROTOCOL_NAME": str(protocol_name),
+            "SIZE_LIMIT_MB": str(size_limit),
+            "EXTENSIONS": file_extensions,
         }
         env_vars.update(envs)
 

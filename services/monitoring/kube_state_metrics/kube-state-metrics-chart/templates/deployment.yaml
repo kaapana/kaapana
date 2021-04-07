@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: kube-state-metrics
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/kube-state-metrics:v1.9.7
+        image: {{  .Values.global.registry_url }}/kube-state-metrics:v1.9.7
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         livenessProbe:
           httpGet:

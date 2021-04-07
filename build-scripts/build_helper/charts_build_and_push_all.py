@@ -17,14 +17,14 @@ suite_tag = "Helm Charts"
 def get_timestamp():
     return str(int(time() * 1000))
 
-def helm_registry_login(docker_registry, username, password):
-    print(f"-> Helm registry-login: {docker_registry}")
-    command = ["helm", "registry", "login", docker_registry, "--username", username, "--password", password]
+def helm_registry_login(container_registry, username, password):
+    print(f"-> Helm registry-login: {container_registry}")
+    command = ["helm", "registry", "login", container_registry, "--username", username, "--password", password]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
 
     if output.returncode != 0:
         print("Something went wrong!")
-        print(f"Helm couldn't login into registry {docker_registry}")
+        print(f"Helm couldn't login into registry {container_registry}")
         print(f"Message: {output.stdout}")
         print(f"Error:   {output.stderr}")
         exit(1)

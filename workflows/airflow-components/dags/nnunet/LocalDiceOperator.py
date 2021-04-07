@@ -11,16 +11,26 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-
-
+from matplotlib import rcParams
+rcParams.update({'figure.autolayout': True})
 class LocalDiceOperator(KaapanaPythonBaseOperator):
     def create_plots(self, result_dir, result_table):
         print(f"# Creating boxplots @: {result_dir}")
+        os.makedirs(result_dir, exist_ok=True)
         df_data = pd.DataFrame(result_table, columns=['Series', 'Model', 'label', 'Dice'])
-        df_data = df_data[df_data['label'] == 'liver']
-        box_plot = sns.boxplot(x="Model", y="Dice", hue="label", palette=["m", "g"], data=df_data)
-        box_plot.get_figure().savefig(join(result_dir, "dice_results.png"))
-        box_plot.get_figure().savefig(join(result_dir, "dice_results.pdf"))
+        new_order = sorted(list(df_data.Model.unique()))
+        new_order.append(new_order.pop(new_order.index('ensemble')))
+        fig, ax1 = plt.subplots(1, 1, figsize=(12, 14))
+        box_plot = sns.boxplot(x="Model", y="Dice", hue="label", palette="Set3", data=df_data, ax=ax1,order=new_order)
+        box_plot.set_xticklabels(box_plot.get_xticklabels(), rotation=40, ha="right")
+
+        box = box_plot.get_position()
+        box_plot.set_position([box.x0, box.y0, box.width * 0.85, box.height])  # resize position
+        box_plot.legend(loc='center right', bbox_to_anchor=(1.22, 0.5), ncol=1)
+        plt.tight_layout()
+        fig.savefig(join(result_dir, "dice_results.pdf"))
+        fig.savefig(join(result_dir, "dice_results.png"), dpi=fig.dpi)
+        print("# DONE")
 
     def get_model_infos(self, model_batch_dir):
         model_batch_dir = join(model_batch_dir, "model-exports")
@@ -152,7 +162,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                 # result_scores_sm[model_id][file_id]["pred_file"] = single_model_pred_file
                 print(f"# Loading gt-file: {gt_file}")
                 gt_numpy, gt_labels = self.prep_nifti(gt_file)
-                print(f"# Loading model-file: {gt_file}")
+                print(f"# Loading model-file: {single_model_pred_file}")
                 sm_numpy, sm_labels = self.prep_nifti(single_model_pred_file)
                 print("#")
                 print(f"# gt_labels:   {gt_labels}")

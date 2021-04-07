@@ -43,7 +43,6 @@ class Pdf2DcmOperator(KaapanaBaseOperator):
             image="{}{}/pdf2dcm:3.6.4-vdev".format(default_registry, default_project),
             name="pdf2dcm",
             image_pull_secrets=["registry-secret"],
-            image_pull_policy="Always",
             env_vars=env_vars,
             execution_timeout=execution_timeout,
             *args, **kwargs

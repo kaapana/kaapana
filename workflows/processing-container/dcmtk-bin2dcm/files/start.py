@@ -1,5 +1,6 @@
-import sys
+from os.path import dirname, join, exists, basename
 import os
+import json
 import glob
 import pydicom
 import binascii
@@ -13,7 +14,7 @@ converter_count = 0
 
 
 def combine_split_files(split_files_dir, delete_parts=True):
-    input_files = sorted(glob.glob(os.path.join(split_files_dir, "*.part*")))
+    input_files = sorted(glob.glob(join(split_files_dir, "*.part*")))
     input_files = [i for i in input_files if "part" in i.split(".")[-1]]
     suffixes = ''.join(pathlib.Path(input_files[0].split(".part")[0]).suffixes)
     final_filename = f"{input_files[0].split('---')[0]}{suffixes}"
@@ -52,7 +53,7 @@ def split_file(file_path, size_limit):
 def xml_to_dicom(target_dir, delete_xml=True):
     global converter_count
 
-    xml_files = sorted(glob.glob(os.path.join(target_dir, "*.xml")))
+    xml_files = sorted(glob.glob(join(target_dir, "*.xml")))
 
     dicom_list = []
 
@@ -79,7 +80,7 @@ def xml_to_dicom(target_dir, delete_xml=True):
 
 def dicom_to_xml(dicom_dir, target_dir):
 
-    dcm_files = sorted(glob.glob(os.path.join(dicom_dir, "*.dcm")))
+    dcm_files = sorted(glob.glob(join(dicom_dir, "*.dcm")))
     if len(dcm_files) == 0:
         print("#")
         print(f"# No DICOM file found at {dicom_dir} !")
@@ -89,7 +90,7 @@ def dicom_to_xml(dicom_dir, target_dir):
 
     generated_xml_list = []
     for dcm_file in dcm_files:
-        xml_path = dcm_file.replace(os.path.dirname(dcm_file), target_dir).replace("dcm", "xml")
+        xml_path = dcm_file.replace(dirname(dcm_file), target_dir).replace("dcm", "xml")
 
         print("#")
         print(f"# convert DICOM to XML: {dcm_file} -> {xml_path}")
@@ -113,7 +114,7 @@ def dicom_to_xml(dicom_dir, target_dir):
 
 def xml_to_binary(target_dir, delete_xml=True):
     global converter_count
-    xml_files = sorted(glob.glob(os.path.join(target_dir, "*.xml")))
+    xml_files = sorted(glob.glob(join(target_dir, "*.xml")))
 
     print("#")
     print("# starting xml_to_binary")
@@ -164,7 +165,7 @@ def xml_to_binary(target_dir, delete_xml=True):
         for x in range(0, len(hex_data), 4):
             switched_hex += hex_data[x+2:x+4]+hex_data[x:x+2]
 
-        binary_path = os.path.join(os.path.dirname(xml_file), filename)
+        binary_path = join(dirname(xml_file), filename)
         binstr = binascii.unhexlify(switched_hex)
         with open(binary_path, "wb") as f:
             f.write(binstr)
@@ -180,8 +181,16 @@ def xml_to_binary(target_dir, delete_xml=True):
 
 
 def generate_xml(binary_path, target_dir, template_path="/template.xml"):
-    if not os.path.exists(target_dir):
+    if not exists(target_dir):
         os.makedirs(target_dir)
+
+    dataset_info = join(dirname(binary_path), "dataset.json")
+    if exists(dataset_info):
+        print(f"# dataset_info found!")
+        with open(dataset_info) as f:
+            dataset_info = json.load(f)
+    else:
+        dataset_info = None
 
     content_date = datetime.now().strftime("%H%M%S")
     content_time = datetime.now().strftime("%Y%m%d")
@@ -195,7 +204,12 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
     study_datetime = study_date + study_time
     study_uid = study_uid if study_uid.lower() != "none" else pydicom.uid.generate_uid()
     study_description = os.getenv("STUDY_DESCRIPTION", "None")
-    study_description = study_description if study_description.lower() != "none" else "bin2dcm"
+    study_description = study_description if study_description.lower() != "none" else None
+
+    if study_description == None and dataset_info!=None and "labels" in dataset_info:
+        labels = dataset_info["labels"]
+        labels.pop('0', None)
+        study_description = ",".join(list({v: v for k, v in sorted(labels.items(), key=lambda item: int(item[0]))}))
 
     print(f"# study_date:     {study_date}")
     print(f"# study_time:     {study_time}")
@@ -210,7 +224,7 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
     manufacturer = os.getenv("MANUFACTURER", "KAAPANA")
     manufacturer_model_name = os.getenv("MANUFACTURER_MODEL", "bin2dcm")
-    version = os.getenv("version", "0.0.0")
+    version = os.getenv("VERSION", "0.0.0")
 
     protocol_name = os.getenv("PROTOCOL_NAME", "Bin2Dcm")
     size_limit = int(os.getenv("SIZE_LIMIT_MB", "100"))
@@ -224,17 +238,17 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
         binary_path_list = split_file(file_path=binary_path, size_limit=size_limit)
 
     split_part_count = len(binary_path_list)
-    full_filename = os.path.basename(binary_path)
+    full_filename = basename(binary_path)
 
     series_uid = pydicom.uid.generate_uid()
     for i in range(0, len(binary_path_list)):
         binary_path = binary_path_list[i]
         sopInstanceUID = pydicom.uid.generate_uid()
-        version_uid = pydicom.uid.generate_uid()
+        # version_uid = pydicom.uid.generate_uid()
 
-        filename = os.path.basename(binary_path)
+        filename = basename(binary_path)
         new_filename = filename.split('.')[0]+f"---{split_part_count}{''.join(pathlib.Path(filename).suffixes)}"
-        xml_output_path = os.path.join(target_dir, f"{new_filename}.xml")
+        xml_output_path = join(target_dir, f"{new_filename}.xml")
 
         xml_template = minidom.parse(template_path)
 
@@ -295,7 +309,7 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
                 element.firstChild.data = version
 
             elif el_name == "StudyDescription":
-                element.firstChild.data = study_description
+                element.firstChild.data = str(study_description)
 
             elif el_name == "SeriesDescription":
                 element.firstChild.data = series_description
@@ -325,22 +339,22 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
 # START
 binary_file_extensions = os.getenv("EXTENSIONS", "*.zip").split(",")
-batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
+batch_folders = [f for f in glob.glob(join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
 
 for batch_element_dir in batch_folders:
-    element_input_dir = os.path.join(batch_element_dir, os.getenv("OPERATOR_IN_DIR", ""))
-    element_output_dir = os.path.join(batch_element_dir, os.getenv("OPERATOR_OUT_DIR", ""))
+    element_input_dir = join(batch_element_dir, os.getenv("OPERATOR_IN_DIR", ""))
+    element_output_dir = join(batch_element_dir, os.getenv("OPERATOR_OUT_DIR", ""))
 
     binaries_found = []
     for extension in binary_file_extensions:
-        binaries_found.extend(glob.glob(os.path.join(element_input_dir, extension)))
+        binaries_found.extend(glob.glob(join(element_input_dir, extension)))
 
     if len(binaries_found) == 0:
         print("############### No binaries found at {} ".format(element_input_dir))
         print("############### Extensions: {} ".format(binary_file_extensions))
         continue
 
-    if not os.path.exists(element_output_dir):
+    if not exists(element_output_dir):
         os.makedirs(element_output_dir)
     if ".dcm" in binaries_found[0]:
         print("# --> identified DICOM --> execute dcm2binary")
@@ -372,8 +386,8 @@ print("#")
 print("##################################################")
 print("#")
 
-batch_input_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
-batch_output_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_OUT_DIR'])
+batch_input_dir = join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
+batch_output_dir = join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_OUT_DIR'])
 
 print(f"# batch_input_dir:  {batch_input_dir}")
 print(f"# batch_output_dir: {batch_output_dir}")
@@ -383,9 +397,9 @@ print(f"# batch_output_dir: {batch_output_dir}")
 
 binaries_found = []
 for extension in binary_file_extensions:
-    binaries_found.extend(glob.glob(os.path.join(batch_input_dir, extension)))
+    binaries_found.extend(glob.glob(join(batch_input_dir, extension)))
 
-if not os.path.exists(batch_output_dir) and len(binaries_found) != 0:
+if not exists(batch_output_dir) and len(binaries_found) != 0:
     os.makedirs(batch_output_dir)
 
 if len(binaries_found) == 0:

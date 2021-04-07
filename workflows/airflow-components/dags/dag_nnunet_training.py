@@ -32,7 +32,7 @@ train_network = "3d_lowres"
 train_network_trainer = "nnUNetTrainerV2"
 ae_title = "nnUnet-results"
 max_epochs = 1000
-dicom_model_slice_size_limit = 25
+dicom_model_slice_size_limit = 70
 
 # training_results_study_uid = "1.2.826.0.1.3680043.8.498.73386889396401605965136848941191845554"
 training_results_study_uid = None

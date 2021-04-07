@@ -29,13 +29,13 @@ data:
     enable-json-logging: false
     no-redirects: false
     upstream-keepalives: false
-    # upstream-timeout: 10s                  #maximum amount of time a dial will wait for a connect to complete (default: 10s)
-    # upstream-keepalive-timeout: 10s        #specifies the keep-alive period for an active network connection (default: 10s)
-    # upstream-tls-handshake-timeout: 10s    #the timeout placed on the tls handshake for upstream (default: 10s)
-    # upstream-response-header-timeout: 10s  #the timeout placed on the response header for upstream (default: 10s)
-    # upstream-expect-continue-timeout: 10s  #the timeout placed on the expect continue for upstream (default: 10s)
-    server-read-timeout: 120s                 #the server read timeout on the http server (default: 10s)
-    server-write-timeout: 120s                #the server write timeout on the http server (default: 10s)
+    upstream-timeout: 600s                  #maximum amount of time a dial will wait for a connect to complete (default: 10s)
+    upstream-keepalive-timeout: 600s        #specifies the keep-alive period for an active network connection (default: 10s)
+    upstream-tls-handshake-timeout: 600s    #the timeout placed on the tls handshake for upstream (default: 10s)
+    upstream-response-header-timeout: 600s  #the timeout placed on the response header for upstream (default: 10s)
+    upstream-expect-continue-timeout: 600s  #the timeout placed on the expect continue for upstream (default: 10s)
+    server-read-timeout: 600s                 #the server read timeout on the http server (default: 10s)
+    server-write-timeout: 600s                #the server write timeout on the http server (default: 10s)
     upstream-url: https://traefik:443
     resources:
     - uri: /minio

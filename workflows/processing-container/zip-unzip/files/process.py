@@ -2,8 +2,8 @@ import os
 import glob
 import pathlib
 import zipfile
-from shutil import copyfile
-from os.path import join, relpath, basename, dirname
+from shutil import copy2
+from os.path import join, relpath, basename, dirname, exists
 
 processed_count = 0
 
@@ -46,10 +46,11 @@ def zip_dir(zip_dir_path, target_file):
                     info_file = info_file.replace("*", "")
                     index_found = file.find(info_file)
                     if index_found != -1 and index_found + len(info_file) == len(file):
-                        target_path = join(target_dir,basename(file))
-                        print(f"# Found info-file:{info_file}")
-                        print(f"# Target: {target_path}")
-                        copyfile(file,target_file)
+                        target_info_file_path = join(target_dir, basename(file))
+                        info_file = join(root, file)
+                        print(f"# Found info-file: {info_file}")
+                        print(f"# Target: {target_info_file_path}")
+                        copy2(info_file, target_info_file_path)
 
             if blacklist_files != None:
                 skip_file = False

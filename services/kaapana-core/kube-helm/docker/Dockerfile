@@ -6,10 +6,7 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /app
 
-# RUN apk update && apk add postgresql-dev gcc python3-dev musl-dev
-# RUN apk add findutils
-# RUN apk add jq
-# RUN pip install psycopg2
+RUN apk update && apk add postgresql-dev python3-dev gcc musl-dev
 
 ENV KUBE_LATEST_VERSION="v1.19.2"
 ENV HELM_VERSION="v3.5.2"

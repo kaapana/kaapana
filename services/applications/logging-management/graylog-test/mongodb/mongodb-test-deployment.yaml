@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-test-de
+  namespace: graylog-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: mongodb-test
+  template:
+    metadata:
+      labels:
+        app-name: mongodb-test
+    spec:
+      containers:
+        - name: mongodb-test-container
+          image: mongo:latest
+          imagePullPolicy:  IfNotPresent
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - name: mongodb-config-file
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+          env:
+          - name: "MONGO_DATABASE"
+            value: gralog-test-database
+          - name: "MONGO_BIND_IP"
+            value: "0.0.0.0"
+      volumes:
+      - name: mongodb-config-file
+        configMap:
+          name: mongodb-test-config
+          items:
+          - key: users.js
+            path: users.js
+---

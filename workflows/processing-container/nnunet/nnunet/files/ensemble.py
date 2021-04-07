@@ -47,7 +47,8 @@ for batch_element_dir in batch_folders:
     element_input_dir = os.path.join(batch_element_dir, operator_in_dir)
     if exists(element_input_dir):
         print(f"# Adding {element_input_dir} to the ensemble...")
-        ensemble_dirs.append(element_input_dir)
+        ensemble_dirs.append(batch_folders[0])
+        # ensemble_dirs.append(element_input_dir)
     else:
         print(f"# Input-Dir {element_input_dir} not found! -> unexpected -> ABORT")
         print(f"#")

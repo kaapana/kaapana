@@ -63,7 +63,7 @@ function delete_all_images_docker {
     while true; do
         read -e -p "Do you really want to remove all the Docker images from the system?" -i " no" yn
         case $yn in
-            [Yy]* ) echo "${GREEN}Removing all images...${NC}" && docker system prune --volume --all && echo "${GREEN}Done.${NC}"; break;;
+            [Yy]* ) echo "${GREEN}Removing all images...${NC}" && docker system prune --volumes --all && echo "${GREEN}Done.${NC}"; break;;
             [Nn]* ) echo "${YELLOW}Images will be kept${NC}"; break;;
             * ) echo "Please answer yes or no.";;
         esac

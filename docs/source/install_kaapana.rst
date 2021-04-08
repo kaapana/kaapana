@@ -2,21 +2,18 @@
 
 Install Kaapana
 ===============
-This manual is int
-
 
 | The **domain,hostname or IP-address** has to be known and correctly configured for the system. 
 | If a **proxy** is needed, it should already be configured at ``/etc/environment`` (reboot needed after configuration!). 
 
 
-**Filesystem directories:** In the default configuration there are two locations on the filesystem. Per default, the two locations are the same, if you have a SSD and a HDD mount, you should adapt the directory, which are defined in the :term:`platform-installation-script` accordingly, before executing the script.
+.. hint::
 
-1. ``fast_data_dir=/home/kaapana``: Location of data that do not take a lot of space and should be loaded fast. Preferably, a SSD is mounted here.
-
-2. ``slow_data_dir=/home/kaapana``:  Location of huge files, like images or our object store is located here.  Preferably, a HDD is mounted here.
-
-**Supported browsers:** As browsers to access the installed platform we support the newest versions of Google Chrome and Firefox. With Safari it is currently not possible to access Traefik as well as services that are no vnc desktops. Moreover, Some functionalities in OHIF viewer do not work with Safari. Internet Explorer and Microsoft Edge are not really tested. 
-
+  | **Supported browsers**
+  | We recommend Chrome as a browser.
+  | Supported are the newest versions of Google Chrome and Firefox. 
+  | Safari has some known issues with the user-interface of Traefik, some functionalities of the OHIF viewer as well as no-vnc-based application (like MITK). 
+  | Internet Explorer and Microsoft Edge are not really tested. 
 
 Step 1: Server Installation
 ---------------------------
@@ -44,6 +41,15 @@ To do this, you can use the :term:`server-installation-script`, located at :code
 
 Step 2: Platform Deployment
 ---------------------------
+
+.. hint::
+
+  | **Filesystem directories**
+  | In the default configuration there are two locations on the filesystem, which will be used for stateful data on the host machine:
+  | 1. ``fast_data_dir=/home/kaapana``: Location of data that do not take a lot of space and should be loaded fast. Preferably, a SSD is mounted here.
+  | 2. ``slow_data_dir=/home/kaapana``:  Location of huge files, like images or our object store is located here.  Preferably, a HDD is mounted here.
+  | They can be adjusted in the :term:`platform-installation-script` and can also be identical (everything is stored at one place).
+
 The platform is deployed using the :term:`platform-installation-script`, which you can find at :code:`kaapana/platforms/kaapana-platform/platform_installation/install_platform.sh`.
 
 Copy the script to your target-system (server) and **adjust it as described below**:

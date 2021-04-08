@@ -88,16 +88,6 @@ We expect the sudo systemctl restart snapd
    | :code:`helm plugin install https://github.com/instrumenta/helm-kubeval`
 
 
-Building the example platform
-------------------------------
- 
-The process of creating a Kaapana-based platform involves the following steps that should be executed on a dedicated machine:
-
-#. Build all :term:`Dockerfiles<docker>` and :term:`Helm Charts<helm>` from the repository
-#. (optional) Push them to an external container regisry
-#. Install all server requirements with the :term:`server-installation-script`
-#. Deploy the platform with the :term:`platform-installation-script`
-
 Build modes
 -----------
 
@@ -121,10 +111,10 @@ This is comparable to a binary of regular software projects - if you already hav
 
 The following sections include a configuration example for each of the options (if applicable).
 
-Steps 1&2: Build Dockerfiles and Helm Charts
---------------------------------------------
+Build Dockerfiles and Helm Charts
+---------------------------------
 
-Step 1&2 will be handled with a build-script, which you can find within the repository at :code:`kaapana/build-scripts/start_build.py`.
+The build-process will be handled with a build-script, which you can find within the repository at :code:`kaapana/build-scripts/start_build.py`.
 
 Before you start the build-process, you should have a look at the build-configuration at :code:`kaapana/build-scripts/build-configuration.yaml` and adapt it accordingly to your chosen build configuration as shown below.
 

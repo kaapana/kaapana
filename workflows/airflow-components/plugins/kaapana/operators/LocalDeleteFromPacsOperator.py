@@ -17,8 +17,8 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
                 and 'form_data' in conf['conf'] \
                 and conf['conf']['form_data'] is not None \
                 and 'delete_complete_study' in conf['conf']['form_data']:
-                self.delete_complete_study = conf['conf']['form_data']['delete_complete_study']
-                print('Delete entire study set to ', self.delete_complete_study)
+            self.delete_complete_study = conf['conf']['form_data']['delete_complete_study']
+            print('Delete entire study set to ', self.delete_complete_study)
         run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
         batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
         dicoms_to_delete = []
@@ -50,13 +50,13 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
             time.sleep(self.wait_time)
             print("# -> check removed from aet " + self.pacs_aet)
             self.check_removed(study_uid=study_uid, series_uid=series_uid,
-                                 aet=self.pacs_aet)
+                               aet=self.pacs_aet)
             print('# -> deleting ...')
             self.delete_icom_quality_study_from_pacs(study_uid)
             time.sleep(self.wait_time)
             print('# -> check if removed ...')
             self.check_removed(study_uid=study_uid, series_uid=series_uid,
-                                 aet="IOCM_QUALITY")
+                               aet="IOCM_QUALITY")
             if series_uid:
                 print('Series {} was sucessfully deleted from PACs'.format(series_uid))
             else:
@@ -140,6 +140,7 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
                  pacs_host='dcm4chee-service.store.svc',
                  pacs_port=8080,
                  pacs_aet='KAAPANA',
+                 delete_complete_study=False,
                  wait_time=5,
                  *args, **kwargs):
 
@@ -148,7 +149,7 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
         self.pacs_dcmweb_endpoint = "http://{}:{}".format(pacs_host, pacs_port)
         self.pacs_aet = pacs_aet
         self.wait_time = wait_time
-
+        self.delete_complete_study = delete_complete_study
 
         super().__init__(
             dag,

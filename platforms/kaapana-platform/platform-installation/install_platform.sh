@@ -232,6 +232,7 @@ function install_chart {
         fi
         
         echo "${GREEN}Force PULL_POLICY to 'IfNotPresent' !${NC}"
+        DEV_MODE="false"
         PULL_POLICY_PODS="IfNotPresent"
         PULL_POLICY_JOBS="IfNotPresent"
         PULL_POLICY_OPERATORS="IfNotPresent"

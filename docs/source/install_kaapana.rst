@@ -81,7 +81,6 @@ Copy the script to your target-system (server) and **adjust it as described belo
 
          ...
          CONTAINER_REGISTRY_URL=""
-         DEV_MODE="false"
          ...
 
    .. tab:: Private registry

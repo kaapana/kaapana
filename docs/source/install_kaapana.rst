@@ -61,7 +61,7 @@ Step 2: Platform Deployment
   | 2. ``slow_data_dir=/home/kaapana``:  Location of huge files, like images or our object store is located here.  Preferably, a HDD is mounted here.
   | They can be adjusted in the :term:`platform-installation-script` and can also be identical (everything is stored at one place).
 
-The platform is deployed using the :term:`platform-installation-script`, which you can find at :code:`kaapana/platforms/kaapana-platform/platform-Sinstallation/install_platform.sh`.
+The platform is deployed using the :term:`platform-installation-script`, which you can find at :code:`kaapana/platforms/kaapana-platform/platform-installation/install_platform.sh`.
 
 Copy the script to your target-system (server) and **adjust it as described below**:
 

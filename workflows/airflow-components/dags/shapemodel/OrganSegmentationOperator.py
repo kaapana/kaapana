@@ -41,7 +41,7 @@ class OrganSegmentationOperator(KaapanaBaseOperator):
             execution_timeout=execution_timeout,
             env_vars=env_vars,
             task_concurrency=10,
-            ram_mem_mb=4000,
+            ram_mem_mb=6000,
             *args, 
             **kwargs
             )

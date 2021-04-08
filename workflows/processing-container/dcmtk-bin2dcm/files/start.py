@@ -192,8 +192,8 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
     else:
         dataset_info = None
 
-    content_date = datetime.now().strftime("%H%M%S")
-    content_time = datetime.now().strftime("%Y%m%d")
+    content_date = datetime.now().strftime("%Y%m%d")
+    content_time = datetime.now().strftime("%H%M%S")
     content_datetime = datetime.now().strftime("%Y%m%d%H%M%S")  # YYYYMMDDHHMMSS
     pretty_datetime_now = datetime.now().strftime('%d.%m.%Y %H:%M')
 
@@ -206,7 +206,7 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
     study_description = os.getenv("STUDY_DESCRIPTION", "None")
     study_description = study_description if study_description.lower() != "none" else None
 
-    if study_description == None and dataset_info!=None and "labels" in dataset_info:
+    if study_description == None and dataset_info != None and "labels" in dataset_info:
         labels = dataset_info["labels"]
         labels.pop('0', None)
         study_description = ",".join(list({v: v for k, v in sorted(labels.items(), key=lambda item: int(item[0]))}))
@@ -226,7 +226,11 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
     manufacturer_model_name = os.getenv("MANUFACTURER_MODEL", "bin2dcm")
     version = os.getenv("VERSION", "0.0.0")
 
-    protocol_name = os.getenv("PROTOCOL_NAME", "Bin2Dcm")
+    protocol_name = os.getenv("PROTOCOL_NAME", "None")
+    protocol_name = protocol_name if protocol_name.lower() != "none" else None
+    if protocol_name == None and dataset_info != None and "name" in dataset_info:
+        protocol_name = dataset_info["name"]
+
     size_limit = int(os.getenv("SIZE_LIMIT_MB", "100"))
 
     xml_output_list = []

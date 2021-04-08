@@ -127,7 +127,7 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
                     if dimension != last_dimension:
                         error = True
                         print("# ")
-                        print(f"{input_dirs[i-1]} vs {input_dirs[i]}: {last_dimension} <-> {dimension}: ERROR")
+                        print(f"# {input_dirs[i-1]} vs {input_dirs[i]}: {last_dimension} <-> {dimension}: ERROR")
                         print("# ERROR: Dimensions are different!!!")
                         print("# ")
                         if self.anonymize:

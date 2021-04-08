@@ -34,10 +34,21 @@ Before the example platform "Kaapana-platform" can be deployed, all dependencies
 To do this, you can use the :term:`server-installation-script`, located at :code:`kaapana/server-installation/server_installation.sh`, by following the steps listed below.
 
 1. Copy the script to your target-system (server)
-2. Make it executable: :code:`chmod +x server_installation.sh`
-3. Execute the script: :code:`sudo ./server_installation.sh`
-4. Reboot the system :code:`sudo reboot`
-5. (optional) Enable GPU support for Microk8s :code:`sudo ./server_installation.sh -gpu`
+2. Make it executable:
+
+   | :code:`chmod +x server_installation.sh`
+
+3. Execute the script:
+
+   | :code:`sudo ./server_installation.sh`
+
+4. Reboot the system 
+
+   | :code:`sudo reboot`
+
+5. (optional) Enable GPU support for Microk8s 
+
+   | :code:`sudo ./server_installation.sh -gpu`
 
 Step 2: Platform Deployment
 ---------------------------
@@ -69,19 +80,17 @@ Copy the script to your target-system (server) and **adjust it as described belo
       .. code-block:: python
 
          ...
+         CONTAINER_REGISTRY_URL=""
          DEV_MODE="false"
-         
-         REGISTRY_URL="local"
          ...
 
    .. tab:: Private registry
 
-      .. important:: The beginning slash for <registry-project> is important!
 
       .. code-block:: python
 
          ...
-         REGISTRY_URL="<registry-url>"
+         CONTAINER_REGISTRY_URL="<registry-url>"
          ...
 
 

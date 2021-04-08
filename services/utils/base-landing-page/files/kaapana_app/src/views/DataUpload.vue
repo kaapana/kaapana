@@ -1,17 +1,17 @@
 <template lang="pug">
   .dropzone
     v-container(grid-list-lg text-left)
-      div
+      div(v-if="supported")
         upload(targetFolder="dicoms", labelIdle="Drop zip with dicoms files here...")
+      div(v-else)
+        v-alert(color='red' type='info') The data upload is not supported in Firefox.
 
 </template>
 
 <script lang="ts">
-// upload(targetFolder="doccano", labelIdle="Drop your doccano project here...")
+
 import Vue from 'vue';
-import request from '@/request';
 import { mapGetters } from "vuex";
-import kaapanaApiService from '@/common/kaapanaApi.service';
 import Upload from "@/components/Upload.vue";
 
 export default Vue.extend({
@@ -19,10 +19,15 @@ export default Vue.extend({
     Upload
   },
   data: () => ({
-   
+    supported: true,
   }),
   mounted() {
-
+    const { userAgent } = navigator
+    if (userAgent.includes('Firefox/')) {
+      this.supported = false
+    } else {
+      this.supported = true
+    }
   },
   computed: {
     ...mapGetters(['currentUser', 'isAuthenticated'])

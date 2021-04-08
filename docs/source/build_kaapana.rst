@@ -6,6 +6,13 @@ Build Kaapana
 Build Requirements
 ------------------
 
+.. important::
+
+  | **Disk space needed:**
+  | For the complete build of the project ~50GB of container images will be stored at :code:`/var/snap/docker/common/var-lib-docker`.
+  | If you use build-mode local it will be ~120GB since each container will be also imported separately into containerd.
+  | In the future we will also provide an option to delete the docker image after the import.
+
 Before you get started you should be familiar with the basic concepts and components of Kaapana see :ref:`what_is_kaapana`.
 You should also have the following packages installed on your build-system.
 
@@ -26,12 +33,10 @@ We expect the sudo systemctl restart snapd
 #. Clone the repository:
 
    | :code:`git clone https://github.com/kaapana/kaapana.git` 
-   | (**alternative:** :code:`git clone https://phabricator.mitk.org/source/kaapana.git`)
-   | :code:`git checkout master`
 
 #. Python requirements 
    
-   :code:`python3 -m pip install -r build-scripts/requirements.txt`
+   :code:`python3 -m pip install -r kaapana/build-scripts/requirements.txt`
 
 #. Snap 
 
@@ -156,13 +161,12 @@ Before you start the build-process, you should have a look at the build-configur
          push_charts: true
          create_package: false
 
-.. important::
 
-  | **Disk space needed:**
-  | For the complete build of the project ~50GB of container images will be stored at :code:`/var/snap/docker/common/var-lib-docker`.
-  | If you use build-mode local it will be ~120GB since each container will be also imported separately into containerd.
-  | In the future we will also provide an option to delete the docker image after the import.
 
+Adjust build-configuration:
+
+| :code:`nano kaapana/build-scripts/build-configuration.yaml`
 
 Start the build process:
-:code:`python3 kaapana/build-scripts/start_build.py`
+
+| :code:`python3 kaapana/build-scripts/start_build.py`

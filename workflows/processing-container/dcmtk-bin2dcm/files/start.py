@@ -294,7 +294,7 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
                 element.firstChild.data = manufacturer_model_name
 
             elif el_name == "SeriesNumber":
-                element.firstChild.data = f"i+1"
+                element.firstChild.data = f"{i+1}"
 
             elif el_name == "ImageComments":
                 element.firstChild.data = new_filename

@@ -56,6 +56,8 @@ def get_available_pretrained_tasks(af_home_path):
 def get_installed_tasks(af_home_path):
     installed_tasks = {}
     installed_models_path = join("/models", "nnUNet")
+    if not exists(installed_models_path):
+        return installed_tasks
     installed_models = [basename(normpath(f.path)) for f in os.scandir(installed_models_path) if f.is_dir() and "ensembles" not in f.name]
     for installed_model in installed_models:
         model_path = join(installed_models_path, installed_model)

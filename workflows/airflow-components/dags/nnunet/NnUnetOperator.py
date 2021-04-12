@@ -36,7 +36,7 @@ class NnUnetOperator(KaapanaBaseOperator):
                  inf_threads_prep=1,
                  inf_threads_nifti=1,
                  inf_softmax=False,
-                 node_uid = "N/A",
+                 node_uid="N/A",
                  models_dir="/models",
                  env_vars={},
                  parallel_id=None,
@@ -92,11 +92,13 @@ class NnUnetOperator(KaapanaBaseOperator):
         gpu_mem_mb = None
 
         if mode == "training" or mode == "inference":
+            if mode == "training":
+                gpu_mem_mb = 12000
+            elif mode == "inference":
+                gpu_mem_mb = 3000
+            pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=None)
             training_operator = True
-            pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=1)
-            gpu_mem_mb = 10000
-            # if mode == "training":
-            #     gpu_mem_mb = None
+
 
         parallel_id = parallel_id if parallel_id is not None else mode
         super().__init__(

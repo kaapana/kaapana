@@ -5,11 +5,11 @@ import requests
 from datetime import timedelta, datetime
 import time
 import os
-
+from kaapana.kubetools.prometheus_query import get_node_memory, get_node_mem_percent, get_node_cpu, get_node_cpu_util_percent,get_node_gpu_infos
 from airflow.models import Variable
 from airflow.api.common.experimental import pool as pool_api
 from kubernetes.client.models.v1_container_image import V1ContainerImage
-
+from pprint import pprint
 
 class NodeUtil():
     ureg = None
@@ -42,63 +42,6 @@ class NodeUtil():
     memory_available_req = None
     memory_available_limit = None
     gpu_memory_available = None
-
-    mem_util_per_query = "sum (container_memory_working_set_bytes{id=\"/\"}) / sum (machine_memory_bytes) * 100"
-    cpu_core_query = "sum(machine_cpu_cores)"
-    cpu_util_per_query = "sum (rate (container_cpu_usage_seconds_total{id=\"/\"}[1m])) / sum (machine_cpu_cores) * 100"
-    cpu_util_cores_used_query = "sum(rate (container_cpu_usage_seconds_total{id=\"/\"}[1m]))"
-    memory_query = "floor(sum(machine_memory_bytes)/1048576)"
-    gpu_query = "sum(nvidia_gpu_num_devices)"
-    gpu_mem_used_query = "ceil(sum(nvidia_gpu_memory_used_bytes)/1048576)"
-    gpu_mem_available_query = "floor(sum(nvidia_gpu_memory_total_bytes)/1048576)"
-    prometheus_url = "http://prometheus-service.monitoring.svc:9090/prometheus/api/v1/query?query="
-
-    @staticmethod
-    def get_node_info(query, logger=None):
-        logger = None
-
-        tries = 0
-        max_tries = 4
-        result_value = None
-        return_code = True
-
-        while result_value == None and tries < max_tries:
-            request_url = "{}{}".format(NodeUtil.prometheus_url, query)
-            response = requests.get(request_url)
-            result = response.json()["data"]["result"]
-            if isinstance(result, list) and len(result) > 0:
-                result_value = int(float(response.json()["data"]["result"][0]["value"][1]))
-                if logger is not None:
-                    logger.warning("Got result for query: {}: {} - ok!".format(query, result_value))
-            elif "nvidia" in query:
-                if logger is not None:
-                    logger.warning("No GPU found... - OK!")
-                result_value = 0
-            else:
-                if logger is not None:
-                    logger.error("Could not retrieve node-info -> waiting 1s ...")
-                time.sleep(1)
-                tries += 1
-
-        if tries >= max_tries:
-            print("+++++++++++++++++++++++++++++++++++++++++ Could not fetch node-info!")
-            return_code = False
-
-        if not isinstance(result_value, int):
-            result_value = 0
-            if logger is not None:
-                logger.error("'result_value' was not an integer! -> set to 0 !")
-
-        return result_value, return_code
-
-    @staticmethod
-    def get_prom_util():
-        node_memory, return_code = NodeUtil.get_node_info(query=NodeUtil.memory_query)
-        node_cpu, return_code = NodeUtil.get_node_info(query=NodeUtil.cpu_core_query)
-        node_gpu_mem, return_code = NodeUtil.get_node_info(query=NodeUtil.gpu_mem_available_query)
-        node_gpu_count, return_code = NodeUtil.get_node_info(query=NodeUtil.gpu_query)
-
-        return node_memory, node_cpu, node_gpu_mem, node_gpu_count
 
     @staticmethod
     def compute_allocated_resources(logger=None):
@@ -173,39 +116,51 @@ class NodeUtil():
             NodeUtil.pid_pressure = node_info["pid_pressure"]
             gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
             if gpu_count_pool is None or gpu_count_pool.slots != NodeUtil.gpu_dev_count:
-                pool_api.create_pool(
-                    name="GPU_COUNT",
-                    slots=NodeUtil.gpu_dev_count,
-                    description="Count of GPUs of the node"
-                )
-
-            if NodeUtil.gpu_dev_count > 0:
-                NodeUtil.gpu_mem_alloc, return_code = NodeUtil.get_node_info(query=NodeUtil.gpu_mem_available_query, logger=logger)
-                if not return_code and logger is not None:
-                    logger.warning("############################################# Could not fetch gpu_alloc utilization from prometheus!!")
-                    NodeUtil.gpu_mem_alloc = None
-                NodeUtil.gpu_mem_used, return_code = NodeUtil.get_node_info(query=NodeUtil.gpu_mem_used_query, logger=logger)
-                if not return_code and logger is not None:
-                    logger.warning("############################################# Could not fetch gpu_used utilization from prometheus!!")
-                    NodeUtil.gpu_mem_used = None
+                gpu_infos = get_node_gpu_infos()
+                if len(gpu_infos) > 0:
+                    Variable.set("GPU_SUPPORT", "True")
+                    pool_api.create_pool(
+                        name="GPU_COUNT",
+                        slots=NodeUtil.gpu_dev_count,
+                        description="Count of GPUs of the node"
+                    )
+                    for gpu in gpu_infos:
+                        pool_api.create_pool(
+                            name=f"GPU_{gpu['id']}_CAPACITY",
+                            slots=gpu["mem_capacity"],
+                            description=f"Mem capacity of {gpu['name']}"
+                        )
+                else:
+                    Variable.set("GPU_SUPPORT", "False")
             else:
-                NodeUtil.gpu_mem_alloc = 0
-                NodeUtil.gpu_mem_used = 0
+                Variable.set("GPU_SUPPORT", "False")
+            # if NodeUtil.gpu_dev_count > 0:
+            #     NodeUtil.gpu_mem_alloc = NodeUtil.get_node_info(query=NodeUtil.gpu_mem_available_query, logger=logger)
+            #     if not return_code and logger is not None:
+            #         logger.warning("############################################# Could not fetch gpu_alloc utilization from prometheus!!")
+            #         NodeUtil.gpu_mem_alloc = None
+            #     NodeUtil.gpu_mem_used, return_code = NodeUtil.get_node_info(query=NodeUtil.gpu_mem_used_query, logger=logger)
+            #     if not return_code and logger is not None:
+            #         logger.warning("############################################# Could not fetch gpu_used utilization from prometheus!!")
+            #         NodeUtil.gpu_mem_used = None
+            # else:
+            #     NodeUtil.gpu_mem_alloc = 0
+            #     NodeUtil.gpu_mem_used = 0
 
             NodeUtil.cpu_available_req = NodeUtil.cpu_alloc - NodeUtil.cpu_req
             NodeUtil.cpu_available_limit = NodeUtil.cpu_alloc - NodeUtil.cpu_lmt
             NodeUtil.memory_available_req = NodeUtil.mem_alloc - NodeUtil.mem_req
             NodeUtil.memory_available_limit = NodeUtil.mem_alloc - NodeUtil.mem_lmt
-            NodeUtil.gpu_memory_available = None if (NodeUtil.gpu_mem_alloc is None or NodeUtil.gpu_mem_used is None) else (NodeUtil.gpu_mem_alloc - NodeUtil.gpu_mem_used)
+            # NodeUtil.gpu_memory_available = None if (NodeUtil.gpu_mem_alloc is None or NodeUtil.gpu_mem_used is None) else (NodeUtil.gpu_mem_alloc - NodeUtil.gpu_mem_used)
 
             Variable.set("CPU_NODE", "{}/{}".format(NodeUtil.cpu_lmt, NodeUtil.cpu_alloc))
             Variable.set("CPU_FREE", "{}".format(NodeUtil.cpu_available_req))
             Variable.set("RAM_NODE", "{}/{}".format(NodeUtil.mem_req, NodeUtil.mem_alloc))
             Variable.set("RAM_FREE", "{}".format(NodeUtil.memory_available_req))
-            Variable.set("GPU_DEV", "{}/{}".format(NodeUtil.gpu_dev_free, NodeUtil.gpu_dev_count))
-            Variable.set("GPU_DEV_FREE", "{}".format(NodeUtil.gpu_dev_free))
-            Variable.set("GPU_MEM", "{}/{}".format(NodeUtil.gpu_mem_used, NodeUtil.gpu_mem_alloc))
-            Variable.set("GPU_MEM_FREE", "{}".format(NodeUtil.gpu_memory_available))
+            # Variable.set("GPU_DEV_COUNT", "{}/{}".format(NodeUtil.gpu_dev_count))
+            # Variable.set("GPU_DEV_FREE", "{}".format(NodeUtil.gpu_dev_free))
+            # Variable.set("GPU_MEM", "{}/{}".format(NodeUtil.gpu_mem_used, NodeUtil.gpu_mem_alloc))
+            # Variable.set("GPU_MEM_FREE", "{}".format(NodeUtil.gpu_memory_available))
             Variable.set("UPDATED", datetime.utcnow())
 
             # Variable.set("cpu_alloc", "{}".format(NodeUtil.cpu_alloc))
@@ -292,28 +247,20 @@ class NodeUtil():
                     logger.warning("############################################# COULD NOT FETCH UTILIZATION -> SKIPPING!")
                     return True
 
-            NodeUtil.cpu_percent, return_code_cpu = NodeUtil.get_node_info(query=NodeUtil.cpu_util_per_query, logger=logger)
-            if not return_code_cpu:
-                logger.warning("############################################# Could not fetch cpu utilization from prometheus!!")
-
-            Variable.set("CPU_PERCENT", "{}".format(NodeUtil.cpu_percent))
+            NodeUtil.cpu_percent = get_node_cpu_util_percent(logger=logger)
             if NodeUtil.cpu_percent is None or NodeUtil.cpu_percent > NodeUtil.max_util_cpu:
                 logger.warning("############################################# High CPU utilization -> waiting!")
                 logger.warning("############################################# cpu_percent: {}".format(NodeUtil.cpu_percent))
                 return False
+            Variable.set("CPU_PERCENT", "{}".format(NodeUtil.cpu_percent))
 
-            NodeUtil.mem_percent, return_code_ram = NodeUtil.get_node_info(query=NodeUtil.mem_util_per_query, logger=logger)
-            if not return_code_ram:
-                logger.warning("############################################# Could not fetch ram utilization from prometheus!!")
-            Variable.set("RAM_PERCENT", "{}".format(NodeUtil.mem_percent))
+            NodeUtil.mem_percent = get_node_mem_percent()
             if NodeUtil.mem_percent is None or NodeUtil.mem_percent > NodeUtil.max_util_ram:
                 logger.warning("############################################# High RAM utilization -> waiting!")
                 logger.warning("############################################# mem_percent: {}".format(NodeUtil.mem_percent))
                 return False
+            Variable.set("RAM_PERCENT", "{}".format(NodeUtil.mem_percent))
 
-            if not return_code_cpu or not return_code_ram:
-                logger.warning("############################################# Could not fetch util from prometheus! -> waiting!")
-                return False
 
             if NodeUtil.memory_pressure:
                 logger.warning("##########################################################################################")
@@ -338,7 +285,7 @@ class NodeUtil():
 
             ti_ram_mem_mb = 0 if config["ram_mem_mb"] == None else config["ram_mem_mb"]
             ti_cpu_millicores = 0 if config["cpu_millicores"] == None else config["cpu_millicores"]
-            ti_gpu_mem_mb = 0 if config["gpu_mem_mb"] == None else config["gpu_mem_mb"]
+            # ti_gpu_mem_mb = 0 if config["gpu_mem_mb"] == None else config["gpu_mem_mb"]
 
             if ti_ram_mem_mb >= NodeUtil.memory_available_req:
                 # if ti_ram_mem_mb >= NodeUtil.memory_available_limit or ti_ram_mem_mb >= NodeUtil.memory_available_req:
@@ -354,31 +301,30 @@ class NodeUtil():
                 logger.warning("CPU REQ:   {}/{}".format(ti_cpu_millicores, NodeUtil.cpu_available_req))
                 return False
 
-            if ti_gpu_mem_mb > 0 and NodeUtil.gpu_dev_free <= 1:
-                logger.warning("All GPUs are in currently in use -> not scheduling")
-                return False
+            # if ti_gpu_mem_mb > 0 and NodeUtil.gpu_dev_free <= 1:
+            #     logger.warning("All GPUs are in currently in use -> not scheduling")
+            #     return False
 
-            if NodeUtil.gpu_memory_available is not None and ti_gpu_mem_mb > NodeUtil.gpu_memory_available:
-                logger.warning("Not enough GPU memory -> not scheduling")
-                logger.warning("GPU: {}/{}".format(ti_gpu_mem_mb, NodeUtil.gpu_memory_available))
-                return False
+            # if NodeUtil.gpu_memory_available is not None and ti_gpu_mem_mb > NodeUtil.gpu_memory_available:
+            #     logger.warning("Not enough GPU memory -> not scheduling")
+            #     logger.warning("GPU: {}/{}".format(ti_gpu_mem_mb, NodeUtil.gpu_memory_available))
+            #     return False
 
             tmp_memory_available_req = int(NodeUtil.memory_available_req - ti_ram_mem_mb)
             tmp_cpu_available_req = int(NodeUtil.cpu_available_req - ti_cpu_millicores)
-            tmp_gpu_memory_available = int(NodeUtil.gpu_memory_available - ti_gpu_mem_mb)
+            # tmp_gpu_memory_available = int(NodeUtil.gpu_memory_available - ti_gpu_mem_mb)
 
-            if tmp_memory_available_req < 0 or tmp_cpu_available_req < 0 or tmp_gpu_memory_available < 0:
+            if tmp_memory_available_req < 0 or tmp_cpu_available_req < 0:
                 logger.error("############################################################### Error!")
                 logger.error("Detected negative resource availability!")
                 logger.error("memory_available_req: {}".format(tmp_memory_available_req))
                 logger.error("cpu_available_req: {}".format(tmp_cpu_available_req))
-                logger.error("gpu_memory_available: {}".format(tmp_gpu_memory_available))
                 return False
 
             NodeUtil.memory_available_req = tmp_memory_available_req
             NodeUtil.cpu_available_req = tmp_cpu_available_req
-            NodeUtil.gpu_memory_available = tmp_gpu_memory_available
-            NodeUtil.gpu_dev_free = max(0, NodeUtil.gpu_dev_free)
+            # NodeUtil.gpu_memory_available = tmp_gpu_memory_available
+            # NodeUtil.gpu_dev_free = max(0, NodeUtil.gpu_dev_free)
             NodeUtil.mem_req = NodeUtil.mem_req + ti_ram_mem_mb
             NodeUtil.mem_lmt = NodeUtil.mem_lmt + ti_ram_mem_mb
 
@@ -386,10 +332,59 @@ class NodeUtil():
             Variable.set("CPU_FREE", "{}".format(NodeUtil.cpu_available_req))
             Variable.set("RAM_NODE", "{}/{}".format(NodeUtil.mem_req, NodeUtil.mem_alloc))
             Variable.set("RAM_FREE", "{}".format(NodeUtil.memory_available_req))
-            Variable.set("GPU_DEV", "{}/{}".format(NodeUtil.gpu_dev_free, NodeUtil.gpu_dev_count))
-            Variable.set("GPU_DEV_FREE", "{}".format(NodeUtil.gpu_dev_free))
-            Variable.set("GPU_MEM", "{}/{}".format(NodeUtil.gpu_mem_used, NodeUtil.gpu_mem_alloc))
-            Variable.set("GPU_MEM_FREE", "{}".format(NodeUtil.gpu_memory_available))
+            # Variable.set("GPU_DEV_COUNT", "{}/{}".format(NodeUtil.gpu_dev_count))
+            # Variable.set("GPU_DEV_FREE", "{}".format(NodeUtil.gpu_dev_free))
+            # Variable.set("GPU_MEM", "{}/{}".format(NodeUtil.gpu_mem_used, NodeUtil.gpu_mem_alloc))
+            # Variable.set("GPU_MEM_FREE", "{}".format(NodeUtil.gpu_memory_available))
             Variable.set("UPDATED", datetime.utcnow())
 
             return True
+
+def get_gpu_pool(task_instance,logger):
+    logger.error(f"################ task_id:    {task_instance.task_id}")
+    logger.error(f"################ GPU-MEM:    {task_instance.pool_slots}")
+    new_pool = None
+    new_slots = None
+    queued_gpu_slots = []
+    gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
+    if gpu_count_pool != None:
+            gpu_count = gpu_count_pool.slots
+            for i in range(0, gpu_count):
+                gpu_pool_id = f"GPU_{i}_CAPACITY"
+                gpu_pool = pool_api.get_pool(name=gpu_pool_id)
+                if gpu_pool != None:
+                    capacity = gpu_pool.slots
+                    used = gpu_pool.occupied_slots()
+                    # running_slots = gpu_pool.running_slots()
+                    queued_slots = gpu_pool.queued_slots()
+                    queued_gpu_slots.append({
+                        "id": i,
+                        "pool_id": gpu_pool_id,
+                        "queued_slots": queued_slots
+                    })
+                    free = capacity - used
+                    logger.error(f"################ GPU:      {i}")
+                    logger.error(f"################ capacity: {capacity}")
+                    logger.error(f"################ used:     {used}")
+                    logger.error(f"################ free:     {free}")
+                    if task_instance.pool_slots >= free:
+                        logger.error(f"################ Not enough memory!")
+                    else:
+                        logger.error(f"################ memory ok!")
+                        new_pool = gpu_pool_id
+                        new_slots = task_instance.pool_slots
+                        break
+                    
+    if new_pool == None:
+        if len(queued_gpu_slots) > 0:
+            pool_id = None
+            max_queue = None
+            for gpu in queued_gpu_slots:
+                if pool_id == None or max_queue == None or gpu["queued_slots"] < max_queue:
+                    pool_id = gpu["pool_id"]
+            new_pool = pool_id
+        else:
+            new_pool = "GPU_COUNT"
+            new_slots = 1
+
+    return new_pool, new_slots

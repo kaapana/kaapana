@@ -117,6 +117,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         print("# Evaluating predictions started ...")
         print(f"# workflow_dir {self.workflow_dir}")
+        self.anonymize_lookup_table = {}
         model_counter = 0
         case_counter = 0
 
@@ -156,7 +157,9 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                     print(f"# gt:   {gt_file}")
                     exit(1)
                 if self.anonymize:
-                    file_id = f"case_{case_counter}"
+                    if file_id not in self.anonymize_lookup_table:
+                        self.anonymize_lookup_table[file_id] = f"case_{case_counter}"
+                    file_id = self.anonymize_lookup_table[file_id]
 
                 # result_scores_sm[model_id][file_id]["gt_file"] = gt_file
                 # result_scores_sm[model_id][file_id]["pred_file"] = single_model_pred_file
@@ -168,11 +171,12 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                 print(f"# gt_labels:   {gt_labels}")
                 print(f"# pred_labels: {sm_labels}")
                 print("#")
-                if len(gt_labels) > 1:
-                    print("#################################################################################################### HERE")
 
+                print(f"# Loading labels...")
                 for pred_label in sm_labels:
+                    print(f"# label: {pred_label}")
                     label_key = labels[str(pred_label)] if labels != None and str(pred_label) in labels else None
+                    print(f"# label_key: {label_key}")
                     if label_key == None and labels != None:
                         print("##################################################")
                         print("#")
@@ -188,6 +192,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                         label_strip_sm = (sm_numpy == pred_label).astype(int)
                         dice_result = self.calc_dice(pred=label_strip_sm, gt=label_strip_gt)
 
+                        print(f"# Adding dataset: {file_id}/{model_id}/{label_key}/{dice_result}")
                         result_table.append([
                             file_id,
                             model_id,
@@ -207,7 +212,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                             result_scores_case_based[file_id][label_key] = {}
                         result_scores_case_based[file_id][label_key][model_id] = dice_result
 
-                        print(f"# {str(pred_label)}:{label_key} -> dice: {dice_result}")
+                        # print(f"# {str(pred_label)}:{label_key} -> dice: {dice_result}")
                         if "ensemble" in result_scores_case_based[file_id][label_key]:
                             ensemble_already_processed = True
                 print("#")
@@ -219,7 +224,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                     print("#")
                     ensemble_file = join(self.ensemble_dir, basename(single_model_pred_file))
                     ensemble_numyp, ensemble_labels = self.prep_nifti(ensemble_file)
-                    model_id = "ensemble"
+                    model_id_ensemble = "ensemble"
                     for pred_label in ensemble_labels:
                         label_key = labels[str(pred_label)] if str(pred_label) in labels else str(pred_label)
                         if label_key == None and labels != None:
@@ -236,10 +241,11 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                             label_strip_gt = (gt_numpy == pred_label).astype(int)
                             label_strip_ensemble = (ensemble_numyp == pred_label).astype(int)
                             dice_result = self.calc_dice(pred=label_strip_ensemble, gt=label_strip_gt)
-                            print(f"# {str(pred_label)}:{label_key} -> dice: {dice_result}")
+                            # print(f"# {str(pred_label)}:{label_key} -> dice: {dice_result}")
+                            print(f"# Adding ensemble: {file_id}/{model_id_ensemble}/{label_key}/{dice_result}")
                             result_table.append([
                                 file_id,
-                                model_id,
+                                model_id_ensemble,
                                 label_key,
                                 dice_result
                             ])
@@ -248,7 +254,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                                 result_scores_case_based[file_id] = {}
                             if label_key not in result_scores_case_based[file_id]:
                                 result_scores_case_based[file_id][label_key] = {}
-                            result_scores_case_based[file_id][label_key][model_id] = dice_result
+                            result_scores_case_based[file_id][label_key][model_id_ensemble] = dice_result
                     print("#")
 
                 processed_count += 1

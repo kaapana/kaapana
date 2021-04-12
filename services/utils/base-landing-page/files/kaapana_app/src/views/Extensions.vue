@@ -18,7 +18,7 @@
                     | mdi-cloud-download-outline
                 span By clicking on this icon it will try to download the latest extensions. In case you do not have internet connection this can also be done on the terminal via ./install-platform --update-extensions.
             br
-            span(style="font-size: 14px") On
+            span(style="font-size: 14px") On 
               a(href="https://kaapana.readthedocs.io/", target="_blank") readthedocs
               |
               | you find a description of each extension
@@ -250,7 +250,7 @@ export default Vue.extend({
     updateExtensions() {
       this.loading = true;
       kaapanaApiService
-        .helmApiGet("/helm-repo-update", {})
+        .helmApiGet("/update-extensions", {})
         .then((response: any) => {
           this.getHelmCharts();
           this.loading = false;

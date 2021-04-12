@@ -14,6 +14,31 @@ spec:
       labels:
         app-name: kube-helm
     spec:
+      initContainers:
+        - name: copy-kube-helm-helpers
+          image: "{{  .Values.global.registry_url }}/kube-helm-helpers:0.1.0-vdev"
+          imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+          env:
+          - name: ACTION
+            value: copy
+          - name: CHARTS_DIR
+            value: charts/helpers
+          volumeMounts:
+          - name: helmextensions
+            mountPath: /charts
+{{- range $collection := .Values.global.kaapana_collections }}
+        - name: copy-{{ $collection.name }}
+          image: "{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $collection.version }}"
+          imagePullPolicy: {{ $.Values.global.pull_policy_pods }}
+          env:
+          - name: ACTION
+            value: copy
+          - name: CHARTS_DIR
+            value: charts/collections
+          volumeMounts:
+          - name: helmextensions
+            mountPath: /charts
+{{- end }}
       containers:
       - name: kube-helm
         image: {{  .Values.global.registry_url }}/kube-helm:0.1.1-vdev
@@ -32,8 +57,6 @@ spec:
           value: "/usr/local/bin/helm"
         - name: REGISTRY_URL
           value: {{  .Values.global.registry_url }}
-        - name: VERSION
-          value: {{ .Values.global.version }}
         - name: BASE_NAMESPACE
           value: {{  .Values.global.base_namespace }}
         - name: FLOW_NAMESPACE
@@ -56,7 +79,7 @@ spec:
           - containerPort: 5000
         volumeMounts:
           - name: helmextensions
-            mountPath: "/root/.extensions"
+            mountPath: "/root/charts"
           - name: helmconfig
             mountPath: "/root/.config/helm"
           - name: helmcache
@@ -66,7 +89,7 @@ spec:
       volumes:
       - name: helmextensions
         hostPath:
-          path: {{ .Values.global.fast_data_dir }}/extensions
+          path: {{ .Values.global.fast_data_dir }}/charts
           type: DirectoryOrCreate
       - name: helmconfig
         hostPath:

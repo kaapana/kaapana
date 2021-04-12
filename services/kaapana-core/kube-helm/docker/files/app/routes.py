@@ -24,30 +24,57 @@ def health_check():
     return Response(f"Kube-Helm api is up and running!", 200)
 
 
-@app.route("/helm-repo-update")
-def helm_repo_update():
+@app.route("/update-extensions")
+def update_extensions():
     try:
-        resp = subprocess.check_output('helm repo update', stderr=subprocess.STDOUT, shell=True)
-        print(resp)
-        if 'server misbehaving' in resp.decode("utf-8"):
-            return Response(f"You seem to have no internet connection inside the pod, this might be due to missing proxy settings!", 500)
-        helm_command = 'helm repo update; \
-            mkdir -p /root/\.extensions; \
-            find /root/\.extensions -type f -delete;' + \
-            f'helm pull -d /root/.extensions/ --version={app.config["VERSION"]} {app.config["REGISTRY_URL"]}/pull-docker-chart;' + \
-            'helm search repo --devel -l -r \'(kaapanaworkflow|kaapanaapplication|kaapanaint)\' -o json | jq -r \'.[] | "\(.name) --version \(.version)"\' | xargs -L1 helm pull -d /root/\.extensions/'
-        subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
-        return Response(f"Successfully updated the extension list!", 200)
+        utils.helm_repo_index(app.config['HELM_COLLECTIONS_CACHE'])
     except subprocess.CalledProcessError as e:
-        return Response(f"A helm command error occured while executing {helm_command}! Error {e}", 500)
+        return Response(f"Could not create index.yaml!", 500)
+        
+    with open(os.path.join(app.config['HELM_COLLECTIONS_CACHE'], 'index.yaml'), 'r') as stream:
+        try:
+            extension_packages = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
 
+    install_error = False
+    for chart_name, chart_versions  in extension_packages['entries'].items():
+        for chart in chart_versions:
+            print(chart['name'], chart['version'])
+            release_name = f"{chart['name']}-{chart['version']}"
+
+            payload = {k: chart[k] for k in ('name', 'version')}
+            payload.update({'release_name': release_name})
+
+            if not utils.helm_status(release_name, app.config['NAMESPACE']):
+                try:
+                    print(f'Installing {release_name}')
+                    utils.helm_install(payload, app.config["NAMESPACE"], helm_cache_path=app.config['HELM_COLLECTIONS_CACHE'], in_background=False)
+                except subprocess.CalledProcessError as e:
+                    install_error = True
+                    utils.helm_delete(release_name, app.config['NAMESPACE'])
+                    print(e)
+            else:
+                try:
+                    print('helm deleting and reinstalling')
+                    helm_delete_prefix = f'{os.environ["HELM_PATH"]} uninstall -n {app.config["NAMESPACE"]} {release_name} --timeout 5m;'
+                    utils.helm_install(payload, app.config["NAMESPACE"], helm_delete_prefix=helm_delete_prefix, helm_cache_path=app.config['HELM_COLLECTIONS_CACHE'], in_background=False)
+                except subprocess.CalledProcessError as e:
+                    install_error = True
+                    utils.helm_delete(release_name, app.config['NAMESPACE'])
+                    print(e)
+
+    if install_error is False:
+        return Response(f"Successfully updated the extensions", 202)
+    else:
+        return Response(f"We had troubles updating the extensions", 500)
 
 @app.route("/helm-delete-chart")
 def helm_delete_chart():
     release_name = request.args.get("release_name")
     release_version = request.args.get("release_version")
     try:
-        utils.helm_delete(release_name=release_name, release_version=release_version, namespace=app.config['NAMESPACE'])
+        utils.helm_delete(release_name=release_name, namespace=app.config['NAMESPACE'], release_version=release_version, )
         return jsonify({"message": "Successfully uninstalled", "status": "200"})
     except subprocess.CalledProcessError as e:
         return Response(f"We could not find the release you are trying to delete!", 500)
@@ -133,17 +160,6 @@ def view_helm_env():
         return Response(
             f"{e.output}", 500)
     return jsonify({"message": str(resp), "status": "200"})
-
-
-@app.route("/helm-repo-list")
-def helm_repo_list():
-    try:
-        resp = subprocess.check_output(f'{os.environ["HELM_PATH"]} repo list -o json', stderr=subprocess.STDOUT, shell=True)
-        return resp
-    except subprocess.CalledProcessError as e:
-        return Response(f"{e.output}", 500)
-    return resp
-
 
 @app.route("/view-chart-status")
 def view_chart_status():

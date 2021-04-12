@@ -1,6 +1,0 @@
----
-global:
-    pull_policy_jobs: "IfNotPresent"
-    extensions_image:
-    extensions_version:
-    action: "copy"

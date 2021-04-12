@@ -25,4 +25,7 @@ global:
     slow_data_dir: /home/kaapana
     home_dir: /root
     version: "0.1.1-vdev"
+    kaapana_collections:
+        - name: kaapana-base-collection
+          version: 0.1.0-vdev 
 ---

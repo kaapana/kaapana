@@ -235,6 +235,7 @@ class DockerContainer:
             self.log_list.append(log_entry)
 
     def check_prebuild(self):
+        os.chdir(self.container_dir)
         pre_build_script = os.path.dirname(self.path)+"/pre_build.sh"
         if os.path.isfile(pre_build_script):
             command = [pre_build_script]

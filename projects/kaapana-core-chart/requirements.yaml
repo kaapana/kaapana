@@ -37,4 +37,8 @@ dependencies:
   - name: kube-helm-chart
     version: "0.1.1-vdev"
     repository: file://../../services/kaapana-core/kube-helm/kube-helm-chart
+  - name: extensions-init-chart
+    version: "0.1.0-vdev"
+    condition: Release.IsInstall
+    repository: file://../../services/kaapana-core/core-init/extensions-init-chart
     

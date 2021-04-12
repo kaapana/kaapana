@@ -1,0 +1,8 @@
+---
+dependencies:
+  - name: kaapana-stab-extensions-chart
+    version: 0.1.0-vdev
+    repository: file://../../../../kaapana-extensions/kaapana-stab-extensions/kaapana-stab-extensions-chart
+  - name: kaapana-exp-extensions-chart
+    version: 0.1.0-vdev
+    repository: file://../../../../kaapana-extensions/kaapana-exp-extensions/kaapana-exp-extensions-chart

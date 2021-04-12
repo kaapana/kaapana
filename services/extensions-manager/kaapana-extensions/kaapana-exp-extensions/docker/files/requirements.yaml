@@ -1,0 +1,5 @@
+---
+dependencies:
+  - name: pysyft-nb-chart
+    version: 0.1.0-vdev
+    repository: file://../../../../../../services/applications/openmined/pysyft-nb/pysyft-nb-chart

@@ -1,0 +1,5 @@
+---
+dependencies:
+  - name: charts-manager-chart
+    version: "0.1.0-vdev"
+    repository: file://../../../charts-manager/charts-manager-chart

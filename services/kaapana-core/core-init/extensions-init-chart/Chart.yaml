@@ -1,0 +1,6 @@
+---
+apiVersion: v1
+appVersion: "0.1.0-vdev"
+description: Init Job to set the variables in minio
+name: extensions-init-chart
+version: "0.1.0-vdev"

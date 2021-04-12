@@ -74,29 +74,15 @@ class NnUnetOperator(KaapanaBaseOperator):
         }
         env_vars.update(envs)
 
-        volume_mounts = []
-        volumes = []
-
-        volume_mounts.append(VolumeMount(
-            'dshm', mount_path='/dev/shm', sub_path=None, read_only=False))
-        volume_config = {
-            'emptyDir':
-            {
-                'medium': 'Memory',
-            }
-        }
-        volumes.append(Volume(name='dshm', configs=volume_config))
-
-        pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=None)
         training_operator = False
         gpu_mem_mb = None
 
+        pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=None)
         if mode == "training" or mode == "inference":
             if mode == "training":
                 gpu_mem_mb = 12000
             elif mode == "inference":
                 gpu_mem_mb = 3000
-            pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=None)
             training_operator = True
 
 
@@ -107,8 +93,6 @@ class NnUnetOperator(KaapanaBaseOperator):
             name="nnunet",
             parallel_id=parallel_id,
             image_pull_secrets=["registry-secret"],
-            volumes=volumes,
-            volume_mounts=volume_mounts,
             execution_timeout=execution_timeout,
             ram_mem_mb=None,
             ram_mem_mb_lmt=None,

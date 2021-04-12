@@ -245,6 +245,16 @@ class KaapanaBaseOperator(BaseOperator):
             }
             self.volumes.append(Volume(name='tensorboard', configs=tb_config))
 
+            self.volume_mounts.append(VolumeMount(
+                'dshm', mount_path='/dev/shm', sub_path=None, read_only=False))
+            volume_config = {
+                'emptyDir':
+                {
+                    'medium': 'Memory',
+                }
+            }
+            self.volumes.append(Volume(name='dshm', configs=volume_config))
+
         if self.pod_resources is None:
             pod_resources = PodResources(
                 request_cpu="{}m".format(self.cpu_millicores) if self.cpu_millicores != None else None,

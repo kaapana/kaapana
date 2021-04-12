@@ -1526,6 +1526,8 @@ class SchedulerJob(BaseJob):
         return True
 
     def _process_and_execute_tasks(self, simple_dag_bag):
+
+        self.adjust_gpu_pool(simple_dag_bag, (State.SCHEDULED,))
         # Handle cases where a DAG run state is set (perhaps manually) to
         # a non-running state. Handle task instances that belong to
         # DAG runs in those states
@@ -1543,8 +1545,44 @@ class SchedulerJob(BaseJob):
                                                    State.SCHEDULED,
                                                    State.UP_FOR_RESCHEDULE],
                                                   State.NONE)
-        self._execute_task_instances(simple_dag_bag,
-                                     (State.SCHEDULED,))
+        self._execute_task_instances(simple_dag_bag, (State.SCHEDULED,))
+
+    @provide_session
+    def adjust_gpu_pool(self, simple_dag_bag, states, session=None):
+        from airflow.jobs.backfill_job import BackfillJob
+        TI = models.TaskInstance
+        DR = models.DagRun
+        DM = models.DagModel
+        ti_query = (
+            session
+            .query(TI)
+            .filter(TI.dag_id.in_(simple_dag_bag.dag_ids))
+            .outerjoin(
+                DR,
+                and_(DR.dag_id == TI.dag_id, DR.execution_date == TI.execution_date)
+            )
+            .filter(or_(DR.run_id == None,  # noqa: E711 pylint: disable=singleton-comparison
+                    not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
+            .outerjoin(DM, DM.dag_id == TI.dag_id)
+            .filter(or_(DM.dag_id == None,  # noqa: E711 pylint: disable=singleton-comparison
+                    not_(DM.is_paused)))
+        )
+
+        # Additional filters on task instance state
+        if None in states:
+            ti_query = ti_query.filter(
+                or_(TI.state == None, TI.state.in_(states))  # noqa: E711 pylint: disable=singleton-comparison
+            )
+        else:
+            ti_query = ti_query.filter(TI.state.in_(states))
+
+        task_instances_to_examine = ti_query.all()
+        for task_instance in task_instances_to_examine:
+            if task_instance.pool == "GPU_COUNT":
+                self.log.error("Getting new POOLS...")
+                task_instance = get_gpu_pool(task_instance=task_instance, logger=self.log)
+                session.merge(task_instance)
+            session.commit()
 
     @provide_session
     def process_file(self, file_path, zombies, pickle_dags=False, session=None):

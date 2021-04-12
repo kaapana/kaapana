@@ -343,11 +343,9 @@ class NodeUtil():
 def get_gpu_pool(task_instance,logger):
     logger.error(f"################ task_id:    {task_instance.task_id}")
     logger.error(f"################ GPU-MEM:    {task_instance.pool_slots}")
-    new_pool = None
-    new_slots = None
     queued_gpu_slots = []
     gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
-    if gpu_count_pool != None:
+    if task_instance.pool == "GPU_COUNT" and gpu_count_pool != None:
             gpu_count = gpu_count_pool.slots
             for i in range(0, gpu_count):
                 gpu_pool_id = f"GPU_{i}_CAPACITY"
@@ -371,20 +369,20 @@ def get_gpu_pool(task_instance,logger):
                         logger.error(f"################ Not enough memory!")
                     else:
                         logger.error(f"################ memory ok!")
-                        new_pool = gpu_pool_id
-                        new_slots = task_instance.pool_slots
+                        task_instance.pool =gpu_pool_id
                         break
                     
-    if new_pool == None:
+    if task_instance.pool == "GPU_COUNT":
         if len(queued_gpu_slots) > 0:
             pool_id = None
             max_queue = None
             for gpu in queued_gpu_slots:
                 if pool_id == None or max_queue == None or gpu["queued_slots"] < max_queue:
                     pool_id = gpu["pool_id"]
-            new_pool = pool_id
+                    max_queue = gpu["queued_slots"]
+            task_instance.pool =pool_id
         else:
-            new_pool = "GPU_COUNT"
-            new_slots = 1
+            task_instance.pool = "GPU_COUNT"
+            task_instance.pool_slots = 1
 
-    return new_pool, new_slots
+    return task_instance

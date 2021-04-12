@@ -179,53 +179,7 @@ if __name__ == '__main__':
 
     startTime = time()
     print("-----------------------------------------------------------")
-    if build_containers:
-        print("-----------------------------------------------------------")
-        print("------------------------ CONTAINER ------------------------")
-        print("-----------------------------------------------------------")
-        config_list = (kaapana_dir, http_proxy, default_container_registry)
-        docker_containers_list, logs = start_container_build(config=config_list)
 
-        for log in logs:
-            if supported_log_levels.index(log['loglevel'].upper()) >= log_level:
-                print_log_entry(log, kind="CONTAINERS")
-            if log['loglevel'].upper() == "ERROR":
-                exit(1)
-
-        i = 0
-        for docker_container in docker_containers_list:
-            i += 1
-            print()
-            print("Container: {}".format(docker_container.tag.replace(docker_container.container_registry, "")[1:]))
-            print("{}/{}".format(i, len(docker_containers_list)))
-            print()
-            try:
-                if docker_container.ci_ignore:
-                    print('SKIP {}: CI_IGNORE == True!'.format(docker_container.tag.replace(docker_container.container_registry, "")[1:]))
-                    continue
-                for log in docker_container.check_prebuild():
-                    print_log_entry(log, kind="CONTAINERS")
-                    if log['loglevel'].upper() == "ERROR":
-                        raise SkipException('SKIP {}: check_prebuild() failed!'.format(log['test']), log=log)
-
-                for log in docker_container.build():
-                    print_log_entry(log, kind="CONTAINERS")
-                    if log['loglevel'].upper() == "ERROR":
-                        raise SkipException('SKIP {}: build() failed!'.format(log['test']), log=log)
-
-                if push_containers:
-                    if push_dev_only and not docker_container.dev:
-                        print(f"Skipping push for {docker_container.tag.split('/')[-1]} -> no dev container")
-                        continue
-
-                    for log in docker_container.push():
-                        print_log_entry(log, kind="CONTAINERS")
-                        if log['loglevel'].upper() == "ERROR":
-                            raise SkipException('SKIP {}: push() failed!'.format(log['test']), log=log)
-
-            except SkipException as error:
-                print("SkipException: {}".format(str(error)))
-                continue
 
     if build_charts:
         print("-----------------------------------------------------------")
@@ -333,28 +287,60 @@ if __name__ == '__main__':
                                     copy(package, build_dir)
                                     os.remove(package)
 
-                #################TODO add save charts to yaml! ##########
-                if chart.name.endswith('extensions'):
-                    pass
-
                 print()
                 print()
             except SkipException as error:
                 print("SkipException: {}".format(str(error)))
                 continue
+            
+    if build_containers:
+        print("-----------------------------------------------------------")
+        print("------------------------ CONTAINER ------------------------")
+        print("-----------------------------------------------------------")
+        config_list = (kaapana_dir, http_proxy, default_container_registry)
+        docker_containers_list, logs = start_container_build(config=config_list)
 
-    print("-----------------------------------------------------------")
-    if len(log_list["CONTAINERS"]) > 0:
-        print("")
-        print("-----------------------------------------------------------")
-        print("------------------- Container issues: ---------------------")
-        print("-----------------------------------------------------------")
-        print("")
-        for log in log_list["CONTAINERS"]:
-            if supported_log_levels.index(log[0]) >= log_level:
-                print(log[1])
-                print("-----------------------------------------------------------")
-                print()
+        for log in logs:
+            if supported_log_levels.index(log['loglevel'].upper()) >= log_level:
+                print_log_entry(log, kind="CONTAINERS")
+            if log['loglevel'].upper() == "ERROR":
+                exit(1)
+
+        i = 0
+        for docker_container in docker_containers_list:
+            i += 1
+            print()
+            print("Container: {}".format(docker_container.tag.replace(docker_container.container_registry, "")[1:]))
+            print("{}/{}".format(i, len(docker_containers_list)))
+            print()
+            try:
+                if docker_container.ci_ignore:
+                    print('SKIP {}: CI_IGNORE == True!'.format(docker_container.tag.replace(docker_container.container_registry, "")[1:]))
+                    continue
+                for log in docker_container.check_prebuild():
+                    print_log_entry(log, kind="CONTAINERS")
+                    if log['loglevel'].upper() == "ERROR":
+                        raise SkipException('SKIP {}: check_prebuild() failed!'.format(log['test']), log=log)
+
+                for log in docker_container.build():
+                    print_log_entry(log, kind="CONTAINERS")
+                    if log['loglevel'].upper() == "ERROR":
+                        raise SkipException('SKIP {}: build() failed!'.format(log['test']), log=log)
+
+                if push_containers:
+                    if push_dev_only and not docker_container.dev:
+                        print(f"Skipping push for {docker_container.tag.split('/')[-1]} -> no dev container")
+                        continue
+
+                    for log in docker_container.push():
+                        print_log_entry(log, kind="CONTAINERS")
+                        if log['loglevel'].upper() == "ERROR":
+                            raise SkipException('SKIP {}: push() failed!'.format(log['test']), log=log)
+
+            except SkipException as error:
+                print("SkipException: {}".format(str(error)))
+                continue
+
     print("-----------------------------------------------------------")
     if len(log_list["CHARTS"]) > 0:
         print("")
@@ -367,6 +353,20 @@ if __name__ == '__main__':
                 print(log[1])
                 print("-----------------------------------------------------------")
                 print()
+    print("-----------------------------------------------------------")
+
+    if len(log_list["CONTAINERS"]) > 0:
+        print("")
+        print("-----------------------------------------------------------")
+        print("------------------- Container issues: ---------------------")
+        print("-----------------------------------------------------------")
+        print("")
+        for log in log_list["CONTAINERS"]:
+            if supported_log_levels.index(log[0]) >= log_level:
+                print(log[1])
+                print("-----------------------------------------------------------")
+                print()
+
 
     hours, rem = divmod(time()-startTime, 3600)
     minutes, seconds = divmod(rem, 60)

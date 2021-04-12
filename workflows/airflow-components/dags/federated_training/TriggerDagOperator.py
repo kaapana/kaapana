@@ -9,6 +9,9 @@ class TriggerDagOperator(KaapanaPythonBaseOperator):
     
     @rest_self_udpate
     def start(self, ds, **kwargs):
+        
+        if self.rest_call is None:
+            raise AssertionError('A corresponding rest call for the dag must be provided!')
 
         if self.dag_host is None:
             url = f'http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/{self.dag_name}'
@@ -29,16 +32,14 @@ class TriggerDagOperator(KaapanaPythonBaseOperator):
                  rest_call=None,
                  clean_workflow_dir=True,
                  *args, **kwargs):
-                 
+        
         self.dag_host=dag_host
         self.dag_name=dag_name
         self.rest_call=rest_call
-        
-        location = 'local' if dag_host is None else 'remote'
 
         super().__init__(
             dag,
-            name=f'trigger-{location}-dag',
+            name=f'trigger-dag',
             python_callable=self.start,
             *args, **kwargs
         )

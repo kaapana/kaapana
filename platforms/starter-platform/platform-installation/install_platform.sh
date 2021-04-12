@@ -6,9 +6,6 @@ export HELM_EXPERIMENTAL_OCI=1
 PROJECT_NAME="starter-platform-chart" # name of the platform Helm chart
 DEFAULT_VERSION="0.1.0-vdev"    # version of the platform Helm chart
 
-PROJECT_NAME="kaapana-platform-chart" # name of the platform Helm chart
-DEFAULT_VERSION="0.1.1-vdev"    # version of the platform Helm chart
-
 DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart
 
 CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
@@ -204,25 +201,21 @@ function delete_deployment {
     echo -e "${GREEN}####################################  UNINSTALLATION DONE  ############################################${NC}"
 }
 
-function update_extensions {
-    echo -e "${GREEN}Downloading all kaapanaworkflows, kaapanaapplications and kaapanaint to $HOME/.extensions${NC}"
-    set +euf
-    updates_output=$(helm repo update)
-    set -euf
+function prefetch_extensions {
+    echo -e "Prefetching all extension docker container"
+    release_name=prefetch-extensions-chart-$(echo $(uuidgen --hex) | cut -c1-10)
+    PREFETCH_CHART_PATH=$(find $FAST_DATA_DIR/charts/helpers/ -name "prefetch-extensions*" -type f)
+    helm install $PREFETCH_CHART_PATH\
+    --set global.pull_policy_jobs="$PULL_POLICY_JOBS" \
+    --set global.registry_url=$CONTAINER_REGISTRY_URL \
+    --wait \
+    --atomic \
+    --timeout 60m0s \
+    --name-template $release_name \
 
-    if echo "$updates_output" | grep -q 'failed to'; then
-        echo -e "${RED}Update failed!${NC}"
-        echo -e "${RED}You seem to have no internet connection!${NC}"
-        echo "$updates_output"
-        exit 1
-    else
-        mkdir -p $HOME/.extensions
-        find $HOME/.extensions/ -type f -delete
-        set +euf
-        helm search repo --devel -l -r '(kaapanaworkflow|kaapanaapplication|kaapanaint)' -o json | jq -r '.[] | "\(.name) --version \(.version)"' | xargs -L1 helm pull -d $HOME/.extensions/
-        set -euf
-        echo -e "${GREEN}Update OK!${NC}"
-    fi
+    sleep 10
+    helm delete $release_name
+    echo -e "${GREEN}OK!${NC}"
 }
 
 function install_chart {
@@ -235,6 +228,7 @@ function install_chart {
         fi
         
         echo "${GREEN}Force PULL_POLICY to 'IfNotPresent' !${NC}"
+        DEV_MODE="false"
         PULL_POLICY_PODS="IfNotPresent"
         PULL_POLICY_JOBS="IfNotPresent"
         PULL_POLICY_OPERATORS="IfNotPresent"
@@ -309,7 +303,7 @@ function install_chart {
     --set global.registry_url=$CONTAINER_REGISTRY_URL \
     --name-template $PROJECT_NAME
 
-    if [ -z "$REGISTRY_USERNAME" ] && [ -z "$REGISTRY_PASSWORD" ]; then
+    if [ ! -z "$REGISTRY_USERNAME" ] && [ ! -z "$REGISTRY_PASSWORD" ]; then
         rm -rf $CHART_PATH
     fi
 
@@ -353,7 +347,7 @@ function upgrade_chart {
     fi
     echo -e "${YELLOW}Charyt-tgz-path $CHART_PATH${NC}"
     helm upgrade $PROJECT_NAME $CHART_PATH --devel --version $chart_version --set global.version="$chart_version" --reuse-values 
-    if [ -z "$REGISTRY_USERNAME" ] && [ -z "$REGISTRY_PASSWORD" ]; then
+    if [ ! -z "$REGISTRY_USERNAME" ] && [ ! -z "$REGISTRY_PASSWORD" ]; then
         rm -rf $CHART_PATH
     fi
     print_installation_done
@@ -453,6 +447,7 @@ _Flag: --install-certs set new HTTPS-certificates for the platform
 _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
 _Flag: --remove-all-images-docker will delete all Docker images from the system
 _Flag: --quiet, meaning non-interactive operation
+_Flag: --prefetch-extensions is used to prefetch every docker image which might be needed when installing an extension. You should execute this, if you want to go offline after installation.
 
 _Argument: --chart-path [path-to-chart-tgz]
 
@@ -525,6 +520,11 @@ do
 
         --remove-all-images-docker)
             delete_all_images_docker
+            exit 0
+        ;;
+
+        --prefetch-extensions)
+            prefetch_extensions
             exit 0
         ;;
 

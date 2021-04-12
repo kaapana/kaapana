@@ -8,7 +8,7 @@ LABEL CI_IGNORE="True"
 
 WORKDIR /
 
-COPY files/process.py /
+COPY files/* /
 
 #CMD tail -f  /dev/null
 CMD ["python3","-u","/process.py"]

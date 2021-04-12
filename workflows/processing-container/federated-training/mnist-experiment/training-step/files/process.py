@@ -7,6 +7,8 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 
+from utilities import ClassifierMNIST, mnist_transforms
+
 
 class Arguments():
     def __init__(self):
@@ -17,8 +19,8 @@ class Arguments():
         self.train_data_dir = os.path.join(self.data_path, 'train')
         self.test_data_dir = os.path.join(self.data_path, 'test')
         
-        self.model_dir = os.getenv('MODELS_DIR', 'models/model')
-        self.model_cache = os.getenv('MODELS_CACHE', 'models/cache')
+        self.model_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'model')
+        self.model_cache = os.path.join(os.environ['WORKFLOW_DIR'], 'cache')
         if not os.path.exists(self.model_cache):
             os.makedirs(self.model_cache)
         
@@ -29,24 +31,6 @@ class Arguments():
         self.log_interval = 100
         self.use_cuda = True
         self.local_testing = True
-
-
-class ClassifierMNIST(nn.Module):
-    def __init__(self):
-        super(ClassifierMNIST, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, 3, 1)
-        self.conv2 = nn.Conv2d(32, 64, 3, 1)
-        self.fc1 = nn.Linear(9216, 128)
-        self.fc2 = nn.Linear(128, 10)
-
-    def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = F.max_pool2d(x, 2)
-        x = torch.flatten(x, 1)
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        return F.log_softmax(x, dim=1)
 
 
 def train(model, optimizer, dataloader_train, epoch, device):
@@ -90,18 +74,6 @@ def main(args):
     print('Using device: {}'.format(device))
 
     # dataloader 
-    mnist_transforms = {
-        'train': transforms.Compose([
-            transforms.Grayscale(num_output_channels=1), # <-- needed since imgs are loaded with 3 channels by default
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))
-            ]),
-        'test': transforms.Compose([
-            transforms.Grayscale(num_output_channels=1), # <-- needed since imgs are loaded with 3 channels by default
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))
-            ])}
-
     dataloader_train = DataLoader(
         dataset=ImageFolder(root=args.train_data_dir, transform=mnist_transforms['test']),
         batch_size=args.batch_size,

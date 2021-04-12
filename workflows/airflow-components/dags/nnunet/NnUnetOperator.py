@@ -80,11 +80,10 @@ class NnUnetOperator(KaapanaBaseOperator):
         pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=None)
         if mode == "training" or mode == "inference":
             if mode == "training":
-                gpu_mem_mb = 12000
+                gpu_mem_mb = 11000
             elif mode == "inference":
                 gpu_mem_mb = 3000
             training_operator = True
-
 
         parallel_id = parallel_id if parallel_id is not None else mode
         super().__init__(

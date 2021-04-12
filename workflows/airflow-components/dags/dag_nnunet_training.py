@@ -37,10 +37,12 @@ dicom_model_slice_size_limit = 70
 # training_results_study_uid = "1.2.826.0.1.3680043.8.498.73386889396401605965136848941191845554"
 training_results_study_uid = None
 
-max_active_runs = 3
+gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
+gpu_count = int(gpu_count_pool.slots) if gpu_count_pool is not None and gpu_count_pool != 0 else 1
 concurrency = 10
+max_active_runs = gpu_count
 cpu_count_pool = pool_api.get_pool(name="CPU")
-prep_threads = int(cpu_count_pool.slots//8) if cpu_count_pool is not None else 2
+prep_threads = int(cpu_count_pool.slots//8) if cpu_count_pool is not None else 4
 prep_threads = prep_threads // max_active_runs
 prep_threads = 5 if prep_threads > 5 else prep_threads
 prep_threads = 1 if prep_threads < 1 else prep_threads

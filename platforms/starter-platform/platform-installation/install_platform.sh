@@ -458,7 +458,7 @@ _Argument: --port [Set main https-port]
 _Argument: --version [version]
 
 where version is one of the available platform releases:
-    0.1.0             --> latest Kaapana release
+    0.1.0  --> latest Kaapana release
     $DEFAULT_VERSION  --> latest development version ${NC}"
 
 QUIET=NA

@@ -447,6 +447,7 @@ _Flag: --install-certs set new HTTPS-certificates for the platform
 _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
 _Flag: --remove-all-images-docker will delete all Docker images from the system
 _Flag: --quiet, meaning non-interactive operation
+_FLAG: --prefetch-extensions is used to prefetch every docker image which might be needed when installing an extension. You should execute this, if you want to go offline after installation.
 
 _Argument: --chart-path [path-to-chart-tgz]
 

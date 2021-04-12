@@ -7,6 +7,3 @@ global:
   fast_data_dir: ""
   slow_data_dir: ""
   home_dir: /root
-  kaapana_collections:
-    - name: kaapana-base-collection
-      version: 0.1.0-vdev 

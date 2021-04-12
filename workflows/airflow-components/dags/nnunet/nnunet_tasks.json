@@ -3,7 +3,6 @@
         "description": "Brain Tumor Segmentation.",
         "model": [
             "2d",
-            "3d_lowres",
             "3d_fullres"
         ],
         "input-mode": "all",

@@ -40,7 +40,7 @@ training_results_study_uid = None
 gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
 gpu_count = int(gpu_count_pool.slots) if gpu_count_pool is not None and gpu_count_pool != 0 else 1
 concurrency = 10
-max_active_runs = gpu_count
+max_active_runs = gpu_count + 1
 cpu_count_pool = pool_api.get_pool(name="CPU")
 prep_threads = int(cpu_count_pool.slots//8) if cpu_count_pool is not None else 4
 prep_threads = prep_threads // max_active_runs

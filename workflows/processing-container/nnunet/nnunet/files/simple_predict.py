@@ -323,6 +323,8 @@ train_network = train_network if train_network.lower() != "none" else None
 train_network_trainer = getenv("TRAIN_NETWORK_TRAINER", "None")
 train_network_trainer = train_network_trainer if train_network_trainer.lower() != "none" else None
 
+cuda_visible_devices = getenv("CUDA_VISIBLE_DEVICES", "None")
+
 tta = False
 mixed_precision = True
 override_existing = True
@@ -353,10 +355,11 @@ print(f"# enable_softmax: {enable_softmax}")
 print(f"# operator_in_dir: {operator_in_dir}")
 print(f"# operator_out_dir: {operator_out_dir}")
 print(f"# input_modality_dirs: {input_modality_dirs}")
-print(f"# threads_nifiti: {threads_nifiti}")
+print(f"# threads_nifiti:      {threads_nifiti}")
 print(f"# threads_preprocessing: {threads_preprocessing}")
-print(f"# train_network: {train_network}")
+print(f"# train_network:         {train_network}")
 print(f"# train_network_trainer: {train_network_trainer}")
+print(f"# cuda_visible_devices:  {cuda_visible_devices}")
 print("#")
 print("##################################################")
 print("#")

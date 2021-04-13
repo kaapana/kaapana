@@ -45,7 +45,7 @@ from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DagRun, SlaMiss, errors
 from airflow.settings import Stats
-from airflow.ti_deps.dep_context import DepContext, SCHEDULEABLE_STATES, SCHEDULED_DEPS
+from airflow.ti_deps.dep_context import DepContext, SCHEDULED_DEPS
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.ti_deps.deps.pool_slots_available_dep import STATES_TO_COUNT_AS_RUNNING
 from airflow.utils import asciiart, helpers, timezone
@@ -60,7 +60,8 @@ from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.state import State
-from kaapana.kubetools.util_helper import NodeUtil
+from kaapana.kubetools.util_helper import NodeUtil, get_gpu_pool
+
 
 class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin, MultiprocessingStartMethodMixin):
     """Helps call SchedulerJob.process_file() in a separate process.
@@ -391,7 +392,7 @@ class SchedulerJob(BaseJob):
         self.do_pickle = do_pickle
         super(SchedulerJob, self).__init__(*args, **kwargs)
 
-        self.max_threads = conf.getint('scheduler', 'max_threads')
+        self.max_threads = conf.getint('scheduler', 'parsing_processes')
 
         if log:
             self._log = log
@@ -790,27 +791,11 @@ class SchedulerJob(BaseJob):
             run.dag = dag
             # todo: preferably the integrity check happens at dag collection time
             run.verify_integrity(session=session)
-            run.update_state(session=session)
+            ready_tis = run.update_state(session=session)
             if run.state == State.RUNNING:
-                make_transient(run)
                 active_dag_runs.append(run)
-
-        for run in active_dag_runs:
-            self.log.debug("Examining active DAG run: %s", run)
-            tis = run.get_task_instances(state=SCHEDULEABLE_STATES)
-
-            # this loop is quite slow as it uses are_dependencies_met for
-            # every task (in ti.is_runnable). This is also called in
-            # update_state above which has already checked these tasks
-            for ti in tis:
-                task = dag.get_task(ti.task_id)
-
-                # fixme: ti.task is transient but needs to be set
-                ti.task = task
-
-                if ti.are_dependencies_met(
-                        dep_context=DepContext(flag_upstream_failed=True),
-                        session=session):
+                self.log.debug("Examining active DAG run: %s", run)
+                for ti in ready_tis:
                     self.log.debug('Queuing task: %s', ti)
                     task_instances_list.append(ti.key)
 
@@ -981,6 +966,7 @@ class SchedulerJob(BaseJob):
         # any open slots in the pool.
         for pool, task_instances in pool_to_task_instances.items():
             pool_name = pool
+
             if pool not in pools:
                 self.log.warning(
                     "Tasks using non-existent pool '%s' will not be scheduled",
@@ -997,8 +983,7 @@ class SchedulerJob(BaseJob):
                 pool, open_slots, num_ready
             )
 
-            priority_sorted_task_instances = sorted(
-                task_instances, key=lambda ti: (-ti.priority_weight, ti.execution_date))
+            priority_sorted_task_instances = sorted(task_instances, key=lambda ti: (-ti.priority_weight, ti.execution_date))
 
             num_starving_tasks = 0
             for current_index, task_instance in enumerate(priority_sorted_task_instances):
@@ -1061,10 +1046,10 @@ class SchedulerJob(BaseJob):
                     num_starving_tasks_total += 1
                     # Though we can execute tasks with lower priority if there's enough room
                     continue
-                
-                if not NodeUtil.check_ti_scheduling(ti=task_instance,logger=self.log):
+
+                if not NodeUtil.check_ti_scheduling(ti=task_instance, logger=self.log):
                     continue
-                
+
                 executable_tis.append(task_instance)
                 open_slots -= task_instance.pool_slots
                 dag_concurrency_map[dag_id] += 1
@@ -1541,6 +1526,8 @@ class SchedulerJob(BaseJob):
         return True
 
     def _process_and_execute_tasks(self, simple_dag_bag):
+
+        self.adjust_gpu_pool(simple_dag_bag, (State.SCHEDULED,))
         # Handle cases where a DAG run state is set (perhaps manually) to
         # a non-running state. Handle task instances that belong to
         # DAG runs in those states
@@ -1558,8 +1545,44 @@ class SchedulerJob(BaseJob):
                                                    State.SCHEDULED,
                                                    State.UP_FOR_RESCHEDULE],
                                                   State.NONE)
-        self._execute_task_instances(simple_dag_bag,
-                                     (State.SCHEDULED,))
+        self._execute_task_instances(simple_dag_bag, (State.SCHEDULED,))
+
+    @provide_session
+    def adjust_gpu_pool(self, simple_dag_bag, states, session=None):
+        from airflow.jobs.backfill_job import BackfillJob
+        TI = models.TaskInstance
+        DR = models.DagRun
+        DM = models.DagModel
+        ti_query = (
+            session
+            .query(TI)
+            .filter(TI.dag_id.in_(simple_dag_bag.dag_ids))
+            .outerjoin(
+                DR,
+                and_(DR.dag_id == TI.dag_id, DR.execution_date == TI.execution_date)
+            )
+            .filter(or_(DR.run_id == None,  # noqa: E711 pylint: disable=singleton-comparison
+                    not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
+            .outerjoin(DM, DM.dag_id == TI.dag_id)
+            .filter(or_(DM.dag_id == None,  # noqa: E711 pylint: disable=singleton-comparison
+                    not_(DM.is_paused)))
+        )
+
+        # Additional filters on task instance state
+        if None in states:
+            ti_query = ti_query.filter(
+                or_(TI.state == None, TI.state.in_(states))  # noqa: E711 pylint: disable=singleton-comparison
+            )
+        else:
+            ti_query = ti_query.filter(TI.state.in_(states))
+
+        task_instances_to_examine = ti_query.all()
+        for task_instance in task_instances_to_examine:
+            if task_instance.pool == "GPU_COUNT":
+                self.log.error("Getting new POOLS...")
+                task_instance = get_gpu_pool(task_instance=task_instance, logger=self.log)
+                session.merge(task_instance)
+            session.commit()
 
     @provide_session
     def process_file(self, file_path, zombies, pickle_dags=False, session=None):

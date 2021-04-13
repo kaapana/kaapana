@@ -148,7 +148,7 @@ def get_logs(sc):
             # writer.add_scalars("foreground-dice/combined",scalars_dict,epoch["count"])
             writer.add_scalar('time', epoch["time"], epoch["count"])
             last_written_epoch = epoch["count"]
-            print("# # Tensorboard: Wrote new epoch: {}".format(last_written_epoch))
+            print(f"# Tensorboard: Wrote new epoch: {last_written_epoch}")
 
         writer.flush()
 

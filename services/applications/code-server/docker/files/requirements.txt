@@ -8,6 +8,5 @@ kubernetes==11.0.0
 minio
 pint
 timeloop
-# development
 black
 jupyter

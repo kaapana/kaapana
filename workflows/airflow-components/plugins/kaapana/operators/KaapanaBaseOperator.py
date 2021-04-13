@@ -22,6 +22,8 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 from kaapana.blueprints.kaapana_utils import generate_run_id, cure_invalid_name
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperCaching import cache_operator_output
+from airflow.api.common.experimental import pool as pool_api
+from airflow.models import Variable
 from pprint import pprint
 import uuid
 import json
@@ -243,13 +245,23 @@ class KaapanaBaseOperator(BaseOperator):
             }
             self.volumes.append(Volume(name='tensorboard', configs=tb_config))
 
+            self.volume_mounts.append(VolumeMount(
+                'dshm', mount_path='/dev/shm', sub_path=None, read_only=False))
+            volume_config = {
+                'emptyDir':
+                {
+                    'medium': 'Memory',
+                }
+            }
+            self.volumes.append(Volume(name='dshm', configs=volume_config))
+
         if self.pod_resources is None:
             pod_resources = PodResources(
                 request_cpu="{}m".format(self.cpu_millicores) if self.cpu_millicores != None else None,
                 limit_cpu="{}m".format(self.cpu_millicores+100) if self.cpu_millicores != None else None,
                 request_memory="{}Mi".format(self.ram_mem_mb),
                 limit_memory="{}Mi".format(self.ram_mem_mb_lmt if self.ram_mem_mb_lmt is not None else self.ram_mem_mb+100),
-                limit_gpu=1 if self.gpu_mem_mb is not None else None
+                limit_gpu=None  # 1 if self.gpu_mem_mb is not None else None
             )
             self.pod_resources = pod_resources
 
@@ -334,19 +346,13 @@ class KaapanaBaseOperator(BaseOperator):
         self.kube_name = self.kube_name.lower() + "-" + str(uuid.uuid4())[:8]
         self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63)
 
-        # First if condition could be removed when the api calls are adapted to:
-        # json_data = {
-        #     'rest_call': {
-        #         'global': {
-        #             'bucket_name': 'custom-dicom-upload'
-        #         },
-        #         'operators': {
-        #             'minio-actions-get':{'action_operator_dirs': ['dicoms']},
-        #             'dcmsend': {'host': '10.128.129.28'}
-        #             #'minio-actions-remove-removin': {'action_operator_dirs': ['dicoms']}
-        #         }
-        #     }
-        # }
+        self.pool = context["ti"].pool
+        self.pool_slots = context["ti"].pool_slots
+        if "GPU" in self.pool and len(self.pool.split("_")) == 3:
+            gpu_id = self.pool.split("_")[1]
+            self.env_vars.update({
+                "CUDA_VISIBLE_DEVICES": str(gpu_id)
+            })
 
         if context['dag_run'].conf is not None and "conf" in context['dag_run'].conf and "form_data" in context['dag_run'].conf["conf"] and context['dag_run'].conf["conf"]["form_data"] is not None:
             form_data = context['dag_run'].conf["conf"]["form_data"]
@@ -538,7 +544,7 @@ class KaapanaBaseOperator(BaseOperator):
         if obj.pool == None:
             if obj.gpu_mem_mb != None:
                 obj.pool = "GPU_COUNT"
-                obj.pool_slots = 1
+                obj.pool_slots = obj.gpu_mem_mb
             else:
                 obj.pool = "MEMORY"
                 obj.pool_slots = obj.ram_mem_mb if obj.ram_mem_mb is not None else 1

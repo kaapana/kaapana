@@ -79,6 +79,8 @@ elif [ "$MODE" = "training" ]; then
     echo "# NETWORK: $TRAIN_NETWORK";
     echo "# NETWORK_TRAINER: $TRAIN_NETWORK_TRAINER";
     echo "#"
+    echo "# MAX_EPOCHS: $TRAIN_MAX_EPOCHS";
+    echo "#"
     echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
     echo "# nnUNet_preprocessed:  $nnUNet_preprocessed"
     echo "# RESULTS_FOLDER:       $RESULTS_FOLDER"
@@ -132,7 +134,6 @@ elif [ "$MODE" = "inference" ]; then
     echo "#"
     echo "# Starting inference..."
     echo "#"
-
     python3 -u ./simple_predict.py
     echo "#"
     

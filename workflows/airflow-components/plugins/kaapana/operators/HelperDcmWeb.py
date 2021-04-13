@@ -22,7 +22,6 @@ class HelperDcmWeb():
     
     @staticmethod
     def downloadSeries(seriesUID, target_dir, include_series_dir=False):
-        print(f"# Collecting objects for series {seriesUID}")
         payload = {
             'SeriesInstanceUID': seriesUID
         }
@@ -42,7 +41,6 @@ class HelperDcmWeb():
                     ]
                 )  # objectUID
 
-            print(("Start downloading series: {0}".format(seriesUID)))
             if include_series_dir:
                 target_dir = join(target_dir, seriesUID)
             Path(target_dir).mkdir(parents=True, exist_ok=True)

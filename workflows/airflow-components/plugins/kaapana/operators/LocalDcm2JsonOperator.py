@@ -783,12 +783,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             
             if extracted_date == None:
                 print("###########################        NO AcquisitionDate! -> set to today")
-                time_tag_used +="not found -> arriving date"
+                time_tag_used +="date not found -> arriving date"
                 extracted_date = datetime.now().strftime(self.format_date)
 
             if extracted_time == None:
                 print("###########################        NO AcquisitionTime! -> set to now")
-                time_tag_used +=" + not found -> arriving time"
+                time_tag_used +=" + time not found -> arriving time"
                 extracted_time = datetime.now().strftime(self.format_time)
 
             date_time_string = extracted_date+" "+extracted_time

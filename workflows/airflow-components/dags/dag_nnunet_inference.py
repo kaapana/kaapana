@@ -12,12 +12,8 @@ from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from airflow.api.common.experimental import pool as pool_api
 
-gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
-gpu_count = int(gpu_count_pool.slots) if gpu_count_pool is not None and gpu_count_pool != 0 else 1
-max_active_runs = gpu_count
-
+max_active_runs = 10
 available_pretrained_task_names, installed_tasks, all_selectable_tasks = get_tasks()
 ui_forms = {
     "publication_form": {

@@ -22,8 +22,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                 exit(1)
             message = f"OK: Series {series['reference_series_uid']}"
         except Exception as e:
-            print("#### Something went wrong!")
-            print("# series: {}".format(series["reference_series_uid"]))
+            print(f"#### Something went wrong: {series['reference_series_uid']}")
             print(e)
             message = f"ERROR: Series {series['reference_series_uid']}"
 
@@ -128,7 +127,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
                 if self.search_policy == None:
                     print("No search_policy -> only dicom_tags will be used...")
-                
+
                 elif self.search_policy == 'reference_uid':
                     if (0x0008, 0x1115) in incoming_dcm:
                         for ref_series in incoming_dcm[0x0008, 0x1115]:

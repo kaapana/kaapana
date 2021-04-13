@@ -5,3 +5,4 @@ nibabel
 pydicom
 tensorboardX
 pillow
+pynvml

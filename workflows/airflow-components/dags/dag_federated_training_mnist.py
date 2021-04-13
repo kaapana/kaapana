@@ -68,11 +68,6 @@ pass_on_model = LocalMinioOperator(
     zip_files=False
     )
 
-trigger_reload_minio_dag = TriggerDagOperator(
-    dag=dag,
-    dag_name='service-minio-action'
-    )
-
 cleanup = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-[get_model_from_minio, get_data_from_minio >> unzip_data] >> train_model >> pass_on_model >> trigger_reload_minio_dag >> cleanup
+[get_model_from_minio, get_data_from_minio >> unzip_data] >> train_model >> pass_on_model >> cleanup

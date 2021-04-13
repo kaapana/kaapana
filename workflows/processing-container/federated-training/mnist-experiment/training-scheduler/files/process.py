@@ -156,11 +156,12 @@ def trigger_training_dag(participant, args):
     rest_call = {
         'rest_call': {
             'global': {
-                'bucket_name': 'federated-exp-mnist',
-                'minio_host': args.scheduler},
+                'bucket_name': 'federated-exp-mnist'},
             'operators': {
                 'model-training': {
-                    'host_ip': participant}}}}
+                    'host_ip': participant}
+                'minio-actions-put': {
+                    'minio_host': args.scheduler}}}}
 
     url = 'https://{}/flow/kaapana/api/trigger/{}'.format(participant, dag_name)
     r = requests.post(url=url, json=rest_call, verify=False)

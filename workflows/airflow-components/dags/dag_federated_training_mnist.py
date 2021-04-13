@@ -35,7 +35,7 @@ dag = DAG(
 
 get_model_from_minio = LocalMinioOperator(
     dag=dag,
-    name='action-minio-get-model',
+    name='minio-action-get-model',
     action='get',
     bucket_name='federated-exp-mnist',
     action_operator_dirs=['model']
@@ -43,7 +43,7 @@ get_model_from_minio = LocalMinioOperator(
 
 get_data_from_minio = LocalMinioOperator(
     dag=dag,
-    name='action-minio-get-data',
+    name='minio-action-get-data',
     action='get',
     bucket_name='federated-exp-mnist',
     action_operator_dirs=['data'],

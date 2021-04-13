@@ -160,6 +160,8 @@ def trigger_training_dag(participant, args):
             'operators': {
                 'model-training': {
                     'host_ip': participant},
+                'minio-action-get-model': {
+                    'minio_host': args.scheduler},
                 'minio-actions-put': {
                     'minio_host': args.scheduler}}}}
 

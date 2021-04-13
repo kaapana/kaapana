@@ -346,9 +346,11 @@ class KaapanaBaseOperator(BaseOperator):
         self.kube_name = self.kube_name.lower() + "-" + str(uuid.uuid4())[:8]
         self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63)
 
+        self.pool = context["ti"].pool
+        self.pool_slots = context["ti"].pool_slots
         if "GPU" in self.pool and len(self.pool.split("_")) == 3:
             gpu_id = self.pool.split("_")[1]
-            self.envs.update({
+            self.env_vars.update({
                 "CUDA_VISIBLE_DEVICES": str(gpu_id)
             })
 

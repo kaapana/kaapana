@@ -82,7 +82,7 @@ class NnUnetOperator(KaapanaBaseOperator):
             if mode == "training":
                 gpu_mem_mb = 11000
             elif mode == "inference":
-                gpu_mem_mb = 3000
+                gpu_mem_mb = 4000
             training_operator = True
 
         parallel_id = parallel_id if parallel_id is not None else mode

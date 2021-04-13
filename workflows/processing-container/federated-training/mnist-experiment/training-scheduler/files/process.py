@@ -159,7 +159,7 @@ def trigger_training_dag(participant, args):
                 'bucket_name': 'federated-exp-mnist'},
             'operators': {
                 'model-training': {
-                    'host_ip': participant}
+                    'host_ip': participant},
                 'minio-actions-put': {
                     'minio_host': args.scheduler}}}}
 

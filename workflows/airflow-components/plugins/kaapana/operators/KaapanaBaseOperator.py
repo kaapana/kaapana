@@ -23,10 +23,9 @@ from kaapana.blueprints.kaapana_utils import generate_run_id, cure_invalid_name
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperCaching import cache_operator_output
 from airflow.api.common.experimental import pool as pool_api
-from airflow.models import Variable
-from pprint import pprint
 import uuid
 import json
+
 
 default_registry = os.getenv("DEFAULT_REGISTRY", "")
 default_project = os.getenv("DEFAULT_PROJECT", "")

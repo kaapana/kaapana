@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: openmined-grid-{{ .Values.global.id }}
-        image: {{  .Values.global.registry_url }}/openmined-grid:0.1.0-vdev
+        image: {{  .Values.global.registry_url }}/openmined-grid-chart:0.1.0-vdev
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           requests:

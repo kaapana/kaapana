@@ -4,3 +4,6 @@ description: A Helm chart for Kubernetes
 name:  openmined-pysyft-nb-chart
 version: 0.1.0-vdev
 keywords:
+- kaapanaapplication
+- kaapanamultiinstallable
+- kaapanaexperimental

@@ -1,7 +1,7 @@
-FROM nvcr.io/nvidia/pytorch:20.09-py3
+FROM openmined/pysyft-notebook
 
 LABEL IMAGE="openmined-pysyft-nb"
-LABEL VERSION="0-1.0-vdev"
+LABEL VERSION="0.1.0-vdev"
 LABEL CI_IGNORE="False"
 
 # Disable security token for Jupyter lab
@@ -10,12 +10,14 @@ RUN jupyter notebook --generate-config \
 
 RUN pip uninstall -y syft
 
-# pysyft v0.3.0
-RUN python -m pip install --no-cache-dir git+https://github.com/OpenMined/PySyft.git@b7a52b513a9150a968a59b44d92c406cae05bed8
+# pysyft v0.2.9
+RUN python -m pip install --no-cache-dir git+https://github.com/OpenMined/PySyft.git@3852ca9e78d5163b52776b231f469e32e6c8be01
 
-COPY files/bootstrap.sh /
+RUN mkdir -p /appdata
+COPY files/jupyterlab.sh /
 
-RUN mkdir -p /example
-COPY ["files/notebooks/data-scientist.ipynb", "files/notebooks/data-owner.ipynb", "/example/"]
+EXPOSE 8888
+ENV INGRESS_PATH /pysyft
+#CMD jupyter lab --ip=* --port=8888 --no-browser --notebook-dir=/opt/app/data --allow-root
 
-ENTRYPOINT ["/bin/bash", "/bootstrap.sh"]
+ENTRYPOINT ["/bin/bash", "/jupyterlab.sh"]

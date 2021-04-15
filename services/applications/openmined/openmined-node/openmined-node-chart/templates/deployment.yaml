@@ -1,23 +1,23 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: grid-node-{{ .Values.global.id }}
+  name: openmined-node-{{ .Values.global.id }}
   namespace: {{ .Values.global.base_namespace }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: grid-node-{{ .Values.global.id }}
+      app-name: openmined-node-{{ .Values.global.id }}
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app-name: grid-node-{{ .Values.global.id }}
+        app-name: openmined-node-{{ .Values.global.id }}
     spec:
       containers:
-      - name: grid-node-{{ .Values.global.id }}
-        image: {{ .Values.registry_url }}/grid-node:development
+      - name: openmined-node-{{ .Values.global.id }}
+        image: {{ .Values.registry_url }}/openmined-node:development
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
         resources:
           requests:
@@ -43,13 +43,13 @@ spec:
 kind: Service
 apiVersion: v1
 metadata:
-  name: grid-node-{{ .Values.global.id }}
+  name: openmined-node-{{ .Values.global.id }}
   namespace: {{ .Values.global.base_namespace }}
   labels:
-    app-name: grid-node-{{ .Values.global.id }}
+    app-name: openmined-node-{{ .Values.global.id }}
 spec:
   selector:
-    app-name: grid-node-{{ .Values.global.id }}
+    app-name: openmined-node-{{ .Values.global.id }}
   type: NodePort
   ports:
     - name: {{ .Values.global.id }}

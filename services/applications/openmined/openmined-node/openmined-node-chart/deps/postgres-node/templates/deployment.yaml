@@ -2,17 +2,17 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: postgres-node-{{ .Values.global.id }}
+  name: openmined-node-postgres-{{ .Values.global.id }}
   namespace: {{ .Values.global.base_namespace }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: postgres-node-{{ .Values.global.id }}
+      app-name: openmined-node-postgres-{{ .Values.global.id }}
   template:
     metadata:
       labels:
-        app-name: postgres-node-{{ .Values.global.id }}
+        app-name: openmined-node-postgres-{{ .Values.global.id }}
     spec:
       restartPolicy: Always
       containers:
@@ -65,7 +65,7 @@ spec:
         - name: dbvol
           # emptyDir: {}
           hostPath:
-            path: {{ .Values.global.fast_data_dir }}/postgres-node
+            path: {{ .Values.global.fast_data_dir }}/openmined-node-postgres
             type: DirectoryOrCreate
       imagePullSecrets:
       - name: registry-secret
@@ -73,11 +73,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgres-node-{{ .Values.global.id }}
+  name: openmined-node-postgres-{{ .Values.global.id }}
   namespace: {{ .Values.global.base_namespace }}
 spec:
   selector:
-    app-name: postgres-node-{{ .Values.global.id }}
+    app-name: openmined-node-postgres-{{ .Values.global.id }}
   ports:
     - port: 5432
       targetPort: 5432

@@ -1,26 +1,23 @@
-import pydicom
 import random
 from datetime import datetime, timedelta
 
-from airflow.models import DAG
-from airflow.utils.dates import days_ago
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.models import Variable
-from airflow.api.common.experimental import pool as pool_api
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 from kaapana.operators.ResampleOperator import ResampleOperator
-
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-
-from nnunet.NnUnetOperator import NnUnetOperator
+from airflow.api.common.experimental import pool as pool_api
+from airflow.utils.log.logging_mixin import LoggingMixin
 from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
+from nnunet.NnUnetOperator import NnUnetOperator
+from airflow.utils.dates import days_ago
+from airflow.models import DAG
+from airflow.models import Variable
 
 node_uid = Variable.get(key="node_uid", default_var="N/A")
 study_id = "Kaapana"
@@ -41,11 +38,9 @@ gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
 gpu_count = int(gpu_count_pool.slots) if gpu_count_pool is not None and gpu_count_pool != 0 else 1
 concurrency = 10
 max_active_runs = gpu_count + 1
-cpu_count_pool = pool_api.get_pool(name="CPU")
-prep_threads = int(cpu_count_pool.slots//8) if cpu_count_pool is not None else 4
-prep_threads = prep_threads // max_active_runs
-prep_threads = 5 if prep_threads > 5 else prep_threads
-prep_threads = 1 if prep_threads < 1 else prep_threads
+# cpu_count_pool = pool_api.get_pool(name="CPU")
+# prep_threads = int(cpu_count_pool.slots//8) if cpu_count_pool is not None else 4
+prep_threads = 4
 
 ui_forms = {
     "publication_form": {

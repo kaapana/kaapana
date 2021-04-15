@@ -1,16 +1,14 @@
 import kubernetes as k8s
 from pint import UnitRegistry
 from collections import defaultdict
-import requests
-from datetime import timedelta, datetime
-import time
+from datetime import datetime
 import os
 from kaapana.kubetools.prometheus_query import get_node_memory, get_node_mem_percent, get_node_cpu, get_node_cpu_util_percent, get_node_gpu_infos
 from airflow.models import Variable
 from airflow.api.common.experimental import pool as pool_api
 from kubernetes.client.models.v1_container_image import V1ContainerImage
 from pprint import pprint
-
+from airflow.utils.state import State
 
 class NodeUtil():
     ureg = None
@@ -408,5 +406,11 @@ def get_gpu_pool(task_instance, logger):
         else:
             task_instance.pool = "GPU_COUNT"
             task_instance.pool_slots = 1
+            task_instance.state = State.FAILED
+            task_instance.log.error(f"################################################################")
+            task_instance.log.error(f"#")
+            task_instance.log.error(f"################   GPU needed and not found !   ################")
+            task_instance.log.error(f"#")
+            task_instance.log.error(f"################################################################")
 
     return task_instance

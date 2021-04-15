@@ -28,7 +28,7 @@ spec:
           limits:
             memory: "1Gi"
         ports:
-        - name: pysyft-nb-http
+        - name: om-nb-http
           containerPort: 8888
         env:
         - name: INGRESS_PATH
@@ -59,7 +59,7 @@ spec:
   ports:
     - protocol: TCP
       port: 8888
-      targetPort: pysyft-nb-http
+      targetPort: om-nb-http
       name: log-http-port
   type: ClusterIP
 ---

@@ -1,0 +1,31 @@
+---
+global:
+    pull_policy_pods: "IfNotPresent"
+    pull_policy_jobs: "IfNotPresent"
+    pull_policy_operators: "IfNotPresent"
+    core_namespace: "kube-system"
+    base_namespace: "base"
+    meta_namespace: "meta"
+    store_namespace: "store"
+    flow_namespace: "flow"
+    flow_jobs_namespace: "flow-jobs"
+    monitoring_namespace: "monitoring"
+    gpu_support: false
+    credentials:
+        minio_username: "kaapanaminio"
+        minio_password: "Kaapana2020"
+        grafana_username: "admin"
+        grafana_password: "admin"
+        keycloak_admin_username: "racoon-admin"
+        keycloak_admin_password: "EjsH53fXznKMtVFfwXxS"
+    dicom_port: 11112
+    http_port: 80
+    https_port: 443
+    fast_data_dir: /home/kaapana
+    slow_data_dir: /home/kaapana
+    home_dir: /root
+    version: "0.1.1-vdev"
+    kaapana_collections:
+        - name: kaapana-base-collection
+          version: 0.1.0-vdev 
+---

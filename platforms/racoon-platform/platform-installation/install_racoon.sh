@@ -3,15 +3,17 @@ set -euf -o pipefail
 export HELM_EXPERIMENTAL_OCI=1
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
-PROJECT_NAME="kaapana-platform-chart" # name of the platform Helm chart
+PROJECT_NAME="racoon-platform-chart" # name of the platform Helm chart
 DEFAULT_VERSION="0.1.1-vdev"    # version of the platform Helm chart
 
-DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart
+DEV_MODE="false" # dev-mode -> containers will always be re-downloaded after pod-restart
 
-CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
+CONTAINER_REGISTRY_URL="registry.hzdr.de/kaapana/racoon" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 
-FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
-SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
+FAST_DATA_DIR="/mnt/data" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
+SLOW_DATA_DIR="/mnt/data" # Directory on the server, where the DICOM images will be stored (can be slower)
+
+CHANGE_HTTPS="true"
 
 HTTP_PORT=80      # not working yet -> has to be 80
 HTTPS_PORT=443    # not working yet -> has to be 443
@@ -58,6 +60,44 @@ if test -t 1; then
         WHITE="$(tput bold)$(tput setaf 7)"
     fi
 fi
+
+template_path="./change_port_template.yaml"
+if [ "$CHANGE_HTTPS" == "true" ] && [ ! -f $template_path ] ; then
+    echo -e "${RED} Could not find $template_path -> could not change port! ${NC}" > /dev/stderr;
+    exit 1
+fi
+
+function change_port {
+    echo "Change https port to 8442 ..."
+    custom_yaml_path="./change_port.yaml"
+
+    if [ -z "$DOMAIN" ]; then
+        echo -e "${RED}DOMAIN not set! -> could not change port!";  > /dev/stderr;
+        exit 1
+    else
+        echo -e "${GREEN}Server domain (FQDN): $DOMAIN ${NC}" > /dev/stderr;
+    fi
+
+    if [ ! -f $template_path ] ; then
+        echo -e "${RED} Could not find $template_path -> could not change port! ${NC}" > /dev/stderr;
+        exit 1
+        
+    else
+        echo -e "${GREEN}Template: $template_path found -> create configuration ${NC}" > /dev/stderr;
+        sed "s/<replace-url>/$DOMAIN/" $template_path > $custom_yaml_path
+        echo -e "${GREEN}Deleting existing objects... ${NC}" > /dev/stderr;
+        microk8s.kubectl delete -f $custom_yaml_path
+        echo -e "${GREEN}Apply new port configuration... ${NC}" > /dev/stderr;
+        microk8s.kubectl apply -f $custom_yaml_path
+        echo -e "${GREEN}Restart reverse-proxy... ${NC}" > /dev/stderr;
+        set -e
+        louketo_pod=$(microk8s.kubectl get pods -n kube-system |grep louketo  |awk '{print $1;}')
+        set +e
+        echo "Louketo pod: $louketo_pod" > /dev/stderr;
+        microk8s.kubectl -n kube-system delete pod $louketo_pod
+        echo -e "${GREEN}Successfully changed HTTPS port to 8443 ! ${NC}" > /dev/stderr;
+    fi
+}
 
 function delete_all_images_docker {
     while true; do
@@ -249,7 +289,7 @@ function install_chart {
 
     if [ ! "$QUIET" = "true" ];then
         while true; do
-            read -e -p "Enable GPU support?" -i " no" yn
+            read -e -p "Enable GPU support?" -i " yes" yn
             case $yn in
                 [Yy]* ) echo -e "${GREEN}ENABLING GPU SUPPORT${NC}" && GPU_SUPPORT="true"; break;;
                 [Nn]* ) echo -e "${YELLOW}SET NO GPU SUPPORT${NC}" && GPU_SUPPORT="false"; break;;
@@ -306,6 +346,10 @@ function install_chart {
         rm -rf $CHART_PATH
     fi
 
+    if [ "$CHANGE_HTTPS" == "true" ]; then
+        change_port
+    fi
+
     print_installation_done
     
     REGISTRY_USERNAME=""
@@ -356,7 +400,7 @@ function check_credentials {
     while true; do
         if [ ! -v REGISTRY_USERNAME ] || [ ! -v REGISTRY_PASSWORD ]; then
             echo -e "${YELLOW}Please enter the credentials for the Container-Registry!${NC}"
-            read -p '**** username: ' REGISTRY_USERNAME
+            read -e -p '**** username: ' -i " racoon" REGISTRY_USERNAME
             read -s -p '**** password: ' REGISTRY_PASSWORD
         else
             echo -e "${GREEN}Credentials found!${NC}"
@@ -396,9 +440,9 @@ function install_certs {
         echo -e "Creating cluster secret ..."
         microk8s.kubectl delete secret certificate -n kube-system
         microk8s.kubectl create secret tls certificate --namespace kube-system --key ./tls.key --cert ./tls.crt
-        gatekeeper_pod=$(microk8s.kubectl get pods -n kube-system |grep louketo  | awk '{print $1;}')
-        echo "gatekeeper pod: $gatekeeper_pod"
-        microk8s.kubectl -n kube-system delete pod $gatekeeper_pod
+        louketo_pod=$(microk8s.kubectl get pods -n kube-system |grep louketo  | awk '{print $1;}')
+        echo "louketo pod: $louketo_pod"
+        microk8s.kubectl -n kube-system delete pod $louketo_pod
     fi
 
     echo -e "${GREEN}DONE${NC}"

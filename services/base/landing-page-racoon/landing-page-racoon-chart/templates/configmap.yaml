@@ -1,0 +1,138 @@
+---
+apiVersion: v1
+data:
+  commonData.json: |-
+    {
+      "name": "Kaapana platform",
+      "shortName": "Kaapana",
+      "infoText": "Welcome to Kaapana",
+      "version": "{{ .Values.global.version }}"
+    }
+  defaultExternalWebpages.json: |-
+    {
+      "store": {
+        "label": "Store",
+        "icon": "mdi-store",
+        "linkTo": "/api",
+        "roles": ["admin", "user"],
+        "description": "The Store is the place where the data like images, object, etc. are stored. I.e. the platform has its own PACS system to which one can send images from another PACS. All application running within the platofmr will communicate with the PACS of the platform. Besides the PACS there can be other storage applications or tools like XNAT or Minio activated.",
+        "subSections": {
+          "dcm4che": {
+            "label": "PACS",
+            "endpoint": "/dcm4chee-arc",
+            "linkTo": "/dcm4chee-arc/ui2/"
+          },
+          "xnat": {
+            "label": "XNAT",
+            "endpoint": "/xnat",
+            "linkTo": "/xnat/app/template/Login.vm"
+          },
+          "ohif": {
+            "label": "OHIF",
+            "endpoint": "/ohif",
+            "linkTo": "/ohif/"
+          },
+          "minio": {
+            "label": "Minio",
+            "endpoint": "/minio",
+            "linkTo": "/minio"
+          },
+          "doccano": {
+            "label": "Doccano",
+            "endpoint": "/doccano/",
+            "linkTo": "/doccano/"
+          }
+        }
+      },
+      "meta": {
+        "label": "Meta",
+        "icon": "mdi-chart-bar",
+        "linkTo": "/meta",
+        "roles": ["admin", "user"],
+        "description": "Meta defines the section from where data of the Store are evaluated and displayed. The central application are Elasticsearch and Kibana, from which one can query and filter the existing data as well as create dashboards with a wide variety of plots. In order to use the functionalities of Kibana, the data must be made available to Elastissearch first.",
+        "subSections": {
+    
+        }
+      },
+      "flow": {
+        "label": "Flow",
+        "icon": "mdi-chart-timeline-variant",
+        "linkTo": "/flow",
+        "roles": ["admin", "user"],
+        "description": "Flow is responsible for all kinds of processing on the platform. It serves as a processing and analysis engine for CPU and GPU based image analysis and machine learning methods. At its heart there is Airflow, where data processing steps can be chained and easily supervised",
+        "subSections": {
+          "airflow": {
+            "label": "Airflow",
+            "endpoint": "/flow",
+            "linkTo": "/flow/admin/"
+          },
+          "qpmsa": {
+            "label": "Qpsma app",
+            "endpoint": "/qpsma",
+            "linkTo": "/qpsma/"
+          }
+        }
+      },
+      "monitoring": {
+        "label": "Monitoring",
+        "icon": "mdi-video",
+        "linkTo": "/monitoring",
+        "roles": ["admin"],
+        "description": "The Monitoring section contains all kinds of mechanisms to supervise the systems components. The core of the monitoring section is Grafana, where one can create dashboards to illustrate the system properties, running processes and the status of applications.",
+        "subSections": {
+          "grafana": {
+            "label": "Grafana",
+            "endpoint": "/grafana",
+            "linkTo": "/grafana/d/kube/kubernetes?refresh=10s&orgId=1&var-Node=All&kiosk=tv"
+          }
+        }
+      },
+      "system": {
+        "label": "System",
+        "icon": "mdi-view-dashboard-variant ",
+        "linkTo": "/system",
+        "roles": ["admin"],
+        "description": "The system is the core of the platform. From here all applications and services are configured, started and maintained with the core application Kubernetes. Additionally the traffic on the page as well as the authentification with user roles is managed here",
+        "subSections": {
+          "dashboard": {
+            "label": "Kubernetes",
+            "endpoint": "/kubernetes",
+            "linkTo": "/kubernetes/"
+          },
+          "keycloak": {
+            "label": "Keycloak",
+            "endpoint": "/auth",
+            "linkTo": "/auth"
+          },
+          "traefik": {
+            "label": "Traefik",
+            "endpoint": "/traefik",
+            "linkTo": "/traefik/dashboard/"
+          },
+          "workflow": {
+            "label": "Workflow-data",
+            "endpoint": "/workflowdata",
+            "linkTo": "/workflowdata/"
+          },
+          "webide": {
+            "label": "Airflow Development",
+            "endpoint": "/web-ide",
+            "linkTo": "/web-ide/"
+          },
+          "jupyterlab": {
+            "label": "Jupyterlab",
+            "endpoint": "/jupyterlab",
+            "linkTo": "/jupyterlab"
+          },
+          "prometheus": {
+            "label": "Prometheus",
+            "endpoint": "/prometheus",
+            "linkTo": "/prometheus/"
+          }
+        }
+      }
+    }
+kind: ConfigMap
+metadata:
+  name: landing-page-config
+  namespace: {{ .Values.global.base_namespace }}

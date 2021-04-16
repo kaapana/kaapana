@@ -1,5 +1,5 @@
 ---
 dependencies:
-  - name: postgres-gateway
+  - name: openmined-grid-postgres
     version: "9.6-vdev"
-    repository: file://deps/postgres-gateway
+    repository: file://deps/openmined-grid-postgres

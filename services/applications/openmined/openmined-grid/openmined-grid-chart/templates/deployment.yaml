@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: openmined-grid-{{ .Values.global.id }}
-        image: {{  .Values.global.registry_url }}/openmined-grid-chart:0.1.0-vdev
+        image: {{  .Values.global.registry_url }}/openmined-grid:0.1.0-vdev
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           requests:
@@ -30,7 +30,7 @@ spec:
         - name: SECRET_KEY
           value: "kaapana-secret-key"
         - name: DATABASE_URL
-          value: 'postgresql://gateway:gateway@postgres-gateway-{{ .Values.global.id }}.base:5432/gateway'
+          value: 'postgresql://gateway:gateway@openmined-grid-postgres-{{ .Values.global.id }}.base:5432/gateway'
         ports:
         - containerPort: {{ .Values.container_port }}
       imagePullSecrets:

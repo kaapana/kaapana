@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: openmined-duet-{{ $uuid }}
-        image: {{  .Values.global.registry_url }}/openmined-duet-chart:0.1.0-vdev
+        image: {{  .Values.global.registry_url }}/openmined-duet:0.1.0-vdev
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         # memory space
         resources:

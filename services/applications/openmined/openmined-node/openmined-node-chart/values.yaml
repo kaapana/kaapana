@@ -9,5 +9,4 @@ global:
 port: 5000
 grid_network_url:
 hostname:
-registry_url:
-registry_project: "openmined"
+registry_url: "openmined"

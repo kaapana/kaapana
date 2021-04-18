@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: openmined-node-{{ .Values.global.id }}
-        image: {{ .Values.registry_url }}/openmined-node:development
+        image: {{ .Values.registry_url }}/openmined-node:development # TODO!!!
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
         resources:
           requests:
@@ -34,7 +34,7 @@ spec:
         - name: NETWORK
           value: {{ .Values.grid_network_url }}
         - name: DATABASE_URL
-          value: 'postgresql://node:node@postgres-node-{{ .Values.global.id }}.base:5432/node'
+          value: 'postgresql://node:node@openmined-node-postgres-{{ .Values.global.id }}.base:5432/node'
         ports:
         - containerPort: {{ .Values.port }}
       imagePullSecrets:

@@ -1,5 +1,5 @@
 ---
 dependencies:
-  - name: postgres-node
+  - name: openmined-node-postgres
     version: "9.6-vdev"
-    repository: file://deps/postgres-node
+    repository: file://deps/openmined-node-postgres

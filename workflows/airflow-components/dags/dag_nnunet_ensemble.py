@@ -132,8 +132,8 @@ nnunet_predict = NnUnetOperator(
     input_modality_operators=[dcm2nifti_ct],
     inf_softmax=True,
     inf_batch_dataset=True,
-    inf_threads_prep=1,
-    inf_threads_nifti=1,
+    inf_threads_prep=2,
+    inf_threads_nifti=2,
     models_dir=extract_model.operator_out_dir,
 )
 
@@ -141,7 +141,7 @@ nnunet_ensemble = NnUnetOperator(
     dag=dag,
     input_operator=nnunet_predict,
     mode="ensemble",
-    inf_threads_nifti=4,
+    inf_threads_nifti=2,
 )
 
 data_organizer = LocalDataorganizerOperator(

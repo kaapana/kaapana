@@ -112,6 +112,13 @@ ui_forms = {
                     "task"
                 ]
             },
+            "inf_softmax": {
+                "title": "enable softmax",
+                "description": "Enable softmax export?",
+                "type": "boolean",
+                "default": False,
+                "readOnly": False,
+            },
             "single_execution": {
                 "title": "single execution",
                 "description": "Should each series be processed separately?",
@@ -158,8 +165,8 @@ nnunet_predict = NnUnetOperator(
     mode="inference",
     input_modality_operators=[dcm2nifti],
     inf_preparation=True,
-    inf_threads_prep=1,
-    inf_threads_nifti=1
+    inf_threads_prep=2,
+    inf_threads_nifti=2
 )
 
 alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]

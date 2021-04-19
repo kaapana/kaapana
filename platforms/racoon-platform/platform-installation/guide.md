@@ -187,7 +187,7 @@ Passwörter:
 -> Admin Login Keycloak (user-management von der Plattform):
 
     Username: racoon-admin
-    password: InExPlIdEgiMBrEviNaLe
+    password: EjsH53fXznKMtVFfwXxS
 
 Verwendete Ports:
 8443   -> User-interface

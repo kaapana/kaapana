@@ -65,7 +65,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                 seg_info = json.load(f)
             labels = {}
             for label in seg_info["seg_info"]:
-                labels[label["label_int"]] = label["label_name"]
+                labels[label["label_int"]] = f"{label['label_int']}-{label['label_name']}"
 
             model_id = seg_info["task_id"]
 
@@ -137,7 +137,13 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
         batch_folders = [f for f in glob(os.path.join(run_dir, self.batch_name, '*'))]
         print("# Found {} batches".format(len(batch_folders)))
         for batch_element_dir in batch_folders:
-            print(f"# processing batch-element: {batch_element_dir}")
+            print("#")
+            print("##################################################")
+            print("#")
+            print(f"# Processing batch-element: {batch_element_dir}")
+            print("#")
+            print("##################################################")
+            print("#")
             model_counter += 1
             single_model_pred_dir = join(batch_element_dir, self.operator_in_dir)
             labels, model_id = self.get_pred_infos(pred_dir=single_model_pred_dir)
@@ -147,6 +153,14 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
 
             single_model_pred_files = sorted(glob(join(single_model_pred_dir, "*.nii*"), recursive=False))
             for single_model_pred_file in single_model_pred_files:
+                print("#")
+                print("##################################################")
+                print("#")
+                print("# single_model_pred_file:")
+                print(f"# {single_model_pred_file}")
+                print("#")
+                print("##################################################")
+                print("#")
                 case_counter += 1
                 ensemble_already_processed = False
                 file_id = basename(single_model_pred_file).replace(".nii.gz", "")

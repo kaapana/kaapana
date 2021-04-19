@@ -40,7 +40,7 @@ concurrency = 10
 max_active_runs = gpu_count + 1
 # cpu_count_pool = pool_api.get_pool(name="CPU")
 # prep_threads = int(cpu_count_pool.slots//8) if cpu_count_pool is not None else 4
-prep_threads = 4
+prep_threads = 2
 
 ui_forms = {
     "publication_form": {

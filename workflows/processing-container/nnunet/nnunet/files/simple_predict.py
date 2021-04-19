@@ -330,7 +330,8 @@ mixed_precision = True
 override_existing = True
 inf_mode = "fast"
 step_size = 0.5
-overwrite_all_in_gpu = False
+overwrite_all_in_gpu = None
+# overwrite_all_in_gpu = False
 # checkpoint_name = "model_final_checkpoint"
 part_id = 0
 num_parts = 1
@@ -390,10 +391,15 @@ for batch_element_dir in batch_folders:
     for model, checkpoint_name in model_paths:
         if folds == None and exists(join(model, "all")):
             folds = "all"
-        print(f"#")
-        print(f"# Start prediction....")
-        print(f"# model:      {model}")
-        print(f"# folds:      {folds}")
+        print("#")
+        print("##################################################")
+        print("#                                                #")
+        print(f"# Start prediction....                           #")
+        print("#                                                #")
+        print("##################################################")
+        print("#")
+        print(f"# model: {model}")
+        print("#")
 
         predict(
             model=model,
@@ -415,8 +421,15 @@ for batch_element_dir in batch_folders:
             checkpoint_name=checkpoint_name
         )
         processed_count += 1
-        print(f"# Prediction ok.")
-        print(f"#")
+        print("#")
+        print("##################################################")
+        print("#                                                #")
+        print("#                 Prediction ok                  #")
+        print("#                                                #")
+        print("##################################################")
+        print("#                                                #")
+        print(f"# model: {model}")
+        print("#")
 
 
 if processed_count == 0:
@@ -443,10 +456,16 @@ if processed_count == 0:
         for model, checkpoint_name in model_paths:
             if folds == None and exists(join(model, "all")):
                 folds = "all"
-            print(f"#")
-            print(f"# Start prediction....")
-            print(f"# model:      {model}")
-            print(f"# folds:      {folds}")
+            print("#")
+            print("##################################################")
+            print("#                                                #")
+            print(f"# Start prediction....                           #")
+            print("#                                                #")
+            print("##################################################")
+            print("#")
+            print(f"# model: {model}")
+            print(f"# folds: {folds}")
+            print("#")
 
             predict(
                 model=model,

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: openmined-node-{{ .Values.global.id }}
-        image: {{ .Values.registry_url }}/openmined-node:development # TODO!!!
+        image: {{ .Values.global.registry_url }}/openmined-node:0.1.0-vdev
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
         resources:
           requests:

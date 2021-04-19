@@ -24,9 +24,9 @@ dependencies:
   - name: nnunet-workflow
     version: 1.6.5-vdev
     repository: file://../../../../../../workflows/dag-installer/nnunet/nnunet-workflow
-  - name: pysyft-nb-chart
+  - name: openmined-pysyft-nb-chart
     version: 0.1.0-vdev
-    repository: file://../../../../../../services/applications/openmined/pysyft-nb/pysyft-nb-chart
+    repository: file://../../../../../../services/applications/openmined/openmined-pysyft-nb/openmined-pysyft-nb-chart
   - name: radiomics-workflow
     version: 0.1.1-vdev
     repository: file://../../../../../../workflows/dag-installer/radiomics/radiomics-workflow

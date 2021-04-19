@@ -14,7 +14,7 @@ spec:
       containers:
       - name: remove-kube-helm-helpers
         image: "{{ .Values.global.registry_url }}/kube-helm-helpers:0.1.0-vdev"
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Never
         env:
         - name: ACTION
           value: "remove"
@@ -26,7 +26,7 @@ spec:
 {{- range $collection := .Values.global.kaapana_collections }}
       - name: remove-{{ $collection.name }}
         image: "{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $collection.version }}"
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Never
         env:
         - name: ACTION
           value: "remove"

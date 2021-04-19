@@ -195,7 +195,8 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
         'global.fast_data_dir': os.getenv('FAST_DATA_DIR'),
         'global.slow_data_dir': os.getenv('SLOW_DATA_DIR'),
         'global.pull_policy_pods': os.getenv('PULL_POLICY_PODS'),
-        'global.pull_policy_jobs': os.getenv('PULL_POLICY_JOBS')
+        'global.pull_policy_jobs': os.getenv('PULL_POLICY_JOBS'),
+        'global.offline_mode': os.environ.get('OFFLINE_MODE', 'true')
     }
 
     http_proxy = os.getenv('PROXY', None)

@@ -6,6 +6,7 @@ export HELM_EXPERIMENTAL_OCI=1
 PROJECT_NAME="kaapana-platform-chart" # name of the platform Helm chart
 DEFAULT_VERSION="0.1.1-vdev"    # version of the platform Helm chart
 
+OFFLINE_MODE="false" # true or false
 DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart
 
 CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
@@ -23,6 +24,13 @@ PULL_POLICY_OPERATORS="IfNotPresent"
 
 DEV_PORTS="false"
 GPU_SUPPORT="false"
+
+if [ "$OFFLINE_MODE" == "true" ]; then
+    DEV_MODE="false"
+    PULL_POLICY_PODS="Never"
+    PULL_POLICY_JOBS="Never"
+    PULL_POLICY_OPERATORS="Never"
+fi
 
 if [ "$DEV_MODE" == "true" ]; then
     PULL_POLICY_PODS="Always"
@@ -202,15 +210,21 @@ function delete_deployment {
 }
 
 function prefetch_extensions {
+    if [ "$OFFLINE_MODE" == "true" ]; then
+        echo "${RED}ERROR: --prefetch-extensions can only be executed when OFFLINE_MODE is set to false. ${NC}"
+        echo "${YELLOW}ATTENTION: --prefetch-extensions only works, when you have also installed the platform with OFFLINE_MODE set to false!! ${NC}"
+        exit 0
+    fi
+
     echo -e "Prefetching all extension docker container"
     release_name=prefetch-extensions-chart-$(echo $(uuidgen --hex) | cut -c1-10)
     PREFETCH_CHART_PATH=$(find $FAST_DATA_DIR/charts/helpers/ -name "prefetch-extensions*" -type f)
     helm install $PREFETCH_CHART_PATH\
-    --set global.pull_policy_jobs="$PULL_POLICY_JOBS" \
+    --set global.pull_policy_pods="$PULL_POLICY_PODS" \
     --set global.registry_url=$CONTAINER_REGISTRY_URL \
     --wait \
     --atomic \
-    --timeout 60m0s \
+    --timeout 15m0s \
     --name-template $release_name \
 
     sleep 10
@@ -242,6 +256,10 @@ function install_chart {
         echo "${RED}CONTAINER_REGISTRY_URL need to be set! -> please adjust the install_platform.sh script!${NC}"
         echo "${RED}ABORT${NC}"
         exit 1
+    elif [ "$OFFLINE_MODE" == "true" ]; then
+        REGISTRY_USERNAME=""
+        REGISTRY_PASSWORD=""
+        echo "${YELLOW}Installing the platform in offline mode${NC}"
     else    
         echo "${YELLOW}Helm login registry...${NC}"
         check_credentials
@@ -284,7 +302,7 @@ function install_chart {
     --set global.version="$chart_version" \
     --set global.hostname="$DOMAIN" \
     --set global.dev_ports="$DEV_PORTS" \
-    --set global.dev_mode="$DEV_MODE" \
+    --set global.offline_mode="$OFFLINE_MODE" \
     --set global.dicom_port="$DICOM_PORT" \
     --set global.http_port="$HTTP_PORT" \
     --set global.https_port="$HTTPS_PORT" \
@@ -314,20 +332,31 @@ function install_chart {
 
 
 function pull_chart {
-    for i in 1 2 3 4 5;
-    do
-        echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version ${NC}"
-        helm chart pull ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version \
-            && break \
-            || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 );
-        
-        if [ $i -eq 5 ];then
-            echo -e "${RED}Could not pull chart! -> abort${NC}"
-            exit 1
-        fi 
-    done
+    if [ "$OFFLINE_MODE" == "false" ]; then
+        for i in 1 2 3 4 5;
+        do
+            echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version ${NC}"
+            helm chart pull ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version \
+                && break \
+                || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 );
+            
+            if [ $i -eq 5 ];then
+                echo -e "${RED}Could not pull chart! -> abort${NC}"
+                exit 1
+            fi 
+        done
+    fi
     echo -e "${YELLOW}Exporting chart: $HOME/$PROJECT_NAME ${NC}"
-    helm chart export ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version -d $HOME/
+    # helm_export=$(helm chart export ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version -d $HOME/)
+    # echo $helm_export
+    if ! [ -x "$(command helm chart export ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version -d $HOME/)" ]; then
+        echo "Successfully exported chart to $HOME/"
+    else
+        helm chart ls
+        echo "${RED}We could not export the chart ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version... please set the OFFLINE_MODE to false ${NC}"
+        exit 1
+    fi
+    
 }
 
 function upgrade_chart {
@@ -396,9 +425,9 @@ function install_certs {
         echo -e "Creating cluster secret ..."
         microk8s.kubectl delete secret certificate -n kube-system
         microk8s.kubectl create secret tls certificate --namespace kube-system --key ./tls.key --cert ./tls.crt
-        gatekeeper_pod=$(microk8s.kubectl get pods -n kube-system |grep louketo  | awk '{print $1;}')
-        echo "gatekeeper pod: $gatekeeper_pod"
-        microk8s.kubectl -n kube-system delete pod $gatekeeper_pod
+        louketo_pod=$(microk8s.kubectl get pods -n kube-system |grep louketo  | awk '{print $1;}')
+        echo "louketo pod: $louketo_pod"
+        microk8s.kubectl -n kube-system delete pod $louketo_pod
     fi
 
     echo -e "${GREEN}DONE${NC}"
@@ -450,6 +479,7 @@ _Flag: --quiet, meaning non-interactive operation
 _Flag: --prefetch-extensions is used to prefetch every docker image which might be needed when installing an extension. You should execute this, if you want to go offline after installation.
 
 _Argument: --chart-path [path-to-chart-tgz]
+_Argument: --offline-mode [true or false]
 
 _Argument: --username [Docker regsitry username]
 _Argument: --password [Docker regsitry password]
@@ -499,6 +529,13 @@ do
         --chart-path)
             CHART_PATH="$2"
             echo -e "${GREEN}SET CHART_PATH: $CHART_PATH !${NC}";
+            shift # past argument
+            shift # past value
+        ;;
+
+        --offline-mode)
+            OFFLINE_MODE="$2"
+            echo -e "${GREEN}SET OFFLINE_MODE: $OFFLINE_MODE !${NC}";
             shift # past argument
             shift # past value
         ;;

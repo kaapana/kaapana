@@ -14,7 +14,7 @@ spec:
       containers:
       - name: remove-{{ .Values.global.image }}
         image: "{{- if .Values.global.custom_registry_url }}{{ .Values.global.custom_registry_url }}{{- else}}{{ .Values.global.registry_url }}{{- end }}{{- if .Values.global.custom_registry_project }}{{ .Values.global.custom_registry_project }}{{- else}}{{ .Values.global.registry_project }}{{- end }}/{{ .Values.global.image }}:{{ .Values.global.version }}"
-        imagePullPolicy:  IfNotPresent
+        imagePullPolicy: Never
         env:
         - name: ACTION
           value: "remove"

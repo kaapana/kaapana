@@ -268,7 +268,7 @@ class NodeUtil():
         else:
             config = ti.executor_config
             if "ram_mem_mb" not in config:
-                logger.warning("Execuexecutor_config not found!")
+                logger.warning("Executor_config not found!")
                 logger.warning(ti.operator)
                 logger.warning(ti)
                 return False

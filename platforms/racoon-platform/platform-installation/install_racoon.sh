@@ -99,7 +99,9 @@ function change_port {
         microk8s.kubectl apply -f $custom_yaml_path
         echo -e "${GREEN}Restart reverse-proxy... ${NC}" > /dev/stderr;
         set -e
+        sleep 2
         louketo_pod=$(microk8s.kubectl get pods -n kube-system |grep louketo  |awk '{print $1;}')
+        sleep 2
         set +e
         echo "Louketo pod: $louketo_pod" > /dev/stderr;
         microk8s.kubectl -n kube-system delete pod $louketo_pod

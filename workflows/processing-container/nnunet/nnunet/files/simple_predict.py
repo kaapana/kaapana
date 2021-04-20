@@ -20,7 +20,7 @@ def get_model_targets(model_dir):
     else:
         with open(dataset_json[0]) as f:
             dataset_json = json.load(f)
-        
+
         targets = []
         for key in sorted(dataset_json["labels"]):
             targets.append(dataset_json["labels"][key])
@@ -324,9 +324,13 @@ train_network_trainer = getenv("TRAIN_NETWORK_TRAINER", "None")
 train_network_trainer = train_network_trainer if train_network_trainer.lower() != "none" else None
 
 cuda_visible_devices = getenv("CUDA_VISIBLE_DEVICES", "None")
+tta = getenv("TEST_TIME_AUGMENTATION", "None")
+tta = True if tta.lower() == "true" else False
 
-tta = False
-mixed_precision = True
+interpolation_order = getenv("INTERPOLATION_ORDER", "None")
+mixed_precision = getenv("MIXED_PRECISION", "None")
+mixed_precision = False if mixed_precision.lower() == "false" else True
+
 override_existing = True
 inf_mode = "fast"
 step_size = 0.5
@@ -360,6 +364,10 @@ print(f"# threads_nifiti:      {threads_nifiti}")
 print(f"# threads_preprocessing: {threads_preprocessing}")
 print(f"# train_network:         {train_network}")
 print(f"# train_network_trainer: {train_network_trainer}")
+print("#")
+print(f"# tta:  {tta}")
+print(f"# mixed_precision:       {mixed_precision}")
+print(f"# INTERPOLATION_ORDER:   {interpolation_order}")
 print(f"# cuda_visible_devices:  {cuda_visible_devices}")
 print("#")
 print("##################################################")

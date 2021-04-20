@@ -14,6 +14,10 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 max_active_runs = 10
+default_interpolation_order = 1
+default_prep_thread_count = 1
+default_nifti_thread_count = 1
+
 available_pretrained_task_names, installed_tasks, all_selectable_tasks = get_tasks()
 ui_forms = {
     "publication_form": {
@@ -118,6 +122,27 @@ ui_forms = {
                 "type": "boolean",
                 "default": False,
                 "readOnly": False,
+            },
+            "interpolation_order": {
+                "title": "interpolation_order",
+                "type": "integer",
+                "description": "Set interpolation_order.",
+                "default": default_interpolation_order,
+                "required": True
+            },
+            "inf_threads_prep": {
+                "title": "Pre-processing threads",
+                "type": "integer",
+                "default": default_prep_thread_count,
+                "description": "Set pre-processing thread count.",
+                "required": True
+            },
+            "inf_threads_nifti": {
+                "title": "NIFTI threads",
+                "type": "integer",
+                "description": "Set NIFTI export thread count.",
+                "default": default_nifti_thread_count,
+                "required": True
             },
             "single_execution": {
                 "title": "single execution",

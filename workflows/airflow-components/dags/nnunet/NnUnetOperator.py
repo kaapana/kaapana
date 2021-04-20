@@ -1,11 +1,8 @@
 from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
 from kaapana.kubetools.resources import Resources as PodResources
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry
 from datetime import timedelta
-import os
-import json
-
 
 class NnUnetOperator(KaapanaBaseOperator):
     execution_timeout = timedelta(days=5)
@@ -28,6 +25,7 @@ class NnUnetOperator(KaapanaBaseOperator):
                  train_network="3d_lowres",
                  train_network_trainer="nnUNetTrainerV2",
                  train_continue=False,
+                 interpolation_order=1,
                  train_npz=False,
                  train_disable_post=True,
                  train_strict=True,
@@ -60,6 +58,7 @@ class NnUnetOperator(KaapanaBaseOperator):
             "TRAIN_FOLD": str(train_fold),
             "TRAIN_NETWORK": train_network,
             "TRAIN_NETWORK_TRAINER": train_network_trainer,
+            "INTERPOLATION_ORDER": interpolation_order,
             "TRAIN_CONTINUE": str(train_continue),
             "TRAIN_MAX_EPOCHS": str(train_max_epochs),
             "TRAIN_NPZ": str(train_npz),
@@ -88,7 +87,7 @@ class NnUnetOperator(KaapanaBaseOperator):
         parallel_id = parallel_id if parallel_id is not None else mode
         super().__init__(
             dag=dag,
-            image="{}{}/nnunet:1.6.5-vdev".format(default_registry, default_project),
+            image=f"{default_registry}/nnunet:master-vdev",
             name="nnunet",
             parallel_id=parallel_id,
             image_pull_secrets=["registry-secret"],

@@ -16,6 +16,10 @@ from nnunet.GetTaskModelOperator import GetTaskModelOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 
+default_interpolation_order = 1
+default_prep_thread_count = 1
+default_nifti_thread_count = 1
+
 ui_forms = {
     "workflow_form": {
         "type": "object",
@@ -26,6 +30,27 @@ ui_forms = {
                 "description": "Expected input modality.",
                 "type": "string",
                 "readOnly": True,
+            },
+            "interpolation_order": {
+                "title": "interpolation_order",
+                "type": "integer",
+                "description": "Set interpolation_order.",
+                "default": default_interpolation_order,
+                "required": True
+            },
+            "inf_threads_prep": {
+                "title": "Pre-processing threads",
+                "type": "integer",
+                "default": default_prep_thread_count,
+                "description": "Set pre-processing thread count.",
+                "required": True
+            },
+            "inf_threads_nifti": {
+                "title": "NIFTI threads",
+                "type": "integer",
+                "description": "Set NIFTI export thread count.",
+                "default": default_nifti_thread_count,
+                "required": True
             },
             "single_execution": {
                 "title": "single execution",
@@ -132,8 +157,9 @@ nnunet_predict = NnUnetOperator(
     input_modality_operators=[dcm2nifti_ct],
     inf_softmax=True,
     inf_batch_dataset=True,
-    inf_threads_prep=2,
-    inf_threads_nifti=2,
+    inf_threads_prep=1,
+    inf_threads_nifti=1,
+    interpolation_order=default_interpolation_order,
     models_dir=extract_model.operator_out_dir,
 )
 
@@ -141,7 +167,7 @@ nnunet_ensemble = NnUnetOperator(
     dag=dag,
     input_operator=nnunet_predict,
     mode="ensemble",
-    inf_threads_nifti=2,
+    inf_threads_nifti=1,
 )
 
 data_organizer = LocalDataorganizerOperator(

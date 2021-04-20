@@ -523,7 +523,6 @@ _Flag: --quiet, meaning non-interactive operation
 _Flag: --prefetch-extensions is used to prefetch every docker image which might be needed when installing an extension. You should execute this, if you want to go offline after installation.
 
 _Argument: --chart-path [path-to-chart-tgz]
-_Argument: --offline-mode [true or false]
 
 _Argument: --username [Docker regsitry username]
 _Argument: --password [Docker regsitry password]
@@ -573,13 +572,6 @@ do
         --chart-path)
             CHART_PATH="$2"
             echo -e "${GREEN}SET CHART_PATH: $CHART_PATH !${NC}";
-            shift # past argument
-            shift # past value
-        ;;
-
-        --offline-mode)
-            OFFLINE_MODE="$2"
-            echo -e "${GREEN}SET OFFLINE_MODE: $OFFLINE_MODE !${NC}";
             shift # past argument
             shift # past value
         ;;

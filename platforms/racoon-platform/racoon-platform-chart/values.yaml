@@ -26,6 +26,6 @@ global:
     home_dir: /root
     version: "0.1.1-vdev"
     kaapana_collections:
-        - name: kaapana-base-collection
+        - name: racoon-collection
           version: 0.1.0-vdev 
 ---

@@ -1,0 +1,5 @@
+---
+global:
+    action: "copy"
+    chart_container_image: "racoon-extensions"
+    chart_container_version: "0.1.0-vdev"

@@ -107,12 +107,15 @@ def pull_docker_image():
 @app.route("/prefetch-extension-docker")
 def prefetch_extension_docker():
     print('prefechting')
-    utils.helm_prefetch_extension_docker()
-    try:
-
-        return Response(f"Trying to prefetch all docker container of extensions", 200)
-    except:
-        return Response(f"A error occured!", 500)
+    if app.config['OFFLINE_MODE'] is False:
+        try:
+            utils.helm_prefetch_extension_docker()
+            return Response(f"Trying to prefetch all docker container of extensions", 200)
+        except:
+            return Response(f"An error occured!", 500)
+    else:
+        print('Offline mode is set to False!')
+        return Response(f"We will not prefetch the extensions since the platform was installed with OFFLINE_MODE set to true!", 200)
 
 
 @app.route("/pending-applications")

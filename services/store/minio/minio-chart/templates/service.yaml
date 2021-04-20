@@ -9,7 +9,7 @@ metadata:
 spec:
   selector:
     app-name: minio
-{{- if .Values.global.dev_mode }}
+{{- if .Values.global.dev_ports }}
   type: NodePort
   ports:
     - port: 9000

@@ -1,6 +1,5 @@
 ---
 global:
-    pull_policy_jobs: "Always"
     action: "copy"
     chart_container_image: "kaapana-exp-extensions"
     chart_container_version: "0.1.0-vdev"

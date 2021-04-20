@@ -189,7 +189,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                 print(f"# Loading labels...")
                 for pred_label in sm_labels:
                     print(f"# label: {pred_label}")
-                    label_key = labels[str(pred_label)] if labels != None and str(pred_label) in labels else None
+                    label_key = f"{str(pred_label)}-{labels[str(pred_label)]}" if labels != None and str(pred_label) in labels else None
                     print(f"# label_key: {label_key}")
                     if label_key == None and labels != None:
                         print("##################################################")
@@ -330,7 +330,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
             python_callable=self.start,
             batch_name=batch_name,
             workflow_dir=workflow_dir,
-            execution_timeout=timedelta(minutes=20),
+            execution_timeout=timedelta(minutes=320),
             *args,
             **kwargs
         )

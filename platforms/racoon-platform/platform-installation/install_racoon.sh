@@ -487,7 +487,7 @@ function print_installation_done {
     echo -e "When all pod are in the \"running\" or \"completed\" state,${NC}"
 
     if [ -v DOMAIN ];then
-        echo -e "${GREEN}you can visit: https://$DOMAIN/"
+        echo -e "${GREEN}you can visit: https://$DOMAIN:8443/"
         echo -e "You should be welcomed by the login page."
         echo -e "Initial credentials:"
         echo -e "username: kaapana"

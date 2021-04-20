@@ -14,6 +14,7 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
+from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 
 default_interpolation_order = 1
@@ -102,13 +103,22 @@ get_test_images = LocalGetRefSeriesOperator(
     delete_input_on_success=True
 )
 
-dcm2nifti_gt = DcmConverterOperator(
+# dcm2nifti_gt = DcmConverterOperator(
+#     dag=dag,
+#     input_operator=get_test_images,
+#     parallel_id="gt",
+#     batch_name=str(get_test_images.operator_out_dir),
+#     output_format='nii.gz'
+# )
+
+dcm2nifti_gt = DcmSeg2ItkOperator(
     dag=dag,
     input_operator=get_test_images,
-    parallel_id="gt",
     batch_name=str(get_test_images.operator_out_dir),
-    output_format='nii.gz'
+    parallel_id="gt",
+    output_format='nii.gz',
 )
+
 
 get_ref_ct_series_from_gt = LocalGetRefSeriesOperator(
     dag=dag,

@@ -368,8 +368,11 @@ for key, value in label_names_found.items():
     labels[str(value)] = key
 
 print("# Extracted labels:")
-print(json.dumps(labels, indent=4, sort_keys=False))
-template_dataset_json["labels"] = labels
+sorted_labels={}
+for key in sorted(labels.keys(), key=int):
+    sorted_labels[str(key)]=labels[key]
+print(json.dumps(sorted_labels, indent=4, sort_keys=False))
+template_dataset_json["labels"] = sorted_labels
 print("#")
 print("#")
 

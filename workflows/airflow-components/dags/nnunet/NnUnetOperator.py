@@ -4,6 +4,7 @@ from kaapana.kubetools.resources import Resources as PodResources
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry
 from datetime import timedelta
 
+
 class NnUnetOperator(KaapanaBaseOperator):
     execution_timeout = timedelta(days=5)
     task_dict = {}
@@ -30,6 +31,8 @@ class NnUnetOperator(KaapanaBaseOperator):
                  train_disable_post=True,
                  train_strict=True,
                  train_max_epochs=1000,
+                 mixed_precision=True,
+                 test_time_augmentation=False,
                  inf_batch_dataset=False,
                  inf_threads_prep=1,
                  inf_threads_nifti=1,
@@ -64,6 +67,8 @@ class NnUnetOperator(KaapanaBaseOperator):
             "TRAIN_NPZ": str(train_npz),
             "TRAIN_DISABLE_POSTPROCESSING": str(train_disable_post),
             "TRAIN_STRICT": str(train_strict),
+            "TEST_TIME_AUGMENTATION": str(test_time_augmentation),
+            "MIXED_PRECISION": str(mixed_precision),
             "INF_THREADS_PREP": str(inf_threads_prep),
             "INF_THREADS_NIFTI": str(inf_threads_nifti),
             "INF_BATCH_DATASET": str(inf_batch_dataset),

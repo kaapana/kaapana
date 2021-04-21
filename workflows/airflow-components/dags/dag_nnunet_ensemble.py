@@ -8,8 +8,6 @@ from nnunet.LocalDataorganizerOperator import LocalDataorganizerOperator
 from nnunet.NnUnetOperator import NnUnetOperator
 from kaapana.operators.ResampleOperator import ResampleOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.DcmSendOperator import DcmSendOperator
-from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
@@ -33,10 +31,12 @@ ui_forms = {
                 "readOnly": True,
             },
             "interpolation_order": {
-                "title": "interpolation_order",
-                "type": "integer",
-                "description": "Set interpolation_order.",
+                "title": "interpolation order",
                 "default": default_interpolation_order,
+                "description": "Set interpolation_order.",
+                "enum": [0, 1, 3],
+                "type": "integer",
+                "readOnly": False,
                 "required": True
             },
             "inf_threads_prep": {

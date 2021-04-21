@@ -10,9 +10,12 @@ from pathlib import Path
 import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
+from pprint import pprint
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from matplotlib import rcParams
 rcParams.update({'figure.autolayout': True})
+
+
 class LocalDiceOperator(KaapanaPythonBaseOperator):
     def create_plots(self, result_dir, result_table):
         print(f"# Creating boxplots @: {result_dir}")
@@ -21,7 +24,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
         new_order = sorted(list(df_data.Model.unique()))
         new_order.append(new_order.pop(new_order.index('ensemble')))
         fig, ax1 = plt.subplots(1, 1, figsize=(12, 14))
-        box_plot = sns.boxplot(x="Model", y="Dice", hue="label", palette="Set3", data=df_data, ax=ax1,order=new_order)
+        box_plot = sns.boxplot(x="Model", y="Dice", hue="label", palette="Set3", data=df_data, ax=ax1, order=new_order)
         box_plot.set_xticklabels(box_plot.get_xticklabels(), rotation=40, ha="right")
 
         box = box_plot.get_position()
@@ -165,11 +168,24 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                 ensemble_already_processed = False
                 file_id = basename(single_model_pred_file).replace(".nii.gz", "")
 
-                gt_file = join(run_dir, "nnunet-cohort", file_id, self.gt_dir, basename(single_model_pred_file))
-                if not exists(gt_file):
-                    print("# Could not find gt-file !")
-                    print(f"# gt:   {gt_file}")
-                    exit(1)
+                gt_dir = join(run_dir, "nnunet-cohort", file_id, self.gt_dir, "*.nii.gz")
+                gt_files = glob(gt_dir, recursive=False)
+                print(f"# Found {len(gt_files)} gt-files @ {gt_dir}!")
+                assert len(gt_files) != 0
+
+                gt_files_dict = {}
+                for gt_file_path in gt_files:
+                    pred_label = basename(gt_file_path).split("--")
+                    assert isinstance(pred_label, list) and len(pred_label) == 3
+                    pred_label = int(pred_label[1])
+                    gt_numpy, gt_labels = self.prep_nifti(gt_file_path)
+                    gt_files_dict[pred_label] = gt_numpy
+
+                # gt_file = join(run_dir, "nnunet-cohort", file_id, self.gt_dir, basename(single_model_pred_file))
+                # if not exists(gt_file):
+                #     print("# Could not find gt-file !")
+                #     print(f"# gt:   {gt_file}")
+                #     exit(1)
                 if self.anonymize:
                     if file_id not in self.anonymize_lookup_table:
                         self.anonymize_lookup_table[file_id] = f"case_{case_counter}"
@@ -177,18 +193,27 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
 
                 # result_scores_sm[model_id][file_id]["gt_file"] = gt_file
                 # result_scores_sm[model_id][file_id]["pred_file"] = single_model_pred_file
-                print(f"# Loading gt-file: {gt_file}")
-                gt_numpy, gt_labels = self.prep_nifti(gt_file)
+                # print(f"# Loading gt-file: {gt_file}")
+                # gt_numpy, gt_labels = self.prep_nifti(gt_file)
                 print(f"# Loading model-file: {single_model_pred_file}")
                 sm_numpy, sm_labels = self.prep_nifti(single_model_pred_file)
                 print("#")
-                print(f"# gt_labels:   {gt_labels}")
+                # print(f"# gt_labels:   {gt_labels}")
                 print(f"# pred_labels: {sm_labels}")
                 print("#")
 
                 print(f"# Loading labels...")
                 for pred_label in sm_labels:
                     print(f"# label: {pred_label}")
+                    if pred_label in gt_files_dict:
+                        label_strip_gt = gt_files_dict[pred_label]
+                    else:
+                        print(f"# No gt-file found for label: {pred_label}")
+                        exit(1)
+
+                    print(f"# Loading gt-file: {gt_file}")
+                    gt_numpy, gt_labels = self.prep_nifti(gt_file)
+                    gt_file = join(run_dir, "nnunet-cohort", file_id, self.gt_dir, basename(single_model_pred_file))
                     label_key = f"{str(pred_label)}-{labels[str(pred_label)]}" if labels != None and str(pred_label) in labels else None
                     print(f"# label_key: {label_key}")
                     if label_key == None and labels != None:
@@ -202,7 +227,6 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                         print("##################################################")
                         # assert pred_label in gt_labels
                     else:
-                        label_strip_gt = (gt_numpy == pred_label).astype(int)
                         label_strip_sm = (sm_numpy == pred_label).astype(int)
                         dice_result = self.calc_dice(pred=label_strip_sm, gt=label_strip_gt)
 
@@ -240,6 +264,15 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                     ensemble_numyp, ensemble_labels = self.prep_nifti(ensemble_file)
                     model_id_ensemble = "ensemble"
                     for pred_label in ensemble_labels:
+                        if pred_label in gt_files_dict:
+                            label_strip_gt = gt_files_dict[pred_label]
+                        else:
+                            print(f"# No gt-file found for label: {pred_label}")
+                            exit(1)
+
+                        print(f"# Loading gt-file: {gt_file}")
+                        gt_numpy, gt_labels = self.prep_nifti(gt_file)
+                        gt_file = join(run_dir, "nnunet-cohort", file_id, self.gt_dir, basename(single_model_pred_file))
                         label_key = labels[str(pred_label)] if str(pred_label) in labels else str(pred_label)
                         if label_key == None and labels != None:
                             print("##################################################")
@@ -252,7 +285,6 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                             print("##################################################")
                             # assert pred_label in gt_labels
                         else:
-                            label_strip_gt = (gt_numpy == pred_label).astype(int)
                             label_strip_ensemble = (ensemble_numyp == pred_label).astype(int)
                             dice_result = self.calc_dice(pred=label_strip_ensemble, gt=label_strip_gt)
                             # print(f"# {str(pred_label)}:{label_key} -> dice: {dice_result}")

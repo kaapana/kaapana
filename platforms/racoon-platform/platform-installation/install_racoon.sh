@@ -18,7 +18,7 @@ CHANGE_HTTPS="true"
 
 HTTP_PORT=80      # not working yet -> has to be 80
 HTTPS_PORT=443    # not working yet -> has to be 443
-DICOM_PORT=11112  # configure DICOM receiver port
+DICOM_PORT=11113  # configure DICOM receiver port
 
 PULL_POLICY_PODS="IfNotPresent"
 PULL_POLICY_JOBS="IfNotPresent"

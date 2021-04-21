@@ -124,10 +124,12 @@ ui_forms = {
                 "readOnly": False,
             },
             "interpolation_order": {
-                "title": "interpolation_order",
-                "type": "integer",
-                "description": "Set interpolation_order.",
+                "title": "interpolation order",
                 "default": default_interpolation_order,
+                "description": "Set interpolation_order.",
+                "enum": [0, 1, 3],
+                "type": "integer",
+                "readOnly": False,
                 "required": True
             },
             "inf_threads_prep": {

@@ -12,7 +12,8 @@ from elasticsearch import Elasticsearch
 
 tmp_data_dir = "/slow_data_dir/TMP"
 dcm_host = os.getenv("CTP_HOST", "ctp-service.flow.svc")
-dcm_port = os.getenv("CTP_PORT", "11112")
+dcm_port = "11112"
+# dcm_port = os.getenv("CTP_PORT", "11112")
 dcm4chee_host = os.getenv("DCM4CHEE", "http://dcm4chee-service.store.svc:8080")
 aet = os.getenv("AET", "KAAPANA")
 _elastichost = os.getenv("ELASTIC_HOST", "elastic-meta-service.meta.svc:9200")

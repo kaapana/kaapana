@@ -101,6 +101,7 @@ def main(args):
 
     # training
     model.to(device)
+    print('Run {} local training epochs'.format(args.epochs))
     for epoch in range(0, args.epochs):
         train(model, optimizer, dataloader_train, epoch, device)
         if args.local_testing:

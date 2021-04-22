@@ -17,6 +17,10 @@ class TrainingOperatorMNIST(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  host_ip=None,
+                 epochs=None,
+                 batch_size=None,
+                 use_cuda=None,
+                 local_testing=None,
                  env_vars=None,
                  execution_timeout=timedelta(hours=6),
                  *args, **kwargs
@@ -26,7 +30,11 @@ class TrainingOperatorMNIST(KaapanaBaseOperator):
             env_vars = {}
         
         envs = {
-            "HOST_IP": str(host_ip)
+            "HOST_IP": str(host_ip),
+            "EPOCHS": str(epochs),
+            "BATCH_SIZE": str(batch_size),
+            'USE_CUDA': str(use_cuda),
+            "LOCAL_TESTING": str(local_testing)
         }
 
         env_vars.update(envs)
@@ -34,7 +42,7 @@ class TrainingOperatorMNIST(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name="model-training",
-            image="{}{}/federated-training-mnist:0.1.0-vdev".format(default_registry, default_project),
+            image="{}{}/federated-exp-mnist-train:0.1.0-vdev".format(default_registry, default_project),
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             on_success_callback=TrainingOperatorMNIST.on_success,

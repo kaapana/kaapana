@@ -57,7 +57,11 @@ unzip_data = LocalUnzipFileOperator(
 
 train_model = TrainingOperatorMNIST(
     dag=dag,
-    input_operator=unzip_data
+    input_operator=unzip_data,
+    host_ip='',
+    epochs=1,
+    use_cuda=True,
+    local_testing=True
     )
 
 pass_on_model = LocalMinioOperator(

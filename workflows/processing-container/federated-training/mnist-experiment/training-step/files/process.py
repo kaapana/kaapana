@@ -12,25 +12,27 @@ from utilities import ClassifierMNIST, mnist_transforms
 
 class Arguments():
     def __init__(self):
-        # set args from envs given by Airflow operator
+        '''Set args from envs given by Airflow operator'''
+        
         self.host_ip = os.getenv('HOST_IP')
         
-        self.data_path = os.path.join(os.environ["WORKFLOW_DIR"], os.environ['OPERATOR_IN_DIR'])
+        self.data_path = os.path.join(os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
         self.train_data_dir = os.path.join(self.data_path, 'train')
         self.test_data_dir = os.path.join(self.data_path, 'test')
         
         self.model_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'model')
+        
         self.model_cache = os.path.join(os.environ['WORKFLOW_DIR'], 'cache')
         if not os.path.exists(self.model_cache):
             os.makedirs(self.model_cache)
         
         self.epochs = int(os.getenv('EPOCHS', 1))
-        self.lr = 0.1
-        self.batch_size = 32
-        self.num_workers = 24
+        self.default_lr = 0.1
+        self.batch_size = int(os.getenv('BATCH_SIZE', 32))
+        self.num_workers = 16
         self.log_interval = 100
-        self.use_cuda = True
-        self.local_testing = True
+        self.use_cuda = (os.environ.get('USE_CUDA', 'False') == 'True')
+        self.local_testing = (os.environ.get('LOCAL_TESTING', 'False') == 'True')
 
 
 def train(model, optimizer, dataloader_train, epoch, device):
@@ -70,7 +72,7 @@ def main(args):
     print('#'*10, 'Training on MNIST', '#'*10)
 
     # check for cuda
-    device = torch.device("cuda" if args.use_cuda and torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda' if args.use_cuda and torch.cuda.is_available() else 'cpu')
     print('Using device: {}'.format(device))
 
     # dataloader 
@@ -94,7 +96,7 @@ def main(args):
     model = ClassifierMNIST()
     model.load_state_dict(checkpoint['model'])
     
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    optimizer = torch.optim.SGD(model.parameters(), lr=args.default_lr)
     optimizer.load_state_dict(checkpoint['optimizer']) # <- also overwrites previously set args.default_lr
 
     # training

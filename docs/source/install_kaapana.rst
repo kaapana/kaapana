@@ -24,7 +24,7 @@ Besides a few required software packages, mainly Microk8s is installed, to setup
 
   | **GPU support -> Currently only Nvidia GPUs are supported!**
   | GPU support requires installation of the `Nvidia drivers <https://www.nvidia.de/Download/index.aspx?lang=en>`_ .
-  | For Ubuntu Server 20.04 :code:`sudo apt install nvidia-driver-<version>-server`
+  | For Ubuntu Server 20.04 :code:`sudo apt install nvidia-driver-450-server`
   | should also work **BUT** check the hibernation settings afterwards (`see <https://www.unixtutorial.org/disable-sleep-on-ubuntu-server/>`_) 
   | -> :code:`sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target`
   | --> reboot required!

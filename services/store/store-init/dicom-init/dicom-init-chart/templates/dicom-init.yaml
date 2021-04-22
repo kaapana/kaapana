@@ -30,10 +30,6 @@ spec:
           limits:
             memory: 150Mi
         env:
-        - name: CTP_HOST
-          value: "ctp-service.flow.svc"
-        - name: CTP_PORT
-          value: "{{ .Values.global.dicom_port }}"
         - name: DCM4CHEE
           value: "http://dcm4chee-service.store.svc:8080"
         - name: AET

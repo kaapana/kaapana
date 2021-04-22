@@ -21,16 +21,14 @@ class Arguments():
         self.test_data_dir = os.path.join(self.data_path, 'test')
         
         self.model_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'model')
-        
         self.model_cache = os.path.join(os.environ['WORKFLOW_DIR'], 'cache')
         if not os.path.exists(self.model_cache):
             os.makedirs(self.model_cache)
         
-        self.epochs = int(os.getenv('EPOCHS', 1))
-        self.default_lr = 0.1
-        self.batch_size = int(os.getenv('BATCH_SIZE', 32))
         self.num_workers = 16
         self.log_interval = 100
+        self.epochs = int(os.environ['EPOCHS'])
+        self.batch_size = int(os.environ['BATCH_SIZE'])
         self.use_cuda = (os.environ.get('USE_CUDA', 'False') == 'True')
         self.local_testing = (os.environ.get('LOCAL_TESTING', 'False') == 'True')
 
@@ -96,8 +94,8 @@ def main(args):
     model = ClassifierMNIST()
     model.load_state_dict(checkpoint['model'])
     
-    optimizer = torch.optim.SGD(model.parameters(), lr=args.default_lr)
-    optimizer.load_state_dict(checkpoint['optimizer']) # <- also overwrites previously set args.default_lr
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    optimizer.load_state_dict(checkpoint['optimizer']) # <-- overwrites previously set default_lr
 
     # training
     model.to(device)

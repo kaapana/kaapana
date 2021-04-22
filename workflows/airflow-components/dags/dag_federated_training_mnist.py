@@ -60,6 +60,7 @@ train_model = TrainingOperatorMNIST(
     input_operator=unzip_data,
     host_ip='',
     epochs=1,
+    batch_size=32,
     use_cuda=True,
     local_testing=True
     )

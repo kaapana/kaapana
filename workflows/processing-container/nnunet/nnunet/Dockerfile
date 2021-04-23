@@ -35,5 +35,6 @@ COPY files/ /src
 
 COPY files/nnUNetTrainerV2.py /opt/conda/lib/python3.6/site-packages/nnunet/training/network_training/nnUNetTrainerV2.py
 COPY files/run_training.py /opt/conda/lib/python3.6/site-packages/nnunet/run/run_training.py
+COPY files/predict.py /opt/conda/lib/python3.6/site-packages/nnunet/inference/predict.py
 
 CMD ["bash","/src/start_nnunet.sh"]

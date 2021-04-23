@@ -200,7 +200,10 @@ def predict_cases(model, list_of_lists, output_filenames, folds, save_npz, num_t
 
     interpolation_order_env = os.getenv("INTERPOLATION_ORDER", None)
     if interpolation_order_env != None:
-        interpolation_order = int(interpolation_order)
+        interpolation_order = int(interpolation_order_env)
+        print(f"Setting interpolation_order: {interpolation_order}")
+    else:
+        print(f"No interpolation_order ENV found. -> {interpolation_order}")
 
     print("starting preprocessing generator")
     preprocessing = preprocess_multithreaded(trainer, list_of_lists, cleaned_output_files, num_threads_preprocessing,

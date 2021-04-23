@@ -68,7 +68,8 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                 seg_info = json.load(f)
             labels = {}
             for label in seg_info["seg_info"]:
-                labels[label["label_int"]] = f"{label['label_int']}-{label['label_name']}"
+                labels[label["label_int"]] = f"{label['label_name']}"
+                # labels[label["label_int"]] = f"{label['label_int']}-{label['label_name']}"
 
             model_id = seg_info["task_id"]
 
@@ -178,8 +179,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                     pred_label = basename(gt_file_path).split("--")
                     assert isinstance(pred_label, list) and len(pred_label) == 3
                     pred_label = int(pred_label[1])
-                    gt_numpy, gt_labels = self.prep_nifti(gt_file_path)
-                    gt_files_dict[pred_label] = gt_numpy
+                    gt_files_dict[pred_label] = gt_file_path
 
                 # gt_file = join(run_dir, "nnunet-cohort", file_id, self.gt_dir, basename(single_model_pred_file))
                 # if not exists(gt_file):
@@ -205,15 +205,6 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                 print(f"# Loading labels...")
                 for pred_label in sm_labels:
                     print(f"# label: {pred_label}")
-                    if pred_label in gt_files_dict:
-                        label_strip_gt = gt_files_dict[pred_label]
-                    else:
-                        print(f"# No gt-file found for label: {pred_label}")
-                        exit(1)
-
-                    print(f"# Loading gt-file: {gt_file}")
-                    gt_numpy, gt_labels = self.prep_nifti(gt_file)
-                    gt_file = join(run_dir, "nnunet-cohort", file_id, self.gt_dir, basename(single_model_pred_file))
                     label_key = f"{str(pred_label)}-{labels[str(pred_label)]}" if labels != None and str(pred_label) in labels else None
                     print(f"# label_key: {label_key}")
                     if label_key == None and labels != None:
@@ -226,33 +217,50 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                         print("#")
                         print("##################################################")
                         # assert pred_label in gt_labels
+                    if pred_label not in gt_files_dict:
+                        print("#")
+                        print("##################### ISSUE ######################")
+                        print("#")
+                        print(f"# No gt-file found for label: {pred_label}")
+                        print("#")
+                        print("##################################################")
+                        print("#")
+                        label_strip_gt = None
                     else:
-                        label_strip_sm = (sm_numpy == pred_label).astype(int)
+                        gt_file_path = gt_files_dict[pred_label]
+                        print(f"# Loading gt-file: {gt_file_path}")
+                        label_strip_gt, gt_labels = self.prep_nifti(gt_file_path)
+
+                    label_strip_sm = (sm_numpy == pred_label).astype(int)
+
+                    if label_strip_gt is not None:
                         dice_result = self.calc_dice(pred=label_strip_sm, gt=label_strip_gt)
+                    else:
+                        dice_result = 0
 
-                        print(f"# Adding dataset: {file_id}/{model_id}/{label_key}/{dice_result}")
-                        result_table.append([
-                            file_id,
-                            model_id,
-                            label_key,
-                            dice_result
-                        ])
+                    print(f"# Adding dataset: {file_id}/{model_id}/{label_key}/{dice_result}")
+                    result_table.append([
+                        file_id,
+                        model_id,
+                        label_key,
+                        dice_result
+                    ])
 
-                        if model_id not in result_scores_model_based:
-                            result_scores_model_based[model_id] = {}
-                        if label_key not in result_scores_model_based[model_id]:
-                            result_scores_model_based[model_id][label_key] = {}
-                        result_scores_model_based[model_id][label_key][file_id] = dice_result
+                    if model_id not in result_scores_model_based:
+                        result_scores_model_based[model_id] = {}
+                    if label_key not in result_scores_model_based[model_id]:
+                        result_scores_model_based[model_id][label_key] = {}
+                    result_scores_model_based[model_id][label_key][file_id] = dice_result
 
-                        if file_id not in result_scores_case_based:
-                            result_scores_case_based[file_id] = {}
-                        if label_key not in result_scores_case_based[file_id]:
-                            result_scores_case_based[file_id][label_key] = {}
-                        result_scores_case_based[file_id][label_key][model_id] = dice_result
+                    if file_id not in result_scores_case_based:
+                        result_scores_case_based[file_id] = {}
+                    if label_key not in result_scores_case_based[file_id]:
+                        result_scores_case_based[file_id][label_key] = {}
+                    result_scores_case_based[file_id][label_key][model_id] = dice_result
 
-                        # print(f"# {str(pred_label)}:{label_key} -> dice: {dice_result}")
-                        if "ensemble" in result_scores_case_based[file_id][label_key]:
-                            ensemble_already_processed = True
+                    # print(f"# {str(pred_label)}:{label_key} -> dice: {dice_result}")
+                    if "ensemble" in result_scores_case_based[file_id][label_key]:
+                        ensemble_already_processed = True
                 print("#")
 
                 ensemble_numyp = None
@@ -264,16 +272,9 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                     ensemble_numyp, ensemble_labels = self.prep_nifti(ensemble_file)
                     model_id_ensemble = "ensemble"
                     for pred_label in ensemble_labels:
-                        if pred_label in gt_files_dict:
-                            label_strip_gt = gt_files_dict[pred_label]
-                        else:
-                            print(f"# No gt-file found for label: {pred_label}")
-                            exit(1)
-
-                        print(f"# Loading gt-file: {gt_file}")
-                        gt_numpy, gt_labels = self.prep_nifti(gt_file)
-                        gt_file = join(run_dir, "nnunet-cohort", file_id, self.gt_dir, basename(single_model_pred_file))
+                        print(f"# label: {pred_label}")
                         label_key = labels[str(pred_label)] if str(pred_label) in labels else str(pred_label)
+                        print(f"# label_key: {label_key}")
                         if label_key == None and labels != None:
                             print("##################################################")
                             print("#")
@@ -284,23 +285,40 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                             print("#")
                             print("##################################################")
                             # assert pred_label in gt_labels
+                        if pred_label not in gt_files_dict:
+                            print("#")
+                            print("##################### ISSUE ######################")
+                            print("#")
+                            print(f"# No gt-file found for label: {pred_label}")
+                            print("#")
+                            print("##################################################")
+                            print("#")
+                            label_strip_gt = None
                         else:
-                            label_strip_ensemble = (ensemble_numyp == pred_label).astype(int)
-                            dice_result = self.calc_dice(pred=label_strip_ensemble, gt=label_strip_gt)
-                            # print(f"# {str(pred_label)}:{label_key} -> dice: {dice_result}")
-                            print(f"# Adding ensemble: {file_id}/{model_id_ensemble}/{label_key}/{dice_result}")
-                            result_table.append([
-                                file_id,
-                                model_id_ensemble,
-                                label_key,
-                                dice_result
-                            ])
+                            gt_file_path = gt_files_dict[pred_label]
+                            print(f"# Loading gt-file: {gt_file_path}")
+                            label_strip_gt, gt_labels = self.prep_nifti(gt_file_path)
 
-                            if file_id not in result_scores_case_based:
-                                result_scores_case_based[file_id] = {}
-                            if label_key not in result_scores_case_based[file_id]:
-                                result_scores_case_based[file_id][label_key] = {}
-                            result_scores_case_based[file_id][label_key][model_id_ensemble] = dice_result
+                        label_strip_ensemble = (ensemble_numyp == pred_label).astype(int)
+
+                        if label_strip_gt is not None:
+                            dice_result = self.calc_dice(pred=label_strip_ensemble, gt=label_strip_gt)
+                        else:
+                            dice_result = 0
+                        # print(f"# {str(pred_label)}:{label_key} -> dice: {dice_result}")
+                        print(f"# Adding ensemble: {file_id}/{model_id_ensemble}/{label_key}/{dice_result}")
+                        result_table.append([
+                            file_id,
+                            model_id_ensemble,
+                            label_key,
+                            dice_result
+                        ])
+
+                        if file_id not in result_scores_case_based:
+                            result_scores_case_based[file_id] = {}
+                        if label_key not in result_scores_case_based[file_id]:
+                            result_scores_case_based[file_id][label_key] = {}
+                        result_scores_case_based[file_id][label_key][model_id_ensemble] = dice_result
                     print("#")
 
                 processed_count += 1

@@ -7,6 +7,8 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 
+from torch.utils.tensorboard import SummaryWriter
+
 from utilities import ClassifierMNIST, mnist_transforms
 
 
@@ -15,37 +17,30 @@ class Arguments():
         '''Set args from envs given by Airflow operator'''
         
         self.host_ip = os.getenv('HOST_IP')
+
+        self.logs_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'logs')
         
         self.data_path = os.path.join(os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
         self.train_data_dir = os.path.join(self.data_path, 'train')
         self.test_data_dir = os.path.join(self.data_path, 'test')
         
         self.model_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'model')
+        if not os.path.exists(self.model_dir):
+            os.makedirs(self.model_dir)
+        
         self.model_cache = os.path.join(os.environ['WORKFLOW_DIR'], 'cache')
         if not os.path.exists(self.model_cache):
             os.makedirs(self.model_cache)
         
         self.num_workers = 16
         self.log_interval = 100
-        self.epochs = int(os.environ['EPOCHS'])
         self.batch_size = int(os.environ['BATCH_SIZE'])
         self.use_cuda = (os.environ.get('USE_CUDA', 'False') == 'True')
         self.local_testing = (os.environ.get('LOCAL_TESTING', 'False') == 'True')
 
-
-def train(model, optimizer, dataloader_train, epoch, device):
-    model.train()
-    for batch_idx, (imgs, targets) in enumerate(dataloader_train):
-        imgs, targets = imgs.to(device), targets.to(device)
-        optimizer.zero_grad()
-        output = model(imgs)
-        loss = F.nll_loss(output, targets)
-        loss.backward()
-        optimizer.step()
-        if batch_idx % args.log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(imgs), len(dataloader_train.dataset),
-                100. * batch_idx / len(dataloader_train), loss.item()))
+        self.n_epochs = int(os.environ['N_EPOCHS'])
+        self.fed_round = int(os.environ['FED_ROUND']) if os.environ['FED_ROUND'] != 'None' else 0
+        self.epoch = (self.fed_round * self.n_epochs)
 
 
 def test(model, dataloader_test, device):
@@ -66,8 +61,34 @@ def test(model, dataloader_test, device):
         100. * correct / len(dataloader_test.dataset)))
 
 
+def train(model, optimizer, dataloader_train, epoch, device, tb_logger):
+    model.train()
+    loss_epoch = 0
+    for batch_idx, (imgs, targets) in enumerate(dataloader_train):
+        imgs, targets = imgs.to(device), targets.to(device)
+        optimizer.zero_grad()
+        output = model(imgs)
+        loss = F.nll_loss(output, targets)
+        loss_epoch += loss.item()
+        loss.backward()
+        optimizer.step()
+        if batch_idx % args.log_interval == 0:
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                epoch, batch_idx * len(imgs), len(dataloader_train.dataset),
+                100. * batch_idx / len(dataloader_train), loss.item()))
+    
+    # tensorboad logging
+    tb_logger.add_scalar("Loss", loss_epoch, epoch)
+
+
 def main(args):
     print('#'*10, 'Training on MNIST', '#'*10)
+
+    # logging
+    tb_logger = SummaryWriter(
+        log_dir='{}/participant-{}'.format(args.logs_dir, args.host_ip),
+        filename_suffix='-fed_round_{}'.format(args.fed_round)
+    )
 
     # check for cuda
     device = torch.device('cuda' if args.use_cuda and torch.cuda.is_available() else 'cpu')
@@ -98,12 +119,13 @@ def main(args):
     optimizer.load_state_dict(checkpoint['optimizer']) # <-- overwrites previously set default_lr
 
     # training
+    print('Run {} local training epochs'.format(args.n_epochs))
     model.to(device)
-    print('Run {} local training epochs'.format(args.epochs))
-    for epoch in range(0, args.epochs):
-        train(model, optimizer, dataloader_train, epoch, device)
+    for epoch in range(args.epoch, args.epoch + args.n_epochs):
+        train(model, optimizer, dataloader_train, epoch, device, tb_logger)
         if args.local_testing:
             test(model, dataloader_test, device)
+    tb_logger.flush()
 
     # save new model checkpoint (with source label)
     checkpoint = {

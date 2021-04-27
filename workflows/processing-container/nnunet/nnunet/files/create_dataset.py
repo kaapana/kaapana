@@ -49,18 +49,17 @@ def check_if_encoding_in_use(label_encoding):
 
 
 def process_seg_nifti(seg_nifti):
-    global label_names_found, label_int, tracking_ids
-    
-    label_tag = str(label_int)
+    global label_names_found, global_label_index
+
+    label_tag = "N/A"
     extracted_label_tag = None
-    print(f"# label_int:        {label_int}")
+    print("#")
     print(f"# Processing NIFTI: {seg_nifti}")
+    print("#")
     if "--" in seg_nifti:
         seg_info = seg_nifti.split("--")
         extracted_label_tag = seg_info[-1].split(".")[0].replace("_", " ").replace("++", "/")
         meta_info_json_path = join(dirname(seg_nifti), f"{seg_info[0]}-meta.json")
-        print(f"# Label_tag: {extracted_label_tag}")
-        print(f"# meta_info_json_path: {meta_info_json_path}")
         if len(seg_info) == 3 and exists(meta_info_json_path):
             print("# Found DCMQI meta-json")
             seg_id = seg_info[1]
@@ -69,22 +68,26 @@ def process_seg_nifti(seg_nifti):
                 meta_info = json.load(f)
 
             if "segmentAttributes" in meta_info:
-                print("# Found 'segmentAttributes'.")
                 for entries in meta_info["segmentAttributes"]:
-                    print(f"# Found {len(entries)} entries in seg-meta info")
                     for part in entries:
                         if "labelID" in part and str(part["labelID"]) == seg_id:
-                            print(f"# Found SegmentLabel: {str(part['labelID'])}")
                             if "SegmentLabel" in part:
+                                print("# Using 'SegmentLabel' !")
                                 extracted_label_tag = part["SegmentLabel"]
-                                print(f"# Found SegmentLabel: {extracted_label_tag}")
 
-                            if "TrackingIdentifier" in part:
-                                tracking_ids[seg_id] = part["TrackingIdentifier"]
-                                print(f"# Found tracking_id: {part['TrackingIdentifier']}")
-    
-    if extracted_label_tag is not None:
-        label_tag = extracted_label_tag
+                            elif "TrackingIdentifier" in part:
+                                print("# Using 'TrackingIdentifier' !")
+                                extracted_label_tag = part["TrackingIdentifier"]
+    if extracted_label_tag is None:
+        print("#")
+        print("#")
+        print("####### Could not extract label encoding from file!")
+        print("#")
+        print("#")
+        exit(1)
+
+    print(f"# Extracted label: {extracted_label_tag}")
+    label_tag = extracted_label_tag
     # your code here
     nii_array = nib.load(seg_nifti).get_data().astype(int)
     nifti_labels = list(np.unique(nii_array))
@@ -110,7 +113,8 @@ def process_seg_nifti(seg_nifti):
             label_int = nifti_bin_encoding
             print(f"# -> using NIFTI encoding: {label_int}")
         else:
-            label_int += 1
+            global_label_index += 1
+            label_int = global_label_index
             print(f"# -> using default encoding: {label_int}")
 
         label_int = check_if_encoding_in_use(label_int)
@@ -147,7 +151,7 @@ def process_seg_nifti(seg_nifti):
 
 
 def prepare_dataset(datset_list, dataset_id):
-    global template_dataset_json, label_names_found, label_int, thread_count
+    global template_dataset_json, label_names_found, thread_count
     print(f"# Preparing all {dataset_id} series: {len(train_series)}")
     for series in datset_list:
         print("######################################################################")
@@ -263,10 +267,9 @@ operator_out_dir = join('/', os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OU
 task_dir = join(operator_out_dir, "nnUNet_raw_data", os.environ["TASK"])
 
 use_nifti_labels = True if os.getenv("PREP_USE_NIFITI_LABELS", "False").lower() == "true" else False
+global_label_index = 0
 
 thread_count = 5
-
-tracking_ids = {}
 
 if input_label_dirs == "" or input_modalities == "" or input_modality_dirs == "":
     print("#")
@@ -365,7 +368,6 @@ print("# ")
 train_series = series_list[:train_count]
 test_series = series_list[train_count:]
 
-label_int = 0
 label_names_found = {}
 
 prepare_dataset(datset_list=train_series, dataset_id="training")
@@ -381,24 +383,13 @@ for key, value in label_names_found.items():
     labels[str(value)] = key
 
 print("# Extracted labels:")
-sorted_labels={}
+sorted_labels = {}
 for key in sorted(labels.keys(), key=int):
-    sorted_labels[str(key)]=labels[key]
+    sorted_labels[str(key)] = labels[key]
 print(json.dumps(sorted_labels, indent=4, sort_keys=False))
 template_dataset_json["labels"] = sorted_labels
 print("#")
 print("#")
-
-if len(tracking_ids) > 0:
-    print("# Adding tracking_ids:")
-    sorted_tracking_ids={}
-    for key in sorted(tracking_ids.keys(), key=int):
-        sorted_tracking_ids[str(key)]=tracking_ids[key]
-    print(json.dumps(sorted_tracking_ids, indent=4, sort_keys=False))
-    template_dataset_json["tracking_ids"] = sorted_tracking_ids
-    print("#")
-    print("#")
-
 
 with open(join(task_dir, 'dataset.json'), 'w') as fp:
     json.dump(template_dataset_json, fp, indent=4, sort_keys=False)

@@ -14,27 +14,28 @@ import shutil
 def get_model_targets(model_dir, targets):
     print(f"# Searching for dataset.json @: {model_dir}")
     dataset_json = glob(join(model_dir, "**", "dataset.json"), recursive=True)
-    if len(dataset_json) == 0:
-        print("# Could not find any dataset.json !")
-        print(f"# Using ENV targets: {targets} !")
-        return targets
-    else:
-        print("# Loading dataset.json !")
+    new_targets = None
+    if len(dataset_json) != 0:
+        print(f"# Loading dataset.json: {dataset_json[0]}")
         with open(dataset_json[0]) as f:
             dataset_json = json.load(f)
 
-        targets = []
-        if "tracking_ids" in dataset_json:
-            print(f"# Using taracking_ids: {dataset_json['tracking_ids']}")
-            for key, value in dataset_json["tracking_ids"].items():
-                targets.append(value)
-
-        elif "labels" in dataset_json:
+        if "labels" in dataset_json:
             print(f"# Using labels: {dataset_json['labels']}")
-            for key, value in dataset_json["labels"].items():
-                targets.append(value)
+            new_targets = dataset_json['labels']
 
-    return targets
+        # elif "tracking_ids" in dataset_json:
+        #     print(f"# Using taracking_ids: {dataset_json['tracking_ids']}")
+        #     new_targets =  dataset_json['tracking_ids']
+
+    if new_targets is None:
+        new_targets = {
+            "0": "Clear Label",
+        }
+        for i in range(1, len(targets)+1):
+            new_targets[str(i)] = targets[i]
+
+    return new_targets
 
 
 def predict(model, input_folder, output_folder, folds, save_npz, num_threads_preprocessing, num_threads_nifti_save, part_id, num_parts, tta, mixed_precision, overwrite_existing, mode, overwrite_all_in_gpu, step_size, checkpoint_name, lowres_segmentations=None):
@@ -49,7 +50,7 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
     print(f"# task_targets:      {task_targets}")
     print(f"#")
 
-    task_targets = get_model_targets(model_dir=model,targets=task_targets)
+    task_targets = get_model_targets(model_dir=model, targets=task_targets)
 
     Path(element_output_dir).mkdir(parents=True, exist_ok=True)
     predict_from_folder(
@@ -116,8 +117,12 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
 
     labels_found = []
     for label_bin in nifti_labels:
-        label_name = str(task_targets[label_bin]) if task_targets != None else "N/A"
         print(f"# label_int: {label_bin}")
+        if str(label_bin) not in task_targets:
+            print(f"# Could not find {label_bin} in {task_targets}")
+            exit(1)
+
+        label_name = task_targets[str(label_bin)] if task_targets != None and str(label_bin) in task_targets else "N/A"
         print(f"# label_name: {label_name}")
 
         labels_found.append({

@@ -160,9 +160,9 @@ elif [ "$MODE" = "identify-best" ]; then
     echo "# nnUNet_preprocessed:   $nnUNet_preprocessed"
     echo "# RESULTS_FOLDER:        $RESULTS_FOLDER"
     echo "#"
-    echo "# FOLD:                 $TRAIN_FOLD"
+    echo "# FOLD:                  $TRAIN_FOLD"
     echo "# TASK:                  $TASK"
-    echo "# TRAIN_NETWORK:         $TRAIN_NETWORK"
+    echo "# MODEL:                 $MODEL"
     echo "# TRAIN_NETWORK_TRAINER: $TRAIN_NETWORK_TRAINER"
     echo "# model_output_path:     $model_output_path"
     echo "#"
@@ -176,8 +176,8 @@ elif [ "$MODE" = "identify-best" ]; then
         strict=""
     fi
 
-    echo "# COMMAND: nnUNet_find_best_configuration -m $TRAIN_NETWORK -t $TASK_NUM $strict"
-    nnUNet_find_best_configuration -m $TRAIN_NETWORK -t $TASK_NUM $strict
+    echo "# COMMAND: nnUNet_find_best_configuration -m $MODEL -t $TASK_NUM $strict"
+    nnUNet_find_best_configuration -m $MODEL -t $TASK_NUM $strict
 
     echo "#"
     echo "# DONE"

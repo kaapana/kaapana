@@ -10,8 +10,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 #from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 # --> TODO: needs option to overwrite its name, so two minio-action-get can be applied
 
-from federated_training.federated_training.TrainingOperatorMNIST import TrainingOperatorMNIST
-from federated_training.federated_training.TriggerDagOperator import TriggerDagOperator
+from federated_training.experiments.TrainingMNISTOperator import TrainingMNISTOperator
 
 
 log = LoggingMixin().log
@@ -54,7 +53,7 @@ unzip_data = LocalUnzipFileOperator(
     operator_in_dir='data'
     )
 
-train_model = TrainingOperatorMNIST(
+train_model = TrainingMNISTOperator(
     dag=dag,
     input_operator=unzip_data,
     host_ip=None,

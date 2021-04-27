@@ -1,9 +1,9 @@
 import os
 from datetime import timedelta
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
-
+#from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
+# --> TODO: on_success_back back owerwrite must be possible
 
 class TrainingOperatorMNIST(KaapanaBaseOperator):
 
@@ -17,12 +17,13 @@ class TrainingOperatorMNIST(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  host_ip=None,
-                 epochs=None,
+                 fed_round=None,
+                 n_epochs=None,
                  batch_size=None,
                  use_cuda=None,
                  local_testing=None,
                  env_vars=None,
-                 execution_timeout=timedelta(hours=6),
+                 execution_timeout=timedelta(hours=1),
                  *args, **kwargs
                  ):
 
@@ -31,7 +32,8 @@ class TrainingOperatorMNIST(KaapanaBaseOperator):
         
         envs = {
             "HOST_IP": str(host_ip),
-            "EPOCHS": str(epochs),
+            "FED_ROUND": str(fed_round),
+            "N_EPOCHS": str(n_epochs),
             "BATCH_SIZE": str(batch_size),
             'USE_CUDA': str(use_cuda),
             "LOCAL_TESTING": str(local_testing)
@@ -48,7 +50,6 @@ class TrainingOperatorMNIST(KaapanaBaseOperator):
             on_success_callback=TrainingOperatorMNIST.on_success,
             execution_timeout=execution_timeout,
             training_operator=True,
-            image_pull_policy='Always',
             ram_mem_mb=1000,
             *args, **kwargs
             )

@@ -7,9 +7,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 from kaapana.operators.LocalUnzipFileOperator import LocalUnzipFileOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-
-#from kaapana.operators.LocalMinioOperator import LocalMinioOperator # needs option to overwrite it#s name, so two minio-action-get can be applied
-#from federated_training.federated_training.LocalMinioOperator import LocalMinioOperator
+#from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+# --> TODO: needs option to overwrite its name, so two minio-action-get can be applied
 
 from federated_training.federated_training.TrainingOperatorMNIST import TrainingOperatorMNIST
 from federated_training.federated_training.TriggerDagOperator import TriggerDagOperator
@@ -31,14 +30,14 @@ dag = DAG(
     schedule_interval=None,
     concurrency=10,
     max_active_runs=5
-    )
+)
 
 get_model_from_minio = LocalMinioOperator(
     dag=dag,
     name='minio-action-get-model',
     action='get',
     bucket_name='federated-exp-mnist',
-    action_operator_dirs=['model']
+    action_operator_dirs=['model', 'logs']
     )
 
 get_data_from_minio = LocalMinioOperator(
@@ -58,7 +57,7 @@ unzip_data = LocalUnzipFileOperator(
 train_model = TrainingOperatorMNIST(
     dag=dag,
     input_operator=unzip_data,
-    host_ip='',
+    host_ip=None,
     epochs=1,
     batch_size=32,
     use_cuda=True,
@@ -68,11 +67,12 @@ train_model = TrainingOperatorMNIST(
 pass_on_model = LocalMinioOperator(
     dag=dag,action='put',
     bucket_name='federated-exp-mnist',
-    action_operator_dirs=['cache'],
+    action_operator_dirs=['cache', 'logs'],
     operator_out_dir='',
+    file_white_tuples=('','.pt'),
     zip_files=False
     )
 
 cleanup = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
-
+ 
 [get_model_from_minio, get_data_from_minio >> unzip_data] >> train_model >> pass_on_model >> cleanup

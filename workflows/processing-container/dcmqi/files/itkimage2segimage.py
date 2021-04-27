@@ -360,14 +360,14 @@ for batch_element_dir in batch_folders:
         segment_attributes = [[]]
 
         label_counts = len(label_info)
-        for label in label_info:
-            idx = int(label["label_int"])
+        for idx, label in enumerate(label_info):
+            label_int = int(label["label_int"]) 
             single_label_seg_info = label["label_name"]
-            print(f"process: {single_label_seg_info}: {idx}")
+            print(f"process: {single_label_seg_info}: {label_int}")
 
             code_meaning, segmentation_information["SeriesDescription"] = process_seg_info(single_label_seg_info, series_description)
             color = np.round(np.array(cm.get_cmap('gist_ncar', label_counts)(idx)[:3])*255).astype(int).tolist()
-            segment_attribute = create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, color, label_name=single_label_seg_info, labelID=idx)
+            segment_attribute = create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, color, label_name=single_label_seg_info, labelID=label_int)
             segment_attributes[0].append(segment_attribute)
 
     if input_type == 'multi_label_seg' or create_multi_label_dcm_from_single_label_segs.lower() == 'true':

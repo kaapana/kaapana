@@ -11,19 +11,28 @@ import torch
 import shutil
 
 
-def get_model_targets(model_dir):
+def get_model_targets(model_dir, targets):
     print(f"# Searching for dataset.json @: {model_dir}")
     dataset_json = glob(join(model_dir, "**", "dataset.json"), recursive=True)
     if len(dataset_json) == 0:
         print("# Could not find any dataset.json !")
-        return None
+        print(f"# Using ENV targets: {targets} !")
+        return targets
     else:
+        print("# Loading dataset.json !")
         with open(dataset_json[0]) as f:
             dataset_json = json.load(f)
 
         targets = []
-        for key in sorted(dataset_json["labels"]):
-            targets.append(dataset_json["labels"][key])
+        if "tracking_ids" in dataset_json:
+            print(f"# Using taracking_ids: {dataset_json['tracking_ids']}")
+            for key, value in dataset_json["tracking_ids"].items():
+                targets.append(value)
+
+        elif "labels" in dataset_json:
+            print(f"# Using labels: {dataset_json['labels']}")
+            for key, value in dataset_json["labels"].items():
+                targets.append(value)
 
     return targets
 
@@ -36,9 +45,11 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
     print(f"# task:       {task}")
     print(f"# model:      {model}")
     print(f"# folds:      {folds}")
+    print(f"#")
+    print(f"# task_targets:      {task_targets}")
+    print(f"#")
 
-    if task_targets == None:
-        task_targets = get_model_targets(model_dir=model)
+    task_targets = get_model_targets(model_dir=model,targets=task_targets)
 
     Path(element_output_dir).mkdir(parents=True, exist_ok=True)
     predict_from_folder(
@@ -102,10 +113,15 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
         print("#")
         print("##################################################### ")
         exit(1)
+
     labels_found = []
     for label_bin in nifti_labels:
+        label_name = str(task_targets[label_bin]) if task_targets != None else "N/A"
+        print(f"# label_int: {label_bin}")
+        print(f"# label_name: {label_name}")
+
         labels_found.append({
-            "label_name": str(task_targets[label_bin]) if task_targets != None else "N/A",
+            "label_name": label_name,
             "label_int": label_bin
         })
 
@@ -318,7 +334,7 @@ operator_in_dir = operator_in_dir if operator_in_dir.lower() != "none" else None
 enable_softmax = getenv("INF_SOFTMAX", "False")
 enable_softmax = True if enable_softmax.lower() == "true" else False
 
-train_network = getenv("TRAIN_NETWORK", "None")
+train_network = getenv("MODEL", "None")
 train_network = train_network if train_network.lower() != "none" else None
 train_network_trainer = getenv("TRAIN_NETWORK_TRAINER", "None")
 train_network_trainer = train_network_trainer if train_network_trainer.lower() != "none" else None

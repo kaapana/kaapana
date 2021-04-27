@@ -49,29 +49,42 @@ def check_if_encoding_in_use(label_encoding):
 
 
 def process_seg_nifti(seg_nifti):
-    global label_names_found, label_names_found, label_int, tracking_ids
-
+    global label_names_found, label_int, tracking_ids
+    
+    label_tag = str(label_int)
+    extracted_label_tag = None
+    print(f"# label_int:        {label_int}")
     print(f"# Processing NIFTI: {seg_nifti}")
     if "--" in seg_nifti:
         seg_info = seg_nifti.split("--")
-        label_tag = seg_info[-1].split(".")[0].replace("_", " ").replace("++", "/")
+        extracted_label_tag = seg_info[-1].split(".")[0].replace("_", " ").replace("++", "/")
         meta_info_json_path = join(dirname(seg_nifti), f"{seg_info[0]}-meta.json")
+        print(f"# Label_tag: {extracted_label_tag}")
+        print(f"# meta_info_json_path: {meta_info_json_path}")
         if len(seg_info) == 3 and exists(meta_info_json_path):
-            print(f"# Loading DCMQI meta-json: {meta_info_json_path}")
-            seg_id = int(seg_info[1])
+            print("# Found DCMQI meta-json")
+            seg_id = seg_info[1]
+            print(f"# SEG_ID: {seg_id}")
             with open(meta_info_json_path, 'r') as f:
                 meta_info = json.load(f)
+
             if "segmentAttributes" in meta_info:
-                for entry in meta_info["segmentAttributes"][0]:
-                    if "labelID" in entry and entry["labelID"] == seg_id:
-                        if "SegmentLabel" in entry:
-                            label_tag = entry["SegmentLabel"]
+                print("# Found 'segmentAttributes'.")
+                for entries in meta_info["segmentAttributes"]:
+                    print(f"# Found {len(entries)} entries in seg-meta info")
+                    for part in entries:
+                        if "labelID" in part and str(part["labelID"]) == seg_id:
+                            print(f"# Found SegmentLabel: {str(part['labelID'])}")
+                            if "SegmentLabel" in part:
+                                extracted_label_tag = part["SegmentLabel"]
+                                print(f"# Found SegmentLabel: {extracted_label_tag}")
 
-                        if "TrackingIdentifier" in entry:
-                            tracking_ids[str(seg_id)] = entry["TrackingIdentifier"]
-
-    else:
-        label_tag = str(label_int)
+                            if "TrackingIdentifier" in part:
+                                tracking_ids[seg_id] = part["TrackingIdentifier"]
+                                print(f"# Found tracking_id: {part['TrackingIdentifier']}")
+    
+    if extracted_label_tag is not None:
+        label_tag = extracted_label_tag
     # your code here
     nii_array = nib.load(seg_nifti).get_data().astype(int)
     nifti_labels = list(np.unique(nii_array))
@@ -378,8 +391,11 @@ print("#")
 
 if len(tracking_ids) > 0:
     print("# Adding tracking_ids:")
-    print(json.dumps(tracking_ids, indent=4, sort_keys=False))
-    template_dataset_json["tracking_ids"] = tracking_ids
+    sorted_tracking_ids={}
+    for key in sorted(tracking_ids.keys(), key=int):
+        sorted_tracking_ids[str(key)]=tracking_ids[key]
+    print(json.dumps(sorted_tracking_ids, indent=4, sort_keys=False))
+    template_dataset_json["tracking_ids"] = sorted_tracking_ids
     print("#")
     print("#")
 

@@ -82,7 +82,7 @@ def train(model, optimizer, dataloader_train, epoch, device, tb_logger):
 
 
 def main(args):
-    print('#'*10, 'Training on MNIST', '#'*10)
+    print('#'*10, 'Training on MNIST data', '#'*10)
 
     # logging
     tb_logger = SummaryWriter(
@@ -96,14 +96,14 @@ def main(args):
 
     # dataloader 
     dataloader_train = DataLoader(
-        dataset=ImageFolder(root=args.train_data_dir, transform=mnist_transforms['test']),
+        dataset=ImageFolder(root=args.train_data_dir, transform=mnist_transforms['train']),
         batch_size=args.batch_size,
         shuffle=True,
         num_workers=args.num_workers
     )
     
     dataloader_test = DataLoader(
-        dataset= ImageFolder(root=args.test_data_dir, transform=mnist_transforms['train']),
+        dataset= ImageFolder(root=args.test_data_dir, transform=mnist_transforms['test']),
         batch_size=args.batch_size,
         shuffle=False,
         num_workers=args.num_workers

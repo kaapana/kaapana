@@ -189,7 +189,7 @@ elif [ "$MODE" = "zip-model" ]; then
     
     mkdir -p "/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/"
     TIMESTAMP=`date +%Y-%m-%d_%H-%M`
-    model_output_path="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnunet_$TASK_$TRAIN_NETWORK_$TIMESTAMP.zip"
+    model_output_path="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnunet_$TASK_$MODEL_$TIMESTAMP.zip"
     
     echo "#"
     echo "# Starting export-model..."
@@ -217,7 +217,7 @@ elif [ "$MODE" = "export-model" ]; then
     export RESULTS_FOLDER="$nnUNet_raw_data_base/results"
     
     mkdir -p "/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/"
-    model_output_path="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnunet_model_$TRAIN_NETWORK.zip"
+    model_output_path="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnunet_model_$MODEL.zip"
     
     echo "#"
     echo "# Starting export-model..."

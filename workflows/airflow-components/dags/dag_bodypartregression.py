@@ -10,7 +10,6 @@ max_active_runs = 10
 ui_forms = {}
 args = {
     'ui_visible': True,
-    'ui_dag_info': all_selectable_tasks,
     'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),

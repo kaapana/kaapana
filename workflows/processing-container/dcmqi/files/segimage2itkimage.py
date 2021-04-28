@@ -15,7 +15,7 @@ DCMQI = '/dcmqi/dcmqi-1.2.3-linux/bin/'
 output_type = os.environ.get('OUTPUT_TYPE', 'nrrd')
 seg_filter = os.environ.get('SEG_FILTER', "")
 if seg_filter != "":
-    seg_filter = seg_filter.lower().split(";")
+    seg_filter = seg_filter.lower().split(",")
     print(f"Set filters: {seg_filter}")
 else:
     seg_filter = None
@@ -101,8 +101,6 @@ for batch_element_dir in batch_folders:
             if len_output_files != len(seg_filter):
                 print(f"Found {len_output_files} files -> expected {len(seg_filter)}!")
                 print(f"Filter: {seg_filter}")
-                print("Abort!")
-                exit(1)
 
         processed_count += 1
 

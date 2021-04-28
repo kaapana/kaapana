@@ -17,22 +17,26 @@ rcParams.update({'figure.autolayout': True})
 
 
 class LocalDiceOperator(KaapanaPythonBaseOperator):
-    def create_plots(self, result_dir, result_table):
-        print(f"# Creating boxplots @: {result_dir}")
+
+    def create_plots(self,data_table, table_name, result_dir):
+        print(f"# Creating boxplots: {table_name}")
         os.makedirs(result_dir, exist_ok=True)
-        df_data = pd.DataFrame(result_table, columns=['Series', 'Model', 'label', 'Dice'])
-        new_order = sorted(list(df_data.Model.unique()))
-        new_order.append(new_order.pop(new_order.index('ensemble')))
+
+        plot_labels = sorted(list(data_table.Model.unique()))
+        if "ensemble" in plot_labels:
+            plot_labels.append(plot_labels.pop(plot_labels.index('ensemble')))
+        
         fig, ax1 = plt.subplots(1, 1, figsize=(12, 14))
-        box_plot = sns.boxplot(x="Model", y="Dice", hue="label", palette="Set3", data=df_data, ax=ax1, order=new_order)
+        box_plot = sns.boxplot(x="Model", y="Dice", hue="Label", palette="Set3", data=data_table, ax=ax1, order=plot_labels)
         box_plot.set_xticklabels(box_plot.get_xticklabels(), rotation=40, ha="right")
 
         box = box_plot.get_position()
         box_plot.set_position([box.x0, box.y0, box.width * 0.85, box.height])  # resize position
         box_plot.legend(loc='center right', bbox_to_anchor=(1.22, 0.5), ncol=1)
         plt.tight_layout()
-        fig.savefig(join(result_dir, "dice_results.pdf"))
-        fig.savefig(join(result_dir, "dice_results.png"), dpi=fig.dpi)
+        fig.savefig(join(result_dir, f"pdf_results_{table_name}.pdf"))
+        fig.savefig(join(result_dir, f"png_results_{table_name}.png"), dpi=fig.dpi)
+        # plt.show()
         print("# DONE")
 
     def get_model_infos(self, model_batch_dir):
@@ -344,7 +348,13 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
         with open(result_ensemble_path, 'w+', encoding='utf-8') as f:
             json.dump(result_scores_model_based, f, ensure_ascii=False, default=str, indent=4, sort_keys=True)
 
-        self.create_plots(result_dir=result_dir, result_table=result_table)
+        df_data = pd.DataFrame(result_table, columns=['Series', 'Model', 'Label', 'Dice'])
+        labels = df_data['Label'].unique()
+
+        for label in labels:
+            df_filtered = df_data[df_data.Label == label]
+            self.create_plots(data_table=df_filtered, table_name=label, result_dir=result_dir)
+        self.create_plots(data_table=df_data, table_name="all", result_dir=result_dir)
 
         if processed_count == 0:
             print("#")

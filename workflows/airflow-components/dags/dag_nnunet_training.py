@@ -22,10 +22,10 @@ from airflow.models import Variable
 node_uid = Variable.get(key="node_uid", default_var="N/A")
 study_id = "Kaapana"
 # TASK_NAME = f"Task{random.randint(100,999):03}_{node_uid}_train"
-TASK_NAME = f"Task{random.randint(100,999):03}_Training_{datetime.now().strftime('%d%m%y-%H%M')}"
+TASK_NAME = f"Task{random.randint(100,999):03}_RACOON_{datetime.now().strftime('%d%m%y-%H%M')}"
 seg_filter = ""
 prep_modalities = "CT"
-train_network = "3d_lowres"
+train_network = "3d_fullres"
 train_network_trainer = "nnUNetTrainerV2"
 ae_title = "nnUnet-results"
 max_epochs = 1000
@@ -113,6 +113,13 @@ ui_forms = {
                 "description": "Select organ for multi-label DICOM SEGs: eg 'liver' or 'spleen,liver'",
                 "type": "string",
                 "readOnly": False,
+            },
+            "node_uid": {
+                "title": "Site-ID",
+                "description": "Specify an ID for the node / site",
+                "type": "string",
+                "default": node_uid,
+                "required": True
             },
             "shuffle_seed": {
                 "title": "Shuffle seed",

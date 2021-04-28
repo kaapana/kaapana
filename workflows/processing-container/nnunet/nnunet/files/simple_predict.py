@@ -29,10 +29,8 @@ def get_model_targets(model_dir, targets):
         #     new_targets =  dataset_json['tracking_ids']
 
     if new_targets is None:
-        new_targets = {
-            "0": "Clear Label",
-        }
-        for i in range(1, len(targets)+1):
+        new_targets = {}
+        for i in range(0, len(targets)):
             new_targets[str(i)] = targets[i]
 
     return new_targets

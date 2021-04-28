@@ -68,7 +68,7 @@ if LEVEL == 'element':
         dcm_file = dcm_files[0]
         print("dcm-file: {}".format(dcm_file))
 
-        send_dicom_data(element_input_dir)
+        send_dicom_data(element_input_dir,timeout=600)
 elif LEVEL == 'batch':
     batch_input_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
     print(f"Sending DICOM data from batch-level: {batch_input_dir}")

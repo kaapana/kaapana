@@ -254,7 +254,7 @@ model_architecture = os.getenv("TRAIN_NETWORK", "UNKNOWN")  # -> model 2d,3d_low
 test_percentage = int(os.getenv("TEST_PERCENTAGE", "0"))
 copy_target_data = True if os.getenv("PREP_COPY_DATA", "False").lower() == "true" else False
 tensor_size = os.getenv("TENSOR_SIZE", "3D")
-node_uid = os.getenv("NODE_UID", "N/A")
+node_uid = os.getenv("NODE_UID", "N/A").replace(" ","_")
 max_epochs = os.getenv("TRAIN_MAX_EPOCHS", "N/A")
 
 input_modalities = os.getenv("PREP_MODALITIES", "")

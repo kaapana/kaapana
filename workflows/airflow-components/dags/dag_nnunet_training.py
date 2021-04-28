@@ -25,7 +25,7 @@ study_id = "Kaapana"
 TASK_NAME = f"Task{random.randint(100,999):03}_RACOON_{datetime.now().strftime('%d%m%y-%H%M')}"
 seg_filter = ""
 prep_modalities = "CT"
-train_network = "3d_fullres"
+default_model = "3d_fullres"
 train_network_trainer = "nnUNetTrainerV2"
 ae_title = "nnUnet-results"
 max_epochs = 1000
@@ -84,9 +84,9 @@ ui_forms = {
                 "default": TASK_NAME,
                 "required": True
             },
-            "train_network": {
+            "model": {
                 "title": "Network",
-                "default": train_network,
+                "default": default_model,
                 "description": "2d, 3d_lowres, 3d_fullres or 3d_cascade_fullres",
                 "enum": ["2d", "3d_lowres", "3d_fullres", "3d_cascade_fullres"],
                 "type": "string",
@@ -262,7 +262,7 @@ nnunet_train = NnUnetOperator(
     mode="training",
     train_max_epochs=max_epochs,
     input_operator=nnunet_preprocess,
-    train_network=train_network,
+    model=default_model,
     train_network_trainer=train_network_trainer,
     train_fold='all',
     retries=0,
@@ -289,7 +289,7 @@ dcmseg_send_pdf = DcmSendOperator(
 
 zip_model = ZipUnzipOperator(
     dag=dag,
-    target_filename=f"nnunet_model_{train_network}.zip",
+    target_filename=f"nnunet_model.zip",
     whitelist_files="model_latest.model.pkl,model_latest.model,model_final_checkpoint.model,model_final_checkpoint.model.pkl,dataset.json,plans.pkl,*.json,*.png,*.pdf",
     subdir="results/nnUNet",
     mode="zip",

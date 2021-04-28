@@ -193,15 +193,15 @@ def create_dataset(search_dir):
 
 
 def get_model_paths(batch_element_dir):
-    global workflow_dir, task, models_dir, train_network, batch_name
+    global workflow_dir, task, models_dir, model_arch, batch_name
     model_paths = []
     if models_dir == "/models":
-        model_path = join(models_dir, "nnUNet", train_network)
+        model_path = join(models_dir, "nnUNet", model_arch)
         print(f"# Default models dir: {model_path} -> continue")
         model_paths.append(model_path)
     else:
-        model_path = join(batch_element_dir, models_dir, train_network)
-        batch_models_dir = join('/', workflow_dir, models_dir, train_network)
+        model_path = join(batch_element_dir, models_dir, model_arch)
+        batch_models_dir = join('/', workflow_dir, models_dir, model_arch)
         print(f"# Batch-element models dir: {model_path}")
         print(f"# Batch models dir: {batch_models_dir}")
         if exists(model_path):
@@ -337,8 +337,8 @@ operator_in_dir = operator_in_dir if operator_in_dir.lower() != "none" else None
 enable_softmax = getenv("INF_SOFTMAX", "False")
 enable_softmax = True if enable_softmax.lower() == "true" else False
 
-train_network = getenv("MODEL", "None")
-train_network = train_network if train_network.lower() != "none" else None
+model_arch = getenv("MODEL", "None")
+model_arch = model_arch if model_arch.lower() != "none" else None
 train_network_trainer = getenv("TRAIN_NETWORK_TRAINER", "None")
 train_network_trainer = train_network_trainer if train_network_trainer.lower() != "none" else None
 
@@ -381,7 +381,7 @@ print(f"# operator_out_dir: {operator_out_dir}")
 print(f"# input_modality_dirs: {input_modality_dirs}")
 print(f"# threads_nifiti:      {threads_nifiti}")
 print(f"# threads_preprocessing: {threads_preprocessing}")
-print(f"# train_network:         {train_network}")
+print(f"# model_arch:            {model_arch}")
 print(f"# train_network_trainer: {train_network_trainer}")
 print("#")
 print(f"# tta:  {tta}")

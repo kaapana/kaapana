@@ -250,7 +250,7 @@ training_description = os.getenv("TRAINING_DESCRIPTION", "nnUNet training")
 training_reference = os.getenv("TRAINING_REFERENCE", "nnUNet")
 shuffle_seed = int(os.getenv("SHUFFLE_SEED", "0")),
 network_trainer = os.getenv("TRAIN_NETWORK_TRAINER", "N/A")
-model_architecture = os.getenv("TRAIN_NETWORK", "UNKNOWN")  # -> model 2d,3d_lowres etc
+model_architecture = os.getenv("MODEL", "UNKNOWN")  # -> model 2d,3d_lowres etc
 test_percentage = int(os.getenv("TEST_PERCENTAGE", "0"))
 copy_target_data = True if os.getenv("PREP_COPY_DATA", "False").lower() == "true" else False
 tensor_size = os.getenv("TENSOR_SIZE", "3D")

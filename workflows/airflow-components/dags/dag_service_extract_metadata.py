@@ -23,7 +23,7 @@ dag = DAG(
     dag_id='service-extract-metadata',
     default_args=args,
     concurrency=50,
-    max_active_runs=50,
+    max_active_runs=20,
     schedule_interval=None
 )
 

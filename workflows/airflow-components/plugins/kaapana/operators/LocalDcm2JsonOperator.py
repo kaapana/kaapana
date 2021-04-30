@@ -25,6 +25,24 @@ from kaapana.operators.HelperCaching import cache_operator_output
 
 class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
+    @staticmethod
+    def get_racoon_organs(json_file_path):
+        with open(json_file_path) as f:
+            json_dict = json.load(f)
+        racoon_organs = []
+        if '00620002' in json_dict and 'Value' in json_dict['00620002']:
+            for racoon_org_elem in json_dict['00620002']['Value']:
+                if '00082218' in racoon_org_elem and 'Value' in racoon_org_elem['00082218']:
+                    for raccon_nested in racoon_org_elem['00082218']['Value']:
+                        if '00080104' in raccon_nested and 'Value' in raccon_nested['00080104']:
+                            racoon_organs = racoon_organs + raccon_nested['00080104']['Value']
+                if '00620005' in racoon_org_elem and 'Value' in racoon_org_elem['00620005']:
+                    racoon_organs = racoon_organs + racoon_org_elem['00620005']['Value']
+                if '00620020' in racoon_org_elem and 'Value' in racoon_org_elem['00620020']:
+                    racoon_organs = racoon_organs + racoon_org_elem['00620020']['Value']
+        racoon_organs = list(set(racoon_organs))
+        return racoon_organs
+
     @cache_operator_output
     def start(self, ds, **kwargs):
         print("Starting moule dcm2json...")
@@ -71,7 +89,11 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                     exit(1)
                 self.executeDcm2Json(dcm_file_path, json_file_path)
 
+                racoon_organs = LocalDcm2JsonOperator.get_racoon_organs(json_file_path)
+
                 json_dict = self.cleanJsonData(json_file_path)
+
+                json_dict.update({"racoon_organs_keyword": racoon_organs})
 
                 with open(json_file_path, "w", encoding='utf-8') as jsonData:
                     json.dump(json_dict, jsonData, indent=4, sort_keys=True, ensure_ascii=True)

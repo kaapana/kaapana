@@ -18,6 +18,9 @@ from shutil import copyfile, rmtree
 import errno
 import re
 
+import pydicom
+
+
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperCaching import cache_operator_output
@@ -26,22 +29,33 @@ from kaapana.operators.HelperCaching import cache_operator_output
 class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
     @staticmethod
-    def get_racoon_organs(json_file_path):
-        with open(json_file_path) as f:
-            json_dict = json.load(f)
-        racoon_organs = []
-        if '00620002' in json_dict and 'Value' in json_dict['00620002']:
-            for racoon_org_elem in json_dict['00620002']['Value']:
-                if '00082218' in racoon_org_elem and 'Value' in racoon_org_elem['00082218']:
-                    for raccon_nested in racoon_org_elem['00082218']['Value']:
-                        if '00080104' in raccon_nested and 'Value' in raccon_nested['00080104']:
-                            racoon_organs = racoon_organs + raccon_nested['00080104']['Value']
-                if '00620005' in racoon_org_elem and 'Value' in racoon_org_elem['00620005']:
-                    racoon_organs = racoon_organs + racoon_org_elem['00620005']['Value']
-                if '00620020' in racoon_org_elem and 'Value' in racoon_org_elem['00620020']:
-                    racoon_organs = racoon_organs + racoon_org_elem['00620020']['Value']
-        racoon_organs = list(set(racoon_organs))
-        return racoon_organs
+    def get_manual_tags(dcm_file_path):
+        def _add_manual_tag(de, manual_tags):
+            k = f'{str(de.tag).replace("(", "").replace(", ", "").replace(")", "")} {de.name}_keyword'
+            if k in manual_tags:
+                manual_tags[k].append(de.value)
+                manual_tags[k] = list(set(manual_tags[k]))
+            else:
+                manual_tags.update({k: [de.value]})
+
+        dicom = pydicom.dcmread(dcm_file_path)
+        manual_tags = {}
+        if (0x0062, 0x0002) in dicom:
+            for seg_seq in dicom[0x0062, 0x0002]:
+                if (0x008, 0x2218) in seg_seq:
+                    for anatomic_reg_seq in seg_seq[0x008, 0x2218]:
+                        if (0x0008, 0x0104) in anatomic_reg_seq:
+                            de = anatomic_reg_seq[0x0008, 0x0104]
+                            _add_manual_tag(de, manual_tags)
+
+                if (0x0062, 0x0005) in seg_seq:
+                    de = seg_seq[0x0062, 0x0005]
+                    _add_manual_tag(de, manual_tags)
+                if (0x0062, 0x0020) in seg_seq:
+                    de = seg_seq[0x0062, 0x0020]
+                    _add_manual_tag(de, manual_tags)
+        return manual_tags
+
 
     @cache_operator_output
     def start(self, ds, **kwargs):
@@ -89,11 +103,10 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                     exit(1)
                 self.executeDcm2Json(dcm_file_path, json_file_path)
 
-                racoon_organs = LocalDcm2JsonOperator.get_racoon_organs(json_file_path)
-
                 json_dict = self.cleanJsonData(json_file_path)
 
-                json_dict.update({"racoon_organs_keyword": racoon_organs})
+                manual_tags = LocalDcm2JsonOperator.get_manual_tags(dcm_file_path)
+                json_dict.update(manual_tags)
 
                 with open(json_file_path, "w", encoding='utf-8') as jsonData:
                     json.dump(json_dict, jsonData, indent=4, sort_keys=True, ensure_ascii=True)

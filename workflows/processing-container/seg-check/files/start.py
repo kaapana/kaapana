@@ -289,7 +289,7 @@ def resample_image(input_path, original_path, replace=True, target_dir=None):
 
 workflow_dir = getenv("WORKFLOW_DIR", "None")
 workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
-# assert workflow_dir is not None
+assert workflow_dir is not None
 
 batch_name = getenv("BATCH_NAME", "batch")
 batch_name = batch_name if batch_name.lower() != "none" else None
@@ -297,19 +297,19 @@ assert batch_name is not None
 
 operator_in_dir = getenv("OPERATOR_IN_DIR", "None")
 operator_in_dir = operator_in_dir if operator_in_dir.lower() != "none" else None
-# assert operator_in_dir is not None
+assert operator_in_dir is not None
 
 org_input_dir = getenv("ORG_IMG_IN_DIR", "None")
 org_input_dir = org_input_dir if org_input_dir.lower() != "none" else None
-# assert org_input_dir is not None
+assert org_input_dir is not None
 
 operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
 operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
-# assert operator_out_dir is not None
+assert operator_out_dir is not None
 
 executable = getenv("EXECUTABLE", "/src/MitkCLResampleImageToReference.sh")
 executable = executable if executable.lower() != "none" else None
-# assert executable is not None
+assert executable is not None
 
 # 0=linear (default), 1=nearest neighbor, 2=sinc (optional), (default: 0), Type: Int
 interpolator = getenv("INTERPOLATOR", "None")
@@ -341,15 +341,15 @@ force_same_labels = True if force_same_labels.lower() == "true" else False
 delete_merged_data = getenv("DELETE_MERGED_DATA", "None")
 delete_merged_data = False if delete_merged_data.lower() == "false" else True
 
-workflow_dir = "/home/jonas/Downloads/new_data2"
-batch_name = "batch"
-operator_in_dir = "dcmseg2nrrd-seg"
-org_input_dir = "dcm-converter-ct"
-operator_out_dir = "output_seg_check"
-executable = "/home/jonas/software/mitk-phenotyping/MitkCLResampleImageToReference.sh"
-fail_if_overlapping = False
-skipping_if_overlapping = True
-parallel_processes = 3
+# workflow_dir = "/home/jonas/Downloads/new_data2"
+# batch_name = "batch"
+# operator_in_dir = "dcmseg2nrrd-seg"
+# org_input_dir = "dcm-converter-ct"
+# operator_out_dir = "output_seg_check"
+# executable = "/home/jonas/software/mitk-phenotyping/MitkCLResampleImageToReference.sh"
+# fail_if_overlapping = False
+# skipping_if_overlapping = True
+# parallel_processes = 3
 
 print("##################################################")
 print("#")
@@ -360,6 +360,13 @@ print(f"# batch_name:       {batch_name}")
 print(f"# org_input_dir:    {org_input_dir}")
 print(f"# operator_in_dir:  {operator_in_dir}")
 print(f"# operator_out_dir: {operator_out_dir}")
+print("#")
+print(f"# force_same_labels: {force_same_labels}")
+print(f"# delete_merged_data: {delete_merged_data}")
+print(f"# fail_if_overlapping: {fail_if_overlapping}")
+print(f"# skipping_if_overlapping: {skipping_if_overlapping}")
+print(f"# fail_if_label_already_present: {fail_if_label_already_present}")
+print(f"# fail_if_label_not_extractable: {fail_if_label_not_extractable}")
 print("#")
 print("##################################################")
 print("#")

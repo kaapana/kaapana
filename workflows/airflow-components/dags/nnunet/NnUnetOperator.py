@@ -26,7 +26,7 @@ class NnUnetOperator(KaapanaBaseOperator):
                  model="3d_lowres",
                  train_network_trainer="nnUNetTrainerV2",
                  train_continue=False,
-                 interpolation_order=1,
+                 interpolation_order=2,
                  train_npz=False,
                  train_disable_post=True,
                  train_strict=True,

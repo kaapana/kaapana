@@ -4,8 +4,6 @@ from kaapana.kubetools.resources import Resources as PodResources
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 from datetime import timedelta
 import os
-
-
 class SegCheckOperator(KaapanaBaseOperator):
     execution_timeout = timedelta(minutes=240)
 
@@ -48,11 +46,10 @@ class SegCheckOperator(KaapanaBaseOperator):
             dag=dag,
             image="{}{}/seg-check:0.1.0-vdev".format(default_registry, default_project),
             name=name,
-            operator_out_dir="seg_check",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             env_vars=env_vars,
-            ram_mem_mb=1000,
+            ram_mem_mb=15000,
             *args,
             **kwargs
         )

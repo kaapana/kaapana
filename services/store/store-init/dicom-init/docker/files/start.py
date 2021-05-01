@@ -88,8 +88,7 @@ def send_file():
 def send_meta_init():
     print("Send Dicom init meta image....")
     print("")
-    command = ["dcmsend", "+sd", "+r", "-v", dcm_host, dcm_port, "-aet", "dicom-test", "-aec", "dicom-test",
-               "/test_dicom"]
+    command = ["dcmsend", "+sd", "+r", "-v", dcm_host, dcm_port, "-aet", "dicom-test", "-aec", "dicom-test","/test_dicom"]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
     if output.returncode == 0:
         print("############################ Push init meta dicom -> success")
@@ -111,7 +110,7 @@ def send_meta_init():
         print(
             "############################################################################################################## STDERR:")
         print(output.stderr)
-        exit(0)
+        exit(1)
 
 
 def check_file_on_platform(examples_send):

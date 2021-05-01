@@ -312,7 +312,7 @@ task_targets = task_targets.split(",") if task_targets.lower() != "none" else No
 if task_targets != None and task_targets[0] != "Clear Label":
     task_targets.insert(0, "Clear Label")
 
-task_body_part = getenv("BODY_PART", "ENV NOT FOUND!")
+task_body_part = getenv("BODY_PART", "N/A")
 task_protocols = getenv("PROTOCOLS", "ENV NOT FOUND!").split(",")
 
 mode = getenv("MODE", "None")

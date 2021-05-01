@@ -131,7 +131,7 @@ def create_segment_attribute(segment_algorithm_type, segment_algorithm_name, cod
     return segment_attribute
 
 
-def adding_aetitle(element_input_dir, output_dcm_file, seg_infos):
+def adding_aetitle(element_input_dir, output_dcm_file, body_part):
     dcm_files = sorted(glob.glob(os.path.join(element_input_dir, "*.dcm*"), recursive=True))
 
     if len(dcm_files) == 0:
@@ -143,21 +143,13 @@ def adding_aetitle(element_input_dir, output_dcm_file, seg_infos):
     try:
         aetitle = pydicom.dcmread(dcm_file)[0x0012, 0x0020].value
     except KeyError:
-        aetitle = 'DCMTKUndefined'
+        aetitle = 'internal'
 
     dcmseg_file = pydicom.dcmread(output_dcm_file)
+    print(f"# Adding aetitle:   {aetitle}")
+    print(f"# Adding body_part: {body_part}")
     dcmseg_file.add_new([0x012, 0x020], 'LO', aetitle)  # Clinical Trial Protocol ID
-
-    bpe = ""
-    for seg_info in seg_infos:
-        print(f"seg_info: {seg_info}")
-        if bpe != "":
-            bpe += " "
-        split_seg_info = seg_info["label_name"].split('@')
-        bpe += f'{split_seg_info[-1].capitalize()}-{split_seg_info[0].capitalize()}' if len(split_seg_info) > 1 else f'{split_seg_info[0].capitalize()}'
-
-    dcmseg_file.add_new([0x0018, 0x0015], 'LO', bpe)  # Body Part Examined
-
+    dcmseg_file.add_new([0x0018, 0x0015], 'LO', body_part)  # Body Part Examined
     dcmseg_file.save_as(output_dcm_file)
 
 # Example: https://github.com/QIICR/dcmqi/blob/master/doc/examples/seg-example.json
@@ -335,7 +327,12 @@ for batch_element_dir in batch_folders:
                     print(f'The image seems to have empty slices, we will skip them! This might make the segmentation no usable anymore for MITK. Error: {e.output}')
                     raise AssertionError(f'Something weng wrong while creating the single-label-dcm object {e.output}')
 
-            adding_aetitle(element_input_dir, output_dcm_file, seg_infos=[{"label_name": single_label_seg_info}])
+
+            body_part = "N/A"
+            if "task_body_part" in data:
+                body_part = data['seg_info']
+
+            adding_aetitle(element_input_dir, output_dcm_file, body_part="N/A")
             processed_count += 1
 
     elif input_type == 'multi_label_seg':
@@ -353,6 +350,10 @@ for batch_element_dir in batch_folders:
             exit(1)
 
         label_info = data['seg_info']
+        
+        body_part = "N/A"
+        if "task_body_part" in data:
+            body_part = data['task_body_part']
 
         if "algorithm" in data:
             series_description = "{}-{}".format(segment_algorithm_name, data["algorithm"])
@@ -414,7 +415,7 @@ for batch_element_dir in batch_folders:
                 print(f'The image seems to have emtpy slices, we will skip them! This might make the segmentation no usable anymore for MITK. Error: {e.output}')
                 raise AssertionError(f'Something weng wrong while creating the multi-label-dcm object {e.output}')
 
-        adding_aetitle(element_input_dir, output_dcm_file, seg_infos=data['seg_info'])
+        adding_aetitle(element_input_dir, output_dcm_file, body_part=body_part)
         processed_count += 1
 
 

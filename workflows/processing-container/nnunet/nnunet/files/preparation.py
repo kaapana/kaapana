@@ -22,7 +22,7 @@ if __name__ == "__main__":
         print("# Abort!")
         exit(1)
 
-    task_body_part = os.getenv("BODY_PART", "ENV NOT FOUND!")
+    task_body_part = os.getenv("BODY_PART", "N/A")
     task_modalities = os.getenv("INPUT", "ENV NOT FOUND!").split(",")
     task_protocols = os.getenv("PROTOCOLS", "ENV NOT FOUND!").split(",")
     task_organs = os.getenv("TARGETS", "ENV NOT FOUND!").split(",")

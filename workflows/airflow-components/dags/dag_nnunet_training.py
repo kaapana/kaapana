@@ -10,11 +10,10 @@ from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
-from kaapana.operators.ResampleOperator import ResampleOperator
 from airflow.api.common.experimental import pool as pool_api
 from airflow.utils.log.logging_mixin import LoggingMixin
-from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
 from nnunet.NnUnetOperator import NnUnetOperator
+from nnunet.SegCheckOperator import SegCheckOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 from airflow.models import Variable
@@ -223,27 +222,24 @@ dcm2nifti_ct = DcmConverterOperator(
     delete_input_on_success=True
 )
 
-resample_seg = ResampleOperator(
-    dag=dag,
+check_seg = SegCheckOperator(
+    dag,
     input_operator=dcm2nifti_seg,
     original_img_operator=dcm2nifti_ct,
-    operator_out_dir=dcm2nifti_seg.operator_out_dir,
-    delete_input_on_success=False
-)
-
-check_seg = LocalSegCheckOperator(
-    dag=dag,
-    abort_on_error=False,
-    move_data=True,
-    input_operators=[dcm2nifti_seg, dcm2nifti_ct],
-    delete_input_on_success=False
+    parallel_processes=1,
+    delete_merged_data=True,
+    fail_if_overlapping=True,
+    skipping_if_overlapping=False,
+    fail_if_label_already_present=False,
+    fail_if_label_id_not_extractable=False,
+    force_same_labels=False,
 )
 
 nnunet_preprocess = NnUnetOperator(
     dag=dag,
     mode="preprocess",
     input_modality_operators=[dcm2nifti_ct],
-    prep_label_operators=[dcm2nifti_seg],
+    prep_label_operators=[SegCheckOperator],
     prep_use_nifti_labels=False,
     prep_modalities=prep_modalities.split(","),
     prep_processes_low=prep_threads+1,
@@ -329,8 +325,8 @@ dcmseg_send_int = DcmSendOperator(
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
-get_input >> dcm2nifti_seg >> resample_seg
-get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> resample_seg >> check_seg >> nnunet_preprocess >> nnunet_train
+get_input >> dcm2nifti_seg >> check_seg
+get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess >> nnunet_train
 
 nnunet_train >> pdf2dcm >> dcmseg_send_pdf >> clean
 nnunet_train >> zip_model >> bin2dcm >> dcmseg_send_int >> clean

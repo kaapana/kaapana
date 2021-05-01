@@ -55,7 +55,9 @@ do
         mkdir -p "$batch_output_dir"
         
         if [ "$CONVERTFROM" == "dcm" ];then
-            output_filepath="$batch_output_dir"/"$batch_name"."$CONVERTTO"
+            series_uid=$(dcmdump -s --search "0020,000E"  $file_found | cut -d "[" -f2 | cut -d "]" -f1)
+            output_filepath="$batch_output_dir"/"$series_uid"."$CONVERTTO"
+
         else
             output_filepath="$batch_output_dir"/"${filename/"$CONVERTFROM"/$CONVERTTO}"
         fi

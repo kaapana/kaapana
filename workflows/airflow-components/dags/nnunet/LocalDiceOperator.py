@@ -341,11 +341,11 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
         Path(result_dir).mkdir(parents=True, exist_ok=True)
 
         result_ensemble_path = os.path.join(result_dir, "results_case_based.json")
-        with open(result_ensemble_path, 'w+', encoding='utf-8') as f:
+        with open(result_ensemble_path, 'w', encoding='utf-8') as f:
             json.dump(result_scores_case_based, f, ensure_ascii=False, default=str, indent=4, sort_keys=True)
 
         result_ensemble_path = os.path.join(result_dir, "results_model_based.json")
-        with open(result_ensemble_path, 'w+', encoding='utf-8') as f:
+        with open(result_ensemble_path, 'w', encoding='utf-8') as f:
             json.dump(result_scores_model_based, f, ensure_ascii=False, default=str, indent=4, sort_keys=True)
 
         df_data = pd.DataFrame(result_table, columns=['Series', 'Model', 'Label', 'Dice'])

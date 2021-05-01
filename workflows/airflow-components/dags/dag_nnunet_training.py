@@ -226,7 +226,7 @@ check_seg = SegCheckOperator(
     dag,
     input_operator=dcm2nifti_seg,
     original_img_operator=dcm2nifti_ct,
-    parallel_processes=1,
+    parallel_processes=5,
     delete_merged_data=True,
     fail_if_overlapping=True,
     skipping_if_overlapping=False,

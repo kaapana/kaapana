@@ -25,16 +25,16 @@ merged_counter = 0
 
 def create_metadata_json(new_labels_dict):
     metadata_dict = {
-        "segmentAttributes": [[]]
+        "segmentAttributes": []
     }
 
     for key, new_label in new_labels_dict.items():
-        metadata_dict["segmentAttributes"][0].append(
-            {
+        metadata_dict["segmentAttributes"].append(
+            [{
                 "SegmentLabel": str(new_label),
                 "TrackingIdentifier": str(new_label),
                 "labelID": int(key),
-            }
+            }]
         )
 
     return metadata_dict
@@ -85,27 +85,37 @@ def merge_niftis(queue_dict):
         print("#")
         extracted_label_tag = None
         seg_id = None
+        extracted_label_tag = None
+        print("#")
         if "--" in seg_nifti:
             seg_info = seg_nifti.split("--")
             extracted_label_tag = seg_info[-1].split(".")[0].replace("_", " ").replace("++", "/")
-            meta_info_json_path = join(dirname(seg_nifti), f"{seg_info[0]}-meta.json")
-            if len(seg_info) == 3 and exists(meta_info_json_path):
-                seg_id = seg_info[1]
-                with open(meta_info_json_path, 'r') as f:
-                    meta_info = json.load(f)
-                if "segmentAttributes" in meta_info:
-                    for entries in meta_info["segmentAttributes"]:
-                        for part in entries:
-                            if "labelID" in part and str(part["labelID"]) == seg_id:
-                                if "SegmentLabel" in part:
-                                    extracted_label_tag = part["SegmentLabel"]
-                                elif "TrackingIdentifier" in part:
-                                    extracted_label_tag = part["TrackingIdentifier"]
-            else:
-                print("########### Could not find DCMQI meta-json !")
+            seg_id = seg_info[1]
+
+        meta_info_json_path = glob(join(dirname(seg_nifti), "*.json"), recursive=False)
+        if len(meta_info_json_path) == 1 and exists(meta_info_json_path[0]):
+            meta_info_json_path = meta_info_json_path[0]
+            print(f"# Found DCMQI meta-json: {meta_info_json_path}")
+            with open(meta_info_json_path, 'rb') as f:
+                meta_info = json.load(f)
+
+            if "segmentAttributes" in meta_info:
+                for entries in meta_info["segmentAttributes"]:
+                    for part in entries:
+                        if "labelID" in part and (seg_id is None or str(part["labelID"]) == seg_id):
+                            if "labelID" in part and seg_id is None:
+                                seg_id = int(part["labelID"])
+                            if "SegmentLabel" in part:
+                                print("# Using 'SegmentLabel' !")
+                                extracted_label_tag = part["SegmentLabel"]
+
+                            elif "TrackingIdentifier" in part:
+                                print("# Using 'TrackingIdentifier' !")
+                                extracted_label_tag = part["TrackingIdentifier"]
 
         print(f"# SEG_ID: {seg_id}")
         print(f"# extracted_label_tag: {extracted_label_tag}")
+
         if extracted_label_tag is None:
             print("#")
             print("#")
@@ -165,11 +175,13 @@ def merge_niftis(queue_dict):
             nifti_dimensions = loaded_seg_nifti.shape
             assert example_dimensions == nifti_dimensions
 
+        new_global_id = False
         global_label_id = None
         if extracted_label_tag in global_labels_info:
             print("# This label is already present in global label-dict!")
             global_label_id = global_labels_info[extracted_label_tag]
         else:
+            new_global_id = True
             global_label_id = len(global_labels_info.values())+1
             global_labels_info[extracted_label_tag] = global_label_id
             print(f"# This label NOT present in global label-dict -> adding {global_label_id}")
@@ -186,6 +198,8 @@ def merge_niftis(queue_dict):
         print("# Merging...")
         if check_overlapping(gt_map=new_gt_map, new_map=loaded_seg_nifti):
             print(f"# Found overlapping segmentation: {extracted_label_tag}")
+            if new_global_id:
+                del global_labels_info[extracted_label_tag]
             if skipping_if_overlapping:
                 print(f"# Skipping this segmentation file!")
                 continue
@@ -207,6 +221,8 @@ def merge_niftis(queue_dict):
         print("##################################################")
         print("#")
         print("#")
+        if new_global_id:
+            del global_labels_info[extracted_label_tag]
         return queue_dict, "no labels found"
 
     if multi:
@@ -232,11 +248,15 @@ def merge_niftis(queue_dict):
         print(f"# Staring resampling: {base_img_shape} vs {merged_nifti_shape}")
         resampling_success = resample_image(input_path=target_path_merged, original_path=base_image_path)
         if not resampling_success:
+            if new_global_id:
+                del global_labels_info[extracted_label_tag]
             return queue_dict, "resampling failed"
         print("# Check if resampling-result...")
         merged_nifti_shape = nib.load(target_path_merged).shape
         if base_img_shape != merged_nifti_shape:
             print("# Resampling was not successful!")
+            if new_global_id:
+                del global_labels_info[extracted_label_tag]
             return queue_dict, "resampling failed"
         else:
             print("# Resampling successful!")
@@ -516,4 +536,7 @@ if processed_count == 0:
     print("#")
     exit(1)
 else:
+    print("#")
+    print(f"# ----> {processed_count} FILES HAVE BEEN PROCESSED!")
+    print("#")
     print("# DONE #")

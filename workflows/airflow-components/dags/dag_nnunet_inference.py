@@ -14,7 +14,7 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 max_active_runs = 10
-default_interpolation_order = 1
+default_interpolation_order = None
 default_prep_thread_count = 1
 default_nifti_thread_count = 1
 

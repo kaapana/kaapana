@@ -88,11 +88,11 @@ def send_file():
 def send_meta_init():
     print("Send Dicom init meta image....")
     print("")
-    command = ["dcmsend", "+sd", "+r", "-v", dcm_host, dcm_port, "-aet", "dicom-test", "-aec", "dicom-test","/test_dicom"]
+    command = ["dcmsend", "+sd", "+r", "-v", dcm_host, dcm_port, "-aet", "dicom-test", "-aec", "dicom-test", "/dicom_test_data/init_data"]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
     if output.returncode == 0:
         print("############################ Push init meta dicom -> success")
-        example_file_list = glob.glob("/test_dicom" + "/*.dcm", recursive=True)
+        example_file_list = glob.glob("/dicom_test_data/init_data" + "/*.dcm", recursive=True)
         examples_send = []
         for examples in example_file_list:
             item = dict()
@@ -169,7 +169,7 @@ def check_file_on_platform(examples_send):
                 break
             else:
                 counter += 1
-                time.sleep(10)
+                time.sleep(5)
         if not meta_query_success:
             print("File not found in META!")
             exit(0)
@@ -206,12 +206,8 @@ def trigger_delete_dag(examples_send):
 
 def send_example():
     print("Unzipping example files")
-    example_dir = "/example_files"
-    os.mkdir(example_dir)
-    with ZipFile(example_files, "r") as zip_ref:
-        zip_ref.extractall(example_dir)
-    command = ["dcmsend", "+sd", "+r", "-v", dcm_host, dcm_port, "-aet", "example", "-aec", "example",
-               example_dir]
+    example_dir = "/dicom_test_data/phantom"
+    command = ["dcmsend", "+sd", "+r", "-v", dcm_host, dcm_port, "-aet", "example", "-aec", "example", example_dir]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
     if output.returncode == 0:
         print("############################ success send example")

@@ -40,7 +40,7 @@ def send_dicom_data(send_dir, aetitle=AETITLE, timeout=60):
     print(f'Sending {send_dir} to {HOST} {PORT} with aetitle {aetitle}')
     command = ['dcmsend', '-v', f'{HOST}', f'{PORT}', '-aet', 'kaapana', '-aec', f'{aetitle}', '--scan-directories', '--recurse', f'{send_dir}']
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
-    if output.returncode != 0:
+    if output.returncode != 0 or "with status SUCCESS" not in str(output):
         print("############### Something went wrong with dcmsend!")
         for line in str(output).split("\\n"):
             print(line)

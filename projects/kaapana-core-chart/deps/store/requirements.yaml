@@ -15,6 +15,6 @@ dependencies:
     repository: file://../../../../services/store/store-init/minio-init/minio-init-chart
   # TESTS
   - name: dicom-init-chart
-    version: "0.1.0"
+    version: "0.1.1-vdev"
     condition: Release.IsInstall
     repository: file://../../../../services/store/store-init/dicom-init/dicom-init-chart

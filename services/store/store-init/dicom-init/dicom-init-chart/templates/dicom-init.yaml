@@ -22,7 +22,7 @@ spec:
             value: "10"
       containers:
       - name: dicom-init
-        image: {{  .Values.global.registry_url }}/dicom-init:0.1.0
+        image: {{  .Values.global.registry_url }}/dicom-init:0.1.1-vdev
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         resources:
           requests:

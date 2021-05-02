@@ -15,7 +15,7 @@ from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 
-default_interpolation_order = None
+default_interpolation_order = 1
 default_prep_thread_count = 1
 default_nifti_thread_count = 1
 

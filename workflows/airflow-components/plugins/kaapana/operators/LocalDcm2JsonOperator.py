@@ -30,8 +30,11 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
     @staticmethod
     def get_manual_tags(dcm_file_path):
+        label_list_id = "segmentation_labels_list_keyword"
         def _add_manual_tag(de, manual_tags):
             k = f'{str(de.tag).replace("(", "").replace(", ", "").replace(")", "")} {de.name}_keyword'
+            if de.value not in manual_tags[label_list_id]:
+                manual_tags[label_list_id].append(de.value)
             if k in manual_tags:
                 manual_tags[k].append(de.value)
                 manual_tags[k] = list(set(manual_tags[k]))
@@ -39,7 +42,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 manual_tags.update({k: [de.value]})
 
         dicom = pydicom.dcmread(dcm_file_path)
-        manual_tags = {}
+        manual_tags = {
+            label_list_id: []
+        }
         if (0x0062, 0x0002) in dicom:
             for seg_seq in dicom[0x0062, 0x0002]:
                 if (0x008, 0x2218) in seg_seq:
@@ -54,6 +59,8 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 if (0x0062, 0x0020) in seg_seq:
                     de = seg_seq[0x0062, 0x0020]
                     _add_manual_tag(de, manual_tags)
+
+        manual_tags[label_list_id] = ','.join(map(str, sorted(manual_tags[label_list_id]))) 
         return manual_tags
 
 

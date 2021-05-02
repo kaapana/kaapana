@@ -205,7 +205,12 @@ def prepare_dataset(datset_list, dataset_id):
             seg_niftis = glob.glob(join(series, label_dir, "*.nii.gz"), recursive=True)
             seg_nifti_list.extend(seg_niftis)
 
-        print(f"# Found {len(seg_nifti_list)} seg NIFTIs -> start merging")
+        print(f"# Found {len(seg_nifti_list)} seg NIFTIs")
+        if len(seg_nifti_list) == 0:
+            print(f"# No NIFTI found -> skipping batch-element")
+            continue
+        
+        print("# -> start merging")
         assert len(seg_nifti_list) == 1
         seg_nifti = seg_nifti_list[0]
         Path(dirname(target_seg_path)).mkdir(parents=True, exist_ok=True)

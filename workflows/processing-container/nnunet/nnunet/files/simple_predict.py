@@ -346,7 +346,7 @@ cuda_visible_devices = getenv("CUDA_VISIBLE_DEVICES", "None")
 tta = getenv("TEST_TIME_AUGMENTATION", "None")
 tta = True if tta.lower() == "true" else False
 
-interpolation_order = getenv("INTERPOLATION_ORDER", "None")
+interpolation_order = getenv("INTERPOLATION_ORDER", "default")
 mixed_precision = getenv("MIXED_PRECISION", "None")
 mixed_precision = False if mixed_precision.lower() == "false" else True
 

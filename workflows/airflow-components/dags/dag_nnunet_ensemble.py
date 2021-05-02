@@ -15,7 +15,7 @@ from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 
-default_interpolation_order = 1
+default_interpolation_order = "default"
 default_prep_thread_count = 1
 default_nifti_thread_count = 1
 
@@ -34,8 +34,8 @@ ui_forms = {
                 "title": "interpolation order",
                 "default": default_interpolation_order,
                 "description": "Set interpolation_order.",
-                "enum": [0, 1, 3],
-                "type": "integer",
+                "enum": ["deafult", "0", "1", "2", "3"],
+                "type": "string",
                 "readOnly": False,
                 "required": True
             },

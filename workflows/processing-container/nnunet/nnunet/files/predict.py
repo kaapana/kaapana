@@ -198,8 +198,8 @@ def predict_cases(model, list_of_lists, output_filenames, folds, save_npz, num_t
         interpolation_order = segmentation_export_kwargs['interpolation_order']
         interpolation_order_z = segmentation_export_kwargs['interpolation_order_z']
 
-    interpolation_order_env = os.getenv("INTERPOLATION_ORDER", "None")
-    interpolation_order_env = int(interpolation_order_env) if interpolation_order_env.lower() != "none" else None
+    interpolation_order_env = os.getenv("INTERPOLATION_ORDER", "default")
+    interpolation_order_env = int(interpolation_order_env) if interpolation_order_env.lower() != "default" else None
     if interpolation_order_env is not None:
         interpolation_order = interpolation_order_env
         print(f"Setting interpolation_order: {interpolation_order}")

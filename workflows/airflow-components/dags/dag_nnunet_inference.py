@@ -14,7 +14,7 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 max_active_runs = 10
-default_interpolation_order = 1
+default_interpolation_order = "default"
 default_prep_thread_count = 1
 default_nifti_thread_count = 1
 
@@ -127,8 +127,8 @@ ui_forms = {
                 "title": "interpolation order",
                 "default": default_interpolation_order,
                 "description": "Set interpolation_order.",
-                "enum": [0, 1, 3],
-                "type": "integer",
+                "enum": ["deafult", "0", "1", "2", "3"],
+                "type": "string",
                 "readOnly": False,
                 "required": True
             },

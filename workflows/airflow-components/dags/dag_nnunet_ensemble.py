@@ -34,7 +34,7 @@ ui_forms = {
                 "title": "interpolation order",
                 "default": default_interpolation_order,
                 "description": "Set interpolation_order.",
-                "enum": ["deafult", "0", "1", "2", "3"],
+                "enum": ["default", "0", "1", "2", "3"],
                 "type": "string",
                 "readOnly": False,
                 "required": True

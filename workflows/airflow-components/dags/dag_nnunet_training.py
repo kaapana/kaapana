@@ -141,6 +141,13 @@ ui_forms = {
                 "type": "string",
                 "readOnly": False,
             },
+            "body_part": {
+                "title": "Body Part",
+                "description": "Body part, which needs to be present in the image.",
+                "default": "N/A",
+                "type": "string",
+                "readOnly": False,
+            },
             "train_max_epochs": {
                 "title": "Epochs",
                 "default": max_epochs,

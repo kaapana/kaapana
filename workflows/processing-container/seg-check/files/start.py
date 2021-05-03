@@ -512,16 +512,19 @@ print("# Staring merging ...")
 print("#")
 nifti_results = ThreadPool(parallel_processes).imap_unordered(merge_niftis, queue_dicts)
 for queue_dict, nifti_result in nifti_results:
+    processed_count += 1
     target_dir = queue_dict["target_dir"]
     seg_nifti_list = queue_dict["seg_files"]
     base_image = queue_dict["base_image"]
     batch_elements_to_remove = queue_dict["batch_elements_to_remove"]
 
     remove_elements = False
-
+    print("# ")
     print(f"# Result for {base_image} arrived: {nifti_result}")
+    print("# ")
+    print(f"# ----> process_count: {processed_count}/{len(queue_dicts)}")
+    print("# ")
     if nifti_result == "ok":
-        processed_count += 1
         remove_elements = True
     elif nifti_result == "overlapping":
         if fail_if_overlapping:

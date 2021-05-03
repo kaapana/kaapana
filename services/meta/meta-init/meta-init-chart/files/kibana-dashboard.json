@@ -570,26 +570,6 @@
     }
   },
   {
-    "_id": "af9eedf0-ab94-11eb-ae70-c3747419ff3a",
-    "_type": "visualization",
-    "_source": {
-      "title": "Seg Label List",
-      "visState": "{\n  \"title\": \"Seg Label List\",\n  \"type\": \"table\",\n  \"params\": {\n    \"perPage\": 9,\n    \"showPartialRows\": false,\n    \"showMetricsAtAllLevels\": false,\n    \"sort\": {\n      \"columnIndex\": null,\n      \"direction\": null\n    },\n    \"showTotal\": false,\n    \"totalFunc\": \"sum\"\n  },\n  \"aggs\": [\n    {\n      \"id\": \"1\",\n      \"enabled\": true,\n      \"type\": \"cardinality\",\n      \"schema\": \"metric\",\n      \"params\": {\n        \"field\": \"0020000E SeriesInstanceUID_keyword.keyword\",\n        \"customLabel\": \"Count\"\n      }\n    },\n    {\n      \"id\": \"2\",\n      \"enabled\": true,\n      \"type\": \"terms\",\n      \"schema\": \"bucket\",\n      \"params\": {\n        \"field\": \"segmentation_labels_list_keyword.keyword\",\n        \"size\": 100,\n        \"order\": \"desc\",\n        \"orderBy\": \"_key\",\n        \"otherBucket\": false,\n        \"otherBucketLabel\": \"Other\",\n        \"missingBucket\": false,\n        \"missingBucketLabel\": \"Missing\",\n        \"customLabel\": \"SEG Label List\"\n      }\n    }\n  ]\n}",
-      "uiStateJSON": "{\n  \"vis\": {\n    \"params\": {\n      \"sort\": {\n        \"columnIndex\": null,\n        \"direction\": null\n      }\n    }\n  }\n}",
-      "description": "",
-      "version": 1,
-      "kibanaSavedObjectMeta": {
-        "searchSourceJSON": "{\n  \"index\": \"meta-index\",\n  \"query\": {\n    \"query\": \"\",\n    \"language\": \"lucene\"\n  },\n  \"filter\": []\n}"
-      }
-    },
-    "_meta": {
-      "savedObjectVersion": 2
-    },
-    "_migrationVersion": {
-      "visualization": "6.7.2"
-    }
-  },
-  {
     "_id": "16767e00-496c-11e8-a3a4-57df2c598fcb",
     "_type": "dashboard",
     "_source": {
@@ -624,6 +604,26 @@
     },
     "_meta": {
       "savedObjectVersion": 2
+    }
+  },
+  {
+    "_id": "af9eedf0-ab94-11eb-ae70-c3747419ff3a",
+    "_type": "visualization",
+    "_source": {
+      "title": "Seg Label List",
+      "visState": "{\"title\":\"Seg Label List\",\"type\":\"table\",\"params\":{\"perPage\":9,\"showPartialRows\":false,\"showMetricsAtAllLevels\":false,\"sort\":{\"columnIndex\":null,\"direction\":null},\"showTotal\":false,\"totalFunc\":\"sum\"},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"cardinality\",\"schema\":\"metric\",\"params\":{\"field\":\"0020000E SeriesInstanceUID_keyword.keyword\",\"customLabel\":\"Count\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"terms\",\"schema\":\"bucket\",\"params\":{\"field\":\"segmentation_labels_list_keyword.keyword\",\"size\":100,\"order\":\"desc\",\"orderBy\":\"_key\",\"otherBucket\":false,\"otherBucketLabel\":\"Other\",\"missingBucket\":false,\"missingBucketLabel\":\"Missing\",\"customLabel\":\"SEG Label List\"}}]}",
+      "uiStateJSON": "{\"vis\":{\"params\":{\"sort\":{\"columnIndex\":1,\"direction\":\"desc\"}}}}",
+      "description": "",
+      "version": 1,
+      "kibanaSavedObjectMeta": {
+        "searchSourceJSON": "{\"index\":\"meta-index\",\"query\":{\"query\":\"\",\"language\":\"lucene\"},\"filter\":[]}"
+      }
+    },
+    "_meta": {
+      "savedObjectVersion": 2
+    },
+    "_migrationVersion": {
+      "visualization": "6.7.2"
     }
   }
 ]

@@ -81,12 +81,7 @@ def find_code_meaning(tag):
 
 
 def process_seg_info(seg_info, series_description):
-    split_seg_info = seg_info.split('@')
-    if len(split_seg_info) > 1:
-        code_meaning = f'{split_seg_info[-1].capitalize()}_{split_seg_info[0].capitalize()}'
-    else:
-        code_meaning = f'{split_seg_info[0].capitalize()}'
-
+    code_meaning = str(seg_info)
     series_description_code_meaning = f'{code_meaning}'
 
     if series_description != "":

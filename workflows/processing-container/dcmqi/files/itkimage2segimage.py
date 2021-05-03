@@ -140,16 +140,28 @@ def adding_aetitle(element_input_dir, output_dcm_file, body_part):
 
     dcm_file = dcm_files[0]
     print("dcm-file: {}".format(dcm_file))
+    input_dicom = pydicom.dcmread(dcm_file)
     try:
-        aetitle = pydicom.dcmread(dcm_file)[0x0012, 0x0020].value
+        aetitle = input_dicom[0x0012, 0x0020].value
     except KeyError:
         aetitle = 'internal'
+    try:
+        dicom_body_part = input_dicom[0x0018, 0x0015].value
+    except KeyError:
+        dicom_body_part = None
 
     dcmseg_file = pydicom.dcmread(output_dcm_file)
     print(f"# Adding aetitle:   {aetitle}")
-    print(f"# Adding body_part: {body_part}")
+    if body_part == "N/A" and dicom_body_part is not None:
+        print(f"# Adding dicom-body_part: {dicom_body_part}")
+        dcmseg_file.add_new([0x0018, 0x0015], 'LO', dicom_body_part)  # Body Part Examined
+    elif body_part != "N/A":
+        print(f"# Adding model-body_part: {body_part}")
+        dcmseg_file.add_new([0x0018, 0x0015], 'LO', body_part)  # Body Part Examined
+    else:
+        print("# Could not extract any body-part!")
+
     dcmseg_file.add_new([0x012, 0x020], 'LO', aetitle)  # Clinical Trial Protocol ID
-    dcmseg_file.add_new([0x0018, 0x0015], 'LO', body_part)  # Body Part Examined
     dcmseg_file.save_as(output_dcm_file)
 
 # Example: https://github.com/QIICR/dcmqi/blob/master/doc/examples/seg-example.json
@@ -326,11 +338,6 @@ for batch_element_dir in batch_folders:
                 except subprocess.CalledProcessError as e:
                     print(f'The image seems to have empty slices, we will skip them! This might make the segmentation no usable anymore for MITK. Error: {e.output}')
                     raise AssertionError(f'Something weng wrong while creating the single-label-dcm object {e.output}')
-
-
-            body_part = "N/A"
-            if "task_body_part" in data:
-                body_part = data['seg_info']
 
             adding_aetitle(element_input_dir, output_dcm_file, body_part="N/A")
             processed_count += 1

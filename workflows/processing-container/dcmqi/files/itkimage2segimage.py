@@ -81,7 +81,7 @@ def find_code_meaning(tag):
 
 
 def process_seg_info(seg_info, series_description):
-    code_meaning = str(seg_info)
+    code_meaning = str(seg_info).lower()
     series_description_code_meaning = f'{code_meaning}'
 
     if series_description != "":

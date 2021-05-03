@@ -18,7 +18,7 @@
    
 6) Überprüfung: **watch microk8s.kubectl get pods --all-namespaces**
    
-7)  Wenn bei STATUS bei allen Einträgen "running" oder "completed" steht, ist die Installation abgeschlossen
+7) Wenn bei STATUS bei allen Einträgen "running" oder "completed" steht, ist die Installation abgeschlossen. Im NAMESPACE "default" und "flow-jobs" müssen bei Installation alle auf "completed" stehen!
 
 ![pods](running_pods.png)
    
@@ -41,6 +41,8 @@
     - code-server-chart  -> INSTALL
     - nnunet-workflow    -> INSTALL
     - radiomics-workflow -> INSTALL
+    - shapemodel-vdev-workflow -> INSTALL
+    - jupyterlab-chart -> LAUNCH
     - tensorboard-chart  -> LAUNCH
 
 13) Warten bis alle Extensions laufen
@@ -48,16 +50,19 @@
 15) Überprüfen ob bei "FLOW" alle Kreise grün sind.
 16) Überprüfen ob die installierten Workflows gelistet werden (kann 1-3 min dauern!):
     
+    - nnunet-ensemble
+    - nnunet-model-install
+    - nnunet-model-uninstall
     - nnunet-predict
     - nnunet-train
-    - racoon-train
-    - raciomics-dcmseg
+    - radiomics-dcmseg
+    - shapemodel-organ-seg
 
 17) DONE
 
 Andere Passwörter:
 
--> Admin Login Keycloak (user-management von der Plattform):
+-> Admin Login Keycloak (user-management von der Plattform, erreichbar über Menu: System auf Landing page):
 
     Username: racoon-admin
     password: EjsH53fXznKMtVFfwXxS
@@ -68,17 +73,17 @@ Betriebssystem image:
 
     Ubuntu-20.04-server
 
-Festplatten
+Festplatten (Je nach Verfügbar, aber ungefähr)
   
-    -> 200GB system -> Anpassung der System-partition auf 198GB
+    -> 20% des Systemspeichers -> Anpassung der System-partition auf die resultierende Größe
 
-    -> 500GB data disk mounted at /mnt/data (fs btrfs)
+    -> 80% des Systemspeichers -> Data disk mounted at /mnt/data (fs btrfs)
 
-credentials (initial):
+Credentials of VM:
   
-    user: kaapana
+    user: racoon
 
-    pw: kaapana
+    pw: GoRACOON21
 
 
 # NVIDIA Treiber 
@@ -113,28 +118,31 @@ Benötigt werden zudem Username und Passwort für die container-registry:
 
 Testen der HDDs:
 
-    df -h /home -> ~200GB available
-    df -h /mnt/data -> ~500GB available
+    df -h /home -> ~20% des Gesamtspeichers verfügbar
+    df -h /mnt/data -> ~80% des Gesamtspeichers verfügbar
 
-install_server.sh auf die VM kopieren:
+install_server.sh auf die VM übertragen. Hierzu in der VM:
 
     nano install_server.sh
-    den Skript-inhalt in das Terminal kopieren
-    strg +x -> y -> enter
-    chmod +x install_server.sh
+    das Skript öffnen wo verfügbar (vermutlich Host-System)
+    den Skript-Inhalt in den Nano-Terminal kopieren
+    Mit nano geöffnete Datei speichern und schließen: strg +x -> y -> enter
+    Datei executable machen: chmod +x install_server.sh
 
-install_racoon.sh auf die VM kopieren:
+install_racoon.sh auf die VM übertragen. Hierzu in der VM:
 
     nano install_racoon.sh
-    den Skript-inhalt in das Terminal kopieren
-    strg +x -> y -> enter
-    chmod +x install_racoon.sh
+    das Skript öffnen wo verfügbar (vermutlich Host-System)
+    den Skript-Inhalt in den Nano-Terminal kopieren
+    Mit nano geöffnete Datei speichern und schließen: strg +x -> y -> enter
+    Datei executable machen: chmod +x install_racoon.sh
 
-change_port_template.yaml auf die VM kopieren:
+change_port_template.yaml auf die VM übertragen. Hierzu in der VM:
 
     nano change_port_template.yaml
-    YAML in das Terminal pasten
-    strg +x -> y -> enter
+    das Skript öffnen wo verfügbar (vermutlich Host-System)
+    YAML in das Nano-Terminal kopieren
+    Mit nano geöffnete Datei speichern und schließen: strg +x -> y -> enter
 
 Installation software dependencies:
 
@@ -150,7 +158,7 @@ Installation JIP:
     DOMAIN: IP des Servers (der Server auf dem die VMs laufen)
     Warten bis das Deployment abgeschlossen ist
     Überprüfung: **watch microk8s.kubectl get pods --all-namespaces**
-    Wenn bei STATUS bei allen Einträgen "running" oder "completed" steht, ist die Installation abgeschlossen (ca. 10 min warten dann sollte alles laufen)
+    Wenn bei STATUS bei allen Einträgen "running" oder "completed" steht, ist die Installation abgeschlossen (ca. 10 min warten dann sollte alles laufen). Im NAMESPACE "default" und "flow-jobs" müssen bei Installation alle auf "completed" stehen!
     Aufruf UI der Platform über den Browser: https://DOMAIN-SERVER:8443
     Alle Extensions installieren, die auf der landing-page angezeigt werden. (Die nnUNet-model-downloads benötigen Zeit für den Download - am besten einfach ein paar h laufen lassen)
 
@@ -158,7 +166,7 @@ Danach un-deployment der platform:
     ./install_racoon.sh
     -> Uninstall platform 
     -> warten bis alles runtergefahren ist
-    -> **offline-mode** in **install_racoon.sh** aktivieren
+    -> **offline-mode** in **install_racoon.sh** aktivieren: OFFLINE_MODE="false"
 
 Ubuntu-User Passwort:
 

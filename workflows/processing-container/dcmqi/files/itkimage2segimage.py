@@ -92,7 +92,7 @@ def process_seg_info(seg_info, series_description):
 
 def create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, color, label_name="", labelID=1):
     try:
-        search_key = code_meaning.split("_")[0].lower()
+        search_key = code_meaning.split("@")[-1].lower() if "@" in code_meaning else code_meaning
         print("Searching coding-scheme for code-meaning: {}".format(code_meaning))
         print("Search-key: {}".format(search_key))
         coding_scheme = find_code_meaning(tag=search_key)
@@ -352,7 +352,7 @@ for batch_element_dir in batch_folders:
             exit(1)
 
         label_info = data['seg_info']
-        
+
         body_part = "N/A"
         if "task_body_part" in data:
             body_part = data['task_body_part']
@@ -364,7 +364,7 @@ for batch_element_dir in batch_folders:
 
         label_counts = len(label_info)
         for idx, label in enumerate(label_info):
-            label_int = int(label["label_int"]) 
+            label_int = int(label["label_int"])
             single_label_seg_info = label["label_name"]
             print(f"process: {single_label_seg_info}: {label_int}")
 

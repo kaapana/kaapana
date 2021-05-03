@@ -4,6 +4,12 @@ from datetime import timedelta
 from airflow.utils.dates import days_ago
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.operators.LocalCtpQuarantineCheckOperator import LocalCtpQuarantineCheckOperator
+import json
+from os.path import realpath,join,basename,dirname
+
+trigger_dict_path = join(dirname(realpath(__file__)),"trigger_dict.json")
+with open(trigger_dict_path,"r") as f:
+    trigger_dict = json.load(f)
 
 args = {
     'ui_visible': False,
@@ -12,7 +18,6 @@ args = {
     'retries': 1,
     'retry_delay': timedelta(seconds=60)
 }
-
 
 dag = DAG(
     dag_id='service-process-incoming-dcm',
@@ -70,8 +75,15 @@ def process_incoming(ds, **kwargs):
 
     dcm_files = check_all_files_arrived(dcm_path)
     incoming_dcm = pydicom.dcmread(dcm_files[0])
-    # @all images
-    trigger_it(dag_id="service-extract-metadata", dcm_path=dcm_path, series_uid=series_uid)
+    for dcm_tag, value in trigger_dict.items():
+        if dcm_tag == "all":
+            for dag_id in value["dag_ids"]:
+                print(f"# Trigger all -> dag_id : {dag_id}")
+                trigger_it(dag_id=dag_id, dcm_path=dcm_path, series_uid=series_uid)
+        elif dcm_tag in incoming_dcm and str(incoming_dcm[dcm_tag]).lower() == str(value["value"]).lower():
+            for dag_id in value["dag_ids"]:
+                print(f"# Trigger {dcm_tag}: {value['value']} -> dag_id : {dag_id}")
+                trigger_it(dag_id=dag_id, dcm_path=dcm_path, series_uid=series_uid)
 
     import shutil
     print(("Deleting temp data: %s" % dcm_path))

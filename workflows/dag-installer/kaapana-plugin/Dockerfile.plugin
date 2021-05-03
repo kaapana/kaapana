@@ -11,6 +11,7 @@ COPY dags/dag_service_extract_metadata.py /tmp/dags/
 COPY dags/dag_collect_metadata.py /tmp/dags/
 COPY dags/dag_send_dicom.py /tmp/dags/
 
+COPY dags/trigger_dict.json /tmp/dags/trigger_dict.json
 COPY dags/dag_service_process_incoming_dcm.py /tmp/dags/
 COPY dags/dag_service_minio_dicom_upload.py /tmp/dags/
 COPY dags/dag_service_reindex_dicom_data.py /tmp/dags/

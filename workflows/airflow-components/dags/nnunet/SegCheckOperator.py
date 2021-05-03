@@ -5,7 +5,7 @@ from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_r
 from datetime import timedelta
 import os
 class SegCheckOperator(KaapanaBaseOperator):
-    execution_timeout = timedelta(minutes=240)
+    execution_timeout = timedelta(hours=10)
 
     def __init__(self,
                  dag,
@@ -15,7 +15,6 @@ class SegCheckOperator(KaapanaBaseOperator):
                  interpolator=1,  # 0=linear (default), 1=nearest neighbor, 2=sinc (optional), (default: 0), Type: Int
                  delete_merged_data=True,
                  fail_if_overlapping=True,
-                 skipping_if_overlapping=False,
                  fail_if_label_already_present=False,
                  fail_if_label_id_not_extractable=False,
                  force_same_labels=False,
@@ -33,7 +32,6 @@ class SegCheckOperator(KaapanaBaseOperator):
             "ORG_IMG_BATCH_NAME": str(original_img_batch_name),
             "THREADS": str(parallel_processes),
             "FAIL_IF_OVERLAPPING": str(fail_if_overlapping),
-            "SKIPPING_IF_OVERLAPPING": str(skipping_if_overlapping),
             "FAIL_IF_LABEL_ALREADY_PRESENT": str(fail_if_label_already_present),
             "FAIL_IF_LABEL_ID_NOT_EXTRACTABLE": str(fail_if_label_id_not_extractable),
             "FORCE_SAME_LABELS": str(force_same_labels),

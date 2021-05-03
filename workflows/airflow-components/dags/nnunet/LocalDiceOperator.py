@@ -390,7 +390,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
             python_callable=self.start,
             batch_name=batch_name,
             workflow_dir=workflow_dir,
-            execution_timeout=timedelta(minutes=320),
+            execution_timeout=timedelta(hours=5),
             *args,
             **kwargs
         )

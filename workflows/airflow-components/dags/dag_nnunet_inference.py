@@ -14,6 +14,7 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 max_active_runs = 10
+concurrency = max_active_runs * 2
 default_interpolation_order = "default"
 default_prep_thread_count = 1
 default_nifti_thread_count = 1
@@ -169,7 +170,7 @@ args = {
 dag = DAG(
     dag_id='nnunet-predict',
     default_args=args,
-    concurrency=10,
+    concurrency=concurrency,
     max_active_runs=max_active_runs,
     schedule_interval=None
 )

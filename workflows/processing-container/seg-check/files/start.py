@@ -22,6 +22,11 @@ execution_timeout = 120
 processed_count = 0
 merged_counter = 0
 
+skipped_dict = {
+    "segmentation_files":[],
+    "base_images":[]
+}
+
 
 def create_metadata_json(new_labels_dict):
     metadata_dict = {
@@ -48,13 +53,14 @@ def check_overlapping(gt_map, new_map):
     max_value = int(np.amax(agg_arr))
     if max_value > 1:
         print("# Overlapping Segmentations!!!")
-        return True
+        # overlapping_indexes = np.where(agg_arr > 1)
+        return True, agg_arr > 1
     else:
-        return False
+        return False, None
 
 
 def merge_niftis(queue_dict):
-    global global_labels_info, merged_counter, delete_merged_data, skipping_if_overlapping
+    global global_labels_info, merged_counter, delete_merged_data, fail_if_overlapping, skipping_level, skipped_dict
 
     target_dir = queue_dict["target_dir"]
     base_image_path = queue_dict["base_image"]
@@ -196,12 +202,26 @@ def merge_niftis(queue_dict):
             print(f"# Same label-id -> ok")
 
         print("# Merging...")
-        if check_overlapping(gt_map=new_gt_map, new_map=loaded_seg_nifti):
-            print(f"# Found overlapping segmentation: {extracted_label_tag}")
+        result_overlapping, overlapping_indices = check_overlapping(gt_map=new_gt_map, new_map=loaded_seg_nifti)
+        if result_overlapping:
+            existing_overlapping_labels = np.unique(new_gt_map[overlapping_indices])
+            print("#")
+            print("##################################################")
+            print("#")
+            print(f"# Found overlapping segmentation:")
+            for existing_overlapping_label_int in existing_overlapping_labels:
+                existing_overlapping_label = [k for k, v in global_labels_info.items() if v == existing_overlapping_label_int][0]
+                print("#")
+                print(f"# Base_image: {basename(base_image_path)}")
+                print(f"# existing vs new: {existing_overlapping_label} vs {extracted_label_tag}")
+                print("#")
+            print("##################################################")
+            print("#")
             if new_global_id:
                 del global_labels_info[extracted_label_tag]
-            if skipping_if_overlapping:
+            if not fail_if_overlapping and skipping_level == "segmentation":
                 print(f"# Skipping this segmentation file!")
+                skipped_dict["segmentation_files"].append(seg_nifti)
                 continue
             else:
                 return queue_dict, "overlapping"
@@ -346,9 +366,6 @@ assert parallel_processes is not None
 fail_if_overlapping = getenv("FAIL_IF_OVERLAPPING", "None")
 fail_if_overlapping = True if fail_if_overlapping.lower() == "true" else False
 
-skipping_if_overlapping = getenv("SKIPPING_IF_OVERLAPPING", "None")
-skipping_if_overlapping = False if skipping_if_overlapping.lower() == "false" else True
-
 fail_if_label_already_present = getenv("FAIL_IF_LABEL_ALREADY_PRESENT", "None")
 fail_if_label_already_present = False if fail_if_label_already_present.lower() == "false" else True
 
@@ -361,15 +378,17 @@ force_same_labels = True if force_same_labels.lower() == "true" else False
 delete_merged_data = getenv("DELETE_MERGED_DATA", "None")
 delete_merged_data = False if delete_merged_data.lower() == "false" else True
 
-# workflow_dir = "/home/jonas/Downloads/new_data2"
+# workflow_dir = "/home/jonas/Downloads/new_data"
 # batch_name = "batch"
 # operator_in_dir = "dcmseg2nrrd-seg"
 # org_input_dir = "dcm-converter-ct"
 # operator_out_dir = "output_seg_check"
 # executable = "/home/jonas/software/mitk-phenotyping/MitkCLResampleImageToReference.sh"
 # fail_if_overlapping = False
-# skipping_if_overlapping = True
 # parallel_processes = 3
+# delete_merged_data = False
+
+skipping_level = "base_image"  # or 'segmentation'
 
 print("##################################################")
 print("#")
@@ -384,7 +403,6 @@ print("#")
 print(f"# force_same_labels: {force_same_labels}")
 print(f"# delete_merged_data: {delete_merged_data}")
 print(f"# fail_if_overlapping: {fail_if_overlapping}")
-print(f"# skipping_if_overlapping: {skipping_if_overlapping}")
 print(f"# fail_if_label_already_present: {fail_if_label_already_present}")
 print(f"# fail_if_label_not_extractable: {fail_if_label_not_extractable}")
 print("#")
@@ -499,17 +517,22 @@ for queue_dict, nifti_result in nifti_results:
     base_image = queue_dict["base_image"]
     batch_elements_to_remove = queue_dict["batch_elements_to_remove"]
 
+    remove_elements = False
+
     print(f"# Result for {base_image} arrived: {nifti_result}")
     if nifti_result == "ok":
         processed_count += 1
-        for batch_element_to_remove in batch_elements_to_remove:
-            print(f"# Removing merged dir: {batch_element_to_remove}")
-            shutil.rmtree(batch_element_to_remove, ignore_errors=True)
+        remove_elements = True
     elif nifti_result == "overlapping":
         if fail_if_overlapping:
             exit(1)
-        else:
+        elif skipping_level == "base_image":
             print(f"# Skipping overlapping segmentations -> deleting batch-elements for gt-image: {base_image}")
+            skipped_dict["base_images"].append(base_image)
+            remove_elements = True
+        else:
+            print(f"# Should not happen...")
+            exit(1)
 
     elif nifti_result == "extracted_label_tag is None":
         if fail_if_label_not_extractable:
@@ -523,6 +546,21 @@ for queue_dict, nifti_result in nifti_results:
     else:
         print(f"# Unknown status message: {nifti_result}")
         exit(1)
+    if remove_elements:
+        for batch_element_to_remove in batch_elements_to_remove:
+            print(f"# Removing merged dir: {batch_element_to_remove}")
+            shutil.rmtree(batch_element_to_remove, ignore_errors=True)
+
+
+if len(skipped_dict["base_images"]) > 0 or len(skipped_dict["segmentations"]) > 0:
+    print("##################################################")
+    print("# ")
+    print("# Skipped elements: ")
+    print("# ")
+    print(json.dumps(skipped_dict, indent=4, sort_keys=True, default=str))
+    print("# ")
+    print("#")
+    print("##################################################")
 
 if processed_count == 0:
     print("#")

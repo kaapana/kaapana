@@ -12,11 +12,11 @@ import os
 def send_dcm_dir(input_dir):
     global processed_count, execution_timeout, server, port, dataset, scan_pattern
     print(f"#")
-    print(f"# Sending dir: {input_dir}")
-    print(f"#")
+    print(f"# Sending dir: {dirname(input_dir)}")
     print(f"#")
     command = ["dcmsend", "-v", f"{server}", f"{port}", "-aet", f"push_tool", "-aec", f"{dataset}", "--scan-directories", "--scan-pattern", f"{scan_pattern}", "--recurse", f"{input_dir}"]
-    # print(f"# COMMAND: {command}")
+    # command_str = " ".join(command)
+    # print(f"# COMMAND: {command_str}")
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=execution_timeout)
     # command stdout output -> output.stdout
     # command stderr output -> output.stderr
@@ -25,12 +25,9 @@ def send_dcm_dir(input_dir):
         for line in str(output).split("\\n"):
             print(line)
         print("##################################################")
-        return False, input_dir
-    else:
-        print(f"Success: {input_dir}")
-        print("")
+        return False, dirname(input_dir)
     processed_count += 1
-    return True, input_dir
+    return True, dirname(input_dir)
 
 
 if __name__ == '__main__':
@@ -54,7 +51,7 @@ if __name__ == '__main__':
     max_series = int(args.max_series)
 
     processed_count = 0
-    execution_timeout = 30
+    execution_timeout = 300
 
     print(f"# ")
     print(f"# ")
@@ -78,6 +75,7 @@ if __name__ == '__main__':
         if dcm_dir not in dicom_dirs:
             dicom_dirs.append(dcm_dir)
 
+    dicom_dirs = sorted(dicom_dirs)
     print(f"# Found {len(dicom_dirs)} DICOM-dirs.")
     if max_series != 0 and len(dicom_dirs) > max_series:
         print(f"# Set series limit to max_series: {max_series} ...")
@@ -93,6 +91,6 @@ if __name__ == '__main__':
 
         print("#")
         print("#")
-        print(f"# Sent {processed_count} series!")
+        print(f"# {processed_count} series sent!")
         print("#")
         print("#")

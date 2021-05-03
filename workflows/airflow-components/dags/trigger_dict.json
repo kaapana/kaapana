@@ -1,0 +1,8 @@
+{
+    "all": {
+        "value": "-",
+        "dag_ids": [
+            "service-extract-metadata"
+        ]
+    }
+}

@@ -53,7 +53,6 @@ do
         filename=${file_found##*/};
         
         mkdir -p "$batch_output_dir"
-        
         if [ "$CONVERTFROM" == "dcm" ];then
             series_uid=$(dcmdump -s --search "0020,000E"  $file_found | cut -d "[" -f2 | cut -d "]" -f1)
             output_filepath="$batch_output_dir"/"$series_uid"."$CONVERTTO"
@@ -69,7 +68,14 @@ do
         
         ((++loop_counter))
         install -Dv / $output_filepath
-        $FILECONVERTER -i "$file_found" -o "$output_filepath";
+        
+        if [ -s "$output_filepath" ]
+        then 
+            echo "# File already found -> skipping !"
+        else
+            echo "# Target file does not exist, or is empty -> start file-converter... "
+            $FILECONVERTER -i "$file_found" -o "$output_filepath";
+        fi
         
         [ ! -f "$output_filepath" ] && { echo "Error: Converted file not found!."; exit 2; }
         if [ -s "$output_filepath" ]

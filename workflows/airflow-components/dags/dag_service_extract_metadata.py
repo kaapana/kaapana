@@ -27,7 +27,7 @@ dag = DAG(
     schedule_interval=None
 )
 
-get_input = LocalGetInputDataOperator(dag=dag, operator_out_dir='extract-metadata-input')
+get_input = LocalGetInputDataOperator(dag=dag, operator_out_dir='get-input-data')
 dcm_send = DcmSendOperator(
     dag=dag,
     input_operator=get_input,

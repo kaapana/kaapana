@@ -15,16 +15,16 @@ from multiprocessing.pool import ThreadPool
 # For shell-execution
 from subprocess import PIPE, run
 
-from numpy.lib.function_base import delete
 execution_timeout = 120
 
 # Counter to check if smth has been processed
 processed_count = 0
 merged_counter = 0
+min_voxel_count_overlapping = 10
 
 skipped_dict = {
-    "segmentation_files":[],
-    "base_images":[]
+    "segmentation_files": [],
+    "base_images": []
 }
 
 
@@ -46,17 +46,37 @@ def create_metadata_json(new_labels_dict):
 
 
 def check_overlapping(gt_map, new_map):
+    global min_voxel_count_overlapping
+
     gt_map = np.where(gt_map != 0, 1, gt_map)
     new_map = np.where(new_map != 0, 1, new_map)
 
     agg_arr = gt_map + new_map
     max_value = int(np.amax(agg_arr))
     if max_value > 1:
+        print("#")
+        print("##################################################")
+        print("#")
         print("# Overlapping Segmentations!!!")
-        # overlapping_indexes = np.where(agg_arr > 1)
-        return True, agg_arr > 1
+        print("#")
+        overlapping_indices = agg_arr > 1
+        overlapping_voxel_count = overlapping_indices.sum()
+        print(f"# Overlapping voxel_count: {overlapping_voxel_count} / {min_voxel_count_overlapping}")
+        if overlapping_voxel_count > min_voxel_count_overlapping:
+            print("# Too many voxels are overlapping -> skipping")
+            print("#")
+            print(f"# overlapping_voxel_count: {overlapping_voxel_count} > min_voxel_count_overlapping: {min_voxel_count_overlapping}")
+            print("##################################################")
+            print("#")
+            return True, overlapping_indices, overlapping_voxel_count
+        else:
+            print("# Not enough voxels are overlapping -> ok")
+            print("#")
+            print("##################################################")
+            print("#")
+            return False, None, None
     else:
-        return False, None
+        return False, None, None
 
 
 def merge_niftis(queue_dict):
@@ -202,7 +222,7 @@ def merge_niftis(queue_dict):
             print(f"# Same label-id -> ok")
 
         print("# Merging...")
-        result_overlapping, overlapping_indices = check_overlapping(gt_map=new_gt_map, new_map=loaded_seg_nifti)
+        result_overlapping, overlapping_indices, overlapping_voxel_count = check_overlapping(gt_map=new_gt_map, new_map=loaded_seg_nifti)
         if result_overlapping:
             existing_overlapping_labels = np.unique(new_gt_map[overlapping_indices])
             print("#")
@@ -210,7 +230,12 @@ def merge_niftis(queue_dict):
             print("#")
             print(f"# Found overlapping segmentation:")
             for existing_overlapping_label_int in existing_overlapping_labels:
-                existing_overlapping_label = [k for k, v in global_labels_info.items() if v == existing_overlapping_label_int][0]
+                existing_overlapping_label = [k for k, v in global_labels_info.items() if v == existing_overlapping_label_int]
+                if len(existing_overlapping_label) > 0:
+                    existing_overlapping_label = existing_overlapping_label[0]
+                else:
+                    print(f"# Could not find any existing_overlapping_label for encoding: {existing_overlapping_label_int}")
+                    existing_overlapping_label = "Not found!"
                 print("#")
                 print(f"# Base_image: {basename(base_image_path)}")
                 print(f"# existing vs new: {existing_overlapping_label} vs {extracted_label_tag}")
@@ -221,7 +246,7 @@ def merge_niftis(queue_dict):
                 del global_labels_info[extracted_label_tag]
             if not fail_if_overlapping and skipping_level == "segmentation":
                 print(f"# Skipping this segmentation file!")
-                skipped_dict["segmentation_files"].append(seg_nifti)
+                skipped_dict["segmentation_files"].append(f"{seg_nifti}: {overlapping_voxel_count} overlapping voxels")
                 continue
             else:
                 return queue_dict, "overlapping"
@@ -329,7 +354,7 @@ def resample_image(input_path, original_path, replace=True, target_dir=None):
 
 workflow_dir = getenv("WORKFLOW_DIR", "None")
 workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
-assert workflow_dir is not None
+# assert workflow_dir is not None
 
 batch_name = getenv("BATCH_NAME", "batch")
 batch_name = batch_name if batch_name.lower() != "none" else None
@@ -337,15 +362,15 @@ assert batch_name is not None
 
 operator_in_dir = getenv("OPERATOR_IN_DIR", "None")
 operator_in_dir = operator_in_dir if operator_in_dir.lower() != "none" else None
-assert operator_in_dir is not None
+# assert operator_in_dir is not None
 
 org_input_dir = getenv("ORG_IMG_IN_DIR", "None")
 org_input_dir = org_input_dir if org_input_dir.lower() != "none" else None
-assert org_input_dir is not None
+# assert org_input_dir is not None
 
 operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
 operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
-assert operator_out_dir is not None
+# assert operator_out_dir is not None
 
 executable = getenv("EXECUTABLE", "/src/MitkCLResampleImageToReference.sh")
 executable = executable if executable.lower() != "none" else None
@@ -368,6 +393,9 @@ fail_if_overlapping = True if fail_if_overlapping.lower() == "true" else False
 
 fail_if_label_already_present = getenv("FAIL_IF_LABEL_ALREADY_PRESENT", "None")
 fail_if_label_already_present = False if fail_if_label_already_present.lower() == "false" else True
+
+fail_if_empty_gt = getenv("FAIL_IF_EMPTY_GT", "None")
+fail_if_empty_gt = True if fail_if_empty_gt.lower() == "true" else False
 
 fail_if_label_not_extractable = getenv("FAIL_IF_LABEL_ALREADY_PRESENT", "None")
 fail_if_label_not_extractable = False if fail_if_label_not_extractable.lower() == "false" else True
@@ -545,7 +573,18 @@ for queue_dict, nifti_result in nifti_results:
     elif nifti_result == "resampling failed":
         exit(1)
     elif nifti_result == "no labels found":
-        exit(1)
+        print("##################################################")
+        print("# ")
+        print("# No labels could be found in merged-gt-mask! ")
+        print(f"# {base_image}")
+        print("# ")
+        if fail_if_empty_gt:
+            exit(1)
+        else:
+            remove_elements = True
+            print("# Skipping -> deleting batch-elements for gt-image: ")
+            print("#")
+            print("##################################################")
     else:
         print(f"# Unknown status message: {nifti_result}")
         exit(1)
@@ -555,7 +594,7 @@ for queue_dict, nifti_result in nifti_results:
             shutil.rmtree(batch_element_to_remove, ignore_errors=True)
 
 
-if len(skipped_dict["base_images"]) > 0 or len(skipped_dict["segmentations"]) > 0:
+if len(skipped_dict["base_images"]) > 0 or len(skipped_dict["segmentation_files"]) > 0:
     print("##################################################")
     print("# ")
     print("# Skipped elements: ")

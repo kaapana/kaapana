@@ -5,10 +5,14 @@ from airflow.utils.dates import days_ago
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.operators.LocalCtpQuarantineCheckOperator import LocalCtpQuarantineCheckOperator
 import json
-from os.path import realpath,join,basename,dirname
+from os.path import realpath, join, basename, dirname
+import os
+import shutil
+import pydicom
+import glob
 
-trigger_dict_path = join(dirname(realpath(__file__)),"trigger_dict.json")
-with open(trigger_dict_path,"r") as f:
+trigger_dict_path = join(dirname(realpath(__file__)), "trigger_dict.json")
+with open(trigger_dict_path, "r") as f:
     trigger_dict = json.load(f)
 
 args = {
@@ -29,17 +33,6 @@ dag = DAG(
 
 
 def process_incoming(ds, **kwargs):
-    import shutil
-    import errno
-    import pydicom
-    import glob
-    import json
-    import time
-    import os
-    import logging
-    import traceback
-    import uuid
-
     from airflow.api.common.experimental.trigger_dag import trigger_dag as trigger
 
     def check_all_files_arrived(dcm_path):
@@ -51,17 +44,15 @@ def process_incoming(ds, **kwargs):
         dcm_files = sorted(glob.glob(dcm_path+"/*.dcm*"))
         return dcm_files
 
-    def trigger_it(dag_id, dcm_path, series_uid):
+    def trigger_it(dag_id, dcm_path, series_uid, conf={}):
+        print("#")
+        print(f"# Triggering dag-id: {dag_id}")
+        print(f"# conf: {conf}")
+        print("#")
         dag_run_id = generate_run_id(dag_id)
-
-        target = os.path.join("/data", dag_run_id, "batch", series_uid, 'extract-metadata-input')
-        print("MOVE!")
-        print("SRC: {}".format(dcm_path))
-        print("TARGET: {}".format(target))
-        shutil.move(dcm_path, target)
-
-        print(("TRIGGERING! DAG-ID: %s RUN_ID: %s" % (dag_id, dag_run_id)))
-        trigger(dag_id=dag_id, run_id=dag_run_id, replace_microseconds=False)
+        target = os.path.join("/data", dag_run_id, "batch", series_uid, 'get-input-data')
+        shutil.copytree(src=dcm_path, dst=target)
+        trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
 
     dicom_path = kwargs['dag_run'].conf.get('dicom_path')
     patient_id = kwargs['dag_run'].conf.get('patientID')
@@ -75,17 +66,39 @@ def process_incoming(ds, **kwargs):
 
     dcm_files = check_all_files_arrived(dcm_path)
     incoming_dcm = pydicom.dcmread(dcm_files[0])
-    for dcm_tag, value in trigger_dict.items():
-        if dcm_tag == "all":
-            for dag_id in value["dag_ids"]:
-                print(f"# Trigger all -> dag_id : {dag_id}")
-                trigger_it(dag_id=dag_id, dcm_path=dcm_path, series_uid=series_uid)
-        elif dcm_tag in incoming_dcm and str(incoming_dcm[dcm_tag]).lower() == str(value["value"]).lower():
-            for dag_id in value["dag_ids"]:
-                print(f"# Trigger {dcm_tag}: {value['value']} -> dag_id : {dag_id}")
-                trigger_it(dag_id=dag_id, dcm_path=dcm_path, series_uid=series_uid)
+    incoming_modality = str(incoming_dcm[0x0008, 0x0060].value).lower()
+    print("# Check Triggering from trigger_dict...")
+    print("#")
+    print(f"# Incoming-Modality: {incoming_modality}")
+    print("#")
+    for dcm_tag, config_list in trigger_dict.items():
+        for config_entry in config_list:
+            searched_values = [str(each_value).lower() for each_value in config_entry["searched_values"]]
+            searched_modality = [str(each_value).lower() for each_value in config_entry["modality"]] if "modality" in config_entry else None
+            dcm_dataset = str(incoming_dcm[0x0012, 0x0020].value).lower() if (0x0012, 0x0020) in incoming_dcm else "N/A"
+            print("#")
+            print(f"# dcm_tag: {dcm_tag}")
+            print(f"# dag_ids: {config_entry['dag_ids']}")
+            print(f"# dcm_dataset:     {dcm_dataset}")
+            print(f"# searched_values:   {searched_values}")
+            print(f"# searched_modality: {searched_modality}")
+            print("#")
+            if dcm_tag == "all":
+                for dag_id, conf in config_entry["dag_ids"].items():
+                    print("# Triggering 'all'")
+                    trigger_it(dag_id=dag_id, dcm_path=dcm_path, series_uid=series_uid, conf=conf)
 
-    import shutil
+            elif dcm_tag == "dataset" and dcm_dataset in searched_values and (searched_modality is None or incoming_modality in searched_modality):
+                print(f"# Trigger because of dataset-match: {dcm_dataset}")
+                for dag_id, conf in config_entry["dag_ids"].items():
+                    trigger_it(dag_id=dag_id, dcm_path=dcm_path, series_uid=series_uid, conf=conf)
+
+            elif dcm_tag in incoming_dcm and str(incoming_dcm[dcm_tag]).lower() in searched_values and (searched_modality is None or incoming_modality in searched_modality):
+                for dag_id, conf, in config_entry["dag_ids"].items():
+                    print("# Triggering dcm_tag -> '{dcm_tag}'")
+                    trigger_it(dag_id=dag_id, dcm_path=dcm_path, series_uid=series_uid, conf=conf)
+            print("#")
+
     print(("Deleting temp data: %s" % dcm_path))
     shutil.rmtree(dcm_path, ignore_errors=True)
 

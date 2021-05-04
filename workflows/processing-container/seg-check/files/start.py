@@ -20,13 +20,26 @@ execution_timeout = 120
 # Counter to check if smth has been processed
 processed_count = 0
 merged_counter = 0
-min_voxel_count_overlapping = 10
-
+max_overlapping_percentage = 0.001
+base_image_ref_dict = {}
 skipped_dict = {
     "segmentation_files": [],
     "base_images": []
 }
 
+def write_global_seg_info():
+    global global_labels_info_path, global_labels_info
+    with open(global_labels_info_path, "w", encoding='utf-8') as jsonData:
+        json.dump(global_labels_info, jsonData, indent=4, ensure_ascii=True)
+
+def read_global_seg_info():
+    global global_labels_info_path, global_labels_info
+    if not exists(global_labels_info_path):
+        global_labels_info = {}
+        write_global_seg_info()
+
+    with open(global_labels_info_path,"r") as f:
+        global_labels_info = json.load(f)
 
 def create_metadata_json(new_labels_dict):
     metadata_dict = {
@@ -45,8 +58,8 @@ def create_metadata_json(new_labels_dict):
     return metadata_dict
 
 
-def check_overlapping(gt_map, new_map):
-    global min_voxel_count_overlapping
+def check_overlapping(gt_map, new_map, seg_nifti):
+    global skipped_dict, max_overlapping_percentage
 
     gt_map = np.where(gt_map != 0, 1, gt_map)
     new_map = np.where(new_map != 0, 1, new_map)
@@ -59,16 +72,21 @@ def check_overlapping(gt_map, new_map):
         print("#")
         print("# Overlapping Segmentations!!!")
         print("#")
+        print(f"# NIFTI: {seg_nifti}")
+        print("#")
         overlapping_indices = agg_arr > 1
         overlapping_voxel_count = overlapping_indices.sum()
-        print(f"# Overlapping voxel_count: {overlapping_voxel_count} / {min_voxel_count_overlapping}")
-        if overlapping_voxel_count > min_voxel_count_overlapping:
+        overlapping_percentage = 100 * float(overlapping_voxel_count)/float(gt_map.size)
+        skipped_dict["segmentation_files"].append(f"{basename(seg_nifti)}: {overlapping_percentage:.6f}% / {max_overlapping_percentage}% overlapping")
+
+        print(f"# overlapping_percentage: {overlapping_percentage} / {max_overlapping_percentage}")
+        if overlapping_percentage > max_overlapping_percentage:
             print("# Too many voxels are overlapping -> skipping")
             print("#")
-            print(f"# overlapping_voxel_count: {overlapping_voxel_count} > min_voxel_count_overlapping: {min_voxel_count_overlapping}")
+            print(f"# overlapping_percentage: {overlapping_percentage:.6f} > max_overlapping_percentage: {max_overlapping_percentage}")
             print("##################################################")
             print("#")
-            return True, overlapping_indices, overlapping_voxel_count
+            return True, overlapping_indices, overlapping_percentage
         else:
             print("# Not enough voxels are overlapping -> ok")
             print("#")
@@ -80,7 +98,7 @@ def check_overlapping(gt_map, new_map):
 
 
 def merge_niftis(queue_dict):
-    global global_labels_info, merged_counter, delete_merged_data, fail_if_overlapping, skipping_level, skipped_dict
+    global global_labels_info, merged_counter, delete_merged_data, fail_if_overlapping, skipping_level
 
     target_dir = queue_dict["target_dir"]
     base_image_path = queue_dict["base_image"]
@@ -203,6 +221,7 @@ def merge_niftis(queue_dict):
 
         new_global_id = False
         global_label_id = None
+
         if extracted_label_tag in global_labels_info:
             print("# This label is already present in global label-dict!")
             global_label_id = global_labels_info[extracted_label_tag]
@@ -210,6 +229,7 @@ def merge_niftis(queue_dict):
             new_global_id = True
             global_label_id = len(global_labels_info.values())+1
             global_labels_info[extracted_label_tag] = global_label_id
+            write_global_seg_info()
             print(f"# This label NOT present in global label-dict -> adding {global_label_id}")
 
         if seg_id != global_label_id:
@@ -222,7 +242,7 @@ def merge_niftis(queue_dict):
             print(f"# Same label-id -> ok")
 
         print("# Merging...")
-        result_overlapping, overlapping_indices, overlapping_voxel_count = check_overlapping(gt_map=new_gt_map, new_map=loaded_seg_nifti)
+        result_overlapping, overlapping_indices, overlapping_percentage = check_overlapping(gt_map=new_gt_map, new_map=loaded_seg_nifti, seg_nifti=seg_nifti)
         if result_overlapping:
             existing_overlapping_labels = np.unique(new_gt_map[overlapping_indices])
             print("#")
@@ -244,9 +264,10 @@ def merge_niftis(queue_dict):
             print("#")
             if new_global_id:
                 del global_labels_info[extracted_label_tag]
+                write_global_seg_info()
+
             if not fail_if_overlapping and skipping_level == "segmentation":
                 print(f"# Skipping this segmentation file!")
-                skipped_dict["segmentation_files"].append(f"{seg_nifti}: {overlapping_voxel_count} overlapping voxels")
                 continue
             else:
                 return queue_dict, "overlapping"
@@ -268,6 +289,7 @@ def merge_niftis(queue_dict):
         print("#")
         if new_global_id:
             del global_labels_info[extracted_label_tag]
+            write_global_seg_info()
         return queue_dict, "no labels found"
 
     if multi:
@@ -295,6 +317,7 @@ def merge_niftis(queue_dict):
         if not resampling_success:
             if new_global_id:
                 del global_labels_info[extracted_label_tag]
+                write_global_seg_info()
             return queue_dict, "resampling failed"
         print("# Check if resampling-result...")
         merged_nifti_shape = nib.load(target_path_merged).shape
@@ -302,6 +325,7 @@ def merge_niftis(queue_dict):
             print("# Resampling was not successful!")
             if new_global_id:
                 del global_labels_info[extracted_label_tag]
+                write_global_seg_info()
             return queue_dict, "resampling failed"
         else:
             print("# Resampling successful!")
@@ -434,6 +458,8 @@ print(f"# fail_if_overlapping: {fail_if_overlapping}")
 print(f"# fail_if_label_already_present: {fail_if_label_already_present}")
 print(f"# fail_if_label_not_extractable: {fail_if_label_not_extractable}")
 print("#")
+print(f"# parallel_processes: {parallel_processes}")
+print("#")
 print("##################################################")
 print("#")
 print("# Starting processing on BATCH-ELEMENT-level ...")
@@ -441,11 +467,12 @@ print("#")
 print("##################################################")
 print("#")
 
-base_image_ref_dict = {}
-global_labels_info = {}
+global_labels_info_path = join('/', workflow_dir,operator_out_dir, "global_seg_info.json")
+Path(dirname(global_labels_info_path)).mkdir(parents=True, exist_ok=True)
+read_global_seg_info()
 
-# Loop for every batch-element (usually series)
 batch_dir_path = join('/', workflow_dir, batch_name)
+# Loop for every batch-element (usually series)
 batch_folders = [f for f in glob(join(batch_dir_path, '*'))]
 for batch_element_dir in batch_folders:
     print("####################################################################################################")

@@ -43,7 +43,7 @@ def process_input_file(filepath):
         print("#")
         print("##################################################")
         print("#")
-        exit(1)
+        return False, filepath
     processed_count += 1
     return True, filepath
 
@@ -93,7 +93,7 @@ print("#")
 batch_folders = [f for f in glob(join('/', workflow_dir, batch_name, '*'))]
 for batch_element_dir in batch_folders:
     print("#")
-    print("# Processing batch-element {batch_element_dir}")
+    print(f"# Processing batch-element {batch_element_dir}")
     print("#")
     element_input_dir = join(batch_element_dir, operator_in_dir)
     element_output_dir = join(batch_element_dir, operator_out_dir)
@@ -188,6 +188,9 @@ if processed_count == 0:
     print("#")
     exit(1)
 else:
+    print("#")
+    print(f"# ----> {processed_count} FILES HAVE BEEN PROCESSED!")
+    print("#")
     print("# DONE #")
 
     

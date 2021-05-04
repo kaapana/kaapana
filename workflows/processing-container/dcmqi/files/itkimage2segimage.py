@@ -432,7 +432,7 @@ if processed_count == 0:
     print("#")
     print("##################################################")
     print("#")
-    print("#################  ERROR  #######################")
+    print("##################  ERROR  #######################")
     print("#")
     print("# ----> NO FILES HAVE BEEN PROCESSED!")
     print("#")
@@ -440,4 +440,7 @@ if processed_count == 0:
     print("#")
     exit(1)
 else:
+    print("#")
+    print(f"# ----> {processed_count} FILES HAVE BEEN PROCESSED!")
+    print("#")
     print("# DONE #")

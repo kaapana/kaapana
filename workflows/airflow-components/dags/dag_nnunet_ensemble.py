@@ -14,6 +14,7 @@ from nnunet.GetTaskModelOperator import GetTaskModelOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
+from nnunet.SegCheckOperator import SegCheckOperator
 
 default_interpolation_order = "default"
 default_prep_thread_count = 1
@@ -188,15 +189,31 @@ data_organizer = LocalDataorganizerOperator(
     input_operator=nnunet_predict,
 )
 
-resample_gt = ResampleOperator(
-    dag=dag,
+resample_gt = SegCheckOperator(
+    dag,
     input_operator=dcm2nifti_gt,
     original_img_operator=dcm2nifti_ct,
-    operator_out_dir=dcm2nifti_gt.operator_out_dir,
-    parallel_id="gt",
+    parallel_processes=3,
+    delete_merged_data=True,
+    fail_if_overlapping=False,
+    fail_if_label_already_present=False,
+    fail_if_label_id_not_extractable=False,
+    force_same_labels=False,
+    # operator_out_dir=dcm2nifti_gt.operator_out_dir,
     batch_name=str(get_test_images.operator_out_dir),
-    delete_input_on_success=False,
+    parallel_id="gt",
 )
+
+# resample_gt = ResampleOperator(
+#     dag=dag,
+#     input_operator=dcm2nifti_gt,
+#     original_img_operator=dcm2nifti_ct,
+#     operator_out_dir=dcm2nifti_gt.operator_out_dir,
+#     parallel_id="gt",
+#     batch_name=str(get_test_images.operator_out_dir),
+#     delete_input_on_success=False,
+# )
+
 resample_single = ResampleOperator(
     dag=dag,
     operator_in_dir="single-model-prediction",
@@ -218,7 +235,7 @@ resample_ensemble = ResampleOperator(
 
 evaluation = LocalDiceOperator(
     dag=dag,
-    gt_operator=dcm2nifti_gt,
+    gt_operator=resample_gt,
     ensemble_operator=nnunet_ensemble,
     input_operator=nnunet_predict,
 )

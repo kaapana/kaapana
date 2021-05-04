@@ -1,7 +1,7 @@
 FROM local-only/mitk-phenotyping:2021-02-18-vdev
 
 LABEL IMAGE="mitk-fileconverter"
-LABEL VERSION="2021-02-18-vdev"
+LABEL VERSION="2021-02-18-python"
 LABEL CI_IGNORE="False"
 
 ENV BATCHES_INPUT_DIR /input
@@ -14,8 +14,13 @@ ENV CONVERTFROM dcm
 ENV FORCE_SINGLE_FILE false
 ENV FILECONVERTER /src/MitkFileConverter.sh
 
-COPY files/mitk_fileconverter.sh /mitk_fileconverter.sh
+COPY files/requirements.txt /src
+RUN pip3 install -r /src/requirements.txt
 
-CMD ["/bin/bash", "/mitk_fileconverter.sh"]
+COPY files/start.py /mitk_fileconverter.py
+CMD ["python3","-u", "/mitk_fileconverter.py"]
+
+# COPY files/mitk_fileconverter.sh /mitk_fileconverter.sh
+# CMD ["/bin/bash", "/mitk_fileconverter.sh"]
 
 #  docker run --rm -it -e OPERATOR_IN_DIR="" -e CONVERTTO=nifti dktk-jip-registry.dkfz.de/public/mitk-fileconverter

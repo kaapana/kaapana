@@ -185,6 +185,28 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                     pred_label = int(pred_label[1])
                     gt_files_dict[pred_label] = gt_file_path
 
+                # meta_info_json_path = glob(join(dirname(gt_file_path), "*.json"), recursive=False)
+                # if len(meta_info_json_path) == 1 and exists(meta_info_json_path[0]):
+                #     gt_files_dict = {}
+                #     meta_info_json_path = meta_info_json_path[0]
+                #     print(f"# Found DCMQI meta-json: {meta_info_json_path}")
+                #     with open(meta_info_json_path, 'rb') as f:
+                #         meta_info = json.load(f)
+
+                #     if "segmentAttributes" in meta_info:
+                #         for entries in meta_info["segmentAttributes"]:
+                #             for part in entries:
+                #                 if "labelID" in part and (seg_id is None or str(part["labelID"]) == seg_id):
+                #                     if "labelID" in part and seg_id is None:
+                #                         seg_id = int(part["labelID"])
+                #                     if "SegmentLabel" in part:
+                #                         print("# Using 'SegmentLabel' !")
+                #                         extracted_label_tag = part["SegmentLabel"]
+
+                #                     elif "TrackingIdentifier" in part:
+                #                         print("# Using 'TrackingIdentifier' !")
+                #                         extracted_label_tag = part["TrackingIdentifier"]
+
                 # gt_file = join(run_dir, "nnunet-cohort", file_id, self.gt_dir, basename(single_model_pred_file))
                 # if not exists(gt_file):
                 #     print("# Could not find gt-file !")

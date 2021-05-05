@@ -1,0 +1,57 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elastic-logging-de
+  namespace: {{ .Values.global.monitoring_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: elastic-logging
+  template:
+    metadata:
+      labels:
+        app-name: elastic-logging
+    spec:
+      initContainers:
+          - name: volume-logging-permissions
+            image: {{  .Values.global.registry_url }}/busybox:1.31
+
+            imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+            command: ["sh", "-c", "chown -R 1000:1000 /elastic_data"]
+            volumeMounts:
+            - mountPath: /elastic_data
+              name: elasticdata
+      containers:
+        - name: elastic-logging-container
+          image: {{  .Values.global.registry_url }}/elasticsearch-oss:6.8.12
+          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          env:
+          - name: ES_JAVA_OPTS
+            value: "-Xms{{ .Values.global.elastic_memory }}m -Xmx{{ .Values.global.elastic_memory }}m"
+          ports:
+            - containerPort: 9200
+          resources:
+            requests:
+              memory: 1500Mi
+            limits:
+              memory: 2000Mi
+          volumeMounts:
+            - mountPath: /usr/share/elasticsearch/data
+              name: elasticdata
+          livenessProbe:
+            tcpSocket:
+              port: 9200
+            initialDelaySeconds: 15
+            periodSeconds: 120
+      volumes:
+      - name: elasticdata
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}/elastic-logging
+          type: DirectoryOrCreate
+      - name: elastic-config-file
+        configMap:
+          name: elastic-config
+      - name: registry-secret
+---

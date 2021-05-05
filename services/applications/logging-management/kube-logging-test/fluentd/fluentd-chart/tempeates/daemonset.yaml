@@ -1,27 +1,27 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: fluentd-test
-  namespace: kube-logging-test
+  name: fluentd
+  namespace: {{ .Values.global.monitoring_namespace }}
   labels:
     k8s-app: fluentd-logging
 spec:
   selector:
     matchLabels:
-      name: fluentd-test
+      name: fluentd
   template:
     metadata:
       labels:
-        name: fluentd-test
+        name: fluentd
     spec:
-      serviceAccount: fluentd-test
-      serviceAccountName: fluentd-test
+      serviceAccount: fluentd
+      serviceAccountName: fluentd
       tolerations:
         - key: node-role.kubernetes.io/master
           effect: NoSchedule
       containers:
-      - name: fluentd-test
-        image: docker.io/library/fluent-plugin-slack:latest
+      - name: fluentd
+        image: {{  .Values.global.registry_url }}/fluentd:2.5.2-vdev
         imagePullPolicy: IfNotPresent
         resources:
           limits:

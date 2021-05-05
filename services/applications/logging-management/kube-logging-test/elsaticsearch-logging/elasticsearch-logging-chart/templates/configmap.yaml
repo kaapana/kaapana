@@ -2,15 +2,14 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: elastic-test-config
-  namespace: kube-logging-test
+  name: elastic-config
+  namespace:  {{ .Values.global.monitoring_namespace }}
 data:
   elasticsearch.yml: |
     ---
-    cluster.name: elastic-test
+    cluster.name: elastic-logging
     network.host: "0"
     network.port: "9200"
     xpack.security.enabled: true
     xpack.license.self_generated.type: basic
     xpack.monitoring.collection.enabled: true
-

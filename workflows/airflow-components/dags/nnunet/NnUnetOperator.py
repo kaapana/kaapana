@@ -37,6 +37,7 @@ class NnUnetOperator(KaapanaBaseOperator):
                  inf_threads_prep=1,
                  inf_threads_nifti=1,
                  inf_softmax=False,
+                 inf_seg_filter=None,
                  node_uid="N/A",
                  models_dir="/models",
                  env_vars={},
@@ -73,6 +74,7 @@ class NnUnetOperator(KaapanaBaseOperator):
             "INF_THREADS_NIFTI": str(inf_threads_nifti),
             "INF_BATCH_DATASET": str(inf_batch_dataset),
             "INF_SOFTMAX": str(inf_softmax),
+            "INF_SEG_FILTER": str(inf_seg_filter),
             "NODE_UID": str(node_uid),
             "TENSORBOARD_DIR": '/tensorboard',
         }

@@ -37,7 +37,7 @@ def get_model_targets(model_dir, targets):
 
 
 def predict(model, input_folder, output_folder, folds, save_npz, num_threads_preprocessing, num_threads_nifti_save, part_id, num_parts, tta, mixed_precision, overwrite_existing, mode, overwrite_all_in_gpu, step_size, checkpoint_name, lowres_segmentations=None):
-    global task, task_body_part, task_targets, task_protocols
+    global task, task_body_part, task_targets, task_protocols, inf_seg_filter
 
     print(f"#")
     print(f"# Start prediction....")
@@ -81,9 +81,35 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
     for nifti_file in nifti_files:
         print(f"# Loading result NIFTI: {nifti_file}")
         nib_img = nib.load(nifti_file)
+        nib_img_arr = nib_img.get_fdata().astype(int)
+        labels_file = list(np.unique(nib_img_arr))
+
+        changed_nifti = False
+        for label_bin in labels_file:
+            print(f"# label_int: {label_bin}")
+            if label_bin == 0:
+                continue
+            if str(label_bin) not in task_targets:
+                print(f"# Could not find {label_bin} in {task_targets}")
+                exit(1)
+
+            label_name = task_targets[str(label_bin)] if task_targets != None and str(label_bin) in task_targets else "N/A"
+            print(f"# label_name: {label_name}")
+
+            if inf_seg_filter is not None and label_name not in inf_seg_filter:
+                print(f"# Found prediction to filter: {label_name} -> Set label {label_bin} -> 0")
+                nib_img_arr = np.where(nib_img_arr == label_bin, 0, nib_img_arr)
+                changed_nifti = True
+            else:
+                nifti_labels.append(label_bin)
+        if changed_nifti:
+            print(f"# Writing changed NIFTI: {changed_nifti}")
+            new_nifiti = nib.Nifti1Image(nib_img_arr, nib_img.affine, nib_img.header)
+            new_nifiti.to_filename(nifti_file)
+        
+
         # x, y, z = img.shape
         # print(f"# Dimensions: {[x, y, z]}")
-        nifti_labels.extend(list(np.unique(nib_img.get_fdata().astype(int))))
 
     nifti_labels = list(set(nifti_labels))
     print(f"# Task-targets:     {task_targets}")
@@ -95,14 +121,6 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
     seg_info_json["task_targets"] = task
     seg_info_json["algorithm"] = task.lower() if task != None else model.split("/")[-2].lower()
 
-    if 0 in nifti_labels:
-        nifti_labels.remove(0)
-    else:
-        print("#")
-        print(f"# Couldn't find a 'Clear Label' 0 in NIFTI: {nifti_files[0]}")
-        print("#")
-        exit(1)
-
     if len(nifti_labels) == 0:
         print("##################################################### ")
         print("#")
@@ -113,6 +131,8 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
         print("##################################################### ")
         exit(1)
 
+    print(f"# SEG_FILTERS: {inf_seg_filter}")
+    print("#")
     labels_found = []
     for label_bin in nifti_labels:
         print(f"# label_int: {label_bin}")
@@ -123,10 +143,14 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
         label_name = task_targets[str(label_bin)] if task_targets != None and str(label_bin) in task_targets else "N/A"
         print(f"# label_name: {label_name}")
 
-        labels_found.append({
-            "label_name": label_name,
-            "label_int": label_bin
-        })
+        if inf_seg_filter is not None and label_name not in inf_seg_filter:
+            print(f"# Found prediction to filter: {label_name} -> TODO")
+            exit(1)
+        else:
+            labels_found.append({
+                "label_name": label_name,
+                "label_int": label_bin
+            })
 
     seg_info_json["seg_info"] = labels_found
     seg_json_path = join(output_folder, 'seg_info.json')
@@ -350,6 +374,9 @@ interpolation_order = getenv("INTERPOLATION_ORDER", "default")
 mixed_precision = getenv("MIXED_PRECISION", "None")
 mixed_precision = False if mixed_precision.lower() == "false" else True
 
+inf_seg_filter = getenv("INF_SEG_FILTER", "None")
+inf_seg_filter = inf_seg_filter.split(",") if inf_seg_filter.lower() != "none" else None
+
 override_existing = True
 inf_mode = "fast"
 step_size = 0.5
@@ -388,6 +415,9 @@ print(f"# tta:  {tta}")
 print(f"# mixed_precision:       {mixed_precision}")
 print(f"# INTERPOLATION_ORDER:   {interpolation_order}")
 print(f"# cuda_visible_devices:  {cuda_visible_devices}")
+print("#")
+print("#")
+print(f"# inf_seg_filter:  {inf_seg_filter}")
 print("#")
 print("##################################################")
 print("#")

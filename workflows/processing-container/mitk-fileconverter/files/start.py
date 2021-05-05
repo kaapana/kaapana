@@ -9,7 +9,9 @@ from multiprocessing.pool import ThreadPool
 
 # For shell-execution
 from subprocess import PIPE, run
-execution_timeout = 30
+execution_timeout = 120
+# How many processes should be started?
+parallel_processes = 3
 
 # Counter to check if smth has been processed
 processed_count = 0
@@ -104,8 +106,6 @@ convert_to = getenv("CONVERTTO", "None")
 convert_to = convert_to if convert_to.lower() != "none" else None
 assert convert_to is not None
 
-# How many processes should be started?
-parallel_processes = 3
 issue = False
 
 print("##################################################")

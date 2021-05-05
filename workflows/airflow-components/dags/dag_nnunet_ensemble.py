@@ -8,17 +8,20 @@ from nnunet.LocalDataorganizerOperator import LocalDataorganizerOperator
 from nnunet.NnUnetOperator import NnUnetOperator
 from kaapana.operators.ResampleOperator import ResampleOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
-from nnunet.SegCheckOperator import SegCheckOperator
+from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+# from nnunet.SegCheckOperator import SegCheckOperator
 
 default_interpolation_order = "default"
 default_prep_thread_count = 1
 default_nifti_thread_count = 1
+
+test_cohort_limit = 5
+organ_filter = None
 
 ui_forms = {
     "workflow_form": {
@@ -54,6 +57,13 @@ ui_forms = {
                 "default": default_nifti_thread_count,
                 "required": True
             },
+            "inf_seg_filter": {
+                "title": "SEG filter",
+                "default": str(organ_filter),
+                "description": "Labels to filter the predictions (eg 'spleen,liver,...')",
+                "type": "string",
+                "readOnly": False,
+            },
             "single_execution": {
                 "title": "single execution",
                 "description": "Should each series be processed separately?",
@@ -82,40 +92,122 @@ dag = DAG(
     schedule_interval=None
 )
 
-get_test_images = LocalGetRefSeriesOperator(
+get_test_images = LocalGetInputDataOperator(
     dag=dag,
     name="nnunet-cohort",
-    target_level="batch",
-    expected_file_count="all",
-    limit_file_count=5,
-    dicom_tags=[
+    cohort_limit = test_cohort_limit,
+    inputs=[
         {
-            'id': 'ClinicalTrialProtocolID',
-            'value': 'tcia-lymph'
-        },
-        {
-            'id': 'Modality',
-            'value': 'SEG'
-        },
+            "elastic-query": {
+                "query": {
+                    "bool": {
+                        "must": [
+                            {
+                                "query_string": {
+                                    "query": "*",
+                                    "analyze_wildcard": True,
+                                    "default_field": "*"
+                                }
+                            },
+                            {
+                                "query_string": {
+                                    "query": "*",
+                                    "analyze_wildcard": True,
+                                    "default_field": "*"
+                                }
+                            },
+                            {
+                                "bool": {
+                                    "should": [
+                                        {
+                                            "match_phrase": {
+                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Kidney-Left"
+                                            }
+                                        },
+                                        {
+                                            "match_phrase": {
+                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Kidney-Right"
+                                            }
+                                        },
+                                        {
+                                            "match_phrase": {
+                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Liver"
+                                            }
+                                        },
+                                        {
+                                            "match_phrase": {
+                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Spleen"
+                                            }
+                                        }
+                                    ],
+                                    "minimum_should_match": 1
+                                }
+                            },
+                            {
+                                "bool": {
+                                    "should": [
+                                        {
+                                            "match_phrase": {
+                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Kidney-Left"
+                                            }
+                                        },
+                                        {
+                                            "match_phrase": {
+                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Kidney-Right"
+                                            }
+                                        },
+                                        {
+                                            "match_phrase": {
+                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Liver"
+                                            }
+                                        },
+                                        {
+                                            "match_phrase": {
+                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Spleen"
+                                            }
+                                        }
+                                    ],
+                                    "minimum_should_match": 1
+                                }
+                            }
+                        ]
+                    }
+                },
+                "index": "meta-index"
+            }
+        }
     ],
-    modality=None,
-    search_policy=None,
     parallel_downloads=5,
-    delete_input_on_success=True
+    check_modality=False
 )
 
-# dcm2nifti_gt = DcmConverterOperator(
+# get_test_images = LocalGetRefSeriesOperator(
 #     dag=dag,
-#     input_operator=get_test_images,
-#     parallel_id="gt",
-#     batch_name=str(get_test_images.operator_out_dir),
-#     output_format='nii.gz'
+#     name="nnunet-cohort",
+#     target_level="batch",
+#     expected_file_count="all",
+#     limit_file_count=5,
+#     dicom_tags=[
+#         {
+#             'id': 'ClinicalTrialProtocolID',
+#             'value': 'tcia-lymph'
+#         },
+#         {
+#             'id': 'Modality',
+#             'value': 'SEG'
+#         },
+#     ],
+#     modality=None,
+#     search_policy=None,
+#     parallel_downloads=5,
+#     delete_input_on_success=True
 # )
 
 dcm2nifti_gt = DcmSeg2ItkOperator(
     dag=dag,
     input_operator=get_test_images,
     batch_name=str(get_test_images.operator_out_dir),
+    seg_filter=organ_filter,
     parallel_id="gt",
     output_format='nii.gz',
 )
@@ -170,6 +262,7 @@ nnunet_predict = NnUnetOperator(
     inf_batch_dataset=True,
     inf_threads_prep=1,
     inf_threads_nifti=1,
+    inf_seg_filter=organ_filter,
     interpolation_order=default_interpolation_order,
     models_dir=extract_model.operator_out_dir,
 )
@@ -189,30 +282,357 @@ data_organizer = LocalDataorganizerOperator(
     input_operator=nnunet_predict,
 )
 
-resample_gt = SegCheckOperator(
-    dag,
-    input_operator=dcm2nifti_gt,
-    original_img_operator=dcm2nifti_ct,
-    parallel_processes=3,
-    delete_merged_data=True,
-    fail_if_overlapping=False,
-    fail_if_label_already_present=False,
-    fail_if_label_id_not_extractable=False,
-    force_same_labels=False,
-    # operator_out_dir=dcm2nifti_gt.operator_out_dir,
-    batch_name=str(get_test_images.operator_out_dir),
-    parallel_id="gt",
-)
-
-# resample_gt = ResampleOperator(
-#     dag=dag,
+# resample_gt = SegCheckOperator(
+#     dag,
 #     input_operator=dcm2nifti_gt,
 #     original_img_operator=dcm2nifti_ct,
-#     operator_out_dir=dcm2nifti_gt.operator_out_dir,
-#     parallel_id="gt",
+#     parallel_processes=3,
+#     delete_merged_data=True,
+#     fail_if_overlapping=False,
+#     fail_if_label_already_present=False,
+#     fail_if_label_id_not_extractable=False,
+#     force_same_labels=False,
+#     # operator_out_dir=dcm2nifti_gt.operator_out_dir,
 #     batch_name=str(get_test_images.operator_out_dir),
-#     delete_input_on_success=False,
+#     parallel_id="gt",
 # )
+
+resample_gt = ResampleOperator(
+    dag=dag,
+    input_operator=dcm2nifti_gt,
+    original_img_operator=dcm2nifti_ct,
+    operator_out_dir=dcm2nifti_gt.operator_out_dir,
+    parallel_id="gt",
+    batch_name=str(get_test_images.operator_out_dir),
+    delete_input_on_success=False,
+)
+
+resample_single = ResampleOperator(
+    dag=dag,
+    operator_in_dir="single-model-prediction",
+    operator_out_dir="single-model-prediction",
+    original_img_operator=dcm2nifti_ct,
+    parallel_id="single",
+    batch_name=str(get_test_images.operator_out_dir),
+    delete_input_on_success=False,
+)
+resample_ensemble = ResampleOperator(
+    dag=dag,
+    operator_in_dir="ensemble-prediction",
+    operator_out_dir="ensemble-prediction",
+    original_img_operator=dcm2nifti_ct,
+    parallel_id="ensemble",
+    batch_name=str(get_test_images.operator_out_dir),
+    delete_input_on_success=False,
+)
+
+evaluation = LocalDiceOperator(
+    dag=dag,
+    gt_operator=resample_gt,
+    ensemble_operator=nnunet_ensemble,
+    input_operator=nnunet_predict,
+)
+
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
+
+get_input >> dcm2bin >> extract_model >> nnunet_predict >> nnunet_ensemble >> data_organizer
+data_organizer >> resample_single >> evaluation
+data_organizer >> resample_ensemble >> evaluation
+get_test_images >> dcm2nifti_gt >> resample_gt >> evaluation >> clean
+get_test_images >> get_ref_ct_series_from_gt >> dcm2nifti_ct
+dcm2nifti_ct >> nnunet_predict
+dcm2nifti_ct >> resample_gt
+
+default_interpolation_order = "default"
+default_prep_thread_count = 1
+default_nifti_thread_count = 1
+
+organ_filter = None
+
+ui_forms = {
+    "workflow_form": {
+        "type": "object",
+        "properties": {
+            "input": {
+                "title": "Input Modality",
+                "default": "OT",
+                "description": "Expected input modality.",
+                "type": "string",
+                "readOnly": True,
+            },
+            "interpolation_order": {
+                "title": "interpolation order",
+                "default": default_interpolation_order,
+                "description": "Set interpolation_order.",
+                "enum": ["default", "0", "1", "2", "3"],
+                "type": "string",
+                "readOnly": False,
+                "required": True
+            },
+            "inf_threads_prep": {
+                "title": "Pre-processing threads",
+                "type": "integer",
+                "default": default_prep_thread_count,
+                "description": "Set pre-processing thread count.",
+                "required": True
+            },
+            "inf_threads_nifti": {
+                "title": "NIFTI threads",
+                "type": "integer",
+                "description": "Set NIFTI export thread count.",
+                "default": default_nifti_thread_count,
+                "required": True
+            },
+            "inf_seg_filter": {
+                "title": "SEG filter",
+                "default": str(organ_filter),
+                "description": "Labels to filter the predictions (eg 'spleen,liver,...')",
+                "type": "string",
+                "readOnly": False,
+            },
+            "single_execution": {
+                "title": "single execution",
+                "description": "Should each series be processed separately?",
+                "type": "boolean",
+                "default": False,
+                "readOnly": False,
+            }
+        }
+    }
+}
+
+args = {
+    'ui_visible': True,
+    'ui_forms': ui_forms,
+    'owner': 'kaapana',
+    'start_date': days_ago(0),
+    'retries': 0,
+    'retry_delay': timedelta(seconds=60)
+}
+
+dag = DAG(
+    dag_id='nnunet-ensemble',
+    default_args=args,
+    concurrency=3,
+    max_active_runs=1,
+    schedule_interval=None
+)
+
+get_test_images = LocalGetInputDataOperator(
+    dag=dag,
+    name="nnunet-cohort",
+    batch_name="nnunet-cohort",
+    # cohort_limit=1,
+    inputs=[
+        {
+            "elastic-query": {
+                "query": {
+                    "bool": {
+                        "must": [
+                            {
+                                "query_string": {
+                                    "query": "*",
+                                    "analyze_wildcard": True,
+                                    "default_field": "*"
+                                }
+                            },
+                            {
+                                "query_string": {
+                                    "query": "*",
+                                    "analyze_wildcard": True,
+                                    "default_field": "*"
+                                }
+                            },
+                            {
+                                "bool": {
+                                    "should": [
+                                        {
+                                            "match_phrase": {
+                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Kidney-Left"
+                                            }
+                                        },
+                                        {
+                                            "match_phrase": {
+                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Kidney-Right"
+                                            }
+                                        },
+                                        {
+                                            "match_phrase": {
+                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Liver"
+                                            }
+                                        },
+                                        {
+                                            "match_phrase": {
+                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Spleen"
+                                            }
+                                        }
+                                    ],
+                                    "minimum_should_match": 1
+                                }
+                            },
+                            {
+                                "bool": {
+                                    "should": [
+                                        {
+                                            "match_phrase": {
+                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Kidney-Left"
+                                            }
+                                        },
+                                        {
+                                            "match_phrase": {
+                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Kidney-Right"
+                                            }
+                                        },
+                                        {
+                                            "match_phrase": {
+                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Liver"
+                                            }
+                                        },
+                                        {
+                                            "match_phrase": {
+                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Spleen"
+                                            }
+                                        }
+                                    ],
+                                    "minimum_should_match": 1
+                                }
+                            }
+                        ]
+                    }
+                },
+                "index": "meta-index"
+            }
+        }
+    ],
+    parallel_downloads=5,
+    check_modality=False
+)
+
+# get_test_images = LocalGetRefSeriesOperator(
+#     dag=dag,
+#     name="nnunet-cohort",
+#     target_level="batch",
+#     expected_file_count="all",
+#     limit_file_count=5,
+#     dicom_tags=[
+#         {
+#             'id': 'ClinicalTrialProtocolID',
+#             'value': 'tcia-lymph'
+#         },
+#         {
+#             'id': 'Modality',
+#             'value': 'SEG'
+#         },
+#     ],
+#     modality=None,
+#     search_policy=None,
+#     parallel_downloads=5,
+#     delete_input_on_success=True
+# )
+
+dcm2nifti_gt = DcmSeg2ItkOperator(
+    dag=dag,
+    input_operator=get_test_images,
+    batch_name=str(get_test_images.operator_out_dir),
+    seg_filter=organ_filter,
+    parallel_id="gt",
+    output_format='nii.gz',
+)
+
+
+get_ref_ct_series_from_gt = LocalGetRefSeriesOperator(
+    dag=dag,
+    input_operator=get_test_images,
+    search_policy="reference_uid",
+    parallel_downloads=5,
+    parallel_id="ct",
+    modality=None,
+    batch_name=str(get_test_images.operator_out_dir),
+    delete_input_on_success=True
+)
+
+dcm2nifti_ct = DcmConverterOperator(
+    dag=dag,
+    input_operator=get_ref_ct_series_from_gt,
+    parallel_id="ct",
+    batch_name=str(get_test_images.operator_out_dir),
+    output_format='nii.gz'
+)
+
+get_input = LocalGetInputDataOperator(
+    dag=dag,
+    check_modality=True,
+    parallel_downloads=5
+)
+
+dcm2bin = Bin2DcmOperator(
+    dag=dag,
+    input_operator=get_input,
+    name="extract-binary",
+    file_extensions="*.dcm"
+)
+
+extract_model = GetTaskModelOperator(
+    dag=dag,
+    name="unzip-models",
+    target_level="batch_element",
+    input_operator=dcm2bin,
+    operator_out_dir="model-exports",
+    mode="install_zip"
+)
+
+nnunet_predict = NnUnetOperator(
+    dag=dag,
+    mode="inference",
+    input_modality_operators=[dcm2nifti_ct],
+    inf_softmax=True,
+    inf_batch_dataset=True,
+    inf_threads_prep=1,
+    inf_threads_nifti=1,
+    inf_seg_filter=organ_filter,
+    interpolation_order=default_interpolation_order,
+    models_dir=extract_model.operator_out_dir,
+)
+
+nnunet_ensemble = NnUnetOperator(
+    dag=dag,
+    input_operator=nnunet_predict,
+    mode="ensemble",
+    inf_threads_nifti=1,
+)
+
+data_organizer = LocalDataorganizerOperator(
+    dag=dag,
+    keep_parallel_id=False,
+    gt_operator=dcm2nifti_gt,
+    ensemble_operator=nnunet_ensemble,
+    input_operator=nnunet_predict,
+)
+
+# resample_gt = SegCheckOperator(
+#     dag,
+#     input_operator=dcm2nifti_gt,
+#     original_img_operator=dcm2nifti_ct,
+#     parallel_processes=3,
+#     delete_merged_data=True,
+#     fail_if_overlapping=False,
+#     fail_if_label_already_present=False,
+#     fail_if_label_id_not_extractable=False,
+#     force_same_labels=False,
+#     # operator_out_dir=dcm2nifti_gt.operator_out_dir,
+#     batch_name=str(get_test_images.operator_out_dir),
+#     parallel_id="gt",
+# )
+
+resample_gt = ResampleOperator(
+    dag=dag,
+    input_operator=dcm2nifti_gt,
+    original_img_operator=dcm2nifti_ct,
+    operator_out_dir=dcm2nifti_gt.operator_out_dir,
+    parallel_id="gt",
+    batch_name=str(get_test_images.operator_out_dir),
+    delete_input_on_success=False,
+)
 
 resample_single = ResampleOperator(
     dag=dag,

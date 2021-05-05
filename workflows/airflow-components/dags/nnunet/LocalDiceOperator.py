@@ -18,14 +18,14 @@ rcParams.update({'figure.autolayout': True})
 
 class LocalDiceOperator(KaapanaPythonBaseOperator):
 
-    def create_plots(self,data_table, table_name, result_dir):
+    def create_plots(self, data_table, table_name, result_dir):
         print(f"# Creating boxplots: {table_name}")
         os.makedirs(result_dir, exist_ok=True)
 
         plot_labels = sorted(list(data_table.Model.unique()))
         if "ensemble" in plot_labels:
             plot_labels.append(plot_labels.pop(plot_labels.index('ensemble')))
-        
+
         fig, ax1 = plt.subplots(1, 1, figsize=(12, 14))
         box_plot = sns.boxplot(x="Model", y="Dice", hue="Label", palette="Set3", data=data_table, ax=ax1, order=plot_labels)
         box_plot.set_xticklabels(box_plot.get_xticklabels(), rotation=40, ha="right")
@@ -178,13 +178,44 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                 print(f"# Found {len(gt_files)} gt-files @ {gt_dir}!")
                 assert len(gt_files) != 0
 
+                dicom_seg_meta = {}
+                meta_info_json_path = glob(join(gt_dir, "*.json"), recursive=False)
+                if len(meta_info_json_path) == 1 and exists(meta_info_json_path[0]):
+                    print(f"# Found DICOM SEG metafile: {meta_info_json_path[0]}")
+                    extracted_label_tag = None
+                    seg_id = None
+                    meta_info_json_path = meta_info_json_path[0]
+                    print(f"# Found DCMQI meta-json: {meta_info_json_path}")
+                    with open(meta_info_json_path, 'rb') as f:
+                        meta_info = json.load(f)
+
+                    if "segmentAttributes" in meta_info:
+                        for entries in meta_info["segmentAttributes"]:
+                            for part in entries:
+                                if "labelID" in part:
+                                    seg_id = int(part["labelID"])
+                                if "SegmentLabel" in part:
+                                    print("# Using 'SegmentLabel' !")
+                                    extracted_label_tag = part["SegmentLabel"]
+
+                                elif "TrackingIdentifier" in part:
+                                    print("# Using 'TrackingIdentifier' !")
+                                    extracted_label_tag = part["TrackingIdentifier"]
+
+                    if extracted_label_tag is not None and seg_id is not None:
+                        dicom_seg_meta[seg_id] = extracted_label_tag
+
                 gt_files_dict = {}
                 for gt_file_path in gt_files:
                     pred_label = basename(gt_file_path).split("--")
                     assert isinstance(pred_label, list) and len(pred_label) == 3
                     pred_label = int(pred_label[1])
-                    gt_files_dict[pred_label] = gt_file_path
-
+                    gt_files_dict[pred_label] = {}
+                    gt_files_dict[pred_label]["file"] = gt_file_path
+                    if pred_label in dicom_seg_meta:
+                        gt_files_dict[pred_label]["label"] = dicom_seg_meta[pred_label]
+                    else:
+                        gt_files_dict[pred_label]["label"] = "N/A"
                 # meta_info_json_path = glob(join(dirname(gt_file_path), "*.json"), recursive=False)
                 # if len(meta_info_json_path) == 1 and exists(meta_info_json_path[0]):
                 #     gt_files_dict = {}
@@ -253,8 +284,11 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                         print("#")
                         label_strip_gt = None
                     else:
-                        gt_file_path = gt_files_dict[pred_label]
+                        gt_file_path = gt_files_dict[pred_label]["file"]
+                        gt_label = gt_files_dict[pred_label]["label"]
                         print(f"# Loading gt-file: {gt_file_path}")
+                        print(f"# gt-label: {gt_label} - pred_label: {label_key}")
+                        assert gt_label.lower() == label_key.lower()
                         label_strip_gt, gt_labels = self.prep_nifti(gt_file_path)
 
                     label_strip_sm = (sm_numpy == pred_label).astype(int)
@@ -321,8 +355,11 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                             print("#")
                             label_strip_gt = None
                         else:
-                            gt_file_path = gt_files_dict[pred_label]
+                            gt_file_path = gt_files_dict[pred_label]["file"]
+                            gt_label = gt_files_dict[pred_label]["label"]
                             print(f"# Loading gt-file: {gt_file_path}")
+                            print(f"# gt-label: {gt_label} - pred_label: {label_key}")
+                            assert gt_label.lower() == label_key.lower()
                             label_strip_gt, gt_labels = self.prep_nifti(gt_file_path)
 
                         label_strip_ensemble = (ensemble_numyp == pred_label).astype(int)

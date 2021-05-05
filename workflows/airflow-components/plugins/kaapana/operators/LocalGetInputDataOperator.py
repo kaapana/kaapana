@@ -4,7 +4,6 @@ import os
 import json
 from datetime import timedelta
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.HelperElasticsearch import HelperElasticsearch
 from multiprocessing.pool import ThreadPool
@@ -46,7 +45,8 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         download_successful = True
         studyUID, seriesUID, dag_run_id = series_dict["studyUID"], series_dict["seriesUID"], series_dict["dag_run_id"]
         print(f"Start download series: {seriesUID}")
-        target_dir = os.path.join(WORKFLOW_DIR, dag_run_id, BATCH_NAME, f'{seriesUID}', self.operator_out_dir)
+        target_dir = os.path.join(self.workflow_dir, dag_run_id, self.batch_name, f'{seriesUID}', self.operator_out_dir)
+        print(f"# Target_dir: {target_dir}")
 
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)
@@ -82,25 +82,25 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         print("Starting moule LocalGetInputDataOperator...")
         self.conf = kwargs['dag_run'].conf
 
-        cohort_limit = None
-        if self.conf is not None and "conf" in self.conf:
+        if self.cohort_limit is None and self.inputs is None and self.conf is not None and "conf" in self.conf:
             trigger_conf = self.conf["conf"]
-            cohort_limit = int(trigger_conf["cohort_limit"] if "cohort_limit" in trigger_conf else None)
+            self.cohort_limit = int(trigger_conf["cohort_limit"] if "cohort_limit" in trigger_conf else None)
 
         dag_run_id = kwargs['dag_run'].run_id
 
-        if self.conf == None or not "inputs" in self.conf:
+        if self.inputs is None and self.conf == None or not "inputs" in self.conf:
             print("No config or inputs in config found!")
             print("Skipping...")
             return
 
-        inputs = self.conf["inputs"]
+        if self.inputs is None:
+            self.inputs = self.conf["inputs"]
 
-        if not isinstance(inputs, list):
-            inputs = [inputs]
+        if not isinstance(self.inputs, list):
+            inputs = [self.inputs]
 
         download_list = []
-        for input in inputs:
+        for input in self.inputs:
             if "elastic-query" in input:
                 elastic_query = input["elastic-query"]
                 if "query" not in elastic_query:
@@ -124,10 +124,15 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     series_uid = series[HelperElasticsearch.series_uid_tag]
                     # SOPInstanceUID = series[ElasticDownloader.SOPInstanceUID_tag]
                     modality = series[HelperElasticsearch.modality_tag]
-                    print(("studyUID %s" % study_uid))
-                    print(("seriesUID %s" % series_uid))
-                    print(("modality %s" % modality))
+
+                    print("# Found elastic result:")
+                    print("#")
+                    print(f"# modality:  {modality}")
+                    print(f"# studyUID:  {study_uid}")
+                    print(f"# seriesUID: {series_uid}")
+                    print("#")
                     if self.check_modality:
+                        print("# checking modality...")
                         self.check_dag_modality(input_modality=modality)
 
                     download_list.append(
@@ -172,7 +177,11 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 print("Dag-conf: {}".format(self.conf))
                 exit(1)
 
-        download_list = download_list[:cohort_limit] if cohort_limit is not None else download_list
+        print("")
+        print(f"## SERIES FOUND: {len(download_list)}")
+        print("")
+        print(f"## SERIES LIMIT: {self.cohort_limit}")
+        download_list = download_list[:self.cohort_limit] if self.cohort_limit is not None else download_list
         print("")
         print(f"## SERIES TO LOAD: {len(download_list)}")
         print("")
@@ -204,18 +213,26 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     def __init__(self,
                  dag,
+                 inputs=None,
+                 name="get-input-data",
                  data_type="dicom",
                  check_modality=False,
+                 cohort_limit=None,
                  parallel_downloads=3,
+                 batch_name=None,
                  *args,
                  **kwargs):
+
+        self.inputs = inputs
         self.data_type = data_type
+        self.cohort_limit = cohort_limit
         self.check_modality = check_modality
         self.parallel_downloads = parallel_downloads
 
         super().__init__(
             dag,
-            name="get-input-data",
+            name=name,
+            batch_name=batch_name,
             python_callable=self.start,
             task_concurrency=10,
             execution_timeout=timedelta(minutes=60),

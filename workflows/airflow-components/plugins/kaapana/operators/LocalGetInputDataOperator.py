@@ -97,8 +97,15 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             self.inputs = self.conf["inputs"]
 
         if not isinstance(self.inputs, list):
-            inputs = [self.inputs]
+            self.inputs = [self.inputs]
 
+        print("#")
+        print("#")
+        print("# Inputs:")
+        print("#")
+        print(json.dumps(self.inputs, indent=4, sort_keys=True))
+        print("#")
+        print("#")
         download_list = []
         for input in self.inputs:
             if "elastic-query" in input:
@@ -125,12 +132,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     # SOPInstanceUID = series[ElasticDownloader.SOPInstanceUID_tag]
                     modality = series[HelperElasticsearch.modality_tag]
 
-                    print("# Found elastic result:")
-                    print("#")
-                    print(f"# modality:  {modality}")
-                    print(f"# studyUID:  {study_uid}")
-                    print(f"# seriesUID: {series_uid}")
-                    print("#")
+                    print(f"# Found elastic result: {modality}: {series_uid}")
                     if self.check_modality:
                         print("# checking modality...")
                         self.check_dag_modality(input_modality=modality)

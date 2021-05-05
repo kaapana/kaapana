@@ -18,6 +18,8 @@ from subprocess import PIPE, run
 execution_timeout = 120
 
 # Counter to check if smth has been processed
+global_labels_info_count = {}
+
 processed_count = 0
 merged_counter = 0
 max_overlapping_percentage = 0.001
@@ -27,10 +29,12 @@ skipped_dict = {
     "base_images": []
 }
 
+
 def write_global_seg_info():
     global global_labels_info_path, global_labels_info
     with open(global_labels_info_path, "w", encoding='utf-8') as jsonData:
         json.dump(global_labels_info, jsonData, indent=4, ensure_ascii=True)
+
 
 def read_global_seg_info():
     global global_labels_info_path, global_labels_info
@@ -38,8 +42,55 @@ def read_global_seg_info():
         global_labels_info = {}
         write_global_seg_info()
 
-    with open(global_labels_info_path,"r") as f:
+    with open(global_labels_info_path, "r") as f:
         global_labels_info = json.load(f)
+
+
+def check_transformations(current_config):
+    global global_labels_info_count, global_labels_info, target_dict_dir
+
+    transformations = {}
+    for label_key, int_encoding in current_config.items():
+        if label_key not in global_labels_info:
+            if target_dict_dir is not None:
+                print(f"#")
+                print(f"# target_dict_dir exists")
+                print(f"#")
+                print(f"# Label {label_key} was found in current_config -> but not in global_labels_info!")
+                print(f"# Needed tranformation: int_encoding {int_encoding} -> ✘ delete")
+                print(f"#")
+                transformations[int_encoding] = {
+                    "kind": "delete"
+                }
+            else:
+                print(f"#")
+                print(f"# Label {label_key} was found in current_config -> but not in global_labels_info!")
+                print(f"# No transformation needed -> added label to global_labels_info")
+                print(f"#")
+                global_labels_info[label_key] = int_encoding
+                global_labels_info_count[label_key] = 1
+        else:
+            should_int_encoding = global_labels_info[label_key]
+            global_labels_info_count[label_key] += 1
+            if int_encoding != should_int_encoding:
+                print(f"#")
+                print(f"# current: {label_key} : {int_encoding}")
+                print(f"# target:  {label_key} : {should_int_encoding}")
+                print(f"# Needed tranformation: task_target {int_encoding} -> {should_int_encoding}")
+                print(f"#")
+                transformations[int_encoding] = {
+                    "kind": "change",
+                    "label_name": label_key,
+                    "new_encoding": should_int_encoding
+                }
+                continue
+            else:
+                print(f"#")
+                print(f"# ✓ {label_key}: current == global ")
+                print(f"#")
+
+    return transformations
+
 
 def create_metadata_json(new_labels_dict):
     metadata_dict = {
@@ -98,7 +149,7 @@ def check_overlapping(gt_map, new_map, seg_nifti):
 
 
 def merge_niftis(queue_dict):
-    global global_labels_info, merged_counter, delete_merged_data, fail_if_overlapping, skipping_level
+    global global_labels_info, global_labels_info_count, merged_counter, delete_merged_data, fail_if_overlapping, skipping_level
 
     target_dir = queue_dict["target_dir"]
     base_image_path = queue_dict["base_image"]
@@ -110,9 +161,7 @@ def merge_niftis(queue_dict):
     example_img = nib.load(example_img_path)
     example_dimensions = example_img.shape
     new_gt_map = np.zeros_like(example_img.get_fdata().astype(int))
-    local_gt_map_labels = list(np.unique(new_gt_map))
     local_labels_info = {}
-
     print("#")
     print("#")
     print("##################################################")
@@ -127,85 +176,64 @@ def merge_niftis(queue_dict):
     for seg_nifti in seg_nifti_list:
         print(f"# Processing NIFTI: {basename(seg_nifti)}")
         print("#")
-        extracted_label_tag = None
-        seg_id = None
-        extracted_label_tag = None
+        existing_configuration = None
         print("#")
-        if "--" in seg_nifti:
-            seg_info = seg_nifti.split("--")
-            extracted_label_tag = seg_info[-1].split(".")[0].replace("_", " ").replace("++", "/")
-            seg_id = seg_info[1]
 
         meta_info_json_path = glob(join(dirname(seg_nifti), "*.json"), recursive=False)
         if len(meta_info_json_path) == 1 and exists(meta_info_json_path[0]):
+            existing_configuration = {}
             meta_info_json_path = meta_info_json_path[0]
-            print(f"# Found DCMQI meta-json: {meta_info_json_path}")
-            with open(meta_info_json_path, 'rb') as f:
-                meta_info = json.load(f)
+            if "seg_info.json" in meta_info_json_path:
+                print(f"# Found nnunet meta-json: {meta_info_json_path}")
+                with open(meta_info_json_path, 'rb') as f:
+                    meta_info = json.load(f)
 
-            if "segmentAttributes" in meta_info:
-                for entries in meta_info["segmentAttributes"]:
-                    for part in entries:
-                        if "labelID" in part and (seg_id is None or str(part["labelID"]) == seg_id):
-                            if "labelID" in part and seg_id is None:
-                                seg_id = int(part["labelID"])
-                            if "SegmentLabel" in part:
-                                print("# Using 'SegmentLabel' !")
-                                extracted_label_tag = part["SegmentLabel"]
+                if "seg_info" in meta_info:
+                    for label_entry in meta_info["seg_info"]:
+                        label_int = label_entry["label_int"]
+                        label_name = label_entry["label_name"]
+                        existing_configuration[label_name] = str(label_int)
 
-                            elif "TrackingIdentifier" in part:
-                                print("# Using 'TrackingIdentifier' !")
-                                extracted_label_tag = part["TrackingIdentifier"]
+            elif "-meta.json" in meta_info_json_path:
+                print(f"# Found DCMQI meta-json: {meta_info_json_path}")
+                assert "--" in seg_nifti
+                seg_info = seg_nifti.split("--")
+                seg_id = str(seg_info[-1].split(".")[0].replace("_", " ").replace("++", "/")[1])
+                label_int = None
+                label_name = None
+                existing_configuration = {}
+                with open(meta_info_json_path, 'rb') as f:
+                    meta_info = json.load(f)
 
-        print(f"# SEG_ID: {seg_id}")
-        print(f"# extracted_label_tag: {extracted_label_tag}")
+                if "segmentAttributes" in meta_info:
+                    for entries in meta_info["segmentAttributes"]:
+                        for part in entries:
+                            if "labelID" in part and (seg_id is None or str(part["labelID"]) == seg_id):
+                                if "labelID" in part and seg_id is None:
+                                    label_int = int(part["labelID"])
+                                if "SegmentLabel" in part:
+                                    print("# Using 'SegmentLabel' !")
+                                    label_name = part["SegmentLabel"]
 
-        if extracted_label_tag is None:
-            print("#")
-            print("#")
-            print("####### Could not extract label encoding from file!")
-            print("#")
-            print("#")
-            return queue_dict, "extracted_label_tag is None"
-        if seg_id is None:
-            print("#")
-            print("#")
-            print("####### Could not extract seg_id!")
-            print("#")
-            print("#")
-            return queue_dict, "seg_id is None"
+                                elif "TrackingIdentifier" in part:
+                                    print("# Using 'TrackingIdentifier' !")
+                                    label_name = part["TrackingIdentifier"]
 
-        if extracted_label_tag in list(local_labels_info.values()):
-            print("#")
-            print("#")
-            print("##################################################")
-            print("#")
-            print(f"#### {extracted_label_tag} is already present in the gt-merge!")
-            print("#### -> skipping segmentation")
-            print("#")
-            print("##################################################")
-            print("#")
-            print("#")
-            continue
-
-        seg_id = int(seg_id)
+                if label_int is None or label_name is None:
+                    return queue_dict, "label extraction issue"
+                existing_configuration[label_name] = str(label_int)
 
         loaded_seg_nifti = nib.load(seg_nifti).get_fdata().astype(int)
-        nifti_labels = list(np.unique(loaded_seg_nifti))
+        nifti_int_encodings = list(np.unique(loaded_seg_nifti))
         nifti_dimensions = loaded_seg_nifti.shape
-        if len(nifti_labels) == 1 and 0 in nifti_labels:
+        if len(nifti_int_encodings) == 0:
+            print("##################################################### ")
             print("#")
-            print("##################################################")
+            print("# No segmentation was found in result-NIFTI-file!")
+            print(f"# NIFTI-file {seg_nifti}")
             print("#")
-            print("######### No segmentation in NIFTI found!")
-            print(f"# -> Skipping {extracted_label_tag}")
-            print("#")
-            print("##################################################")
-            print("#")
-            print("#")
+            print("##################################################### ")
             continue
-
-        assert len(nifti_labels) == 2 and seg_id in nifti_labels
 
         if example_dimensions != nifti_dimensions:
             print("# Issue with different dimensions in seg-NIFTIS!")
@@ -215,66 +243,68 @@ def merge_niftis(queue_dict):
                 return queue_dict, "resampling failed"
             print("# -> checking dimensions ...")
             loaded_seg_nifti = nib.load(seg_nifti).get_fdata().astype(int)
-            nifti_labels = list(np.unique(loaded_seg_nifti))
+            nifti_int_encodings = list(np.unique(loaded_seg_nifti))
             nifti_dimensions = loaded_seg_nifti.shape
             assert example_dimensions == nifti_dimensions
 
-        new_global_id = False
-        global_label_id = None
+        transformations = check_transformations()
 
-        if extracted_label_tag in global_labels_info:
-            print("# This label is already present in global label-dict!")
-            global_label_id = global_labels_info[extracted_label_tag]
-        else:
-            new_global_id = True
-            global_label_id = len(global_labels_info.values())+1
-            global_labels_info[extracted_label_tag] = global_label_id
-            write_global_seg_info()
-            print(f"# This label NOT present in global label-dict -> adding {global_label_id}")
+        for int_encoding in nifti_int_encodings:
+            print(f"# Loading enconding {int_encoding}")
+            loaded_seg_nifti_label = np.where(loaded_seg_nifti == int_encoding)
+            int_encoding = str(int_encoding)
+            label_found = list(existing_configuration.keys())[list(existing_configuration.values()).index(int_encoding)]
+            assert len(label_found) == 1
 
-        if seg_id != global_label_id:
-            print(f"# Found {seg_id} global label: {global_label_id}")
-            print(f"# Replacing labels: {extracted_label_tag} -> from {seg_id} to {global_label_id}")
-            assert global_label_id not in local_gt_map_labels
-            loaded_seg_nifti = np.where(loaded_seg_nifti == seg_id, global_label_id, loaded_seg_nifti)
-            seg_id = global_label_id
-        else:
-            print(f"# Same label-id -> ok")
+            if transformations is not None and int_encoding in transformations:
+                print(f"# label_bin: {int_encoding} -> transformation needed")
+                transformation = transformations[int_encoding]
+                kind = transformation["kind"]
+                if kind == "change":
+                    new_encoding = int(transformation["new_encoding"])
+                    print(f"# change {label_found}: {int_encoding} -> {new_encoding}")
+                    loaded_seg_nifti_label = np.where(loaded_seg_nifti_label == int_encoding, new_encoding, loaded_seg_nifti_label)
+                    int_encoding = new_encoding
 
-        print("# Merging...")
-        result_overlapping, overlapping_indices, overlapping_percentage = check_overlapping(gt_map=new_gt_map, new_map=loaded_seg_nifti, seg_nifti=seg_nifti)
-        if result_overlapping:
-            existing_overlapping_labels = np.unique(new_gt_map[overlapping_indices])
-            print("#")
-            print("##################################################")
-            print("#")
-            print(f"# Found overlapping segmentation:")
-            for existing_overlapping_label_int in existing_overlapping_labels:
-                existing_overlapping_label = [k for k, v in global_labels_info.items() if v == existing_overlapping_label_int]
-                if len(existing_overlapping_label) > 0:
-                    existing_overlapping_label = existing_overlapping_label[0]
-                else:
-                    print(f"# Could not find any existing_overlapping_label for encoding: {existing_overlapping_label_int}")
-                    existing_overlapping_label = "Not found!"
-                print("#")
-                print(f"# Base_image: {basename(base_image_path)}")
-                print(f"# existing vs new: {existing_overlapping_label} vs {extracted_label_tag}")
-                print("#")
-            print("##################################################")
-            print("#")
-            if new_global_id:
-                del global_labels_info[extracted_label_tag]
-                write_global_seg_info()
+                if kind == "delete":
+                    print(f"# delete {label_found}: {int_encoding} -> 0")
+                    loaded_seg_nifti_label = np.where(loaded_seg_nifti_label == int_encoding, 0, loaded_seg_nifti_label)
+                    continue
 
-            if not fail_if_overlapping and skipping_level == "segmentation":
-                print(f"# Skipping this segmentation file!")
-                continue
+            if label_found not in local_labels_info:
+                local_labels_info[label_found] = int_encoding
             else:
-                return queue_dict, "overlapping"
+                assert local_labels_info[label_found] == int_encoding
 
-        local_labels_info[seg_id] = extracted_label_tag
-        new_gt_map = np.maximum(new_gt_map, loaded_seg_nifti)
-        local_gt_map_labels = list(np.unique(new_gt_map))
+            print("# Merging...")
+            result_overlapping, overlapping_indices, overlapping_percentage = check_overlapping(gt_map=new_gt_map, new_map=loaded_seg_nifti_label, seg_nifti=seg_nifti)
+            if result_overlapping:
+                existing_overlapping_labels = np.unique(new_gt_map[overlapping_indices])
+                print("#")
+                print("##################################################")
+                print("#")
+                print(f"# Found overlapping segmentation:")
+                for existing_overlapping_label_int in existing_overlapping_labels:
+                    existing_overlapping_label = [k for k, v in global_labels_info.items() if v == existing_overlapping_label_int]
+                    if len(existing_overlapping_label) > 0:
+                        existing_overlapping_label = existing_overlapping_label[0]
+                    else:
+                        print(f"# Could not find any existing_overlapping_label for encoding: {existing_overlapping_label_int}")
+                        existing_overlapping_label = "Not found!"
+                    print("#")
+                    print(f"# Base_image: {basename(base_image_path)}")
+                    print(f"# existing vs new: {existing_overlapping_label} vs {label_found}")
+                    print("#")
+                print("##################################################")
+                print("#")
+
+                if not fail_if_overlapping and skipping_level == "segmentation":
+                    print(f"# Skipping this segmentation seg!")
+                    continue
+                else:
+                    return queue_dict, "overlapping"
+
+            new_gt_map = np.maximum(new_gt_map, loaded_seg_nifti_label)
 
     print("# Writing new merged file...")
     if int(np.amax(new_gt_map)) == 0:
@@ -287,9 +317,6 @@ def merge_niftis(queue_dict):
         print("##################################################")
         print("#")
         print("#")
-        if new_global_id:
-            del global_labels_info[extracted_label_tag]
-            write_global_seg_info()
         return queue_dict, "no labels found"
 
     if multi:
@@ -315,17 +342,11 @@ def merge_niftis(queue_dict):
         print(f"# Staring resampling: {base_img_shape} vs {merged_nifti_shape}")
         resampling_success = resample_image(input_path=target_path_merged, original_path=base_image_path)
         if not resampling_success:
-            if new_global_id:
-                del global_labels_info[extracted_label_tag]
-                write_global_seg_info()
             return queue_dict, "resampling failed"
         print("# Check if resampling-result...")
         merged_nifti_shape = nib.load(target_path_merged).shape
         if base_img_shape != merged_nifti_shape:
             print("# Resampling was not successful!")
-            if new_global_id:
-                del global_labels_info[extracted_label_tag]
-                write_global_seg_info()
             return queue_dict, "resampling failed"
         else:
             print("# Resampling successful!")
@@ -430,6 +451,9 @@ force_same_labels = True if force_same_labels.lower() == "true" else False
 delete_merged_data = getenv("DELETE_MERGED_DATA", "None")
 delete_merged_data = False if delete_merged_data.lower() == "false" else True
 
+target_dict_dir = getenv("TARGET_DICT_DIR", "None")
+target_dict_dir = target_dict_dir if target_dict_dir.lower() == "none" else None
+
 # workflow_dir = "/home/jonas/Downloads/new_data"
 # batch_name = "batch"
 # operator_in_dir = "dcmseg2nrrd-seg"
@@ -467,7 +491,10 @@ print("#")
 print("##################################################")
 print("#")
 
-global_labels_info_path = join('/', workflow_dir,operator_out_dir, "global_seg_info.json")
+if target_dict_dir is not None:
+    global_labels_info_path = join('/', workflow_dir, target_dict_dir, "global_seg_info.json")
+else:
+    global_labels_info_path = join('/', workflow_dir, operator_out_dir, "global_seg_info.json")
 Path(dirname(global_labels_info_path)).mkdir(parents=True, exist_ok=True)
 read_global_seg_info()
 
@@ -475,13 +502,6 @@ batch_dir_path = join('/', workflow_dir, batch_name)
 # Loop for every batch-element (usually series)
 batch_folders = [f for f in glob(join(batch_dir_path, '*'))]
 for batch_element_dir in batch_folders:
-    print("####################################################################################################")
-    print("#")
-    print(f"# Processing batch-element:")
-    print(f"# {batch_element_dir}")
-    print("#")
-    print("####################################################################################################")
-    print("#")
     element_output_dir = join(batch_element_dir, operator_out_dir)
     base_input_dir = join(batch_element_dir, org_input_dir)
     seg_input_dir = join(batch_element_dir, operator_in_dir)

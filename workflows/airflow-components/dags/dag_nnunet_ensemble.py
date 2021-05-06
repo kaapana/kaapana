@@ -339,6 +339,7 @@ evaluation = LocalDiceOperator(
     dag=dag,
     input_operator=nnunet_predict,
     gt_operator=seg_check_gt,
+    batch_name=str(get_test_images.operator_out_dir),
     ensemble_operator=nnunet_ensemble
 )
 

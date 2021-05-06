@@ -112,6 +112,8 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         print("# Evaluating predictions started ...")
         print(f"# workflow_dir {self.workflow_dir}")
+        print(f"# operator_in_dir {self.operator_in_dir}")
+        print(f"# gt_dir {self. gt_dir}")
         self.anonymize_lookup_table = {}
         case_counter = 0
 
@@ -134,7 +136,8 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
             print("#")
             print("##################################################")
             print("#")
-            single_model_pred_dir = join(batch_element_dir, self.operator_in_dir)
+            single_model_pred_dir = join(batch_element_dir, "single-model-prediction")
+            # single_model_pred_dir = join(batch_element_dir, self.operator_in_dir)
             single_model_pred_files = sorted(glob(join(single_model_pred_dir, "*.nii*"), recursive=False))
             for single_model_pred_file in single_model_pred_files:
                 print("#")

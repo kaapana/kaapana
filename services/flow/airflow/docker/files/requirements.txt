@@ -18,4 +18,3 @@ seaborn == 0.11.1
 minio == 6.0.2
 kubernetes==11.0.0
 apache-airflow==1.10.15
-monai==0.4.0

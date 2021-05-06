@@ -8,6 +8,7 @@ import shutil
 import nibabel as nib
 import numpy as np
 import json
+from pydicom.uid import generate_uid
 
 # For multiprocessing
 from multiprocessing.pool import ThreadPool
@@ -283,9 +284,13 @@ def merge_niftis(queue_dict):
                     continue
 
             if label_found not in local_labels_info:
-                local_labels_info[label_found] = int_encoding
+                local_labels_info[label_found] = str(int_encoding)
             else:
-                assert local_labels_info[label_found] == int_encoding
+                print(f"# Label already found in local_labels_info")
+                print(f"# label_found: {label_found} - int_encoding: {int_encoding}")
+                print(f"# vs")
+                print(f"# local_labels_info[{label_found}]: {local_labels_info[label_found]}")
+                assert str(local_labels_info[label_found]) == str(int_encoding)
 
             print("# Merging...")
             result_overlapping, overlapping_indices, overlapping_percentage = check_overlapping(gt_map=new_gt_map, new_map=loaded_seg_nifti_label, seg_nifti=seg_nifti)
@@ -356,7 +361,7 @@ def merge_niftis(queue_dict):
         metadata_json_path = join(target_dir, "metadata.json")
         with open(metadata_json_path, 'w', encoding='utf-8') as f:
             json.dump(metadata_json, f, indent=4, sort_keys=False)
-        target_path_merged = join(target_dir, "merged_segs.nii.gz")
+        target_path_merged = join(target_dir, f"{generate_uid()}_merged.nii.gz")
         combined = nib.Nifti1Image(new_gt_map, base_image_loaded.affine, base_image_loaded.header)
         combined.to_filename(target_path_merged)
         print("# Checking if resampling is needed...")
@@ -382,6 +387,7 @@ def merge_niftis(queue_dict):
                 shutil.rmtree(seg_nifti, ignore_errors=True)
 
     print("# Done")
+    write_global_seg_info(file_path=global_labels_info_path)
     return queue_dict, "ok"
 
 
@@ -707,4 +713,5 @@ else:
     print("#")
     print(f"# ----> {processed_count} FILES HAVE BEEN PROCESSED!")
     print("#")
+    write_global_seg_info(file_path=global_labels_info_path)
     print("# DONE #")

@@ -28,7 +28,7 @@ def combine_split_files(split_files_dir, delete_parts=True):
         print(output)
         exit(1)
     else:
-        print(f"# Successfully created {final_filename}!")
+        print(f"# ✓ Successfully created {final_filename}!")
 
         if delete_parts:
             for part_file in input_files:

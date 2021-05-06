@@ -95,7 +95,7 @@ if processed_count == 0:
         print('MSG: ' + str(e))
         exit(1)
 
-print("# successfully extracted model into model-dir.")
+print("# ✓ successfully extracted model into model-dir.")
 print("# DONE")
 exit(0)
 

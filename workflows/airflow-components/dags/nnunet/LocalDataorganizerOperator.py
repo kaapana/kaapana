@@ -31,19 +31,42 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
 
         batch_folders = [f for f in glob(os.path.join(run_dir, self.batch_name, '*'))]
         print("# Found {} batches".format(len(batch_folders)))
+        nnunet_cohort_dir = join(run_dir, "nnunet-cohort")
         for batch_element_dir in batch_folders:
             print(f"# processing batch-element: {batch_element_dir}")
             single_model_pred_dir = join(batch_element_dir, self.operator_in_dir)
             single_model_pred_files = sorted(glob(join(single_model_pred_dir, "*.nii*"), recursive=False))
-            for single_model_pred_file in single_model_pred_files:
-                cohort_target_dir = join(run_dir, "nnunet-cohort", basename(single_model_pred_file).replace(".nii.gz", ""))
+            seg_info_json = glob(join(single_model_pred_dir, "*.json*"), recursive=False)
+            assert len(seg_info_json) == 1
+            seg_info_json = seg_info_json[0]
 
-                single_model_target = join(cohort_target_dir,"single-model-prediction",basename(single_model_pred_file))
-                ensemble_target = join(cohort_target_dir,"ensemble-prediction",basename(single_model_pred_file))
+            for single_model_pred_file in single_model_pred_files:
+                target_file_id = basename(dirname(dirname(single_model_pred_file)))
+                target_file = f"{target_file_id}.nii.gz"
+                print(f"#")
+                print(f"#")
+                print(f"# target_file_id: {target_file}")
+                print(f"#")
+                print(f"# single_model_pred_file: {single_model_pred_file}")
+                print(f"#")
+
+                search_string = join(nnunet_cohort_dir, "**", basename(single_model_pred_file))
+                nnunet_cohort_files = sorted(glob(search_string, recursive=True))
+                print(f"# found: {len(nnunet_cohort_files)} files")
+                for result in nnunet_cohort_files:
+                    print(result)
+                assert len(nnunet_cohort_files) == 1
+                single_model_target = join(dirname(dirname(nnunet_cohort_files[0])), "single-model-prediction", target_file)
+                ensemble_target = join(dirname(dirname(nnunet_cohort_files[0])), "ensemble-prediction", target_file)
+                seg_info_single_target = join(dirname(dirname(nnunet_cohort_files[0])), "single-model-prediction", f"{target_file_id}.json")
+                seg_info_ensemble_target = join(dirname(dirname(nnunet_cohort_files[0])), "ensemble-prediction", f"{target_file_id}.json")
                 Path(dirname(single_model_target)).mkdir(parents=True, exist_ok=True)
                 Path(dirname(ensemble_target)).mkdir(parents=True, exist_ok=True)
 
                 ensemble_file = join(self.ensemble_dir, basename(single_model_pred_file))
+
+                shutil.copy2(seg_info_json, seg_info_single_target)
+                shutil.copy2(seg_info_json, seg_info_ensemble_target)
                 if copy_target_data:
                     shutil.copy2(single_model_pred_file, single_model_target)
                     shutil.copy2(ensemble_file, ensemble_target)

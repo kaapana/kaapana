@@ -140,9 +140,7 @@ for batch_element_dir in batch_folders:
     print("#")
     print(f"# Processing batch-element {batch_element_dir}")
     print("#")
-    print("#")
-    print("####################################################################################################")
-    print("#")
+
     element_input_dir = join(batch_element_dir, operator_in_dir)
     element_output_dir = join(batch_element_dir, operator_out_dir)
     element_org_input_dir = join(batch_element_dir, org_input_dir)
@@ -173,6 +171,9 @@ for batch_element_dir in batch_folders:
             original_shape=original_shape,
             target_dir=element_output_dir
         )
+    print("#")
+    print("####################################################################################################")
+    print("#")
 
     # Alternative with multi-processing
     # results = ThreadPool(parallel_processes).imap_unordered(process_input_file, input_files)

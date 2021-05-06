@@ -15,6 +15,7 @@ class SegCheckOperator(KaapanaBaseOperator):
                  interpolator=1,  # 0=linear (default), 1=nearest neighbor, 2=sinc (optional), (default: 0), Type: Int
                  delete_merged_data=True,
                  fail_if_overlapping=True,
+                 target_dict_operator = None,
                  fail_if_label_already_present=False,
                  fail_if_label_id_not_extractable=False,
                  force_same_labels=False,
@@ -36,6 +37,7 @@ class SegCheckOperator(KaapanaBaseOperator):
             "FAIL_IF_LABEL_ID_NOT_EXTRACTABLE": str(fail_if_label_id_not_extractable),
             "FORCE_SAME_LABELS": str(force_same_labels),
             "DELETE_MERGED_DATA": str(delete_merged_data),
+            "TARGET_DICT_DIR": str(target_dict_operator.operator_out_dir) if target_dict_operator is not None else str(None), 
             "INTERPOLATOR": str(interpolator),
         }
         env_vars.update(envs)
@@ -47,7 +49,7 @@ class SegCheckOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             env_vars=env_vars,
-            ram_mem_mb=30000,
+            ram_mem_mb=50000,
             *args,
             **kwargs
         )

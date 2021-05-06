@@ -134,7 +134,7 @@ if mode == "install_zip":
             print('MSG: ' + str(e))
             exit(1)
 
-    print("# successfully extracted model into model-dir.")
+    print("# ✓ successfully extracted model into model-dir.")
     print("# DONE")
     exit(0)
 
@@ -268,7 +268,7 @@ elif mode == "install_pretrained":
             print("------------------------------------")
             exit(1)
 
-    print("All models successfully downloaded and extracted!")
+    print("# ✓ All models successfully downloaded and extracted!")
 
 elif mode == "uninstall":
     if task_ids is None:

@@ -10,7 +10,6 @@ from glob import glob
 import torch
 import shutil
 
-
 def get_model_targets(model_dir, targets):
     print(f"# Searching for dataset.json @: {model_dir}")
     dataset_json = glob(join(model_dir, "**", "dataset.json"), recursive=True)
@@ -44,11 +43,11 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
     print(f"# task:       {task}")
     print(f"# model:      {model}")
     print(f"# folds:      {folds}")
+
+    task_targets = get_model_targets(model_dir=model, targets=task_targets)
     print(f"#")
     print(f"# task_targets:      {task_targets}")
     print(f"#")
-
-    task_targets = get_model_targets(model_dir=model, targets=task_targets)
 
     Path(element_output_dir).mkdir(parents=True, exist_ok=True)
     predict_from_folder(

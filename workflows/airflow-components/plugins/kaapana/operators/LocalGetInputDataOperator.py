@@ -79,13 +79,17 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         return download_successful, seriesUID
 
     def start(self, ds, **kwargs):
-        print("Starting moule LocalGetInputDataOperator...")
+        print("# Starting moule LocalGetInputDataOperator...")
+        print("#")
         self.conf = kwargs['dag_run'].conf
 
         if self.cohort_limit is None and self.inputs is None and self.conf is not None and "conf" in self.conf:
             trigger_conf = self.conf["conf"]
             self.cohort_limit = int(trigger_conf["cohort_limit"] if "cohort_limit" in trigger_conf else None)
 
+        print(f"# Cohort-limit: {self.cohort_limit}")
+        print("#")
+        
         dag_run_id = kwargs['dag_run'].run_id
 
         if self.inputs is None and self.conf == None or not "inputs" in self.conf:

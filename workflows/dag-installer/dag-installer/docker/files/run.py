@@ -73,7 +73,7 @@ for file_path in files_to_copy:
 
 
 print('################################################################################')
-print(f'Successfully applied action {action} to all the files')
+print(f'✓ Successfully applied action {action} to all the files')
 print('################################################################################')
 
 

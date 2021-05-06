@@ -10,8 +10,6 @@ from multiprocessing.pool import ThreadPool
 # For shell-execution
 from subprocess import PIPE, run
 execution_timeout = 120
-# How many processes should be started?
-parallel_processes = 3
 
 # Counter to check if smth has been processed
 processed_count = 0
@@ -110,7 +108,7 @@ issue = False
 
 print("##################################################")
 print("#")
-print("# Starting operator xyz:")
+print("# Starting FileConverter:")
 print("#")
 print(f"# workflow_dir:     {workflow_dir}")
 print(f"# batch_name:       {batch_name}")
@@ -119,6 +117,8 @@ print(f"# operator_out_dir: {operator_out_dir}")
 print("#")
 print(f"# convert_to:           {convert_to}")
 print(f"# input_file_extension: {input_file_extension}")
+print("#")
+print(f"# parallel_processes: {parallel_processes}")
 print("#")
 print("##################################################")
 print("#")
@@ -131,9 +131,6 @@ print("#")
 job_list = []
 batch_folders = [f for f in glob(join('/', workflow_dir, batch_name, '*'))]
 for batch_element_dir in batch_folders:
-    print("#")
-    print(f"# Processing batch-element {batch_element_dir}")
-    print("#")
     element_input_dir = join(batch_element_dir, operator_in_dir)
     element_output_dir = join(batch_element_dir, operator_out_dir)
 
@@ -150,7 +147,6 @@ for batch_element_dir in batch_folders:
 
     # creating output dir
     input_files = glob(join(element_input_dir, f"*.{input_file_extension}"), recursive=True)
-    print(f"# Found {len(input_files)} input-files!")
     job_list.append((input_files, element_output_dir))
 
 
@@ -160,7 +156,7 @@ for result, input_file in results:
     if result:
         print("#")
         processed_count += 1
-        print(f"# {processed_count} / {len(job_list)} successful")
+        print(f"# ✓ {processed_count} / {len(job_list)} successful")
         print("#")
     else:
         print("#")
@@ -251,7 +247,7 @@ if issue:
     print("#")
     print("##################################################")
     print("#")
-    print("# There have been issues...")
+    print("# ✘ There have been issues...")
     print("#")
     print("##################################################")
     print("#")

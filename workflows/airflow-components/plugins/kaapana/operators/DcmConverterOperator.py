@@ -7,6 +7,7 @@ class DcmConverterOperator(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  output_format="nrrd",
+                 parallel_processes=3,
                  env_vars=None,
                  execution_timeout=timedelta(hours=10),
                  *args, **kwargs
@@ -17,6 +18,7 @@ class DcmConverterOperator(KaapanaBaseOperator):
 
         envs = {
             "CONVERTTO": output_format,
+            "THREADS": str(parallel_processes),
         }
 
         env_vars.update(envs)

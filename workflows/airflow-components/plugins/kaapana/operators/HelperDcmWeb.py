@@ -3,6 +3,8 @@ import logging
 import os
 import tempfile
 import time
+import pydicom
+from dicomweb_client.api import DICOMwebClient
 from typing import List
 from os.path import join
 from pathlib import Path
@@ -17,6 +19,7 @@ class HelperDcmWeb():
     pacs_dcmweb_endpoint = "http://dcm4chee-service.store.svc:8080/dcm4chee-arc/aets/"
     #pacs_dcmweb_endpoint = "http://10.128.128.212:8080/dcm4chee-arc/aets/"
     pacs_dcmweb = pacs_dcmweb_endpoint + "KAAPANA"
+    client = DICOMwebClient(url=f"{pacs_dcmweb}/rs")
     wait_time=5
     log = logging.getLogger(__name__)
 
@@ -170,31 +173,8 @@ class HelperDcmWeb():
         for file in files:
             uploaded_fiels += 1
             HelperDcmWeb.log.info("Uploading %d / %d:  %s", uploaded_fiels, total_files, file)
-
-            with open (file, 'rb') as reader:
-                raw = reader.read()
-
-            HelperDcmWeb.upload_dcm(aet, raw)
-
-
-    @staticmethod
-    def upload_dcm(aet: str, raw_dcm_data):
-        files = {'file': ('dicomfile', raw_dcm_data, 'application/dicom')}
-
-        boundary = choose_boundary()
-        body, _ = encode_multipart_formdata(files, boundary)
-        content_type = str('multipart/related; boundary=%s' % boundary)
-
-        headers = {'Accept': 'application/dicom+json', "Content-Type": content_type}
-
-        
-        uploadURL = f"{HelperDcmWeb.pacs_dcmweb}/rs/studies"
-        response = requests.post(uploadURL,
-                                headers=headers,
-                                data=body,
-                                verify=False)
-        if response.status_code != requests.codes.ok and response.status_code != 204:
-            raise DcmWebException(f"Error deleting study form iocm quality errorcode: {response.status_code} content {response.content.json()}")
+            dataset = pydicom.dcmread(file)
+            HelperDcmWeb.client.store_instances(datasets=[dataset])
 
 
     @staticmethod

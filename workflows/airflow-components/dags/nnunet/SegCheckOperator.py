@@ -1,5 +1,7 @@
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 from datetime import timedelta
+
+
 class SegCheckOperator(KaapanaBaseOperator):
     execution_timeout = timedelta(hours=10)
 
@@ -9,10 +11,12 @@ class SegCheckOperator(KaapanaBaseOperator):
                  input_file_extension="*.nii.gz",
                  parallel_processes=1,
                  interpolator=1,  # 0=linear (default), 1=nearest neighbor, 2=sinc (optional), (default: 0), Type: Int
-                 max_overlap_percentage = 0.001,
+                 max_overlap_percentage=0.001,
+                 merge_found_niftis=True,
                  delete_merged_data=True,
                  fail_if_overlap=True,
-                 target_dict_operator = None,
+                 target_dict_operator=None,
+                 delete_non_target_labels=False,
                  fail_if_label_already_present=False,
                  fail_if_label_id_not_extractable=False,
                  force_same_labels=False,
@@ -35,7 +39,9 @@ class SegCheckOperator(KaapanaBaseOperator):
             "FAIL_IF_LABEL_ID_NOT_EXTRACTABLE": str(fail_if_label_id_not_extractable),
             "FORCE_SAME_LABELS": str(force_same_labels),
             "DELETE_MERGED_DATA": str(delete_merged_data),
-            "TARGET_DICT_DIR": str(target_dict_operator.operator_out_dir) if target_dict_operator is not None else str(None), 
+            "MERGE_FOUND_NIFTIS": str(merge_found_niftis),
+            "TARGET_DICT_DIR": str(target_dict_operator.operator_out_dir) if target_dict_operator is not None else str(None),
+            "DELETE_NON_TARGET_LABELS": str(delete_non_target_labels),
             "INTERPOLATOR": str(interpolator),
         }
         env_vars.update(envs)
@@ -47,7 +53,7 @@ class SegCheckOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             env_vars=env_vars,
-            ram_mem_mb=50000,
+            ram_mem_mb=20000,
             *args,
             **kwargs
         )

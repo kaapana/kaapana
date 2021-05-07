@@ -13,7 +13,7 @@ class DiceEvaluationOperator(KaapanaBaseOperator):
                  parallel_processes=1,
                  name="dice-evaluation",
                  batch_name=None,
-                 parallel_id=None,
+                 parallel_id="",
                  env_vars={},
                  execution_timeout=execution_timeout,
                  *args,

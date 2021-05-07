@@ -1,7 +1,7 @@
 import glob
 import os
-import requests
 import json
+import logging
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
@@ -20,12 +20,16 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
             print('Delete entire study set to ', self.delete_complete_study)
         run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
         batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
-        dicoms_to_delete = []
+        
+        study2series_deletion = {}
+        
         for batch_element_dir in batch_folder:
             json_files = sorted(glob.glob(os.path.join(batch_element_dir, self.operator_in_dir, "*.json*"), recursive=True))
             for meta_files in json_files:
                 with open(meta_files) as fs:
                     metadata = json.load(fs)
+                    series_uid = metadata['0020000E SeriesInstanceUID_keyword']
+                    study_uid = metadata['0020000D StudyInstanceUID_keyword']
 
                     if self.delete_complete_study:
                         HelperDcmWeb.delete_study(
@@ -33,11 +37,20 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
                             study_uid = metadata['0020000D StudyInstanceUID_keyword']
                         )
                     else:
-                        HelperDcmWeb.delete_series(
-                            aet = self.pacs_aet,
-                            series_uid = metadata['0020000E SeriesInstanceUID_keyword'],
-                            study_uid = metadata['0020000D StudyInstanceUID_keyword'],
-                        )
+                        # If multiple series of one study should be delete this would combine the request
+                        if study_uid in study2series_deletion:
+                            study2series_deletion[study_uid].append(series_uid)
+                        else:
+                            study2series_deletion[study_uid] = [series_uid]
+
+            for study_uid, series_uids in study2series_deletion.items():
+                self.log.info("Deleting series: %s from study: %s", series_uids, study_uid)
+                HelperDcmWeb.delete_series(
+                    aet = self.pacs_aet,
+                    series_uids = series_uids,
+                    study_uid = study_uid,
+                )
+
 
     def __init__(self,
                  dag,

@@ -130,19 +130,19 @@ class HelperDcmWeb():
         return [s["0020000E"]["Value"][0] for s in series] if series else []
 
     @staticmethod
-    def delete_series(aet: str, study_uid: str, series_uid: str):
-        HelperDcmWeb.log.info("Deleting series %s in study %s", series_uid, study_uid)
-        series_uids = HelperDcmWeb.getSeriesUidsForStudy(aet, study_uid)
-        if series_uid not in series_uids:
-            HelperDcmWeb.log.warn("Series %s does not exist for study %s on PACS", series_uid, study_uid)
-            return
-            
-        series_uids.remove(series_uid)
+    def delete_series(aet: str, study_uid: str, series_uids: List[str]):
+        HelperDcmWeb.log.info("Deleting series %s in study %s", series_uids, study_uid)
+        series_uids_keep = HelperDcmWeb.getSeriesUidsForStudy(aet, study_uid)
+
+        for series_uid in series_uids:
+            if series_uid not in series_uids_keep:
+                HelperDcmWeb.log.warn("Series %s does not exist for study %s on PACS", series_uid, study_uid)
+                return
+            series_uids_keep.remove(series_uid)
         
         with tempfile.TemporaryDirectory() as tmp_dir:
-            print(tmp_dir)
             HelperDcmWeb.log.info("1/4 Start Downloading all series to keep to %s", tmp_dir)
-            for keep_series_uid in series_uids:
+            for keep_series_uid in series_uids_keep:
                 HelperDcmWeb.log.info("Downloading Series %s to %s", keep_series_uid, tmp_dir)      
                 if not HelperDcmWeb.downloadSeries(keep_series_uid, tmp_dir, include_series_dir=True):
                     raise DcmWebException(f"Could not download {keep_series_uid}")
@@ -154,7 +154,7 @@ class HelperDcmWeb():
             HelperDcmWeb.log.info("Study deleted")
 
             HelperDcmWeb.log.info("3/4 Upload series to keep again to PACS")
-            for upload_series_uid in series_uids:
+            for upload_series_uid in series_uids_keep:
                 HelperDcmWeb.log.info("Upload series %s", upload_series_uid)
                 HelperDcmWeb.upload_dcm_files(aet, os.path.join(tmp_dir, upload_series_uid))
 

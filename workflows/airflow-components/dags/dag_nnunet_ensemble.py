@@ -3,10 +3,9 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 from datetime import datetime
-from nnunet.LocalDiceOperator import LocalDiceOperator
+from nnunet.DiceEvaluationOperator import DiceEvaluationOperator
 from nnunet.LocalDataorganizerOperator import LocalDataorganizerOperator
 from nnunet.NnUnetOperator import NnUnetOperator
-from kaapana.operators.ResampleOperator import ResampleOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
@@ -22,7 +21,7 @@ default_nifti_thread_count = 1
 test_cohort_limit = 5
 organ_filter = None
 
-seg_check_parallel_processes = 3
+parallel_processes = 3
 
 ui_forms = {
     "workflow_form": {
@@ -230,7 +229,7 @@ dcm2nifti_ct = DcmConverterOperator(
     dag=dag,
     input_operator=get_ref_ct_series_from_gt,
     parallel_id="ct",
-    parallel_processes=seg_check_parallel_processes,
+    parallel_processes=parallel_processes,
     batch_name=str(get_test_images.operator_out_dir),
     output_format='nii.gz'
 )
@@ -265,7 +264,7 @@ nnunet_predict = NnUnetOperator(
     inf_batch_dataset=True,
     inf_threads_prep=1,
     inf_threads_nifti=1,
-    inf_seg_filter=organ_filter,
+    inf_remove_if_empty = False,
     interpolation_order=default_interpolation_order,
     models_dir=extract_model.operator_out_dir,
 )
@@ -290,9 +289,9 @@ seg_check_gt = SegCheckOperator(
     input_operator=dcm2nifti_gt,
     original_img_operator=dcm2nifti_ct,
     target_dict_operator=None,
-    parallel_processes=seg_check_parallel_processes,
+    parallel_processes=parallel_processes,
     delete_merged_data=False,
-    fail_if_overlapping=False,
+    fail_if_overlap=False,
     fail_if_label_already_present=False,
     fail_if_label_id_not_extractable=False,
     force_same_labels=False,
@@ -301,46 +300,15 @@ seg_check_gt = SegCheckOperator(
     parallel_id="gt",
 )
 
-# seg_check_nnunet = SegCheckOperator(
-#     dag,
-#     operator_in_dir="single-model-prediction",
-#     operator_out_dir="single-model-prediction",
-#     target_dict_operator=seg_check_gt,
-#     original_img_operator=dcm2nifti_ct,
-#     parallel_processes=seg_check_parallel_processes,
-#     delete_merged_data=True,
-#     fail_if_overlapping=False,
-#     fail_if_label_already_present=False,
-#     fail_if_label_id_not_extractable=False,
-#     force_same_labels=False,
-#     # operator_out_dir=dcm2nifti_gt.operator_out_dir,
-#     batch_name=str(get_test_images.operator_out_dir),
-#     parallel_id="single-model",
-# )
-
-# seg_check_ensemble = SegCheckOperator(
-#     dag,
-#     operator_in_dir="ensemble-prediction",
-#     operator_out_dir="ensemble-prediction",
-#     target_dict_operator=seg_check_gt,
-#     original_img_operator=dcm2nifti_ct,
-#     parallel_processes=seg_check_parallel_processes,
-#     delete_merged_data=True,
-#     fail_if_overlapping=False,
-#     fail_if_label_already_present=False,
-#     fail_if_label_id_not_extractable=False,
-#     force_same_labels=False,
-#     # operator_out_dir=dcm2nifti_gt.operator_out_dir,
-#     batch_name=str(get_test_images.operator_out_dir),
-#     parallel_id="ensemble",
-# )
-
-evaluation = LocalDiceOperator(
-    dag=dag,
+evaluation = DiceEvaluationOperator(
+    dag = dag,
+    anonymize=True,
     input_operator=nnunet_predict,
     gt_operator=seg_check_gt,
+    ensemble_operator=nnunet_ensemble,
+    parallel_processes=1,
     batch_name=str(get_test_images.operator_out_dir),
-    ensemble_operator=nnunet_ensemble
+    parallel_id=None
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)

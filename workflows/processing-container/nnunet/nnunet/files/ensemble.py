@@ -4,6 +4,7 @@ import os
 from os import getenv
 from os.path import join, exists
 from glob import glob
+import itertools
 
 batch_name = getenv("BATCH_NAME", "None")
 batch_name = batch_name if batch_name.lower() != "none" else None
@@ -55,6 +56,13 @@ for batch_element_dir in batch_folders:
         print(f"# Input-Dir {element_input_dir} not found! -> unexpected -> ABORT")
         print(f"#")
         exit(1)
+
+
+
+# stuff = [1, 2, 3, 4, 5]
+# for L in range(0, len(stuff)+1):
+#     for subset in itertools.combinations(stuff, L):
+#         print(subset)
 
 if len(ensemble_dirs) == 0:
     print("#")

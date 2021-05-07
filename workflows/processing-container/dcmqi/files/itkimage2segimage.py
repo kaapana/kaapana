@@ -367,6 +367,9 @@ for batch_element_dir in batch_folders:
             label_int = int(label["label_int"])
             single_label_seg_info = label["label_name"]
             print(f"process: {single_label_seg_info}: {label_int}")
+            if str(label_int) == "0":
+                print("Clear Label -> skipping")
+                continue
 
             code_meaning, segmentation_information["SeriesDescription"] = process_seg_info(single_label_seg_info, series_description)
             color = np.round(np.array(cm.get_cmap('gist_ncar', label_counts)(idx)[:3])*255).astype(int).tolist()

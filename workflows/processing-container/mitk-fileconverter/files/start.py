@@ -66,7 +66,7 @@ def process_input_file(paras):
             print(f"# Target already exists -> skipping ")
 
         if input_file_extension == "dcm":
-            print("# Dicom -> only one series needed -> break")
+            print("# Dicom -> only one slice needed -> break")
             break
 
     return True, input_filepaths

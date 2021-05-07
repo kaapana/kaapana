@@ -1,11 +1,15 @@
-FROM python:3.9-alpine3.12
+FROM ubuntu:20.04
+ARG DEBIAN_FRONTEND=noninteractive
 
 LABEL IMAGE="dice-evaluation"
 LABEL VERSION="0.1.0-vdev"
 LABEL CI_IGNORE="False"
 
 WORKDIR /
-RUN apk update && apk add --no-cache python3-dev gcc libc-dev  jpeg-dev zlib-dev && pip3 install --upgrade pip
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY files/requirements.txt /
 RUN pip3 install --no-cache-dir -r requirements.txt

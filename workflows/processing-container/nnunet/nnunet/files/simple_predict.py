@@ -10,43 +10,52 @@ from glob import glob
 import torch
 import shutil
 
+
 def get_model_targets(model_dir, targets):
     print(f"# Searching for dataset.json @: {model_dir}")
     dataset_json = glob(join(model_dir, "**", "dataset.json"), recursive=True)
-    new_targets = None
     if len(dataset_json) != 0:
         print(f"# Loading dataset.json: {dataset_json[0]}")
         with open(dataset_json[0]) as f:
             dataset_json = json.load(f)
+        return dataset_json
 
-        if "labels" in dataset_json:
-            print(f"# Using labels: {dataset_json['labels']}")
-            new_targets = dataset_json['labels']
-
-        # elif "tracking_ids" in dataset_json:
-        #     print(f"# Using taracking_ids: {dataset_json['tracking_ids']}")
-        #     new_targets =  dataset_json['tracking_ids']
-
-    if new_targets is None:
-        new_targets = {}
-        for i in range(0, len(targets)):
-            new_targets[str(i)] = targets[i]
-
-    return new_targets
+    return None
 
 
 def predict(model, input_folder, output_folder, folds, save_npz, num_threads_preprocessing, num_threads_nifti_save, part_id, num_parts, tta, mixed_precision, overwrite_existing, mode, overwrite_all_in_gpu, step_size, checkpoint_name, lowres_segmentations=None):
-    global task, task_body_part, task_targets, task_protocols, inf_seg_filter
+    global task, task_body_part, task_targets, task_protocols, inf_seg_filter, remove_if_empty
+
+    target_labels = {}
+    if task is None:
+        print("# Loading model-info-json ...")
+        model_info = get_model_targets(model_dir=model, targets=task_targets)
+        assert model_info is not None and "labels" in model_info
+        print("# model_info:")
+        print("# ")
+        print(json.dumps(model_info, indent=4, sort_keys=True, default=str))
+        print("# ")
+        local_task = model_info["name"]
+        target_labels = model_info["labels"]
+        local_task_protocols = ",".join(model_info["modality"].values()) if "modality" in model_info else "N/A"
+
+    else:
+        print("# Using env configuration ...")
+        print("# ")
+        local_task = task
+        local_task_protocols = task_protocols
+        assert task_targets is not None
+        for index in range(0,len(task_targets)):
+            target_labels[index] = task_targets[index]
 
     print(f"#")
     print(f"# Start prediction....")
-    print(f"# task:       {task}")
+    print(f"# task:       {local_task}")
     print(f"# model:      {model}")
     print(f"# folds:      {folds}")
-
-    task_targets = get_model_targets(model_dir=model, targets=task_targets)
     print(f"#")
-    print(f"# task_targets:      {task_targets}")
+    print(f"# target_labels:  {target_labels}")
+    print(f"# task_protocols: {local_task_protocols}")
     print(f"#")
 
     Path(element_output_dir).mkdir(parents=True, exist_ok=True)
@@ -75,81 +84,47 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
     print("#")
     nifti_files = sorted(glob(join(output_folder, "*.nii*"), recursive=False))
     assert len(nifti_files) > 0
+    
+    
+    labels_found = []
+    for int_encoding, label_key in target_labels.items():
+        labels_found.append({
+            "label_name": label_key,
+            "label_int": str(int_encoding)
+        })
 
-    nifti_labels = []
-    for nifti_file in nifti_files:
-        print(f"# Loading result NIFTI: {nifti_file}")
-        nib_img = nib.load(nifti_file)
-        nib_img_arr = nib_img.get_fdata().astype(int)
-        labels_file = list(np.unique(nib_img_arr))
+    if remove_if_empty:
+        for nifti_file in nifti_files:
+            print(f"# Loading result NIFTI: {nifti_file}")
+            labels_file = list(np.unique(nib.load(nifti_file).get_fdata().astype(int)))
+            if len(labels_file) == 0:
+                print("#")
+                print("#")
+                print("#")
+                print("#")
+                print("#")
+                print("#")
+                print("##################################################### ")
+                print("#")
+                print("# No segmentation was found in result-NIFTI-file!")
+                print(f"# deleting NIFTI-file {nifti_files[0]}")
+                print("#")
+                print("##################################################### ")
+                print("#")
+                print("#")
+                print("#")
+                print("#")
+                print("#")
+                print("#")
+                print("#")
+                os.remove(nifti_file)
 
-        changed_nifti = False
-        for label_bin in labels_file:
-            print(f"# label_int: {label_bin}")
-            if label_bin == 0:
-                continue
-            if str(label_bin) not in task_targets:
-                print(f"# Could not find {label_bin} in {task_targets}")
-                exit(1)
-
-            label_name = task_targets[str(label_bin)] if task_targets != None and str(label_bin) in task_targets else "N/A"
-            print(f"# label_name: {label_name}")
-
-            if inf_seg_filter is not None and label_name not in inf_seg_filter:
-                print(f"# Found prediction to filter: {label_name} -> Set label {label_bin} -> 0")
-                nib_img_arr = np.where(nib_img_arr == label_bin, 0, nib_img_arr)
-                changed_nifti = True
-            else:
-                nifti_labels.append(label_bin)
-        if changed_nifti:
-            print(f"# Writing changed NIFTI: {changed_nifti}")
-            new_nifiti = nib.Nifti1Image(nib_img_arr, nib_img.affine, nib_img.header)
-            new_nifiti.to_filename(nifti_file)
-        
-
-        # x, y, z = img.shape
-        # print(f"# Dimensions: {[x, y, z]}")
-
-    nifti_labels = list(set(nifti_labels))
-    print(f"# Task-targets:     {task_targets}")
-    print(f"# SEG NIFTI Labels: {nifti_labels}")
     seg_info_json = {}
-    seg_info_json["task_id"] = task if task != None else model.split("/")[-2]
+    seg_info_json["task_id"] = local_task if local_task != None else model.split("/")[-2]
     seg_info_json["task_body_part"] = task_body_part
-    seg_info_json["task_protocols"] = task_protocols
+    seg_info_json["task_protocols"] = local_task_protocols
     seg_info_json["task_targets"] = task
     seg_info_json["algorithm"] = task.lower() if task != None else model.split("/")[-2].lower()
-
-    if len(nifti_labels) == 0:
-        print("##################################################### ")
-        print("#")
-        print("# No segmentation was found in result-NIFTI-file!")
-        print(f"# NIFTI-file {nifti_files[0]}")
-        print("# ABORT")
-        print("#")
-        print("##################################################### ")
-        exit(1)
-
-    print(f"# SEG_FILTERS: {inf_seg_filter}")
-    print("#")
-    labels_found = []
-    for label_bin in nifti_labels:
-        print(f"# label_int: {label_bin}")
-        if str(label_bin) not in task_targets:
-            print(f"# Could not find {label_bin} in {task_targets}")
-            exit(1)
-
-        label_name = task_targets[str(label_bin)] if task_targets != None and str(label_bin) in task_targets else "N/A"
-        print(f"# label_name: {label_name}")
-
-        if inf_seg_filter is not None and label_name not in inf_seg_filter:
-            print(f"# Found prediction to filter: {label_name} -> TODO")
-            exit(1)
-        else:
-            labels_found.append({
-                "label_name": label_name,
-                "label_int": label_bin
-            })
 
     seg_info_json["seg_info"] = labels_found
     seg_json_path = join(output_folder, 'seg_info.json')
@@ -164,6 +139,8 @@ def create_dataset(search_dir):
     global batch_dataset, operator_in_dir, input_modality_dirs, workflow_dir
 
     input_data_dir = join('/', workflow_dir, "nnunet-input-data")
+    Path(input_data_dir).mkdir(parents=True, exist_ok=True)
+
     if batch_dataset:
         batch_folders = [f for f in glob(join('/', workflow_dir, "nnunet-cohort", '*'))]
         for batch_element_dir in batch_folders:
@@ -176,10 +153,10 @@ def create_dataset(search_dir):
                 for nifti in niftis_found:
                     target_filename = join(input_data_dir, basename(nifti).replace(".nii.gz", f"_{input_count:04d}.nii.gz"))
                     if exists(target_filename):
+                        print(f"# target_filename: {target_filename}")
                         print(f"# Target input-data already exists -> skipping")
                         continue
 
-                    Path(input_data_dir).mkdir(parents=True, exist_ok=True)
                     if copy_target_data:
                         print(f"# Copy file {nifti} to {target_filename}")
                         shutil.copy2(nifti, target_filename)
@@ -229,9 +206,11 @@ def get_model_paths(batch_element_dir):
         print(f"# Batch models dir: {batch_models_dir}")
         if exists(model_path):
             print("# Found batch-element models dir -> continue")
+            print(f"# model_path: {model_path}") 
             model_paths.append(model_path)
         elif exists(batch_models_dir):
             print("# Found batch models dir -> continue")
+            print(f"# model_path: {batch_models_dir}") 
             model_paths.append(batch_models_dir)
         else:
             print("# Could not find models !")
@@ -259,7 +238,11 @@ def get_model_paths(batch_element_dir):
                 exit(1)
             model_path = join(model_path, task_idenified)
         else:
+            print(f"# Task: {task}")
             model_path = join(model_path, task)
+            print(f"# Final model_path: {model_path}")
+
+        assert exists(model_path)
         trainer = [f.name for f in os.scandir(model_path) if f.is_dir()]
         if len(trainer) == 1:
             model_path = join(model_path, trainer[0])
@@ -336,7 +319,7 @@ if task_targets != None and task_targets[0] != "Clear Label":
     task_targets.insert(0, "Clear Label")
 
 task_body_part = getenv("BODY_PART", "N/A")
-task_protocols = getenv("PROTOCOLS", "ENV NOT FOUND!").split(",")
+task_protocols = getenv("INPUT", "NOT FOUND!").split(",")
 
 mode = getenv("MODE", "None")
 mode = mode if mode.lower() != "none" else None
@@ -373,6 +356,10 @@ interpolation_order = getenv("INTERPOLATION_ORDER", "default")
 mixed_precision = getenv("MIXED_PRECISION", "None")
 mixed_precision = False if mixed_precision.lower() == "false" else True
 
+
+remove_if_empty = getenv("INF_REMOVE_IF_EMPTY", "None")
+remove_if_empty = True if remove_if_empty.lower() == "true" else False
+
 inf_seg_filter = getenv("INF_SEG_FILTER", "None")
 inf_seg_filter = inf_seg_filter.split(",") if inf_seg_filter.lower() != "none" else None
 
@@ -397,11 +384,17 @@ print("#")
 print(f"# task:  {task}")
 print(f"# mode:  {mode}")
 print(f"# folds: {folds}")
+print("#")
+print(f"# task_targets: {task_targets}")
+print(f"# task_protocols: {task_protocols}")
+print(f"# task_body_part: {task_body_part}")
+print("#")
 print(f"# models_dir: {models_dir}")
 print(f"# batch_name:   {batch_name}")
 print(f"# workflow_dir: {workflow_dir}")
 print(f"# batch_dataset: {batch_dataset}")
 print(f"# enable_softmax: {enable_softmax}")
+print(f"# remove_if_empty: {remove_if_empty}")
 print(f"# operator_in_dir: {operator_in_dir}")
 print(f"# operator_out_dir: {operator_out_dir}")
 print(f"# input_modality_dirs: {input_modality_dirs}")
@@ -487,6 +480,8 @@ for batch_element_dir in batch_folders:
         print(f"# model: {model}")
         print("#")
 
+    input_data_dir = join('/', workflow_dir, "nnunet-input-data")
+    shutil.rmtree(input_data_dir, ignore_errors=True)
 
 if processed_count == 0:
     print("##################################################")
@@ -545,6 +540,9 @@ if processed_count == 0:
             processed_count += 1
             print(f"# Prediction ok.")
             print(f"#")
+
+    input_data_dir = join('/', workflow_dir, "nnunet-input-data")
+    shutil.rmtree(input_data_dir, ignore_errors=True)
 
 if processed_count == 0:
     print("#")

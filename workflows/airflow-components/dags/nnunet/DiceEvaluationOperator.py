@@ -1,6 +1,7 @@
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 from datetime import timedelta
 
+
 class DiceEvaluationOperator(KaapanaBaseOperator):
     execution_timeout = timedelta(hours=10)
 
@@ -10,8 +11,9 @@ class DiceEvaluationOperator(KaapanaBaseOperator):
                  ensemble_operator=None,
                  anonymize=True,
                  parallel_processes=1,
-                 name="seg-check",
+                 name="dice-evaluation",
                  batch_name=None,
+                 parallel_id=None,
                  env_vars={},
                  execution_timeout=execution_timeout,
                  *args,
@@ -21,7 +23,6 @@ class DiceEvaluationOperator(KaapanaBaseOperator):
         envs = {
             "GT_IN_DIR": str(gt_operator.operator_out_dir) if gt_operator is not None else str(None),
             "ENSEMBLE_IN_DIR": str(ensemble_operator.operator_out_dir) if ensemble_operator is not None else str(None),
-            "GT_IN_DIR": str(gt_operator.operator_out_dir) if gt_operator is not None else str(None),
             "ANONYMIZE": str(anonymize),
             "THREADS": str(parallel_processes),
         }
@@ -31,9 +32,10 @@ class DiceEvaluationOperator(KaapanaBaseOperator):
             dag=dag,
             image="{}{}/dice-evaluation:0.1.0-vdev".format(default_registry, default_project),
             name=name,
-            batch_name = batch_name,
+            batch_name=batch_name,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
+            parallel_id=parallel_id,
             env_vars=env_vars,
             ram_mem_mb=50000,
             *args,

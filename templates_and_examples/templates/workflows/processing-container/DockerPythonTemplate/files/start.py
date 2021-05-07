@@ -90,7 +90,7 @@ print("##################################################")
 print("#")
 
 # Loop for every batch-element (usually series)
-batch_folders = [f for f in glob(join('/', workflow_dir, batch_name, '*'))]
+batch_folders = sorted([f for f in glob(join('/', workflow_dir, batch_name, '*'))])
 for batch_element_dir in batch_folders:
     print("#")
     print(f"# Processing batch-element {batch_element_dir}")

@@ -37,7 +37,7 @@ if __name__ == "__main__":
     print("#")
 
     batches_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'])
-    batch_folders = [f for f in glob.glob(os.path.join(batches_dir, '*'))]
+    batch_folders = sorted([f for f in glob.glob(os.path.join(batches_dir, '*'))])
     print("# batches_dir {}".format(batches_dir))
     print("# Found {} batches".format(len(batch_folders)))
 

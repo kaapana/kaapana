@@ -143,7 +143,7 @@ class LocalDiceOperator():
                 print(f"# pred: {self.ensemble_dir}")
                 exit(1)
 
-        batch_folders = [f for f in glob(os.path.join(run_dir, self.batch_name, '*'))]
+        batch_folders = sorted([f for f in glob(os.path.join(run_dir, self.batch_name, '*'))])
         print("# Found {} batches".format(len(batch_folders)))
         for batch_element_dir in batch_folders:
             print("#")

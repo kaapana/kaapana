@@ -76,7 +76,7 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
         case_count = 0
         ignored_cases = []
         run_dir = join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-        batch_folders = [f for f in glob.glob(join(run_dir, BATCH_NAME, '*'))]
+        batch_folders = sorted([f for f in glob.glob(join(run_dir, BATCH_NAME, '*'))])
         output_dir = join(run_dir, self.operator_out_dir)
 
         print("# Found {} batches".format(len(batch_folders)))

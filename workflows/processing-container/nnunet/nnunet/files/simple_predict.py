@@ -142,7 +142,7 @@ def create_dataset(search_dir):
     Path(input_data_dir).mkdir(parents=True, exist_ok=True)
 
     if batch_dataset:
-        batch_folders = [f for f in glob(join('/', workflow_dir, "nnunet-cohort", '*'))]
+        batch_folders = sorted([f for f in glob(join('/', workflow_dir, "nnunet-cohort", '*'))])
         for batch_element_dir in batch_folders:
             input_count = 0
             for input_modality in input_modality_dirs:
@@ -419,7 +419,7 @@ print("##################################################")
 print("#")
 
 processed_count = 0
-batch_folders = [f for f in glob(join('/', workflow_dir, batch_name, '*'))]
+batch_folders = sorted([f for f in glob(join('/', workflow_dir, batch_name, '*'))])
 for batch_element_dir in batch_folders:
     input_data_dir, input_count = create_dataset(search_dir=batch_element_dir)
     if input_count == 0:

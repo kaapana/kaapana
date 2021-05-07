@@ -345,7 +345,7 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
 # START
 binary_file_extensions = os.getenv("EXTENSIONS", "*.zip").split(",")
-batch_folders = [f for f in glob.glob(join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
+batch_folders = sorted([f for f in glob.glob(join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 
 for batch_element_dir in batch_folders:
     element_input_dir = join(batch_element_dir, os.getenv("OPERATOR_IN_DIR", ""))

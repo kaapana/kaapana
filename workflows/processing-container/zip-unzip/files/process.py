@@ -107,7 +107,7 @@ if __name__ == '__main__':
     print(f"# batch_level: {batch_level}")
     print("#")
 
-    batch_folders = [f for f in glob.glob(join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
+    batch_folders = sorted([f for f in glob.glob(join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 
     if mode == "zip":
         print(f"# target_filename: {target_filename}")

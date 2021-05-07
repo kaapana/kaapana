@@ -29,7 +29,7 @@ if len(ensemble_zip_models) == 0:
     print("# No zip-file models could be found!")
     exit(1)
 
-batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
+batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 for batch_element_dir in batch_folders:
     zip_dir_path = join(batch_element_dir, os.environ['OPERATOR_IN_DIR'])
     zip_files = glob(join(zip_dir_path, "*.zip"), recursive=True)

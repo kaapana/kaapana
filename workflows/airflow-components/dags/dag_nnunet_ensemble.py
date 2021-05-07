@@ -264,7 +264,7 @@ nnunet_predict = NnUnetOperator(
     inf_batch_dataset=True,
     inf_threads_prep=1,
     inf_threads_nifti=1,
-    inf_remove_if_empty = False,
+    inf_remove_if_empty=False,
     interpolation_order=default_interpolation_order,
     models_dir=extract_model.operator_out_dir,
 )
@@ -273,6 +273,7 @@ nnunet_ensemble = NnUnetOperator(
     dag=dag,
     input_operator=nnunet_predict,
     mode="ensemble",
+    prep_min_combination=None,
     inf_threads_nifti=1,
 )
 
@@ -301,7 +302,7 @@ seg_check_gt = SegCheckOperator(
 )
 
 evaluation = DiceEvaluationOperator(
-    dag = dag,
+    dag=dag,
     anonymize=True,
     input_operator=nnunet_predict,
     gt_operator=seg_check_gt,

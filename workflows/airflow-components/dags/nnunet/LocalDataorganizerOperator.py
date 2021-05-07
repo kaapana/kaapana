@@ -29,7 +29,7 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
                 print(f"# pred: {self.ensemble_dir}")
                 exit(1)
 
-        batch_folders = [f for f in glob(os.path.join(run_dir, self.batch_name, '*'))]
+        batch_folders = sorted([f for f in glob(os.path.join(run_dir, self.batch_name, '*'))])
         print("# Found {} batches".format(len(batch_folders)))
         nnunet_cohort_dir = join(run_dir, "nnunet-cohort")
         model_counter = 0
@@ -44,6 +44,7 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
 
             for single_model_pred_file in single_model_pred_files:
                 single_model_pred_filename = basename(single_model_pred_file)
+                single_model_pred_file_id = single_model_pred_filename.replace(".nii.gz","")
                 target_filename = f"{basename(single_model_pred_file).replace('.nii.gz','')}_model_{model_counter}.nii.gz"
                 target_file_id = target_filename.replace(".nii.gz","")
 
@@ -55,22 +56,15 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
                 print(f"# using: {nnunet_cohort_seg_found}")
                 target_batch_element_dir=dirname(dirname(nnunet_cohort_seg_found))
                 print(f"# target_batch_element_dir: {target_batch_element_dir}")
-
-                ensemble_file = join(self.ensemble_dir, single_model_pred_filename)
-                print(f"# ensemble_file: {ensemble_file}")
-                
+     
                 target_single_model = join(target_batch_element_dir, "nnunet-inference", target_filename)
                 target_single_model_info = join(target_batch_element_dir, "nnunet-inference", f"{target_file_id}.json")
-                
-                target_ensemble = join(target_batch_element_dir, "nnunet-ensemble", basename(single_model_pred_file)).replace(".nii.gz","_ensemble.nii.gz")
-                target_ensemble_info = join(target_batch_element_dir, "nnunet-ensemble", basename(single_model_pred_file).replace(".nii.gz","_ensemble.json"))
+
                 Path(dirname(target_single_model)).mkdir(parents=True, exist_ok=True)
-                Path(dirname(target_ensemble)).mkdir(parents=True, exist_ok=True)
 
                 print(f"#")
-                print(f"# target_single_model: {target_single_model}")
-                print(f"#")
-                print(f"# target_ensemble: {target_ensemble}")
+                print(f"# target_single_model:      {target_single_model}")
+                print(f"# target_single_model_info: {target_single_model_info}")
                 print(f"#")
                 assert not exists(target_single_model) and not exists(target_single_model_info)
 
@@ -80,17 +74,41 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
                 else:
                     shutil.move(single_model_pred_file, target_single_model)
 
-                if not exists(target_ensemble):
-                    print(f"# target_ensemble not found -> copy")
-                    shutil.copy2(seg_info_json, target_ensemble_info)
-                    if copy_target_data:
-                        shutil.copy2(single_model_pred_file, target_single_model)
-                        shutil.copy2(ensemble_file, target_ensemble)
-                    else:
-                        shutil.move(single_model_pred_file, target_single_model)
-                        shutil.move(ensemble_file, target_ensemble)
-                else:
-                    print(f"# target_ensemble already present -> skipping")
+
+                if self.ensemble_dir != None:
+                    print(f"#")
+                    print(f"#")
+                    print(f"# Processing ensemble-files @{self.ensemble_dir}")
+                    print(f"#")
+                    ensemble_files = sorted(glob(join(self.ensemble_dir, "*.nii.gz"),recursive=False))
+                    print(f"# Ensemble files found: {ensemble_files}")
+                    ensemble_combination_info = join(self.ensemble_dir, "model_combinations.json")
+                    assert exists(ensemble_combination_info)
+
+                    ensemble_files = [ensemble_file for ensemble_file in ensemble_files if single_model_pred_file_id in ensemble_file]
+                    print(f"# Ensemble filtered: {ensemble_files}")
+                    
+                    if len(ensemble_files) > 0:
+                        target_ensemble_dir =  join(target_batch_element_dir, "nnunet-ensemble")
+                        Path(target_ensemble_dir).mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(ensemble_combination_info, join(target_ensemble_dir, basename(ensemble_combination_info)))
+                        for ensemble_file in ensemble_files:
+                            target_ensemble = join(target_ensemble_dir, basename(ensemble_file))
+                            target_ensemble_info = join(target_ensemble_dir, basename(ensemble_file).replace(".nii.gz",".json"))
+                            if not exists(target_ensemble):
+                                print(f"# target_ensemble not found -> copy")
+                                shutil.copy2(seg_info_json, target_ensemble_info)
+                                if copy_target_data:
+                                    shutil.copy2(single_model_pred_file, target_single_model)
+                                    shutil.copy2(ensemble_file, target_ensemble)
+                                else:
+                                    shutil.move(single_model_pred_file, target_single_model)
+                                    shutil.move(ensemble_file, target_ensemble)
+                            else:
+                                print(f"# target_ensemble already present -> skipping")
+                    
+
+                    print(f"# -> all ensemble-files moved!")
                 
                 processed_count += 1
                 print("##################################################")

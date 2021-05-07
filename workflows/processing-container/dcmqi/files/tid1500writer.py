@@ -18,7 +18,7 @@ DCMQI = '/home/klaus/Downloads/dcmqi-1.2.2-linux-20200602-3efde87/bin/'
 # os.environ['OPERATOR_OUT_DIR'] = 'tid1500'
 # os.environ['OPERATOR_OUTPUT_DICOM'] = 'test'
 
-batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
+batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 
 for batch_element_dir in batch_folders:
     

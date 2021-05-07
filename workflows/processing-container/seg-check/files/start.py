@@ -596,7 +596,7 @@ read_global_seg_info()
 
 batch_dir_path = join('/', workflow_dir, batch_name)
 # Loop for every batch-element (usually series)
-batch_folders = [f for f in glob(join(batch_dir_path, '*'))]
+batch_folders = sorted([f for f in glob(join(batch_dir_path, '*'))])
 for batch_element_dir in batch_folders:
     element_output_dir = join(batch_element_dir, operator_out_dir)
     base_input_dir = join(batch_element_dir, org_input_dir)

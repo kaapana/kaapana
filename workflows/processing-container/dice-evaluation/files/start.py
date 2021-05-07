@@ -234,7 +234,7 @@ Path(batch_output_dir).mkdir(parents=True, exist_ok=True)
 
 output_file = join(batch_output_dir, "dice_results.json")
 # Loop for every batch-element (usually series)
-batch_folders = [f for f in glob(join('/', workflow_dir, batch_name, '*'))]
+batch_folders = sorted([f for f in glob(join('/', workflow_dir, batch_name, '*'))])
 for batch_element_dir in batch_folders:
     print("#")
     print(f"# Processing batch-element {batch_element_dir}")
@@ -263,6 +263,7 @@ for batch_element_dir in batch_folders:
     ensemble_pred_file = None
     if len(ensemble_pred_files) > 0:
         ensemble_pred_file = ensemble_pred_files[0]
+        print(f"# Using ensemble-file: {ensemble_pred_file}")
     
     input_data = (batch_id, single_model_pred_files, gt_file, ensemble_pred_file)
     queue_list.append(input_data)

@@ -34,8 +34,8 @@ skipped_dict = {
 
 def get_seg_info(input_nifti):
     print(f"# Get seg configuration for: {basename(input_nifti)}")
+    model_id = f"-{basename(input_nifti).replace('.nii.gz','').split('-')[-1]}" if "-" in basename(input_nifti) else ""
     existing_configuration = None
-
     seg_nifti_id = basename(input_nifti).replace(".nii.gz", "")
     json_files_found = glob(join(dirname(input_nifti), "*.json"), recursive=False)
     json_files_found = [meta_json_path for meta_json_path in json_files_found if "model_combinations" not in meta_json_path]
@@ -67,7 +67,9 @@ def get_seg_info(input_nifti):
             return queue_dict, "label extraction issue"
         existing_configuration[label_name] = str(label_int)
 
-    elif len(json_files_found) == 1 and "seg_info.json" in json_files_found[0]:
+    elif len(json_files_found) > 0 and "seg_info" in json_files_found[0]:
+        json_files_found = [meta_json_path for meta_json_path in json_files_found if f"seg_info{model_id}.json" in meta_json_path]
+        assert len(json_files_found) == 1
         meta_info_json_path = json_files_found[0]
         existing_configuration = {}
         print(f"# Found nnunet meta-json: {meta_info_json_path}")
@@ -117,7 +119,7 @@ def get_seg_info(input_nifti):
 
 def collect_labels(queue_list):
     global label_encoding_counter, global_labels_info
-    
+
     label_encoding_counter = 0
     global_labels_info = {"Clear Label": 0}
 
@@ -343,6 +345,7 @@ def merge_niftis(queue_dict):
     base_image_path = queue_dict["base_image"]
     seg_nifti_list = queue_dict["seg_files"]
     multi = queue_dict["multi"]
+    Path(target_dir).mkdir(parents=True, exist_ok=True)
 
     base_image_loaded = nib.load(base_image_path)
     base_image_dimensions = base_image_loaded.shape
@@ -363,6 +366,7 @@ def merge_niftis(queue_dict):
     print("#")
 
     for seg_nifti in seg_nifti_list:
+        seg_nifti_id = basename(seg_nifti).replace(".nii.gz", "")
 
         if not merge_found_niftis:
             print("##################################################")
@@ -412,7 +416,7 @@ def merge_niftis(queue_dict):
 
                 local_labels_info[label_name] = label_int
                 metadata_json = create_metadata_json(new_labels_dict=local_labels_info)
-                metadata_json_path = join(target_dir, "metadata.json")
+                metadata_json_path = join(target_dir, f"{seg_nifti_id}.json")
                 with open(metadata_json_path, 'w', encoding='utf-8') as f:
                     json.dump(metadata_json, f, indent=4, sort_keys=False)
                 return queue_dict, "ok"
@@ -514,9 +518,11 @@ def merge_niftis(queue_dict):
 
         if not merge_found_niftis:
             print("# No NIFTI merge -> replacing original NIFTI")
-            print(f"# Path: {seg_nifti}")
+            target_nifti_path = join(target_dir, basename(seg_nifti))
+            print(f"# Path:       {seg_nifti}")
+            print(f"# TargetPath: {target_nifti_path}")
             combined = nib.Nifti1Image(new_gt_map, base_image_loaded.affine, base_image_loaded.header)
-            combined.to_filename(seg_nifti)
+            combined.to_filename(target_nifti_path)
 
     if merge_found_niftis:
         print("# Writing new merged file...")

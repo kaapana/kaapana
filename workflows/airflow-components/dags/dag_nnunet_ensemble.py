@@ -290,7 +290,7 @@ seg_check_inference = SegCheckOperator(
     fail_if_label_id_not_extractable=False,
     force_same_labels=False,
     batch_name=str(get_test_images.operator_out_dir),
-    parallel_id="infenence",
+    parallel_id="inference",
 )
 
 nnunet_ensemble = NnUnetOperator(
@@ -350,13 +350,15 @@ evaluation = DiceEvaluationOperator(
     ensemble_operator=do_ensemble,
     parallel_processes=1,
     parallel_id="",
+    trigger_rule="one_success",
     batch_name=str(get_test_images.operator_out_dir)
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
 
 get_test_images >> get_ref_ct_series_from_gt >> dcm2nifti_ct >> nnunet_predict >> do_inference >> seg_check_inference >> seg_check_gt >> evaluation
-get_input >> dcm2bin >> extract_model >> nnunet_predict >> nnunet_ensemble >> do_ensemble >> seg_check_ensemble >> evaluation >> clean
+get_input >> dcm2bin >> extract_model >> nnunet_predict >> nnunet_ensemble >> do_ensemble 
+do_inference >> do_ensemble >> seg_check_ensemble >> evaluation >> clean
 seg_check_inference >> seg_check_ensemble
 seg_check_inference >> evaluation
 get_test_images >> dcm2nifti_gt >> seg_check_gt

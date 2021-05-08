@@ -71,6 +71,8 @@ dice_results = {}
 
 def get_seg_info(input_nifti):
     print(f"# Get seg configuration for: {basename(input_nifti)}")
+    model_id = f"-{basename(input_nifti).replace('.nii.gz','').split('-')[-1]}" if "-" in basename(input_nifti) else ""
+
 
     seg_nifti_id = basename(input_nifti).replace(".nii.gz", "")
     json_files_found = glob(join(dirname(input_nifti), "*.json"), recursive=False)
@@ -88,6 +90,19 @@ def get_seg_info(input_nifti):
         print(f"# Found nnunet meta-json: {meta_info_json_path}")
         with open(meta_info_json_path, 'rb') as f:
             meta_info = json.load(f)
+        return meta_info
+
+    elif len(json_files_found) > 0 and "seg_info" in json_files_found[0]:
+        filtered_jsons = [meta_json_path for meta_json_path in json_files_found if f"seg_info{model_id}.json" in meta_json_path]
+        print(f"# json_files_found: {json_files_found}")
+        print(f"# model_id: {model_id}")
+        print(f"# filtered_jsons: {filtered_jsons}")
+        assert len(filtered_jsons) == 1
+        meta_info_json_path = filtered_jsons[0]
+        print(f"# Found corrected nnunet meta-json: {meta_info_json_path}")
+        with open(meta_info_json_path, 'rb') as f:
+            meta_info = json.load(f)
+
         return meta_info
 
     elif len(json_files_found) > 0:
@@ -183,7 +198,7 @@ def get_dice_score(input_data):
         info_json = model_pred_file.replace("nii.gz", "json")
         pred_file_id = basename(model_pred_file).replace(".nii.gz", "")
 
-        seg_info = get_seg_info(input_nifti=ensemble_pred_file)
+        seg_info = get_seg_info(input_nifti=model_pred_file)
         if seg_info is None:
             print(f"# info_json does not exist: {info_json}")
         assert seg_info is not None and "task_id" in seg_info and "seg_info" in seg_info
@@ -257,7 +272,6 @@ print("##################################################")
 print("#")
 
 seg_check_info_json_files = glob(join('/', workflow_dir, "global-seg-info", "*.json"))
-# seg_check_info_json_files = glob(join('/', workflow_dir, gt_in_dir, "*.json"))
 assert len(seg_check_info_json_files) == 1
 
 with open(seg_check_info_json_files[0]) as f:

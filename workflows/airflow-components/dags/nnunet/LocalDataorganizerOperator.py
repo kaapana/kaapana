@@ -12,11 +12,14 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 
 
 class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
-    def get_json(self,filename,json_list):
+    def get_json(self, filename, json_list):
+
         if len(json_list) == 1:
             return json_list[0]
         elif len(json_list) > 1:
-            json_file_filtered = [json_file for json_file in json_list if basename(filename).replace(".nii.gz","").split("_")[0] in json_file]
+            filter_id = basename(filename).replace(".nii.gz", "").replace("_combination_","-")
+            print(f"# filter_id: {filter_id}")
+            json_file_filtered = [json_file for json_file in json_list if filter_id in json_file]
             if len(json_file_filtered) > 0:
                 return json_file_filtered[0]
             else:
@@ -27,9 +30,18 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
         else:
             return None
 
-    def get_batch_element(self,filename,batch_path):
-        nifti_files = sorted(glob(join(batch_path,"**", "*.nii*"), recursive=True))
-        nifti_filtered = list(set([dirname(dirname(nifti_file)) for nifti_file in nifti_files if basename(filename).replace(".nii.gz","").split("_")[0] in nifti_file]))
+    def get_batch_element(self, filename, batch_path):
+        print(f"# batch_path: {batch_path}")
+        print(f"# filename: {filename}")
+        filter_id = basename(filename).replace(".nii.gz","").split("_")[0]
+        search_term = join(batch_path,"*", "dcm-converter-ct", f"{filter_id}*.nii*")
+        print(f"# search_term: {search_term}")
+        nifti_files = sorted(glob(search_term, recursive=False))
+        print(f"# nifti_files: {nifti_files}")
+
+        print(f"# filter_id: {filter_id}")
+        nifti_filtered = [dirname(dirname(nifti_file)) for nifti_file in nifti_files if f"{filter_id}" in nifti_file]
+        print(f"# get_batch_element nifti_filtered: {nifti_filtered}")
         if len(nifti_filtered) == 1:
             return nifti_filtered[0]
         else:
@@ -50,9 +62,9 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
         print(f"# target_batchname: {self.target_batchname}")
         print("#")
         print("#")
-        assert self.origin in ["batch","batchelement"]
-        assert self.target in ["batch","batchelement"]
-        
+        assert self.origin in ["batch", "batchelement"]
+        assert self.target in ["batch", "batchelement"]
+
         run_dir = os.path.join(self.workflow_dir, kwargs['dag_run'].run_id)
         if self.origin == "batch":
             iter_dirs = [run_dir]
@@ -60,13 +72,14 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
             iter_dirs = sorted([f for f in glob(os.path.join(run_dir, self.batch_name, '*'))])
 
         print(f"# Found {len(iter_dirs)} iter_dirs")
+        model_id = 0
         for iter_dir in iter_dirs:
             print(f"# processing iter_dir: {iter_dir}")
+            model_id += 1
 
             input_dir = join(iter_dir, self.operator_in_dir)
             nifti_files = sorted(glob(join(input_dir, "*.nii*"), recursive=False))
             json_files = sorted(glob(join(input_dir, "*.json"), recursive=False))
-
             for nifti_file in nifti_files:
                 if self.target == "batch":
                     target_dir = join(run_dir, self.operator_out_dir)
@@ -76,7 +89,8 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
                     target_dir = join(target_batch_element, self.operator_out_dir)
                 Path(target_dir).mkdir(parents=True, exist_ok=True)
 
-                target_file_path = join(target_dir, basename(nifti_file))
+                file_id =  basename(nifti_file).replace(".nii.gz", f"-{model_id}")
+                target_file_path = join(target_dir,f"{file_id}.nii.gz")
                 print(f"# copy NIFTI: {nifti_file} -> {target_file_path}")
                 shutil.copy2(nifti_file, target_file_path)
                 processed_count += 1
@@ -84,17 +98,19 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
                 json_file = self.get_json(filename=nifti_file, json_list=json_files)
                 if json_file is not None:
                     if basename(json_file) == "model_combinations.json":
+                        target_json_path = join(target_dir, basename(json_file))
+                        print(f"# copy model_combinations-JSON: {json_file} -> {target_json_path}")
+                        shutil.copy2(json_file, target_json_path)
                         print("# Ensemble detected -> searching nnunet-predict seg-info...")
-                        inference_json_list = sorted(glob(join(target_batch_element, "do-inference", "*.json"), recursive=False))
-                        inference_json = self.get_json(filename=nifti_file, json_list=inference_json_list)
-                        assert inference_json != None
+                        inference_json = join(target_batch_element, "do-inference", f"seg_info-{model_id}.json")
+                        assert exists(inference_json)
                         target_json_path = join(target_dir, basename(inference_json))
                         print(f"# copy JSON inference -> ensemble: {json_file} -> {target_json_path}")
                         shutil.copy2(inference_json, target_json_path)
-
-                    target_json_path = join(target_dir, basename(json_file))
-                    print(f"# copy JSON: {json_file} -> {target_json_path}")
-                    shutil.copy2(json_file, target_json_path)
+                    else:
+                        target_json_path = join(target_dir, basename(json_file).replace(".json",f"-{model_id}.json"))
+                        print(f"# copy JSON: {json_file} -> {target_json_path}")
+                        shutil.copy2(json_file, target_json_path)
                 else:
                     print(f"# No json found!")
                     exit(1)

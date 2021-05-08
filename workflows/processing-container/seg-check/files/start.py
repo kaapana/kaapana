@@ -38,6 +38,7 @@ def get_seg_info(input_nifti):
 
     seg_nifti_id = basename(input_nifti).replace(".nii.gz", "")
     json_files_found = glob(join(dirname(input_nifti), "*.json"), recursive=False)
+    json_files_found = [meta_json_path for meta_json_path in json_files_found if "model_combinations" not in meta_json_path]
     if len(json_files_found) == 1 and "-meta.json" in json_files_found[0]:
         meta_info_json_path = json_files_found[0]
         print(f"# Found DCMQI meta-json: {meta_info_json_path}")
@@ -81,6 +82,8 @@ def get_seg_info(input_nifti):
 
     elif len(json_files_found) > 0:
         filtered_jsons = [meta_json_path for meta_json_path in json_files_found if seg_nifti_id in meta_json_path]
+        print(f"# json_files_found: {json_files_found}")
+        print(f"# filtered_jsons: {filtered_jsons}")
         if len(filtered_jsons) == 1:
             existing_configuration = {}
             meta_info_json_path = filtered_jsons[0]
@@ -115,6 +118,7 @@ def get_seg_info(input_nifti):
 def collect_labels(queue_list):
     global label_encoding_counter, global_labels_info
     
+    label_encoding_counter = 0
     global_labels_info = {"Clear Label": 0}
 
     found_label_keys = []
@@ -131,8 +135,11 @@ def collect_labels(queue_list):
     print(f"# Found {len(found_label_keys)} labels -> generating global seg info...")
 
     for label_found in found_label_keys:
+        if label_found.lower() == "Clear Label".lower():
+            continue
         label_encoding_counter += 1
         assert label_encoding_counter not in global_labels_info.values()
+        assert label_found not in global_labels_info
         global_labels_info[label_found] = label_encoding_counter
     print("#")
     print("##################################################")
@@ -144,6 +151,7 @@ def collect_labels(queue_list):
     print("#")
     print("##################################################")
     print("#")
+    write_global_seg_info(file_path=global_labels_info_path)
 
 
 def write_global_seg_info(file_path):
@@ -711,16 +719,16 @@ print("#")
 print("##################################################")
 print("#")
 
+global_labels_info_path = join('/', workflow_dir, "global-seg-info", "global_seg_info.json")
+Path(dirname(global_labels_info_path)).mkdir(parents=True, exist_ok=True)
+print("#")
+print("##################################################")
+print("#")
+print(f"# global_labels_info_path: {global_labels_info_path}")
+print("#")
+print("##################################################")
+print("#")
 if target_dict_dir is not None:
-    global_labels_info_path = join('/', workflow_dir, target_dict_dir, "global_seg_info.json")
-    print("#")
-    print("##################################################")
-    print("#")
-    print(f"# global_labels_info_path: {global_labels_info_path}")
-    print("#")
-    print("##################################################")
-    print("#")
-    Path(dirname(global_labels_info_path)).mkdir(parents=True, exist_ok=True)
     read_global_seg_info()
     print("#")
     print("##################################################")
@@ -732,8 +740,6 @@ if target_dict_dir is not None:
     print("#")
     print("##################################################")
     print("#")
-else:
-    global_labels_info_path = join('/', workflow_dir, operator_out_dir, "global_seg_info.json")
 
 batch_dir_path = join('/', workflow_dir, batch_name)
 # Loop for every batch-element (usually series)

@@ -345,10 +345,11 @@ seg_check_gt = SegCheckOperator(
 evaluation = DiceEvaluationOperator(
     dag=dag,
     anonymize=True,
-    input_operator=seg_check_inference,
+    input_operator=do_inference,
     gt_operator=seg_check_gt,
-    ensemble_operator=seg_check_ensemble,
+    ensemble_operator=do_ensemble,
     parallel_processes=1,
+    parallel_id="",
     batch_name=str(get_test_images.operator_out_dir)
 )
 
@@ -356,6 +357,7 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
 
 get_test_images >> get_ref_ct_series_from_gt >> dcm2nifti_ct >> nnunet_predict >> do_inference >> seg_check_inference >> seg_check_gt >> evaluation
 get_input >> dcm2bin >> extract_model >> nnunet_predict >> nnunet_ensemble >> do_ensemble >> seg_check_ensemble >> evaluation >> clean
+seg_check_inference >> seg_check_ensemble
 seg_check_inference >> evaluation
 get_test_images >> dcm2nifti_gt >> seg_check_gt
 

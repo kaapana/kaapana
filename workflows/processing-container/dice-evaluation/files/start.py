@@ -69,6 +69,54 @@ input_file_extension = "*.nii.gz"
 # How many processes should be started?
 dice_results = {}
 
+def get_seg_info(input_nifti):
+    print(f"# Get seg configuration for: {basename(input_nifti)}")
+
+    seg_nifti_id = basename(input_nifti).replace(".nii.gz", "")
+    json_files_found = glob(join(dirname(input_nifti), "*.json"), recursive=False)
+    json_files_found = [meta_json_path for meta_json_path in json_files_found if "model_combinations" not in meta_json_path]
+    if len(json_files_found) == 1 and "-meta.json" in json_files_found[0]:
+        meta_info_json_path = json_files_found[0]
+        print(f"# Found DCMQI meta-json: {meta_info_json_path}")
+        assert "--" in input_nifti
+        with open(meta_info_json_path, 'rb') as f:
+            meta_info = json.load(f)
+        return meta_info
+
+    elif len(json_files_found) == 1 and "seg_info.json" in json_files_found[0]:
+        meta_info_json_path = json_files_found[0]
+        print(f"# Found nnunet meta-json: {meta_info_json_path}")
+        with open(meta_info_json_path, 'rb') as f:
+            meta_info = json.load(f)
+        return meta_info
+
+    elif len(json_files_found) > 0:
+        filtered_jsons = [meta_json_path for meta_json_path in json_files_found if seg_nifti_id in meta_json_path]
+        print(f"# json_files_found: {json_files_found}")
+        print(f"# filtered_jsons: {filtered_jsons}")
+        if len(filtered_jsons) == 1:
+            meta_info_json_path = filtered_jsons[0]
+            print(f"# Found corrected nnunet meta-json: {meta_info_json_path}")
+            with open(meta_info_json_path, 'rb') as f:
+                meta_info = json.load(f)
+
+            return meta_info
+        else:
+            print("##################################################### ")
+            print("#")
+            print(f"# Found seg-ifo json files -> but could not identify an info-system!")
+            print(f"# NIFTI-file {input_nifti}")
+            print("#")
+            print("##################################################### ")
+    else:
+        print("##################################################### ")
+        print("#")
+        print(f"# Could not find seg-ifo json file!")
+        print(f"# NIFTI-file {input_nifti}")
+        print("#")
+        print("##################################################### ")
+    return None
+
 
 def create_plots(data_table, table_name, result_dir):
     print(f"# Creating boxplots: {table_name}")
@@ -135,11 +183,9 @@ def get_dice_score(input_data):
         info_json = model_pred_file.replace("nii.gz", "json")
         pred_file_id = basename(model_pred_file).replace(".nii.gz", "")
 
-        seg_info = None
-        if exists(info_json):
-            with open(info_json) as f:
-                seg_info = json.load(f)
-
+        seg_info = get_seg_info(input_nifti=ensemble_pred_file)
+        if seg_info is None:
+            print(f"# info_json does not exist: {info_json}")
         assert seg_info is not None and "task_id" in seg_info and "seg_info" in seg_info
         assert check_prediction_info(seg_info["seg_info"])
 
@@ -162,11 +208,8 @@ def get_dice_score(input_data):
         info_json = ensemble_pred_file.replace(".nii.gz", ".json")
         print(f"# info_json: {info_json}")
         print(f"# ensemble_pred_file: {ensemble_pred_file}")
-        seg_info = None
-        if exists(info_json):
-            with open(info_json) as f:
-                seg_info = json.load(f)
-        else:
+        seg_info = get_seg_info(input_nifti=ensemble_pred_file)
+        if seg_info is None:
             print(f"# info_json does not exist: {info_json}")
         assert seg_info is not None
         assert seg_info is not None and "task_id" in seg_info and "seg_info" in seg_info
@@ -192,7 +235,7 @@ def get_dice_score(input_data):
 
 print("##################################################")
 print("#")
-print("# Starting operator xyz:")
+print("# Starting operator dice-evaluation:")
 print("#")
 print(f"# workflow_dir:     {workflow_dir}")
 print(f"# batch_name:       {batch_name}")
@@ -213,7 +256,8 @@ print("#")
 print("##################################################")
 print("#")
 
-seg_check_info_json_files = glob(join('/', workflow_dir, gt_in_dir, "*.json"))
+seg_check_info_json_files = glob(join('/', workflow_dir, "global-seg-info", "*.json"))
+# seg_check_info_json_files = glob(join('/', workflow_dir, gt_in_dir, "*.json"))
 assert len(seg_check_info_json_files) == 1
 
 with open(seg_check_info_json_files[0]) as f:

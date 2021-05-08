@@ -1,5 +1,6 @@
 import os
 import shutil
+import json
 import numpy as np
 import nibabel as nib
 from datetime import timedelta
@@ -11,6 +12,28 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 
 
 class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
+    def get_json(self,filename,json_list):
+        if len(json_list) == 1:
+            return json_list[0]
+        elif len(json_list) > 1:
+            json_file_filtered = [json_file for json_file in json_list if basename(filename).replace(".nii.gz","").split("_")[0] in json_file]
+            if len(json_file_filtered) > 0:
+                return json_file_filtered[0]
+            else:
+                print(f"# No fitting json could be identified!")
+                print(f"# Filename: {filename}")
+                print(json.dumps(json_list, indent=4, sort_keys=True, default=str))
+                return None
+        else:
+            return None
+
+    def get_batch_element(self,filename,batch_path):
+        nifti_files = sorted(glob(join(batch_path,"**", "*.nii*"), recursive=True))
+        nifti_filtered = list(set([dirname(dirname(nifti_file)) for nifti_file in nifti_files if basename(filename).replace(".nii.gz","").split("_")[0] in nifti_file]))
+        if len(nifti_filtered) == 1:
+            return nifti_filtered[0]
+        else:
+            return None
 
     def start(self, ds, **kwargs):
         processed_count = 0
@@ -62,12 +85,12 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
                 if json_file is not None:
                     if basename(json_file) == "model_combinations.json":
                         print("# Ensemble detected -> searching nnunet-predict seg-info...")
-                        inference_json_list = sorted(glob(join(target_batch_element, "nnunet-inference", "*.json"), recursive=False))
+                        inference_json_list = sorted(glob(join(target_batch_element, "do-inference", "*.json"), recursive=False))
                         inference_json = self.get_json(filename=nifti_file, json_list=inference_json_list)
                         assert inference_json != None
                         target_json_path = join(target_dir, basename(inference_json))
-                        print(f"# copy JSON inference -> ensemble: {target_json_path} -> {target_json_path}")
-                        shutil.copy2(json_file, target_json_path)
+                        print(f"# copy JSON inference -> ensemble: {json_file} -> {target_json_path}")
+                        shutil.copy2(inference_json, target_json_path)
 
                     target_json_path = join(target_dir, basename(json_file))
                     print(f"# copy JSON: {json_file} -> {target_json_path}")

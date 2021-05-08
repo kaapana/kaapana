@@ -53,7 +53,7 @@ class SegCheckOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             env_vars=env_vars,
-            ram_mem_mb=20000,
+            ram_mem_mb=35000,
             *args,
             **kwargs
         )

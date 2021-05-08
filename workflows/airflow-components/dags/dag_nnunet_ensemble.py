@@ -269,43 +269,19 @@ nnunet_predict = NnUnetOperator(
     models_dir=extract_model.operator_out_dir,
 )
 
-nnunet_ensemble = NnUnetOperator(
+do_inference = LocalDataorganizerOperator(
     dag=dag,
     input_operator=nnunet_predict,
-    mode="ensemble",
-    prep_min_combination=None,
-    inf_threads_nifti=1,
-)
-
-seg_check_gt = SegCheckOperator(
-    dag,
-    input_operator=dcm2nifti_gt,
-    original_img_operator=dcm2nifti_ct,
-    target_dict_operator=None,
-    parallel_processes=parallel_processes,
-    delete_merged_data=False,
-    fail_if_overlap=False,
-    fail_if_label_already_present=False,
-    fail_if_label_id_not_extractable=False,
-    force_same_labels=False,
-    # operator_out_dir=dcm2nifti_gt.operator_out_dir,
-    batch_name=str(get_test_images.operator_out_dir),
-    parallel_id="gt",
-)
-
-data_organizer = LocalDataorganizerOperator(
-    dag=dag,
-    keep_parallel_id=False,
-    gt_operator=dcm2nifti_gt,
-    ensemble_operator=nnunet_ensemble,
-    input_operator=nnunet_predict,
+    mode="batchelement2batchelement",
+    target_batchname=str(get_test_images.operator_out_dir),
+    parallel_id="inference",
 )
 
 seg_check_inference = SegCheckOperator(
     dag,
-    operator_in_dir="nnunet-inference",
+    input_operator=do_inference,
     original_img_operator=dcm2nifti_ct,
-    target_dict_operator=seg_check_gt,
+    target_dict_operator=None,
     parallel_processes=parallel_processes,
     merge_found_niftis=False,
     delete_merged_data=False,
@@ -316,12 +292,29 @@ seg_check_inference = SegCheckOperator(
     batch_name=str(get_test_images.operator_out_dir),
     parallel_id="infenence",
 )
+
+nnunet_ensemble = NnUnetOperator(
+    dag=dag,
+    input_operator=nnunet_predict,
+    mode="ensemble",
+    prep_min_combination=None,
+    inf_threads_nifti=1,
+)
+
+do_ensemble = LocalDataorganizerOperator(
+    dag=dag,
+    input_operator=nnunet_ensemble,
+    mode="batch2batchelement",
+    target_batchname=str(get_test_images.operator_out_dir),
+    parallel_id="ensemble",
+)
+
 seg_check_ensemble = SegCheckOperator(
     dag,
-    operator_in_dir="nnunet-ensemble",
+    input_operator=do_ensemble,
     original_img_operator=dcm2nifti_ct,
-    target_dict_operator=seg_check_gt,
     parallel_processes=parallel_processes,
+    target_dict_operator=seg_check_inference,
     merge_found_niftis=False,
     delete_merged_data=False,
     fail_if_overlap=False,
@@ -332,6 +325,22 @@ seg_check_ensemble = SegCheckOperator(
     parallel_id="ensemble",
 )
 
+seg_check_gt = SegCheckOperator(
+    dag,
+    input_operator=dcm2nifti_gt,
+    original_img_operator=dcm2nifti_ct,
+    target_dict_operator=seg_check_inference,
+    parallel_processes=parallel_processes,
+    merge_found_niftis=True,
+    delete_merged_data=False,
+    fail_if_overlap=False,
+    fail_if_label_already_present=False,
+    fail_if_label_id_not_extractable=False,
+    force_same_labels=False,
+    # operator_out_dir=dcm2nifti_gt.operator_out_dir,
+    batch_name=str(get_test_images.operator_out_dir),
+    parallel_id="gt",
+)
 
 evaluation = DiceEvaluationOperator(
     dag=dag,
@@ -343,12 +352,10 @@ evaluation = DiceEvaluationOperator(
     batch_name=str(get_test_images.operator_out_dir)
 )
 
-
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
 
+get_test_images >> get_ref_ct_series_from_gt >> dcm2nifti_ct >> nnunet_predict >> do_inference >> seg_check_inference >> seg_check_gt >> evaluation
+get_input >> dcm2bin >> extract_model >> nnunet_predict >> nnunet_ensemble >> do_ensemble >> seg_check_ensemble >> evaluation >> clean
+seg_check_inference >> evaluation
 get_test_images >> dcm2nifti_gt >> seg_check_gt
-get_test_images >> get_ref_ct_series_from_gt >> dcm2nifti_ct >> seg_check_gt >> nnunet_predict
-get_input >> dcm2bin >> extract_model >> nnunet_predict >> nnunet_ensemble >> data_organizer
-data_organizer >> seg_check_inference >> evaluation
-data_organizer >> seg_check_ensemble >> evaluation >> clean
 

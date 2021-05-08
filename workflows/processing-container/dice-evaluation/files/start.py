@@ -166,7 +166,8 @@ def get_dice_score(input_data):
         if exists(info_json):
             with open(info_json) as f:
                 seg_info = json.load(f)
-
+        else:
+            print(f"# info_json does not exist: {info_json}")
         assert seg_info is not None
         assert seg_info is not None and "task_id" in seg_info and "seg_info" in seg_info
         assert check_prediction_info(seg_info["seg_info"])

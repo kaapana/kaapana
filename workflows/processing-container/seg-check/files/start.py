@@ -32,6 +32,120 @@ skipped_dict = {
 }
 
 
+def get_seg_info(input_nifti):
+    print(f"# Get seg configuration for: {basename(input_nifti)}")
+    existing_configuration = None
+
+    seg_nifti_id = basename(input_nifti).replace(".nii.gz", "")
+    json_files_found = glob(join(dirname(input_nifti), "*.json"), recursive=False)
+    if len(json_files_found) == 1 and "-meta.json" in json_files_found[0]:
+        meta_info_json_path = json_files_found[0]
+        print(f"# Found DCMQI meta-json: {meta_info_json_path}")
+        assert "--" in input_nifti
+        seg_file_info = input_nifti.split("--")
+        seg_id = seg_file_info[-2]
+        label_int = None
+        label_name = None
+        existing_configuration = {}
+        with open(meta_info_json_path, 'rb') as f:
+            meta_info = json.load(f)
+
+        if "segmentAttributes" in meta_info:
+            for entries in meta_info["segmentAttributes"]:
+                for part in entries:
+                    if "labelID" in part and str(part["labelID"]) == seg_id:
+                        label_int = int(part["labelID"])
+                        print(f"# label_int: {label_int}")
+                    if "SegmentLabel" in part:
+                        label_name = part["SegmentLabel"]
+
+                    elif "TrackingIdentifier" in part:
+                        label_name = part["TrackingIdentifier"]
+
+        if label_int is None or label_name is None:
+            return queue_dict, "label extraction issue"
+        existing_configuration[label_name] = str(label_int)
+
+    elif len(json_files_found) == 1 and "seg_info.json" in json_files_found[0]:
+        meta_info_json_path = json_files_found[0]
+        existing_configuration = {}
+        print(f"# Found nnunet meta-json: {meta_info_json_path}")
+        with open(meta_info_json_path, 'rb') as f:
+            meta_info = json.load(f)
+
+        if "seg_info" in meta_info:
+            for label_entry in meta_info["seg_info"]:
+                label_int = label_entry["label_int"]
+                label_name = label_entry["label_name"]
+                existing_configuration[label_name] = str(label_int)
+
+    elif len(json_files_found) > 0:
+        filtered_jsons = [meta_json_path for meta_json_path in json_files_found if seg_nifti_id in meta_json_path]
+        if len(filtered_jsons) == 1:
+            existing_configuration = {}
+            meta_info_json_path = filtered_jsons[0]
+            print(f"# Found corrected nnunet meta-json: {meta_info_json_path}")
+            with open(meta_info_json_path, 'rb') as f:
+                meta_info = json.load(f)
+
+            if "seg_info" in meta_info:
+                for label_entry in meta_info["seg_info"]:
+                    label_int = label_entry["label_int"]
+                    label_name = label_entry["label_name"]
+                    existing_configuration[label_name] = str(label_int)
+        else:
+            print("##################################################### ")
+            print("#")
+            print(f"# Found seg-ifo json files -> but could not identify an info-system!")
+            print(f"# NIFTI-file {input_nifti}")
+            print("#")
+            print("##################################################### ")
+
+    else:
+        print("##################################################### ")
+        print("#")
+        print(f"# Could not find seg-ifo json file!")
+        print(f"# NIFTI-file {input_nifti}")
+        print("#")
+        print("##################################################### ")
+
+    return existing_configuration
+
+
+def collect_labels(queue_list):
+    global label_encoding_counter, global_labels_info
+    
+    global_labels_info = {"Clear Label": 0}
+
+    found_label_keys = []
+    for base_image_dict in queue_list:
+        img_niftis = base_image_dict["seg_files"]
+        for nifti in img_niftis:
+            seg_configuration = get_seg_info(nifti)
+            assert seg_configuration is not None
+            for label_key, encoding_int in seg_configuration.items():
+                if label_key not in found_label_keys:
+                    found_label_keys.append(label_key)
+
+    found_label_keys = sorted(found_label_keys)
+    print(f"# Found {len(found_label_keys)} labels -> generating global seg info...")
+
+    for label_found in found_label_keys:
+        label_encoding_counter += 1
+        assert label_encoding_counter not in global_labels_info.values()
+        global_labels_info[label_found] = label_encoding_counter
+    print("#")
+    print("##################################################")
+    print("# ")
+    print("# Generated global_labels_info: ")
+    print("# ")
+    print(json.dumps(global_labels_info, indent=4, sort_keys=True, default=str))
+    print("#")
+    print("#")
+    print("##################################################")
+    print("#")
+
+
 def write_global_seg_info(file_path):
     global global_labels_info
     print("#")
@@ -61,7 +175,7 @@ def read_global_seg_info():
 
     with open(global_labels_info_path, "r") as f:
         global_labels_info = json.load(f)
-    
+
     assert len(set(global_labels_info.values())) == len(global_labels_info)
 
     if label_encoding_counter == 0:
@@ -241,7 +355,7 @@ def merge_niftis(queue_dict):
     print("#")
 
     for seg_nifti in seg_nifti_list:
-        seg_nifti_id = basename(seg_nifti).replace(".nii.gz", "")
+
         if not merge_found_niftis:
             print("##################################################")
             print("#")
@@ -252,85 +366,14 @@ def merge_niftis(queue_dict):
             local_labels_info = {"Clear Label": 0}
         print(f"# Processing NIFTI: {basename(seg_nifti)}")
         print("#")
-        existing_configuration = None
-        print("#")
-
-        json_files_found = glob(join(dirname(seg_nifti), "*.json"), recursive=False)
-        if len(json_files_found) == 1 and "-meta.json" in json_files_found[0]:
-            meta_info_json_path = json_files_found[0]
-            print(f"# Found DCMQI meta-json: {meta_info_json_path}")
-            assert "--" in seg_nifti
-            seg_file_info = seg_nifti.split("--")
-            seg_id = seg_file_info[-2]
-            label_int = None
-            label_name = None
-            existing_configuration = {}
-            with open(meta_info_json_path, 'rb') as f:
-                meta_info = json.load(f)
-
-            if "segmentAttributes" in meta_info:
-                for entries in meta_info["segmentAttributes"]:
-                    for part in entries:
-                        if "labelID" in part and str(part["labelID"]) == seg_id:
-                            label_int = int(part["labelID"])
-                            print(f"# label_int: {label_int}")
-                        if "SegmentLabel" in part:
-                            label_name = part["SegmentLabel"]
-
-                        elif "TrackingIdentifier" in part:
-                            label_name = part["TrackingIdentifier"]
-
-            if label_int is None or label_name is None:
-                return queue_dict, "label extraction issue"
-            existing_configuration[label_name] = str(label_int)
-
-        elif len(json_files_found) == 1 and "seg_info.json" in json_files_found[0]:
-            meta_info_json_path = json_files_found[0]
-            existing_configuration = {}
-            print(f"# Found nnunet meta-json: {meta_info_json_path}")
-            with open(meta_info_json_path, 'rb') as f:
-                meta_info = json.load(f)
-
-            if "seg_info" in meta_info:
-                for label_entry in meta_info["seg_info"]:
-                    label_int = label_entry["label_int"]
-                    label_name = label_entry["label_name"]
-                    existing_configuration[label_name] = str(label_int)
-
-        elif len(json_files_found) > 0:
-            filtered_jsons = [meta_json_path for meta_json_path in json_files_found if seg_nifti_id in meta_json_path]
-            if len(filtered_jsons) == 1:
-                existing_configuration = {}
-                meta_info_json_path = filtered_jsons[0]
-                print(f"# Found corrected nnunet meta-json: {meta_info_json_path}")
-                with open(meta_info_json_path, 'rb') as f:
-                    meta_info = json.load(f)
-
-                if "seg_info" in meta_info:
-                    for label_entry in meta_info["seg_info"]:
-                        label_int = label_entry["label_int"]
-                        label_name = label_entry["label_name"]
-                        existing_configuration[label_name] = str(label_int)
-            else:
-                print("##################################################### ")
-                print("#")
-                print(f"# Found seg-ifo json files -> but could not identify an info-system!")
-                print(f"# NIFTI-file {seg_nifti}")
-                print("#")
-                print("##################################################### ")
-                return queue_dict, "label extraction issue"
-        else:
-            print("##################################################### ")
-            print("#")
-            print(f"# Could not find seg-ifo json file!")
-            print(f"# NIFTI-file {seg_nifti}")
-            print("#")
-            print("##################################################### ")
-            return queue_dict, "label extraction issue"
+        existing_configuration = get_seg_info(input_nifti=seg_nifti)
 
         if existing_configuration is None:
             return queue_dict, "label extraction issue"
 
+        print("#")
+        print("# -> got existing_configuration ...")
+        print("#")
         print(f"# Loading NIFTI: {seg_nifti}")
         loaded_nib_nifti = nib.load(seg_nifti)
         if base_image_dimensions != loaded_nib_nifti.shape:
@@ -559,11 +602,12 @@ def resample_image(input_path, original_path, replace=True, target_dir=None):
     return True
 
 # os.environ['WORKFLOW_DIR'] = str("/home/jonas/Downloads/dice_test_data/nnunet-ensemble-210506211134235449")
-
-
 # os.environ['WORKFLOW_DIR'] = str("/home/jonas/Downloads/dice_test_data/nnunet-ensemble-210506104227376005")
+
+
+# os.environ['WORKFLOW_DIR'] = str("/home/jonas/Downloads/dice_test_data/nnunet-ensemble-210507205238170881")
 # os.environ['ORG_IMG_IN_DIR'] = str("dcm-converter-ct")
-# os.environ['OPERATOR_IN_DIR'] = str("nnunet-ensemble")
+# os.environ['OPERATOR_IN_DIR'] = str("nnunet-inference")
 # os.environ['OPERATOR_OUT_DIR'] = str("seg-check")
 # os.environ['EXECUTABLE'] = str("/home/jonas/software/mitk-phenotyping/MitkCLResampleImageToReference.sh")
 # os.environ['BATCH_NAME'] = str("nnunet-cohort")
@@ -669,28 +713,28 @@ print("#")
 
 if target_dict_dir is not None:
     global_labels_info_path = join('/', workflow_dir, target_dict_dir, "global_seg_info.json")
+    print("#")
+    print("##################################################")
+    print("#")
+    print(f"# global_labels_info_path: {global_labels_info_path}")
+    print("#")
+    print("##################################################")
+    print("#")
+    Path(dirname(global_labels_info_path)).mkdir(parents=True, exist_ok=True)
+    read_global_seg_info()
+    print("#")
+    print("##################################################")
+    print("# ")
+    print("# Loaded global_labels_info: ")
+    print("# ")
+    print(json.dumps(global_labels_info, indent=4, sort_keys=True, default=str))
+    print("#")
+    print("#")
+    print("##################################################")
+    print("#")
 else:
     global_labels_info_path = join('/', workflow_dir, operator_out_dir, "global_seg_info.json")
-print("#")
-print("##################################################")
-print("#")
-print(f"# global_labels_info_path: {global_labels_info_path}")
-print("#")
-print("##################################################")
-print("#")
-Path(dirname(global_labels_info_path)).mkdir(parents=True, exist_ok=True)
-read_global_seg_info()
 
-print("#")
-print("##################################################")
-print("# ")
-print("# Initial global_labels_info: ")
-print("# ")
-print(json.dumps(global_labels_info, indent=4, sort_keys=True, default=str))
-print("#")
-print("#")
-print("##################################################")
-print("#")
 batch_dir_path = join('/', workflow_dir, batch_name)
 # Loop for every batch-element (usually series)
 batch_folders = sorted([f for f in glob(join(batch_dir_path, '*'))])
@@ -779,6 +823,9 @@ for key in sorted(base_image_ref_dict.keys(), key=lambda key: base_image_ref_dic
 
         # for seg_element_file in info_dict["seg_files"]:
     queue_dicts.append(segs_to_merge)
+
+if target_dict_dir is None:
+    collect_labels(queue_list=queue_dicts)
 
 print("#")
 print(f"# Starting {len(queue_dicts)} merging jobs ... ")

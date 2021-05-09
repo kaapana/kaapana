@@ -1,7 +1,7 @@
 FROM nvcr.io/nvidia/pytorch:20.09-py3
 
 LABEL IMAGE="nnunet"
-LABEL VERSION="master-vdev"
+LABEL VERSION="04-21"
 LABEL CI_IGNORE="False"
 
 ENV OMP_NUM_THREADS=1

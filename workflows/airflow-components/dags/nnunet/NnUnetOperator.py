@@ -102,7 +102,7 @@ class NnUnetOperator(KaapanaBaseOperator):
         parallel_id = parallel_id if parallel_id is not None else mode
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/nnunet:master-vdev",
+            image=f"{default_registry}/nnunet:04-21",
             name="nnunet",
             parallel_id=parallel_id,
             image_pull_secrets=["registry-secret"],

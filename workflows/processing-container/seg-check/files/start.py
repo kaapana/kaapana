@@ -41,7 +41,6 @@ def get_seg_info(input_nifti):
     json_files_found = [meta_json_path for meta_json_path in json_files_found if "model_combinations" not in meta_json_path]
     if len(json_files_found) == 1 and "-meta.json" in json_files_found[0]:
         meta_info_json_path = json_files_found[0]
-        print(f"# Found DCMQI meta-json: {meta_info_json_path}")
         assert "--" in input_nifti
         seg_file_info = input_nifti.split("--")
         seg_id = seg_file_info[-2]
@@ -56,12 +55,13 @@ def get_seg_info(input_nifti):
                 for part in entries:
                     if "labelID" in part and str(part["labelID"]) == seg_id:
                         label_int = int(part["labelID"])
-                        print(f"# label_int: {label_int}")
-                    if "SegmentLabel" in part:
-                        label_name = part["SegmentLabel"]
+                        if "SegmentLabel" in part:
+                            label_name = part["SegmentLabel"]
+                            break
 
-                    elif "TrackingIdentifier" in part:
-                        label_name = part["TrackingIdentifier"]
+                        elif "TrackingIdentifier" in part:
+                            label_name = part["TrackingIdentifier"]
+                            break
 
         if label_int is None or label_name is None:
             return queue_dict, "label extraction issue"
@@ -84,8 +84,6 @@ def get_seg_info(input_nifti):
 
     elif len(json_files_found) > 0:
         filtered_jsons = [meta_json_path for meta_json_path in json_files_found if seg_nifti_id in meta_json_path]
-        print(f"# json_files_found: {json_files_found}")
-        print(f"# filtered_jsons: {filtered_jsons}")
         if len(filtered_jsons) == 1:
             existing_configuration = {}
             meta_info_json_path = filtered_jsons[0]
@@ -122,6 +120,7 @@ def collect_labels(queue_list):
 
     label_encoding_counter = 0
     global_labels_info = {"Clear Label": 0}
+    print(f"# Creating new gloabl labels info")
 
     found_label_keys = []
     for base_image_dict in queue_list:
@@ -619,12 +618,12 @@ def resample_image(input_path, original_path, replace=True, target_dir=None):
 # os.environ['WORKFLOW_DIR'] = str("/home/jonas/Downloads/dice_test_data/nnunet-ensemble-210506104227376005")
 
 
-# os.environ['WORKFLOW_DIR'] = str("/home/jonas/Downloads/dice_test_data/nnunet-ensemble-210507205238170881")
+# os.environ['WORKFLOW_DIR'] = str("/home/jonas/Downloads/dice_test_data/nnunet-training-210509170732006648")
 # os.environ['ORG_IMG_IN_DIR'] = str("dcm-converter-ct")
-# os.environ['OPERATOR_IN_DIR'] = str("nnunet-inference")
+# os.environ['OPERATOR_IN_DIR'] = str("dcmseg2nrrd-seg")
 # os.environ['OPERATOR_OUT_DIR'] = str("seg-check")
 # os.environ['EXECUTABLE'] = str("/home/jonas/software/mitk-phenotyping/MitkCLResampleImageToReference.sh")
-# os.environ['BATCH_NAME'] = str("nnunet-cohort")
+# os.environ['BATCH_NAME'] = str("batch")
 
 workflow_dir = getenv("WORKFLOW_DIR", "None")
 workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
@@ -754,10 +753,7 @@ for batch_element_dir in batch_folders:
     element_output_dir = join(batch_element_dir, operator_out_dir)
     base_input_dir = join(batch_element_dir, org_input_dir)
     seg_input_dir = join(batch_element_dir, operator_in_dir)
-
-    print(f"# Searching for base_images @ {base_input_dir}")
     base_files = sorted(glob(join(base_input_dir, "*.nii*"), recursive=False))
-    print(f"# Found {len(base_files)}")
     assert len(base_files) == 1
     seg_files = sorted(glob(join(seg_input_dir, "*.nii*"), recursive=False))
     if len(seg_files) == 0:
@@ -779,8 +775,6 @@ for batch_element_dir in batch_folders:
             "batch_elements": {}
         }
 
-    if len(seg_files) == 0:
-        print("here")
     if batch_element_dir not in base_image_ref_dict[base_series_id]["batch_elements"]:
         base_image_ref_dict[base_series_id]["batch_elements"][batch_element_dir] = {
             "file_count": 0,
@@ -803,18 +797,17 @@ for key in sorted(base_image_ref_dict.keys(), key=lambda key: base_image_ref_dic
     value = base_image_ref_dict[key]
     base_image = value["base_file"]
     batch_elements_with_files = value["batch_elements"]
-    print(f"# Base image: {base_image}")
 
     multi = False
     target_dir = value["output_dir"]
     if len(batch_elements_with_files.keys()) == 1:
-        print("# Single batch-element segmentations!")
+        pass
     elif len(batch_elements_with_files.keys()) > 1:
-        print("# Multi batch-element segmentations!")
         multi = True
     else:
         print("# unknown list!")
         exit(1)
+
 
     segs_to_merge = {
         "base_image": base_image,
@@ -840,7 +833,11 @@ if target_dict_dir is None:
     collect_labels(queue_list=queue_dicts)
 
 print("#")
+print("#")
+print("#")
 print(f"# Starting {len(queue_dicts)} merging jobs ... ")
+print("#")
+print("#")
 print("#")
 nifti_results = ThreadPool(parallel_processes).imap_unordered(merge_niftis, queue_dicts)
 for queue_dict, nifti_result in nifti_results:

@@ -530,14 +530,22 @@ def merge_niftis(queue_dict):
         if int(np.amax(new_gt_map)) == 0:
             print("#")
             print("#")
+            print("#")
+            print("#")
+            print("##################################################")
+            print("##################################################")
             print("##################################################")
             print("#")
             print(f"#### No label found in new-label-map !")
-            print("# -> skipping")
+            print("#")
+            print("##################################################")
+            print("##################################################")
             print("##################################################")
             print("#")
             print("#")
-            return queue_dict, "no labels found"
+            print("#")
+            print("#")
+            # return queue_dict, "no labels found"
 
         if multi:
             print(f"# Copy base image: {base_image_path}")
@@ -585,7 +593,6 @@ def merge_niftis(queue_dict):
 def resample_image(input_path, original_path, replace=True, target_dir=None):
     global execution_timeout, executable, interpolator
     print("#")
-    print(f"# Resampling:")
     if not replace:
         if target_dir is None:
             print("# Replace == False and target_dir not set!")
@@ -594,6 +601,7 @@ def resample_image(input_path, original_path, replace=True, target_dir=None):
     else:
         target_path = input_path
 
+    print(f"# Resampling: {input_path} -> {target_path}")
     command = [str(executable), "-f", str(original_path), "-m", str(input_path), "-o", str(target_path), "--interpolator", str(interpolator)]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=execution_timeout)
     # command stdout output -> output.stdout
@@ -612,6 +620,8 @@ def resample_image(input_path, original_path, replace=True, target_dir=None):
         print("##################################################")
         print("#")
         return False
+    
+    assert exists(target_path)
 
     print(f"# -> OK")
     print("#")

@@ -197,7 +197,7 @@ nnunet_predict = NnUnetOperator(
     inf_threads_nifti=2
 )
 
-alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]
+alg_name = nnunet_predict.image.split("/")[-1].replace(":","-")
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     dag=dag,
     input_operator=get_input,

@@ -9,6 +9,7 @@ from nnunet.NnUnetOperator import NnUnetOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
+from nnunet.LocalSortGtOperator import LocalSortGtOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
@@ -21,7 +22,7 @@ default_nifti_thread_count = 1
 test_cohort_limit = 5
 organ_filter = None
 
-parallel_processes = 1
+parallel_processes = 3
 
 ui_forms = {
     "workflow_form": {
@@ -111,40 +112,6 @@ get_test_images = LocalGetInputDataOperator(
                                 }
                             },
                             {
-                                "query_string": {
-                                    "query": "*",
-                                    "analyze_wildcard": True,
-                                    "default_field": "*"
-                                }
-                            },
-                            {
-                                "bool": {
-                                    "should": [
-                                        {
-                                            "match_phrase": {
-                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Kidney-Left"
-                                            }
-                                        },
-                                        {
-                                            "match_phrase": {
-                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Kidney-Right"
-                                            }
-                                        },
-                                        {
-                                            "match_phrase": {
-                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Liver"
-                                            }
-                                        },
-                                        {
-                                            "match_phrase": {
-                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Spleen"
-                                            }
-                                        }
-                                    ],
-                                    "minimum_should_match": 1
-                                }
-                            },
-                            {
                                 "bool": {
                                     "should": [
                                         {
@@ -204,6 +171,12 @@ get_test_images = LocalGetInputDataOperator(
 #     delete_input_on_success=True
 # )
 
+sort_gt = LocalSortGtOperator(
+    dag=dag,
+    batch_name="nnunet-cohort",
+    input_operator=get_test_images
+)
+
 dcm2nifti_gt = DcmSeg2ItkOperator(
     dag=dag,
     input_operator=get_test_images,
@@ -212,7 +185,6 @@ dcm2nifti_gt = DcmSeg2ItkOperator(
     parallel_id="gt",
     output_format='nii.gz',
 )
-
 
 get_ref_ct_series_from_gt = LocalGetRefSeriesOperator(
     dag=dag,
@@ -293,6 +265,23 @@ seg_check_inference = SegCheckOperator(
     parallel_id="inference",
 )
 
+seg_check_gt = SegCheckOperator(
+    dag,
+    input_operator=dcm2nifti_gt,
+    original_img_operator=dcm2nifti_ct,
+    target_dict_operator=seg_check_inference,
+    parallel_processes=parallel_processes,
+    merge_found_niftis=True,
+    delete_merged_data=False,
+    fail_if_overlap=False,
+    fail_if_label_already_present=False,
+    fail_if_label_id_not_extractable=False,
+    force_same_labels=False,
+    # operator_out_dir=dcm2nifti_gt.operator_out_dir,
+    batch_name=str(get_test_images.operator_out_dir),
+    parallel_id="gt",
+)
+
 nnunet_ensemble = NnUnetOperator(
     dag=dag,
     input_operator=nnunet_predict,
@@ -325,23 +314,6 @@ seg_check_ensemble = SegCheckOperator(
     parallel_id="ensemble",
 )
 
-seg_check_gt = SegCheckOperator(
-    dag,
-    input_operator=dcm2nifti_gt,
-    original_img_operator=dcm2nifti_ct,
-    target_dict_operator=seg_check_inference,
-    parallel_processes=parallel_processes,
-    merge_found_niftis=True,
-    delete_merged_data=False,
-    fail_if_overlap=False,
-    fail_if_label_already_present=False,
-    fail_if_label_id_not_extractable=False,
-    force_same_labels=False,
-    # operator_out_dir=dcm2nifti_gt.operator_out_dir,
-    batch_name=str(get_test_images.operator_out_dir),
-    parallel_id="gt",
-)
-
 evaluation = DiceEvaluationOperator(
     dag=dag,
     anonymize=True,
@@ -350,16 +322,14 @@ evaluation = DiceEvaluationOperator(
     ensemble_operator=do_ensemble,
     parallel_processes=1,
     parallel_id="",
-    trigger_rule="one_success",
+    trigger_rule="all_done",
     batch_name=str(get_test_images.operator_out_dir)
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
 
-get_test_images >> get_ref_ct_series_from_gt >> dcm2nifti_ct >> nnunet_predict >> do_inference >> seg_check_inference >> seg_check_gt >> evaluation
-get_input >> dcm2bin >> extract_model >> nnunet_predict >> nnunet_ensemble >> do_ensemble 
-do_inference >> do_ensemble >> seg_check_ensemble >> evaluation >> clean
-seg_check_inference >> seg_check_ensemble
-seg_check_inference >> evaluation
-get_test_images >> dcm2nifti_gt >> seg_check_gt
-
+get_test_images >> sort_gt >> dcm2nifti_gt >> seg_check_gt 
+sort_gt >> get_ref_ct_series_from_gt >> dcm2nifti_ct >> nnunet_predict >> do_inference >> seg_check_inference >> seg_check_gt >> evaluation
+get_input >> dcm2bin >> extract_model >> nnunet_predict >> nnunet_ensemble >> do_ensemble
+do_inference >> do_ensemble >> seg_check_ensemble >> evaluation 
+seg_check_inference >> evaluation >> clean

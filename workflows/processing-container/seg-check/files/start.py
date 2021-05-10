@@ -39,9 +39,12 @@ def get_seg_info(input_nifti):
     seg_nifti_id = basename(input_nifti).replace(".nii.gz", "")
     json_files_found = glob(join(dirname(input_nifti), "*.json"), recursive=False)
     json_files_found = [meta_json_path for meta_json_path in json_files_found if "model_combinations" not in meta_json_path]
-    if len(json_files_found) == 1 and "-meta.json" in json_files_found[0]:
-        meta_info_json_path = json_files_found[0]
+    if len(json_files_found) > 0 and "-meta.json" in json_files_found[0]:
         assert "--" in input_nifti
+        json_file_found = [list_json for list_json in json_files_found if seg_nifti_id.split("--")[0] in list_json]
+        assert len(json_file_found) == 1
+
+        meta_info_json_path = json_file_found[0]
         seg_file_info = input_nifti.split("--")
         seg_id = seg_file_info[-2]
         label_int = None
@@ -413,8 +416,8 @@ def merge_niftis(queue_dict):
                     Path(dirname(target_path)).mkdir(parents=True, exist_ok=True)
                     shutil.copy2(src=base_image_path, dst=target_path)
 
-                local_labels_info[label_name] = label_int
-                metadata_json = create_metadata_json(new_labels_dict=local_labels_info)
+                # local_labels_info[label_name] = label_int
+                metadata_json = create_metadata_json(new_labels_dict=global_labels_info)
                 metadata_json_path = join(target_dir, f"{seg_nifti_id}.json")
                 with open(metadata_json_path, 'w', encoding='utf-8') as f:
                     json.dump(metadata_json, f, indent=4, sort_keys=False)
@@ -439,7 +442,6 @@ def merge_niftis(queue_dict):
             int_encoding = int(int_encoding)
             print(f"# Loading encoding {int_encoding}")
             if int_encoding == 0:
-                print(f"# Clear Label -> continue")
                 continue
 
             # loaded_seg_nifti_label = loaded_seg_nifti_numpy
@@ -584,7 +586,6 @@ def resample_image(input_path, original_path, replace=True, target_dir=None):
     global execution_timeout, executable, interpolator
     print("#")
     print(f"# Resampling:")
-    print("#")
     if not replace:
         if target_dir is None:
             print("# Replace == False and target_dir not set!")
@@ -612,6 +613,8 @@ def resample_image(input_path, original_path, replace=True, target_dir=None):
         print("#")
         return False
 
+    print(f"# -> OK")
+    print("#")
     return True
 
 # os.environ['WORKFLOW_DIR'] = str("/home/jonas/Downloads/dice_test_data/nnunet-ensemble-210506211134235449")

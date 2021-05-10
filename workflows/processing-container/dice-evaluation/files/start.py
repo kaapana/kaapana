@@ -77,8 +77,11 @@ def get_seg_info(input_nifti):
     seg_nifti_id = basename(input_nifti).replace(".nii.gz", "")
     json_files_found = glob(join(dirname(input_nifti), "*.json"), recursive=False)
     json_files_found = [meta_json_path for meta_json_path in json_files_found if "model_combinations" not in meta_json_path]
-    if len(json_files_found) == 1 and "-meta.json" in json_files_found[0]:
-        meta_info_json_path = json_files_found[0]
+    if len(json_files_found) > 0 and "-meta.json" in json_files_found[0]:
+        assert "--" in input_nifti
+        json_file_found = [list_json for list_json in json_files_found if seg_nifti_id.split("--")[0] in list_json]
+        assert len(json_file_found) == 1
+        meta_info_json_path = json_file_found[0]
         print(f"# Found DCMQI meta-json: {meta_info_json_path}")
         assert "--" in input_nifti
         with open(meta_info_json_path, 'rb') as f:

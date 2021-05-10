@@ -4,4 +4,3 @@ appVersion: "6.8.12"
 description: Chart for Elasticsearch
 name: elasticsearch-logging-chart
 version: "6.8.12"
-

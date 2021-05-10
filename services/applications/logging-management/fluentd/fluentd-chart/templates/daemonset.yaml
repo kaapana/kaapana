@@ -1,3 +1,4 @@
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -22,7 +23,7 @@ spec:
       containers:
       - name: fluentd
         image: {{  .Values.global.registry_url }}/fluentd:2.5.2-vdev
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           limits:
             memory: 512Mi
@@ -52,6 +53,7 @@ spec:
           path: /home/kaapana/airflow/logs
       - name: fluentd-config
         configMap:
-          name: fluentd-test-config
+          name: fluentd-config
       - name: config-path
         emptyDir: {}
+---

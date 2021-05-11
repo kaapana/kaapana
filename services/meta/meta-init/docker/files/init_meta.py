@@ -200,7 +200,7 @@ def setup_kibana(kibana_dashboard, kibana_host, kibana_port):
 def create_index_pattern(kibana_host, kibana_port):
     index_pattern = {
         "attributes": {"title": "{}".format(elastic_indexname),
-                       "fieldFormatMap": "{\"0020000D StudyInstanceUID_keyword.keyword\":{\"id\":\"url\",\"params\":{\"urlTemplate\":\"https://"+domain+"/ohif/IHEInvokeImageDisplay?requestType=STUDY&studyUID={{value}}\",\"labelTemplate\":\"{{value}}\"}}}",
+                       "fieldFormatMap": "{\"0020000D StudyInstanceUID_keyword.keyword\":{\"id\":\"url\",\"params\":{\"urlTemplate\":\"https://"+domain+":9443/ohif/IHEInvokeImageDisplay?requestType=STUDY&studyUID={{value}}\",\"labelTemplate\":\"{{value}}\"}}}",
                        }
     }
     try:

@@ -327,10 +327,6 @@ class KaapanaBaseOperator(BaseOperator):
 
         for k, v in operator_conf.items():
             k = k.upper()
-            if k in self.env_vars:
-                print(f'Adjusting {k} from {self.env_vars[k]} to {v}')
-            else:
-                print(f'Adding {k}={v} to env_vars')
             self.env_vars[k] = str(v)
 
     @cache_operator_output

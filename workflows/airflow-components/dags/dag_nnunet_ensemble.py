@@ -16,14 +16,14 @@ from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperato
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from nnunet.SegCheckOperator import SegCheckOperator
 
-default_interpolation_order = "default"
+default_interpolation_order = "1"
+# default_interpolation_order = "default"
 default_prep_thread_count = 1
 default_nifti_thread_count = 1
 test_cohort_limit = 5
 organ_filter = None
 
 parallel_processes = 3
-
 ui_forms = {
     "workflow_form": {
         "type": "object",

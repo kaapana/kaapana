@@ -24,7 +24,6 @@ def rest_self_udpate(func):
    
             for k, v in operator_conf.items():
                 if k in self.__dict__.keys():
-                    print(f'Adjusting {k} from {self.__dict__[k]} to {v}')
                     self.__dict__[k] = v
 
         return func(self, *args, **kwargs)

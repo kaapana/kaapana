@@ -30,38 +30,48 @@ override = True
 store_npz = True
 postprocessing_file = None
 
-global_seg_info = None
+global_seg_info = []
+
+
 def check_seg_info(inference_dir):
     global global_seg_info
     print("#")
     print(f"# Checking seg info for {inference_dir} ...")
-    print("#")
-    success = True
-
     seg_info_file = join(inference_dir, "seg_info.json")
     assert exists(seg_info_file)
     with open(seg_info_file) as f:
         new_seg_infos = json.load(f)
-    
-    assert "seg_info" in new_seg_infos
-    if global_seg_info is None:
-        global_seg_info = {}
-        print("# Creating new global seg infos...")
-        for new_seg_info in new_seg_infos["seg_info"]:
-            new_label_key = new_seg_info["label_name"]
-            new_label_encoding_str = new_seg_info["label_int"]
-            global_seg_info[new_label_key]=new_label_encoding_str
-    else:
-        for new_seg_info in new_seg_infos["seg_info"]:
-            new_label_key = new_seg_info["label_name"]
-            new_label_encoding_str = new_seg_info["label_int"]
-            print(f"# Check incoming: {new_label_key}:{new_label_encoding_str} ...")
-            success = True if new_label_key in global_seg_info and global_seg_info[new_label_key] == new_label_encoding_str and success else False
-            print(f"# success: {success}")
 
-    print("# Seg-info check done :) ")
+    assert "seg_info" in new_seg_infos
+    new_dict = {}
+    for new_seg_info in new_seg_infos["seg_info"]:
+        new_label_key = new_seg_info["label_name"]
+        new_label_encoding_str = new_seg_info["label_int"]
+        new_dict[new_label_key] = new_label_encoding_str
+
+    if len(global_seg_info) == 0:
+        print("# Creating first inference_dir configuration...")
+        global_seg_info.append({
+            "inference_dirs": [inference_dir],
+            "seg_info": new_dict
+        })
+    else:
+        found = False
+        for existing_entry in global_seg_info:
+            if new_dict == existing_entry["seg_info"]:
+                print("# Adding inference_dir to existing configuration...")
+                existing_entry["inference_dirs"].append(inference_dir)
+                found = True
+
+        if not found:
+            print("# Adding new inference_dir configuration...")
+            global_seg_info.append({
+                "inference_dirs": [inference_dir],
+                "seg_info": new_dict
+            })
+
     print("#")
-    return success
+
 
 print("##################################################")
 print("#")
@@ -79,21 +89,43 @@ print("##################################################")
 print("#")
 
 processed_count = 0
-ensemble_dirs = []
-
 batch_folders = sorted([f for f in glob(join('/', workflow_dir, batch_name, '*'))])
 for batch_element_dir in batch_folders:
     element_input_dir = os.path.join(batch_element_dir, operator_in_dir)
     if exists(element_input_dir):
-        if "skip" not in element_input_dir and check_seg_info(element_input_dir):
-            print(f"# Adding {element_input_dir} to the ensemble...")
-            ensemble_dirs.append(element_input_dir)
+        if "skip" not in element_input_dir:
+            check_seg_info(element_input_dir)
+            print(f"#")
         else:
             print(f"# Skipping {element_input_dir} to the ensemble...")
+            print(f"#")
     else:
         print(f"# Input-Dir {element_input_dir} not found! -> unexpected -> ABORT")
         print(f"#")
         exit(1)
+
+assert len(global_seg_info) > 0
+
+if len(global_seg_info) > 1:
+    global_seg_info = sorted(global_seg_info, key=lambda k: len(k['inference_dirs']),reverse=True)
+    
+    for skipped_models in global_seg_info[1:]:
+        print("#")
+        print("##################################################")
+        print("#")
+        print("#################  INFO  #######################")
+        print("#")
+        print("# ----> Skipped models because of different label configuration:")
+        print("#")
+        print(json.dumps(skipped_models, indent=4, sort_keys=True, default=str))
+        print("#")
+        print("##################################################")
+        print("#")
+
+print("#")
+
+ensemble_dirs=global_seg_info[0]['inference_dirs']
+print(f"# ensemble_dirs: {ensemble_dirs}")
 
 if len(ensemble_dirs) < 2:
     print("#")

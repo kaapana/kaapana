@@ -16,7 +16,7 @@ from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperato
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from nnunet.SegCheckOperator import SegCheckOperator
 
-default_interpolation_order = "1"
+default_interpolation_order = "default"
 # default_interpolation_order = "default"
 default_prep_thread_count = 1
 default_nifti_thread_count = 1
@@ -271,6 +271,7 @@ seg_check_gt = SegCheckOperator(
     original_img_operator=dcm2nifti_ct,
     target_dict_operator=seg_check_inference,
     parallel_processes=parallel_processes,
+    max_overlap_percentage=100,
     merge_found_niftis=True,
     delete_merged_data=False,
     fail_if_overlap=False,

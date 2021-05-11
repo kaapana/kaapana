@@ -37,7 +37,7 @@ class DiceEvaluationOperator(KaapanaBaseOperator):
             execution_timeout=execution_timeout,
             parallel_id=parallel_id,
             env_vars=env_vars,
-            ram_mem_mb=50000,
+            ram_mem_mb=100000,
             *args,
             **kwargs
         )

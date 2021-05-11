@@ -701,7 +701,7 @@ target_dict_dir = target_dict_dir if target_dict_dir.lower() != "none" else None
 delete_non_target_labels = getenv("DELETE_NON_TARGET_LABELS", "None")
 delete_non_target_labels = True if delete_non_target_labels.lower() == "true" else False
 
-max_overlap_percentage = getenv("MAX_overlap", "0.001")
+max_overlap_percentage = getenv("MAX_OVERLAP", "0.001")
 max_overlap_percentage = float(max_overlap_percentage) if max_overlap_percentage.lower() != "none" else None
 
 

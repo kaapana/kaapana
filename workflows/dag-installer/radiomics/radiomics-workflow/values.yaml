@@ -1,6 +1,5 @@
 ---
 global:
-    pull_policy_jobs: "IfNotPresent"
     image: "dag-radiomics"
     version: "0.1.1-vdev"
     action: "copy"

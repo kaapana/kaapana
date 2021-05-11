@@ -105,7 +105,7 @@ function change_port {
         set +e
         echo "Louketo pod: $louketo_pod" > /dev/stderr;
         microk8s.kubectl -n kube-system delete pod $louketo_pod
-        echo -e "${GREEN}Successfully changed HTTPS port to 8443 ! ${NC}" > /dev/stderr;
+        echo -e "${GREEN}Successfully changed HTTPS port to 9443 ! ${NC}" > /dev/stderr;
     fi
 }
 
@@ -487,7 +487,7 @@ function print_installation_done {
     echo -e "When all pod are in the \"running\" or \"completed\" state,${NC}"
 
     if [ -v DOMAIN ];then
-        echo -e "${GREEN}you can visit: https://$DOMAIN:8443/"
+        echo -e "${GREEN}you can visit: https://$DOMAIN:9443/"
         echo -e "You should be welcomed by the login page."
         echo -e "Initial credentials:"
         echo -e "username: kaapana"

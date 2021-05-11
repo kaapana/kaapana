@@ -39,8 +39,8 @@ spec:
       targetPort: http
       name: http-port
     - protocol: TCP
-      port: 8443
-      nodePort: 8443
+      port: 9443
+      nodePort: 9443
       targetPort: https
       name: https-port
   type: NodePort

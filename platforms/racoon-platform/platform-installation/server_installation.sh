@@ -508,7 +508,8 @@ where opt is:
     1.17/stable --> for Kubernetes v1.17
     1.18/stable --> for Kubernetes v1.18
     1.19/stable --> for Kubernetes v1.19
-    default: 1.18/stable
+    1.20/stable --> for Kubernetes v1.20
+    default: 1.20/stable
 
 _Argument: -os --operating-system [opt]
 where opt is:

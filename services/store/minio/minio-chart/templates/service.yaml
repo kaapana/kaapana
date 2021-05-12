@@ -24,7 +24,7 @@ spec:
       targetPort: 9000
 {{- end }}
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: minio-ingress

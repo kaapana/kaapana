@@ -11,7 +11,7 @@ spec:
     - port: 5000
       name: error-http
 ---
-apiVersion: networking.k8s.io/v1
+apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: error-pages-ingress-ip

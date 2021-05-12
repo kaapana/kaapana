@@ -21,14 +21,14 @@ rcParams.update({'figure.autolayout': True})
 processed_count = 0
 model_counter = 0
 
-os.environ['WORKFLOW_DIR'] = str("/home/jonas/Downloads/dag-data/nnunet-ensemble-210512095519706991")
-os.environ['BATCH_NAME'] = str("nnunet-cohort")
-os.environ['OPERATOR_IN_DIR'] = str("seg-check-inference")
-os.environ['OPERATOR_OUT_DIR'] = str("dice-evaluation")
-os.environ['GT_IN_DIR'] = str("seg-check-gt")
-os.environ['ENSEMBLE_IN_DIR'] = str("seg-check-ensemble")
-os.environ['ANONYMIZE'] = str("True")
-os.environ['THREADS'] = str("1")
+# os.environ['WORKFLOW_DIR'] = str("/home/jonas/Downloads/dag-data/nnunet-ensemble-210512095519706991")
+# os.environ['BATCH_NAME'] = str("nnunet-cohort")
+# os.environ['OPERATOR_IN_DIR'] = str("seg-check-inference")
+# os.environ['OPERATOR_OUT_DIR'] = str("dice-evaluation")
+# os.environ['GT_IN_DIR'] = str("seg-check-gt")
+# os.environ['ENSEMBLE_IN_DIR'] = str("seg-check-ensemble")
+# os.environ['ANONYMIZE'] = str("True")
+# os.environ['THREADS'] = str("1")
 
 workflow_dir = getenv("WORKFLOW_DIR", "None")
 workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None

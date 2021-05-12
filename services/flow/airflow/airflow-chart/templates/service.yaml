@@ -11,7 +11,7 @@ spec:
     - port: 8080
       name: airflow-http
 ---
-apiVersion: networking.k8s.io/v1
+apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: airflow-ingress-ip

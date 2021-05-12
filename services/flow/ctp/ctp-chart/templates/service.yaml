@@ -35,7 +35,7 @@ spec:
     port: {{ .Values.global.dicom_web_port }}
     targetPort: 7777
 ---
-apiVersion: networking.k8s.io/v1
+apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: ctp-ingress-ip

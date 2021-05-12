@@ -518,12 +518,16 @@ def merge_niftis(queue_dict):
             # print(f"# New labels: {new_gt_map_int_encodings}")
 
         if not merge_found_niftis:
-            print("# No NIFTI merge -> replacing original NIFTI")
+            print("# No NIFTI merge -> saving adusted NIFTI ...")
             target_nifti_path = join(target_dir, basename(seg_nifti))
-            print(f"# Path:       {seg_nifti}")
-            print(f"# TargetPath: {target_nifti_path}")
             combined = nib.Nifti1Image(new_gt_map, base_image_loaded.affine, base_image_loaded.header)
             combined.to_filename(target_nifti_path)
+            metadata_json = create_metadata_json(new_labels_dict=local_labels_info)
+            metadata_json_path = join(target_dir, f"{seg_nifti_id}.json")
+            with open(metadata_json_path, 'w', encoding='utf-8') as f:
+                json.dump(metadata_json, f, indent=4, sort_keys=False)
+            print(f"# JSON:  {metadata_json_path}")
+            print(f"# NIFTI: {seg_nifti} -> {target_nifti_path}")
 
     if merge_found_niftis:
         print("# Writing new merged file...")
@@ -586,7 +590,6 @@ def merge_niftis(queue_dict):
                 shutil.rmtree(seg_nifti, ignore_errors=True)
 
     print("# Done")
-    write_global_seg_info(file_path=global_labels_info_path)
     return queue_dict, "ok"
 
 
@@ -620,7 +623,7 @@ def resample_image(input_path, original_path, replace=True, target_dir=None):
         print("##################################################")
         print("#")
         return False
-    
+
     assert exists(target_path)
 
     print(f"# -> OK")
@@ -820,7 +823,6 @@ for key in sorted(base_image_ref_dict.keys(), key=lambda key: base_image_ref_dic
     else:
         print("# unknown list!")
         exit(1)
-
 
     segs_to_merge = {
         "base_image": base_image,
@@ -1115,5 +1117,4 @@ else:
     print("#")
     print(f"# ----> {processed_count} FILES HAVE BEEN PROCESSED!")
     print("#")
-    write_global_seg_info(file_path=global_labels_info_path)
     print("# DONE #")

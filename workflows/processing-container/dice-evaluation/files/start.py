@@ -220,6 +220,7 @@ def get_dice_score(input_data):
 
         dice_scores = compute_meandice(y_pred=pred_tensor, y=gt_tensor, include_background=include_background).numpy()[0]
         pred_tensor = None
+        print(f"# {model_pred_file} -> scores: {list(dice_scores)}")
         results[model_id][pred_file_id] = list(dice_scores)
 
     if ensemble_pred_file is not None:

@@ -19,15 +19,16 @@ rcParams.update({'figure.autolayout': True})
 
 # Counter to check if smth has been processed
 processed_count = 0
+model_counter = 0
 
-# os.environ['WORKFLOW_DIR'] = str("/home/jonas/Downloads/dice_test_data/nnunet-ensemble-210506104227376005")
-# os.environ['BATCH_NAME'] = str("nnunet-cohort")
-# os.environ['OPERATOR_IN_DIR'] = str("single-model-prediction")
-# os.environ['OPERATOR_OUT_DIR'] = str("dice-evaluation")
-# os.environ['GT_IN_DIR'] = str("seg-check-gt")
-# os.environ['ENSEMBLE_IN_DIR'] = str("ensemble-prediction")
-# os.environ['ANONYMIZE'] = str("True")
-# os.environ['THREADS'] = str("1")
+os.environ['WORKFLOW_DIR'] = str("/home/jonas/Downloads/dag-data/nnunet-ensemble-210512095519706991")
+os.environ['BATCH_NAME'] = str("nnunet-cohort")
+os.environ['OPERATOR_IN_DIR'] = str("seg-check-inference")
+os.environ['OPERATOR_OUT_DIR'] = str("dice-evaluation")
+os.environ['GT_IN_DIR'] = str("seg-check-gt")
+os.environ['ENSEMBLE_IN_DIR'] = str("seg-check-ensemble")
+os.environ['ANONYMIZE'] = str("True")
+os.environ['THREADS'] = str("1")
 
 workflow_dir = getenv("WORKFLOW_DIR", "None")
 workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
@@ -72,69 +73,42 @@ dice_results = {}
 def get_seg_info(input_nifti):
     print(f"# Get seg configuration for: {basename(input_nifti)}")
     model_id = f"-{basename(input_nifti).replace('.nii.gz','').split('-')[-1]}" if "-" in basename(input_nifti) else ""
-
-
     seg_nifti_id = basename(input_nifti).replace(".nii.gz", "")
     json_files_found = glob(join(dirname(input_nifti), "*.json"), recursive=False)
     json_files_found = [meta_json_path for meta_json_path in json_files_found if "model_combinations" not in meta_json_path]
-    if len(json_files_found) > 0 and "-meta.json" in json_files_found[0]:
-        assert "--" in input_nifti
-        json_file_found = [list_json for list_json in json_files_found if seg_nifti_id.split("--")[0] in list_json]
-        assert len(json_file_found) == 1
-        meta_info_json_path = json_file_found[0]
-        print(f"# Found DCMQI meta-json: {meta_info_json_path}")
-        assert "--" in input_nifti
-        with open(meta_info_json_path, 'rb') as f:
-            meta_info = json.load(f)
-        return meta_info
 
-    elif len(json_files_found) == 1 and "seg_info.json" in json_files_found[0]:
-        meta_info_json_path = json_files_found[0]
-        print(f"# Found nnunet meta-json: {meta_info_json_path}")
-        with open(meta_info_json_path, 'rb') as f:
-            meta_info = json.load(f)
-        return meta_info
+    print(f"# input_nifti: {input_nifti}")
+    print(f"# model_id: {model_id}")
+    meta_json_path = input_nifti.replace(".nii.gz",".json")
+    print(f"# meta-info-file: {meta_json_path}")
+    assert exists(meta_json_path)
+    gen_seg_info = {}
+    with open(meta_json_path, 'rb') as f:
+        meta_info = json.load(f)
 
-    elif len(json_files_found) > 0 and "seg_info" in json_files_found[0]:
-        filtered_jsons = [meta_json_path for meta_json_path in json_files_found if f"seg_info{model_id}.json" in meta_json_path]
-        print(f"# json_files_found: {json_files_found}")
-        print(f"# model_id: {model_id}")
-        print(f"# filtered_jsons: {filtered_jsons}")
-        assert len(filtered_jsons) == 1
-        meta_info_json_path = filtered_jsons[0]
-        print(f"# Found corrected nnunet meta-json: {meta_info_json_path}")
-        with open(meta_info_json_path, 'rb') as f:
-            meta_info = json.load(f)
+    if "segmentAttributes" in meta_info:
+        for entries in meta_info["segmentAttributes"]:
+            for part in entries:
+                if "labelID" in part:
+                    label_int = int(part["labelID"])
+                    if "SegmentLabel" in part:
+                        label_name = part["SegmentLabel"]
 
-        return meta_info
+                    elif "TrackingIdentifier" in part:
+                        label_name = part["TrackingIdentifier"]
+                gen_seg_info[label_name] = label_int
+    
+    model_id_info_file = join(dirname(input_nifti).replace("seg-check-inference","do-inference"),f"seg_info{model_id}.json")
+    print(f"# model_id_info_file: {model_id_info_file}")
+    assert exists(model_id_info_file)
 
-    elif len(json_files_found) > 0:
-        filtered_jsons = [meta_json_path for meta_json_path in json_files_found if seg_nifti_id in meta_json_path]
-        print(f"# json_files_found: {json_files_found}")
-        print(f"# filtered_jsons: {filtered_jsons}")
-        if len(filtered_jsons) == 1:
-            meta_info_json_path = filtered_jsons[0]
-            print(f"# Found corrected nnunet meta-json: {meta_info_json_path}")
-            with open(meta_info_json_path, 'rb') as f:
-                meta_info = json.load(f)
+    with open(model_id_info_file, 'rb') as f:
+        model_info = json.load(f)
 
-            return meta_info
-        else:
-            print("##################################################### ")
-            print("#")
-            print(f"# Found seg-ifo json files -> but could not identify an info-system!")
-            print(f"# NIFTI-file {input_nifti}")
-            print("#")
-            print("##################################################### ")
-    else:
-        print("##################################################### ")
-        print("#")
-        print(f"# Could not find seg-ifo json file!")
-        print(f"# NIFTI-file {input_nifti}")
-        print("#")
-        print("##################################################### ")
-    return None
-
+    assert "task_id" in model_info
+    model_id = model_info["task_id"]
+    print(f"# extracted model-id: {model_id}")
+    return model_id, gen_seg_info
 
 def create_plots(data_table, table_name, result_dir):
     print(f"# Creating boxplots: {table_name}")
@@ -161,12 +135,10 @@ def create_plots(data_table, table_name, result_dir):
 def check_prediction_info(seg_info):
     global global_seg_check_info
 
-    for entry in seg_info:
-        label_int = entry["label_int"]
-        label_name = entry["label_name"]
-        if label_int not in global_seg_check_info:
+    for label_key, encoding_int in seg_info.items():
+        if label_key not in global_seg_check_info:
             pass
-        elif global_seg_check_info[label_int] != label_name:
+        elif global_seg_check_info[label_key] != encoding_int:
             print("# ")
             print("# seg_info:")
             print(json.dumps(seg_info, indent=4, sort_keys=True, default=str))
@@ -175,9 +147,6 @@ def check_prediction_info(seg_info):
             print("# global_seg_check_info:")
             print(json.dumps(global_seg_check_info, indent=4, sort_keys=True, default=str))
             print("# ")
-            print(f"# label_int: {label_int}")
-            print(f"# global_seg_check_info[label_int]: {global_seg_check_info[label_int]}")
-            print(f"# label_name: {label_name[label_int]}")
             print("# Issue with prediction config!")
             return False
 
@@ -185,7 +154,7 @@ def check_prediction_info(seg_info):
 
 
 def get_dice_score(input_data):
-    global dice_results, global_seg_check_info, max_label_encoding, processed_count, include_background
+    global dice_results, global_seg_check_info, max_label_encoding, processed_count, include_background, model_counter
     batch_id, single_model_pred_files, gt_file, ensemble_pred_file = input_data
 
     results = {}
@@ -201,13 +170,12 @@ def get_dice_score(input_data):
         info_json = model_pred_file.replace("nii.gz", "json")
         pred_file_id = basename(model_pred_file).replace(".nii.gz", "")
 
-        seg_info = get_seg_info(input_nifti=model_pred_file)
+        model_id, seg_info = get_seg_info(input_nifti=model_pred_file)
         if seg_info is None:
             print(f"# info_json does not exist: {info_json}")
-        assert seg_info is not None and "task_id" in seg_info and "seg_info" in seg_info
-        assert check_prediction_info(seg_info["seg_info"])
+        assert seg_info is not None
+        assert check_prediction_info(seg_info)
 
-        model_id = seg_info["task_id"]
         assert model_id not in results
         results[model_id] = {}
 
@@ -227,12 +195,11 @@ def get_dice_score(input_data):
         info_json = ensemble_pred_file.replace(".nii.gz", ".json")
         print(f"# info_json: {info_json}")
         print(f"# ensemble_pred_file: {ensemble_pred_file}")
-        seg_info = get_seg_info(input_nifti=ensemble_pred_file)
+        model_id, seg_info = get_seg_info(input_nifti=ensemble_pred_file)
         if seg_info is None:
             print(f"# info_json does not exist: {info_json}")
         assert seg_info is not None
-        assert seg_info is not None and "task_id" in seg_info and "seg_info" in seg_info
-        assert check_prediction_info(seg_info["seg_info"])
+        assert check_prediction_info(seg_info)
 
         assert "ensemble" not in results
 
@@ -286,10 +253,10 @@ max_label_encoding = 0
 for label_key, int_encoding in tmp_info_dict.items():
     int_encoding = int(int_encoding)
     max_label_encoding = int_encoding if int_encoding > max_label_encoding else max_label_encoding
-    global_seg_check_info[int_encoding] = label_key
+    global_seg_check_info[label_key] = int_encoding
 
-if 0 not in global_seg_check_info:
-    global_seg_check_info[0] = "Clear Label"
+if "Clear Label" not in global_seg_check_info:
+    global_seg_check_info["Clear Label"] = 0
 
 queue_list = []
 batch_output_dir = join('/', workflow_dir, operator_out_dir)

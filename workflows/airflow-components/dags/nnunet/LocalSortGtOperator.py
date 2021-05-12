@@ -62,6 +62,7 @@ class LocalSortGtOperator(KaapanaPythonBaseOperator):
                 for corr_image in corr_batch_elements:
                     target_seg_path = join(target_series_batch,basename(corr_image))
                     print(f"# copy {corr_image} -> {target_seg_path}")
+                    assert not exists(target_seg_path)
                     move(src=corr_image,dst=target_seg_path)
             print(f"#")
         

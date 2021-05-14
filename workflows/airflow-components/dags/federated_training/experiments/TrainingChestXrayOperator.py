@@ -22,7 +22,7 @@ class TrainingChestXrayOperator(KaapanaBaseOperator):
                  n_epochs=None,
                  batch_size=None,
                  use_cuda=None,
-                 local_testing=None,
+                 validation=None,
                  env_vars=None,
                  execution_timeout=timedelta(hours=1),
                  *args, **kwargs
@@ -37,7 +37,7 @@ class TrainingChestXrayOperator(KaapanaBaseOperator):
             "N_EPOCHS": str(n_epochs),
             "BATCH_SIZE": str(batch_size),
             'USE_CUDA': str(use_cuda),
-            "LOCAL_TESTING": str(local_testing)
+            "VALIDATION": str(validation)
         }
 
         env_vars.update(envs)

@@ -60,7 +60,7 @@ train_model = TrainingMNISTOperator(
     epochs=1,
     batch_size=32,
     use_cuda=True,
-    local_testing=True
+    validation=True
     )
 
 pass_on_model = LocalMinioOperator(

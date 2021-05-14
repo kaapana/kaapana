@@ -39,7 +39,7 @@ class TriggerRemoteWorkersOperator(KaapanaPythonBaseOperator):
                             'host_ip': participant,
                             'n_epochs': self.epochs_on_worker,
                             'use_cuda': self.use_cuda,
-                            'local_testing': self.local_testing,
+                            'validation': self.validation,
                             'fed_round': self.fed_round},
                         'minio-action-get-model': {
                             'minio_host': self.scheduler},
@@ -66,7 +66,7 @@ class TriggerRemoteWorkersOperator(KaapanaPythonBaseOperator):
         epochs_on_worker=None,
         use_cuda=None,
         fed_round=None,
-        local_testing=None,
+        validation=None,
         *args,**kwargs):
 
         self.dag_name = dag_name
@@ -79,7 +79,7 @@ class TriggerRemoteWorkersOperator(KaapanaPythonBaseOperator):
         self.fed_round = fed_round
         self.epochs_on_worker = epochs_on_worker
         self.use_cuda = use_cuda
-        self.local_testing = local_testing
+        self.validation = validation
 
         super().__init__(
             dag,

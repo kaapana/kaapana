@@ -89,7 +89,7 @@ trigger_remote_dags = TriggerRemoteWorkersOperator(
     procedure=None,
     participants=None,
     use_cuda=True,
-    local_testing=True,
+    validation=True,
     epochs_on_worker=1,
     bucket_name='federated-exp-chest-xray'
 )

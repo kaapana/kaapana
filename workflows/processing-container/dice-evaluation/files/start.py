@@ -70,6 +70,7 @@ input_file_extension = "*.nii.gz"
 # How many processes should be started?
 dice_results = {}
 
+
 def get_seg_info(input_nifti):
     print(f"# Get seg configuration for: {basename(input_nifti)}")
     model_id = f"-{basename(input_nifti).replace('.nii.gz','').split('-')[-1]}" if "-" in basename(input_nifti) else ""
@@ -79,7 +80,7 @@ def get_seg_info(input_nifti):
 
     print(f"# input_nifti: {input_nifti}")
     print(f"# model_id: {model_id}")
-    meta_json_path = input_nifti.replace(".nii.gz",".json")
+    meta_json_path = input_nifti.replace(".nii.gz", ".json")
     print(f"# meta-info-file: {meta_json_path}")
     assert exists(meta_json_path)
     gen_seg_info = {}
@@ -97,18 +98,27 @@ def get_seg_info(input_nifti):
                     elif "TrackingIdentifier" in part:
                         label_name = part["TrackingIdentifier"]
                 gen_seg_info[label_name] = label_int
-    
-    model_id_info_file = join(dirname(input_nifti).replace("seg-check-inference","do-inference"),f"seg_info{model_id}.json")
-    print(f"# model_id_info_file: {model_id_info_file}")
-    assert exists(model_id_info_file)
 
-    with open(model_id_info_file, 'rb') as f:
-        model_info = json.load(f)
+    if "seg-check-inference" in input_nifti:
+        model_id_info_file = join(dirname(input_nifti).replace("seg-check-inference", "do-inference"), f"seg_info{model_id}.json")
+        print(f"# model_id_info_file: {model_id_info_file}")
+        assert exists(model_id_info_file)
+        
+        with open(model_id_info_file, 'rb') as f:
+            model_info = json.load(f)
 
-    assert "task_id" in model_info
-    model_id = model_info["task_id"]
+        assert "task_id" in model_info
+        model_id = model_info["task_id"]
+    elif "seg-check-ensemble" in input_nifti:
+        # model_id_info_file = join(dirname(input_nifti).replace("seg-check-ensemble", "do-ensemble"), f"seg_info{model_id}.json")
+        model_id = "ensemble"
+    else:
+        print(f"# Could not find model info for: {input_nifti}")
+
+
     print(f"# extracted model-id: {model_id}")
     return model_id, gen_seg_info
+
 
 def create_plots(data_table, table_name, result_dir):
     print(f"# Creating boxplots: {table_name}")
@@ -214,6 +224,7 @@ def get_dice_score(input_data):
         dice_scores = compute_meandice(y_pred=ensemble_tensor, y=gt_tensor, include_background=include_background).numpy()[0]
         pred_tensor = None
 
+        print(f"# ensemble: {ensemble_pred_file} -> scores: {list(dice_scores)}")
         results["ensemble"] = {ensemble_file_id: list(dice_scores)}
 
     return True, batch_id, results
@@ -294,7 +305,7 @@ for batch_element_dir in batch_folders:
     if len(ensemble_pred_files) > 0:
         ensemble_pred_file = ensemble_pred_files[0]
         print(f"# Using ensemble-file: {ensemble_pred_file}")
-    
+
     input_data = (batch_id, single_model_pred_files, gt_file, ensemble_pred_file)
     queue_list.append(input_data)
     print(f"# Adding data to the job-list ..")
@@ -345,7 +356,7 @@ with open(output_file, "w", encoding='utf-8') as jsonData:
 
 # with open(output_file) as f:
 #     dice_results = json.load(f)
-print("# Generating plots ...")
+print("# Generating plot table ...")
 result_table = []
 for batch_id, model_results in dice_results.items():
     print(f"batch: {batch_id}")
@@ -354,7 +365,7 @@ for batch_id, model_results in dice_results.items():
         for file_id, dice_info in file_results.items():
             print(f"file_id: {model_id}")
             for array_index in range(0, len(dice_info)):
-                class_label = global_seg_check_info[array_index+1]
+                class_label = list(global_seg_check_info.keys())[list(global_seg_check_info.values()).index(array_index+1)]
                 class_dice = float(dice_info[array_index])
                 result_table.append([
                     file_id,
@@ -363,6 +374,7 @@ for batch_id, model_results in dice_results.items():
                     class_dice
                 ])
 
+print("# Generating dataframes ... ")
 df_data = pd.DataFrame(result_table, columns=['Series', 'Model', 'Label', 'Dice'])
 labels = df_data['Label'].unique()
 

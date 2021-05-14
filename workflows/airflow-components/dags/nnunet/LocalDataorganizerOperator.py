@@ -20,6 +20,10 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
             filter_id = basename(filename).replace(".nii.gz", "").replace("_combination_","-")
             print(f"# filter_id: {filter_id}")
             json_file_filtered = [json_file for json_file in json_list if filter_id in json_file]
+            ensemble_file_filtered = [json_file for json_file in json_list if "ensemble_seg_info.json" in json_file]
+            if len(ensemble_file_filtered) > 0:
+                return ensemble_file_filtered[0]
+                
             if len(json_file_filtered) > 0:
                 return json_file_filtered[0]
             else:
@@ -97,20 +101,9 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
 
                 json_file = self.get_json(filename=nifti_file, json_list=json_files)
                 if json_file is not None:
-                    if basename(json_file) == "model_combinations.json":
-                        target_json_path = join(target_dir, basename(json_file))
-                        print(f"# copy model_combinations-JSON: {json_file} -> {target_json_path}")
-                        shutil.copy2(json_file, target_json_path)
-                        print("# Ensemble detected -> searching nnunet-predict seg-info...")
-                        inference_json = join(target_batch_element, "do-inference", f"seg_info-{model_id}.json")
-                        assert exists(inference_json)
-                        target_json_path = join(target_dir, basename(inference_json))
-                        print(f"# copy JSON inference -> ensemble: {json_file} -> {target_json_path}")
-                        shutil.copy2(inference_json, target_json_path)
-                    else:
-                        target_json_path = join(target_dir, basename(json_file).replace(".json",f"-{model_id}.json"))
-                        print(f"# copy JSON: {json_file} -> {target_json_path}")
-                        shutil.copy2(json_file, target_json_path)
+                    target_json_path = join(target_dir, basename(json_file).replace(".json",f"-{model_id}.json"))
+                    print(f"# copy JSON: {json_file} -> {target_json_path}")
+                    shutil.copy2(json_file, target_json_path)
                 else:
                     print(f"# No json found!")
                     exit(1)

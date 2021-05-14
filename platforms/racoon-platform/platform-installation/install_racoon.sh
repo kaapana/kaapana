@@ -76,7 +76,7 @@ if [ "$CHANGE_HTTPS" == "true" ] && [ ! -f $template_path ] ; then
 fi
 
 function change_port {
-    echo "Change https port to 8442 ..."
+    echo "Change https port to 9443 ..."
     custom_yaml_path="./change_port.yaml"
 
     if [ -z "$DOMAIN" ]; then

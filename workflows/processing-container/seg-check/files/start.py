@@ -378,7 +378,7 @@ def merge_niftis(queue_dict):
             print("##################################################")
             new_gt_map = np.zeros_like(base_image_loaded.get_fdata().astype(int))
             local_labels_info = {"Clear Label": 0}
-        print(f"# Processing NIFTI: {basename(seg_nifti)}")
+        print(f"# Processing NIFTI: {seg_nifti}")
         print("#")
         existing_configuration = get_seg_info(input_nifti=seg_nifti)
 
@@ -412,9 +412,9 @@ def merge_niftis(queue_dict):
                 print(f"# -> file ok")
                 target_path = join(target_dir, basename(seg_nifti))
                 if target_path != seg_nifti:
-                    print(f"# -> copy file to target: {target_path}")
+                    print(f"# -> copy file to target:{seg_nifti} -> {target_path}")
                     Path(dirname(target_path)).mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(src=base_image_path, dst=target_path)
+                    shutil.copy2(src=seg_nifti, dst=target_path)
 
                 # local_labels_info[label_name] = label_int
                 metadata_json = create_metadata_json(new_labels_dict=global_labels_info)

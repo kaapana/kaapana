@@ -52,6 +52,7 @@ def check_seg_info(inference_dir):
     if len(global_seg_info) == 0:
         print("# Creating first inference_dir configuration...")
         global_seg_info.append({
+            "seg_file_path":seg_info_file,
             "inference_dirs": [inference_dir],
             "seg_info": new_dict
         })
@@ -66,6 +67,7 @@ def check_seg_info(inference_dir):
         if not found:
             print("# Adding new inference_dir configuration...")
             global_seg_info.append({
+                "seg_file_path":seg_info_file,
                 "inference_dirs": [inference_dir],
                 "seg_info": new_dict
             })
@@ -126,6 +128,8 @@ print("#")
 
 ensemble_dirs=global_seg_info[0]['inference_dirs']
 print(f"# ensemble_dirs: {ensemble_dirs}")
+seg_file_path=global_seg_info[0]['seg_file_path']
+print(f"# seg_file_path: {seg_file_path}")
 
 if len(ensemble_dirs) < 2:
     print("#")
@@ -156,8 +160,6 @@ for combination_index in range(0, len(model_combinations)):
     combination_output_dir = os.path.join('/', workflow_dir, operator_out_dir, f"combination_{combination_index}")
     Path(combination_output_dir).mkdir(parents=True, exist_ok=True)
     print(f"#")
-    print(f"# Evaluating new combination ....")
-    print(f"#")
     print(f"# Evaluating combination: {combination_index}: {model_combination}")
     print(f"#")
     print(f"# combination_output_dir:    {combination_output_dir}")
@@ -186,9 +188,9 @@ print("#")
 final_target = join('/', workflow_dir, operator_out_dir)
 combination_output_dirs = sorted([f for f in glob(join('/', workflow_dir, operator_out_dir, '*'))])
 for combination_output_dir in combination_output_dirs:
-    assert "combination_" in combination_output_dir
-
     print(f"# -> moving files from {basename(combination_output_dir)} to operator_out_dir")
+
+    assert "combination_" in combination_output_dir
     combination_id = int(combination_output_dir.split("_")[-1])
     combination_files = glob(join(combination_output_dir, "*"), recursive=False)
     for combination_file in combination_files:
@@ -211,6 +213,7 @@ print("# ")
 with open(join(final_target, "model_combinations.json"), "w") as jsonData:
     json.dump(model_combinations, jsonData, indent=4, sort_keys=False, default=str)
 
+shutil.copy(src=seg_file_path, dst=join(final_target,"ensemble_seg_info.json"))
 print("#")
 print("#")
 print("##################################################")

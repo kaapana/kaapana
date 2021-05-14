@@ -2,7 +2,7 @@
 
 1) SSH in die VM 
     
-    IP der VM war bei der installation: **10.1.10.59** (kann sich ändern)
+    IP der VM war bei der installation: **10.1.10.31** (kann sich ändern)
 
     user: racoon
 
@@ -22,7 +22,7 @@
 
 ![pods](running_pods.png)
    
-8)  Aufruf UI der Platform über den Browser: https://DOMAIN-SERVER:8443
+8)  Aufruf UI der Platform über den Browser: https://DOMAIN-SERVER:9443
    
 9)  Anmeldung mit:
 
@@ -188,6 +188,6 @@ Passwörter:
     password: EjsH53fXznKMtVFfwXxS
 
 Verwendete Ports:
-8443   -> User-interface
+9443   -> User-interface
 8081   -> Authentifizierungsserver
 11113 -> DICOM port (AE-titel = dataset innerhalb der Plattform)

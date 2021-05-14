@@ -321,7 +321,7 @@ bin2dcm = Bin2DcmOperator(
     delete_input_on_success=True
 )
 
-dcmseg_send_int = DcmSendOperator(
+dcm_send_int = DcmSendOperator(
     dag=dag,
     level="batch",
     pacs_host='ctp-service.flow.svc',
@@ -331,9 +331,20 @@ dcmseg_send_int = DcmSendOperator(
     delete_input_on_success=True
 )
 
+# dcm_send_ext = DcmSendOperator(
+#     dag=dag,
+#     level="batch",
+#     pacs_host='192.168.0.2',
+#     pacs_port='2021',
+#     ae_title=ae_title,
+#     input_operator=bin2dcm,
+#     delete_input_on_success=True
+# )
+
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
 get_input >> dcm2nifti_seg >> check_seg
 get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess >> nnunet_train
 
 nnunet_train >> pdf2dcm >> dcmseg_send_pdf >> clean
-nnunet_train >> zip_model >> bin2dcm >> dcmseg_send_int >> clean
+nnunet_train >> zip_model >> bin2dcm >> dcm_send_int >> clean
+# bin2dcm >> dcm_send_ext

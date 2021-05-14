@@ -29,7 +29,7 @@ mnist_transforms = {
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
     ]),
-    'test': transforms.Compose([
+    'val': transforms.Compose([
         transforms.Grayscale(num_output_channels=1), # <-- needed since imgs are loaded with 3 channels by default
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))

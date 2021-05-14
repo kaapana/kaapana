@@ -16,13 +16,13 @@ class Arguments():
     def __init__(self):
         '''Set args from envs given by Airflow operator'''
         
-        self.host_ip = os.getenv('HOST_IP')
+        self.host_ip = os.environ['HOST_IP']
 
         self.logs_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'logs')
         
         self.data_path = os.path.join(os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
         self.train_data_dir = os.path.join(self.data_path, 'train')
-        self.test_data_dir = os.path.join(self.data_path, 'test')
+        self.val_data_dir = os.path.join(self.data_path, 'val')
         
         self.model_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'model')
         if not os.path.exists(self.model_dir):
@@ -32,7 +32,7 @@ class Arguments():
         if not os.path.exists(self.model_cache):
             os.makedirs(self.model_cache)
         
-        self.num_workers = 16
+        self.num_workers = 4
         self.log_interval = 100
         self.batch_size = int(os.environ['BATCH_SIZE'])
         self.use_cuda = (os.environ.get('USE_CUDA', 'False') == 'True')
@@ -43,46 +43,60 @@ class Arguments():
         self.epoch = (self.fed_round * self.n_epochs)
 
 
-def test(model, dataloader_test, device):
+def validate(model, dataloader_val, epoch, device, tb_logger):
     model.eval()
-    test_loss = 0
+    val_loss = 0
     correct = 0
     with torch.no_grad():
-        for imgs, targets in dataloader_test:
+        for imgs, targets in dataloader_val:
             imgs, targets = imgs.to(device), targets.to(device)
             output = model(imgs)
-            test_loss += F.nll_loss(output, targets, reduction='sum').item() # sum up batch loss
+            val_loss += F.nll_loss(output, targets, reduction='sum').item() # sum up batch loss
             pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
             correct += pred.eq(targets.view_as(pred)).sum().item()
+    val_loss /= len(dataloader_val.dataset)
+    accuracy = correct / len(dataloader_val.dataset)
     
-    test_loss /= len(dataloader_test.dataset)
-    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        test_loss, correct, len(dataloader_test.dataset),
-        100. * correct / len(dataloader_test.dataset)))
+    print('Validation set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+        val_loss, correct, len(dataloader_val.dataset),
+        100. * accuracy))
+    
+    # tensorboad logging
+    tb_logger.add_scalar("Loss (val)", val_loss, epoch)
+    tb_logger.add_scalar("Accuracy (val)", accuracy, epoch)
 
 
 def train(model, optimizer, dataloader_train, epoch, device, tb_logger):
     model.train()
     loss_epoch = 0
+    correct = 0
     for batch_idx, (imgs, targets) in enumerate(dataloader_train):
         imgs, targets = imgs.to(device), targets.to(device)
         optimizer.zero_grad()
         output = model(imgs)
+        pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
+        correct += pred.eq(targets.view_as(pred)).sum().item()
         loss = F.nll_loss(output, targets)
-        loss_epoch += loss.item()
+        loss_epoch += loss.item() # accumulating batch losses
         loss.backward()
         optimizer.step()
+
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(imgs), len(dataloader_train.dataset),
                 100. * batch_idx / len(dataloader_train), loss.item()))
     
+    loss_epoch /= len(dataloader_train) # divide by number of batches
+    accuracy = correct / len(dataloader_train.dataset)
+    
     # tensorboad logging
-    tb_logger.add_scalar("Loss", loss_epoch, epoch)
+    tb_logger.add_scalar("Loss (train)", loss_epoch, epoch)
+    tb_logger.add_scalar("Accuracy (train)", accuracy, epoch)
 
 
 def main(args):
-    print('#'*10, 'Training on MNIST data', '#'*10)
+    print('')
+    print('#'*10, 'Training on MNIST', '#'*10)
 
     # logging
     tb_logger = SummaryWriter(
@@ -102,8 +116,8 @@ def main(args):
         num_workers=args.num_workers
     )
     
-    dataloader_test = DataLoader(
-        dataset= ImageFolder(root=args.test_data_dir, transform=mnist_transforms['test']),
+    dataloader_val = DataLoader(
+        dataset= ImageFolder(root=args.val_data_dir, transform=mnist_transforms['val']),
         batch_size=args.batch_size,
         shuffle=False,
         num_workers=args.num_workers
@@ -123,8 +137,10 @@ def main(args):
     model.to(device)
     for epoch in range(args.epoch, args.epoch + args.n_epochs):
         train(model, optimizer, dataloader_train, epoch, device, tb_logger)
-        if args.local_testing:
-            test(model, dataloader_test, device)
+        
+        if args.validation:
+            validate(model, dataloader_val, epoch, device, tb_logger)
+    
     tb_logger.flush()
 
     # save new model checkpoint (with source label)

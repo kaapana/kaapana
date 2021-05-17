@@ -21,14 +21,16 @@ class ExperimentChestXrayOperator(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  name=None,
-                 fed_round=None,
                  init_model=False,
-                 apply_tests=None,
+                 inference=None,
                  procedure=None,
-                 learning_rate=None,
+                 fed_round=None,
+                 fed_rounds_total=None,
+                 participants=None,
                  worker=None,
+                 learning_rate=None,
                  env_vars=None,
-                 execution_timeout=timedelta(hours=6),
+                 execution_timeout=timedelta(hours=1),
                  *args, **kwargs
                  ):
 
@@ -36,12 +38,14 @@ class ExperimentChestXrayOperator(KaapanaBaseOperator):
             env_vars = {}
         
         envs = {
-            "FED_ROUND": str(fed_round),
             "INIT_MODEL": str(init_model),
-            "APPLY_TESTS": str(apply_tests),
+            "INFERENCE": str(inference),
             "PROCEDURE": str(procedure),
-            "LEARNING_RATE": str(learning_rate),
-            "WORKER": str(worker)
+            "FED_ROUND": str(fed_round),
+            "FED_ROUNDS_TOTAL": str(fed_rounds_total),
+            "PARTICIPANTS": str(participants),
+            "WORKER": str(worker),
+            "LEARNING_RATE": str(learning_rate)
         }
 
         env_vars.update(envs)

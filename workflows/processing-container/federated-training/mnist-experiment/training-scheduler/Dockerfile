@@ -2,7 +2,7 @@
 #FROM python:3.9-alpine3.12 
 FROM pytorchlightning/pytorch_lightning:base-cuda-py3.7-torch1.7
 
-LABEL IMAGE="testing"
+LABEL IMAGE="mnist-exp-scheduler"
 LABEL VERSION="0.1.0-vdev"
 LABEL CI_IGNORE="True"
 

@@ -5,6 +5,9 @@ import time
 import shutil
 
 import torch
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+from torchvision.datasets import ImageFolder
 
 from utilities import ResNet18, xray_transforms
 
@@ -12,9 +15,12 @@ from utilities import ResNet18, xray_transforms
 class Arguments():
     def __init__(self):
         
-        # operator in dir nicht immger gesetzt
-        #self.data_dir = os.path.join(os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
+        # control what is done in this script
+        self.initialize_model = (os.environ.get('INIT_MODEL', 'False') == 'True')
+        self.inference = (os.environ.get('INFERENCE', 'False') == 'True')
+        self.procedure = os.environ.get('PROCEDURE')
 
+        # directories
         self.workflow_dir = os.environ['WORKFLOW_DIR']
         
         self.model_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'model')
@@ -28,16 +34,14 @@ class Arguments():
         self.checkpoints_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'checkpoints')
         if not os.path.exists(self.checkpoints_dir):
             os.makedirs(self.checkpoints_dir)
-
-        # control what is done in this script
-        self.initialize_model = (os.environ.get('INIT_MODEL', 'False') == 'True')
-        self.apply_tests = (os.environ.get('APPLY_TESTS', 'False') == 'True')
-        self.procedure = os.environ.get('PROCEDURE')
+        
+        if self.inference:
+            self.data_dir = os.path.join(os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
         
         # federated training
         self.fed_rounds_total = os.environ['FED_ROUNDS_TOTAL']
         self.fed_round = int(os.environ['FED_ROUND']) if os.environ['FED_ROUND'] != 'None' else 0
-        self.participants = json.loads('{}'.format(os.environ["PARTICIPANTS"].replace("'", '"'))) # enabels to parse a list as env
+        self.participants = json.loads('{}'.format(os.environ["PARTICIPANTS"].replace("'", '"'))) if os.environ["PARTICIPANTS"] != 'None' else None # enabels to parse a list as env
         
         self.worker = os.environ['WORKER']
         if self.procedure == 'seq' and self.worker == 'None':
@@ -64,6 +68,44 @@ def initialize_model(model_dir, checkpoints_dir, **kwargs):
     torch.save(model_checkpoint, os.path.join(model_dir, 'model_checkpoint.pt'))
     print('Saving initial model to checkpoints directory')
     torch.save(model_checkpoint, os.path.join(checkpoints_dir, '{}-checkpoint_initial.pt'.format(time.strftime("%Y%m%d-%H%M%S"))))
+
+
+def inference(model_dir, data_dir, **kwargs):
+    """Applies federated trained model on test data"""
+
+    # load trained model
+    print('Loading trained model')
+    model = ResNet18()
+    model.load_state_dict(torch.load('{}/model_checkpoint.pt'.format(model_dir))['model'])
+
+    # load test data
+    dataloader_test = DataLoader(
+        dataset= ImageFolder(root=os.path.join(data_dir, 'test'), transform=xray_transforms['test']),
+        batch_size=32,
+        shuffle=False,
+        num_workers=4
+    )
+
+    print('Running inference on test data')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print('Using device: {}'.format(device))
+    
+    # inference
+    model.eval()
+    loss, correct = 0, 0
+    with torch.no_grad():
+        for imgs, targets in dataloader_test:
+            imgs, targets = imgs.to(device), targets.to(device)
+            output = model(imgs)
+            loss += F.nll_loss(output, targets, reduction='sum').item() # sum up batch loss
+            pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
+            correct += pred.eq(targets.view_as(pred)).sum().item()
+    loss /= len(dataloader_test.dataset)
+    accuracy = correct / len(dataloader_test.dataset)
+    
+    print('Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+        loss, correct, len(dataloader_test.dataset),
+        100. * accuracy))
 
 
 def average_model_state_dicts(state_dicts):
@@ -96,8 +138,6 @@ def main(args):
         optimizer = torch.optim.SGD(model.parameters(), lr=0.1) # --> hard coded learning rate is overwritten in next line!
         optimizer.load_state_dict(optimizer_state_dict)
 
-        # TODO: Performance testing (optional)
-
         # saving model checkpoint
         model_checkpoint = {
             'model': model.state_dict(),
@@ -129,8 +169,6 @@ def main(args):
             torch.load(model_file_list[0])['optimizer']
         )
 
-        # TODO: Performance testing (optional)
-
         # saving model checkpoint
         model_checkpoint = {
             'model': model.state_dict(),
@@ -141,15 +179,15 @@ def main(args):
         print('Saving a copy of the resulting model to checkpoints directory')
         torch.save(model_checkpoint, os.path.join(args.checkpoints_dir, '{}-checkpoint_round_{}.pt'.format(time.strftime("%Y%m%d-%H%M%S"), args.fed_round)))
 
-    
-    ### Model performance testing ###
-    if args.apply_tests:
-        raise NotImplementedError('Testing is not implemented yet!')
+    else:
+        raise AssertionError('Procedure needs to be set either "avg" or "seq"')
 
 
 if __name__ == '__main__':
     args = Arguments()
     if args.initialize_model:
         initialize_model(**args.__dict__)
+    elif args.inference:
+        inference(**args.__dict__)
     else:
         main(args)

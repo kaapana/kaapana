@@ -10,7 +10,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 #from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 # --> TODO: needs option to overwrite its name, so two minio-action-get can be applied
 
-from federated_training.experiments.TrainingMNISTOperator import TrainingMNISTOperator
+from federated_training.experiments.TrainingChestXrayOperator import TrainingChestXrayOperator
 
 
 log = LoggingMixin().log
@@ -24,18 +24,18 @@ args = {
 }
 
 dag = DAG(
-    dag_id='federated-training-mnist',
+    dag_id='federated-exp-chest-xray-training',
     default_args=args,
     schedule_interval=None,
     concurrency=10,
     max_active_runs=5
-)
+    )
 
 get_model_from_minio = LocalMinioOperator(
     dag=dag,
     name='minio-action-get-model',
     action='get',
-    bucket_name='federated-exp-mnist',
+    bucket_name='federated-exp-chest-xray',
     action_operator_dirs=['model', 'logs']
     )
 
@@ -43,7 +43,7 @@ get_data_from_minio = LocalMinioOperator(
     dag=dag,
     name='minio-action-get-data',
     action='get',
-    bucket_name='federated-exp-mnist',
+    bucket_name='federated-exp-chest-xray',
     action_operator_dirs=['data'],
     operator_out_dir='data'
     )
@@ -53,7 +53,7 @@ unzip_data = LocalUnzipFileOperator(
     operator_in_dir='data'
     )
 
-train_model = TrainingMNISTOperator(
+train_model = TrainingChestXrayOperator(
     dag=dag,
     input_operator=unzip_data,
     host_ip=None,
@@ -65,7 +65,7 @@ train_model = TrainingMNISTOperator(
 
 pass_on_model = LocalMinioOperator(
     dag=dag,action='put',
-    bucket_name='federated-exp-mnist',
+    bucket_name='federated-exp-chest-xray',
     action_operator_dirs=['cache', 'logs'],
     operator_out_dir='',
     file_white_tuples=('','.pt'),

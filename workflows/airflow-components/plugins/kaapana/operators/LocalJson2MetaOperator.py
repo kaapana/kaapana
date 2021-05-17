@@ -61,7 +61,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                     print(("Pushing file: %s to elasticsearch!" % json_file))
                     with open(json_file, encoding='utf-8') as f:
                         new_json = json.load(f)
-                    self.push_json(json_file)
+                    self.push_json(new_json)
 
     def mkdir_p(self, path):
         try:

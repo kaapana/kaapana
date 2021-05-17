@@ -36,7 +36,7 @@ class Arguments():
         self.log_interval = 100
         self.batch_size = int(os.environ['BATCH_SIZE'])
         self.use_cuda = (os.environ.get('USE_CUDA', 'False') == 'True')
-        self.local_testing = (os.environ.get('LOCAL_TESTING', 'False') == 'True')
+        self.validation = (os.environ.get('VALIDATION', 'False') == 'True')
 
         self.n_epochs = int(os.environ['N_EPOCHS'])
         self.fed_round = int(os.environ['FED_ROUND']) if os.environ['FED_ROUND'] != 'None' else 0

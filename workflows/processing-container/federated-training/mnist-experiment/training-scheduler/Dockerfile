@@ -1,6 +1,4 @@
-#TODO: more lean base image
-#FROM python:3.9-alpine3.12 
-FROM pytorchlightning/pytorch_lightning:base-cuda-py3.7-torch1.7
+FROM nvcr.io/nvidia/pytorch:20.09-py3
 
 LABEL IMAGE="mnist-exp-scheduler"
 LABEL VERSION="0.1.0-vdev"

@@ -92,6 +92,7 @@ def inference(model_dir, data_dir, **kwargs):
     
     # inference
     model.eval()
+    model.to(device)
     loss, correct = 0, 0
     with torch.no_grad():
         for imgs, targets in dataloader_test:

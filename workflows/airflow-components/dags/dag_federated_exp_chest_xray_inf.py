@@ -41,7 +41,7 @@ get_test_data = LocalMinioOperator(
     operator_out_dir='data'
 )
 
-unzip_data = LocalUnzipFileOperator(dag=dag, operator_in_dir='data')
+unzip_data = LocalUnzipFileOperator(dag=dag, input_operator=get_test_data)
 
 get_model = LocalMinioOperator(
     dag=dag,

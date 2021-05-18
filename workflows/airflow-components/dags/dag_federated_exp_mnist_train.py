@@ -50,7 +50,7 @@ get_data_from_minio = LocalMinioOperator(
 
 unzip_data = LocalUnzipFileOperator(
     dag=dag,
-    operator_in_dir='data'
+    input_operator=get_data_from_minio
     )
 
 train_model = TrainingMNISTOperator(

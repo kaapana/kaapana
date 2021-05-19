@@ -127,7 +127,7 @@ def main(args):
 
     #### Model processing - Sequential Training ###
     if args.procedure == 'seq':
-        print('#'*50, 'Sequential training - worker: {} round: {}/{}'.format(args.worker, args.fed_round, args.fed_rounds_total))
+        print('#'*15, 'Sequential training - worker: {} round: {}/{}'.format(args.worker, args.fed_round, args.fed_rounds_total))
         
         # load recieved model
         print('Loading model recieved from worker: {}'.format(args.worker))
@@ -151,8 +151,8 @@ def main(args):
 
     
     #### Model processing - Averaging ###
-    if args.procedure == 'avg':
-        print('#'*50, 'Averaging recieved models - round {}/{}'.format(args.fed_round, args.fed_rounds_total))
+    elif args.procedure == 'avg':
+        print('#'*15, 'Averaging recieved models - round {}/{}'.format(args.fed_round, args.fed_rounds_total))
         
         # load all models from directory
         model_file_list = [f'{args.model_cache}/model_checkpoint_from_{participant}.pt' for participant in args.participants]

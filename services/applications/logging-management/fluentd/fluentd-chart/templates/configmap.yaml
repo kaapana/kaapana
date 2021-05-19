@@ -31,8 +31,6 @@ data:
       logstash_format true
       logstash_prefix kubernetes-${record['kubernetes']['namespace_name']}
       host elastic-logging-service.monitoring
-      user: admin
-      password: admin
       port 9200
       reload_connections true
       reconnect_on_error true
@@ -76,6 +74,40 @@ data:
       <buffer>
         @type file
         path /fluentd/log/elastic-buffer-airflow
+        flush_thread_count 8
+        flush_interval 1s
+        queue_limit_length 4
+        retry_max_interval 30
+        retry_forever true
+      </buffer>
+    </match>    
+    <source>
+      @type tail
+      path /var/ctplogs/*.log
+      pos_file /var/log/fluentd-containers3.log.pos
+      tag ctp.*
+      read_from_head true
+      emit_unmatched_lines true
+      <parse>
+        @type none
+      </parse>
+    </source>
+    <match ctp.**>
+      @type elasticsearch_dynamic
+      include_tag_key true
+      time-format %Y-%m-%d %H:%M:%S.%L
+      logstash_format true
+      logstash_prefix ctp
+      host elastic-logging-service.monitoring
+      port 9200
+      reload_connections true
+      reconnect_on_error true
+      reload_on_failure true
+      index_name kubernetes
+      default_elasticsearch_version 6.8.12
+      <buffer>
+        @type file
+        path /fluentd/log/elastic-buffer-cto
         flush_thread_count 8
         flush_interval 1s
         queue_limit_length 4

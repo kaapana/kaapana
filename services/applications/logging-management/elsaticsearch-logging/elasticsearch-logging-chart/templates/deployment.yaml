@@ -50,8 +50,6 @@ spec:
         hostPath:
           path: {{ .Values.global.fast_data_dir }}/elastic-logging
           type: DirectoryOrCreate
-      - name: elastic-config-file
-        configMap:
-          name: elastic-config
+      imagePullSecrets:
       - name: registry-secret
 ---

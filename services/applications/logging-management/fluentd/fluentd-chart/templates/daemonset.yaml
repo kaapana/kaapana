@@ -40,6 +40,8 @@ spec:
           mountPath: /etc/fluent
         - name: airflowlogs
           mountPath: /var/airflowlogs
+        - name: ctplogs
+          mountPath: /var/ctplogs
       terminationGracePeriodSeconds: 30
       volumes:
       - name: varlog
@@ -50,10 +52,15 @@ spec:
           path: /var/lib/docker/containers
       - name: airflowlogs
         hostPath:
-          path: /home/kaapana/airflow/logs
+          path: {{ .Values.global.fast_data_dir}}/airflow/logs
+      - name: ctplogs
+        hostPath:
+          path: {{ .Values.global.fast_data_dir}}/ctp/logs
       - name: fluentd-config
         configMap:
           name: fluentd-config
       - name: config-path
         emptyDir: {}
+      imagePullSecrets:
+      - name: registry-secret
 ---

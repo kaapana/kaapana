@@ -57,7 +57,7 @@ inference = ExperimentChestXrayOperator(
     name='inference',
     input_operator=unzip_data,
     inference=True,
-    ram_mem_mb=2000
+    ram_mem_mb=4000
 )
 
 cleanup = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

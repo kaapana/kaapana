@@ -102,7 +102,7 @@ wait_for_models = AwaitingModelsOperator(
     bucket_name='federated-exp-chest-xray'
 )
 
-pull_models_from_minio =LocalMinioOperator(
+pull_models_from_minio = LocalMinioOperator(
     dag=dag,
     action='get',
     bucket_name='federated-exp-chest-xray',
@@ -115,7 +115,8 @@ process_models = ExperimentChestXrayOperator(
     name='process-models',
     procedure=None,
     init_model=False,
-    save_checkpoints=True
+    save_checkpoints=True,
+    ram_mem_mb=4000
 )
 
 trigger_myself = TriggerMyselfOperator(

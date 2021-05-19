@@ -56,7 +56,8 @@ inference = ExperimentMNISTOperator(
     dag=dag,
     name='inference',
     input_operator=unzip_data,
-    inference=True
+    inference=True,
+    ram_mem_mb=2000
 )
 
 cleanup = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

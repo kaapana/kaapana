@@ -115,7 +115,8 @@ process_models = ExperimentMNISTOperator(
     name='process-models',
     procedure=None,
     init_model=False,
-    save_checkpoints=True
+    save_checkpoints=True,
+    ram_mem_mb=2000
 )
 
 trigger_myself = TriggerMyselfOperator(

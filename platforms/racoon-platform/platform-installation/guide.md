@@ -191,3 +191,28 @@ Verwendete Ports:
 9443   -> User-interface
 8081   -> Authentifizierungsserver
 11113 -> DICOM port (AE-titel = dataset innerhalb der Plattform)
+
+# Zertifikate hinzufügen
+
+Um Zertifikate zur Platform hinzuzufügen, müssen die TLS Zertifikate (tls.key und tls.public) neben das install_racoon.sh Skript gelegt werden. Danach lassen sich die Zertifkate wie folgt installieren:
+
+    ./install_racoon --install-certs
+
+# Nutzer hinzufügen
+
+Racoon nutzen Keycloak zur Authentifizerung. Keycloak ist für Admins über die Landing page unter dem Menüpunkt "System" oder unter "/auth" erreichbar. Über "Administration Console" kommen Sie mit den oben angegeben Login Daten zur Keycloak-Oberfläche. Allgemeine Infos zu Keycloak findet sich [hier](https://www.keycloak.org/documentation.html).
+
+Es lassen sich manuell User zu Keycloak hinzufügen oder über eine Verbindung zu einer Active Directory. Kaapana Platform User lassen sich über das Realm "Kaapana" und Keycloak-Admin User über das Realm "Master" konfigurieren. Das Realm lässt sich links oben wechseln. Nur in Ausnahmen sollten Änderungen im Master Realm gemacht werden. Die folgenden Beispiele werden alle im Kaapana Realm beschrieben.
+
+
+* **Manuell einen User hinzufügen**:
+    - Wechseln zum "Kaapana" Realm
+    - Auswählen des Reiters **Users**
+    - **View all users**
+    - **Add user**
+    - Username und weiter Felder ausführen. "Email" und "Required user Actions" sollte leer gelassen werden
+    - Mit **Save** den User speichern
+    - Danach auf **Credentials** und das Passwort setzen
+    - Unter **Role Mappings** muss man dem User noch die Rolle **user** und gegebenenfalls die Rolle **admin** geben. Ein **admin**-user hat zusätzlichen Zugriff auf die System und Monitoring Komponenten.
+    - Um dem User Zugriff auf Minio zu geben, muss noch eine Read/Write Policy hinzugefügt werden. Hierzu auf **Attributes** gehen und unter **key** "policy" und **Value** "readwrite" hinzufügen.
+* **Mit einer Active Directory verbinden**: Um eine Active Directory anzubinden bitte den Reiter **User Federation** auswählen. Je nachdem welche Active Directory System vorhanden ist **ldap** oder **kerberos** auswählen. Die nötigen Konfiguration sollten Ihrer Institution vorliegen. Wenn alles richtig konfiguriert ist, sollten Sie sich über den AD-User auf die Plattform einloggen können. Die im oberen Beispiel genannten User Rollen sollten auch für AD-User konfigurierbar sein.

@@ -65,7 +65,7 @@ Kaapana is built upon the great work of many other open source projects, see the
 
 **Capturing Tumor Heterogeneity in Hepatocellular Carcinoma - A Radiomics Approach Systematically Tested in Transgenic Mice** This project is partially funded by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) – 410981386. Website: <https://gepris.dfg.de/gepris/projekt/410981386>
 
-**Data Science Driven Surgical Oncology Project**: This work was partially supported by the Data Science Driven Surgical Oncology Project (DSdSO), funded by Surgical Oncology Program at the National Center for Tumor Disease, Germany.
+**Data Science Driven Surgical Oncology Project**: This work was partially supported by the Data Science Driven Surgical Oncology Project (DSdSO), funded by the Surgical Oncology Program at the National Center for Tumor Diseases (NCT), Heidelberg, a partnership by DKFZ, UKHD, Heidelberg University. Website: <https://www.nct-heidelberg.de/forschung/precision-local-therapy-and-image-guidance/surgical-oncology.html>
 
 **Joint Imaging Platform**: This work was partially supported by Joint Imaging Platform, funded by the German Cancer Consortium. Website: <https://jip.dktk.dkfz.de/jiphomepage/>
 

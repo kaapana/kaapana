@@ -57,4 +57,22 @@ You can use Kaapana to build any product you like, including commercial closed s
 
 Kaapana is built upon the great work of many other open source projects, see the documentation for details. For now we only release source code we created ourselves, since providing pre-built docker containers and licensing for highly modular container based systems is [a complex task](https://www.linuxfoundation.org/blog/2020/04/docker-containers-what-are-the-open-source-licensing-considerations/). We have done our very best to fulfil all requirements, and the choice of AGPL was motivated mainly to make sure we can improve and advance Kaapana in the best way for the whole community. If you have thoughts about this or if you disagree with our way using a particular third-party toolkit or miss something please let us know and get in touch. We are open for any feedback and advice on this challenging topic.
 
+## Acknowledgments
+### Supporting projects
+*Building Data Rich Clinical Trials - CCE_DART*: This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No 965397. Website: <https://www.ccedart.eu>
+
+*Capturing Tumor Heterogeneity in Hepatocellular Carcinoma - A Radiomics Approach Systematically Tested in Transgenic Mice* This project is partially funded by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) – 410981386. Website: <https://gepris.dfg.de/gepris/projekt/410981386>
+
+*Joint Imaging Platform*: This work was partially supported by Joint Imaging Platform, funded by the German Cancer Consortium. Website: <https://jip.dktk.dkfz.de/jiphomepage/>
+
+*HiGHmed*: This work was partially supported by the HiGHmed Consortium, funded by the German Federal Ministry of Education and Research (BMBF, funding code 01ZZ1802A)). Website: <https://highmed.org/>
+
+*Trustworthy Federated Data Analysis - TFDA*: This work is partially funded by the Helmholtz Association within the project "Trustworthy Federated Data Analytics” (TFDA) (funding number
+ZT-I-OO1 4). Website: <https://tfda.hmsp.center/>
+
+*RACOON*: This work was partially supported by RACOON, funded by the German Federal Ministry of Education and ResearchDieses in the Netzwerk Universitätsmedizin (NUM; funding code 01KX2021). Website: <https://www.netzwerk-universitaetsmedizin.de/projekte/racoon>
+
+*Data Science Driven Surgical Oncology Project*: This work was partially supported by the Data Science Driven Surgical Oncology Project (DSdSO), funded by Surgical Oncology Program at the National Center for Tumor Disease, Germany.
+
+
 Copyright (C) 2020  German Cancer Research Center (DKFZ)

@@ -38,7 +38,8 @@ def send_dicom_data(send_dir, aetitle=AETITLE, timeout=60):
             print(f'Using default aetitle {aetitle}')
             
     print(f'Sending {send_dir} to {HOST} {PORT} with aetitle {aetitle}')
-    command = ['dcmsend', '-v', f'{HOST}', f'{PORT}', '-aet', 'kaapana', '-aec', f'{aetitle}', '--scan-directories', '--recurse', f'{send_dir}']
+    # To process even if the input contains non-DICOM files the --no-halt option is needed (e.g. zip-upload functionality)
+    command = ['dcmsend', '-v', f'{HOST}', f'{PORT}', '-aet', 'kaapana', '-aec', f'{aetitle}', '--scan-directories', '--no-halt', '--recurse', f'{send_dir}']
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
     if output.returncode != 0:
         print("############### Something went wrong with dcmsend!")

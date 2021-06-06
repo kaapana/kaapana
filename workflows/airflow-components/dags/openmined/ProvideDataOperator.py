@@ -55,6 +55,6 @@ class OpenminedProvideDataOperator(KaapanaBaseOperator):
             execution_timeout=execution_timeout,
             on_success_callback=OpenminedProvideDataOperator.on_success,
             #image_pull_policy='Always',
-            #ram_mem_mb=5000,
+            ram_mem_mb=6000,
             *args, **kwargs
             )

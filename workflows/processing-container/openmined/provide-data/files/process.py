@@ -46,28 +46,35 @@ def main(args):
         batch_size=n_samples,
         shuffle=True,
         num_workers=0)
-
+    
     # get images & targets
+    print('Start Iterator - applying data transforms!')
     dataiter = iter(dataloader)
     images, targets = dataiter.next()
+    print('Passed Iterator!')
 
     # wait until node is available
-    available = False
-    while(not available):
+    node = None
+    while not node:
+        time.sleep(5)
         try:
             node = DataCentricFLClient(hook, args.node_addr)
-            available = True
         except:
-            time.sleep(5)
+            pass
     
     # send data to node
-    print(f'Sending data to node {args.node_addr}')
-    imgs_tag = images.tag('#X', '#dataset', f"#{args.dataset}", args.exp_tag).describe(
-        f"images used for experiment {args.exp_tag} ({args.dataset})")
-    targets_tag = targets.tag('#Y', '#dataset', f"#{args.dataset}", args.exp_tag).describe(
-        f"targets used for experiment {args.exp_tag} ({args.dataset})")
+    print(f'Sending data to node {node} - adrress: {args.node_addr}')
+    
+    imgs_description = f"images used for experiment {args.exp_tag} (dataset: {args.dataset})"
+    imgs_tag = images.tag('#X', '#dataset', f"#{args.dataset}", args.exp_tag).describe(imgs_description)
+    pointer = imgs_tag.send(node)
+    print(pointer)
+    print(f'Images send to node - description: {imgs_description}')
 
-    imgs_ptr, targets_ptr = imgs_tag.send(node), targets_tag.send(node)
+    targets_description = f"targets used for experiment {args.exp_tag} (dataset: {args.dataset})"
+    targets_tag = targets.tag('#Y', '#dataset', f"#{args.dataset}", args.exp_tag).describe(targets_description)
+    _ =  targets_tag.send(node)
+    print(f'Targets send  to node - description: {targets_description}')
 
     # sleeper
     print(f'Providing data for {args.lifespan} minutes ...')
@@ -76,4 +83,11 @@ def main(args):
 
 if __name__ == "__main__":
     args = Arguments()
+    print(
+        '### Openmined Data Provider ###',
+        'Data path: {}'.format(args.data_path),
+        'Using node: {}'.format(args.node_addr),
+        'Experiment Tag: {}'.format(args.exp_tag),
+        sep='\n'
+    )
     main(args)

@@ -39,6 +39,6 @@ def provide_dataset_transforms(dataset: str):
         }
 
     else:
-        print('ERROR - dataset specific Transforms not implemented yet')
+        raise Exception('ERROR - dataset specific Transforms not implemented yet')
     
     return transform_dict

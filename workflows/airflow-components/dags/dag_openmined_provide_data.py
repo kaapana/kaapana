@@ -11,6 +11,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 
 from openmined.RunNodeOperator import RunNodeOperator
 from openmined.ProvideDataOperator import OpenminedProvideDataOperator
+from openmined.ShutdownNodeOperator import ShutdownNodeOperator
 
 
 log = LoggingMixin().log
@@ -64,6 +65,12 @@ data2node = OpenminedProvideDataOperator(
     exp_tag="#no-tag-given"
     )
 
+shutdown_node = ShutdownNodeOperator(
+    dag=dag,
+    release_name='openmined-node',
+    trigger_rule=TriggerRule.ONE_SUCCESS
+    )
+
 clean = LocalWorkflowCleanerOperator(dag=dag)
 
-get_object_from_minio >> unzip_files >> [run_node, data2node] >> clean
+get_object_from_minio >> unzip_files >> [run_node, data2node] >> shutdown_node >> clean

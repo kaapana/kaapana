@@ -1,5 +1,4 @@
 import os
-import glob
 import json
 import time
 import shutil
@@ -9,7 +8,13 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 
-from utilities import ClassifierMNIST, mnist_transforms
+from utilities import (
+    ClassifierMNIST,
+    mnist_transforms,
+    average_model_state_dicts,
+    save_checkpoints_before_avg,
+    save_checkpoint
+)
 
 
 class Arguments():
@@ -51,25 +56,6 @@ class Arguments():
         self.lr_initial = float(os.environ['LEARNING_RATE']) if os.environ['LEARNING_RATE'] != 'None' else 0.1
 
 
-def initialize_model(model_dir, checkpoints_dir, **kwargs):
-    """Reads given lr and creates intial model"""
-    
-    # initialize model
-    model = ClassifierMNIST()
-    optimizer = torch.optim.SGD(model.parameters(), lr=args.lr_initial)
-    print('Model initialization! (learning rate: {}'.format(args.lr_initial))
-
-    # saving initial model
-    model_checkpoint = {
-        'model': model.state_dict(),
-        'optimizer': optimizer.state_dict()
-    }
-    print('Saving initial model for further processing')
-    torch.save(model_checkpoint, os.path.join(model_dir, 'model_checkpoint.pt'))
-    print('Saving initial model to checkpoints directory')
-    torch.save(model_checkpoint, os.path.join(checkpoints_dir, '{}-checkpoint_initial.pt'.format(time.strftime("%Y%m%d-%H%M%S"))))
-
-
 def inference(model_dir, data_dir, **kwargs):
     """Applies federated trained model on test data"""
 
@@ -109,16 +95,23 @@ def inference(model_dir, data_dir, **kwargs):
         100. * accuracy))
 
 
-def average_model_state_dicts(state_dicts):
-    """Takes multiple state dicts to calculate their average"""
-    model_sd_avg = dict()
-    for key in state_dicts[0]:
-        #model_sd_avg[key] = sum([state_dict[key] for state_dict in state_dicts]) / len(state_dicts)
-        model_sd_avg[key] = torch.true_divide(
-            sum([state_dict[key] for state_dict in state_dicts]), 
-            len(state_dicts)
-        ) 
-    return model_sd_avg
+def initialize_model(model_dir, checkpoints_dir, **kwargs):
+    """Reads given lr and creates intial model"""
+    
+    # initialize model
+    model = ClassifierMNIST()
+    optimizer = torch.optim.SGD(model.parameters(), lr=args.lr_initial)
+    print('Model initialization! (learning rate: {}'.format(args.lr_initial))
+
+    # saving initial model
+    model_checkpoint = {
+        'model': model.state_dict(),
+        'optimizer': optimizer.state_dict()
+    }
+    print('Saving initial model for further processing')
+    torch.save(model_checkpoint, os.path.join(model_dir, 'model_checkpoint.pt'))
+    print('Saving initial model to checkpoints directory')
+    torch.save(model_checkpoint, os.path.join(checkpoints_dir, '{}-checkpoint_initial.pt'.format(time.strftime("%Y%m%d-%H%M%S"))))
 
 
 def main(args):
@@ -143,23 +136,18 @@ def main(args):
         optimizer = torch.optim.SGD(model.parameters(), lr=0.1) # --> hard coded learning rate is overwritten in next line!
         optimizer.load_state_dict(optimizer_state_dict)
 
-        # saving model checkpoint
-        model_checkpoint = {
-            'model': model.state_dict(),
-            'optimizer': optimizer.state_dict()
-        }
-        print('Saving model for next next forward-pass')
-        torch.save(model_checkpoint, os.path.join(args.model_dir, 'model_checkpoint.pt')) # TODO: Better to clear model directory? Overwriting should be fine I think
-        print('Saving a copy of the model to checkpoints directory')
-        torch.save(model_checkpoint, os.path.join(args.checkpoints_dir, '{}-checkpoint_round_{}_{}.pt'.format(time.strftime("%Y%m%d-%H%M%S"), args.fed_round, args.worker)))
+        save_checkpoint(args, model, optimizer)
 
     
     #### Model processing - Averaging ###
     elif args.procedure == 'avg':
         print('#'*15, 'Averaging recieved models - round {}/{}'.format(args.fed_round, args.fed_rounds_total))
         
-        # load all models from directory
+        # get file paths of received models and save the models as backups
         model_file_list = [f'{args.model_cache}/model_checkpoint_from_{participant}.pt' for participant in args.participants]
+        save_checkpoints_before_avg(args, model_file_list)
+        
+        # get state dicts of received models
         model_state_dicts = [torch.load(model)['model'] for model in model_file_list]
 
         # average models to new model
@@ -174,15 +162,7 @@ def main(args):
             torch.load(model_file_list[0])['optimizer']
         )
 
-        # saving model checkpoint
-        model_checkpoint = {
-            'model': model.state_dict(),
-            'optimizer': optimizer.state_dict()
-        }
-        print('Saving resulting model for next federated round')
-        torch.save(model_checkpoint, os.path.join(args.model_dir, 'model_checkpoint.pt')) # TODO: Better to clear model directory? Overwriting should be fine I think
-        print('Saving a copy of the resulting model to checkpoints directory')
-        torch.save(model_checkpoint, os.path.join(args.checkpoints_dir, '{}-checkpoint_round_{}.pt'.format(time.strftime("%Y%m%d-%H%M%S"), args.fed_round)))
+        save_checkpoint(args, model, optimizer)
     
     else:
         raise AssertionError('Procedure needs to be set either "avg" or "seq"')
@@ -190,6 +170,7 @@ def main(args):
 
 if __name__ == '__main__':
     args = Arguments()
+    
     if args.initialize_model:
         initialize_model(**args.__dict__)
     elif args.inference:

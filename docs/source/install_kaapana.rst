@@ -85,6 +85,20 @@ Copy the script to your target-system (server) and **adjust it as described belo
 
    .. tab:: Private registry
 
+      | You need to login first: :code:`docker login <registry-url>`
+      
+      .. hint::
+
+         | **Docker as a non-root user**
+         | In order to docker commands as non-root user you need to execute the following steps:
+         | :code:`sudo groupadd docker`
+         | :code:`sudo usermod -aG docker $USER`
+         | :code:`sudo reboot` -> to reboot the system
+         | :code:`docker run hello-world` -> this should work now without root privileges
+         | For more information visit the `Docker docs <https://docs.docker.com/engine/install/linux-postinstall/>`_ 
+
+      | Then you must adjust the configuration as follows:
+
 
       .. code-block:: python
 

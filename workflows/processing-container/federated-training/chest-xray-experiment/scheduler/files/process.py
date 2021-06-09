@@ -113,7 +113,11 @@ def average_model_state_dicts(state_dicts):
     """Takes multiple state dicts to calculate their average """
     model_sd_avg = dict()
     for key in state_dicts[0]:
-        model_sd_avg[key] = sum([state_dict[key] for state_dict in state_dicts]) / len(state_dicts)
+        #model_sd_avg[key] = sum([state_dict[key] for state_dict in state_dicts]) / len(state_dicts)
+        model_sd_avg[key] = torch.true_divide(
+            sum([state_dict[key] for state_dict in state_dicts]),
+            len(state_dicts)
+        )
     return model_sd_avg
 
 

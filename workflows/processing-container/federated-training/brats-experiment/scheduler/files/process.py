@@ -7,8 +7,13 @@ from monai.networks.nets import UNet
 from monai.utils import set_determinism
 
 import torch
-import torch.nn.functional as F
-from torch.utils.data import DataLoader
+
+from utilities import (
+    average_model_state_dicts,
+    save_checkpoint,
+    save_checkpoints_before_avg,
+    update_model_and_optimizer
+)
 
 
 class Arguments():
@@ -83,63 +88,6 @@ def initialize_model(model_dir, checkpoints_dir, **kwargs):
 
 def inference(model_dir, data_dir, **kwargs):
     raise NotImplementedError
-
-
-def average_model_state_dicts(state_dicts):
-    """Takes multiple state dicts to calculate their average """
-    model_sd_avg = dict()
-    for key in state_dicts[0]:
-        #model_sd_avg[key] = sum([state_dict[key] for state_dict in state_dicts]) / len(state_dicts)
-        model_sd_avg[key] = torch.true_divide(
-            sum([state_dict[key] for state_dict in state_dicts]), 
-            len(state_dicts)
-        )
-    return model_sd_avg
-
-
-def update_model_and_optimizer(args, model_state_dict, optimizer_state_dict):
-    """loads model and optimizer - not really necessary, but here the optimizer is reset (more to come maybe)"""
-    model = UNet(
-        dimensions=3,
-        in_channels=4,
-        out_channels=3,
-        channels=(16, 32, 64, 128, 256),
-        strides=(2, 2, 2, 2),
-        num_res_units=2,
-    )
-    model.load_state_dict(model_state_dict)
-    optimizer = torch.optim.SGD(
-        model.parameters(),
-        lr=1e-4,
-        weight_decay=1e-5,
-        amsgrad=True
-    ) # --> hard coded learning rate and weight decay is overwritten in next line!
-    optimizer.load_state_dict(optimizer_state_dict)
-    return model, optimizer
-
-
-def save_checkpoints_from_participants():
-    """saves models received from participants before averaging"""
-    pass
-
-
-def save_checkpoint(args, model, optimizer):
-    """Saves model & optimizer as checkpoint"""
-    
-    model_checkpoint = {
-        'model': model.state_dict(),
-        'optimizer': optimizer.state_dict()
-    }
-    
-    print('Saving model for next next forward-pass')
-    torch.save(model_checkpoint, os.path.join(args.model_dir, 'model_checkpoint.pt')) # TODO: Better to clear model directory? Overwriting should be fine I think
-    
-    # save and keep checkpoint
-    if args.procedure == 'seq':
-        print('Saving a copy of the model to checkpoints directory')
-        torch.save(model_checkpoint, os.path.join(args.checkpoints_dir, '{}-checkpoint_round_{}_{}.pt'.format(time.strftime("%Y%m%d-%H%M%S"), args.fed_round, args.worker)))
-    else:
-        torch.save(model_checkpoint, os.path.join(args.checkpoints_dir, '{}-checkpoint_round_{}.pt'.format(time.strftime("%Y%m%d-%H%M%S"), args.fed_round)))
         
 
 def main(args):
@@ -159,7 +107,7 @@ def main(args):
         checkpoint = torch.load('{}/model_checkpoint_from_{}.pt'.format(args.model_cache, args.worker))
         model_state_dict, optimizer_state_dict = checkpoint['model'], checkpoint['optimizer']
         
-        model, optimizer = update_model_and_optimizer(model_state_dict, optimizer_state_dict)
+        model, optimizer = update_model_and_optimizer(args, model_state_dict, optimizer_state_dict)
 
         # save averaged model state
         save_checkpoint(args, model, optimizer)
@@ -169,8 +117,11 @@ def main(args):
     elif args.procedure == 'avg':
         print('#'*50, 'Averaging recieved models - round {}/{}'.format(args.fed_round, args.fed_rounds_total))
         
-        # load all models from directory
+        # get file paths of received models and save the models as backups
         model_file_list = [f'{args.model_cache}/model_checkpoint_from_{participant}.pt' for participant in args.participants]
+        save_checkpoints_before_avg(args, model_file_list)
+        
+        # get state dicts of received models
         model_state_dicts = [torch.load(model)['model'] for model in model_file_list]
 
         # average models to new model
@@ -180,7 +131,7 @@ def main(args):
         # load an optimizer state dict (TODO: Average or hard code, which means reset?)
         optimizer_state_dict = torch.load(model_file_list[0])['optimizer']
         
-        model, optimizer = update_model_and_optimizer(model_state_dict_avg, optimizer_state_dict)
+        model, optimizer = update_model_and_optimizer(args, model_state_dict_avg, optimizer_state_dict)
 
         # save checkpoint
         save_checkpoint(args, model, optimizer)

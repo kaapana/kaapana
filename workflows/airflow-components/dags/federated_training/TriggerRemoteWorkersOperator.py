@@ -39,8 +39,11 @@ class TriggerRemoteWorkersOperator(KaapanaPythonBaseOperator):
                             'host_ip': participant,
                             'n_epochs': self.epochs_on_worker,
                             'use_cuda': self.use_cuda,
+                            'fed_round': self.fed_round,
                             'validation': self.validation,
-                            'fed_round': self.fed_round},
+                            'val_interval': self.val_interval,
+                            'return_best_model': self.return_best_model,
+                            'seed': self.seed},
                         'minio-action-get-model': {
                             'minio_host': self.scheduler},
                         'minio-actions-put': {
@@ -67,6 +70,9 @@ class TriggerRemoteWorkersOperator(KaapanaPythonBaseOperator):
         use_cuda=None,
         fed_round=None,
         validation=None,
+        val_interval=None,
+        return_best_model=None,
+        seed=None,
         *args,**kwargs):
 
         self.dag_name = dag_name
@@ -76,10 +82,14 @@ class TriggerRemoteWorkersOperator(KaapanaPythonBaseOperator):
         self.bucket_name = bucket_name
         self.scheduler = scheduler
 
-        self.fed_round = fed_round
+        # model training operator
         self.epochs_on_worker = epochs_on_worker
         self.use_cuda = use_cuda
+        self.fed_round = fed_round
         self.validation = validation
+        self.val_interval = val_interval
+        self.return_best_model = return_best_model
+        self.seed = seed
 
         super().__init__(
             dag,

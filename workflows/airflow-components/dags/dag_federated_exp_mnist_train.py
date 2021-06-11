@@ -65,6 +65,7 @@ train_model = TrainingMNISTOperator(
 
 pass_on_model = LocalMinioOperator(
     dag=dag,action='put',
+    name='model-to-scheduler-minio',
     bucket_name='federated-exp-mnist',
     action_operator_dirs=['cache', 'logs'],
     operator_out_dir='',

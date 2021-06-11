@@ -46,7 +46,7 @@ class TriggerRemoteWorkersOperator(KaapanaPythonBaseOperator):
                             'seed': self.seed},
                         'minio-action-get-model': {
                             'minio_host': self.scheduler},
-                        'minio-actions-put': {
+                        'model-to-scheduler-minio': {
                             'minio_host': self.scheduler}}}}
 
             url = 'https://{}/flow/kaapana/api/trigger/{}'.format(participant, self.dag_name)

@@ -69,6 +69,7 @@ train_model = TrainingBraTSOperator(
 
 pass_on_model = LocalMinioOperator(
     dag=dag,action='put',
+    name='model-to-scheduler-minio',
     bucket_name='federated-exp-brats',
     action_operator_dirs=['cache', 'logs'],
     operator_out_dir='',
@@ -76,6 +77,16 @@ pass_on_model = LocalMinioOperator(
     zip_files=False
     )
 
+save_model_locally = LocalMinioOperator(
+    dag=dag,action='put',
+    name='model-to-local-minio',
+    bucket_name='federated-exp-brats',
+    action_operator_dirs=['checkpoints'],
+    operator_out_dir='',
+    file_white_tuples=('','.pt'),
+    zip_files=False
+    )
+
 cleanup = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
  
-[get_model_from_minio, get_data_from_minio >> unzip_data] >> train_model >> pass_on_model >> cleanup
+[get_model_from_minio, get_data_from_minio >> unzip_data] >> train_model >> pass_on_model >> save_model_locally >> cleanup

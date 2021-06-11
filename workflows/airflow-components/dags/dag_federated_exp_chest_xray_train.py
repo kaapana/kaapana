@@ -65,6 +65,7 @@ train_model = TrainingChestXrayOperator(
 
 pass_on_model = LocalMinioOperator(
     dag=dag,action='put',
+    name='model-to-scheduler-minio',
     bucket_name='federated-exp-chest-xray',
     action_operator_dirs=['cache', 'logs'],
     operator_out_dir='',

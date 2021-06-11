@@ -9,20 +9,8 @@ from monai.metrics import DiceMetric
 from monai.networks.nets import UNet
 from monai.transforms import (
     Activations,
-    AsChannelFirstd,
     AsDiscrete,
-    CenterSpatialCropd,
     Compose,
-    LoadImaged,
-    MapTransform,
-    NormalizeIntensityd,
-    Orientationd,
-    RandFlipd,
-    RandScaleIntensityd,
-    RandShiftIntensityd,
-    RandSpatialCropd,
-    Spacingd,
-    ToTensord,
 )
 from monai.utils import set_determinism
 
@@ -52,6 +40,10 @@ class Arguments():
         if not os.path.exists(self.model_cache):
             os.makedirs(self.model_cache)
         
+        self.checkpoints_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'checkpoints')
+        if not os.path.exists(self.checkpoints_dir):
+            os.makedirs(self.checkpoints_dir)
+
         self.num_wokers = 4
         self.batch_size = int(os.environ['BATCH_SIZE'])
         self.val_interval = int(os.environ['VAL_INTERVAL'])
@@ -112,6 +104,7 @@ def run_training(args, model, train_loader, val_loader, optimizer, device, tb_lo
         epoch_loss /= step
         epoch_loss_values.append(epoch_loss)
         print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
+        # tensorboard logging
         tb_logger.add_scalar("Loss (train)", epoch_loss, epoch)
 
         if (epoch + 1) % val_interval == 0:
@@ -169,36 +162,44 @@ def run_training(args, model, train_loader, val_loader, optimizer, device, tb_lo
                 metric_values_et.append(metric_et)
                 if metric > best_metric:
                     best_metric = metric
-                    best_metric_epoch = epoch + 1
-                    if args.return_best_model:
-                        save_model(args, model, optimizer)
-                        print("Saved new best metric model")
+                    best_metric_epoch = epoch + 1                    
+                    # save best model to local checkpoints directory
+                    save_model(args, model, optimizer)
+                    print("Saved new best metric model")
                 print(
                     f"current epoch: {epoch + 1} current mean dice: {metric:.4f}"
                     f" tc: {metric_tc:.4f} wt: {metric_wt:.4f} et: {metric_et:.4f}"
                     f"\nbest mean dice: {best_metric:.4f}"
                     f" at epoch: {best_metric_epoch}"
                 )
+                # tensorboard logging
+                tb_logger.add_scalar("Val Mean Dice", epoch_loss, epoch)
+                tb_logger.add_scalar("Val Mean Dice (TC)", epoch_loss, epoch)
+                tb_logger.add_scalar("Val Mean Dice (WT)", epoch_loss, epoch)
+                tb_logger.add_scalar("Val Mean Dice (ET)", epoch_loss, epoch)
+
+
     print(f"Training completed, best_metric: {best_metric:.4f}  at epoch: {best_metric_epoch}")
 
     if not args.return_best_model:
-        save_model(args, model, optimizer)
+        save_model(args, model, optimizer, final=True)
         print("Saved final model after training all epochs")
     else:
         print(f"Best model was saved at epoch {best_metric_epoch}")
 
 
-def save_model(args, model, optimizer):
-    """Saves model & optimizer as checkpoint"""
+def save_model(args, model, optimizer, final=False):
+    """Saves model & optimizer as checkpoint either to send back """
     
     model_checkpoint = {
         'model': model.state_dict(),
         'optimizer': optimizer.state_dict()
     }
-    torch.save(
-        model_checkpoint,
-        os.path.join(args.model_cache, 'model_checkpoint_from_{}.pt'.format(args.host_ip))
-    )
+    if final:
+        file_path = os.path.join(args.model_cache, 'model_checkpoint_from_{}.pt'.format(args.host_ip))
+    else:
+        file_path = os.path.join(args.checkpoints_dir, 'model_checkpoint_from_{}_round_{}.pt'.format(args.host_ip, args.fed_round))
+    torch.save(model_checkpoint, file_path)
 
 
 def prepare_data_loader(args):

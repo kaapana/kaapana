@@ -32,6 +32,10 @@ class Arguments():
         if not os.path.exists(self.model_cache):
             os.makedirs(self.model_cache)
         
+        self.checkpoints_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'checkpoints')
+        if not os.path.exists(self.checkpoints_dir):
+            os.makedirs(self.checkpoints_dir)
+        
         self.num_workers = 4
         self.log_interval = 10
         self.batch_size = int(os.environ['BATCH_SIZE'])

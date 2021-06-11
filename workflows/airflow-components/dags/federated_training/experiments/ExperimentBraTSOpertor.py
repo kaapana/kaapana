@@ -25,7 +25,6 @@ class TrainingBraTSOperator(KaapanaBaseOperator):
                  batch_size=None,
                  validation=None,
                  val_interval=None,
-                 return_best_model=None,
                  verbose=None,
                  seed=None,
                  env_vars=None,
@@ -43,7 +42,6 @@ class TrainingBraTSOperator(KaapanaBaseOperator):
             "BATCH_SIZE": str(batch_size),
             "VALIDATION": str(validation),
             "VAL_INTERVAL": str(val_interval),
-            "RETURN_BEST_MODEL": str(return_best_model),
             "VERBOSE": str(verbose),
             "SEED": str(seed),
         }

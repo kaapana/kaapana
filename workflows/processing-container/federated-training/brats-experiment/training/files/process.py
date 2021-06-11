@@ -48,7 +48,6 @@ class Arguments():
         self.batch_size = int(os.environ['BATCH_SIZE'])
         self.val_interval = int(os.environ['VAL_INTERVAL'])
         self.validation = (os.environ.get('VALIDATION', 'False') == 'True')
-        self.return_best_model = (os.environ.get('RETURN_BEST_MODEL', 'False') == 'True')
 
         self.n_epochs = int(os.environ['N_EPOCHS'])
         self.fed_round = int(os.environ['FED_ROUND']) if os.environ['FED_ROUND'] != 'None' else 0
@@ -181,11 +180,9 @@ def run_training(args, model, train_loader, val_loader, optimizer, device, tb_lo
 
     print(f"Training completed, best_metric: {best_metric:.4f}  at epoch: {best_metric_epoch}")
 
-    if not args.return_best_model:
-        save_model(args, model, optimizer, final=True)
-        print("Saved final model after training all epochs")
-    else:
-        print(f"Best model was saved at epoch {best_metric_epoch}")
+    # save model after training all epochs
+    save_model(args, model, optimizer, final=True)
+    print("Saved final model after training all epochs")
 
 
 def save_model(args, model, optimizer, final=False):
@@ -292,7 +289,6 @@ if __name__ == '__main__':
     print(
         '########### Training on BraTS data ###########',
         'Deterministic: {}'.format(args.seed),
-        'Return best model: {}'.format(args.return_best_model),
         sep='\n'
     )
     main(args)

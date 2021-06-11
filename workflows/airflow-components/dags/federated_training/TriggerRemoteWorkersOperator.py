@@ -42,7 +42,6 @@ class TriggerRemoteWorkersOperator(KaapanaPythonBaseOperator):
                             'fed_round': self.fed_round,
                             'validation': self.validation,
                             'val_interval': self.val_interval,
-                            'return_best_model': self.return_best_model,
                             'seed': self.seed},
                         'minio-action-get-model': {
                             'minio_host': self.scheduler},
@@ -71,7 +70,6 @@ class TriggerRemoteWorkersOperator(KaapanaPythonBaseOperator):
         fed_round=None,
         validation=None,
         val_interval=None,
-        return_best_model=None,
         seed=None,
         *args,**kwargs):
 
@@ -88,7 +86,6 @@ class TriggerRemoteWorkersOperator(KaapanaPythonBaseOperator):
         self.fed_round = fed_round
         self.validation = validation
         self.val_interval = val_interval
-        self.return_best_model = return_best_model
         self.seed = seed
 
         super().__init__(

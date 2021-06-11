@@ -63,7 +63,6 @@ train_model = TrainingBraTSOperator(
     batch_size=2,
     val_interval=1,
     validation=True,
-    return_best_model=False,
     verbose=False,
     )
 

@@ -93,7 +93,6 @@ trigger_remote_dags = TriggerRemoteWorkersOperator(
     validation=True,
     val_interval=1,
     epochs_on_worker=1,
-    return_best_model=False,
     seed=None,
     bucket_name='federated-exp-brats'
 )

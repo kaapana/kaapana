@@ -71,6 +71,15 @@ Copy the script to your target-system (server) and **adjust it as described belo
 
 2. Have a look at the variables on top of the script.
    
+.. important::
+
+   | **Access to Kaapana binaries:**
+   | Before proceeding with further installation steps, make sure you have access to a registry with all Kaapana Binaries. 
+   | If not, then please visit the `build page <https://kaapana.readthedocs.io/en/latest/build_kaapana.html#build-modes>`_ and build the platform first, then come back.
+   | **Registry access**
+   | Run the following command to make sure that your login credentials for the registry are working:
+   | :code:`sudo docker login --username <regitsry_username> --password <registry_password> <registry link>`
+   
    **You need to do at least the following customizations:**
 
 .. tabs::
@@ -84,21 +93,6 @@ Copy the script to your target-system (server) and **adjust it as described belo
          ...
 
    .. tab:: Private registry
-
-      | You need to login first: :code:`docker login <registry-url>`
-      
-      .. hint::
-
-         | **Docker as a non-root user**
-         | In order to docker commands as non-root user you need to execute the following steps:
-         | :code:`sudo groupadd docker`
-         | :code:`sudo usermod -aG docker $USER`
-         | :code:`sudo reboot` -> to reboot the system
-         | :code:`docker run hello-world` -> this should work now without root privileges
-         | For more information visit the `Docker docs <https://docs.docker.com/engine/install/linux-postinstall/>`_ 
-
-      | Then you must adjust the configuration as follows:
-
 
       .. code-block:: python
 

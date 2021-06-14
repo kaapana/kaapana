@@ -227,10 +227,18 @@ def prepare_data_loader(args):
     return train_loader, val_loader
 
 
-def prepare_model_and_optimizer():
-    """Loads model/optimizer received from scheduler"""
+def prepare_model_and_optimizer(device):
+    """Loads model/optimizer received from scheduler
+    
+    IMPORTANT:
+    Send model to device before initializing optimizer (and loading state dict).
+    Otherwise, the training will fail due to cpu/gpu tensors.
+    See: https://discuss.pytorch.org/t/effect-of-calling-model-cuda-after-constructing-an-optimizer/15165/5
+    See: https://pytorch.org/tutorials/beginner/saving_loading_models.html#saving-loading-model-across-devices
+    --> not 100% sure whats happening exactly!
+    """
 
-    checkpoint = torch.load(os.path.join(args.model_dir, 'model_checkpoint.pt'))
+    checkpoint = torch.load(os.path.join(args.model_dir, 'model_checkpoint.pt'), map_location="cuda:0")
 
     model = UNet(
         dimensions=3,
@@ -241,6 +249,9 @@ def prepare_model_and_optimizer():
         num_res_units=2,
     )
     model.load_state_dict(checkpoint['model'])
+    
+    # send model to GPU
+    model.to(device)
 
     optimizer = torch.optim.Adam(
         model.parameters(), 1e-4, weight_decay=1e-5, amsgrad=True
@@ -252,7 +263,7 @@ def prepare_model_and_optimizer():
 
 def check_for_cuda():
     if torch.cuda.is_available():
-        device = torch.device('cuda')
+        device = torch.device('cuda:0')
         print('Using device: {}'.format(device))
     else:
         raise Exception ('Cuda is not available!')
@@ -271,8 +282,7 @@ def main(args):
     device = check_for_cuda()
 
     # load model & optimizer received from scheduler
-    model, optimizer = prepare_model_and_optimizer()
-    model.to(device)
+    model, optimizer = prepare_model_and_optimizer(device)
 
     # dataloader
     train_loader, val_loader = prepare_data_loader(args)

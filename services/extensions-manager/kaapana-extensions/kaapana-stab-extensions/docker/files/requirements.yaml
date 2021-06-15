@@ -22,7 +22,7 @@ dependencies:
     version: 2021.02-vdev
     repository: file://../../../../../../services/applications/mitk-workbench/mitk-workbench-chart
   - name: nnunet-workflow
-    version: 1.6.5-vdev
+    version: 04-21
     repository: file://../../../../../../workflows/dag-installer/nnunet/nnunet-workflow
   - name: pysyft-nb-chart
     version: 0.1.0-vdev
@@ -30,9 +30,9 @@ dependencies:
   - name: radiomics-workflow
     version: 0.1.1-vdev
     repository: file://../../../../../../workflows/dag-installer/radiomics/radiomics-workflow
-  - name: shapemodel-vdev-workflow
+  - name: shapemodel-workflow
     version: 0.1.1-vdev
-    repository: file://../../../../../../workflows/dag-installer/shapemodel/shapemodel-vdev-workflow
+    repository: file://../../../../../../workflows/dag-installer/shapemodel/shapemodel-workflow
   - name: tensorboard-chart
     version: 2.4.1
     repository: file://../../../../../../services/applications/tensorboard/tensorboard-chart 

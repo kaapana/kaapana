@@ -1,7 +1,5 @@
 ---
 global:
-    pull_policy_jobs: "IfNotPresent"
-    fast_data_dir: "/home/kaapana"
-image: "dag-mitk-flow"
-version: "2021.02-vdev"
-action: "copy"
+    image: "dag-mitk-flow"
+    version: "2021.02-vdev"
+    action: "copy"

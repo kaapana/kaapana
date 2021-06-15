@@ -11,34 +11,52 @@ import torch
 import shutil
 
 
-def get_model_targets(model_dir):
+def get_model_targets(model_dir, targets):
     print(f"# Searching for dataset.json @: {model_dir}")
     dataset_json = glob(join(model_dir, "**", "dataset.json"), recursive=True)
-    if len(dataset_json) == 0:
-        print("# Could not find any dataset.json !")
-        return None
-    else:
+    if len(dataset_json) != 0:
+        print(f"# Loading dataset.json: {dataset_json[0]}")
         with open(dataset_json[0]) as f:
             dataset_json = json.load(f)
-        
-        targets = []
-        for key in sorted(dataset_json["labels"]):
-            targets.append(dataset_json["labels"][key])
+        return dataset_json
 
-    return targets
+    return None
 
 
 def predict(model, input_folder, output_folder, folds, save_npz, num_threads_preprocessing, num_threads_nifti_save, part_id, num_parts, tta, mixed_precision, overwrite_existing, mode, overwrite_all_in_gpu, step_size, checkpoint_name, lowres_segmentations=None):
-    global task, task_body_part, task_targets, task_protocols
+    global task, task_body_part, task_targets, task_protocols, inf_seg_filter, remove_if_empty
+
+    target_labels = {}
+    if task is None:
+        print("# Loading model-info-json ...")
+        model_info = get_model_targets(model_dir=model, targets=task_targets)
+        assert model_info is not None and "labels" in model_info
+        print("# model_info:")
+        print("# ")
+        print(json.dumps(model_info, indent=4, sort_keys=True, default=str))
+        print("# ")
+        local_task = model_info["name"]
+        target_labels = model_info["labels"]
+        local_task_protocols = ",".join(model_info["modality"].values()) if "modality" in model_info else "N/A"
+
+    else:
+        print("# Using env configuration ...")
+        print("# ")
+        local_task = task
+        local_task_protocols = task_protocols
+        assert task_targets is not None
+        for index in range(0,len(task_targets)):
+            target_labels[index] = task_targets[index]
 
     print(f"#")
     print(f"# Start prediction....")
-    print(f"# task:       {task}")
+    print(f"# task:       {local_task}")
     print(f"# model:      {model}")
     print(f"# folds:      {folds}")
-
-    if task_targets == None:
-        task_targets = get_model_targets(model_dir=model)
+    print(f"#")
+    print(f"# target_labels:  {target_labels}")
+    print(f"# task_protocols: {local_task_protocols}")
+    print(f"#")
 
     Path(element_output_dir).mkdir(parents=True, exist_ok=True)
     predict_from_folder(
@@ -66,48 +84,47 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
     print("#")
     nifti_files = sorted(glob(join(output_folder, "*.nii*"), recursive=False))
     assert len(nifti_files) > 0
+    
+    
+    labels_found = []
+    for int_encoding, label_key in target_labels.items():
+        labels_found.append({
+            "label_name": label_key,
+            "label_int": str(int_encoding)
+        })
 
-    nifti_labels = []
-    for nifti_file in nifti_files:
-        print(f"# Loading result NIFTI: {nifti_file}")
-        nib_img = nib.load(nifti_file)
-        # x, y, z = img.shape
-        # print(f"# Dimensions: {[x, y, z]}")
-        nifti_labels.extend(list(np.unique(nib_img.get_fdata().astype(int))))
+    if remove_if_empty:
+        for nifti_file in nifti_files:
+            print(f"# Loading result NIFTI: {nifti_file}")
+            labels_file = list(np.unique(nib.load(nifti_file).get_fdata().astype(int)))
+            if len(labels_file) == 0:
+                print("#")
+                print("#")
+                print("#")
+                print("#")
+                print("#")
+                print("#")
+                print("##################################################### ")
+                print("#")
+                print("# No segmentation was found in result-NIFTI-file!")
+                print(f"# deleting NIFTI-file {nifti_files[0]}")
+                print("#")
+                print("##################################################### ")
+                print("#")
+                print("#")
+                print("#")
+                print("#")
+                print("#")
+                print("#")
+                print("#")
+                os.remove(nifti_file)
 
-    nifti_labels = list(set(nifti_labels))
-    print(f"# Task-targets:     {task_targets}")
-    print(f"# SEG NIFTI Labels: {nifti_labels}")
     seg_info_json = {}
-    seg_info_json["task_id"] = task if task != None else model.split("/")[-2]
+    seg_info_json["task_id"] = local_task if local_task != None else model.split("/")[-2]
     seg_info_json["task_body_part"] = task_body_part
-    seg_info_json["task_protocols"] = task_protocols
+    seg_info_json["task_protocols"] = local_task_protocols
     seg_info_json["task_targets"] = task
     seg_info_json["algorithm"] = task.lower() if task != None else model.split("/")[-2].lower()
-
-    if 0 in nifti_labels:
-        nifti_labels.remove(0)
-    else:
-        print("#")
-        print(f"# Couldn't find a 'Clear Label' 0 in NIFTI: {nifti_files[0]}")
-        print("#")
-        exit(1)
-
-    if len(nifti_labels) == 0:
-        print("##################################################### ")
-        print("#")
-        print("# No segmentation was found in result-NIFTI-file!")
-        print(f"# NIFTI-file {nifti_files[0]}")
-        print("# ABORT")
-        print("#")
-        print("##################################################### ")
-        exit(1)
-    labels_found = []
-    for label_bin in nifti_labels:
-        labels_found.append({
-            "label_name": str(task_targets[label_bin]) if task_targets != None else "N/A",
-            "label_int": label_bin
-        })
 
     seg_info_json["seg_info"] = labels_found
     seg_json_path = join(output_folder, 'seg_info.json')
@@ -122,8 +139,10 @@ def create_dataset(search_dir):
     global batch_dataset, operator_in_dir, input_modality_dirs, workflow_dir
 
     input_data_dir = join('/', workflow_dir, "nnunet-input-data")
+    Path(input_data_dir).mkdir(parents=True, exist_ok=True)
+
     if batch_dataset:
-        batch_folders = [f for f in glob(join('/', workflow_dir, "nnunet-cohort", '*'))]
+        batch_folders = sorted([f for f in glob(join('/', workflow_dir, "nnunet-cohort", '*'))])
         for batch_element_dir in batch_folders:
             input_count = 0
             for input_modality in input_modality_dirs:
@@ -134,10 +153,10 @@ def create_dataset(search_dir):
                 for nifti in niftis_found:
                     target_filename = join(input_data_dir, basename(nifti).replace(".nii.gz", f"_{input_count:04d}.nii.gz"))
                     if exists(target_filename):
+                        print(f"# target_filename: {target_filename}")
                         print(f"# Target input-data already exists -> skipping")
                         continue
 
-                    Path(input_data_dir).mkdir(parents=True, exist_ok=True)
                     if copy_target_data:
                         print(f"# Copy file {nifti} to {target_filename}")
                         shutil.copy2(nifti, target_filename)
@@ -174,22 +193,24 @@ def create_dataset(search_dir):
 
 
 def get_model_paths(batch_element_dir):
-    global workflow_dir, task, models_dir, train_network, batch_name
+    global workflow_dir, task, models_dir, model_arch, batch_name
     model_paths = []
     if models_dir == "/models":
-        model_path = join(models_dir, "nnUNet", train_network)
+        model_path = join(models_dir, "nnUNet", model_arch)
         print(f"# Default models dir: {model_path} -> continue")
         model_paths.append(model_path)
     else:
-        model_path = join(batch_element_dir, models_dir, train_network)
-        batch_models_dir = join('/', workflow_dir, models_dir, train_network)
+        model_path = join(batch_element_dir, models_dir, model_arch)
+        batch_models_dir = join('/', workflow_dir, models_dir, model_arch)
         print(f"# Batch-element models dir: {model_path}")
         print(f"# Batch models dir: {batch_models_dir}")
         if exists(model_path):
             print("# Found batch-element models dir -> continue")
+            print(f"# model_path: {model_path}") 
             model_paths.append(model_path)
         elif exists(batch_models_dir):
             print("# Found batch models dir -> continue")
+            print(f"# model_path: {batch_models_dir}") 
             model_paths.append(batch_models_dir)
         else:
             print("# Could not find models !")
@@ -217,7 +238,11 @@ def get_model_paths(batch_element_dir):
                 exit(1)
             model_path = join(model_path, task_idenified)
         else:
+            print(f"# Task: {task}")
             model_path = join(model_path, task)
+            print(f"# Final model_path: {model_path}")
+
+        assert exists(model_path)
         trainer = [f.name for f in os.scandir(model_path) if f.is_dir()]
         if len(trainer) == 1:
             model_path = join(model_path, trainer[0])
@@ -293,8 +318,8 @@ task_targets = task_targets.split(",") if task_targets.lower() != "none" else No
 if task_targets != None and task_targets[0] != "Clear Label":
     task_targets.insert(0, "Clear Label")
 
-task_body_part = getenv("BODY_PART", "ENV NOT FOUND!")
-task_protocols = getenv("PROTOCOLS", "ENV NOT FOUND!").split(",")
+task_body_part = getenv("BODY_PART", "N/A")
+task_protocols = getenv("INPUT", "NOT FOUND!").split(",")
 
 mode = getenv("MODE", "None")
 mode = mode if mode.lower() != "none" else None
@@ -318,19 +343,31 @@ operator_in_dir = operator_in_dir if operator_in_dir.lower() != "none" else None
 enable_softmax = getenv("INF_SOFTMAX", "False")
 enable_softmax = True if enable_softmax.lower() == "true" else False
 
-train_network = getenv("TRAIN_NETWORK", "None")
-train_network = train_network if train_network.lower() != "none" else None
+model_arch = getenv("MODEL", "None")
+model_arch = model_arch if model_arch.lower() != "none" else None
 train_network_trainer = getenv("TRAIN_NETWORK_TRAINER", "None")
 train_network_trainer = train_network_trainer if train_network_trainer.lower() != "none" else None
 
 cuda_visible_devices = getenv("CUDA_VISIBLE_DEVICES", "None")
+tta = getenv("TEST_TIME_AUGMENTATION", "None")
+tta = True if tta.lower() == "true" else False
 
-tta = False
-mixed_precision = True
+interpolation_order = getenv("INTERPOLATION_ORDER", "default")
+mixed_precision = getenv("MIXED_PRECISION", "None")
+mixed_precision = False if mixed_precision.lower() == "false" else True
+
+
+remove_if_empty = getenv("INF_REMOVE_IF_EMPTY", "None")
+remove_if_empty = True if remove_if_empty.lower() == "true" else False
+
+inf_seg_filter = getenv("INF_SEG_FILTER", "None")
+inf_seg_filter = inf_seg_filter.split(",") if inf_seg_filter.lower() != "none" else None
+
 override_existing = True
 inf_mode = "fast"
 step_size = 0.5
-overwrite_all_in_gpu = False
+overwrite_all_in_gpu = None
+# overwrite_all_in_gpu = False
 # checkpoint_name = "model_final_checkpoint"
 part_id = 0
 num_parts = 1
@@ -347,19 +384,32 @@ print("#")
 print(f"# task:  {task}")
 print(f"# mode:  {mode}")
 print(f"# folds: {folds}")
+print("#")
+print(f"# task_targets: {task_targets}")
+print(f"# task_protocols: {task_protocols}")
+print(f"# task_body_part: {task_body_part}")
+print("#")
 print(f"# models_dir: {models_dir}")
 print(f"# batch_name:   {batch_name}")
 print(f"# workflow_dir: {workflow_dir}")
 print(f"# batch_dataset: {batch_dataset}")
 print(f"# enable_softmax: {enable_softmax}")
+print(f"# remove_if_empty: {remove_if_empty}")
 print(f"# operator_in_dir: {operator_in_dir}")
 print(f"# operator_out_dir: {operator_out_dir}")
 print(f"# input_modality_dirs: {input_modality_dirs}")
 print(f"# threads_nifiti:      {threads_nifiti}")
 print(f"# threads_preprocessing: {threads_preprocessing}")
-print(f"# train_network:         {train_network}")
+print(f"# model_arch:            {model_arch}")
 print(f"# train_network_trainer: {train_network_trainer}")
+print("#")
+print(f"# tta:  {tta}")
+print(f"# mixed_precision:       {mixed_precision}")
+print(f"# INTERPOLATION_ORDER:   {interpolation_order}")
 print(f"# cuda_visible_devices:  {cuda_visible_devices}")
+print("#")
+print("#")
+print(f"# inf_seg_filter:  {inf_seg_filter}")
 print("#")
 print("##################################################")
 print("#")
@@ -369,7 +419,7 @@ print("##################################################")
 print("#")
 
 processed_count = 0
-batch_folders = [f for f in glob(join('/', workflow_dir, batch_name, '*'))]
+batch_folders = sorted([f for f in glob(join('/', workflow_dir, batch_name, '*'))])
 for batch_element_dir in batch_folders:
     input_data_dir, input_count = create_dataset(search_dir=batch_element_dir)
     if input_count == 0:
@@ -390,10 +440,15 @@ for batch_element_dir in batch_folders:
     for model, checkpoint_name in model_paths:
         if folds == None and exists(join(model, "all")):
             folds = "all"
-        print(f"#")
-        print(f"# Start prediction....")
-        print(f"# model:      {model}")
-        print(f"# folds:      {folds}")
+        print("#")
+        print("##################################################")
+        print("#                                                #")
+        print(f"# Start prediction....                           #")
+        print("#                                                #")
+        print("##################################################")
+        print("#")
+        print(f"# model: {model}")
+        print("#")
 
         predict(
             model=model,
@@ -415,9 +470,18 @@ for batch_element_dir in batch_folders:
             checkpoint_name=checkpoint_name
         )
         processed_count += 1
-        print(f"# Prediction ok.")
-        print(f"#")
+        print("#")
+        print("##################################################")
+        print("#                                                #")
+        print("#                 Prediction ok                  #")
+        print("#                                                #")
+        print("##################################################")
+        print("#                                                #")
+        print(f"# model: {model}")
+        print("#")
 
+    input_data_dir = join('/', workflow_dir, "nnunet-input-data")
+    shutil.rmtree(input_data_dir, ignore_errors=True)
 
 if processed_count == 0:
     print("##################################################")
@@ -443,10 +507,16 @@ if processed_count == 0:
         for model, checkpoint_name in model_paths:
             if folds == None and exists(join(model, "all")):
                 folds = "all"
-            print(f"#")
-            print(f"# Start prediction....")
-            print(f"# model:      {model}")
-            print(f"# folds:      {folds}")
+            print("#")
+            print("##################################################")
+            print("#                                                #")
+            print(f"# Start prediction....                           #")
+            print("#                                                #")
+            print("##################################################")
+            print("#")
+            print(f"# model: {model}")
+            print(f"# folds: {folds}")
+            print("#")
 
             predict(
                 model=model,
@@ -471,11 +541,14 @@ if processed_count == 0:
             print(f"# Prediction ok.")
             print(f"#")
 
+    input_data_dir = join('/', workflow_dir, "nnunet-input-data")
+    shutil.rmtree(input_data_dir, ignore_errors=True)
+
 if processed_count == 0:
     print("#")
     print("##################################################")
     print("#")
-    print("#################  ERROR  #######################")
+    print("##################  ERROR  #######################")
     print("#")
     print("# ----> NO FILES HAVE BEEN PROCESSED!")
     print("#")
@@ -483,4 +556,7 @@ if processed_count == 0:
     print("#")
     exit(1)
 else:
+    print("#")
+    print(f"# ----> {processed_count} FILES HAVE BEEN PROCESSED!")
+    print("#")
     print("# DONE #")

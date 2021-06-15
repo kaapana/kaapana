@@ -59,7 +59,7 @@ def start_reindexing(ds, **kwargs):
         incoming_dcm = pydicom.dcmread(dcm_file)
         seriesUID = incoming_dcm.SeriesInstanceUID
 
-        target_dir = os.path.join(workflowdata_dir, dag_run_id, BATCH_NAME, "{}".format(seriesUID), 'extract-metadata-input')
+        target_dir = os.path.join(workflowdata_dir, dag_run_id, BATCH_NAME, "{}".format(seriesUID), 'get-input-data')
         print(target_dir)
 
         if not os.path.exists(target_dir):
@@ -70,7 +70,7 @@ def start_reindexing(ds, **kwargs):
         trigger(dag_id=dag_id, run_id=dag_run_id, replace_microseconds=False)
 
 
-clean_elasticsearch = LocalDeleteFromElasticOperator(dag=dag, operator_in_dir='extract-metadata-input', delete_all_documents=True)
+clean_elasticsearch = LocalDeleteFromElasticOperator(dag=dag, operator_in_dir='get-input-data', delete_all_documents=True)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 reindex_pacs = PythonOperator(

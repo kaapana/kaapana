@@ -5,25 +5,25 @@ const kaapanaApiService = {
 
   helmApiPost(subUrl: any, payload: any) {
     return new Promise((resolve, reject) => {
-      request.post('/kube-helm-api' + subUrl, payload).then( (response:any) => {
+      request.post('/kube-helm-api' + subUrl, payload).then((response: any) => {
         console.log(response)
         resolve(response)
       }).catch((error: any) => {
         alert('Failed: ' + error.response.data)
         reject(error)
-      })   
-    }) 
+      })
+    })
   },
 
   helmApiGet(subUrl: any, params: any) {
     return new Promise((resolve, reject) => {
-      request.get('/kube-helm-api' + subUrl, { params } ).then( (response: any) => {
-          resolve(response)
+      request.get('/kube-helm-api' + subUrl, { params }).then((response: any) => {
+        resolve(response)
       }).catch((error: any) => {
         alert('Failed: ' + error.response.data)
         reject(error)
       })
-    }) 
+    })
   },
 
   getExternalWebpages() {
@@ -42,7 +42,7 @@ const kaapanaApiService = {
             for (const key2 in externalWebpages[key1].subSections) {
               if (externalWebpages[key1].subSections.hasOwnProperty(key2)) {
                 externalWebpages[key1].subSections[key2].linkTo =
-                location.protocol + '//' + location.host +  externalWebpages[key1].subSections[key2].linkTo
+                  location.protocol + '//' + location.host + externalWebpages[key1].subSections[key2].linkTo
               }
             }
           }
@@ -72,7 +72,7 @@ const kaapanaApiService = {
         }).then(() => {
           const query = {
             query: {
-              exists: {field: 'dashboard'},
+              exists: { field: 'dashboard' },
             },
           };
 
@@ -90,27 +90,27 @@ const kaapanaApiService = {
               source_content_type: 'application/json',
             },
           })
-          .then((response: { data: { [x: string]: { [x: string]: any } } }) => {
-            const hits = response.data['hits']['hits']
+            .then((response: { data: { [x: string]: { [x: string]: any } } }) => {
+              var hits = response.data['hits']['hits']
+              hits.sort((a: any, b: any) => a['_source']['dashboard']['title'].localeCompare(b['_source']['dashboard']['title']));
+              const kibanaSubsections: { [k: string]: any } = {};
 
-            const kibanaSubsections: {[k: string]: any} = {};
+              hits.forEach((dashboard: any, index: any) => {
+                kibanaSubsections['kibana' + String(index)] =
+                {
+                  label: dashboard['_source']['dashboard']['title'],
+                  linkTo: location.protocol + '//' + location.host + '/meta/app/kibana#/dashboards?title=' + dashboard['_source']['dashboard']['title'] + '&embed=true&_g=()',
+                }
+              });
 
-            hits.forEach((dashboard: any, index: any) => {
-              kibanaSubsections['kibana' + String(index)] =
-              {
-                label: dashboard['_source']['dashboard']['title'],
-                linkTo: location.protocol + '//' + location.host + '/meta/app/kibana#/dashboards?title=' + dashboard['_source']['dashboard']['title'] + '&embed=true&_g=()',
-              }
-            });
+              externalWebpages.meta.subSections = Object.assign(externalWebpages.meta.subSections, kibanaSubsections) // might not work in all browsers
 
-            externalWebpages.meta.subSections = Object.assign(externalWebpages.meta.subSections, kibanaSubsections) // might not work in all browsers
+              resolve(externalWebpages)
 
-            resolve(externalWebpages)
-
-          }).catch((err: any) => {
-            console.log('Something went wrong with kibana', err)
-            resolve(externalWebpages)
-          })
+            }).catch((err: any) => {
+              console.log('Something went wrong with kibana', err)
+              resolve(externalWebpages)
+            })
         }).catch((error: any) => {
           console.log('Something went wrong with traefik', error)
           resolve(externalWebpages)
@@ -126,7 +126,7 @@ const kaapanaApiService = {
     let availableRoute = false
     for (const routes in trainingJson) {
       if (trainingJson[routes]['status'] == 'enabled') {
-        if (trainingJson[routes]['rule'].slice(12,-2)==endpoint) {
+        if (trainingJson[routes]['rule'].slice(12, -2) == endpoint) {
           availableRoute = true
         }
       }

@@ -15,7 +15,7 @@ DCMQI = '/dcmqi/dcmqi-1.2.3-linux/bin/'
 output_type = os.environ.get('OUTPUT_TYPE', 'nrrd')
 seg_filter = os.environ.get('SEG_FILTER', "")
 if seg_filter != "":
-    seg_filter = seg_filter.lower().split(";")
+    seg_filter = seg_filter.lower().split(",")
     print(f"Set filters: {seg_filter}")
 else:
     seg_filter = None
@@ -28,7 +28,7 @@ if output_type == "nii.gz":
 else:
     output_type_dcmqi = output_type
 
-batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
+batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 
 print("Found {} batches".format(len(batch_folders)))
 
@@ -101,8 +101,6 @@ for batch_element_dir in batch_folders:
             if len_output_files != len(seg_filter):
                 print(f"Found {len_output_files} files -> expected {len(seg_filter)}!")
                 print(f"Filter: {seg_filter}")
-                print("Abort!")
-                exit(1)
 
         processed_count += 1
 
@@ -117,7 +115,7 @@ if processed_count == 0:
     print("#")
     print("##################################################")
     print("#")
-    print("#################  ERROR  #######################")
+    print("##################  ERROR  #######################")
     print("#")
     print("# ----> NO FILES HAVE BEEN PROCESSED!")
     print("#")
@@ -125,4 +123,7 @@ if processed_count == 0:
     print("#")
     exit(1)
 else:
+    print("#")
+    print(f"# ----> {processed_count} FILES HAVE BEEN PROCESSED!")
+    print("#")
     print("# DONE #")

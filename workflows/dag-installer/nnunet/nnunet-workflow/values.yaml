@@ -1,5 +1,5 @@
 ---
 global:
     image: "dag-nnunet"
-    version: "1.6.5-vdev"
+    version: "04-21"
     action: "copy"

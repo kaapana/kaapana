@@ -41,7 +41,7 @@ def send_dicom_data(send_dir, aetitle=AETITLE, timeout=60):
     # To process even if the input contains non-DICOM files the --no-halt option is needed (e.g. zip-upload functionality)
     command = ['dcmsend', '-v', f'{HOST}', f'{PORT}', '-aet', 'kaapana', '-aec', f'{aetitle}', '--scan-directories', '--no-halt', '--recurse', f'{send_dir}']
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
-    if output.returncode != 0:
+    if output.returncode != 0 or "with status SUCCESS" not in str(output):
         print("############### Something went wrong with dcmsend!")
         for line in str(output).split("\\n"):
             print(line)
@@ -54,7 +54,7 @@ def send_dicom_data(send_dir, aetitle=AETITLE, timeout=60):
 
 
 if LEVEL == 'element':
-    batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
+    batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 
     for batch_element_dir in batch_folders:
 
@@ -69,7 +69,7 @@ if LEVEL == 'element':
         dcm_file = dcm_files[0]
         print("dcm-file: {}".format(dcm_file))
 
-        send_dicom_data(element_input_dir)
+        send_dicom_data(element_input_dir,timeout=600)
 elif LEVEL == 'batch':
     batch_input_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
     print(f"Sending DICOM data from batch-level: {batch_input_dir}")

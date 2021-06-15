@@ -14,6 +14,11 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 max_active_runs = 10
+concurrency = max_active_runs * 2
+default_interpolation_order = "default"
+default_prep_thread_count = 1
+default_nifti_thread_count = 1
+
 available_pretrained_task_names, installed_tasks, all_selectable_tasks = get_tasks()
 ui_forms = {
     "publication_form": {
@@ -112,6 +117,36 @@ ui_forms = {
                     "task"
                 ]
             },
+            "inf_softmax": {
+                "title": "enable softmax",
+                "description": "Enable softmax export?",
+                "type": "boolean",
+                "default": False,
+                "readOnly": False,
+            },
+            "interpolation_order": {
+                "title": "interpolation order",
+                "default": default_interpolation_order,
+                "description": "Set interpolation_order.",
+                "enum": ["default", "0", "1", "2", "3"],
+                "type": "string",
+                "readOnly": False,
+                "required": True
+            },
+            "inf_threads_prep": {
+                "title": "Pre-processing threads",
+                "type": "integer",
+                "default": default_prep_thread_count,
+                "description": "Set pre-processing thread count.",
+                "required": True
+            },
+            "inf_threads_nifti": {
+                "title": "NIFTI threads",
+                "type": "integer",
+                "description": "Set NIFTI export thread count.",
+                "default": default_nifti_thread_count,
+                "required": True
+            },
             "single_execution": {
                 "title": "single execution",
                 "description": "Should each series be processed separately?",
@@ -135,7 +170,7 @@ args = {
 dag = DAG(
     dag_id='nnunet-predict',
     default_args=args,
-    concurrency=10,
+    concurrency=concurrency,
     max_active_runs=max_active_runs,
     schedule_interval=None
 )
@@ -158,8 +193,8 @@ nnunet_predict = NnUnetOperator(
     mode="inference",
     input_modality_operators=[dcm2nifti],
     inf_preparation=True,
-    inf_threads_prep=1,
-    inf_threads_nifti=1
+    inf_threads_prep=2,
+    inf_threads_nifti=2
 )
 
 alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]

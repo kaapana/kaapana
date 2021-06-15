@@ -2,6 +2,7 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from nnunet.getTasks import get_tasks
 
 available_pretrained_task_names, installed_tasks, all_selectable_tasks = get_tasks()
@@ -43,4 +44,9 @@ delete_model = GetTaskModelOperator(
     mode="uninstall"
 )
 
-delete_model
+clean = LocalWorkflowCleanerOperator(
+    dag=dag,
+    clean_workflow_dir=True
+)
+
+delete_model >> clean 

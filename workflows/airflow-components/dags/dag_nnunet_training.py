@@ -10,11 +10,10 @@ from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
-from kaapana.operators.ResampleOperator import ResampleOperator
 from airflow.api.common.experimental import pool as pool_api
 from airflow.utils.log.logging_mixin import LoggingMixin
-from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
 from nnunet.NnUnetOperator import NnUnetOperator
+from nnunet.SegCheckOperator import SegCheckOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 from airflow.models import Variable
@@ -22,10 +21,10 @@ from airflow.models import Variable
 node_uid = Variable.get(key="node_uid", default_var="N/A")
 study_id = "Kaapana"
 # TASK_NAME = f"Task{random.randint(100,999):03}_{node_uid}_train"
-TASK_NAME = f"Task{random.randint(100,999):03}_Training_{datetime.now().strftime('%d%m%y-%H%M')}"
+TASK_NAME = f"Task{random.randint(100,999):03}_RACOON_{datetime.now().strftime('%d%m%y-%H%M')}"
 seg_filter = ""
 prep_modalities = "CT"
-train_network = "3d_lowres"
+default_model = "3d_lowres"
 train_network_trainer = "nnUNetTrainerV2"
 ae_title = "nnUnet-results"
 max_epochs = 1000
@@ -36,11 +35,11 @@ training_results_study_uid = None
 
 gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
 gpu_count = int(gpu_count_pool.slots) if gpu_count_pool is not None and gpu_count_pool != 0 else 1
-concurrency = 10
 max_active_runs = gpu_count + 1
+concurrency = max_active_runs * 2
 # cpu_count_pool = pool_api.get_pool(name="CPU")
 # prep_threads = int(cpu_count_pool.slots//8) if cpu_count_pool is not None else 4
-prep_threads = 4
+prep_threads = 2
 
 ui_forms = {
     "publication_form": {
@@ -84,9 +83,9 @@ ui_forms = {
                 "default": TASK_NAME,
                 "required": True
             },
-            "train_network": {
+            "model": {
                 "title": "Network",
-                "default": train_network,
+                "default": default_model,
                 "description": "2d, 3d_lowres, 3d_fullres or 3d_cascade_fullres",
                 "enum": ["2d", "3d_lowres", "3d_fullres", "3d_cascade_fullres"],
                 "type": "string",
@@ -114,6 +113,13 @@ ui_forms = {
                 "type": "string",
                 "readOnly": False,
             },
+            "node_uid": {
+                "title": "Site-ID",
+                "description": "Specify an ID for the node / site",
+                "type": "string",
+                "default": node_uid,
+                "required": True
+            },
             "shuffle_seed": {
                 "title": "Shuffle seed",
                 "default": 0,
@@ -132,6 +138,13 @@ ui_forms = {
                 "title": "Training description",
                 "default": "nnUnet Segmentation",
                 "description": "Specify a version.",
+                "type": "string",
+                "readOnly": False,
+            },
+            "body_part": {
+                "title": "Body Part",
+                "description": "Body part, which needs to be present in the image.",
+                "default": "N/A",
                 "type": "string",
                 "readOnly": False,
             },
@@ -216,28 +229,24 @@ dcm2nifti_ct = DcmConverterOperator(
     delete_input_on_success=True
 )
 
-resample_seg = ResampleOperator(
-    dag=dag,
+check_seg = SegCheckOperator(
+    dag,
     input_operator=dcm2nifti_seg,
     original_img_operator=dcm2nifti_ct,
-    operator_out_dir=dcm2nifti_seg.operator_out_dir,
-    delete_input_on_success=False
-)
-
-check_seg = LocalSegCheckOperator(
-    dag=dag,
-    abort_on_error=False,
-    move_data=True,
-    input_operators=[dcm2nifti_seg, dcm2nifti_ct],
-    delete_input_on_success=False
+    parallel_processes=3,
+    delete_merged_data=True,
+    fail_if_overlap=False,
+    fail_if_label_already_present=False,
+    fail_if_label_id_not_extractable=False,
+    force_same_labels=False,
 )
 
 nnunet_preprocess = NnUnetOperator(
     dag=dag,
     mode="preprocess",
     input_modality_operators=[dcm2nifti_ct],
-    prep_label_operators=[dcm2nifti_seg],
-    prep_use_nifti_labels=True,
+    prep_label_operators=[check_seg],
+    prep_use_nifti_labels=False,
     prep_modalities=prep_modalities.split(","),
     prep_processes_low=prep_threads+1,
     prep_processes_full=prep_threads,
@@ -255,7 +264,7 @@ nnunet_train = NnUnetOperator(
     mode="training",
     train_max_epochs=max_epochs,
     input_operator=nnunet_preprocess,
-    train_network=train_network,
+    model=default_model,
     train_network_trainer=train_network_trainer,
     train_fold='all',
     retries=0,
@@ -282,7 +291,7 @@ dcmseg_send_pdf = DcmSendOperator(
 
 zip_model = ZipUnzipOperator(
     dag=dag,
-    target_filename=f"nnunet_model_{train_network}.zip",
+    target_filename=f"nnunet_model.zip",
     whitelist_files="model_latest.model.pkl,model_latest.model,model_final_checkpoint.model,model_final_checkpoint.model.pkl,dataset.json,plans.pkl,*.json,*.png,*.pdf",
     subdir="results/nnUNet",
     mode="zip",
@@ -297,6 +306,7 @@ bin2dcm = Bin2DcmOperator(
     name="model2dicom",
     patient_name="nnUNet-model",
     patient_id=node_uid,
+    node_uid=node_uid,
     manufacturer="Kaapana",
     manufacturer_model="nnUNet",
     version=nnunet_train.image.split(":")[-1],
@@ -311,17 +321,30 @@ bin2dcm = Bin2DcmOperator(
     delete_input_on_success=True
 )
 
-dcmseg_send_int = DcmSendOperator(
+dcm_send_int = DcmSendOperator(
     dag=dag,
     level="batch",
+    pacs_host='ctp-service.flow.svc',
+    pacs_port='11112',
     ae_title=ae_title,
     input_operator=bin2dcm,
     delete_input_on_success=True
 )
 
+# dcm_send_ext = DcmSendOperator(
+#     dag=dag,
+#     level="batch",
+#     pacs_host='192.168.0.2',
+#     pacs_port='2021',
+#     ae_title=ae_title,
+#     input_operator=bin2dcm,
+#     delete_input_on_success=True
+# )
+
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
-get_input >> dcm2nifti_seg >> resample_seg
-get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> resample_seg >> check_seg >> nnunet_preprocess >> nnunet_train
+get_input >> dcm2nifti_seg >> check_seg
+get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess >> nnunet_train
 
 nnunet_train >> pdf2dcm >> dcmseg_send_pdf >> clean
-nnunet_train >> zip_model >> bin2dcm >> dcmseg_send_int >> clean
+nnunet_train >> zip_model >> bin2dcm >> dcm_send_int >> clean
+# bin2dcm >> dcm_send_ext

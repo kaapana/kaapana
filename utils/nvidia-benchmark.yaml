@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: tf-benchmark-gpu
+spec:
+  restartPolicy: Never
+  containers:
+    - name: tf-benchmark-gpu
+      image: "chrstnhntschl/gpu_burn:latest"
+      args: ["60"]   # seconds of stress-test
+
+# -> will benchmark all gpu devices of the system

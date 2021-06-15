@@ -34,10 +34,6 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
             operator_conf.update(payload['operators'][self.name])
 
         for k, v in operator_conf.items():
-            if k in self.sets:
-                print(f'Adjusting {k} from {self.sets[k]} to {v}')
-            else:
-                print(f'Adding {k}={v} to env_vars')
             self.sets[k] = str(v)
 
     @rest_self_udpate

@@ -9,3 +9,5 @@ class Config(object):
     HELM_COLLECTIONS_CACHE="/root/charts/collections"
     HELM_HELPERS_CACHE="/root/charts/helpers"
     REGISTRY_URL = os.environ['REGISTRY_URL']
+    OFFLINE_MODE = True if os.environ.get('OFFLINE_MODE', 'true').lower() == 'true' else False
+    

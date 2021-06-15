@@ -1,14 +1,14 @@
 FROM nvcr.io/nvidia/pytorch:20.09-py3
 
 LABEL IMAGE="nnunet"
-LABEL VERSION="1.6.5-vdev"
+LABEL VERSION="04-21"
 LABEL CI_IGNORE="False"
 
 ENV OMP_NUM_THREADS=1
 ENV PYTHONUNBUFFERED=1
 
 ENV BRANCH=master
-ENV NNUNET_VERSION=v1.6.5
+ENV NNUNET_VERSION=a7d1d875e8fc3f4e93ca7b51b1ba206711844d92
 
 RUN apt-get update && apt-get install -y \
     git \
@@ -35,5 +35,6 @@ COPY files/ /src
 
 COPY files/nnUNetTrainerV2.py /opt/conda/lib/python3.6/site-packages/nnunet/training/network_training/nnUNetTrainerV2.py
 COPY files/run_training.py /opt/conda/lib/python3.6/site-packages/nnunet/run/run_training.py
+COPY files/predict.py /opt/conda/lib/python3.6/site-packages/nnunet/inference/predict.py
 
 CMD ["bash","/src/start_nnunet.sh"]

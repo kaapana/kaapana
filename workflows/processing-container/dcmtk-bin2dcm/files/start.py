@@ -28,7 +28,7 @@ def combine_split_files(split_files_dir, delete_parts=True):
         print(output)
         exit(1)
     else:
-        print(f"# Successfully created {final_filename}!")
+        print(f"# ✓ Successfully created {final_filename}!")
 
         if delete_parts:
             for part_file in input_files:
@@ -221,7 +221,9 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
     patient_name = os.getenv("PATIENT_NAME", "")
     patient_id = os.getenv("PATIENT_ID", "")
-
+    node_uid = os.getenv("NODE_UID", "N/A")
+    patient_id = node_uid if node_uid.lower() != "n/a" else patient_id
+    
     manufacturer = os.getenv("MANUFACTURER", "KAAPANA")
     manufacturer_model_name = os.getenv("MANUFACTURER_MODEL", "bin2dcm")
     version = os.getenv("VERSION", "0.0.0")
@@ -343,7 +345,7 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
 # START
 binary_file_extensions = os.getenv("EXTENSIONS", "*.zip").split(",")
-batch_folders = [f for f in glob.glob(join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
+batch_folders = sorted([f for f in glob.glob(join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 
 for batch_element_dir in batch_folders:
     element_input_dir = join(batch_element_dir, os.getenv("OPERATOR_IN_DIR", ""))

@@ -3,7 +3,7 @@ import glob
 import json
 from datetime import datetime
 
-batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
+batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 
 json_list = []
 for batch_element_dir in batch_folders:

@@ -327,10 +327,6 @@ class KaapanaBaseOperator(BaseOperator):
 
         for k, v in operator_conf.items():
             k = k.upper()
-            if k in self.env_vars:
-                print(f'Adjusting {k} from {self.env_vars[k]} to {v}')
-            else:
-                print(f'Adding {k}={v} to env_vars')
             self.env_vars[k] = str(v)
 
     @cache_operator_output
@@ -438,7 +434,7 @@ class KaapanaBaseOperator(BaseOperator):
         if ti.delete_input_on_success:
             print("#### deleting input-dirs...!")
             data_dir = "/data"
-            batch_folders = [f for f in glob.glob(os.path.join(data_dir, 'batch', '*'))]
+            batch_folders = sorted([f for f in glob.glob(os.path.join(data_dir, 'batch', '*'))])
             for batch_element_dir in batch_folders:
                 element_input_dir = os.path.join(batch_element_dir, ti.operator_in_dir)
                 print(f"# Deleting: {element_input_dir} ...")

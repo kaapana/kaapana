@@ -25,7 +25,7 @@ from nnunet.LocalSegCheckOperator import LocalSegCheckOperator
 TASK_NAME = f"Task{random.randint(100,999):03}_Training"
 seg_filter = ""
 prep_modalities = "CT"
-train_network = "3d_lowres"
+model = "3d_lowres"
 train_network_trainer = "nnUNetTrainerV2"
 
 study_uid = pydicom.uid.generate_uid()
@@ -79,9 +79,9 @@ ui_forms = {
                 "default": TASK_NAME,
                 "required": True
             },
-            "train_network": {
+            "model": {
                 "title": "Network",
-                "default": train_network,
+                "default": model,
                 "description": "2d, 3d_lowres, 3d_fullres or 3d_cascade_fullres",
                 "enum": ["2d", "3d_lowres", "3d_fullres", "3d_cascade_fullres"],
                 "type": "string",
@@ -232,7 +232,7 @@ nnunet_train_fold0 = NnUnetOperator(
     mode="training",
     parallel_id="fold-0",
     input_operator=nnunet_preprocess,
-    train_network=train_network,
+    model=model,
     train_network_trainer=train_network_trainer,
     train_fold='all',
     retries=0
@@ -244,7 +244,7 @@ nnunet_train_fold1 = NnUnetOperator(
     mode="training",
     parallel_id="fold-1",
     input_operator=nnunet_preprocess,
-    train_network=train_network,
+    model=model,
     train_network_trainer=train_network_trainer,
     train_fold=1,
     retries=0
@@ -256,7 +256,7 @@ nnunet_train_fold2 = NnUnetOperator(
     mode="training",
     parallel_id="fold-2",
     input_operator=nnunet_preprocess,
-    train_network=train_network,
+    model=model,
     train_network_trainer=train_network_trainer,
     train_fold=2,
     retries=0
@@ -268,7 +268,7 @@ nnunet_train_fold3 = NnUnetOperator(
     mode="training",
     parallel_id="fold-3",
     input_operator=nnunet_preprocess,
-    train_network=train_network,
+    model=model,
     train_network_trainer=train_network_trainer,
     train_fold=3,
     retries=0
@@ -280,7 +280,7 @@ nnunet_train_fold4 = NnUnetOperator(
     mode="training",
     parallel_id="fold-4",
     input_operator=nnunet_preprocess,
-    train_network=train_network,
+    model=model,
     train_network_trainer=train_network_trainer,
     train_fold=4,
     retries=0
@@ -290,7 +290,7 @@ identify_best = NnUnetOperator(
     dag=dag,
     mode="identify-best",
     input_operator=nnunet_train_fold4,
-    train_network=train_network,
+    model=model,
     train_network_trainer=train_network_trainer,
     retries=0
 )
@@ -299,7 +299,7 @@ nnunet_export = NnUnetOperator(
     dag=dag,
     mode="zip-model",
     input_operator=identify_best,
-    train_network=train_network,
+    model=model,
     train_network_trainer=train_network_trainer,
     retries=0
 )

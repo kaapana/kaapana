@@ -23,11 +23,11 @@ dag = DAG(
     dag_id='service-extract-metadata',
     default_args=args,
     concurrency=50,
-    max_active_runs=50,
+    max_active_runs=20,
     schedule_interval=None
 )
 
-get_input = LocalGetInputDataOperator(dag=dag, operator_out_dir='extract-metadata-input')
+get_input = LocalGetInputDataOperator(dag=dag, operator_out_dir='get-input-data')
 dcm_send = DcmSendOperator(
     dag=dag,
     input_operator=get_input,

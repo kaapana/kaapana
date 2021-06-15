@@ -30,6 +30,13 @@ ui_forms = {
                 "type": "string",
                 "readOnly": True,
             },
+            "parameters": {
+                "title": "Parameter",
+                "default": "-fo 1 -cooc 1",
+                "description": "Parameter for MitkCLGlobalImageFeatures.",
+                "type": "string",
+                "readOnly": False,
+            }
         }
     }
 }

@@ -74,9 +74,9 @@ elif [ "$MODE" = "training" ]; then
     echo "#"
     echo "# Starting training..."
     echo "#"
-    echo "# FOLD: $TRAIN_FOLD";
-    echo "# TASK: $TASK";
-    echo "# NETWORK: $TRAIN_NETWORK";
+    echo "# FOLD:  $TRAIN_FOLD";
+    echo "# TASK:  $TASK";
+    echo "# MODEL: $MODEL";
     echo "# NETWORK_TRAINER: $TRAIN_NETWORK_TRAINER";
     echo "#"
     echo "# MAX_EPOCHS: $TRAIN_MAX_EPOCHS";
@@ -114,8 +114,8 @@ elif [ "$MODE" = "training" ]; then
     fi
     
     echo "#"
-    echo "# COMMAND: nnUNet_train $TRAIN_NETWORK $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $npz $continue "
-    nnUNet_train $TRAIN_NETWORK $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $npz $continue 
+    echo "# COMMAND: nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $npz $continue "
+    nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $npz $continue 
     
     CREATE_REPORT="True"
 
@@ -160,9 +160,9 @@ elif [ "$MODE" = "identify-best" ]; then
     echo "# nnUNet_preprocessed:   $nnUNet_preprocessed"
     echo "# RESULTS_FOLDER:        $RESULTS_FOLDER"
     echo "#"
-    echo "# FOLD:                 $TRAIN_FOLD"
+    echo "# FOLD:                  $TRAIN_FOLD"
     echo "# TASK:                  $TASK"
-    echo "# TRAIN_NETWORK:         $TRAIN_NETWORK"
+    echo "# MODEL:                 $MODEL"
     echo "# TRAIN_NETWORK_TRAINER: $TRAIN_NETWORK_TRAINER"
     echo "# model_output_path:     $model_output_path"
     echo "#"
@@ -176,8 +176,8 @@ elif [ "$MODE" = "identify-best" ]; then
         strict=""
     fi
 
-    echo "# COMMAND: nnUNet_find_best_configuration -m $TRAIN_NETWORK -t $TASK_NUM $strict"
-    nnUNet_find_best_configuration -m $TRAIN_NETWORK -t $TASK_NUM $strict
+    echo "# COMMAND: nnUNet_find_best_configuration -m $MODEL -t $TASK_NUM $strict"
+    nnUNet_find_best_configuration -m $MODEL -t $TASK_NUM $strict
 
     echo "#"
     echo "# DONE"
@@ -189,7 +189,7 @@ elif [ "$MODE" = "zip-model" ]; then
     
     mkdir -p "/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/"
     TIMESTAMP=`date +%Y-%m-%d_%H-%M`
-    model_output_path="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnunet_$TASK_$TRAIN_NETWORK_$TIMESTAMP.zip"
+    model_output_path="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnunet_$TASK_$MODEL_$TIMESTAMP.zip"
     
     echo "#"
     echo "# Starting export-model..."
@@ -201,7 +201,7 @@ elif [ "$MODE" = "zip-model" ]; then
     echo "#"
     echo "# FOLD:                  $TRAIN_FOLD"
     echo "# TASK:                  $TASK"
-    echo "# TRAIN_NETWORK:         $TRAIN_NETWORK"
+    echo "# MODEL:                 $MODEL"
     echo "# TRAIN_NETWORK_TRAINER: $TRAIN_NETWORK_TRAINER"
     echo "# model_output_path:     $model_output_path"
     echo "#"
@@ -217,7 +217,7 @@ elif [ "$MODE" = "export-model" ]; then
     export RESULTS_FOLDER="$nnUNet_raw_data_base/results"
     
     mkdir -p "/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/"
-    model_output_path="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnunet_model_$TRAIN_NETWORK.zip"
+    model_output_path="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnunet_model_$MODEL.zip"
     
     echo "#"
     echo "# Starting export-model..."
@@ -227,17 +227,17 @@ elif [ "$MODE" = "export-model" ]; then
     echo "# nnUNet_preprocessed:   $nnUNet_preprocessed"
     echo "# RESULTS_FOLDER:        $RESULTS_FOLDER"
     echo "#"
-    echo "# FOLD:                 $TRAIN_FOLD"
+    echo "# FOLD:                  $TRAIN_FOLD"
     echo "# TASK:                  $TASK"
-    echo "# TRAIN_NETWORK:         $TRAIN_NETWORK"
+    echo "# MODEL:                 $MODEL"
     echo "# TRAIN_NETWORK_TRAINER: $TRAIN_NETWORK_TRAINER"
     echo "# model_output_path:     $model_output_path"
     echo "#"
     echo "#"
-    echo "# COMMAND: nnUNet_export_model_to_zip -t $TASK -m $TRAIN_NETWORK -tr $TRAIN_NETWORK_TRAINER -o $model_output_path "
+    echo "# COMMAND: nnUNet_export_model_to_zip -t $TASK -m $MODEL -tr $TRAIN_NETWORK_TRAINER -o $model_output_path "
     echo "#"
     echo "# DONE"
-    nnUNet_export_model_to_zip -t $TASK -m $TRAIN_NETWORK -tr $TRAIN_NETWORK_TRAINER -o $model_output_path -f 0 1 2 3 4
+    nnUNet_export_model_to_zip -t $TASK -m $MODEL -tr $TRAIN_NETWORK_TRAINER -o $model_output_path -f 0 1 2 3 4
     
 elif [ "$MODE" = "install-model" ]; then
     export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
@@ -245,7 +245,7 @@ elif [ "$MODE" = "install-model" ]; then
     export RESULTS_FOLDER="$MODELS_DIR"
     
     mkdir -p "/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/"
-    model_output_path="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnunet_model_$TRAIN_NETWORK.zip"
+    model_output_path="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnunet_model_$MODEL.zip"
     
     echo "#"
     echo "# Starting install-model..."
@@ -255,9 +255,9 @@ elif [ "$MODE" = "install-model" ]; then
     echo "# nnUNet_preprocessed:   $nnUNet_preprocessed"
     echo "# RESULTS_FOLDER:        $RESULTS_FOLDER"
     echo "#"
-    echo "# FOLD:                 $TRAIN_FOLD"
+    echo "# FOLD:                  $TRAIN_FOLD"
     echo "# TASK:                  $TASK"
-    echo "# TRAIN_NETWORK:         $TRAIN_NETWORK"
+    echo "# MODEL:                 $MODEL"
     echo "# TRAIN_NETWORK_TRAINER: $TRAIN_NETWORK_TRAINER"
     echo "# model_output_path:     $model_output_path"
     echo "#"

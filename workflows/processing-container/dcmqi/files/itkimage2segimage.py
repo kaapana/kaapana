@@ -81,12 +81,7 @@ def find_code_meaning(tag):
 
 
 def process_seg_info(seg_info, series_description):
-    split_seg_info = seg_info.split('@')
-    if len(split_seg_info) > 1:
-        code_meaning = f'{split_seg_info[-1].capitalize()}_{split_seg_info[0].capitalize()}'
-    else:
-        code_meaning = f'{split_seg_info[0].capitalize()}'
-
+    code_meaning = str(seg_info).lower()
     series_description_code_meaning = f'{code_meaning}'
 
     if series_description != "":
@@ -97,7 +92,7 @@ def process_seg_info(seg_info, series_description):
 
 def create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, color, label_name="", labelID=1):
     try:
-        search_key = code_meaning.split("_")[0].lower()
+        search_key = code_meaning.split("@")[-1].lower() if "@" in code_meaning else code_meaning
         print("Searching coding-scheme for code-meaning: {}".format(code_meaning))
         print("Search-key: {}".format(search_key))
         coding_scheme = find_code_meaning(tag=search_key)
@@ -131,7 +126,7 @@ def create_segment_attribute(segment_algorithm_type, segment_algorithm_name, cod
     return segment_attribute
 
 
-def adding_aetitle(element_input_dir, output_dcm_file, seg_infos):
+def adding_aetitle(element_input_dir, output_dcm_file, body_part):
     dcm_files = sorted(glob.glob(os.path.join(element_input_dir, "*.dcm*"), recursive=True))
 
     if len(dcm_files) == 0:
@@ -140,24 +135,28 @@ def adding_aetitle(element_input_dir, output_dcm_file, seg_infos):
 
     dcm_file = dcm_files[0]
     print("dcm-file: {}".format(dcm_file))
+    input_dicom = pydicom.dcmread(dcm_file)
     try:
-        aetitle = pydicom.dcmread(dcm_file)[0x0012, 0x0020].value
+        aetitle = input_dicom[0x0012, 0x0020].value
     except KeyError:
-        aetitle = 'DCMTKUndefined'
+        aetitle = 'internal'
+    try:
+        dicom_body_part = input_dicom[0x0018, 0x0015].value
+    except KeyError:
+        dicom_body_part = None
 
     dcmseg_file = pydicom.dcmread(output_dcm_file)
+    print(f"# Adding aetitle:   {aetitle}")
+    if body_part == "N/A" and dicom_body_part is not None:
+        print(f"# Adding dicom-body_part: {dicom_body_part}")
+        dcmseg_file.add_new([0x0018, 0x0015], 'LO', dicom_body_part)  # Body Part Examined
+    elif body_part != "N/A":
+        print(f"# Adding model-body_part: {body_part}")
+        dcmseg_file.add_new([0x0018, 0x0015], 'LO', body_part)  # Body Part Examined
+    else:
+        print("# Could not extract any body-part!")
+
     dcmseg_file.add_new([0x012, 0x020], 'LO', aetitle)  # Clinical Trial Protocol ID
-
-    bpe = ""
-    for seg_info in seg_infos:
-        print(f"seg_info: {seg_info}")
-        if bpe != "":
-            bpe += " "
-        split_seg_info = seg_info["label_name"].split('@')
-        bpe += f'{split_seg_info[-1].capitalize()}-{split_seg_info[0].capitalize()}' if len(split_seg_info) > 1 else f'{split_seg_info[0].capitalize()}'
-
-    dcmseg_file.add_new([0x0018, 0x0015], 'LO', bpe)  # Body Part Examined
-
     dcmseg_file.save_as(output_dcm_file)
 
 # Example: https://github.com/QIICR/dcmqi/blob/master/doc/examples/seg-example.json
@@ -240,7 +239,7 @@ code_lookup_table_path = "code_lookup_table.json"
 with open(code_lookup_table_path) as f:
     code_lookup_table = json.load(f)
 
-batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
+batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 
 print("Found {} batches".format(len(batch_folders)))
 
@@ -335,7 +334,7 @@ for batch_element_dir in batch_folders:
                     print(f'The image seems to have empty slices, we will skip them! This might make the segmentation no usable anymore for MITK. Error: {e.output}')
                     raise AssertionError(f'Something weng wrong while creating the single-label-dcm object {e.output}')
 
-            adding_aetitle(element_input_dir, output_dcm_file, seg_infos=[{"label_name": single_label_seg_info}])
+            adding_aetitle(element_input_dir, output_dcm_file, body_part="N/A")
             processed_count += 1
 
     elif input_type == 'multi_label_seg':
@@ -354,20 +353,27 @@ for batch_element_dir in batch_folders:
 
         label_info = data['seg_info']
 
+        body_part = "N/A"
+        if "task_body_part" in data:
+            body_part = data['task_body_part']
+
         if "algorithm" in data:
             series_description = "{}-{}".format(segment_algorithm_name, data["algorithm"])
 
         segment_attributes = [[]]
 
         label_counts = len(label_info)
-        for label in label_info:
-            idx = int(label["label_int"])
+        for idx, label in enumerate(label_info):
+            label_int = int(label["label_int"])
             single_label_seg_info = label["label_name"]
-            print(f"process: {single_label_seg_info}: {idx}")
+            print(f"process: {single_label_seg_info}: {label_int}")
+            if str(label_int) == "0":
+                print("Clear Label -> skipping")
+                continue
 
             code_meaning, segmentation_information["SeriesDescription"] = process_seg_info(single_label_seg_info, series_description)
             color = np.round(np.array(cm.get_cmap('gist_ncar', label_counts)(idx)[:3])*255).astype(int).tolist()
-            segment_attribute = create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, color, label_name=single_label_seg_info, labelID=idx)
+            segment_attribute = create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, color, label_name=single_label_seg_info, labelID=label_int)
             segment_attributes[0].append(segment_attribute)
 
     if input_type == 'multi_label_seg' or create_multi_label_dcm_from_single_label_segs.lower() == 'true':
@@ -414,7 +420,7 @@ for batch_element_dir in batch_folders:
                 print(f'The image seems to have emtpy slices, we will skip them! This might make the segmentation no usable anymore for MITK. Error: {e.output}')
                 raise AssertionError(f'Something weng wrong while creating the multi-label-dcm object {e.output}')
 
-        adding_aetitle(element_input_dir, output_dcm_file, seg_infos=data['seg_info'])
+        adding_aetitle(element_input_dir, output_dcm_file, body_part=body_part)
         processed_count += 1
 
 
@@ -429,7 +435,7 @@ if processed_count == 0:
     print("#")
     print("##################################################")
     print("#")
-    print("#################  ERROR  #######################")
+    print("##################  ERROR  #######################")
     print("#")
     print("# ----> NO FILES HAVE BEEN PROCESSED!")
     print("#")
@@ -437,4 +443,7 @@ if processed_count == 0:
     print("#")
     exit(1)
 else:
+    print("#")
+    print(f"# ----> {processed_count} FILES HAVE BEEN PROCESSED!")
+    print("#")
     print("# DONE #")

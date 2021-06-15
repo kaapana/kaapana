@@ -68,7 +68,7 @@ if mode == "install_zip":
     print("# Search for model-zip-files...")
     print("------------------------------------")
     zip_files = []
-    batch_folders = [f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))]
+    batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
     for batch_element_dir in batch_folders:
         zip_dir_path = os.path.join(batch_element_dir, os.environ['OPERATOR_IN_DIR'])
         zip_files = glob.glob(os.path.join(zip_dir_path, "*.zip"), recursive=True)
@@ -134,7 +134,7 @@ if mode == "install_zip":
             print('MSG: ' + str(e))
             exit(1)
 
-    print("# successfully extracted model into model-dir.")
+    print("# ✓ successfully extracted model into model-dir.")
     print("# DONE")
     exit(0)
 
@@ -268,7 +268,7 @@ elif mode == "install_pretrained":
             print("------------------------------------")
             exit(1)
 
-    print("All models successfully downloaded and extracted!")
+    print("# ✓ All models successfully downloaded and extracted!")
 
 elif mode == "uninstall":
     if task_ids is None:

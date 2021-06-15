@@ -7,8 +7,9 @@ class DcmConverterOperator(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  output_format="nrrd",
+                 parallel_processes=3,
                  env_vars=None,
-                 execution_timeout=timedelta(minutes=90),
+                 execution_timeout=timedelta(hours=10),
                  *args, **kwargs
                  ):
 
@@ -17,6 +18,7 @@ class DcmConverterOperator(KaapanaBaseOperator):
 
         envs = {
             "CONVERTTO": output_format,
+            "THREADS": str(parallel_processes),
         }
 
         env_vars.update(envs)
@@ -28,7 +30,7 @@ class DcmConverterOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="{}{}/mitk-fileconverter:2021-02-18-vdev".format(default_registry, default_project),
+            image="{}{}/mitk-fileconverter:2021-02-18-python".format(default_registry, default_project),
             name='dcm-converter',
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],

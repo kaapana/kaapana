@@ -21,9 +21,9 @@ spec:
         imagePullPolicy: {{ .Values.global.imagePullPolicy }}
         resources:
           requests:
-            memory: "100Mi"
+            memory: "10000Mi"
           limits:
-            memory: "10Gi"
+            memory: "10100Mi"
         env:
         - name: NODE_ID
           value: {{ .Values.global.id }}

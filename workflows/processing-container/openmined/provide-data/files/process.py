@@ -88,9 +88,10 @@ def main(args):
     log_info = [{
         'description': 'data_send_to_node',
         'ts': ts,
-        'ts_date': ts_date
+        'ts_date': ts_date,
+        'worker': args.host
     }]
-    filename = os.path.join(args.log_dir, f'{ts_date}-{args.dataset}-logging.json')
+    filename = os.path.join(args.log_dir, f'{ts_date}-{args.dataset}-logging-{args.host}.json')
 
     with open(filename, 'w') as file:
         json.dump(log_info, file, indent=2)

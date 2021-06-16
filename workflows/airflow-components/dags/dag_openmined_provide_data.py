@@ -71,6 +71,6 @@ shutdown_node = ShutdownNodeOperator(
     trigger_rule=TriggerRule.ONE_SUCCESS
     )
 
-clean = LocalWorkflowCleanerOperator(dag=dag)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
 
 get_object_from_minio >> unzip_files >> [run_node, data2node] >> shutdown_node >> clean

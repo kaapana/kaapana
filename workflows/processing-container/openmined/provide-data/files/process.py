@@ -1,5 +1,7 @@
 import os
+import json
 import time
+from datetime import datetime
 
 import syft as sy
 from syft.grid.clients.data_centric_fl_client import DataCentricFLClient
@@ -25,6 +27,10 @@ class Arguments():
         self.dataset = os.getenv('DATASET', 'mnist')
         self.lifespan = int(os.getenv('LIFESPAN', '15'))
         self.data_path = os.path.join(os.environ["WORKFLOW_DIR"], os.environ['OPERATOR_IN_DIR'])
+
+        self.log_dir = os.path.join(os.environ["WORKFLOW_DIR"], 'logging')
+        if not os.path.exists(self.log_dir):
+            os.makedirs(self.log_dir)
 
 
 def main(args):
@@ -75,6 +81,19 @@ def main(args):
     targets_tag = targets.tag('#Y', '#dataset', f"#{args.dataset}", args.exp_tag).describe(targets_description)
     _ =  targets_tag.send(node)
     print(f'Targets send  to node - description: {targets_description}')
+
+    # save timestamp in logs
+    ts = time.time()
+    ts_date = datetime.fromtimestamp(ts).strftime('%Y-%b-%d-%H-%M-%S')
+    log_info = [{
+        'description': 'data_send_to_node',
+        'ts': ts,
+        'ts_date': ts_date
+    }]
+    filename = os.path.join(args.log_dir, f'{ts_date}-{args.dataset}-logging.json')
+
+    with open(filename, 'w') as file:
+        json.dump(log_info, file, indent=2)
 
     # sleeper
     print(f'Providing data for {args.lifespan} minutes ...')

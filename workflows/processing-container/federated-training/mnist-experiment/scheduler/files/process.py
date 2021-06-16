@@ -67,7 +67,7 @@ def inference(model_dir, data_dir, **kwargs):
     # load test data
     dataloader_test = DataLoader(
         dataset= ImageFolder(root=os.path.join(data_dir, 'test'), transform=mnist_transforms['test']),
-        batch_size=32,
+        batch_size=64,
         shuffle=False,
         num_workers=4
     )

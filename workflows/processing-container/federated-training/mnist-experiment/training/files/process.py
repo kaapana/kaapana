@@ -1,4 +1,5 @@
 import os
+import json
 
 import torch
 import torch.nn as nn
@@ -17,8 +18,6 @@ class Arguments():
         '''Set args from envs given by Airflow operator'''
         
         self.host_ip = os.environ['HOST_IP']
-
-        self.logs_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'logs')
         
         self.data_path = os.path.join(os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
         self.train_data_dir = os.path.join(self.data_path, 'train')
@@ -36,6 +35,12 @@ class Arguments():
         if not os.path.exists(self.checkpoints_dir):
             os.makedirs(self.checkpoints_dir)
         
+        self.log_dir = '/data/logs'
+        if not os.path.exists(self.log_dir):
+            os.makedirs(self.log_dir)
+
+        self.tensorboard = '/data/tensorboard'
+
         self.num_workers = 4
         self.log_interval = 100
         self.batch_size = int(os.environ['BATCH_SIZE'])
@@ -47,7 +52,7 @@ class Arguments():
         self.epoch = (self.fed_round * self.n_epochs)
 
 
-def validate(model, dataloader_val, epoch, device, tb_logger):
+def validate(args, model, dataloader_val, epoch, device, tb_logger):
     model.eval()
     val_loss = 0
     correct = 0
@@ -66,11 +71,21 @@ def validate(model, dataloader_val, epoch, device, tb_logger):
         100. * accuracy))
     
     # tensorboad logging
-    tb_logger.add_scalar("Loss (val)", val_loss, epoch)
-    tb_logger.add_scalar("Accuracy (val)", accuracy, epoch)
+    tb_logger.add_scalar("Loss_Validation_Epochs", val_loss, epoch)
+    tb_logger.add_scalar("Accuracy_Validation_Epochs", accuracy, epoch)
 
 
-def train(model, optimizer, dataloader_train, epoch, device, tb_logger):
+def train(args, model, optimizer, dataloader_train, epoch, device, tb_logger):
+    
+    # loading logs file to append
+    filename = os.path.join(args.log_dir, 'mnist_exp_loss_logging_{}.json'.format(args.host_ip))
+    if args.fed_round == 0:
+        loss_logs = []
+    else:
+        loss_logs = json.load(open(filename))
+        print('Loaded loss logs from {}!'.format(filename))
+    
+    # start training
     model.train()
     loss_epoch = 0
     correct = 0
@@ -85,6 +100,21 @@ def train(model, optimizer, dataloader_train, epoch, device, tb_logger):
         loss.backward()
         optimizer.step()
 
+        # log to file
+        current_step = len(loss_logs)
+        log_entry = {
+            'step': current_step,
+            'loss': loss.item,
+            'fed_round': args.fed_round,
+            'epoch': args.epoch,
+            'participant': args.host_ip
+        }
+        loss_logs.append(log_entry)
+    
+        # Tensorboard logging each step
+        tb_logger.add_scalar("Loss_Training_Steps", loss, current_step)    
+        
+        # print training metrics
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(imgs), len(dataloader_train.dataset),
@@ -93,14 +123,16 @@ def train(model, optimizer, dataloader_train, epoch, device, tb_logger):
     loss_epoch /= len(dataloader_train) # divide by number of batches
     accuracy = correct / len(dataloader_train.dataset)
     
+    # save logs list to json file
+    with open(filename, 'w') as file:
+        json.dump(loss_logs, file, indent=2)
+
     # tensorboad logging
-    tb_logger.add_scalar("Loss (train)", loss_epoch, epoch)
-    tb_logger.add_scalar("Accuracy (train)", accuracy, epoch)
+    tb_logger.add_scalar("Loss_Training_Epochs", loss_epoch, epoch)
+    tb_logger.add_scalar("Accuracy_Training_Epochs", accuracy, epoch)
 
 
 def main(args):
-    print('')
-    print('#'*10, 'Training on MNIST', '#'*10)
 
     # logging
     tb_logger = SummaryWriter(
@@ -133,17 +165,17 @@ def main(args):
     model = ClassifierMNIST()
     model.load_state_dict(checkpoint['model'])
     
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    optimizer = torch.optim.SGD(model.parameters(), lr=1.0)
     optimizer.load_state_dict(checkpoint['optimizer']) # <-- overwrites previously set default_lr
 
     # training
     print('Run {} local training epochs'.format(args.n_epochs))
     model.to(device)
     for epoch in range(args.epoch, args.epoch + args.n_epochs):
-        train(model, optimizer, dataloader_train, epoch, device, tb_logger)
+        train(args, model, optimizer, dataloader_train, epoch, device, tb_logger)
         
         if args.validation:
-            validate(model, dataloader_val, epoch, device, tb_logger)
+            validate(args, model, dataloader_val, epoch, device, tb_logger)
     
     tb_logger.flush()
 
@@ -157,4 +189,10 @@ def main(args):
 
 if __name__ == '__main__':
     args = Arguments()
+    print(
+        '########### Training on MNIST ###########',
+        'Federated Round: {}'.format(args.fed_round),
+        'Batch size: {}'.format(args.batch_size),
+        sep='\n'
+    )
     main(args)

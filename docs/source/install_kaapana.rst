@@ -76,11 +76,8 @@ Copy the script to your target-system (server) and **adjust it as described belo
    | **Access to Kaapana binaries:**
    | Before proceeding with further installation steps, make sure you have access to a registry with all Kaapana Binaries. 
    | If not, then please visit the `build page <https://kaapana.readthedocs.io/en/latest/build_kaapana.html#build-modes>`_ and build the platform first, then come back.
-   | **Registry access**
-   | Run the following command to make sure that your login credentials for the registry are working:
-   | :code:`sudo docker login --username <regitsry_username> --password <registry_password> <registry link>`
    
-   **You need to do at least the following customizations:**
+**You need to do at least the following customizations:**
 
 .. tabs::
 
@@ -101,8 +98,8 @@ Copy the script to your target-system (server) and **adjust it as described belo
          ...
 
 
-3. Make it executable with :code:`chmod +x install_platform.sh`
-4. Execute the script:
+1. Make it executable with :code:`chmod +x install_platform.sh`
+2. Execute the script:
 
 .. tabs::
 

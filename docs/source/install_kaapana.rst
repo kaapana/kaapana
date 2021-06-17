@@ -98,8 +98,8 @@ Copy the script to your target-system (server) and **adjust it as described belo
          ...
 
 
-1. Make it executable with :code:`chmod +x install_platform.sh`
-2. Execute the script:
+3. Make it executable with :code:`chmod +x install_platform.sh`
+4. Execute the script:
 
 .. tabs::
 

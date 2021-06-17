@@ -39,6 +39,8 @@ class TriggerRemoteWorkersOperator(KaapanaPythonBaseOperator):
                             'host_ip': participant,
                             'n_epochs': self.epochs_on_worker,
                             'use_cuda': self.use_cuda,
+                            'batch_size': self.batch_size,
+                            'learning_rate': self.learning_rate,
                             'fed_round': self.fed_round,
                             'validation': self.validation,
                             'val_interval': self.val_interval,
@@ -66,6 +68,8 @@ class TriggerRemoteWorkersOperator(KaapanaPythonBaseOperator):
         bucket_name=None,
         scheduler=None,
         epochs_on_worker=None,
+        batch_size=None,
+        learning_rate=None,
         use_cuda=None,
         fed_round=None,
         validation=None,
@@ -82,6 +86,8 @@ class TriggerRemoteWorkersOperator(KaapanaPythonBaseOperator):
 
         # model training operator
         self.epochs_on_worker = epochs_on_worker
+        self.batch_size = batch_size
+        self.learning_rate = learning_rate
         self.use_cuda = use_cuda
         self.fed_round = fed_round
         self.validation = validation

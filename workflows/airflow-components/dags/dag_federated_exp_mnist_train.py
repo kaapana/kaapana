@@ -58,7 +58,7 @@ train_model = TrainingMNISTOperator(
     input_operator=unzip_data,
     host_ip=None,
     epochs=1,
-    batch_size=32,
+    batch_size=64,
     use_cuda=True,
     validation=True
     )

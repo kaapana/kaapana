@@ -24,6 +24,7 @@ data:
     encryption-key: A35EEB8E96F62E562F9966AD68D5B2FC
     enable-authorization-header: true
     enable-authorization-cookie: true
+    enable-login-handler: true
     tls-cert: /ssl/tls.crt
     tls-private-key: /ssl/tls.key
     enable-default-deny: true

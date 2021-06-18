@@ -3,7 +3,7 @@ import json
 import pytz
 import time
 import shutil
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import torch
 import torch.nn.functional as F
@@ -126,12 +126,12 @@ def initialize_model(args):
 
         # save timestamp log
     filename = os.path.join(args.logging, 'federated_exp_logging.json')
-    ts_init = datetime.now(pytz.utc).timestamp()
+    ts_date_init = datetime.now() + timedelta(hours=2)
     log_entry = {
             'description': 'init',
             'fed_round': args.fed_round,
-            'ts': ts_init,
-            'ts_date': datetime.fromtimestamp(ts_init).strftime('%Y-%b-%d-%H-%M-%S')
+            'ts': ts_date_init.timestamp(),
+            'ts_date': ts_date_init.strftime('%Y-%b-%d-%H-%M-%S')
         }
     logs = []
     logs.append(log_entry)

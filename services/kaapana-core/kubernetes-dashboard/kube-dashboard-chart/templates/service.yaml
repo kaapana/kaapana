@@ -10,10 +10,9 @@ metadata:
 spec:
   selector:
     app-name: kubernetes-dashboard
-  type: NodePort
+  type: ClusterIP
   ports:
     - port: 9090
-      nodePort: 9090
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware

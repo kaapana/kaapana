@@ -9,35 +9,6 @@ metadata:
 spec:
   selector:
     app-name: dcm4chee
-{{- if .Values.global.dev_ports }}
-  type: NodePort
-  ports:
-  - name: dcm4che-http
-    port: 8080
-    targetPort: 8080
-    nodePort: 5080
-    protocol: TCP
-  - name: dcm4che-https
-    port: 6443
-    targetPort: 6443
-    nodePort: 5443
-    protocol: TCP
-  - name: dcm4che-admin
-    port: 9990
-    targetPort: 9990
-    nodePort: 5990
-    protocol: TCP
-  - name: dcm4che-dcm-port
-    port: 11115
-    targetPort: 11112
-    nodePort: 5112
-    protocol: TCP
-  - name: dcm4che-hl7-port
-    port: 2575
-    targetPort: 2575
-    nodePort: 2575
-    protocol: TCP
-{{- else }}
   type: ClusterIP
   ports:
   - name: dcm4che-http
@@ -60,7 +31,6 @@ spec:
     port: 2575
     targetPort: 2575
     protocol: TCP
-{{- end }}
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware

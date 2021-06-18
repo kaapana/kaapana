@@ -20,7 +20,7 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env:
           - name: WAIT
-            value: "keycloak,keycloak-service.kube-system.svc,443"
+            value: "keycloak,keycloak-internal-service.kube-system.svc,443"
           - name: DELAY
             value: "3"
           - name: TIMEOUT

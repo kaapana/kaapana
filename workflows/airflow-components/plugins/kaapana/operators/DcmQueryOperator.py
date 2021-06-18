@@ -13,7 +13,7 @@ class DcmQueryOperator(KaapanaBaseOperator):
                  dag,
                  ae_title='NONE',
                  local_ae_title="KAAPANAQR",
-                 pacs_host='ctp-service.flow.svc',
+                 pacs_host='ctp-dicom-service.flow.svc',
                  pacs_port='11112',
                  start_date: date=None,
                  end_date: date=None,

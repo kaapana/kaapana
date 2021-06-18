@@ -11,7 +11,7 @@ from subprocess import PIPE, run
 from elasticsearch import Elasticsearch
 
 tmp_data_dir = "/slow_data_dir/TMP"
-dcm_host = "ctp-service.flow.svc"
+dcm_host = "ctp-dicom-service.flow.svc"
 dcm_port = "11112"
 dcm4chee_host = os.getenv("DCM4CHEE", "http://dcm4chee-service.store.svc:8080")
 aet = os.getenv("AET", "KAAPANA")

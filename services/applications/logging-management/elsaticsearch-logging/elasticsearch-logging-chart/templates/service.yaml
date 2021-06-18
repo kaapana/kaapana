@@ -9,22 +9,12 @@ metadata:
 spec:
   selector:
     app-name: elastic-logging
-{{- if .Values.global.dev_ports }}
-  type: NodePort
-  ports:
-  - name: elastic-log
-    port: 9200
-    targetPort: 9200
-    nodePort: 9300
-    protocol: TCP
-{{- else }}
   type: ClusterIP
   ports:
   - name: elastic-log
     port: 9200
     targetPort: 9200
     protocol: TCP
-{{- end }}
 ---
 # apiVersion: networking.k8s.io/v1beta1
 # kind: Ingress

@@ -282,25 +282,25 @@ function install_chart {
     echo "${GREEN}Installing $PROJECT_NAME:$chart_version${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm install $CHART_PATH \
-    --set global.version="$chart_version" \
-    --set global.hostname="$DOMAIN" \
-    --set global.dev_ports="$DEV_PORTS" \
-    --set global.dev_mode="$DEV_MODE" \
-    --set global.dicom_port="$DICOM_PORT" \
-    --set global.http_port="$HTTP_PORT" \
-    --set global.https_port="$HTTPS_PORT" \
-    --set global.fast_data_dir="$FAST_DATA_DIR" \
-    --set global.slow_data_dir="$SLOW_DATA_DIR" \
-    --set global.home_dir="$HOME" \
-    --set global.pull_policy_jobs="$PULL_POLICY_JOBS" \
-    --set global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
-    --set global.pull_policy_pods="$PULL_POLICY_PODS" \
-    --set global.credentials.registry_username="$REGISTRY_USERNAME" \
-    --set global.credentials.registry_password="$REGISTRY_PASSWORD" \
+    --set-string global.version="$chart_version" \
+    --set-string global.hostname="$DOMAIN" \
+    --set-string global.dev_ports="$DEV_PORTS" \
+    --set-string global.offline_mode="$OFFLINE_MODE" \
+    --set-string global.dicom_port="$DICOM_PORT" \
+    --set-string global.http_port="$HTTP_PORT" \
+    --set-string global.https_port="$HTTPS_PORT" \
+    --set-string global.fast_data_dir="$FAST_DATA_DIR" \
+    --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
+    --set-string global.home_dir="$HOME" \
+    --set-string global.pull_policy_jobs="$PULL_POLICY_JOBS" \
+    --set-string global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
+    --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
+    --set-string global.credentials.registry_username="$CONTAINER_REGISTRY_USERNAME" \
+    --set-string global.credentials.registry_password="$CONTAINER_REGISTRY_PASSWORD" \
+    --set-string global.http_proxy=$http_proxy \
+    --set-string global.https_proxy=$https_proxy \
+    --set-string global.registry_url=$CONTAINER_REGISTRY_URL \
     --set global.gpu_support=$GPU_SUPPORT \
-    --set global.http_proxy=$http_proxy \
-    --set global.https_proxy=$https_proxy \
-    --set global.registry_url=$CONTAINER_REGISTRY_URL \
     --name-template $PROJECT_NAME
 
     if [ ! -z "$REGISTRY_USERNAME" ] && [ ! -z "$REGISTRY_PASSWORD" ]; then

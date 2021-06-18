@@ -15,7 +15,7 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
           - name: WAIT
-            value: "ctp,ctp-service.flow.svc,11112;dcm4che,dcm4chee-service.store.svc,11115;elastic,elastic-meta-service.meta.svc,9200;airflow,airflow-service.flow.svc,8080,/flow/kaapana/api/getdags"
+            value: "ctp,ctp-dicom-service.flow.svc,11112;dcm4che,dcm4chee-service.store.svc,11115;elastic,elastic-meta-service.meta.svc,9200;airflow,airflow-service.flow.svc,8080,/flow/kaapana/api/getdags"
           - name: DELAY
             value: "2"
           - name: TIMEOUT

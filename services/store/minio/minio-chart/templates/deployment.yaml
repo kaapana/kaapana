@@ -23,7 +23,7 @@ spec:
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
-              value: "keycloak,keycloak-service.kube-system.svc,443"
+              value: "keycloak,keycloak-internal-service.kube-system.svc,443"
             - name: DELAY
               value: "3"
             - name: TIMEOUT
@@ -43,7 +43,7 @@ spec:
         # - name: MINIO_IDENTITY_OPENID_JWKS_URL
         #  value: https://vm-129-6.cloud.dkfz-heidelberg.de/auth/realms/kaapana/protocol/openid-connect/certs
         - name: MINIO_IDENTITY_OPENID_CONFIG_URL
-          value: "http://keycloak-service.kube-system.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
+          value: "http://keycloak-external-service.kube-system.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
         # Minio access key and secret key
         - name: MINIO_ACCESS_KEY
           value: {{ .Values.global.credentials.minio_username }}

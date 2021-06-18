@@ -3,8 +3,12 @@ apiVersion: v1
 data:
   louketo.cfg: |-
     client-secret: 1c4645f0-e654-45a1-a8b6-cf28790104ea # require for access_type: confidential
+{{- if ne (.Values.global.https_port | default "443") "443" }}
+    discovery-url: http://{{ required "A valid hostname (or fqdn) is required!" $.Values.global.hostname }}:{{ .Values.global.auth_node_port }}/auth/realms/kaapana
+{{- else }}
     discovery-url: http://{{ required "A valid hostname (or fqdn) is required!" .Values.global.hostname }}/auth/realms/kaapana
-    openid-provider-proxy: https://keycloak-service.kube-system.svc:443
+{{- end }}
+    openid-provider-proxy: https://keycloak-internal-service.kube-system.svc:443
     client-id: kaapana
     skip-token-verification: false
     forbidden-page: /app/access-denied.html

@@ -20,9 +20,10 @@ global:
         keycloak_admin_password: "KaapanA"
         keycloak_user_username: "admin"
         keycloak_user_password: "KaapanA"
-    dicom_port: 11112
-    http_port: 80
-    https_port: 443
+    dicom_port: "11112"
+    http_port: "80"
+    https_port: "443"
+    auth_node_port: "8000"
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana
     default_base_requests_mem: "50Mi"

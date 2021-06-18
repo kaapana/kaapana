@@ -12,7 +12,7 @@ class DcmSendOperator(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  ae_title='NONE',
-                 pacs_host='ctp-service.flow.svc',
+                 pacs_host='ctp-dicom-service.flow.svc',
                  pacs_port='11112',
                  env_vars=None,
                  level='element',

@@ -2,7 +2,3 @@
 global:
     pull_policy_pods: "IfNotPresent"
     fast_data_dir: /home/kaapana
-    http_port: 80
-    https_port: 8443
-    dicom_port: 11112
-    traefik_nodeport: false

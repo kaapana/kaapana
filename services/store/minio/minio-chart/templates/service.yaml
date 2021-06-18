@@ -9,20 +9,11 @@ metadata:
 spec:
   selector:
     app-name: minio
-{{- if .Values.global.dev_ports }}
-  type: NodePort
-  ports:
-    - port: 9000
-      protocol: TCP
-      targetPort: 9000
-      nodePort: 9000
-{{- else }}
   type: ClusterIP
   ports:
     - port: 9000
       protocol: TCP
       targetPort: 9000
-{{- end }}
 ---
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress

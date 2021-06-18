@@ -1,5 +1,6 @@
 import os
 import json
+import pytz
 import time
 import shutil
 from datetime import datetime
@@ -126,7 +127,7 @@ def initialize_model(args):
 
     # save timestamp log
     filename = os.path.join(args.logging, 'federated_exp_logging.json')
-    ts_init = time.time()
+    ts_init = datetime.now(pytz.utc).timestamp()
     log_entry = {
             'description': 'init',
             'fed_round': args.fed_round,

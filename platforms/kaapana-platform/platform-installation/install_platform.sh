@@ -25,17 +25,17 @@ PULL_POLICY_OPERATORS="IfNotPresent"
 DEV_PORTS="false"
 GPU_SUPPORT="false"
 
+if [ "$DEV_MODE" == "true" ]; then
+    PULL_POLICY_PODS="Always"
+    PULL_POLICY_JOBS="Always"
+    PULL_POLICY_OPERATORS="Always"
+fi
+
 if [ "$OFFLINE_MODE" == "true" ]; then
     DEV_MODE="false"
     PULL_POLICY_PODS="Never"
     PULL_POLICY_JOBS="Never"
     PULL_POLICY_OPERATORS="Never"
-fi
-
-if [ "$DEV_MODE" == "true" ]; then
-    PULL_POLICY_PODS="Always"
-    PULL_POLICY_JOBS="Always"
-    PULL_POLICY_OPERATORS="Always"
 fi
 
 if [ -z ${http_proxy+x} ] || [ -z ${https_proxy+x} ]; then

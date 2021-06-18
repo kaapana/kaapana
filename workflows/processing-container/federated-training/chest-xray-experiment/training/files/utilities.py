@@ -13,7 +13,7 @@ class ResNet18(nn.Module):
         self.num_classes = num_classes
 
         self.feature_extractor = models.resnet18(pretrained=False)
-        num_ftrs = self.feature_extractor.fc.in_features
+        num_ftrs = self.feature_extractor.fc.in_features # 512
         self.feature_extractor.fc = nn.Linear(num_ftrs, self.num_classes)
 
     def forward(self, x):

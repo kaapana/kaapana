@@ -1,5 +1,5 @@
 import os
-
+import json
 import glob
 from zipfile import ZipFile
 
@@ -20,27 +20,35 @@ class Arguments():
         '''Set args from envs given by Airflow operator'''
         
         self.host_ip = os.environ['HOST_IP']
-
-        self.logs_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'logs')
         
         self.data_path = os.path.join(os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
         self.train_data_dir = os.path.join(self.data_path, 'train')
         self.val_data_dir = os.path.join(self.data_path, 'val')
+
+        # logging
+        self.tb_logging = os.path.join(os.environ['WORKFLOW_DIR'], 'logs') # <- will be send to scheduler
+
+        self.logging = '/models/logging'
+        if not os.path.exists(self.logging):
+            os.makedirs(self.logging)
         
+        # contains global model received from scheduler
         self.model_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'model')
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
         
+        # saves trained model - will be send to scheduler
         self.model_cache = os.path.join(os.environ['WORKFLOW_DIR'], 'cache')
         if not os.path.exists(self.model_cache):
             os.makedirs(self.model_cache)
         
+        # saves checkpoint into local minio - NOT USED HERE!
         self.checkpoints_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'checkpoints')
         if not os.path.exists(self.checkpoints_dir):
             os.makedirs(self.checkpoints_dir)
         
         self.num_workers = 4
-        self.log_interval = 10
+        self.log_interval = 50
         self.batch_size = int(os.environ['BATCH_SIZE'])
         self.use_cuda = (os.environ.get('USE_CUDA', 'False') == 'True')
         self.validation = (os.environ.get('VALIDATION', 'False') == 'True')
@@ -69,11 +77,21 @@ def validate(model, dataloader_val, epoch, device, tb_logger):
         100. * accuracy))
     
     # tensorboad logging
-    tb_logger.add_scalar("Loss (val)", val_loss, epoch)
-    tb_logger.add_scalar("Accuracy (val)", accuracy, epoch)
+    tb_logger.add_scalar("Loss_Validation_Epochs", val_loss, epoch)
+    tb_logger.add_scalar("Accuracy_Validation_Epochs", accuracy, epoch)
 
 
 def train(model, optimizer, dataloader_train, epoch, device, tb_logger):
+
+    # loading logs file to append
+    filename = os.path.join(args.logging, 'mnist_exp_loss_logging_{}.json'.format(args.host_ip))
+    if args.fed_round == 0:
+        loss_logs = []
+    else:
+        loss_logs = json.load(open(filename))
+        print('Loaded loss logs from {}!'.format(filename))
+
+    # start training
     model.train()
     loss_epoch = 0
     correct = 0
@@ -88,6 +106,21 @@ def train(model, optimizer, dataloader_train, epoch, device, tb_logger):
         loss.backward()
         optimizer.step()
 
+        # log to file
+        current_step = len(loss_logs)
+        log_entry = {
+            'step': current_step,
+            'loss': loss.item(),
+            'fed_round': args.fed_round,
+            'epoch': args.epoch,
+            'participant': args.host_ip
+        }
+        loss_logs.append(log_entry)
+
+        # Tensorboard logging each step
+        tb_logger.add_scalar("Loss_Training_Steps", loss, current_step) 
+        
+        # print training metrics
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(imgs), len(dataloader_train.dataset),
@@ -96,16 +129,20 @@ def train(model, optimizer, dataloader_train, epoch, device, tb_logger):
     loss_epoch /= len(dataloader_train) # divide by number of batches
     accuracy = correct / len(dataloader_train.dataset)
     
+    # save logs list to json file
+    with open(filename, 'w') as file:
+        json.dump(loss_logs, file, indent=2)
+
     # tensorboad logging
-    tb_logger.add_scalar("Loss (train)", loss_epoch, epoch)
-    tb_logger.add_scalar("Accuracy (train)", accuracy, epoch)
+    tb_logger.add_scalar("Loss_Training_Epochs", loss_epoch, epoch)
+    tb_logger.add_scalar("Accuracy_Training_Epochs", accuracy, epoch)
 
 
 def main(args):
 
     # logging
     tb_logger = SummaryWriter(
-        log_dir='{}/participant-{}'.format(args.logs_dir, args.host_ip),
+        log_dir='{}/participant-{}'.format(args.tb_logging, args.host_ip),
         filename_suffix='-fed_round_{}'.format(args.fed_round)
     )
 

@@ -16,6 +16,10 @@ class ResNet18(nn.Module):
         self.num_classes = num_classes
 
         self.feature_extractor = models.resnet18(pretrained=False)
+        
+        self.feature_extractor.load_state_dict(torch.load('resnet18_pretrained.pt'))
+        print('Loaded pre-trained ResNet18 state dict!')
+
         num_ftrs = self.feature_extractor.fc.in_features
         self.feature_extractor.fc = nn.Linear(num_ftrs, self.num_classes)
 

@@ -1,5 +1,8 @@
 import os
 
+import glob
+from zipfile import ZipFile
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -99,14 +102,17 @@ def train(model, optimizer, dataloader_train, epoch, device, tb_logger):
 
 
 def main(args):
-    print('')
-    print('#'*10, 'Training on Chest-Xray data', '#'*10)
 
     # logging
     tb_logger = SummaryWriter(
         log_dir='{}/participant-{}'.format(args.logs_dir, args.host_ip),
         filename_suffix='-fed_round_{}'.format(args.fed_round)
     )
+
+    # unzip data (faster then unzip-operator)
+    for file in [file for file in glob.glob(args.data_path + '/*.zip')]:
+        with ZipFile(file) as zipObj:
+            zipObj.extractall(args.data_path)
 
     # check for cuda
     device = torch.device('cuda' if args.use_cuda and torch.cuda.is_available() else 'cpu')
@@ -156,4 +162,11 @@ def main(args):
 
 if __name__ == '__main__':
     args = Arguments()
+    print(
+        '########### Training on Chest X-ray ###########',
+        'Federated Round: {}'.format(args.fed_round),
+        'Batch size: {}'.format(args.batch_size),
+        sep='\n'
+    )
+
     main(args)

@@ -5,7 +5,6 @@ from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-from kaapana.operators.LocalUnzipFileOperator import LocalUnzipFileOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 #from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 # --> TODO: needs option to overwrite its name, so two minio-action-get can be applied
@@ -48,14 +47,9 @@ get_data_from_minio = LocalMinioOperator(
     operator_out_dir='data'
     )
 
-unzip_data = LocalUnzipFileOperator(
-    dag=dag,
-    input_operator=get_data_from_minio
-    )
-
 train_model = TrainingMNISTOperator(
     dag=dag,
-    input_operator=unzip_data,
+    input_operator=get_data_from_minio,
     host_ip=None,
     epochs=1,
     batch_size=64,
@@ -75,4 +69,4 @@ pass_on_model = LocalMinioOperator(
 
 cleanup = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
  
-[get_model_from_minio, get_data_from_minio >> unzip_data] >> train_model >> pass_on_model >> cleanup
+[get_model_from_minio, get_data_from_minio] >> train_model >> pass_on_model >> cleanup

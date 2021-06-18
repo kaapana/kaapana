@@ -65,10 +65,10 @@ init_model = ExperimentChestXrayOperator(
 
 clear_minio = LocalMinioOperator(
     dag=dag,
-    name='clear-minio',
+    name='clear-minio-model-cache',
     action='remove',
     bucket_name='federated-exp-chest-xray',
-    action_operator_dirs=['cache', 'model']
+    action_operator_dirs=['cache']
 )
 
 model_to_minio = LocalMinioOperator(
@@ -78,7 +78,7 @@ model_to_minio = LocalMinioOperator(
     bucket_name='federated-exp-chest-xray',
     action_operator_dirs=['model', 'checkpoints'],
     operator_out_dir='model',
-    trigger_rule=TriggerRule.ONE_SUCCESS
+    trigger_rule=TriggerRule.NONE_FAILED
 )
 
 trigger_remote_dags = TriggerRemoteWorkersOperator(
@@ -107,7 +107,8 @@ pull_models_from_minio = LocalMinioOperator(
     action='get',
     bucket_name='federated-exp-chest-xray',
     action_operator_dirs=['cache'],
-    operator_out_dir='cache'
+    operator_out_dir='cache',
+    trigger_rule=TriggerRule.ALL_SUCCESS
 )
 
 process_models = ExperimentChestXrayOperator(
@@ -137,6 +138,6 @@ final_model_to_minio = LocalMinioOperator(
 
 cleanup = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-entrypoint >> branching >> [init_model, clear_minio, final_model_to_minio]
-init_model >> model_to_minio >> trigger_remote_dags >> wait_for_models >> pull_models_from_minio >> process_models >> trigger_myself >> cleanup
-clear_minio >> model_to_minio >> trigger_remote_dags >> wait_for_models >> pull_models_from_minio >> process_models >> trigger_myself >> cleanup
+entrypoint >> branching >> [init_model, model_to_minio, final_model_to_minio] 
+init_model >> model_to_minio
+model_to_minio >> [clear_minio, trigger_remote_dags] >> wait_for_models >> pull_models_from_minio >> process_models >> trigger_myself >> cleanup

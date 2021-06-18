@@ -1,6 +1,9 @@
 import os
 import json
 
+import glob
+from zipfile import ZipFile
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -22,24 +25,28 @@ class Arguments():
         self.data_path = os.path.join(os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
         self.train_data_dir = os.path.join(self.data_path, 'train')
         self.val_data_dir = os.path.join(self.data_path, 'val')
+
+        # logging
+        self.tb_logging = os.path.join(os.environ['WORKFLOW_DIR'], 'logs') # <- will be send to scheduler
         
+        self.logging = '/models/logging'
+        if not os.path.exists(self.logging):
+            os.makedirs(self.logging)
+        
+        # contains global model received from scheduler
         self.model_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'model')
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
         
+        # saves trained model - will be send to scheduler
         self.model_cache = os.path.join(os.environ['WORKFLOW_DIR'], 'cache')
         if not os.path.exists(self.model_cache):
             os.makedirs(self.model_cache)
         
+        # saves checkpoint into local minio - NOT USED HERE!
         self.checkpoints_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'checkpoints')
         if not os.path.exists(self.checkpoints_dir):
             os.makedirs(self.checkpoints_dir)
-        
-        self.log_dir = '/data/logs'
-        if not os.path.exists(self.log_dir):
-            os.makedirs(self.log_dir)
-
-        self.tensorboard = '/data/tensorboard'
 
         self.num_workers = 4
         self.log_interval = 100
@@ -78,7 +85,7 @@ def validate(args, model, dataloader_val, epoch, device, tb_logger):
 def train(args, model, optimizer, dataloader_train, epoch, device, tb_logger):
     
     # loading logs file to append
-    filename = os.path.join(args.log_dir, 'mnist_exp_loss_logging_{}.json'.format(args.host_ip))
+    filename = os.path.join(args.logging, 'mnist_exp_loss_logging_{}.json'.format(args.host_ip))
     if args.fed_round == 0:
         loss_logs = []
     else:
@@ -104,7 +111,7 @@ def train(args, model, optimizer, dataloader_train, epoch, device, tb_logger):
         current_step = len(loss_logs)
         log_entry = {
             'step': current_step,
-            'loss': loss.item,
+            'loss': loss.item(),
             'fed_round': args.fed_round,
             'epoch': args.epoch,
             'participant': args.host_ip
@@ -136,9 +143,14 @@ def main(args):
 
     # logging
     tb_logger = SummaryWriter(
-        log_dir='{}/participant-{}'.format(args.logs_dir, args.host_ip),
+        log_dir='{}/participant-{}'.format(args.tb_logging, args.host_ip),
         filename_suffix='-fed_round_{}'.format(args.fed_round)
     )
+
+    # unzip data (faster then unzip-operator)
+    for file in [file for file in glob.glob(args.data_path + '/*.zip')]:
+        with ZipFile(file) as zipObj:
+            zipObj.extractall(args.data_path)
 
     # check for cuda
     device = torch.device('cuda' if args.use_cuda and torch.cuda.is_available() else 'cpu')
@@ -167,6 +179,7 @@ def main(args):
     
     optimizer = torch.optim.SGD(model.parameters(), lr=1.0)
     optimizer.load_state_dict(checkpoint['optimizer']) # <-- overwrites previously set default_lr
+    print('Optimizer:', optimizer)
 
     # training
     print('Run {} local training epochs'.format(args.n_epochs))

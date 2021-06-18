@@ -2,6 +2,7 @@ import os
 import json
 import time
 import shutil
+from datetime import datetime
 
 import torch
 import torch.nn.functional as F
@@ -25,21 +26,29 @@ class Arguments():
         self.inference = (os.environ.get('INFERENCE', 'False') == 'True')
         self.procedure = os.environ.get('PROCEDURE')
         
-        # directories
         self.workflow_dir = os.environ['WORKFLOW_DIR']
         
+        # model where processed/averaged model is saved
         self.model_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'model')
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
         
+        # directory where incoming models are saved (by workers)
         self.model_cache = os.path.join(os.environ['WORKFLOW_DIR'], 'cache')
         if not os.path.exists(self.model_cache):
             os.makedirs(self.model_cache)
         
+        # local directory for model checkpoints
         self.checkpoints_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'checkpoints')
         if not os.path.exists(self.checkpoints_dir):
             os.makedirs(self.checkpoints_dir)
         
+        # timestamp logging
+        self.logging = '/models/logging'
+        if not os.path.exists(self.logging):
+            os.makedirs(self.logging)
+        
+        # data with test data (i.e for global inference)
         if self.inference:
             self.data_dir = os.path.join(os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
         
@@ -58,6 +67,7 @@ class Arguments():
 
 def inference(model_dir, data_dir, **kwargs):
     """Applies federated trained model on test data"""
+    print('#####', 'Inference', '#####')
 
     # load trained model
     print('Loading trained model')
@@ -71,6 +81,7 @@ def inference(model_dir, data_dir, **kwargs):
         shuffle=False,
         num_workers=4
     )
+    print('Size test dataset: {}'.format(len(dataloader_test.dataset)))
 
     print('Running inference on test data')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -90,12 +101,12 @@ def inference(model_dir, data_dir, **kwargs):
     loss /= len(dataloader_test.dataset)
     accuracy = correct / len(dataloader_test.dataset)
     
-    print('Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+    print('Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.3f}%)\n'.format(
         loss, correct, len(dataloader_test.dataset),
         100. * accuracy))
 
 
-def initialize_model(model_dir, checkpoints_dir, **kwargs):
+def initialize_model(args):
     """Reads given lr and creates intial model"""
     
     # initialize model
@@ -109,9 +120,25 @@ def initialize_model(model_dir, checkpoints_dir, **kwargs):
         'optimizer': optimizer.state_dict()
     }
     print('Saving initial model for further processing')
-    torch.save(model_checkpoint, os.path.join(model_dir, 'model_checkpoint.pt'))
+    torch.save(model_checkpoint, os.path.join(args.model_dir, 'model_checkpoint.pt'))
     print('Saving initial model to checkpoints directory')
-    torch.save(model_checkpoint, os.path.join(checkpoints_dir, '{}-checkpoint_initial.pt'.format(time.strftime("%Y%m%d-%H%M%S"))))
+    torch.save(model_checkpoint, os.path.join(args.checkpoints_dir, '{}-checkpoint_initial.pt'.format(time.strftime("%Y%m%d-%H%M%S"))))
+
+    # save timestamp log
+    filename = os.path.join(args.logging, 'federated_exp_logging.json')
+    ts_init = time.time()
+    log_entry = {
+            'description': 'init',
+            'fed_round': args.fed_round,
+            'ts': ts_init,
+            'ts_date': datetime.fromtimestamp(ts_init).strftime('%Y-%b-%d-%H-%M-%S')
+        }
+    logs = []
+    logs.append(log_entry)
+
+    with open(filename, 'w') as file:
+        json.dump(logs, file, indent=2)
+    print('Saved initialization timestamp!')
 
 
 def main(args):
@@ -172,7 +199,7 @@ if __name__ == '__main__':
     args = Arguments()
     
     if args.initialize_model:
-        initialize_model(**args.__dict__)
+        initialize_model(args)
     elif args.inference:
         inference(**args.__dict__)
     else:

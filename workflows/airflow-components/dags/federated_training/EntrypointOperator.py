@@ -24,7 +24,7 @@ class EntrypointOperator(KaapanaPythonBaseOperator):
                 successor = 'final-model-to-minio'
             else:
                 print('Continue with federated Training round!')
-                successor = 'clear-minio'
+                successor = 'clear-minio-model-cache'
 
         # push information for branching operator
         print('Successor:', successor)

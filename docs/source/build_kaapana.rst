@@ -130,7 +130,7 @@ Before you start the build-process, you should have a look at the build-configur
          log_level: "WARN"
          build_containers: true
          push_containers: false
-		   push_dev_containers_only: false
+         push_dev_containers_only: false
          build_charts: true
          push_charts: false
          create_package: true
@@ -148,7 +148,7 @@ Before you start the build-process, you should have a look at the build-configur
          log_level: "WARN"
          build_containers: true
          push_containers: true
-		   push_dev_containers_only: false
+         push_dev_containers_only: false
          build_charts: true
          push_charts: true
          create_package: false

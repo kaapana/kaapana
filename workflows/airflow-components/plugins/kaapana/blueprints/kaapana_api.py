@@ -84,9 +84,9 @@ def trigger_dag(dag_id):
         query = tmp_conf["query"]
         index = tmp_conf["index"]
         dag_id = tmp_conf["dag"]
-        form_data = tmp_conf["form_data"]
+        form_data = tmp_conf["form_data"] if "form_data" in tmp_conf else None
         cohort_limit = int(tmp_conf["cohort_limit"] if "cohort_limit" in tmp_conf else None)
-        single_execution = True if "single_execution" in form_data and form_data["single_execution"] else False
+        single_execution = True if form_data is not None and "single_execution" in form_data and form_data["single_execution"] else False
 
         print(f"query: {query}")
         print(f"index: {index}")

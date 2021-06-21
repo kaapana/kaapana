@@ -84,7 +84,7 @@ def validate(model, dataloader_val, epoch, device, tb_logger):
 def train(model, optimizer, dataloader_train, epoch, device, tb_logger):
 
     # loading logs file to append
-    filename = os.path.join(args.logging, 'mnist_exp_loss_logging_{}.json'.format(args.host_ip))
+    filename = os.path.join(args.logging, 'chest_xray_exp_loss_logging_{}.json'.format(args.host_ip))
     if args.fed_round == 0:
         loss_logs = []
     else:

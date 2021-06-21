@@ -135,8 +135,9 @@ if __name__ == '__main__':
     print("build_charts: {}".format(build_charts))
     print("push_charts: {}".format(push_charts))
 
-    if configuration["http_proxy"] == "":
-        http_proxy = os.environ.get("http_proxy", "")
+    http_proxy = configuration["http_proxy"]
+    if http_proxy == "":
+        http_proxy = os.environ.get("http_proxy", "")    
 
     if http_proxy == "":
         print("no proxy configured...")

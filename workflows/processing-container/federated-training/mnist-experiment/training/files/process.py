@@ -73,7 +73,7 @@ def validate(args, model, dataloader_val, epoch, device, tb_logger):
     val_loss /= len(dataloader_val.dataset)
     accuracy = correct / len(dataloader_val.dataset)
     
-    print('Validation set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+    print('Validation set: Average loss: {:.4f}, Accuracy: {}/{} ({:.3f}%)\n'.format(
         val_loss, correct, len(dataloader_val.dataset),
         100. * accuracy))
     
@@ -164,12 +164,13 @@ def main(args):
         num_workers=args.num_workers
     )
     
-    dataloader_val = DataLoader(
-        dataset= ImageFolder(root=args.val_data_dir, transform=mnist_transforms['val']),
-        batch_size=args.batch_size,
-        shuffle=False,
-        num_workers=args.num_workers
-    )
+    if args.validation:
+        dataloader_val = DataLoader(
+            dataset= ImageFolder(root=args.val_data_dir, transform=mnist_transforms['val']),
+            batch_size=args.batch_size,
+            shuffle=False,
+            num_workers=args.num_workers
+        )
 
     # model & optimizer
     checkpoint = torch.load(os.path.join(args.model_dir, 'model_checkpoint.pt'))

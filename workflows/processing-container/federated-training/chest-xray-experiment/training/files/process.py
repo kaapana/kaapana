@@ -163,12 +163,13 @@ def main(args):
         num_workers=args.num_workers
     )
     
-    dataloader_val = DataLoader(
-        dataset= ImageFolder(root=args.val_data_dir, transform=xray_transforms['val']),
-        batch_size=args.batch_size,
-        shuffle=False,
-        num_workers=args.num_workers
-    )
+    if args.validation:
+        dataloader_val = DataLoader(
+            dataset= ImageFolder(root=args.val_data_dir, transform=xray_transforms['val']),
+            batch_size=args.batch_size,
+            shuffle=False,
+            num_workers=args.num_workers
+        )
 
     # model & optimizer
     checkpoint = torch.load(os.path.join(args.model_dir, 'model_checkpoint.pt'))
@@ -176,7 +177,7 @@ def main(args):
     model = ResNet18()
     model.load_state_dict(checkpoint['model'])
     
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
     optimizer.load_state_dict(checkpoint['optimizer']) # <-- overwrites previously set default_lr
 
     # training

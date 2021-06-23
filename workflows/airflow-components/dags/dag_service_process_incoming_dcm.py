@@ -80,6 +80,7 @@ def process_incoming(ds, **kwargs):
 
     dcm_files = check_all_files_arrived(dcm_path)
     incoming_dcm = pydicom.dcmread(dcm_files[0])
+    dcm_dataset = str(incoming_dcm[0x0012, 0x0020].value).lower() if (0x0012, 0x0020) in incoming_dcm else "N/A"
     incoming_modality = str(incoming_dcm[0x0008, 0x0060].value).lower()
     print("# Check Triggering from trigger_dict...")
     print("#")
@@ -89,7 +90,7 @@ def process_incoming(ds, **kwargs):
         for config_entry in config_list:
             searched_values = [str(each_value).lower() for each_value in config_entry["searched_values"]]
             searched_modality = [str(each_value).lower() for each_value in config_entry["modality"]] if "modality" in config_entry else None
-            dcm_dataset = str(incoming_dcm[0x0012, 0x0020].value).lower() if (0x0012, 0x0020) in incoming_dcm else "N/A"
+
             print("#")
             print(f"# dcm_tag: {dcm_tag}")
             print(f"# dag_ids: {config_entry['dag_ids']}")
@@ -100,8 +101,12 @@ def process_incoming(ds, **kwargs):
             if dcm_tag == "all":
                 for dag_id, conf in config_entry["dag_ids"].items():
                     print("# Triggering 'all'")
-                    trigger_it(dag_id=dag_id, dcm_path=dcm_path, series_uid=series_uid, conf=conf)
-
+                    if dag_id == "service-extract-metadata" or (dcm_dataset != "dicom-test" and dcm_dataset != "phantom-example"):
+                        trigger_it(dag_id=dag_id, dcm_path=dcm_path, series_uid=series_uid, conf=conf)
+            
+            elif dcm_dataset == "dicom-test" or dcm_dataset == "phantom-example":
+                continue
+            
             elif dcm_tag == "dataset" and dcm_dataset in searched_values and (searched_modality is None or incoming_modality in searched_modality):
                 print(f"# Trigger because of dataset-match: {dcm_dataset}")
                 for dag_id, conf in config_entry["dag_ids"].items():

@@ -207,7 +207,7 @@ def trigger_delete_dag(examples_send):
 def send_example():
     print("Unzipping example files")
     example_dir = "/dicom_test_data/phantom"
-    command = ["dcmsend", "+sd", "+r", "-v", dcm_host, dcm_port, "-aet", "example", "-aec", "example", example_dir]
+    command = ["dcmsend", "+sd", "+r", "-v", dcm_host, dcm_port, "-aet", "phantom-example", "-aec", "phantom-example", example_dir]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
     if output.returncode == 0:
         print("############################ success send example")

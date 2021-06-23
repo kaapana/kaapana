@@ -32,19 +32,7 @@
             "modality": [
                 "ct"
             ],
-            "dag_ids": {
-                "nnunet-predict": {
-                    "rest_call": {
-                        "global": {
-                            "task": "Task003_Liver",
-                            "input": "ct",
-                            "targets": "liver,tumor@liver",
-                            "single_execution": true,
-                            "model": "3d_lowres"
-                        }
-                    }
-                }
-            }
+            "dag_ids": {}
         }
     ]
 }

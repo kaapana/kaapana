@@ -1,5 +1,5 @@
 from airflow.operators.python_operator import PythonOperator
-from airflow.models import DAG
+from airflow.models import DAG, DagBag
 from datetime import timedelta
 from airflow.utils.dates import days_ago
 from kaapana.blueprints.kaapana_utils import generate_run_id
@@ -50,8 +50,22 @@ def process_incoming(ds, **kwargs):
         print(f"# conf: {conf}")
         print("#")
         dag_run_id = generate_run_id(dag_id)
-        target = os.path.join("/data", dag_run_id, "batch", series_uid, 'get-input-data')
-        shutil.copytree(src=dcm_path, dst=target)
+        
+        print("# Searching DAG-id in DagBag:")
+        get_input_dir_name = None
+        for dag in DagBag().dags.values():
+            if dag.dag_id == dag_id:
+                print(f"# found dag_id: {dag.dag_id}")
+                for task in dag.tasks:
+                    if "LocalGetInputDataOperator" == task.__class__.__name__:
+                        print(f"# found LocalGetInputDataOperator task: {task.name}")
+                        get_input_dir_name = task.operator_out_dir
+                        target = os.path.join("/data", dag_run_id, "batch", series_uid, get_input_dir_name)
+                        print(f"# Copy data to: {target}")
+                        shutil.copytree(src=dcm_path, dst=target)
+                        print("#")
+                        break
+
         trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
 
     dicom_path = kwargs['dag_run'].conf.get('dicom_path')

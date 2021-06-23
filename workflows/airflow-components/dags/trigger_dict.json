@@ -9,12 +9,29 @@
                     }
                 }
             }
+        },
+        {
+            "searched_values": [],
+            "modality": [
+                "ct"
+            ],
+            "dag_ids": {
+                "racoon-ukf-presegmentation": {
+                    "rest_call": {
+                        "global": {
+                            "single_execution": true
+                        }
+                    }
+                }
+            }
         }
     ],
     "dataset": [
         {
             "searched_values": [],
-            "modality": ["ct"],
+            "modality": [
+                "ct"
+            ],
             "dag_ids": {
                 "nnunet-predict": {
                     "rest_call": {

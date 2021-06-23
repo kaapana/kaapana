@@ -19,4 +19,7 @@ COPY dags/dag_service_clean_up_airflow_logs.py /tmp/dags
 COPY dags/dag_service_sync_dag_db.py /tmp/dags/
 COPY dags/dag_service_clean_tmp_dag_data.py /tmp/dags/
 
+COPY dags/RacoonUkfSeg /tmp/dags/RacoonUkfSeg
+COPY dags/dag_RacoonUkfSeg.py /tmp/dags/
+
 COPY plugins/ /tmp/plugins

@@ -231,7 +231,7 @@ if __name__ == '__main__':
             print("#########################################################################")
             print("")
             for chart in not_ready_list:
-                print(f"Missing dependencies for chat: {chart.name}")
+                print(f"Missing dependencies for chart: {chart.name}")
                 print("")
             print("")
             exit(1)

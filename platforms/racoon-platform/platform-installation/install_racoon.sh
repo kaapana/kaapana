@@ -4,21 +4,22 @@ export HELM_EXPERIMENTAL_OCI=1
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
 PROJECT_NAME="racoon-platform-chart" # name of the platform Helm chart
-DEFAULT_VERSION="0.1.1-vdev"    # version of the platform Helm chart
+DEFAULT_VERSION="0.1.2-dev"    # version of the platform Helm chart
 
 OFFLINE_MODE="false" # true or false
 DEV_MODE="false" # dev-mode -> containers will always be re-downloaded after pod-restart
 
 CONTAINER_REGISTRY_URL="registry.hzdr.de/kaapana/racoon" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
+CONTAINER_REGISTRY_USERNAME=""
+CONTAINER_REGISTRY_PASSWORD=""
 
 FAST_DATA_DIR="/mnt/data" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="/mnt/data" # Directory on the server, where the DICOM images will be stored (can be slower)
 
-CHANGE_HTTPS="true"
-
-HTTP_PORT=80      # not working yet -> has to be 80
-HTTPS_PORT=443    # not working yet -> has to be 443
+HTTP_PORT=80      # -> has to be 80
+HTTPS_PORT=9443    # HTTPS port -> port <AUTH_NODE_PORT> is additionaly needed if the port differs from 443
 DICOM_PORT=11113  # configure DICOM receiver port
+AUTH_NODE_PORT=8081
 
 PULL_POLICY_PODS="IfNotPresent"
 PULL_POLICY_JOBS="IfNotPresent"
@@ -27,17 +28,17 @@ PULL_POLICY_OPERATORS="IfNotPresent"
 DEV_PORTS="false"
 GPU_SUPPORT="false"
 
+if [ "$DEV_MODE" == "true" ]; then
+    PULL_POLICY_PODS="Always"
+    PULL_POLICY_JOBS="Always"
+    PULL_POLICY_OPERATORS="Always"
+fi
+
 if [ "$OFFLINE_MODE" == "true" ]; then
     DEV_MODE="false"
     PULL_POLICY_PODS="Never"
     PULL_POLICY_JOBS="Never"
     PULL_POLICY_OPERATORS="Never"
-fi
-
-if [ "$DEV_MODE" == "true" ]; then
-    PULL_POLICY_PODS="Always"
-    PULL_POLICY_JOBS="Always"
-    PULL_POLICY_OPERATORS="Always"
 fi
 
 if [ -z ${http_proxy+x} ] || [ -z ${https_proxy+x} ]; then
@@ -68,46 +69,6 @@ if test -t 1; then
         WHITE="$(tput bold)$(tput setaf 7)"
     fi
 fi
-
-template_path="./change_port_template.yaml"
-if [ "$CHANGE_HTTPS" == "true" ] && [ ! -f $template_path ] ; then
-    echo -e "${RED} Could not find $template_path -> could not change port! ${NC}" > /dev/stderr;
-    exit 1
-fi
-
-function change_port {
-    echo "Change https port to 9443 ..."
-    custom_yaml_path="./change_port.yaml"
-
-    if [ -z "$DOMAIN" ]; then
-        echo -e "${RED}DOMAIN not set! -> could not change port!";  > /dev/stderr;
-        exit 1
-    else
-        echo -e "${GREEN}Server domain (FQDN): $DOMAIN ${NC}" > /dev/stderr;
-    fi
-
-    if [ ! -f $template_path ] ; then
-        echo -e "${RED} Could not find $template_path -> could not change port! ${NC}" > /dev/stderr;
-        exit 1
-        
-    else
-        echo -e "${GREEN}Template: $template_path found -> create configuration ${NC}" > /dev/stderr;
-        sed "s/<replace-url>/$DOMAIN/" $template_path > $custom_yaml_path
-        echo -e "${GREEN}Deleting existing objects... ${NC}" > /dev/stderr;
-        microk8s.kubectl delete -f $custom_yaml_path
-        echo -e "${GREEN}Apply new port configuration... ${NC}" > /dev/stderr;
-        microk8s.kubectl apply -f $custom_yaml_path
-        echo -e "${GREEN}Restart reverse-proxy... ${NC}" > /dev/stderr;
-        set -e
-        sleep 5
-        louketo_pod=$(microk8s.kubectl get pods -n kube-system |grep louketo  |awk '{print $1;}')
-        sleep 1
-        set +e
-        echo "Louketo pod: $louketo_pod" > /dev/stderr;
-        microk8s.kubectl -n kube-system delete pod $louketo_pod
-        echo -e "${GREEN}Successfully changed HTTPS port to 9443 ! ${NC}" > /dev/stderr;
-    fi
-}
 
 function delete_all_images_docker {
     while true; do
@@ -262,8 +223,8 @@ function prefetch_extensions {
     release_name=prefetch-extensions-chart-$(echo $(uuidgen --hex) | cut -c1-10)
     PREFETCH_CHART_PATH=$(find $FAST_DATA_DIR/charts/helpers/ -name "prefetch-extensions*" -type f)
     helm install $PREFETCH_CHART_PATH\
-    --set global.pull_policy_pods="$PULL_POLICY_PODS" \
-    --set global.registry_url=$CONTAINER_REGISTRY_URL \
+    --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
+    --set-string global.registry_url=$CONTAINER_REGISTRY_URL \
     --wait \
     --atomic \
     --timeout 15m0s \
@@ -289,8 +250,8 @@ function install_chart {
         PULL_POLICY_JOBS="IfNotPresent"
         PULL_POLICY_OPERATORS="IfNotPresent"
 
-        REGISTRY_USERNAME=""
-        REGISTRY_PASSWORD=""
+        CONTAINER_REGISTRY_USERNAME=""
+        CONTAINER_REGISTRY_PASSWORD=""
         CONTAINER_REGISTRY_URL="local"
         import_containerd
 
@@ -299,8 +260,8 @@ function install_chart {
         echo "${RED}ABORT${NC}"
         exit 1
     elif [ "$OFFLINE_MODE" == "true" ]; then
-        REGISTRY_USERNAME=""
-        REGISTRY_PASSWORD=""
+        CONTAINER_REGISTRY_USERNAME=""
+        CONTAINER_REGISTRY_PASSWORD=""
         echo "${YELLOW}Installing the platform in offline mode${NC}"
     else    
         echo "${YELLOW}Helm login registry...${NC}"
@@ -341,39 +302,36 @@ function install_chart {
     echo "${GREEN}Installing $PROJECT_NAME:$chart_version${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm install $CHART_PATH \
-    --set global.version="$chart_version" \
-    --set global.hostname="$DOMAIN" \
-    --set global.dev_ports="$DEV_PORTS" \
-    --set global.offline_mode="$OFFLINE_MODE" \
-    --set global.dicom_port="$DICOM_PORT" \
-    --set global.http_port="$HTTP_PORT" \
-    --set global.https_port="$HTTPS_PORT" \
-    --set global.fast_data_dir="$FAST_DATA_DIR" \
-    --set global.slow_data_dir="$SLOW_DATA_DIR" \
-    --set global.home_dir="$HOME" \
-    --set global.pull_policy_jobs="$PULL_POLICY_JOBS" \
-    --set global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
-    --set global.pull_policy_pods="$PULL_POLICY_PODS" \
-    --set global.credentials.registry_username="$REGISTRY_USERNAME" \
-    --set global.credentials.registry_password="$REGISTRY_PASSWORD" \
+    --set-string global.version="$chart_version" \
+    --set-string global.hostname="$DOMAIN" \
+    --set-string global.dev_ports="$DEV_PORTS" \
+    --set-string global.offline_mode="$OFFLINE_MODE" \
+    --set-string global.dicom_port="$DICOM_PORT" \
+    --set-string global.http_port="$HTTP_PORT" \
+    --set-string global.https_port="$HTTPS_PORT" \
+    --set-string global.auth_node_port="$AUTH_NODE_PORT" \
+    --set-string global.fast_data_dir="$FAST_DATA_DIR" \
+    --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
+    --set-string global.home_dir="$HOME" \
+    --set-string global.pull_policy_jobs="$PULL_POLICY_JOBS" \
+    --set-string global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
+    --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
+    --set-string global.credentials.registry_username="$CONTAINER_REGISTRY_USERNAME" \
+    --set-string global.credentials.registry_password="$CONTAINER_REGISTRY_PASSWORD" \
+    --set-string global.http_proxy=$http_proxy \
+    --set-string global.https_proxy=$https_proxy \
+    --set-string global.registry_url=$CONTAINER_REGISTRY_URL \
     --set global.gpu_support=$GPU_SUPPORT \
-    --set global.http_proxy=$http_proxy \
-    --set global.https_proxy=$https_proxy \
-    --set global.registry_url=$CONTAINER_REGISTRY_URL \
     --name-template $PROJECT_NAME
 
-    if [ ! -z "$REGISTRY_USERNAME" ] && [ ! -z "$REGISTRY_PASSWORD" ]; then
+    if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm -rf $CHART_PATH
-    fi
-
-    if [ "$CHANGE_HTTPS" == "true" ]; then
-        change_port
     fi
 
     print_installation_done
     
-    REGISTRY_USERNAME=""
-    REGISTRY_PASSWORD=""
+    CONTAINER_REGISTRY_USERNAME=""
+    CONTAINER_REGISTRY_PASSWORD=""
 }
 
 
@@ -415,13 +373,13 @@ function upgrade_chart {
     echo "${YELLOW}Upgrading release: $PROJECT_NAME ${NC}"
     echo "${YELLOW}version: $chart_version${NC}"
     
-    if [ ! -z "$REGISTRY_USERNAME" ] && [ ! -z "$REGISTRY_PASSWORD" ]; then
+    if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         CHART_PATH=$HOME/$PROJECT_NAME
         pull_chart
     fi
     echo -e "${YELLOW}Charyt-tgz-path $CHART_PATH${NC}"
-    helm upgrade $PROJECT_NAME $CHART_PATH --devel --version $chart_version --set global.version="$chart_version" --reuse-values 
-    if [ ! -z "$REGISTRY_USERNAME" ] && [ ! -z "$REGISTRY_PASSWORD" ]; then
+    helm upgrade $PROJECT_NAME $CHART_PATH --devel --version $chart_version --set-string global.version="$chart_version" --reuse-values 
+    if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm -rf $CHART_PATH
     fi
     print_installation_done
@@ -429,16 +387,16 @@ function upgrade_chart {
 
 function check_credentials {
     while true; do
-        if [ ! -v REGISTRY_USERNAME ] || [ ! -v REGISTRY_PASSWORD ]; then
+        if [ ! -v CONTAINER_REGISTRY_USERNAME ] || [ ! -v CONTAINER_REGISTRY_PASSWORD ]; then
             echo -e "${YELLOW}Please enter the credentials for the Container-Registry!${NC}"
-            read -e -p '**** username: ' -i " racoon" REGISTRY_USERNAME
-            read -p '**** password: ' REGISTRY_PASSWORD
+            read -p '**** username: ' CONTAINER_REGISTRY_USERNAME
+            read -s -p '**** password: ' CONTAINER_REGISTRY_PASSWORD
         else
             echo -e "${GREEN}Credentials found!${NC}"
             break
         fi
     done
-    helm registry login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD ${CONTAINER_REGISTRY_URL}
+    helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD ${CONTAINER_REGISTRY_URL}
 }
 
 function install_certs {
@@ -487,7 +445,7 @@ function print_installation_done {
     echo -e "When all pod are in the \"running\" or \"completed\" state,${NC}"
 
     if [ -v DOMAIN ];then
-        echo -e "${GREEN}you can visit: https://$DOMAIN:9443/"
+        echo -e "${GREEN}you can visit: https://$DOMAIN:$HTTPS_PORT/"
         echo -e "You should be welcomed by the login page."
         echo -e "Initial credentials:"
         echo -e "username: kaapana"
@@ -551,15 +509,15 @@ do
         ;;
 
         -u|--username)
-            REGISTRY_USERNAME="$2"
-            echo -e "${GREEN}SET REGISTRY_USERNAME! $REGISTRY_USERNAME ${NC}";
+            CONTAINER_REGISTRY_USERNAME="$2"
+            echo -e "${GREEN}SET CONTAINER_REGISTRY_USERNAME! $CONTAINER_REGISTRY_USERNAME ${NC}";
             shift # past argument
             shift # past value
         ;;
 
         -p|--password)
-            REGISTRY_PASSWORD="$2"
-            echo -e "${GREEN}SET REGISTRY_PASSWORD!${NC}";
+            CONTAINER_REGISTRY_PASSWORD="$2"
+            echo -e "${GREEN}SET CONTAINER_REGISTRY_PASSWORD!${NC}";
             shift # past argument
             shift # past value
         ;;

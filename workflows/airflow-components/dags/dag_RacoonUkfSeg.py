@@ -35,7 +35,7 @@ dag = DAG(
     dag_id='racoon-ukf-presegmentation',
     default_args=args,
     concurrency=50,
-    max_active_runs=30,
+    max_active_runs=1,
     schedule_interval=None
 )
 

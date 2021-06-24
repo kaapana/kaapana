@@ -88,16 +88,13 @@ class NnUnetOperator(KaapanaBaseOperator):
         }
         env_vars.update(envs)
 
-        training_operator = False
         gpu_mem_mb = None
-
         pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=None)
         if mode == "training" or mode == "inference" or mode == "ensemble":
             if mode == "training":
                 gpu_mem_mb = 11000
             elif mode == "inference" or mode == "ensemble":
                 gpu_mem_mb = 5500
-            training_operator = True
 
         parallel_id = parallel_id if parallel_id is not None else mode
         super().__init__(
@@ -110,7 +107,6 @@ class NnUnetOperator(KaapanaBaseOperator):
             ram_mem_mb=None,
             ram_mem_mb_lmt=None,
             pod_resources=pod_resources,
-            training_operator=training_operator,
             gpu_mem_mb=gpu_mem_mb,
             env_vars=env_vars,
             *args,

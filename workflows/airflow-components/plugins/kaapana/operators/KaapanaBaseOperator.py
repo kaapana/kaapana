@@ -120,7 +120,6 @@ class KaapanaBaseOperator(BaseOperator):
                  startup_timeout_seconds=120,
                  namespace='flow-jobs',
                  image_pull_policy=os.getenv('PULL_POLICY_PODS', 'IfNotPresent'),
-                 training_operator=False,
                  volume_mounts=None,
                  volumes=None,
                  pod_resources=None,
@@ -174,8 +173,6 @@ class KaapanaBaseOperator(BaseOperator):
         self.task_concurrency = task_concurrency
         self.retry_delay = retry_delay
 
-        self.training_operator = training_operator
-
         # Kubernetes
         self.image = image
         self.env_vars = env_vars or {}
@@ -219,7 +216,7 @@ class KaapanaBaseOperator(BaseOperator):
                                                  })
         )
 
-        if self.training_operator:
+        if self.gpu_mem_mb != None or self.gpu_mem_mb_lmt != None:
             self.volume_mounts.append(VolumeMount(
                 'modeldata', mount_path='/models', sub_path=None, read_only=False
             ))

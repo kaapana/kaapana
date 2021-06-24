@@ -15,7 +15,6 @@ class PresegmentationOperator(KaapanaBaseOperator):
             name='pathonomical-segmentation',
             image=f"{default_registry}/nnunet-tuda-ukf:0.1.18",
             execution_timeout=execution_timeout,
-            training_operator=False,
             pod_resources=pod_resources,
             ram_mem_mb=None,
             ram_mem_mb_lmt=None,

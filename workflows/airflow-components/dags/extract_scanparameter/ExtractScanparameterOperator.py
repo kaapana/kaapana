@@ -11,7 +11,7 @@ class ExtractScanparameterOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="{}{}/scanparam2json:0.1.0-vdev".format(default_registry, default_project),
+            image=f"{default_registry}/scanparam2json:0.1.0-vdev",
             name='extract-scanparam',
             image_pull_policy="Always",
             image_pull_secrets=['registry-secret'],

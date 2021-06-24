@@ -27,7 +27,7 @@ class GetEnsembleOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="{}{}/nnunet-get-models:0.1.1-vdev".format(default_registry, default_project),
+            image=f"{default_registry}/nnunet-get-models:0.1.1-vdev",
             name=name,
             operator_out_dir="ensembel-model",
             image_pull_secrets=["registry-secret"],

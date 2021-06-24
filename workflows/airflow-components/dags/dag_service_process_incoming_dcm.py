@@ -101,7 +101,7 @@ def process_incoming(ds, **kwargs):
             if dcm_tag == "all":
                 for dag_id, conf in config_entry["dag_ids"].items():
                     print("# Triggering 'all'")
-                    if dag_id == "service-extract-metadata" or (dcm_dataset != "dicom-test" and dcm_dataset != "phantom-example"):
+                    if (dag_id == "service-extract-metadata" or (dcm_dataset != "dicom-test" and dcm_dataset != "phantom-example")) and (searched_modality is None or incoming_modality in searched_modality):
                         trigger_it(dag_id=dag_id, dcm_path=dcm_path, series_uid=series_uid, conf=conf)
             
             elif dcm_dataset == "dicom-test" or dcm_dataset == "phantom-example":

@@ -40,7 +40,7 @@ class Pdf2DcmOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="{}{}/pdf2dcm:3.6.4-vdev".format(default_registry, default_project),
+            image=f"{default_registry}/pdf2dcm:3.6.4-vdev",
             name="pdf2dcm",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,

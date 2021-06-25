@@ -124,7 +124,7 @@ def initialize_model(args):
     print('Saving initial model to checkpoints directory')
     torch.save(model_checkpoint, os.path.join(args.checkpoints_dir, '{}-checkpoint_initial.pt'.format(time.strftime("%Y%m%d-%H%M%S"))))
 
-        # save timestamp log
+    # save timestamp log
     filename = os.path.join(args.logging, 'federated_exp_logging.json')
     ts_date_init = datetime.now() + timedelta(hours=2)
     log_entry = {

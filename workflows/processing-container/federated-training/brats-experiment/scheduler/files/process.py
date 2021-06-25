@@ -100,7 +100,7 @@ def initialize_model(args):
     log_entry = {
             'description': 'init',
             'fed_round': args.fed_round,
-            'ts': ts_date_init,
+            'ts': ts_date_init.timestamp(),
             'ts_date': ts_date_init.strftime('%Y-%b-%d-%H-%M-%S')
         }
     logs = []

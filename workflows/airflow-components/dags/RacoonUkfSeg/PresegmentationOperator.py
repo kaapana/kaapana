@@ -13,12 +13,13 @@ class PresegmentationOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name='pathonomical-segmentation',
-            image=f"{default_registry}/nnunet-tuda-ukf:0.1.18",
+            # image="erikprescherukf/nnunet-tuda-ukf:0.2.0",
+            image=f"{default_registry}/nnunet-tuda-ukf:0.2.0",
             execution_timeout=execution_timeout,
             pod_resources=pod_resources,
             ram_mem_mb=None,
             ram_mem_mb_lmt=None,
-            gpu_mem_mb=5000,
+            gpu_mem_mb=8000,
             image_pull_secrets=["registry-secret"],
             *args,
             **kwargs

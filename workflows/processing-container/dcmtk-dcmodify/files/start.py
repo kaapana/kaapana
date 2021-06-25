@@ -4,9 +4,6 @@ from os.path import join, exists, dirname, basename
 from glob import glob
 from pathlib import Path
 
-# For multiprocessing -> usually you should scale via multiple containers!
-from multiprocessing.pool import ThreadPool
-
 # For shell-execution
 from subprocess import PIPE, run
 execution_timeout=10
@@ -14,18 +11,18 @@ execution_timeout=10
 # Counter to check if smth has been processed
 processed_count = 0
 
-# Process smth
-def process_input_file(filepath):
-    global processed_count
-
-    processed_count += 1
-    return True, filepath
-
 # Alternative Process smth via shell-command
 def process_input_file(filepath):
-    global processed_count, execution_timeout
+    global processed_count, execution_timeout, dcm_tags_to_modify, new_values
     
-    command = ["echo", "hello world!"]
+    print(f"# Processing dcm-file: {filepath}")
+    command = ["dcmodify"]
+    for i, dcm_tag in enumerate(dcm_tags_to_modify, start=0):
+        print(f"# Adding tag: {dcm_tag}")
+        command.append("-m")
+        command.append(dcm_tag)
+
+    command.append(filepath)
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=execution_timeout)
     # command stdout output -> output.stdout
     # command stderr output -> output.stderr
@@ -74,11 +71,16 @@ operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
 operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
 assert operator_out_dir is not None
 
-boolean_var = getenv("SOME_BOOLEAN_VAR", "False")
-boolean_var = True if boolean_var.lower() == "true" else False
+dcm_tags_to_modify = getenv("DICOM_TAGS_TO_MODIFY", "None")
+dcm_tags_to_modify = dcm_tags_to_modify if dcm_tags_to_modify.lower() != "none" else None
+assert dcm_tags_to_modify is not None
+
+dcm_tags_to_modify = dcm_tags_to_modify.split(";")
+
+
 
 # File-extension to search for in the input-dir
-input_file_extension = "*.nii.gz"
+input_file_extension = "*.dcm"
 
 # How many processes should be started?
 parallel_processes = 3
@@ -91,7 +93,8 @@ print(f"# workflow_dir:     {workflow_dir}")
 print(f"# batch_name:       {batch_name}")
 print(f"# operator_in_dir:  {operator_in_dir}")
 print(f"# operator_out_dir: {operator_out_dir}")
-print(f"# boolean_var:      {boolean_var}")
+print("#")
+print(f"# dcm_tags_to_modify: {dcm_tags_to_modify}")
 print("#")
 print("##################################################")
 print("#")
@@ -129,10 +132,6 @@ for batch_element_dir in batch_folders:
     for input_file in input_files:
         result, input_file = process_input_file(filepath=input_file)
     
-    # Alternative with multi-processing
-    results = ThreadPool(parallel_processes).imap_unordered(process_input_file, input_files)
-    for result, input_file in results:
-        print(f"#  Done: {input_file}")
 
 print("#")
 print("##################################################")
@@ -174,11 +173,6 @@ if processed_count == 0:
         for input_file in input_files:
             result, input_file = process_input_file(filepath=input_file)
         
-        # Alternative with multi-processing
-        results = ThreadPool(parallel_processes).imap_unordered(process_input_file, input_files)
-        for result, input_file in results:
-            print(f"#  Done: {input_file}")
-
     print("#")
     print("##################################################")
     print("#")

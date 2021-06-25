@@ -10,18 +10,17 @@ from torchvision import transforms, models
 
 
 class ResNet18(nn.Module):
-    def __init__(self, channels=3, num_classes=2):
+    def __init__(self, channels=3, num_classes=2, pretrained=False):
         super(ResNet18, self).__init__()
         self.channels = channels
         self.num_classes = num_classes
 
-        self.feature_extractor = models.resnet18(pretrained=False)
-        
-        self.feature_extractor.load_state_dict(torch.load('resnet18_pretrained.pt'))
-        print('Loaded pre-trained ResNet18 state dict!')
-
+        self.feature_extractor = models.resnet18(pretrained=pretrained)
         num_ftrs = self.feature_extractor.fc.in_features
         self.feature_extractor.fc = nn.Linear(num_ftrs, self.num_classes)
+
+        if pretrained:
+            print('Loaded pre-trained ResNet18 state dict!')        
 
     def forward(self, x):
         x = self.feature_extractor(x)

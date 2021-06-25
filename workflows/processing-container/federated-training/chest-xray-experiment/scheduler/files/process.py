@@ -109,8 +109,8 @@ def inference(args):
 def initialize_model(args):
     """Reads given lr and creates intial model"""
     
-    # initialize model
-    model = ResNet18()
+    # initialize model (pretrained on ImageNet)
+    model = ResNet18(pretrained=True)
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr_initial)
     print('Model initialization! (learning rate: {})'.format(args.lr_initial))
 

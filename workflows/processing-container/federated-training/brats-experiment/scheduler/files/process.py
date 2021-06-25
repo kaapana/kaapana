@@ -2,6 +2,7 @@ import os
 import json
 import time
 import shutil
+from datetime import datetime, timedelta
 
 from monai.networks.nets import UNet
 from monai.utils import set_determinism
@@ -39,6 +40,12 @@ class Arguments():
         if not os.path.exists(self.checkpoints_dir):
             os.makedirs(self.checkpoints_dir)
         
+        # timestamp logging
+        self.logging = '/models/logging'
+        if not os.path.exists(self.logging):
+            os.makedirs(self.logging)
+        
+        # data with test data (i.e for global inference)
         if self.inference:
             self.data_dir = os.path.join(os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
         
@@ -84,6 +91,22 @@ def initialize_model(model_dir, checkpoints_dir, **kwargs):
     torch.save(model_checkpoint, os.path.join(model_dir, 'model_checkpoint.pt'))
     print('Saving initial model to checkpoints directory')
     torch.save(model_checkpoint, os.path.join(checkpoints_dir, '{}-checkpoint_initial.pt'.format(time.strftime("%Y%m%d-%H%M%S"))))
+
+    # save timestamp log
+    filename = os.path.join(args.logging, 'federated_exp_logging.json')
+    ts_date_init = datetime.now() + timedelta(hours=2)
+    log_entry = {
+            'description': 'init',
+            'fed_round': args.fed_round,
+            'ts': ts_date_init,
+            'ts_date': ts_date_init.strftime('%Y-%b-%d-%H-%M-%S')
+        }
+    logs = []
+    logs.append(log_entry)
+
+    with open(filename, 'w') as file:
+        json.dump(logs, file, indent=2)
+    print('Saved initialization timestamp!')
 
 
 def inference(model_dir, data_dir, **kwargs):

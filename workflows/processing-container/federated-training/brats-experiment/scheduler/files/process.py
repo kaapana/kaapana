@@ -144,7 +144,7 @@ def main(args):
         
         # get file paths of received models and save the models as backups
         model_file_list = [f'{args.model_cache}/model_checkpoint_from_{participant}.pt' for participant in args.participants]
-        save_checkpoints_before_avg(args, model_file_list)
+        #save_checkpoints_before_avg(args, model_file_list) # <-- not really needed since (best) models are saved on the participants sites
         
         # get state dicts of received models
         model_state_dicts = [torch.load(model)['model'] for model in model_file_list]

@@ -1,14 +1,12 @@
 import os
-import sys
 import json
 import glob
 import re
 import math
 import random
-import pandas as pd
-import numpy as np
 from matplotlib import cm
 import subprocess
+import numpy as np
 import pydicom
 
 processed_count = 0
@@ -169,7 +167,7 @@ def adding_aetitle(element_input_dir, output_dcm_file, body_part):
 
 
 print("Started: 'itkimage2segimage' ")
-DCMQI = '/dcmqi/dcmqi-1.2.3-linux/bin/'
+DCMQI = '/app/dcmqi/bin'
 
 
 # os.environ['BATCH_NAME'] = 'batch'

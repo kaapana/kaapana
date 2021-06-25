@@ -1,16 +1,11 @@
-import sys
 import os
 import glob
-import math
 import json
 import os
-import re
-import pydicom
-from datetime import datetime
 import subprocess
 
 processed_count = 0
-DCMQI = '/dcmqi/dcmqi-1.2.3-linux/bin/'
+DCMQI = '/app/dcmqi/bin'
 
 output_type = os.environ.get('OUTPUT_TYPE', 'nrrd')
 seg_filter = os.environ.get('SEG_FILTER', "")

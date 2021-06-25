@@ -1,0 +1,286 @@
+{
+    "@schema": "https://raw.githubusercontent.com/qiicr/dcmqi/master/doc/schemas/sr-tid1500-schema.json#",
+  
+    "SeriesDescription": "Measurements",
+    "SeriesNumber": "1001",
+    "InstanceNumber": "1",
+  
+    "compositeContext": [
+      "liver.dcm"
+    ],
+  
+    "imageLibrary": [
+      "01.dcm",
+      "02.dcm",
+      "03.dcm"
+    ],
+  
+    "observerContext": {
+      "ObserverType": "DEVICE",
+      "DeviceObserverName": "SecretSauceGenerator",
+      "DeviceObserverManufacturer": "The friends of friends",
+      "DeviceObserverUID": "1.2.3.4"
+    },
+  
+    "VerificationFlag": "UNVERIFIED",
+    "CompletionFlag": "COMPLETE",
+  
+    "activitySession": "1",
+    "timePoint": "1",
+  
+    "Measurements": [
+      {
+        "TrackingIdentifier": "Measurements group 1",
+        "ReferencedSegment": 1,
+        "SourceSeriesForImageSegmentation": "1.2.392.200103.20080913.113635.1.2009.6.22.21.43.10.23430.1",
+        "segmentationSOPInstanceUID": "1.2.276.0.7230010.3.1.4.0.42154.1458337731.665796",
+        "Finding": {
+          "CodeValue": "113343008",
+          "CodingSchemeDesignator": "SCT",
+          "CodeMeaning": "Organ"
+        },
+        "FindingSite": {
+          "CodeValue": "10200004",
+          "CodingSchemeDesignator": "SCT",
+          "CodeMeaning": "Liver"
+        },
+        "measurementAlgorithmIdentification": {
+          "AlgorithmName": "3D Slicer Editor effect (group level)",
+          "AlgorithmVersion": "4.6 (group level)",
+          "AlgorithmParameters": ["gamma: 2 (group level)"]
+        },
+        "measurementItems": [
+          {
+            "value": "37.3289",
+            "quantity": {
+              "CodeValue": "112031",
+              "CodingSchemeDesignator": "DCM",
+              "CodeMeaning": "Attenuation Coefficient"
+            },
+            "units": {
+              "CodeValue": "[hnsf'U]",
+              "CodingSchemeDesignator": "UCUM",
+              "CodeMeaning": "Hounsfield unit"
+            },
+            "measurementAlgorithmIdentification": {
+              "AlgorithmName": "3D Slicer Editor effect (measurement level)",
+              "AlgorithmVersion": "4.6 (measurement level)",
+              "AlgorithmParameters": ["gamma: 2 (measurement level)"]
+            },
+            "derivationModifier": {
+              "CodeValue": "373098007",
+              "CodingSchemeDesignator": "SCT",
+              "CodeMeaning": "Mean"
+            },
+            "measurementModifiers": [
+              {
+                "modifier": {
+                  "CodeValue": "A.13",
+                  "CodingSchemeDesignator": "99TEST",
+                  "CodeMeaning": "Preprocessing operation"
+                },
+                "modifierValue": {
+                  "CodeValue": "A.14",
+                  "CodingSchemeDesignator": "99TEST",
+                  "CodeMeaning": "Top secret filter"
+                }
+              },
+              {
+                "modifier": {
+                  "CodeValue": "A.13b",
+                  "CodingSchemeDesignator": "99TEST",
+                  "CodeMeaning": "Preprocessing operation b"
+                },
+                "modifierValue": {
+                  "CodeValue": "A.14b",
+                  "CodingSchemeDesignator": "99TEST",
+                  "CodeMeaning": "Top secret filter b"
+                }
+              }
+  
+            ],
+  
+            "measurementDerivationParameters": [
+              {
+                "derivationParameter": {
+                  "CodeValue": "A.15",
+                  "CodingSchemeDesignator": "99TEST",
+                  "CodeMeaning": "Parameter A"
+                },
+                "derivationParameterValue": "9.91",
+                "derivationParameterUnits": {
+                  "CodeValue": "A.16",
+                  "CodingSchemeDesignator": "99TEST",
+                  "CodeMeaning": "Cats"
+                }
+              },
+              {
+                "derivationParameter": {
+                  "CodeValue": "A.17",
+                  "CodingSchemeDesignator": "99TEST",
+                  "CodeMeaning": "Parameter B"
+                },
+                "derivationParameterValue": "2",
+                "derivationParameterUnits": {
+                  "CodeValue": "A.18",
+                  "CodingSchemeDesignator": "99TEST",
+                  "CodeMeaning": "Elephants"
+                }
+               },
+               {
+                "derivationParameter": {
+                  "CodeValue": "A.19",
+                  "CodingSchemeDesignator": "99TEST",
+                  "CodeMeaning": "Parameter Z"
+                },
+                "derivationParameterValue": "1",
+                "derivationParameterUnits": {
+                  "CodeValue": "A.20",
+                  "CodingSchemeDesignator": "99TEST",
+                  "CodeMeaning": "Apples"
+                }
+              }
+            ],
+            "measurementPopulationDescription": "Elves of the Black Forest",
+            "measurementNumProperties": [
+              {
+                "numProperty": {
+                  "CodeValue": "1234",
+                  "CodingSchemeDesignator": "99TEST",
+                  "CodeMeaning": "Elf average weight"
+                },
+                "numPropertyValue": "10",
+                "numPropertyUnits": {
+                  "CodeValue": "kg",
+                  "CodingSchemeDesignator": "UCUM",
+                  "CodeMeaning": "kilogram"
+                }
+              },
+              {
+                "numProperty": {
+                  "CodeValue": "1235",
+                  "CodingSchemeDesignator": "99TEST",
+                  "CodeMeaning": "Elf average height"
+                },
+                "numPropertyValue": "11",
+                "numPropertyUnits": {
+                  "CodeValue": "cm",
+                  "CodingSchemeDesignator": "UCUM",
+                  "CodeMeaning": "centimeter"
+                }
+              }
+            ]
+          },
+          {
+            "value": "-778",
+            "quantity": {
+              "CodeValue": "112031",
+              "CodingSchemeDesignator": "DCM",
+              "CodeMeaning": "Attenuation Coefficient"
+            },
+            "units": {
+              "CodeValue": "[hnsf'U]",
+              "CodingSchemeDesignator": "UCUM",
+              "CodeMeaning": "Hounsfield unit"
+            },
+            "derivationModifier": {
+              "CodeValue": "255605001",
+              "CodingSchemeDesignator": "SCT",
+              "CodeMeaning": "Minimum"
+            },
+            "measurementPopulationDescription": "Elves of the Black Forest 2",
+            "measurementNumProperties": [
+              {
+                "numProperty": {
+                  "CodeValue": "1234",
+                  "CodingSchemeDesignator": "99TEST",
+                  "CodeMeaning": "Elf average weight"
+                },
+                "numPropertyValue": "20",
+                "numPropertyUnits": {
+                  "CodeValue": "kg",
+                  "CodingSchemeDesignator": "UCUM",
+                  "CodeMeaning": "kilogram"
+                }
+              },
+              {
+                "numProperty": {
+                  "CodeValue": "1235",
+                  "CodingSchemeDesignator": "99TEST",
+                  "CodeMeaning": "Elf average height"
+                },
+                "numPropertyValue": "21",
+                "numPropertyUnits": {
+                  "CodeValue": "cm",
+                  "CodingSchemeDesignator": "UCUM",
+                  "CodeMeaning": "centimeter"
+                }
+              }
+            ]
+          },
+          {
+            "value": "221",
+            "quantity": {
+              "CodeValue": "112031",
+              "CodingSchemeDesignator": "DCM",
+              "CodeMeaning": "Attenuation Coefficient"
+            },
+            "units": {
+              "CodeValue": "[hnsf'U]",
+              "CodingSchemeDesignator": "UCUM",
+              "CodeMeaning": "Hounsfield unit"
+            },
+            "derivationModifier": {
+              "CodeValue": "56851009",
+              "CodingSchemeDesignator": "SCT",
+              "CodeMeaning": "Maximum"
+            }
+          },
+          {
+            "value": "59.1691",
+            "quantity": {
+              "CodeValue": "112031",
+              "CodingSchemeDesignator": "DCM",
+              "CodeMeaning": "Attenuation Coefficient"
+            },
+            "units": {
+              "CodeValue": "[hnsf'U]",
+              "CodingSchemeDesignator": "UCUM",
+              "CodeMeaning": "Hounsfield unit"
+            },
+            "derivationModifier": {
+              "CodeValue": "386136009",
+              "CodingSchemeDesignator": "SCT",
+              "CodeMeaning": "Standard Deviation"
+            }
+          },
+          {
+            "value": "70361.9",
+            "quantity": {
+              "CodeValue": "118565006",
+              "CodingSchemeDesignator": "SCT",
+              "CodeMeaning": "Volume"
+            },
+            "units": {
+              "CodeValue": "mm3",
+              "CodingSchemeDesignator": "UCUM",
+              "CodeMeaning": "cubic millimeter"
+            }
+          },
+          {
+            "value": "70.3619",
+            "quantity": {
+              "CodeValue": "118565006",
+              "CodingSchemeDesignator": "SCT",
+              "CodeMeaning": "Volume"
+            },
+            "units": {
+              "CodeValue": "cm3",
+              "CodingSchemeDesignator": "UCUM",
+              "CodeMeaning": "cubic centimeter"
+            }
+          }
+        ]
+      }
+    ]
+  }

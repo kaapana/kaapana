@@ -25,17 +25,19 @@ class Arguments():
         self.inference = (os.environ.get('INFERENCE', 'False') == 'True')
         self.procedure = os.environ.get('PROCEDURE')
         
-        # directories
         self.workflow_dir = os.environ['WORKFLOW_DIR']
         
+        # model where processed/averaged model is saved
         self.model_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'model')
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
         
+        # directory where incoming models are saved (by workers)
         self.model_cache = os.path.join(os.environ['WORKFLOW_DIR'], 'cache')
         if not os.path.exists(self.model_cache):
             os.makedirs(self.model_cache)
         
+        # local directory for model checkpoints
         self.checkpoints_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'checkpoints')
         if not os.path.exists(self.checkpoints_dir):
             os.makedirs(self.checkpoints_dir)
@@ -65,7 +67,7 @@ class Arguments():
         self.seed = int(os.environ['SEED']) if os.environ['SEED'] != 'None' else None
 
 
-def initialize_model(model_dir, checkpoints_dir, **kwargs):
+def initialize_model(args):
     """Reads given lr and creates intial model"""
     
     # initialize model
@@ -88,9 +90,9 @@ def initialize_model(model_dir, checkpoints_dir, **kwargs):
         'optimizer': optimizer.state_dict()
     }
     print('Saving initial model for further processing')
-    torch.save(model_checkpoint, os.path.join(model_dir, 'model_checkpoint.pt'))
+    torch.save(model_checkpoint, os.path.join(args.model_dir, 'model_checkpoint.pt'))
     print('Saving initial model to checkpoints directory')
-    torch.save(model_checkpoint, os.path.join(checkpoints_dir, '{}-checkpoint_initial.pt'.format(time.strftime("%Y%m%d-%H%M%S"))))
+    torch.save(model_checkpoint, os.path.join(args.checkpoints_dir, '{}-checkpoint_initial.pt'.format(time.strftime("%Y%m%d-%H%M%S"))))
 
     # save timestamp log
     filename = os.path.join(args.logging, 'federated_exp_logging.json')
@@ -109,7 +111,7 @@ def initialize_model(model_dir, checkpoints_dir, **kwargs):
     print('Saved initialization timestamp!')
 
 
-def inference(model_dir, data_dir, **kwargs):
+def inference(args):
     raise NotImplementedError
         
 
@@ -173,8 +175,8 @@ if __name__ == '__main__':
     )
 
     if args.initialize_model:
-        initialize_model(**args.__dict__)
+        initialize_model(args)
     elif args.inference:
-        inference(**args.__dict__)
+        inference(args)
     else:
         main(args)

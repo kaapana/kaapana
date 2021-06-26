@@ -41,6 +41,7 @@ class TriggerRemoteWorkersOperator(KaapanaPythonBaseOperator):
                             'use_cuda': self.use_cuda,
                             'batch_size': self.batch_size,
                             'learning_rate': self.learning_rate,
+                            'weight_decay': self.weight_decay,
                             'fed_round': self.fed_round,
                             'validation': self.validation,
                             'val_interval': self.val_interval,
@@ -70,6 +71,7 @@ class TriggerRemoteWorkersOperator(KaapanaPythonBaseOperator):
         epochs_on_worker=None,
         batch_size=None,
         learning_rate=None,
+        weight_decay=None,
         use_cuda=None,
         fed_round=None,
         validation=None,
@@ -88,6 +90,7 @@ class TriggerRemoteWorkersOperator(KaapanaPythonBaseOperator):
         self.epochs_on_worker = epochs_on_worker
         self.batch_size = batch_size
         self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
         self.use_cuda = use_cuda
         self.fed_round = fed_round
         self.validation = validation

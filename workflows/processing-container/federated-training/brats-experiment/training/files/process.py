@@ -1,4 +1,5 @@
 import os
+import json
 import numpy as np
 
 from monai.apps import DecathlonDataset
@@ -17,7 +18,12 @@ from monai.utils import set_determinism
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-from utilities import TRAIN_TRANSFORM, VAL_TRANSFORM
+from utilities import (
+    save_model,
+    check_for_cuda,
+    prepare_model_and_optimizer,
+    prepare_data_loader
+)
 
 print('#'*46)
 print_config()
@@ -30,16 +36,24 @@ class Arguments():
         
         self.root_dir = os.path.join(os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
 
-        self.logs_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'logs')
+        # logging
+        self.tb_logging = os.path.join(os.environ['WORKFLOW_DIR'], 'logs') # <- will be send to scheduler
 
+        self.logging = '/models/logging'
+        if not os.path.exists(self.logging):
+            os.makedirs(self.logging)
+        
+        # contains global model received from scheduler
         self.model_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'model')
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
         
+        # saves trained model - will be send to scheduler
         self.model_cache = os.path.join(os.environ['WORKFLOW_DIR'], 'cache')
         if not os.path.exists(self.model_cache):
             os.makedirs(self.model_cache)
         
+        # saves checkpoint into local minio
         self.checkpoints_dir = os.path.join(os.environ['WORKFLOW_DIR'], 'checkpoints')
         if not os.path.exists(self.checkpoints_dir):
             os.makedirs(self.checkpoints_dir)
@@ -57,11 +71,12 @@ class Arguments():
         self.verbose = (os.environ.get('VALIDATION', 'False') == 'True')
         self.seed = int(os.environ['SEED']) if os.environ['SEED'] != 'None' else None
 
+        self.lr = float(os.environ['LEARNING_RATE'])
+        self.weight_decay = float(os.environ['WEIGHT_DECAY'])
+
 
 def run_training(args, model, train_loader, val_loader, optimizer, device, tb_logger):
-    """
-    Complete training including performance validation
-    """
+    """Complete training including performance validation during training"""
 
     max_epochs = args.n_epochs
     val_interval = args.val_interval
@@ -102,8 +117,9 @@ def run_training(args, model, train_loader, val_loader, optimizer, device, tb_lo
                 )
         epoch_loss /= step
         epoch_loss_values.append(epoch_loss)
+        
+        # Epoch logging
         print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
-        # tensorboard logging
         tb_logger.add_scalar("Loss (train)", epoch_loss, epoch)
 
         if (epoch + 1) % val_interval == 0:
@@ -185,110 +201,214 @@ def run_training(args, model, train_loader, val_loader, optimizer, device, tb_lo
     print("Saved final model after training all epochs")
 
 
-def save_model(args, model, optimizer, final=False):
-    """Saves model & optimizer as checkpoint either to send back """
-    
-    model_checkpoint = {
-        'model': model.state_dict(),
-        'optimizer': optimizer.state_dict()
-    }
-    if final:
-        file_path = os.path.join(args.model_cache, 'model_checkpoint_from_{}.pt'.format(args.host_ip))
-    else:
-        file_path = os.path.join(args.checkpoints_dir, 'model_checkpoint_from_{}_round_{}.pt'.format(args.host_ip, args.fed_round))
-    torch.save(model_checkpoint, file_path)
+def train(args, model, train_loader, optimizer, device, tb_logger):
+    """Training without validation during training"""
 
-
-def prepare_data_loader(args):
-    print('Start preparing data loaders...')
+    # read in train logs
+    filename_epoch_loss = os.path.join(args.logging, 'brats_exp_epoch_loss_logging_{}.json'.format(args.host_ip))
+    epoch_loss_logs = [] if args.fed_round == 0 else json.load(open(filename_epoch_loss))
     
-    train_dataset = DecathlonDataset(
-        root_dir=args.root_dir,
-        task="Task01_BrainTumour",
-        transform=TRAIN_TRANSFORM,
-        section="training",
-        download=False,
-        num_workers=4,
-        cache_num=100,
+    filename_step_loss = os.path.join(args.logging, 'brats_exp_step_loss_logging_{}.json'.format(args.host_ip))
+    step_loss_logs = [] if args.fed_round == 0 else json.load(open(filename_step_loss))
+    
+    # Training
+    max_epochs = args.n_epochs
+    loss_function = DiceLoss(to_onehot_y=False, sigmoid=True, squared_pred=True)
+    
+    print(
+        "########## Start training! ##########",
+        f"Starting with epoch: {args.epoch}",
+        f"Train for {args.n_epochs} epochs",
+        sep="\n"
     )
-    train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True, num_workers=4)
-
-    val_dataset = DecathlonDataset(
-        root_dir=args.root_dir,
-        task="Task01_BrainTumour",
-        transform=VAL_TRANSFORM,
-        section="validation",
-        download=False,
-        num_workers=4,
-    )
-    val_loader = DataLoader(val_dataset, batch_size=2, shuffle=False, num_workers=4)
-    print('Finished preparing data loaders...')
-
-    return train_loader, val_loader
-
-
-def prepare_model_and_optimizer(device):
-    """Loads model/optimizer received from scheduler
     
-    IMPORTANT:
-    Send model to device before initializing optimizer (and loading state dict).
-    Otherwise, the training will fail due to cpu/gpu tensors.
-    See: https://discuss.pytorch.org/t/effect-of-calling-model-cuda-after-constructing-an-optimizer/15165/5
-    See: https://pytorch.org/tutorials/beginner/saving_loading_models.html#saving-loading-model-across-devices
-    --> not 100% sure whats happening exactly!
-    """
+    for epoch in range(args.epoch, args.epoch + args.n_epochs):
+        print("-" * 10)
+        print(f"Epoch: {epoch}")
+        model.train()
+        epoch_loss = 0
+        step = 0
+        for batch_data in train_loader:
+            step += 1
+            inputs, labels = (
+                batch_data["image"].to(device),
+                batch_data["label"].to(device),
+            )
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = loss_function(outputs, labels)
+            loss.backward()
+            optimizer.step()
+            epoch_loss += loss.item()            
+            
+            global_step = len(step_loss_logs)
+            
+            # Step logging
+            if args.verbose:
+                print(
+                    f"{step}/{len(train_loader.dataset) // train_loader.batch_size}"
+                    f", train_loss: {loss.item():.4f}"
+                )
+            tb_logger.add_scalar("Loss_Training_Steps", loss.item(), global_step)
 
-    checkpoint = torch.load(os.path.join(args.model_dir, 'model_checkpoint.pt'), map_location="cuda:0")
+            # log to file
+            log_entry = {
+                'step': global_step,
+                'loss': loss.item(),
+                'fed_round': args.fed_round,
+                'epoch': epoch,
+                'participant': args.host_ip
+            }
+            step_loss_logs.append(log_entry)
+            
+            with open(filename_step_loss, 'w') as file:
+                json.dump(step_loss_logs, file, indent=2)
 
-    model = UNet(
-        dimensions=3,
-        in_channels=4,
-        out_channels=3,
-        channels=(16, 32, 64, 128, 256),
-        strides=(2, 2, 2, 2),
-        num_res_units=2,
-    )
-    model.load_state_dict(checkpoint['model'])
-    
-    # send model to GPU
-    model.to(device)
+        epoch_loss /= step
+        
+        # Epoch logging
+        print(f"epoch {epoch} average loss: {epoch_loss:.4f}")
+        tb_logger.add_scalar("Loss_Training_Epochs", epoch_loss, epoch)
+        
+        # log to file
+        log_entry = {
+            'loss': epoch_loss,
+            'fed_round': args.fed_round,
+            'epoch': epoch,
+            'participant': args.host_ip
+        }
+        epoch_loss_logs.append(log_entry)
 
-    optimizer = torch.optim.Adam(
-        model.parameters(), 1e-4, weight_decay=1e-5, amsgrad=True
-    ) # <-- values are overwritten in next step
-    optimizer.load_state_dict(checkpoint['optimizer'])
+        with open(filename_epoch_loss, 'w') as file:
+            json.dump(epoch_loss_logs, file, indent=2)
+        
+    # save model after training all epochs
+    save_model(args, model, optimizer, final=True)
+    print("Saved model after training all epochs")
 
-    return model, optimizer
 
+def validate_global_model(args, model, val_loader, device, tb_logger):
+    """Validation of global model on locally available validataion data"""
 
-def check_for_cuda():
-    if torch.cuda.is_available():
-        device = torch.device('cuda:0')
-        print('Using device: {}'.format(device))
-    else:
-        raise Exception ('Cuda is not available!')
-    return device
+    # read in val logs
+    filename_val_logs = os.path.join(args.logging, 'brats_exp_validation_logging_{}.json'.format(args.host_ip))
+    val_logs = [] if args.fed_round == 0 else json.load(open(filename_val_logs))
+
+    model.eval()
+    with torch.no_grad():
+        dice_metric = DiceMetric(include_background=True, reduction="mean")
+        post_trans = Compose(
+            [Activations(sigmoid=True), AsDiscrete(threshold_values=True)]
+        )
+        metric_sum = metric_sum_tc = metric_sum_wt = metric_sum_et = 0.0
+        metric_count = (
+            metric_count_tc
+        ) = metric_count_wt = metric_count_et = 0
+
+        # iterate over validation data
+        for val_data in val_loader:
+            val_inputs, val_labels = (
+                val_data["image"].to(device),
+                val_data["label"].to(device),
+            )
+            val_outputs = model(val_inputs)
+            val_outputs = post_trans(val_outputs)
+            # compute overall mean dice
+            value, not_nans = dice_metric(y_pred=val_outputs, y=val_labels)
+            not_nans = not_nans.item()
+            metric_count += not_nans
+            metric_sum += value.item() * not_nans
+            # compute mean dice for TC
+            value_tc, not_nans = dice_metric(
+                y_pred=val_outputs[:, 0:1], y=val_labels[:, 0:1]
+            )
+            not_nans = not_nans.item()
+            metric_count_tc += not_nans
+            metric_sum_tc += value_tc.item() * not_nans
+            # compute mean dice for WT
+            value_wt, not_nans = dice_metric(
+                y_pred=val_outputs[:, 1:2], y=val_labels[:, 1:2]
+            )
+            not_nans = not_nans.item()
+            metric_count_wt += not_nans
+            metric_sum_wt += value_wt.item() * not_nans
+            # compute mean dice for ET
+            value_et, not_nans = dice_metric(
+                y_pred=val_outputs[:, 2:3], y=val_labels[:, 2:3]
+            )
+            not_nans = not_nans.item()
+            metric_count_et += not_nans
+            metric_sum_et += value_et.item() * not_nans
+
+        metric = metric_sum / metric_count
+        #metric_values.append(metric)
+        metric_tc = metric_sum_tc / metric_count_tc
+        #metric_values_tc.append(metric_tc)
+        metric_wt = metric_sum_wt / metric_count_wt
+        #metric_values_wt.append(metric_wt)
+        metric_et = metric_sum_et / metric_count_et
+        #metric_values_et.append(metric_et)
+        
+        print(
+            "########################################################",
+            "Global model performance on local validation data:",
+            f"Federated round: {args.fed_round}",
+            f"current mean dice: {metric:.4f}",
+            f"tc: {metric_tc:.4f}",
+            f"wt: {metric_wt:.4f}",
+            f"et: {metric_et:.4f}",
+            #f"\nbest mean dice: {best_metric:.4f}",
+            #f" at epoch: {best_metric_epoch}",
+            "########################################################",
+            sep='\n'
+            )
+        
+        # Tensorboard logging
+        tb_logger.add_scalar("Val_Mean_Dice", metric, args.fed_round)
+        tb_logger.add_scalar("Val_Mean_Dice (TC)", metric_tc, args.fed_round)
+        tb_logger.add_scalar("Val_Mean_Dice (WT)", metric_wt, args.fed_round)
+        tb_logger.add_scalar("Val_Mean_Dice (ET)", metric_et, args.fed_round)
+
+        # write to validation logs
+        log_entry = {
+            'fed_round': args.fed_round,
+            'mean_dice': metric,
+            'mean_dice_tc': metric_tc,
+            'mean_dice_wt': metric_wt,
+            'mean_dice_et': metric_et,
+            'participant': args.host_ip
+        }
+        val_logs.append(log_entry)
+
+        with open(filename_val_logs, 'w') as file:
+            json.dump(val_logs, file, indent=2)
 
 
 def main(args):
 
     # logging
     tb_logger = SummaryWriter(
-        log_dir='{}/participant-{}'.format(args.logs_dir, args.host_ip),
+        log_dir='{}/participant-{}'.format(args.tb_logging, args.host_ip),
         filename_suffix='-fed_round_{}'.format(args.fed_round)
     )
 
     # check if cuda is available    
     device = check_for_cuda()
 
-    # load model & optimizer received from scheduler
-    model, optimizer = prepare_model_and_optimizer(device)
+    # load model & optimizer received from schedulers (model is send to device, cuda)
+    model, optimizer = prepare_model_and_optimizer(args, device)
 
-    # dataloader
+    # get dataloader
     train_loader, val_loader = prepare_data_loader(args)
 
+    # Validate global models performance on local test data
+    validate_global_model(args, model, val_loader, device, tb_logger)
+
+    # run training on local train-data (no additional validation)
+    train(args, model, train_loader, optimizer, device, tb_logger)
+
     # run model training & validation
-    run_training(args, model, train_loader, val_loader, optimizer, device, tb_logger)
+    #run_training(args, model, train_loader, val_loader, optimizer, device, tb_logger)
 
     tb_logger.flush()
 

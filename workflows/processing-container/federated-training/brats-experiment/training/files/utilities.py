@@ -5,7 +5,7 @@ import torch
 
 from monai.networks.nets import UNet
 from monai.data import DataLoader
-from monai.apps import DecathlonDataset
+#from monai.apps import DecathlonDataset
 
 from monai.transforms import (
     AsChannelFirstd,
@@ -22,6 +22,9 @@ from monai.transforms import (
     Spacingd,
     ToTensord,
 )
+
+# cusomized MONAI DecathlonDataset
+from dataset import DecathlonDataset
 
 
 class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
@@ -105,8 +108,9 @@ def prepare_data_loader(args):
         section="training",
         download=False,
         num_workers=4,
-        cache_num=100,
+        cache_num=32,
     )
+    print("Size dataset training:", len(train_dataset))
     train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True, num_workers=4)
 
     val_dataset = DecathlonDataset(
@@ -117,13 +121,14 @@ def prepare_data_loader(args):
         download=False,
         num_workers=4,
     )
+    print("Size dataset validation:", len(val_dataset))
     val_loader = DataLoader(val_dataset, batch_size=2, shuffle=False, num_workers=4)
     print('Finished preparing data loaders...')
 
     return train_loader, val_loader
 
 
-def prepare_model_and_optimizer(device):
+def prepare_model_and_optimizer(args, device):
     """Loads model/optimizer received from scheduler
     
     IMPORTANT:
@@ -150,9 +155,10 @@ def prepare_model_and_optimizer(device):
     model.to(device)
 
     optimizer = torch.optim.Adam(
-        model.parameters(), 1e-4, weight_decay=1e-5, amsgrad=True
-    ) # <-- values are overwritten in next step
-    optimizer.load_state_dict(checkpoint['optimizer'])
+        model.parameters(), args.lr, weight_decay=args.weight_decay, amsgrad=True
+    ) # <-- values could be overwritten in next step
+    # optimizer.load_state_dict(checkpoint['optimizer'])
+    print("Optimizer:", optimizer)
 
     return model, optimizer
 

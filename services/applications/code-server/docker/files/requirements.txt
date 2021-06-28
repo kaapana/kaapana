@@ -10,3 +10,4 @@ pint
 timeloop
 black
 jupyter
+pydebug==1.0.3

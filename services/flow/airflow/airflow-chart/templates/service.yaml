@@ -10,6 +10,8 @@ spec:
   ports:
     - port: 8080
       name: airflow-http
+    - port: 5678
+      name: debug-port
 ---
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress

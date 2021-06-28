@@ -1,7 +1,7 @@
-FROM codercom/code-server:3.9.1
+FROM codercom/code-server:3.10.2
 
 LABEL IMAGE="code-server"
-LABEL VERSION="3.9.1"
+LABEL VERSION="3.10.2"
 LABEL CI_IGNORE="False"
 
 user root
@@ -13,9 +13,11 @@ RUN sudo -E apt-get update && sudo -E apt-get install -y \
 # python requirements
 COPY files/requirements.txt /
 RUN python3 -m pip install --no-cache-dir -r /requirements.txt && rm /requirements.txt 
-user coder
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
+RUN code-server --install-extension ms-python.python
+
 # extensions to code-server
-# RUN code-server --install-extension ms-python.python
+
 
 #v2020.10.332292344 
 # RUN curl https://extensions.coder.com/api/publishers/ms-python/vsextensions/python/2020.10.332292344/vspackage --output /tmp/python.vsix \
@@ -24,4 +26,4 @@ user coder
 #     && code-server --install-extension /tmp/python.vsix \
 #     && rm -rf /tmp/python.vsix
 
-CMD ["code-server", "--allow-http", "--no-auth"]
+CMD ["code-server","--auth", "none"]

@@ -24,7 +24,7 @@ global:
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana
     home_dir: /root
-    version: "0.1.1-vdev"
+    version: "0.1.2-vdev"
     kaapana_collections:
         - name: racoon-collection
           version: 0.1.0-vdev 

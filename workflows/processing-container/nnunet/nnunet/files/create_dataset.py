@@ -164,7 +164,7 @@ def process_seg_nifti(seg_nifti):
 
 def prepare_dataset(datset_list, dataset_id):
     global template_dataset_json, label_names_found, thread_count
-    print(f"# Preparing all {dataset_id} series: {len(train_series)}")
+    print(f"# Preparing all {dataset_id} series: {len(datset_list)}")
     for series in datset_list:
         print("######################################################################")
         print("#")

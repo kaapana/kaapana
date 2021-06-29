@@ -224,7 +224,11 @@ def create_measurements_json(json_path, src_dicom_dir, seg_dicom_dir):
             for i, input_measurement in enumerate(input_measurement_group["Measurement_list"], start=0):
                 measurement = {}
                 assert "value" in input_measurement
-                measurement["value"] = input_measurement["value"]
+                try:
+                    value_input = f"{float(input_measurement['value']):.4f}"
+                except ValueError:
+                    value_input = input_measurement['value']
+                measurement["value"] = str(value_input)
 
                 if "quantity" in input_measurement:
                     measurement["quantity"] = input_measurement["quantity"]

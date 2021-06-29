@@ -76,7 +76,7 @@ dcmModify = DcmModifyOperator(
 )
 dcmseg_send_seg = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi, parallel_id="seg")
 dcmseg_send_sr = DcmSendOperator(dag=dag, input_operator=json2dicomSR, parallel_id="sr")
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_input >> nnunet_predict >> nrrd2dcmSeg_multi >> dcmseg_send_seg >> clean
 nrrd2dcmSeg_multi >> json2dicomSR >> dcmModify >> dcmseg_send_sr >> clean

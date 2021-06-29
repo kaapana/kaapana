@@ -2,7 +2,7 @@ FROM nvcr.io/nvidia/pytorch:20.09-py3
 
 LABEL IMAGE="openmined-pysyft-nb"
 LABEL VERSION="0-1.0-vdev"
-LABEL CI_IGNORE="False"
+LABEL CI_IGNORE="True"
 
 # Disable security token for Jupyter lab
 RUN jupyter notebook --generate-config \

@@ -1,0 +1,8 @@
+---
+apiVersion: v1
+appVersion: "0.1.0"
+description: UKF presegmentation workflow
+name: racoon-ukf-preseg-workflow
+version: "0.1.0"
+keywords:
+- kaapanaworkflow

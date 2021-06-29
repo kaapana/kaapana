@@ -6,7 +6,7 @@ from kaapana.operators.DcmModifyOperator import DcmModifyOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from RacoonUkfSeg.PresegmentationOperator import PresegmentationOperator
+from racoon_ukf_preseg.PresegmentationOperator import PresegmentationOperator
 from datetime import timedelta
 
 ui_forms = {
@@ -34,7 +34,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='racoon-ukf-presegmentation',
+    dag_id='racoon-ukf-preseg',
     default_args=args,
     concurrency=50,
     max_active_runs=5,

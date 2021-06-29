@@ -1,0 +1,5 @@
+---
+global:
+    image: "dag-racoon-ukf-preseg"
+    version: "0.1.0"
+    action: "copy"

@@ -324,7 +324,7 @@ DCMQI = '/app/dcmqi/bin'
 # os.environ['SEG_DICOM_OPERATOR'] = 'None'
 
 # os.environ['BATCH_NAME'] = 'batch'
-# os.environ['WORKFLOW_DIR'] = '/home/jonas/Downloads/ukf_test/racoon-ukf-presegmentation-210625115616399119'
+# os.environ['WORKFLOW_DIR'] = '/home/jonas/Downloads/ukf_test/racoon-ukf-preseg-210625115616399119'
 # os.environ['OPERATOR_IN_DIR'] = 'pathonomical-segmentation'
 # os.environ['OPERATOR_OUT_DIR'] = 'measurements-sr'
 # os.environ['INPUT_FILE_EXTENSION'] = 'volumes.json'

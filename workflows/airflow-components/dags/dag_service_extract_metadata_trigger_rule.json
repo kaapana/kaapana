@@ -1,0 +1,12 @@
+[
+    {
+        "search_tags": {},
+        "dag_ids": {
+            "service-extract-metadata": {
+                "rest_call": {
+                    "global": {}
+                }
+            }
+        }
+    }
+]

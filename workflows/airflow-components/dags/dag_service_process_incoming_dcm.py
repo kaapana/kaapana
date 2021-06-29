@@ -11,9 +11,11 @@ import shutil
 import pydicom
 import glob
 
-trigger_dict_path = join(dirname(realpath(__file__)), "trigger_dict.json")
-with open(trigger_dict_path, "r") as f:
-    trigger_dict = json.load(f)
+trigger_list = []
+for filePath in glob.glob("/root/airflow/**/*trigger_rule.json"):
+    with open(filePath,"r") as f:
+        print(filePath)
+        trigger_list = trigger_list + json.load(f)
 
 args = {
     'ui_visible': False,
@@ -81,43 +83,24 @@ def process_incoming(ds, **kwargs):
     dcm_files = check_all_files_arrived(dcm_path)
     incoming_dcm = pydicom.dcmread(dcm_files[0])
     dcm_dataset = str(incoming_dcm[0x0012, 0x0020].value).lower() if (0x0012, 0x0020) in incoming_dcm else "N/A"
-    incoming_modality = str(incoming_dcm[0x0008, 0x0060].value).lower()
-    print("# Check Triggering from trigger_dict...")
-    print("#")
-    print(f"# Incoming-Modality: {incoming_modality}")
-    print("#")
-    for dcm_tag, config_list in trigger_dict.items():
-        for config_entry in config_list:
-            searched_values = [str(each_value).lower() for each_value in config_entry["searched_values"]]
-            searched_modality = [str(each_value).lower() for each_value in config_entry["modality"]] if "modality" in config_entry else None
 
-            print("#")
-            print(f"# dcm_tag: {dcm_tag}")
-            print(f"# dag_ids: {config_entry['dag_ids']}")
-            print(f"# dcm_dataset:     {dcm_dataset}")
-            print(f"# searched_values:   {searched_values}")
-            print(f"# searched_modality: {searched_modality}")
-            print("#")
-            if dcm_tag == "all":
-                for dag_id, conf in config_entry["dag_ids"].items():
-                    print("# Triggering 'all'")
-                    if (dag_id == "service-extract-metadata" or (dcm_dataset != "dicom-test" and dcm_dataset != "phantom-example")) and (searched_modality is None or incoming_modality in searched_modality):
-                        trigger_it(dag_id=dag_id, dcm_path=dcm_path, series_uid=series_uid, conf=conf)
-            
-            elif dcm_dataset == "dicom-test" or dcm_dataset == "phantom-example":
-                continue
-            
-            elif dcm_tag == "dataset" and dcm_dataset in searched_values and (searched_modality is None or incoming_modality in searched_modality):
-                print(f"# Trigger because of dataset-match: {dcm_dataset}")
-                for dag_id, conf in config_entry["dag_ids"].items():
+    print(f"# dcm_dataset:     {dcm_dataset}")
+
+
+    for config_entry in trigger_list:
+        fullfills_all_search_tags = True
+        for search_key, search_value in config_entry["search_tags"].items():
+            dicom_tag = search_key.split(',')
+            if (dicom_tag in incoming_dcm) and (str(incoming_dcm[dicom_tag].value).lower() == search_value.lower()):
+                print(f"Filtering for {incoming_dcm[dicom_tag]}")
+            else:
+                fullfills_all_search_tags = False        
+        if  fullfills_all_search_tags is True:
+            for dag_id, conf, in config_entry["dag_ids"].items():
+                if dag_id == "service-extract-metadata" or (dcm_dataset != "dicom-test" and dcm_dataset != "phantom-example"):
+                    print(f"# Triggering '{dag_id}'")
                     trigger_it(dag_id=dag_id, dcm_path=dcm_path, series_uid=series_uid, conf=conf)
-
-            elif dcm_tag in incoming_dcm and str(incoming_dcm[dcm_tag]).lower() in searched_values and (searched_modality is None or incoming_modality in searched_modality):
-                for dag_id, conf, in config_entry["dag_ids"].items():
-                    print("# Triggering dcm_tag -> '{dcm_tag}'")
-                    trigger_it(dag_id=dag_id, dcm_path=dcm_path, series_uid=series_uid, conf=conf)
-            print("#")
-
+                
     print(("Deleting temp data: %s" % dcm_path))
     shutil.rmtree(dcm_path, ignore_errors=True)
 

@@ -4,7 +4,7 @@ LABEL IMAGE="dag-racoon-ukf-preseg"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-COPY dags/dag_racoon_ukf_preseg.py /tmp/dags/
+COPY dags/dag_racoon_ukf_presegmentation.py /tmp/dags/
 COPY dags/racoon_ukf_preseg /tmp/dags/racoon_ukf_preseg
 
 COPY dags/dag_racoon_ukf_preseg_trigger_rule.json /tmp/dags/

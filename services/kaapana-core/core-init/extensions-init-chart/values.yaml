@@ -1,3 +1,6 @@
 ---
 global:
     pull_policy_jobs: "IfNotPresent"
+    preinstall_extensions:
+      - name: code-server-chart
+        version: 3.9.1

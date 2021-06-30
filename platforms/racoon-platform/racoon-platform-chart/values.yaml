@@ -27,5 +27,13 @@ global:
     version: "0.1.2-vdev"
     kaapana_collections:
         - name: racoon-collection
-          version: 0.1.0-vdev 
+          version: 0.1.0-vdev
+    preinstall_extensions:
+        - name: code-server-chart
+          version: 3.9.1
+        - name: racoon-ukf-preseg-workflow
+          version: 0.1.0
+        - name: nnunet-workflow
+          version: 04-21
+
 ---

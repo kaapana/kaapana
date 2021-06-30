@@ -2,13 +2,12 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: extensions-init
+  name: update-extensions-init
   namespace: kube-system
 spec:
   template:
     metadata:
-      name: extensions-init
-    spec:
+      name: update-extensions-init
     spec:
       initContainers:
         - name: init
@@ -22,11 +21,11 @@ spec:
             - name: TIMEOUT
               value: "10"
       containers:
-      - name: extensions-init
+      - name: update-extensions-init
         image: {{  .Values.global.registry_url }}/service_checker:1.1
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         command: ["/bin/sh", "-c"]
         args: ["echo -e \"import requests;requests.get('http://kube-helm-service.kube-system.svc:5000/kube-helm-api/update-extensions')\" | python3"]
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret

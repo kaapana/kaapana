@@ -3,12 +3,18 @@ dependencies:
   - name: code-server-chart
     version: 3.9.1
     repository: file://../../../../../../services/applications/code-server/code-server-chart
-  - name: nnunet-workflow
-    version: 04-21
-    repository: file://../../../../../../workflows/dag-installer/nnunet/nnunet-workflow
+  - name: jupyterlab-chart
+    version: 2.2.8
+    repository: file://../../../../../../services/applications/jupyterlab/jupyterlab-chart
   - name: mitk-workbench-chart
     version: 2021.02-vdev
     repository: file://../../../../../../services/applications/mitk-workbench/mitk-workbench-chart
+  - name: nnunet-workflow
+    version: 04-21
+    repository: file://../../../../../../workflows/dag-installer/nnunet/nnunet-workflow
+  - name: racoon-ukf-preseg-workflow
+    version: 0.1.0
+    repository: file://../../../../../../workflows/dag-installer/racoon-ukf-preseg/racoon-ukf-preseg-workflow 
   - name: radiomics-workflow
     version: 0.1.1-vdev
     repository: file://../../../../../../workflows/dag-installer/radiomics/radiomics-workflow
@@ -18,10 +24,4 @@ dependencies:
   - name: tensorboard-chart
     version: 2.5.0
     repository: file://../../../../../../services/applications/tensorboard/tensorboard-chart
-  - name: jupyterlab-chart
-    version: 2.2.8
-    repository: file://../../../../../../services/applications/jupyterlab/jupyterlab-chart
-  - name: racoon-ukf-preseg-workflow
-    version: 0.1.0
-    repository: file://../../../../../../workflows/dag-installer/racoon-ukf-preseg/racoon-ukf-preseg-workflow 
     

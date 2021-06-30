@@ -56,6 +56,8 @@ files_and_folders_exists = os.getenv('FILES_AND_FOLDERS_EXISTS', "None")
 if delay != "None":
     delay = int(delay)
 
+if files_and_folders_exists.endswith(';'):
+    files_and_folders_exists = files_and_folders_exists[:-1]
 if (wait_env == "None" and files_and_folders_exists == "None") or delay == "None":
     print("WAIT, FILES_AND_FOLDERS_EXISTS or DELAY == None! Usage: WAIT='postgres,localhost,5432;...' + DELAY= int delay in sec + FILES_AND_FOLDERS_EXISTS='/home/charts/file.json'")
     exit(1)

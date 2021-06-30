@@ -17,7 +17,7 @@ spec:
             - name: DELAY
               value: "2"
             - name: FILES_AND_FOLDERS_EXISTS
-              value: "{{- range $extension := .Values.global.preinstall_extensions }}/root/charts/extensions/{{ $extension.name }}-{{ $extension.version }}.tgz{{- end }}"
+              value: "{{- range $extension := .Values.global.preinstall_extensions }}/root/charts/extensions/{{ $extension.name }}-{{ $extension.version }}.tgz;{{- end }}"
           volumeMounts:
             - name: helmextensions
               mountPath: "/root/charts"

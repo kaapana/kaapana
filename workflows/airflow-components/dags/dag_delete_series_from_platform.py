@@ -18,7 +18,7 @@ ui_forms = {
                 "title": "single execution",
                 "description": "Should each series be processed separately?",
                 "type": "boolean",
-                "default": True,
+                "default": False,
                 "readOnly": False,
             },
             "delete_complete_study": {
@@ -45,7 +45,7 @@ dag = DAG(
     dag_id='delete-series-from-platform',
     default_args=args,
     concurrency=30,
-    max_active_runs=10,
+    max_active_runs=1,
     schedule_interval=None
 )
 

@@ -184,7 +184,7 @@ function get_domain {
 
 function delete_deployment {
     echo -e "${YELLOW}Uninstalling releases${NC}"
-    helm ls --date --reverse -A | awk 'NR > 1 { sleep 2; print  "-n "$2, $1}' | xargs -L1 helm uninstall
+    helm ls --date --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c 'helm uninstall %; sleep 2'
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)

@@ -15,7 +15,6 @@ class PresegmentationOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name='pathonomical-segmentation',
-            # image="erikprescherukf/nnunet-tuda-ukf:0.2.1",
             image=f"{default_registry}/nnunet-tuda-ukf:0.2.1",
             execution_timeout=execution_timeout,
             pod_resources=pod_resources,

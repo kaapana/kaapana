@@ -34,7 +34,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='racoon-ukf-preseg',
+    dag_id='racoon-ukf-presegmentation',
     default_args=args,
     concurrency=50,
     max_active_runs=5,

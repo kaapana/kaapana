@@ -21,15 +21,25 @@ spec:
           env:
             - name: WAIT
               value: "kube-helm,kube-helm-service.kube-system.svc,5000,/kube-helm-api/health-check"
+            - name: FILES_AND_FOLDERS_EXISTS
+              value: "/root/charts/extensions"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
               value: "10"
+          volumeMounts:
+          - name: helmextensions
+            mountPath: "/root/charts"
       containers:
       - name: prefetch-extensions-{{ $uuid }}
         image: {{  .Values.global.registry_url }}/service_checker:1.1
         command: ["/bin/sh", "-c"]
         args: ["echo -e \"import requests;requests.get('http://kube-helm-service.kube-system.svc:5000/kube-helm-api/prefetch-extension-docker')\" | python3; sleep 10"]
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+      volumes:
+      - name: helmextensions
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}/charts
+          type: DirectoryOrCreate
       imagePullSecrets:
         - name: registry-secret

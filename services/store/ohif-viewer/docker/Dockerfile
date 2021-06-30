@@ -19,11 +19,6 @@ ENV PUBLIC_URL "/ohif/"
 ENV APP_CONFIG "config/kaapana.js"
 
 RUN yarn install
-# --------------------- WORKAROUND ---------------------
-# https://github.com/OHIF/Viewers/issues/2138 only tested with @ohif/viewer@4.9.20
-# COPY files/dcmjs-natural-ds.patch /src/dcmjs-natural-ds.patch
-# RUN patch -u node_modules/dcmjs/build/dcmjs.es.js -i dcmjs-natural-ds.patch
-# --------------------- WORKAROUND END ---------------------
 RUN yarn run build
 
 FROM nginx:stable-alpine as production-stage

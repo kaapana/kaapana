@@ -200,7 +200,7 @@ def setup_kibana(kibana_dashboard, kibana_host, kibana_port):
 def create_index_pattern(kibana_host, kibana_port):
     index_pattern = {
         "attributes": {"title": "{}".format(elastic_indexname),
-                       "fieldFormatMap": "{\"0020000D StudyInstanceUID_keyword.keyword\":{\"id\":\"url\",\"params\":{\"urlTemplate\":\"https://"+domain+":443/ohif/IHEInvokeImageDisplay?requestType=STUDY&studyUID={{value}}\",\"labelTemplate\":\"{{value}}\"}}}",
+                       "fieldFormatMap": "{\"0020000D StudyInstanceUID_keyword.keyword\":{\"id\":\"url\",\"params\":{\"urlTemplate\":\"https://"+domain+":"+https_port+"/ohif/IHEInvokeImageDisplay?requestType=STUDY&studyUID={{value}}\",\"labelTemplate\":\"{{value}}\"}}}",
                        }
     }
     try:
@@ -228,6 +228,7 @@ if __name__ == "__main__":
     stack_version = os.getenv('STACKVERSION', '6.8.12')
     override_objects = os.getenv('OVERRIDE_OBJECTS', 'false')
     domain = os.getenv('DOMAIN', None)
+    https_port = os.getenv('HTTPS_PORT', "443")
     elastic_host = os.getenv('ELASTICHOST', 'elastic-meta-service.default.svc')
     elastic_indexname = os.getenv('ELASTICINDEX', 'meta-index')
     kibana_host = os.getenv('KIBANAHOST', 'kibana-service.meta.svc')

@@ -28,6 +28,8 @@ spec:
         env:
           - name: DOMAIN
             value: "{{ required "A valid hostname (or fqdn) is required!" .Values.global.hostname }}"
+          - name: HTTPS_PORT
+            value: "{{ .Values.global.https_port }}"
           - name: STACKVERSION
             value: "6.8.12"
           - name: OVERRIDE_OBJECTS

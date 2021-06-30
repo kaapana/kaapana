@@ -293,7 +293,7 @@ class DockerContainer:
         else:
             command = ["docker", "build", "-t", self.tag, "-f", self.path, "."]
 
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000, env=dict(os.environ, DOCKER_BUILDKIT="1"))
         log = make_log(std_out=output.stdout, std_err=output.stderr)
 
         if output.returncode != 0:

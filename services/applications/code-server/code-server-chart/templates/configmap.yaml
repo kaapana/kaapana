@@ -45,6 +45,28 @@ data:
             "when": "textInputFocus && !editorReadonly"
         }
     ]
+  launch.json: |-
+    {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "Python: Remote Attach",
+                "type": "python",
+                "request": "attach",
+                "connect": {
+                    "host": "airflow-service.flow.svc",
+                    "port": 5678
+                },
+                "justMyCode": false,
+                "pathMappings": [
+                    {
+                        "localRoot": "${workspaceFolder}",
+                        "remoteRoot": "/home/airflow"
+                    }
+                ]
+            }
+        ]
+    }
 kind: ConfigMap
 metadata:
   name: code-server-config

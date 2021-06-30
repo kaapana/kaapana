@@ -31,7 +31,7 @@ global:
           version: 0.1.0-vdev 
     preinstall_extensions:
         - name: code-server-chart
-          version: 3.9.1
+          version: 3.10.2
         - name: kaapana-plugin-chart
           version: 0.1.1-vdev
 ---

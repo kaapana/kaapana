@@ -389,6 +389,7 @@ def get_extensions_list():
             print("Generating new extension-list...", flush=True)
             smth_pending = False
             update_running = True
+            # replace with index yaml
             available_charts = helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
             chart_version_dict = {}
             for _, chart in available_charts.items():
@@ -414,6 +415,8 @@ def get_extensions_list():
                 extension['helmStatus'] = ''
                 extension['kubeStatus'] = ''
                 extension['successful'] = 'none'
+                # replace with helm ls outside the loop see also next
+                # add one central kubectl get pods -A from which manifest will look up its values
 
                 status = helm_status(extension["name"], app.config['NAMESPACE'])
                 if 'kaapanamultiinstallable' in extension['keywords'] or not status:

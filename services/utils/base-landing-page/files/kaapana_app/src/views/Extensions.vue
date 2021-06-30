@@ -182,9 +182,7 @@ export default Vue.extend({
   created() {},
   mounted() {
     this.getHelmCharts();
-    this.polling = window.setInterval(() => {
-      this.getHelmCharts();
-    }, 5000);
+    this.startExtensionsInterval()
   },
   computed: {
     filteredLaunchedAppLinks(): any {
@@ -246,13 +244,21 @@ export default Vue.extend({
           console.log(err);
         });
     },
-
+    startExtensionsInterval() {
+      this.polling = window.setInterval(() => {
+        this.getHelmCharts();
+      }, 5000);
+    },
+    clearExtensionsInterval() {
+      window.clearInterval(this.polling);
+    },
     updateExtensions() {
       this.loading = true;
+      this.clearExtensionsInterval();
+      this.startExtensionsInterval();
       kaapanaApiService
         .helmApiGet("/update-extensions", {})
         .then((response: any) => {
-          this.getHelmCharts();
           this.loading = false;
           alert(response.data);
         })
@@ -268,6 +274,8 @@ export default Vue.extend({
         release_version: item.version,
       };
       this.loading = true;
+      this.clearExtensionsInterval();
+      this.startExtensionsInterval();
       kaapanaApiService
         .helmApiGet("/helm-delete-chart", params)
         .then((response: any) => {
@@ -275,7 +283,6 @@ export default Vue.extend({
           item.successful = "pending";
         })
         .catch((err: any) => {
-          this.getHelmCharts();
           this.loading = false;
           console.log(err);
         });
@@ -288,6 +295,8 @@ export default Vue.extend({
         keywords: item.keywords,
       };
       this.loading = true;
+      this.clearExtensionsInterval();
+      this.startExtensionsInterval();
       kaapanaApiService
         .helmApiPost("/helm-install-chart", payload)
         .then((response: any) => {
@@ -295,14 +304,13 @@ export default Vue.extend({
           item.successful = "pending";
         })
         .catch((err: any) => {
-          this.getHelmCharts();
           this.loading = false;
           console.log(err);
         });
     },
   },
   beforeDestroy() {
-    window.clearInterval(this.polling);
+    this.clearExtensionsInterval()
   },
 });
 </script>

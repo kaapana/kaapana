@@ -5,7 +5,7 @@
                 "0x0008,0x0060": "CT"
         },
         "dag_ids": {
-            "racoon-ukf-preseg": {
+            "racoon-ukf-presegmentation": {
                 "rest_call": {
                     "global": {
                         "single_execution": true

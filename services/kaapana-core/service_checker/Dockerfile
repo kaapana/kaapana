@@ -6,6 +6,6 @@ LABEL CI_IGNORE="False"
 
 RUN pip install requests
 
-COPY service_checker.py /service_checker/service_checker.py
+COPY files/service_checker.py /service_checker/service_checker.py
 
 CMD [ "python3", "-u","/service_checker/service_checker.py" ]

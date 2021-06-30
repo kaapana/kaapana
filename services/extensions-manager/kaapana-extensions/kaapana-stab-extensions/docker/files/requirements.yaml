@@ -9,6 +9,9 @@ dependencies:
   - name: debug-container-chart
     version: 1.0.1-vdev
     repository: file://../../../../../../services/applications/debug-container/debug-container-chart
+  - name: kaapana-plugin-chart
+    version: "0.1.1-vdev"
+    repository: file://../../../../../../workflows/dag-installer/kaapana-plugin/kaapana-plugin-chart
   - name: jupyterlab-chart
     version: 2.2.8
     repository: file://../../../../../../services/applications/jupyterlab/jupyterlab-chart

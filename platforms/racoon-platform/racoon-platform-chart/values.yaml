@@ -31,9 +31,10 @@ global:
     preinstall_extensions:
         - name: code-server-chart
           version: 3.9.1
-        - name: racoon-ukf-preseg-workflow
-          version: 0.1.0
+        - name: kaapana-plugin-chart
+          version: 0.1.1-vdev
         - name: nnunet-workflow
           version: 04-21
-
+        - name: racoon-ukf-preseg-workflow
+          version: 0.1.0
 ---

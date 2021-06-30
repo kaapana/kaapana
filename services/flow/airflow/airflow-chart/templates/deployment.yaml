@@ -65,7 +65,20 @@ spec:
         app-name: airflow
     spec:
       initContainers:
-      - name: init
+      - name: service-kaapana-plugin-check
+        image: {{  .Values.global.registry_url }}/service_checker:1.1
+        imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
+        env:
+        - name: WAIT
+          value: "postgres,postgres-airflow,5432;prometheus,prometheus-service.monitoring.svc,9090"
+        - name: DELAY
+          value: "5"
+        - name: FILES_AND_FOLDERS_EXISTS
+          value: "/root/airflow/plugins/kaapana"
+        volumeMounts:
+        - name: airflow-plugins
+          mountPath: /root/airflow/plugins
+      - name: init-airflow-db
         image: {{  .Values.global.registry_url }}/airflow:1.10.15-vdev
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["init"]
@@ -85,10 +98,6 @@ spec:
         env:
         - name: AIRFLOW_HOME
           value: "/root/airflow"
-        - name: WAIT
-          value: "postgres,postgres-airflow,5432;prometheus,prometheus-service.monitoring.svc,9090"
-        - name: DELAY
-          value: "5"
         - name: SQL_ALCHEMY_CONN
           valueFrom:
             secretKeyRef:

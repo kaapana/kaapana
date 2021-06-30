@@ -22,22 +22,6 @@
 if [ "$1" = "init" ]
 then
 	echo ""
-	echo "Wait for needed services..."
-	echo ""
-	python3 -u /scripts/service_checker.py || { echo 'ERROR: service_checker' ; exit 1; }
-	echo ""
-
-	echo "Wait for kaapana-plugin..."
-	echo ""
-	until [ -d /root/airflow/plugins/kaapana ]
-	do  
-		echo "PLUGIN NOT FOUND!"
-		sleep 5
-	done
-
-	echo ""
-	echo "PLUGIN found!"
-	echo ""
 	echo "Airflow init DB..."
 	echo ""
 	airflow db init || { echo 'ERROR: airflow initdb' ; exit 1; }

@@ -29,4 +29,9 @@ global:
     kaapana_collections:
         - name: kaapana-base-collection
           version: 0.1.0-vdev 
+    preinstall_extensions:
+        - name: code-server-chart
+          version: 3.9.1
+        - name: kaapana-plugin-chart
+          version: 0.1.1-vdev
 ---

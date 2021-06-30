@@ -1,8 +1,5 @@
 ---
 dependencies:
-  - name: kaapana-plugin-chart
-    version: "0.1.1-vdev"
-    repository: file://../../../../workflows/dag-installer/kaapana-plugin/kaapana-plugin-chart
   - name: airflow-postgres
     version: "9.6.1-vdev"
     repository: file://deps/airflow-postgres

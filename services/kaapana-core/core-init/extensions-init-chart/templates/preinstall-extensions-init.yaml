@@ -10,7 +10,17 @@ spec:
       name: preinstall-extensions-init
     spec:
       initContainers:
-        - name: init
+        - name: init-kube-helm
+          image: {{  .Values.global.registry_url }}/service_checker:1.1
+          imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
+          env:
+            - name: WAIT
+              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/kube-helm-api/health-check"
+            - name: DELAY
+              value: "2"
+            - name: TIMEOUT
+              value: "10"
+        - name: init-extensions
           image: {{  .Values.global.registry_url }}/service_checker:1.1
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:

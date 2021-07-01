@@ -25,6 +25,8 @@ PULL_POLICY_OPERATORS="IfNotPresent"
 DEV_PORTS="false"
 GPU_SUPPORT="false"
 
+NO_HOOKS=""
+
 if [ "$DEV_MODE" == "true" ]; then
     PULL_POLICY_PODS="Always"
     PULL_POLICY_JOBS="Always"
@@ -184,7 +186,7 @@ function get_domain {
 
 function delete_deployment {
     echo -e "${YELLOW}Uninstalling releases${NC}"
-    helm ls --date --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c 'helm uninstall %; sleep 2'
+    helm ls --date --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm uninstall ${NO_HOOKS} %; sleep 2"
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
@@ -209,6 +211,13 @@ function delete_deployment {
     echo -e "${GREEN}####################################  UNINSTALLATION DONE  ############################################${NC}"
 }
 
+function clean_up_kubernetes {
+    echo "${YELLOW}Deleting all deployments ${NC}"
+    microk8s.kubectl delete deployments --all
+    echo "${YELLOW}Deleting all jobs${NC}"
+    microk8s.kubectl delete jobs --all
+}
+
 function prefetch_extensions {
     if [ "$OFFLINE_MODE" == "true" ]; then
         echo "${RED}ERROR: --prefetch-extensions can only be executed when OFFLINE_MODE is set to false. ${NC}"
@@ -220,15 +229,15 @@ function prefetch_extensions {
     release_name=prefetch-extensions-chart-$(echo $(uuidgen --hex) | cut -c1-10)
     PREFETCH_CHART_PATH=$(find $FAST_DATA_DIR/charts/helpers/ -name "prefetch-extensions*" -type f)
     helm install $PREFETCH_CHART_PATH\
-    --set global.pull_policy_pods="$PULL_POLICY_PODS" \
-    --set global.registry_url=$CONTAINER_REGISTRY_URL \
+    --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
+    --set-string global.registry_url=$CONTAINER_REGISTRY_URL \
     --wait \
     --atomic \
     --timeout 15m0s \
     --name-template $release_name \
 
     sleep 10
-    helm delete $release_name
+    helm uninstall $release_name
     echo -e "${GREEN}OK!${NC}"
 }
 
@@ -247,8 +256,8 @@ function install_chart {
         PULL_POLICY_JOBS="IfNotPresent"
         PULL_POLICY_OPERATORS="IfNotPresent"
 
-        REGISTRY_USERNAME=""
-        REGISTRY_PASSWORD=""
+        CONTAINER_REGISTRY_USERNAME=""
+        CONTAINER_REGISTRY_PASSWORD=""
         CONTAINER_REGISTRY_URL="local"
         import_containerd
 
@@ -257,8 +266,8 @@ function install_chart {
         echo "${RED}ABORT${NC}"
         exit 1
     elif [ "$OFFLINE_MODE" == "true" ]; then
-        REGISTRY_USERNAME=""
-        REGISTRY_PASSWORD=""
+        CONTAINER_REGISTRY_USERNAME=""
+        CONTAINER_REGISTRY_PASSWORD=""
         echo "${YELLOW}Installing the platform in offline mode${NC}"
     else    
         echo "${YELLOW}Helm login registry...${NC}"
@@ -306,6 +315,7 @@ function install_chart {
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.http_port="$HTTP_PORT" \
     --set-string global.https_port="$HTTPS_PORT" \
+    --set-string global.auth_node_port="$AUTH_NODE_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.home_dir="$HOME" \
@@ -320,14 +330,14 @@ function install_chart {
     --set global.gpu_support=$GPU_SUPPORT \
     --name-template $PROJECT_NAME
 
-    if [ ! -z "$REGISTRY_USERNAME" ] && [ ! -z "$REGISTRY_PASSWORD" ]; then
+    if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm -rf $CHART_PATH
     fi
 
     print_installation_done
     
-    REGISTRY_USERNAME=""
-    REGISTRY_PASSWORD=""
+    CONTAINER_REGISTRY_USERNAME=""
+    CONTAINER_REGISTRY_PASSWORD=""
 }
 
 
@@ -369,13 +379,13 @@ function upgrade_chart {
     echo "${YELLOW}Upgrading release: $PROJECT_NAME ${NC}"
     echo "${YELLOW}version: $chart_version${NC}"
     
-    if [ ! -z "$REGISTRY_USERNAME" ] && [ ! -z "$REGISTRY_PASSWORD" ]; then
+    if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         CHART_PATH=$HOME/$PROJECT_NAME
         pull_chart
     fi
     echo -e "${YELLOW}Charyt-tgz-path $CHART_PATH${NC}"
-    helm upgrade $PROJECT_NAME $CHART_PATH --devel --version $chart_version --set global.version="$chart_version" --reuse-values 
-    if [ ! -z "$REGISTRY_USERNAME" ] && [ ! -z "$REGISTRY_PASSWORD" ]; then
+    helm upgrade $PROJECT_NAME $CHART_PATH --devel --version $chart_version --set-string global.version="$chart_version" --reuse-values 
+    if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm -rf $CHART_PATH
     fi
     print_installation_done
@@ -383,16 +393,16 @@ function upgrade_chart {
 
 function check_credentials {
     while true; do
-        if [ ! -v REGISTRY_USERNAME ] || [ ! -v REGISTRY_PASSWORD ]; then
+        if [ ! -v CONTAINER_REGISTRY_USERNAME ] || [ ! -v CONTAINER_REGISTRY_PASSWORD ]; then
             echo -e "${YELLOW}Please enter the credentials for the Container-Registry!${NC}"
-            read -p '**** username: ' REGISTRY_USERNAME
-            read -s -p '**** password: ' REGISTRY_PASSWORD
+            read -p '**** username: ' CONTAINER_REGISTRY_USERNAME
+            read -s -p '**** password: ' CONTAINER_REGISTRY_PASSWORD
         else
             echo -e "${GREEN}Credentials found!${NC}"
             break
         fi
     done
-    helm registry login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD ${CONTAINER_REGISTRY_URL}
+    helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD ${CONTAINER_REGISTRY_URL}
 }
 
 function install_certs {
@@ -441,7 +451,7 @@ function print_installation_done {
     echo -e "When all pod are in the \"running\" or \"completed\" state,${NC}"
 
     if [ -v DOMAIN ];then
-        echo -e "${GREEN}you can visit: https://$DOMAIN/"
+        echo -e "${GREEN}you can visit: https://$DOMAIN:$HTTPS_PORT/"
         echo -e "You should be welcomed by the login page."
         echo -e "Initial credentials:"
         echo -e "username: kaapana"
@@ -505,15 +515,15 @@ do
         ;;
 
         -u|--username)
-            REGISTRY_USERNAME="$2"
-            echo -e "${GREEN}SET REGISTRY_USERNAME! $REGISTRY_USERNAME ${NC}";
+            CONTAINER_REGISTRY_USERNAME="$2"
+            echo -e "${GREEN}SET CONTAINER_REGISTRY_USERNAME! $CONTAINER_REGISTRY_USERNAME ${NC}";
             shift # past argument
             shift # past value
         ;;
 
         -p|--password)
-            REGISTRY_PASSWORD="$2"
-            echo -e "${GREEN}SET REGISTRY_PASSWORD!${NC}";
+            CONTAINER_REGISTRY_PASSWORD="$2"
+            echo -e "${GREEN}SET CONTAINER_REGISTRY_PASSWORD!${NC}";
             shift # past argument
             shift # past value
         ;;
@@ -554,6 +564,15 @@ do
 
         --prefetch-extensions)
             prefetch_extensions
+            exit 0
+        ;;
+
+        --purge-kube-and-helm)
+            echo -e "${YELLOW}Starting Uninstallation...${NC}"
+            NO_HOOKS="--no-hooks"
+            echo -e "${YELLOW}Using --no-hooks${NC}"
+            delete_deployment
+            clean_up_kubernetes
             exit 0
         ;;
 

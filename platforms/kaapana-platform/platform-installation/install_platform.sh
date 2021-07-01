@@ -28,6 +28,8 @@ PULL_POLICY_OPERATORS="IfNotPresent"
 DEV_PORTS="false"
 GPU_SUPPORT="false"
 
+NO_HOOKS=""
+
 if [ "$DEV_MODE" == "true" ]; then
     PULL_POLICY_PODS="Always"
     PULL_POLICY_JOBS="Always"
@@ -187,7 +189,7 @@ function get_domain {
 
 function delete_deployment {
     echo -e "${YELLOW}Uninstalling releases${NC}"
-    helm ls --date --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c 'helm uninstall %; sleep 2'
+    helm ls --date --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm uninstall ${NO_HOOKS} %; sleep 2"
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
@@ -212,6 +214,13 @@ function delete_deployment {
     echo -e "${GREEN}####################################  UNINSTALLATION DONE  ############################################${NC}"
 }
 
+function clean_up_kubernetes {
+    echo "${YELLOW}Deleting all deployments ${NC}"
+    microk8s.kubectl delete deployments --all
+    echo "${YELLOW}Deleting all jobs${NC}"
+    microk8s.kubectl delete jobs --all
+}
+
 function prefetch_extensions {
     if [ "$OFFLINE_MODE" == "true" ]; then
         echo "${RED}ERROR: --prefetch-extensions can only be executed when OFFLINE_MODE is set to false. ${NC}"
@@ -231,7 +240,7 @@ function prefetch_extensions {
     --name-template $release_name \
 
     sleep 10
-    helm delete $release_name
+    helm uninstall $release_name
     echo -e "${GREEN}OK!${NC}"
 }
 
@@ -558,6 +567,15 @@ do
 
         --prefetch-extensions)
             prefetch_extensions
+            exit 0
+        ;;
+
+        --purge-kube-and-helm)
+            echo -e "${YELLOW}Starting Uninstallation...${NC}"
+            NO_HOOKS="--no-hooks"
+            echo -e "${YELLOW}Using --no-hooks${NC}"
+            delete_deployment
+            clean_up_kubernetes
             exit 0
         ;;
 

@@ -1,5 +1,0 @@
----
-dependencies:
-  - name: racoon-extensions-chart
-    version: 0.1.0-vdev
-    repository: file://../../../../kaapana-extensions/racoon-extensions/racoon-extensions-chart

@@ -1,6 +1,0 @@
----
-apiVersion: v1
-appVersion: "0.1.2-dev"
-description: JIP for Racoon
-name: racoon-platform-chart
-version: "0.1.2-dev"

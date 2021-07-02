@@ -234,6 +234,7 @@ function prefetch_extensions {
     helm install $PREFETCH_CHART_PATH\
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
     --set-string global.registry_url=$CONTAINER_REGISTRY_URL \
+    --set-string global.fast_data_dir=$FAST_DATA_DIR \
     --wait \
     --atomic \
     --timeout 15m0s \

@@ -10,13 +10,15 @@ OFFLINE_MODE="false" # true or false
 DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart
 
 CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
-
+CONTAINER_REGISTRY_USERNAME=""
+CONTAINER_REGISTRY_PASSWORD=""
 FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
 
 HTTP_PORT=80      # not working yet -> has to be 80
 HTTPS_PORT=443    # not working yet -> has to be 443
 DICOM_PORT=11112  # configure DICOM receiver port
+AUTH_NODE_PORT=8000
 
 PULL_POLICY_PODS="IfNotPresent"
 PULL_POLICY_JOBS="IfNotPresent"
@@ -231,6 +233,7 @@ function prefetch_extensions {
     helm install $PREFETCH_CHART_PATH\
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
     --set-string global.registry_url=$CONTAINER_REGISTRY_URL \
+    --set-string global.fast_data_dir=$FAST_DATA_DIR \
     --wait \
     --atomic \
     --timeout 15m0s \

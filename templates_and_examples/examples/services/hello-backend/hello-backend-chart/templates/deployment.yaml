@@ -22,7 +22,7 @@ spec:
       - name: hello-backend
         image: <docker-registry><docker-repo>/hello-backend:0.1.0
         #image: {{  .Values.global.registry_url }}/hello-backend:0.1.0
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy: Always
         #imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         # command: ["tail"]
         # args: ["-f", "/dev/null"] 

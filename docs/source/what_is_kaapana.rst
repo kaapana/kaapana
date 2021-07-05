@@ -44,4 +44,4 @@ For more information, please also take a look at our recent publication of the K
 .. _Docker: https://www.docker.com/
 .. _nnU-Net: https://github.com/MIC-DKFZ/nnunet
 .. _JIP: https://jip.dktk.dkfz.de/jiphomepage/
-.._JCO: https://ascopubs.org/doi/pdf/10.1200/CCI.20.00045
+.. _JCO: https://ascopubs.org/doi/pdf/10.1200/CCI.20.00045

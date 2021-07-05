@@ -9,7 +9,7 @@ The steps described in this guide will build an example :term:`platform`, which 
 This basic platform can be used as a starting-point to derive a customized platform for your specific project.
 
 What's needed to run Kaapana?
-----------------------------
+-----------------------------
 
 #. **Host System**
 
@@ -22,6 +22,11 @@ What's needed to run Kaapana?
    - Storage: 100GB (deploy only) / 150GB (local build)  -> (recommended >200GB) 
 
 #. **Container Registry**
+
+   .. hint::
+
+      | **Get access to our docker registry**
+      | In case you just want to try out the platform, you are very welcome to reach out to us via slack_ or email_. In this case, we will provide you credentials to our docker registry from which you can directly install the platform and skip the building part!
 
    To provide the services in Kaapana, the corresponding containers are needed.
    These can be looked at as normal binaries of Kaapana and therefore only need to be built if you do not have access to already built containers via a container registry.
@@ -45,3 +50,7 @@ What's needed to run Kaapana?
 #. **Installation**
 
    :ref:`install_kaapana`
+
+
+   .. _email: mailto:kaapana@dkfz-heidelberg.de?subject=kaapana%20Support%20Question
+   .. _slack: https://join.slack.com/t/kaapana/shared_invite/zt-hilvek0w-ucabihas~jn9PDAM0O3gVQ/

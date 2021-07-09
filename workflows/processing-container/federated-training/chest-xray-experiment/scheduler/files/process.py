@@ -9,6 +9,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
+from sklearn import metrics as mt
 
 from utilities import (
     ResNet18,
@@ -91,6 +92,7 @@ def inference(args):
     model.eval()
     model.to(device)
     loss, correct = 0, 0
+    predictions, targets_total = [], []
     with torch.no_grad():
         for imgs, targets in dataloader_test:
             imgs, targets = imgs.to(device), targets.to(device)
@@ -98,12 +100,20 @@ def inference(args):
             loss += F.nll_loss(output, targets, reduction='sum').item() # sum up batch loss
             pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
             correct += pred.eq(targets.view_as(pred)).sum().item()
+
+            targets_total.extend(targets.tolist())
+            predictions.extend([item[0] for item in pred.tolist()])
+
     loss /= len(dataloader_test.dataset)
     accuracy = correct / len(dataloader_test.dataset)
     
     print('Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.3f}%)\n'.format(
         loss, correct, len(dataloader_test.dataset),
         100. * accuracy))
+    
+    roc_auc = mt.roc_auc_score(targets_total, predictions, multi_class="ovr")
+    print("ROC area under the curve:", roc_auc)
+    print()
 
 
 def initialize_model(args):

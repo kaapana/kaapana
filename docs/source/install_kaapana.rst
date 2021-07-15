@@ -3,6 +3,12 @@
 Install Kaapana
 ===============
 
+.. important::
+
+   | **Access to a docker registry with build docker containers:**
+   | Before proceeding with further installation steps, make sure you have access to a docker registry with the build Kaapana docker containers otherwise please visit :ref:`getting_started`.
+   
+
 | The **domain,hostname or IP-address** has to be known and correctly configured for the system. 
 | If a **proxy** is needed, it should already be configured at ``/etc/environment`` (reboot needed after configuration!). 
 
@@ -70,12 +76,6 @@ Copy the script to your target-system (server) and **adjust it as described belo
    :code:`nano install_platform.sh`
 
 2. Have a look at the variables on top of the script.
-   
-.. important::
-
-   | **Access to Kaapana binaries:**
-   | Before proceeding with further installation steps, make sure you have access to a registry with all Kaapana Binaries. 
-   | If not, then please visit the `build page <https://kaapana.readthedocs.io/en/latest/build_kaapana.html#build-modes>`_ and build the platform first, then come back.
    
 **You need to do at least the following customizations:**
 

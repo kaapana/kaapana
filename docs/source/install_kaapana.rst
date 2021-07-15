@@ -3,6 +3,12 @@
 Install Kaapana
 ===============
 
+.. important::
+
+   | **Access to a docker registry with build docker containers:**
+   | Before proceeding with further installation steps, make sure you have access to a docker registry with the build Kaapana docker containers otherwise please visit :ref:`getting_started`.
+   
+
 | The **domain,hostname or IP-address** has to be known and correctly configured for the system. 
 | If a **proxy** is needed, it should already be configured at ``/etc/environment`` (reboot needed after configuration!). 
 
@@ -71,7 +77,7 @@ Copy the script to your target-system (server) and **adjust it as described belo
 
 2. Have a look at the variables on top of the script.
    
-   **You need to do at least the following customizations:**
+**You need to do at least the following customizations:**
 
 .. tabs::
 
@@ -84,7 +90,6 @@ Copy the script to your target-system (server) and **adjust it as described belo
          ...
 
    .. tab:: Private registry
-
 
       .. code-block:: python
 

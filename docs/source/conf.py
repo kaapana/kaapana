@@ -11,10 +11,11 @@
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+
+import os
+import sys
+sys.path.insert(0, os.path.abspath('../../workflows/airflow-components/plugins'))
+#sys.path.insert(1, os.path.abspath('../../workflows/airflow-components/'))
 
 
 # -- Project information -----------------------------------------------------
@@ -50,7 +51,7 @@ extensions = [
 
 pdf_documents = [('index', u'kaapana_docs', 'Kaapana documentation', u'MIC @DKFZ'), ]
 mermaid_params = ['--theme', 'forest', '--width', '200', '--backgroundColor', 'transparent']
-
+autodoc_mock_imports = ['airflow', 'flask', 'flask_admin', 'flask_appbuilder', 'sqlalchemy', 'elasticsearch', 'pydicom', 'kubernetes', 'dicomweb_client', 'minio']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

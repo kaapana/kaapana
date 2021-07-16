@@ -16,6 +16,7 @@ Welcome to Kaapana's documentation!
    user_guide
    extensions
    development_guide
+   api
    faq
    glossary
    releases

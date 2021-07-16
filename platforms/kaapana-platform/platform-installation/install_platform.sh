@@ -207,7 +207,7 @@ function delete_deployment {
         echo "${RED}Something went wrong while uninstalling please check manually if there are still namespaces or pods floating around. Everything must be delete before the installation:${NC}"
         echo "${RED}kubectl get pods -A${NC}"
         echo "${RED}kubectl get namespaces${NC}"
-        echo "${RED}Once everything is delete you can reinstall the platform!${NC}"
+        echo "${RED}Once everything is deleted you can reinstall the platform!${NC}"
         exit 1
     fi
     
@@ -397,7 +397,7 @@ function upgrade_chart {
 
 function check_credentials {
     while true; do
-        if [ ! -v CONTAINER_REGISTRY_USERNAME ] || [ ! -v CONTAINER_REGISTRY_PASSWORD ]; then
+        if [ -z "$CONTAINER_REGISTRY_USERNAME" ] || [ -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
             echo -e "${YELLOW}Please enter the credentials for the Container-Registry!${NC}"
             read -p '**** username: ' CONTAINER_REGISTRY_USERNAME
             read -s -p '**** password: ' CONTAINER_REGISTRY_PASSWORD

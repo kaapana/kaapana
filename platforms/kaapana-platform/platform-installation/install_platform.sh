@@ -21,6 +21,8 @@ HTTPS_PORT=443    # HTTPS port -> port <AUTH_NODE_PORT> is additionaly needed if
 DICOM_PORT=11112  # configure DICOM receiver port
 AUTH_NODE_PORT=8000
 
+DOMAIN=""
+
 PULL_POLICY_PODS="IfNotPresent"
 PULL_POLICY_JOBS="IfNotPresent"
 PULL_POLICY_OPERATORS="IfNotPresent"
@@ -50,6 +52,20 @@ fi
 
 CHART_PATH=""
 script_name=`basename "$0"`
+
+# Define variables for color and formatting.
+BOLD=""
+underline=""
+standout=""
+NC=""
+BLACK=""
+RED=""
+GREEN=""
+YELLOW=""
+BLUE=""
+MAGENTA=""
+CYAN=""
+WHITE=""
 
 # check if stdout is a terminal...
 if test -t 1; then
@@ -159,7 +175,9 @@ function import_containerd {
 }
 
 function get_domain {
-    DOMAIN=$(hostname -f)
+    if [ -z "$DOMAIN" ]; then
+        DOMAIN=$(hostname -f)
+    fi
 
     if [ ! "$QUIET" = "true" ];then
         echo -e ""
@@ -454,7 +472,7 @@ function print_installation_done {
     echo -e "watch microk8s.kubectl get pods --all-namespaces"
     echo -e "When all pod are in the \"running\" or \"completed\" state,${NC}"
 
-    if [ -v DOMAIN ];then
+    if [ ! -z "$DOMAIN" ]; then
         echo -e "${GREEN}you can visit: https://$DOMAIN:$HTTPS_PORT/"
         echo -e "You should be welcomed by the login page."
         echo -e "Initial credentials:"

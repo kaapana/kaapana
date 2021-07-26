@@ -1,6 +1,20 @@
 #!/bin/bash
 set -euf -o pipefail
 
+# Define variables for color and formatting.
+BOLD=""
+underline=""
+standout=""
+NC=""
+BLACK=""
+RED=""
+GREEN=""
+YELLOW=""
+BLUE=""
+MAGENTA=""
+CYAN=""
+WHITE=""
+
 # check if stdout is a terminal...
 if test -t 1; then
 
@@ -67,7 +81,7 @@ function proxy_environment {
     
     echo "${YELLOW}Checking proxy settings...${NC}"
     
-    if [ ! -v http_proxy ]; then
+    if [ ! "$QUIET" = "true" ] && [ ! -v http_proxy ]; then
         echo "${RED}No proxy has been found!${NC}"
         while true; do
             read -p "Is this correct and you don't need a proxy?" yn
@@ -383,7 +397,7 @@ function enable_gpu {
         #         * ) echo "Please answer yes or no.";;
         #     esac
         # done
-    else
+    elif [ ! -v GPU_SUPPORT ];then
         GPU_SUPPORT=false;
     fi
 
@@ -598,6 +612,7 @@ case "$OS_PRESENT" in
     ;;
 
     "GPUSUPPORT")
+        GPU_SUPPORT=true
         enable_gpu
     ;;
 

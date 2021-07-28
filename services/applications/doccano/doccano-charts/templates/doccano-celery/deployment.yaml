@@ -34,7 +34,7 @@ spec:
               value: "postgres://doccano:doccano@postgres-doccano:5432/doccano?sslmode=disable"
           volumeMounts:
             - name: media
-              mountPath: /media
+              mountPath: /backend/media
       volumes:
       - name:  media
         hostPath:

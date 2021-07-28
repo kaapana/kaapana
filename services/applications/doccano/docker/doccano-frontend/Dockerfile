@@ -12,6 +12,9 @@ FROM node:13.7-alpine AS frontend-builder
 
 COPY --from=build-stage /doccano/frontend/ /app/
 COPY files/nuxt.config.js /app/
+COPY files/pages/projects/_id/upload/index.vue /app/pages/projects/_id/upload/
+COPY files/components/configAutoLabeling/form/FileField.vue /app/components/configAutoLabeling/form/
+COPY files/domain/models/example/example.ts /app/domain/models/example
 
 WORKDIR /app
 
@@ -22,17 +25,8 @@ RUN apk add -U --no-cache git python3 make g++ \
 
 FROM nginx:1.17.4-alpine AS runtime
 
-RUN addgroup -g 61000 doccano \
-  && adduser -G doccano -S doccano -u 61000
-
-COPY --chown=doccano:doccano --from=frontend-builder /app/dist /var/www/html/doccano
+COPY --from=frontend-builder /app/dist /var/www/html/doccano
 COPY files/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY files/nginx/default.conf /etc/nginx/conf.d/default.conf
 
-RUN chown -R doccano:doccano /var/cache/nginx \
-  && chmod -R g+w /var/cache/nginx \
-  && chown -R doccano:doccano /media
-
 EXPOSE 8080
-
-USER doccano:doccano

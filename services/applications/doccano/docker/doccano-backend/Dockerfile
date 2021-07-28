@@ -17,13 +17,8 @@ WORKDIR /backend
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-RUN groupadd -g 61000 doccano \
-  && useradd -g 61000 -l -M -s /bin/false -u 61000 doccano
-
-COPY --from=build-stage --chown=doccano:doccano /doccano/backend /backend/
-COPY --from=build-stage --chown=doccano:doccano /doccano/Pipfile* /backend/
-# COPY --chown=doccano:doccano ./backend/ /backend/
-# COPY --chown=doccano:doccano ./Pipfile* /backend/
+COPY --from=build-stage /doccano/backend /backend/
+COPY --from=build-stage /doccano/Pipfile* /backend/
 
 # hadolint ignore=DL3013
 RUN apt-get update \
@@ -38,13 +33,11 @@ RUN apt-get update \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
-COPY --from=build-stage --chown=doccano:doccano /doccano/tools/ /opt/bin/
+COPY --from=build-stage /doccano/tools/ /opt/bin/
 RUN mkdir -p /backend/staticfiles \
   && mkdir -p /backend/client/dist/static \
-  && mkdir -p /backend/media \
-  && chown -R doccano:doccano /backend/
+  && mkdir -p /backend/media
 
-USER doccano:doccano
 VOLUME /backend/staticfiles
 
 ENTRYPOINT [ "/opt/bin/prod-django.sh" ]

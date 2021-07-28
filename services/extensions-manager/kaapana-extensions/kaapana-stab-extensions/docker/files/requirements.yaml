@@ -6,6 +6,9 @@ dependencies:
   - name: code-server-chart
     version: 3.10.2
     repository: file://../../../../../../services/applications/code-server/code-server-chart
+  - name: doccano
+    version: 0.1.0
+    repository: file://../../../../../../services/applications/doccano/doccano-charts
   - name: debug-container-chart
     version: 1.0.1-vdev
     repository: file://../../../../../../services/applications/debug-container/debug-container-chart

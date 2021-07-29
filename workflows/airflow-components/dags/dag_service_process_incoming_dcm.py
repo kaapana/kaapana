@@ -1,4 +1,5 @@
 from kaapana.operators.LocalCtpQuarantineCheckOperator import LocalCtpQuarantineCheckOperator
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalAutoTriggerOperator import LocalAutoTriggerOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
@@ -38,5 +39,7 @@ auto_trigger_operator = LocalAutoTriggerOperator(
     input_operator=get_input
 )
 check_ctp = LocalCtpQuarantineCheckOperator(dag=dag)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> dcm_send >> auto_trigger_operator >> check_ctp
+
+get_input >> dcm_send >> auto_trigger_operator >> check_ctp >> clean

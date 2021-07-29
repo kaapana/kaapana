@@ -23,7 +23,7 @@ class BprOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="{}{}/bodypartregression:v1.1".format(default_registry, default_project),
+            image="{}{}/bodypartregression:v1.2".format(default_registry, default_project),
             name="bodypartregression",
             parallel_id=parallel_id,
             image_pull_secrets=["registry-secret"],

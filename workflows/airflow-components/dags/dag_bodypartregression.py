@@ -72,6 +72,6 @@ push_json = LocalJson2MetaOperator(
     json_operator=bodypartregression
 )
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_input >> dcm2nifti >> bodypartregression >> push_json >> clean

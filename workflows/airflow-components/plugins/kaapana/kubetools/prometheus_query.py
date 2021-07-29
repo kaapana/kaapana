@@ -20,7 +20,7 @@ def get_node_info(query):
     success = True
     while result_value == None and tries < max_tries:
         request_url = "{}{}".format(prometheus_url, query)
-        response = requests.get(request_url)
+        response = requests.get(request_url,timeout=5)
         result = response.json()["data"]["result"]
         if isinstance(result, list) and len(result) > 0:
             result_value = int(float(response.json()["data"]["result"][0]["value"][1]))
@@ -79,7 +79,7 @@ def get_node_gpu_infos(logger=None):
         success = False
         while not success and tries < max_tries:
             request_url = f"{prometheus_url}{gpu_mem_available_device.replace('<replace>', str(i))}"
-            response = requests.get(request_url)
+            response = requests.get(request_url,timeout=5)
             result = response.json()
             if "data" in result and "result" in result["data"] and isinstance(result["data"]["result"], list) and len(result["data"]["result"]) > 0:
                 result = result["data"]["result"][0]

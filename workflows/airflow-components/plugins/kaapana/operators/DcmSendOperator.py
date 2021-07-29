@@ -16,8 +16,9 @@ class DcmSendOperator(KaapanaBaseOperator):
                  pacs_port='11112',
                  env_vars=None,
                  level='element',
-                 enable_proxy = False,
-                 host_network = False,
+                 check_arrival=False,
+                 enable_proxy=False,
+                 host_network=False,
                  execution_timeout=timedelta(minutes=20),
                  *args, **kwargs
                  ):
@@ -35,6 +36,7 @@ class DcmSendOperator(KaapanaBaseOperator):
             "HOST": str(pacs_host),
             "PORT": str(pacs_port),
             "AETITLE": str(ae_title),
+            "CHECK_ARRIVAL": str(check_arrival),
             "LEVEL": str(level)
         }
 

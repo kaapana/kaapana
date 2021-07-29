@@ -42,7 +42,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='bodypartregression',
+    dag_id='bodypart-regression',
     default_args=args,
     concurrency=10,
     max_active_runs=max_active_runs,
@@ -63,6 +63,7 @@ dcm2nifti = DcmConverterOperator(
 
 bodypartregression = BprOperator(
     dag=dag,
+    stringify_json=True,
     input_operator=dcm2nifti
 )
 

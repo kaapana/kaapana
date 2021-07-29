@@ -7,7 +7,8 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.HelperElasticsearch import HelperElasticsearch
 from multiprocessing.pool import ThreadPool
-
+from os.path import join, exists
+import shutil
 
 class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
@@ -62,7 +63,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
         elif self.data_type == "json":
             meta_data = HelperElasticsearch.get_series_metadata(series_uid=seriesUID)
-            json_path = os.path.join(target_dir, "metadata.json")
+            json_path = join(target_dir, "metadata.json")
             with open(json_path, 'w') as fp:
                 json.dump(meta_data, fp, indent=4, sort_keys=True)
 
@@ -89,8 +90,35 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
         print(f"# Cohort-limit: {self.cohort_limit}")
         print("#")
-        
+
         dag_run_id = kwargs['dag_run'].run_id
+
+        if "seriesInstanceUID" in kwargs['dag_run'].conf:
+            series_uid = kwargs['dag_run'].conf.get('seriesInstanceUID')
+            dcm_path = join("/ctpinput", kwargs['dag_run'].conf.get('dicom_path'))
+            this_dag_run_id = kwargs['dag_run'].run_id
+
+            print("#")
+            print("############################ Get input data ############################")
+            print("#")
+            print(f"# Dicom-path: {dcm_path}")
+            print(f"# SeriesUID:  {series_uid}")
+            print(f"# RUN_id:     {this_dag_run_id}")
+            print("#")
+
+            if not os.path.isdir(dcm_path):
+                print(f"Could not find dicom dir: {dcm_path}")
+                print("Abort!")
+                exit(1)
+
+            target = join("/data", this_dag_run_id, "batch", series_uid, self.operator_out_dir)
+
+            print("#")
+            print(f"# Moving data from {dcm_path} -> {target}")
+            print("#")
+            shutil.move(src=dcm_path, dst=target)
+            print(f"# Series CTP import -> OK: {series_uid}")
+            return
 
         if self.inputs is None and self.conf == None or not "inputs" in self.conf:
             print("No config or inputs in config found!")

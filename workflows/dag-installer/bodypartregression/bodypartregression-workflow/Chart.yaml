@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+appVersion: "0.1.0-vdev"
+description: A Dag to extract scan parameteres
+name: bodypartregression-workflow
+version: "0.1.0-vdev"
+keywords:
+- kaapanaworkflow
+- kaapanaexperimental

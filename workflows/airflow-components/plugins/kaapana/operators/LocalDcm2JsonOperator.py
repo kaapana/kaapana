@@ -844,6 +844,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         new_meta_data["dayofweek_integer"] = datetime.strptime(
             date_time_formatted, self.format_date_time).weekday()
         new_meta_data["time_tag_used_keyword"] = time_tag_used
+        new_meta_data["predicted_bodypart_string"] = "N/A"
 
         if "00100030 PatientBirthDate_date" in new_meta_data:
             birthdate = new_meta_data["00100030 PatientBirthDate_date"]

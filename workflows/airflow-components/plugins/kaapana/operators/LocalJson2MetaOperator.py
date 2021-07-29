@@ -141,19 +141,14 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
     def produce_inserts(self, new_json):
         global es
         
-        if "0020000E SeriesInstanceUID_keyword" in new_json:
-            instanceUID = new_json["0020000E SeriesInstanceUID_keyword"]
-        else:
-            print("Could not find SeriesUID...")
-            exit(1)
 
         if self.check_in_pacs:
-            self.check_pacs_availability(instanceUID)
+            self.check_pacs_availability(self.instanceUID)
 
         global elastic_indexname
 
         try:
-            old_json = es.get(index=self.elastic_index, doc_type="_doc", id=instanceUID)["_source"]
+            old_json = es.get(index=self.elastic_index, doc_type="_doc", id=self.instanceUID)["_source"]
             print("Series already found in ES")
             if self.no_update:
                 exit(1)
@@ -162,17 +157,19 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             print(e)
             old_json = {}
 
+        bpr_key = "predicted_bodypart_string"
         for new_key in new_json:
+            if new_key == bpr_key and bpr_key in old_json and old_json[bpr_key].lower() != "n/a":
+                continue
             new_value = new_json[new_key]
             old_json[new_key] = new_value
 
-        uid = instanceUID
         index = self.elastic_index
 
         try:
 
             doc = {}
-            doc["_id"] = uid
+            doc["_id"] = self.instanceUID
             doc["_index"] = index
             doc["_type"] = "_doc"
             doc["_source"] = old_json

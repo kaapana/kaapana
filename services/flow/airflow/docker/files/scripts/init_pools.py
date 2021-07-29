@@ -20,7 +20,7 @@ def get_node_info(query):
 
     while result_value == None and tries < 10:
         request_url = "{}{}".format(prometheus_url, query)
-        response = requests.get(request_url)
+        response = requests.get(request_url,timeout=5)
         result = response.json()["data"]["result"]
         if isinstance(result, list) and len(result) > 0:
             result_value = int(response.json()["data"]["result"][0]["value"][1])

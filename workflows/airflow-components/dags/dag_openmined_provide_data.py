@@ -49,20 +49,20 @@ run_node = RunNodeOperator(
     dag=dag, 
     operator_in_dir='./',
     release_name='openmined-node',
-    global_id=None,         #i.e. 'co',
-    hostname=None,          #i.e. '10.128.129.6',
+    global_id=None,         # i.e. 'co',
+    hostname=None,          # i.e. '10.128.129.6',
     port='5000',
-    grid_network_url=None   #i.e. '10.128.129.76:7000'
+    grid_network_url=None   # i.e. '10.128.129.76:7000'
     )
 
 data2node = OpenminedProvideDataOperator(
     dag=dag,
     input_operator=unzip_files,
-    hostname=None,      #i.e. '10.128.129.6,
+    hostname=None,          # i.e. '10.128.129.6,
     port='5000',
     lifespan='15',
     dataset='mnist',
-    exp_tag="#no-tag-given"
+    exp_tag="#no-tag-given" # <-- Experiment-Tag to be set for identification of data in PySyft-Grid
     )
 
 shutdown_node = ShutdownNodeOperator(
@@ -71,6 +71,6 @@ shutdown_node = ShutdownNodeOperator(
     trigger_rule=TriggerRule.ONE_SUCCESS
     )
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_object_from_minio >> unzip_files >> [run_node, data2node] >> shutdown_node >> clean

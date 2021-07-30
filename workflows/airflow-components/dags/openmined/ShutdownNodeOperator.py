@@ -18,7 +18,7 @@ class ShutdownNodeOperator(KaapanaPythonBaseOperator):
         r =requests.get(url)
 
         print(
-            'Shutting down Opemined node',
+            'Shutting down Openined PySyft-Node',
             'Url: {}'.format(url),
             'Repsonse: {}'.format(r.text),
             sep='\n'

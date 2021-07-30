@@ -12,7 +12,7 @@ class OpenminedProvideDataOperator(KaapanaBaseOperator):
     def on_success(info_dict):
         print("##################################################### on_success!")
         pod_id = info_dict["ti"].task.kube_name
-        print("--> training ended, now delete pod {} !".format(pod_id))
+        print("--> Training ended, now delete pod {} !".format(pod_id))
         KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=pod_id)
 
     def execute(self, context):

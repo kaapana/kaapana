@@ -1,6 +1,7 @@
-from datetime import timedelta, datetime
 import os
 import uuid
+from datetime import timedelta, datetime
+
 from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
 
@@ -35,7 +36,7 @@ class RunNodeOperator(KaapanaApplicationOperator):
         super(RunNodeOperator, self).__init__(
             dag=dag,
             name="openmined-node",
-            chart_name="openmined-grid-node-chart",
+            chart_name="openmined-grid-node-chart",     # <-- Helm chart to be installed as application (PySyft-Node)
             version="0.1.0-vdev",
             release_name=release_name,
             sets=sets,

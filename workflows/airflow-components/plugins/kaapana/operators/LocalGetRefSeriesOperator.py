@@ -150,7 +150,8 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                         exit(1)
                 elif self.search_policy == 'study_uid':
                     search_filters['StudyInstanceUID'] = incoming_dcm.StudyInstanceUID
-                    search_filters['Modality'] = self.modality.upper()
+                    if self.modality:
+                        search_filters['Modality'] = self.modality.upper()
 
                 elif self.search_policy == 'patient_uid':
                     if not (0x0010, 0x0020) in incoming_dcm:
@@ -164,7 +165,8 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
                     patient_uid = incoming_dcm[0x0010, 0x0020].value
                     search_filters['PatientID'] = patient_uid
-                    search_filters['Modality'] = self.modality.upper()
+                    if self.modality:
+                        search_filters['Modality'] = self.modality.upper()
 
                 else:
                     print("# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -255,7 +257,8 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
         self.modality = modality
         self.target_level = target_level
-        self.dicom_tags = dicom_tags  # studyID dicom_tags=[{'id':'StudyID','value':'nnUnet'},{...}]
+        # self.dicom_tags =[{'id':'StudyID','value':'nnUnet'},{'id':'0008103e','value':'example'},{...}]
+        self.dicom_tags = dicom_tags
         self.expected_file_count = expected_file_count
         self.limit_file_count = limit_file_count
         self.search_policy = search_policy

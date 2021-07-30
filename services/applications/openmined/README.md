@@ -21,6 +21,8 @@ Should be also installable as Kaapana extension via GUI. Lave
 
 ### Openmined PySyft-Node
 
+Run the following to host a PySyft-Node on a participating Kaapana instance.
+
 ```
 helm install --version 0.1.0-vdev --set global.id="dkfz" --set global.registry_url="registry.hzdr.de/<name.lastname>/<project>" --set port=5000 --set grid_network_url=http://<grid-ip-address>:7000 --set hostname="<own-ip-address>" openmined-node-dkfz openmined-node-chart-0.1.0-vdev.tgz
 ```
@@ -29,7 +31,7 @@ Should be also installable as Kaapana extension via GUI.
 
 ### Openmined PySyft Notebook
 
-(can also be installed as extension via GUI)
+Run the following to host a PySyft-Notebook on your central Kaapana instance.
 
 ```
 helm install --version 0.1.0-vdev --set global.registry_url="registry.hzdr.de/<name.lastname>/<project>" openmined-pysyft-nb openmined-pysyft-nb-chart-0.1.0-vdev.tgz

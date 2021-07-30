@@ -7,8 +7,6 @@ import syft as sy
 from syft.grid.clients.data_centric_fl_client import DataCentricFLClient
 
 import torch
-import torchvision
-from torchvision import transforms
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 
@@ -59,7 +57,7 @@ def main(args):
     images, targets = dataiter.next()
     print('Passed Iterator!')
 
-    # wait until node is available
+    # wait until PySyft-Node is available
     node = None
     while not node:
         time.sleep(5)
@@ -107,7 +105,7 @@ if __name__ == "__main__":
         '### Openmined Data Provider ###',
         'Data path: {}'.format(args.data_path),
         'Using node: {}'.format(args.node_addr),
-        'Experiment Tag: {}'.format(args.exp_tag),
+        'Experiment tag: {}'.format(args.exp_tag),
         sep='\n'
     )
     main(args)

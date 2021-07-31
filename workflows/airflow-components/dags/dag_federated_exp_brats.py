@@ -14,7 +14,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 
 from federated_training.EntrypointOperator import EntrypointOperator
 from federated_training.experiments.ExperimentBraTSOperator import ExperimentBraTSOperator
-from federated_training.TriggerRemoteWorkersOperator import TriggerRemoteWorkersOperator
+from federated_training.TriggerRemoteDagsOperator import TriggerRemoteDagsOperator
 from federated_training.AwaitingModelsOperator import AwaitingModelsOperator
 from federated_training.TriggerMyselfOperator import TriggerMyselfOperator
 
@@ -82,7 +82,7 @@ model_to_minio = LocalMinioOperator(
     trigger_rule=TriggerRule.ONE_SUCCESS
 )
 
-trigger_remote_dags = TriggerRemoteWorkersOperator(
+trigger_remote_dags = TriggerRemoteDagsOperator(
     dag=dag,
     dag_name='federated-training-brats',
     scheduler=None,

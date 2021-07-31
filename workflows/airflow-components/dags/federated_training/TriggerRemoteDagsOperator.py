@@ -8,7 +8,7 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
-class TriggerRemoteWorkersOperator(KaapanaPythonBaseOperator):
+class TriggerRemoteDagsOperator(KaapanaPythonBaseOperator):
 
     @rest_self_udpate
     def start(self, ds, **kwargs):

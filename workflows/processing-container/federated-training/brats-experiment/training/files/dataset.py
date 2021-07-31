@@ -1,6 +1,9 @@
 # customized for Federated BraTS Experiment
 # Source: https://github.com/Project-MONAI/MONAI/blob/dev/monai/apps/datasets.py
 
+# Multiple changes had to be done to make it work on the manually split up dataset we created
+# for our federated learning experiment
+
 import os
 import sys
 from typing import Callable, Dict, List, Optional, Sequence, Union

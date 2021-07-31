@@ -156,7 +156,7 @@ def prepare_model_and_optimizer(args, device):
 
     optimizer = torch.optim.Adam(
         model.parameters(), args.lr, weight_decay=args.weight_decay, amsgrad=True
-    ) # <-- values could be overwritten in next step
+    ) # <-- values could be overwritten in next step (here to optimizer state is RESET)
     # optimizer.load_state_dict(checkpoint['optimizer'])
     print("Optimizer:", optimizer)
 

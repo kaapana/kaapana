@@ -140,7 +140,6 @@ final_model_to_minio = LocalMinioOperator(
 
 cleanup = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-# SEQUENCE #
 entrypoint >> branching >> [init_model, clear_minio, final_model_to_minio]
 init_model >> model_to_minio >> trigger_remote_dags >> wait_for_models >> pull_models_from_minio >> process_models >> trigger_myself >> cleanup
 clear_minio >> model_to_minio >> trigger_remote_dags >> wait_for_models >> pull_models_from_minio >> process_models >> trigger_myself >> cleanup

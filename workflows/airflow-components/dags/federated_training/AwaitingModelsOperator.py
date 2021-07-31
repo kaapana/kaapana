@@ -14,6 +14,10 @@ class AwaitingModelsOperator(KaapanaPythonBaseOperator):
 
     @rest_self_udpate
     def start(self, ds, **kwargs):
+        """
+        Wait until all model from the participants arrived in the corresponding MinIO bucket on the central instance.
+        By using MinIOs' API, it is checked if the files are already there.
+        """
 
         assert self.procedure in ['avg', 'seq'], 'You have to provide either "avg" or "seq" as procedure - stopping...'
 

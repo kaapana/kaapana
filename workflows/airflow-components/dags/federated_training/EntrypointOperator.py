@@ -9,7 +9,8 @@ class EntrypointOperator(KaapanaPythonBaseOperator):
 
     @rest_self_udpate
     def start(self, ds, ti, **kwargs):
-        """Determining which path to go through the DAG (using info given by received API call)
+        """
+        Determining which path to go through the DAG (using info given by received API call).
         This function sets successor-value which is used by following branching-operator.
         """
 

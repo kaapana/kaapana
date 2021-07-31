@@ -12,6 +12,15 @@ class TriggerRemoteDagsOperator(KaapanaPythonBaseOperator):
 
     @rest_self_udpate
     def start(self, ds, **kwargs):
+        """
+        Calls the APIs of the participants to start the Training-DAGs there.
+        The API call contains all needed information as seen above.
+        
+        If you need more parameters for your experiment, you can add them here - 
+        this will not affect other experiments since they can handle 'unknown'/new
+        parameters.
+        Make sure you add them in the 'model-training' section of the call.
+        """
 
         assert self.procedure in ['avg', 'seq'], 'You have to provide either "avg" or "seq" as procedure - stopping...'
         

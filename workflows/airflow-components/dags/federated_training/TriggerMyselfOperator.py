@@ -20,6 +20,11 @@ class TriggerMyselfOperator(KaapanaPythonBaseOperator):
 
     @rest_self_udpate
     def start(self, ds, **kwargs):
+        """
+        Based on the previous API call, the next DAG-run is started. Information such as federated-round is updated
+        accordingly.
+        Folders are transferred to new Airflow-Workflow-Directory.
+        """
 
         assert self.procedure in ['avg', 'seq'], 'You have to provide either "avg" or "seq" as procedure - stopping...'
 
@@ -59,10 +64,6 @@ class TriggerMyselfOperator(KaapanaPythonBaseOperator):
         
         # Sequential procedure
         if self.procedure == 'seq':
-
-            print(self.worker)
-
-
             next_worker = self.determine_next_worker(self.participants, current_worker=self.worker)
             next_round = current_round + 1 if next_worker == self.participants[0] else current_round
 

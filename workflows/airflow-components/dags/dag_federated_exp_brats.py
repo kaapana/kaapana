@@ -5,12 +5,11 @@ from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.KaapanaBranchPythonBaseOperator import KaapanaBranchPythonBaseOperator, default_registry, default_project
+
 #from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 # --> TODO: needs option to overwrite name (otherwise cant be used twice in one dag - name conflict)
-#from airflow.operators.python_operator import BranchPythonOperator
-# --> TODO: Needs to be included in Kaapana Base
-
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 from federated_training.EntrypointOperator import EntrypointOperator
 from federated_training.experiments.ExperimentBraTSOperator import ExperimentBraTSOperator

@@ -37,8 +37,14 @@ dag = DAG(
     max_active_runs=5
 )
 
+entrypoint = EntrypointOperator(
+    dag=dag,
+    fed_round=0,
+    init_model=True
+)
+
 def _choose_branch(ti, **kwargs):
-    successor = ti.xcom_pull(key='successor', task_ids='entrypoint')
+    successor = ti.xcom_pull(key='successor', task_ids='entrypoint') # <-- here the value set by the EntryPointOperator is accessed! 
     print('##### Successor given be previous task: {}'.format(successor))
     return successor
 
@@ -48,12 +54,6 @@ branching = KaapanaBranchPythonBaseOperator(
     task_id='branching',
     python_callable=_choose_branch,
     provide_context=True
-)
-
-entrypoint = EntrypointOperator(
-    dag=dag,
-    fed_round=0,
-    init_model=True
 )
 
 init_model = ExperimentBraTSOperator(

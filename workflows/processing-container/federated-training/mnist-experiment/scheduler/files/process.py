@@ -1,6 +1,5 @@
 import os
 import json
-import pytz
 import time
 import shutil
 from datetime import datetime, timedelta

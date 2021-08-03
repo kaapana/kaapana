@@ -14,13 +14,10 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /build-ctp
 
-RUN git clone -n https://github.com/johnperry/CTP.git .
-#current "tested" tag
-RUN git checkout 760aebfd8280d01b408d6a68138a6eba57cf87b0
+RUN git clone -n https://github.com/johnperry/CTP.git . && git checkout c1b4e1ab2b4678bf566c28e0cfb90d433f3bf985
 
 ADD /files/Runner.java ./source/java/org/rsna/runner/
-#error in file comment
-ADD /files/DICOMECGProcessor.java ./source/java/org/rsna/ctp/stdstages/anonymizer/dicom/
+
 
 # use java 8 for correct build process
 ENV JAVA_HOME /usr/lib/jvm/java-1.8.0-openjdk-amd64 

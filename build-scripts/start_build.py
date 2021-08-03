@@ -137,6 +137,8 @@ if __name__ == '__main__':
 
     if configuration["http_proxy"] == "":
         http_proxy = os.environ.get("http_proxy", "")
+    else:
+        http_proxy = configuration["http_proxy"]
 
     if http_proxy == "":
         print("no proxy configured...")

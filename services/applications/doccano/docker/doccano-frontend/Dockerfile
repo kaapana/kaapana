@@ -6,6 +6,8 @@ LABEL CI_IGNORE="False"
 
 RUN apk add --no-cache git
 
+# git hack to replace git:// with https:// -> dkfz proxy 
+RUN git config --global url."https://".insteadOf git://
 RUN git clone https://github.com/doccano/doccano.git doccano && cd doccano && git checkout 50db4e9f367592c44b85b4f20a3a0cf7aa5582bd
 
 FROM node:13.7-alpine AS frontend-builder
@@ -17,8 +19,10 @@ COPY files/components/configAutoLabeling/form/FileField.vue /app/components/conf
 COPY files/domain/models/example/example.ts /app/domain/models/example
 
 WORKDIR /app
+RUN apk add --no-cache git
 
-RUN apk add -U --no-cache git python3 make g++ \
+RUN git config --global url."https://".insteadOf git://
+RUN apk add -U --no-cache python3 make g++ \
   && yarn install \
   && yarn build \
   && apk del --no-cache git make g++

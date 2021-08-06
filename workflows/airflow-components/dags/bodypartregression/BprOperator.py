@@ -6,7 +6,7 @@ import json
 
 
 class BprOperator(KaapanaBaseOperator):
-    execution_timeout = timedelta(days=5)
+    execution_timeout = timedelta(minutes=10)
     task_dict = {}
 
     def __init__(self,

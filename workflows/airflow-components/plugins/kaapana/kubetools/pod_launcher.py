@@ -135,7 +135,6 @@ class PodLauncher(LoggingMixin):
                     elif pod.last_kube_status == "RUNNING":
                         self.log.debug("Pod has status {} -> container still running.".format(pod.last_kube_status))
 
-
                 delta = dt.now() - curr_time
                 if delta.seconds >= startup_timeout and pull_image and pull_time_reset <= 3:
                     pull_time_reset += 1
@@ -214,19 +213,37 @@ class PodLauncher(LoggingMixin):
         return status.state.running is not None
 
     def read_pod(self, pod):
-        try:
-            if pod.kind == "Pod":
-                return self._client.read_namespaced_pod(pod.name, pod.namespace)
-            elif pod.kind == "Job":
-                job_name = self._batch_client.read_namespaced_job(pod.name, pod.namespace).metadata._name
-                pod_list = self._client.list_namespaced_pod(namespace=pod.namespace)
-                for pod_running in pod_list.items:
-                    if "job-name" in pod_running.metadata._labels and pod_running.metadata._labels['job-name'] == job_name:
-                        return pod_running
-            return self._client.read_namespaced_pod(pod.name, pod.namespace)
+        tries = 0
+        max_tries = 5
 
-        except HTTPError as e:
-            raise AirflowException(f'There was an error reading the kubernetes API: {e}')
+        while tries < max_tries:
+            try:
+                if pod.kind == "Pod":
+                    return self._client.read_namespaced_pod(pod.name, pod.namespace)
+                elif pod.kind == "Job":
+                    job_name = self._batch_client.read_namespaced_job(pod.name, pod.namespace).metadata._name
+                    pod_list = self._client.list_namespaced_pod(namespace=pod.namespace)
+                    for pod_running in pod_list.items:
+                        if "job-name" in pod_running.metadata._labels and pod_running.metadata._labels['job-name'] == job_name:
+                            return pod_running
+                return self._client.read_namespaced_pod(pod.name, pod.namespace)
+
+            except Exception as e:
+                tries += 1
+                print("#")
+                print("######################################################################")
+                print("#")
+                print("# There was an error reading the kubernetes API: {e}")
+                print("#")
+                print(f"# Try: {tries}")
+                print("#")
+                print("######################################################################")
+                print("#")
+                time.sleep(2)
+
+        if tries >= max_tries:
+            print("# Kuberntes API calls failed too many times! -> Abort !!")
+            raise AirflowException("Kuberntes API calls failed too many times! -> Abort !!")
 
     def _extract_xcom(self, pod):
         resp = kubernetes_stream(self._client.connect_get_namespaced_pod_exec,

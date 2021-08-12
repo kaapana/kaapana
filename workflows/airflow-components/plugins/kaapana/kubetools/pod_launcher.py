@@ -66,6 +66,7 @@ class PodStatus(object):
 
 class PodLauncher(LoggingMixin):
     pod_stopper = PodStopper()
+    max_api_tries = 5
 
     def __init__(self, kube_client=None, in_cluster=True, cluster_context=None,
                  extract_xcom=False):
@@ -77,17 +78,47 @@ class PodLauncher(LoggingMixin):
 
     def run_pod_async(self, pod):
         req = pod.get_kube_object()
-        self.log.debug('Pod Creation Request: \n%s', json.dumps(req.to_dict(), indent=2))
-        try:
-            if pod.kind == "Pod":
-                resp = self._client.create_namespaced_pod(body=req, namespace=pod.namespace)
-            elif pod.kind == "Job":
-                resp = self._batch_client.create_namespaced_job(body=req, namespace=pod.namespace)
-            self.log.debug('Pod Creation Response: %s', resp)
-        except ApiException:
-            self.log.exception('Exception when attempting to create Namespaced Pod.')
-            raise
-        return resp
+        tries = 0
+        while tries < PodLauncher.max_api_tries:
+            self.log.debug('Pod Creation Request: \n%s', json.dumps(req.to_dict(), indent=2))
+            try:
+                if pod.kind == "Pod":
+                    resp = self._client.create_namespaced_pod(body=req, namespace=pod.namespace)
+                elif pod.kind == "Job":
+                    resp = self._batch_client.create_namespaced_job(body=req, namespace=pod.namespace)
+                self.log.debug('Pod Creation Response: %s', resp)
+                break
+            except Exception as e:
+                if "AlreadyExists" in str(e):
+                    print("# Pod has been already found! -> connecting to it....")
+                    result = self._client.list_namespaced_pod( namespace=pod.namespace,label_selector=f"name={pod.name}", pretty=True,watch=False).items
+                    print(result)
+                    if len(result) > 0:
+                        print("# Pod found! ")
+                        resp = result[0]
+                        from pprint import pprint
+                        pprint(vars(resp))
+                        break
+
+                tries += 1
+                print("#")
+                print("######################################################################")
+                print("#")
+                print(f"# There was an error reading the kubernetes API: {e}")
+                print("#")
+                print("# Exception when attempting to create Namespaced Pod")
+                print("#")
+                print(f"# Try: {tries}")
+                print("#")
+                print("######################################################################")
+                print("#")
+                time.sleep(3)
+
+        if tries >= PodLauncher.max_api_tries:
+            print("# Kuberntes API calls failed too many times! -> Abort !!")
+            raise AirflowException("Kuberntes API calls failed too many times! -> Abort !!")
+        else:
+            return resp
 
     def run_pod(self, pod, startup_timeout=360, heal_timeout=360, get_logs=True):
         # type: (Pod) -> (State, result)
@@ -214,9 +245,7 @@ class PodLauncher(LoggingMixin):
 
     def read_pod(self, pod):
         tries = 0
-        max_tries = 5
-
-        while tries < max_tries:
+        while tries < PodLauncher.max_api_tries:
             try:
                 if pod.kind == "Pod":
                     return self._client.read_namespaced_pod(pod.name, pod.namespace)
@@ -233,7 +262,7 @@ class PodLauncher(LoggingMixin):
                 print("#")
                 print("######################################################################")
                 print("#")
-                print("# There was an error reading the kubernetes API: {e}")
+                print(f"# There was an error reading the kubernetes API: {e}")
                 print("#")
                 print(f"# Try: {tries}")
                 print("#")
@@ -241,7 +270,7 @@ class PodLauncher(LoggingMixin):
                 print("#")
                 time.sleep(2)
 
-        if tries >= max_tries:
+        if tries >= PodLauncher.max_api_tries:
             print("# Kuberntes API calls failed too many times! -> Abort !!")
             raise AirflowException("Kuberntes API calls failed too many times! -> Abort !!")
 

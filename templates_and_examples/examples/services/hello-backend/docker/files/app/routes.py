@@ -1,5 +1,5 @@
 import os
-from flask import render_template, redirect
+from flask import render_template, redirect, jsonify
 from app import app
 from app import db
 from app.forms import AddUserForm
@@ -17,4 +17,3 @@ def index():
         return redirect('index')
     users = User.query.all()
     return render_template('index.html', title='Home', hello_world_user=hello_world_user, users=users, form=form)
-

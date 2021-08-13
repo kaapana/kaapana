@@ -45,11 +45,6 @@ spec:
               value: /var/lib/postgresql/data/pgdata
             - name: POD_IP
               valueFrom: { fieldRef: { fieldPath: status.podIP } }
-          resources:
-            requests:
-              memory: 100Mi
-            limits:
-              memory: 500Mi
       volumes:
         - name: dbvol
           # emptyDir: {}

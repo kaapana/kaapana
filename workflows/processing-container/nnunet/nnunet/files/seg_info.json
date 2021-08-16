@@ -1,0 +1,18 @@
+{
+    "task_id": "<optional - task id>",
+    "task_body_part": "<optional - body part>",
+    "task_protocols": "<optional - modality protocols>",
+    "task_targets": "<optional - segementation targets (comma separated) >",
+    "algorithm": "<optional - algorithm name>",
+    "seg_info": [
+        {
+            "label_name": "<label 1 name>",
+            "label_int": "<label 1 encoding integer>"
+        },
+        {
+            "label_name": "<label 2 name>",
+            "label_int": "<label 2 encoding integer>"
+        }
+
+    ]
+}

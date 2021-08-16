@@ -3,6 +3,8 @@ from os import getenv
 from os.path import join, exists, dirname, basename
 from glob import glob
 from pathlib import Path
+import json
+import shutil
 from dcmrtstruct2nii import dcmrtstruct2nii, list_rt_structs
 
 # For multiprocessing -> usually you should scale via multiple containers!
@@ -16,7 +18,52 @@ execution_timeout = 10
 processed_count = 0
 
 
+def generate_meta_info(result_niftis):
+
+    seg_count = 0
+    for result in result_niftis:
+        seg_count += 1
+        if "image.nii.gz" in result:
+            continue
+        target_dir = dirname(dirname(result))
+        extracted_label = result.replace(".nii.gz","").split("_")[-1].replace('-',' ')
+        if seg_filter is not None and extracted_label.lower().replace(" ","") not in seg_filter:
+            continue
+        file_id = f"{basename(result).split('_')[0]}_{seg_count}"
+        label_id = 255
+        label_string = f"--{label_id}--{extracted_label}.nii.gz"    
+        new_filename = join(target_dir,f"{file_id}{label_string}")
+        print("#")
+        print("#")
+        print(f"# result:          {result}")
+        print(f"# file_id:         {file_id}")
+        print(f"# target_dir:      {target_dir}")
+        print(f"# extracted_label: {extracted_label}")
+        print(f"# label_string:    {label_string}")
+        print(f"# new_filename:    {new_filename}")
+        print("#")
+
+        shutil.move(result,new_filename)
+
+        meta_temlate = {
+            "segmentAttributes": [
+            [{
+                "SegmentLabel": extracted_label.replace('-',' '),
+                "labelID": label_id,
+            }]
+
+            ]
+        }
+        
+        meta_path=join(dirname(new_filename),f"{file_id}-meta.json")
+        with open(meta_path, "w", encoding='utf-8') as jsonData:
+            json.dump(meta_temlate, jsonData, indent=4, sort_keys=True, ensure_ascii=True)
+    
+    shutil.rmtree(dirname(result))
+
 # Process smth
+
+
 def process_input_file(struct_path, dicom_dir, output_path):
     global processed_count
 
@@ -32,6 +79,13 @@ assert workflow_dir is not None
 batch_name = getenv("BATCH_NAME", "None")
 batch_name = batch_name if batch_name.lower() != "none" else None
 assert batch_name is not None
+
+seg_filter = os.environ.get('SEG_FILTER', "")
+if seg_filter != "":
+    seg_filter = seg_filter.lower().replace(" ","").split(",")
+    print(f"Set filters: {seg_filter}")
+else:
+    seg_filter = None
 
 dicom_in_dir = getenv("DICOM_IN_DIR", "None")
 dicom_in_dir = dicom_in_dir if dicom_in_dir.lower() != "none" else None
@@ -91,7 +145,6 @@ for batch_element_dir in batch_folders:
         print("#")
         continue
 
-
     # creating output dir
     Path(element_output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -108,6 +161,9 @@ for batch_element_dir in batch_folders:
             dicom_dir=element_dicom_dir,
             output_path=output_path
         )
+    result_dir = glob(join(element_output_dir, '*'))[0]
+    result_niftis = glob(join(element_output_dir,result_dir, "*.nii.gz"), recursive=False)
+    generate_meta_info(result_niftis=result_niftis)
 
 
 print("#")
@@ -145,7 +201,7 @@ if processed_count == 0:
         Path(batch_output_dir).mkdir(parents=True, exist_ok=True)
 
         # creating output dir
-        input_files = glob(join(batch_input_dir, input_file_extension), recursive=True)
+        input_files = glob(join(batch_input_dir, input_file_extension), recursive=False)
         print(f"# Found {len(input_files)} input-files!")
 
         # Single process:
@@ -157,6 +213,9 @@ if processed_count == 0:
                 dicom_dir=batch_dicom_dir,
                 output_path=output_path
             )
+        result_dir = glob(join(batch_output_dir, '*'))[0]
+        result_niftis = glob(join(batch_output_dir,result_dir, "*.nii.gz"), recursive=False) 
+        generate_meta_info(result_niftis=result_niftis)
 
     print("#")
     print("##################################################")

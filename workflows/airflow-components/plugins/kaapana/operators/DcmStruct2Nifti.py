@@ -6,8 +6,9 @@ class DcmStruct2Nifti(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  dicom_operator,
+                 seg_filter=None,
                  env_vars=None,
-                 execution_timeout=timedelta(minutes=1),
+                 execution_timeout=timedelta(minutes=60),
                  *args, **kwargs
                  ):
 
@@ -15,7 +16,8 @@ class DcmStruct2Nifti(KaapanaBaseOperator):
             env_vars = {}
 
         envs = {
-            "DICOM_IN_DIR": str(dicom_operator.operator_out_dir) if dicom_operator is not None else str(None)
+            "DICOM_IN_DIR": str(dicom_operator.operator_out_dir) if dicom_operator is not None else str(None),
+            "SEG_FILTER": seg_filter or '', # a bash list i.e.: 'liver,aorta'
         }
 
         env_vars.update(envs)
@@ -27,7 +29,8 @@ class DcmStruct2Nifti(KaapanaBaseOperator):
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
-            ram_mem_mb=100,
-            ram_mem_mb_lmt=200,
+            # image_pull_policy="Always",
+            ram_mem_mb=300,
+            ram_mem_mb_lmt=500,
             *args, **kwargs
             )

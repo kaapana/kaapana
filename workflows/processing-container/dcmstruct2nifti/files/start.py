@@ -18,7 +18,8 @@ execution_timeout = 10
 processed_count = 0
 
 
-def generate_meta_info(result_niftis):
+def generate_meta_info(result_dir):
+    result_niftis = glob(join(result_dir, "*.nii.gz"), recursive=False)
 
     seg_count = 0
     for result in result_niftis:
@@ -26,9 +27,12 @@ def generate_meta_info(result_niftis):
         if "image.nii.gz" in result:
             continue
         target_dir = dirname(dirname(result))
-        extracted_label = result.replace(".nii.gz","").split("_")[-1].replace('-',' ')
-        if seg_filter is not None and extracted_label.lower().replace(" ","") not in seg_filter:
+        extracted_label = basename(result).replace("mask_","").replace(".nii.gz","")
+        print("#")
+        if seg_filter is not None and extracted_label.lower().replace(',',' ').replace(' ','') not in seg_filter:
+            print(f"# extracted_label {extracted_label.lower().replace(',',' ').replace(' ','')} not in filters {seg_filter} -> ignoring")
             continue
+        print("#")
         file_id = f"{basename(result).split('_')[0]}_{seg_count}"
         label_id = 255
         label_string = f"--{label_id}--{extracted_label}.nii.gz"    
@@ -59,9 +63,7 @@ def generate_meta_info(result_niftis):
         with open(meta_path, "w", encoding='utf-8') as jsonData:
             json.dump(meta_temlate, jsonData, indent=4, sort_keys=True, ensure_ascii=True)
     
-    shutil.rmtree(dirname(result))
-
-# Process smth
+    shutil.rmtree(result_dir)
 
 
 def process_input_file(struct_path, dicom_dir, output_path):
@@ -155,15 +157,13 @@ for batch_element_dir in batch_folders:
     # Single process:
     # Loop for every input-file found with extension 'input_file_extension'
     for input_file in input_files:
-        output_path = join(element_output_dir, "struct_nifti.nii.gz")
+        output_path = join(element_output_dir, basename(batch_element_dir))
         result, input_file = process_input_file(
             struct_path=input_file,
             dicom_dir=element_dicom_dir,
             output_path=output_path
         )
-    result_dir = glob(join(element_output_dir, '*'))[0]
-    result_niftis = glob(join(element_output_dir,result_dir, "*.nii.gz"), recursive=False)
-    generate_meta_info(result_niftis=result_niftis)
+    generate_meta_info(result_dir=output_path)
 
 
 print("#")
@@ -207,15 +207,13 @@ if processed_count == 0:
         # Single process:
         # Loop for every input-file found with extension 'input_file_extension'
         for input_file in input_files:
-            output_path = join(batch_output_dir, "struct_nifti.nii.gz")
+            output_path = join(batch_output_dir, "dcmrtstruct2nii")
             result, input_file = process_input_file(
                 struct_path=input_file,
                 dicom_dir=batch_dicom_dir,
                 output_path=output_path
             )
-        result_dir = glob(join(batch_output_dir, '*'))[0]
-        result_niftis = glob(join(batch_output_dir,result_dir, "*.nii.gz"), recursive=False) 
-        generate_meta_info(result_niftis=result_niftis)
+        generate_meta_info(result_dir=output_path)
 
     print("#")
     print("##################################################")

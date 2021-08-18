@@ -4,7 +4,7 @@ dependencies:
     version: "5.23.1"
     repository: file://../../../../services/store/dcm4chee/dcm4chee-chart
   - name: ohif-chart
-    version: "4.9.20-vdev"
+    version: "4.9.21"
     repository: file://../../../../services/store/ohif-viewer/ohif-chart
   - name: minio-chart
     version: "2021.03.12"

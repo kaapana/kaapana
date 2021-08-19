@@ -15,7 +15,7 @@ prometheus_url = "http://prometheus-service.monitoring.svc:9090/prometheus/api/v
 
 def get_node_info(query):
     tries = 0
-    max_tries = 4
+    max_tries = 2
     result_value = None
     success = True
     while result_value == None and tries < max_tries:
@@ -66,6 +66,7 @@ def get_node_cpu(logger=None):
     node_cpu, success = get_node_info(query=cpu_core_query)
     if not success and logger != None: 
         logger.error(f"+++++++++ Could not fetch node-info: get_node_cpu")
+        return None
     return node_cpu
 
 def get_node_cpu_util_percent(logger=None):
@@ -82,20 +83,25 @@ def get_node_gpu_infos(logger=None):
     node_gpu_count, success = get_node_info(query=gpu_query)
     for i in range(0, node_gpu_count):
         tries = 0
-        max_tries = 4
+        max_tries = 3
         success = False
         while not success and tries < max_tries:
             request_url = f"{prometheus_url}{gpu_mem_available_device.replace('<replace>', str(i))}"
-            response = requests.get(request_url,timeout=5)
-            result = response.json()
-            if "data" in result and "result" in result["data"] and isinstance(result["data"]["result"], list) and len(result["data"]["result"]) > 0:
-                result = result["data"]["result"][0]
-                name = result["metric"]["name"]
-                mem_capacity = result["value"][1]
-                success = True
-            else:
-                time.sleep(1)
-                tries += 1
+            try:
+                response = requests.get(request_url,timeout=5)
+                result = response.json()
+                if "data" in result and "result" in result["data"] and isinstance(result["data"]["result"], list) and len(result["data"]["result"]) > 0:
+                    result = result["data"]["result"][0]
+                    name = result["metric"]["name"]
+                    mem_capacity = result["value"][1]
+                    success = True
+                else:
+                    time.sleep(1)
+                    tries += 1
+            except Exception as e:
+                logger.error(f"+++++++++ Catch get_node_gpu_infos: {e}")
+                success = False
+
         if success:
             gpu_info = {
                 "id": i,

@@ -261,7 +261,7 @@ class NodeUtil():
                     return True
 
             NodeUtil.cpu_percent = get_node_cpu_util_percent(logger=logger)
-            if NodeUtil.cpu_percent is None or NodeUtil.cpu_percent > NodeUtil.max_util_cpu:
+            if NodeUtil.cpu_percent is not None and NodeUtil.cpu_percent > NodeUtil.max_util_cpu:
                 if logger != None:
                     logger.warning("############################################# High CPU utilization -> waiting!")
                     logger.warning("############################################# cpu_percent: {}".format(NodeUtil.cpu_percent))
@@ -269,7 +269,7 @@ class NodeUtil():
             Variable.set("CPU_PERCENT", "{}".format(NodeUtil.cpu_percent))
 
             NodeUtil.mem_percent = get_node_mem_percent()
-            if NodeUtil.mem_percent is None or NodeUtil.mem_percent > NodeUtil.max_util_ram:
+            if NodeUtil.mem_percent is not None and NodeUtil.mem_percent > NodeUtil.max_util_ram:
                 if logger != None:
                     logger.warning("############################################# High RAM utilization -> waiting!")
                     logger.warning("############################################# mem_percent: {}".format(NodeUtil.mem_percent))

@@ -30,7 +30,7 @@ class DcmStruct2Nifti(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             # image_pull_policy="Always",
-            ram_mem_mb=300,
-            ram_mem_mb_lmt=500,
+            ram_mem_mb=500,
+            ram_mem_mb_lmt=1000,
             *args, **kwargs
             )

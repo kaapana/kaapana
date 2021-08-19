@@ -11,7 +11,7 @@ class SegCheckOperator(KaapanaBaseOperator):
                  input_file_extension="*.nii.gz",
                  parallel_processes=1,
                  interpolator=1,  # 0=linear (default), 1=nearest neighbor, 2=sinc (optional), (default: 0), Type: Int
-                 max_overlap_percentage=0.001,
+                 max_overlap_percentage=0.003,
                  merge_found_niftis=True,
                  delete_merged_data=True,
                  fail_if_overlap=True,

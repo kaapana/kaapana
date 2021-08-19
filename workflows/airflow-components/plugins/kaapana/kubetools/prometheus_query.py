@@ -20,15 +20,22 @@ def get_node_info(query):
     success = True
     while result_value == None and tries < max_tries:
         request_url = "{}{}".format(prometheus_url, query)
-        response = requests.get(request_url,timeout=5)
-        result = response.json()["data"]["result"]
-        if isinstance(result, list) and len(result) > 0:
-            result_value = int(float(response.json()["data"]["result"][0]["value"][1]))
-        elif "nvidia" in query:
-            result_value = 0
-        else:
+        try:
+            response = requests.get(request_url,timeout=2)
+            result = response.json()["data"]["result"]
+            if isinstance(result, list) and len(result) > 0:
+                result_value = int(float(response.json()["data"]["result"][0]["value"][1]))
+            elif "nvidia" in query:
+                result_value = 0
+            else:
+                time.sleep(1)
+                tries += 1
+        except Exception as e:
+            print(f"+++++++++ Could execute prometheus query: {e}")
+            print(f"+++++++++ -> tries: {tries}")
             time.sleep(1)
             tries += 1
+
     if tries >= max_tries:
         print(f"+++++++++ Could not fetch node-info for query: {query}")
         success = False

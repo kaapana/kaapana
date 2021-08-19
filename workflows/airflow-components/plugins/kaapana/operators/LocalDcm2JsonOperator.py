@@ -866,14 +866,18 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                  (birthday_datetime.month, birthday_datetime.day))
 
             if "00101010 PatientAge_keyword" in new_meta_data:
-                age_meta = int(
-                    new_meta_data["00101010 PatientAge_keyword"][:-1])
+                age_meta = int(new_meta_data["00101010 PatientAge_keyword"][:-1])
                 if patient_age_scan is not age_meta:
-                    print(
-                        "########################################################################################### DIFF IN AGE!")
-
+                    print("########################################################################################### DIFF IN AGE!")
             new_meta_data["00101010 PatientAge_integer"] = patient_age_scan
 
+        elif "00101010 PatientAge_keyword" in new_meta_data:
+            try:
+                age_meta = int(new_meta_data["00101010 PatientAge_keyword"][:-1])
+                new_meta_data["00101010 PatientAge_integer"] = age_meta
+            except Exception as e:
+                print("######### Could not extract age-int from metadata...")
+                
         return new_meta_data
 
     def convert_time_to_utc(self, time_berlin, date_format):

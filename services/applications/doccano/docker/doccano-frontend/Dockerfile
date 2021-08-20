@@ -13,6 +13,7 @@ RUN git clone https://github.com/doccano/doccano.git doccano && cd doccano && gi
 FROM node:13.7-alpine AS frontend-builder
 
 COPY --from=build-stage /doccano/frontend/ /app/
+RUN sed -i 's/line-height: 70px !important;//' /app/components/tasks/sequenceLabeling/EntityItemBox.vue
 COPY files/nuxt.config.js /app/
 COPY files/pages/projects/_id/upload/index.vue /app/pages/projects/_id/upload/
 COPY files/components/configAutoLabeling/form/FileField.vue /app/components/configAutoLabeling/form/

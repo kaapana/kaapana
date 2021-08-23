@@ -55,7 +55,12 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                 json_dir = os.path.join(batch_element_dir, self.json_operator.operator_out_dir)
                 print(("Pushing json files from: %s" % json_dir))
                 json_list = glob.glob(json_dir+'/**/*.json', recursive=True)
-                print(("Found json files: %s" % len(json_list)))
+                print("#")
+                print("#")
+                print("#")
+                print("####  Found json files: %s" % len(json_list))
+                print("#")
+                assert len(json_list) > 0
 
                 for json_file in json_list:
                     print(("Pushing file: %s to elasticsearch!" % json_file))

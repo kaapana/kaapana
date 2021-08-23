@@ -26,6 +26,7 @@ class BprOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             ram_mem_mb=3000,
+            ram_mem_mb_lmt=6000,
             training_operator=False,
             gpu_mem_mb=None,
             env_vars=env_vars,

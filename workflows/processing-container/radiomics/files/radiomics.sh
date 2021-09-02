@@ -45,16 +45,21 @@ function radiomics {
         filename="${filename%.*}";
         xml_filepath=$OUTPUTDIR/$seg_name'_radiomics.xml';
         csv_filepath=$OUTPUTDIR/$seg_name'_radiomics.csv';
+        json_filepath=$OUTPUTDIR/$seg_name'_radiomics.json';
 
         echo "###################################################################### CONFIG"
-        echo ""
-        echo ""
-        echo ""
-        echo 'xml_filepath: ' $xml_filepath
-        echo 'csv_filepath: ' $csv_filepath
-        echo "INPUT-FILE: " $file
-        echo "MASK-DIR: "$MASKDIR/
-        echo "MASKF-FILE: " $maskfile
+        echo "#"
+        echo "#"
+        echo '# xml_filepath: ' $xml_filepath
+        echo '# csv_filepath: ' $csv_filepath
+        echo "# INPUT-FILE: " $file
+        echo "# MASK-DIR: "$MASKDIR/
+        echo "# MASKF-FILE: " $maskfile
+        echo "#"
+        echo "# xml_filepath:  $xml_filepath"
+        echo "# csv_filepath:  $csv_filepath"
+        echo "# json_filepath: $json_filepath"
+        echo "#"
 
         install -Dv / "$xml_filepath"
         echo "###"
@@ -69,6 +74,8 @@ function radiomics {
             exit 1;
         else
             echo "MitkCLGlobalImageFeatures DONE!"
+            echo "# Converting XML -> JSON ...";
+            cat "$xml_filepath" | xq >> $json_filepath
         fi
     done
 

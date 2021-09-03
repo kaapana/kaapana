@@ -276,6 +276,6 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             name=name,
             batch_name=batch_name,
             python_callable=self.get_files,
-            execution_timeout=timedelta(minutes=60),
+            execution_timeout=timedelta(minutes=120),
             *args, **kwargs
         )

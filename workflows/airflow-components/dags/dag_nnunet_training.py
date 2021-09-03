@@ -185,7 +185,7 @@ args = {
     'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),
-    'retries': 1,
+    'retries': 0,
     'retry_delay': timedelta(seconds=30)
 }
 
@@ -209,7 +209,7 @@ dcm2nifti_seg = DcmSeg2ItkOperator(
     output_format="nii.gz",
     seg_filter=seg_filter,
     parallel_id='seg',
-    delete_input_on_success=True
+    delete_input_on_success=False
 )
 
 get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(

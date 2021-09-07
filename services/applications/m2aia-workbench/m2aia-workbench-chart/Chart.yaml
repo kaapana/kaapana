@@ -1,0 +1,10 @@
+apiVersion: v1
+appVersion: "2021.07-vdev"
+description: Launches a M2aia instance to explore files in Minio
+name: m2aia-workbench-chart
+version: "2021.07-vdev"
+keywords:
+- kaapanaapplication
+- kaapanaint
+- kaapanamultiinstallable
+- kaapanaexperimental

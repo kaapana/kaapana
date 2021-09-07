@@ -1,0 +1,93 @@
+{{- $uuid := uuidv4 | trunc 10 }}
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: m2aia-{{ $uuid }}
+  namespace: {{ .Values.global.base_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: m2aia-{{ $uuid }}
+  template:
+    metadata:
+      labels:
+        app-name: m2aia-{{ $uuid }}
+    spec:
+      restartPolicy: Always
+      containers:
+        # ToDo add init-container to wait for db-host
+      - name: m2aia
+        image: {{  .Values.global.registry_url }}/m2aia-workbench:2021.02-vdev
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        resources:
+          requests:
+            memory: "5Gi"
+          limits:
+            memory: "8Gi"
+        env:
+        - name: INGRESS_PATH
+          value: m2aia-{{ $uuid }}
+        volumeMounts:
+        - name: m2aia-data
+          mountPath: /data
+      volumes:
+      - name: m2aia-data
+        hostPath:
+          {{- if .Values.mount_path }}
+          path: {{ .Values.mount_path }}
+          {{- else }}
+          path: {{ .Values.global.slow_data_dir }}/minio
+          {{- end }}
+          type: DirectoryOrCreate
+      imagePullSecrets:
+      - name: registry-secret
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: m2aia-{{ $uuid }}
+  namespace: {{ .Values.global.base_namespace }}
+  labels:
+    app: m2aia-{{ $uuid }}
+spec:
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      name: pt-m2aia-http
+  type: ClusterIP
+  selector:
+    app-name: m2aia-{{ $uuid }}
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: m2aia-{{ $uuid }}-redirect
+  namespace: {{ .Values.global.base_namespace }}
+spec:
+  redirectRegex:
+    regex: ^.*/m2aia-{{ $uuid }}([^\/]*)$
+    replacement: /m2aia-{{ $uuid }}/
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: m2aia-{{ $uuid }}
+  namespace: {{ .Values.global.base_namespace }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,{{ .Values.global.base_namespace }}-m2aia-{{ $uuid }}-redirect@kubernetescrd,kube-system-strip-prefix@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /m2aia-{{ $uuid }}
+        backend:
+          serviceName: m2aia-{{ $uuid }}
+          servicePort: pt-m2aia-http
+---
+
+          

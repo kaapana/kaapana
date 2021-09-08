@@ -8,7 +8,7 @@ class DcmStruct2Nifti(KaapanaBaseOperator):
                  dicom_operator,
                  seg_filter=None,
                  env_vars=None,
-                 execution_timeout=timedelta(minutes=60),
+                 execution_timeout=timedelta(hours=6),
                  *args, **kwargs
                  ):
 

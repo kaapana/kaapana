@@ -294,11 +294,12 @@ dcmseg_send_pdf = DcmSendOperator(
     dag=dag,
     parallel_id="pdf",
     level="batch",
+    pacs_host='ctp-dicom-service.flow.svc',
+    pacs_port='11112',
     ae_title=ae_title,
     input_operator=pdf2dcm,
     delete_input_on_success=True
 )
-
 zip_model = ZipUnzipOperator(
     dag=dag,
     target_filename=f"nnunet_model.zip",

@@ -9,11 +9,8 @@ do
 	[[ "${LOGLINE}" == *"BlueBerry Workbench ready"* ]] && pkill -P $$ tail
 done
 echo 'Setting fullscreen mode'
-wmctrl -r 'Research' -b toggle,fullscreen
+wmctrl -r 'Data Display' -b toggle,fullscreen
 # wait for process to end, before starting new process
 wait $PID
 #clear logfile
 > /root/Desktop/logfile
-
-
-

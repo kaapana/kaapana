@@ -51,6 +51,19 @@ fi
 CHART_PATH=""
 script_name=`basename "$0"`
 
+# set default values for the colors
+BOLD=""
+underline=""
+standout=""
+NC=""
+BLACK=""
+RED=""
+GREEN=""
+YELLOW=""
+BLUE=""
+MAGENTA=""
+CYAN=""
+WHITE=""
 # check if stdout is a terminal...
 if test -t 1; then
     # see if it supports colors...
@@ -70,20 +83,6 @@ if test -t 1; then
         CYAN="$(tput bold)$(tput setaf 6)"
         WHITE="$(tput bold)$(tput setaf 7)"
     fi
-# else set default empty values
-else
-    BOLD=""
-    underline=""
-    standout=""
-    NC=""
-    BLACK=""
-    RED=""
-    GREEN=""
-    YELLOW=""
-    BLUE=""
-    MAGENTA=""
-    CYAN=""
-    WHITE=""
 fi
 
 function delete_all_images_docker {

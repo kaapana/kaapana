@@ -3,7 +3,7 @@ from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_r
 from datetime import timedelta
 
 class BprOperator(KaapanaBaseOperator):
-    execution_timeout = timedelta(minutes=1)
+    execution_timeout = timedelta(minutes=10)
     task_dict = {}
 
     def __init__(self,

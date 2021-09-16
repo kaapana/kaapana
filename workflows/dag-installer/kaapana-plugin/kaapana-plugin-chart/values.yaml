@@ -1,5 +1,5 @@
 ---
 global:
     image: "kaapana-plugin"
-    version: "0.1.1-vdev"
+    version: "0.1.1"
     action: "copy"

@@ -1,7 +1,7 @@
 FROM ubuntu:20.04
 
 LABEL IMAGE="debug_container"
-LABEL VERSION="1.0-vdev"
+LABEL VERSION="1.0"
 LABEL CI_IGNORE="False"
 
 ENV TZ=Europe/Berlin

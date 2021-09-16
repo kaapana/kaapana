@@ -50,7 +50,7 @@ class Bin2DcmOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/bin2dcm:3.6.4-vdev",
+            image=f"{default_registry}/bin2dcm:3.6.4",
             name=name,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,

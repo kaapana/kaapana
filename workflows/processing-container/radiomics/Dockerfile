@@ -1,6 +1,6 @@
-FROM local-only/mitk-phenotyping:2021-02-18-vdev
+FROM local-only/mitk-phenotyping:2021-02-18
 LABEL IMAGE="mitk-radiomics"
-LABEL VERSION="2021-02-18-vdev"
+LABEL VERSION="2021-02-18"
 LABEL CI_IGNORE="False"
 
 WORKDIR /

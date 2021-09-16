@@ -2,7 +2,7 @@ FROM ubuntu:20.04
 ARG DEBIAN_FRONTEND=noninteractive
 
 LABEL IMAGE="dice-evaluation"
-LABEL VERSION="0.1.0-vdev"
+LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
 WORKDIR /

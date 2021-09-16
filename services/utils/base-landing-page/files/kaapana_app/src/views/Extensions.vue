@@ -32,8 +32,8 @@
           v-col(cols="12", sm="2")
             v-select(
               label="Version",
-              :items="['All', 'Stable', 'Dev']",
-              v-model="extensionDev",
+              :items="['All', 'Stable', 'Experimental']",
+              v-model="extensionExperimental",
               hide-details=""
             )
           v-col(cols="12", sm="3")
@@ -133,7 +133,7 @@ export default Vue.extend({
     polling: 0,
     launchedAppLinks: [] as any,
     search: "",
-    extensionDev: "Stable",
+    extensionExperimental: "Stable",
     extensionKind: "All",
     headers: [
       {
@@ -191,18 +191,10 @@ export default Vue.extend({
           let devFilter = true;
           let kindFilter = true;
 
-          for (const idx in i.versions) {
-            if (
-              this.extensionDev == "Stable" &&
-              i.versions[idx].endsWith("-vdev")
-            ) {
-              devFilter = false;
-            } else if (
-              this.extensionDev == "Dev" &&
-              !i.versions[idx].endsWith("-vdev")
-            ) {
-              devFilter = false;
-            }
+          if (this.extensionExperimental == "Stable" && i.experimental === "yes") {
+            devFilter = false;
+          } else if (this.extensionExperimental == "Experimental" && i.experimental === "no") {
+            devFilter = false;
           }
 
           if (this.extensionKind == "Workflows" && i.kind === "application") {

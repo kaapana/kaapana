@@ -1,7 +1,7 @@
 FROM local-only/no-vnc-base:0.1.0
 
 LABEL IMAGE="mitk-workbench"
-LABEL VERSION="2021.02-vdev"
+LABEL VERSION="2021.02"
 LABEL CI_IGNORE="False"
 
 WORKDIR /src

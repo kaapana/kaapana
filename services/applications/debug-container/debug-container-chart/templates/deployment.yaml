@@ -17,7 +17,7 @@ spec:
       serviceAccountName: kubernetes-dashboard
       containers:
       - name: debug
-        image: {{  .Values.global.registry_url }}/debug_container:1.0-vdev
+        image: {{  .Values.global.registry_url }}/debug_container:1.0
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         # env:
         # - name: http_proxy

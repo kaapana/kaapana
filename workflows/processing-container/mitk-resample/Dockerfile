@@ -1,7 +1,7 @@
-FROM local-only/mitk-phenotyping:2021-02-18-vdev as build_container
+FROM local-only/mitk-phenotyping:2021-02-18 as build_container
 
 LABEL IMAGE="mitk-resample"
-LABEL VERSION="2021-02-18-vdev"
+LABEL VERSION="2021-02-18"
 LABEL CI_IGNORE="False"
 
 COPY files/requirements.txt /src

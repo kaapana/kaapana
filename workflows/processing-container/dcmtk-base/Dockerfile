@@ -2,7 +2,7 @@ FROM ubuntu:20.04
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="dcmtk-base"
-LABEL VERSION="3.6.4-vdev"
+LABEL VERSION="3.6.4"
 LABEL CI_IGNORE="False"
 
 ENV TZ=Europe/Berlin

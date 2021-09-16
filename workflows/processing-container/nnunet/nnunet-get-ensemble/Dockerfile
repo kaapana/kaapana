@@ -1,7 +1,7 @@
 FROM python:3.9-alpine3.12
 
 LABEL IMAGE="nnunet-get-ensemble"
-LABEL VERSION="0.1.1-vdev"
+LABEL VERSION="0.1.1"
 LABEL CI_IGNORE="False"
 
 ENV MODELDIR "/models"

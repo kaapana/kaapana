@@ -1,8 +1,8 @@
 apiVersion: v1
-appVersion: "2021.02-vdev"
+appVersion: "2021.02"
 description: Launches a MITK instance to explore files in Minio
 name: mitk-workbench-chart
-version: "2021.02-vdev"
+version: "2021.02"
 keywords:
 - kaapanaapplication
 - kaapanaint

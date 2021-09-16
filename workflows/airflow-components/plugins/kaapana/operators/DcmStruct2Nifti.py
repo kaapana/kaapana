@@ -24,7 +24,7 @@ class DcmStruct2Nifti(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/dcmstruct2nifti:0.1.0-vdev",
+            image=f"{default_registry}/dcmstruct2nifti:0.1.0",
             name="struct2nifti",
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],

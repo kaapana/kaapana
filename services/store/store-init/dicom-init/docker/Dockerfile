@@ -2,7 +2,7 @@ FROM ubuntu:20.04
 ARG DEBIAN_FRONTEND=noninteractive
 
 LABEL IMAGE="dicom-init"
-LABEL VERSION="0.1.1-vdev"
+LABEL VERSION="0.1.1"
 LABEL CI_IGNORE="False"
 
 RUN apt-get update && apt-get install -y \

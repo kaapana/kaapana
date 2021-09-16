@@ -22,7 +22,7 @@ spec:
           effect: NoSchedule
       containers:
       - name: fluentd
-        image: {{  .Values.global.registry_url }}/fluentd:2.5.2-vdev
+        image: {{  .Values.global.registry_url }}/fluentd:2.5.2
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           limits:

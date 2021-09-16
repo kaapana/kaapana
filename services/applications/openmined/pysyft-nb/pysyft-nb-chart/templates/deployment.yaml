@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: pysyft-nb-{{ $uuid }}
-        image: {{ .Values.global.registry_url }}/pysyft-nb:0.1.0-vdev
+        image: {{ .Values.global.registry_url }}/pysyft-nb:0.1.0
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         # memory space
         resources:

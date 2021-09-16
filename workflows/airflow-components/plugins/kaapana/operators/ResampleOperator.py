@@ -30,7 +30,7 @@ class ResampleOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/mitk-resample:2021-02-18-vdev",
+            image=f"{default_registry}/mitk-resample:2021-02-18",
             name='mitk-resample',
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],

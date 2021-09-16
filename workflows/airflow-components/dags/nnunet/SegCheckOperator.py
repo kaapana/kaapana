@@ -48,7 +48,7 @@ class SegCheckOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/seg-check:0.1.0-vdev",
+            image=f"{default_registry}/seg-check:0.1.0",
             name=name,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,

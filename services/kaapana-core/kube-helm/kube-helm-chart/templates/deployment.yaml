@@ -16,7 +16,7 @@ spec:
     spec:
       initContainers:
         - name: copy-kube-helm-helpers
-          image: "{{  .Values.global.registry_url }}/kube-helm-helpers:0.1.0-vdev"
+          image: "{{  .Values.global.registry_url }}/kube-helm-helpers:0.1.0"
           imagePullPolicy: {{ .Values.global.pull_policy_pods }}
           env:
           - name: ACTION
@@ -41,7 +41,7 @@ spec:
 {{- end }}
       containers:
       - name: kube-helm
-        image: {{  .Values.global.registry_url }}/kube-helm:0.1.1-vdev
+        image: {{  .Values.global.registry_url }}/kube-helm:0.1.1
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         resources:
           limits:

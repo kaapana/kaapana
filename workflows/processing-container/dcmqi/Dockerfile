@@ -1,7 +1,7 @@
 FROM python:3
 
 LABEL IMAGE="dcmqi"
-LABEL VERSION="v1.2.4-vdev"
+LABEL VERSION="v1.2.4"
 LABEL CI_IGNORE="False"
 
 # set work directory

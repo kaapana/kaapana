@@ -1,19 +1,19 @@
 ---
 dependencies:
   - name: base
-    version: "0.1.1-vdev"
+    version: "0.1.1"
     repository: file://deps/base
   - name: flow
-    version: "0.1.1-vdev"
+    version: "0.1.1"
     repository: file://deps/flow
   - name: meta
-    version: "0.1.1-vdev"
+    version: "0.1.1"
     repository: file://deps/meta
   - name: monitoring
-    version: "0.1.1-vdev"
+    version: "0.1.1"
     repository: file://deps/monitoring
   - name: store
-    version: "0.1.1-vdev"
+    version: "0.1.1"
     repository: file://deps/store
   - name: error-pages-chart
     version: "0.1.1"
@@ -22,7 +22,7 @@ dependencies:
     version: "0.1"
     repository: file://../../services/kaapana-core/louketo-proxy/louketo-proxy-chart
   - name: keycloak-chart
-    version: "11.0.3-vdev"
+    version: "11.0.3"
     repository: file://../../services/kaapana-core/keycloak/keycloak-chart
   - name: gpu-prom-exporter-chart
     condition: global.gpu_support
@@ -35,10 +35,10 @@ dependencies:
     version: "2.0.3"
     repository: file://../../services/kaapana-core/kubernetes-dashboard/kube-dashboard-chart
   - name: kube-helm-chart
-    version: "0.1.1-vdev"
+    version: "0.1.1"
     repository: file://../../services/kaapana-core/kube-helm/kube-helm-chart
   - name: extensions-init-chart
-    version: "0.1.0-vdev"
+    version: "0.1.0"
     condition: Release.IsInstall
     repository: file://../../services/kaapana-core/core-init/extensions-init-chart
     

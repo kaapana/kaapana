@@ -4,5 +4,5 @@ FROM quay.io/fluentd_elasticsearch/fluentd:v2.5.2
 
 
 LABEL IMAGE="fluentd"
-LABEL VERSION="2.5.2-vdev"
+LABEL VERSION="2.5.2"
 LABEL CI_IGNORE="False"

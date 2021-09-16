@@ -36,7 +36,7 @@ class TemplateOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/<REPLACE>:3.6.4-vdev",
+            image=f"{default_registry}/<REPLACE>:3.6.4",
             name="REPLACE",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,

@@ -25,13 +25,13 @@ global:
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana
     home_dir: /root
-    version: "0.1.1-vdev"
+    version: "0.1.1"
     kaapana_collections:
         - name: kaapana-base-collection
-          version: 0.1.0-vdev 
+          version: 0.1.0 
     preinstall_extensions:
         - name: code-server-chart
           version: 3.10.2
         - name: kaapana-plugin-chart
-          version: 0.1.1-vdev
+          version: 0.1.1
 ---

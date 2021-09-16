@@ -1,8 +1,8 @@
 ---
 dependencies:
   - name: airflow-chart
-    version: "1.10.15-vdev"
+    version: "1.10.15"
     repository: file://../../../../services/flow/airflow/airflow-chart
   - name: ctp-chart
-    version: "0.1.2-vdev"
+    version: "0.1.2"
     repository: file://../../../../services/flow/ctp/ctp-chart

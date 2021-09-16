@@ -2,7 +2,7 @@ FROM python:3.9-alpine3.12
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="charts-manager"
-LABEL VERSION="0.1.0-vdev"
+LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
 COPY files/run.py run.py

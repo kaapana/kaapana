@@ -16,7 +16,7 @@ global:
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana
     home_dir: /root
-    version: "0.1.0-vdev"
+    version: "0.1.0"
     default_base_requests_mem: "50Mi"
     default_base_limits_mem: "50Mi"
     # default_base_requests_cpu: 0.5
@@ -29,7 +29,7 @@ global:
     https_proxy: ""
     kaapana_collections:
         - name: kaapana-base-collection
-          version: 0.1.0-vdev
+          version: 0.1.0
     preinstall_extensions:
         - name: code-server-chart
           version: 3.10.2

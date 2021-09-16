@@ -1,5 +1,5 @@
 ---
 dependencies:
   - name: airflow-postgres
-    version: "9.6.1-vdev"
+    version: "9.6.1"
     repository: file://deps/airflow-postgres

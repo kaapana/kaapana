@@ -1,7 +1,7 @@
-FROM local-only/dcmtk-base:3.6.4-vdev
+FROM local-only/dcmtk-base:3.6.4
 
 LABEL IMAGE="bin2dcm"
-LABEL VERSION="3.6.4-vdev"
+LABEL VERSION="3.6.4"
 LABEL CI_IGNORE="False"
 
 COPY files/template.xml .

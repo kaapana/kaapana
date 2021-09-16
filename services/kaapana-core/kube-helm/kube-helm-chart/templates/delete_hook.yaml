@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: remove-kube-helm-helpers
-        image: "{{ .Values.global.registry_url }}/kube-helm-helpers:0.1.0-vdev"
+        image: "{{ .Values.global.registry_url }}/kube-helm-helpers:0.1.0"
         imagePullPolicy: Never
         env:
         - name: ACTION

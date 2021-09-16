@@ -52,7 +52,7 @@ class GetTaskModelOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/nnunet-get-models:0.1.1-vdev",
+            image=f"{default_registry}/nnunet-get-models:0.1.1",
             name=name,
             operator_out_dir=operator_out_dir,
             image_pull_secrets=["registry-secret"],

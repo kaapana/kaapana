@@ -2,5 +2,5 @@
 global:
     pull_policy_jobs: ""
     image: "dag-extract-scanparameter"
-    version: "0.1.0-vdev"
+    version: "0.1.0"
     action: "copy"

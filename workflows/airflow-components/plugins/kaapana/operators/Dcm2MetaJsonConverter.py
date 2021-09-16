@@ -711,11 +711,9 @@ class Dcm2MetaJsonConverter:
                  (birthday_datetime.month, birthday_datetime.day))
 
             if "00101010 PatientAge_keyword" in new_meta_data:
-                age_meta = int(
-                    new_meta_data["00101010 PatientAge_keyword"][:-1])
+                age_meta = int(new_meta_data["00101010 PatientAge_keyword"][:-1])
                 if patient_age_scan is not age_meta:
-                    self.log.warn(
-                        "########################################################################################### DIFF IN AGE!")
+                    self.log.warn("########################################################################################### DIFF IN AGE!")
 
             new_meta_data["00101010 PatientAge_integer"] = patient_age_scan
 

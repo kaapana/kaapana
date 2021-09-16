@@ -55,7 +55,7 @@ spec:
             mountPath: /dashboards/kibana-dashboard.json
             subPath: kibana-dashboard.json
       # Do not restart containers after they exit
-      restartPolicy: OnFailure
+      restartPolicy: Never
       volumes:
       - name: kibana-dashboard-file
         configMap:
@@ -65,4 +65,4 @@ spec:
             path: kibana-dashboard.json
       imagePullSecrets:
       - name: registry-secret
-  backoffLimit: 0
+  backoffLimit: 3

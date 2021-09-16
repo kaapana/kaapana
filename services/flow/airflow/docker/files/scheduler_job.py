@@ -1580,7 +1580,11 @@ class SchedulerJob(BaseJob):
         for task_instance in task_instances_to_examine:
             if task_instance.pool == "GPU_COUNT":
                 self.log.error("Getting new POOLS...")
-                task_instance = get_gpu_pool(task_instance=task_instance, logger=self.log)
+                try:
+                    task_instance = get_gpu_pool(task_instance=task_instance, logger=self.log)
+                except Exception as e:
+                    self.log.error("##### Could not fetch GPU pools!")
+
                 session.merge(task_instance)
             session.commit()
 

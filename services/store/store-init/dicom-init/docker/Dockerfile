@@ -17,7 +17,7 @@ RUN pip3 install pydicom \
     requests \
     elasticsearch
 
-RUN curl --header "DEPLOY-TOKEN: EaexsV_q2BKG8BeurRT8" --output /test-dicoms.zip "https://gitlab.hzdr.de/api/v4/projects/2521/packages/generic/test-data/0.0.2/init-dicoms.zip" \
+RUN curl --header "DEPLOY-TOKEN: EaexsV_q2BKG8BeurRT8" --output /test-dicoms.zip "https://gitlab.hzdr.de/api/v4/projects/2521/packages/generic/test-data/0.0.3/init-dicoms.zip" \
     && mkdir -p /dicom_test_data && unzip /test-dicoms.zip -d /dicom_test_data && rm -rf test-dicoms.zip
 
 COPY files/start.py /start.py

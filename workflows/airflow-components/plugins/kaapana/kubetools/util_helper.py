@@ -66,17 +66,20 @@ class NodeUtil():
                 )
             else:
                 Variable.set("GPU_SUPPORT", "False")
+        try:
+            gpu_infos = get_node_gpu_infos()
+            for gpu in gpu_infos:
+                gpu_pool_id = f"GPU_{gpu['id']}_CAPACITY"
+                gpu_pool = NodeUtil.get_pool_by_name(name=gpu_pool_id)
+                if gpu_pool == None or gpu["mem_capacity"] != gpu_pool.slots:
+                    pool_api.create_pool(
+                        name=gpu_pool_id,
+                        slots=gpu["mem_capacity"],
+                        description=f"Mem capacity of {gpu['name']}"
+                    )
+        except Exception as e:
+            logger.warning("############################################# COULD NOT FETCH GPU INFOS -> SKIPPING!")
 
-        gpu_infos = get_node_gpu_infos()
-        for gpu in gpu_infos:
-            gpu_pool_id = f"GPU_{gpu['id']}_CAPACITY"
-            gpu_pool = NodeUtil.get_pool_by_name(name=gpu_pool_id)
-            if gpu_pool == None or gpu["mem_capacity"] != gpu_pool.slots:
-                pool_api.create_pool(
-                    name=gpu_pool_id,
-                    slots=gpu["mem_capacity"],
-                    description=f"Mem capacity of {gpu['name']}"
-                )
 
     @staticmethod
     def compute_allocated_resources(logger=None):
@@ -258,7 +261,7 @@ class NodeUtil():
                     return True
 
             NodeUtil.cpu_percent = get_node_cpu_util_percent(logger=logger)
-            if NodeUtil.cpu_percent is None or NodeUtil.cpu_percent > NodeUtil.max_util_cpu:
+            if NodeUtil.cpu_percent is not None and NodeUtil.cpu_percent > NodeUtil.max_util_cpu:
                 if logger != None:
                     logger.warning("############################################# High CPU utilization -> waiting!")
                     logger.warning("############################################# cpu_percent: {}".format(NodeUtil.cpu_percent))
@@ -266,7 +269,7 @@ class NodeUtil():
             Variable.set("CPU_PERCENT", "{}".format(NodeUtil.cpu_percent))
 
             NodeUtil.mem_percent = get_node_mem_percent()
-            if NodeUtil.mem_percent is None or NodeUtil.mem_percent > NodeUtil.max_util_ram:
+            if NodeUtil.mem_percent is not None and NodeUtil.mem_percent > NodeUtil.max_util_ram:
                 if logger != None:
                     logger.warning("############################################# High RAM utilization -> waiting!")
                     logger.warning("############################################# mem_percent: {}".format(NodeUtil.mem_percent))

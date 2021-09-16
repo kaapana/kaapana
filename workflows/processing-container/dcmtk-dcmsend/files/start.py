@@ -49,6 +49,7 @@ def send_dicom_data(send_dir, aetitle=AETITLE, check_arrival=False, timeout=60):
                 break
             else:
                 print("# Series not found -> sleep 2s !")
+                tries += 1
                 time.sleep(2)
 
         print("#")

@@ -10,7 +10,7 @@ DCMQI = '/app/dcmqi/bin'
 output_type = os.environ.get('OUTPUT_TYPE', 'nrrd')
 seg_filter = os.environ.get('SEG_FILTER', "")
 if seg_filter != "":
-    seg_filter = seg_filter.lower().split(",")
+    seg_filter = seg_filter.lower().replace(" ","").split(",")
     print(f"Set filters: {seg_filter}")
 else:
     seg_filter = None
@@ -74,7 +74,7 @@ for batch_element_dir in batch_folders:
             segment_info = segment[0]
             segment_label = segment_info['SegmentLabel'].lower()
             print(f"SEG-INFO: {segment_label} -> Label: {segment_info['labelID']}")
-            if seg_filter is None or segment_label in seg_filter:
+            if seg_filter is None or segment_label.lower().replace(","," ").replace("  "," ") in seg_filter:
                 segment_label = segment_label.replace("/", "++")
                 os.rename(os.path.join(element_output_dir, f'{json_output}-{segment_info["labelID"]}.{output_type}'),
                           os.path.join(element_output_dir, f'{json_output}--{segment_info["labelID"]}--{segment_label}.{output_type}'))

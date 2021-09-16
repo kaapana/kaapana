@@ -28,9 +28,14 @@ class LocalSortGtOperator(KaapanaPythonBaseOperator):
 
             for seg_dicom_path in batch_el_dcm_files:
                 incoming_dcm = pydicom.dcmread(seg_dicom_path)
-                assert (0x0008, 0x1115) in incoming_dcm
+                if (0x0008, 0x1115) in incoming_dcm:
+                    ref_series_items = incoming_dcm[0x0008, 0x1115].value
+                if (0x3006,0x0010) in incoming_dcm and (0x3006,0x0012) in incoming_dcm[0x3006,0x0010].value[0] and (0x3006,0x0014) in incoming_dcm[0x3006,0x0010].value[0][0x3006,0x0012].value[0]:
+                    ref_series_items = incoming_dcm[0x3006,0x0010].value[0][0x3006,0x0012].value[0][0x3006,0x0014].value
+                
+                assert ref_series_items is not None
 
-                for ref_series in incoming_dcm[0x0008, 0x1115]:
+                for ref_series in ref_series_items:
                     assert (0x0020, 0x000E) in ref_series
                     ref_ct_id = str(ref_series[0x0020, 0x000E].value)
 

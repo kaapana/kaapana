@@ -15,12 +15,13 @@ gpu_mem_available_query = "floor(sum(nvidia_gpu_memory_total_bytes)/1048576)"
 prometheus_url = "http://prometheus-service.monitoring.svc:9090/prometheus/api/v1/query?query="
 
 def get_node_info(query):
+    max_tries = 5
     tries = 0
     result_value = None
 
-    while result_value == None and tries < 10:
+    while result_value == None and tries < max_tries:
         request_url = "{}{}".format(prometheus_url, query)
-        response = requests.get(request_url,timeout=5)
+        response = requests.get(request_url,timeout=2)
         result = response.json()["data"]["result"]
         if isinstance(result, list) and len(result) > 0:
             result_value = int(response.json()["data"]["result"][0]["value"][1])
@@ -28,11 +29,11 @@ def get_node_info(query):
         else:
             if "nvidia" in query:
                 tries += 4    
-            print("Could not retrieve node-info -> waiting 5s ...")
-            time.sleep(5)
+            print("Could not retrieve node-info -> waiting 2s ...")
+            time.sleep(2)
             tries += 1
     
-    if tries >= 10:
+    if tries >= max_tries:
         if "nvidia" in query:
             print("No GPU found... - OK!")
             result_value = 0

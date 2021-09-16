@@ -10,6 +10,7 @@ from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
+from kaapana.operators.DcmStruct2Nifti import DcmStruct2Nifti
 from airflow.api.common.experimental import pool as pool_api
 from airflow.utils.log.logging_mixin import LoggingMixin
 from nnunet.NnUnetOperator import NnUnetOperator
@@ -185,12 +186,12 @@ args = {
     'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),
-    'retries': 0,
+    'retries': 1,
     'retry_delay': timedelta(seconds=30)
 }
 
 dag = DAG(
-    dag_id='nnunet-training',
+    dag_id='nnunet-training-rtstruct',
     default_args=args,
     concurrency=concurrency,
     max_active_runs=max_active_runs,
@@ -199,39 +200,48 @@ dag = DAG(
 
 get_input = LocalGetInputDataOperator(
     dag=dag,
-    check_modality=True,
-    parallel_downloads=5
-)
-
-dcm2nifti_seg = DcmSeg2ItkOperator(
-    dag=dag,
-    input_operator=get_input,
-    output_format="nii.gz",
-    seg_filter=seg_filter,
-    parallel_id='seg',
+    check_modality=False,
+    parallel_downloads=5,
     delete_input_on_success=False
 )
 
-get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
+get_ref_ct_series_from_struct = LocalGetRefSeriesOperator(
     dag=dag,
     input_operator=get_input,
     search_policy="reference_uid",
     parallel_downloads=5,
     parallel_id="ct",
     modality=None,
-    delete_input_on_success=True
+    delete_input_on_success=False
 )
+
+dcmstruct2nifti = DcmStruct2Nifti(
+    dag=dag,
+    input_operator=get_input,
+    dicom_operator=get_ref_ct_series_from_struct,
+    delete_input_on_success=False
+)
+
+# dcm2nifti_seg = DcmSeg2ItkOperator(
+#     dag=dag,
+#     input_operator=get_input,
+#     output_format="nii.gz",
+#     seg_filter=seg_filter,
+#     parallel_id='seg',
+#     delete_input_on_success=True
+# )
+
 
 dcm2nifti_ct = DcmConverterOperator(
     dag=dag,
-    input_operator=get_ref_ct_series_from_seg,
+    input_operator=get_ref_ct_series_from_struct,
     output_format='nii.gz',
-    delete_input_on_success=True
+    delete_input_on_success=False
 )
 
 check_seg = SegCheckOperator(
     dag,
-    input_operator=dcm2nifti_seg,
+    input_operator=dcmstruct2nifti,
     original_img_operator=dcm2nifti_ct,
     parallel_processes=3,
     delete_merged_data=True,
@@ -290,7 +300,6 @@ dcmseg_send_pdf = DcmSendOperator(
     input_operator=pdf2dcm,
     delete_input_on_success=True
 )
-
 zip_model = ZipUnzipOperator(
     dag=dag,
     target_filename=f"nnunet_model.zip",
@@ -344,8 +353,8 @@ dcm_send_int = DcmSendOperator(
 # )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
-get_input >> dcm2nifti_seg >> check_seg
-get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess >> nnunet_train
+get_input >> get_ref_ct_series_from_struct >> dcm2nifti_ct >> check_seg >> nnunet_preprocess >> nnunet_train
+get_ref_ct_series_from_struct >> dcmstruct2nifti >> check_seg
 
 nnunet_train >> pdf2dcm >> dcmseg_send_pdf >> clean
 nnunet_train >> zip_model >> bin2dcm >> dcm_send_int >> clean

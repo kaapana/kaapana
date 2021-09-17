@@ -21,7 +21,6 @@ class NnDetectionOperator(KaapanaBaseOperator):
                  inf_remove_if_empty = True,
                  node_uid="N/A",
                  env_vars={},
-                 parallel_id=None,
                  execution_timeout=execution_timeout,
                  *args,
                  **kwargs
@@ -40,12 +39,10 @@ class NnDetectionOperator(KaapanaBaseOperator):
         env_vars.update(envs)
 
         pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=None)
-        parallel_id = parallel_id if parallel_id is not None else mode
         super().__init__(
             dag=dag,
             image=f"{default_registry}/nndetection_komorbidom:0.0.1",
             name="nnDetection",
-            parallel_id=parallel_id,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             image_pull_policy="Always",

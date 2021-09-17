@@ -4,8 +4,10 @@ from datetime import timedelta
 from airflow.models import DAG
 from datetime import datetime
 from nndetection.NnDetectionOperator import NnDetectionOperator
+from nndetection.LocalResultSplitterOperator import LocalResultSplitterOperator
 from kaapana.operators.Json2DcmSROperator import Json2DcmSROperator
 from kaapana.operators.DcmModifyOperator import DcmModifyOperator
+from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
@@ -79,8 +81,19 @@ nndetection_predict = NnDetectionOperator(
     inf_threads_nifti=2
 )
 
-alg_name = "nndetection"
+result_orga = LocalResultSplitterOperator(
+    dag=dag,
+    input_operator=nndetection_predict
+)
 
+put_radiomics_to_minio = LocalMinioOperator(
+    dag=dag,
+    action='put',
+    action_operators=[result_orga],
+    file_white_tuples=('.json')
+)
+
+alg_name = "nndetection"
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     dag=dag,
     input_operator=get_input,
@@ -91,24 +104,24 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     alg_name=alg_name
 )
 
-json2dicomSR = Json2DcmSROperator(
-    dag=dag,
-    input_operator=nndetection_predict,
-    src_dicom_operator=get_input,
-    seg_dicom_operator=nrrd2dcmSeg_multi,
-    input_file_extension="volumes.json",
-)
+# json2dicomSR = Json2DcmSROperator(
+#     dag=dag,
+#     input_operator=result_orga,
+#     src_dicom_operator=get_input,
+#     seg_dicom_operator=nrrd2dcmSeg_multi
+# )
 
-dcmModify = DcmModifyOperator(
-    dag=dag,
-    input_operator=json2dicomSR,
-    dicom_tags_to_modify="(0008,0016)=1.2.840.10008.5.1.4.1.1.88.11"
-)
+# dcmModify = DcmModifyOperator(
+#     dag=dag,
+#     input_operator=json2dicomSR,
+#     dicom_tags_to_modify="(0008,0016)=1.2.840.10008.5.1.4.1.1.88.11"
+# )
+# dcmseg_send_sr = DcmSendOperator(dag=dag, input_operator=json2dicomSR, parallel_id="sr")
 
-dcmseg_send_sr = DcmSendOperator(dag=dag, input_operator=json2dicomSR, parallel_id="sr")
 dcmseg_send_multi = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> dcm2nifti >> nndetection_predict >> nrrd2dcmSeg_multi >> dcmseg_send_multi >> clean
-nndetection_predict >> json2dicomSR
-nrrd2dcmSeg_multi >> json2dicomSR >> dcmModify >> dcmseg_send_sr >> clean
+get_input >> dcm2nifti >> nndetection_predict >> result_orga >> nrrd2dcmSeg_multi >> dcmseg_send_multi >> clean
+result_orga >> put_radiomics_to_minio >> clean
+# result_orga >> json2dicomSR
+# nrrd2dcmSeg_multi >> json2dicomSR >> dcmModify >> dcmseg_send_sr >> clean

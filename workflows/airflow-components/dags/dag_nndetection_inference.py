@@ -4,6 +4,8 @@ from datetime import timedelta
 from airflow.models import DAG
 from datetime import datetime
 from nndetection.NnDetectionOperator import NnDetectionOperator
+from kaapana.operators.Json2DcmSROperator import Json2DcmSROperator
+from kaapana.operators.DcmModifyOperator import DcmModifyOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
@@ -89,7 +91,24 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     alg_name=alg_name
 )
 
+json2dicomSR = Json2DcmSROperator(
+    dag=dag,
+    input_operator=nndetection_predict,
+    src_dicom_operator=get_input,
+    seg_dicom_operator=nrrd2dcmSeg_multi,
+    input_file_extension="volumes.json",
+)
+
+dcmModify = DcmModifyOperator(
+    dag=dag,
+    input_operator=json2dicomSR,
+    dicom_tags_to_modify="(0008,0016)=1.2.840.10008.5.1.4.1.1.88.11"
+)
+
+dcmseg_send_sr = DcmSendOperator(dag=dag, input_operator=json2dicomSR, parallel_id="sr")
 dcmseg_send_multi = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_input >> dcm2nifti >> nndetection_predict >> nrrd2dcmSeg_multi >> dcmseg_send_multi >> clean
+nndetection_predict >> json2dicomSR
+nrrd2dcmSeg_multi >> json2dicomSR >> dcmModify >> dcmseg_send_sr >> clean

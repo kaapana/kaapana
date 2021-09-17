@@ -6,7 +6,7 @@ from datetime import timedelta
 
 
 class NnUnetOperator(KaapanaBaseOperator):
-    execution_timeout = timedelta(days=5)
+    execution_timeout = timedelta(days=10)
     task_dict = {}
 
     def __init__(self,

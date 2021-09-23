@@ -26,9 +26,9 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         resources:
           requests:
-            memory: 150Mi
+            memory: 200Mi
           limits:
-            memory: 150Mi
+            memory: 1500Mi
         env:
         - name: DCM4CHEE
           value: "http://dcm4chee-service.store.svc:8080"

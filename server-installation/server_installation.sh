@@ -507,6 +507,10 @@ else
     echo ""
 fi
 
+if [[ ${HOSTNAME}  =~ [A-Z] ]]
+then echo -e "Your hostname ${HOSTNAME} has uppercase letters, which is not compatible with microk8s!"
+    exit
+fi
 
 ### Parsing command line arguments:
 usage="$(basename "$0")

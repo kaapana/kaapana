@@ -17,7 +17,6 @@ def get_node_info(query):
     tries = 0
     max_tries = 2
     result_value = None
-    success = True
     while result_value == None and tries < max_tries:
         request_url = "{}{}".format(prometheus_url, query)
         try:
@@ -38,19 +37,18 @@ def get_node_info(query):
 
     if tries >= max_tries:
         print(f"+++++++++ Could not fetch node-info for query: {query}")
-        success = False
+        return None, False
 
     if not isinstance(result_value, int):
         result_value = 0
 
-    return result_value, success
+    return result_value, True
 
 
 def get_node_memory(logger=None):
     node_memory, success = get_node_info(query=memory_query)
     if not success and logger != None: 
         logger.error(f"+++++++++ Could not fetch node-info: get_node_memory")
-        return None
 
     return node_memory
 
@@ -58,7 +56,6 @@ def get_node_mem_percent(logger=None):
     mem_percent, success = get_node_info(query=mem_util_per_query)
     if not success and logger != None: 
         logger.error(f"+++++++++ Could not fetch node-info: get_node_mem_percent")
-        return None
 
     return mem_percent
 
@@ -66,14 +63,13 @@ def get_node_cpu(logger=None):
     node_cpu, success = get_node_info(query=cpu_core_query)
     if not success and logger != None: 
         logger.error(f"+++++++++ Could not fetch node-info: get_node_cpu")
-        return None
+
     return node_cpu
 
 def get_node_cpu_util_percent(logger=None):
     cpu_util_per, success = get_node_info(query=cpu_util_per_query)
     if not success and logger != None: 
         logger.error(f"+++++++++ Could not fetch node-info: get_node_cpu_util_percent")
-        return None
 
     return cpu_util_per
 
@@ -109,6 +105,8 @@ def get_node_gpu_infos(logger=None):
                 "mem_capacity": int(float(mem_capacity)),
             }
             gpu_infos.append(gpu_info)
+
         elif logger != None:
             logger.error(f"+++++++++ Could not fetch node-info for get_node_gpu_infos: {i}")
+            
     return gpu_infos

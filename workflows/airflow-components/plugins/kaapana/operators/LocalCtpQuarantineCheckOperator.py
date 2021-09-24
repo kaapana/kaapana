@@ -21,7 +21,7 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
                     print("MOVE with dag run id: ", dag_run_id)
                     try:
                         for dcm_file in path_list_part:
-                            series_uid = pydicom.dcmread(dcm_file)[0x0020, 0x000E].value
+                            series_uid = pydicom.dcmread(dcm_file,force=True)[0x0020, 0x000E].value
                             target = os.path.join("/data", dag_run_id, "batch", series_uid, 'get-input-data')
                             if not os.path.exists(target):
                                 os.makedirs(target)

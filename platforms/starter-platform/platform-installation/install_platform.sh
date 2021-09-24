@@ -12,13 +12,14 @@ DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-
 CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 CONTAINER_REGISTRY_USERNAME=""
 CONTAINER_REGISTRY_PASSWORD=""
+
 FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
 
-HTTP_PORT=80      # not working yet -> has to be 80
-HTTPS_PORT=443    # not working yet -> has to be 443
-DICOM_PORT=11112  # configure DICOM receiver port
-AUTH_NODE_PORT=8000
+HTTP_PORT="80"      # -> has to be 80
+HTTPS_PORT="443"    # HTTPS port -> port <AUTH_NODE_PORT> is additionaly needed if the port differs from 443
+DICOM_PORT="11112"  # configure DICOM receiver port
+AUTH_NODE_PORT="8000"
 
 PULL_POLICY_PODS="IfNotPresent"
 PULL_POLICY_JOBS="IfNotPresent"
@@ -28,6 +29,8 @@ DEV_PORTS="false"
 GPU_SUPPORT="false"
 
 NO_HOOKS=""
+
+DEFAULT_CLEANUP_AFTER_TAR_DUMP="false"
 
 if [ "$DEV_MODE" == "true" ]; then
     PULL_POLICY_PODS="Always"
@@ -48,8 +51,22 @@ if [ -z ${http_proxy+x} ] || [ -z ${https_proxy+x} ]; then
 fi
 
 CHART_PATH=""
+TAR_PATH=""
 script_name=`basename "$0"`
 
+# set default values for the colors
+BOLD=""
+underline=""
+standout=""
+NC=""
+BLACK=""
+RED=""
+GREEN=""
+YELLOW=""
+BLUE=""
+MAGENTA=""
+CYAN=""
+WHITE=""
 # check if stdout is a terminal...
 if test -t 1; then
     # see if it supports colors...
@@ -206,7 +223,7 @@ function delete_deployment {
         echo "${RED}Something went wrong while uninstalling please check manually if there are still namespaces or pods floating around. Everything must be delete before the installation:${NC}"
         echo "${RED}kubectl get pods -A${NC}"
         echo "${RED}kubectl get namespaces${NC}"
-        echo "${RED}Once everything is delete you can reinstall the platform!${NC}"
+        echo "${RED}Once everything is deleted you can reinstall the platform!${NC}"
         exit 1
     fi
     
@@ -218,6 +235,70 @@ function clean_up_kubernetes {
     microk8s.kubectl delete deployments --all
     echo "${YELLOW}Deleting all jobs${NC}"
     microk8s.kubectl delete jobs --all
+}
+
+apply_microk8s_image_import() {
+    IMAGE=$1
+    BASE_NAME=(${IMAGE//:/ })
+    BASE_NAME=${BASE_NAME[0]}
+    echo Uploading $IMAGE
+    microk8s ctr images import --base-name ${BASE_NAME//@/\/} $TAR_LOCATION/microk8s_images/$IMAGE
+}
+
+export -f apply_microk8s_image_import
+
+apply_microk8s_image_export() {
+    IMAGE=$1
+    if [[ $IMAGE == $CONTAINER_REGISTRY_URL* ]] && [[ $IMAGE != *"@"* ]];
+    then
+        echo "${GREEN}Exporting $IMAGE"
+        microk8s ctr images export $DUMP_TAR_DIR/microk8s_images/${IMAGE//\//@} $IMAGE
+    fi
+
+    if [[ $IMAGE == $CONTAINER_REGISTRY_URL* ]] && [[ $CLEANUP_AFTER_TAR_DUMP == 'true' ]];
+    then
+        echo "${YELLOW}Removing $IMAGE"
+        microk8s ctr images remove $IMAGE
+    fi
+    return 0
+}
+
+export -f apply_microk8s_image_export
+
+function dump_to_tar {
+
+    if [ ! "$QUIET" = "true" ];then
+        echo -e ""
+        read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to export? Make sure the verison is available!: ${NC}" -i $DEFAULT_VERSION chart_version;
+    else
+        chart_version=$DEFAULT_VERSION
+    fi
+
+    if [ ! "$QUIET" = "true" ];then
+        echo -e ""
+        read -e -p "${YELLOW}Should the images be removed from microk8s after your dump (true or false)?: ${NC}" -i $DEFAULT_CLEANUP_AFTER_TAR_DUMP CLEANUP_AFTER_TAR_DUMP;
+    else
+        CLEANUP_AFTER_TAR_DUMP=$DEFAULT_CLEANUP_AFTER_TAR_DUMP
+    fi
+
+    export CLEANUP_AFTER_TAR_DUMP
+    export CONTAINER_REGISTRY_URL
+    CHART_NAME=${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version
+    DUMP_TAR_DIR=$PROJECT_NAME-$chart_version
+    export DUMP_TAR_DIR
+    mkdir $DUMP_TAR_DIR
+    echo Exporting chart $CHART_NAME
+    helm chart export -d $DUMP_TAR_DIR $CHART_NAME
+    if [[ $CLEANUP_AFTER_TAR_DUMP == 'true' ]];
+    then
+        echo "${YELLOW} Removing $CHART_NAME}"
+        helm chart remove $CHART_NAME
+    fi
+    echo Exporting all images that start with $CONTAINER_REGISTRY_URL
+    mkdir $DUMP_TAR_DIR/microk8s_images
+    microk8s.ctr images ls | awk {'print $1'} | xargs -I {} bash -c 'apply_microk8s_image_export "$@"' _ {}
+    tar -czvf $DUMP_TAR_DIR.tar.gz $DUMP_TAR_DIR
+    rm -rf $DUMP_TAR_DIR
 }
 
 function prefetch_extensions {
@@ -245,6 +326,33 @@ function prefetch_extensions {
 }
 
 function install_chart {
+
+    if [ ! "$QUIET" = "true" ];then
+        echo -e ""
+        read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to install?: ${NC}" -i $DEFAULT_VERSION chart_version;
+    else
+        chart_version=$DEFAULT_VERSION
+    fi
+
+    if [ ! "$QUIET" = "true" ];then
+        while true; do
+            read -e -p "Enable GPU support?" -i " yes" yn
+            case $yn in
+                [Yy]* ) echo -e "${GREEN}ENABLING GPU SUPPORT${NC}" && GPU_SUPPORT="true"; break;;
+                [Nn]* ) echo -e "${YELLOW}SET NO GPU SUPPORT${NC}" && GPU_SUPPORT="false"; break;;
+                * ) echo "Please answer yes or no.";;
+            esac
+        done
+    else
+        echo -e "${YELLOW}QUIET-MODE active!${NC}"
+    fi
+    echo -e "${YELLOW}GPU_SUPPORT: $GPU_SUPPORT ${NC}"
+    if [ "$GPU_SUPPORT" = "true" ];then
+        echo -e "-> enabling GPU in Microk8s ..."
+        microk8s.enable gpu
+    fi
+    get_domain
+    
     if [ ! -z "$CHART_PATH" ]; then
         echo "${GREEN}Setting local chart config.${NC}"
         if [ ! -f $CHART_PATH ]; then
@@ -263,7 +371,20 @@ function install_chart {
         CONTAINER_REGISTRY_PASSWORD=""
         CONTAINER_REGISTRY_URL="local"
         import_containerd
-
+    elif [ ! -z "$TAR_PATH" ]; then
+        if [ "$OFFLINE_MODE" == "false" ]; then
+            echo "${RED}You need to set the script to OFFLINE_MODE=true in order to install from a tarball"
+        fi
+        TAR_LOCATION=$(dirname "$TAR_PATH")/$(basename "$TAR_PATH" .tar.gz)
+        export TAR_LOCATION
+        echo Unpacking $TAR_PATH to $TAR_LOCATION
+        tar -xf $TAR_PATH -C  $(dirname "$TAR_LOCATION")
+        echo Importing chart ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version
+        helm chart save $TAR_LOCATION/$PROJECT_NAME ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version
+        echo Importing Images from $TAR_LOCATION/microk8s_images
+        ls $TAR_LOCATION/microk8s_images | xargs -I {} bash -c 'apply_microk8s_image_import "$@"' _ {}
+        rm -rf $TAR_LOCATION
+        echo
     elif [ -z "$CONTAINER_REGISTRY_URL" ]; then
         echo "${RED}CONTAINER_REGISTRY_URL need to be set! -> please adjust the install_platform.sh script!${NC}"
         echo "${RED}ABORT${NC}"
@@ -275,31 +396,6 @@ function install_chart {
     else    
         echo "${YELLOW}Helm login registry...${NC}"
         check_credentials
-    fi
-
-    if [ ! "$QUIET" = "true" ];then
-        while true; do
-            read -e -p "Enable GPU support?" -i " no" yn
-            case $yn in
-                [Yy]* ) echo -e "${GREEN}ENABLING GPU SUPPORT${NC}" && GPU_SUPPORT="true"; break;;
-                [Nn]* ) echo -e "${YELLOW}SET NO GPU SUPPORT${NC}" && GPU_SUPPORT="false"; break;;
-                * ) echo "Please answer yes or no.";;
-            esac
-        done
-    else
-        echo -e "${YELLOW}QUIET-MODE active!${NC}"
-    fi
-    echo -e "${YELLOW}GPU_SUPPORT: $GPU_SUPPORT ${NC}"
-    if [ "$GPU_SUPPORT" = "true" ];then
-        echo -e "-> enabling GPU in Microk8s ..."
-        microk8s.enable gpu
-    fi
-    get_domain
-    if [ ! "$QUIET" = "true" ];then
-        echo -e ""
-        read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to install?: ${NC}" -i $DEFAULT_VERSION chart_version;
-    else
-        chart_version=$DEFAULT_VERSION
     fi
 
     if [ -z "$CHART_PATH" ]; then
@@ -396,7 +492,7 @@ function upgrade_chart {
 
 function check_credentials {
     while true; do
-        if [ ! -v CONTAINER_REGISTRY_USERNAME ] || [ ! -v CONTAINER_REGISTRY_PASSWORD ]; then
+        if [ -z "$CONTAINER_REGISTRY_USERNAME" ] || [ -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
             echo -e "${YELLOW}Please enter the credentials for the Container-Registry!${NC}"
             read -p '**** username: ' CONTAINER_REGISTRY_USERNAME
             read -s -p '**** password: ' CONTAINER_REGISTRY_PASSWORD
@@ -490,9 +586,10 @@ _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
 _Flag: --remove-all-images-docker will delete all Docker images from the system
 _Flag: --quiet, meaning non-interactive operation
 _Flag: --prefetch-extensions is used to prefetch every docker image which might be needed when installing an extension. You should execute this, if you want to go offline after installation.
+_Flag: --dump-to-tar, export the current platform to a tarball
 
 _Argument: --chart-path [path-to-chart-tgz]
-
+_Argument: --tar-path [path-to-a-tarball]
 _Argument: --username [Docker regsitry username]
 _Argument: --password [Docker regsitry password]
 _Argument: --port [Set main https-port]
@@ -545,6 +642,13 @@ do
             shift # past value
         ;;
 
+        --tar-path)
+            TAR_PATH="$2"
+            echo -e "${GREEN}SET TAR_PATH: $TAR_PATH !${NC}";
+            shift # past argument
+            shift # past value
+        ;;
+
         --quiet)
             QUIET=true
             shift # past argument
@@ -552,6 +656,11 @@ do
 
         --install-certs)
             install_certs
+            exit 0
+        ;;
+
+        --dump-to-tar)
+            dump_to_tar
             exit 0
         ;;
 

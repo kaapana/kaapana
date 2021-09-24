@@ -3,34 +3,34 @@ set -euf -o pipefail
 export HELM_EXPERIMENTAL_OCI=1
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
-PROJECT_NAME="kaapana-platform-chart" # name of the platform Helm chart
-DEFAULT_VERSION="0.1.2"    # version of the platform Helm chart
+PROJECT_NAME="{{ project_name }}" # name of the platform Helm chart
+DEFAULT_VERSION="{{ default_version }}"    # version of the platform Helm chart
 
-OFFLINE_MODE="false" # true or false
-DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart
+OFFLINE_MODE="{{ offline_mode|default('false', true) }}" # true or false
+DEV_MODE="{{ dev_mode|default('true', true) }}" # dev-mode -> containers will always be re-downloaded after pod-restart
 
-CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
-CONTAINER_REGISTRY_USERNAME=""
-CONTAINER_REGISTRY_PASSWORD=""
+CONTAINER_REGISTRY_URL="{{ container_registry_url|default('', true) }}" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
+CONTAINER_REGISTRY_USERNAME="{{ container_registry_username|default('', true) }}"
+CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}"
 
-FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
-SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
+FAST_DATA_DIR="{{ fast_data_dir|default('/home/kaapana')}}" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
+SLOW_DATA_DIR="{{ slow_data_dir|default('/home/kaapana')}}" # Directory on the server, where the DICOM images will be stored (can be slower)
 
-HTTP_PORT="80"      # -> has to be 80
-HTTPS_PORT="443"    # HTTPS port -> port <AUTH_NODE_PORT> is additionaly needed if the port differs from 443
-DICOM_PORT="11112"  # configure DICOM receiver port
-AUTH_NODE_PORT="8000"
+HTTP_PORT="{{ http_port|default(80)|int }}"      # -> has to be 80
+HTTPS_PORT="{{ https_port|default(443) }}"    # HTTPS port -> port <AUTH_NODE_PORT> is additionaly needed if the port differs from 443
+DICOM_PORT="{{ dicom_port|default(11112) }}"  # configure DICOM receiver port
+AUTH_NODE_PORT="{{ auth_node_port|default(8000) }}"
 
-PULL_POLICY_PODS="IfNotPresent"
-PULL_POLICY_JOBS="IfNotPresent"
-PULL_POLICY_OPERATORS="IfNotPresent"
+PULL_POLICY_PODS="{{ pull_policy_pods|default('IfNotPresent') }}"
+PULL_POLICY_JOBS="{{ pull_policy_jobs|default('IfNotPresent') }}"
+PULL_POLICY_OPERATORS="{{ pull_policy_operators|default('IfNotPresent') }}"
 
-DEV_PORTS="false"
-GPU_SUPPORT="false"
+DEV_PORTS="{{ dev_ports|default('false') }}"
+GPU_SUPPORT="{{ gpu_support|default('false') }}"
 
 NO_HOOKS=""
 
-DEFAULT_CLEANUP_AFTER_TAR_DUMP="false"
+DEFAULT_CLEANUP_AFTER_TAR_DUMP="{{default_cleanup_after_tar_dump|default('false')}}"
 
 if [ "$DEV_MODE" == "true" ]; then
     PULL_POLICY_PODS="Always"

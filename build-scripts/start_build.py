@@ -7,6 +7,8 @@ import os
 import getpass
 from glob import glob
 from time import time
+from pathlib import Path
+from jinja2 import Environment, FileSystemLoader
 from argparse import ArgumentParser
 from build_helper.charts_build_and_push_all import HelmChart
 from build_helper.containers_build_and_push_all import start_container_build, container_registry_login
@@ -63,6 +65,7 @@ if __name__ == '__main__':
     parser.add_argument("-u", "--username", dest="username", default=None, help="Username")
     parser.add_argument("-p", "--password", dest="password", default=None, required=False, help="Password")
     parser.add_argument("-bo", "--build-only", dest="build_only", default=False, action='store_true', help="Just building the containers and charts -> no pushing")
+    parser.add_argument("-iso", "--installer-scripts-only", dest="installer_scripts_only", default=False, action='store_true', help="Just build all installation scripts.")
     parser.add_argument("-co", "--charts-only", dest="charts_only", default=False, action='store_true', help="Just build all helm charts.")
     parser.add_argument("-do", "--docker-only", dest="docker_only", default=False, action='store_true', help="Just build all Docker containers charts.")
     parser.add_argument("-dk", "--disable-kubeval", dest="disable_kubeval", default=False, action='store_true', help="Disable helm kubeval linting.")
@@ -74,6 +77,7 @@ if __name__ == '__main__':
     build_only = args.build_only
     charts_only = args.charts_only
     docker_only = args.docker_only
+    installer_scripts_only = args.installer_scripts_only
     config_filepath = args.config_filepath
     disable_kubeval = args.disable_kubeval
     build_dir = args.build_dir
@@ -99,8 +103,10 @@ if __name__ == '__main__':
         except yaml.YAMLError as exc:
             print(exc)
 
-    build_containers = False if charts_only else configuration["build_containers"]
-    push_containers = False if charts_only else configuration["push_containers"]
+    build_installer_scripts = False if (charts_only or docker_only) else True
+
+    build_containers = False if (charts_only or installer_scripts_only) else configuration["build_containers"]
+    push_containers = False if (charts_only or installer_scripts_only) else configuration["push_containers"]
     push_containers = False if build_only else push_containers
     push_dev_only = configuration["push_dev_containers_only"] if "push_dev_containers_only" in configuration else False
     default_container_registry = configuration["default_container_registry"] if "default_container_registry" in configuration else ""
@@ -116,8 +122,8 @@ if __name__ == '__main__':
     if create_package:
         os.makedirs(build_dir, exist_ok=True)
 
-    build_charts = False if docker_only else configuration["build_charts"]
-    push_charts = False if docker_only else configuration["push_charts"]
+    build_charts = False if (docker_only or installer_scripts_only) else configuration["build_charts"]
+    push_charts = False if (docker_only or installer_scripts_only)  else configuration["push_charts"]
     push_charts = False if build_only else push_charts
 
     if default_container_registry == "" and push_charts:
@@ -183,6 +189,24 @@ if __name__ == '__main__':
 
     startTime = time()
     print("-----------------------------------------------------------")
+
+
+    if build_installer_scripts:
+        print("-----------------------------------------------------------")
+        print("-------------------- Installer scripts --------------------")
+        print("-----------------------------------------------------------")
+        platforms_dir = Path(kaapana_dir) / "platforms"
+        print(str(platforms_dir))
+        file_loader = FileSystemLoader(str(platforms_dir)) # directory of template file
+        env = Environment(loader=file_loader)
+        for config_path in platforms_dir.rglob('installer_config.yaml'):
+            platform_params = yaml.load(open(config_path), Loader=yaml.FullLoader)
+            print(f'Creating installer script for {platform_params["project_name"]}')
+            template = env.get_template('install_platform_template.sh') # load template file
+
+            output = template.render(**platform_params)
+            with open (config_path.parents[0] / 'install_platform.sh', 'w') as rsh:
+                rsh.write(output)
 
 
     if build_charts:

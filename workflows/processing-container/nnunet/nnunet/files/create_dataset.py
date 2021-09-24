@@ -1,3 +1,4 @@
+from genericpath import isdir
 import os
 import glob
 import json
@@ -8,7 +9,7 @@ import time
 import nibabel as nib
 import numpy as np
 from multiprocessing.pool import ThreadPool
-from os.path import join, exists, dirname, basename
+from os.path import join, exists, dirname, basename, isdir
 
 
 def timing(f):
@@ -172,12 +173,12 @@ def prepare_dataset(datset_list, dataset_id):
         print(f"# {series}")
         print("#")
         print("######################################################################")
+
         imagesTr_path = join(task_dir, "imagesTr")
         base_file_path = f"{basename(series)}.nii.gz"
 
         for i in range(0, len(input_modality_dirs)):
             modality_nifti_dir = join(series, input_modality_dirs[i])
-
             modality_nifti = glob.glob(join(modality_nifti_dir, "*.nii.gz"), recursive=True)
             if len(modality_nifti) != 1:
                 print("# ")
@@ -209,7 +210,7 @@ def prepare_dataset(datset_list, dataset_id):
         if len(seg_nifti_list) == 0:
             print(f"# No NIFTI found -> skipping batch-element")
             continue
-        
+
         print("# -> start merging")
         assert len(seg_nifti_list) == 1
         seg_nifti = seg_nifti_list[0]
@@ -343,8 +344,23 @@ print("# Starting DatasetCreateOperator:")
 print("# ")
 print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 
-series_list = [f.path for f in os.scandir(batch_dir) if f.is_dir()]
-series_list.sort()
+series_list_tmp = [f.path for f in os.scandir(batch_dir) if f.is_dir()]
+series_list_tmp.sort()
+
+series_list=[]
+for series in series_list_tmp:
+    print("######################################################################")
+    print(f"# Check series {series} for seg-check files...")
+    seg_check_files = glob.glob(join(series, "seg-check", "*.nii.gz"), recursive=False)
+    if len(seg_check_files) != 1:
+        print("# ")
+        print("# Seg-check issue -> skipping!")
+        print(f"# seg_check_files: {seg_check_files}")
+        print("# ")
+    else:
+        print(f"# OK!")
+        series_list.append(series)
+    print(f"# ")
 
 modality = {}
 input_modalities = input_modalities.split(",")
@@ -377,6 +393,8 @@ template_dataset_json = {
     "max_epochs": max_epochs,
     "training": [],
     "test": []
+
+
 }
 
 series_count = len(series_list)

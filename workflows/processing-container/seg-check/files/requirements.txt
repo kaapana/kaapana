@@ -1,2 +1,2 @@
-nibabel
-pydicom
+nibabel==3.2.1
+pydicom==2.2.1

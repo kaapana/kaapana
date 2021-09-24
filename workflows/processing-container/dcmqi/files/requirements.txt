@@ -1,3 +1,3 @@
-numpy
-matplotlib
-pydicom
+numpy==1.21.2
+matplotlib==3.4.3
+pydicom==2.2.1

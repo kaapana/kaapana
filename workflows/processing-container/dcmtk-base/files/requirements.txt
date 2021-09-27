@@ -1,2 +1,2 @@
 pydicom==2.0.0
-requests
+requests==2.26.0

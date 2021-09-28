@@ -848,6 +848,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         date_time_formatted = self.convert_time_to_utc(date_time_formatted, self.format_date_time)
         new_meta_data["timestamp"] = date_time_formatted
 
+<<<<<<< HEAD
         timestamp_arrived = datetime.now()
         new_meta_data["timestamp_arrived_datetime"] = self.convert_time_to_utc(timestamp_arrived.strftime(self.format_date_time), self.format_date_time)
 
@@ -856,6 +857,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
         new_meta_data["dayofweek_integer"] = datetime.strptime(
             date_time_formatted, self.format_date_time).weekday()
+=======
+        new_meta_data["timestamp_arrived_datetime"] = self.convert_time_to_utc(datetime.now().strftime(self.format_date_time), self.format_date_time)
+        new_meta_data["timestamp_arrived_date"] = new_meta_data["timestamp_arrived_datetime"][:10] 
+        new_meta_data["timestamp_arrived_integer"] = new_meta_data["timestamp_arrived_datetime"][11:13]
+        new_meta_data["dayofweek_integer"] = datetime.strptime(date_time_formatted, self.format_date_time).weekday()
+>>>>>>> added arrival time and date
         new_meta_data["time_tag_used_keyword"] = time_tag_used
         new_meta_data["predicted_bodypart_string"] = "N/A"
 

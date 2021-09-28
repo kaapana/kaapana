@@ -118,9 +118,21 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         print("#")
 
         dag_run_id = kwargs['dag_run'].run_id
+<<<<<<< HEAD
         if self.conf and ("seriesInstanceUID" in self.conf):
             series_uid = self.conf.get('seriesInstanceUID')
             dcm_path = join("/ctpinput", self.conf.get('dicom_path'))
+=======
+        
+        assert kwargs['dag_run'].conf is not None
+        if "seriesInstanceUID" in kwargs['dag_run'].conf:
+            series_uid = kwargs['dag_run'].conf.get('seriesInstanceUID')
+            dcm_path = join("/ctpinput", kwargs['dag_run'].conf.get('dicom_path'))
+            this_dag_run_id = kwargs['dag_run'].run_id
+
+            print("#")
+            print("############################ Get input data ############################")
+>>>>>>> added arrival time and date
             print("#")
             print(f"# Dicom-path: {dcm_path}")
 

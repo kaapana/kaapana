@@ -30,7 +30,7 @@ spec:
               value: "10"
       containers:
       - name: minio
-        image: {{  .Values.global.registry_url }}/minio:2021.03.12
+        image: {{  .Values.global.registry_url }}/minio:2021.09.24
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args:
         - server

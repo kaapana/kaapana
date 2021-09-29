@@ -1,7 +1,7 @@
 FROM golang:1.16-alpine as builder
 
 LABEL IMAGE=minio
-LABEL VERSION=2021.03.12
+LABEL VERSION=2021.09.24
 LABEL maintainer="MinIO Inc <dev@min.io>"
 
 ENV GOPATH /go
@@ -11,7 +11,7 @@ ENV GO111MODULE on
 RUN  \
      apk add --no-cache git && \
      git clone https://github.com/minio/minio && cd minio && \
-     git checkout feafccf0072a9b5fbddc33553890ff56cb2f83b6
+     git checkout 769f0b1e24c42d6ef1a370a5c657c9f6d5484fe7
 
 WORKDIR /go/minio
 

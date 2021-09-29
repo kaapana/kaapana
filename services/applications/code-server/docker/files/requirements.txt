@@ -9,5 +9,5 @@ minio==7.1.0
 pint==0.17
 timeloop==1.0.2
 black==21.6b0
-jupyter=1.0.0
+jupyter==1.0.0
 pydebug==1.0.3

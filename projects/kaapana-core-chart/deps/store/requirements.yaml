@@ -7,7 +7,7 @@ dependencies:
     version: "4.9.21"
     repository: file://../../../../services/store/ohif-viewer/ohif-chart
   - name: minio-chart
-    version: "2021.09.24"
+    version: "2021.03.12"
     repository: file://../../../../services/store/minio/minio-chart
   - name: minio-init-chart
     version: "0.1.2"

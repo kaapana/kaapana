@@ -79,6 +79,9 @@
                                     the element rerenders.
                             -->
                             <v-btn
+                              v-if="
+                                getLastDagRunOfDag(dag.dag_id).state == 'failed'
+                              "
                               :key="loader"
                               class="ma-2"
                               :loading="loaders[displayDags.indexOf(dag)]"
@@ -90,7 +93,8 @@
                                 loader = displayDags.indexOf(dag);
                                 clearDagRun(
                                   dag.dag_id,
-                                  getLastDagRunOfDag(dag.dag_id).execution_time
+                                  getLastDagRunOfDag(dag.dag_id).execution_time,
+                                  getLastDagRunOfDag(dag.dag_id).task_id
                                   );
                                 "
                             >
@@ -258,10 +262,10 @@ export default {
       return equalDagRuns.length;
     },
     filterDags() {
-      /* eslint no-plusplus: ["error", { "allowForLoopAfterthoughts": true }] */
       /* Simple iteration with forEach doesn't work,
          because function isn't able to iterate over directory. */
-      // Is necessary so the displayDags will be empty if you update filter list in a session.
+      /* Is necessary so the displayDags will be empty
+         if you update filter list in a session. */
       this.displayDags = [];
       const dagKeys = Object.keys(this.dags);
       let j;
@@ -298,22 +302,20 @@ export default {
         this.loaders.push(newLoaderObject);
       });
     },
-    async clearDagRun(dagId, executionTime) {
+    async clearDagRun(dagId, executionTime, taskId) {
       try {
-        console.log('Start');
         const requestOptions = {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             dag_id: dagId,
             execution_time: executionTime,
+            task_id: taskId,
           }),
         };
-        const response = await fetch(`/flow/kaapana/api/clear/${dagId}/${executionTime}`, requestOptions);
-        console.log(response);
-        console.log('End');
+        const response = await fetch(`/flow/kaapana/api/clear
+        /${dagId}/${executionTime}/${taskId}`, requestOptions);
       } catch (e) {
-        console.log('Failed');
         console.log(e);
       }
     },

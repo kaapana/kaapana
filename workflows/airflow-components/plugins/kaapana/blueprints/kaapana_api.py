@@ -10,6 +10,7 @@ from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun, DagModel, DAG, DagBag
+from airflow.operators import subdag_operator as SubDagOperator
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow import settings
 from airflow.utils import timezone
@@ -362,9 +363,9 @@ def get_minio_credentials():
     return jsonify({'accessKey': access_key, 'secretKey': secret_key, 'sessionToken': session_token }), 200
 
 
-@kaapanaApi.route('/api/clear/<string:dag_id>/<string:execution_time>', methods=['POST'])
+@kaapanaApi.route('/api/clear/<string:dag_id>/<string:execution_time>/<string:task_id>', methods=['POST'])
 @csrf.exempt
-def post_clear_task_instances(dag_id: str, execution_time: str, session=None):
+def post_clear_task_instances(dag_id: str, execution_time: str, task_id: str, session=None):
     session = settings.Session()
     all_dagruns = session.query(DagRun)
 
@@ -375,51 +376,33 @@ def post_clear_task_instances(dag_id: str, execution_time: str, session=None):
         'reset_dag_runs': True,
         'start_date': dagruns[-1].start_date,
         'end_date': dagruns[-1].end_date,
+        'dag_id': dag_id,
+        'execution_time': execution_time,
+        'task_id': task_id,
     }
-    _log.error('------------------DAG_RUN_DATE: ' + str(dagruns[-1].start_date) + '------------------------')
-
     dag_model = DagModel.get_dagmodel(dag_id)
-    _log.error('------------------DAG_MODEL: ' + str(dag_model) + '------------------------')
     dag = dag_model.get_dag()
-    _log.error('------------------DAG: ' + str(dag) + '------------------------')
-    if not dag:
-        error_message = f"Dag id {dag_id} not found"
-        print(error_message)
-    reset_dag_runs = data.pop('reset_dag_runs')
-    tis = session.query(TI).filter(TI.dag_id == dag.dag_id)
-    tis = tis.filter(TI.task_id.in_(dag.task_ids))
-    for ti in tis:
-        TIS = []
-        if (ti.execution_date.strptime(ti.execution_date, "%Y-%m-%d %H:%M:%S") >= dagruns[-1].start_date.strftime("%Y-%m-%d %H:%M:%S")):
-            TIS.append(ti)
-        tis = TIS
-    #tis = tis.filter(TI.execution_date.strptime("%Y-%m-%d %H:%M:%S") >= dagruns[-1].start_date.strftime("%Y-%m-%d %H:%M:%S"))
-    #tis = tis.filter(TI.execution_date.strptime("%Y-%m-%d %H:%M:%S") <= dagruns[-1].end_date.strftime("%Y-%m-%d %H:%M:%S"))
-    tis = tis.filter(TI.state == State.FAILED or TI.state == State.UPSTREAM_FAILED)
-    # task_instances = dag.clear(get_tis=True, **data)
-    for ti in tis:
-        _log.error('---------------------TASK_INSTANCE: ' + str(ti.task_id) + ' | ' + str(ti.state) + ' | '+ str(ti.execution_date) +' ---------------------------------------')
-        _log.error('--------------------------------' + str(dagruns[-1].start_date.strftime("%Y-%m-%d %H:%M:%S")) + ' | ' + str(dagruns[-1].end_date.strftime("%Y-%m-%d %H:%M:%S")) + '--------------------------')
-    clear_task_instances(
-        tis,
-        session,
-        dag=dag,
-        # activate_dag_runs=False,  # We will set DagRun state later.
+
+
+    sub_dag = SubDagOperator(
+    subdag=DagBag().get_dag(dag_id),
+    on_retry_callback=callback_subdag_clear,
+    task_id= task_id,
+    dag=dag,
     )
-    #if reset_dag_runs:
-    #    dag.set_dag_runs_state(
-    #        session=session,
-    #        start_date=data["start_date"],
-    #        end_date=data["end_date"],
-    #        state=State.RUNNING,
-    #    )
 
-    task_instances = tis.join(
-        DagRun, and_(DagRun.dag_id == TI.dag_id, DagRun.execution_date == TI.execution_date)
-    ).add_column(DagRun.run_id)
-
-    # trigger_dag(dag_id)
-
-    message = ["{} cleared!".format(dag.dag_id)]
-    response = jsonify(message=message)
-    return response
+def callback_subdag_clear(data):
+    dagId = "{}.{}".format(
+        data["dag_id"],
+        data["task_id"], 
+    )
+    execution_date = data["execution_time"]
+    sub_dag = DagBag().get_dag(dagId)
+    sub_dag.clear(
+        start_date=data["start_date"],
+        end_date=data["end_date"],
+        only_failed=False,
+        only_running=False,
+        confirm_prompt=False,
+        include_subdags=False
+    )

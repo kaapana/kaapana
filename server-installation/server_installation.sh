@@ -175,7 +175,7 @@ function install_packages_ubuntu {
         apt update
         apt upgrade -y
 
-        apt install -y nano jq curl
+        apt install -y nano jq curl net-tools
 
         if [ -x "$(command -v snap)" ]; then
             echo "${GREEN}Snap ok.${NC}"

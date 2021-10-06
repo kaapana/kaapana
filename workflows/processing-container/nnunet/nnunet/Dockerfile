@@ -31,6 +31,7 @@ RUN git clone  --single-branch --branch ${BRANCH} https://github.com/MIC-DKFZ/nn
 
 RUN cd /nnunet-pip-package && pip install ./
 
+RUN pip install batchgenerators==0.21 # should be removed some day...
 COPY files/ /src
 
 COPY files/nnUNetTrainerV2.py /opt/conda/lib/python3.6/site-packages/nnunet/training/network_training/nnUNetTrainerV2.py

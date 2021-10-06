@@ -378,7 +378,7 @@ function install_chart {
         TAR_LOCATION=$(dirname "$TAR_PATH")/$(basename "$TAR_PATH" .tar.gz)
         export TAR_LOCATION
         echo Unpacking $TAR_PATH to $TAR_LOCATION
-        tar -xf $TAR_PATH -C  $(dirname "$TAR_LOCATION")
+        tar -xvf $TAR_PATH -C  $(dirname "$TAR_LOCATION")
         echo Importing chart ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version
         helm chart save $TAR_LOCATION/$PROJECT_NAME ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version
         echo Importing Images from $TAR_LOCATION/microk8s_images

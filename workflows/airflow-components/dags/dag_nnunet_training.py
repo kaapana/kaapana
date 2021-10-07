@@ -208,7 +208,6 @@ dcm2nifti_seg = DcmSeg2ItkOperator(
     input_operator=get_input,
     output_format="nii.gz",
     seg_filter=seg_filter,
-    parallel_id='seg',
     delete_input_on_success=False
 )
 

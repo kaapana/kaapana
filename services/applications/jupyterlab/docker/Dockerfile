@@ -5,22 +5,22 @@ LABEL IMAGE="jupyterlab"
 LABEL VERSION="3.1.1"
 LABEL CI_IGNORE="False"
 
-# Install NodeJS: https://askubuntu.com/a/548776
-RUN curl -sL https://deb.nodesource.com/setup_13.x | bash - 
+# # Install NodeJS: https://askubuntu.com/a/548776
+# RUN curl -sL https://deb.nodesource.com/setup_13.x | bash - 
 
 # Install Python and basic tools
-RUN apt-get update -y && apt-get install -y \
-      build-essential \
-      curl \
-      python3 \
-      python3-all-dev \
-      python3-pip \
-      python3-setuptools \
-      python3-venv \
-      python3-wheel \
-      nodejs \
-     && rm -rf /var/lib/apt/lists/* \
-     && pip3 install --upgrade pip
+# RUN apt-get update -y
+# RUN apt-get install -y \
+#       build-essential \
+#       curl \
+#       python3 \
+#       python3-all-dev \
+#       python3-pip \
+#       python3-setuptools \
+#       python3-venv \
+#       python3-wheel \
+#      && rm -rf /var/lib/apt/lists/* \
+#      && pip3 install --upgrade pip
 
 
 # Common Python packages

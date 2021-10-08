@@ -91,8 +91,14 @@ We expect the sudo systemctl restart snapd
 Build modes
 -----------
 
-If you **don't** have access to a container registry with **already built containers** for Kaapana, you need to build them first.
-This is comparable to a binary of regular software projects - if you already have access to it, you can continue with **step 3**.
+The easiest way to get started is to have access to a container registry with **already built containers** for Kaapana. This is comparable to a binary of regular software projects.
+**OR** 
+You could also request for Kaapana binaries directly to one of our developers. They should provide you with:
+   - a compressed binary file
+   - a registry link which you will need further during platform installation
+If you **have access** to the binaries from any of the above 2 ways, you can continue with **step 3**.
+
+If you **don't** have access to the Kaapana binaries directly, then you need to build them yourself first.
 
 | The complete build will take **~1h** (depending on the system)! 
 | Currently Kaapana supports two different **build-modes**:

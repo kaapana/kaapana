@@ -373,7 +373,8 @@ function install_chart {
         import_containerd
     elif [ ! -z "$TAR_PATH" ]; then
         if [ "$OFFLINE_MODE" == "false" ]; then
-            echo "${RED}You need to set the script to OFFLINE_MODE=true in order to install from a tarball"
+            echo "${RED}You need to set OFFLINE_MODE=true in the install_platform.sh script in order to install from a tarball"
+            exit 1
         fi
         TAR_LOCATION=$(dirname "$TAR_PATH")/$(basename "$TAR_PATH" .tar.gz)
         export TAR_LOCATION

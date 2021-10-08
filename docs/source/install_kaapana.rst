@@ -5,8 +5,8 @@ Install Kaapana
 
 .. important::
 
-   | **Access to a docker registry with built docker containers:**
-   | Before proceeding with further installation steps, make sure you have access to a docker registry with built Kaapana docker containers, otherwise please visit :ref:`getting_started`.
+   | **Access to a docker registry or a tarball with built docker containers:**
+   | Before proceeding with further installation steps, make sure you have access to a docker registry or a tarball with built Kaapana docker containers, otherwise please visit :ref:`getting_started`.
    
 
 | The **domain, hostname or IP-address** has to be known and correctly configured for the system. 
@@ -97,7 +97,7 @@ Copy the script to your target-system (server) and **adjust it as described belo
          CONTAINER_REGISTRY_URL="<registry-url>"
          ...
 
-   .. tab:: Tarball binaries
+   .. tab:: Tarball
 
       .. code-block:: python
 
@@ -107,6 +107,18 @@ Copy the script to your target-system (server) and **adjust it as described belo
 
 3. Make it executable with :code:`chmod +x install_platform.sh`
 4. Execute the script:
+
+.. note:: 
+
+   If you are use a tarball make sure that you also make the following changes to the :code:`install_platform.sh` file:
+
+   .. code-block:: python
+
+      ...
+      OFFLINE_MODE="true"
+      DEV_MODE="false"
+      CONTAINER_REGISTRY_URL="<registry-url-you-got-from-developer>"
+      ...
 
 .. tabs::
 
@@ -118,17 +130,9 @@ Copy the script to your target-system (server) and **adjust it as described belo
 
       :code:`./install_platform.sh`
 
-   .. tab:: Tarball binaries
+   .. tab:: Tarball
 
       :code:`./install_platform.sh --tar-path <path-to-tarball-file>`
-
-.. note:: 
-   If you are use Tarball Binaries and try to reinstall platform or install platform after making an uninstall, you need to make sure that you also make the following changes to the :code: `install_platform.sh` file:
-   .. code-block:: python
-      OFFLINE_MODE="true"
-      DEV_MODE="false"
-      CONTAINER_REGISTRY_URL="<registry-url-you-got-from-developer>"
-   This is because, once you installed platform for first time using Tarball binaries for the first time, you should only install again (if needed) in offline mode.
 
 You may be asked the following questions:
 

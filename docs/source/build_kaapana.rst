@@ -82,9 +82,8 @@ We expect the sudo systemctl restart snapd
    | :code:`docker run hello-world`
    | -> this should work now without root privileges
 
-#. Helm plugins
+#. Helm plugin
 
-   | :code:`helm plugin install https://github.com/chartmuseum/helm-push`
    | :code:`helm plugin install https://github.com/instrumenta/helm-kubeval`
 
 

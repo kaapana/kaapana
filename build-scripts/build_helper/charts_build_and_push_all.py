@@ -33,15 +33,6 @@ def helm_registry_login(container_registry, username, password):
 
 
 def check_helm_installed():
-    command = ["helm", "push", "--help"]
-    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
-
-    if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
-        print("Helm ist not installed correctly!")
-        print("Make sure Helm > v3 and the 'push'-plugin is installed!")
-        print("hint: helm plugin install https://github.com/chartmuseum/helm-push")
-        exit(1)
-
     command = ["helm", "kubeval", "--help"]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
     if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:

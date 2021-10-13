@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: doccano-frontend
-        image: "{{  .Values.global.registry_url }}/doccano-frontend:sha-50db4e9"
+        image: "{{  .Values.global.registry_url }}/doccano-frontend:sha-50db4e9-dev"
         imagePullPolicy: {{ .Values.global.pull_policy_pods | default "IfNotPresent" }}
         ports:
         - containerPort: 8080

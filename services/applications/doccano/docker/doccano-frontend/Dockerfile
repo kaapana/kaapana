@@ -1,7 +1,7 @@
 FROM python:3.9-alpine3.12 as build-stage
 
 LABEL IMAGE="doccano-frontend"
-LABEL VERSION="sha-50db4e9"
+LABEL VERSION="sha-50db4e9-dev"
 LABEL CI_IGNORE="False"
 
 RUN apk add --no-cache git
@@ -16,6 +16,8 @@ COPY --from=build-stage /doccano/frontend/ /app/
 RUN sed -i 's/line-height: 70px !important;//' /app/components/tasks/sequenceLabeling/EntityItemBox.vue
 COPY files/nuxt.config.js /app/
 COPY files/pages/projects/_id/upload/index.vue /app/pages/projects/_id/upload/
+COPY files/pages/projects/_id/text-classification/index.vue /app/pages/projects/_id/text-classification
+COPY files/pages/projects/_id/sequence-to-sequence/index.vue /app/pages/projects/_id/sequence-to-sequence
 COPY files/components/configAutoLabeling/form/FileField.vue /app/components/configAutoLabeling/form/
 COPY files/domain/models/example/example.ts /app/domain/models/example
 

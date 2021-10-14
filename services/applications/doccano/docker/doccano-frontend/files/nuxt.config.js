@@ -2,7 +2,7 @@ import colors from 'vuetify/es5/util/colors'
 import i18n from './i18n'
 
 export default {
-  mode: 'spa',
+  mode: 'spa', //Adapted by Kaapana...
   /*
   ** Headers of the page
   */

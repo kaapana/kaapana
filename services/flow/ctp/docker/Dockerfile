@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /build-ctp
 
-RUN git clone -n https://github.com/johnperry/CTP.git . && git checkout c1b4e1ab2b4678bf566c28e0cfb90d433f3bf985
+RUN git clone -n https://github.com/johnperry/CTP.git . && git checkout ea8639754cf38c50cdc9999170e192bd101fd5d7
 
 ADD /files/Runner.java ./source/java/org/rsna/runner/
 

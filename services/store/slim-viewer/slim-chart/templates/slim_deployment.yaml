@@ -18,7 +18,6 @@ spec:
     spec:
       containers:
       - name: slim-container
-        image: registry.hzdr.de/maximilian.fischer/kaapana-max/slimviewer:latest
         image: {{  .Values.global.registry_url }}/slim:0.4.2
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         ports:

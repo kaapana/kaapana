@@ -32,6 +32,11 @@ data:
             "endpoint": "/ohif",
             "linkTo": "/ohif/"
           },
+          "slim": {
+            "label": "SLIM",
+            "endpoint": "/slim",
+            "linkTo": "/slim/"
+          },
           "minio": {
             "label": "Minio",
             "endpoint": "/minio-console",

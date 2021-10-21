@@ -1,0 +1,28 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slim
+  namespace: {{ .Values.global.base_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: slim
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: slim
+    spec:
+      containers:
+      - name: slim-container
+        image: registry.hzdr.de/maximilian.fischer/kaapana-max/slimviewer:latest
+        image: {{  .Values.global.registry_url }}/slim:0.4.2
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        ports:
+          - containerPort: 80
+      imagePullSecrets:
+        - name: registry-secret
+---

@@ -10,6 +10,12 @@ window.config = {
       write: true
     }
   ],
+  renderer:
+  {
+    retrieveRendered: false
+  },
+  disableWorklist: false,
+  disableAnnotationTools: false,
   annotations: [
     {
       finding: {

@@ -45,7 +45,7 @@ RUN mkdir -p /appdata
 COPY files/jupyterlab.sh /
 
 EXPOSE 8888
-ENV INGRESS_PATH /jupyterlab/buh/
+ENV INGRESS_PATH /jupyterlab/
 #CMD jupyter lab --ip=* --port=8888 --no-browser --notebook-dir=/opt/app/data --allow-root
 
 CMD ["/bin/bash", "/jupyterlab.sh"]

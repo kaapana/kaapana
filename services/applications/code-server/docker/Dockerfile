@@ -9,6 +9,7 @@ user root
 RUN sudo -E apt-get update && sudo -E apt-get install -y \
     python3 \
     python3-pip \
+    libffi-dev \
  && sudo rm -rf /var/lib/apt/lists/*
 # python requirements
 COPY files/requirements.txt /

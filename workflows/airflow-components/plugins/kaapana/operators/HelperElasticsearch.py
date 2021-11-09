@@ -52,9 +52,12 @@ class HelperElasticsearch():
 
         hits = res['hits']['hits']
 
-        if len(hits) != 1:
-            print("Elasticsearch got multiple results for series_uid: {}".format(series_uid))
+        if len(hits) > 1:
+            print(f"Elasticsearch got multiple results for series_uid: {series_uid}")
             print("This is unexpected and treated as error -> abort!")
+            return None
+        elif len(hits) == 0:
+            print(f"No results for series_uid: {series_uid}")
             return None
 
         hit = hits[0]["_source"]

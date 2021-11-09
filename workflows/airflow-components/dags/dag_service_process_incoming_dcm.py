@@ -2,6 +2,7 @@ from kaapana.operators.LocalCtpQuarantineCheckOperator import LocalCtpQuarantine
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalAutoTriggerOperator import LocalAutoTriggerOperator
+from kaapana.operators.LocalMultiAETitleOperator import LocalMultiAETitleOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
@@ -25,9 +26,14 @@ dag = DAG(
 
 get_input = LocalGetInputDataOperator(dag=dag)
 
+dcm_check = LocalMultiAETitleOperator(
+    dag=dag,
+    input_operator=get_input
+)
+
 dcm_send = DcmSendOperator(
     dag=dag,
-    input_operator=get_input,
+    input_operator=dcm_check,
     pacs_host='dcm4chee-service.store.svc',
     pacs_port=11115,
     ae_title='KAAPANA',
@@ -42,4 +48,4 @@ check_ctp = LocalCtpQuarantineCheckOperator(dag=dag)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
-get_input >> dcm_send >> auto_trigger_operator >> check_ctp >> clean
+get_input >> dcm_check >> dcm_send >> auto_trigger_operator >> check_ctp >> clean

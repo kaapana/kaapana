@@ -2,7 +2,7 @@
 FROM python:3.9
 
 LABEL IMAGE="kaapana-backend"
-LABEL VERSION="0.0.1-vdev"
+LABEL VERSION="0.0.1"
 LABEL CI_IGNORE="False"
 
 WORKDIR /app

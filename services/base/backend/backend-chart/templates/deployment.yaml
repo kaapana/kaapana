@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: {{  .Values.global.registry_url }}/backend:0.0.1-vdev
+        image: {{  .Values.global.registry_url }}/backend:0.0.1
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           limits:

@@ -1,9 +1,9 @@
 ---
 apiVersion: v1
-appVersion: "0.0.1-vdev"
+appVersion: "0.0.1"
 description: Chart for the backend service
 name: backend-chart
-version: "0.0.1-vdev"
+version: "0.0.1"
 keywords:
 - kaapanaapplication
 - kaapanaexperimental

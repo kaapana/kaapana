@@ -1,0 +1,13 @@
+wheel
+setuptools
+flasgger==0.9.5
+Flask==1.1.2
+gunicorn==20.0.4
+python-dotenv==0.17.0
+minio==7.0.3
+requests==2.25.1
+prometheus-api-client==0.4.2
+python-keycloak==0.25.0
+marshmallow
+marshmallow-dataclass
+pydantic

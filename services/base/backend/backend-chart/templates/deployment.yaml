@@ -1,0 +1,39 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: backend
+  namespace: {{ .Values.global.base_namespace }}
+  labels:
+    k8s-app: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: backend
+  template:
+    metadata:
+      labels:
+        app-name: backend
+    spec:
+      containers:
+      - name: backend
+        image: {{  .Values.global.registry_url }}/backend:0.0.1-vdev
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 500m
+            memory: 256Mi
+        ports:
+        - name: backend-http
+          containerPort: 5000
+        livenessProbe:
+          httpGet:
+            path: /
+            port: backend-http
+          initialDelaySeconds: 10
+          periodSeconds: 20
+      imagePullSecrets:
+      - name: registry-secret

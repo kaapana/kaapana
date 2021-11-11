@@ -5,7 +5,7 @@ from prometheus_api_client import PrometheusConnect
 import os
 from datetime import timedelta
 
-_prometheus_host="http://prometheus-service.monitoring.svc:9000/prometheus"
+_prometheus_host="http://prometheus-service.monitoring.svc:9090/prometheus"
 #_prometheus_host='http://127.0.0.1:9000/prometheus'
 prom = PrometheusConnect(_prometheus_host)
 

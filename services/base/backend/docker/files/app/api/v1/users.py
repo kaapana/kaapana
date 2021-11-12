@@ -107,7 +107,8 @@ class KaapanaUserService:
 
 
 # user_service = KaapanaUserService(server_url="https://10.128.128.212/auth/", username="backend", password="asdf")
-user_service = KaapanaUserService(server_url="https://keycloak-internal-service.kube-system.svc/auth/", username="backend", password="asdf")
+#user_service = KaapanaUserService(server_url="https://keycloak-internal-service.kube-system.svc/auth/", username="backend", password="asdf")
+user_service = KaapanaUserService(server_url="https://keycloak-internal-service.kube-system.svc/auth/", username="admin", password="Kaapana2020")
 
 
 @api_v1.route('/users')

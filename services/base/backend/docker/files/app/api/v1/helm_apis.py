@@ -15,7 +15,7 @@ from flask import request
 #Local Testing
 #_helm_host='http://127.0.0.1:5001/kube-helm-api'
 
-#Production 
+#Production URL 
 _helm_host='http://kube-helm-service.kube-system.svc:5000/kube-helm-api'
 
 

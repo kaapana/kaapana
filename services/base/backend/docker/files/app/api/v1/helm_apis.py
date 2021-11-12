@@ -12,13 +12,11 @@ import subprocess
 from flask import request
 
 
-
-#Prod
-#_minio_host='minio-service.store.svc'
-
 #Local Testing
-_helm_host='http://127.0.0.1:5001/kube-helm-api'
-#_helm_host='http://kube-helm-service.kube-system.svc:5000/kube-helm-api'
+#_helm_host='http://127.0.0.1:5001/kube-helm-api'
+
+#Production 
+_helm_host='http://kube-helm-service.kube-system.svc:5000/kube-helm-api'
 
 
 

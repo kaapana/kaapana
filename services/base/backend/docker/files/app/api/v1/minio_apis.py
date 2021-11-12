@@ -12,7 +12,7 @@ import socket
 
 
 
-#Prod
+#Production
 _minio_host='minio-service.store.svc'
 
 #Local Testing

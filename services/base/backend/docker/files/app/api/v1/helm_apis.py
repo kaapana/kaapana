@@ -22,7 +22,7 @@ _helm_host='http://kube-helm-service.kube-system.svc:5000/kube-helm-api'
 
 
 
-@api_v1.route('/helm/view-helm-env/')
+@api_v1.route('/helm/helm-environment/')
 def viewHelmEnv():
     """Return Helm Environment
     To List Buckets
@@ -40,7 +40,7 @@ def viewHelmEnv():
     return r.json()
 
 
-@api_v1.route('/helm/list-helm-installed-charts/')
+@api_v1.route('/helm/all-installed-charts/')
 def listHelmCharts():
   """Return List of Installed Helm Charts
     To List Installed Helm Charts
@@ -60,7 +60,7 @@ def listHelmCharts():
   return str(filteredList)
 
 
-@api_v1.route('/helm/view-chart-status/', methods=['GET'])
+@api_v1.route('/helm/chart-status/', methods=['GET'])
 def view_chart_status():
     
   """
@@ -86,7 +86,7 @@ def view_chart_status():
   
   return str(r.text)
     
-@api_v1.route('/helm/list-available-charts/')
+@api_v1.route('/helm/all-available-charts/')
 def listExtensions():
     """Return List of Available Charts
     To List   Available Charts
@@ -103,7 +103,7 @@ def listExtensions():
    
     return str(r.text)
 
-@api_v1.route('/helm/helm-delete-chart/', methods=['GET'])
+@api_v1.route('/helm/chart-delete/', methods=['POST'])
 def deleteChart():
     
   """
@@ -135,7 +135,7 @@ def deleteChart():
   
   return str(r.text)
 
-@api_v1.route('/helm/helm-install-chart/', methods=['POST'])
+@api_v1.route('/helm/install-chart/', methods=['POST'])
 def installChart():
     
   """

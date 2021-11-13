@@ -7,7 +7,7 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.HelperElasticsearch import HelperElasticsearch
 from multiprocessing.pool import ThreadPool
-from os.path import join, exists
+from os.path import join, exists, dirname
 import shutil
 
 class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
@@ -86,7 +86,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
         if self.cohort_limit is None and self.inputs is None and self.conf is not None and "conf" in self.conf:
             trigger_conf = self.conf["conf"]
-            self.cohort_limit = int(trigger_conf["cohort_limit"] if "cohort_limit" in trigger_conf else None)
+            self.cohort_limit = int(trigger_conf["cohort_limit"]) if "cohort_limit" in trigger_conf else None
 
         print(f"# Cohort-limit: {self.cohort_limit}")
         print("#")
@@ -96,14 +96,13 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         if "seriesInstanceUID" in kwargs['dag_run'].conf:
             series_uid = kwargs['dag_run'].conf.get('seriesInstanceUID')
             dcm_path = join("/ctpinput", kwargs['dag_run'].conf.get('dicom_path'))
-            this_dag_run_id = kwargs['dag_run'].run_id
 
             print("#")
             print("############################ Get input data ############################")
             print("#")
             print(f"# Dicom-path: {dcm_path}")
             print(f"# SeriesUID:  {series_uid}")
-            print(f"# RUN_id:     {this_dag_run_id}")
+            print(f"# RUN_id:     {dag_run_id}")
             print("#")
 
             if not os.path.isdir(dcm_path):
@@ -111,13 +110,31 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 print("Abort!")
                 exit(1)
 
-            target = join("/data", this_dag_run_id, "batch", series_uid, self.operator_out_dir)
+            target = join("/data", dag_run_id, "batch", series_uid, self.operator_out_dir)
 
             print("#")
             print(f"# Moving data from {dcm_path} -> {target}")
             print("#")
             shutil.move(src=dcm_path, dst=target)
             print(f"# Series CTP import -> OK: {series_uid}")
+            return
+
+        if "dataInputDirs" in kwargs['dag_run'].conf:
+            dataInputDirs = kwargs['dag_run'].conf.get('dataInputDirs')
+            if not isinstance(dataInputDirs, list):
+                dataInputDirs = [dataInputDirs]
+            for src in dataInputDirs:
+                target = join(dirname(src), self.operator_out_dir)
+                if src == target:
+                    print("#")
+                    print(f"# Data is already at out dir location -> {target}")
+                    print("#")
+                else:
+                    print("#")
+                    print(f"# Moving data from {src} -> {target}")
+                    print("#")
+                    shutil.move(src=src, dst=target)
+                    print("# Dag input dir correctly ajusted.")
             return
 
         if self.inputs is None and self.conf == None or not "inputs" in self.conf:
@@ -226,7 +243,6 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             print("#")
             print("#####################################################")
             exit(1)
-
         series_download_fail = []
         results = ThreadPool(self.parallel_downloads).imap_unordered(self.get_data, download_list)
         for download_successful, series_uid in results:

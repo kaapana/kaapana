@@ -20,22 +20,26 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
                     dag_run_id = generate_run_id(self.trigger_dag_id)
                     print("MOVE with dag run id: ", dag_run_id)
                     try:
+                        target_list = set()
                         for dcm_file in path_list_part:
                             series_uid = pydicom.dcmread(dcm_file,force=True)[0x0020, 0x000E].value
-                            target = os.path.join("/data", dag_run_id, "batch", series_uid, 'get-input-data')
+                            target_dir = self.operator_out_dir if self.operator_out_dir else "get-input-data"
+                            target = os.path.join("/data", dag_run_id, "batch", series_uid, target_dir)
                             if not os.path.exists(target):
                                 os.makedirs(target)
                             print("SRC: {}".format(dcm_file))
                             print("TARGET: {}".format(target))
+                            target_list.add(target)
                             shutil.move(str(dcm_file), target)
+                        conf =  {"dataInputDirs": list(target_list) }
                     except Exception as e:
                         print(e)
                         print("An exception occurred, when moving files, trigger at least already moved files")
-                        trigger(dag_id=self.trigger_dag_id, run_id=dag_run_id, replace_microseconds=False)
+                        trigger(dag_id=self.trigger_dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
                         exit(1)
 
                     print(("TRIGGERING! DAG-ID: %s RUN_ID: %s" % (self.trigger_dag_id, dag_run_id)))
-                    trigger(dag_id=self.trigger_dag_id, run_id=dag_run_id, replace_microseconds=False)
+                    trigger(dag_id=self.trigger_dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
 
 
     def __init__(self,

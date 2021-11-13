@@ -527,7 +527,7 @@ class KaapanaBaseOperator(BaseOperator):
             obj.operator_out_dir = obj.task_id
 
         if input_operator is not None and operator_in_dir is not None:
-            raise NameError('You need to define either input_operator or operator_in_dir!')
+            print('Neither input_operator nor operator_in_dir is defined!')
         if input_operator is not None:
             obj.operator_in_dir = input_operator.operator_out_dir
         elif operator_in_dir is not None:

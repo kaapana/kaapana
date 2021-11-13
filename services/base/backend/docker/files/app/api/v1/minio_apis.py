@@ -28,7 +28,7 @@ minioClient = Minio(_minio_host+":"+_minio_port,
                         secure=False)
 
 
-@api_v1.route('/minio/listbuckets/')
+@api_v1.route('/minio/buckets/')
 def listbuckets():
     """Return List of Minio buckets
     To List Buckets
@@ -54,7 +54,7 @@ def listbuckets():
         
     return json.dumps(data)
 
-@api_v1.route('/minio/makebucket/<string:bucketname>/', methods=['GET'])
+@api_v1.route('/minio/bucket/<string:bucketname>/', methods=['POST'])
 def makebucket(bucketname):
     """
     To Create a Bucket
@@ -79,7 +79,7 @@ def makebucket(bucketname):
         minioClient.make_bucket(bucketname)
         return f"{bucketname} created successfully"
 
-@api_v1.route('/minio/listbucketitems/<string:bucketname>/', methods=['GET'])
+@api_v1.route('/minio/bucketitemslist/<string:bucketname>/', methods=['GET'])
 def listbucketitems(bucketname):
     """
     To List  Bucket Items
@@ -117,7 +117,7 @@ def listbucketitems(bucketname):
         abort(404)
         #return f"{bucketname} is not available"
 
-@api_v1.route('/minio/removebucket/<string:bucketname>/', methods=['GET'])
+@api_v1.route('/minio/bucketremove/<string:bucketname>/', methods=['POST'])
 def removebucket(bucketname):
     """
     To remove a bucket

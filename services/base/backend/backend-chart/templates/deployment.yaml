@@ -37,3 +37,9 @@ spec:
           periodSeconds: 20
       imagePullSecrets:
       - name: registry-secret
+
+#env: # Environment variables
+        #- name: MINIO_HOST
+          #value: minio-service.store.svc
+        #- name: MINIO_PORT
+          #value: 9000

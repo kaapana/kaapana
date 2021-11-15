@@ -47,7 +47,7 @@ def listbuckets():
     for bucket in buckets:
       
         millisec = (bucket.creation_date).timestamp() * 1000
-        #link = hyperlink.parse(f'{socket.gethostname()}/minio/{str(bucket.name)}')
+        
         data.append({'bucket_name':str(bucket.name),'creation_date':millisec,'link':f'{socket.gethostname()}/minio/{str(bucket.name)}'})
         
         
@@ -115,7 +115,7 @@ def listbucketitems(bucketname):
     else:
         
         abort(404)
-        #return f"{bucketname} is not available"
+        
 
 @api_v1.route('/minio/bucketremove/<string:bucketname>/', methods=['POST'])
 def removebucket(bucketname):

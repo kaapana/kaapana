@@ -42,7 +42,7 @@ dcm_send = DcmSendOperator(
 
 auto_trigger_operator = LocalAutoTriggerOperator(
     dag=dag,
-    input_operator=get_input
+    input_operator=dcm_check
 )
 check_ctp = LocalCtpQuarantineCheckOperator(dag=dag)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

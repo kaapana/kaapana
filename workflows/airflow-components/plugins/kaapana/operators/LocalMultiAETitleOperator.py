@@ -24,9 +24,12 @@ class LocalMultiAETitleOperator(KaapanaPythonBaseOperator):
         new_aetitle = self.AETITLE_SEPERATOR.join(aetitle_to_append + [exisiting])
         print(f"Setting ClinicalTrialProtocolID for {src_file} to {new_aetitle}")
         ds[self.AETITLE_DICOM_TAG].value = new_aetitle
+        print(f"Value of {self.AETITLE_DICOM_TAG} is {ds[self.AETITLE_DICOM_TAG]}")
         os.makedirs(os.path.dirname(target_file), exist_ok=True)
         ds.save_as(target_file)
         print(f"Wrote {target_file}")
+        ds2 = pydicom.dcmread(target_file, force=True)
+        print(f"Value of {self.AETITLE_DICOM_TAG} in target file is {ds2[self.AETITLE_DICOM_TAG]}")
 
     def _check_series(self, input_dir, output_dir):
         dcm_file_list = glob.glob(input_dir + "/*.dcm", recursive=True)

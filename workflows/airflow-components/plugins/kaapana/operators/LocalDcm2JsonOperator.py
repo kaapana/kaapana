@@ -877,7 +877,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 new_meta_data["00101010 PatientAge_integer"] = age_meta
             except Exception as e:
                 print("######### Could not extract age-int from metadata...")
-                
+
+        if "00120020 ClinicalTrialProtocolID_keyword" in new_meta_data:
+            aetitles = new_meta_data["00120020 ClinicalTrialProtocolID_keyword"].split(";")
+            print(f"ClinicalTrialProtocolIDs {aetitles}")
+            new_meta_data["00120020 ClinicalTrialProtocolID_keyword"] = aetitles
+
         return new_meta_data
 
     def convert_time_to_utc(self, time_berlin, date_format):

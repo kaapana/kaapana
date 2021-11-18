@@ -33,9 +33,6 @@ dependencies:
   - name: bodypartregression-workflow
     version: 0.1.0
     repository: file://../../../../../../workflows/dag-installer/bodypartregression/bodypartregression-workflow
-  - name: pysyft-nb-chart
-    version: 0.1.0
-    repository: file://../../../../../../services/applications/openmined/pysyft-nb/pysyft-nb-chart
   - name: radiomics-workflow
     version: 0.1.1
     repository: file://../../../../../../workflows/dag-installer/radiomics/radiomics-workflow

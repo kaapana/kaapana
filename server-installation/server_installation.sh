@@ -214,7 +214,37 @@ function change_version {
     echo "${YELLOW}Switching to K8s version $DEFAULT_MICRO_VERSION ${NC}"
     snap refresh microk8s --channel $DEFAULT_MICRO_VERSION --classic
 
-}    
+}
+
+apply_microk8s_image_export() {
+    IMAGE=$1
+    if [[ $IMAGE != "REF" ]];
+    then
+        if [[ $IMAGE != sha* ]];
+        then
+            echo "${GREEN}Pulling $IMAGE"
+            microk8s ctr image pull --all-platforms $IMAGE
+        fi
+        echo "${GREEN}Exporting $IMAGE"
+        microk8s ctr images export $DUMP_TAR_DIR/microk8s_images/${IMAGE//\//@} $IMAGE
+    fi
+    return 0
+}
+
+export -f apply_microk8s_image_export
+
+apply_microk8s_image_import() {
+    IMAGE=$1
+    BASE_NAME=(${IMAGE//:/ })
+    BASE_NAME=${BASE_NAME[0]}
+    echo Uploading $IMAGE
+    
+    microk8s ctr images import --base-name ${BASE_NAME//@/\/} $TAR_LOCATION/microk8s_images/$IMAGE
+}
+
+export -f apply_microk8s_image_import
+
+
 function install_microk8s {
     
     echo "${YELLOW}Checking /flannel/subnet.env...${NC}"
@@ -238,19 +268,66 @@ function install_microk8s {
     else
         echo "${GREEN}--> subnet.env already found!.${NC}"
     fi
+    
+    if [ ! -z "$OFFLINE_TAR_PATH" ]; then
+        TAR_LOCATION=$(dirname "$OFFLINE_TAR_PATH")/$(basename "$OFFLINE_TAR_PATH" .tar.gz)
+        export TAR_LOCATION
+        echo $TAR_LOCATION
+        echo Unpacking $OFFLINE_TAR_PATH to $TAR_LOCATION
+        tar -xvf $OFFLINE_TAR_PATH -C  $(dirname "$TAR_LOCATION")
+        set +euf
+        core_digits=$(find $TAR_LOCATION/core* -maxdepth 0 -not -type d -printf "%f\n" | sed -e s/[a-zcore_\/.]//g | head -1)        
+        microk8s_digits=$(find $TAR_LOCATION/microk8s* -maxdepth 0 -not -type d -printf "%f\n" | sed -e s/[a-zmicrok8s_\/.]//g | head -1)  
+        helm_digits=$(find $TAR_LOCATION/helm* -maxdepth 0 -not -type d -printf "%f\n" | sed -e s/[a-zhelm_\/.]//g | head -1)  
+        set -euf
+        echo "${YELLOW}Installing core...${NC}"
+        snap ack $TAR_LOCATION/core_${core_digits}.assert
+        snap install $TAR_LOCATION/core_${core_digits}.snap
+        echo "${YELLOW}Installing microk8s...${NC}"
+        snap ack $TAR_LOCATION/microk8s_${microk8s_digits}.assert
+        snap install --classic  $TAR_LOCATION/microk8s_${microk8s_digits}.snap
+        echo "${YELLOW}Installing Helm...${NC}"
+        snap ack $TAR_LOCATION/helm_${helm_digits}.assert
+        snap install --classic  $TAR_LOCATION/helm_${helm_digits}.snap
+        
+        echo "${YELLOW}Wait until microk8s is ready...${NC}"
+        microk8s.status --wait-ready
+        echo Importing Images from $TAR_LOCATION/microk8s_images
+        ls $TAR_LOCATION/microk8s_images | xargs -I {} bash -c 'apply_microk8s_image_import "$@"' _ {}
+        rm -r $TAR_LOCATION
+    else
+        echo "${YELLOW}Installing microk8s...${NC}"
+        snap install microk8s --classic --channel=$DEFAULT_MICRO_VERSION
+        
+        echo "${YELLOW}Installing Helm...${NC}"
+        snap install helm --classic --channel=$DEFAULT_HELM_VERSION
+    fi
 
-    
-    echo "${YELLOW}Installing microk8s...${NC}"
-    snap install microk8s --classic --channel=$DEFAULT_MICRO_VERSION
-    
-    echo "${YELLOW}Installing Helm...${NC}"
-    snap install helm --classic --channel=$HELM_VERSION
-    
     echo "${YELLOW}Wait until microk8s is ready...${NC}"
     microk8s.status --wait-ready
     
     echo "${YELLOW}Enable microk8s DNS...${NC}"
     microk8s.enable dns
+
+    echo "${YELLOW}Waiting for dns...${NC}"
+    microk8s.kubectl rollout status -n kube-system deployment coredns --timeout=120s
+
+    if [ "$PREPARE_OFFLINE_SNAP" = "true" ];then
+        DUMP_TAR_DIR=snap_offline_microk8s_${DEFAULT_MICRO_VERSION//\//@}_helm_${DEFAULT_HELM_VERSION//\//@}
+        export DUMP_TAR_DIR
+        mkdir -p $DUMP_TAR_DIR
+        mkdir -p $DUMP_TAR_DIR/microk8s_images
+        enable_gpu
+        microk8s.ctr images ls | awk {'print $1'} | xargs -I {} bash -c 'apply_microk8s_image_export "$@"' _ {}
+        snap download core --target-directory $DUMP_TAR_DIR
+        snap download microk8s  --channel=$DEFAULT_MICRO_VERSION --target-directory $DUMP_TAR_DIR
+        snap download helm --channel=$DEFAULT_HELM_VERSION --target-directory $DUMP_TAR_DIR
+        tar -czvf $DUMP_TAR_DIR.tar.gz $DUMP_TAR_DIR
+        rm -r $DUMP_TAR_DIR
+        snap remove microk8s
+        snap remove helm
+        exit 0
+    fi
     
     if [ -v SUDO_USER ]; then
         homedir=$(getent passwd $SUDO_USER | cut -d: -f6)
@@ -404,6 +481,8 @@ function enable_gpu {
     if [ $GPU_SUPPORT == true ];then
         echo "${YELLOW}Activating GPU...${NC}"
         microk8s.enable gpu && echo "${GREEN}OK${NC}" || (echo "${YELLOW}Trying with LD_LIBRARY_PATH to activate GPU...${NC}" && LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+LD_LIBRARY_PATH:}/lib64" microk8s.enable gpu) || (echo "${RED}######################## ERROR WHILE ACTIVATING GPU! ########################${NC}" && exit 1)
+        echo "${YELLOW}Waiting for nvidia-device-plugin-daemonset...${NC}"
+        microk8s.kubectl rollout status -n kube-system daemonset nvidia-device-plugin-daemonset --timeout=120s
     else
         echo "${YELLOW}No GPU support.${NC}"
     fi
@@ -531,8 +610,10 @@ where opt is:
     default: $OS_PRESENT"
 
 QUIET=NA
+PREPARE_OFFLINE_SNAP=NA
+OFFLINE_TAR_PATH=""
 DEFAULT_MICRO_VERSION=1.18/stable
-HELM_VERSION=3.5/stable
+DEFAULT_HELM_VERSION=3.5/stable
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]
@@ -576,6 +657,30 @@ do
             OS_PRESENT="SWITCHVERSION"
             shift # past argument
         ;;
+        
+        --offline-tar-path)
+            OFFLINE_TAR_PATH="$2"
+            echo -e "${GREEN}SET OFFLINE_TAR_PATH: $OFFLINE_TAR_PATH !${NC}";
+            shift # past argument
+            shift # past value
+        ;;
+
+        --prepare-offline-snap)
+            PREPARE_OFFLINE_SNAP=true
+            echo -e "${GREEN}SET PREPARE_OFFLINE_SNAP: $PREPARE_OFFLINE_SNAP !${NC}";
+            shift # past argument
+        ;;
+
+        --install-ubuntu-packages)
+            install_packages_ubuntu
+            exit 0
+        ;;
+        
+        --install-centos-packages)
+            install_packages_centos
+            exit 0
+        ;;
+
 
         --install-certs)
             install_certs

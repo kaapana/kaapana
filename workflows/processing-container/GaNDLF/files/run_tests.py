@@ -8,11 +8,7 @@ import requests
 
 
 batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
-try:
-    if requests.get('https://google.com').ok:
-        print(" $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$  You're Online $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
-except:
-    print(" !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! You're Offline !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
 
 for batch_element_dir in batch_folders:
     
@@ -21,8 +17,8 @@ for batch_element_dir in batch_folders:
     if not os.path.exists(element_output_dir):
         os.makedirs(element_output_dir)
 
-    print("calling sub process....................!")
-    #resp = subprocess.run(["/bin/bash", "-c","pytest"], capture_output=True, text=True).stdout
+    print("calling sub process.....................!")
+   
     ipcmd = "/bin/bash -c pytest"
     try:
         resp = subprocess.check_output(ipcmd,shell=True,stderr=subprocess.STDOUT)

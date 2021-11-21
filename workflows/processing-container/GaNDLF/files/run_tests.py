@@ -4,10 +4,15 @@ import glob
 import json
 import pydicom
 from datetime import datetime
+import requests
 
-#resp = subprocess.check_output(["/bin/bash", "-c","pytest > new_outputs.txt"], stderr=subprocess.STDOUT)
 
 batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
+try:
+    if requests.get('https://google.com').ok:
+        print(" $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$  You're Online $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+except:
+    print(" !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! You're Offline !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
 for batch_element_dir in batch_folders:
     
@@ -16,34 +21,32 @@ for batch_element_dir in batch_folders:
     if not os.path.exists(element_output_dir):
         os.makedirs(element_output_dir)
 
-    # The processing algorithm
-    
-    #dcm_files = sorted(glob.glob(os.path.join(element_input_dir, "*.dcm*"), recursive=True))
-
-    #if len(dcm_files) == 0:
-        #print("No dicom file found!")
-        #exit(1)
-    #else:
-        #print(("Extracting study_id: %s" % dcm_files))
-
-        #incoming_dcm = pydicom.dcmread(dcm_files[0])
-        #json_dict = {
-            #'study_id': incoming_dcm.StudyInstanceUID,
-            #'series_uid': incoming_dcm.SeriesInstanceUID
-        #}
-
-    #if not os.path.exists(element_output_dir):
-        #os.makedirs(element_output_dir)
     print("calling sub process....................!")
-    resp = subprocess.check_output(["/bin/bash", "-c","pytest"], stderr=subprocess.STDOUT)
-    print(resp)
+    #resp = subprocess.run(["/bin/bash", "-c","pytest"], capture_output=True, text=True).stdout
+    ipcmd = "/bin/bash -c pytest"
+    try:
+        resp = subprocess.check_output(ipcmd,shell=True,stderr=subprocess.STDOUT)
+        print(resp)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError("command '{}' return with error (code {}): {}".format(e.cmd, e.returncode, e.output))
+    
 
-    log_txt_file_path = os.path.join(element_output_dir, "{}.log".format(os.path.basename(batch_element_dir)))
+    log_txt_file_path = os.path.join(element_output_dir, "{}.txt".format(os.path.basename(batch_element_dir)))
 
     with open(log_txt_file_path, "w", encoding='utf-8') as logData:
-        logData.write(resp)
+        logData.write(str(resp))
         print(f' !!!!!!!!!!!!!  Response is written to {log_txt_file_path}  !!!!!!!!!!!!!!!!')
         
 
 
 print(' !!!!!!!!!!!!!  Process Completed  !!!!!!!!!!!!!!!!')
+
+
+"""import subprocess
+import sys
+print("calling sub process..!")
+#resp = subprocess.check_output(["/bin/bash", "-c","pytest > new_outputs.txt"], stderr=subprocess.STDOUT)
+resp = subprocess.check_output(["/bin/bash", "-c","pytest"], stderr=subprocess.STDOUT)
+print(resp)
+
+print("Completed!")"""

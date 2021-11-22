@@ -547,7 +547,7 @@ function print_installation_done {
     echo -e "${GREEN}Installation finished."
     echo -e "Please wait till all components have been downloaded and started."
     echo -e "You can check the progress with:"
-    echo -e "watch microk8s.kubectl get pods --all-namespaces"
+    echo -e "watch microk8s.kubectl get pods -A"
     echo -e "When all pod are in the \"running\" or \"completed\" state,${NC}"
 
     if [ -v DOMAIN ];then

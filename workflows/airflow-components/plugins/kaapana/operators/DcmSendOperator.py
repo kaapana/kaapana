@@ -19,7 +19,7 @@ class DcmSendOperator(KaapanaBaseOperator):
                  check_arrival=False,
                  enable_proxy=False,
                  host_network=False,
-                 execution_timeout=timedelta(minutes=20),
+                 execution_timeout=timedelta(minutes=60),
                  *args, **kwargs
                  ):
 

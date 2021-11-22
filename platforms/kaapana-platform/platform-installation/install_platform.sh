@@ -9,7 +9,7 @@ DEFAULT_VERSION="0.1.2"    # version of the platform Helm chart
 OFFLINE_MODE="false" # true or false
 DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart
 
-CONTAINER_REGISTRY_URL="registry.hzdr.de/kaapana/kaapana-dev" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
+CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 CONTAINER_REGISTRY_USERNAME=""
 CONTAINER_REGISTRY_PASSWORD=""
 
@@ -547,7 +547,7 @@ function print_installation_done {
     echo -e "${GREEN}Installation finished."
     echo -e "Please wait till all components have been downloaded and started."
     echo -e "You can check the progress with:"
-    echo -e "watch microk8s.kubectl get pods --all-namespaces"
+    echo -e "watch microk8s.kubectl get pods -A"
     echo -e "When all pod are in the \"running\" or \"completed\" state,${NC}"
 
     if [ -v DOMAIN ];then

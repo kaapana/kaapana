@@ -26,6 +26,8 @@ def health_check():
 
 @app.route("/update-extensions")
 def update_extensions():
+    if app.config['OFFLINE_MODE'] is True:
+        return Response(f"We will not prefetch the extensions since the platform runs in offline mode!", 200)
     try:
         utils.helm_repo_index(app.config['HELM_COLLECTIONS_CACHE'])
     except subprocess.CalledProcessError as e:

@@ -12,7 +12,7 @@ spec:
         {{- if .Values.global.offline_mode }}
         imagePullPolicy: Never
         {{- else }}
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy: Always
         {{- end }}
         env:
         - name: ACTION

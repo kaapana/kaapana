@@ -848,7 +848,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         date_time_formatted = self.convert_time_to_utc(date_time_formatted, self.format_date_time)
         new_meta_data["timestamp"] = date_time_formatted
 
-        new_meta_data["timestamp_arrived_datetime"] = self.convert_time_to_utc(datetime.now().strftime(self.format_date_time), self.format_date_time)
+        timestamp_arrived = datetime.now()
+        new_meta_data["timestamp_arrived_datetime"] = self.convert_time_to_utc(timestamp_arrived.strftime(self.format_date_time), self.format_date_time)
+
+        new_meta_data["timestamp_arrived_date"] = new_meta_data["timestamp_arrived_datetime"][:10]
+        new_meta_data["timestamp_arrived_hour_integer"] = new_meta_data["timestamp_arrived_datetime"][11:13]
+
         new_meta_data["dayofweek_integer"] = datetime.strptime(
             date_time_formatted, self.format_date_time).weekday()
         new_meta_data["time_tag_used_keyword"] = time_tag_used
@@ -877,7 +882,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 new_meta_data["00101010 PatientAge_integer"] = age_meta
             except Exception as e:
                 print("######### Could not extract age-int from metadata...")
-                
+
+        if "00120020 ClinicalTrialProtocolID_keyword" in new_meta_data:
+            aetitles = new_meta_data["00120020 ClinicalTrialProtocolID_keyword"].split(";")
+            print(f"ClinicalTrialProtocolIDs {aetitles}")
+            new_meta_data["00120020 ClinicalTrialProtocolID_keyword"] = aetitles
+
         return new_meta_data
 
     def convert_time_to_utc(self, time_berlin, date_format):

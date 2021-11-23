@@ -41,7 +41,7 @@ spec:
   replacePath:
     path: /dcm4chee-arc/ui2
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: dcm4chee-ingress-ip
@@ -56,11 +56,11 @@ spec:
     http:
       paths:
       - path: /dcm4chee-arc
-        backend:
-          serviceName: dcm4chee-service
+        defaultBackend:
+          service.name: dcm4chee-service
           servicePort: dcm4che-http
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: dcm4chee-ing-ip-rewrite
@@ -75,7 +75,7 @@ spec:
     http:
       paths:
       - path: /pacs
-        backend:
-          serviceName: dcm4chee-service
+        defaultBackend:
+          service.name: dcm4chee-service
           servicePort: dcm4che-http
 ---

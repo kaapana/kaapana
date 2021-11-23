@@ -13,7 +13,7 @@ spec:
     protocol: TCP
   type: ClusterIP
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ohif-ingress-ip
@@ -28,6 +28,6 @@ spec:
     http:
       paths:
       - path: /ohif
-        backend:
-          serviceName: ohif-service
+        defaultBackend:
+          service.name: ohif-service
           servicePort: 80

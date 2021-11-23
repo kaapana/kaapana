@@ -16,7 +16,7 @@ spec:
     targetPort: 9200
     protocol: TCP
 ---
-# apiVersion: networking.k8s.io/v1beta1
+# apiVersion: networking.k8s.io/v1
 # kind: Ingress
 # metadata:
 #   name: elasticsearch-logging-ingress
@@ -32,6 +32,6 @@ spec:
 #       paths:
 #       - path: /elastic-logging
 #         backend:
-#           serviceName: elastic-logging-service
+#           service.name: elastic-logging-service
 #           servicePort: elastic-log
 #---

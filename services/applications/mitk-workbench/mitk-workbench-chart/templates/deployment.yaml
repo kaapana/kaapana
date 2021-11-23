@@ -70,7 +70,7 @@ spec:
     regex: ^.*/mitk-vol-{{ $uuid }}([^\/]*)$
     replacement: /mitk-vol-{{ $uuid }}/
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: mitk-vol-{{ $uuid }}
@@ -85,8 +85,8 @@ spec:
     http:
       paths:
       - path: /mitk-vol-{{ $uuid }}
-        backend:
-          serviceName: mitk-vol-{{ $uuid }}
+        defaultBackend:
+          service.name: mitk-vol-{{ $uuid }}
           servicePort: pt-mitk-http
 ---
 

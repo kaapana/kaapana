@@ -12,7 +12,7 @@ spec:
       targetPort: 8080
   type: ClusterIP
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: doccano-frontend-ing
@@ -34,13 +34,13 @@ spec:
       paths:
       # - path: /doccano/v1
       #   backend:
-      #     serviceName: doccano-backend-service
+      #     service.name: doccano-backend-service
       #     servicePort: 8000
       # - path: /doccano/admin
       #   backend:
-      #     serviceName: doccano-backend-service
+      #     service.name: doccano-backend-service
       #     servicePort: 8000
       - path: /doccano/
-        backend:
-          serviceName: doccano-frontend-service
+        defaultBackend:
+          service.name: doccano-frontend-service
           servicePort: 8080

@@ -11,7 +11,7 @@ spec:
     - port: 5000
       name: error-http
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: error-pages-ingress-ip
@@ -26,14 +26,14 @@ spec:
     http:
       paths:
       - path: 
-        backend:
-          serviceName: error-pages-service
+        defaultBackend:
+          service.name: error-pages-service
           servicePort: error-http
   - host: 
     http:
       paths:
       - path: /error-pages
-        backend:
-          serviceName: error-pages-service
+        defaultBackend:
+          service.name: error-pages-service
           servicePort: error-http
 ---

@@ -24,7 +24,7 @@ spec:
     regex: ^.*/kubernetes([^\/]*)$
     replacement: /kubernetes/#/overview?namespace=base
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: kubedashboard-ingress-ip
@@ -41,7 +41,7 @@ spec:
     http:
       paths:
       - path: /kubernetes
-        backend:
-          serviceName: kubernetes-dashboard
+        defaultBackend:
+          service.name: kubernetes-dashboard
           servicePort: 9090
 ---

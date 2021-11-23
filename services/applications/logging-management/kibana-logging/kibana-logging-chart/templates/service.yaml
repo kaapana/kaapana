@@ -16,7 +16,7 @@ spec:
     targetPort: 5601
     protocol: TCP
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: kibana-logging-ingress-ip
@@ -31,7 +31,7 @@ spec:
     http:
       paths:
       - path: /logging
-        backend:
-          serviceName: kibana-logging-service
+        defaultBackend:
+          service.name: kibana-logging-service
           servicePort: 5601
 ---

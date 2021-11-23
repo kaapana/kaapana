@@ -47,7 +47,7 @@ spec:
     targetPort: admin
     protocol: TCP
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: keycloak-ingress-ip
@@ -62,7 +62,7 @@ spec:
     http:
       paths:
       - path: /auth
-        backend:
-          serviceName: keycloak-external-service
+        defaultBackend:
+          service.name: keycloak-external-service
           servicePort: kc-http-port
 ---

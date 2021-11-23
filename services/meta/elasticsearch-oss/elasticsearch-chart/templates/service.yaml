@@ -16,7 +16,7 @@ spec:
     targetPort: 9200
     protocol: TCP
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: elasticsearch-ingress
@@ -31,7 +31,7 @@ spec:
     http:
       paths:
       - path: /elasticsearch
-        backend:
-          serviceName: elastic-meta-service
+        defaultBackend:
+          service.name: elastic-meta-service
           servicePort: elastic-rest
 ---

@@ -15,7 +15,7 @@ spec:
       protocol: TCP
       targetPort: 9000
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: minio-ingress
@@ -31,21 +31,21 @@ spec:
     http:
       paths:
       - path: /minio
-        backend:
-          serviceName: minio-service
+        defaultBackend:
+          service.name: minio-service
           servicePort: 9000
   - host:
     http:
       paths:
       - path: /uploads
-        backend:
-          serviceName: minio-service
+        defaultBackend:
+          service.name: minio-service
           servicePort: 9000
   - host:
     http:
       paths:
       - path: /downloads
-        backend:
-          serviceName: minio-service
+        defaultBackend:
+          service.name: minio-service
           servicePort: 9000
 ---

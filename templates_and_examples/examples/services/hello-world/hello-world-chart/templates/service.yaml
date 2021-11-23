@@ -17,7 +17,7 @@ spec:
       nodePort: 5000 # only for development!
   type: NodePort # only for development!
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: hello-world-ingress
@@ -33,6 +33,6 @@ spec:
     http:
       paths:
       - path: /hello-world
-        backend:
-          serviceName: hello-world-service
+        defaultBackend:
+          service.name: hello-world-service
           servicePort: 5000

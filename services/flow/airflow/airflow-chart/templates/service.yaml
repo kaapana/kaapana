@@ -13,7 +13,7 @@ spec:
     - port: 5678
       name: debug-port
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: airflow-ingress-ip
@@ -28,7 +28,7 @@ spec:
     http:
       paths:
       - path: /flow
-        backend:
-          serviceName: airflow-service
+        defaultBackend:
+          service.name: airflow-service
           servicePort: airflow-http
 ---

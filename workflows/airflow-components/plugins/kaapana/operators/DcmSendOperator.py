@@ -10,18 +10,19 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 class DcmSendOperator(KaapanaBaseOperator):
 
     def __init__(self,
-                 dag,
-                 ae_title='NONE',
-                 pacs_host='ctp-dicom-service.flow.svc',
-                 pacs_port='11112',
-                 env_vars=None,
-                 level='element',
-                 check_arrival=False,
-                 enable_proxy=False,
-                 host_network=False,
-                 execution_timeout=timedelta(minutes=60),
-                 *args, **kwargs
-                 ):
+                dag,
+                name="dcmsend",
+                ae_title='NONE',
+                pacs_host='ctp-dicom-service.flow.svc',
+                pacs_port='11112',
+                env_vars=None,
+                level='element',
+                check_arrival=False,
+                enable_proxy=False,
+                host_network=False,
+                execution_timeout=timedelta(minutes=60),
+                *args, **kwargs
+                ):
 
         if level not in ['element', 'batch']:
             raise NameError('level must be either "element" or "batch". \
@@ -44,8 +45,8 @@ class DcmSendOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
+            name=name,
             image=f"{default_registry}/dcmsend:3.6.4",
-            name="dcmsend",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             host_network=host_network,

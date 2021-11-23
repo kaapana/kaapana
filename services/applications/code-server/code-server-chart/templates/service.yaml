@@ -22,7 +22,7 @@ spec:
     regex: ^.*/code([^\/]*)$
     replacement: /code/
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: code-server-ingress
@@ -38,7 +38,7 @@ spec:
     http:
       paths:
       - path: /code
-        backend:
-          serviceName: code-service
+        defaultBackend:
+          service.name: code-service
           servicePort: code-http
 ---

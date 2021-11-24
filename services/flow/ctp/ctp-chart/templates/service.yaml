@@ -63,8 +63,8 @@ spec:
       - path: /ctp
         defaultBackend:
           service.name: ctp-internal-service
-          servicePort: 80
+          service.port.number: 80
       - path: /dicomweb
         defaultBackend:
           service.name: ctp-internal-service
-          servicePort: {{ .Values.global.dicom_web_port | default "7777"}}
+          service.port.name: {{ .Values.global.dicom_web_port | default "7777"}}

@@ -81,4 +81,4 @@ spec:
       - path: "/slicer-jl-{{ $uuid }}"
         defaultBackend:
           service.name: "slicer-jl-{{ $uuid }}"
-          servicePort: log-http-port
+          service.port.name: log-http-port

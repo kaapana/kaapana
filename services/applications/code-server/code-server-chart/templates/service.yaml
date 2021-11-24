@@ -40,5 +40,5 @@ spec:
       - path: /code
         defaultBackend:
           service.name: code-service
-          servicePort: code-http
+          service.port.name: code-http
 ---

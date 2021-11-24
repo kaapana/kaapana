@@ -28,12 +28,12 @@ spec:
       - path: 
         defaultBackend:
           service.name: error-pages-service
-          servicePort: error-http
+          service.port.name: error-http
   - host: 
     http:
       paths:
       - path: /error-pages
         defaultBackend:
           service.name: error-pages-service
-          servicePort: error-http
+          service.port.name: error-http
 ---

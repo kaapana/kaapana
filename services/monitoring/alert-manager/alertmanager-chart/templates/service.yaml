@@ -32,4 +32,4 @@ spec:
       - path: /alert
         defaultBackend:
           service.name: alertmanager-service
-          servicePort: 9093
+          service.port.number: 9093

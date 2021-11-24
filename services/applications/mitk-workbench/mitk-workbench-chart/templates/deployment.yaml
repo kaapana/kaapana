@@ -87,7 +87,7 @@ spec:
       - path: /mitk-vol-{{ $uuid }}
         defaultBackend:
           service.name: mitk-vol-{{ $uuid }}
-          servicePort: pt-mitk-http
+          service.port.name: pt-mitk-http
 ---
 
           

@@ -30,4 +30,4 @@ spec:
       - path: /ohif
         defaultBackend:
           service.name: ohif-service
-          servicePort: 80
+          service.port.number: 80

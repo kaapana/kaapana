@@ -15,11 +15,11 @@ spec:
       - path: /api
         defaultBackend:
           service.name: traefik
-          servicePort: tr-admin
+          service.port.name: tr-admin
       - path: /health
         defaultBackend:
           service.name: traefik
-          servicePort: tr-admin
+          service.port.name: tr-admin
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -38,5 +38,5 @@ spec:
       - path: /traefik
         defaultBackend:
           service.name: traefik
-          servicePort: tr-admin
+          service.port.name: tr-admin
 ---

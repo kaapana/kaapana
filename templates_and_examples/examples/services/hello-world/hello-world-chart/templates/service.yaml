@@ -35,4 +35,4 @@ spec:
       - path: /hello-world
         defaultBackend:
           service.name: hello-world-service
-          servicePort: 5000
+          service.port.number: 5000

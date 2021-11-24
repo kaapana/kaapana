@@ -33,5 +33,5 @@ spec:
 #       - path: /elastic-logging
 #         backend:
 #           service.name: elastic-logging-service
-#           servicePort: elastic-log
+#           service.port.name: elastic-log
 #---

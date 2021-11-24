@@ -29,4 +29,4 @@ spec:
       - path: /prometheus
         defaultBackend:
           service.name: prometheus-service
-          servicePort: 9090
+          service.port.number: 9090

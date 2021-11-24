@@ -99,5 +99,5 @@ spec:
       - path: /mitk-flow-{{ $uuid }}
         defaultBackend:
           service.name: mitk-flow-{{ $uuid }}
-          servicePort: pt-mitk-http
+          service.port.name: pt-mitk-http
 ---

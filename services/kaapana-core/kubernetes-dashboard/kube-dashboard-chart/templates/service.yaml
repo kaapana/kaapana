@@ -43,5 +43,5 @@ spec:
       - path: /kubernetes
         defaultBackend:
           service.name: kubernetes-dashboard
-          servicePort: 9090
+          service.port.number: 9090
 ---

@@ -36,5 +36,5 @@ spec:
       - path: /hello-backend
         defaultBackend:
           service.name: hello-backend-service
-          servicePort: 5000
+          service.port.number: 5000
 ---

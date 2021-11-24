@@ -58,7 +58,7 @@ spec:
       - path: /dcm4chee-arc
         defaultBackend:
           service.name: dcm4chee-service
-          servicePort: dcm4che-http
+          service.port.name: dcm4che-http
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -77,5 +77,5 @@ spec:
       - path: /pacs
         defaultBackend:
           service.name: dcm4chee-service
-          servicePort: dcm4che-http
+          service.port.name: dcm4che-http
 ---

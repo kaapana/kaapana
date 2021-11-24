@@ -33,4 +33,4 @@ spec:
       - path: /grafana
         defaultBackend:
           service.name: grafana
-          servicePort: 3000
+          service.port.number: 3000

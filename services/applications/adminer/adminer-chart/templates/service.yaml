@@ -30,4 +30,4 @@ spec:
       - path: "/adminer"
         defaultBackend:
           service.name: adminer-service
-          servicePort: adminer-http
+          service.port.name: adminer-http

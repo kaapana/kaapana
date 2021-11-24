@@ -82,4 +82,4 @@ spec:
       - path: "/tensorboard-{{ $uuid }}"
         defaultBackend:
           service.name: tensorboard-{{ $uuid }}
-          servicePort: log-http-port
+          service.port.name: log-http-port

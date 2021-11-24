@@ -31,5 +31,5 @@ spec:
       - path: /kube-helm-api
         defaultBackend:
           service.name: kube-helm-service
-          servicePort: 5000
+          service.port.number: 5000
 ---

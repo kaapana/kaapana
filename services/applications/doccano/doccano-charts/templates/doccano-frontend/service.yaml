@@ -35,12 +35,12 @@ spec:
       # - path: /doccano/v1
       #   backend:
       #     service.name: doccano-backend-service
-      #     servicePort: 8000
+      #     service.port.number: 8000
       # - path: /doccano/admin
       #   backend:
       #     service.name: doccano-backend-service
-      #     servicePort: 8000
+      #     service.port.number: 8000
       - path: /doccano/
         defaultBackend:
           service.name: doccano-frontend-service
-          servicePort: 8080
+          service.port.number: 8080

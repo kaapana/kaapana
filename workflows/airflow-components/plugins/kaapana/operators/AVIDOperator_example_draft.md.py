@@ -78,7 +78,7 @@ avid = AVIDPythonOperator(input_operator=get_input+DCM_MODALITY_MR_SELECTOR,
 #Example 3: select MR and CT images and call them pairwise (but only MRs and CTs of same patient and timepoint)
 avid = AVIDPythonOperator(input_operator=get_input+DCM_MODALITY_MR_SELECTOR,
                           additional_inputs={'ct_images': get_input+DCM_MODALITY_CT_SELECTOR},
-						  linkers={'ct_images': CaseLinker+TimePointLinker}
+						  linkers={'ct_images': CaseLinker()+TimePointLinker()}
 						  input_alias='mr_images', **other_arguments)
 # Results/calls:
 # - output0: {mr_images: [Pat1_MR_TP1], ct_images: [Pat1_CT_TP1]}
@@ -90,7 +90,7 @@ avid = AVIDPythonOperator(input_operator=get_input+DCM_MODALITY_MR_SELECTOR,
 #Example 4: select MR and CT images and call them case wise
 avid = AVIDPythonOperator(input_operator=get_input+DCM_MODALITY_MR_SELECTOR,
                           additional_inputs={'ct_images': get_input+DCM_MODALITY_CT_SELECTOR},
-						  splitters={'mr_images', CaseSplitter, 'ct_images': CaseSplitter}
+						  splitters={'mr_images', CaseSplitter(), 'ct_images': CaseSplitter()}
 						  input_alias='mr_images', **other_arguments)
 # Results/calls:
 # - output0: {mr_images: [Pat1_MR_TP1, Pat1_MR_TP2], ct_images: [Pat1_CT_TP1]}

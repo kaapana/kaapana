@@ -112,11 +112,13 @@ class AVIDPythonOperator(KaapanaPythonBaseOperator):
                                                    additionalArgs=self.additional_kwargs,
                                                    defaultoutputextension=self.output_default_extension,
                                                    indicateCallable=self.output_indicator_callable,
-                                                   generateCallable=self.output_generate_callable)
+                                                   generateCallable=self.output_generate_callable,
+                                                   alwaysDo=True)
 
         self.op_kwargs={'action':self.avid_action}
 
     def post_execute(self, context, result=None):
         if self.avid_session is not None:
-            saveArtefactList_xml(self.avid_session.lastStoredLocationPath, self.avid_session.artefacts, self.avid_session.rootPath)
+            saveArtefactList_xml(self.avid_session.lastStoredLocationPath, self.avid_session.artefacts,
+                                 self.avid_session.rootPath, savePathsRelative=False)
 

@@ -8,7 +8,7 @@ from kaapana.operators.KaapanaBaseOperator import default_registry
 
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from avid.actions.genericCLIAction import GenericCLIAction
+from avid.actions.MitkFileConverter import MitkFileConverterBatchAction
 
 log = LoggingMixin().log
 
@@ -46,9 +46,8 @@ dag = DAG(
 
 get_input = LocalGetInputDataOperator(dag=dag)
 avid = AVIDBaseOperator(dag=dag, input_operator=get_input, name='avid-convert',
-                        action_class = GenericCLIAction,
-                        action_kwargs = {'actionID': 'MITKConvert','outputFlags':['o']},
-                        input_alias='i',
+                        batch_action_class = MitkFileConverterBatchAction,
+                        input_alias='inputSelector',
                         image=f"{default_registry}/mitk-fileconverter:2021-02-18-python" )
 put_statistcs_to_minio = LocalMinioOperator(dag=dag, action='put', task_id="minio-put-statistics", zip_files=True,
                                             action_operators=[avid],

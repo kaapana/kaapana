@@ -9,7 +9,7 @@ from avid.actions import BatchActionBase
 from avid.actions.pythonAction import PythonNaryBatchActionV2
 from avid.common.artefact.fileHelper import saveArtefactList_xml
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
-from kaapana.operators.HelperAvid import KaapanaCLIConnector, ensure_operator_session, compile_operator_splitters, compile_operator_sorters, check_input_name_consistency, initialize_inputs, deduce_dag_run_dir
+from kaapana.operators.HelperAvid import ensure_operator_session, compile_operator_splitters, compile_operator_sorters, check_input_name_consistency, initialize_inputs, deduce_dag_run_dir, KaapanaCLIConnector
 
 class AVIDBaseOperator(KaapanaBaseOperator):
     """
@@ -28,6 +28,7 @@ class AVIDBaseOperator(KaapanaBaseOperator):
                  batch_action_class=None,
                  action_class=None,
                  action_kwargs=None,
+                 action_cli_path=None,
                  additional_inputs = None,
                  linkers = None,
                  dependentLinkers = None,
@@ -66,14 +67,14 @@ class AVIDBaseOperator(KaapanaBaseOperator):
         self.sorters = sorters
 
         self.input_alias = input_alias
+        if input_alias is None:
+            self.input_alias = 'primaryInputSelector'
 
         self.input_operator = input_operator
 
         self.image_avid_class_file = image_avid_class_file
         self.action_class=action_class
         self.batch_action_class = batch_action_class
-        if self.batch_action_class is None and self.action_class is not None:
-            self.batch_action_class = BatchActionBase
 
         self.action_kwargs=action_kwargs
 
@@ -96,26 +97,38 @@ class AVIDBaseOperator(KaapanaBaseOperator):
         splitters = compile_operator_splitters(avid_operator=self)
         sorters = compile_operator_sorters(avid_operator=self)
 
-        self.cli_connector = KaapanaCLIConnector(mount_map={'/data':deduce_dag_run_dir(workflow_dir=self.workflow_dir, dag_run_id=context['run_id'])}, kaapana_operator=super(), context=context)
+        self.cli_connector = KaapanaCLIConnector(mount_map={'/data':deduce_dag_run_dir(workflow_dir=self.workflow_dir, dag_run_id=context['run_id'])},
+                                                 kaapana_operator=self, context=context)
+
+        self.avid_session.actionTools['MitkFileConverter'] = 'MitkFileConverter.exe'
 
         all_action_kwargs = self.action_kwargs.copy()
+
         all_action_kwargs['actionTag'] = self.task_id
-        all_action_kwargs['primaryInputSelector'] = self.input_selector
-        all_action_kwargs['primaryAlias'] = self.input_alias
-        all_action_kwargs['additionalInputSelectors'] = self.additional_selectors
-        all_action_kwargs['linker'] = self.linkers
-        all_action_kwargs['splitter'] = splitters
-        all_action_kwargs['sorter'] = sorters
-        all_action_kwargs['dependentLinker'] = self.dependentLinkers
+        if self.linkers is not None:
+            all_action_kwargs['linker'] = self.linkers
+        if self.splitters is not None:
+            all_action_kwargs['splitter'] = splitters
+        if self.sorters is not None:
+            all_action_kwargs['sorter'] = sorters
+        if self.dependentLinkers is not None:
+            all_action_kwargs['dependentLinker'] = self.dependentLinkers
         all_action_kwargs['session'] = self.avid_session
         all_action_kwargs['cli_connector'] = self.cli_connector
+        all_action_kwargs['alwaysDo'] = True
 
         batch_action_class = None
-        if not self.batch_action_class is None:
+        if not self.batch_action_class is None and not self.batch_action_class.__name__ == 'BatchActionBase':
             batch_action_class = self.batch_action_class
+            all_action_kwargs[self.input_alias] = self.input_selector
+            if self.additional_selectors is not None:
+                all_action_kwargs.update(self.additional_selectors)
         elif not self.action_class is None:
                 batch_action_class = BatchActionBase
                 all_action_kwargs['actionClass'] = self.action_class
+                all_action_kwargs['primaryInputSelector'] = self.input_selector
+                all_action_kwargs['primaryAlias'] = self.input_alias
+                all_action_kwargs['additionalInputSelectors'] = self.additional_selectors
         else:
             raise NotImplementedError('Feature to get class from container image is not implemented yet.')
 
@@ -132,5 +145,6 @@ class AVIDBaseOperator(KaapanaBaseOperator):
 
     def post_execute(self, context, result=None):
         if self.avid_session is not None:
-            saveArtefactList_xml(self.avid_session.lastStoredLocationPath, self.avid_session.artefacts, self.avid_session.rootPath)
+            saveArtefactList_xml(self.avid_session.lastStoredLocationPath, self.avid_session.artefacts,
+                                 self.avid_session.rootPath, savePathsRelative=False)
 

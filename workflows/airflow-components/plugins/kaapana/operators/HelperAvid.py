@@ -11,6 +11,8 @@ from avid.selectors import SelectorBase, ActionTagSelector, KeyValueSelector
 from avid.common.artefact.crawler import DirectoryCrawler
 from avid.common.workflow import initSession
 
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+
 from pydicom.filereader import dcmread
 
 PROP_NAME_PATIENT_ID = 'patientID'
@@ -18,9 +20,12 @@ PROP_NAME_PATIENT_NAME = 'patientName'
 PROP_NAME_MODALITY = 'modality'
 PROP_NAME_SERIES_UID = 'seriesUID'
 PROP_NAME_STUDY_UD = 'studyUID'
+PROP_NAME_DATE_TIME = 'dcmDateTime'
 
 ensureSimilarityRelevantProperty(PROP_NAME_MODALITY)
 ensureSimilarityRelevantProperty(PROP_NAME_SERIES_UID)
+ensureSimilarityRelevantProperty(PROP_NAME_PATIENT_ID)
+ensureSimilarityRelevantProperty(PROP_NAME_PATIENT_NAME)
 
 DCM_MODALITY_MR_SELECTOR = KeyValueSelector(key=PROP_NAME_MODALITY, value='MR')
 DCM_MODALITY_CT_SELECTOR = KeyValueSelector(key=PROP_NAME_MODALITY, value='CT')
@@ -137,12 +142,20 @@ class DefaultKaapanaDataCrawlCallable(object):
 
                 datetime = _extract_relevant_date_time_string(ds)
 
+                dcmProps[PROP_NAME_DATE_TIME] = datetime
+
                 taskID = _extract_task_id(path_parts=path_parts, series_UID=dcmProps[PROP_NAME_SERIES_UID])
 
                 if taskID is None:
                     raise RuntimeError('Cannot deduce task id from file path: {}'.format(full_path))
 
-                return generateArtefactEntry(case=dcmProps[PROP_NAME_PATIENT_ID], caseInstance=None, timePoint=datetime,
+                caseID = 'unkown'
+                if dcmProps[PROP_NAME_PATIENT_NAME] is not None:
+                    caseID = dcmProps[PROP_NAME_PATIENT_NAME]
+                elif dcmProps[PROP_NAME_PATIENT_ID] is not None:
+                    caseID = dcmProps[PROP_NAME_PATIENT_ID]
+
+                return generateArtefactEntry(case=caseID, caseInstance=None, timePoint=0,
                                              actionTag=taskID, artefactType=TYPE_VALUE_RESULT,
                                              artefactFormat=FORMAT_VALUE_DCM, url = full_path,
                                              **dcmProps)
@@ -174,7 +187,7 @@ def ensure_operator_session(avid_operator, context):
             avid_operator.avid_session_dir = deduce_session_dir(avid_operator.workflow_dir, context['run_id'])
 
         avid_operator.log.debug('Initialize AVID session at: {}'.format(avid_operator.avid_session_dir))
-        avid_operator.avid_session = initSession(avid_operator.avid_session_dir)
+        avid_operator.avid_session = initSession(sessionPath=avid_operator.avid_session_dir, expandPaths=True)
 
     if len(avid_operator.avid_session.artefacts) == 0 or avid_operator.avid_artefact_crawl_callable is not None:
         avid_operator.log.debug('Sync AVID session with workflow data.')
@@ -355,7 +368,7 @@ class KaapanaCLIConnector(ContainerCLIConnectorBase):
             mapped_cli_file_path = ContainerCLIConnectorBase.apply_mount_map(mount_map=self.mount_map,
                                                                              filepath=cli_file_path)
             self.kaapana_operator.cmds=[mapped_cli_file_path]
-            container_return = self.kaapana_operator.execute(context=self.context)
+            container_return = KaapanaBaseOperator.execute(self=self.kaapana_operator, context=self.context)
 
             logfile.write(str(container_return))
 

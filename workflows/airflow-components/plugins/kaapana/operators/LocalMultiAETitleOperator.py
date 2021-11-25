@@ -31,6 +31,13 @@ class LocalMultiAETitleOperator(KaapanaPythonBaseOperator):
         ds2 = pydicom.dcmread(target_file, force=True)
         print(f"Value of {self.AETITLE_DICOM_TAG} in target file is {ds2[self.AETITLE_DICOM_TAG]}")
 
+    def _copy_files(self, dcm_file_list, input_dir, output_dir):
+        for src_file in dcm_file_list:
+            target_file = src_file.replace(input_dir, output_dir)
+            print(f"Copy {src_file} into output dir {target_file}")
+            os.makedirs(os.path.dirname(target_file), exist_ok=True)
+            copyfile(src_file, target_file)
+
     def _check_series(self, input_dir, output_dir):
         dcm_file_list = glob.glob(input_dir + "/*.dcm", recursive=True)
         dcm_file = pydicom.dcmread(dcm_file_list[0],force=True)
@@ -40,9 +47,8 @@ class LocalMultiAETitleOperator(KaapanaPythonBaseOperator):
         metadata = HelperElasticsearch.get_series_metadata(series_uid)
         if metadata:
             if series_trail_subject in metadata[self.AETITLE_IN_META]:
-                # TODO dcmsend fails because no dicom is send, maybe also resending would be necessary?
-                print("Skipping import because metadata already exist")
-                pass
+                print("Reimporting series")
+                self._copy_files(dcm_file_list, input_dir, output_dir)
             else:
                 print(f"Adding ClinicalTrialProtocolID to incomming files")
                 for src_file in dcm_file_list:
@@ -55,11 +61,7 @@ class LocalMultiAETitleOperator(KaapanaPythonBaseOperator):
                     self._add_aetitle(src_file, target_file, aetitle_to_append)
         else:
             print("No metadata found for this series, normal import")
-            for src_file in dcm_file_list:
-                target_file = src_file.replace(input_dir, output_dir)
-                print(f"Copy {src_file} into output dir {target_file}")
-                os.makedirs(os.path.dirname(target_file), exist_ok=True)
-                copyfile(src_file, target_file)
+            self._copy_files(dcm_file_list, input_dir, output_dir)
 
     def check(self, ds, **kwargs):
         self.conf = kwargs['dag_run'].conf

@@ -91,6 +91,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         print(f"# Cohort-limit: {self.cohort_limit}")
         print("#")
 
+        dag_run_id = kwargs['dag_run'].run_id
         if kwargs['dag_run'].conf and ("seriesInstanceUID" in kwargs['dag_run'].conf):
             series_uid = kwargs['dag_run'].conf.get('seriesInstanceUID')
             dcm_path = join("/ctpinput", kwargs['dag_run'].conf.get('dicom_path'))

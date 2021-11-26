@@ -63,15 +63,21 @@ fi
 
 function no_proxy_environment {
     echo "${GREEN}Checking no_proxy settings${NC}"
-    if [ ! -v no_proxy ]; then
+    if [ ! -v no_proxy ] && [ ! -v NO_PROXY ]; then
         echo "${YELLOW}no_proxy not found, setting it and adding ${HOSTNAME}${NC}"
         INSERTLINE="no_proxy=$HOSTNAME"
         sed -i "$ a\\${INSERTLINE}" /etc/environment && echo "Adding $HOSTNAME to no_proxy"
     else
-        echo "${YELLOW}no_proxy found, checking of $HOSTNAME is part of it!${NC}"
-        echo $no_proxy
-        INSERTLINE="no_proxy=$no_proxy,$HOSTNAME"
-        grep -q '\bno_proxy\b.*\b'${HOSTNAME}'\b' /etc/environment || sed -i '/no_proxy=/d' /etc/environment
+        echo "${YELLOW}no_proxy/NO_PROXY found, checking if $HOSTNAME is part of it!${NC}"
+        if [ -v no_proxy ]; then
+            echo $no_proxy
+            INSERTLINE="no_proxy=$no_proxy,$HOSTNAME"
+            grep -q '\bno_proxy\b.*\b'${HOSTNAME}'\b' /etc/environment || sed -i '/no_proxy=/d' /etc/environment
+        elif [ -v NO_PROXY ]; then
+            echo $no_proxy
+            INSERTLINE="NO_PROXY=$NO_PROXY,$HOSTNAME"
+            grep -q '\bno_proxy\b.*\b'${HOSTNAME}'\b' /etc/environment || sed -i '/NO_PROXY=/d' /etc/environment
+        fi
         echo $INSERTLINE
         grep -q '\bno_proxy\b.*\b'${HOSTNAME}'\b' /etc/environment  && echo "$HOSTNAME already part of no_proxy ...." || (sed -i "$ a\\${INSERTLINE}" /etc/environment && echo "Adding $HOSTNAME to no_proxy")
     fi
@@ -356,10 +362,13 @@ function install_microk8s {
         echo "No proxy needed..."
     fi
 
-    if [ -v no_proxy ]; then
+    if [ -v no_proxy ] || [ -v NO_PROXY ]; then
         echo "${YELLOW}setting containerd no_proxy...${NC}"
         set +e
-        insert_text "no_proxy=$no_proxy" /var/snap/microk8s/current/args/containerd-env 
+        if [ -v no_proxy ]; then
+            insert_text "no_proxy=$no_proxy" /var/snap/microk8s/current/args/containerd-env 
+        elif [ -v NO_PROXY ]; then
+            insert_text "no_proxy=$NO_PROXY" /var/snap/microk8s/current/args/containerd-env 
         set -e
     else
         echo "No_proxy proxy not needed..."

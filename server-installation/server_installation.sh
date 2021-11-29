@@ -453,6 +453,18 @@ function install_microk8s {
     microk8s.kubectl config view --raw > /root/.kube/config
     chmod 600 $HOME/.kube/config
 
+    if (crontab -l | grep refresh.hold);then
+        echo "${GREEN}Cronjob to hold snap refresh to prevent helm and microk8s from auto-updates already set.${NC}"
+    else
+        echo "${YELLOW}Setting cronjob to hold snap refresh to prevent helm and microk8s from auto-updates.${NC}"
+        if crontab -l;then
+            crontab -l | { cat; echo '0 0 * * * /usr/bin/snap set system refresh.hold="$(/usr/bin/date --iso-8601=seconds -d '"'"'+30 days'"'"')"'; } | crontab -
+        else
+            { echo '0 0 * * * /usr/bin/snap set system refresh.hold="$(/usr/bin/date --iso-8601=seconds -d '"'"'+30 days'"'"')"'; } | crontab -
+        fi
+        echo "${GREEN}Successfully added cronjob to hold snap refresh to prevent helm and microk8s from auto-updates.${NC}"
+    fi
+    
     echo ""
     echo ""
     echo ""

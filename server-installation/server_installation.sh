@@ -369,8 +369,8 @@ function install_microk8s {
             insert_text "no_proxy=$no_proxy" /var/snap/microk8s/current/args/containerd-env 
         elif [ -v NO_PROXY ]; then
             insert_text "no_proxy=$NO_PROXY" /var/snap/microk8s/current/args/containerd-env 
+        fi
         set -e
-    fi
     else
         echo "No_proxy proxy not needed..."
     fi

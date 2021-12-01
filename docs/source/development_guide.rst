@@ -312,6 +312,8 @@ In case you want to push the helm chart to a registry you first need to do the f
 
 * Push the helm chart to your repo
 
+::
+
    helm push hello-world-chart <repo-name>
 
 * Finally, after a ``helm repo update``, you can install the ``hello-world-chart`` with:

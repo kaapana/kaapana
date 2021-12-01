@@ -310,7 +310,7 @@ In case you want to push the helm chart to a registry you first need to do the f
    
    helm repo add --username <username> --password <password> <repo-name> https://dktk-jip-registry.dkfz.de/chartrepo/<repo-name>
 
-* Push the helm chart to your repo
+* Push the helm chart to your repo:
 
 ::
 

@@ -48,7 +48,12 @@ get_input = LocalGetInputDataOperator(dag=dag)
 avid = AVIDBaseOperator(dag=dag, input_operator=get_input, name='avid-convert',
                         batch_action_class = MitkFileConverterBatchAction,
                         input_alias='inputSelector',
-                        image=f"{default_registry}/mitk-fileconverter:2021-02-18-python" )
+                        image=f"{default_registry}/mitk-fileconverter:2021-02-18-python",
+                        image_pull_secrets=["registry-secret"],
+                        envs = {
+                            "CONVERTTO":'nrrd',
+                            "THREADS":'3'
+                        })
 put_statistcs_to_minio = LocalMinioOperator(dag=dag, action='put', task_id="minio-put-statistics", zip_files=True,
                                             action_operators=[avid],
                                             file_white_tuples=('.png','.csv', '.zip'))

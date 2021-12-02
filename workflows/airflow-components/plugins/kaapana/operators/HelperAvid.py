@@ -317,6 +317,8 @@ class ContainerCLIConnectorBase(object):
         try:
             osChecker.checkAndCreateDir(path)
             with open(file_name, "w") as outputFile:
+                if not osChecker.isWindows():
+                    content = '#!/bin/bash' + '\n' + content
                 outputFile.write(content)
                 outputFile.close()
 

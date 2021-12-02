@@ -100,7 +100,7 @@ class AVIDBaseOperator(KaapanaBaseOperator):
         self.cli_connector = KaapanaCLIConnector(mount_map={'/data':deduce_dag_run_dir(workflow_dir=self.workflow_dir, dag_run_id=context['run_id'])},
                                                  kaapana_operator=self, context=context)
 
-        self.avid_session.actionTools['MitkFileConverter'] = 'MitkFileConverter.exe'
+        self.avid_session.actionTools[self.action_kwargs['actionID']] = '/src/MitkFileConverter.sh'
 
         all_action_kwargs = self.action_kwargs.copy()
 

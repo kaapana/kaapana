@@ -27,9 +27,7 @@ from multiprocessing.pool import ThreadPool
 _log = LoggingMixin().log
 parallel_processes = 1
 """
-
 Represents a blueprint kaapanaApi
-
 """
 kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
 
@@ -76,7 +74,6 @@ def trigger_dag(dag_id):
         tmp_conf = data
 
     # For authentication
-
     if "x_auth_token" in data:
         tmp_conf["x_auth_token"] = data["x_auth_token"]
     else:
@@ -88,8 +85,7 @@ def trigger_dag(dag_id):
         dag_id = tmp_conf["dag"]
         form_data = tmp_conf["form_data"] if "form_data" in tmp_conf else None
         cohort_limit = int(tmp_conf["cohort_limit"] if "cohort_limit" in tmp_conf else None)
-        single_execution = True if form_data is not None and "single_execution" in form_data and form_data[
-            "single_execution"] else False
+        single_execution = True if form_data is not None and "single_execution" in form_data and form_data["single_execution"] else False
 
         print(f"query: {query}")
         print(f"index: {index}")
@@ -240,9 +236,7 @@ def get_dags_endpoint():
 
 def check_dag_exists(session, dag_id):
     """
-
     if returns an error response, if it doesn't exist
-
     """
     dag_exists = session.query(DagModel).filter(
         DagModel.dag_id == dag_id).count()
@@ -256,35 +250,20 @@ def check_dag_exists(session, dag_id):
 @csrf.exempt
 def get_dag_runs(dag_id):
     """
-
     .. http:get:: /trigger/<dag_id>
-
         Get the run_ids for a dag_id, ordered by execution date
-
         **Example request**:
-
         .. sourcecode:: http
-
             GET /trigger/make_fit
-
             Host: localhost:7357
-
         **Example response**:
-
         .. sourcecode:: http
-
             HTTP/1.1 200 OK
-
             Content-Type: application/json
-
             {
-
               "dag_id": "daily_processing",
-
               "run_ids": ["my_special_run", "normal_run_17"]
-
             }
-
     """
     session = settings.Session()
 
@@ -344,14 +323,12 @@ def dag_run_status(dag_id, run_id):
 
 
 # Authorization topics
-
 @kaapanaApi.route('/api/getaccesstoken')
 @csrf.exempt
 def get_access_token():
     x_auth_token = request.headers.get('X-Auth-Token')
     if x_auth_token is None:
-        return jsonify(
-            {'message': 'No X-Auth-Token found in your request, seems that you are calling me from the backend!'}), 404
+        return jsonify({'message': 'No X-Auth-Token found in your request, seems that you are calling me from the backend!'}), 404
     return jsonify(xAuthToken=x_auth_token)
 
 

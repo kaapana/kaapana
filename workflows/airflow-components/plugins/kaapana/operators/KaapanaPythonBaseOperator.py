@@ -6,7 +6,7 @@ from datetime import timedelta
 from airflow.operators.python import PythonOperator
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 
-def rest_self_udpate(func):
+""" def rest_self_udpate(func):
     '''
     Every operator which should be adjustable from an api call should add this as an decorator above the python_callable:
     @rest_self_udpate
@@ -26,7 +26,7 @@ def rest_self_udpate(func):
                     self.__dict__[k] = v
 
         return func(self, *args, **kwargs)
-    return wrapper
+    return wrapper """
 
 class KaapanaPythonBaseOperator(PythonOperator):
     def __init__(

@@ -12,7 +12,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagRun, DagModel, DAG, DagBag
 from airflow import settings
 from airflow.utils import timezone
-from airflow.bin.cli import get_dags
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.app import csrf
 import glob

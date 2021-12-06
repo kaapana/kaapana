@@ -3,11 +3,10 @@ import glob
 import functools
 from datetime import timedelta
 
-from airflow.operators.python_operator import PythonOperator
-from airflow.utils.decorators import apply_defaults
+from airflow.operators.python import PythonOperator
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 
-def rest_self_udpate(func):
+""" def rest_self_udpate(func):
     '''
     Every operator which should be adjustable from an api call should add this as an decorator above the python_callable:
     @rest_self_udpate
@@ -27,7 +26,7 @@ def rest_self_udpate(func):
                     self.__dict__[k] = v
 
         return func(self, *args, **kwargs)
-    return wrapper
+    return wrapper """
 
 class KaapanaPythonBaseOperator(PythonOperator):
     def __init__(
@@ -58,7 +57,7 @@ class KaapanaPythonBaseOperator(PythonOperator):
         delete_input_on_success=False,
         batch_name=None,
         workflow_dir=None,
-        *args, **kwargs
+        **kwargs
     ):
 
         KaapanaBaseOperator.set_defaults(
@@ -99,7 +98,6 @@ class KaapanaPythonBaseOperator(PythonOperator):
             on_success_callback=KaapanaBaseOperator.on_success,
             pool=self.pool,
             pool_slots=self.pool_slots,
-            *args,
             **kwargs
         )
 

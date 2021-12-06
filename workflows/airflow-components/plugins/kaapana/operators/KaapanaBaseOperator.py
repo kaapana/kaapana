@@ -120,6 +120,7 @@ class KaapanaBaseOperator(BaseOperator):
                  startup_timeout_seconds=120,
                  namespace='flow-jobs',
                  image_pull_policy=os.getenv('PULL_POLICY_PODS', 'IfNotPresent'),
+                 training_operator=False,
                  volume_mounts=None,
                  volumes=None,
                  pod_resources=None,
@@ -139,7 +140,7 @@ class KaapanaBaseOperator(BaseOperator):
                  pool=None,
                  pool_slots=None,
                  api_version="v1",
-                 *args, **kwargs
+                 **kwargs
                  ):
 
         KaapanaBaseOperator.set_defaults(
@@ -172,6 +173,8 @@ class KaapanaBaseOperator(BaseOperator):
         self.execution_timeout = execution_timeout
         self.task_concurrency = task_concurrency
         self.retry_delay = retry_delay
+
+        self.training_operator = training_operator
 
         # Kubernetes
         self.image = image
@@ -216,7 +219,7 @@ class KaapanaBaseOperator(BaseOperator):
                                                  })
         )
 
-        if self.gpu_mem_mb != None or self.gpu_mem_mb_lmt != None:
+        if self.training_operator:
             self.volume_mounts.append(VolumeMount(
                 'modeldata', mount_path='/models', sub_path=None, read_only=False
             ))
@@ -304,7 +307,7 @@ class KaapanaBaseOperator(BaseOperator):
             on_retry_callback=KaapanaBaseOperator.on_retry,
             on_execute_callback=KaapanaBaseOperator.on_execute,
             executor_config=self.executor_config,
-            *args, **kwargs
+            **kwargs
         )
 
     def clear(self, start_date=None, end_date=None, upstream=False, downstream=False, session=None):
@@ -430,7 +433,7 @@ class KaapanaBaseOperator(BaseOperator):
         ti = info_dict["ti"].task
         if ti.delete_input_on_success:
             print("#### deleting input-dirs...!")
-            data_dir  = os.path.join(WORKFLOW_DIR, info_dict['run_id'])
+            data_dir = "/data"
             batch_folders = sorted([f for f in glob.glob(os.path.join(data_dir, 'batch', '*'))])
             for batch_element_dir in batch_folders:
                 element_input_dir = os.path.join(batch_element_dir, ti.operator_in_dir)
@@ -527,7 +530,7 @@ class KaapanaBaseOperator(BaseOperator):
             obj.operator_out_dir = obj.task_id
 
         if input_operator is not None and operator_in_dir is not None:
-            print('Neither input_operator nor operator_in_dir is defined!')
+            raise NameError('You need to define either input_operator or operator_in_dir!')
         if input_operator is not None:
             obj.operator_in_dir = input_operator.operator_out_dir
         elif operator_in_dir is not None:

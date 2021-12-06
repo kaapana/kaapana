@@ -29,7 +29,7 @@ class HelperDcmWeb():
             'SeriesInstanceUID': seriesUID
         }
         url = HelperDcmWeb.pacs_dcmweb + "/rs/instances"
-        httpResponse = requests.get(url, params=payload,timeout=5)
+        httpResponse = requests.get(url, params=payload)
         if httpResponse.status_code == 200:
             return True
         else:

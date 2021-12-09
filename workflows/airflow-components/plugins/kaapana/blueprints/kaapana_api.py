@@ -277,7 +277,7 @@ def get_dag_runs(dag_id):
 
     return jsonify(dag_id=dag_id, run_ids=run_ids)
 
-@kaapanaApi.route('/api/dags/<dag_id>/dagRuns/state/<state>/num', methods=['GET'])
+@kaapanaApi.route('/api/dags/<dag_id>/dagRuns/state/<state>/count', methods=['GET'])
 @csrf.exempt
 def get_num_dag_runs_by_state(dag_id, state):
     """

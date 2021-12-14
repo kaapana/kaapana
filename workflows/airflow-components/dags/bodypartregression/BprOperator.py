@@ -12,7 +12,6 @@ class BprOperator(KaapanaBaseOperator):
                  env_vars={},
                  parallel_id=None,
                  execution_timeout=execution_timeout,
-                 *args,
                  **kwargs
                  ):
         envs = { "STRINGIFY_JSON": str(stringify_json)}
@@ -30,6 +29,5 @@ class BprOperator(KaapanaBaseOperator):
             training_operator=False,
             gpu_mem_mb=None,
             env_vars=env_vars,
-            *args,
             **kwargs
         ) 

@@ -240,7 +240,7 @@ dcm2nifti_ct = DcmConverterOperator(
 )
 
 check_seg = SegCheckOperator(
-    dag,
+    dag=dag,
     input_operator=dcmstruct2nifti,
     original_img_operator=dcm2nifti_ct,
     parallel_processes=3,

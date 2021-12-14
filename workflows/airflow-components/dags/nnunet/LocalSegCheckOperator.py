@@ -174,7 +174,6 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
                  abort_on_error=False,
                  anonymize=True,
                  parallel_checks=3,
-                 *args,
                  **kwargs):
 
         self.abort_on_error = abort_on_error
@@ -184,10 +183,9 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
         self.parallel_checks = parallel_checks
 
         super().__init__(
-            dag,
+            dag=dag,
             name="check-seg-data",
             python_callable=self.start,
             execution_timeout=timedelta(minutes=60),
-            *args,
             **kwargs
         )

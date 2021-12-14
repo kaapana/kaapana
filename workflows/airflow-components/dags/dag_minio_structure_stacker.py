@@ -80,7 +80,7 @@ structure = [{
     }
 },
     {
-    "value": [{"type": "string", "value": "segmentation_tree"}],
+    "value": [{"type": "string", "value": another_folder}],
     "empty_dir": True,
     "children": {
         "value": [
@@ -101,7 +101,6 @@ structure_folder = LocalFolderStructureConverterOperator(dag=dag, structure=stru
 
 push_to_minio = LocalMinioOperator(dag=dag,
                                    action='put',
-                                   push_operator_dirs = [folder_name, another_folder],
                                    bucket_name= bucket_name,
                                    file_white_tuples=('.dcm','.keep'),
                                    zip_files=False)

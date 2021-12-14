@@ -21,7 +21,8 @@ dag = DAG(
     default_args=args,
     schedule_interval=None,
     concurrency=50,
-    max_active_runs=20
+    max_active_runs=20,
+    tags=['service']
 )
 
 get_input = LocalGetInputDataOperator(dag=dag)

@@ -5,8 +5,9 @@ from airflow.models import DAG
 from kaapana.operators.DcmQueryOperator import DcmQueryOperator
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 log = LoggingMixin().log
@@ -102,19 +103,19 @@ args = {
 }
 
 
-class Dcm2MetaJsonLinesOperator(KaapanaBaseOperator):
+class Dcm2MetaJsonLinesOperator(KaapanaPythonBaseOperator):
     def dcm2meta_json_func(self, ds, **kwargs):
         import json
         import os
         import glob
         from kaapana.operators.Dcm2MetaJsonConverter import Dcm2MetaJsonConverter
 
-        for prerequisit in ["ae_title", "pacs_host", "pacs_port", "local_ae_title", "ti", "dag_run", "operator_in"]
+        for prerequisit in ["ae_title", "pacs_host", "pacs_port", "local_ae_title", "ti", "dag_run", "input_operator"]:
             if prerequisit not in kwargs:
                 raise Exception(f"Prerequisite {prerequisit} is not in environment. (kwargs: {kwargs})")
 
         converter = Dcm2MetaJsonConverter()
-        operator_in = "dcmqr"
+        #operator_in = "dcmqr"
         # use task id as output
         operator_out = kwargs['ti'].task_id 
         run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
@@ -143,13 +144,13 @@ class Dcm2MetaJsonLinesOperator(KaapanaBaseOperator):
                  local_ae_title,
                  pacs_host,
                  pacs_port,
-                 
-                 *args, **kwargs):
+                 **kwargs):
+        
         super().__init__(
-            dag,
-            name="dcm_json2meta_json"
+            dag=dag,
+            name="dcm_json2meta_json",
             python_callable=self.dcm2meta_json_func,
-            *args, **kwargs
+            **kwargs
         )
 
 
@@ -179,16 +180,16 @@ dcm_query = DcmQueryOperator(
 
 dcm2meta_json = Dcm2MetaJsonLinesOperator(
     dag=dag,
-    operator_in=dcm_query,
+    input_operator=dcm_query,
     ae_title=ae_title,
     local_ae_title=local_ae_title,
-    pacs_host=pacs_host
+    pacs_host=pacs_host,
     pacs_port=pacs_port
 )
 
 push_jsonl = LocalJson2MetaOperator(
      dag=dag,
-     operator_in=dcm2meta_json,
+     input_operator=dcm2meta_json,
      jsonl_operator=dcm2meta_json,
      check_in_pacs=False,
      #elastic_index="query-metaindex"

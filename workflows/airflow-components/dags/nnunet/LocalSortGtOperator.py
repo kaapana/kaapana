@@ -88,11 +88,11 @@ class LocalSortGtOperator(KaapanaPythonBaseOperator):
     def __init__(self,
                  dag,
                  name='sort-gt',
-                 *args, **kwargs):
+                 **kwargs):
 
         super().__init__(
-            dag,
+            dag=dag,
             name=name,
             python_callable=self.start,
-            *args, **kwargs
+            **kwargs
         )

@@ -9,7 +9,7 @@ class RadiomicsOperator(KaapanaBaseOperator):
                  parameters = "--all-features",
                  env_vars=None,
                  execution_timeout=timedelta(minutes=120),
-                 *args, **kwargs
+                 **kwargs
                  ):
 
         if env_vars is None:
@@ -30,6 +30,5 @@ class RadiomicsOperator(KaapanaBaseOperator):
             execution_timeout=execution_timeout,
             task_concurrency=10,
             ram_mem_mb=3000,
-            *args,
             **kwargs
             )

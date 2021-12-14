@@ -14,7 +14,7 @@ class OrganSegmentationOperator(KaapanaBaseOperator):
                  spleen_operator=None,
                  parallel_id=None,
                  execution_timeout=execution_timeout,
-                 *args, **kwargs
+                 **kwargs
                  ):
 
         if env_vars is None:
@@ -42,6 +42,5 @@ class OrganSegmentationOperator(KaapanaBaseOperator):
             env_vars=env_vars,
             task_concurrency=25,
             ram_mem_mb=6000,
-            *args, 
             **kwargs
             )

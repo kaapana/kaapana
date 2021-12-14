@@ -6,7 +6,7 @@ class Statistics2PdfOperator(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  execution_timeout=timedelta(minutes=10),
-                 *args, **kwargs
+                 **kwargs
                  ):
 
         super().__init__(
@@ -15,5 +15,5 @@ class Statistics2PdfOperator(KaapanaBaseOperator):
             name="stats2pdf",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
-            *args, **kwargs
+            **kwargs
         )

@@ -110,7 +110,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
                  data_dir=None,
                  sets=None,
                  release_name=None,
-                 *args, **kwargs):
+                 **kwargs):
 
         self.chart_name = chart_name
         self.version = version
@@ -123,5 +123,5 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
             name=name,
             python_callable=self.start,
             execution_timeout=timedelta(seconds=KaapanaApplicationOperator.TIMEOUT),
-            *args, **kwargs
+            **kwargs
         )

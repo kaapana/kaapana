@@ -903,7 +903,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                  exit_on_error=False,
                  delete_private_tags=True,
                  bulk=False,
-                 *args, **kwargs):
+                 **kwargs):
 
         self.dcmodify_path = 'dcmodify'
         self.dcm2json_path = 'dcm2json'
@@ -927,9 +927,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             exit(1)
 
         super().__init__(
-            dag,
+            dag=dag,
             name="dcm2json",
             python_callable=self.start,
             ram_mem_mb=10,
-            *args, **kwargs
+            **kwargs
         )

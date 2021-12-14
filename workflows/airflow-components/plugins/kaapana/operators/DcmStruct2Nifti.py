@@ -9,7 +9,7 @@ class DcmStruct2Nifti(KaapanaBaseOperator):
                  seg_filter=None,
                  env_vars=None,
                  execution_timeout=timedelta(hours=6),
-                 *args, **kwargs
+                 **kwargs
                  ):
 
         if env_vars is None:
@@ -32,5 +32,5 @@ class DcmStruct2Nifti(KaapanaBaseOperator):
             # image_pull_policy="Always",
             ram_mem_mb=500,
             ram_mem_mb_lmt=1000,
-            *args, **kwargs
+            **kwargs
             )

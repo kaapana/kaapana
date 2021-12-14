@@ -27,7 +27,6 @@ class Bin2DcmOperator(KaapanaBaseOperator):
                  name="bin2dcm",
                  env_vars={},
                  execution_timeout=execution_timeout,
-                 *args,
                  **kwargs
                  ):
 
@@ -57,6 +56,5 @@ class Bin2DcmOperator(KaapanaBaseOperator):
             keep_parallel_id=False,
             env_vars=env_vars,
             ram_mem_mb=5000,
-            *args,
             **kwargs
         )

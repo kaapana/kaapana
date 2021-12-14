@@ -18,14 +18,14 @@ class LocalWorkflowCleanerOperator(KaapanaPythonBaseOperator):
                  dag,
                  run_dir=None,
                  clean_workflow_dir=True,
-                 *args, **kwargs):
+                 **kwargs):
 
         self.run_dir = run_dir
         self.clean_workflow_dir = clean_workflow_dir
 
         super().__init__(
-            dag,
+            dag=dag,
             name="workflow-cleaner",
             python_callable=self.start,
-            *args, **kwargs
+            **kwargs
         )

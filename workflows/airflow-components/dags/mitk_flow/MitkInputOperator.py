@@ -179,15 +179,15 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
                  pacs_dcmweb_host='http://dcm4chee-service.store.svc',
                  pacs_dcmweb_port='8080',
                  aetitle="KAAPANA",
-                 *args, **kwargs):
+                 **kwargs):
 
         self.pacs_dcmweb = pacs_dcmweb_host + ":" + pacs_dcmweb_port + "/dcm4chee-arc/aets/" + aetitle.upper()
 
         super().__init__(
-            dag,
+            dag=dag,
             name='get-mitk-input',
             python_callable=self.get_files,
-            *args, **kwargs
+            **kwargs
         )
 
 

@@ -250,7 +250,7 @@ do_inference = LocalDataorganizerOperator(
 )
 
 seg_check_inference = SegCheckOperator(
-    dag,
+    dag=dag,
     input_operator=do_inference,
     original_img_operator=dcm2nifti_ct,
     target_dict_operator=None,
@@ -267,7 +267,7 @@ seg_check_inference = SegCheckOperator(
 )
 
 seg_check_gt = SegCheckOperator(
-    dag,
+    dag=dag,
     input_operator=dcm2nifti_gt,
     original_img_operator=dcm2nifti_ct,
     target_dict_operator=seg_check_inference,
@@ -301,7 +301,7 @@ do_ensemble = LocalDataorganizerOperator(
 )
 
 seg_check_ensemble = SegCheckOperator(
-    dag,
+    dag=dag,
     input_operator=do_ensemble,
     original_img_operator=dcm2nifti_ct,
     parallel_processes=parallel_processes,

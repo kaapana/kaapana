@@ -251,7 +251,6 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                  batch_name=None,
                  workflow_dir=None,
                  anonymize=True,
-                 *args,
                  **kwargs):
 
         self.gt_dir = gt_operator.operator_out_dir
@@ -265,7 +264,6 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
             batch_name=batch_name,
             workflow_dir=workflow_dir,
             execution_timeout=timedelta(hours=5),
-            *args,
             **kwargs
         )
 

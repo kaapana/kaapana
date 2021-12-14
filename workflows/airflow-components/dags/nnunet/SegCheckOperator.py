@@ -24,7 +24,6 @@ class SegCheckOperator(KaapanaBaseOperator):
                  name="seg-check",
                  env_vars={},
                  execution_timeout=execution_timeout,
-                 *args,
                  **kwargs
                  ):
 
@@ -54,6 +53,5 @@ class SegCheckOperator(KaapanaBaseOperator):
             execution_timeout=execution_timeout,
             env_vars=env_vars,
             ram_mem_mb=40000,
-            *args,
             **kwargs
         )

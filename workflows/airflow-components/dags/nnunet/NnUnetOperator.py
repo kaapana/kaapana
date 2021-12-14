@@ -47,7 +47,6 @@ class NnUnetOperator(KaapanaBaseOperator):
                  env_vars={},
                  parallel_id=None,
                  execution_timeout=execution_timeout,
-                 *args,
                  **kwargs
                  ):
         envs = {
@@ -110,6 +109,5 @@ class NnUnetOperator(KaapanaBaseOperator):
             pod_resources=pod_resources,
             gpu_mem_mb=gpu_mem_mb,
             env_vars=env_vars,
-            *args,
             **kwargs
         )

@@ -136,7 +136,6 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
                  batch_name=None,
                  workflow_dir=None,
                  parallel_id=None,
-                 *args,
                  **kwargs):
 
         self.origin = mode.split("2")[0]
@@ -144,13 +143,12 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
         self.target_batchname = target_batchname
 
         super().__init__(
-            dag,
+            dag=dag,
             name="do",
             python_callable=self.start,
             batch_name=batch_name,
             parallel_id=parallel_id,
             workflow_dir=workflow_dir,
             execution_timeout=timedelta(minutes=20),
-            *args,
             **kwargs
         )

@@ -28,7 +28,8 @@ dag = DAG(
     default_args=args,
     schedule_interval='@daily',
     concurrency=5,
-    max_active_runs=1
+    max_active_runs=1,
+    tags=['service']
 )
 
 clean_up = LocalCleanUpExpiredWorkflowDataOperator(dag=dag, expired_period=timedelta(days=14))

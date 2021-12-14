@@ -27,7 +27,8 @@ dag = DAG(
     default_args=args,
     schedule_interval=None,
     concurrency=10,
-    max_active_runs=5
+    max_active_runs=5,
+    tags=['service']
     )
 
 

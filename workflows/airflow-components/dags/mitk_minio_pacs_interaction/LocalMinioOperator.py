@@ -142,7 +142,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         file_white_tuples=None,
         zip_files=False,
         split_level=None,
-        *args, **kwargs
+        **kwargs
         ):
     
         if action not in ['get', 'remove', 'put']:
@@ -163,10 +163,9 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         self.split_level = split_level
 
         super(LocalMinioOperator, self).__init__(
-           dag,
+           dag=dag,
            name=f'minio-actions-{action}',
            python_callable=self.start,
            execution_timeout=timedelta(minutes=30),
-           *args,
            **kwargs
         )

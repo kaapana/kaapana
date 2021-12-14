@@ -73,7 +73,7 @@ class LocalDeleteFromElasticOperator(KaapanaPythonBaseOperator):
                  elastic_index="meta-index",
                  delete_all_documents=False,
                  delete_complete_study=False,
-                 *args, **kwargs):
+                 **kwargs):
 
         self.elastic_host = elastic_host
         self.elastic_port = elastic_port
@@ -82,8 +82,8 @@ class LocalDeleteFromElasticOperator(KaapanaPythonBaseOperator):
         self.delete_complete_study = delete_complete_study
 
         super().__init__(
-            dag,
+            dag=dag,
             name='delete-meta',
             python_callable=self.start,
-            *args, **kwargs
+            **kwargs
         )

@@ -77,12 +77,11 @@ class LocalMultiAETitleOperator(KaapanaPythonBaseOperator):
     def __init__(self,
                  dag,
                  name="multi-aetitle",
-                 *args, **kwargs):
+                 **kwargs):
 
         super(LocalMultiAETitleOperator, self).__init__(
             dag=dag,
             name=name,
             python_callable=self.check,
             execution_timeout=timedelta(minutes=180),
-            *args,
             **kwargs)

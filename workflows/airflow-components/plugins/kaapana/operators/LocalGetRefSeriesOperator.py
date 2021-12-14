@@ -259,7 +259,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                  pacs_dcmweb_port='8080',
                  aetitle="KAAPANA",
                  batch_name=None,
-                 *args, **kwargs):
+                 **kwargs):
 
         self.modality = modality
         self.target_level = target_level
@@ -272,10 +272,10 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         self.batch_name = batch_name
 
         super().__init__(
-            dag,
+            dag=dag,
             name=name,
             batch_name=batch_name,
             python_callable=self.get_files,
             execution_timeout=timedelta(minutes=120),
-            *args, **kwargs
+            **kwargs
         )

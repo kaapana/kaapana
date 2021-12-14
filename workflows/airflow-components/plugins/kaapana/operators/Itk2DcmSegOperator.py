@@ -20,7 +20,6 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
                  skip_empty_slices=False,
                  env_vars=None,
                  execution_timeout=timedelta(minutes=90),
-                 *args,
                  **kwargs):
 
         if env_vars is None:
@@ -56,6 +55,5 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
             execution_timeout=execution_timeout,
             ram_mem_mb=3000,
             ram_mem_mb_lmt=6000,
-            *args,
             **kwargs
             )

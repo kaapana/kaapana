@@ -46,15 +46,14 @@ class LocalServiceSyncDagsDbOperator(KaapanaPythonBaseOperator):
     def __init__(self,
         dag,
         expired_period=timedelta(days=60),
-        *args, **kwargs
+        **kwargs
         ):
         
         self.expired_period = expired_period
         
         super().__init__(
-           dag,
+           dag=dag,
            name=f'remove-deleted-dags-from-db',
            python_callable=self.start,
-           *args,
            **kwargs
         )

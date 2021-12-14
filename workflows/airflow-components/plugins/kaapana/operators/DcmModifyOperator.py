@@ -15,7 +15,6 @@ class DcmModifyOperator(KaapanaBaseOperator):
                  name="DcmModify",
                  env_vars={},
                  execution_timeout=execution_timeout,
-                 *args,
                  **kwargs
                  ):
 
@@ -33,6 +32,5 @@ class DcmModifyOperator(KaapanaBaseOperator):
             keep_parallel_id=False,
             env_vars=env_vars,
             ram_mem_mb=100,
-            *args,
             **kwargs
         )

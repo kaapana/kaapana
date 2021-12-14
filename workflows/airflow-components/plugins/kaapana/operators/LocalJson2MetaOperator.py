@@ -218,5 +218,5 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             dag=dag,
             name="json2meta",
             python_callable=self.start,
-            *args, **kwargs
+            **kwargs
         )

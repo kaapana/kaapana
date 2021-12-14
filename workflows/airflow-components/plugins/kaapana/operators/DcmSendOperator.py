@@ -20,7 +20,7 @@ class DcmSendOperator(KaapanaBaseOperator):
                  enable_proxy=False,
                  host_network=False,
                  execution_timeout=timedelta(minutes=60),
-                 *args, **kwargs
+                 **kwargs
                  ):
 
         if level not in ['element', 'batch']:
@@ -51,5 +51,5 @@ class DcmSendOperator(KaapanaBaseOperator):
             host_network=host_network,
             enable_proxy=enable_proxy,
             execution_timeout=execution_timeout,
-            *args, **kwargs
+            **kwargs
         )

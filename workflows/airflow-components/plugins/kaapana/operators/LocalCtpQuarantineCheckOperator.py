@@ -57,5 +57,4 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
             name=name,
             python_callable=self.check,
             execution_timeout=timedelta(minutes=180),
-            *args,
             **kwargs)

@@ -10,7 +10,7 @@ class Json2DcmSROperator(KaapanaBaseOperator):
                  input_file_extension = "*.json", # *.json or eg measurements.json
                  env_vars=None,
                  execution_timeout=timedelta(minutes=90),
-                 *args, **kwargs
+                 **kwargs
                  ):
 
         if env_vars is None:
@@ -33,5 +33,5 @@ class Json2DcmSROperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             ram_mem_mb=1000,
-            *args, **kwargs
+            **kwargs
             )

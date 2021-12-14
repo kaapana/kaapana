@@ -88,7 +88,6 @@ if ENABLE_DELETE_CHILD_LOG.lower() == "true":
         )
 
 default_args = {
-    'ui_visible': False,
     'owner': DAG_OWNER_NAME,
     'depends_on_past': False,
     'email': ALERT_EMAIL_ADDRESSES,

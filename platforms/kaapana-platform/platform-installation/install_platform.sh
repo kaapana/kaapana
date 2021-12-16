@@ -8,7 +8,7 @@ DEFAULT_VERSION="0.1.1-vdev"    # version of the platform Helm chart
 
 DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart
 
-CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
+CONTAINER_REGISTRY_URL="registry.hzdr.de/andre.klein/multiple-myeloma-image-analysis" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 
 FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)

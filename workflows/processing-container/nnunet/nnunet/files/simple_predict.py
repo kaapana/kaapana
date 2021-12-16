@@ -97,7 +97,7 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
         for nifti_file in nifti_files:
             print(f"# Loading result NIFTI: {nifti_file}")
             labels_file = list(np.unique(nib.load(nifti_file).get_fdata().astype(int)))
-            if len(labels_file) == 0:
+            if len(labels_file) == 1:
                 print("#")
                 print("#")
                 print("#")

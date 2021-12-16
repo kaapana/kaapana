@@ -13,7 +13,7 @@ class ResampleOperator(KaapanaBaseOperator):
                  copy_target_data=False,
                  env_vars=None,
                  execution_timeout=timedelta(minutes=320),
-                 *args, **kwargs
+                 **kwargs
                  ):
 
         if env_vars is None:
@@ -36,5 +36,5 @@ class ResampleOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             ram_mem_mb=2000,
-            *args, **kwargs
+            **kwargs
         )

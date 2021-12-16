@@ -6,7 +6,7 @@ class ExtractScanparameterOperator(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  execution_timeout=timedelta(minutes=120),
-                 *args, **kwargs
+                 **kwargs
                  ):
 
         super().__init__(
@@ -16,5 +16,5 @@ class ExtractScanparameterOperator(KaapanaBaseOperator):
             image_pull_policy="Always",
             image_pull_secrets=['registry-secret'],
             execution_timeout=execution_timeout,
-            *args, **kwargs
+            **kwargs
         )

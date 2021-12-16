@@ -312,7 +312,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                  use_dcm_files=True,
                  from_data_dir=False,
                  delay=10,
-                 *args, **kwargs):
+                 **kwargs):
 
         self.trigger_dag_id = trigger_dag_id
         self.wait_till_done = wait_till_done
@@ -330,5 +330,4 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
             name=name,
             python_callable=self.trigger_dag,
             execution_timeout=timedelta(minutes=180),
-            *args,
             **kwargs)

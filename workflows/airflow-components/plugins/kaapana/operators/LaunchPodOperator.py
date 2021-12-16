@@ -58,7 +58,7 @@ class LaunchPodOperator(KaapanaApplicationOperator):
                  dag,
                  execution_timeout=timedelta(hours=12),
                  env_vars=None,
-                 *args, **kwargs
+                 **kwargs
                  ):
 
         super().__init__(
@@ -69,5 +69,4 @@ class LaunchPodOperator(KaapanaApplicationOperator):
             ingress=True,
             execution_timeout=execution_timeout,
             startup_timeout_seconds=360, # 5min
-            *args,
             **kwargs)

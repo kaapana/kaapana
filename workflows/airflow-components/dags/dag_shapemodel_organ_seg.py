@@ -107,7 +107,7 @@ dag = DAG(
     default_args=args,
     schedule_interval=None,
     concurrency=40,
-    max_active_runs=15
+    max_active_runs=15,
 )
 
 get_input = LocalGetInputDataOperator(dag=dag, check_modality=True)

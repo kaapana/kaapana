@@ -10,7 +10,7 @@ class DcmConverterOperator(KaapanaBaseOperator):
                  parallel_processes=3,
                  env_vars=None,
                  execution_timeout=timedelta(hours=10),
-                 *args, **kwargs
+                 **kwargs
                  ):
 
         if env_vars is None:
@@ -37,5 +37,5 @@ class DcmConverterOperator(KaapanaBaseOperator):
             execution_timeout=execution_timeout,
             ram_mem_mb=2000,
             ram_mem_mb_lmt=12000,
-            *args, **kwargs
+             **kwargs
         )

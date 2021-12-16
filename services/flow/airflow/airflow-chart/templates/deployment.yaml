@@ -79,7 +79,7 @@ spec:
         - name: airflow-plugins
           mountPath: /root/airflow/plugins
       - name: init-airflow-db
-        image: {{  .Values.global.registry_url }}/airflow:1.10.15
+        image: {{  .Values.global.registry_url }}/airflow:2.2.2
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["init"]
         resources:
@@ -91,6 +91,9 @@ spec:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg
           subPath: airflow.cfg
+        - name: airflow-webserver-config
+          mountPath: /root/airflow/webserver_config.py
+          subPath: webserver_config.py
         - name: airflow-dags
           mountPath: /root/airflow/dags
         - name: airflow-plugins
@@ -105,7 +108,7 @@ spec:
               key: sql_alchemy_conn
       containers:
       - name: webserver
-        image: {{  .Values.global.registry_url }}/airflow:1.10.15
+        image: {{  .Values.global.registry_url }}/airflow:2.2.2
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         ports:
         - name: webserver
@@ -136,6 +139,9 @@ spec:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg
           subPath: airflow.cfg
+        - name: airflow-webserver-config
+          mountPath: /root/airflow/webserver_config.py
+          subPath: webserver_config.py
         - name: airflow-dags
           mountPath: /root/airflow/dags
         - name: airflow-plugins
@@ -160,7 +166,7 @@ spec:
         #     path: /flow
         #     port: 8080
       - name: scheduler
-        image: {{  .Values.global.registry_url }}/airflow:1.10.15
+        image: {{  .Values.global.registry_url }}/airflow:2.2.2
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["scheduler"]
         env:
@@ -200,6 +206,9 @@ spec:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg
           subPath: airflow.cfg
+        - name: airflow-webserver-config
+          mountPath: /root/airflow/webserver_config.py
+          subPath: webserver_config.py
         - name: airflow-dags
           mountPath: /root/airflow/dags
         - name: airflow-logs
@@ -218,6 +227,9 @@ spec:
       - name: airflow-configmap
         configMap:
           name: airflow-configmap
+      - name: airflow-webserver-config
+        configMap:
+          name: airflow-webserver-config
       - name: airflow-dags
         hostPath:
           path: {{ .Values.global.fast_data_dir }}/workflows/dags

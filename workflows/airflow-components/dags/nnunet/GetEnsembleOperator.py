@@ -14,7 +14,6 @@ class GetEnsembleOperator(KaapanaBaseOperator):
                  name="get-ensemble",
                  env_vars={},
                  execution_timeout=execution_timeout,
-                 *args,
                  **kwargs
                  ):
 
@@ -34,6 +33,5 @@ class GetEnsembleOperator(KaapanaBaseOperator):
             execution_timeout=execution_timeout,
             env_vars=env_vars,
             ram_mem_mb=1000,
-            *args,
             **kwargs
         )

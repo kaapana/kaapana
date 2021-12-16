@@ -192,7 +192,6 @@ nnunet_predict = NnUnetOperator(
     dag=dag,
     mode="inference",
     input_modality_operators=[dcm2nifti],
-    inf_preparation=True,
     inf_threads_prep=2,
     inf_threads_nifti=2
 )

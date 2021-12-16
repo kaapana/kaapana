@@ -59,7 +59,7 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
                  pacs_aet='KAAPANA',
                  delete_complete_study=False,
                  wait_time=5,
-                 *args, **kwargs):
+                 **kwargs):
 
         self.pacs_host = pacs_host
         self.pacs_port = pacs_port
@@ -69,8 +69,8 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
         self.delete_complete_study = delete_complete_study
 
         super().__init__(
-            dag,
+            dag=dag,
             name='delete-pacs',
             python_callable=self.start,
-            *args, **kwargs
+            **kwargs
         )

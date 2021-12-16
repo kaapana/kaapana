@@ -12,7 +12,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagRun, DagModel, DAG, DagBag
 from airflow import settings
 from airflow.utils import timezone
-from airflow.bin.cli import get_dags
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.app import csrf
 import glob
@@ -277,6 +276,22 @@ def get_dag_runs(dag_id):
     run_ids = [dag_run.run_id for dag_run in dag_runs]
 
     return jsonify(dag_id=dag_id, run_ids=run_ids)
+
+
+@kaapanaApi.route('/api/dags/<dag_id>/dagRuns/state/<state>/count', methods=['GET'])
+@csrf.exempt
+def get_num_dag_runs_by_state(dag_id, state):
+    """
+    The old api /api/experimental/dags/<dag_id>/dag_runs?state=running has been replaced by
+    /api/v1/dags/<dag_id>/dagRuns where filtering via state is not possible anymore.
+    this endpoint is directly retuning the needed info for the CTP.
+    """
+    session = settings.Session()
+    query = session.query(DagRun)
+    state = state.lower() if state else None
+    query = query.filter(DagRun.dag_id == dag_id, DagRun.state == state)
+    number_of_dagruns = query.count()
+    return jsonify(number_of_dagruns=number_of_dagruns)
 
 
 @kaapanaApi.route('/api/dagdetails/<dag_id>/<run_id>', methods=['GET'])

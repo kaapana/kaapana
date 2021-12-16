@@ -19,7 +19,7 @@ class ZipUnzipOperator(KaapanaBaseOperator):
                  info_files = None,
                  env_vars = None,
                  execution_timeout=timedelta(minutes=10),
-                 *args, **kwargs
+                 **kwargs
                  ):
 
         if env_vars is None:
@@ -44,5 +44,5 @@ class ZipUnzipOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             execution_timeout=execution_timeout,
-            *args, **kwargs
+            **kwargs
         )

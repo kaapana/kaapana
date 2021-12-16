@@ -19,7 +19,6 @@ class GetTaskModelOperator(KaapanaBaseOperator):
                  mode="install_pretrained",
                  env_vars={},
                  execution_timeout=execution_timeout,
-                 *args,
                  **kwargs
                  ):
 
@@ -63,6 +62,5 @@ class GetTaskModelOperator(KaapanaBaseOperator):
             enable_proxy=True,
             host_network=True,
             ram_mem_mb=1000,
-            *args,
             **kwargs
         )

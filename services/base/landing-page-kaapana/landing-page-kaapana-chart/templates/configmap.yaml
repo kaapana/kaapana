@@ -64,7 +64,7 @@ data:
           "airflow": {
             "label": "Airflow",
             "endpoint": "/flow",
-            "linkTo": "/flow/admin/"
+            "linkTo": "/flow/home"
           },
           "qpmsa": {
             "label": "Qpsma app",

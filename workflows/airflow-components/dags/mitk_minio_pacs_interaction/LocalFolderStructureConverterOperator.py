@@ -110,16 +110,15 @@ class LocalFolderStructureConverterOperator(KaapanaPythonBaseOperator):
                  name='folderStructureConverter',
                  push_operators=None,
                  structure=None,
-                 *args, **kwargs):
+                 **kwargs):
 
 
         self.push_operators = push_operators
         self.structure = structure
 
         super(LocalFolderStructureConverterOperator, self).__init__(
-            dag,
+            dag=dag,
             name=name,
             python_callable=self.start,
-            *args,
             **kwargs,
         )

@@ -401,12 +401,13 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                 int HttpResult = con.getResponseCode();
                 if (HttpResult == HttpURLConnection.HTTP_OK) {
                     JSONParser jsonParser = new JSONParser();
-                    JSONArray numberOfRuns = (JSONArray)jsonParser.parse(
+                    JSONObject returnObj = (JSONObject)jsonParser.parse(
                             new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8));
-                    sumNumberOfDagRuns +=  numberOfRuns.size();
+                    Long numberOfRuns = (Long)returnObj.get("number_of_dagruns");
+                    sumNumberOfDagRuns +=  numberOfRuns;
                 } else {
                     logger.warn(name + " HttpResult: " + HttpResult);
-                    logger.warn("Airflow was not triggered!");
+                    logger.warn("Airflow api was not reached!");
                     logger.warn("Dicom Folder not send to airflow: " + dicomPath);
                     logger.warn("Response message: ");
                     logger.warn(con.getResponseMessage());
@@ -433,6 +434,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
             }
             catch (Exception e){
                 logger.warn("files not added to quarantine: " + folder);
+                logger.warn(e);
             }
         }
 

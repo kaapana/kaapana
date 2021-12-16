@@ -1,0 +1,51 @@
+{
+    "description": "Initial Kaapana release v0.1.0 on Oct 27, 2020", 
+    "license": "GNU Affero General Public License v3.0", 
+    "title": "kaapana/kaapana: v0.1.0", 
+    "version": "0.1.0", 
+    "upload_type": "software", 
+    "publication_date": "2020-10-27", 
+    "creators": [
+        {
+            "affiliation": "German Cancer Research Center", 
+            "name": "Jonas Scherer"
+        }, 
+        {
+            "affiliation": "German Cancer Research Center", 
+            "name": "Klaus Kades"
+        }, 
+        {
+            "affiliation": "German Cancer Research Center", 
+            "name": "Hanno Gao"
+        },
+        {
+            "affiliation": "German Cancer Research Center", 
+            "name": "Ralf Floca"
+        },
+        {
+            "affiliation": "German Cancer Research Center", 
+            "name": "Peter Neher"
+        },
+        {
+            "affiliation": "German Cancer Research Center", 
+            "name": "Marco Nolden"
+        },
+        {
+            "affiliation": "German Cancer Research Center", 
+            "name": "Klaus Maier-Hein"
+        }
+    ], 
+    "access_right": "open", 
+    "related_identifiers": [
+        {
+            "scheme": "url", 
+            "identifier": "https://github.com/kaapana/kaapana/tree/0.1.0", 
+            "relation": "isSupplementTo"
+        }, 
+        {
+            "scheme": "doi", 
+            "identifier": "10.5281/zenodo.5786648", 
+            "relation": "isVersionOf"
+        }
+    ]
+}

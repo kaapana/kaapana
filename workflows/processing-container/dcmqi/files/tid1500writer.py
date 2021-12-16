@@ -441,7 +441,7 @@ if processed_count == 0:
     print("#")
 
     batch_input_dir = join('/', workflow_dir, operator_in_dir)
-    batch_output_dir = join('/', workflow_dir, operator_in_dir)
+    batch_output_dir = join('/', workflow_dir, operator_out_dir)
 
     json_input_files = glob(join(batch_input_dir, input_file_extension), recursive=False)
     print(f"# Found {len(json_input_files)} json input-files!")
@@ -456,7 +456,6 @@ if processed_count == 0:
             json_path=input_file,
             src_dicom_dir=src_dicom_dir,
             seg_dicom_dir=seg_dicom_dir,
-            output_path=batch_output_dir
         )
 
         output_dicom_path = join(batch_output_dir, basename(input_file).replace(".json", ".dcm"))

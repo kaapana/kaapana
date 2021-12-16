@@ -1,8 +1,10 @@
 {
     "description": "Initial Kaapana release v0.1.0 on Oct 27, 2020",
-    "license": "GNU Affero General Public License v3.0",
     "title": "kaapana/kaapana: v0.1.1",
     "version": "0.1.1",
+    "license": {
+        "id": "AGPL-3.0"
+    },
     "upload_type": "software",
     "publication_date": "2020-10-27",
     "creators": [

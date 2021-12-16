@@ -207,8 +207,7 @@ dcm2nifti_seg = DcmSeg2ItkOperator(
     dag=dag,
     input_operator=get_input,
     output_format="nii.gz",
-    seg_filter=seg_filter,
-    delete_input_on_success=False
+    seg_filter=seg_filter
 )
 
 get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
@@ -217,15 +216,13 @@ get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     search_policy="reference_uid",
     parallel_downloads=5,
     parallel_id="ct",
-    modality=None,
-    delete_input_on_success=True
+    modality=None
 )
 
 dcm2nifti_ct = DcmConverterOperator(
     dag=dag,
     input_operator=get_ref_ct_series_from_seg,
-    output_format='nii.gz',
-    delete_input_on_success=True
+    output_format='nii.gz'
 )
 
 check_seg = SegCheckOperator(
@@ -254,8 +251,7 @@ nnunet_preprocess = NnUnetOperator(
     prep_copy_data=True,
     prep_exit_on_issue=True,
     retries=0,
-    node_uid=node_uid,
-    delete_input_on_success=True
+    node_uid=node_uid
 )
 
 nnunet_train = NnUnetOperator(
@@ -266,8 +262,7 @@ nnunet_train = NnUnetOperator(
     model=default_model,
     train_network_trainer=train_network_trainer,
     train_fold='all',
-    retries=0,
-    delete_input_on_success=True
+    retries=0
 )
 
 pdf2dcm = Pdf2DcmOperator(
@@ -275,8 +270,7 @@ pdf2dcm = Pdf2DcmOperator(
     input_operator=nnunet_train,
     study_uid=training_results_study_uid,
     aetitle=ae_title,
-    pdf_title=f"Training Report nnUNet {TASK_NAME} {datetime.now().strftime('%d.%m.%Y %H:%M')}",
-    delete_input_on_success=False
+    pdf_title=f"Training Report nnUNet {TASK_NAME} {datetime.now().strftime('%d.%m.%Y %H:%M')}"
 )
 
 dcmseg_send_pdf = DcmSendOperator(
@@ -286,8 +280,7 @@ dcmseg_send_pdf = DcmSendOperator(
     pacs_host='ctp-dicom-service.flow.svc',
     pacs_port='11112',
     ae_title=ae_title,
-    input_operator=pdf2dcm,
-    delete_input_on_success=True
+    input_operator=pdf2dcm
 )
 
 zip_model = ZipUnzipOperator(
@@ -298,8 +291,7 @@ zip_model = ZipUnzipOperator(
     mode="zip",
     info_files="dataset.json",
     batch_level=True,
-    input_operator=nnunet_train,
-    delete_input_on_success=False
+    input_operator=nnunet_train
 )
 
 bin2dcm = Bin2DcmOperator(
@@ -318,8 +310,7 @@ bin2dcm = Bin2DcmOperator(
     series_description=f"nnUNet model {datetime.now().strftime('%d.%m.%Y %H:%M')}",
     size_limit=dicom_model_slice_size_limit,
     input_operator=zip_model,
-    file_extensions="*.zip",
-    delete_input_on_success=True
+    file_extensions="*.zip"
 )
 
 dcm_send_int = DcmSendOperator(
@@ -328,8 +319,7 @@ dcm_send_int = DcmSendOperator(
     pacs_host='ctp-dicom-service.flow.svc',
     pacs_port='11112',
     ae_title=ae_title,
-    input_operator=bin2dcm,
-    delete_input_on_success=True
+    input_operator=bin2dcm
 )
 
 # dcm_send_ext = DcmSendOperator(
@@ -342,7 +332,7 @@ dcm_send_int = DcmSendOperator(
 #     delete_input_on_success=True
 # )
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 get_input >> dcm2nifti_seg >> check_seg
 get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess >> nnunet_train
 

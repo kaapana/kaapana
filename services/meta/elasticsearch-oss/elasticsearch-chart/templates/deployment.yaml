@@ -29,7 +29,7 @@ spec:
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
           - name: ES_JAVA_OPTS
-            value: "-Xms{{ .Values.global.elastic_memory }}m -Xmx{{ .Values.global.elastic_memory }}m"
+            value: "-Xms{{ .Values.global.elastic_memory }}m -Xmx{{ .Values.global.elastic_memory }}m -Dlog4j2.formatMsgNoLookups=true"
           ports:
             - containerPort: 9200
           resources:

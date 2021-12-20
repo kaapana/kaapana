@@ -46,5 +46,11 @@ spec:
           value: http://prometheus-service.monitoring.svc:9090/prometheus
         - name: KUBE_HELM_URL
           value: http://kube-helm-service.kube-system.svc:5000/kube-helm-api
+        - name: KEYCLOAK_SERVER_URL
+          value: https://keycloak-internal-service.kube-system.svc/auth/
+        - name: KEYCLOAK_USER
+          value: admin
+        - name: KEYCLOAK_PASSWORD
+          value: Kaapana2020
       imagePullSecrets:
       - name: registry-secret

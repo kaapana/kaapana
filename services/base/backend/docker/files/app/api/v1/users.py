@@ -3,7 +3,8 @@ from flask import current_app
 from . import api_v1
 
 import dataclasses
-from typing import List, Optional
+import os
+from typing import List, Mapping, Optional
 from keycloak import KeycloakAdmin
 from keycloak.exceptions import KeycloakGetError
 from pydantic import Field
@@ -106,9 +107,29 @@ class KaapanaUserService:
         return [KaapanaRole(idx=r['id'], name=r['name'], description=r.get('description', "")) for r in result]
 
 
-# user_service = KaapanaUserService(server_url="https://10.128.128.212/auth/", username="backend", password="asdf")
-#user_service = KaapanaUserService(server_url="https://keycloak-internal-service.kube-system.svc/auth/", username="backend", password="asdf")
-user_service = KaapanaUserService(server_url="https://keycloak-internal-service.kube-system.svc/auth/", username="admin", password="Kaapana2020")
+def get_kaapana_user_service():
+  # user_service = KaapanaUserService(server_url="https://10.128.128.212/auth/", username="backend", password="asdf")
+  #user_service = KaapanaUserService(server_url="https://keycloak-internal-service.kube-system.svc/auth/", username="backend", password="asdf")
+  # user_service = KaapanaUserService(server_url="https://keycloak-internal-service.kube-system.svc/auth/", username="admin", password="Kaapana2020")
+
+  mapping = {
+    "server_url": "KEYCLOAK_SERVER_URL",
+    "username": "KEYCLOAK_USER",
+    "password": "KEYCLOAK_PASSWORD"
+  }
+
+  values = {}
+  for method_var_name, env_var_name in mapping.items():
+    value = os.getenv(env_var_name)
+    if not value:
+      print(f"{env_var_name} not set")
+      return None
+    values[method_var_name] = value
+
+  # values = {server_url: "https://internal.keycloack.svc", username: "user", password: "test123"}
+  return KaapanaUserService(**values)
+
+user_service = get_kaapana_user_service()
 
 
 @api_v1.route('/users')

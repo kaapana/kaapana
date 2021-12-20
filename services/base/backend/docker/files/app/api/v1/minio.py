@@ -10,22 +10,32 @@ import json
 from datetime import datetime
 import socket
 
+def get_minio_client():
+  # TODO move minio initalization in a more general place, and reuse existing client in subsequent endpoints
+  _minio_url=os.getenv('MINIO_URL')
+  _minio_access_key = os.getenv('MINIO_ACCESS_KEY')
+  _minio_secret_key = os.getenv('MINIO_SECRET_KEY')
 
+  if not _minio_url:
+    print('Minio: no url provided')
+    return None
 
-#Production
-_minio_host='minio-service.store.svc'
+  if not _minio_access_key:
+    print('Minio: no access key provided')
+    return None
 
-#Local Testing
-#_minio_host='127.0.0.1'
+  if not _minio_secret_key:
+    print('Minio: no secret key provided')
+    return None
 
-_minio_port='9000'
+  print(f"Minio url: {_minio_url}")
+  #Initializing Minio Client
+  return Minio(_minio_url,
+    access_key=_minio_access_key,
+    secret_key=_minio_secret_key,
+    secure=False)
 
-#Initializing Minio Client
-minioClient = Minio(_minio_host+":"+_minio_port,
-                            access_key="kaapanaminio",
-                        secret_key="Kaapana2020",
-                        
-                        secure=False)
+minioClient = get_minio_client()
 
 
 @api_v1.route('/minio/buckets/')

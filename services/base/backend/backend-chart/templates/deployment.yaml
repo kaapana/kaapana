@@ -35,11 +35,12 @@ spec:
             port: backend-http
           initialDelaySeconds: 10
           periodSeconds: 20
+        env:
+        - name: MINIO_URL
+          value: minio-service.store.svc:9000
+        - name: MINIO_ACCESS_KEY
+          value: kaapanaminio
+        - name: MINIO_SECRET_KEY
+          value: Kaapana2020
       imagePullSecrets:
       - name: registry-secret
-
-#env: # Environment variables
-        #- name: MINIO_HOST
-          #value: minio-service.store.svc
-        #- name: MINIO_PORT
-          #value: 9000

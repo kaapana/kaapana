@@ -1,13 +1,18 @@
-
-from flask import jsonify
-from . import api_v1
-from prometheus_api_client import PrometheusConnect
 import os
+from flask import jsonify
+from prometheus_api_client import PrometheusConnect
 from datetime import timedelta
 
-_prometheus_host="http://prometheus-service.monitoring.svc:9090/prometheus"
-#_prometheus_host='http://127.0.0.1:9000/prometheus'
-prom = PrometheusConnect(_prometheus_host)
+from . import api_v1
+
+def get_prometheus_client():
+  url = os.getenv('PROMETHEUS_URL')
+  if not url:
+    print("No prometheus url is given")
+    return None
+  return PrometheusConnect(url)
+
+prom = get_prometheus_client
 
 @api_v1.route('/monitoring/metrics-list')
 def list_metrics():    

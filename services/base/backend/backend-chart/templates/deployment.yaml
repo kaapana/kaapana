@@ -42,5 +42,7 @@ spec:
           value: kaapanaminio
         - name: MINIO_SECRET_KEY
           value: Kaapana2020
+        - name: PROMETHEUS_URL
+          value: http://prometheus-service.monitoring.svc:9090/prometheus
       imagePullSecrets:
       - name: registry-secret

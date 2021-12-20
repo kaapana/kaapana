@@ -8,9 +8,7 @@ def beat():
     ---
     responses:
       200:
-        description: A list of colors (may be filtered by palette)
-        schema:
-          $ref: '#/definitions/Palette'
+        description: A json object containing the current server time
         examples:
           time: '2021-02-01 11:12:13'
     """

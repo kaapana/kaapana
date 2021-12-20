@@ -1,34 +1,24 @@
-
-from flask import jsonify
-from . import api_v1
-
-from minio import Minio
 import os
 import requests
 import json
+
+from flask import jsonify, request
 from datetime import datetime
-import socket
-import subprocess
-from flask import request
+from minio import Minio
+
+from . import api_v1
 
 
-#Local Testing
-#_helm_host='http://127.0.0.1:5001/kube-helm-api'
+_helm_host = os.getenv("KUBE_HELM_URL")
+if not _helm_host:
+  print("Kube Helm url not set")
 
-#Production URL 
-_helm_host='http://kube-helm-service.kube-system.svc:5000/kube-helm-api'
-
-
-
-
-
-@api_v1.route('/helm/helm-environment/')
-def viewHelmEnv():
-    """Return Helm Environment
-    To List Buckets
+@api_v1.route('/extensions/environment/')
+def viewExtensionEnv():
+    """ Return extension environment
     ---
     tags:
-      - Helm APIs
+      - Extensions
    
     responses:
       200:
@@ -40,8 +30,8 @@ def viewHelmEnv():
     return r.json()
 
 
-@api_v1.route('/helm/all-installed-charts/')
-def listHelmCharts():
+@api_v1.route('/extensions/charts/installed')
+def listExtensionsCharts():
   """Return List of Installed Helm Charts
     To List Installed Helm Charts
     ---
@@ -60,7 +50,7 @@ def listHelmCharts():
   return str(filteredList)
 
 
-@api_v1.route('/helm/chart-status/', methods=['GET'])
+@api_v1.route('/extensions/chart-status/', methods=['GET'])
 def view_chart_status():
     
   """
@@ -86,7 +76,7 @@ def view_chart_status():
   
   return str(r.text)
     
-@api_v1.route('/helm/all-available-charts/')
+@api_v1.route('/extensions/all-available-charts/')
 def listExtensions():
     """Return List of Available Charts
     To List   Available Charts
@@ -103,7 +93,7 @@ def listExtensions():
    
     return str(r.text)
 
-@api_v1.route('/helm/chart-delete/', methods=['POST'])
+@api_v1.route('/extensions/chart-delete/', methods=['POST'])
 def deleteChart():
     
   """
@@ -135,7 +125,7 @@ def deleteChart():
   
   return str(r.text)
 
-@api_v1.route('/helm/install-chart/', methods=['POST'])
+@api_v1.route('/extensions/install-chart/', methods=['POST'])
 def installChart():
     
   """

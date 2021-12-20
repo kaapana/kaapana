@@ -44,5 +44,7 @@ spec:
           value: Kaapana2020
         - name: PROMETHEUS_URL
           value: http://prometheus-service.monitoring.svc:9090/prometheus
+        - name: KUBE_HELM_URL
+          value: http://kube-helm-service.kube-system.svc:5000/kube-helm-api
       imagePullSecrets:
       - name: registry-secret

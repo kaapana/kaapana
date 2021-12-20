@@ -12,7 +12,7 @@ def get_prometheus_client():
     return None
   return PrometheusConnect(url)
 
-prom = get_prometheus_client
+prom = get_prometheus_client()
 
 @api_v1.route('/monitoring/metrics-list')
 def list_metrics():    

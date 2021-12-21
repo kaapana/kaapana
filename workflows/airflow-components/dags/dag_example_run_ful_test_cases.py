@@ -41,6 +41,13 @@ dag = DAG(
     schedule_interval=None
     )
 
+#TODO : Read data from Minio instead downloading
+# TODO: Convert to Minio buckets
+#baseConfigDir = os.path.abspath(os.path.normpath("./samples"))
+#testingDir = os.path.abspath(os.path.normpath("./testing"))
+#inputDir = os.path.abspath(os.path.normpath("./testing/data"))
+#outputDir = os.path.abspath(os.path.normpath("./testing/data_output"))
+#Path(outputDir).mkdir(parents=True, exist_ok=True)
 
 get_input = LocalGetInputDataOperator(dag=dag)
 extract = GaNDLFFullTestCaseOperator(dag=dag, input_operator=get_input)

@@ -28,7 +28,10 @@ spec:
     http:
       paths:
       - path: /flow
-        defaultBackend:
-          service.name: airflow-service
-          service.port.name: airflow-http
+        pathType: Prefix
+        backend:
+          service:
+            name: airflow-service
+            port:
+              name: airflow-http
 ---

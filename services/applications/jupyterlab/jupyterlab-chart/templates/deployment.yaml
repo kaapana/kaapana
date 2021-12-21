@@ -79,6 +79,9 @@ spec:
     http:
       paths:
       - path: "/jupyterlab-{{ $uuid }}"
-        defaultBackend:
-          service.name: "jupyterlab-{{ $uuid }}"
-          service.port.name: log-http-port
+        pathType: Prefix
+        backend:
+          service:
+            name: "jupyterlab-{{ $uuid }}"
+            port:
+              name: log-http-port

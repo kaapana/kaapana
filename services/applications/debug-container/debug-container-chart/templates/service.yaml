@@ -30,7 +30,8 @@ spec:
     http:
       paths:
       - path: /debug
-        defaultBackend:
+        pathType: Prefix
+        backend:
           serviceName: debug-service
           service.port.name: log-http-port
 ---

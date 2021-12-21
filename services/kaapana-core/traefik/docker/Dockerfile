@@ -1,5 +1,5 @@
-FROM traefik:v2.3
+FROM traefik:v2.5
 
 LABEL IMAGE="traefik"
-LABEL VERSION="v2.3"
+LABEL VERSION="v2.5"
 LABEL CI_IGNORE="False"

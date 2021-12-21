@@ -12,7 +12,7 @@ spec:
       name: code-http
   type: ClusterIP
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.containo.us/v1beta1
 kind: Middleware
 metadata:
   name: code-redirect
@@ -38,7 +38,10 @@ spec:
     http:
       paths:
       - path: /code
-        defaultBackend:
-          service.name: code-service
-          service.port.name: code-http
+        pathType: Prefix
+        backend:
+          service:
+            name: code-service
+            port:
+              name: code-http
 ---

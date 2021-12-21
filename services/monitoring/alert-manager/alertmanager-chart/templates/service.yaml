@@ -30,6 +30,9 @@ spec:
     http:
       paths:
       - path: /alert
-        defaultBackend:
-          service.name: alertmanager-service
-          service.port.number: 9093
+        pathType: Prefix
+        backend:
+          service:
+            name: alertmanager-service
+            port:
+              number: 9093

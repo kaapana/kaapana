@@ -14,7 +14,7 @@ spec:
   ports:
     - port: 9090
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.containo.us/v1beta1
 kind: Middleware
 metadata:
   name: kube-redirect
@@ -41,7 +41,10 @@ spec:
     http:
       paths:
       - path: /kubernetes
-        defaultBackend:
-          service.name: kubernetes-dashboard
-          service.port.number: 9090
+        pathType: Prefix
+        backend:
+          service:
+            name: kubernetes-dashboard
+            port:
+              number: 9090
 ---

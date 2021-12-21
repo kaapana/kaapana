@@ -29,7 +29,10 @@ spec:
     http:
       paths:
       - path: /
-        defaultBackend:
-          service.name: landingpage-service
-          service.port.name: log-http-port
+        pathType: Prefix
+        backend:
+          service:
+            name: landingpage-service
+            port:
+              name: log-http-port
 ---

@@ -1,4 +1,4 @@
 ---
 global:
-    pull_policy_pods: "IfNotPresent"
+    pull_policy_pods: "Always"
     fast_data_dir: /home/kaapana

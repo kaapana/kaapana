@@ -28,6 +28,9 @@ spec:
     http:
       paths:
       - path: /ohif
-        defaultBackend:
-          service.name: ohif-service
-          service.port.number: 80
+        pathType: Prefix
+        backend:
+          service:
+            name: ohif-service
+            port:
+              number: 80

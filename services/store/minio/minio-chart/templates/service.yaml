@@ -31,21 +31,30 @@ spec:
     http:
       paths:
       - path: /minio
-        defaultBackend:
-          service.name: minio-service
-          service.port.number: 9000
+        pathType: Prefix
+        backend:
+          service:
+            name: minio-service
+            port:
+              number: 9000
   - host:
     http:
       paths:
       - path: /uploads
-        defaultBackend:
-          service.name: minio-service
-          service.port.number: 9000
+        pathType: Prefix
+        backend:
+          service:
+            name: minio-service
+            port:
+              number: 9000
   - host:
     http:
       paths:
       - path: /downloads
-        defaultBackend:
-          service.name: minio-service
-          service.port.number: 9000
+        pathType: Prefix
+        backend:
+          service:
+            name: minio-service
+            port:
+              number: 9000
 ---

@@ -1,5 +1,5 @@
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.containo.us/v1beta1
 kind: Middleware
 metadata:
   name: strip-prefix
@@ -20,7 +20,7 @@ spec:
     - /web-ide
     forceSlash: true
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.containo.us/v1beta1
 kind: Middleware
 metadata:
   name: errorpages
@@ -35,7 +35,7 @@ spec:
       namespace: kube-system
       port: 5000
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.containo.us/v1beta1
 kind: Middleware
 metadata:
   name: traefik-redirect
@@ -46,7 +46,7 @@ spec:
     replacement: /traefik/dashboard/#/
 ---
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.containo.us/v1beta1
 kind: Middleware
 metadata:
   name: remove-auth-headers

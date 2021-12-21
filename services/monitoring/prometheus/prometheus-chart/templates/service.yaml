@@ -27,6 +27,9 @@ spec:
     http:
       paths:
       - path: /prometheus
-        defaultBackend:
-          service.name: prometheus-service
-          service.port.number: 9090
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus-service
+            port:
+              number: 9090

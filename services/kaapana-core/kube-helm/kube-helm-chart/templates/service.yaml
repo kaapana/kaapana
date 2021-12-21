@@ -29,7 +29,10 @@ spec:
     http:
       paths:
       - path: /kube-helm-api
-        defaultBackend:
-          service.name: kube-helm-service
-          service.port.number: 5000
+        pathType: Prefix
+        backend:
+          service:
+            name: kube-helm-service
+            port:
+              number: 5000
 ---

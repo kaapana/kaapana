@@ -62,7 +62,10 @@ spec:
     http:
       paths:
       - path: /auth
-        defaultBackend:
-          service.name: keycloak-external-service
-          service.port.name: kc-http-port
+        pathType: Prefix
+        backend:
+          service:
+            name: keycloak-external-service
+            port:
+              name: kc-http-port
 ---

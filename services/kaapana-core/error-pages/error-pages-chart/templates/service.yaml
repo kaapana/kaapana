@@ -26,14 +26,19 @@ spec:
     http:
       paths:
       - path: 
-        defaultBackend:
-          service.name: error-pages-service
-          service.port.name: error-http
+        backend:
+          service:
+            name: error-pages-service
+            port:
+              name: error-http
   - host: 
     http:
       paths:
       - path: /error-pages
-        defaultBackend:
-          service.name: error-pages-service
-          service.port.name: error-http
+        pathType: Prefix
+        backend:
+          service:
+            name: error-pages-service
+            port:
+              name: error-http
 ---

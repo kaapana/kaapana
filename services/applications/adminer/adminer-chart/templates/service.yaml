@@ -28,6 +28,9 @@ spec:
     http:
       paths:
       - path: "/adminer"
-        defaultBackend:
-          service.name: adminer-service
-          service.port.name: adminer-http
+        pathType: Prefix
+        backend:
+          service:
+            name: adminer-service
+            port:
+              name: adminer-http

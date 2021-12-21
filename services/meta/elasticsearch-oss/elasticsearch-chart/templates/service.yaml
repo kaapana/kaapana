@@ -31,7 +31,10 @@ spec:
     http:
       paths:
       - path: /elasticsearch
-        defaultBackend:
-          service.name: elastic-meta-service
-          service.port.name: elastic-rest
+        pathType: Prefix
+        backend:
+          service:
+            name: elastic-meta-service
+            port:
+              name: elastic-rest
 ---

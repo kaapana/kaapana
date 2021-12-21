@@ -5,7 +5,7 @@
 server.name: kibana
 server.host: "0"
 elasticsearch.url: http://elastic-meta-service.meta.svc:9200
-#<service.name:>.<namespace-name>.svc
+#<service. name:>.<namespace-name>.svc
 #http://192.168.99.100:31121
 # Kibana is served by a back end server. This setting specifies the port to use.
 #server.port: 5601

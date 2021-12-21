@@ -31,7 +31,10 @@ spec:
     http:
       paths:
       - path: /meta
-        defaultBackend:
-          service.name: kibana-meta-service
-          service.port.number: 5601
+        pathType: Prefix
+        backend:
+          service:
+            name: kibana-meta-service
+            port:
+              number: 5601
 ---

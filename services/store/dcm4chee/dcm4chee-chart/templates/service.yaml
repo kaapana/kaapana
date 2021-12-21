@@ -32,7 +32,7 @@ spec:
     targetPort: 2575
     protocol: TCP
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.containo.us/v1beta1
 kind: Middleware
 metadata:
   name: rewrite-pacs
@@ -56,9 +56,12 @@ spec:
     http:
       paths:
       - path: /dcm4chee-arc
-        defaultBackend:
-          service.name: dcm4chee-service
-          service.port.name: dcm4che-http
+        pathType: Prefix
+        backend:
+          service:
+            name: dcm4chee-service
+            port:
+              name: dcm4che-http
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -75,7 +78,10 @@ spec:
     http:
       paths:
       - path: /pacs
-        defaultBackend:
-          service.name: dcm4chee-service
-          service.port.name: dcm4che-http
+        pathType: Prefix
+        backend:
+          service:
+            name: dcm4chee-service
+            port:
+              name: dcm4che-http
 ---

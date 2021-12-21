@@ -80,6 +80,9 @@ spec:
     http:
       paths:
       - path: "/tensorboard-{{ $uuid }}"
-        defaultBackend:
-          service.name: tensorboard-{{ $uuid }}
-          service.port.name: log-http-port
+        pathType: Prefix
+        backend:
+          service:
+            name: tensorboard-{{ $uuid }}
+            port:
+              name: log-http-port

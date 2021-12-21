@@ -72,7 +72,7 @@ spec:
   selector:
     app-name: mitk-flow-{{ $uuid }}
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.containo.us/v1beta1
 kind: Middleware
 metadata:
   name: mitk-flow-{{ $uuid }}-redirect
@@ -97,7 +97,10 @@ spec:
     http:
       paths:
       - path: /mitk-flow-{{ $uuid }}
-        defaultBackend:
-          service.name: mitk-flow-{{ $uuid }}
-          service.port.name: pt-mitk-http
+        pathType: Prefix
+        backend:
+          service:
+            name: mitk-flow-{{ $uuid }}
+            port:
+              name: pt-mitk-http
 ---

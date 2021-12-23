@@ -1,0 +1,36 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: datamodel 
+  namespace: {{ .Values.global.base_namespace }}
+  labels:
+    k8s-app: datamodel
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: datamodel
+  template:
+    metadata:
+      labels:
+        app-name: datamodel
+    spec:
+      containers:
+      - name: datamodel
+        image: {{  .Values.global.registry_url }}/kaapana-datamodel:0.0.1
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 500m
+            memory: 256Mi
+        ports:
+        - name: datamodel-http
+          containerPort: 5000
+        env:
+        - name: DATAMODEL_DATABASE
+          value: "postgresql+psycopg2://root:root@postgres-datamodel:5432/datamodel"
+      imagePullSecrets:
+      - name: registry-secret

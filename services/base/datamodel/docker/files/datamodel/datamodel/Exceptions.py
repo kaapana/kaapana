@@ -1,0 +1,2 @@
+class DatamodelException(Exception):
+    pass

@@ -1,0 +1,5 @@
+---
+dependencies:
+  - name: datamodel-postgres
+    version: "9.6.1"
+    repository: file://deps/datamodel-postgres

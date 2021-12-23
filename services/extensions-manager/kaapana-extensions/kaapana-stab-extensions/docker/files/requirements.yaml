@@ -42,4 +42,7 @@ dependencies:
   - name: tensorboard-chart
     version: 2.5.0
     repository: file://../../../../../../services/applications/tensorboard/tensorboard-chart 
-    
+  - name: kaapana-datamodel
+    version: 0.0.1
+    repository: file://../../../../../../services/base/datamodel/datamodel-chart
+        

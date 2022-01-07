@@ -1,0 +1,13 @@
+[
+    {
+        "search_tags": {},
+        "dag_ids": {
+            "service-datamodel-import-dcm": {
+                "fetch_method": "copy",
+                "rest_call": {
+                    "global": {}
+                }
+            }
+        }
+    }
+]

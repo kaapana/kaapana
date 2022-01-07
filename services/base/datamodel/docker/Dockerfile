@@ -5,7 +5,7 @@ LABEL IMAGE="kaapana-datamodel"
 LABEL VERSION="0.0.1"
 LABEL CI_IGNORE="False"
 
-WORKDIR /home
+WORKDIR /
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y python3-dev build-essential

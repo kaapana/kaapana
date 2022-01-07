@@ -2,7 +2,6 @@ import json
 import logging
 
 import sqlalchemy.orm
-
 from .DataImporterB import *
 from .Database import *
 from datetime import datetime
@@ -142,8 +141,8 @@ class KaapanaDatamodelB:
 
     def import_dicom(self, content):
         self.log.info("Importing dicom data")
-        print(content["files"])
-        self.dicom_data_importer.import_data(content["files"], content["options"])
+        logging.info(content["files"])
+        self.dicom_data_importer.import_data(content["files"])
 
 
     def import_raw(self, content):

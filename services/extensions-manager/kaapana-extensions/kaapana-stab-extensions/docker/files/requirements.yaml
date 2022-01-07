@@ -45,4 +45,7 @@ dependencies:
   - name: kaapana-datamodel
     version: 0.0.1
     repository: file://../../../../../../services/base/datamodel/datamodel-chart
+  - name: datamodel-workflow
+    version: 0.0.1
+    repository: file://../../../../../../workflows/dag-installer/datamodel/datamodel-workflow
         

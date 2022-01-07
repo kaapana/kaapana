@@ -8,6 +8,7 @@ from .model_dicom import DicomPatient as PatientModel, DicomStudy as StudyModel,
 from .model_permission import Access as AccessModel
 from .model_raw import Dataset as DatasetModel, File as FileModel, Experiment as ExperimentModel
 from .schema_dicom import Query as DicomQuery
+from .schema_modelb import Query as ModelBQuery
 class KaapanaNode(SQLAlchemyObjectType):
     class Meta:
         model = KaapanaNodeModel
@@ -33,7 +34,7 @@ class Expermiment(SQLAlchemyObjectType):
         model = ExperimentModel
         interfaces = (relay.Node, )
 
-class Query(DicomQuery, graphene.ObjectType):
+class Query(DicomQuery, ModelBQuery, graphene.ObjectType):
     get_access = graphene.List(DataEntity, access=graphene.String())
     def resolve_get_access(self, info: graphql.execution.base.ResolveInfo, access):
         query = DataEntity.get_query(info)

@@ -1,0 +1,5 @@
+---
+global:
+    image: "dag-datamodel"
+    version: "0.0.1"
+    action: "copy"

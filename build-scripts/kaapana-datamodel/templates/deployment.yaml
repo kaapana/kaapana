@@ -19,12 +19,6 @@ spec:
       - name: datamodel
         image: {{  .Values.global.registry_url }}/kaapana-datamodel:0.0.1
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
-        ports:
-        - name: datamodel-http
-          containerPort: 5000
-        env:
-        - name: DATAMODEL_DATABASE
-          value: "postgresql+psycopg2://root:root@postgres-datamodel:5432/datamodel"
         resources:
           limits:
             cpu: 500m
@@ -32,13 +26,11 @@ spec:
           requests:
             cpu: 500m
             memory: 256Mi
-        volumeMounts:
-        - name: workflowdata
-          mountPath: /data
-      volumes:
-      - name: workflowdata
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/workflows/data
-          type: DirectoryOrCreate
+        ports:
+        - name: datamodel-http
+          containerPort: 5000
+        env:
+        - name: DATAMODEL_DATABASE
+          value: "postgresql+psycopg2://root:root@postgres-datamodel:5432/datamodel"
       imagePullSecrets:
       - name: registry-secret

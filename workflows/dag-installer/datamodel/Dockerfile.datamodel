@@ -1,0 +1,9 @@
+FROM local-only/dag-installer:0.1.0
+
+LABEL IMAGE="dag-datamodel"
+LABEL VERSION="0.0.1"
+LABEL CI_IGNORE="False"
+
+COPY dags/dag_service_datamodel_import_dcm.py /tmp/dags/
+COPY dags/dag_service_datamodel_import_dcm_trigger_rule.json /tmp/dags/
+COPY dags/datamodel /tmp/dags/datamodel

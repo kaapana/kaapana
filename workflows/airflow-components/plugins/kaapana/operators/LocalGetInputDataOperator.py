@@ -9,6 +9,8 @@ from kaapana.operators.HelperElasticsearch import HelperElasticsearch
 from multiprocessing.pool import ThreadPool
 from os.path import join, exists, dirname
 import shutil
+import glob
+import pydicom
 
 
 class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
@@ -81,6 +83,22 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
         return download_successful, seriesUID
 
+    def move_series(self, dag_run_id: str, series_uid: str, dcm_path: str):
+        print("#")
+        print("############################ Get input data ############################")
+        print("#")
+        print(f"# SeriesUID:  {series_uid}")
+        print(f"# RUN_id:     {dag_run_id}")
+        print("#")
+        target = join("/data", dag_run_id, "batch", series_uid, self.operator_out_dir)
+
+        print("#")
+        print(f"# Moving data from {dcm_path} -> {target}")
+        print("#")
+        shutil.move(src=dcm_path, dst=target)
+        print(f"# Series CTP import -> OK: {series_uid}")
+
+
     def start(self, ds, **kwargs):
         print("# Starting moule LocalGetInputDataOperator...")
         print("#")
@@ -97,27 +115,28 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         if self.conf and ("seriesInstanceUID" in self.conf):
             series_uid = self.conf.get('seriesInstanceUID')
             dcm_path = join("/ctpinput", self.conf.get('dicom_path'))
-
-            print("#")
-            print("############################ Get input data ############################")
             print("#")
             print(f"# Dicom-path: {dcm_path}")
-            print(f"# SeriesUID:  {series_uid}")
-            print(f"# RUN_id:     {dag_run_id}")
-            print("#")
 
             if not os.path.isdir(dcm_path):
                 print(f"Could not find dicom dir: {dcm_path}")
                 print("Abort!")
                 exit(1)
-
-            target = join("/data", dag_run_id, "batch", series_uid, self.operator_out_dir)
-
-            print("#")
-            print(f"# Moving data from {dcm_path} -> {target}")
-            print("#")
-            shutil.move(src=dcm_path, dst=target)
-            print(f"# Series CTP import -> OK: {series_uid}")
+            self.move_series(dag_run_id, series_uid, dcm_path)
+            return
+        if self.conf and "ctpBatch" in self.conf:
+            batch_folder = join("/ctpinput", self.conf.get('dicom_path'))
+            print(f"# Batch folder: {batch_folder}")
+            dcm_series_paths = [f for f in glob.glob(batch_folder+"/*")]
+            for dcm_series_path in dcm_series_paths:
+                dcm_file_list = glob.glob(dcm_series_path + "/*.dcm", recursive=True)
+                if dcm_file_list:
+                    dcm_file = pydicom.dcmread(dcm_file_list[0], force=True)
+                    series_uid = dcm_file[0x0020, 0x000E].value
+                    self.move_series(dag_run_id, series_uid, dcm_series_path)
+            # remove parent batch folder
+            if not os.listdir(batch_folder):
+                shutil.rmtree(batch_folder)
             return
 
         if self.conf and "dataInputDirs" in self.conf:

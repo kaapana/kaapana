@@ -1,6 +1,7 @@
 package org.rsna.ctp.dkfz;
 import java.io.*;
 import java.nio.charset.*;
+import java.nio.file.*;
 import java.text.*;
 import java.util.*;
 import org.apache.log4j.Logger;
@@ -104,19 +105,17 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
     public synchronized FileObject store(FileObject fileObject) {
         try {
             if (fileObject instanceof DicomObject) {
-                if (!isTagSet && removeTags.equals("yes"))
+                if (!isTagSet)
                     setImportServiceTags();
                 DicomObject dicomObject = (DicomObject) fileObject;
                 callingAET = "";
                 calledAET = "";
                 connectionIP = "";
-                if(removeTags.equals("yes"))
-                {
-                    if ((calledAETTag != 0)
-                            || (callingAETTag != 0)
-                            || (connectionIPTag != 0))
-                        fileObject = resetTags(fileObject);
-                }
+                if ((calledAETTag != 0)
+                        || (callingAETTag != 0)
+                        || (connectionIPTag != 0))
+                    fileObject = setTags(fileObject);
+
                 if(!fix_aetitle.equals(""))
                     calledAET = fix_aetitle;
                 //store after changing tags, but before triggering airflow
@@ -182,6 +181,19 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                     continue;
                 }
                 File fileEntry = listOfFiles[0];
+                if(fileEntry.isDirectory() && directory.getName().contains("batch")){
+                    logger.info("batch directory: "+ directory.getName());
+                    JSONObject post_data = new JSONObject();
+                    JSONObject conf = new JSONObject();
+                    conf.put("ctpBatch", true);
+                    String timestampString = new SimpleDateFormat("_yyyyMMddHHmmss").format(new Date());
+                    String dicomPath =  directory.getName() + timestampString;
+                    conf.put("dicom_path", dicomPath);
+                    post_data.put("conf", conf);
+                    Thread thread = new DelayedAirflowTrigger(directory, syncObject, post_data, dicomPath);
+                    thread.start();
+                }
+
                 if(!fileEntry.isFile()){
                     continue;
                 }
@@ -250,30 +262,35 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
     }
 
     /**
-     * reset Tags for Triggered Files only
-     * When storing file via another export (e.g. dicom) before triggering
+     * set Tags for Triggered Files only
+     * and reset dicom tags if requested:
+     * when storing file via another export (e.g. dicom) before triggering
      * this exported files still have not reseted values.
      * @param fo file object
      * @return
      */
-    private FileObject resetTags(FileObject fo) {
+    private FileObject setTags(FileObject fo) {
         try {
             DicomObject dob = new DicomObject(fo.getFile(), true); //leave the stream open
             File dobFile = dob.getFile();
             if (0 != callingAETTag) {
                 callingAET = dob.getElementValue(callingAETTag);
                 //delete value of DICOM-Tag before sending
-                dob.setElementValue(callingAETTag, "");
-                String calling = dob.getElementValue(callingAETTag);
-                logger.warn(calling);
+                if (removeTags.equals("yes")){
+                    dob.setElementValue(callingAETTag, "");
+                }
             }
             if (0 != calledAETTag) {
                 calledAET = dob.getElementValue(calledAETTag);
-                dob.setElementValue(calledAETTag, "");
+                if (removeTags.equals("yes")){
+                    dob.setElementValue(calledAETTag, "");
+                }
             }
             if (0 != connectionIPTag) {
                 connectionIP = dob.getElementValue(connectionIPTag);
-                dob.setElementValue(connectionIPTag, "");
+                if (removeTags.equals("yes")){
+                    dob.setElementValue(connectionIPTag, "");
+                }
             }
 
             File tFile = File.createTempFile("TMP-",".dcm",dobFile.getParentFile());
@@ -322,42 +339,85 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
          *
          */
         public void run() {
-            processAirlfowCall(1);
+            processAirlfowCall();
 
         }
 
         /**
          * process and call Airflow when data is finish to be processed
-         * @param timeDelayExtender slow down the retry on high load
-         */
-        private void processAirlfowCall(int timeDelayExtender){
+         * @param
+         * */
+        private void processAirlfowCall(){
             try {
-                int counter = unchangedCounter;
-                if(timeDelayExtender > counter){
-                    counter = timeDelayExtender;
-                }
-                int dicomFileCount = checkFileUnchanged(counter);
+                int dicomFileCount = checkFileUnchanged();
                 //if an URL is provided, this will check running Airflow dagruns and will wait, if number is to high
                 if(!limitTriggerOnRunningDagsUrl.isEmpty()) {
+                    JSONObject conf = (JSONObject) postData.get("conf");
+                    //get from conf, since otherwise might have changed from different thread
+                    String confCalledAET = (String) conf.get("calledAET");
+                    String confCallingAET = (String) conf.get("callingAET");
+                    String pathString = storedFileParentDir.getParent() + File.separator + "batch" +
+                            "_" + confCallingAET + "_" + confCalledAET;
+                    Path batchPath = Paths.get(pathString);
+                    boolean doesBatchFolderExists;
                     int numberOfQueuedDagRuns = checkAirflowRunningQueue();
-                    if (numberOfQueuedDagRuns > runningDagLimits){
-                        //approximate the time to the next retry to the time of active dag runs
-                        timeDelayExtender = numberOfQueuedDagRuns/4;
-                        logger.warn("Trigger time delay: " + timeDelayExtender);
-                        processAirlfowCall(timeDelayExtender);
-                        return;
+                    if (numberOfQueuedDagRuns > runningDagLimits) {
+                        logger.info("Number of queued dag runs: "+ numberOfQueuedDagRuns);
+                        synchronized (syncObject) {
+                            doesBatchFolderExists = Files.exists(batchPath);
+                            Path dest = Paths.get(pathString + File.separator + dicomPath);
+                            Files.createDirectories(dest);
+                            Files.move(storedFileParentDir.toPath(), dest,
+                                    StandardCopyOption.REPLACE_EXISTING);
+
+                            if (doesBatchFolderExists) {
+                                logger.info("Final file-count in files moved to batchfolder: " + dicomFileCount);
+                                logger.info("Dicom folder in batch folder: " + dicomPath);
+                                //folder is processed with batch and has not to trigger airflow
+                                return;
+                            }
+                        }
+                        logger.info("Created batchfolder starting with files: " + dicomFileCount);
+                        logger.info("Dicom folder in batch folder: " + dicomPath);
+                        String timestampString = new SimpleDateFormat("_yyyyMMddHHmmss").format(new Date());
+                        dicomPath = "batch" + timestampString;
+                        conf.put("dicom_path", dicomPath);
+                        postData.put("conf", conf);
+                        conf.remove("patientID");
+                        conf.remove("studyInstanceUID");
+                        conf.remove("seriesInstanceUID");
+                        conf.put("ctpBatch",true);
+                        //files are now folders in batch folder
+                        storedFileParentDir = new File(pathString);
+                        int numberOfRuns = numberOfQueuedDagRuns;
+                        int currentDagRuns = numberOfRuns + 1;
+                        while (currentDagRuns >= numberOfRuns){
+                            //time to fill batch by other threads
+                            Thread.sleep(4000);
+                            currentDagRuns = checkAirflowRunningQueue();
+                            logger.info("Current qued dag runs in batch thread: "+ currentDagRuns);
+                        }
+                    }
+                    else{
+                        synchronized (syncObject) {
+                            doesBatchFolderExists = Files.exists(batchPath);
+                        }
+                        if(doesBatchFolderExists)
+                            //batch folder has not finished the trigger process
+                            //let the batch finish first, therefore restart:
+                            processAirlfowCall();
                     }
                 }
                 //lock writing to folder while renaming
                 synchronized (syncObject) {
-                    logger.warn("Final file-count: " + dicomFileCount);
-                    logger.warn("Dicom Folder send to airflow: " + dicomPath);
+                    logger.info("Final file-count: " + dicomFileCount);
+                    logger.info("Dicom Folder send to airflow: " + dicomPath);
                     renameFolder();
                 }
                 triggerAirflow(postData, dag_id);
             } catch (Exception e) {
-                logger.warn(name + ": Unable to trigger Airflow for: " + dicomPath);
-                logger.warn(e);
+                logger.error(name + ": Unable to trigger Airflow for: " + dicomPath);
+                logger.error(e);
                 folderFilesToQuarantine(storedFileParentDir);
             }
 
@@ -366,13 +426,13 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
         /**
          * checks if in a certain timeslot no new data of this series arrives at the CTP node
          */
-        private int checkFileUnchanged(int unchangedLimit) throws InterruptedException {
+        private int checkFileUnchanged() throws InterruptedException {
             int dicomFileCount = Objects.requireNonNull(storedFileParentDir.list()).length;
             int noChangeCount = 0;
             //with 4 secs sleep the
             // min time without changes is 4*unchangedCounter secs
             // the max less then 4+4*unchangedCounter secs
-            while (noChangeCount < unchangedLimit) {
+            while (noChangeCount < unchangedCounter) {
                 Thread.sleep(4000);
                 int newDicomFileCount = Objects.requireNonNull(storedFileParentDir.list()).length;
                 if (newDicomFileCount == dicomFileCount) {
@@ -401,18 +461,19 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                 int HttpResult = con.getResponseCode();
                 if (HttpResult == HttpURLConnection.HTTP_OK) {
                     JSONParser jsonParser = new JSONParser();
-                    JSONObject returnObj = (JSONObject)jsonParser.parse(
+                    JSONObject numberOfRuns = (JSONObject)jsonParser.parse(
                             new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8));
-                    Long numberOfRuns = (Long)returnObj.get("number_of_dagruns");
-                    sumNumberOfDagRuns +=  numberOfRuns;
+                    Long instances = (Long) numberOfRuns.get("number_of_dagruns");
+                    sumNumberOfDagRuns +=  instances;
                 } else {
                     logger.warn(name + " HttpResult: " + HttpResult);
-                    logger.warn("Airflow api was not reached!");
+                    logger.warn("Trigger url " + url);
+                    logger.warn("Airflow was not triggered!");
                     logger.warn("Dicom Folder not send to airflow: " + dicomPath);
                     logger.warn("Response message: ");
                     logger.warn(con.getResponseMessage());
-                    folderFilesToQuarantine(storedFileParentDir);
-                    return -1;
+                    logger.warn("Trying to trigger, without check!");
+                    return 0;
                 }
             }
             return sumNumberOfDagRuns;
@@ -425,16 +486,21 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
             try {
                 if (quarantine != null) {
                     for (final File fileEntry : Objects.requireNonNull(folder.listFiles())) {
-                        quarantine.insert(fileEntry);
-                        logger.warn(fileEntry.getName() + " added to quarantine");
+                        if(fileEntry.isFile()){
+                            quarantine.insert(fileEntry);
+                            logger.warn(fileEntry.getName() + " added to quarantine");
+                        }
+                        else if (fileEntry.isDirectory()){
+                            folderFilesToQuarantine(fileEntry);
+                        }
                     }
                     //delete storedFileParentDir in incoming.
                     folder.delete();
                 }
             }
             catch (Exception e){
-                logger.warn("files not added to quarantine: " + folder);
-                logger.warn(e);
+                logger.error("files not added to quarantine: " + folder);
+                logger.error(e);
             }
         }
 
@@ -457,7 +523,6 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
          */
         private boolean triggerAirflow(JSONObject content, String dag_id) throws Exception {
             String url = trigger_url + "/" + dag_id;
-            //logger.warn(name + ": URL: " + url);
             URL object = new URL(url);
             HttpURLConnection con = (HttpURLConnection) object.openConnection();
             con.setDoOutput(true);
@@ -481,11 +546,11 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                     sb.append(line + "\n");
                 }
                 br.close();
-                //logger.warn(name + ": " + sb.toString());
             } else {
                 logger.warn(name + " HttpResult: " + HttpResult);
                 logger.warn("Airflow was not triggered!");
                 logger.warn("Dicom Folder not send to airflow: " + dicomPath);
+                logger.warn(name + ": URL: " + url);
                 logger.warn("Response message: ");
                 logger.warn(con.getResponseMessage());
                 folderFilesToQuarantine(storedFileParentDir);
@@ -494,6 +559,3 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
         }
     }
 }
-
-
-

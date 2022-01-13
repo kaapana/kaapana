@@ -406,6 +406,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                             //batch folder has not finished the trigger process
                             //let the batch finish first, therefore restart:
                             processAirlfowCall();
+                            return;
                     }
                 }
                 //lock writing to folder while renaming

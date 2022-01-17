@@ -402,11 +402,13 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                         synchronized (syncObject) {
                             doesBatchFolderExists = Files.exists(batchPath);
                         }
-                        if(doesBatchFolderExists)
+                        if(doesBatchFolderExists){
                             //batch folder has not finished the trigger process
                             //let the batch finish first, therefore restart:
+                            logger.info("batch folder is still in process, restart airflow call for this serires");
                             processAirlfowCall();
                             return;
+                        }
                     }
                 }
                 //lock writing to folder while renaming

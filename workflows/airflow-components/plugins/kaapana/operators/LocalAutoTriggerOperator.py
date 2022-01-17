@@ -13,16 +13,24 @@ from pathlib import Path
 
 
 class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
-    def trigger_it(self, dag_id, dcm_path, series_uid, conf={}):
+    def trigger_it(self, triggering):
+        dag_id = triggering["dag_id"]
+        dag_run_id = triggering["dag_run_id"]
+        conf = triggering["conf"]
         print("#")
         print(f"# Triggering dag-id: {dag_id}")
+        print(f"# Dag run id: '{dag_run_id}'")
         print(f"# conf: {conf}")
         print("#")
-        dag_run_id = generate_run_id(dag_id)
+        trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
+        print(f"# Triggered! ")
 
+    def set_data_input(self, dag_id, dcm_path, dag_run_id, series_uid, conf={}):
+        print("Set input data")
+        print(f"# conf: {conf}")
+        print("#")
         if "fetch_method" in conf and conf["fetch_method"].lower() == "copy":
             print("# Searching DAG-id in DagBag:")
-            get_input_dir_name = None
             for dag in DagBag().dags.values():
                 if dag.dag_id == dag_id:
                     print(f"# found dag_id: {dag.dag_id}")
@@ -35,35 +43,38 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                             shutil.copytree(src=dcm_path, dst=target)
                             print("#")
                             break
+                    break
         else:
             print(f"# Using PACS fetch-method !")
-            conf["inputs"] = {
+            if "inputs" not in conf:
+                conf["inputs"] = []
+            conf["inputs"].append({
                 "dcm-uid": {
                     "study-uid": None,
                     "series-uid": series_uid,
                 }
-            }
+            })
 
-        print(f"# conf: {conf}")
-        trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
-        print(f"# Triggered! ")
+        return conf
+
 
     def start(self, ds, **kwargs):
         print("# ")
         print("# Starting LocalAutoTriggerOperator...")
         print("# ")
         print(kwargs)
-
-        trigger_list = []
+        trigger_rule_list = []
         for filePath in glob("/root/airflow/**/*trigger_rule.json"):
             with open(filePath, "r") as f:
                 print(f"Found auto-trigger configuration: {filePath}")
-                trigger_list = trigger_list + json.load(f)
+                trigger_rule_list = trigger_rule_list + json.load(f)
 
         print("# ")
-        print(f"# Found {len(trigger_list)} auto-trigger configurations -> start processing ...")
+        print(f"# Found {len(trigger_rule_list)} auto-trigger configurations -> start processing ...")
         print("# ")
+        
         batch_folders = sorted([f for f in glob(join(WORKFLOW_DIR, kwargs['dag_run'].run_id, "batch", '*'))])
+        triggering_list = []
         for batch_element_dir in batch_folders:
             print("#")
             print(f"# Processing batch-element {batch_element_dir}")
@@ -91,7 +102,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
             print(f"# series_uid:      {series_uid}")
             print("#")
 
-            for config_entry in trigger_list:
+            for config_entry in trigger_rule_list:
                 fullfills_all_search_tags = True
                 for search_key, search_value in config_entry["search_tags"].items():
                     dicom_tag = search_key.split(',')
@@ -103,7 +114,33 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                     for dag_id, conf, in config_entry["dag_ids"].items():
                         if dag_id == "service-extract-metadata" or (dcm_dataset != "dicom-test" and dcm_dataset != "phantom-example"):
                             print(f"# Triggering '{dag_id}'")
-                            self.trigger_it(dag_id=dag_id, dcm_path=element_input_dir, series_uid=series_uid, conf=conf)
+                            dag_run_id = ""
+                            for triggering in triggering_list:
+                                if dag_id == triggering["dag_id"]:
+                                    dag_run_id = triggering["dag_run_id"]
+                                    conf = triggering["conf"]
+                                    break
+                            if not dag_run_id:
+                                dag_run_id = generate_run_id(dag_id)
+                            conf = self.set_data_input(dag_id=dag_id,
+                                                       dcm_path=element_input_dir,
+                                                       dag_run_id=dag_run_id,
+                                                       series_uid=series_uid,
+                                                       conf=conf)
+                            for i in range(len(triggering_list)):
+                                if triggering_list[i]['dag_id'] == dag_id:
+                                    del triggering_list[i]
+                                    break
+
+                            triggering_list.append({
+                                "dag_id": dag_id,
+                                "conf": conf,
+                                "dag_run_id": dag_run_id
+                            })
+
+        for triggering in triggering_list:
+            self.trigger_it(triggering)
+
 
     def __init__(self,
                  dag,

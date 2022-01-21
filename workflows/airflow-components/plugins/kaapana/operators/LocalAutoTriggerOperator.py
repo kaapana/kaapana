@@ -114,23 +114,32 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                     for dag_id, conf, in config_entry["dag_ids"].items():
                         if dag_id == "service-extract-metadata" or (dcm_dataset != "dicom-test" and dcm_dataset != "phantom-example"):
                             print(f"# Triggering '{dag_id}'")
-                            dag_run_id = ""
-                            for triggering in triggering_list:
-                                if dag_id == triggering["dag_id"]:
-                                    dag_run_id = triggering["dag_run_id"]
-                                    conf = triggering["conf"]
-                                    break
-                            if not dag_run_id:
+                            single_execution = False
+                            if "single_execution" in conf and conf["single_execution"]:
+                                # if it is a batch, still process triggered dag witout batch-processing
+                                print("Single execution enabled for dag!") 
+                                single_execution = True
+                            if single_execution:
                                 dag_run_id = generate_run_id(dag_id)
+                            else:
+                                dag_run_id = ""
+                                for triggering in triggering_list:
+                                    if dag_id == triggering["dag_id"]:
+                                        dag_run_id = triggering["dag_run_id"]
+                                        conf = triggering["conf"]
+                                        break
+                                if not dag_run_id:
+                                    dag_run_id = generate_run_id(dag_id)
                             conf = self.set_data_input(dag_id=dag_id,
                                                        dcm_path=element_input_dir,
                                                        dag_run_id=dag_run_id,
                                                        series_uid=series_uid,
                                                        conf=conf)
-                            for i in range(len(triggering_list)):
-                                if triggering_list[i]['dag_id'] == dag_id:
-                                    del triggering_list[i]
-                                    break
+                            if not single_execution:
+                                for i in range(len(triggering_list)):
+                                    if triggering_list[i]['dag_id'] == dag_id:
+                                        del triggering_list[i]
+                                        break
 
                             triggering_list.append({
                                 "dag_id": dag_id,

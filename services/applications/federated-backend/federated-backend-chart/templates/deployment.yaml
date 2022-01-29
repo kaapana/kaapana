@@ -1,0 +1,49 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # This name uniquely identifies the Deployment
+  name: federated-backend
+  namespace: base
+  #namespace: {{ .Values.global.base_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: federated-backend
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: federated-backend
+    spec:
+      containers:
+      - name: federated-backend
+        image: registry.hzdr.de/k.kades/kaapana-klaus-dev/federated-backend:0.1.0
+        #image: {{  .Values.global.registry_url }}/federated-backend:0.1.0
+        imagePullPolicy: Always
+        #imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        command: ["tail"]
+        args: ["-f", "/dev/null"] 
+        env: # Environment variables
+        - name: SECRET_KEY
+          value: kaapana-secret
+        - name: HELLO_WORLD_USER
+          value: Kaapana
+          #value: {{ .Values.hello_world_user }}
+        - name: APPLICATION_ROOT
+          value: "/federated-backend"
+        ports: # Port(s) on which your application runs
+          - containerPort: 5000
+        volumeMounts:
+        - name: flask-dev-files
+          mountPath: /app
+      imagePullSecrets:
+        - name: registry-secret
+      volumes:
+      - name: flask-dev-files
+        hostPath:
+          path: /home/ubuntu/dev/federated-backend/docker/files
+          type: DirectoryOrCreate
+---

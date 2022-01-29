@@ -1,0 +1,7 @@
+---
+global:
+    registry_url: ""
+    pull_policy_pods: "Always"
+    base_namespace: "base"
+    fast_data_dir: "/home/kaapana"
+hello_world_user: "Congratulation, you made it!"

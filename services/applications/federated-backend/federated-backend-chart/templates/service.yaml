@@ -1,0 +1,38 @@
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: federated-backend-service
+  namespace: base
+  #namespace: {{ .Values.global.base_namespace }}
+  labels:
+    app-name: federated-backend
+spec:
+  selector:
+    app-name: federated-backend
+  ports:
+    - name: hw-http
+      port: 5000 
+      targetPort: 5000
+      nodePort: 5000 # only for development!
+  type: NodePort # only for development!
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: federated-backend-ingress
+  namespace: base
+  #namespace: {{ .Values.global.base_namespace }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /federated-backend
+        backend:
+          serviceName: federated-backend-service
+          servicePort: 5000

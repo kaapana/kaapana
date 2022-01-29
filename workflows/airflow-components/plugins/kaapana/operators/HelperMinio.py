@@ -3,8 +3,8 @@ import pathlib
 from datetime import timedelta
 
 from minio import Minio
-from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
-                         BucketAlreadyExists, NoSuchBucket, NoSuchKey)
+from minio.error import (InvalidResponseError, S3Error)
+
 
 class HelperMinio():
 
@@ -27,15 +27,15 @@ class HelperMinio():
                 minioClient.stat_object(bucket_name, object_name)
                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
                 minioClient.fget_object(bucket_name, object_name, file_path)
-            except NoSuchKey as err:
+            except S3Error as err:
                 print(f"Skipping object {object_name} since it doe not exists in Minio")
-            except ResponseError as err:
+            except InvalidResponseError as err:
                 print(err)
         elif action == 'remove':
             print(f"Removing file: {object_name} from {bucket_name}")
             try:
                 minioClient.remove_object(bucket_name, object_name)
-            except ResponseError as err:
+            except InvalidResponseError as err:
                 print(err)
                 raise
         elif action == 'put':
@@ -44,7 +44,7 @@ class HelperMinio():
             print(f"Putting file: {file_path} to {bucket_name} to {object_name}") 
             try:
                 minioClient.fput_object(bucket_name, object_name, file_path)
-            except ResponseError as err:
+            except InvalidResponseError as err:
                 print(err)
                 raise
         else:
@@ -92,7 +92,7 @@ class HelperMinio():
                         path_object_dir = os.path.join(path_object_name.parent)
                     if not object_dirs or path_object_dir in object_dirs:
                         HelperMinio.apply_action_to_file(minioClient, action, bucket_name, object_name, file_path, file_white_tuples)
-            except NoSuchBucket as err:
+            except S3Error as err:
                 print(f'Skipping since bucket {bucket_name} does not exist')
 
     @staticmethod
@@ -101,12 +101,9 @@ class HelperMinio():
             minioClient.make_bucket(
                 bucket_name=bucket_name, location='eu-central-1')
             print("created!")
-        except BucketAlreadyOwnedByYou as err:
+        except S3Error as err:
             pass
-        except BucketAlreadyExists as err:
-            print("BucketAlreadyExists")
-            pass
-        except ResponseError as err:
+        except InvalidResponseError as err:
             print(err)
             raise
 
@@ -115,6 +112,6 @@ class HelperMinio():
         print("Generating link...")
         try:
             return minioClient.presigned_get_object(bucket_name, object_name, expires=expires)
-        except ResponseError as err:
+        except InvalidResponseError as err:
             print(err)
             raise

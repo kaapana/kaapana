@@ -1,5 +1,6 @@
 node_modules
 build
+venv
 tmpcharts
 __pycache__
 .vscode

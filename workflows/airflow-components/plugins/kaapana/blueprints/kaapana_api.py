@@ -2,6 +2,7 @@ from flask import g, Blueprint, request, jsonify, Response, url_for
 from sqlalchemy import and_
 from sqlalchemy.orm.exc import NoResultFound
 from datetime import datetime
+import requests
 import airflow.api
 from http import HTTPStatus
 from airflow.exceptions import AirflowException
@@ -48,7 +49,8 @@ def async_dag_trigger(queue_entry):
                 }
             }
         ],
-        "conf": tmp_conf
+        **tmp_conf
+        # "conf": tmp_conf
     }
 
     dag_run_id = generate_run_id(dag_id)
@@ -60,6 +62,28 @@ def async_dag_trigger(queue_entry):
     return seriesUID, result
 
 
+@csrf.exempt
+@kaapanaApi.route('/api/minio-presigned-url', methods=['POST'])
+def minio_presigned_url():
+    data = request.form.to_dict()
+    print(data)
+    if data['method'] == 'GET':
+        print(f'http://minio-service.store.svc:9000{data["path"]}')
+        resp = requests.get(f'http://minio-service.store.svc:9000{data["path"]}')
+        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+        headers = [(name, value) for (name, value) in resp.raw.headers.items() if name.lower() not in excluded_headers]
+        response = Response(resp.content, resp.status_code, headers)
+        return response
+    elif data['method'] == 'POST':
+        print(f'http://minio-service.store.svc:9000{data["path"]}')
+        file = request.files['file']
+        resp = requests.put(f'http://minio-service.store.svc:9000{data["path"]}', data=file)
+        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+        headers = [(name, value) for (name, value) in resp.raw.headers.items() if name.lower() not in excluded_headers]
+        print(resp)
+        response = Response(resp.content, resp.status_code, headers)
+        return response
+        
 @csrf.exempt
 @kaapanaApi.route('/api/trigger/<string:dag_id>', methods=['POST'])
 def trigger_dag(dag_id):
@@ -116,7 +140,8 @@ def trigger_dag(dag_id):
                         }
                     }
                 ],
-                "conf": tmp_conf
+                **tmp_conf
+                # "conf": tmp_conf
             }
             dag_run_id = generate_run_id(dag_id)
             trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)

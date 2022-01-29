@@ -245,7 +245,8 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         for element in trigger_series_list:
             conf = {
                 "inputs": element,
-                "conf": self.conf
+                **self.conf
+                # "conf": self.conf
             }
             dag_run_id = generate_run_id(self.trigger_dag_id)
             triggered_dag = trigger(dag_id=self.trigger_dag_id, run_id=dag_run_id, conf=conf,

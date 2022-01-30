@@ -5,5 +5,50 @@
     </head>
     <body>
         <h1>Hello, {{ hello_world_user }}!</h1>
+        <h2>Current client network!</h2>
+        <form action="{{ url_for('admin.client_network') }}" method="post">
+            {{ client_form.hidden_tag() }}
+            {{ client_form.csrf_token }}
+            <p>
+                {{ client_form.token.label }}<br>
+                {{ client_form.token(size=32) }}<br>
+                {{ client_form.ssl_check.label }}<br>
+                {{ client_form.ssl_check(size=32) }}
+            </p>
+            <p>{{ client_form.submit_client() }}</p>
+        </form>
+
+        <h2>Current remote network!</h2>
+        <form action="{{ url_for('admin.remote_network') }}" method="post">
+            {{ remote_form.hidden_tag() }}
+            {{ remote_form.csrf_token }}
+            <p>
+                {{ remote_form.token.label }}<br>
+                {{ remote_form.token(size=32) }}<br>
+                {{ remote_form.port.label }}<br>
+                {{ remote_form.port(size=32) }}<br>
+                {{ remote_form.host.label }}<br>
+                {{ remote_form.host(size=32) }}<br>
+                {{ remote_form.ssl_check.label }}<br>
+                {{ remote_form.ssl_check(size=32) }}
+            </p>
+            <p>{{ remote_form.submit_central() }}</p>
+        </form>
+        
+        <h1>Current client network</h1>
+        <p>HostNetwork: {{ client_network.protocol }}://{{ client_network.host }}:{{ client_network.port }}</p>
+        <p>SSL Check: {{ client_network.ssl_check }}</p>
+        <h1>Current remote network</h1>
+        <p>HostNetwork: {{ remote_network.protocol }}://{{ remote_network.host }}:{{ remote_network.port }}</p>
+        <p>SSL Check: {{ remote_network.ssl_check }}</p>
+
+
+        <!-- {% for host_network in host_networks %}
+        <p>Username: {{ host_network.username }}</p>
+        <p>HostNetwork: {{ host_network.protocol }}://{{ host_network.host }}:{{ host_network.port }}</p>
+        <p>Client_ID: {{ host_network.client_id }}</p>
+        <p>Client_Secret: {{ host_network.client_secret }}</p>
+        <p>SSL Check: {{ host_network.ssl_check }}</p>
+        {% endfor %} -->
     </body>
 </html>

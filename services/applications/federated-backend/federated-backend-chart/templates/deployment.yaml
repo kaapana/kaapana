@@ -34,8 +34,15 @@ spec:
           #value: {{ .Values.hello_world_user }}
         - name: APPLICATION_ROOT
           value: "/federated-backend"
+        - name: DATABASE_URL
+          value: postgresql://someuser:somepassword@federated-postgres-service.base.svc:5432
         ports: # Port(s) on which your application runs
           - containerPort: 5000
+        resources:
+          limits:
+            memory: "1Gi"
+          requests:
+            memory: "100Mi"
         volumeMounts:
         - name: flask-dev-files
           mountPath: /app

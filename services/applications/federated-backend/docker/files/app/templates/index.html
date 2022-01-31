@@ -10,10 +10,10 @@
             {{ client_form.hidden_tag() }}
             {{ client_form.csrf_token }}
             <p>
-                {{ client_form.token.label }}<br>
-                {{ client_form.token(size=32) }}<br>
-                {{ client_form.ssl_check.label }}<br>
-                {{ client_form.ssl_check(size=32) }}
+                {{ client_form.ssl_check.label }}
+                {{ client_form.ssl_check(size=32) }}<br>
+                {{ client_form.fernet_encrypted.label }}
+                {{ client_form.fernet_encrypted(size=32) }}<br>
             </p>
             <p>{{ client_form.submit_client() }}</p>
         </form>
@@ -23,12 +23,14 @@
             {{ remote_form.hidden_tag() }}
             {{ remote_form.csrf_token }}
             <p>
-                {{ remote_form.token.label }}<br>
-                {{ remote_form.token(size=32) }}<br>
-                {{ remote_form.port.label }}<br>
-                {{ remote_form.port(size=32) }}<br>
                 {{ remote_form.host.label }}<br>
                 {{ remote_form.host(size=32) }}<br>
+                {{ remote_form.port.label }}<br>
+                {{ remote_form.port(size=32) }}<br>
+                {{ remote_form.token.label }}<br>
+                {{ remote_form.token(size=32) }}<br>
+                {{ remote_form.fernet_key.label }}<br>
+                {{ remote_form.fernet_key(size=32) }}<br>
                 {{ remote_form.ssl_check.label }}<br>
                 {{ remote_form.ssl_check(size=32) }}
             </p>
@@ -37,9 +39,13 @@
         
         <h1>Current client network</h1>
         <p>HostNetwork: {{ client_network.protocol }}://{{ client_network.host }}:{{ client_network.port }}</p>
+        <p>Token: {{ client_network.token }}</p>
+        <p>Fernet key: {{ client_network.fernet_key }}</p>
         <p>SSL Check: {{ client_network.ssl_check }}</p>
         <h1>Current remote network</h1>
         <p>HostNetwork: {{ remote_network.protocol }}://{{ remote_network.host }}:{{ remote_network.port }}</p>
+        <p>Token: {{ remote_network.token }}</p>
+        <p>Fernet key: {{ remote_network.fernet_key }}</p>
         <p>SSL Check: {{ remote_network.ssl_check }}</p>
 
 

@@ -44,9 +44,7 @@ def load_user_from_request(request):
 
     # # next, try to login using Basic Auth
     token = request.headers.get('FederatedAuthorization')
-    print(token)
     if token:
-        token = base64.b64encode(token.encode()).decode()
         client_network = ClientNetwork.query.filter_by(token=token).first()
         if client_network:
             return client_network

@@ -1,8 +1,11 @@
 import os
 import requests
 import base64
+import uuid
+from cryptography.fernet import Fernet
 from flask import render_template, redirect, g, Blueprint, request, jsonify, Response, url_for
 from flask import Blueprint, render_template
+
 
 from app import app
 from app import db
@@ -12,6 +15,7 @@ from app.models import ClientNetwork, RemoteNetwork # HostNetwork
 from urllib.parse import urlparse
 from app import login_manager
 from flask_login import login_required
+
 
 admin = Blueprint('admin', __name__)
 
@@ -38,18 +42,25 @@ def client_network():
     # Will fail if we run flask run due to the application root! {'csrf_token': ['The CSRF tokens do not match.']}
     # client_form.validate()
     # print(client_form.errors)
+
     if client_form.validate_on_submit():
-        print('jo')
         db.session.query(ClientNetwork).delete()
         db.session.commit()
+        print(client_form.fernet_encrypted.data)
+        print(client_form.ssl_check.data)
+        if client_form.fernet_encrypted.data is True:
+            fernet_key=Fernet.generate_key().decode()
+        else:
+            fernet_key='deactivated'
         url = urlparse(request.base_url)
-        print(url)
         client_network = ClientNetwork(
-            token=base64.b64encode(client_form.token.data.encode()).decode(),
+            token=str(uuid.uuid4()),
             protocol='https',
             host=url.hostname,
             port=url.port or 443,
-            ssl_check=client_form.ssl_check.data)
+            ssl_check=client_form.ssl_check.data,
+            fernet_key=fernet_key
+        )
         db.session.add(client_network)
         db.session.commit()
     return redirect('index')
@@ -62,7 +73,8 @@ def get_client_network():
             'protocol': client_network.protocol,
             'host': client_network.host,
             'port': client_network.port,
-            'ssl_check': client_network.ssl_check
+            'ssl_check': client_network.ssl_check,
+            'fernet_key': client_network.fernet_key
         })
 
 @admin.route("/remote-network", methods=['POST'])
@@ -75,11 +87,13 @@ def remote_network():
         db.session.query(RemoteNetwork).delete()
         db.session.commit()
         remote_network = RemoteNetwork(
-            token=base64.b64encode(remote_form.token.data.encode()).decode(),
+            token=remote_form.token.data,
             protocol='https',
             host=remote_form.host.data,
             port=remote_form.port.data,
-            ssl_check=remote_form.ssl_check.data)
+            ssl_check=remote_form.ssl_check.data,
+            fernet_key=remote_form.fernet_key.data
+        )
         db.session.add(remote_network)
         db.session.commit()
     return redirect('index')
@@ -88,11 +102,12 @@ def remote_network():
 def get_remote_network():
     remote_network = RemoteNetwork.query.first()
     return jsonify({
-            'header': {'FederatedAuthorization': f'{remote_network.token}'},
+            'headers': {'FederatedAuthorization': f'{remote_network.token}'},
             'protocol': remote_network.protocol,
             'host': remote_network.host,
             'port': remote_network.port,
-            'ssl_check': remote_network.ssl_check
+            'ssl_check': remote_network.ssl_check,
+            'fernet_key': remote_network.fernet_key
         })
 
 

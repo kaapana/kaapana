@@ -7,26 +7,34 @@ import json
 import requests
 import tarfile
 import gzip
+from cryptography.fernet import Fernet
 
 from minio import Minio
 
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
+
 ##### To be copied
-
-def get_auth_headers(username, password, protocol, host, port, ssl_check, client_id, client_secret):
-    payload = {
-        'username': username,
-        'password': password,
-        'client_id': client_id,
-        'client_secret': client_secret,
-        'grant_type': 'password'
-    }
-    url = f'{protocol}://{host}:{port}/auth/realms/kaapana/protocol/openid-connect/token'
-    r = requests.post(url, verify=ssl_check, data=payload)
-    access_token = r.json()['access_token']
-    return {'Authorization': f'Bearer {access_token}'}
-
+def fernet_encryptfile(filepath, key):
+    if key == 'deactivated':
+        return
+    fernet = Fernet(key.encode())
+    with open(filepath, 'rb') as file:
+        original = file.read()
+    encrypted = fernet.encrypt(original)
+    with open(filepath, 'wb') as encrypted_file:
+        encrypted_file.write(encrypted)
+        
+def fernet_decryptfile(filepath, key):
+    if key == 'deactivated':
+        return
+    fernet = Fernet(key.encode())
+    with open(filepath, 'rb') as enc_file:
+        encrypted = enc_file.read()
+    decrypted = fernet.decrypt(encrypted)
+    with open(filepath, 'wb') as dec_file:
+        dec_file.write(decrypted)
+        
 def apply_tar_action(dst_filename, src_dir):
     print(f'Tar {src_dir} to {dst_filename}')
     with tarfile.open(dst_filename, "w:gz") as tar:
@@ -36,65 +44,64 @@ def apply_untar_action(src_filename, dst_dir):
     print(f'Untar {src_filename} to {dst_dir}')
     with tarfile.open(src_filename, "r:gz")as tar:
         tar.extractall(dst_dir)
-        
+
+def raise_kaapana_connection_error(r):
+    if r.history:
+        raise ConnectionError('You were redirect to the auth page. Your token is not valid!')
+    r.raise_for_status()
+
 def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_dir):
     data = federated['minio_urls'][operator_out_dir][action]
     print(data)
-    minio_presigned_url = f'{federated["host_network"]["protocol"]}://{federated["host_network"]["host"]}:{federated["host_network"]["port"]}/federated-backend/minio-presigned-url'
-    ssl_check = federated["host_network"]["ssl_check"]
+    r = requests.get('http://federated-backend-service.base.svc:5000/federated-backend/get-remote-network')
+    remote_network = r.json()
+    print('Remote network')
+    for k, v in remote_network.items():
+        print(k, v)
+    r = requests.get('http://federated-backend-service.base.svc:5000/federated-backend/get-client-network')
+    client_network = r.json()
+    print('Client network')
+    for k, v in client_network.items():
+        print(k, v)
+    minio_presigned_url = f'{remote_network["protocol"]}://{remote_network["host"]}:{remote_network["port"]}/federated-backend/remote/minio-presigned-url'
+    ssl_check = remote_network["ssl_check"]
     filename = os.path.join(root_dir, os.path.basename(data['path'].split('?')[0]))
     if action == 'PUT':
         apply_tar_action(filename, os.path.join(root_dir, operator_out_dir))
+        fernet_encryptfile(filename, client_network['fernet_key'])
         tar = open(filename, "rb")
-        print(f'Putting {filename} to {federated["host_network"]}')
-        r = requests.post(minio_presigned_url, verify=ssl_check, data=data,  files={'file': tar}, headers=get_auth_headers(**federated["host_network"]))
-        r.raise_for_status()
+        print(f'Putting {filename} to {remote_network}')
+        r = requests.post(minio_presigned_url, verify=ssl_check, data=data,  files={'file': tar}, headers=remote_network['headers'])
+        raise_kaapana_connection_error(r)
 
     if action == 'GET':
-        print(f'Getting {filename} from {federated["host_network"]}')
+        print(f'Getting {filename} from {remote_network}')
         os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with requests.post(minio_presigned_url, verify=ssl_check, data=data, stream=True, headers=get_auth_headers(**federated["host_network"])) as r:
-            r.raise_for_status()
+        with requests.post(minio_presigned_url, verify=ssl_check, data=data, stream=True, headers=remote_network['headers']) as r:
+            raise_kaapana_connection_error(r)
+            print(r.text)
             with open(filename, 'wb') as f:
                 for chunk in r.iter_content(chunk_size=8192): 
                     # If you have chunk encoded response uncomment if
                     # and set chunk_size parameter to None.
                     #if chunk: 
                     f.write(chunk)
+        fernet_decryptfile(filename, remote_network['fernet_key'])
         apply_untar_action(filename, os.path.join(root_dir))
+
     os.remove(filename)
     
                 
 def federated_action(operator_out_dir, action, dag_run_dir, federated):
 
-
-    # if action == 'from_previous_dag_run':
-    #     pass
-    #     # src = os.path.join(WORKFLOW_DIR, federated['from_previous_dag_run'], operator_out_dir)
-    #     # print(src)
-    #     # dst = os.path.join(dag_run_dir, operator_out_dir)
-    #     # print(dst)
-    #     # if os.path.isdir(src):
-    #     #     print(f'Moving batch files from {src} to {dst}')
-    #     #     shutil.move(src=src, dst=dst)
     if federated['minio_urls'] is not None and operator_out_dir in federated['minio_urls']:
         apply_minio_presigned_url_action(action, federated, operator_out_dir, dag_run_dir)
 #         HelperMinio.apply_action_to_object_dirs(minioClient, action, bucket_name=f'{federated["site"]}',
 #                                 local_root_dir=dag_run_dir,
 #                                 object_dirs=[operator_out_dir])
 
-    # if action == 'from_previous_dag_run':
-    #     src_root_dir = os.path.join(WORKFLOW_DIR, federated['from_previous_dag_run'], BATCH_NAME)
-    #     dst_root_dir = os.path.join(dag_run_dir, BATCH_NAME)
-    #     batch_folders = sorted([f for f in glob.glob(os.path.join(src_root_dir, '*'))])
-    #     for batch_element_dir in batch_folders:
-    #         src = os.path.join(batch_element_dir, operator_out_dir)
-    #         rel_dir = os.path.relpath(src, src_root_dir)
-    #         dst = os.path.join(dst_root_dir, rel_dir)
-    #         if os.path.isdir(src):
-    #             print(f'Moving batch element files from {src} to {dst}')
-    #             shutil.move(src=src, dst=dst)
 #######################
+
 
 # Decorator
 def federated_sharing_operator(func):

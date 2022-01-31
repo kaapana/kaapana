@@ -22,6 +22,7 @@ class ClientNetwork(UserMixin, db.Model):
     host = db.Column(db.String(64), index=True, unique=True)
     port = db.Column(db.Integer(), index=True, unique=True)
     ssl_check = db.Column(db.Boolean(), index=True, unique=True)
+    fernet_key = db.Column(db.String(100))
 
     def __repr__(self):
         return '<ClientNetwork {}://{}:{}>'.format(self.protocol, self.host, self.port)
@@ -33,6 +34,7 @@ class RemoteNetwork(UserMixin, db.Model):
     host = db.Column(db.String(64), index=True, unique=True)
     port = db.Column(db.Integer(), index=True, unique=True)
     ssl_check = db.Column(db.Boolean(), index=True, unique=True)
+    fernet_key = db.Column(db.String(100))
 
     def __repr__(self):
         return '<RemoteNetwork {}://{}:{}>'.format(self.protocol, self.host, self.port)

@@ -54,6 +54,7 @@ class KaapanaPythonBaseOperator(PythonOperator):
         gpu_mem_mb=None,
         gpu_mem_mb_lmt=None,
         manage_cache=None,
+        allow_federated_learning=False,
         delete_input_on_success=False,
         batch_name=None,
         workflow_dir=None,
@@ -79,6 +80,7 @@ class KaapanaPythonBaseOperator(PythonOperator):
             gpu_mem_mb=gpu_mem_mb,
             gpu_mem_mb_lmt=gpu_mem_mb_lmt,
             manage_cache=manage_cache,
+            allow_federated_learning=allow_federated_learning,
             batch_name=batch_name,
             workflow_dir=workflow_dir,
             delete_input_on_success=delete_input_on_success

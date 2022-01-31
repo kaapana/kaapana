@@ -2,6 +2,7 @@ node_modules
 build
 venv
 tmpcharts
+migrations
 .ipynb_checkpoints
 __pycache__
 .vscode

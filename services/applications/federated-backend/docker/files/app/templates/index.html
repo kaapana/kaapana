@@ -1,60 +1,123 @@
-<html>
-    <head>
-        <title>{{ title }} - Hello-World</title>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-    </head>
-    <body>
-        <h1>Hello, {{ hello_world_user }}!</h1>
-        <h2>Current client network!</h2>
-        <form action="{{ url_for('admin.client_network') }}" method="post">
-            {{ client_form.hidden_tag() }}
-            {{ client_form.csrf_token }}
-            <p>
-                {{ client_form.ssl_check.label }}
-                {{ client_form.ssl_check(size=32) }}<br>
-                {{ client_form.fernet_encrypted.label }}
-                {{ client_form.fernet_encrypted(size=32) }}<br>
-            </p>
-            <p>{{ client_form.submit_client() }}</p>
-        </form>
+<!doctype html>
+<html lang="en">
 
-        <h2>Current remote network!</h2>
+<head>
+  <!-- Required meta tags -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <title>{{ title }} - Federated Learning Panel</title>
+</head>
+
+<body>
+  <div class="container">
+    <div class="row">
+      <div class="col-8">
+        <h4>Client network!</h4>
+        <form action="{{ url_for('admin.client_network') }}" method="post">
+          {{ client_form.hidden_tag() }}
+          {{ client_form.csrf_token }}
+          <div class="row">
+            <div class="col-6">
+              {{ client_form.ssl_check.label(class="form-check-label") }}
+              {{ client_form.ssl_check(class="form-check-input") }}<br>
+            </div>
+            <div class="col-6">
+              {{ client_form.fernet_encrypted.label(class="form-check-label") }}
+              {{ client_form.fernet_encrypted(class="form-check-input") }}<br>
+            </div>
+            <p>Dags that are allowed to be triggered from remote:</p>
+            {% for choice in client_form.allowed_dags %}
+            <div class="col-4">
+              <div class="form-check">
+                {{ choice(class="form-check-input") }}
+                {{ choice.label(class="form-check-label") }}
+              </div>
+            </div>
+            {% endfor %}
+            <p>Datasets that are allowed to be used from remote:</p>
+            {% for choice in client_form.allowed_datasets %}
+            <div class="col-4">
+              <div class="form-check">
+                {{ choice(class="form-check-input") }}
+                {{ choice.label(class="form-check-label") }}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="row">
+            <div class="col-6">
+              {{ client_form.submit_client(class="form-control input-sm") }}
+            </div>
+          </div>
+        </form>
+        <h4>Remote network!</h4>
         <form action="{{ url_for('admin.remote_network') }}" method="post">
+          <div class="row">
             {{ remote_form.hidden_tag() }}
             {{ remote_form.csrf_token }}
-            <p>
-                {{ remote_form.host.label }}<br>
-                {{ remote_form.host(size=32) }}<br>
-                {{ remote_form.port.label }}<br>
-                {{ remote_form.port(size=32) }}<br>
-                {{ remote_form.token.label }}<br>
-                {{ remote_form.token(size=32) }}<br>
-                {{ remote_form.fernet_key.label }}<br>
-                {{ remote_form.fernet_key(size=32) }}<br>
-                {{ remote_form.ssl_check.label }}<br>
-                {{ remote_form.ssl_check(size=32) }}
-            </p>
-            <p>{{ remote_form.submit_central() }}</p>
+            <div class="col-4">
+              {{ remote_form.host.label(class="form-label") }}<br>
+              {{ remote_form.host(class="form-control input-sm") }}<br>
+            </div>
+            <div class="col-4">
+              {{ remote_form.port.label(class="form-label") }}<br>
+              {{ remote_form.port(class="form-control input-sm") }}<br>
+            </div>
+            <div class="col-4">
+              {{ remote_form.ssl_check.label(class="form-check-label") }}<br>
+              {{ remote_form.ssl_check(class="form-check-input") }}
+            </div>
+            <div class="col-6">
+              {{ remote_form.token.label(class="form-label") }}<br>
+              {{ remote_form.token(class="form-control input-sm") }}<br>
+            </div>
+            <div class="col-6">
+              {{ remote_form.fernet_key.label(class="form-label") }}<br>
+              {{ remote_form.fernet_key(class="form-control input-sm") }}<br>       
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-6">
+              {{ remote_form.submit_central(class="form-control input-sm") }}
+            </div>
+          </div>
         </form>
-        
-        <h1>Current client network</h1>
-        <p>HostNetwork: {{ client_network.protocol }}://{{ client_network.host }}:{{ client_network.port }}</p>
+      </div>
+      <div class="col-4">
+        <h4>Current client network</h4>
+        <p>Host: {{ client_network.protocol }}://{{ client_network.host }}:{{ client_network.port }}</p>
         <p>Token: {{ client_network.token }}</p>
         <p>Fernet key: {{ client_network.fernet_key }}</p>
         <p>SSL Check: {{ client_network.ssl_check }}</p>
-        <h1>Current remote network</h1>
-        <p>HostNetwork: {{ remote_network.protocol }}://{{ remote_network.host }}:{{ remote_network.port }}</p>
+        <p>Allowed dags: {{ client_network.allowed_dags }}</p>
+        <p>Allowed datasets: {{ client_network.allowed_datasets }}</p>
+        <h4>Current remote network</h4>
+        <p>Host: {{ remote_network.protocol }}://{{ remote_network.host }}:{{ remote_network.port }}</p>
         <p>Token: {{ remote_network.token }}</p>
         <p>Fernet key: {{ remote_network.fernet_key }}</p>
         <p>SSL Check: {{ remote_network.ssl_check }}</p>
+      </div>
+    </div>
+  </div>
 
 
-        <!-- {% for host_network in host_networks %}
-        <p>Username: {{ host_network.username }}</p>
-        <p>HostNetwork: {{ host_network.protocol }}://{{ host_network.host }}:{{ host_network.port }}</p>
-        <p>Client_ID: {{ host_network.client_id }}</p>
-        <p>Client_Secret: {{ host_network.client_secret }}</p>
-        <p>SSL Check: {{ host_network.ssl_check }}</p>
-        {% endfor %} -->
-    </body>
+  <!-- Optional JavaScript; choose one of the two! -->
+
+  <!-- Option 1: Bootstrap Bundle with Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+    crossorigin="anonymous"></script>
+
+  <!-- Option 2: Separate Popper and Bootstrap JS -->
+  <!--
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js" integrity="sha384-IQsoLXl5PILFhosVNubq5LC7Qb9DXgDA9i+tQ8Zj3iwWAwPtgFTxbJ8NT4GN1R8p" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.min.js" integrity="sha384-cVKIPhGWiC2Al4u+LWgxfKTRIcfu0JTxR+EQDz/bgldoEyl4H0zUF0QKbrJ0EcQF" crossorigin="anonymous"></script>
+    -->
+</body>
+
 </html>

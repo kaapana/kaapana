@@ -24,8 +24,8 @@ spec:
         #image: {{  .Values.global.registry_url }}/federated-backend:0.1.0
         imagePullPolicy: Always
         #imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
-        command: ["tail"]
-        args: ["-f", "/dev/null"] 
+        # command: ["tail"]
+        # args: ["-f", "/dev/null"] 
         env: # Environment variables
         - name: SECRET_KEY
           value: kaapana-secret

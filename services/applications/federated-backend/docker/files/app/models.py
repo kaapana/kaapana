@@ -23,6 +23,8 @@ class ClientNetwork(UserMixin, db.Model):
     port = db.Column(db.Integer(), index=True, unique=True)
     ssl_check = db.Column(db.Boolean(), index=True, unique=True)
     fernet_key = db.Column(db.String(100))
+    allowed_dags = db.Column(db.String(1024), index=True, unique=True)
+    allowed_datasets = db.Column(db.String(1024), index=True, unique=True)
 
     def __repr__(self):
         return '<ClientNetwork {}://{}:{}>'.format(self.protocol, self.host, self.port)

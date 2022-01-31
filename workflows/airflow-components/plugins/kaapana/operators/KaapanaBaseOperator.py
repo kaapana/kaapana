@@ -22,6 +22,7 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 from kaapana.blueprints.kaapana_utils import generate_run_id, cure_invalid_name
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.operators.HelperFederated import federated_sharing_decorator
 from airflow.api.common.experimental import pool as pool_api
 import uuid
 import json
@@ -109,6 +110,7 @@ class KaapanaBaseOperator(BaseOperator):
                  execution_timeout=timedelta(minutes=90),
                  task_concurrency=None,
                  manage_cache=None,
+                 allow_federated_learning=False,
                  delete_input_on_success=False,
                  # Other stuff
                  batch_name=None,
@@ -161,6 +163,7 @@ class KaapanaBaseOperator(BaseOperator):
             gpu_mem_mb=gpu_mem_mb,
             gpu_mem_mb_lmt=gpu_mem_mb_lmt,
             manage_cache=manage_cache,
+            allow_federated_learning=allow_federated_learning,
             batch_name=batch_name,
             workflow_dir=workflow_dir,
             delete_input_on_success=delete_input_on_success
@@ -326,6 +329,7 @@ class KaapanaBaseOperator(BaseOperator):
             k = k.upper()
             self.env_vars[k] = str(v)
 
+    @federated_sharing_decorator
     @cache_operator_output
     def execute(self, context):
         self.set_context_variables(context)
@@ -489,6 +493,7 @@ class KaapanaBaseOperator(BaseOperator):
         gpu_mem_mb,
         gpu_mem_mb_lmt,
         manage_cache,
+        allow_federated_learning,
         batch_name,
         workflow_dir,
         delete_input_on_success
@@ -510,6 +515,7 @@ class KaapanaBaseOperator(BaseOperator):
         obj.gpu_mem_mb = gpu_mem_mb
         obj.gpu_mem_mb_lmt = gpu_mem_mb_lmt
         obj.manage_cache = manage_cache or 'ignore'
+        obj.allow_federated_learning = allow_federated_learning
         obj.delete_input_on_success = delete_input_on_success
 
         obj.batch_name = batch_name if batch_name != None else BATCH_NAME

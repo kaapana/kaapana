@@ -48,7 +48,10 @@ def apply_untar_action(src_filename, dst_dir):
 def raise_kaapana_connection_error(r):
     if r.history:
         raise ConnectionError('You were redirect to the auth page. Your token is not valid!')
-    r.raise_for_status()
+    try:
+        r.raise_for_status()
+    except:
+        raise ValueError(f'Something was not okay with your request code {r}: {r.text}!')
 
 def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_dir):
     data = federated['minio_urls'][operator_out_dir][action]
@@ -67,7 +70,10 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
     ssl_check = remote_network["ssl_check"]
     filename = os.path.join(root_dir, os.path.basename(data['path'].split('?')[0]))
     if action == 'PUT':
-        apply_tar_action(filename, os.path.join(root_dir, operator_out_dir))
+        src_dir = os.path.join(root_dir, operator_out_dir)
+        if not os.path.isdir(src_dir):
+            raise ValueError(f'{src_dir} does not exists, you most probably try to push results on a batch-element level, however, so far only bach level output is supported for federated learning!')
+        apply_tar_action(filename, src_dir)
         fernet_encryptfile(filename, client_network['fernet_key'])
         tar = open(filename, "rb")
         print(f'Putting {filename} to {remote_network}')
@@ -104,42 +110,45 @@ def federated_action(operator_out_dir, action, dag_run_dir, federated):
 
 
 # Decorator
-def federated_sharing_operator(func):
+def federated_sharing_decorator(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
-
+            
+        # Same as in HelperCaching!
         if 'context' in kwargs:
             run_id = kwargs['context']['run_id']
+            conf = kwargs['context']['dag_run'].conf
         elif type(args) == tuple and len(args) == 1 and "run_id" in args[0]:
+            raise ValueError('Just to check if this case needs to be supported!', args, kwargs)
             run_id = args[0]['run_id']
         else:
             run_id = kwargs['run_id']
+            conf =  kwargs["dag_run"].conf
 
         dag_run_dir = os.path.join(WORKFLOW_DIR, run_id)
-        
-        federated = None
-        if 'context' in kwargs:
-            print(kwargs)
-            print(kwargs['context'])
+        if conf is not None and 'federated' in conf and conf['federated'] is not None:
+            federated = conf['federated']
+            print('Federated config')
+            print(federated)
         else:
-            print('caching kwargs', kwargs["dag_run"].conf)
-            conf =  kwargs["dag_run"].conf
-            if kwargs["dag_run"] is not None and conf is not None and 'federated' in conf and conf['federated'] is not None:
-                federated = conf['federated']
+            federated = None
 
         ##### To be copied
-        if federated is not None and 'from_previous_dag_run' in federated and federated['from_previous_dag_run'] is not None:
-            if 'federated_operators' in federated and self.name in federated['federated_operators']:
+        if federated is not None and 'federated_operators' in federated and self.operator_out_dir in federated['federated_operators']:
+            if self.allow_federated_learning is False:
+                raise ValueError('The operator you want to use for federated learning does not allow federated learning, ' \
+                'you will need to set the flag allow_federated_learning=True in order to permit the operator to be used in federated learning scenarios')
+            if 'from_previous_dag_run' in federated and federated['from_previous_dag_run'] is not None:
                 print('Downloading data from Minio')
                 federated_action(self.operator_out_dir, 'GET', dag_run_dir, federated)
 
 
         x = func(self, *args, **kwargs)
-        if federated is not None and 'federated_operators' in federated and self.name in federated['federated_operators']:
+        if federated is not None and 'federated_operators' in federated and self.operator_out_dir in federated['federated_operators']:
             print('Putting data')
             federated_action(self.operator_out_dir, 'PUT', dag_run_dir, federated)
 
-            if federated['federated_operators'].index(self.name) == 0:
+            if federated['federated_operators'].index(self.operator_out_dir) == 0:
                 print('Updating the conf')
                 conf['federated']['rounds'].append(conf['federated']['rounds'][-1] + 1) 
                 conf['federated']['from_previous_dag_run'] = run_id

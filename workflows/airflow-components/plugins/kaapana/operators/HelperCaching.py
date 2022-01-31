@@ -66,33 +66,33 @@ def cache_operator_output(func):
         if self.manage_cache not in ['ignore', 'cache', 'overwrite', 'clear']:
             raise AssertionError("Invalid name '{}' for manage_cache. It must be set to None, 'ignore', 'cache', 'overwrite' or 'clear'".format(self.manage_cache))
 
+        # Same as in HelperFederated!
         if 'context' in kwargs:
             run_id = kwargs['context']['run_id']
+            conf = kwargs['context']['dag_run'].conf
         elif type(args) == tuple and len(args) == 1 and "run_id" in args[0]:
+            raise ValueError('Just to check if this case needs to be supported!', args, kwargs)
             run_id = args[0]['run_id']
         else:
             run_id = kwargs['run_id']
+            conf =  kwargs["dag_run"].conf
 
         dag_run_dir = os.path.join(WORKFLOW_DIR, run_id)
-        
-        federated = None
-        if 'context' in kwargs:
-            print(kwargs)
-            print(kwargs['context'])
+        if conf is not None and 'federated' in conf and conf['federated'] is not None:
+            federated = conf['federated']
+            print('Federated config')
+            print(federated)
         else:
-            print('caching kwargs', kwargs["dag_run"].conf)
-            conf =  kwargs["dag_run"].conf
-            if kwargs["dag_run"] is not None and conf is not None and 'federated' in conf and conf['federated'] is not None:
-                federated = conf['federated']
+            federated = None
 
         if federated is not None and 'from_previous_dag_run' in federated and federated['from_previous_dag_run'] is not None:
-            if 'skip_operators' in federated and self.name in federated['skip_operators']:
+            if 'skip_operators' in federated and self.operator_out_dir in federated['skip_operators']:
                 print('Skipping')
                 return
-            elif 'federated_operators' in federated and self.name in federated['federated_operators']:
+            elif 'federated_operators' in federated and self.operator_out_dir in federated['federated_operators']:
                 pass
             else:
-                print(f'Copying data from previous workflow for {self.name}')
+                print(f'Copying data from previous workflow for {self.operator_out_dir}')
                 from_previous_dag_run_action(self.operator_out_dir, 'from_previous_dag_run', dag_run_dir, federated)
                 return
 

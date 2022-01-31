@@ -1,6 +1,5 @@
 import os
-import requests
-import base64
+import json
 import uuid
 from cryptography.fernet import Fernet
 from flask import render_template, redirect, g, Blueprint, request, jsonify, Response, url_for
@@ -9,12 +8,10 @@ from flask import Blueprint, render_template
 
 from app import app
 from app import db
-from werkzeug.security import generate_password_hash, check_password_hash
-from app.forms import ClientNetworkForm, RemoteNetworkForm # HostNetworkForm, 
-from app.models import ClientNetwork, RemoteNetwork # HostNetwork
+
+from app.forms import ClientNetworkForm, RemoteNetworkForm
+from app.models import ClientNetwork, RemoteNetwork
 from urllib.parse import urlparse
-from app import login_manager
-from flask_login import login_required
 
 
 admin = Blueprint('admin', __name__)
@@ -29,7 +26,10 @@ def index():
 
     client_network = ClientNetwork.query.first()
     remote_network = RemoteNetwork.query.first()
-
+    if client_network and client_network.allowed_dags is not None:
+        client_network.allowed_dags = ", ".join(json.loads(client_network.allowed_dags))
+    if client_network and client_network.allowed_datasets is not None:
+        client_network.allowed_datasets = ", ".join(json.loads(client_network.allowed_datasets))
     return render_template(
         'index.html', title='Home', hello_world_user=hello_world_user,
         client_network=client_network, remote_network=remote_network,
@@ -42,12 +42,9 @@ def client_network():
     # Will fail if we run flask run due to the application root! {'csrf_token': ['The CSRF tokens do not match.']}
     # client_form.validate()
     # print(client_form.errors)
-
     if client_form.validate_on_submit():
         db.session.query(ClientNetwork).delete()
         db.session.commit()
-        print(client_form.fernet_encrypted.data)
-        print(client_form.ssl_check.data)
         if client_form.fernet_encrypted.data is True:
             fernet_key=Fernet.generate_key().decode()
         else:
@@ -59,7 +56,9 @@ def client_network():
             host=url.hostname,
             port=url.port or 443,
             ssl_check=client_form.ssl_check.data,
-            fernet_key=fernet_key
+            fernet_key=fernet_key,
+            allowed_dags=json.dumps(client_form.allowed_dags.data),
+            allowed_datasets=json.dumps(client_form.allowed_datasets.data),
         )
         db.session.add(client_network)
         db.session.commit()
@@ -81,8 +80,8 @@ def get_client_network():
 def remote_network():
     remote_form = RemoteNetworkForm()
     # Will fail if we run flask run due to the application root! {'csrf_token': ['The CSRF tokens do not match.']}
-    # client_form.validate()
-    # print(client_form.errors)
+    # remote_form.validate()
+    # print(remote_form.errors)
     if remote_form.validate_on_submit():
         db.session.query(RemoteNetwork).delete()
         db.session.commit()
@@ -92,7 +91,7 @@ def remote_network():
             host=remote_form.host.data,
             port=remote_form.port.data,
             ssl_check=remote_form.ssl_check.data,
-            fernet_key=remote_form.fernet_key.data
+            fernet_key=remote_form.fernet_key.data or 'deactivated'
         )
         db.session.add(remote_network)
         db.session.commit()

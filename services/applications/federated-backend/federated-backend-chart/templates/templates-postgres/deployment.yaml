@@ -32,7 +32,7 @@ spec:
           - containerPort: 5432
         volumeMounts:
           - name: federated-postgres-data # key of volume moment
-            mountPath: "/postgres" # path in container
+            mountPath: "/var/lib/postgresql/data" # path in container
       volumes:
       - name: federated-postgres-data # key of volume mount
         hostPath:

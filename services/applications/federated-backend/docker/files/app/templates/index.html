@@ -10,18 +10,18 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-  <title>{{ title }} - Federated Learning Panel</title>
+  <title>Federated Learning Panel</title>
 </head>
 
 <body>
   <div class="container">
     <div class="row">
       <div class="col-8">
-        <h4>Client network!</h4>
+        <h4>Client network: {{ node_id }}</h4>
         <form action="{{ url_for('admin.client_network') }}" method="post">
           {{ client_form.hidden_tag() }}
           {{ client_form.csrf_token }}
-          <div class="row">
+          <div class="row top-buffer-lg">
             <div class="col-6">
               {{ client_form.ssl_check.label(class="form-check-label") }}
               {{ client_form.ssl_check(class="form-check-input") }}<br>
@@ -30,7 +30,7 @@
               {{ client_form.fernet_encrypted.label(class="form-check-label") }}
               {{ client_form.fernet_encrypted(class="form-check-input") }}<br>
             </div>
-            <p>Dags that are allowed to be triggered from remote:</p>
+            <label class="form-label top-buffer-sm">Dags that are allowed to be triggered from remote:</label>
             {% for choice in client_form.allowed_dags %}
             <div class="col-4">
               <div class="form-check">
@@ -39,7 +39,7 @@
               </div>
             </div>
             {% endfor %}
-            <p>Datasets that are allowed to be used from remote:</p>
+            <label class="form-label top-buffer-sm">Datasets that are allowed to be used from remote:</label>
             {% for choice in client_form.allowed_datasets %}
             <div class="col-4">
               <div class="form-check">
@@ -49,24 +49,24 @@
             </div>
             {% endfor %}
           </div>
-          <div class="row">
+          <div class="row top-buffer-lg">
             <div class="col-6">
-              {{ client_form.submit_client(class="form-control input-sm") }}
+              {{ client_form.submit_client(class="btn btn-secondary btn-sm") }}
             </div>
           </div>
         </form>
-        <h4>Remote network!</h4>
+        <h4 class="top-buffer-lg">Remote network!</h4>
         <form action="{{ url_for('admin.remote_network') }}" method="post">
           <div class="row">
             {{ remote_form.hidden_tag() }}
             {{ remote_form.csrf_token }}
             <div class="col-4">
               {{ remote_form.host.label(class="form-label") }}<br>
-              {{ remote_form.host(class="form-control input-sm") }}<br>
+              {{ remote_form.host(class="form-control form-control-sm") }}<br>
             </div>
             <div class="col-4">
               {{ remote_form.port.label(class="form-label") }}<br>
-              {{ remote_form.port(class="form-control input-sm") }}<br>
+              {{ remote_form.port(class="form-control form-control-sm") }}<br>
             </div>
             <div class="col-4">
               {{ remote_form.ssl_check.label(class="form-check-label") }}<br>
@@ -74,22 +74,22 @@
             </div>
             <div class="col-6">
               {{ remote_form.token.label(class="form-label") }}<br>
-              {{ remote_form.token(class="form-control input-sm") }}<br>
+              {{ remote_form.token(class="form-control form-control-sm") }}<br>
             </div>
             <div class="col-6">
               {{ remote_form.fernet_key.label(class="form-label") }}<br>
-              {{ remote_form.fernet_key(class="form-control input-sm") }}<br>       
+              {{ remote_form.fernet_key(class="form-control form-control-sm") }}<br>       
             </div>
           </div>
           <div class="row">
             <div class="col-6">
-              {{ remote_form.submit_central(class="form-control input-sm") }}
+              {{ remote_form.submit_central(class="btn btn-secondary btn-sm") }}
             </div>
           </div>
         </form>
       </div>
       <div class="col-4">
-        <h4>Current client network</h4>
+        <h4>Current client network: {{ node_id }}</h4>
         <p>Host: {{ client_network.protocol }}://{{ client_network.host }}:{{ client_network.port }}</p>
         <p>Token: {{ client_network.token }}</p>
         <p>Fernet key: {{ client_network.fernet_key }}</p>

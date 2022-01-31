@@ -1,4 +1,4 @@
-FROM python:3
+FROM python:3.10.2
 
 LABEL IMAGE="dcmqi"
 LABEL VERSION="v1.2.4"

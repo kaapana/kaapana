@@ -1,7 +1,7 @@
 ---
 apiVersion: v1
 appVersion: 0.1.0
-description: Chart for Hello World
+description: Chart to enable federated learning
 name: federated-backend-chart
 version: "0.1.0"
 keywords:

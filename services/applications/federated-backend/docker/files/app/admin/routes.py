@@ -19,7 +19,7 @@ admin = Blueprint('admin', __name__)
 @admin.route('/',  methods=['GET', 'POST'])
 @admin.route('/index', methods=['GET', 'POST'])
 def index():
-    hello_world_user = os.environ['HELLO_WORLD_USER']
+    node_id = os.environ['NODE_ID']
 
     client_form = ClientNetworkForm()
     remote_form = RemoteNetworkForm()
@@ -31,7 +31,7 @@ def index():
     if client_network and client_network.allowed_datasets is not None:
         client_network.allowed_datasets = ", ".join(json.loads(client_network.allowed_datasets))
     return render_template(
-        'index.html', title='Home', hello_world_user=hello_world_user,
+        'index.html', title='Home', node_id=node_id,
         client_network=client_network, remote_network=remote_network,
         client_form=client_form, remote_form=remote_form)
 

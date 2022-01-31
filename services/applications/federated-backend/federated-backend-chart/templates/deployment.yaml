@@ -18,6 +18,19 @@ spec:
       labels:
         app-name: federated-backend
     spec:
+      initContainers:
+        - name: init
+          image: registry.hzdr.de/k.kades/kaapana-klaus-dev/service_checker:1.1
+          # image: {{  .Values.global.registry_url }}/service_checker:1.1
+          imagePullPolicy: Always
+          #imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          env:
+            - name: WAIT
+              value: "federated-postgres,federated-postgres-service.base.svc,5432"
+            - name: DELAY
+              value: "2"
+            - name: TIMEOUT
+              value: "10"
       containers:
       - name: federated-backend
         image: registry.hzdr.de/k.kades/kaapana-klaus-dev/federated-backend:0.1.0
@@ -29,9 +42,9 @@ spec:
         env: # Environment variables
         - name: SECRET_KEY
           value: kaapana-secret
-        - name: HELLO_WORLD_USER
-          value: Kaapana
-          #value: {{ .Values.hello_world_user }}
+        - name: NODE_ID
+          value: "dkfz"
+          # value: {{ .Values.global.node_id | default "dkfz" }}
         - name: APPLICATION_ROOT
           value: "/federated-backend"
         - name: DATABASE_URL

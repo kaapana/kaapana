@@ -1,12 +1,9 @@
 
 import os
-import glob
 import functools
-import shutil
 import json
 import requests
 import tarfile
-import gzip
 from cryptography.fernet import Fernet
 
 from minio import Minio

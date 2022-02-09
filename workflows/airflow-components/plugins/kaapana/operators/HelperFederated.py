@@ -53,20 +53,21 @@ def raise_kaapana_connection_error(r):
 def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_dir):
     data = federated['minio_urls'][operator_out_dir][action]
     print(data)
-    r = requests.get('http://federated-backend-service.base.svc:5000/federated-backend/get-remote-network')
+    r = requests.get('http://federated-backend-service.base.svc:5000/remote-network')
     remote_network = r.json()
     print('Remote network')
     for k, v in remote_network.items():
         print(k, v)
-    r = requests.get('http://federated-backend-service.base.svc:5000/federated-backend/get-client-network')
+    r = requests.get('http://federated-backend-service.base.svc:5000/client-network')
     client_network = r.json()
     print('Client network')
     for k, v in client_network.items():
         print(k, v)
+
     minio_presigned_url = f'{remote_network["protocol"]}://{remote_network["host"]}:{remote_network["port"]}/federated-backend/remote/minio-presigned-url'
     ssl_check = remote_network["ssl_check"]
     filename = os.path.join(root_dir, os.path.basename(data['path'].split('?')[0]))
-    if action == 'PUT':
+    if action == 'put':
         src_dir = os.path.join(root_dir, operator_out_dir)
         if not os.path.isdir(src_dir):
             raise ValueError(f'{src_dir} does not exists, you most probably try to push results on a batch-element level, however, so far only bach level output is supported for federated learning!')
@@ -74,13 +75,14 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
         fernet_encryptfile(filename, client_network['fernet_key'])
         tar = open(filename, "rb")
         print(f'Putting {filename} to {remote_network}')
-        r = requests.post(minio_presigned_url, verify=ssl_check, data=data,  files={'file': tar}, headers=remote_network['headers'])
+        r = requests.post(minio_presigned_url, verify=ssl_check, files={'file': tar}, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']})
         raise_kaapana_connection_error(r)
 
-    if action == 'GET':
+    if action == 'get':
         print(f'Getting {filename} from {remote_network}')
         os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with requests.post(minio_presigned_url, verify=ssl_check, data=data, stream=True, headers=remote_network['headers']) as r:
+
+        with requests.get(minio_presigned_url, verify=ssl_check, stream=True, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']}) as r:
             raise_kaapana_connection_error(r)
             print(r.text)
             with open(filename, 'wb') as f:
@@ -137,13 +139,13 @@ def federated_sharing_decorator(func):
                 'you will need to set the flag allow_federated_learning=True in order to permit the operator to be used in federated learning scenarios')
             if 'from_previous_dag_run' in federated and federated['from_previous_dag_run'] is not None:
                 print('Downloading data from Minio')
-                federated_action(self.operator_out_dir, 'GET', dag_run_dir, federated)
+                federated_action(self.operator_out_dir, 'get', dag_run_dir, federated)
 
 
         x = func(self, *args, **kwargs)
         if federated is not None and 'federated_operators' in federated and self.operator_out_dir in federated['federated_operators']:
             print('Putting data')
-            federated_action(self.operator_out_dir, 'PUT', dag_run_dir, federated)
+            federated_action(self.operator_out_dir, 'put', dag_run_dir, federated)
 
             if federated['federated_operators'].index(self.operator_out_dir) == 0:
                 print('Updating the conf')
@@ -153,7 +155,7 @@ def federated_sharing_decorator(func):
                 config_path = os.path.join(dag_run_dir, 'conf', 'conf.json')
                 with open(config_path, "w", encoding='utf-8') as jsonData:
                     json.dump(conf, jsonData, indent=4, sort_keys=True, ensure_ascii=True)
-                federated_action('conf', 'PUT', dag_run_dir, federated)
+                federated_action('conf', 'put', dag_run_dir, federated)
 
 #                 HelperMinio.apply_action_to_file(minioClient, 'put', 
 #                     bucket_name=f'{federated["site"]}', object_name='conf.json', file_path=config_path)

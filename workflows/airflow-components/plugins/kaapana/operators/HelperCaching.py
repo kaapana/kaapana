@@ -12,6 +12,8 @@ from minio import Minio
 
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperMinio import HelperMinio
+from kaapana.operators.HelperFederated import update_job
+
 
 def cache_action(cache_operator_dirs, action, dag_run_dir):
     loaded_from_cache = True
@@ -82,6 +84,8 @@ def cache_operator_output(func):
             federated = conf['federated']
             print('Federated config')
             print(federated)
+            update_job(federated, status='running', remote=True)
+            update_job(federated, status='running', remote=False)
         else:
             federated = None
 
@@ -112,6 +116,7 @@ def cache_operator_output(func):
             print(f'{", ".join(cache_operator_dirs)} output saved to cache')
         else:
             print('Caching is not used!')
+
         return x
 
     return wrapper

@@ -16,10 +16,9 @@ def get_db():
 
 async def get_token_header(FederatedAuthorization: str = Header(...), db: Session = Depends(get_db)):
     if FederatedAuthorization:
-        db_client_network = db.query(models.ClientNetwork).filter_by(token=FederatedAuthorization).first()
-        print(db_client_network)
-        if db_client_network:
-            return db_client_network
+        db_client_kaapana_instance = db.query(models.KaapanaInstance).filter_by(token=FederatedAuthorization).first()
+        if db_client_kaapana_instance:
+            return db_client_kaapana_instance
         else:
             raise HTTPException(status_code=400, detail="FederatedAuthorization header invalid")
 

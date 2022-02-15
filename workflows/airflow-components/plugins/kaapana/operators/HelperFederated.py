@@ -11,6 +11,30 @@ from minio import Minio
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
+
+def update_job(federated, status, remote):
+    if remote is True:
+        r = requests.get('http://federated-backend-service.base.svc:5000/client/remote-kaapana-instance', params={'node_id': federated['node_id']})
+        raise_kaapana_connection_error(r)
+        kaapana_instance = r.json()
+    else:
+        r = requests.get('http://federated-backend-service.base.svc:5000/client/client-kaapana-instance')
+        raise_kaapana_connection_error(r)
+        kaapana_instance = r.json()
+    kaapana_instance_url = f'{kaapana_instance["protocol"]}://{kaapana_instance["host"]}:{kaapana_instance["port"]}'
+    ssl_check = kaapana_instance['ssl_check']
+    if remote is True:
+        r = requests.put(f'{kaapana_instance_url}/federated-backend/remote/job', verify=ssl_check, params={'job_id': federated['remote_job_id'], 'status': status}, headers={'FederatedAuthorization': kaapana_instance['token']})
+        raise_kaapana_connection_error(r)
+        print('Remote job updated!')
+        print(r.json())
+    else:
+        r = requests.put('http://federated-backend-service.base.svc:5000/client/job', verify=False, params={'job_id': federated['client_job_id'], 'status': status})
+        raise_kaapana_connection_error(r)
+        print('Client job updated!')
+        print(r.json())
+
+
 ##### To be copied
 def fernet_encryptfile(filepath, key):
     if key == 'deactivated':
@@ -53,12 +77,14 @@ def raise_kaapana_connection_error(r):
 def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_dir):
     data = federated['minio_urls'][operator_out_dir][action]
     print(data)
-    r = requests.get('http://federated-backend-service.base.svc:5000/remote-network')
+    r = requests.get('http://federated-backend-service.base.svc:5000/client/remote-kaapana-instance', params={'node_id': federated['node_id']})
+    raise_kaapana_connection_error(r)
     remote_network = r.json()
     print('Remote network')
     for k, v in remote_network.items():
         print(k, v)
-    r = requests.get('http://federated-backend-service.base.svc:5000/client-network')
+    r = requests.get('http://federated-backend-service.base.svc:5000/client/client-kaapana-instance')
+    raise_kaapana_connection_error(r)
     client_network = r.json()
     print('Client network')
     for k, v in client_network.items():
@@ -70,7 +96,7 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
     if action == 'put':
         src_dir = os.path.join(root_dir, operator_out_dir)
         if not os.path.isdir(src_dir):
-            raise ValueError(f'{src_dir} does not exists, you most probably try to push results on a batch-element level, however, so far only bach level output is supported for federated learning!')
+            raise ValueError(f'{src_dir} does not exist, you most probably try to push results on a batch-element level, however, so far only bach level output is supported for federated learning!')
         apply_tar_action(filename, src_dir)
         fernet_encryptfile(filename, client_network['fernet_key'])
         tar = open(filename, "rb")
@@ -106,6 +132,7 @@ def federated_action(operator_out_dir, action, dag_run_dir, federated):
 #                                 object_dirs=[operator_out_dir])
 
 #######################
+
 
 
 # Decorator
@@ -156,6 +183,8 @@ def federated_sharing_decorator(func):
                 with open(config_path, "w", encoding='utf-8') as jsonData:
                     json.dump(conf, jsonData, indent=4, sort_keys=True, ensure_ascii=True)
                 federated_action('conf', 'put', dag_run_dir, federated)
+                update_job(federated, status='finished', remote=True)
+                update_job(federated, status='finished', remote=False)
 
 #                 HelperMinio.apply_action_to_file(minioClient, 'put', 
 #                     bucket_name=f'{federated["site"]}', object_name='conf.json', file_path=config_path)

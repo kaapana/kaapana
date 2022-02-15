@@ -1,6 +1,5 @@
-#!/bin/sh
-
-flask db init
-flask db migrate
-flask db upgrade
-SCRIPT_NAME=$APPLICATION_ROOT gunicorn -b :5000 --access-logfile - --error-logfile - run:app
+alembic init alembic
+cp env.py /app/alembic/env.py
+alembic revision --autogenerate -m "Migration"
+alembic upgrade head
+uvicorn app.main:app --reload --host 0.0.0.0 --port 5000 --workers 4 --root-path $APPLICATION_ROOT

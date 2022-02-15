@@ -36,7 +36,7 @@ spec:
       volumes:
       - name: federated-postgres-data # key of volume mount
         hostPath:
-          path: /home/kaapana/federated-postgres-data
+          path: /home/kaapana/postgres-federated
           #path: {{ .Values.global.fast_data_dir }}/federated-postgres-data # path on hostmachine
           type: DirectoryOrCreate
       imagePullSecrets:

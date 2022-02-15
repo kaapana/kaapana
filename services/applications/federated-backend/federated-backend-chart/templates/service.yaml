@@ -1,4 +1,16 @@
 
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix-federated-backend
+  namespace: base
+spec:
+  stripPrefix:
+    prefixes:
+    - /federated-backend
+    forceSlash: true
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -25,7 +37,7 @@ metadata:
   #namespace: {{ .Values.global.base_namespace }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    # traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: base-strip-prefix-federated-backend@kubernetescrd #, kube-system-errorpages@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

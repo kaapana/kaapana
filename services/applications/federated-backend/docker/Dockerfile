@@ -1,6 +1,6 @@
-FROM python:3.8-alpine
+FROM python:3.9-alpine
 
-LABEL IMAGE="federated-backend"
+LABEL IMAGE="federated-backend-fast-api"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 

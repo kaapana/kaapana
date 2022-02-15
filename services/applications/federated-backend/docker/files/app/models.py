@@ -1,42 +1,44 @@
-from app import db
-from flask_login import UserMixin
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Table
+from sqlalchemy.schema import UniqueConstraint
+from sqlalchemy.orm import relationship
+from .database import Base
 
-# class HostNetwork(db.Model):
-#     id = db.Column(db.Integer, primary_key=True)
-#     username = db.Column(db.String(64), index=True, unique=True)
-#     password = db.Column(db.String(64), index=True, unique=True)
-#     protocol = db.Column(db.String(64), index=True, unique=True)
-#     host = db.Column(db.String(64), index=True, unique=True)
-#     port = db.Column(db.Integer(), index=True, unique=True)
-#     client_id = db.Column(db.String(64), index=True, unique=True)
-#     client_secret = db.Column(db.String(64), index=True, unique=True)
-#     ssl_check = db.Column(db.Boolean(), index=True, unique=True)
 
-#     def __repr__(self):
-#         return '<HostNetwork {}://{}:{}>'.format(self.protocol, self.host, self.port)
+# job_kaapana_instance_table = Table('job_kaapana_instance_table', Base.metadata,
+#     Column('job_id', ForeignKey('job.id'), primary_key=True),
+#     Column('kaapana_instance_id', ForeignKey('kaapana_instance.id'), primary_key=True)
+# )
 
-class ClientNetwork(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    token = db.Column(db.String(100))
-    protocol = db.Column(db.String(64), index=True, unique=True)
-    host = db.Column(db.String(64), index=True, unique=True)
-    port = db.Column(db.Integer(), index=True, unique=True)
-    ssl_check = db.Column(db.Boolean(), index=True, unique=True)
-    fernet_key = db.Column(db.String(100))
-    allowed_dags = db.Column(db.String(1024), index=True, unique=True)
-    allowed_datasets = db.Column(db.String(1024), index=True, unique=True)
+
+class Job(Base):
+    __tablename__ = "job"
+    # add timestamp, job_data, description
+    id = Column(Integer, primary_key=True)
+    remote_id = Column(Integer)
+    conf_data = Column(String(10240), index=True)
+    dry_run = Column(Boolean(), index=True)
+    status = Column(String(64), index=True)
+    kaapana_id = Column(Integer, ForeignKey('kaapana_instance.id'))
+    kaapana_instance = relationship("KaapanaInstance", back_populates="jobs")
+
+class KaapanaInstance(Base):
+    __tablename__ = "kaapana_instance"
+    id = Column(Integer, primary_key=True)
+    node_id = Column(String(64))
+    token = Column(String(100))
+    remote = Column(Boolean(), index=True)
+    protocol = Column(String(64), index=True)
+    host = Column(String(64), index=True)
+    port = Column(Integer(), index=True)
+    ssl_check = Column(Boolean(), index=True)
+    fernet_key = Column(String(100))
+    allowed_dags = Column(String(1024), default='[]', index=True)
+    allowed_datasets = Column(String(1024),  default='[]', index=True)
+    automatic_update = Column(Boolean(), default=False, index=True)
+    automatic_job_execution = Column(Boolean(), default=False, index=True)
+    jobs = relationship("Job", back_populates="kaapana_instance", cascade="all, delete-orphan")
+
+    __table_args__ = (UniqueConstraint('node_id', 'remote', name='_node_id_remote'),)
 
     def __repr__(self):
-        return '<ClientNetwork {}://{}:{}>'.format(self.protocol, self.host, self.port)
-
-class RemoteNetwork(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    token = db.Column(db.String(100))
-    protocol = db.Column(db.String(64), index=True, unique=True)
-    host = db.Column(db.String(64), index=True, unique=True)
-    port = db.Column(db.Integer(), index=True, unique=True)
-    ssl_check = db.Column(db.Boolean(), index=True, unique=True)
-    fernet_key = db.Column(db.String(100))
-
-    def __repr__(self):
-        return '<RemoteNetwork {}://{}:{}>'.format(self.protocol, self.host, self.port)
+        return '<KaapanaInstance {}://{}:{}>'.format(self.protocol, self.host, self.port)

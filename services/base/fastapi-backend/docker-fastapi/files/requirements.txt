@@ -11,3 +11,5 @@ psycopg2-binary==2.9.3
 python-multipart==0.0.5
 pytest==7.0.0
 SQLAlchemy==1.4.31
+prometheus-api-client==0.4.2
+python-keycloak==0.25.0

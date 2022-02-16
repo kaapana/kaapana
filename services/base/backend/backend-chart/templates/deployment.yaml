@@ -15,6 +15,24 @@ spec:
       labels:
         app-name: backend
     spec:
+      initContainers:
+        - name: init-backend-user
+          image: {{  .Values.global.registry_url }}/kaapana-backend:0.0.1
+          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          command: ["create_backend_user.py"]
+          env:
+            - name: KEYCLOAK_URL
+              value: {{ .Values.global.keycloak.url }}
+            - name: KEYCLOAK_ADMIN_USER
+              value: {{ .Values.global.keycloak.admin_user.username }}
+            - name: KEYCLOAK_ADMIN_PASS
+              value: {{ .Values.global.keycloak.admin_user.password }}
+            - name: KEYCLOAK_BACKEND_USER
+              value: {{ .Values.global.keycloak.backend_user.username }}
+            - name: KEYCLOAK_BACKEND_PASS
+              value: {{ .Values.global.keycloak.backend_user.password }}
+            - name: KEYCLOAK_BACKEND_ROLES
+              value: "query-groups;query-users;view-users"
       containers:
       - name: backend
         image: {{  .Values.global.registry_url }}/kaapana-backend:0.0.1
@@ -47,10 +65,10 @@ spec:
         - name: KUBE_HELM_URL
           value: http://kube-helm-service.kube-system.svc:5000/kube-helm-api
         - name: KEYCLOAK_SERVER_URL
-          value: https://keycloak-internal-service.kube-system.svc/auth/
+          value: {{ .Values.global.keycloak.url }}
         - name: KEYCLOAK_USER
-          value: admin
+          value: {{ .Values.global.keycloak.backend_user.username }}
         - name: KEYCLOAK_PASSWORD
-          value: Kaapana2020
+          value: {{ .Values.global.keycloak.backend_user.password }}
       imagePullSecrets:
       - name: registry-secret

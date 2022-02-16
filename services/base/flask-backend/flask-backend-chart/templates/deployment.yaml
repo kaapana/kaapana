@@ -17,7 +17,7 @@ spec:
     spec:
       initContainers:
         - name: init-backend-user
-          image: {{  .Values.global.registry_url }}/kaapana-backend:0.0.1
+          image: {{  .Values.global.registry_url }}/kaapana-flask-backend:0.0.1
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           command: ["create_backend_user.py"]
           env:
@@ -35,7 +35,7 @@ spec:
               value: "query-groups;query-users;view-users"
       containers:
       - name: backend
-        image: {{  .Values.global.registry_url }}/kaapana-backend:0.0.1
+        image: {{  .Values.global.registry_url }}/kaapana-flask-backend:0.0.1
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           limits:

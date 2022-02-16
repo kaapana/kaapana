@@ -3,7 +3,7 @@ global:
     pull_policy_pods: "Always"
     base_namespace: "base"
     registry_url: ""
-    path_prefix: "backend"
+    path_prefix: "flask-backend"
     keycloak:
         url: "https://keycloak-internal-service.kube-system.svc/auth/"
         admin_user:

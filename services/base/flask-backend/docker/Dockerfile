@@ -1,7 +1,7 @@
 # FROM python:3.9-alpine3.12
 FROM python:3.9
 
-LABEL IMAGE="kaapana-backend"
+LABEL IMAGE="kaapana-flask-backend"
 LABEL VERSION="0.0.1"
 LABEL CI_IGNORE="False"
 

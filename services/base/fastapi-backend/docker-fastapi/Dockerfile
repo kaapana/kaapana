@@ -1,4 +1,4 @@
-FROM python:3.9-alpine
+FROM python:3.9
 
 LABEL IMAGE="fastapi-backend"
 LABEL VERSION="0.1.0"
@@ -6,16 +6,10 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /app
 
-# RUN HTTPS_PROXY="http://www-int2.dkfz-heidelberg.de:80" apk add gcc postgresql-dev python3-dev musl-dev
-RUN HTTPS_PROXY="http://www-int2.dkfz-heidelberg.de:80" apk add gcc musl-dev libffi-dev openssl-dev python3-dev
-# RUN HTTPS_PROXY="http://www-int2.dkfz-heidelberg.de:80" apk update && HTTPS_PROXY="http://www-int2.dkfz-heidelberg.de:80" apk add gcc postgresql-dev python3-dev musl-dev
-# RUN pip install  --proxy=http://www-int2.dkfz-heidelberg.de:80 psycopg2-binary
-
-# ENV HTTP_PROXY="http://www-int2.dkfz-heidelberg.de:80"
-# ENV HTTPS_PROXY="http://www-int2.dkfz-heidelberg.de:80"
+RUN apt-get update && apt-get install --no-install-recommends -y python3-dev build-essential
 
 COPY files/requirements.txt requirements.txt
-RUN pip install --proxy=http://www-int2.dkfz-heidelberg.de:80 -r requirements.txt
+RUN pip install -r requirements.txt
 
 COPY files/ ./
 RUN chmod +x boot.sh

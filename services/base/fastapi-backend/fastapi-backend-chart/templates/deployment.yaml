@@ -71,7 +71,9 @@ spec:
           value: "/fastapi-backend"
         - name: DATABASE_URL
           value: postgresql://someuser:somepassword@fastapi-postgres-service.base.svc:5432
-        ports: # Port(s) on which your application runs
+        - name: KUBE_HELM_URL
+          value: "http://kube-helm-service.kube-system.svc:5000/kube-helm-api"
+        ports:
           - containerPort: 5000
         resources:
           limits:

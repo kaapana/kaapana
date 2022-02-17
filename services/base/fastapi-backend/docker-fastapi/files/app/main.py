@@ -2,7 +2,7 @@ import requests
 from fastapi import Depends, FastAPI, Request
 
 from .internal import admin
-from .routers import remote
+from .routers import remote, extensions
 from .dependencies import get_query_token, get_token_header
 from . import crud, models, schemas
 from .database import SessionLocal, engine
@@ -21,6 +21,11 @@ app.include_router(
     # tags=["admin"],
     # dependencies=[Depends(get_token_header)],
     responses={418: {"description": "I'm a teapot"}},
+)
+
+app.include_router(
+    extensions.router,
+    prefix="/extensions"
 )
 
 # app.include_router(

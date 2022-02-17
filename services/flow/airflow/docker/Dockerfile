@@ -42,6 +42,6 @@ COPY files/scripts/ /scripts
 COPY files/bootstrap.sh /bootstrap.sh
 RUN chmod +x /bootstrap.sh
 
-#COPY files/scheduler_job.py /usr/local/lib/python3.8/dist-packages/airflow/jobs/
+COPY files/scheduler_job.py /usr/local/lib/python3.8/dist-packages/airflow/jobs/
 
 ENTRYPOINT ["./bootstrap.sh"]

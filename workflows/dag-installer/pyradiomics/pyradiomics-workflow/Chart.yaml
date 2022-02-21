@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+appVersion: 0.1.0
+description: Chart for PyRadiomics
+name: pyradiomics-workflow
+version: "0.1.0"
+keywords:
+- kaapanaapplication
+- kaapanaexperimental
+- kaapanapyradiomics

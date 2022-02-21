@@ -1,0 +1,6 @@
+---
+global:
+    pull_policy_jobs: "IfNotPresent"
+    image: "dag-pyradiomics"
+    version: "0.0.1"
+    action: "copy"

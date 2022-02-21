@@ -1,0 +1,8 @@
+FROM local-only/dag-installer:0.1.0
+
+LABEL IMAGE="dag-pyradiomics"
+LABEL VERSION="0.1.0"
+LABEL CI_IGNORE="False"
+
+COPY ./airflow-components/dags/dag_pyradiomics_init.py /tmp/dags/
+COPY ./airflow-components/dags/pyradiomics /tmp/dags/pyradiomics

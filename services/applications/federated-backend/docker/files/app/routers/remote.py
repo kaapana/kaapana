@@ -13,11 +13,6 @@ from app.utils import get_dataset_list, get_dataset_list, execute_workflow
 
 router = APIRouter()
 
-
-@router.get("/health-check")
-async def health_check():
-    return {f"Federated backend is up and running!"}
-
 @router.post("/trigger-workflow")
 async def trigger_workflow(conf_data: dict, dry_run: str = True,  db: Session = Depends(get_db)):
     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
@@ -31,7 +26,7 @@ async def trigger_workflow(conf_data: dict, dry_run: str = True,  db: Session = 
     return Response(content=resp.content, status_code= resp.status_code)
 
 @router.get("/minio-presigned-url")
-async def minio_presigned_url(presigned_url: str = Header(...)):
+async def get_minio_presigned_url(presigned_url: str = Header(...)):
     print(f'http://minio-service.store.svc:9000{presigned_url}')
     resp = requests.get(f'http://minio-service.store.svc:9000{presigned_url}')
     # excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
@@ -39,7 +34,7 @@ async def minio_presigned_url(presigned_url: str = Header(...)):
     return Response(resp.content, resp.status_code)
 
 @router.post("/minio-presigned-url")
-def minio_presigned_url(file: UploadFile = File(...), presigned_url: str = Header(...)):
+async def post_minio_presigned_url(file: UploadFile = File(...), presigned_url: str = Header(...)):
     resp = requests.put(f'http://minio-service.store.svc:9000{presigned_url}', data=file.file)
     # excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
     # headers = [(name, value) for (name, value) in resp.raw.headers.items() if name.lower() not in excluded_headers]
@@ -47,18 +42,23 @@ def minio_presigned_url(file: UploadFile = File(...), presigned_url: str = Heade
     response = Response(resp.content, resp.status_code)
     return response
 
-@router.get("/job", response_model=schemas.Job)
+@router.get("/job", response_model=schemas.JobWithKaapanaInstance)
 async def get_job(job_id: int, db: Session = Depends(get_db)):
-    return crud.get_job(db, job_id, remote=True)
+    return crud.get_job(db, job_id)
 
-@router.get("/jobs", response_model=List[schemas.Job])
+@router.get("/jobs", response_model=List[schemas.JobWithKaapanaInstance])
 async def get_jobs(node_id: str = None, status: str = None, db: Session = Depends(get_db)):
     return crud.get_jobs(db, node_id, status, remote=True)
 
-@router.put("/job", response_model=schemas.Job)
-async def put_job(job_id: int, status: str, db: Session = Depends(get_db)):
-    return crud.update_job(db, job_id, status, remote=True)
+@router.put("/job", response_model=schemas.JobWithKaapanaInstance)
+async def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
+    return crud.update_job(db, job, remote=True)
 
 @router.delete("/job")
 async def delete_job(job_id: int, db: Session = Depends(get_db)):
     return crud.delete_job(db, job_id, remote=True)
+
+@router.put("/remote-kaapana-instance")
+async def put_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal, db: Session = Depends(get_db)):
+    print(remote_kaapana_instance)
+    return crud.create_and_update_remote_kaapana_instance(db=db, remote_kaapana_instance=remote_kaapana_instance, action='external_update')

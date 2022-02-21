@@ -6,30 +6,44 @@ import requests
 import tarfile
 from cryptography.fernet import Fernet
 
+
 from minio import Minio
 
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
 
-def update_job(federated, status, remote):
+def update_job(federated, status, run_id=None, description=None, remote=True):
+    r = requests.get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id':  federated['client_job_id']})
+    raise_kaapana_connection_error(r)
+    client_job = r.json()
+
     if remote is True:
-        r = requests.get('http://federated-backend-service.base.svc:5000/client/remote-kaapana-instance', params={'node_id': federated['node_id']})
+        print(client_job)
+        r = requests.get('http://federated-backend-service.base.svc:5000/client/remote-kaapana-instance', params={'node_id': client_job['addressed_kaapana_node_id']})
         raise_kaapana_connection_error(r)
         kaapana_instance = r.json()
     else:
-        r = requests.get('http://federated-backend-service.base.svc:5000/client/client-kaapana-instance')
-        raise_kaapana_connection_error(r)
-        kaapana_instance = r.json()
+        kaapana_instance = client_job['kaapana_instance']
     kaapana_instance_url = f'{kaapana_instance["protocol"]}://{kaapana_instance["host"]}:{kaapana_instance["port"]}'
     ssl_check = kaapana_instance['ssl_check']
     if remote is True:
-        r = requests.put(f'{kaapana_instance_url}/federated-backend/remote/job', verify=ssl_check, params={'job_id': federated['remote_job_id'], 'status': status}, headers={'FederatedAuthorization': kaapana_instance['token']})
+        r = requests.put(f'{kaapana_instance_url}/federated-backend/remote/job', verify=ssl_check, json={
+            'job_id': client_job['external_job_id'],
+            'status': status,
+            'run_id': run_id,
+            'description': description
+            }, headers={'FederatedAuthorization': kaapana_instance['token']})
         raise_kaapana_connection_error(r)
         print('Remote job updated!')
         print(r.json())
     else:
-        r = requests.put('http://federated-backend-service.base.svc:5000/client/job', verify=False, params={'job_id': federated['client_job_id'], 'status': status})
+        r = requests.put('http://federated-backend-service.base.svc:5000/client/job', verify=False, json={
+            'job_id': federated['client_job_id'], 
+            'status': status,
+            'run_id': run_id,
+            'description': description
+        })
         raise_kaapana_connection_error(r)
         print('Client job updated!')
         print(r.json())
@@ -77,18 +91,18 @@ def raise_kaapana_connection_error(r):
 def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_dir):
     data = federated['minio_urls'][operator_out_dir][action]
     print(data)
-    r = requests.get('http://federated-backend-service.base.svc:5000/client/remote-kaapana-instance', params={'node_id': federated['node_id']})
+
+    r = requests.get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id':  federated['client_job_id']})
+    raise_kaapana_connection_error(r)
+    client_job = r.json()
+    client_network  = client_job['kaapana_instance']
+    print('Client network')
+    print(json.dumps(client_network, indent=2))
+    r = requests.get('http://federated-backend-service.base.svc:5000/client/remote-kaapana-instance', params={'node_id': client_job['addressed_kaapana_node_id']})
     raise_kaapana_connection_error(r)
     remote_network = r.json()
     print('Remote network')
-    for k, v in remote_network.items():
-        print(k, v)
-    r = requests.get('http://federated-backend-service.base.svc:5000/client/client-kaapana-instance')
-    raise_kaapana_connection_error(r)
-    client_network = r.json()
-    print('Client network')
-    for k, v in client_network.items():
-        print(k, v)
+    print(json.dumps(remote_network, indent=2))
 
     minio_presigned_url = f'{remote_network["protocol"]}://{remote_network["host"]}:{remote_network["port"]}/federated-backend/remote/minio-presigned-url'
     ssl_check = remote_network["ssl_check"]
@@ -167,24 +181,23 @@ def federated_sharing_decorator(func):
             if 'from_previous_dag_run' in federated and federated['from_previous_dag_run'] is not None:
                 print('Downloading data from Minio')
                 federated_action(self.operator_out_dir, 'get', dag_run_dir, federated)
-
-
-        x = func(self, *args, **kwargs)
+        try:
+            x = func(self, *args, **kwargs)
+        except Exception as e:
+            update_job(federated, status='failed', run_id=run_id, description=f'Operator {self.name} had an exception {e}', remote=True)
+            update_job(federated, status='failed', run_id=run_id, description=f'Operator {self.name} had an exception {e}', remote=False)
+            raise e
         if federated is not None and 'federated_operators' in federated and self.operator_out_dir in federated['federated_operators']:
             print('Putting data')
             federated_action(self.operator_out_dir, 'put', dag_run_dir, federated)
 
             if federated['federated_operators'].index(self.operator_out_dir) == 0:
                 print('Updating the conf')
-                conf['federated']['rounds'].append(conf['federated']['rounds'][-1] + 1) 
-                conf['federated']['from_previous_dag_run'] = run_id
-                os.makedirs(os.path.join(dag_run_dir, 'conf'), exist_ok=True)
-                config_path = os.path.join(dag_run_dir, 'conf', 'conf.json')
-                with open(config_path, "w", encoding='utf-8') as jsonData:
-                    json.dump(conf, jsonData, indent=4, sort_keys=True, ensure_ascii=True)
-                federated_action('conf', 'put', dag_run_dir, federated)
-                update_job(federated, status='finished', remote=True)
-                update_job(federated, status='finished', remote=False)
+                r = requests.get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id':  federated['client_job_id']})
+                raise_kaapana_connection_error(r)
+                client_job = r.json()
+                update_job(federated, status='finished', run_id=run_id, description=f'Finished with operator {self.name}', remote=True)
+                update_job(federated, status='finished', run_id=run_id, description=f'Finished with operator {self.name}', remote=False)
 
 #                 HelperMinio.apply_action_to_file(minioClient, 'put', 
 #                     bucket_name=f'{federated["site"]}', object_name='conf.json', file_path=config_path)

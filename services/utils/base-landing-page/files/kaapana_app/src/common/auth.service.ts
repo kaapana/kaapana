@@ -23,5 +23,18 @@ const AuthService = {
     location.href = '/oauth/logout?redirect=/'
     //location.href = '/oauth/logout' // without redirect since redirect lead often to the error page and people had to renter the url
   },
+  getFederatedHeaders() {
+    return new Promise((resolve, reject) => {
+      request.get('/federated-backend/client/client-kaapana-instance').then((response: any) =>  {
+        resolve({
+          FederatedAuthorization: response.data['token']
+        })
+      }).catch((error: any) => {
+        // console.log('not token there', error)
+        // reject(error)
+      })
+
+    })
+  }
 }
 export default AuthService

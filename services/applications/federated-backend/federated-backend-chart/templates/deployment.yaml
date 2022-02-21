@@ -55,6 +55,13 @@ spec:
           value: "443"
         - name: PROXY # currently not used
           value: "http://www-int2.dkfz-heidelberg.de:80"
+        - name: MINIOUSER
+          value: kaapanaminio
+          # value: {{ .Values.global.credentials.minio_username }}
+        - name: MINIOPASSWORD
+          # value: {{ .Values.global.credentials.minio_password }}
+          value: Kaapana2020
+
         # - name: http_proxy
         #   value: "http://www-int2.dkfz-heidelberg.de:80"
         # - name: https_proxy

@@ -84,8 +84,8 @@ def cache_operator_output(func):
             federated = conf['federated']
             print('Federated config')
             print(federated)
-            update_job(federated, status='running', remote=True)
-            update_job(federated, status='running', remote=False)
+            update_job(federated, status='running', run_id=run_id, description=f'Running the operator {self.name}', remote=True)
+            update_job(federated, status='running', run_id=run_id, description=f'Running the operator {self.name}', remote=False)
         else:
             federated = None
 
@@ -109,7 +109,7 @@ def cache_operator_output(func):
             if cache_action(cache_operator_dirs, 'get', dag_run_dir) is True:
                 print(f'{", ".join(cache_operator_dirs)} output loaded from cache')
                 return
-        
+  
         x = func(self, *args, **kwargs)
         if self.manage_cache  == 'cache' or self.manage_cache == 'overwrite':
             cache_action(cache_operator_dirs, 'put', dag_run_dir)

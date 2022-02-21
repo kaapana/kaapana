@@ -26,7 +26,15 @@ const routes = [
             isPublic: false,
         },
     },
-
+    {
+        name: 'federated-learning',
+        path: '/federated-learning',
+        component: () => import('@/views/FederatedLearning.vue'),
+        title: 'FederatedLearning',
+        permissions: {
+            isPublic: false,
+        },
+    },
     {
         name: 'data-upload',
         path: '/data-upload',

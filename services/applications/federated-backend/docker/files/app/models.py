@@ -1,6 +1,8 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Table
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, Table
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
 from .database import Base
 
 
@@ -9,15 +11,20 @@ from .database import Base
 #     Column('kaapana_instance_id', ForeignKey('kaapana_instance.id'), primary_key=True)
 # )
 
-
 class Job(Base):
     __tablename__ = "job"
-    # add timestamp, job_data, description
     id = Column(Integer, primary_key=True)
-    remote_id = Column(Integer)
-    conf_data = Column(String(10240), index=True)
+    external_job_id = Column(Integer)
+    addressed_kaapana_node_id = Column(String(64))
+    job_data = Column(String(10240), index=True)
+    conf_data = Column(String(51200), index=True)
+    local_data = Column(String(10240), index=True)
     dry_run = Column(Boolean(), index=True)
     status = Column(String(64), index=True)
+    run_id = Column(String(64), index=True)
+    description = Column(String(256), index=True)
+    time_created = Column(DateTime(timezone=True))
+    time_updated = Column(DateTime(timezone=True))
     kaapana_id = Column(Integer, ForeignKey('kaapana_instance.id'))
     kaapana_instance = relationship("KaapanaInstance", back_populates="jobs")
 
@@ -32,8 +39,10 @@ class KaapanaInstance(Base):
     port = Column(Integer(), index=True)
     ssl_check = Column(Boolean(), index=True)
     fernet_key = Column(String(100))
-    allowed_dags = Column(String(1024), default='[]', index=True)
+    allowed_dags = Column(String(51200), default='[]', index=True)
     allowed_datasets = Column(String(1024),  default='[]', index=True)
+    time_created = Column(DateTime(timezone=True))
+    time_updated = Column(DateTime(timezone=True))
     automatic_update = Column(Boolean(), default=False, index=True)
     automatic_job_execution = Column(Boolean(), default=False, index=True)
     jobs = relationship("Job", back_populates="kaapana_instance", cascade="all, delete-orphan")

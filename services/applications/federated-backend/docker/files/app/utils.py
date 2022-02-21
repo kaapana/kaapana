@@ -1,17 +1,122 @@
 import json
 import os
 import requests
+from datetime import timezone, timedelta
+import datetime
 from fastapi import APIRouter, Depends, Request, Response, HTTPException
+from app import crud
+from app import schemas
 
 from elasticsearch import Elasticsearch
+from minio import Minio
 
 
 HOSTNAME = os.environ['HOSTNAME']
 NODE_ID = os.environ['NODE_ID']
 
-def get_dag_list():
+
+class HelperMinio():
+
+    _minio_host='minio-service.store.svc'
+    _minio_port='9000'
+    minioClient = Minio(_minio_host+":"+_minio_port,
+                        access_key=os.environ.get('MINIOUSER'),
+                        secret_key=os.environ.get('MINIOPASSWORD'),
+                        secure=False)
+
+    @staticmethod
+    def get_custom_presigend_url(method, bucket_name, object_name, expires=timedelta(days=7)):
+        if method not in ['GET', 'PUT']:
+            raise NameError('Method must be either GET or PUT')
+        presigend_url = HelperMinio.minioClient.get_presigned_url(method, bucket_name, object_name, expires=expires)
+        return {'method': method.lower(), 'path': presigend_url.replace(f'{HelperMinio.minioClient._base_url._url.scheme}://{HelperMinio.minioClient._base_url._url.netloc}', '')}
+
+    @staticmethod
+    def add_minio_urls(job_federated_data, local_federated_data, node_id): 
+        federated_dir = local_federated_data['federated_dir']
+        federated_bucket = local_federated_data['federated_bucket']
+        if 'fl_round' in job_federated_data:
+            fl_round = str(job_federated_data['fl_round'])
+        else:
+            fl_round = ''
+
+        if not HelperMinio.minioClient.bucket_exists(federated_bucket):
+            HelperMinio.minioClient.make_bucket(federated_bucket)
+
+        minio_urls = {}
+        for federated_operator in job_federated_data['federated_operators']:
+            minio_urls[federated_operator] = {  
+                'get': HelperMinio.get_custom_presigend_url('GET', federated_bucket, os.path.join(federated_dir, fl_round, node_id, f'{federated_operator}.tar.gz')),
+                'put': HelperMinio.get_custom_presigend_url('PUT', federated_bucket,  os.path.join(federated_dir, fl_round, node_id, f'{federated_operator}.tar.gz'))
+            }
+        return minio_urls
+
+    # @staticmethod
+    # def apply_action_to_file(minioClient, action, bucket_name, object_name, file_path, file_white_tuples=None):
+    #     print(file_path)
+    #     if file_white_tuples is not None and not file_path.lower().endswith(file_white_tuples):
+    #         print(f'Not applying action to object {object_name}, since this action is only allowed for files that end with {file_white_tuples}!')
+    #         return
+    #     if action == 'get': 
+    #         print(f"Getting file: {object_name} from {bucket_name} to {file_path}")
+    #         try:
+    #             minioClient.stat_object(bucket_name, object_name)
+    #             os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    #             minioClient.fget_object(bucket_name, object_name, file_path)
+    #         except S3Error as err:
+    #             print(f"Skipping object {object_name} since it doe not exists in Minio")
+    #         except InvalidResponseError as err:
+    #             print(err)
+    #     elif action == 'remove':
+    #         print(f"Removing file: {object_name} from {bucket_name}")
+    #         try:
+    #             minioClient.remove_object(bucket_name, object_name)
+    #         except InvalidResponseError as err:
+    #             print(err)
+    #             raise
+    #     elif action == 'put':
+    #         print(f'Creating bucket {bucket_name} if it does not already exist.')
+    #         HelperMinio.make_bucket(minioClient, bucket_name)
+    #         print(f"Putting file: {file_path} to {bucket_name} to {object_name}") 
+    #         try:
+    #             minioClient.fput_object(bucket_name, object_name, file_path)
+    #         except InvalidResponseError as err:
+    #             print(err)
+    #             raise
+    #     else:
+    #         raise NameError('You need to define an action: get, remove or put!')
+
+
+
+# def get_presigend_url(minioClient, method, bucket_name, object_name, expires=timedelta(days=7)):
+#     if method not in ['GET', 'PUT']:
+#         raise NameError('Method must be either GET or PUT')
+#     presigend_url = minioClient.get_presigned_url(method, bucket_name, object_name, expires=expires)
+#     return {'method': method.lower(), 'path': presigend_url.replace(f'{minioClient._base_url._url.scheme}://{minioClient._base_url._url.netloc}', '')}
+
+# def get_minio_client(access_key, secret_key, minio_host='minio-service.store.svc', minio_port='9000'):
+#     minioClient = Minio(minio_host+":"+minio_port,
+#                         access_key=access_key,
+#                         secret_key=secret_key,
+#                         secure=False)
+#     return minioClient
+
+def get_utc_timestamp():
+    dt = datetime.datetime.now(timezone.utc)
+    utc_time = dt.replace(tzinfo=timezone.utc)
+    return utc_time
+
+def get_dag_list(only_dag_names=True, filter_allowed_dags=[]):
     r = requests.get('http://airflow-service.flow.svc:8080/flow/kaapana/api/getdags')
-    return list(r.json().keys())
+    raise_kaapana_connection_error(r)
+    dags = r.json()
+    if only_dag_names is True:
+        return sorted(list(dags.keys()))
+    else:
+        if filter_allowed_dags:
+            return {dag: dags[dag] for dag in filter_allowed_dags}
+        else:
+            return dags
 
 def get_dataset_list(queryDict=None, elastic_index='meta-index'):
     _elastichost = "elastic-meta-service.meta.svc:9200"
@@ -52,6 +157,19 @@ def execute_workflow(db_client_kaapana, conf_data, dry_run):
         return 'dry_run'
     resp = requests.post('http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/meta-trigger',  json=conf_data)
     return resp
+
+def execute_job(db_job):
+    print('Executing', db_job.conf_data, db_job.dry_run)
+    conf_data = json.loads(db_job.conf_data)
+    job_data = json.loads(db_job.job_data)
+    conf_data['conf'].update(job_data)
+    if 'federated' in conf_data['conf']:
+        conf_data['conf']['federated']['client_job_id'] = db_job.id
+    resp = execute_workflow(db_job.kaapana_instance, conf_data, db_job.dry_run)
+    if resp == 'dry_run':
+        return Response(f"The configuration for the allowed dags and datasets is okay!", 200)
+    else:
+        return resp
 
 def raise_kaapana_connection_error(r):
     if r.history:

@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import request from '@/request.ts'
+import AuthService from '@/common/auth.service.ts'
 
 const kaapanaApiService = {
 
@@ -132,7 +133,118 @@ const kaapanaApiService = {
       }
     }
     return availableRoute
+  },
+
+  federatedClientApiPost(subUrl: any, payload: any = null, params: any=null) {
+    return new Promise((resolve, reject) => {
+      request.post('/federated-backend/client' + subUrl, payload, { params: params}).then((response: any) => {
+        console.log(response)
+        resolve(response)
+      }).catch((error: any) => {
+        alert('Failed: ' + error.response.data)
+        reject(error)
+      })
+    })
+  },
+
+  federatedClientApiGet(subUrl: any, params: any = null) {
+    return new Promise((resolve, reject) => {
+      request.get('/federated-backend/client' + subUrl, { params }).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        alert('Failed: ' + error.response.data)
+        reject(error)
+      })
+    })
+  },
+
+  federatedClientApiPut(subUrl: any, payload: any=null, params: any=null) {
+    return new Promise((resolve, reject) => {
+      request.put('/federated-backend/client' + subUrl,  payload, { params: params }).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        alert('Failed: ' + error.response.data)
+        reject(error)
+      })
+    })
+  },
+
+  federatedClientApiDelete(subUrl: any, params: any = null) {
+    return new Promise((resolve, reject) => {
+      request.delete('/federated-backend/client' + subUrl, { params: params} ).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        alert('Failed: ' + error.response.data)
+        reject(error)
+      })
+    })
+  },
+
+  federatedRemoteApiPut(subUrl: any, payload: any = null,  params: any=null) {
+    return new Promise((resolve, reject) => {
+      AuthService.getFederatedHeaders().then((response: any) =>  {
+        request.put('/federated-backend/remote' + subUrl, payload, { params: params, headers: response}).then((response: any) => {
+          console.log(response)
+          resolve(response)
+        }).catch((error: any) => {
+          alert('Failed: ' + error.response.data)
+          reject(error)
+        })
+      }).catch((error: any) => {
+        console.log(error);
+        reject(error)
+      });
+    })
+  },
+
+  federatedRemoteApiPost(subUrl: any, payload: any=null, params: any=null) {
+    return new Promise((resolve, reject) => {
+      AuthService.getFederatedHeaders().then((response: any) =>  {
+        request.post('/federated-backend/remote' + subUrl, payload, {params: params, headers: response}).then((response: any) => {
+          console.log(response)
+          resolve(response)
+        }).catch((error: any) => {
+          alert('Failed: ' + error.response.data)
+          reject(error)
+        })
+      }).catch((error: any) => {
+        console.log(error);
+        reject(error)
+      });
+    })
+  },
+
+  federatedRemoteApiGet(subUrl: any, params: any = null) {
+    return new Promise((resolve, reject) => {
+      AuthService.getFederatedHeaders().then((response: any) =>  {
+        request.get('/federated-backend/remote' + subUrl, { params , headers: response}).then((response: any) => {
+          resolve(response)
+        }).catch((error: any) => {
+          alert('Failed: ' + error.response.data)
+          reject(error)
+        })
+      }).catch((error: any) => {
+        console.log(error);
+        reject(error)
+      });
+    })
+  },
+  federatedRemoteApiDelete(subUrl: any, params: any = null) {
+    return new Promise((resolve, reject) => {
+      AuthService.getFederatedHeaders().then((response: any) =>  {
+        request.delete('/federated-backend/remote' + subUrl, { params , headers: response}).then((response: any) => {
+          resolve(response)
+        }).catch((error: any) => {
+          alert('Failed: ' + error.response.data)
+          reject(error)
+        })
+      }).catch((error: any) => {
+        console.log(error);
+        reject(error)
+      });
+    })
   }
+
 }
 
 export default kaapanaApiService

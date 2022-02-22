@@ -1,6 +1,8 @@
 from ast import alias
 import json
+from urllib import request
 import uuid
+import requests
 
 
 from sqlalchemy.orm import Session
@@ -8,7 +10,7 @@ from cryptography.fernet import Fernet
 from fastapi import APIRouter, Depends, Request, HTTPException, Response
 
 from . import models, schemas
-from app.utils import HOSTNAME, NODE_ID, get_utc_timestamp, HelperMinio, get_dag_list
+from app.utils import HOSTNAME, NODE_ID, update_external_job, delete_external_job, execute_job, get_utc_timestamp, HelperMinio, get_dag_list, raise_kaapana_connection_error
 from urllib.parse import urlparse
 
 
@@ -161,6 +163,7 @@ def create_job(db: Session, job: schemas.JobCreate):
     db_kaapana_instance.jobs.append(db_job)
     db.add(db_kaapana_instance)
     db.commit()
+    update_external_job(db, db_job)
     db.refresh(db_kaapana_instance)
     return db_job
 
@@ -174,11 +177,13 @@ def delete_job(db: Session, job_id: int, remote: bool = True):
     db_job = get_job(db, job_id)
     if (db_job.kaapana_instance.remote != remote) and db_job.status not in ["queued", "scheduled", "finished", "failed"]:
         raise HTTPException(status_code=401, detail="You are not allowed to delete this job, since its on the client site")
+    delete_external_job(db, db_job)
     db.delete(db_job)
     db.commit()
     return {"ok": True}
 
 def delete_jobs(db: Session):
+    # Todo add remote job deletion
     db.query(models.Job).delete()
     db.commit()
     return {"ok": True}
@@ -195,7 +200,14 @@ def get_jobs(db: Session, node_id: str = None, status: str = None, remote: bool 
 
 def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     utc_timestamp = get_utc_timestamp()
+
+    print(f'Updating client job {job.job_id}')
     db_job = get_job(db, job.job_id)
+
+    if job.status == 'running' and db_job.status != 'running' and db_job.kaapana_instance.remote == False:
+        print(f'Executing  job {db_job.id}')
+        execute_job(db_job)
+
     if (db_job.kaapana_instance.remote != remote) and db_job.status not in ["queued", "scheduled", "finished", "failed"]:
         raise HTTPException(status_code=401, detail="You are not allowed to update this job, since its on the client site")
     db_job.status = job.status
@@ -206,6 +218,9 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     db_job.time_updated = utc_timestamp
     db.commit()
     db.refresh(db_job)
+
+    update_external_job(db, db_job)
+
     return db_job
 
 

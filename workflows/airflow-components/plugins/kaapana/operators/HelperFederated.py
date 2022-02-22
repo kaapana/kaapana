@@ -13,40 +13,44 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
 
-def update_job(federated, status, run_id=None, description=None, remote=True):
+def update_job(federated, status, run_id=None, description=None):
     r = requests.get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id':  federated['client_job_id']})
     raise_kaapana_connection_error(r)
     client_job = r.json()
+    kaapana_instance = client_job['kaapana_instance']
 
-    if remote is True:
-        print(client_job)
-        r = requests.get('http://federated-backend-service.base.svc:5000/client/remote-kaapana-instance', params={'node_id': client_job['addressed_kaapana_node_id']})
-        raise_kaapana_connection_error(r)
-        kaapana_instance = r.json()
-    else:
-        kaapana_instance = client_job['kaapana_instance']
-    kaapana_instance_url = f'{kaapana_instance["protocol"]}://{kaapana_instance["host"]}:{kaapana_instance["port"]}'
-    ssl_check = kaapana_instance['ssl_check']
-    if remote is True:
-        r = requests.put(f'{kaapana_instance_url}/federated-backend/remote/job', verify=ssl_check, json={
-            'job_id': client_job['external_job_id'],
-            'status': status,
-            'run_id': run_id,
-            'description': description
-            }, headers={'FederatedAuthorization': kaapana_instance['token']})
-        raise_kaapana_connection_error(r)
-        print('Remote job updated!')
-        print(r.json())
-    else:
-        r = requests.put('http://federated-backend-service.base.svc:5000/client/job', verify=False, json={
-            'job_id': federated['client_job_id'], 
-            'status': status,
-            'run_id': run_id,
-            'description': description
-        })
-        raise_kaapana_connection_error(r)
-        print('Client job updated!')
-        print(r.json())
+    # if remote is True:
+    #     print(client_job)
+    #     r = requests.get('http://federated-backend-service.base.svc:5000/client/remote-kaapana-instance', params={'node_id': client_job['addressed_kaapana_node_id']})
+    #     raise_kaapana_connection_error(r)
+    #     kaapana_instance = r.json()
+    # else:
+    #     kaapana_instance = client_job['kaapana_instance']
+    # kaapana_instance_url = f'{kaapana_instance["protocol"]}://{kaapana_instance["host"]}:{kaapana_instance["port"]}'
+    # ssl_check = kaapana_instance['ssl_check']
+    # if remote is True:
+    #     r = requests.put(f'{kaapana_instance_url}/federated-backend/remote/job', verify=ssl_check, json={
+    #         'job_id': client_job['external_job_id'],
+    #         'status': status,
+    #         'run_id': run_id,
+    #         'description': description
+
+    #         }, headers={'FederatedAuthorization': kaapana_instance['token']})
+    #     raise_kaapana_connection_error(r)
+    #     print('Remote job updated!')
+    #     print(r.json())
+    # else:
+    r = requests.put('http://federated-backend-service.base.svc:5000/client/job', verify=False, json={
+        'job_id': federated['client_job_id'], 
+        'status': status,
+        'run_id': run_id,
+        'description': description,
+        'addressed_kaapana_node_id': client_job['addressed_kaapana_node_id'],
+        'external_job_id': client_job['external_job_id']
+    })
+    raise_kaapana_connection_error(r)
+    print('Client job updated!')
+    print(r.json())
 
 
 ##### To be copied
@@ -184,8 +188,7 @@ def federated_sharing_decorator(func):
         try:
             x = func(self, *args, **kwargs)
         except Exception as e:
-            update_job(federated, status='failed', run_id=run_id, description=f'Operator {self.name} had an exception {e}', remote=True)
-            update_job(federated, status='failed', run_id=run_id, description=f'Operator {self.name} had an exception {e}', remote=False)
+            update_job(federated, status='failed', run_id=run_id, description=f'Operator {self.name} had an exception {e}')
             raise e
         if federated is not None and 'federated_operators' in federated and self.operator_out_dir in federated['federated_operators']:
             print('Putting data')
@@ -196,8 +199,7 @@ def federated_sharing_decorator(func):
                 r = requests.get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id':  federated['client_job_id']})
                 raise_kaapana_connection_error(r)
                 client_job = r.json()
-                update_job(federated, status='finished', run_id=run_id, description=f'Finished with operator {self.name}', remote=True)
-                update_job(federated, status='finished', run_id=run_id, description=f'Finished with operator {self.name}', remote=False)
+                update_job(federated, status='finished', run_id=run_id, description=f'Finished with operator {self.name}')
 
 #                 HelperMinio.apply_action_to_file(minioClient, 'put', 
 #                     bucket_name=f'{federated["site"]}', object_name='conf.json', file_path=config_path)

@@ -138,7 +138,6 @@ const kaapanaApiService = {
   federatedClientApiPost(subUrl: any, payload: any = null, params: any=null) {
     return new Promise((resolve, reject) => {
       request.post('/federated-backend/client' + subUrl, payload, { params: params}).then((response: any) => {
-        console.log(response)
         resolve(response)
       }).catch((error: any) => {
         alert('Failed: ' + error.response.data)
@@ -184,7 +183,6 @@ const kaapanaApiService = {
     return new Promise((resolve, reject) => {
       AuthService.getFederatedHeaders().then((response: any) =>  {
         request.put('/federated-backend/remote' + subUrl, payload, { params: params, headers: response}).then((response: any) => {
-          console.log(response)
           resolve(response)
         }).catch((error: any) => {
           alert('Failed: ' + error.response.data)
@@ -201,7 +199,6 @@ const kaapanaApiService = {
     return new Promise((resolve, reject) => {
       AuthService.getFederatedHeaders().then((response: any) =>  {
         request.post('/federated-backend/remote' + subUrl, payload, {params: params, headers: response}).then((response: any) => {
-          console.log(response)
           resolve(response)
         }).catch((error: any) => {
           alert('Failed: ' + error.response.data)

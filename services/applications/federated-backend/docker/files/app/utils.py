@@ -3,6 +3,7 @@ import os
 import requests
 from datetime import timezone, timedelta
 import datetime
+from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, Request, Response, HTTPException
 from app import crud
 from app import schemas
@@ -178,3 +179,28 @@ def raise_kaapana_connection_error(r):
         r.raise_for_status()
     except:
         raise HTTPException(f'Something was not okay with your request code {r}: {r.text}!')
+
+def delete_external_job(db: Session, db_job):
+    if db_job.external_job_id is not None:
+        print(f'Deleting remote job {db_job.external_job_id}, {db_job.addressed_kaapana_node_id}')
+        db_remote_kaapana_instance = crud.get_kaapana_instance(db, node_id=db_job.addressed_kaapana_node_id, remote=True)
+        remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
+        r = requests.delete(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, params={
+            "job_id": db_job.external_job_id,
+        }, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+        raise_kaapana_connection_error(r)
+        print(r.json())
+
+def update_external_job(db: Session, db_job):
+    if db_job.external_job_id is not None:
+        print(f'Updating remote job {db_job.external_job_id}, {db_job.addressed_kaapana_node_id}')
+        db_remote_kaapana_instance = crud.get_kaapana_instance(db, node_id=db_job.addressed_kaapana_node_id, remote=True)
+        remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
+        r = requests.put(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, json={
+            "job_id": db_job.external_job_id,
+            "run_id": db_job.run_id,
+            "status": db_job.status,
+            "description": db_job.description
+        }, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+        raise_kaapana_connection_error(r)
+        print(r.json())

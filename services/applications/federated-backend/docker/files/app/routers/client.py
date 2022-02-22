@@ -39,7 +39,6 @@ async def get_remote_kaapana_instance(node_id: str, db: Session = Depends(get_db
 
 @router.get("/client-kaapana-instance", response_model=schemas.KaapanaInstanceWithJobs)
 async def get_client_kaapana_instance(db: Session = Depends(get_db)):
-    # url = urlparse(str(request.url))
     return crud.get_kaapana_instance(db, remote=False)
 
 @router.post("/get-remote-kaapana-instances", response_model=List[schemas.KaapanaInstanceWithJobs])
@@ -76,6 +75,7 @@ async def delete_job(job_id: int, db: Session = Depends(get_db)):
 
 @router.delete("/jobs")
 async def delete_jobs(db: Session = Depends(get_db)):
+    # Todo add remote job deletion
     return crud.delete_jobs(db)
 
 @router.get("/dags")
@@ -93,12 +93,10 @@ async def check_for_remote_updates(db: Session = Depends(get_db)):
     print(100*'#')
     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
     if db_client_kaapana.automatic_job_execution is True:
-        client_status = "scheduled"
-        remote_status = "scheduled"
+        next_status = "scheduled"
         print('scheduled')
     else:
-        client_status = "pending"
-        remote_status = "pending"
+        next_status = "pending"
     db_remote_kaapana_instances = crud.get_kaapana_instances(db, remote=True)
     for db_remote_kaapana_instance in db_remote_kaapana_instances:
         remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
@@ -113,7 +111,7 @@ async def check_for_remote_updates(db: Session = Depends(get_db)):
             raise_kaapana_connection_error(r)
         async with httpx.AsyncClient(verify=db_remote_kaapana_instance.ssl_check) as client:
             r = await client.get(f'{remote_backend_url}/jobs', params={
-                "node_id": db_remote_kaapana_instance.node_id,
+                "node_id": db_client_kaapana.node_id,
                 "status": "queued",
             }, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
             raise_kaapana_connection_error(r)
@@ -121,17 +119,17 @@ async def check_for_remote_updates(db: Session = Depends(get_db)):
             print(len(incoming_jobs))
             # print(incoming_jobs)
         for incoming_job in incoming_jobs:
-            async with httpx.AsyncClient(verify=db_remote_kaapana_instance.ssl_check) as client:
-                r = await client.put(f'{remote_backend_url}/job', json={
-                    "job_id": incoming_job['id'],
-                    "status": remote_status
-                }, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
-                raise_kaapana_connection_error(r)
-                # print(r.json())
+            # async with httpx.AsyncClient(verify=db_remote_kaapana_instance.ssl_check) as client:
+            #     r = await client.put(f'{remote_backend_url}/job', json={
+            #         "job_id": incoming_job['id'],
+            #         "status": remote_status
+            #     }, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+            #     raise_kaapana_connection_error(r)
+            #     # print(r.json())
             incoming_job['kaapana_instance_id'] = db_client_kaapana.id
             incoming_job['addressed_kaapana_node_id'] = db_remote_kaapana_instance.node_id
             incoming_job['external_job_id'] = incoming_job["id"]
-            incoming_job['status'] = client_status
+            incoming_job['status'] = next_status
             job = schemas.JobCreate(**incoming_job)
             db_job = crud.create_job(db, job)
             pending_jobs.append(db_job)
@@ -139,44 +137,55 @@ async def check_for_remote_updates(db: Session = Depends(get_db)):
     return pending_jobs
 
 
-@router.post("/execute-scheduled-job", response_model=schemas.Job)
-async def execute_scheduled_jobs(job_id: int, db: Session = Depends(get_db)):
-    db_job = crud.get_job(db, job_id)
-    execute_job(db_job)
-    job = schemas.JobUpdate(**{'job_id': db_job.id, 'status': 'running', 'description': 'The worklow was triggered!'})
-    crud.update_job(db, job, remote=False)
-    db_remote_kaapana_instance = crud.get_kaapana_instance(db, node_id=db_job.addressed_kaapana_node_id, remote=True)
-    remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
-    async with httpx.AsyncClient(verify=db_remote_kaapana_instance.ssl_check) as client:
-        r = await client.put(f'{remote_backend_url}/job', json={
-            "job_id": db_job.external_job_id,
-            "status": "running"
-        }, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
-        raise_kaapana_connection_error(r)
-        print(r.json())
-    return db_job
+# @router.post("/execute-scheduled-job", response_model=schemas.Job)
+# async def execute_scheduled_jobs(job_id: int, db: Session = Depends(get_db)):
+#     db_job = crud.get_job(db, job_id)
+#     execute_job(db_job)
+#     job = schemas.JobUpdate(**{
+#         'job_id': db_job.id,
+#         'status': 'running',
+#         'description':'The worklow was triggered!',
+#         'addressed_kaapana_node_id': db_job.addressed_kaapana_node_id,
+#         'external_job_id': db_job.external_job_id})
+
+#     crud.update_job(db, job, remote=False)
+#     # db_remote_kaapana_instance = crud.get_kaapana_instance(db, node_id=db_job.addressed_kaapana_node_id, remote=True)
+#     # remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
+#     # async with httpx.AsyncClient(verify=db_remote_kaapana_instance.ssl_check) as client:
+#     #     r = await client.put(f'{remote_backend_url}/job', json={
+#     #         "job_id": db_job.external_job_id,
+#     #         "status": "running"
+#     #     }, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+#     #     raise_kaapana_connection_error(r)
+#     #     print(r.json())
+#     return db_job
 
 
-@router.post("/execute-scheduled-jobs", response_model=List[schemas.Job])
-async def execute_scheduled_jobs(db: Session = Depends(get_db)):
-    executed_scheduled_jobs = []
-    db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
-    for db_job in db_client_kaapana.jobs:
-        if db_job.status == 'scheduled':
-            execute_job(db_job)
-            # Copy of above part
-            job = schemas.JobUpdate(**{'job_id': db_job.id, 'status': 'running', 'description': 'The worklow was triggered!'})
-            crud.update_job(db, job, remote=False)
-            db_remote_kaapana_instance = crud.get_kaapana_instance(db, node_id=db_job.addressed_kaapana_node_id, remote=True)
-            remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
-            async with httpx.AsyncClient(verify=db_remote_kaapana_instance.ssl_check) as client:
-                r = await client.put(f'{remote_backend_url}/job', json={
-                    "job_id": db_job.external_job_id,
-                    "status": "running"
-                }, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
-                raise_kaapana_connection_error(r)
-                print(r.json())
-            executed_scheduled_jobs.append(db_job)
+# @router.post("/execute-scheduled-jobs", response_model=List[schemas.Job])
+# async def execute_scheduled_jobs(db: Session = Depends(get_db)):
+#     executed_scheduled_jobs = []
+#     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
+#     for db_job in db_client_kaapana.jobs:
+#         if db_job.status == 'scheduled':
+#             execute_job(db_job)
+#             # Copy of above part
+#             job = schemas.JobUpdate(**{
+#                 'job_id': db_job.id,
+#                 'status': 'running',
+#                 'description':'The worklow was triggered!',
+#                 'addressed_kaapana_node_id': db_job.addressed_kaapana_node_id,
+#                 'external_job_id': db_job.external_job_id})
+#             crud.update_job(db, job, remote=False)
+#             # db_remote_kaapana_instance = crud.get_kaapana_instance(db, node_id=db_job.addressed_kaapana_node_id, remote=True)
+#             # remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
+#             # async with httpx.AsyncClient(verify=db_remote_kaapana_instance.ssl_check) as client:
+#             #     r = await client.put(f'{remote_backend_url}/job', json={
+#             #         "job_id": db_job.external_job_id,
+#             #         "status": "running"
+#             #     }, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+#             #     raise_kaapana_connection_error(r)
+#             #     print(r.json())
+#             # executed_scheduled_jobs.append(db_job)
 
-    return executed_scheduled_jobs
+#     return executed_scheduled_jobs
 

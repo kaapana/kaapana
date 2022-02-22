@@ -82,19 +82,18 @@ export default {
       kaapanaApiService
         .federatedClientApiDelete("/kaapana-instance", params)
         .then((response: any) => {
-
+          this.$emit('refreshView')
+          this.closeDelete()
         })
         .catch((err: any) => {
           console.log(err);
         });
-      this.$emit('refreshView')
       // if (this.remote == true){
     	//   this.$emit('gris')
     	//   this.$emit('grj')
       // } else {
     	//   this.$emit('gci')
       // }
-      this.closeDelete()
     },
     deleteInstance() {
       this.dialogDelete = true

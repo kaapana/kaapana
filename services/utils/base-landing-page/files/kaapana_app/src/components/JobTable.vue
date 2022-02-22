@@ -26,7 +26,7 @@
           v-btn(v-if='remote==false && item.status=="pending"', @click='setToScheduled(item)') Set to scheduled
           v-btn(v-if='remote==false && item.status=="scheduled"', @click='executeJob(item)') Execute job
           v-btn(v-if='remote==false && (item.status=="pending" || item.status=="scheduled" || item.status=="finished" || item.status=="failed")', @click='deleteJob(item)') Delete job
-          v-btn(v-if='remote==true && (item.status=="queued" || item.status=="finished" || item.status=="failed")', @click='deleteJob(item)') Delete job
+          v-btn(v-if='remote==true && (item.status=="queued")', @click='deleteJob(item)') Delete job
 </template>
 
 <script lang="ts">
@@ -74,17 +74,14 @@ export default {
     },
     headers(): any {
       let headers = []
-      if (this.remote==false) {
-        headers.push({
-          text: 'Remote Node Id',
-          value: 'addressed_kaapana_node_id'
-        })
-      } else {
-        headers.push({
-          text: 'Node id',
-          value: 'kaapana_instance.node_id'
-        })
-      }
+      headers.push({
+        text: 'Executing Node id',
+        value: 'kaapana_instance.node_id'
+      })
+      headers.push({
+        text: 'Sender Node Id',
+        value: 'addressed_kaapana_node_id'
+      })
       headers.push(
         { text: 'Description', align: 'start', value: 'description' },
         { text: 'Status', value: 'status' },
@@ -96,12 +93,15 @@ export default {
   methods: {
     executeJob(item) {
       kaapanaApiService
-        .federatedClientApiPost("/execute-scheduled-job", null, {
+        .federatedClientApiPut("/job", {
           job_id: item.id,
+          status: 'running',
+          description:'The worklow was triggered!',
+          addressed_kaapana_node_id: item.addressed_kaapana_node_id,
+          external_job_id: item.external_job_id
         })
         .then((response: any) => {
           this.$emit('refreshView')
-    	    // this.$emit('gci')
         })
         .catch((err: any) => {
           console.log(err);
@@ -113,45 +113,49 @@ export default {
           job_id: item.id,
         })
         .then((response: any) => {
-        })
-        .catch((err: any) => {
-          console.log(err);
-        });
-      if (this.remote == false) {
-        kaapanaApiService
-          .federatedRemoteApiDelete("/job", {
-            job_id: item.external_job_id,
-          })
-          .then((response: any) => {
-          })
-          .catch((err: any) => {
-            console.log(err);
-          });
-      }
-      this.$emit('refreshView')
-    },
-    setToScheduled(item) {
-      kaapanaApiService
-        .federatedRemoteApiPut("/job", {
-          job_id: item.external_job_id,
-          status: 'scheduled'
-        })
-        .then((response: any) => {
           this.$emit('refreshView')
-    	    // this.$emit('gci')
+          // if (this.remote == false) {
+          //   // ToDo needst to reach the outside world!
+          //   kaapanaApiService
+          //     .federatedRemoteApiDelete("/job", {
+          //       job_id: item.external_job_id,
+          //     })
+          //     .then((response: any) => {
+          //       this.$emit('refreshView')
+          //     })
+          //     .catch((err: any) => {
+          //       console.log(err);
+          //     });
+          // }
         })
         .catch((err: any) => {
           console.log(err);
         });
 
+    },
+    setToScheduled(item) {
       kaapanaApiService
         .federatedClientApiPut("/job", {
           job_id: item.id,
-          status: 'scheduled'
+          status: 'scheduled',
+          description: 'The worklow was triggered!',
+          addressed_kaapana_node_id: item.addressed_kaapana_node_id,
+          external_job_id: item.external_job_id
         })
         .then((response: any) => {
           this.$emit('refreshView')
-    	    // this.$emit('gci')
+          // kaapanaApiService
+          //   .federatedRemoteApiPut("/job", {
+          //     job_id: item.external_job_id,
+          //     status: 'scheduled'
+          //   })
+          //   .then((response: any) => {
+          //     this.$emit('refreshView')
+          //     // this.$emit('gci')
+          //   })
+          //   .catch((err: any) => {
+          //     console.log(err);
+          //   });
         })
         .catch((err: any) => {
           console.log(err);

@@ -84,8 +84,7 @@ def cache_operator_output(func):
             federated = conf['federated']
             print('Federated config')
             print(federated)
-            update_job(federated, status='running', run_id=run_id, description=f'Running the operator {self.name}', remote=True)
-            update_job(federated, status='running', run_id=run_id, description=f'Running the operator {self.name}', remote=False)
+            update_job(federated, status='running', run_id=run_id, description=f'Running the operator {self.name}')
         else:
             federated = None
 

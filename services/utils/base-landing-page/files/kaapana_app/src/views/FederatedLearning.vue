@@ -40,7 +40,7 @@
             v-btn(@click="changeTab(1)" color="primary" rounded dark) Switch to remote instance
           v-col(sm="12")
             KaapanaInstance(v-if="clientInstance" :instance="clientInstance" :remote="clientInstance.remote"  @refreshView="refreshClient()" @ei="editClientInstance")
-        job-table(v-if="clientInstance" :jobs="clientInstance.jobs" :remote="clientInstance.remote"  @refreshView="refreshClient()")
+        job-table(v-if="clientInstance" :jobs="clientJobs" :remote="clientInstance.remote"  @refreshView="refreshClient()")
 
     v-tab-item(key='remote')
       v-container(text-left)
@@ -82,7 +82,7 @@
           v-col(sm="12")
             v-container(fluid='')
               v-row(dense='')
-                v-col(v-for="instance in remoteInstances" :key='instance.id' cols='4')
+                v-col(v-for="instance in remoteInstances" :key='instance.id' cols='6')
                   KaapanaInstance(:instance="instance" :remote="instance.remote" @refreshView="refreshRemote()" @ei="editRemoteInstance")
         job-table(v-if="remoteJobs.length"  :jobs="remoteJobs" remote=true @refreshView="refreshRemote()")
 
@@ -113,6 +113,7 @@ export default Vue.extend({
     dags: [],
     datasets: [],
     remoteJobs: [],
+    clientJobs: [],
     clientInstance: null,
     remoteInstances: [],
     clientPost: {
@@ -136,10 +137,10 @@ export default Vue.extend({
   created() {},
   mounted() {
     // this.getHelmCharts();
-    this.getDags(false);
-    this.refreshRemote();
-    this.refreshClient();
-    // this.startExtensionsInterval()
+    // this.getDags(false);
+    // this.refreshRemote();
+    // this.refreshClient();
+    this.startExtensionsInterval()
   },
   watch: {
     clientDialog: function (val) {
@@ -167,6 +168,7 @@ export default Vue.extend({
     },
     refreshClient() {
       this.getClientInstance()
+      this.getClientJobs()
     },
     changeTab(newTab) {
       console.log(newTab)
@@ -187,7 +189,11 @@ export default Vue.extend({
       kaapanaApiService
         .federatedClientApiPost("/client-kaapana-instance", this.clientPost)
         .then((response: any) => {
-
+          this.clientUpdate = false
+          this.clientDialog = false
+          // this.remoteUpdate = false
+          // this.remoteDialog = false
+          this.refreshClient();
         })
         .catch((err: any) => {
           console.log(err);
@@ -196,17 +202,17 @@ export default Vue.extend({
       kaapanaApiService
         .federatedClientApiPut("/client-kaapana-instance", this.clientPost)
         .then((response: any) => {
-
+          // this.clientUpdate = false
+          // this.clientDialog = false
+          this.remoteUpdate = false
+          this.remoteDialog = false
+          this.refreshClient();
         })
         .catch((err: any) => {
           console.log(err);
         });
       }
-      this.clientUpdate = false
-      this.clientDialog = false
-      this.remoteUpdate = false
-      this.remoteDialog = false
-      this.refreshClient();
+
     },
     resetRemoteForm () {
       this.$refs.remoteForm.reset()
@@ -217,6 +223,11 @@ export default Vue.extend({
           .federatedClientApiPost("/remote-kaapana-instance", this.remotePost)
           .then((response: any) => {
             console.log('getting remote')
+            // this.clientUpdate = false
+            // this.clientDialog = false
+            this.remoteUpdate = false
+            this.remoteDialog = false
+            this.refreshRemote()
           })
           .catch((err: any) => {
             console.log(err);
@@ -225,17 +236,16 @@ export default Vue.extend({
         kaapanaApiService
           .federatedClientApiPut("/remote-kaapana-instance", this.remotePost)
           .then((response: any) => {
-
+            // this.clientUpdate = false
+            // this.clientDialog = false
+            this.remoteUpdate = false
+            this.remoteDialog = false
+            this.refreshRemote()
           })
           .catch((err: any) => {
             console.log(err);
           });
       }
-      this.clientUpdate = false
-      this.clientDialog = false
-      this.remoteUpdate = false
-      this.remoteDialog = false
-      this.refreshRemote()
     },
     getDags(only_dag_names=true) {
       kaapanaApiService
@@ -308,6 +318,16 @@ export default Vue.extend({
           console.log(err);
         });
     },
+    getClientJobs() {
+      kaapanaApiService
+        .federatedClientApiGet("/jobs")
+        .then((response: any) => {
+          this.clientJobs = response.data;
+        })
+        .catch((err: any) => {
+          console.log(err);
+        });
+    },
     clearExtensionsInterval() {
       window.clearInterval(this.polling);
     },
@@ -326,7 +346,7 @@ export default Vue.extend({
     }
   },
   beforeDestroy() {
-    // this.clearExtensionsInterval()
+    this.clearExtensionsInterval()
   },
 });
 </script>

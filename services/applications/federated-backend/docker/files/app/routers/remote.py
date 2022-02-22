@@ -60,5 +60,4 @@ async def delete_job(job_id: int, db: Session = Depends(get_db)):
 
 @router.put("/remote-kaapana-instance")
 async def put_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal, db: Session = Depends(get_db)):
-    print(remote_kaapana_instance)
     return crud.create_and_update_remote_kaapana_instance(db=db, remote_kaapana_instance=remote_kaapana_instance, action='external_update')

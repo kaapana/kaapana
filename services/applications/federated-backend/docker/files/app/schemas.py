@@ -47,7 +47,8 @@ class KaapanaInstance(KaapanaInstanceBase):
     
     @validator('allowed_dags')
     def convert_allowed_dags(cls, v):
-        # return json.loads(v)
+        return sorted(json.loads(v))
+        # print(sorted(json.loads(v).keys()))
         return sorted(json.loads(v).keys())
 
     @validator('allowed_datasets')
@@ -101,9 +102,10 @@ class JobCreate(JobBase):
 
 class JobUpdate(JobBase):
     job_id: int
-    status: str
-    run_id: str = None
-    description: str = None
+    # status: str
+    # run_id: str = None
+    # description: str = None
+
 
 class JobWithKaapanaInstance(Job):
     kaapana_instance: KaapanaInstance = None

@@ -9,8 +9,8 @@ slackclient == 2.9.3
 scikit-learn == 0.24.1
 cryptography == 3.4.8
 SQLAlchemy == 1.3.24
-psycopg2-binary == 2.9.1
-bleach == 3.3.0
+psycopg2-binary == 2.9.3
+bleach == 4.1.0
 pint == 0.16.1
 timeloop == 1.0.2
 seaborn == 0.11.1

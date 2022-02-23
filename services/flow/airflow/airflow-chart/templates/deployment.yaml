@@ -79,7 +79,7 @@ spec:
         - name: airflow-plugins
           mountPath: /root/airflow/plugins
       - name: init-airflow-db
-        image: {{  .Values.global.registry_url }}/airflow:2.2.2
+        image: {{  .Values.global.registry_url }}/airflow:2.2.4
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["init"]
         resources:
@@ -108,7 +108,7 @@ spec:
               key: sql_alchemy_conn
       containers:
       - name: webserver
-        image: {{  .Values.global.registry_url }}/airflow:2.2.2
+        image: {{  .Values.global.registry_url }}/airflow:2.2.4
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         ports:
         - name: webserver
@@ -166,7 +166,7 @@ spec:
         #     path: /flow
         #     port: 8080
       - name: scheduler
-        image: {{  .Values.global.registry_url }}/airflow:2.2.2
+        image: {{  .Values.global.registry_url }}/airflow:2.2.4
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["scheduler"]
         env:

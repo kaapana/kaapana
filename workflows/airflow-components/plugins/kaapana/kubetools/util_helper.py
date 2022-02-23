@@ -5,7 +5,7 @@ from datetime import datetime
 import os
 from kaapana.kubetools.prometheus_query import get_node_memory, get_node_mem_percent, get_node_cpu, get_node_cpu_util_percent, get_node_gpu_infos
 from airflow.models import Variable
-from airflow.api.common.experimental import pool as pool_api
+from airflow.models import Pool as pool_api
 from kubernetes.client.models.v1_container_image import V1ContainerImage
 from pprint import pprint
 from airflow.utils.state import State
@@ -53,19 +53,22 @@ class NodeUtil():
 
     @staticmethod
     def check_gpu_pools(logger=None):
+        # https://github.com/apache/airflow/issues/13811
+        from airflow.settings import Session
+        session = Session()
         if NodeUtil.gpu_dev_count == None:
             NodeUtil.check_ti_scheduling(ti=None, logger=None)
         gpu_count_pool = NodeUtil.get_pool_by_name(name="GPU_COUNT")
         if gpu_count_pool is None or gpu_count_pool.slots != NodeUtil.gpu_dev_count:
             if NodeUtil.gpu_dev_count > 0:
-                Variable.set("GPU_SUPPORT", "True")
+                Variable.set("GPU_SUPPORT", "True", session=session)
                 pool_api.create_pool(
                     name="GPU_COUNT",
                     slots=NodeUtil.gpu_dev_count,
                     description="Count of GPUs of the node"
                 )
             else:
-                Variable.set("GPU_SUPPORT", "False")
+                Variable.set("GPU_SUPPORT", "False", session=session)
 
         gpu_infos = get_node_gpu_infos()
         for gpu in gpu_infos:
@@ -80,6 +83,9 @@ class NodeUtil():
 
     @staticmethod
     def compute_allocated_resources(logger=None):
+        # https://github.com/apache/airflow/issues/13811
+        from airflow.settings import Session
+        session = Session()
         Q_ = NodeUtil.ureg.Quantity
         data = {}
         NodeUtil.last_update = datetime.now()
@@ -158,15 +164,15 @@ class NodeUtil():
             NodeUtil.memory_available_limit = NodeUtil.mem_alloc - NodeUtil.mem_lmt
             # NodeUtil.gpu_memory_available = None if (NodeUtil.gpu_mem_alloc is None or NodeUtil.gpu_mem_used is None) else (NodeUtil.gpu_mem_alloc - NodeUtil.gpu_mem_used)
 
-            Variable.set("CPU_NODE", "{}/{}".format(NodeUtil.cpu_lmt, NodeUtil.cpu_alloc))
-            Variable.set("CPU_FREE", "{}".format(NodeUtil.cpu_available_req))
-            Variable.set("RAM_NODE", "{}/{}".format(NodeUtil.mem_req, NodeUtil.mem_alloc))
-            Variable.set("RAM_FREE", "{}".format(NodeUtil.memory_available_req))
+            Variable.set("CPU_NODE", "{}/{}".format(NodeUtil.cpu_lmt, NodeUtil.cpu_alloc), session=session)
+            Variable.set("CPU_FREE", "{}".format(NodeUtil.cpu_available_req), session=session)
+            Variable.set("RAM_NODE", "{}/{}".format(NodeUtil.mem_req, NodeUtil.mem_alloc), session=session)
+            Variable.set("RAM_FREE", "{}".format(NodeUtil.memory_available_req), session=session)
             # Variable.set("GPU_DEV_COUNT", "{}/{}".format(NodeUtil.gpu_dev_count))
             # Variable.set("GPU_DEV_FREE", "{}".format(NodeUtil.gpu_dev_free))
             # Variable.set("GPU_MEM", "{}/{}".format(NodeUtil.gpu_mem_used, NodeUtil.gpu_mem_alloc))
             # Variable.set("GPU_MEM_FREE", "{}".format(NodeUtil.gpu_memory_available))
-            Variable.set("UPDATED", datetime.utcnow())
+            Variable.set("UPDATED", datetime.utcnow(), session=session)
 
             # Variable.set("cpu_alloc", "{}".format(NodeUtil.cpu_alloc))
             # Variable.set("cpu_req", "{}".format(NodeUtil.cpu_req))
@@ -195,12 +201,14 @@ class NodeUtil():
 
     @staticmethod
     def check_ti_scheduling(ti, logger):
+        from airflow.settings import Session
+        session = Session()
         if NodeUtil.ureg is None:
             if logger != None:
                 logger.warning("Inititalize Util-Helper!")
             NodeUtil.enable = Variable.get(key="util_scheduling", default_var=None)
             if NodeUtil.enable == None:
-                Variable.set("util_scheduling", True)
+                Variable.set("util_scheduling", True, session=session)
                 NodeUtil.enable = 'True'
 
             if logger != None:
@@ -221,7 +229,7 @@ class NodeUtil():
             k8s.config.load_incluster_config()
             NodeUtil.core_v1 = k8s.client.CoreV1Api()
 
-        NodeUtil.enable = True if Variable.get(key="util_scheduling", default_var=None).lower() == "true" else False
+        NodeUtil.enable = True if Variable.get(key="util_scheduling", default_var=None) and Variable.get(key="util_scheduling", default_var=None).lower() == "true" else False
 
         if not NodeUtil.enable or ti == None:
             NodeUtil.compute_allocated_resources(logger=logger)
@@ -242,8 +250,8 @@ class NodeUtil():
             NodeUtil.max_util_cpu = Variable.get(key="max_util_cpu", default_var=None)
             NodeUtil.max_util_ram = Variable.get(key="max_util_ram", default_var=None)
             if NodeUtil.max_util_cpu is None and NodeUtil.max_util_ram is None:
-                Variable.set("max_util_cpu", default_cpu)
-                Variable.set("max_util_ram", default_ram)
+                Variable.set("max_util_cpu", default_cpu, session=session)
+                Variable.set("max_util_ram", default_ram, session=session)
                 NodeUtil.max_util_cpu = default_cpu
                 NodeUtil.max_util_ram = default_ram
             else:
@@ -263,7 +271,7 @@ class NodeUtil():
                     logger.warning("############################################# High CPU utilization -> waiting!")
                     logger.warning("############################################# cpu_percent: {}".format(NodeUtil.cpu_percent))
                 return False
-            Variable.set("CPU_PERCENT", "{}".format(NodeUtil.cpu_percent))
+            Variable.set("CPU_PERCENT", "{}".format(NodeUtil.cpu_percent), session=session)
 
             NodeUtil.mem_percent = get_node_mem_percent()
             if NodeUtil.mem_percent is None or NodeUtil.mem_percent > NodeUtil.max_util_ram:
@@ -271,7 +279,7 @@ class NodeUtil():
                     logger.warning("############################################# High RAM utilization -> waiting!")
                     logger.warning("############################################# mem_percent: {}".format(NodeUtil.mem_percent))
                 return False
-            Variable.set("RAM_PERCENT", "{}".format(NodeUtil.mem_percent))
+            Variable.set("RAM_PERCENT", "{}".format(NodeUtil.mem_percent), session=session)
 
             if NodeUtil.memory_pressure:
                 if logger != None:
@@ -345,15 +353,15 @@ class NodeUtil():
             NodeUtil.mem_req = NodeUtil.mem_req + ti_ram_mem_mb
             NodeUtil.mem_lmt = NodeUtil.mem_lmt + ti_ram_mem_mb
 
-            Variable.set("CPU_NODE", "{}/{}".format(NodeUtil.cpu_lmt, NodeUtil.cpu_alloc))
-            Variable.set("CPU_FREE", "{}".format(NodeUtil.cpu_available_req))
-            Variable.set("RAM_NODE", "{}/{}".format(NodeUtil.mem_req, NodeUtil.mem_alloc))
-            Variable.set("RAM_FREE", "{}".format(NodeUtil.memory_available_req))
+            Variable.set("CPU_NODE", "{}/{}".format(NodeUtil.cpu_lmt, NodeUtil.cpu_alloc), session=session)
+            Variable.set("CPU_FREE", "{}".format(NodeUtil.cpu_available_req), session=session)
+            Variable.set("RAM_NODE", "{}/{}".format(NodeUtil.mem_req, NodeUtil.mem_alloc), session=session)
+            Variable.set("RAM_FREE", "{}".format(NodeUtil.memory_available_req), session=session)
             # Variable.set("GPU_DEV_COUNT", "{}/{}".format(NodeUtil.gpu_dev_count))
             # Variable.set("GPU_DEV_FREE", "{}".format(NodeUtil.gpu_dev_free))
             # Variable.set("GPU_MEM", "{}/{}".format(NodeUtil.gpu_mem_used, NodeUtil.gpu_mem_alloc))
             # Variable.set("GPU_MEM_FREE", "{}".format(NodeUtil.gpu_memory_available))
-            Variable.set("UPDATED", datetime.utcnow())
+            Variable.set("UPDATED", datetime.utcnow(), session=session)
 
             return True
 

@@ -1257,7 +1257,7 @@ class SchedulerJob(BaseJob):
     def adjust_gpu_pool(self, states: str, session: Session = None):
         from airflow.jobs.backfill_job import BackfillJob
         TI = models.TaskInstance
-        DR = models.TaskInstance.dag_run
+        DR = models.DagRun
         DM = models.DagModel
         tis_changed = 0
         query = (

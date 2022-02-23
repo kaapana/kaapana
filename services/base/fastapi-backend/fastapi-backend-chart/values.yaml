@@ -1,9 +1,18 @@
 ---
 global:
-    registry_url: ""
+    registry_url: "registry.hzdr.de/philipp.schader/kaapana"
     pull_policy_pods: "Always"
     base_namespace: "base"
     fast_data_dir: "/home/kaapana"
     node_id: "dkfz"
     hostname: "10.133.28.53"
     https_port: 443
+    path_prefix: "fastapi-backend"
+    keycloak:
+        url: "https://keycloak-internal-service.kube-system.svc/auth/"
+        admin_user:
+            username: "admin"
+            password: "Kaapana2020"
+        backend_user:
+            username: "backend-service"
+            password: "Kaapana2020Backend"

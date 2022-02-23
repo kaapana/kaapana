@@ -2,10 +2,8 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  # This name uniquely identifies the Deployment
   name: fastapi-postgres-deployment
-  namespace: base
-  #namespace: {{ .Values.global.base_namespace }}
+  namespace: {{ .Values.global.base_namespace }}
 spec:
   replicas: 1
   selector:
@@ -20,9 +18,8 @@ spec:
     spec:
       containers:
       - name: fastapi-postgres
-        image: registry.hzdr.de/k.kades/kaapana-klaus-dev/postgres:9.6-alpine
-        imagePullPolicy: Always
-        #imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        image: {{  .Values.global.registry_url }}/postgres:9.6-alpine
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env: # Environment variables
         - name: POSTGRES_USER
           value: someuser

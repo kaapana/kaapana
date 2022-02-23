@@ -8,15 +8,14 @@ metadata:
 spec:
   stripPrefix:
     prefixes:
-    - /fastapi-backend
+    - /{{ .Values.global.path_prefix }}
     forceSlash: true
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: fastapi-backend-service
-  namespace: base
-  #namespace: {{ .Values.global.base_namespace }}
+  namespace: {{ .Values.global.base_namespace }}
   labels:
     app-name: fastapi-backend
 spec:
@@ -33,8 +32,7 @@ apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: fastapi-backend-ingress
-  namespace: base
-  #namespace: {{ .Values.global.base_namespace }}
+  namespace: {{ .Values.global.base_namespace }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: base-strip-prefix-fastapi-backend@kubernetescrd #, kube-system-errorpages@kubernetescrd
@@ -44,7 +42,7 @@ spec:
   - host:
     http:
       paths:
-      - path: /fastapi-backend
+      - path: /{{ .Values.global.path_prefix }}
         backend:
           serviceName: fastapi-backend-service
           servicePort: 5000

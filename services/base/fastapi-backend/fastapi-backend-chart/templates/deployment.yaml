@@ -2,10 +2,8 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  # This name uniquely identifies the Deployment
   name: fastapi-backend
-  namespace: base
-  #namespace: {{ .Values.global.base_namespace }}
+  namespace: {{ .Values.global.base_namespace }}
 spec:
   replicas: 1
   selector:
@@ -19,11 +17,9 @@ spec:
         app-name: fastapi-backend
     spec:
       initContainers:
-        - name: init
-          image: registry.hzdr.de/k.kades/kaapana-klaus-dev/service_checker:1.1
-          # image: {{  .Values.global.registry_url }}/service_checker:1.1
-          imagePullPolicy: Always
-          #imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        - name: init-wait-for-postgres
+          image: {{  .Values.global.registry_url }}/service_checker:1.1
+          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
               value: "fastapi-postgres,fastapi-postgres-service.base.svc,5432"
@@ -33,10 +29,8 @@ spec:
               value: "10"
       containers:
       - name: fastapi-backend
-        image: registry.hzdr.de/k.kades/kaapana-klaus-dev/fastapi-backend:0.1.0
-        #image: {{  .Values.global.registry_url }}/fastapi-backend:0.1.0
-        imagePullPolicy: Always
-        #imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        image: {{  .Values.global.registry_url }}/fastapi-backend:0.1.0
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         # command: ["tail"]
         # args: ["-f", "/dev/null"] 
         command: ["/bin/sh"]
@@ -45,28 +39,19 @@ spec:
         - name: SECRET_KEY
           value: kaapana-secret
         - name: NODE_ID
-          value: "dkfz"
-          # value: {{ .Values.global.node_id | default "dkfz" }}
+          value: {{ .Values.global.node_id }}
         - name: HOSTNAME
-          # value: {{ .Values.global.hostname | default "10.133.28.53" }}
-          value: "10.133.28.53"
+          value: {{ .Values.global.hostname }}
         - name: HTTPS_PORT
-          # value: {{ .Values.global.https_port }}
-          value: "443"
-        - name: PROXY # currently not used
-          value: "http://www-int2.dkfz-heidelberg.de:80"
-        # - name: http_proxy
-        #   value: "http://www-int2.dkfz-heidelberg.de:80"
-        # - name: https_proxy
-        #   value: "http://www-int2.dkfz-heidelberg.de:80"
-# {{- if .Values.global.http_proxy }}
-#         - name: http_proxy
-#           value: {{ .Values.global.http_proxy }}
-# {{- end }}
-# {{- if .Values.global.https_proxy }}
-#         - name: https_proxy
-#           value: {{ .Values.global.https_proxy }}
-# {{- end }}
+          value: {{ .Values.global.https_port }}
+{{- if .Values.global.http_proxy }}
+        - name: http_proxy
+          value: {{ .Values.global.http_proxy }}
+{{- end }}
+{{- if .Values.global.https_proxy }}
+        - name: https_proxy
+          value: {{ .Values.global.https_proxy }}
+{{- end }}
         - name: APPLICATION_ROOT
           value: "/fastapi-backend"
         - name: DATABASE_URL

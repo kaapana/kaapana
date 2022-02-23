@@ -3,8 +3,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: fastapi-postgres-service
-  namespace: base
-  #namespace: {{ .Values.global.base_namespace }}
+  namespace: {{ .Values.global.base_namespace }}
   labels:
     app-name: fastapi-postgres
 spec:

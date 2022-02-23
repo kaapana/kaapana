@@ -27,6 +27,33 @@ spec:
               value: "2"
             - name: TIMEOUT
               value: "10"
+        - name: init-wait-for-keycloak
+          image: {{  .Values.global.registry_url }}/service_checker:1.1
+          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          env:
+            - name: WAIT
+              value: "keycloak,keycloak-internal-service.kube-system.svc,443"
+            - name: DELAY
+              value: "2"
+            - name: TIMEOUT
+              value: "10"
+        - name: init-create-backend-user
+          image: {{  .Values.global.registry_url }}/fastapi-backend:0.1.0
+          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          command: ["/app/scripts/create_backend_user.py"]
+          env:
+            - name: KEYCLOAK_URL
+              value: {{ .Values.global.keycloak.url }}
+            - name: KEYCLOAK_ADMIN_USER
+              value: {{ .Values.global.keycloak.admin_user.username }}
+            - name: KEYCLOAK_ADMIN_PASS
+              value: {{ .Values.global.keycloak.admin_user.password }}
+            - name: KEYCLOAK_BACKEND_USER
+              value: {{ .Values.global.keycloak.backend_user.username }}
+            - name: KEYCLOAK_BACKEND_PASS
+              value: {{ .Values.global.keycloak.backend_user.password }}
+            - name: KEYCLOAK_BACKEND_ROLES
+              value: "query-groups;query-users;view-users"
       containers:
       - name: fastapi-backend
         image: {{  .Values.global.registry_url }}/fastapi-backend:0.1.0

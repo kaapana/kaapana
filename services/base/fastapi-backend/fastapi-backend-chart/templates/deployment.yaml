@@ -85,6 +85,12 @@ spec:
           value: postgresql://someuser:somepassword@fastapi-postgres-service.base.svc:5432
         - name: KUBE_HELM_URL
           value: "http://kube-helm-service.kube-system.svc:5000/kube-helm-api"
+        - name: MINIO_URL
+          value: {{ .Values.global.minio.url }}
+        - name: MINIO_ACCESS_KEY
+          value: {{ .Values.global.minio.access_key }}
+        - name: MINIO_SECRET_KEY
+          value: {{ .Values.global.minio.secret_key }}
         ports:
           - containerPort: 5000
         resources:

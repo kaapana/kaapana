@@ -16,3 +16,7 @@ global:
         backend_user:
             username: "backend-service"
             password: "Kaapana2020Backend"
+    minio:
+        url: "minio-service.store.svc:9000"
+        access_key: "kaapanaminio"
+        secret_key: "Kaapana2020"

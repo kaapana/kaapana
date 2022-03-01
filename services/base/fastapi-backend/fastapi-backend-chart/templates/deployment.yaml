@@ -85,6 +85,8 @@ spec:
           value: postgresql://someuser:somepassword@fastapi-postgres-service.base.svc:5432
         - name: KUBE_HELM_URL
           value: "http://kube-helm-service.kube-system.svc:5000/kube-helm-api"
+        - name: PROMETHEUS_URL
+          value: {{ .Values.global.prometheus_url }}
         - name: KEYCLOAK_URL
           value: {{ .Values.global.keycloak.url }}
         - name: KEYCLOAK_USER

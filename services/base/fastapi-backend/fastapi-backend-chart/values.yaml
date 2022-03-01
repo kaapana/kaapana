@@ -8,6 +8,7 @@ global:
     hostname: "10.133.28.53"
     https_port: 443
     path_prefix: "fastapi-backend"
+    prometheus_url: "http://prometheus-service.monitoring.svc:9090/prometheus"
     keycloak:
         url: "https://keycloak-internal-service.kube-system.svc/auth/"
         admin_user:

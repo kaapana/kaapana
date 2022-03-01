@@ -1,8 +1,10 @@
+import os
+from datetime import datetime
 from fastapi import Header, HTTPException, Depends
 from sqlalchemy.orm import Session
-
+from prometheus_api_client import PrometheusConnect
+from typing import List
 from .database import SessionLocal
-
 from . import models
 
 
@@ -12,6 +14,31 @@ def get_db():
         yield db
     finally:
         db.close()
+
+class PrometheusClient:
+    def __init__(self):
+        url = os.getenv('PROMETHEUS_URL')
+        if not url:
+            print("No prometheus url is given")
+        else:
+            self.con = PrometheusConnect(url)
+
+    def query(self, name: str, q: str):
+        result = self.con.custom_query(query=q)
+        if not result:
+            return None
+        return {
+            'metric': name,
+            'value': float(result[0]['value'][1]),
+            'timestamp': datetime.fromtimestamp(result[0]['value'][0])
+        }
+
+    def all_metrics(self) -> List[str]:
+        return self.con.all_metrics()
+
+def get_prometheus_client() -> PrometheusClient:
+    client = PrometheusClient()
+    yield client
 
 
 async def get_token_header(FederatedAuthorization: str = Header(...), db: Session = Depends(get_db)):

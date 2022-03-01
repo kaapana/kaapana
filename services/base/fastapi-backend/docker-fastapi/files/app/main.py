@@ -2,7 +2,7 @@ import requests
 from fastapi import Depends, FastAPI, Request
 
 from .internal import admin
-from .routers import remote, extensions, users, storage
+from .routers import remote, extensions, monitoring, users, storage
 from .dependencies import get_query_token, get_token_header
 from . import crud, models, schemas
 from .database import SessionLocal, engine
@@ -26,6 +26,11 @@ app.include_router(
 app.include_router(
     extensions.router,
     prefix="/extensions"
+)
+
+app.include_router(
+    monitoring.router,
+    prefix="/monitoring"
 )
 
 app.include_router(

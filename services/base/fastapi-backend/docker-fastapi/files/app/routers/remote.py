@@ -11,7 +11,7 @@ from app import schemas
 from app.utils import get_dataset_list, get_dag_list, execute_workflow
 
 
-router = APIRouter()
+router = APIRouter(tags=["remote"])
 
 
 @router.get("/health-check")

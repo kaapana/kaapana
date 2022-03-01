@@ -14,6 +14,7 @@ from .database import Base
 class Job(Base):
     __tablename__ = "job"
     id = Column(Integer, primary_key=True)
+    dag_id = Column(String(64))
     external_job_id = Column(Integer)
     addressed_kaapana_node_id = Column(String(64))
     job_data = Column(String(10240), index=True)

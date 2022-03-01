@@ -75,6 +75,7 @@ import { mapGetters } from 'vuex';
 import { LOGIN, LOGOUT, CHECK_AUTH } from '@/store/actions.type';
 import { CHECK_AVAILABLE_WEBISTES, LOAD_COMMON_DATA} from '@/store/actions.type';
 
+
 export default Vue.extend({
   name: 'App',
   data: () => ({

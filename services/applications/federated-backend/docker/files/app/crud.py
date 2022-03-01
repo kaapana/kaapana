@@ -155,6 +155,7 @@ def create_job(db: Session, job: schemas.JobCreate):
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
         external_job_id=job.external_job_id,
+        dag_id=job.dag_id,
         addressed_kaapana_node_id=job.addressed_kaapana_node_id or None,
         dry_run=job.dry_run,
         status=job.status
@@ -164,6 +165,15 @@ def create_job(db: Session, job: schemas.JobCreate):
     db.add(db_kaapana_instance)
     db.commit()
     update_external_job(db, db_job)
+    if db_kaapana_instance.remote is False and db_kaapana_instance.automatic_job_execution is True:
+        job = schemas.JobUpdate(**{
+            'job_id': db_job.id,
+            'status': 'scheduled',
+            'description':'The worklow was triggered!'
+            })
+        update_job(db, job, remote=False)
+        print('scheduled')
+
     db.refresh(db_kaapana_instance)
     return db_job
 
@@ -175,7 +185,7 @@ def get_job(db: Session, job_id: int):
 
 def delete_job(db: Session, job_id: int, remote: bool = True):
     db_job = get_job(db, job_id)
-    if (db_job.kaapana_instance.remote != remote) and db_job.status not in ["queued", "scheduled", "finished", "failed"]:
+    if (db_job.kaapana_instance.remote != remote) and db_job.status not in ["queued", "finished", "failed"]:
         raise HTTPException(status_code=401, detail="You are not allowed to delete this job, since its on the client site")
     delete_external_job(db, db_job)
     db.delete(db_job)
@@ -204,11 +214,11 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     print(f'Updating client job {job.job_id}')
     db_job = get_job(db, job.job_id)
 
-    if job.status == 'running' and db_job.status != 'running' and db_job.kaapana_instance.remote == False:
+    if job.status == 'scheduled' and db_job.kaapana_instance.remote == False:
         print(f'Executing  job {db_job.id}')
         execute_job(db_job)
 
-    if (db_job.kaapana_instance.remote != remote) and db_job.status not in ["queued", "scheduled", "finished", "failed"]:
+    if (db_job.kaapana_instance.remote != remote) and db_job.status not in ["queued", "finished", "failed"]:
         raise HTTPException(status_code=401, detail="You are not allowed to update this job, since its on the client site")
     db_job.status = job.status
     if job.run_id is not None:
@@ -222,5 +232,4 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     update_external_job(db, db_job)
 
     return db_job
-
 

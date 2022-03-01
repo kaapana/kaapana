@@ -119,7 +119,7 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=[]):
         else:
             return dags
 
-def get_dataset_list(queryDict=None, elastic_index='meta-index'):
+def get_dataset_list(queryDict=None, unique_sets=False, elastic_index='meta-index'):
     _elastichost = "elastic-meta-service.meta.svc:9200"
     es = Elasticsearch(hosts=_elastichost)
     if queryDict is None:
@@ -142,21 +142,27 @@ def get_dataset_list(queryDict=None, elastic_index='meta-index'):
             if isinstance(dataset, str):
                 dataset = [dataset]
             datasets.append(dataset)
-        return datasets
+        if unique_sets is True:
+            return sorted(list(set([d for item in datasets for d in item])))
+        else:
+            return datasets
     else:
         raise ValueError('Invalid elasticsearch query!')
 
-def execute_workflow(db_client_kaapana, conf_data, dry_run):
-    if conf_data['conf']['dag'] not in json.loads(db_client_kaapana.allowed_dags):
-        raise HTTPException(status_code=403, detail=f"Dag {conf_data['conf']['dag']} is not allowed to be triggered from remote!")
-    queried_data = get_dataset_list({'query': conf_data['conf']['query']})
-    if not all([bool(set(d) & set(json.loads(db_client_kaapana.allowed_datasets))) for d in queried_data]):
-        raise HTTPException(status_code=403, detail = f"Your query outputed data with the tags: " \
-            f"{''.join(sorted(list(set([d for datasets in queried_data for d in datasets]))))}, " \
-            f"but only the following tags are allowed to be used from remote: {','.join(json.loads(db_client_kaapana.allowed_datasets))} !")
-    if dry_run is True:
-        return 'dry_run'
-    resp = requests.post('http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/meta-trigger',  json=conf_data)
+def execute_workflow(db_client_kaapana, conf_data, dry_run, dag_id='meta-trigger'):
+    if db_client_kaapana.node_id != NODE_ID and db_client_kaapana.host != HOSTNAME:
+        print('Exeuting remote job')
+        if conf_data['conf']['dag'] not in json.loads(db_client_kaapana.allowed_dags):
+            raise HTTPException(status_code=403, detail=f"Dag {conf_data['conf']['dag']} is not allowed to be triggered from remote!")
+        queried_data = get_dataset_list({'query': conf_data['conf']['query']})
+        if not all([bool(set(d) & set(json.loads(db_client_kaapana.allowed_datasets))) for d in queried_data]):
+            raise HTTPException(status_code=403, detail = f"Your query outputed data with the tags: " \
+                f"{''.join(sorted(list(set([d for datasets in queried_data for d in datasets]))))}, " \
+                f"but only the following tags are allowed to be used from remote: {','.join(json.loads(db_client_kaapana.allowed_datasets))} !")
+        if dry_run is True:
+            return 'dry_run'
+    resp = requests.post(f'http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/{dag_id}',  json=conf_data)
+    raise_kaapana_connection_error(resp)
     return resp
 
 def execute_job(db_job):
@@ -164,9 +170,8 @@ def execute_job(db_job):
     conf_data = json.loads(db_job.conf_data)
     job_data = json.loads(db_job.job_data)
     conf_data['conf'].update(job_data)
-    if 'federated' in conf_data['conf']:
-        conf_data['conf']['federated']['client_job_id'] = db_job.id
-    resp = execute_workflow(db_job.kaapana_instance, conf_data, db_job.dry_run)
+    conf_data['conf']['client_job_id'] = db_job.id
+    resp = execute_workflow(db_job.kaapana_instance, conf_data, db_job.dry_run, db_job.dag_id)
     if resp == 'dry_run':
         return Response(f"The configuration for the allowed dags and datasets is okay!", 200)
     else:

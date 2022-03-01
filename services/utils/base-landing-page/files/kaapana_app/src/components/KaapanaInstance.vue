@@ -30,7 +30,7 @@
           v-spacer
 </template>
 
-<script lang="ts">
+<script>
 
 import kaapanaApiService from "@/common/kaapanaApi.service";
 
@@ -49,23 +49,22 @@ export default {
       required: true
     }
   },
-  // watch: {
-  //   dialog (val) {
-  //     val || this.close()
-  //   },
-  //   dialogDelete (val) {
-  //     val || this.closeDelete()
-  //   },
-  //   },
+  watch: {
+    dialog (val) {
+      val || this.close()
+    },
+    dialogDelete (val) {
+      val || this.closeDelete()
+    },
+  },
   methods:{
     checkForRemoteUpdates() {
       kaapanaApiService
         .federatedClientApiGet("/check-for-remote-updates")
-        .then((response: any) => {
+        .then((response) => {
           this.$emit('refreshView')
-    	    // this.$emit('gci')
         })
-        .catch((err: any) => {
+        .catch((err) => {
           console.log(err);
         });
     },
@@ -81,19 +80,13 @@ export default {
       };
       kaapanaApiService
         .federatedClientApiDelete("/kaapana-instance", params)
-        .then((response: any) => {
+        .then((response) => {
           this.$emit('refreshView')
           this.closeDelete()
         })
-        .catch((err: any) => {
+        .catch((err) => {
           console.log(err);
         });
-      // if (this.remote == true){
-    	//   this.$emit('gris')
-    	//   this.$emit('grj')
-      // } else {
-    	//   this.$emit('gci')
-      // }
     },
     deleteInstance() {
       this.dialogDelete = true

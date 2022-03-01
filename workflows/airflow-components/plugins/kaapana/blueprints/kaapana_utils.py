@@ -1,7 +1,12 @@
 import re
+import os
 import requests
 from xml.etree import ElementTree
 from datetime import datetime
+
+
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+
 
 def generate_run_id(dag_id):
     run_id = datetime.now().strftime('%y%m%d%H%M%S%f')
@@ -37,3 +42,18 @@ def cure_invalid_name(name, regex, max_length=None):
         print(f'Your name is too long, only {max_length} character are allowed, we will cut it to {name} to work with Kubernetes')
     name = _regex_match(regex, name)
     return name
+
+def get_operator_properties(*args, **kwargs):
+    if 'context' in kwargs:
+        run_id = kwargs['context']['run_id']
+        conf = kwargs['context']['dag_run'].conf
+    elif type(args) == tuple and len(args) == 1 and "run_id" in args[0]:
+        raise ValueError('Just to check if this case needs to be supported!', args, kwargs)
+        run_id = args[0]['run_id']
+    else:
+        run_id = kwargs['run_id']
+        conf =  kwargs["dag_run"].conf
+    
+    dag_run_dir = os.path.join(WORKFLOW_DIR, run_id)
+    
+    return run_id, dag_run_dir, conf

@@ -10,48 +10,7 @@ from cryptography.fernet import Fernet
 from minio import Minio
 
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
-
-
-
-def update_job(federated, status, run_id=None, description=None):
-    r = requests.get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id':  federated['client_job_id']})
-    raise_kaapana_connection_error(r)
-    client_job = r.json()
-    kaapana_instance = client_job['kaapana_instance']
-
-    # if remote is True:
-    #     print(client_job)
-    #     r = requests.get('http://federated-backend-service.base.svc:5000/client/remote-kaapana-instance', params={'node_id': client_job['addressed_kaapana_node_id']})
-    #     raise_kaapana_connection_error(r)
-    #     kaapana_instance = r.json()
-    # else:
-    #     kaapana_instance = client_job['kaapana_instance']
-    # kaapana_instance_url = f'{kaapana_instance["protocol"]}://{kaapana_instance["host"]}:{kaapana_instance["port"]}'
-    # ssl_check = kaapana_instance['ssl_check']
-    # if remote is True:
-    #     r = requests.put(f'{kaapana_instance_url}/federated-backend/remote/job', verify=ssl_check, json={
-    #         'job_id': client_job['external_job_id'],
-    #         'status': status,
-    #         'run_id': run_id,
-    #         'description': description
-
-    #         }, headers={'FederatedAuthorization': kaapana_instance['token']})
-    #     raise_kaapana_connection_error(r)
-    #     print('Remote job updated!')
-    #     print(r.json())
-    # else:
-    r = requests.put('http://federated-backend-service.base.svc:5000/client/job', verify=False, json={
-        'job_id': federated['client_job_id'], 
-        'status': status,
-        'run_id': run_id,
-        'description': description,
-        'addressed_kaapana_node_id': client_job['addressed_kaapana_node_id'],
-        'external_job_id': client_job['external_job_id']
-    })
-    raise_kaapana_connection_error(r)
-    print('Client job updated!')
-    print(r.json())
-
+from kaapana.blueprints.kaapana_utils import get_operator_properties
 
 ##### To be copied
 def fernet_encryptfile(filepath, key):
@@ -92,11 +51,11 @@ def raise_kaapana_connection_error(r):
     except:
         raise ValueError(f'Something was not okay with your request code {r}: {r.text}!')
 
-def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_dir):
+def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_dir, client_job_id):
     data = federated['minio_urls'][operator_out_dir][action]
     print(data)
 
-    r = requests.get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id':  federated['client_job_id']})
+    r = requests.get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id': client_job_id})
     raise_kaapana_connection_error(r)
     client_job = r.json()
     client_network  = client_job['kaapana_instance']
@@ -141,10 +100,10 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
     os.remove(filename)
     
                 
-def federated_action(operator_out_dir, action, dag_run_dir, federated):
+def federated_action(operator_out_dir, action, dag_run_dir, federated, client_job_id):
 
     if federated['minio_urls'] is not None and operator_out_dir in federated['minio_urls']:
-        apply_minio_presigned_url_action(action, federated, operator_out_dir, dag_run_dir)
+        apply_minio_presigned_url_action(action, federated, operator_out_dir, dag_run_dir, client_job_id)
 #         HelperMinio.apply_action_to_object_dirs(minioClient, action, bucket_name=f'{federated["site"]}',
 #                                 local_root_dir=dag_run_dir,
 #                                 object_dirs=[operator_out_dir])
@@ -157,19 +116,9 @@ def federated_action(operator_out_dir, action, dag_run_dir, federated):
 def federated_sharing_decorator(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
-            
-        # Same as in HelperCaching!
-        if 'context' in kwargs:
-            run_id = kwargs['context']['run_id']
-            conf = kwargs['context']['dag_run'].conf
-        elif type(args) == tuple and len(args) == 1 and "run_id" in args[0]:
-            raise ValueError('Just to check if this case needs to be supported!', args, kwargs)
-            run_id = args[0]['run_id']
-        else:
-            run_id = kwargs['run_id']
-            conf =  kwargs["dag_run"].conf
 
-        dag_run_dir = os.path.join(WORKFLOW_DIR, run_id)
+        run_id, dag_run_dir, conf = get_operator_properties(*args, **kwargs)
+
         if conf is not None and 'federated' in conf and conf['federated'] is not None:
             federated = conf['federated']
             print('Federated config')
@@ -184,22 +133,19 @@ def federated_sharing_decorator(func):
                 'you will need to set the flag allow_federated_learning=True in order to permit the operator to be used in federated learning scenarios')
             if 'from_previous_dag_run' in federated and federated['from_previous_dag_run'] is not None:
                 print('Downloading data from Minio')
-                federated_action(self.operator_out_dir, 'get', dag_run_dir, federated)
-        try:
-            x = func(self, *args, **kwargs)
-        except Exception as e:
-            update_job(federated, status='failed', run_id=run_id, description=f'Operator {self.name} had an exception {e}')
-            raise e
+                federated_action(self.operator_out_dir, 'get', dag_run_dir, federated, conf['client_job_id'])
+
+        x = func(self, *args, **kwargs)
+    
         if federated is not None and 'federated_operators' in federated and self.operator_out_dir in federated['federated_operators']:
             print('Putting data')
-            federated_action(self.operator_out_dir, 'put', dag_run_dir, federated)
+            federated_action(self.operator_out_dir, 'put', dag_run_dir, federated, conf['client_job_id'])
 
-            if federated['federated_operators'].index(self.operator_out_dir) == 0:
-                print('Updating the conf')
-                r = requests.get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id':  federated['client_job_id']})
-                raise_kaapana_connection_error(r)
-                client_job = r.json()
-                update_job(federated, status='finished', run_id=run_id, description=f'Finished with operator {self.name}')
+            # if federated['federated_operators'].index(self.operator_out_dir) == 0:
+            #     print('Updating the conf')
+            #     r = requests.get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id':  federated['client_job_id']})
+            #     raise_kaapana_connection_error(r)
+            #     client_job = r.json()
 
 #                 HelperMinio.apply_action_to_file(minioClient, 'put', 
 #                     bucket_name=f'{federated["site"]}', object_name='conf.json', file_path=config_path)

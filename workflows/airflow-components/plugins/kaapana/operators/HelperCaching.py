@@ -12,8 +12,26 @@ from minio import Minio
 
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperMinio import HelperMinio
-from kaapana.operators.HelperFederated import update_job
+from kaapana.operators.HelperFederated import raise_kaapana_connection_error
+from kaapana.blueprints.kaapana_utils import get_operator_properties
 
+def update_job(client_job_id, status, run_id=None, description=None):
+    r = requests.get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id': client_job_id})
+    raise_kaapana_connection_error(r)
+    client_job = r.json()
+    kaapana_instance = client_job['kaapana_instance']
+
+    r = requests.put('http://federated-backend-service.base.svc:5000/client/job', verify=False, json={
+        'job_id': client_job_id, 
+        'status': status,
+        'run_id': run_id,
+        'description': description,
+        'addressed_kaapana_node_id': client_job['addressed_kaapana_node_id'],
+        'external_job_id': client_job['external_job_id']
+    })
+    raise_kaapana_connection_error(r)
+    print('Client job updated!')
+    print(r.json())
 
 def cache_action(cache_operator_dirs, action, dag_run_dir):
     loaded_from_cache = True
@@ -68,23 +86,28 @@ def cache_operator_output(func):
         if self.manage_cache not in ['ignore', 'cache', 'overwrite', 'clear']:
             raise AssertionError("Invalid name '{}' for manage_cache. It must be set to None, 'ignore', 'cache', 'overwrite' or 'clear'".format(self.manage_cache))
 
-        # Same as in HelperFederated!
-        if 'context' in kwargs:
-            run_id = kwargs['context']['run_id']
-            conf = kwargs['context']['dag_run'].conf
-        elif type(args) == tuple and len(args) == 1 and "run_id" in args[0]:
-            raise ValueError('Just to check if this case needs to be supported!', args, kwargs)
-            run_id = args[0]['run_id']
-        else:
-            run_id = kwargs['run_id']
-            conf =  kwargs["dag_run"].conf
+        # # Same as in HelperFederated!
+        # if 'context' in kwargs:
+        #     run_id = kwargs['context']['run_id']
+        #     conf = kwargs['context']['dag_run'].conf
+        # elif type(args) == tuple and len(args) == 1 and "run_id" in args[0]:
+        #     raise ValueError('Just to check if this case needs to be supported!', args, kwargs)
+        #     run_id = args[0]['run_id']
+        # else:
+        #     run_id = kwargs['run_id']
+        #     conf =  kwargs["dag_run"].conf
 
-        dag_run_dir = os.path.join(WORKFLOW_DIR, run_id)
+        # dag_run_dir = os.path.join(WORKFLOW_DIR, run_id)
+
+        run_id, dag_run_dir, conf = get_operator_properties(*args, **kwargs)
+
+        if conf is not None and 'client_job_id' in conf:
+            update_job(conf['client_job_id'], status='running', run_id=run_id, description=f'Running the operator {self.name}')
+        
         if conf is not None and 'federated' in conf and conf['federated'] is not None:
             federated = conf['federated']
             print('Federated config')
             print(federated)
-            update_job(federated, status='running', run_id=run_id, description=f'Running the operator {self.name}')
         else:
             federated = None
 
@@ -108,8 +131,14 @@ def cache_operator_output(func):
             if cache_action(cache_operator_dirs, 'get', dag_run_dir) is True:
                 print(f'{", ".join(cache_operator_dirs)} output loaded from cache')
                 return
-  
-        x = func(self, *args, **kwargs)
+
+        try:
+            x = func(self, *args, **kwargs)
+        except Exception as e:
+            if conf is not None and 'client_job_id' in conf:
+                update_job(conf['client_job_id'], status='failed', run_id=run_id, description=f'Operator {self.name} had an exception {e}')
+            raise e
+
         if self.manage_cache  == 'cache' or self.manage_cache == 'overwrite':
             cache_action(cache_operator_dirs, 'put', dag_run_dir)
             print(f'{", ".join(cache_operator_dirs)} output saved to cache')

@@ -140,7 +140,7 @@ const kaapanaApiService = {
       request.post('/federated-backend/client' + subUrl, payload, { params: params}).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
-        alert('Failed: ' + error.response.data)
+        console.log('Failed: ' + error.response.data)
         reject(error)
       })
     })
@@ -151,7 +151,7 @@ const kaapanaApiService = {
       request.get('/federated-backend/client' + subUrl, { params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
-        alert('Failed: ' + error.response.data)
+        console.log('Failed: ' + error.response.data)
         reject(error)
       })
     })
@@ -162,7 +162,7 @@ const kaapanaApiService = {
       request.put('/federated-backend/client' + subUrl,  payload, { params: params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
-        alert('Failed: ' + error.response.data)
+        console.log('Failed: ' + error.response.data)
         reject(error)
       })
     })
@@ -173,7 +173,7 @@ const kaapanaApiService = {
       request.delete('/federated-backend/client' + subUrl, { params: params} ).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
-        alert('Failed: ' + error.response.data)
+        console.log('Failed: ' + error.response.data)
         reject(error)
       })
     })
@@ -185,7 +185,7 @@ const kaapanaApiService = {
         request.put('/federated-backend/remote' + subUrl, payload, { params: params, headers: response}).then((response: any) => {
           resolve(response)
         }).catch((error: any) => {
-          alert('Failed: ' + error.response.data)
+          console.log('Failed: ' + error.response.data)
           reject(error)
         })
       }).catch((error: any) => {
@@ -201,7 +201,7 @@ const kaapanaApiService = {
         request.post('/federated-backend/remote' + subUrl, payload, {params: params, headers: response}).then((response: any) => {
           resolve(response)
         }).catch((error: any) => {
-          alert('Failed: ' + error.response.data)
+          console.log('Failed: ' + error.response.data)
           reject(error)
         })
       }).catch((error: any) => {
@@ -217,7 +217,7 @@ const kaapanaApiService = {
         request.get('/federated-backend/remote' + subUrl, { params , headers: response}).then((response: any) => {
           resolve(response)
         }).catch((error: any) => {
-          alert('Failed: ' + error.response.data)
+          console.log('Failed: ' + error.response.data)
           reject(error)
         })
       }).catch((error: any) => {
@@ -232,7 +232,7 @@ const kaapanaApiService = {
         request.delete('/federated-backend/remote' + subUrl, { params , headers: response}).then((response: any) => {
           resolve(response)
         }).catch((error: any) => {
-          alert('Failed: ' + error.response.data)
+          console.log('Failed: ' + error.response.data)
           reject(error)
         })
       }).catch((error: any) => {

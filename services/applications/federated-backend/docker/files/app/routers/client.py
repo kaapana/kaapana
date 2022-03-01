@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 import requests
 import httpx
 import json
+import copy
 import asyncio
 
 
@@ -12,7 +13,7 @@ from app import models
 from app.dependencies import get_db
 from app import schemas
 from app import crud
-from app.utils import get_dag_list, get_dataset_list, execute_workflow, raise_kaapana_connection_error, execute_job
+from app.utils import get_dag_list, get_dataset_list, raise_kaapana_connection_error, execute_job
 
 
 router = APIRouter()
@@ -84,8 +85,136 @@ async def dags(only_dag_names: bool = True):
 
 @router.get("/datasets")
 async def datasets():
-    datasets = get_dataset_list()
-    return sorted(list(set([d for item in datasets for d in item])))
+    return get_dataset_list(unique_sets=True)
+
+@router.get("/workflow-json-schema")
+async def workflow_json_schema(remote: bool = False):
+    if remote is False:
+        dags = get_dag_list(only_dag_names=False)
+        datasets = get_dataset_list(unique_sets=True)
+        schema = {
+            "type": "object",
+            "title": "Select a workflow",
+            "description": "Depending on which workflow you select, different inputs are required",
+            "properties": {
+                "dataset": {
+                    "type": "string",
+                    "title": "Dataset tag",
+                    "enum": datasets
+                    },
+            },
+            "oneOf": [],
+        }
+
+        for k, v in dags.items():
+            if 'ui_forms' in v:
+                dag_schema = v['ui_forms']['workflow_form']
+                dag_schema['title'] = k
+                dag_schema["properties"].update(
+                    {
+                        "dag": {
+                            "type": "string",
+                            "const": k
+                        }
+                    }
+                )
+                if k == 'nnunet-predict':
+                    dag_schema["oneOf"] = []
+                    selection_properties = {}
+                    base_properties = {}
+                    for p_k, p_v in dag_schema['properties'].items():
+                        if 'dependsOn' in p_v:
+                            p_v.pop('dependsOn')
+                            selection_properties[p_k] = p_v
+                        else:
+                            base_properties[p_k] = p_v
+                    base_properties.pop('task')   
+                    
+                    for task in dag_schema['properties']['task']['enum']:
+                        task_selection_properties = copy.deepcopy(selection_properties)
+                        for p_k, p_v in task_selection_properties.items():
+                            p_v['default'] = v['ui_dag_info'][task][p_k]
+                        task_selection_properties.update({
+                            "task":
+                            {
+                                "type": "string",
+                                "const": task
+                            }
+                        })
+                        dag_schema["oneOf"].append({
+                            "type": 'object',
+                            "title": task,
+                            "properties": task_selection_properties})
+                    dag_schema["properties"] = base_properties
+                schema["oneOf"].append(dag_schema)
+
+    return schema
+
+@router.post("/submit-workflow-json-schema", response_model=schemas.Job)
+async def submit_workflow_json_schema(workflow_json_schema: schemas.WorkflowJsonSchema, db: Session = Depends(get_db)):
+    db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
+    print(workflow_json_schema)
+    data = workflow_json_schema.data
+    print(data)
+    dataset = data.pop('dataset')
+    dag_id =  data.pop('dag')
+    input_modality = data.pop('input', None)
+    conf_data = {
+        "conf": {
+            "form_data": {**data}
+        }
+    }
+
+    if dataset is not None:
+        meta_index_infos = {
+            "query": {
+                "bool": {
+                    "must": [
+                        {
+                            "match_all": {}
+                        },
+                        {
+                            "match_all": {}
+                        },
+                        {
+                            "match_phrase": {
+                                "00120020 ClinicalTrialProtocolID_keyword.keyword": {
+                                    "query": dataset
+                                }
+                            }
+                        }
+                    ],
+                    "filter": [],
+                    "should": [],
+                    "must_not": []
+                }
+            },
+            "index": "meta-index",
+            "dag": dag_id,
+            "cohort_limit": 2
+        }
+        # if input_modality is not None:
+        #     meta_index_infos["query"]["bool"]["must"].append(
+        #         {
+        #             "match_phrase": {
+        #                 "00080060 Modality_keyword.keyword": {
+        #                     "query": input_modality
+        #                 }
+        #             }
+        #         }
+        #     )
+        conf_data["conf"].update(meta_index_infos)
+
+    job = schemas.JobCreate(**{
+        "dry_run": False,
+        "conf_data": conf_data,
+        "status": "pending",
+        "dag_id": "meta-trigger" if dataset is not None else dag_id,
+        "kaapana_instance_id": db_client_kaapana.id
+    })
+    db_job = crud.create_job(db, job)
+    return db_job
+
 
 @router.get("/check-for-remote-updates", response_model=List[schemas.Job])
 async def check_for_remote_updates(db: Session = Depends(get_db)):
@@ -132,10 +261,19 @@ async def check_for_remote_updates(db: Session = Depends(get_db)):
             incoming_job['status'] = next_status
             job = schemas.JobCreate(**incoming_job)
             db_job = crud.create_job(db, job)
+            # if db_client_kaapana.automatic_job_execution is True:
+            #     job = schemas.JobUpdate(**{
+            #         'job_id': db_job.id,
+            #         'status': 'scheduled',
+            #         'description':'The worklow was triggered!'
+            #         })
+            #     crud.update_job(db, job, remote=False)
+            #     print('scheduled')
+
+
             pending_jobs.append(db_job)
 
     return pending_jobs
-
 
 # @router.post("/execute-scheduled-job", response_model=schemas.Job)
 # async def execute_scheduled_jobs(job_id: int, db: Session = Depends(get_db)):

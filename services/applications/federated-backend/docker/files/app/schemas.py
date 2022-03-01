@@ -62,6 +62,7 @@ class KaapanaInstance(KaapanaInstanceBase):
 class JobBase(BaseModel):
     dry_run: bool = False
     status: str = 'pending'
+    dag_id: str = 'meta-trigger'
     run_id: str = None
     description: str = None
     external_job_id: int = None # job_id on another system
@@ -115,3 +116,6 @@ class KaapanaInstanceWithJobs(KaapanaInstance):
 
 class FilterByNodeIds(BaseModel):
     node_ids: List = []
+
+class WorkflowJsonSchema(BaseModel):
+    data: dict = {}

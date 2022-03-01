@@ -6,6 +6,7 @@
         v-row
           v-col(cols="4")
             h1 Client Instance
+            workflow-execution(:datasets="datasets" :instance="clientInstance" :remote="clientInstance.remote")
           v-spacer
           v-col(cols="8" align='right')
             v-dialog(v-model='clientDialog' max-width='600px')
@@ -19,9 +20,9 @@
                     v-container
                       v-row
                         v-col(cols='12')
-                          v-select(v-model='clientPost.allowed_dags' :items='this.dags' label='Allowed dags' multiple='' chips='' hint='Which dags are allowed to be triggered' persistent-hint='')
+                          v-select(v-model='clientPost.allowed_dags' :items='dags' label='Allowed dags' multiple='' chips='' hint='Which dags are allowed to be triggered' persistent-hint='')
                         v-col(cols='12')
-                          v-select(v-model='clientPost.allowed_datasets' :items='this.datasets' label='Allowed datasets' multiple='' chips='' hint='Which datasets are allowed to be triggered' persistent-hint='')
+                          v-select(v-model='clientPost.allowed_datasets' :items='datasets' label='Allowed datasets' multiple='' chips='' hint='Which datasets are allowed to be triggered' persistent-hint='')
                         v-col(cols='8')
                           v-checkbox(v-model="clientPost.automatic_update" label="Check automatically for remote updates")
                         v-col(cols='4')
@@ -88,18 +89,20 @@
 
 </template>
 
-<script lang="ts">
+<script>
 import Vue from "vue";
 import { mapGetters } from "vuex";
 import kaapanaApiService from "@/common/kaapanaApi.service";
 
 import JobTable from "@/components/JobTable.vue";
 import KaapanaInstance  from "@/components/KaapanaInstance.vue";
+import WorkflowExecution  from "@/components/WorkflowExecution.vue";
 
 export default Vue.extend({
   components: {
     JobTable,
-    KaapanaInstance
+    KaapanaInstance,
+    WorkflowExecution
   },
   data: () => ({
     tab: 0,
@@ -135,11 +138,11 @@ export default Vue.extend({
 
   }),
   created() {},
-  mounted() {
+  mounted () {
     // this.getHelmCharts();
     // this.getDags(false);
-    // this.refreshRemote();
-    // this.refreshClient();
+    this.refreshRemote();
+    this.refreshClient();
     this.startExtensionsInterval()
   },
   watch: {
@@ -152,17 +155,13 @@ export default Vue.extend({
     },
   },
   computed: {
-    remote() {
+    remote () {
       return this.tab !== 0  
     },
-    ...mapGetters([
-      "currentUser",
-      "isAuthenticated",
-      "commonData",
-    ]),
+    ...mapGetters(['currentUser', 'isAuthenticated'])
   },
   methods: {
-    refreshRemote() {
+    refreshRemote () {
       this.getRemoteInstances()
       this.getRemoteJobs()
     },
@@ -188,27 +187,27 @@ export default Vue.extend({
       if (this.clientUpdate == false) {
       kaapanaApiService
         .federatedClientApiPost("/client-kaapana-instance", this.clientPost)
-        .then((response: any) => {
+        .then((response) => {
           this.clientUpdate = false
           this.clientDialog = false
           // this.remoteUpdate = false
           // this.remoteDialog = false
           this.refreshClient();
         })
-        .catch((err: any) => {
+        .catch((err) => {
           console.log(err);
         });
       } else {
       kaapanaApiService
         .federatedClientApiPut("/client-kaapana-instance", this.clientPost)
-        .then((response: any) => {
+        .then((response) => {
           // this.clientUpdate = false
           // this.clientDialog = false
           this.remoteUpdate = false
           this.remoteDialog = false
           this.refreshClient();
         })
-        .catch((err: any) => {
+        .catch((err) => {
           console.log(err);
         });
       }
@@ -221,7 +220,7 @@ export default Vue.extend({
       if (this.remoteUpdate == false) {
         kaapanaApiService
           .federatedClientApiPost("/remote-kaapana-instance", this.remotePost)
-          .then((response: any) => {
+          .then((response) => {
             console.log('getting remote')
             // this.clientUpdate = false
             // this.clientDialog = false
@@ -229,20 +228,20 @@ export default Vue.extend({
             this.remoteDialog = false
             this.refreshRemote()
           })
-          .catch((err: any) => {
+          .catch((err) => {
             console.log(err);
           });
       } else {
         kaapanaApiService
           .federatedClientApiPut("/remote-kaapana-instance", this.remotePost)
-          .then((response: any) => {
+          .then((response) => {
             // this.clientUpdate = false
             // this.clientDialog = false
             this.remoteUpdate = false
             this.remoteDialog = false
             this.refreshRemote()
           })
-          .catch((err: any) => {
+          .catch((err) => {
             console.log(err);
           });
       }
@@ -250,20 +249,20 @@ export default Vue.extend({
     getDags(only_dag_names=true) {
       kaapanaApiService
         .federatedClientApiGet("/dags", {only_dag_names: only_dag_names})
-        .then((response: any) => {
+        .then((response) => {
           this.dags = response.data;
         })
-        .catch((err: any) => {
+        .catch((err) => {
           console.log(err);
         });
     },
     getDatasets() {
       kaapanaApiService
         .federatedClientApiGet("/datasets")
-        .then((response: any) => {
+        .then((response) => {
           this.datasets = response.data;
         })
-        .catch((err: any) => {
+        .catch((err) => {
           console.log(err);
         });
     },
@@ -281,50 +280,50 @@ export default Vue.extend({
     getClientInstance() {
       kaapanaApiService
         .federatedClientApiGet("/client-kaapana-instance")
-        .then((response: any) => {
+        .then((response) => {
           this.clientInstance = response.data;
         })
-        .catch((err: any) => {
+        .catch((err) => {
           this.clientInstance = null
         });
     },
     deleteRemoteInstances() {
       kaapanaApiService
         .federatedClientApiDelete("/remote-kaapana-instances")
-        .then((response: any) => {
+        .then((response) => {
 
         })
-        .catch((err: any) => {
+        .catch((err) => {
           console.log(err);
         });
     },
     getRemoteInstances() {
       kaapanaApiService
         .federatedClientApiPost("/get-remote-kaapana-instances")
-        .then((response: any) => {
+        .then((response) => {
           this.remoteInstances = response.data;
         })
-        .catch((err: any) => {
+        .catch((err) => {
           console.log(err);
         });
     },
     getRemoteJobs() {
       kaapanaApiService
         .federatedRemoteApiGet("/jobs")
-        .then((response: any) => {
+        .then((response) => {
           this.remoteJobs = response.data;
         })
-        .catch((err: any) => {
+        .catch((err) => {
           console.log(err);
         });
     },
     getClientJobs() {
       kaapanaApiService
         .federatedClientApiGet("/jobs")
-        .then((response: any) => {
+        .then((response) => {
           this.clientJobs = response.data;
         })
-        .catch((err: any) => {
+        .catch((err) => {
           console.log(err);
         });
     },

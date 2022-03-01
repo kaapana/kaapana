@@ -8,8 +8,8 @@ WORKDIR /usr/share/kibana/
 
 USER root
 
-ADD files/workflow_trigger-0.0.1.zip /workflow_trigger-0.0.1.zip
-RUN bin/kibana-plugin install file:///workflow_trigger-0.0.1.zip
+ADD files/workflow_trigger-0.0.2.zip /workflow_trigger-0.0.2.zip
+RUN bin/kibana-plugin install file:///workflow_trigger-0.0.2.zip
 
 USER kibana
 

@@ -38,12 +38,12 @@ class VisController {
   start_dag() {
 
     var dag_id = VisController.metricDag.options[VisController.metricDag.selectedIndex].text.toLowerCase()
-    var trigger_url = VisController.airflow_url + "/trigger/meta-trigger"
+    var trigger_url = VisController.airflow_url + "/trigger/" + dag_id
 
     var query = (this.vis.searchSource.history[0].fetchParams.body.query);
     var index = this.vis.searchSource.history[0].fetchParams.index.title;
     var conf = {
-      "conf": { "query": query, "index": index, "dag": dag_id, "cohort_limit": VisController.cohort_limit, "form_data": this.dag_form_data }
+      "conf": { "query": query, "index": index, "cohort_limit": VisController.cohort_limit, "form_data": this.dag_form_data }
     };
 
     var conf_json = JSON.stringify(conf)

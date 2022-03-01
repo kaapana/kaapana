@@ -62,7 +62,7 @@ class KaapanaInstance(KaapanaInstanceBase):
 class JobBase(BaseModel):
     dry_run: bool = False
     status: str = 'pending'
-    dag_id: str = 'meta-trigger'
+    dag_id: str = None
     run_id: str = None
     description: str = None
     external_job_id: int = None # job_id on another system

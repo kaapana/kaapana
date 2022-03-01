@@ -190,7 +190,6 @@ async def submit_workflow_json_schema(workflow_json_schema: schemas.WorkflowJson
                 }
             },
             "index": "meta-index",
-            "dag": dag_id,
             "cohort_limit": 2
         }
         # if input_modality is not None:
@@ -209,7 +208,7 @@ async def submit_workflow_json_schema(workflow_json_schema: schemas.WorkflowJson
         "dry_run": False,
         "conf_data": conf_data,
         "status": "pending",
-        "dag_id": "meta-trigger" if dataset is not None else dag_id,
+        "dag_id": dag_id,
         "kaapana_instance_id": db_client_kaapana.id
     })
     db_job = crud.create_job(db, job)

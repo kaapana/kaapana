@@ -149,7 +149,7 @@ def get_dataset_list(queryDict=None, unique_sets=False, elastic_index='meta-inde
     else:
         raise ValueError('Invalid elasticsearch query!')
 
-def execute_workflow(db_client_kaapana, conf_data, dry_run, dag_id='meta-trigger'):
+def execute_workflow(db_client_kaapana, conf_data, dry_run, dag_id):
     if db_client_kaapana.node_id != NODE_ID and db_client_kaapana.host != HOSTNAME:
         print('Exeuting remote job')
         if conf_data['conf']['dag'] not in json.loads(db_client_kaapana.allowed_dags):

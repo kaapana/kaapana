@@ -85,6 +85,12 @@ spec:
           value: postgresql://someuser:somepassword@fastapi-postgres-service.base.svc:5432
         - name: KUBE_HELM_URL
           value: "http://kube-helm-service.kube-system.svc:5000/kube-helm-api"
+        - name: KEYCLOAK_URL
+          value: {{ .Values.global.keycloak.url }}
+        - name: KEYCLOAK_USER
+          value: {{ .Values.global.keycloak.backend_user.username }}
+        - name: KEYCLOAK_PASSWORD
+          value: {{ .Values.global.keycloak.backend_user.password }}
         - name: MINIO_URL
           value: {{ .Values.global.minio.url }}
         - name: MINIO_ACCESS_KEY

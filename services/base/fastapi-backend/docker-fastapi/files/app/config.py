@@ -11,4 +11,8 @@ class Settings(BaseSettings):
     kube_helm_url: str
     prometheus_url: str
 
+    minio_url: str
+    minio_access_key: str
+    minio_secret_key: str
+
 settings = Settings()

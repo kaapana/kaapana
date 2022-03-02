@@ -1,45 +1,17 @@
-from fastapi import APIRouter, Response, HTTPException
-from minio import Minio
+from fastapi import APIRouter, Response, HTTPException, Depends
 from datetime import datetime
+from app.dependencies import get_minio
 import json
 import os
 import socket
 
 router = APIRouter(tags=["storage"])
 
-def get_minio_client():
-  # TODO move minio initalization in a more general place, and reuse existing client in subsequent endpoints
-  _minio_url=os.getenv('MINIO_URL')
-  _minio_access_key = os.getenv('MINIO_ACCESS_KEY')
-  _minio_secret_key = os.getenv('MINIO_SECRET_KEY')
-
-  if not _minio_url:
-    print('Minio: no url provided')
-    return None
-
-  if not _minio_access_key:
-    print('Minio: no access key provided')
-    return None
-
-  if not _minio_secret_key:
-    print('Minio: no secret key provided')
-    return None
-
-  print(f"Minio url: {_minio_url}")
-  #Initializing Minio Client
-  return Minio(_minio_url,
-    access_key=_minio_access_key,
-    secret_key=_minio_secret_key,
-    secure=False)
-
-minioClient = get_minio_client()
-
-
 @router.get('/buckets')
-def listbuckets():
+def listbuckets(minio=Depends(get_minio)):
     """Return List of Minio buckets
     """
-    buckets = minioClient.list_buckets()
+    buckets = minio.list_buckets()
     data = []
     for bucket in buckets:
         data.append({
@@ -51,27 +23,27 @@ def listbuckets():
 
 
 @router.post('/buckets/{bucketname}')
-def makebucket(bucketname: str):
+def makebucket(bucketname: str, minio=Depends(get_minio)):
     """
     To Create a Bucket
     """    
     bucketname = bucketname.lower().strip()
-    if minioClient.bucket_exists(bucketname):
+    if minio.bucket_exists(bucketname):
         raise HTTPException(status_code=409, detail=f"Bucket {bucketname} already exists.")
     else:
-        minioClient.make_bucket(bucketname)
+        minio.make_bucket(bucketname)
         return {}
 
 
 @router.get('/buckets/{bucketname}')
-def listbucketitems(bucketname):
+def listbucketitems(bucketname: str, minio=Depends(get_minio)):
     """
     To List  Bucket Items
     """   
     bucket_items = [] 
     bucketname =  bucketname.lower().strip()
-    if minioClient.bucket_exists(bucketname):
-        objects = minioClient.list_objects(bucketname,recursive=True)
+    if minio.bucket_exists(bucketname):
+        objects = minio.list_objects(bucketname,recursive=True)
         for obj in objects:
           bucket_items.append({
             'bucket_name': str(obj.bucket_name),
@@ -83,22 +55,21 @@ def listbucketitems(bucketname):
 
         return bucket_items
     else:
-        
-        abort(404)
+      raise HTTPException(status_code=404, detail=f"Bucket {bucketname} does not exist")
         
 @router.delete('/buckets/{bucketname}')
-def removebucket(bucketname):
+def removebucket(bucketname: str, minio=Depends(get_minio)):
     """
     To remove a bucket
     """    
     bucketname =  bucketname.lower().strip()
 
-    if minioClient.bucket_exists(bucketname):
-        objects = list(minioClient.list_objects(bucketname))
+    if minio.bucket_exists(bucketname):
+        objects = list(minio.list_objects(bucketname))
         if objects:
           raise HTTPException(status_code=409, detail=f"Bucket {bucketname} not empty")
         else:
-          minioClient.remove_bucket(bucketname)
+          minio.remove_bucket(bucketname)
           return {}
     else:
         raise HTTPException(status_code=404, detail=f"Bucket {bucketname} does not exist")

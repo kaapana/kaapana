@@ -107,7 +107,7 @@ spec:
           requests:
             memory: "100Mi"
         volumeMounts:
-        - name: flask-dev-files
+        - name: fastapi-dev-files
           mountPath: /app
         - name: alembic
           mountPath: /app/alembic
@@ -119,7 +119,7 @@ spec:
           # path: /home/ubuntu/dev/fastapi-backend/docker/files
           path: /home/kaapana/alembic-fastapi-backend
           type: DirectoryOrCreate
-      - name: flask-dev-files
+      - name: fastapi-dev-files
         hostPath:
           # path: /home/ubuntu/dev/fastapi-backend/docker/files
           path: /home/ubuntu/dev/fastapi-backend/docker-fastapi/files

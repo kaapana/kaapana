@@ -1,114 +1,70 @@
-import os
-import requests
-import json
-from typing import Optional, List, Dict
-from pydantic import BaseModel
-from fastapi import APIRouter
-from fastapi.responses import JSONResponse
-
-_helm_host = os.getenv("KUBE_HELM_URL")
-if not _helm_host:
-    print("KUBE_HELM_URL not set")
+from fastapi import APIRouter, Depends
+from app.services.extensions import ExtensionService
+from app.schemas.extensions import Installation
+from app.dependencies import get_extension_service
 
 router = APIRouter(tags = ["extensions"])
 
-def get_helm_api_json(url, params=None, text_response=False):
-    url = _helm_host + url
-    r = requests.get(url, params=params)
-    if text_response:
-      return { "message": r.text, "status_code": r.status_code }
-    else:
-      return r.json()
-
 @router.get('/environment')
-async def get_helm_environment():
+async def get_helm_environment(service: ExtensionService = Depends(get_extension_service)):
     """ Return extension environment
     """
-    return get_helm_api_json('/view-helm-env')
-
+    return service.get_environment()
 
 @router.get('/installed')
-async def get_installed_extensions():
+async def get_installed_extensions(service: ExtensionService = Depends(get_extension_service)):
     """Return List of Installed Helm Charts
     To List Installed Helm Charts
     """
-    obj = get_helm_api_json('/extensions')
-    filteredList = [d for d in obj if d['installed'] =='yes']
-    return filteredList
-
+    return service.installed()
 
 @router.get('/{name}/status')
-async def get_extension_status(name: str):
+async def get_extension_status(name: str, service: ExtensionService = Depends(get_extension_service)):
     """ To List  Chart Status
     """
-    return get_helm_api_json('/view-chart-status', params={'release_name': name})
-
+    return service.status(name)
 
 @router.get('/')
-async def list_extensions():
+async def list_extensions(service: ExtensionService = Depends(get_extension_service)):
     """Return list of available Charts
     """
-    return get_helm_api_json('/extensions')
+    return service.all()
 
 @router.delete('/installed/{name}/{version}')
-async def delete_extension(name: str, version: str):
+async def delete_extension(name: str, version: str, service: ExtensionService = Depends(get_extension_service)):
     """ Deletes an installed extensions
     """ 
-    return get_helm_api_json('/helm-delete-chart', params={'release_name': name,'release_version': version})
-
-
-class ChartInstallation(BaseModel):
-    """
-    payload = {
-                'name': f'{self.chart_name}',
-                'version': self.version,
-                'release_name': release_name,
-                'sets': {
-                    'mount_path': f'{self.data_dir}/{kwargs["run_id"]}',
-                    "workflow_dir": str(WORKFLOW_DIR),
-                    "batch_name": str(BATCH_NAME),
-                    "operator_out_dir": str(self.operator_out_dir),
-                    "operator_in_dir": str(self.operator_in_dir),
-                    "batches_input_dir": "/{}/{}".format(WORKFLOW_DIR, BATCH_NAME)
-                }
-            }
-    """
-    name: str
-    version: str
-    keywords: Optional[List[str]]
-    sets: Optional[Dict]
-    release_name: Optional[str]
+    return service.delete(name, version)
 
 @router.put('/installed/')
-async def install_extension(installation: ChartInstallation):
+async def install_extension(installation: Installation, service: ExtensionService = Depends(get_extension_service)):
     """ To Install a  Chart (Recommended to call /list-available-charts/ first, to get the available charts to Install. The release_name parameter is only for multi-installer charts.  The release_name must follow this format. Chartname-<ustomname>. For example if chart name is mitk-workbench-chart, then the release_name  could be mitk-workbench-chart-customname)
     """ 
-    url = _helm_host + '/helm-install-chart'
-    r = requests.post(url,json=installation.dict(exclude_none=True))
-    resp = {
-      "message": r.text
-    }
-    return JSONResponse(status_code=r.status_code, content=resp)
+    return service.install(
+        installation.name,
+        installation.version,
+        installation.release_name,
+        installation.keywords,
+        installation.parameters
+    )
 
 @router.get('/health')
-async def get_health():
+async def get_health(service: ExtensionService = Depends(get_extension_service)):
     """ Status of the underlying api """
-    return get_helm_api_json('/health-check', text_response=True)
+    return service.health()
 
 @router.get('/reload')
-async def reload_extesions_list():
+async def reload_extesions_list(service: ExtensionService = Depends(get_extension_service)):
     """ Reloads the local extensions """
-    return get_helm_api_json('/update-extensions', text_response=True)
+    return service.reload()
 
 @router.get('/update')
-async def update_extesions_list():
+async def update_extesions_list(service: ExtensionService = Depends(get_extension_service)):
     """ Download new extensions from registry """
-    return get_helm_api_json('/prefetch-extension-docker', text_response=True)
+    return service.update()
 
 @router.get('/pending')
-async def pending():
-    return get_helm_api_json('/pending-applications')
+async def pending(service: ExtensionService = Depends(get_extension_service)):
+    return service.pending()
 
-# pull-docker-image
-# TODO: Staring applications get @router.get('/running')
-# list-helm-charts --> /extensions 
+# TODO: Start/Stop/Get running applications @router.post/delete/get('/running')

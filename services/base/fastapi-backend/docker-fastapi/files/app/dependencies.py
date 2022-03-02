@@ -3,7 +3,9 @@ from datetime import datetime
 from fastapi import Header, HTTPException, Depends
 from sqlalchemy.orm import Session
 from prometheus_api_client import PrometheusConnect
+from app.services.extensions import ExtensionService
 from typing import List
+from .config import settings
 from .database import SessionLocal
 from . import models
 
@@ -39,6 +41,9 @@ class PrometheusClient:
 def get_prometheus_client() -> PrometheusClient:
     client = PrometheusClient()
     yield client
+
+def get_extension_service() -> ExtensionService:
+    yield ExtensionService(helm_api=settings.kube_helm_url)
 
 
 async def get_token_header(FederatedAuthorization: str = Header(...), db: Session = Depends(get_db)):

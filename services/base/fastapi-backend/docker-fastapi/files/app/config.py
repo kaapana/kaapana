@@ -9,5 +9,6 @@ class Settings(BaseSettings):
     https://pydantic-docs.helpmanual.io/usage/settings/#environment-variable-names
     """
     kube_helm_url: str
+    prometheus_url: str
 
 settings = Settings()

@@ -121,7 +121,6 @@ spec:
           type: DirectoryOrCreate
       - name: fastapi-dev-files
         hostPath:
-          # path: /home/ubuntu/dev/fastapi-backend/docker/files
-          path: /home/ubuntu/dev/fastapi-backend/docker-fastapi/files
+          path: /home/ubuntu/dev/kaapana/services/base/fastapi-backend/docker-fastapi/files
           type: DirectoryOrCreate
 ---

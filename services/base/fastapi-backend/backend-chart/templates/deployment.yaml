@@ -80,7 +80,7 @@ spec:
           value: {{ .Values.global.https_proxy }}
 {{- end }}
         - name: APPLICATION_ROOT
-          value: "/fastapi-backend"
+          value: "/{{ .Values.global.path_prefix }}"
         - name: DATABASE_URL
           value: postgresql://someuser:somepassword@fastapi-postgres-service.base.svc:5432
         - name: KUBE_HELM_URL

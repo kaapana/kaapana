@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, Request
 from .internal import admin
 from .routers import remote, extensions, monitoring, users, storage
 from .dependencies import get_query_token, get_token_header
-from . import crud, models, schemas
+from . import crud, models
 from .database import SessionLocal, engine
 
 models.Base.metadata.create_all(bind=engine)

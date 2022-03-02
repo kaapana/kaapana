@@ -19,4 +19,7 @@ class Settings(BaseSettings):
     keycloak_user: str
     keycloak_password: str
 
+    hostname: str
+    node_id: str
+
 settings = Settings()

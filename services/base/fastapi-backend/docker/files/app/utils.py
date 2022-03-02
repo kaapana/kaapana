@@ -6,9 +6,6 @@ from fastapi import APIRouter, Depends, Request, Response, HTTPException
 from elasticsearch import Elasticsearch
 
 
-HOSTNAME = os.environ['HOSTNAME']
-NODE_ID = os.environ['NODE_ID']
-
 def get_dag_list():
     r = requests.get('http://airflow-service.flow.svc:8080/flow/kaapana/api/getdags')
     return list(r.json().keys())

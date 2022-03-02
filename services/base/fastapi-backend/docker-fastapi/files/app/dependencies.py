@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from minio import Minio
 from app.services.extensions import ExtensionService
 from app.services.monitoring import MonitoringService
+from app.services.users import UserService
 from .config import settings
 from .database import SessionLocal
 from . import models
@@ -22,6 +23,9 @@ def get_monitoring_service() -> MonitoringService:
 
 def get_extension_service() -> ExtensionService:
     yield ExtensionService(helm_api=settings.kube_helm_url)
+
+def get_user_service() -> UserService:
+    yield UserService(settings.keycloak_url, settings.keycloak_user, settings.keycloak_password)
 
 def get_minio() -> Minio:
     yield  Minio(settings.minio_url, access_key=settings.minio_access_key, secret_key=settings.minio_secret_key, secure=False)

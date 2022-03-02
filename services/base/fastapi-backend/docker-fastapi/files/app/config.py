@@ -15,4 +15,8 @@ class Settings(BaseSettings):
     minio_access_key: str
     minio_secret_key: str
 
+    keycloak_url: str
+    keycloak_user: str
+    keycloak_password: str
+
 settings = Settings()

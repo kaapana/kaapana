@@ -21,3 +21,4 @@ global:
         url: "minio-service.store.svc:9000"
         access_key: "kaapanaminio"
         secret_key: "Kaapana2020"
+    # dev_files: /home/ubuntu/dev/kaapana/services/base/fastapi-backend/docker-fastapi/files

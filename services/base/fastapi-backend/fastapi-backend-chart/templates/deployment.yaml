@@ -107,8 +107,10 @@ spec:
           requests:
             memory: "100Mi"
         volumeMounts:
+{{- if .Values.global.dev_files }}
         - name: fastapi-dev-files
           mountPath: /app
+{{- end }}
         - name: alembic
           mountPath: /app/alembic
       imagePullSecrets:
@@ -119,8 +121,10 @@ spec:
           # path: /home/ubuntu/dev/fastapi-backend/docker/files
           path: /home/kaapana/alembic-fastapi-backend
           type: DirectoryOrCreate
+{{- if .Values.global.dev_files }}
       - name: fastapi-dev-files
         hostPath:
-          path: /home/ubuntu/dev/kaapana/services/base/fastapi-backend/docker-fastapi/files
+          path: {{ .Values.global.dev_files}}
           type: DirectoryOrCreate
+{{- end }}
 ---

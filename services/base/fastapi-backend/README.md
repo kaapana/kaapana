@@ -21,3 +21,13 @@ When the backend is running a swager frontend is accessable under `https://YOUR-
 Your backend pod will have the code directly mounted via a volume called `fastapi-dev-files`. Since fastapi is able to detect changes, it will reload every time you edit a file in the backend folder. To have continious logging use `kubectl logs POD-NAME -n base -f`.
 
 **Note:** Dev mode opens a NodePort for the backend on port 5000 for direct access. Authentification is disabled here.
+
+
+## Integrating new endpoints
+
+1. Create a module in the routers folder named after you endpoint and create a router for your endpoint in there
+2. Register the router object for your endpoint in `main.py``
+3. Add routes to the router and write presentation logic
+4. If you need singelton classes add a factory method in the `dependencies.py` and use FastAPIs dependency injection mechanisem (e.g. `Depends`)
+5. Encode Business logic of your endpoint into services
+6. Data Types of your enpoints should be defined as Pydantic object in the schemas object.

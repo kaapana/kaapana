@@ -18,8 +18,7 @@ def get_db():
         db.close()
 
 def get_monitoring_service() -> MonitoringService:
-    client = MonitoringService(prometheus_url=settings.prometheus_url)
-    yield client
+    yield MonitoringService(prometheus_url=settings.prometheus_url)
 
 def get_extension_service() -> ExtensionService:
     yield ExtensionService(helm_api=settings.kube_helm_url)
@@ -37,7 +36,6 @@ async def get_token_header(FederatedAuthorization: str = Header(...), db: Sessio
             return db_client_kaapana_instance
         else:
             raise HTTPException(status_code=400, detail="FederatedAuthorization header invalid")
-
 
 async def get_query_token(token: str):
     if token != "jessica":

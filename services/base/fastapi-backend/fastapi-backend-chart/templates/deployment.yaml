@@ -1,0 +1,97 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # This name uniquely identifies the Deployment
+  name: fastapi-backend
+  # namespace: base
+  namespace: {{ .Values.global.base_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: fastapi-backend
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: fastapi-backend
+    spec:
+      initContainers:
+        - name: init
+          image: {{  .Values.global.registry_url }}/service_checker:1.1
+          imagePullPolicy: Always
+          env:
+            - name: WAIT
+              value: "fastapi-postgres,fastapi-postgres-service.base.svc,5432"
+            - name: DELAY
+              value: "2"
+            - name: TIMEOUT
+              value: "10"
+      containers:
+      - name: fastapi-backend
+        image: {{  .Values.global.registry_url }}/fastapi-backend:0.1.0
+        imagePullPolicy: Always
+        #imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        # command: ["tail"]
+        # args: ["-f", "/dev/null"] 
+        command: ["/bin/sh"]
+        args: ["/app/boot.sh"] 
+        env: # Environment variables
+        - name: SECRET_KEY
+          value: kaapana-secret
+        - name: NODE_ID
+          value: "dkfz"
+          # value: {{ .Values.global.node_id | default "dkfz" }}
+        - name: HOSTNAME
+          value: {{ .Values.global.hostname | default "10.128.130.133" }}
+          # value: "10.133.28.53"
+        - name: HTTPS_PORT
+          # value: {{ .Values.global.https_port }}
+          value: "443"
+        - name: PROXY # currently not used
+          value: "http://www-int2.dkfz-heidelberg.de:80"
+        # - name: http_proxy
+        #   value: "http://www-int2.dkfz-heidelberg.de:80"
+        # - name: https_proxy
+        #   value: "http://www-int2.dkfz-heidelberg.de:80"
+# {{- if .Values.global.http_proxy }}
+#         - name: http_proxy
+#           value: {{ .Values.global.http_proxy }}
+# {{- end }}
+# {{- if .Values.global.https_proxy }}
+#         - name: https_proxy
+#           value: {{ .Values.global.https_proxy }}
+# {{- end }}
+        - name: APPLICATION_ROOT
+          value: "/fastapi-backend"
+        - name: DATABASE_URL
+          value: postgresql://someuser:somepassword@fastapi-postgres-service.base.svc:5432
+        ports: # Port(s) on which your application runs
+          - containerPort: 3128
+        resources:
+          limits:
+            memory: "1Gi"
+          requests:
+            memory: "100Mi"
+        volumeMounts:
+        - name: flask-dev-files
+          mountPath: /app
+        - name: alembic
+          mountPath: /app/alembic
+      imagePullSecrets:
+        - name: registry-secret
+      volumes:
+      - name: alembic
+        hostPath:
+          path: /home/ubuntu/kaapana/services/base/fastapi-backend/docker-fastapi/files/alembic
+          # path: /home/kaapana/alembic-fastapi-backend
+          type: DirectoryOrCreate
+      - name: flask-dev-files
+        hostPath:
+          path: /home/ubuntu/kaapana/services/base/fastapi-backend/docker-fastapi/files
+          # check this is true
+          # path: /home/ubuntu/fastapi-backend/docker-fastapi/files
+          type: DirectoryOrCreate
+---

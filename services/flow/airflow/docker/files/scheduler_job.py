@@ -292,6 +292,9 @@ class SchedulerJob(BaseJob):
         # TODO[HA]: This was wrong before anyway, as it only looked at a sub-set of dags, not everything.
         # Stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
 
+        #kaapana adjustment
+        task_instances_to_examine = self.adjust_gpu_pool(task_instances_to_examine, session)
+
         if len(task_instances_to_examine) == 0:
             self.log.debug("No tasks to consider for execution.")
             return executable_tis
@@ -419,7 +422,10 @@ class SchedulerJob(BaseJob):
                     # Though we can execute tasks with lower priority if there's enough room
                     continue
 
-                if not NodeUtil.check_ti_scheduling(ti=task_instance, logger=self.log):
+                #kaapana adjustment
+                if not NodeUtil.check_ti_scheduling(task_instance=task_instance, session=session, logger=self.log):
+                    num_starving_tasks += 1
+                    num_starving_tasks_total += 1
                     continue
 
                 executable_tis.append(task_instance)
@@ -1240,56 +1246,23 @@ class SchedulerJob(BaseJob):
         if num_timed_out_tasks:
             self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
 
-        #kaapana adjusted gpu               
-        with prohibit_commit(session) as guard:
-            try:
-                self.adjust_gpu_pool((State.SCHEDULED,), session=session)                
-                guard.commit()
-            except OperationalError as e:
-                if is_lock_not_available_error(error=e):
-                    self.log.debug("Lock held by another Scheduler")
-                    session.rollback()
-                else:
-                    raise
-            guard.commit()  
+        #kaapana adjusted gpu
 
     @provide_session
-    def adjust_gpu_pool(self, simple_dag_bag, states, session=None):
-        from airflow.jobs.backfill_job import BackfillJob
-        TI = models.TaskInstance
-        DR = models.DagRun
-        DM = models.DagModel
-        ti_query = (
-            session
-                .query(TI)
-                .filter(TI.dag_id.in_(simple_dag_bag.dag_ids))
-                .outerjoin(
-                DR,
-                and_(DR.dag_id == TI.dag_id, DR.execution_date == TI.execution_date)
-            )
-                .filter(or_(DR.run_id == None,  # noqa: E711 pylint: disable=singleton-comparison
-                            not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
-                .outerjoin(DM, DM.dag_id == TI.dag_id)
-                .filter(or_(DM.dag_id == None,  # noqa: E711 pylint: disable=singleton-comparison
-                            not_(DM.is_paused)))
-        )
-
-        # Additional filters on task instance state
-        if None in states:
-            ti_query = ti_query.filter(
-                or_(TI.state == None, TI.state.in_(states))  # noqa: E711 pylint: disable=singleton-comparison
-            )
-        else:
-            ti_query = ti_query.filter(TI.state.in_(states))
-
-        task_instances_to_examine = ti_query.all()
+    def adjust_gpu_pool(self, task_instances_to_examine:  List[TI], session=None):
+        adjusted_task_instances_to_examine: List[TI] = []
+        is_any_gpu_pool_task = False
         for task_instance in task_instances_to_examine:
             if task_instance.pool == "GPU_COUNT":
                 self.log.error("Getting new POOLS...")
+                is_any_gpu_pool_task = True
                 try:
-                    task_instance = get_gpu_pool(task_instance=task_instance, logger=self.log)
+                    task_instance = get_gpu_pool(task_instance=task_instance, session=session, logger=self.log)
                 except Exception as e:
                     self.log.error("##### Could not fetch GPU pools!")
-
                 session.merge(task_instance)
-            session.commit()
+            adjusted_task_instances_to_examine.append(task_instance)
+        if is_any_gpu_pool_task:
+            #the hole session is guarded by prohibit_commit, a guard.commit() is executed at the end.
+            session.flush()
+        return adjusted_task_instances_to_examine

@@ -311,7 +311,7 @@ def check_dag_exists(session, dag_id):
     dag_exists = session.query(DagModel).filter(
         DagModel.dag_id == dag_id).count()
     if not dag_exists:
-        return Response('Dag {} does not exist'.format(dag_id), http.client.BAD_REQUEST)
+        return Response('Dag {} does not exist'.format(dag_id), HTTPStatus.BAD_REQUEST)
 
     return None
 

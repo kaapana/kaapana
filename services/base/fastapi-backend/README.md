@@ -19,3 +19,5 @@ When the backend is running a swager frontend is accessable under `https://YOUR-
 3. Install the chart into your platofrm `helm install kaapana-backend backend-chart/`
 
 Your backend pod will have the code directly mounted via a volume called `fastapi-dev-files`. Since fastapi is able to detect changes, it will reload every time you edit a file in the backend folder. To have continious logging use `kubectl logs POD-NAME -n base -f`.
+
+**Note:** Dev mode opens a NodePort for the backend on port 5000 for direct access. Authentification is disabled here.

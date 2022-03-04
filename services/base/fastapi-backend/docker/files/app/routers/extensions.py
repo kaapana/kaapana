@@ -36,7 +36,7 @@ async def delete_extension(name: str, version: str, service: ExtensionService = 
     """ 
     return service.delete(name, version)
 
-@router.put('/installed/')
+@router.post('/installed/')
 async def install_extension(installation: Installation, service: ExtensionService = Depends(get_extension_service)):
     """ To Install a  Chart (Recommended to call /list-available-charts/ first, to get the available charts to Install. The release_name parameter is only for multi-installer charts.  The release_name must follow this format. Chartname-<ustomname>. For example if chart name is mitk-workbench-chart, then the release_name  could be mitk-workbench-chart-customname)
     """ 

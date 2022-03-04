@@ -1,9 +1,0 @@
----
-global:
-    registry_url: ""
-    pull_policy_pods: "Always"
-    base_namespace: "base"
-    fast_data_dir: "/home/kaapana"
-    node_id: "dkfz"
-    hostname: ""
-    https_port: 443

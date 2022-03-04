@@ -2,7 +2,7 @@ import requests
 from fastapi import Depends, FastAPI, Request
 
 from .internal import admin
-from .routers import remote, extensions, monitoring, users, storage
+from .routers import remote, extensions, monitoring, users, storage, workflow
 from .dependencies import get_query_token, get_token_header
 from . import crud, models
 from .database import SessionLocal, engine
@@ -42,6 +42,14 @@ app.include_router(
     storage.router,
     prefix="/storage"
 )
+
+app.include_router(
+    workflow.router,
+    prefix="/workflow",
+    tags=["workflow"],
+    responses={418: {"description": "worfklow"}},
+)
+
 # app.include_router(
 #     admin.router,
 #     prefix="/admin",

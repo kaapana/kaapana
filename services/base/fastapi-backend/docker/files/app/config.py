@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     keycloak_url: str
     keycloak_user: str
     keycloak_password: str
+    
+    airflow_url: str = "http://airflow-service.flow.svc:8080/flow/kaapana/api"
 
     hostname: str
     node_id: str

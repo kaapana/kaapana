@@ -5,6 +5,7 @@ from minio import Minio
 from app.services.extensions import ExtensionService
 from app.services.monitoring import MonitoringService
 from app.services.users import UserService
+from app.services.workflow import WorkflowService
 from .config import settings
 from .database import SessionLocal
 from . import models
@@ -28,6 +29,9 @@ def get_user_service() -> UserService:
 
 def get_minio() -> Minio:
     yield  Minio(settings.minio_url, access_key=settings.minio_access_key, secret_key=settings.minio_secret_key, secure=False)
+
+def get_workflow_service() -> WorkflowService:
+    yield WorkflowService(airflow_api=settings.airflow_url)
 
 async def get_token_header(FederatedAuthorization: str = Header(...), db: Session = Depends(get_db)):
     if FederatedAuthorization:

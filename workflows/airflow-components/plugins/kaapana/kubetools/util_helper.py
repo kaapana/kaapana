@@ -277,7 +277,7 @@ class NodeUtil():
         NodeUtil.enable = NodeUtil.get_variable(key="util_scheduling", default_var=True)
         if not NodeUtil.enable or task_instance == None:
             NodeUtil.compute_allocated_resources(session=session, logger=logger)
-            if logger != None:
+            if logger != None and not NodeUtil.enable:
                 logger.warning("Util-scheduler is disabled!!")
             return True
 
@@ -306,15 +306,13 @@ class NodeUtil():
             if NodeUtil.last_update is None or (now - NodeUtil.last_update).seconds >= 3:
                 util_result = NodeUtil.compute_allocated_resources(session=session, logger=logger)
                 if not util_result:
-                    logger.warning(
-                        "############################################# COULD NOT FETCH UTILIZATION -> SKIPPING!")
+                    logger.warning("######################################## COULD NOT FETCH UTILIZATION -> SKIPPING!")
                     return True
             NodeUtil.cpu_percent = get_node_cpu_util_percent(logger=logger)
             if NodeUtil.cpu_percent is None or NodeUtil.cpu_percent > NodeUtil.max_util_cpu:
                 if logger != None:
-                    logger.warning("############################################# High CPU utilization -> waiting!")
-                    logger.warning(
-                        "############################################# cpu_percent: {}".format(NodeUtil.cpu_percent))
+                    logger.warning("##################################### High CPU utilization -> waiting!")
+                    logger.warning("##################################### cpu_percent: {}".format(NodeUtil.cpu_percent))
                 return False
             NodeUtil.set_variable("CPU_PERCENT", "{}".format(NodeUtil.cpu_percent))
 
@@ -322,46 +320,33 @@ class NodeUtil():
 
             if NodeUtil.mem_percent is None or NodeUtil.mem_percent > NodeUtil.max_util_ram:
                 if logger != None:
-                    logger.warning("############################################# High RAM utilization -> waiting!")
-                    logger.warning(
-                        "############################################# mem_percent: {}".format(NodeUtil.mem_percent))
+                    logger.warning("############################# High RAM utilization -> waiting!")
+                    logger.warning("############################# mem_percent: {}".format(NodeUtil.mem_percent))
                 return False
             NodeUtil.set_variable("RAM_PERCENT", "{}".format(NodeUtil.mem_percent))
 
             if NodeUtil.memory_pressure:
                 if logger != None:
-                    logger.warning(
-                        "##########################################################################################")
-                    logger.warning(
-                        "#################################### Instable system! ####################################")
-                    logger.warning(
-                        "##################################### memory_pressure ####################################")
-                    logger.warning(
-                        "##########################################################################################")
+                    logger.warning("###############################################################################")
+                    logger.warning("#################################### Instable system! #########################")
+                    logger.warning( "##################################### memory_pressure ########################")
+                    logger.warning("##############################################################################")
                 return False
 
             if NodeUtil.disk_pressure:
                 if logger != None:
-                    logger.warning(
-                        "##########################################################################################")
-                    logger.warning(
-                        "#################################### Instable system! ####################################")
-                    logger.warning(
-                        "##################################### disk_pressure ####################################")
-                    logger.warning(
-                        "##########################################################################################")
+                    logger.warning("###############################################################################")
+                    logger.warning("#################################### Instable system! #########################")
+                    logger.warning("##################################### disk_pressure ###########################")
+                    logger.warning("###############################################################################")
                 return False
 
             if NodeUtil.pid_pressure:
                 if logger != None:
-                    logger.warning(
-                        "##########################################################################################")
-                    logger.warning(
-                        "#################################### Instable system! ####################################")
-                    logger.warning(
-                        "##################################### pid_pressure ####################################")
-                    logger.warning(
-                        "##########################################################################################")
+                    logger.warning("##############################################################################")
+                    logger.warning("#################################### Instable system! ########################")
+                    logger.warning("##################################### pid_pressure ###########################")
+                    logger.warning("##############################################################################")
                 return False
 
             ti_ram_mem_mb = 0 if config["ram_mem_mb"] == None else config["ram_mem_mb"]
@@ -434,12 +419,11 @@ def get_gpu_pool(task_instance, session, logger):
         if gpu_pool == None:
             NodeUtil.check_gpu_pools(session, logger)
             gpu_pool = NodeUtil.get_pool_by_name(session=session, name=gpu_pool_id)
-
         if gpu_pool != None and gpu_pool.slots > task_instance.pool_slots:
             capacity = gpu_pool.slots
-            used = gpu_pool.occupied_slots()
-            # running_slots = gpu_pool.running_slots()
-            queued_slots = gpu_pool.queued_slots()
+            used = gpu_pool.occupied_slots(session)
+            # running_slots = gpu_pool.running_slots(session)
+            queued_slots = gpu_pool.queued_slots(session)
             queued_gpu_slots.append({
                 "id": i,
                 "pool_id": gpu_pool_id,

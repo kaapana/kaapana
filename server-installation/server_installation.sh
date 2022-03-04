@@ -179,7 +179,12 @@ function install_packages_ubuntu {
 
         echo "${YELLOW}APT update & upgrade${NC}"
         apt update
-        apt upgrade -y
+        if [ ! "$QUIET" = "true" ]; then
+            apt upgrade -y
+        else
+            export DEBIAN_FRONTEND=noninteractive
+            apt upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
+        fi
 
         apt install -y nano jq curl net-tools
 

@@ -41,5 +41,8 @@ dependencies:
     repository: file://../../../../../../workflows/dag-installer/shapemodel/shapemodel-workflow
   - name: tensorboard-chart
     version: 2.5.0
-    repository: file://../../../../../../services/applications/tensorboard/tensorboard-chart 
+    repository: file://../../../../../../services/applications/tensorboard/tensorboard-chart
+  - name: fastapi-backend-chart
+    version: 0.1.0
+    repository: file://../../../../../../services/base/fastapi-backend/backend-chart
     

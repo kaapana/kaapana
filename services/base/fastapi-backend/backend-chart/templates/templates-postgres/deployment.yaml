@@ -1,0 +1,41 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi-postgres-deployment
+  namespace: {{ .Values.global.base_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: fastapi-postgres
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: fastapi-postgres
+    spec:
+      containers:
+      - name: fastapi-postgres
+        image: {{  .Values.global.registry_url }}/postgres:9.6-alpine
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        env: # Environment variables
+        - name: POSTGRES_USER
+          value: someuser
+        - name: POSTGRES_PASSWORD
+          value: somepassword
+        ports: # Port(s) on which your application runs
+          - containerPort: 5432
+        volumeMounts:
+          - name: fastapi-postgres-data # key of volume moment
+            mountPath: "/var/lib/postgresql/data" # path in container
+      volumes:
+      - name: fastapi-postgres-data # key of volume mount
+        hostPath:
+          path: /home/kaapana/postgres-federated
+          #path: {{ .Values.global.fast_data_dir }}/fastapi-postgres-data # path on hostmachine
+          type: DirectoryOrCreate
+      imagePullSecrets:
+        - name: registry-secret
+---

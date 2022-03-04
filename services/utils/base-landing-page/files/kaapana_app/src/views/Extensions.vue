@@ -16,7 +16,7 @@
                     v-on="on"
                   )
                     | mdi-cloud-download-outline
-                span By clicking on this icon it will try to download the latest extensions.
+                span By clicking on this icon it will try to download the latest extensions. In case you do not have internet connection this can also be done on the terminal via ./install-platform --update-extensions.
             br
             span(style="font-size: 14px") On 
               a(href="https://kaapana.readthedocs.io/", target="_blank") readthedocs

@@ -104,18 +104,19 @@ def cache_operator_output(func):
         if conf is not None and 'client_job_id' in conf:
             update_job(conf['client_job_id'], status='running', run_id=run_id, description=f'Running the operator {self.name}')
         
-        if conf is not None and 'federated' in conf and conf['federated'] is not None:
-            federated = conf['federated']
+        if conf is not None and 'federated_form' in conf and conf['federated_form'] is not None:
+            federated = conf['federated_form']
             print('Federated config')
             print(federated)
         else:
             federated = None
 
+        if federated is not None and 'skip_operators' in federated and self.operator_out_dir in federated['skip_operators']:
+            print('Skipping')
+            return
+
         if federated is not None and 'from_previous_dag_run' in federated and federated['from_previous_dag_run'] is not None:
-            if 'skip_operators' in federated and self.operator_out_dir in federated['skip_operators']:
-                print('Skipping')
-                return
-            elif 'federated_operators' in federated and self.operator_out_dir in federated['federated_operators']:
+            if 'federated_operators' in federated and self.operator_out_dir in federated['federated_operators']:
                 pass
             else:
                 print(f'Copying data from previous workflow for {self.operator_out_dir}')

@@ -3,15 +3,13 @@
   v-tabs-items(v-model='tab')
     v-tab-item(key='client')
       v-container(text-left)
-        v-row
+        v-row(@click="toggleClientPanel()").toggleMouseHand
           v-col(cols="4")
             h1 Client Instance
-            workflow-execution(:datasets="datasets" :instance="clientInstance" :remote="clientInstance.remote")
-          v-spacer
+              i(v-if="openedClientPanel==null").v-icon.notranslate.mdi.mdi-chevron-down.theme--light(aria-hidden='true')
+              i(v-if="openedClientPanel==0").v-icon.notranslate.mdi.mdi-chevron-up.theme--light(aria-hidden='true')
           v-col(cols="8" align='right')
             v-dialog(v-model='clientDialog' max-width='600px')
-              //- template(v-slot:activator='{ on, attrs }')
-              //-   v-btn(color='orange' v-bind='attrs' v-on='on' rounded dark) Add client instance
               v-card
                 v-form(v-model='clientValid' ref="clientForm" lazy-validation)
                   v-card-title
@@ -37,23 +35,32 @@
                       | submit
                     v-btn(@click='resetClientForm')
                       | clear
-            v-btn(v-if="clientInstance==null" color='orange' @click="clientDialog=true" rounded dark) Add client instance
-            v-btn(@click="changeTab(1)" color="primary" rounded dark) Switch to remote instance
+            workflow-execution(:remote="remote" :instances="[clientInstance]")
+            v-btn(v-if="clientInstance" color='orange' @click.stop="checkForRemoteUpdates()" rounded dark ) Check for remote jobs
+            v-btn(v-if="!clientInstance" color='orange' @click.stop="clientDialog=true" rounded dark) Add client instance
+            //- v-btn(v-if="clientInstance" color='orange' @click="submitWorkflow()" rounded dark) Execute Client Workflow
+            v-btn(@click.stop="changeTab(1)" color="primary" rounded dark) Switch to remote instance
+        v-row
           v-col(sm="12")
-            KaapanaInstance(v-if="clientInstance" :instance="clientInstance" :remote="clientInstance.remote"  @refreshView="refreshClient()" @ei="editClientInstance")
+            v-expansion-panels(v-model="openedClientPanel")
+              v-expansion-panel(key='instance')
+                v-expansion-panel-content
+                  KaapanaInstance(v-if="clientInstance" :instance="clientInstance" :remote="clientInstance.remote"  @refreshView="refreshClient()" @ei="editClientInstance")
         job-table(v-if="clientInstance" :jobs="clientJobs" :remote="clientInstance.remote"  @refreshView="refreshClient()")
 
     v-tab-item(key='remote')
       v-container(text-left)
-        v-row
+        v-row(@click="toggleRemotePanel()").toggleMouseHand
           v-col(cols="4")
             h1 Remote Instances
+              i(v-if="openedRemotePanel==null").v-icon.notranslate.mdi.mdi-chevron-down.theme--light(aria-hidden='true')
+              i(v-if="openedRemotePanel==0").v-icon.notranslate.mdi.mdi-chevron-up.theme--light(aria-hidden='true')
           v-spacer
           v-col(cols="8" align='right')
+            workflow-execution(:remote="remote" :instances="remoteInstances")
             v-dialog(v-model='remoteDialog' max-width='600px')
               template(v-slot:activator='{ on, attrs }')
                 v-btn(color='orange' v-bind='attrs' v-on='on' rounded dark) Add remote instance
-                //- v-btn(color='primary' dark='' v-bind='attrs' v-on='on') Add client instance
               v-card
                 v-form(v-model='remoteValid', ref="remoteForm" lazy-validation)
                   v-card-title
@@ -79,14 +86,18 @@
                       | submit
                     v-btn(@click='resetRemoteForm')
                       | clear
-            v-btn(@click="changeTab(0)" color="primary" rounded dark) Switch to client instance
+            //- v-btn(color='orange' @click="submitWorkflow()" rounded dark) Execute Remote Workflow
+            v-btn(@click.stop="changeTab(0)" color="primary" rounded dark) Switch to client instance
+        v-row
           v-col(sm="12")
-            v-container(fluid='')
-              v-row(dense='')
-                v-col(v-for="instance in remoteInstances" :key='instance.id' cols='6')
-                  KaapanaInstance(:instance="instance" :remote="instance.remote" @refreshView="refreshRemote()" @ei="editRemoteInstance")
+            v-expansion-panels(v-model="openedRemotePanel")
+              v-expansion-panel(key='instances')
+                v-expansion-panel-content
+                  v-container(fluid='')
+                    v-row(dense='')
+                      v-col(v-for="instance in remoteInstances" :key='instance.id' cols='6')
+                        KaapanaInstance(:instance="instance" :remote="instance.remote" @refreshView="refreshRemote()" @ei="editRemoteInstance")
         job-table(v-if="remoteJobs.length"  :jobs="remoteJobs" remote=true @refreshView="refreshRemote()")
-
 </template>
 
 <script>
@@ -110,6 +121,8 @@ export default Vue.extend({
     clientDialog: false,
     clientUpdate: false,
     clientValid: false,
+    openedClientPanel: null,
+    openedRemotePanel: null,
     remoteValid: false,
     remoteUpdate: false,
     remoteDialog: false,
@@ -117,7 +130,7 @@ export default Vue.extend({
     datasets: [],
     remoteJobs: [],
     clientJobs: [],
-    clientInstance: null,
+    clientInstance: {},
     remoteInstances: [],
     clientPost: {
       ssl_check: false,
@@ -152,7 +165,7 @@ export default Vue.extend({
         this.getDatasets();
         console.log('Getting Dags and Datasets')
       }
-    },
+    }
   },
   computed: {
     remote () {
@@ -161,6 +174,31 @@ export default Vue.extend({
     ...mapGetters(['currentUser', 'isAuthenticated'])
   },
   methods: {
+    toggleClientPanel() {
+      if (this.openedClientPanel == 0) {
+        this.openedClientPanel = null
+      } else {
+        this.openedClientPanel = 0
+      }
+    },
+    toggleRemotePanel() {
+      if (this.openedRemotePanel == 0) {
+        this.openedRemotePanel = null
+      } else {
+        this.openedRemotePanel = 0
+      }
+    },
+    checkForRemoteUpdates() {
+      console.log('checking remote')
+      kaapanaApiService
+        .federatedClientApiGet("/check-for-remote-updates")
+        .then((response) => {
+          this.$emit('refreshView')
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    },
     refreshRemote () {
       this.getRemoteInstances()
       this.getRemoteJobs()
@@ -246,9 +284,9 @@ export default Vue.extend({
           });
       }
     },
-    getDags(only_dag_names=true) {
+    getDags() {
       kaapanaApiService
-        .federatedClientApiGet("/dags", {only_dag_names: only_dag_names})
+        .federatedClientApiPost("/get-dags", {remote: false})
         .then((response) => {
           this.dags = response.data;
         })
@@ -284,7 +322,7 @@ export default Vue.extend({
           this.clientInstance = response.data;
         })
         .catch((err) => {
-          this.clientInstance = null
+          this.clientInstance = {}
         });
     },
     deleteRemoteInstances() {
@@ -353,5 +391,12 @@ export default Vue.extend({
 <style lang="scss">
 a {
   text-decoration: none;
+}
+.v-expansion-panel-content__wrap {
+  padding: 0;
+}
+
+.toggleMouseHand {
+  cursor: pointer;
 }
 </style>

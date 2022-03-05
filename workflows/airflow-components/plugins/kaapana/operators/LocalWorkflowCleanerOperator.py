@@ -10,14 +10,19 @@ from kaapana.blueprints.kaapana_utils import get_operator_properties
 
 class LocalWorkflowCleanerOperator(KaapanaPythonBaseOperator):
 
-
     def start(self, ds, **kwargs):
-
 
         run_id, dag_run_dir, conf = get_operator_properties(**kwargs)
 
+        skipping = conf is not None and \
+            'federated_form' in conf and \
+            conf['federated_form'] is not None and \
+                'skip_operators' in conf['federated_form'] and \
+                     self.operator_out_dir in conf['federated_form']['skip_operators']
+
+        print('skipping', skipping)
         run_dir = dag_run_dir if self.run_dir is None else self.run_dir
-        if self.clean_workflow_dir is True and (os.path.exists(run_dir)):
+        if self.clean_workflow_dir is True and (os.path.exists(run_dir)) and skipping is False:
             print(("Cleaning dir: %s" % run_dir))
             shutil.rmtree(run_dir)
 

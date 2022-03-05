@@ -58,6 +58,8 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
     r = requests.get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id': client_job_id})
     raise_kaapana_connection_error(r)
     client_job = r.json()
+    print('Client job')
+    print(json.dumps(client_job, indent=2))
     client_network  = client_job['kaapana_instance']
     print('Client network')
     print(json.dumps(client_network, indent=2))
@@ -119,8 +121,8 @@ def federated_sharing_decorator(func):
 
         run_id, dag_run_dir, conf = get_operator_properties(*args, **kwargs)
 
-        if conf is not None and 'federated' in conf and conf['federated'] is not None:
-            federated = conf['federated']
+        if conf is not None and 'federated_form' in conf and conf['federated_form'] is not None:
+            federated = conf['federated_form']
             print('Federated config')
             print(federated)
         else:

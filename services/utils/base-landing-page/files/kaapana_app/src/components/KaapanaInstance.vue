@@ -14,11 +14,10 @@
       div Allowed dags: 
         span( v-for='dag in instance.allowed_dags') {{dag}} 
       div Allowed datasets: 
-        span( v-for='dataset in instance.allowed_datasets') {{dataset}} 
+        span( v-for='dataset in instance.allowed_datasets') {{dataset}}
     v-card-actions
       v-btn(color='orange' @click="editInstance()" rounded dark) Edit Instance
       v-btn(color='orange' @click="deleteInstance()" rounded dark) Delete instance    
-      v-btn(v-if="remote==false" color='orange' dark='' @click="checkForRemoteUpdates()" rounded) Check for remote jobs
 
     v-dialog(v-model='dialogDelete' max-width='500px')
       v-card
@@ -28,11 +27,13 @@
           v-btn(color='blue darken-1' text='' @click='closeDelete') Cancel
           v-btn(color='blue darken-1' text='' @click='deleteInstanceConfirm') OK
           v-spacer
+
 </template>
 
 <script>
 
 import kaapanaApiService from "@/common/kaapanaApi.service";
+
 
 export default {
   name: 'KaapanaInstance',
@@ -50,24 +51,11 @@ export default {
     }
   },
   watch: {
-    dialog (val) {
-      val || this.close()
-    },
     dialogDelete (val) {
       val || this.closeDelete()
     },
   },
   methods:{
-    checkForRemoteUpdates() {
-      kaapanaApiService
-        .federatedClientApiGet("/check-for-remote-updates")
-        .then((response) => {
-          this.$emit('refreshView')
-        })
-        .catch((err) => {
-          console.log(err);
-        });
-    },
     closeDelete() {
       this.dialogDelete = false
     },

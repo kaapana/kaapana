@@ -60,7 +60,6 @@ class KaapanaInstance(KaapanaInstanceBase):
 
 
 class JobBase(BaseModel):
-    dry_run: bool = False
     status: str = 'pending'
     dag_id: str = None
     run_id: str = None
@@ -72,7 +71,6 @@ class JobBase(BaseModel):
 class Job(JobBase):
     id: int
     conf_data: str
-    job_data: str
     time_created: datetime.datetime
     time_updated: datetime.datetime
 
@@ -87,18 +85,12 @@ class Job(JobBase):
     def convert_conf_data(cls, v):
         return json.loads(v)
 
-    @validator('job_data')
-    def convert_job_data(cls, v):
-        return json.loads(v)
-
     class Config:
         orm_mode = True
 
 
 class JobCreate(JobBase):
     conf_data: dict = {}
-    job_data: dict = {}
-    local_data: dict = {}
     kaapana_instance_id: int
 
 class JobUpdate(JobBase):
@@ -107,15 +99,17 @@ class JobUpdate(JobBase):
     # run_id: str = None
     # description: str = None
 
-
 class JobWithKaapanaInstance(Job):
     kaapana_instance: KaapanaInstance = None
 
 class KaapanaInstanceWithJobs(KaapanaInstance):
     jobs: List[Job] = []
 
-class FilterByNodeIds(BaseModel):
+class FilterKaapanaInstances(BaseModel):
+    remote: bool = True
+    dag_id: str = None
     node_ids: List = []
 
-class WorkflowJsonSchema(BaseModel):
-    data: dict = {}
+
+class JsonSchemaData(FilterKaapanaInstances):
+    form_data: dict= {}

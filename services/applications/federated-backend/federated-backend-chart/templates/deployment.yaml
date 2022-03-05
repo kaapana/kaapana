@@ -82,7 +82,7 @@ spec:
           - containerPort: 5000
         resources:
           limits:
-            memory: "1Gi"
+            memory: "10Gi"
           requests:
             memory: "100Mi"
         volumeMounts:

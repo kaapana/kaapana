@@ -30,11 +30,15 @@ def delete_kaapana_instances(db: Session):
 def get_kaapana_instance(db: Session, node_id: str = None, remote: bool = True):
     return db.query(models.KaapanaInstance).filter_by(node_id=node_id or NODE_ID, remote=remote).first()
 
-def get_kaapana_instances(db: Session, remote: bool = True, filter_by_node_ids: schemas.FilterByNodeIds = None):
-    if filter_by_node_ids is not None:
-        return db.query(models.KaapanaInstance).filter(models.KaapanaInstance.remote==remote, models.KaapanaInstance.node_id.in_(filter_by_node_ids.node_ids)).all()
+def get_kaapana_instances(db: Session, filter_kaapana_instances: schemas.FilterKaapanaInstances = None):
+    if filter_kaapana_instances.node_ids:
+        return db.query(models.KaapanaInstance).filter(models.KaapanaInstance.remote==filter_kaapana_instances.remote, models.KaapanaInstance.node_id.in_(filter_kaapana_instances.node_ids)).all()
+    elif filter_kaapana_instances.dag_id is not None:
+        return db.query(models.KaapanaInstance).filter(models.KaapanaInstance.remote==filter_kaapana_instances.remote, models.KaapanaInstance.allowed_dags.contains(filter_kaapana_instances.dag_id)).all()
+    elif filter_kaapana_instances.node_ids and filter_kaapana_instances.dag_id is not None:
+        return db.query(models.KaapanaInstance).filter(models.KaapanaInstance.remote==filter_kaapana_instances.remote, models.KaapanaInstance.allowed_dags.contains(filter_kaapana_instances.dag_id), models.KaapanaInstance.node_id.in_(filter_kaapana_instances.node_ids)).all()
     else:
-        return db.query(models.KaapanaInstance).filter_by(remote=remote).all()
+        return db.query(models.KaapanaInstance).filter_by(remote=filter_kaapana_instances.remote).all()
 
 def create_and_update_client_kaapana_instance(db: Session, client_kaapana_instance: schemas.ClientKaapanaInstanceCreate, action='create'):
     def _get_fernet_key(fernet_encrypted):
@@ -132,32 +136,28 @@ def create_job(db: Session, job: schemas.JobCreate):
     if not db_kaapana_instance:
         raise HTTPException(status_code=404, detail="Kaapana instance not found")
 
-    if db_kaapana_instance.remote is True and 'federated' in job.local_data and 'federated' in job.job_data:
+    if db_kaapana_instance.remote is True and 'federated_form' in job.conf_data and \
+        ('federated_dir' in job.conf_data['federated_form'] and \
+            'federated_bucket' in job.conf_data['federated_form'] and \
+                'federated_operators' in job.conf_data['federated_form']):
         minio_urls = HelperMinio.add_minio_urls(
-            job.job_data['federated'],
-            job.local_data['federated'],
+            job.conf_data['federated_form'],
             db_kaapana_instance.node_id
         )
-        job.job_data['federated']['minio_urls'] = minio_urls
+        print('minio_urls ', minio_urls)
+        job.conf_data['federated_form']['minio_urls'] = minio_urls
 
     print('db_kaapana_instance.automatic_job_execution')
-    # if db_kaapana_instance.automatic_job_execution is True:
-    #     status = 'pending'
-    # else:
-    #     status = 'scheduled'
     
     utc_timestamp = get_utc_timestamp()
 
     db_job = models.Job(
         conf_data=json.dumps(job.conf_data),
-        job_data=json.dumps(job.job_data),
-        local_data=json.dumps(job.local_data),
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
         external_job_id=job.external_job_id,
         dag_id=job.dag_id,
         addressed_kaapana_node_id=job.addressed_kaapana_node_id or None,
-        dry_run=job.dry_run,
         status=job.status
     )
 

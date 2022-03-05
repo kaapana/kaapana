@@ -19,14 +19,15 @@
               label="Search",
               hide-details=""
             )
-      v-data-table(:headers='headers' :items='filteredJobs' :search="search" sort-by='status')
+      v-data-table(:headers='headers' :items='filteredJobs' :search="search" sort-by='time_updated' sort-desc=true)
         template(v-slot:item.status='{ item }')
           v-chip(:color='getStatusColor(item.status)' dark='') {{ item.status }}
         template(v-slot:item.actions='{ item }')
           v-btn(v-if='remote==false && item.status=="pending"', @click='executeJob(item)') Set to scheduled
-          //- v-btn(v-if='remote==false && item.status=="scheduled"', @click='executeJob(item)') Execute job
-          v-btn(v-if='remote==false && (item.status=="pending" || item.status=="finished" || item.status=="failed")', @click='deleteJob(item)') Delete job
+          v-btn(v-if='remote==false', @click='deleteJob(item)') Delete job
           v-btn(v-if='remote==true && (item.status=="queued")', @click='deleteJob(item)') Delete job
+          //- v-btn(v-if='remote==false && (item.status=="pending" || item.status=="finished" || item.status=="failed")', @click='deleteJob(item)') Delete job
+          //- v-btn(v-if='remote==true && (item.status=="queued")', @click='deleteJob(item)') Delete job
 </template>
 
 <script>

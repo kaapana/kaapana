@@ -157,6 +157,29 @@ const kaapanaApiService = {
     })
   },
 
+  federatedSchemaApiPost(subUrl: any, payload: any = null, params: any=null) {
+    return new Promise((resolve, reject) => {
+      request.post('/federated-backend/json-schemas' + subUrl, payload, { params: params}).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        console.log('Failed: ' + error.response.data)
+        reject(error)
+      })
+    })
+  },
+
+  federatedSchemaApiGet(subUrl: any, params: any = null) {
+    return new Promise((resolve, reject) => {
+      request.get('/federated-backend/json-schemas' + subUrl, { params }).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        console.log('Failed: ' + error.response.data)
+        reject(error)
+      })
+    })
+  },
+
+
   federatedClientApiPut(subUrl: any, payload: any=null, params: any=null) {
     return new Promise((resolve, reject) => {
       request.put('/federated-backend/client' + subUrl,  payload, { params: params }).then((response: any) => {

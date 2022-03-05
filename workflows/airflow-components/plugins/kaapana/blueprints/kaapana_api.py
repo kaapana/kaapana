@@ -1,3 +1,4 @@
+import warnings
 from flask import g, Blueprint, request, jsonify, Response, url_for
 from sqlalchemy import and_
 from sqlalchemy.orm.exc import NoResultFound
@@ -99,12 +100,73 @@ def trigger_dag(dag_id):
     else:
         tmp_conf["x_auth_token"] = request.headers.get('X-Auth-Token')
 
-    if "query" in tmp_conf and "index" in tmp_conf:
-        query = tmp_conf["query"]
-        index = tmp_conf["index"]
+    ################################################################################################ 
+    #### Deprecated! Will be removed with the next version 0.1.3
+
+    if "workflow_form" in tmp_conf: # in the future only workflow_form should be included in the tmp_conf
+        tmp_conf["form_data"] = tmp_conf["workflow_form"]
+    elif "form_data" in tmp_conf:
+        tmp_conf["workflow_form"] = tmp_conf["form_data"]
+
+    if dag_id == "meta-trigger":
+        warnings.warn("meta-trigger as endpoint was depcrecated in version 0.1.3, please adjust your request accordingly")
         form_data = tmp_conf["form_data"] if "form_data" in tmp_conf else None
-        cohort_limit = int(tmp_conf["cohort_limit"] if "cohort_limit" in tmp_conf else None)
+        if form_data is not None:
+            warnings.warn("form_data was renamed to workflow_data, please adjust your request accordingly")
+        print(json.dumps(form_data))
         single_execution = True if form_data is not None and "single_execution" in form_data and form_data["single_execution"] else False
+        dag_id = tmp_conf["dag"]
+        tmp_conf['elasticsearch_form'] = {
+            "query": tmp_conf["query"],
+            "index": tmp_conf["index"],
+            "single_execution": single_execution,
+            "cohort_limit": int(tmp_conf["cohort_limit"]) if "cohort_limit" in tmp_conf else None
+        }
+    ################################################################################################
+
+    if "elasticsearch_form" in tmp_conf:
+        elasticsearch_data = tmp_conf["elasticsearch_form"]
+        if "query" in elasticsearch_data:
+            query = elasticsearch_data["query"]
+        elif "dataset" in elasticsearch_data or "input_modality" in elasticsearch_data:
+            query = {
+                "bool": {
+                    "must": [
+                        {
+                            "match_all": {}
+                        },
+                        {
+                            "match_all": {}
+                        }
+                    ],
+                    "filter": [],
+                    "should": [],
+                    "must_not": []
+                }
+            }
+
+            if "dataset" in elasticsearch_data:
+                query["bool"]["must"].append({
+                    "match_phrase": {
+                        "00120020 ClinicalTrialProtocolID_keyword.keyword": {
+                            "query": elasticsearch_data["dataset"]
+                        }
+                    }
+                })
+            if "input_modality" in elasticsearch_data:
+                query["bool"]["must"].append({
+                    "match_phrase": {
+                        "00080060 Modality_keyword.keyword": {
+                            "query": elasticsearch_data["input_modality"]
+                        }
+                    }
+                })
+        else:
+            raise ValueError('query or dataset or input_modality needs to be defined!')
+
+        index = elasticsearch_data["index"]
+        cohort_limit = int(elasticsearch_data["cohort_limit"]) if ("cohort_limit" in elasticsearch_data and elasticsearch_data["cohort_limit"] is not None) else None
+        single_execution = True if "single_execution" in elasticsearch_data and elasticsearch_data["single_execution"] else False
 
         print(f"query: {query}")
         print(f"index: {index}")

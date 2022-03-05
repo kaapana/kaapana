@@ -332,6 +332,13 @@ class KaapanaBaseOperator(BaseOperator):
     @federated_sharing_decorator
     @cache_operator_output
     def execute(self, context):
+
+        config_path = os.path.join(self.workflow_dir, context["run_id"], 'conf', 'conf.json')
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        if not os.path.isfile(config_path) and context['dag_run'].conf is not None:
+            with open(os.path.join(config_path), "w") as file:
+                json.dump(context['dag_run'].conf, file)
+
         self.set_context_variables(context)
 
         if self.parallel_id is None:
@@ -370,6 +377,10 @@ class KaapanaBaseOperator(BaseOperator):
         for volume in self.volumes:
             if "hostPath" in volume.configs and self.data_dir == volume.configs["hostPath"]["path"]:
                 volume.configs["hostPath"]["path"] = os.path.join(volume.configs["hostPath"]["path"], context["run_id"])
+
+        self.env_vars.update({
+            "RUN_ID": context["run_id"]
+        })
 
         try:
             print("++++++++++++++++++++++++++++++++++++++++++++++++ launch pod!")

@@ -1,0 +1,8 @@
+---
+launch_name: kaapana-ci-server # Name for the CI-instance
+branch: null
+disable-safe-mode: false
+username: k688h
+password: null
+delete-instances: false
+email-notifications: false

@@ -1,0 +1,5 @@
+ansible
+gitpython
+openstacksdk
+reportportal_client
+selenium

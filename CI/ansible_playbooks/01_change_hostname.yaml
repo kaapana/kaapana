@@ -1,0 +1,29 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    - target: "{{ target_host }}"
+      default: "10.128.128.218"
+
+  tasks:
+    - add_host:
+        name: "{{ target }}"
+        groups: os_server
+
+
+- name: Install Kaapana server dependencies
+  debugger: on_failed
+  hosts: os_server
+  strategy: free
+  remote_user: "{{ remote_username }}"
+  vars:
+    #TODO: change hardcoded
+    ansible_ssh_private_key_file: ~/.ssh/kaapana.pem
+    
+  tasks:
+    - name: Set OpenStack hostname
+      debugger: on_failed
+      become: yes
+      hostname:
+        name: "vm-{{ inventory_hostname.split('.')[2] }}-{{ inventory_hostname.split('.')[3] }}.cloud.dkfz-heidelberg.de"
+      when: inventory_hostname.split('.')[0] == "10"

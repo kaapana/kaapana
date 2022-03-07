@@ -1,0 +1,42 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    - target: "{{ target_host }}"
+      default: "10.128.128.218"
+
+  tasks:
+    - add_host:
+        name: "{{ target }}"
+        groups: os_server
+
+- name: Copy data and algorithm chart to isolated environment
+  hosts: os_server
+  strategy: free
+  remote_user: "{{ remote_username }}"
+  vars:
+    #TODO: change hardcoded
+    ansible_ssh_private_key_file: ~/.ssh/kaapana.pem
+  # remote_user: "ubuntu"
+  # TODO: data could be in any instance and  multiple instance... todo
+  tasks:
+    #- name: Download a Image Test
+      #get_url:
+        #url: https://cdn.kernel.org/pub/linux/kernel/v4.x/ChangeLog-4.0.4
+        #dest: /home/ubuntu/
+        #mode: 0777
+
+    - name: Copy data
+      become: yes
+      copy:
+        src: "/home/kaapana/minio/{{ bucket_name }}"
+        dest: "/home/kaapana/minio"
+        directory_mode: yes
+        mode: 0775
+
+    - name: Copy chart
+      # become: yes
+      copy:
+        src: "{{ chart_path }}/{{ chart_filename }}"
+        dest: "/home/ubuntu"
+        # directory_mode: yes

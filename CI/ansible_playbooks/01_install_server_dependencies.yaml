@@ -1,0 +1,78 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    - target: "{{ target_host }}"
+      default: "10.128.128.218"
+
+  tasks:
+    - add_host:
+        name: "{{ target }}"
+        groups: os_server
+
+
+- name: Install Kaapana server dependencies
+  hosts: os_server
+  strategy: free
+  remote_user: "{{ remote_username }}"
+  vars:
+    #TODO: change hardcoded
+     ansible_ssh_private_key_file: ~/.ssh/kaapana.pem
+    
+  tasks:
+
+    - name: Set OpenStack hostname
+      become: yes
+      hostname:
+        name: "vm-{{ inventory_hostname.split('.')[2] }}-{{ inventory_hostname.split('.')[3] }}.cloud.dkfz-heidelberg.de"
+      when: inventory_hostname.split('.')[0] == "10"
+    
+    - name: Set server installation script path
+      set_fact: 
+        #script_path: "{{ lookup('env','HOME') }}/kaapana/server-installation"
+        script_path: "/home/ubuntu/kaapana/server-installation"
+
+    - name: Boolean which describes if script is locally available or not
+      set_fact:
+        is_script_local: "{{ local_script }}"
+
+    - name: Download server_installation.sh file if not locally available
+      block:
+
+      - name: Check directory locally
+        stat:
+          path: "{{ script_path }}"
+        register: script_folder
+        delegate_to: 127.0.0.1
+
+      - name: Create directory if it doesn't exist
+        file:
+          path: "{{ script_path }}"
+          state: directory
+        when: script_folder.stat.exists == false
+        delegate_to: 127.0.0.1
+
+      - name: Download server_installation.sh file locally
+        get_url: 
+          url: https://raw.githubusercontent.com/kaapana/kaapana/develop/server-installation/server_installation.sh
+          dest: "{{ script_path }}/server_installation.sh" 
+        delegate_to: 127.0.0.1
+      
+      when: not is_script_local
+
+    - set_fact:
+        #server_script: "{{ script_path }}/server_installation.sh"
+        server_script: "/home/ubuntu/kaapana/server-installation/server_installation.sh"
+      ignore_errors: yes 
+    
+    - name: Run server dependencies install script on server
+      become: yes
+      environment:
+        TERM: xterm
+      #script: "{{ server_script }}  --quiet"
+      script: "{{ server_script }}"
+
+    - name: Reboot machine...
+      become: yes
+      reboot:
+          reboot_timeout: 600

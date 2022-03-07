@@ -1,0 +1,146 @@
+---
+- name: launch a compute instance
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    ssh_key: "{{ os_ssh_key | default('kaapana') }}"
+    project_name: "{{ os_project_name | default('E230-DKTK-JIP') }}"
+    os_project_id: "{{ os_proj_id | default('969831bf53424f1fb318a9c1d98e1941') }}"
+    username: "{{ os_username }}"
+    password: "{{ os_password }}"
+    instance_name: "{{ os_instance_name | default('kaapana_ci_depl_test_server') }}"
+    volume_size: "{{ os_volume_size | default('90') }}"
+    os: "{{ os_image | default('ubuntu') }}"
+    instance_flavor: "{{ os_instance_flavor | default('dkfz-8.16') }}"
+
+  environment:
+    OS_IDENTITY_API_VERSION: 2
+    OS_ENDPOINT_TYPE: publicURL
+
+  tasks:
+    - name: Check if all required variables are passed using --extra-vars
+      fail:
+        msg: "variable {{ item }} not defined"
+      when: item is not defined
+      with_items:
+        - "{{ os_username }}"
+        - "{{ os_password }}"
+
+    - name: Check if custom operating system supported
+      fail: msg="{{ os }} not suppored! [centos7 centos8 ubuntu]"
+      when: 
+      - os |lower != "centos7"
+      - os |lower != "centos8"
+      - os |lower != "ubuntu"
+      
+    - name: Set custom Instance Image (operating system)
+      set_fact:
+        instance_image: "{{ os }}"
+
+    - fail: msg="{{ project_name }} this project is not supported! [E230 E230-DKTK-JIP E230-Kaapana-CI E230-DCIPHER-CI E130-OP41 E230-Production]"
+      when: 
+      - project_name != "E230"
+      - project_name != "E230-DCIPHER-CI"
+      - project_name != "E230-DKTK-JIP"
+      - project_name != "E230-Kaapana-CI"
+      - project_name != "E230-Production"
+      - project_name != "E130-OP41"
+
+    - name: Set network ID for project E230 to avoid conflict, because E230 has 2 network items
+      set_fact: 
+        network_id: "6ca0c141-3a54-4439-8ae6-45eafb93b0fa"
+      when: project_name == "E230"
+
+    - name: Set CentOs7 as image
+      set_fact:
+        instance_image: CentOS-7.9-DKFZ
+      when: os |lower == "centos7"
+
+    - name: Set CentOs8 as image
+      set_fact:
+        instance_image: CentOS-8.3-DKFZ
+      when: os |lower == "centos8"
+
+    - name: Set Ubuntu as image
+      set_fact:
+        # instance_image: ubuntu-sever-18.04-vanilla
+        # instance_image: Ubuntu-18.04-LTS
+        # instance_image: Ubuntu-18.04-LTS-DKFZ
+        instance_image: Ubuntu-20.04-LTS-DKFZ
+      when: os |lower == "ubuntu"
+
+    - name: check ssh_key_file present
+      debugger: on_failed
+      stat: 
+        path: "~/.ssh/{{ ssh_key }}.pem"
+      register: ssh_key_file
+
+    - name: check ssh_key_file
+      debugger: on_failed
+      fail: msg="The ssh-key ~/.ssh/{{ ssh_key }}.pem must be present on the host!"
+      when: not ssh_key_file.stat.exists
+
+    - name: launch an instance
+      environment:
+        OS_TENANT_ID: "{{ os_project_id }}"
+      os_server:
+        state: present
+        auth:
+          auth_url: "https://cloud.dkfz-heidelberg.de:13000"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          user_domain_name: "AD"
+          project_name: "{{ project_name }}"
+        network: "{{ network_id | default('') }}"
+        name: "{{ instance_name }}"
+        #image: "{{ instance_image }}"
+        image: b10fb456-70f5-46b7-8488-0480b3b7265a
+        #id: "eac31ce9-b623-4525-ab11-6fe25f28f3ea"
+        #volumes: e2dbb47f-b65b-4328-874c-322838d8aef5
+        volume_size: "{{ volume_size }}"
+        flavor: "{{ instance_flavor }}"
+        key_name: "{{ ssh_key }}"
+        region_name: regionOne
+        terminate_volume: True
+        boot_from_volume: True
+        security_groups: default
+        auto_ip: yes
+        wait: yes
+        timeout: 120
+        meta:
+          hostname: new_instance.localdomain
+      register: new_instance
+    
+    - name: Reset fingerprint
+      command: ssh-keygen -R {{ new_instance.openstack.accessIPv4 }}
+      ignore_errors: yes
+
+    - name: Wait for SSH on the Instance
+      command: "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i ~/.ssh/{{ ssh_key }}.pem root@{{ new_instance.openstack.accessIPv4 }} true"
+      register: result
+      until: result.rc == 0
+      retries: 6
+      delay: 5
+
+    - name: replace ip
+      replace:
+        path: "{{ item }}"
+        regexp: 'default: "\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'
+        replace: "default: \"{{ new_instance.openstack.accessIPv4 }}"
+      loop:
+      - ./01_set_new_hostname.yaml
+      - ./02_install_server_dependencies.yaml
+      - ./03_deploy_platform.yaml
+      - ./04_delete_deployment.yaml
+      - ./05_purge_filesystem.yaml
+      delegate_to: 127.0.0.1
+      ignore_errors: yes
+
+    - name: RESULT
+      debug:
+        msg: "OPENSTACK INSTANCE CREATED SUCCESSFULLY"
+
+    - name: RETURN
+      debug:
+        msg: "{{ new_instance.openstack.accessIPv4 }}"

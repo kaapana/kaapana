@@ -1,0 +1,7 @@
+---
+global:
+    pull_policy_pods: "Always"
+    # flow_namespace: "flow"
+    fast_data_dir: /home/kaapana
+    ## TODO: remove hard-coded registry URL
+    registry_url: registry.hzdr.de/santhosh.parampottupadam/tfdamvp1

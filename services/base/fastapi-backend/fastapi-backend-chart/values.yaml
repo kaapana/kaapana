@@ -1,11 +1,11 @@
 ---
 global:
-    registry_url: "registry.hzdr.de/philipp.schader/kaapana"
+    registry_url: "registry.hzdr.de/santhosh.parampottupadam/tfdamvp1"
     pull_policy_pods: "Always"
     base_namespace: "base"
     fast_data_dir: "/home/kaapana"
     node_id: "dkfz"
-    hostname: "10.133.28.53"
+    hostname: "10.128.129.221"
     https_port: 443
     path_prefix: "backend"
     prometheus_url: "http://prometheus-service.monitoring.svc:9090/prometheus"

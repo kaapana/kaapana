@@ -44,5 +44,4 @@ dependencies:
     repository: file://../../../../../../services/applications/tensorboard/tensorboard-chart
   - name: fastapi-backend-chart
     version: 0.1.0
-    repository: file://../../../../../../services/base/fastapi-backend/backend-chart
-    
+    repository: file://../../../../../../services/base/fastapi-backend/fastapi-backend-chart

@@ -1,9 +1,9 @@
 http_proxy: ""
-default_container_registry: ""     # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
+default_container_registry: "registry.hzdr.de/santhosh.parampottupadam/tfdamvp1"
 log_level: "WARN"
 build_containers: true
-push_containers: false
+push_containers: true
 push_dev_containers_only: false
 build_charts: true
-push_charts: false
-create_package: true
+push_charts: true
+create_package: false

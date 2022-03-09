@@ -335,7 +335,7 @@ class KaapanaBaseOperator(BaseOperator):
 
         config_path = os.path.join(self.workflow_dir, context["run_id"], 'conf', 'conf.json')
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
-        if not os.path.isfile(config_path) and context['dag_run'].conf is not None:
+        if context['dag_run'].conf is not None: #not os.path.isfile(config_path) and
             with open(os.path.join(config_path), "w") as file:
                 json.dump(context['dag_run'].conf, file)
 

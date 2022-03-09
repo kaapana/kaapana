@@ -24,7 +24,8 @@
                 v-select(v-model='node_ids' :items='available_node_ids' label='Node ids' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
               v-col(v-if="node_ids.length" cols='12')
                 v-select(v-model='dag_id' :items='available_dags' label='Dags' chips='' hint='Select a dag')
-              v-col(v-for="(schema, name) in schemas" cols='12' v-if="!(remote==false && name=='federated_form')")
+              //- v-if="!(remote==false && name=='federated_form')"
+              v-col(v-for="(schema, name) in schemas" cols='12')
                 p {{name}}
                 v-jsf(v-model="formData[name]" :schema="schema")
             v-row(v-if="external_available_node_ids.length")
@@ -36,13 +37,15 @@
               v-col(v-for="(schema, name) in external_schemas" cols='12')
                 p {{name}}
                 v-jsf(v-model="formData['external_schema_' + name]" :schema="schema")
+            v-row
               v-col(cols='12')
-                p {{formData}}
+                p Dag id: {{dag_id}}
+                p Node id: {{node_ids}}
+                p External node id: {{external_node_ids}}
+                p Form data: {{formData}}
         v-card-actions
           v-btn(color="orange", @click="submitWorkflow()" rounded dark) Submit job
-          v-btn(color="orange", @click="getUiFormSchemas()" rounded dark) Get schema
-
-
+          v-btn(color="orange", @click="(node_ids=[]) && (dag_id=null)" rounded dark) Clear
 </template>
 
 <script>
@@ -88,40 +91,53 @@ export default {
   },
   watch: {
     dialogOpen () {
-      this.getDags()
-      if (this.remote == false) {
-        this.node_ids = this.available_node_ids
-      }
+      this.node_ids = []
+      this.dag_id = null
     },
     node_ids() {
       this.getDags()
+      this.resetFormData()
+    },
+    dag_id() {
+      this.resetFormData()
     },
     external_dag_id() {
+      this.resetExternalFormData()
+    },
+    external_node_ids() {
+      this.resetExternalFormData()
+      if (this.external_node_ids.length) {
+        this.getExternalUiFormSchemas()
+      }
+    }
+  },
+  methods: {
+    resetFormData() {
+      this.schemas = {}
+      this.formData = {}
+      if (this.remote == false) {
+        this.node_ids = this.available_node_ids
+      }
+      this.resetExternalFormData()
+      this.getUiFormSchemas()
+      this.external_node_ids = []
+    },
+    resetExternalFormData() {
+      this.external_schemas = {}
+      this.external_available_node_ids = []
       if (this.external_dag_id != null) {
         console.log('getting')
         this.getAvailableExternalNodeIds()
       } else {
-        this.external_node_ids = []
-        this.external_available_node_ids = []
-        this.external_schemas = {}
-        this.formData = {}
       }
+      Object.entries(this.formData).forEach(([key, value]) => {
+        if (key.startsWith('external_schema_') && (key != ('external_schema_federated_form'))) {
+          console.log(`Deleting ${key}: ${value}`)
+          delete this.formData[key]
+        }
+      });
+
     },
-    external_node_ids() {
-      if (this.external_node_ids.length) {
-        console.log('ccc', this.external_node_ids)
-        this.getExternalUiFormSchemas()
-      } else {
-        this.external_schemas = {}
-        this.formData = {}
-      }
-    },
-    dag_id() {
-      this.schemas = {}
-      this.getUiFormSchemas()
-    }
-  },
-  methods: {
     getUiFormSchemas() {
       kaapanaApiService
         .federatedSchemaApiPost("/get-ui-form-schemas", {remote: this.remote, dag_id: this.dag_id, node_ids: this.node_ids})
@@ -134,6 +150,16 @@ export default {
             this.external_dag_id = null
           }
           this.schemas = schemas
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    },
+    getDags() {
+      kaapanaApiService
+        .federatedClientApiPost("/get-dags", {remote: this.remote, node_ids: this.node_ids})
+        .then((response) => {
+          this.available_dags = response.data;
         })
         .catch((err) => {
           console.log(err);
@@ -154,16 +180,6 @@ export default {
         .federatedSchemaApiPost("/get-ui-form-schemas",  {remote: true, dag_id: this.external_dag_id, node_ids: this.external_node_ids})
         .then((response) => {
           this.external_schemas = response.data
-        })
-        .catch((err) => {
-          console.log(err);
-        });
-    },
-    getDags() {
-      kaapanaApiService
-        .federatedClientApiPost("/get-dags", {remote: this.remote, node_ids: this.node_ids})
-        .then((response) => {
-          this.available_dags = response.data;
         })
         .catch((err) => {
           console.log(err);

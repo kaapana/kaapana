@@ -1,4 +1,6 @@
-import requests
+import os
+from urllib3.util import Retry
+from urllib3 import PoolManager
 from fastapi import Depends, FastAPI, Request
 
 from .internal import admin
@@ -13,7 +15,7 @@ from app.utils import get_remote_updates
 models.Base.metadata.create_all(bind=engine)
 
 
-app = FastAPI()
+app = FastAPI(openapi_prefix=os.getenv('APPLICATION_ROOT', ''))
 
 app.include_router(
     admin.router,
@@ -40,12 +42,16 @@ app.include_router(
 )
 
 
+retries = Retry(connect=5, read=2, redirect=5)
+http = PoolManager(retries=retries)
+
 @app.on_event("startup")
 @repeat_every(seconds=20)  # 1 hour
 def periodically_get_remote_updates():
     print('Checking for updates!')
-    db = next(get_db())
-    get_remote_updates(db, periodically=True)
+    # db = next(get_db())
+    with SessionLocal() as db:
+        get_remote_updates(db, periodically=True)
 
 # app.include_router(
 #     admin.router,

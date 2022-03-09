@@ -38,11 +38,11 @@ async def put_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaa
 async def put_client_kaapana_instance(client_kaapana_instance: schemas.ClientKaapanaInstanceCreate, db: Session = Depends(get_db)):
     return crud.create_and_update_client_kaapana_instance(db=db, client_kaapana_instance=client_kaapana_instance, action='update')
 
-@router.get("/remote-kaapana-instance", response_model=schemas.KaapanaInstanceWithJobs)
+@router.get("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)
 async def get_remote_kaapana_instance(node_id: str, db: Session = Depends(get_db)):
     return crud.get_kaapana_instance(db, node_id, remote=True)
 
-@router.get("/client-kaapana-instance", response_model=schemas.KaapanaInstanceWithJobs)
+@router.get("/client-kaapana-instance", response_model=schemas.KaapanaInstance)
 async def get_client_kaapana_instance(db: Session = Depends(get_db)):
     return crud.get_kaapana_instance(db, remote=False)
 
@@ -141,10 +141,10 @@ async def submit_workflow_json_schema(json_schema_data: schemas.JsonSchemaData, 
     return db_jobs
 
 
-@router.get("/check-for-remote-updates", response_model=List[schemas.Job])
+@router.get("/check-for-remote-updates")
 async def check_for_remote_updates(db: Session = Depends(get_db)):
-
     get_remote_updates(db, periodically=False)
+    return {f"Federated backend is up and running!"}
     # pending_jobs = []
     # print(100*'#')
     # db_client_kaapana = crud.get_kaapana_instance(db, remote=False)

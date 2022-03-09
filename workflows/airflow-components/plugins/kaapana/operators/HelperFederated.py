@@ -10,7 +10,7 @@ from cryptography.fernet import Fernet
 from minio import Minio
 
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
-from kaapana.blueprints.kaapana_utils import get_operator_properties
+from kaapana.blueprints.kaapana_utils import get_operator_properties, requests_retry_session
 
 ##### To be copied
 def fernet_encryptfile(filepath, key):
@@ -54,8 +54,8 @@ def raise_kaapana_connection_error(r):
 def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_dir, client_job_id):
     data = federated['minio_urls'][operator_out_dir][action]
     print(data)
-
-    r = requests.get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id': client_job_id})
+    with requests.Session() as s:
+        r = requests_retry_session(session=s).get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id': client_job_id})
     raise_kaapana_connection_error(r)
     client_job = r.json()
     print('Client job')
@@ -63,7 +63,8 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
     client_network  = client_job['kaapana_instance']
     print('Client network')
     print(json.dumps(client_network, indent=2))
-    r = requests.get('http://federated-backend-service.base.svc:5000/client/remote-kaapana-instance', params={'node_id': client_job['addressed_kaapana_node_id']})
+    with requests.Session() as s:
+        r = requests_retry_session(session=s).get('http://federated-backend-service.base.svc:5000/client/remote-kaapana-instance', params={'node_id': client_job['addressed_kaapana_node_id']})
     raise_kaapana_connection_error(r)
     remote_network = r.json()
     print('Remote network')
@@ -80,22 +81,26 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
         fernet_encryptfile(filename, client_network['fernet_key'])
         tar = open(filename, "rb")
         print(f'Putting {filename} to {remote_network}')
-        r = requests.post(minio_presigned_url, verify=ssl_check, files={'file': tar}, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']})
-        raise_kaapana_connection_error(r)
+        # with requests.post(minio_presigned_url, verify=ssl_check, files={'file': tar}, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']}) as r:
+        #     raise_kaapana_connection_error(r)
+        with requests.Session() as s:
+            r = requests_retry_session(session=s).post(minio_presigned_url, verify=ssl_check, files={'file': tar}, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']})
+            raise_kaapana_connection_error(r)
+
 
     if action == 'get':
         print(f'Getting {filename} from {remote_network}')
         os.makedirs(os.path.dirname(filename), exist_ok=True)
-
-        with requests.get(minio_presigned_url, verify=ssl_check, stream=True, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']}) as r:
-            raise_kaapana_connection_error(r)
-            print(r.text)
-            with open(filename, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=8192): 
-                    # If you have chunk encoded response uncomment if
-                    # and set chunk_size parameter to None.
-                    #if chunk: 
-                    f.write(chunk)
+        with requests.Session() as s:
+            with requests_retry_session(session=s).get(minio_presigned_url, verify=ssl_check, stream=True, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']}) as r:
+                raise_kaapana_connection_error(r)
+                print(r.text)
+                with open(filename, 'wb') as f:
+                    for chunk in r.iter_content(chunk_size=8192): 
+                        # If you have chunk encoded response uncomment if
+                        # and set chunk_size parameter to None.
+                        #if chunk: 
+                        f.write(chunk)
         fernet_decryptfile(filename, remote_network['fernet_key'])
         apply_untar_action(filename, os.path.join(root_dir))
 

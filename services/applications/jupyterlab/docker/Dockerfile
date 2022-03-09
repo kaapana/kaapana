@@ -27,6 +27,17 @@ LABEL CI_IGNORE="False"
 COPY files/requirements.txt /root/
 RUN pip3 install -r /root/requirements.txt
 
+# nnUNet
+ENV BRANCH=master
+ENV NNUNET_VERSION=a7d1d875e8fc3f4e93ca7b51b1ba206711844d92
+RUN mkdir -p /nnunet-pip-package
+RUN git clone  --single-branch --branch ${BRANCH} https://github.com/MIC-DKFZ/nnUNet.git /nnunet-pip-package && cd /nnunet-pip-package && git checkout ${NNUNET_VERSION}
+
+RUN cd /nnunet-pip-package && pip install ./
+
+RUN pip install batchgenerators==0.21 # should be removed some day...
+
+
 # Disable security token for Jupyter lab
 RUN jupyter notebook --generate-config \
  && sed -i "s/^.*NotebookApp.token.*$/c.NotebookApp.token = ''/g" /root/.jupyter/jupyter_notebook_config.py

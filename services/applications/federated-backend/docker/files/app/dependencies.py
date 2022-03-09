@@ -1,3 +1,4 @@
+import requests
 from fastapi import Header, HTTPException, Depends
 from sqlalchemy.orm import Session
 
@@ -12,7 +13,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
 
 async def get_token_header(FederatedAuthorization: str = Header(...), db: Session = Depends(get_db)):
     if FederatedAuthorization:

@@ -1,6 +1,8 @@
 import re
 import os
 import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 from xml.etree import ElementTree
 from datetime import datetime
 
@@ -57,3 +59,25 @@ def get_operator_properties(*args, **kwargs):
     dag_run_dir = os.path.join(WORKFLOW_DIR, run_id)
     
     return run_id, dag_run_dir, conf
+
+# Same as in federated-backend/docker/files/app/utils.py
+#https://www.peterbe.com/plog/best-practice-with-retries-with-requests
+#https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
+def requests_retry_session(
+    retries=10,
+    backoff_factor=2,
+    status_forcelist=[429, 500, 502, 503, 504],
+    session=None,
+):
+    session = session or requests.Session()
+    retry = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session 

@@ -1,5 +1,5 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, Table
-from sqlalchemy.schema import UniqueConstraint
+from sqlalchemy.schema import UniqueConstraint, CheckConstraint, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -17,7 +17,7 @@ class Job(Base):
     dag_id = Column(String(64))
     external_job_id = Column(Integer)
     addressed_kaapana_node_id = Column(String(64))
-    conf_data = Column(String(51200), index=True)
+    conf_data = Column(String(51200))
     status = Column(String(64), index=True)
     run_id = Column(String(64), index=True)
     description = Column(String(256), index=True)
@@ -25,6 +25,18 @@ class Job(Base):
     time_updated = Column(DateTime(timezone=True))
     kaapana_id = Column(Integer, ForeignKey('kaapana_instance.id'))
     kaapana_instance = relationship("KaapanaInstance", back_populates="jobs")
+
+
+    # https://www.johbo.com/2016/creating-a-partial-unique-index-with-sqlalchemy-in-postgresql.html
+    __table_args__ = (
+        Index(
+            'ix_kaapana_id_external_job_id',  # Index name
+            'kaapana_id', 'external_job_id',  # Columns which are part of the index
+            unique=True,
+            postgresql_where=(external_job_id.isnot(None))),  # The condition
+    )
+
+    # __table_args__ = (UniqueConstraint('kaapana_id', 'external_job_id', name='_node_id_remote'),)
 
 class KaapanaInstance(Base):
     __tablename__ = "kaapana_instance"
@@ -37,13 +49,13 @@ class KaapanaInstance(Base):
     port = Column(Integer(), index=True)
     ssl_check = Column(Boolean(), index=True)
     fernet_key = Column(String(100))
-    allowed_dags = Column(String(51200), default='[]', index=True)
+    allowed_dags = Column(String(51200), default='[]')
     allowed_datasets = Column(String(1024),  default='[]', index=True)
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
     automatic_update = Column(Boolean(), default=False, index=True)
     automatic_job_execution = Column(Boolean(), default=False, index=True)
-    jobs = relationship("Job", back_populates="kaapana_instance", cascade="all, delete-orphan")
+    jobs = relationship("Job", back_populates="kaapana_instance", cascade="all, delete")
 
     __table_args__ = (UniqueConstraint('node_id', 'remote', name='_node_id_remote'),)
 

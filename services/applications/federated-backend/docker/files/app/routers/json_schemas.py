@@ -76,31 +76,44 @@ def get_schema(dag_id, ui_form_key, ui_form, ui_dag_info, filter_kaapana_instanc
                 "description": "Whether your report is execute in single mode or not"
             }
         }
-    if ui_form_key == 'federated_form':
+    if ui_form_key == 'external_schema_federated_form':
         default_properties = {
             "federated_bucket": {
                 "type": "string",
                 "title": "Federated bucket",
-                "description": "Bucket to which the files should be saved to"
+                "description": "Bucket to which the files should be saved to",
+                "readOnly": True
             },
             "federated_dir": {
                 "type": "string",
                 "title": "Federated directory",
-                "description": "Directory to which the files should be saved to"
+                "description": "Directory to which the files should be saved to",
+                "readOnly": True
             },
             "federated_operators": {
                 "type": "array",
                 "title": "Operators for which the results should be saved",
                 "items": {
                     "type": "string"
-                }
+                },
+                "readOnly": True
             },
             "skip_operators": {
                 "type": "array",
                 "title": "Operators that should not be executed",
                 "items": {
                     "type": "string"
-                }
+                },
+                "readOnly": True
+            },
+            "federated_round": {
+                "type": "integer",
+                "title": "Federated round",
+                "readOnly": True
+            },
+            "federated_total_rounds": {
+                "type": "integer",
+                "title": "Federated total rounds"
             }
         }
     if 'properties' in ui_form:
@@ -113,6 +126,10 @@ def get_schema(dag_id, ui_form_key, ui_form, ui_dag_info, filter_kaapana_instanc
 
 @router.post("/get-ui-form-schemas")
 async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
+    dag_id = filter_kaapana_instances.dag_id
+    schema_data = {}
+    if dag_id is None: 
+        return JSONResponse(content=schema_data)
     if filter_kaapana_instances.remote is False:
         dags = get_dag_list(only_dag_names=False)
         # datasets = get_dataset_list(unique_sets=True)
@@ -124,14 +141,14 @@ async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstanc
         for el in in_common_dags_set:
             dags.update({el: json.loads(db_remote_kaapana_instances[0].allowed_dags)[el]})
 
-    dag_id = filter_kaapana_instances.dag_id
+    if dag_id not in dags:
+        raise HTTPException(status_code=404, detail=f"Dag {dag_id} is not part of the allowed dags, please add it!")
     dag = dags[dag_id]
-    schemas = {}
     if 'ui_forms' in dag:
         for ui_form_key, ui_form in dag['ui_forms'].items():
             ui_dag_info = dag['ui_dag_info'] if 'ui_dag_info' in dag else None
-            schemas[ui_form_key] = get_schema(dag_id, ui_form_key, ui_form, ui_dag_info, filter_kaapana_instances, db)
-    return JSONResponse(content=schemas)
+            schema_data[ui_form_key] = get_schema(dag_id, ui_form_key, ui_form, ui_dag_info, filter_kaapana_instances, db)
+    return JSONResponse(content=schema_data)
 
 
 # @router.post("/get-elasticsearch-schema")

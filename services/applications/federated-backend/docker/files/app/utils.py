@@ -1,6 +1,8 @@
 import json
 import os
 import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 from datetime import timezone, timedelta
 import datetime
 from sqlalchemy.orm import Session
@@ -37,10 +39,10 @@ class HelperMinio():
     def add_minio_urls(federated, node_id): 
         federated_dir = federated['federated_dir']
         federated_bucket = federated['federated_bucket']
-        if 'fl_round' in federated:
-            fl_round = str(federated['fl_round'])
+        if 'federated_round' in federated:
+            federated_round = str(federated['federated_round'])
         else:
-            fl_round = ''
+            federated_round = ''
 
         if not HelperMinio.minioClient.bucket_exists(federated_bucket):
             HelperMinio.minioClient.make_bucket(federated_bucket)
@@ -48,8 +50,8 @@ class HelperMinio():
         minio_urls = {}
         for federated_operator in federated['federated_operators']:
             minio_urls[federated_operator] = {  
-                'get': HelperMinio.get_custom_presigend_url('GET', federated_bucket, os.path.join(federated_dir, fl_round, node_id, f'{federated_operator}.tar.gz')),
-                'put': HelperMinio.get_custom_presigend_url('PUT', federated_bucket,  os.path.join(federated_dir, fl_round, node_id, f'{federated_operator}.tar.gz'))
+                'get': HelperMinio.get_custom_presigend_url('GET', federated_bucket, os.path.join(federated_dir, federated_round, node_id, f'{federated_operator}.tar.gz')),
+                'put': HelperMinio.get_custom_presigend_url('PUT', federated_bucket,  os.path.join(federated_dir, federated_round, node_id, f'{federated_operator}.tar.gz'))
             }
         return minio_urls
 
@@ -103,13 +105,35 @@ class HelperMinio():
 #                         secure=False)
 #     return minioClient
 
+#https://www.peterbe.com/plog/best-practice-with-retries-with-requests
+#https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
+def requests_retry_session(
+    retries=10,
+    backoff_factor=2,
+    status_forcelist=[429, 500, 502, 503, 504],
+    session=None,
+):
+    session = session or requests.Session()
+    retry = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session 
+
 def get_utc_timestamp():
     dt = datetime.datetime.now(timezone.utc)
     utc_time = dt.replace(tzinfo=timezone.utc)
     return utc_time
 
 def get_dag_list(only_dag_names=True, filter_allowed_dags=[]):
-    r = requests.get('http://airflow-service.flow.svc:8080/flow/kaapana/api/getdags')
+    with requests.Session() as s:
+        r = requests_retry_session(session=s).get('http://airflow-service.flow.svc:8080/flow/kaapana/api/getdags')
     raise_kaapana_connection_error(r)
     dags = r.json()
     dags = {dag: dag_data for dag, dag_data in dags.items() if 'ui_forms' in dag_data}
@@ -117,7 +141,7 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=[]):
         return sorted(list(dags.keys()))
     else:
         if filter_allowed_dags:
-            return {dag: dags[dag] for dag in filter_allowed_dags}
+            return {dag: dags[dag] for dag in filter_allowed_dags if dag in dags}
         else:
             return dags
 
@@ -161,10 +185,15 @@ def execute_workflow(db_client_kaapana, conf_data, dag_id):
             raise HTTPException(status_code=403, detail = f"Your query outputed data with the tags: " \
                 f"{''.join(sorted(list(set([d for datasets in queried_data for d in datasets]))))}, " \
                 f"but only the following tags are allowed to be used from remote: {','.join(json.loads(db_client_kaapana.allowed_datasets))} !")
-    resp = requests.post(f'http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/{dag_id}',  json={
-        'conf': {
-            **conf_data,
-        }})
+    with requests.Session() as s:
+        resp = requests_retry_session(session=s).post(f'http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/{dag_id}',  json={
+            'conf': {
+                **conf_data,
+            }})
+    # resp = requests.post(f'http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/{dag_id}',  json={
+    #     'conf': {
+    #         **conf_data,
+    #     }})
     raise_kaapana_connection_error(resp)
     return resp
 
@@ -195,7 +224,8 @@ def delete_external_job(db: Session, db_job):
             crud.delete_job(db, **params)
         else:
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
-            r = requests.delete(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, params=params, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+            with requests.Session() as s:          
+                r = requests_retry_session(session=s).delete(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, params=params, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
             if r.status_code == 404:
                 print(f'External job {db_job.external_job_id} does not exist')
             else:
@@ -217,7 +247,8 @@ def update_external_job(db: Session, db_job):
             crud.update_job(db, schemas.JobUpdate(**payload))
         else:
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
-            r = requests.put(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, json=payload, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+            with requests.Session() as s:                            
+                r = requests_retry_session(session=s).put(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, json=payload, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
             if r.status_code == 404:
                 print(f'External job {db_job.external_job_id} does not exist')
             else:
@@ -226,7 +257,6 @@ def update_external_job(db: Session, db_job):
 
 
 def get_remote_updates(db: Session, periodically=False):
-    pending_jobs = []
     print(100*'#')
     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
     if periodically is True and db_client_kaapana.automatic_update is False:
@@ -244,14 +274,17 @@ def get_remote_updates(db: Session, periodically=False):
         udpate_instance_payload = {
             "node_id":  db_client_kaapana.node_id,
             "allowed_dags": json.loads(db_client_kaapana.allowed_dags),
-            "allowed_datasets": json.loads(db_client_kaapana.allowed_datasets)
+            "allowed_datasets": json.loads(db_client_kaapana.allowed_datasets),
+            "automatic_update": db_client_kaapana.automatic_update,
+            "automatic_job_execution": db_client_kaapana.automatic_job_execution
             }
 
         if same_instance is True:
             crud.create_and_update_remote_kaapana_instance(
                 db=db, remote_kaapana_instance=schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload), action='external_update')
         else:
-            r = requests.put(f'{remote_backend_url}/remote-kaapana-instance', json=udpate_instance_payload, verify=db_remote_kaapana_instance.ssl_check,
+            with requests.Session() as s:                            
+                r = requests_retry_session(session=s).put(f'{remote_backend_url}/remote-kaapana-instance', json=udpate_instance_payload, verify=db_remote_kaapana_instance.ssl_check,
             headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
             raise_kaapana_connection_error(r)
 
@@ -263,19 +296,20 @@ def get_remote_updates(db: Session, periodically=False):
             db_incoming_jobs = crud.get_jobs(db, **job_params, remote=True)
             incoming_jobs = [schemas.Job(**job.__dict__).dict() for job in db_incoming_jobs]
         else:
-            r = requests.get(f'{remote_backend_url}/jobs', params=job_params, verify=db_remote_kaapana_instance.ssl_check, 
+            with requests.Session() as s:                            
+                r = requests_retry_session(session=s).get(f'{remote_backend_url}/jobs', params=job_params, verify=db_remote_kaapana_instance.ssl_check, 
             headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
             raise_kaapana_connection_error(r)
             incoming_jobs =  r.json()
         print(len(incoming_jobs))
 
         for incoming_job in incoming_jobs:
+            print('Creating', incoming_job["id"])
             incoming_job['kaapana_instance_id'] = db_client_kaapana.id
             incoming_job['addressed_kaapana_node_id'] = db_remote_kaapana_instance.node_id
             incoming_job['external_job_id'] = incoming_job["id"]
             incoming_job['status'] = "pending"
             job = schemas.JobCreate(**incoming_job)
             db_job = crud.create_job(db, job)
-            pending_jobs.append(db_job)
 
     return

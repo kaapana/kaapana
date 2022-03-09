@@ -13,22 +13,23 @@ from minio import Minio
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperMinio import HelperMinio
 from kaapana.operators.HelperFederated import raise_kaapana_connection_error
-from kaapana.blueprints.kaapana_utils import get_operator_properties
+from kaapana.blueprints.kaapana_utils import get_operator_properties, requests_retry_session
 
 def update_job(client_job_id, status, run_id=None, description=None):
-    r = requests.get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id': client_job_id})
+    with requests.Session() as s:
+        r = requests_retry_session(session=s).get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id': client_job_id})
     raise_kaapana_connection_error(r)
     client_job = r.json()
-    kaapana_instance = client_job['kaapana_instance']
 
-    r = requests.put('http://federated-backend-service.base.svc:5000/client/job', verify=False, json={
-        'job_id': client_job_id, 
-        'status': status,
-        'run_id': run_id,
-        'description': description,
-        'addressed_kaapana_node_id': client_job['addressed_kaapana_node_id'],
-        'external_job_id': client_job['external_job_id']
-    })
+    with requests.Session() as s:
+        r = requests_retry_session(session=s).put('http://federated-backend-service.base.svc:5000/client/job', verify=False, json={
+            'job_id': client_job_id, 
+            'status': status,
+            'run_id': run_id,
+            'description': description,
+            'addressed_kaapana_node_id': client_job['addressed_kaapana_node_id'],
+            'external_job_id': client_job['external_job_id']
+        })
     raise_kaapana_connection_error(r)
     print('Client job updated!')
     print(r.json())
@@ -108,16 +109,25 @@ def cache_operator_output(func):
             federated = conf['federated_form']
             print('Federated config')
             print(federated)
+            last_round = 'federated_total_rounds' in federated and 'federated_round' in federated and int(federated['federated_total_rounds']) == (int(federated['federated_round'])+1)
+            print('Last round', last_round)
+            omit_from_previous_dag_run= False
         else:
             federated = None
 
         if federated is not None and 'skip_operators' in federated and self.operator_out_dir in federated['skip_operators']:
-            print('Skipping')
-            return
+            if last_round is False:
+                print('Skipping')
+                return
+            else:
+                omit_from_previous_dag_run = True
 
         if federated is not None and 'from_previous_dag_run' in federated and federated['from_previous_dag_run'] is not None:
             if 'federated_operators' in federated and self.operator_out_dir in federated['federated_operators']:
                 pass
+            elif omit_from_previous_dag_run is True:
+                pass
+                print(f"Ignoring from_previous_dag_run_action for opperators since we are in the last round and we are part of the skip_operators...")
             else:
                 print(f'Copying data from previous workflow for {self.operator_out_dir}')
                 from_previous_dag_run_action(self.operator_out_dir, 'from_previous_dag_run', dag_run_dir, federated)

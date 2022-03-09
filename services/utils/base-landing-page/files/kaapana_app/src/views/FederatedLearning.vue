@@ -36,7 +36,7 @@
                     v-btn(@click='resetClientForm')
                       | clear
             workflow-execution(:remote="remote" :instances="[clientInstance]")
-            v-btn(v-if="clientInstance" color='orange' @click.stop="checkForRemoteUpdates()" rounded dark ) Check for remote jobs
+            v-btn(v-if="clientInstance" color='orange' @click.stop="checkForRemoteUpdates()" rounded dark ) Update remote
             v-btn(v-if="!clientInstance" color='orange' @click.stop="clientDialog=true" rounded dark) Add client instance
             //- v-btn(v-if="clientInstance" color='orange' @click="submitWorkflow()" rounded dark) Execute Client Workflow
             v-btn(@click.stop="changeTab(1)" color="primary" rounded dark) Switch to remote instance
@@ -152,8 +152,6 @@ export default Vue.extend({
   }),
   created() {},
   mounted () {
-    // this.getHelmCharts();
-    // this.getDags(false);
     this.refreshRemote();
     this.refreshClient();
     this.startExtensionsInterval()
@@ -228,8 +226,6 @@ export default Vue.extend({
         .then((response) => {
           this.clientUpdate = false
           this.clientDialog = false
-          // this.remoteUpdate = false
-          // this.remoteDialog = false
           this.refreshClient();
         })
         .catch((err) => {
@@ -239,10 +235,8 @@ export default Vue.extend({
       kaapanaApiService
         .federatedClientApiPut("/client-kaapana-instance", this.clientPost)
         .then((response) => {
-          // this.clientUpdate = false
-          // this.clientDialog = false
-          this.remoteUpdate = false
-          this.remoteDialog = false
+          this.clientUpdate = false
+          this.clientDialog = false
           this.refreshClient();
         })
         .catch((err) => {
@@ -260,8 +254,6 @@ export default Vue.extend({
           .federatedClientApiPost("/remote-kaapana-instance", this.remotePost)
           .then((response) => {
             console.log('getting remote')
-            // this.clientUpdate = false
-            // this.clientDialog = false
             this.remoteUpdate = false
             this.remoteDialog = false
             this.refreshRemote()
@@ -273,8 +265,6 @@ export default Vue.extend({
         kaapanaApiService
           .federatedClientApiPut("/remote-kaapana-instance", this.remotePost)
           .then((response) => {
-            // this.clientUpdate = false
-            // this.clientDialog = false
             this.remoteUpdate = false
             this.remoteDialog = false
             this.refreshRemote()
@@ -379,7 +369,7 @@ export default Vue.extend({
           console.log('getting client')
           this.refreshClient();
         }
-      }, 5000);
+      }, 15000);
     }
   },
   beforeDestroy() {

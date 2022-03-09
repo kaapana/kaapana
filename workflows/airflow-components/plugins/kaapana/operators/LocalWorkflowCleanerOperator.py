@@ -7,7 +7,6 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperCaching import update_job
 from kaapana.blueprints.kaapana_utils import get_operator_properties
 
-
 class LocalWorkflowCleanerOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):

@@ -6,8 +6,11 @@ import requests
 
 
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from psycopg2.errors import UniqueViolation
 from cryptography.fernet import Fernet
 from fastapi import APIRouter, Depends, Request, HTTPException, Response
+
 
 from . import models, schemas
 from app.utils import HOSTNAME, NODE_ID, update_external_job, delete_external_job, execute_job, get_utc_timestamp, HelperMinio, get_dag_list, raise_kaapana_connection_error
@@ -157,13 +160,19 @@ def create_job(db: Session, job: schemas.JobCreate):
         time_updated=utc_timestamp,
         external_job_id=job.external_job_id,
         dag_id=job.dag_id,
-        addressed_kaapana_node_id=job.addressed_kaapana_node_id or None,
+        addressed_kaapana_node_id=job.addressed_kaapana_node_id, # or None,
         status=job.status
     )
 
     db_kaapana_instance.jobs.append(db_job)
     db.add(db_kaapana_instance)
-    db.commit()
+    try:
+        db.commit() # writing a whose kaapana_id and external_job_id already exists will fail due to
+    except IntegrityError as e:
+            assert isinstance(e.orig, UniqueViolation)  # proves the original exception
+            return db.query(models.Job).filter_by(external_job_id=db_job.external_job_id, addressed_kaapana_node_id=db_job.addressed_kaapana_node_id).first()
+    
+    db.refresh(db_job)
     update_external_job(db, db_job)
     if db_kaapana_instance.remote is False and db_kaapana_instance.automatic_job_execution is True:
         job = schemas.JobUpdate(**{
@@ -174,7 +183,6 @@ def create_job(db: Session, job: schemas.JobCreate):
         update_job(db, job, remote=False)
         print('scheduled')
 
-    db.refresh(db_kaapana_instance)
     return db_job
 
 def get_job(db: Session, job_id: int):

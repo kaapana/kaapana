@@ -26,11 +26,11 @@ class LocalCopyDataAndAlgoOperator(KaapanaPythonBaseOperator):
 
     def __init__(self,
                  dag,
-                 *args, **kwargs):
+                 **kwargs):
 
         super().__init__(
-            dag,
+            dag=dag,
             name="copy-data-algo",
             python_callable=self.start,
-            *args, **kwargs
+            **kwargs
         )

@@ -26,11 +26,11 @@ class LocalRunAlgoSendResultOperator(KaapanaPythonBaseOperator):
 
     def __init__(self,
                  dag,
-                 *args, **kwargs):
+                 **kwargs):
 
         super().__init__(
-            dag,
+            dag=dag,
             name="run-algo",
             python_callable=self.start,
-            *args, **kwargs
+            **kwargs
         )

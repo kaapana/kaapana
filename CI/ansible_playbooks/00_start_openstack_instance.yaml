@@ -9,8 +9,8 @@
     os_project_id: "{{ os_proj_id | default('969831bf53424f1fb318a9c1d98e1941') }}"
     username: "{{ os_username }}"
     password: "{{ os_password }}"
-    instance_name: "{{ os_instance_name | default('kaapana_ci_depl_test_server') }}"
-    volume_size: "{{ os_volume_size | default('90') }}"
+    instance_name: "{{ os_instance_name | default('kaapana_ci_depl_test') }}"
+    volume_size: "{{ os_volume_size | default('100') }}"
     os: "{{ os_image | default('ubuntu') }}"
     instance_flavor: "{{ os_instance_flavor | default('dkfz-8.16') }}"
 
@@ -59,7 +59,7 @@
 
     - name: Set CentOs8 as image
       set_fact:
-        instance_image: CentOS-8.3-DKFZ
+        instance_image: CentOS-8.4-DKFZ
       when: os |lower == "centos8"
 
     - name: Set Ubuntu as image
@@ -71,13 +71,11 @@
       when: os |lower == "ubuntu"
 
     - name: check ssh_key_file present
-      debugger: on_failed
       stat: 
         path: "~/.ssh/{{ ssh_key }}.pem"
       register: ssh_key_file
 
     - name: check ssh_key_file
-      debugger: on_failed
       fail: msg="The ssh-key ~/.ssh/{{ ssh_key }}.pem must be present on the host!"
       when: not ssh_key_file.stat.exists
 
@@ -94,10 +92,7 @@
           project_name: "{{ project_name }}"
         network: "{{ network_id | default('') }}"
         name: "{{ instance_name }}"
-        #image: "{{ instance_image }}"
-        image: b10fb456-70f5-46b7-8488-0480b3b7265a
-        #id: "eac31ce9-b623-4525-ab11-6fe25f28f3ea"
-        #volumes: e2dbb47f-b65b-4328-874c-322838d8aef5
+        image: "{{ instance_image }}"
         volume_size: "{{ volume_size }}"
         flavor: "{{ instance_flavor }}"
         key_name: "{{ ssh_key }}"
@@ -121,7 +116,7 @@
       register: result
       until: result.rc == 0
       retries: 6
-      delay: 5
+      delay: 10
 
     - name: replace ip
       replace:

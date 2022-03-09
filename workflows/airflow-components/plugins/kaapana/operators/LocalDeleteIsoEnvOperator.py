@@ -26,11 +26,11 @@ class LocalDeleteIsoEnvOperator(KaapanaPythonBaseOperator):
 
     def __init__(self,
                  dag,
-                 *args, **kwargs):
+                 **kwargs):
 
         super().__init__(
-            dag,
+            dag=dag,
             name="delete-iso-env",
             python_callable=self.start,
-            *args, **kwargs
+            **kwargs
         )

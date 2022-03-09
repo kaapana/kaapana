@@ -48,12 +48,13 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
 
     def get_dicom_list(self):
         dicom_info_list = []
+
         if self.use_dcm_files:
+            no_data_processed = True
             batch_folder = [f for f in glob.glob(os.path.join(self.run_dir, BATCH_NAME, '*'))]
             for batch_element_dir in batch_folder:
                 input_dir = os.path.join(batch_element_dir, self.operator_in_dir)
                 dcm_file_list = glob.glob(input_dir + "/*.dcm", recursive=True)
-
                 if len(dcm_file_list) == 0:
                     print()
                     print("#############################################################")
@@ -62,8 +63,8 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                     print()
                     print("#############################################################")
                     print()
-                    exit(1)
-
+                    continue
+                no_data_processed = False
                 dicom_file = pydicom.dcmread(dcm_file_list[0])
                 study_uid = dicom_file[0x0020, 0x000D].value
                 series_uid = dicom_file[0x0020, 0x000E].value
@@ -74,7 +75,6 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                             "input-dir": input_dir,
                             "series-uid": series_uid
                         })
-
                 else:
                     dicom_info_list.append(
                         {
@@ -84,6 +84,9 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                                 "modality": modality
                             }
                         })
+            if no_data_processed:
+                print("No files processed in any batch folder!")
+                exit(1)
         else:
             if self.conf == None or not "inputs" in self.conf:
                 print("No config or inputs in config found!")

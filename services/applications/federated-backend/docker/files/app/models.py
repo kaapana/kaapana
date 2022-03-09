@@ -36,8 +36,6 @@ class Job(Base):
             postgresql_where=(external_job_id.isnot(None))),  # The condition
     )
 
-    # __table_args__ = (UniqueConstraint('kaapana_id', 'external_job_id', name='_node_id_remote'),)
-
 class KaapanaInstance(Base):
     __tablename__ = "kaapana_instance"
     id = Column(Integer, primary_key=True)
@@ -56,6 +54,8 @@ class KaapanaInstance(Base):
     automatic_update = Column(Boolean(), default=False, index=True)
     automatic_job_execution = Column(Boolean(), default=False, index=True)
     jobs = relationship("Job", back_populates="kaapana_instance", cascade="all, delete")
+    # #https://stackoverflow.com/questions/5033547/sqlalchemy-cascade-delete
+    # jobs = relationship("Job", back_populates="kaapana_instance", passive_deletes=True)
 
     __table_args__ = (UniqueConstraint('node_id', 'remote', name='_node_id_remote'),)
 

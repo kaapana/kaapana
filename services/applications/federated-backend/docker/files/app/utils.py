@@ -256,6 +256,65 @@ def update_external_job(db: Session, db_job):
                 print(r.json())
 
 
+# def get_remote_updates(db: Session, periodically=False):
+#     print(100*'#')
+#     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
+#     if periodically is True and db_client_kaapana.automatic_update is False:
+#         print('Skipping automatic update!')
+#         return
+#     db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': True}))
+#     print('remote kaapana instances', db_remote_kaapana_instances)
+#     for db_remote_kaapana_instance in db_remote_kaapana_instances:
+#         same_instance = db_remote_kaapana_instance.node_id == NODE_ID
+#         if same_instance is False:
+#             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
+#             print(100*'#')
+#             print(remote_backend_url)
+
+#         udpate_instance_payload = {
+#             "node_id":  db_client_kaapana.node_id,
+#             "allowed_dags": json.loads(db_client_kaapana.allowed_dags),
+#             "allowed_datasets": json.loads(db_client_kaapana.allowed_datasets),
+#             "automatic_update": db_client_kaapana.automatic_update,
+#             "automatic_job_execution": db_client_kaapana.automatic_job_execution
+#             }
+
+#         if same_instance is True:
+#             crud.create_and_update_remote_kaapana_instance(
+#                 db=db, remote_kaapana_instance=schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload), action='external_update')
+#         else:
+#             with requests.Session() as s:                            
+#                 r = requests_retry_session(session=s).put(f'{remote_backend_url}/remote-kaapana-instance', json=udpate_instance_payload, verify=db_remote_kaapana_instance.ssl_check,
+#             headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+#             raise_kaapana_connection_error(r)
+
+#         job_params = {
+#             "node_id": db_client_kaapana.node_id,
+#             "status": "queued"
+#         }
+#         if same_instance is True:
+#             db_incoming_jobs = crud.get_jobs(db, **job_params, remote=True)
+#             incoming_jobs = [schemas.Job(**job.__dict__).dict() for job in db_incoming_jobs]
+#         else:
+#             with requests.Session() as s:                            
+#                 r = requests_retry_session(session=s).get(f'{remote_backend_url}/jobs', params=job_params, verify=db_remote_kaapana_instance.ssl_check, 
+#             headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+#             raise_kaapana_connection_error(r)
+#             incoming_jobs =  r.json()
+#         print(len(incoming_jobs))
+
+#         for incoming_job in incoming_jobs:
+#             print('Creating', incoming_job["id"])
+#             incoming_job['kaapana_instance_id'] = db_client_kaapana.id
+#             incoming_job['addressed_kaapana_node_id'] = db_remote_kaapana_instance.node_id
+#             incoming_job['external_job_id'] = incoming_job["id"]
+#             incoming_job['status'] = "pending"
+#             job = schemas.JobCreate(**incoming_job)
+#             db_job = crud.create_job(db, job)
+
+#     return #schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload)
+
+
 def get_remote_updates(db: Session, periodically=False):
     print(100*'#')
     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
@@ -266,12 +325,7 @@ def get_remote_updates(db: Session, periodically=False):
     print('remote kaapana instances', db_remote_kaapana_instances)
     for db_remote_kaapana_instance in db_remote_kaapana_instances:
         same_instance = db_remote_kaapana_instance.node_id == NODE_ID
-        if same_instance is False:
-            remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
-            print(100*'#')
-            print(remote_backend_url)
-
-        udpate_instance_payload = {
+        udpate_remote_instance_payload = {
             "node_id":  db_client_kaapana.node_id,
             "allowed_dags": json.loads(db_client_kaapana.allowed_dags),
             "allowed_datasets": json.loads(db_client_kaapana.allowed_datasets),
@@ -279,29 +333,27 @@ def get_remote_updates(db: Session, periodically=False):
             "automatic_job_execution": db_client_kaapana.automatic_job_execution
             }
 
-        if same_instance is True:
-            crud.create_and_update_remote_kaapana_instance(
-                db=db, remote_kaapana_instance=schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload), action='external_update')
-        else:
-            with requests.Session() as s:                            
-                r = requests_retry_session(session=s).put(f'{remote_backend_url}/remote-kaapana-instance', json=udpate_instance_payload, verify=db_remote_kaapana_instance.ssl_check,
-            headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
-            raise_kaapana_connection_error(r)
-
         job_params = {
             "node_id": db_client_kaapana.node_id,
             "status": "queued"
         }
         if same_instance is True:
-            db_incoming_jobs = crud.get_jobs(db, **job_params, remote=True)
-            incoming_jobs = [schemas.Job(**job.__dict__).dict() for job in db_incoming_jobs]
+            incoming_data = crud.sync_client_remote(db=db, remote_kaapana_instance=schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_remote_instance_payload), **job_params)
         else:
-            with requests.Session() as s:                            
-                r = requests_retry_session(session=s).get(f'{remote_backend_url}/jobs', params=job_params, verify=db_remote_kaapana_instance.ssl_check, 
+            remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
+            print(100*'#')
+            print(remote_backend_url)
+            with requests.Session() as s:     
+                r = requests_retry_session(session=s).put(f'{remote_backend_url}/sync-client-remote', params=job_params,  json=udpate_remote_instance_payload, verify=db_remote_kaapana_instance.ssl_check, 
             headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
             raise_kaapana_connection_error(r)
-            incoming_jobs =  r.json()
-        print(len(incoming_jobs))
+            incoming_data =  r.json()
+        incoming_jobs = incoming_data['incoming_jobs']
+        remote_kaapana_instance = schemas.RemoteKaapanaInstanceUpdateExternal(**incoming_data['udpate_remote_instance_payload'])
+
+        crud.create_and_update_remote_kaapana_instance(db=db, remote_kaapana_instance=remote_kaapana_instance, action='external_update')
+
+        print('Number of incoming jobs', len(incoming_jobs))
 
         for incoming_job in incoming_jobs:
             print('Creating', incoming_job["id"])
@@ -312,4 +364,4 @@ def get_remote_updates(db: Session, periodically=False):
             job = schemas.JobCreate(**incoming_job)
             db_job = crud.create_job(db, job)
 
-    return
+    return #schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload)

@@ -1,5 +1,6 @@
 
 import os
+import shutil
 import functools
 import json
 import requests
@@ -51,9 +52,8 @@ def raise_kaapana_connection_error(r):
     except:
         raise ValueError(f'Something was not okay with your request code {r}: {r.text}!')
 
-def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_dir, client_job_id):
+def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_dir, client_job_id, last_round=False):
     data = federated['minio_urls'][operator_out_dir][action]
-    print(data)
     with requests.Session() as s:
         r = requests_retry_session(session=s).get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id': client_job_id})
     raise_kaapana_connection_error(r)
@@ -79,14 +79,15 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
             raise ValueError(f'{src_dir} does not exist, you most probably try to push results on a batch-element level, however, so far only bach level output is supported for federated learning!')
         apply_tar_action(filename, src_dir)
         fernet_encryptfile(filename, client_network['fernet_key'])
-        tar = open(filename, "rb")
-        print(f'Putting {filename} to {remote_network}')
-        # with requests.post(minio_presigned_url, verify=ssl_check, files={'file': tar}, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']}) as r:
-        #     raise_kaapana_connection_error(r)
-        with requests.Session() as s:
-            r = requests_retry_session(session=s).post(minio_presigned_url, verify=ssl_check, files={'file': tar}, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']})
-            raise_kaapana_connection_error(r)
-
+        with open(filename, "rb") as tar:
+            print(f'Putting {filename} to {remote_network}')
+            # with requests.post(minio_presigned_url, verify=ssl_check, files={'file': tar}, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']}) as r:
+            #     raise_kaapana_connection_error(r)
+            with requests.Session() as s:
+                r = requests_retry_session(session=s).post(minio_presigned_url, verify=ssl_check, files={'file': tar}, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']})
+                raise_kaapana_connection_error(r)
+        if last_round is False:
+            shutil.rmtree(src_dir)
 
     if action == 'get':
         print(f'Getting {filename} from {remote_network}')
@@ -107,16 +108,15 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
     os.remove(filename)
     
                 
-def federated_action(operator_out_dir, action, dag_run_dir, federated, client_job_id):
+def federated_action(operator_out_dir, action, dag_run_dir, federated, client_job_id, last_round=False):
 
     if federated['minio_urls'] is not None and operator_out_dir in federated['minio_urls']:
-        apply_minio_presigned_url_action(action, federated, operator_out_dir, dag_run_dir, client_job_id)
+        apply_minio_presigned_url_action(action, federated, operator_out_dir, dag_run_dir, client_job_id, last_round)
 #         HelperMinio.apply_action_to_object_dirs(minioClient, action, bucket_name=f'{federated["site"]}',
 #                                 local_root_dir=dag_run_dir,
 #                                 object_dirs=[operator_out_dir])
 
 #######################
-
 
 
 # Decorator
@@ -130,6 +130,8 @@ def federated_sharing_decorator(func):
             federated = conf['federated_form']
             print('Federated config')
             print(federated)
+            last_round = 'federated_total_rounds' in federated and 'federated_round' in federated and int(federated['federated_total_rounds']) == (int(federated['federated_round'])+1)
+            print('Last round', last_round)
         else:
             federated = None
 
@@ -146,7 +148,7 @@ def federated_sharing_decorator(func):
     
         if federated is not None and 'federated_operators' in federated and self.operator_out_dir in federated['federated_operators']:
             print('Putting data')
-            federated_action(self.operator_out_dir, 'put', dag_run_dir, federated, conf['client_job_id'])
+            federated_action(self.operator_out_dir, 'put', dag_run_dir, federated, conf['client_job_id'], last_round)
 
             # if federated['federated_operators'].index(self.operator_out_dir) == 0:
             #     print('Updating the conf')

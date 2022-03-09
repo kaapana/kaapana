@@ -55,6 +55,15 @@ class KaapanaInstance(KaapanaInstanceBase):
     def convert_allowed_datasets(cls, v):
         return json.loads(v)
 
+    @validator('time_created')
+    def convert_time_created(cls, v):
+        return datetime.datetime.timestamp(v)
+
+    @validator('time_updated')
+    def convert_time_updated(cls, v):
+        return datetime.datetime.timestamp(v)
+
+
     class Config:
         orm_mode = True
 

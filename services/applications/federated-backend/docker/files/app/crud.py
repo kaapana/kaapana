@@ -167,13 +167,13 @@ def create_job(db: Session, job: schemas.JobCreate):
     db_kaapana_instance.jobs.append(db_job)
     db.add(db_kaapana_instance)
     try:
-        db.commit() # writing a whose kaapana_id and external_job_id already exists will fail due to
+        db.commit() # writing, if kaapana_id and external_job_id already exists will fail due to duplicate error
     except IntegrityError as e:
             assert isinstance(e.orig, UniqueViolation)  # proves the original exception
             return db.query(models.Job).filter_by(external_job_id=db_job.external_job_id, addressed_kaapana_node_id=db_job.addressed_kaapana_node_id).first()
     
-    db.refresh(db_job)
     update_external_job(db, db_job)
+    db.refresh(db_job)
     if db_kaapana_instance.remote is False and db_kaapana_instance.automatic_job_execution is True:
         job = schemas.JobUpdate(**{
             'job_id': db_job.id,
@@ -234,10 +234,28 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     if job.description is not None:
         db_job.description = job.description
     db_job.time_updated = utc_timestamp
+    update_external_job(db, db_job)
     db.commit()
     db.refresh(db_job)
 
-    update_external_job(db, db_job)
-
     return db_job
 
+def sync_client_remote(db: Session,  remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal, node_id: str = None, status: str = None):
+    db_client_kaapana = get_kaapana_instance(db, remote=False)
+
+    create_and_update_remote_kaapana_instance(
+        db=db, remote_kaapana_instance=remote_kaapana_instance, action='external_update')
+    db_incoming_jobs = get_jobs(db, node_id=node_id, status=status, remote=True)
+    incoming_jobs = [schemas.Job(**job.__dict__).dict() for job in db_incoming_jobs]
+
+    udpate_remote_instance_payload = {
+        "node_id":  db_client_kaapana.node_id,
+        "allowed_dags": json.loads(db_client_kaapana.allowed_dags),
+        "allowed_datasets": json.loads(db_client_kaapana.allowed_datasets),
+        "automatic_update": db_client_kaapana.automatic_update,
+        "automatic_job_execution": db_client_kaapana.automatic_job_execution
+        }
+    return {
+        'incoming_jobs': incoming_jobs,
+        'udpate_remote_instance_payload': udpate_remote_instance_payload
+    }

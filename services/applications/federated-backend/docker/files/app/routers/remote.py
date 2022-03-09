@@ -50,6 +50,12 @@ async def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
 async def delete_job(job_id: int, db: Session = Depends(get_db)):
     return crud.delete_job(db, job_id, remote=True)
 
-@router.put("/remote-kaapana-instance")
-async def put_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal, db: Session = Depends(get_db)):
-    return crud.create_and_update_remote_kaapana_instance(db=db, remote_kaapana_instance=remote_kaapana_instance, action='external_update')
+# @router.put("/remote-kaapana-instance")
+# async def put_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal, db: Session = Depends(get_db)):
+#     return crud.create_and_update_remote_kaapana_instance(db=db, remote_kaapana_instance=remote_kaapana_instance, action='external_update')
+
+@router.put("/sync-client-remote")
+async def put_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal, node_id: str = None, status: str = None, db: Session = Depends(get_db)):
+    return crud.sync_client_remote(db=db, remote_kaapana_instance=remote_kaapana_instance, node_id=node_id, status=status)
+
+    # return crud.create_and_update_remote_kaapana_instance(db=db, remote_kaapana_instance=remote_kaapana_instance, action='external_update')

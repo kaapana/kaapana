@@ -34,15 +34,19 @@ spec:
         - name: INGRESS_PATH
           value: "/jupyterlab-{{ $uuid }}"
         volumeMounts:
-          - name: miniodata
+          - name: jupyterlabdata
             mountPath: /appdata
       volumes:
-      - name: miniodata
+      - name: jupyterlabdata
         hostPath:
           {{- if .Values.mount_path }}
           path: {{ .Values.mount_path }}
+          {{- else if .Values.global.slow_mount_path }}
+          path: {{ .Values.global.slow_data_dir }}{{ .Values.global.slow_mount_path }}
+          {{- else if .Values.global.fast_mount_path }}
+          path: {{ .Values.global.fast_data_dir }}{{ .Values.global.fast_mount_path }}
           {{- else }}
-          path: {{ .Values.global.slow_data_dir }}/minio
+          path: {{ .Values.global.fast_data_dir }}/jupyterlab
           {{- end }}
           type: DirectoryOrCreate
       imagePullSecrets:

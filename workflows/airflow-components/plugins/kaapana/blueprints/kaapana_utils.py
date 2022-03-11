@@ -68,6 +68,7 @@ def requests_retry_session(
     backoff_factor=2,
     status_forcelist=[429, 500, 502, 503, 504],
     session=None,
+    use_proxies=False
 ):
     session = session or requests.Session()
     retry = Retry(
@@ -80,4 +81,12 @@ def requests_retry_session(
     adapter = HTTPAdapter(max_retries=retry)
     session.mount('http://', adapter)
     session.mount('https://', adapter)
+
+    if use_proxies is True:
+        proxies = {'http': os.getenv('PROXY', None), 'https': os.getenv('PROXY', None)}
+        print('Setting proxies', proxies)
+        session.proxies.update(proxies)
+    else:
+        print('Not using proxies!')
+
     return session 

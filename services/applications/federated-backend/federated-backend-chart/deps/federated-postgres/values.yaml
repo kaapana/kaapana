@@ -1,0 +1,5 @@
+---
+global:
+    base_namespace: "base"
+    pull_policy_pods: "Always"
+    fast_data_dir: "/home/kaapana"

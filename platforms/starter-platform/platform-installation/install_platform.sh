@@ -13,6 +13,9 @@ CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip
 CONTAINER_REGISTRY_USERNAME=""
 CONTAINER_REGISTRY_PASSWORD=""
 
+
+NODE_ID="central"
+
 FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
 
@@ -441,6 +444,7 @@ function install_chart {
     --set-string global.http_proxy=$http_proxy \
     --set-string global.https_proxy=$https_proxy \
     --set-string global.registry_url=$CONTAINER_REGISTRY_URL \
+    --set-string global.node_id="$NODE_ID" \
     --set global.gpu_support=$GPU_SUPPORT \
     --name-template $PROJECT_NAME
 

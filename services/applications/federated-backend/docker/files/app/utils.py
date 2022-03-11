@@ -112,6 +112,7 @@ def requests_retry_session(
     backoff_factor=2,
     status_forcelist=[429, 500, 502, 503, 504],
     session=None,
+    use_proxies=False
 ):
     session = session or requests.Session()
     retry = Retry(
@@ -124,6 +125,14 @@ def requests_retry_session(
     adapter = HTTPAdapter(max_retries=retry)
     session.mount('http://', adapter)
     session.mount('https://', adapter)
+
+    if use_proxies is True:
+        proxies = {'http': os.getenv('PROXY', None), 'https': os.getenv('PROXY', None)}
+        print('Setting proxies', proxies)
+        session.proxies.update(proxies)
+    else:
+        print('Not using proxies!')
+
     return session 
 
 def get_utc_timestamp():
@@ -225,7 +234,7 @@ def delete_external_job(db: Session, db_job):
         else:
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
             with requests.Session() as s:          
-                r = requests_retry_session(session=s).delete(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, params=params, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+                r = requests_retry_session(session=s, use_proxies=True).delete(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, params=params, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
             if r.status_code == 404:
                 print(f'External job {db_job.external_job_id} does not exist')
             else:
@@ -248,7 +257,7 @@ def update_external_job(db: Session, db_job):
         else:
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
             with requests.Session() as s:                            
-                r = requests_retry_session(session=s).put(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, json=payload, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+                r = requests_retry_session(session=s, use_proxies=True).put(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, json=payload, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
             if r.status_code == 404:
                 print(f'External job {db_job.external_job_id} does not exist')
             else:
@@ -344,7 +353,7 @@ def get_remote_updates(db: Session, periodically=False):
             print(100*'#')
             print(remote_backend_url)
             with requests.Session() as s:     
-                r = requests_retry_session(session=s).put(f'{remote_backend_url}/sync-client-remote', params=job_params,  json=udpate_remote_instance_payload, verify=db_remote_kaapana_instance.ssl_check, 
+                r = requests_retry_session(session=s, use_proxies=True).put(f'{remote_backend_url}/sync-client-remote', params=job_params,  json=udpate_remote_instance_payload, verify=db_remote_kaapana_instance.ssl_check, 
             headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
             raise_kaapana_connection_error(r)
             incoming_data =  r.json()

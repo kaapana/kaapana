@@ -1,6 +1,3 @@
 ---
 global:
     pull_policy_jobs: "IfNotPresent"
-    credentials:
-        minio_username: "minioadmin"
-        minio_password: "admin"

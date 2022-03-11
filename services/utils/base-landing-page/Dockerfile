@@ -8,27 +8,20 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /landing/app
 COPY files/kaapana_app/package*.json ./
-RUN HTTPS_PROXY="http://www-int2.dkfz-heidelberg.de:80" npm install
-# RUN HTTPS_PROXY="http://www-int2.dkfz-heidelberg.de:80" npm install local-storage-fallback
-# RUN HTTPS_PROXY="http://www-int2.dkfz-heidelberg.de:80" npm i -g npm-check-updates
-# RUN HTTPS_PROXY="http://www-int2.dkfz-heidelberg.de:80" ncu -u
-# RUN HTTPS_PROXY="http://www-int2.dkfz-heidelberg.de:80" npm install
-RUN echo hello
+RUN npm install
+
 COPY files/kaapana_app .
 
+# # # ###############################
+# # # ############# Dev #############
+# # # ###############################
+# # # # In the landing-page deployment, adjust the resource limits to at least 12Gi and change the docker image to the one you are pushing 
+# RUN npm run build
+# WORKDIR / 
+# COPY files/dev.sh .
+# # RUN chmod +x dev.sh
+# CMD ["/bin/sh", "dev.sh"]
 # # ###############################
-# # ############# Dev #############
-# # ###############################
-# # # In the landing-page deployment, adjust the resource limits to at least 12Gi and change the docker image to the one you are pushing 
-RUN npm run build
-WORKDIR / 
-COPY files/dev.sh .
-# RUN chmod +x dev.sh
-# COPY files/kaapana_app/setup_dev.sh .
-# RUN chmod +x setup_dev.sh
-
-CMD ["/bin/sh", "dev.sh"]
-# ###############################
 
 # ###############################
 # ######### Production ##########
@@ -38,3 +31,5 @@ CMD ["/bin/sh", "dev.sh"]
 # RUN mkdir /app
 # COPY --from=build-stage /landing/app/dist /app
 # COPY files/kaapana_app/nginx.conf /etc/nginx/nginx.conf
+
+# # # ###############################

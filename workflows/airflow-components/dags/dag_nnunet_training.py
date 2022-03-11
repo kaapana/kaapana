@@ -42,6 +42,22 @@ concurrency = max_active_runs * 2
 prep_threads = 2
 
 ui_forms = {
+    "elasticsearch_form": {
+        "type": "object",
+        "properties": {
+            "dataset": "$default",
+            "index": "$default",
+            "cohort_limit": "$default",
+            "single_execution": "$default",
+            "input_modality": {
+                "title": "Input Modality",
+                "default": "SEG",
+                "description": "Expected input modality.",
+                "type": "string",
+                "readOnly": True,
+            },
+        }
+    },
     "publication_form": {
         "type": "object",
         "properties": {
@@ -156,6 +172,13 @@ ui_forms = {
                 "required": True,
                 "readOnly": False
             },
+            "input": {
+                "title": "Input Modality",
+                "default": "SEG",
+                "description": "Expected input modality.",
+                "type": "string",
+                "readOnly": True,
+            },
             # "version": {
             #     "title": "Version",
             #     "default": "0.0.1-alpha",
@@ -170,13 +193,6 @@ ui_forms = {
             #     "type": "string",
             #     "readOnly": False,
             # },
-            "input": {
-                "title": "Input Modality",
-                "default": "SEG",
-                "description": "Expected input modality.",
-                "type": "string",
-                "readOnly": True,
-            },
         }
     }
 }

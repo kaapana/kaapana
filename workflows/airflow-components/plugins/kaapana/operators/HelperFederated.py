@@ -84,7 +84,7 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
             # with requests.post(minio_presigned_url, verify=ssl_check, files={'file': tar}, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']}) as r:
             #     raise_kaapana_connection_error(r)
             with requests.Session() as s:
-                r = requests_retry_session(session=s).post(minio_presigned_url, verify=ssl_check, files={'file': tar}, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']})
+                r = requests_retry_session(session=s, use_proxies=True).post(minio_presigned_url, verify=ssl_check, files={'file': tar}, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']})
                 raise_kaapana_connection_error(r)
         if last_round is False:
             shutil.rmtree(src_dir)
@@ -93,9 +93,8 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
         print(f'Getting {filename} from {remote_network}')
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         with requests.Session() as s:
-            with requests_retry_session(session=s).get(minio_presigned_url, verify=ssl_check, stream=True, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']}) as r:
+            with requests_retry_session(session=s, use_proxies=True).get(minio_presigned_url, verify=ssl_check, stream=True, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']}) as r:
                 raise_kaapana_connection_error(r)
-                print(r.text)
                 with open(filename, 'wb') as f:
                     for chunk in r.iter_content(chunk_size=8192): 
                         # If you have chunk encoded response uncomment if

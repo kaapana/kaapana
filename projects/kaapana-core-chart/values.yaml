@@ -11,9 +11,9 @@ global:
     flow_jobs_namespace: "flow-jobs"
     monitoring_namespace: "monitoring"
     gpu_support: false
+    credentials_minio_username: "admin"
+    credentials_minio_password: "Kaapana2019"
     credentials:
-        minio_username: "admin"
-        minio_password: "Kaapana2019"
         grafana_username: "admin"
         grafana_password: "admin"
         keycloak_admin_username: "admin"

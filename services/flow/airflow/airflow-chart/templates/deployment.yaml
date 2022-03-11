@@ -178,6 +178,10 @@ spec:
           value: {{ .Values.global.fast_data_dir }}/workflows/data
         - name: MODELDIR
           value: {{ .Values.global.fast_data_dir }}/workflows/models
+        - name: MINIODIR
+          value: {{ .Values.global.slow_data_dir }}/minio
+        - name: EXECUTABLESDIR
+          value: {{ .Values.global.fast_data_dir }}/workflows/executables
         - name: PROXY
           value: {{ .Values.global.http_proxy }}
         - name: HOSTDOMAIN
@@ -185,9 +189,9 @@ spec:
         - name: PULL_POLICY_PODS
           value: {{  .Values.global.pull_policy_pods }}
         - name: MINIOUSER
-          value: {{ .Values.global.credentials.minio_username }}
+          value: {{ .Values.global.credentials_minio_username }}
         - name: MINIOPASSWORD
-          value: {{ .Values.global.credentials.minio_password }}
+          value: {{ .Values.global.credentials_minio_password }}
         - name: AIRFLOW_KUBE_NAMESPACE
           valueFrom:
             fieldRef:

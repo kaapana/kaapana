@@ -4,8 +4,7 @@ kind: Deployment
 metadata:
   # This name uniquely identifies the Deployment
   name: federated-postgres-deployment
-  namespace: base
-  #namespace: {{ .Values.global.base_namespace }}
+  namespace: {{ .Values.global.base_namespace }}
 spec:
   replicas: 1
   selector:
@@ -20,14 +19,15 @@ spec:
     spec:
       containers:
       - name: federated-postgres
-        image: registry.hzdr.de/k.kades/kaapana-klaus-dev/postgres:9.6-alpine
-        imagePullPolicy: Always
-        #imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        image: {{  .Values.global.registry_url }}/postgres:9.6-alpine
+        # image: registry.hzdr.de/k.kades/kaapana-klaus-dev/postgres:9.6-alpine
+        # imagePullPolicy: Always
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env: # Environment variables
         - name: POSTGRES_USER
-          value: someuser
+          value: federateduser
         - name: POSTGRES_PASSWORD
-          value: somepassword
+          value: federatedpassword
         ports: # Port(s) on which your application runs
           - containerPort: 5432
         volumeMounts:
@@ -36,9 +36,22 @@ spec:
       volumes:
       - name: federated-postgres-data # key of volume mount
         hostPath:
-          path: /home/kaapana/postgres-federated
-          #path: {{ .Values.global.fast_data_dir }}/federated-postgres-data # path on hostmachine
+          path: {{ .Values.global.fast_data_dir }}/federated-postgres
           type: DirectoryOrCreate
       imagePullSecrets:
         - name: registry-secret
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: federated-postgres-service
+  # namespace: base
+  namespace: {{ .Values.global.base_namespace }}
+  labels:
+    app-name: federated-postgres
+spec:
+  selector:
+    app-name: federated-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432

@@ -1,0 +1,5 @@
+---
+global:
+    image: "dag-federated-setup-node-test"
+    version: "0.1.0"
+    action: "copy"

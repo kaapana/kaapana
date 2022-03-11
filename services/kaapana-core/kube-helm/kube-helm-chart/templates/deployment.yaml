@@ -77,6 +77,15 @@ spec:
         - name: PROXY
           value: {{ .Values.global.http_proxy }}
 {{- end }}
+        - name: MINIO_ACCESS_KEY
+          value: {{ .Values.global.credentials_minio_username }}
+        - name: MINIO_SECRET_KEY
+          value: {{ .Values.global.credentials_minio_password }}
+        - name: NODE_ID
+          value: {{  .Values.global.node_id }}
+        - name: HOSTNAME
+          value: {{  .Values.global.hostname }}
+
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         volumeMounts:

@@ -3,7 +3,4 @@ global:
     pull_policy_pods: "IfNotPresent"
     store_namespace: "store"
     slow_data_dir: /home/kaapana
-    credentials:
-        minio_username: "minioadmin"
-        minio_password: "admin"
     hostname: ""

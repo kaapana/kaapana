@@ -13,6 +13,10 @@ CONTAINER_REGISTRY_URL="{{ container_registry_url|default('', true) }}" # empty 
 CONTAINER_REGISTRY_USERNAME="{{ container_registry_username|default('', true) }}"
 CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}"
 
+{% for item in additional_env %}
+{{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}
+{%- endfor %}
+
 FAST_DATA_DIR="{{ fast_data_dir|default('/home/kaapana')}}" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="{{ slow_data_dir|default('/home/kaapana')}}" # Directory on the server, where the DICOM images will be stored (can be slower)
 
@@ -441,6 +445,8 @@ function install_chart {
     --set-string global.http_proxy=$http_proxy \
     --set-string global.https_proxy=$https_proxy \
     --set-string global.registry_url=$CONTAINER_REGISTRY_URL \
+    {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
+    {% endfor -%}
     --set global.gpu_support=$GPU_SUPPORT \
     --name-template $PROJECT_NAME
 

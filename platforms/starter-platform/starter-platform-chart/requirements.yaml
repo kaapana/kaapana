@@ -9,9 +9,9 @@ dependencies:
   - name: error-pages-chart
     version: "0.1.1"
     repository: file://../../../services/kaapana-core/error-pages/error-pages-chart
-  - name: louketo-proxy-chart
-    version: "0.1"
-    repository: file://../../../services/kaapana-core/louketo-proxy/louketo-proxy-chart
+  - name: oAuth2-proxy-chart
+    version: "7.2.1"
+    repository: file://../../../services/kaapana-core/oAuth2-proxy/oAuth2-proxy-chart
   - name: keycloak-chart
     version: "11.0.3"
     repository: file://../../../services/kaapana-core/keycloak/keycloak-chart

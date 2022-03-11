@@ -1,7 +1,0 @@
----
-apiVersion: v1
-appVersion: "0.1"
-description: louketo-proxy
-name: louketo-proxy-chart
-version: "0.1"
-

@@ -31,15 +31,6 @@ data:
         static_configs:
         - targets: ['prometheus-service.monitoring.svc:9090']
 
-      - job_name: 'louketo'
-        tls_config:
-          insecure_skip_verify: true
-        scheme: https
-        metrics_path: '/oauth/metrics'
-        static_configs:
-        - targets: ['louketo-service.kube-system.svc:8443']
-
-
       - job_name: "traefik"
         scrape_interval: 30s
         dns_sd_configs:

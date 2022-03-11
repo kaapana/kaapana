@@ -540,9 +540,9 @@ function install_certs {
         echo -e "Creating cluster secret ..."
         microk8s.kubectl delete secret certificate -n kube-system
         microk8s.kubectl create secret tls certificate --namespace kube-system --key ./tls.key --cert ./tls.crt
-        louketo_pod=$(microk8s.kubectl get pods -n kube-system |grep louketo  | awk '{print $1;}')
-        echo "louketo pod: $louketo_pod"
-        microk8s.kubectl -n kube-system delete pod $louketo_pod
+        auth_proxy_pod=$(microk8s.kubectl get pods -n kube-system |grep oauth2-proxy  | awk '{print $1;}')
+        echo "auth_proxy_pod pod: $auth_proxy_pod"
+        microk8s.kubectl -n kube-system delete pod $auth_proxy_pod
     fi
 
     echo -e "${GREEN}DONE${NC}"

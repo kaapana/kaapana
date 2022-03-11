@@ -2,11 +2,11 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: louketo-service
+  name: oauth2-proxy-service
   namespace: kube-system
 spec:
   selector:
-    app-name: louketo
+    app-name: oauth2-proxy
   ports:
     - protocol: TCP
       port: 8080

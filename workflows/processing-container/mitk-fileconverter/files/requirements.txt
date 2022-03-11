@@ -1,1 +1,1 @@
-pydicom==2.2.1
+pydicom==2.2.2

@@ -8,7 +8,9 @@ import traceback
 import json
 import socket
 import time
+import logging
 
+logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO )
 
 def check_port(name, host, port, delay):
     try:
@@ -40,8 +42,7 @@ def recreate_index(index_name, elastic_host, elastic_port):
     """
     ToDo: Docstring.
     """
-    es = elasticsearch.Elasticsearch(
-        [{'host': elastic_host, 'port': elastic_port}])
+    es = elasticsearch.Elasticsearch([{'host': elastic_host, 'port': elastic_port}])
     if not (es.indices.exists(index_name)):
         initialization_request = {
             "settings":
@@ -166,7 +167,7 @@ def setup_kibana(kibana_dashboard, kibana_host, kibana_port):
     """
     ToDo: Docstring.
     """
-    print("SETUP KIBANA")
+    print("# SETUP KIBANA")
     with open(kibana_dashboard) as f:
         jsonObj = json.load(f)
 
@@ -175,8 +176,8 @@ def setup_kibana(kibana_dashboard, kibana_host, kibana_port):
             i_d = anObject['_id']
             t_ype = anObject['_type']
             s_ource = anObject['_source']
-            resp = requests.post('http://' + kibana_host + ':' + str(kibana_port)
-                                 + '/api/saved_objects/' + t_ype + '/' + i_d + '?overwrite={}'.format(override_objects), data='{"attributes":' + json.JSONEncoder().encode(s_ource) + '}', headers=kbn_xsrf)
+            kibana_url = f"http://{kibana_host}:{str(kibana_port)}"
+            resp = requests.post(kibana_url+ '/api/saved_objects/' + t_ype + '/' + i_d + '?overwrite={}'.format(override_objects), data='{"attributes":' + json.JSONEncoder().encode(s_ource) + '}', headers=kbn_xsrf)
             if resp.status_code == 200:
                 print('{}: OK!'.format(s_ource['title']))
 
@@ -223,27 +224,53 @@ def create_index_pattern(kibana_host, kibana_port):
 print("Started init-container")
 if __name__ == "__main__":
     print("provisioning...")
-    init_kibana = os.getenv('INITKIBANA', False)
-    init_elastic = os.getenv('INITELASTIC', False)
-    stack_version = os.getenv('STACKVERSION', '6.8.12')
-    override_objects = os.getenv('OVERRIDE_OBJECTS', 'false')
+    init_kibana = os.getenv('INITKIBANA', None)
+    kibana_host = os.getenv('KIBANAHOST', None)
+    kibana_dashboard_file = os.getenv('KIBANADASHBOARD', None)
+    kibana_port = os.getenv('KIBANAPORT', None)
+    
+    init_elastic = os.getenv('INITELASTIC', None)
+    elastic_host = os.getenv('ELASTICHOST', None)
+    elastic_port = os.getenv('ELASTICPORT', None)
+    elastic_indexname = os.getenv('ELASTICINDEX', None)
+    stack_version = os.getenv('STACKVERSION', None)
+    
+    override_objects = os.getenv('OVERRIDE_OBJECTS', None)
     domain = os.getenv('DOMAIN', None)
-    https_port = os.getenv('HTTPS_PORT', "443")
-    elastic_host = os.getenv('ELASTICHOST', 'elastic-meta-service.default.svc')
-    elastic_indexname = os.getenv('ELASTICINDEX', 'meta-index')
-    kibana_host = os.getenv('KIBANAHOST', 'kibana-service.meta.svc')
-    kibana_dashboard_file = os.getenv('KIBANADASHBOARD', '/dashboards/kibana-dashboard.json')
-    kibana_port = os.getenv('KIBANAPORT', '5601')
-    if domain is None:
-        print("DOMAIN env not set -> exiting..")
-        exit(1)
-    kbn_xsrf = {'kbn-version': stack_version}
+    https_port = os.getenv('HTTPS_PORT', None)
 
+    assert init_kibana != None
+    assert init_elastic != None
+    assert stack_version != None
+    assert override_objects != None
+    assert domain != None
+    assert https_port != None
+    assert elastic_host != None
+    assert elastic_indexname != None
+    assert elastic_port != None
+    assert kibana_host != None
+    assert kibana_dashboard_file != None
+    assert kibana_port != None
+    print("#")
+    print("# CONFIGURATION: ")
+    print("#")
+    print(f"# {init_kibana=}")
+    print(f"# {init_elastic=}")
+    print(f"# {stack_version=}")
+    print(f"# {override_objects=}")
+    print(f"# {domain=}")
+    print(f"# {https_port=}")
+    print(f"# {elastic_host=}")
+    print(f"# {elastic_indexname=}")
+    print(f"# {elastic_port=}")
+    print(f"# {kibana_host=}")
+    print(f"# {kibana_port=}")
+    print(f"# {kibana_dashboard_file=}")
+
+    kbn_xsrf = {'kbn-version': stack_version}
     if init_elastic:
         print("Initializing Elasticsearch-idices...")
-        elastic_port = os.getenv('ELASTICPORT', '9200')
-        recreate_index(index_name=elastic_indexname,
-                       elastic_host=elastic_host, elastic_port=elastic_port)
+        recreate_index(index_name=elastic_indexname, elastic_host=elastic_host, elastic_port=elastic_port)
         print("done.")
 
     if init_kibana:

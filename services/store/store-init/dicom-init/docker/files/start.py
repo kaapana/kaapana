@@ -120,10 +120,7 @@ def check_file_on_platform(examples_send):
         quido_success = False
         while counter < max_counter:
             # quido file
-            r = requests.get(
-                "{}/dcm4chee-arc/aets/{}/rs/studies/{}/series/{}/instances".format(dcm4chee_host, aet,
-                                                                                   file['study_uid'],
-                                                                                   file['series_uid']), verify=False)
+            r = requests.get(f"{dcm4chee_host}/dcm4chee-arc/aets/{aet}/rs/studies/{file['study_uid']}/series/{file['series_uid']}/instances", verify=False)
             if r.status_code != requests.codes.ok:
                 counter += 1
                 time.sleep(10)

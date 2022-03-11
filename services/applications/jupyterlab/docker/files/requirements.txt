@@ -1,6 +1,6 @@
-elasticsearch==7.14.0
+elasticsearch==7.15.0
 pathlib==1.0.1
-pydicom==2.2.0
+pydicom==2.2.2
 dicomweb-client==0.52.0
 #slackclient
 numpy==1.19.1

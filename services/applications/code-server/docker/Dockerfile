@@ -15,7 +15,7 @@ RUN sudo -E apt-get update && sudo -E apt-get install -y \
 COPY files/requirements.txt /
 RUN python3 -m pip install --no-cache-dir -r /requirements.txt && rm /requirements.txt 
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
-RUN code-server --install-extension ms-python.python
+# RUN code-server --install-extension ms-python.python
 
 # extensions to code-server
 

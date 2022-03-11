@@ -1,7 +1,7 @@
 FROM local-only/mitk-phenotyping:2021-02-18
 
 LABEL IMAGE="mitk-fileconverter"
-LABEL VERSION="2021-02-18-python"
+LABEL VERSION="2021-02-18-fix"
 LABEL CI_IGNORE="False"
 
 ENV BATCHES_INPUT_DIR /input
@@ -17,7 +17,7 @@ ENV FILECONVERTER /src/MitkFileConverter.sh
 COPY files/requirements.txt /src
 RUN pip3 install -r /src/requirements.txt
 
-COPY files/start.py /mitk_fileconverter.py
+COPY files/mitk_fileconverter.py /mitk_fileconverter.py
 CMD ["python3","-u", "/mitk_fileconverter.py"]
 
 # COPY files/mitk_fileconverter.sh /mitk_fileconverter.sh

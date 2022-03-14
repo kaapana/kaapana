@@ -1,5 +1,5 @@
-from airflow.api.common.experimental import pool as pool_api
-from airflow.models import Variable
+from airflow.models import Pool as pool_api
+from kaapana.kubetools.util_helper import NodeUtil
 
 import requests
 import time
@@ -44,9 +44,10 @@ def get_node_info(query):
     return result_value
 
 def init_vars():
-    node_uid = Variable.get(key="node_uid", default_var=None)
+    node_uid = NodeUtil.get_variable(key="node_uid", default_var=None)
     if node_uid == None:
-        Variable.set("node_uid", f"node_uid_{getnode()}")
+        NodeUtil.get_variable("node_uid", f"node_uid_{getnode()}")
+
 
 def init_pools():
 
@@ -63,7 +64,7 @@ def init_pools():
         node_gpu_count = get_node_info(query=gpu_query)
         try:
             print("+++++++++++++++++++++++++++++++++++++++++++++ CREATING MEMORY POOL")
-            pool_api.create_pool(
+            pool_api.create_or_update_pool(
                 name="MEMORY",
                 slots=abs(node_memory - 10000),
                 description="Memory of the node in MB"
@@ -71,7 +72,7 @@ def init_pools():
             # Variable.set("mem_alloc", NodeUtil.mem_alloc)
 
             print("+++++++++++++++++++++++++++++++++++++++++++++ CREATING CPU POOL")
-            pool_api.create_pool(
+            pool_api.create_or_update_pool(
                 name="CPU",
                 slots=node_cpu,
                 description="Count of CPU-cores of the node"
@@ -79,12 +80,12 @@ def init_pools():
             # Variable.set("cpu_alloc", NodeUtil.cpu_alloc)
 
             print("+++++++++++++++++++++++++++++++++++++++++++++ CREATING GPU POOL")
-            pool_api.create_pool(
+            pool_api.create_or_update_pool(
                 name="GPU_MEM",
                 slots=node_gpu_mem,
                 description="Memory of all GPUs of the node in MB"
             )
-            pool_api.create_pool(
+            pool_api.create_or_update_pool(
                 name="GPU_COUNT",
                 slots=node_gpu_count,
                 description="Count of GPUs of the node"

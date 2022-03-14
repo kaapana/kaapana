@@ -4,10 +4,6 @@ from sqlalchemy.orm.exc import NoResultFound
 from datetime import datetime
 import airflow.api
 from http import HTTPStatus
-from airflow.api.common.experimental import delete_dag as delete
-from airflow.api.common.experimental import pool as pool_api
-from airflow.api.common.experimental.get_task import get_task
-from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun, DagModel, DAG, DagBag
 from airflow import settings
@@ -19,7 +15,7 @@ import json
 import time
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.blueprints.kaapana_utils import generate_minio_credentials
-from airflow.api.common.experimental.trigger_dag import trigger_dag as trigger
+from airflow.api.common.trigger_dag import trigger_dag as trigger
 from kaapana.operators.HelperElasticsearch import HelperElasticsearch
 from flask import current_app as app
 from multiprocessing.pool import ThreadPool

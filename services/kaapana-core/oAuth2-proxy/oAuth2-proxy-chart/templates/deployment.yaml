@@ -29,37 +29,41 @@ spec:
         - name: oauth2-proxy-container
           image: {{  .Values.global.registry_url }}/oauth2-proxy:7.2.1
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
-          env:
-            - name: OAUTH2_PROXY_REDIRECT_URL
-              value: "https://10.128.129.138/oauth2/callback" 
-            - name: OAUTH2_PROXY_OIDC_ISSUER_URL
-              value: "http://{{ required "A valid hostname (or fqdn) is required!" $.Values.global.hostname }}:{{ .Values.global.auth_node_port }}/auth/realms/kaapana"
-            - name: OAUTH2_PROXY_UPSTREAM
-              value: "https://traefik:443"
-            - name: OAUTH2_PROXY_PROVIDER
-              value: "keycloak-oidc"
-            - name: OAUTH2_PROXY_CLIENT
-              value: "kaapana"
-            - name: OAUTH2_PROXY_CLIENT_SECRET
-              value: "1c4645f0-e654-45a1-a8b6-cf28790104ea"
-            - name: OAUTH2_PROXY_ALLOWED_ROLE
-              value: doccano
-            - name: OAUTH2_PROXY_COOKIE_SECRET
-              value: "P7AiFgxZhLuuTZ2iuIQHSnYWrDlU_NVaA-Su1dZ9HMQ="
-            - name: OAUTH2_PROXY_EMAIL_DOMAIN
-              value: "*"
-            - name: OAUTH2_PROXY_SKIP_PROVIDER_BUTTON
-              value: "True"
-            - name: OAUTH2_PROXY_SSL_INSECURE_SKIP_VERIFY
-              value: "True"
-            - name: OAUTH2_PROXY_TLS_CERT_FILE
-              value: "/ssl/tls.crt"
-            - name: OAUTH2_PROXY_TLS_KEY_FILE
-              value: "/ssl/tls.key"
-            - name: OAUTH2_PROXY_HTTP_ADDRESS
-              value: "0.0.0.0:8080"
-            - name: OAUTH2_PROXY_HTTPS_ADDRESS
-              value: "0.0.0.0:8443"
+          args:
+          - --upstream=https://traefik:443
+          - --provider=keycloak-oidc
+          - --client-id=kaapana
+          - --client-secret=uQBJzc2YDzjRfj2OCT79JDShojeqAK2R
+        {{- if ne (.Values.global.https_port | default "443") "443" }}
+          - --login-url=https://{{ required "A valid hostname (or fqdn) is required!" $.Values.global.hostname }}:{{ .Values.global.https_port }}/auth/realms/kaapana/protocol/openid-connect/auth
+          - --oidc-issuer-url=https://{{ required "A valid hostname (or fqdn) is required!" $.Values.global.hostname }}:{{ .Values.global.https_port }}/auth/realms/kaapana
+        {{- else }}
+          - --login-url=https://{{ required "A valid hostname (or fqdn) is required!" $.Values.global.hostname }}/auth/realms/kaapana/protocol/openid-connect/auth
+          - --oidc-issuer-url=https://{{ required "A valid hostname (or fqdn) is required!" $.Values.global.hostname }}/auth/realms/kaapana
+        {{- end }}
+          - --redeem-url=https://keycloak-internal-service.kube-system.svc/auth/realms/kaapana/protocol/openid-connect/token
+          - --oidc-jwks-url=https://keycloak-internal-service.kube-system.svc/auth/realms/kaapana/protocol/openid-connect/certs
+          - --profile-url=https://keycloak-internal-service.kube-system.svc/auth/realms/kaapana/protocol/openid-connect/userinfo
+          - --cookie-secret=P7AiFgxZhLuuTZ2iuIQHSnYWrDlU_NVaA-Su1dZ9HMQ=
+          - --skip-auth-regex=/auth/*
+          - --http-address=0.0.0.0:8080
+          - --https-address=0.0.0.0:8443
+          - --tls-cert-file=/ssl/tls.crt 
+          - --tls-key-file=/ssl/tls.key
+          - --skip-oidc-discovery
+          - --insecure-oidc-allow-unverified-email 
+          - --insecure-oidc-skip-nonce
+          - --skip-provider-button
+          - --skip-auth-preflight
+          - --show-debug-on-error
+          - --set-authorization-header
+          - --ssl-insecure-skip-verify
+          - --ssl-upstream-insecure-skip-verify
+          - --force-https
+          - --set-xauthrequest
+          - --pass-access-token 
+          - --email-domain=*
+          # - --metrics-address=/metrics
           ports:
           - name: http
             containerPort: 8080
@@ -71,17 +75,12 @@ spec:
             limits:
               memory: 150Mi
           volumeMounts:
-            - name: config-file
-              mountPath: /app
             - name: ssl-config
               mountPath: /ssl
       volumes:
       - name: ssl-config
         secret:
           secretName: certificate
-      - name: config-file
-        configMap:
-          name: oauth2-proxy-config
       imagePullSecrets:
       - name: registry-secret
 ---

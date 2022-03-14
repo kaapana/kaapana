@@ -22,7 +22,7 @@ dependencies:
     version: "7.2.1"
     repository: file://../../services/kaapana-core/oAuth2-proxy/oAuth2-proxy-chart
   - name: keycloak-chart
-    version: "11.0.3"
+    version: "16.1.1"
     repository: file://../../services/kaapana-core/keycloak/keycloak-chart
   - name: traefik-chart
     version: "2.6"

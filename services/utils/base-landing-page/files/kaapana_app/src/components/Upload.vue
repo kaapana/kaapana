@@ -33,7 +33,6 @@ export default {
       let params = {'x-auth-token': response.data["xAuthToken"]}
       request.get('/flow/kaapana/api/getminiocredentials', {params: params}).then(response => {
         let credentials = response.data
-        console.log(credentials)
         // https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/S3.html#constructor-property
         var s3Client = new S3({
           endpoint: location.protocol + '//' + location.host, // /minio does not work due to forbidden port...

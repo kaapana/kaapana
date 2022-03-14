@@ -85,7 +85,8 @@ export default Vue.extend({
     ...mapGetters(['currentUser', 'isAuthenticated', 'externalWebpages', 'commonData']),
   },
   mounted() {
-    this.minioCall()
+    // this.minioCall()
+    console.log("#TODO Skip Minio...")
   },
   methods: {
     login() {

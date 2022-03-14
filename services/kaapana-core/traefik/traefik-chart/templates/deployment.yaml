@@ -45,7 +45,6 @@ spec:
             - '--api.insecure=true'
             - '--api.debug=false'
             - '--log.level=WARN'
-            - '--log.filePath=/log/traefik.log'
             - '--accesslog=true'
             - '--accesslog.filepath=/log/access.log'
             - '--log.format=json'

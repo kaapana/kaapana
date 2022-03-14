@@ -20,9 +20,8 @@ FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful applicat
 SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
 
 HTTP_PORT="80"      # -> has to be 80
-HTTPS_PORT="443"    # HTTPS port -> port <AUTH_NODE_PORT> is additionaly needed if the port differs from 443
+HTTPS_PORT="443"    # HTTPS port
 DICOM_PORT="11112"  # configure DICOM receiver port
-AUTH_NODE_PORT="8000"
 
 PULL_POLICY_PODS="IfNotPresent"
 PULL_POLICY_JOBS="IfNotPresent"
@@ -428,7 +427,6 @@ function install_chart {
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.http_port="$HTTP_PORT" \
     --set-string global.https_port="$HTTPS_PORT" \
-    --set-string global.auth_node_port="$AUTH_NODE_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.home_dir="$HOME" \

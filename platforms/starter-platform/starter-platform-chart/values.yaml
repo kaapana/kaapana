@@ -12,7 +12,6 @@ global:
     dicom_port: "11112"
     http_port: "80"
     https_port: "443"
-    auth_node_port: "8000"
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana
     home_dir: /root

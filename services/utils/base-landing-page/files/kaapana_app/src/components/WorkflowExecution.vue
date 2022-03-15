@@ -39,10 +39,15 @@
                 v-jsf(v-model="formData['external_schema_' + name]" :schema="schema")
             v-row
               v-col(cols='12')
-                p Dag id: {{dag_id}}
-                p Node id: {{node_ids}}
-                p External node id: {{external_node_ids}}
-                p Form data: {{formData}}
+                v-tooltip(v-model='showConfData' top='')
+                  template(v-slot:activator='{ on, attrs }')
+                    v-btn(icon='' v-bind='attrs' v-on='on')
+                      v-icon(color='grey lighten-1')
+                        | mdi-email
+                  pre.text-left Dag id: {{dag_id}}
+                  pre.text-left Node id: {{node_ids}}
+                  pre.text-left External node id: {{external_node_ids}}
+                  pre.text-left {{ formData }}
         v-card-actions
           v-btn(color="orange", @click="submitWorkflow()" rounded dark) Submit job
           v-btn(color="orange", @click="(node_ids=[]) && (dag_id=null)" rounded dark) Clear
@@ -71,6 +76,7 @@ export default {
     external_dag_id: null,
     external_available_node_ids: [],
     dag_id: null,
+    showConfData: false,
   }),
   props: {
     remote: {

@@ -15,9 +15,9 @@ from requests.packages.urllib3.util.retry import Retry
 
 # Todo move in Jonas library as normal function 
 def requests_retry_session(
-    retries=10,
+    retries=15, # Retries for 18.2 hours
     backoff_factor=2,
-    status_forcelist=[429, 500, 502, 503, 504],
+    status_forcelist=[404, 429, 500, 502, 503, 504],
     session=None,
 ):
     session = session or requests.Session()

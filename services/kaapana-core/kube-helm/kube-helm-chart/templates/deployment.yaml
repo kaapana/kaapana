@@ -85,7 +85,8 @@ spec:
           value: {{  .Values.global.node_id }}
         - name: HOSTNAME
           value: {{  .Values.global.hostname }}
-
+        - name: HTTPS_PORT
+          value: "{{  .Values.global.https_port }}"
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         volumeMounts:

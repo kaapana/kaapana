@@ -64,9 +64,9 @@ def get_operator_properties(*args, **kwargs):
 #https://www.peterbe.com/plog/best-practice-with-retries-with-requests
 #https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
 def requests_retry_session(
-    retries=10,
+    retries=15, # Retries for 18.2 hours
     backoff_factor=2,
-    status_forcelist=[429, 500, 502, 503, 504],
+    status_forcelist=[404, 429, 500, 502, 503, 504],
     session=None,
     use_proxies=False
 ):

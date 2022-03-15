@@ -48,7 +48,7 @@ class KaapanaInstance(Base):
     ssl_check = Column(Boolean(), index=True)
     fernet_key = Column(String(100))
     allowed_dags = Column(String(51200), default='[]')
-    allowed_datasets = Column(String(1024),  default='[]', index=True)
+    allowed_datasets = Column(String(2048),  default='[]', index=True)
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
     automatic_update = Column(Boolean(), default=False, index=True)

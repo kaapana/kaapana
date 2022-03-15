@@ -1,6 +1,18 @@
 
 <template lang="pug">
     v-card
+      v-dialog(v-model='dialogConfData' width='600px')
+        template(v-slot:activator='{ on, attrs }')
+        v-card
+          v-card-title.text-h5.lighten-2
+            | Conf object
+          v-card-text.text-left
+            pre {{ prettyConfData }}
+          v-divider
+          v-card-actions
+            v-spacer
+            v-btn(color='primary' text='' @click='dialogConfData = false')
+              | Close
       v-card-title
         v-row
           v-col(cols="6")
@@ -20,6 +32,8 @@
               hide-details=""
             )
       v-data-table(:headers='headers' :items='filteredJobs' :search="search" sort-by='time_updated' sort-desc=true)
+        template(v-slot:item.conf_data='{ item }')
+          v-icon(color="primary" dark=''  @click="openConfData(item.conf_data)") mdi-email
         template(v-slot:item.status='{ item }')
           v-chip(:color='getStatusColor(item.status)' dark='') {{ item.status }}
         template(v-slot:item.actions='{ item }')
@@ -37,7 +51,9 @@ import kaapanaApiService from "@/common/kaapanaApi.service";
 export default {
   name: 'JobTable',
   data: () => ({
+    dialogConfData: false,
     dialogDelete: false,
+    prettyConfData: {},
     // headers: [
     //   { text: 'Description', align: 'start', value: 'description' },
     //   { text: 'Status', value: 'status' },
@@ -95,6 +111,10 @@ export default {
         text: 'Sender Node Id',
         value: 'addressed_kaapana_node_id'
       })
+      headers.push({
+        text: 'Conf',
+        value: 'conf_data'
+      })
       headers.push(
         { text: 'Description', align: 'start', value: 'description' },
         { text: 'Status', value: 'status' },
@@ -103,7 +123,19 @@ export default {
       return headers
     }
   },
+  watch: {
+    dialogConfData (val) {
+      val || this.closeConfData()
+    },    
+  },
   methods: {
+    openConfData (conf_data) {
+      this.prettyConfData = conf_data
+      this.dialogConfData = true
+    },
+    closeConfData () {
+      this.dialogConfData = false
+    },
     executeJob(item) {
       kaapanaApiService
         .federatedClientApiPut("/job", {

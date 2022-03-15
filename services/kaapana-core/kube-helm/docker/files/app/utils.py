@@ -201,7 +201,8 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
         'global.credentials_minio_password': os.getenv('MINIO_SECRET_KEY'),
         'global.node_id': os.getenv('NODE_ID'),
         'global.hostname': os.getenv('HOSTNAME'),
-        'global.http_proxy': os.getenv('PROXY', '')
+        'global.http_proxy': os.getenv('PROXY', ''),
+        'global.https_port': os.getenv('HTTPS_PORT', '443')
     }
 
     # http_proxy = os.getenv('PROXY', None)

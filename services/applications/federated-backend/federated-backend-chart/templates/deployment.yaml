@@ -42,7 +42,7 @@ spec:
         - name: HOSTNAME
           value: {{ .Values.global.hostname | default "" }}
         - name: HTTPS_PORT
-          value: {{ .Values.global.https_port }}
+          value: "{{ .Values.global.https_port }}"
         - name: PROXY
           value: {{ .Values.global.http_proxy }}
         - name: MINIOUSER

@@ -59,8 +59,8 @@
           v-col(cols="8" align='right')
             workflow-execution(:remote="remote" :instances="remoteInstances")
             v-dialog(v-model='remoteDialog' max-width='600px')
-              template(v-slot:activator='{ on, attrs }')
-                v-btn(color='orange' v-bind='attrs' v-on='on' rounded dark) Add remote instance
+              //- template(v-slot:activator='{ on, attrs }')
+              //-   v-btn(color='orange' v-bind='attrs' v-on='on' rounded dark) Add remote instance
               v-card
                 v-form(v-model='remoteValid', ref="remoteForm" lazy-validation)
                   v-card-title
@@ -87,6 +87,7 @@
                     v-btn(@click='resetRemoteForm')
                       | clear
             //- v-btn(color='orange' @click="submitWorkflow()" rounded dark) Execute Remote Workflow
+            v-btn(color='orange' @click.stop="openRemoteDialog" rounded dark) Add remote instance
             v-btn(@click.stop="changeTab(0)" color="primary" rounded dark) Switch to client instance
         v-row
           v-col(sm="12")
@@ -148,7 +149,6 @@ export default Vue.extend({
       port: 443,
       fernet_key: 'deactivated',
     }
-
   }),
   created() {},
   mounted () {
@@ -163,7 +163,7 @@ export default Vue.extend({
         this.getDatasets();
         console.log('Getting Dags and Datasets')
       }
-    }
+    },
   },
   computed: {
     remote () {
@@ -305,6 +305,18 @@ export default Vue.extend({
       this.remoteDialog = true
       this.remoteUpdate = true
     },
+    openRemoteDialog() {
+      this.remoteDialog = true
+      this.remoteUpdate = false
+      this.remotePost = {
+        ssl_check: false,
+        token: '',
+        host: '',
+        node_id: '',
+        port: 443,
+        fernet_key: 'deactivated',
+      }
+    },
     getClientInstance() {
       kaapanaApiService
         .federatedClientApiGet("/client-kaapana-instance")
@@ -358,7 +370,6 @@ export default Vue.extend({
     clearExtensionsInterval() {
       window.clearInterval(this.polling);
     },
-
     startExtensionsInterval() {
       this.polling = window.setInterval(() => {
         console.log(this.remote)

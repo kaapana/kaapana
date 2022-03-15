@@ -28,6 +28,8 @@ default_model = "3d_lowres"
 train_network_trainer = "nnUNetTrainerV2"
 ae_title = "nnUnet-results"
 max_epochs = 1000
+num_batches_per_epoch = 250
+num_val_batches_per_epoch = 50
 dicom_model_slice_size_limit = 70
 
 # training_results_study_uid = "1.2.826.0.1.3680043.8.498.73386889396401605965136848941191845554"
@@ -172,6 +174,22 @@ ui_forms = {
                 "required": True,
                 "readOnly": False
             },
+            "num_batches_per_epoch": {
+                "title": "Batches per epoch",
+                "default": num_batches_per_epoch,
+                "description": "Do only change if you know what you are doing!.",
+                "type": "integer",
+                "required": True,
+                "readOnly": False
+            },
+            "num_val_batches_per_epoch": {
+                "title": "Validation batches per epoch",
+                "default": num_val_batches_per_epoch,
+                "description": "Do only change if you know what you are doing!.",
+                "type": "integer",
+                "required": True,
+                "readOnly": False
+            },
             "input": {
                 "title": "Input Modality",
                 "default": "SEG",
@@ -179,6 +197,12 @@ ui_forms = {
                 "type": "string",
                 "readOnly": True,
             },
+            "fp32": {
+                "type": "boolean",
+                "title": "FP32",
+                "default": False,
+                "description": "Disable mixed precision training and run old school fp32"
+            }
             # "version": {
             #     "title": "Version",
             #     "default": "0.0.1-alpha",

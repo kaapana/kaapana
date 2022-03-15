@@ -3,6 +3,7 @@ import json
 from urllib import request
 import uuid
 import requests
+import os
 
 
 from sqlalchemy.orm import Session
@@ -63,7 +64,7 @@ def create_and_update_client_kaapana_instance(db: Session, client_kaapana_instan
             token=str(uuid.uuid4()),
             protocol='https',
             host=HOSTNAME,
-            port=443,
+            port=int(os.getenv('HTTPS_PORT', 443)),
             ssl_check=client_kaapana_instance.ssl_check,
             fernet_key=_get_fernet_key(client_kaapana_instance.fernet_encrypted),
             remote=False,

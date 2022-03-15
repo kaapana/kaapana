@@ -78,8 +78,12 @@ elif [ "$MODE" = "training" ]; then
     echo "# TASK:  $TASK";
     echo "# MODEL: $MODEL";
     echo "# NETWORK_TRAINER: $TRAIN_NETWORK_TRAINER";
+    echo "# FP32:" $FP32;
     echo "#"
     echo "# MAX_EPOCHS: $TRAIN_MAX_EPOCHS";
+    echo "# EPOCHS_PER_ROUND: $EPOCHS_PER_ROUND";
+    echo "# NUM_BATCHES_PER_EPOCH: $NUM_BATCHES_PER_EPOCH";
+    echo "# NUM_VAL_BATCHES_PER_EPOCH: $NUM_VAL_BATCHES_PER_EPOCH";
     echo "#"
     echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
     echo "# nnUNet_preprocessed:  $nnUNet_preprocessed"
@@ -102,6 +106,11 @@ elif [ "$MODE" = "training" ]; then
         continue=""
     fi
     
+    if [ "$FP32" = "True" ] || [ "$FP32" = "true" ]; then
+        fp32="--fp32"
+    else
+        fp32=""
+    fi
     if [ "$TRAIN_NPZ" = "True" ] || [ "$TRAIN_NPZ" = "true" ]; then
         npz="--npz"
     else
@@ -114,9 +123,9 @@ elif [ "$MODE" = "training" ]; then
     fi
     
     echo "#"
-    echo "# COMMAND: nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $npz $continue "
-    nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $npz $continue 
-    
+    echo "# COMMAND: nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $fp32 $npz $continue "
+    nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $fp32 $npz $continue
+
     CREATE_REPORT="True"
 
     if [ "$CREATE_REPORT" = "True" ] || [ "$CREATE_REPORT" = "true" ]; then

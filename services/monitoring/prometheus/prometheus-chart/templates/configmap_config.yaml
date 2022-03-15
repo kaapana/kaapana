@@ -31,6 +31,12 @@ data:
         static_configs:
         - targets: ['prometheus-service.monitoring.svc:9090']
 
+      - job_name: 'oAuth2-proxy'
+        scheme: http
+        metrics_path: '/metrics'
+        static_configs:
+        - targets: ['oauth2-metrics-service.kube-system.svc:8081']
+
       - job_name: "traefik"
         scrape_interval: 30s
         dns_sd_configs:

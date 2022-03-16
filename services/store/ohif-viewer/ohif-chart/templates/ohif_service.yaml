@@ -31,7 +31,7 @@ spec:
         pathType: ImplementationSpecific
         backend:
           service:
-            name: dcm4che-http
+            name: ohif-service
             port:
-              number: 80
+              name: ohif-port
 ---

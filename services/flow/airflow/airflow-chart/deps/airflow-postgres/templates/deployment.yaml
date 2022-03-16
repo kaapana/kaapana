@@ -51,8 +51,6 @@ spec:
           env:
             - name: POSTGRES_USER
               value: root
-            - name: POSTGRES_USER
-              value: root
             - name: POSTGRES_PASSWORD
               value: root
             - name: POSTGRES_DB

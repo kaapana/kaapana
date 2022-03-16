@@ -4,17 +4,16 @@ metadata:
   name: traefik
   namespace: kube-system
 spec:
-  type: ClusterIP
   ports:
     - protocol: TCP
+      name: web
+      port: 8000
+    - protocol: TCP
+      name: admin
       port: 8080
-      name: tr-admin
     - protocol: TCP
-      port: 80
-      name: traefik-http
-    - protocol: TCP
-      port: 443
-      name: traefik-https
+      name: websecure
+      port: 4443
   selector:
     app: traefik
 ---

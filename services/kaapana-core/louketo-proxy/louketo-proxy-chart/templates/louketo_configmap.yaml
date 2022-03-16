@@ -41,7 +41,7 @@ data:
     upstream-expect-continue-timeout: 600s  #the timeout placed on the expect continue for upstream (default: 10s)
     server-read-timeout: 600s                 #the server read timeout on the http server (default: 10s)
     server-write-timeout: 600s                #the server write timeout on the http server (default: 10s)
-    upstream-url: https://traefik:443
+    upstream-url: https://traefik:4443
     resources:
     - uri: /minio
       white-listed: true

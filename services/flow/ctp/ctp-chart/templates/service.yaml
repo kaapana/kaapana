@@ -45,7 +45,7 @@ spec:
     targetPort: 11112
 {{- end }}
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
   name: ctp-ingress-ip
@@ -61,10 +61,17 @@ spec:
     http:
       paths:
       - path: /ctp
+        pathType: ImplementationSpecific
         backend:
-          serviceName: ctp-internal-service
-          servicePort: 80
+          service:
+            name: ctp-internal-service
+            port:
+              number: 80
       - path: /dicomweb
+        pathType: ImplementationSpecific
         backend:
-          serviceName: ctp-internal-service
-          servicePort: {{ .Values.global.dicom_web_port | default "7777"}}
+          service:
+            name: ctp-internal-service
+            port:
+              number: {{ .Values.global.dicom_web_port | default "7777"}}
+---

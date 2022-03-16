@@ -11,7 +11,7 @@ spec:
   ports:
     - port: 9090
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
   name: prometheus-ingress
@@ -27,6 +27,10 @@ spec:
     http:
       paths:
       - path: /prometheus
+        pathType: ImplementationSpecific
         backend:
-          serviceName: prometheus-service
-          servicePort: 9090
+          service:
+            name: prometheus-service
+            port:
+              number: 9090
+---

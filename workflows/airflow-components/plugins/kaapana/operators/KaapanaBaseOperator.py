@@ -218,7 +218,20 @@ class KaapanaBaseOperator(BaseOperator):
                                                  }
                                                  })
         )
+        self.volume_mounts.append(VolumeMount(
+            'miniodata', mount_path='/minio', sub_path=None, read_only=False
+        ))
 
+        self.volumes.append(
+            Volume(name='miniodata', configs={
+                'hostPath':
+                {
+                    'type': 'DirectoryOrCreate',
+                    'path': os.getenv('MINIODIR', "/home/kaapana/minio")
+                }
+            })
+        )
+        
         if self.gpu_mem_mb != None or self.gpu_mem_mb_lmt != None:
             self.volume_mounts.append(VolumeMount(
                 'modeldata', mount_path='/models', sub_path=None, read_only=False

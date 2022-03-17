@@ -16,23 +16,48 @@ from nnunet_federated.nnUNetFederatedOperator import nnUNetFederatedOperator
 
 log = LoggingMixin().log
 
+remote_dag_id = "nnunet-training"
 ui_forms = {
     "external_schema_federated_form": {
         "type": "object",
         "properties": {
-            "federated_total_rounds": "$default"
-        }
+            "federated_total_rounds": "$default",
+            "remote_dag_id": {
+                "type": "string",
+                "title": "Remote dag id",
+                "default": remote_dag_id,
+                "readOnly": True,
+                "required": True,
+            },
+            "federated_operators": {
+                "type": "array",
+                "title": "Federated operators",
+                "items": {
+                    "type": 'string',
+                    "enum": [
+                        "nnunet-training",
+                    ],
+                },
+                "default": ["nnunet-training"],
+                "required": True,
+                "readOnly": True
+            },
+            "skip_operators": {
+                "type": "array",
+                "title": "Skip operators",
+                "items": {
+                    "type": 'string',
+                    "enum": [
+                        "zip-unzip-training", "model2dicom", "dcmsend", "pdf2dcm-training", "dcmsend-pdf"
+                    ],
+                },
+                "default": ["zip-unzip-training", "model2dicom", "dcmsend", "pdf2dcm-training", "dcmsend-pdf"],
+                "required": True,
+                "readOnly": True
+            }
+        },
     },
-    # "workflow_form": {
-    #     "type": "object",
-    #     "properties": {
-    #         "federated_updates": {
-    #             "type": "integer",
-    #             "title": "Number of total upd"
-    #         },
-    #     }
-    # },
-    "external_schemas": "nnunet-training"
+    "external_schemas": remote_dag_id
 }
 
 args = {

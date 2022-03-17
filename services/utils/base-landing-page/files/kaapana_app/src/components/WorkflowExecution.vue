@@ -161,6 +161,16 @@ export default {
           console.log(err);
         });
     },
+    getExternalUiFormSchemas() {
+      kaapanaApiService
+        .federatedSchemaApiPost("/get-ui-form-schemas",  {remote: true, dag_id: this.external_dag_id, node_ids: this.external_node_ids})
+        .then((response) => {
+          this.external_schemas = response.data
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    },
     getDags() {
       kaapanaApiService
         .federatedClientApiPost("/get-dags", {remote: this.remote, node_ids: this.node_ids})
@@ -176,16 +186,6 @@ export default {
         .federatedClientApiPost("/get-remote-kaapana-instances", {dag_id: this.external_dag_id})
         .then((response) => {
           this.external_available_node_ids = response.data.map(({ node_id }) => node_id);
-        })
-        .catch((err) => {
-          console.log(err);
-        });
-    },
-    getExternalUiFormSchemas() {
-      kaapanaApiService
-        .federatedSchemaApiPost("/get-ui-form-schemas",  {remote: true, dag_id: this.external_dag_id, node_ids: this.external_node_ids})
-        .then((response) => {
-          this.external_schemas = response.data
         })
         .catch((err) => {
           console.log(err);

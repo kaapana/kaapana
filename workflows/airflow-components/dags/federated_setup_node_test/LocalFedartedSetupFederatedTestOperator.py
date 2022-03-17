@@ -10,12 +10,10 @@ from datetime import timedelta
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator, rest_self_udpate
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
-from kaapana.blueprints.kaapana_utils import generate_minio_credentials
-from kaapana.operators.HelperMinio import HelperMinio
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
 
-class LocalFedartedSetupNodeTestOperator(KaapanaPythonBaseOperator):
+class LocalFedartedSetupFederatedTestOperator(KaapanaPythonBaseOperator):
 
     @federated_sharing_decorator
     @cache_operator_output
@@ -24,7 +22,11 @@ class LocalFedartedSetupNodeTestOperator(KaapanaPythonBaseOperator):
         conf = kwargs['dag_run'].conf
         print('conf', conf)
         run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-        batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
+
+        from_previous_json_path = os.path.join(run_dir, self.operator_in_dir, "from_previous.json")
+        with open(from_previous_json_path, "r", encoding='utf-8') as jsonData:
+            print('Yippie from previous seems to be available')
+            print(json.load(jsonData))
 
         json_output_path=os.path.join(run_dir, self.operator_out_dir, "model.json")
         if not os.path.exists(os.path.dirname(json_output_path)):
@@ -37,6 +39,9 @@ class LocalFedartedSetupNodeTestOperator(KaapanaPythonBaseOperator):
         with open(json_output_path, "w", encoding='utf-8') as jsonData:
             model['epochs'].append(model['epochs'][-1] + 1)
             json.dump(model, jsonData, indent=4, sort_keys=True, ensure_ascii=True)
+        
+        if 'simulate_fail_round' in conf['workflow_form'] and conf['workflow_form']['simulate_fail_round'] == conf['federated_form']['federated_round']:
+            raise ValueError('Simulating an Error!')
         return
 
     def __init__(self,
@@ -44,9 +49,9 @@ class LocalFedartedSetupNodeTestOperator(KaapanaPythonBaseOperator):
         **kwargs
         ):
 
-        super(LocalFedartedSetupNodeTestOperator, self).__init__(
+        super(LocalFedartedSetupFederatedTestOperator, self).__init__(
            dag=dag,
-           name=f'federated-setup-node-test',
+           name=f'federated-setup-federated-test',
            python_callable=self.start,
            allow_federated_learning=True,
            execution_timeout=timedelta(minutes=30),

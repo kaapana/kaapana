@@ -63,8 +63,8 @@ def from_previous_dag_run_action(operator_out_dir, action, dag_run_dir, federate
         dst = os.path.join(dag_run_dir, operator_out_dir)
         print(dst)
         if os.path.isdir(src):
-            print(f'Moving batch files from {src} to {dst}')
-            shutil.move(src=src, dst=dst)
+            print(f'Copying batch files from {src} to {dst}')
+            shutil.copytree(src=src, dst=dst)
 
     if action == 'from_previous_dag_run':
         src_root_dir = os.path.join(WORKFLOW_DIR, federated['from_previous_dag_run'], BATCH_NAME)
@@ -76,7 +76,7 @@ def from_previous_dag_run_action(operator_out_dir, action, dag_run_dir, federate
             dst = os.path.join(dst_root_dir, rel_dir)
             if os.path.isdir(src):
                 print(f'Moving batch element files from {src} to {dst}')
-                shutil.move(src=src, dst=dst)
+                shutil.copytree(src=src, dst=dst)
 
 # Decorator
 def cache_operator_output(func):
@@ -86,19 +86,6 @@ def cache_operator_output(func):
         cache_operator_dirs = [self.operator_out_dir]
         if self.manage_cache not in ['ignore', 'cache', 'overwrite', 'clear']:
             raise AssertionError("Invalid name '{}' for manage_cache. It must be set to None, 'ignore', 'cache', 'overwrite' or 'clear'".format(self.manage_cache))
-
-        # # Same as in HelperFederated!
-        # if 'context' in kwargs:
-        #     run_id = kwargs['context']['run_id']
-        #     conf = kwargs['context']['dag_run'].conf
-        # elif type(args) == tuple and len(args) == 1 and "run_id" in args[0]:
-        #     raise ValueError('Just to check if this case needs to be supported!', args, kwargs)
-        #     run_id = args[0]['run_id']
-        # else:
-        #     run_id = kwargs['run_id']
-        #     conf =  kwargs["dag_run"].conf
-
-        # dag_run_dir = os.path.join(WORKFLOW_DIR, run_id)
 
         run_id, dag_run_dir, conf = get_operator_properties(*args, **kwargs)
 

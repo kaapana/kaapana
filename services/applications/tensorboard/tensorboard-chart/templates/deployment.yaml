@@ -39,7 +39,7 @@ spec:
           {{- if .Values.mount_path }}
           path: {{ .Values.mount_path }}
           {{- else }}
-          path: {{ .Values.global.fast_data_dir }}/workflows/data
+          path: {{ .Values.global.slow_data_dir }}/minio/tensorboard
           {{- end }}
           type: DirectoryOrCreate
       imagePullSecrets:

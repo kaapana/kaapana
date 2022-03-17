@@ -15,14 +15,48 @@ from federated_setup_central_test.FedartedSetupCentralTestOperator import Fedart
 
 log = LoggingMixin().log
 
+remote_dag_id = "federated-setup-node-test"
 ui_forms = {
     "external_schema_federated_form": {
         "type": "object",
         "properties": {
-            "federated_total_rounds": "$default"
-        }
+            "federated_total_rounds": "$default",
+            "remote_dag_id": {
+                "type": "string",
+                "title": "Remote dag id",
+                "default": remote_dag_id,
+                "readOnly": True,
+                "required": True,
+            },
+            "federated_operators": {
+                "type": "array",
+                "title": "Federated operators",
+                "items": {
+                    "type": 'string',
+                    "enum": [
+                        "federated-setup-federated-test",
+                    ],
+                },
+                "default": ["federated-setup-federated-test"],
+                "required": True,
+                "readOnly": True
+            },
+            "skip_operators": {
+                "type": "array",
+                "title": "Skip operators",
+                "items": {
+                    "type": 'string',
+                    "enum": [
+                        "federated-setup-skip-test",
+                    ],
+                },
+                "default": ["federated-setup-skip-test"],
+                "required": True,
+                "readOnly": True
+            }
+        },
     },
-    "external_schemas": "federated-setup-node-test"
+    "external_schemas": remote_dag_id
 }
 
 args = {
@@ -43,5 +77,5 @@ dag = DAG(
 )
 
 federated_setup_central_test = FedartedSetupCentralTestOperator(dag=dag)
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 federated_setup_central_test >> clean

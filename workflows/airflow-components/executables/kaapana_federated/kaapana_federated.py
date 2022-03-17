@@ -5,11 +5,14 @@ import time
 import numpy as np
 import json
 import os
+import uuid
+import shutil
 import tarfile
 from minio import Minio
 from abc import ABC, abstractmethod
 from requests.adapters import HTTPAdapter
 from abc import ABC, abstractmethod
+from minio.deleteobjects import DeleteObject
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
@@ -32,6 +35,16 @@ def requests_retry_session(
     session.mount('http://', adapter)
     session.mount('https://', adapter)
     return session 
+
+def minio_rmtree(minioClient, bucket_name, object_name):
+    delete_object_list = map(
+        lambda x: DeleteObject(x.object_name),
+        minioClient.list_objects(bucket_name, object_name, recursive=True)
+    )
+    errors = minioClient.remove_objects(bucket_name, delete_object_list)
+    for error in errors:
+        raise NameError("Error occured when deleting object", error)
+
     
 class KaapanaFederatedTrainingBase(ABC):
 
@@ -84,36 +97,41 @@ class KaapanaFederatedTrainingBase(ABC):
         except:
             raise ValueError(f'Something was not okay with your request code {r}: {r.text}!')
     
-    @staticmethod
-    def get_conf(dag_id, run_id, workflow_dir, federated_operators, skip_operators):
+    def get_conf(self, workflow_dir=None):
         with open(os.path.join('/', workflow_dir, 'conf', 'conf.json'), 'r') as f:
             conf_data = json.load(f)
         if "external_schema_federated_form" not in conf_data:
             conf_data["external_schema_federated_form"] = {}
-        conf_data["external_schema_federated_form"].update({
-            "federated_bucket": dag_id,
-            "federated_dir": run_id,
-            "federated_operators": federated_operators,
-            "skip_operators": skip_operators
-        })
+        if "federated_bucket" not in conf_data["external_schema_federated_form"]:
+            conf_data["external_schema_federated_form"]["federated_bucket"] = conf_data["external_schema_federated_form"]["remote_dag_id"]
+        if "federated_dir" not in conf_data["external_schema_federated_form"]:
+            conf_data["external_schema_federated_form"]["federated_dir"] = os.getenv('RUN_ID', str(uuid.uuid4())) 
         return conf_data
 
-    def __init__(self, dag_id, conf_data, workflow_dir, federated_round_start=0,
+    def __init__(self, workflow_dir=None,
                  access_key='kaapanaminio',
                  secret_key='Kaapana2020',
                  minio_host='minio-service.store.svc',
                  minio_port='9000',
                 ):
         
-        self.dag_id = dag_id
-        self.fl_working_dir = os.path.join(workflow_dir, os.getenv('OPERATOR_OUT_DIR', 'federated-operator'))
-        self.federated_round_start = federated_round_start
+        workflow_dir = workflow_dir or os.getenv('WORKFLOW_DIR', f'/appdata/data/federated-setup-central-test-220316153201233296')
+        print('working directory', workflow_dir)
+        conf_data = self.get_conf(workflow_dir)
+        print(conf_data)
+        self.fl_working_dir = os.path.join('/', workflow_dir, os.getenv('OPERATOR_OUT_DIR', 'federated-operator'))
+        
         self.remote_conf_data = {}
         self.local_conf_data = {}
-        self.tmp_federated_site_infos = []
+        self.tmp_federated_site_info = {}
+        print('Splitting conf data')
         for k, v in conf_data.items():
             if k.startswith('external_schema_'):
                 self.remote_conf_data[k.replace('external_schema_', '')] = v
+            elif k=='tmp_federated_site_info':
+                self.tmp_federated_site_info =  v
+            elif k in ["client_job_id", "x_auth_token"]:
+                pass
             else:
                 self.local_conf_data[k] = v
 
@@ -127,6 +145,11 @@ class KaapanaFederatedTrainingBase(ABC):
             node_ids = self.remote_conf_data['node_ids']
         else:
             node_ids = []
+        
+        if 'federated_form' in self.remote_conf_data and 'federated_round' in self.remote_conf_data['federated_form']:
+            self.federated_round_start = self.remote_conf_data['federated_form']['federated_round'] + 1
+        else:
+            self.federated_round_start = 0
         print(node_ids)
         with requests.Session() as s:
             r = requests_retry_session(session=s).post(f'{self.client_url}/get-remote-kaapana-instances', json={'node_ids': node_ids})
@@ -141,23 +164,24 @@ class KaapanaFederatedTrainingBase(ABC):
 
     
     @abstractmethod
-    def update_data(self, tmp_federated_site_info, federated_round):
+    def update_data(self, federated_round):
         pass
     
-    def distribute_jobs(self, tmp_federated_site_info, federated_round):
+    def distribute_jobs(self, federated_round):
         # Starting round!
         self.remote_conf_data['federated_form']['federated_round'] = federated_round
-
         for site_info in self.remote_sites:
             if federated_round == 0:
-                tmp_federated_site_info[site_info['node_id']] = {}
+                self.tmp_federated_site_info[site_info['node_id']] = {}
                 self.remote_conf_data['federated_form']['from_previous_dag_run'] =  None
+                self.remote_conf_data['federated_form']['before_previous_dag_run'] = None
             else:
-                self.remote_conf_data['federated_form']['from_previous_dag_run'] = tmp_federated_site_info[site_info['node_id']]['from_previous_dag_run']
+                self.remote_conf_data['federated_form']['before_previous_dag_run'] = self.tmp_federated_site_info[site_info['node_id']]['before_previous_dag_run']
+                self.remote_conf_data['federated_form']['from_previous_dag_run'] = self.tmp_federated_site_info[site_info['node_id']]['from_previous_dag_run']
 
             with requests.Session() as s:
                 r = requests_retry_session(session=s).post(f'{self.client_url}/job', json={
-                    "dag_id": self.dag_id,
+                    "dag_id": self.remote_conf_data['federated_form']["remote_dag_id"],
                     "conf_data": self.remote_conf_data,
                     "status": "queued",
                     "addressed_kaapana_node_id": self.client_network['node_id'],
@@ -167,12 +191,12 @@ class KaapanaFederatedTrainingBase(ABC):
             job = r.json()
             print('Created Job')
             print(job)
-            tmp_federated_site_info[site_info['node_id']] = {
+            self.tmp_federated_site_info[site_info['node_id']] = {
                 'job_id': job['id'],
                 'fernet_key': site_info['fernet_key']
             }
-    def wait_for_jobs(self, tmp_federated_site_info, federated_round):
-        updated = {node_id: False for node_id in tmp_federated_site_info}
+    def wait_for_jobs(self, federated_round):
+        updated = {node_id: False for node_id in self.tmp_federated_site_info}
         # Waiting for updated files
         print('Waiting for updates')
         for idx in range(10000):
@@ -180,20 +204,18 @@ class KaapanaFederatedTrainingBase(ABC):
                 print(f'{10*(idx+1)} seconds')
 
             time.sleep(10) 
-            for node_id, tmp_site_info in tmp_federated_site_info.items():
+            for node_id, tmp_site_info in self.tmp_federated_site_info.items():
                 with requests.Session() as s:
                     r = requests_retry_session(session=s).get(f'{self.client_url}/job', params={
                             "job_id": tmp_site_info["job_id"]
                         },  verify=self.client_network['ssl_check'])
                 job = r.json()
-                #print(json.dumps(job, indent=2))
-#                     print(job['status'])
-#                     print(job['run_id'])
-#                     print(job['description'])
-#                     print(job['conf_data']['federated_form']['from_previous_dag_run'])
                 if job['status'] == 'finished':
                     updated[node_id] = True
+                    tmp_site_info['before_previous_dag_run'] = job['conf_data']['federated_form']['from_previous_dag_run']
                     tmp_site_info['from_previous_dag_run'] = job['run_id']
+                elif job['status'] == 'failed':
+                    raise ValueError('A client job failed, interrupting, you can use the recovery_conf to continue your training, if there is an easy fix!')
             if np.sum(list(updated.values())) == len(self.remote_sites):
                 break
         if bool(np.sum(list(updated.values())) == len(self.remote_sites)) is False:
@@ -202,16 +224,29 @@ class KaapanaFederatedTrainingBase(ABC):
                 print(k, v)
             raise ValueError('There are lacking updates, please check what is going on!')
     
-    def download_minio_objects_to_workflow_dir(self, tmp_federated_site_info, federated_round):
+    def download_minio_objects_to_workflow_dir(self, federated_round):
+        federated_bucket = self.remote_conf_data['federated_form']['federated_bucket']
+        if federated_round > 0:
+            previous_federated_round_dir = os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round-1))
+        else:
+            previous_federated_round_dir = None    
+        current_federated_round_dir = os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round))
+        next_federated_round_dir =  os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round+1))
         # Downloading all objects
-        for node_id, tmp_site_info in tmp_federated_site_info.items():
+        for node_id, tmp_site_info in self.tmp_federated_site_info.items():
+#             federated_bucket = self.remote_conf_data['federated_form']['federated_bucket']
+#             if federated_round > 0:
+#                 previous_federated_round_dir = os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round-1))
+#             else:
+#                 previous_federated_round_dir = None
+#             current_federated_round_dir = os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round))
+#             next_federated_round_dir =  os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round+1))
+            
             tmp_site_info['file_paths'] = []
             tmp_site_info['next_object_names'] = []
-            current_federated_round_dir = os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round))
-            next_federated_round_dir =  os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round+1))
+
             print(current_federated_round_dir)
-            objects = self.minioClient.list_objects(
-                self.remote_conf_data['federated_form']['federated_bucket'], os.path.join(current_federated_round_dir, node_id), recursive=True)
+            objects = self.minioClient.list_objects(federated_bucket, os.path.join(current_federated_round_dir, node_id), recursive=True)
             for obj in objects:
                 # https://github.com/minio/minio-py/blob/master/minio/datatypes.py#L103
                 if obj.is_dir:
@@ -220,17 +255,20 @@ class KaapanaFederatedTrainingBase(ABC):
                     file_path = os.path.join(self.fl_working_dir, os.path.relpath(obj.object_name, self.remote_conf_data['federated_form']['federated_dir']))
                     file_dir = os.path.dirname(file_path)
                     os.makedirs(file_dir, exist_ok=True)
-                    self.minioClient.fget_object(self.remote_conf_data['federated_form']['federated_bucket'], obj.object_name, file_path)
-                    self.minioClient.remove_object(self.remote_conf_data['federated_form']['federated_bucket'], obj.object_name)
+                    self.minioClient.fget_object(federated_bucket, obj.object_name, file_path)
+                    #self.minioClient.remove_object(federated_bucket, obj.object_name)
                     KaapanaFederatedTrainingBase.fernet_decryptfile(file_path, tmp_site_info['fernet_key'])
                     KaapanaFederatedTrainingBase.apply_untar_action(file_path, file_dir)
                     tmp_site_info['file_paths'].append(file_path)
                     tmp_site_info['next_object_names'].append(obj.object_name.replace(current_federated_round_dir, next_federated_round_dir))
-        return tmp_federated_site_info
-    
-    def upload_workflow_dir_to_minio_object(self, tmp_federated_site_info, federated_round):   
+            print('Removing objects from previous federated_round_dir on Minio')
+
+            if previous_federated_round_dir is not None:
+                minio_rmtree(self.minioClient, federated_bucket, os.path.join(previous_federated_round_dir, node_id))
+                
+    def upload_workflow_dir_to_minio_object(self, federated_round):   
         # Push objects:
-        for node_id, tmp_site_info in tmp_federated_site_info.items():
+        for node_id, tmp_site_info in self.tmp_federated_site_info.items():
             for file_path, next_object_name in zip(tmp_site_info['file_paths'], tmp_site_info['next_object_names']):
                 file_dir = file_path.replace('.tar.gz', '')
                 KaapanaFederatedTrainingBase.apply_tar_action(file_path, file_dir)
@@ -242,17 +280,36 @@ class KaapanaFederatedTrainingBase(ABC):
 
         print('Finished round', federated_round)
         
-    def train_step(self, tmp_federated_site_info, federated_round):
-        self.distribute_jobs(tmp_federated_site_info, federated_round)
-        self.wait_for_jobs(tmp_federated_site_info, federated_round)
-        self.download_minio_objects_to_workflow_dir(tmp_federated_site_info, federated_round)
+    def train_step(self, federated_round):
+        self.distribute_jobs(federated_round)
+        self.wait_for_jobs(federated_round)
+        self.download_minio_objects_to_workflow_dir(federated_round)
         # Working with downloaded objects
-        self.update_data(tmp_federated_site_info, federated_round)
-        self.upload_workflow_dir_to_minio_object(tmp_federated_site_info, federated_round)
-        return tmp_federated_site_info
+        self.update_data(federated_round)
+        self.upload_workflow_dir_to_minio_object(federated_round)  
+    
     def train(self):
-        tmp_federated_site_info = {}
-        print(self.remote_conf_data)
         for federated_round in range(self.federated_round_start, self.remote_conf_data['federated_form']['federated_total_rounds']):
-            tmp_federated_site_info = self.train_step(tmp_federated_site_info, federated_round)
-            self.tmp_federated_site_infos.append({node_id: {k: tmp_site_info[k] for k in ['from_previous_dag_run']} for node_id, tmp_site_info in tmp_federated_site_info.items()})
+            self.train_step(federated_round)
+            print('Recovery conf')
+            self.tmp_federated_site_info = {node_id: {k: tmp_site_info[k] for k in ['from_previous_dag_run', 'before_previous_dag_run']} for node_id, tmp_site_info in self.tmp_federated_site_info.items()}
+            recovery_conf = {
+                "remote": False,
+                "dag_id": "Needs to be filled in manually, the dag_id of the ferederated dag!",
+                "node_ids": ["Needs to be filled manully, your own node_id!"],
+                "form_data": {
+                    **self.local_conf_data,
+                    **{f'external_schema_{k}' : v for k, v in self.remote_conf_data.items()},
+                    'tmp_federated_site_info': self.tmp_federated_site_info
+                    }
+            }
+            print(json.dumps(recovery_conf, indent=2))
+            with open(os.path.join(self.fl_working_dir, str(federated_round), "recovery_conf.json"), "w", encoding='utf-8') as jsonData:
+                json.dump(recovery_conf, jsonData, indent=2, sort_keys=True, ensure_ascii=True)
+            if federated_round > 0:
+                previous_fl_working_round_dir = os.path.join(self.fl_working_dir, str(federated_round-1))
+                print('Removing previous round files')
+                if os.path.isdir(previous_fl_working_round_dir):
+                    shutil.rmtree(previous_fl_working_round_dir)
+        print('Cleaning up minio')
+        minio_rmtree(self.minioClient, self.remote_conf_data['federated_form']['federated_bucket'], self.remote_conf_data['federated_form']['federated_dir'])

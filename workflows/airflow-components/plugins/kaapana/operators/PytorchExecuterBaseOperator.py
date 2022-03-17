@@ -17,18 +17,18 @@ class PytorchExecuterBaseOperator(KaapanaBaseOperator):
                  ):
 
         volume_mounts = [
-            VolumeMount('miniodata', mount_path='/minio', sub_path=None, read_only=False),
+            # VolumeMount('miniodata', mount_path='/minio', sub_path=None, read_only=False),
             VolumeMount('executablesdata', mount_path='/executables', sub_path=None, read_only=False)
             ]
 
         volumes = [
-            Volume(name='miniodata', configs={
-                'hostPath':
-                {
-                    'type': 'DirectoryOrCreate',
-                    'path': os.getenv('MINIODIR', "/home/kaapana/minio")
-                }
-            }),
+            # Volume(name='miniodata', configs={
+            #     'hostPath':
+            #     {
+            #         'type': 'DirectoryOrCreate',
+            #         'path': os.getenv('MINIODIR', "/home/kaapana/minio")
+            #     }
+            # }),
             Volume(name='executablesdata', configs={
                 'hostPath':
                 {

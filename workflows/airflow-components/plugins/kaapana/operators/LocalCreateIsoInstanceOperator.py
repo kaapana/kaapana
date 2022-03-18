@@ -46,8 +46,6 @@ class LocalCreateIsoInstanceOperator(KaapanaPythonBaseOperator):
             print("playbook yaml not found.")
             exit(1)
         
-        os_username = ""
-        os_password = ""
         # extra_vars = {
         #     "os_project_name": "E230-Kaapana-CI",
         #     "os_project_id": "2df9e30325c849dbadcc07d7ffd4b0d6",
@@ -68,7 +66,7 @@ class LocalCreateIsoInstanceOperator(KaapanaPythonBaseOperator):
         #     extra_vars=extra_vars,
         # )
 
-        extra_vars = f'os_project_name=E230-Kaapana-CI os_project_id=2df9e30325c849dbadcc07d7ffd4b0d6 os_username={os_username} os_password={os_password}'
+        extra_vars = "os_project_name=E230-Kaapana-CI os_project_id=2df9e30325c849dbadcc07d7ffd4b0d6 os_username=kaapana-ci os_password=HawaiiBeach2020 os_instance_name=tfda_iso_inst"
         command = ["ansible-playbook", playbook_path, "--extra-vars", extra_vars]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
         print(f'Output is {output}')

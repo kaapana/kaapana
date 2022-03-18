@@ -284,7 +284,7 @@ function install_microk8s {
     microk8s.status --wait-ready
     
     echo "${YELLOW}Enable microk8s DNS...${NC}"
-    microk8s.enable dns
+    microk8s.enable dns:$DNS
 
     echo "${YELLOW}Waiting for dns...${NC}"
     microk8s.kubectl rollout status -n kube-system deployment coredns --timeout=120s
@@ -583,7 +583,8 @@ QUIET=NA
 PREPARE_OFFLINE_SNAP=NA
 OFFLINE_TAR_PATH=""
 DEFAULT_MICRO_VERSION=1.23/stable
-DEFAULT_HELM_VERSION=3.5/stable
+DEFAULT_HELM_VERSION=3.7/stable
+DNS="8.8.8.8,8.8.4.4"
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]

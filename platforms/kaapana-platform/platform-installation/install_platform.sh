@@ -416,7 +416,7 @@ function install_chart {
     if [ -z "$CHART_PATH" ]; then
         echo "${GREEN}Pulling platform chart from registry...${NC}"
         pull_chart
-        CHART_PATH=$HOME/$PROJECT_NAME
+        CHART_PATH="$HOME/$PROJECT_NAME-$chart_version.tgz"
     fi
 
     echo "${GREEN}Installing $PROJECT_NAME:$chart_version${NC}"
@@ -459,8 +459,8 @@ function pull_chart {
     if [ "$OFFLINE_MODE" == "false" ]; then
         for i in 1 2 3 4 5;
         do
-            echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version ${NC}"
-            helm chart pull ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version \
+            echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME with version $chart_version ${NC}"
+            helm pull oci://${CONTAINER_REGISTRY_URL}/helm-charts/$PROJECT_NAME --version $chart_version \
                 && break \
                 || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 );
             
@@ -470,17 +470,6 @@ function pull_chart {
             fi 
         done
     fi
-    echo -e "${YELLOW}Exporting chart: $HOME/$PROJECT_NAME ${NC}"
-    # helm_export=$(helm chart export ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version -d $HOME/)
-    # echo $helm_export
-    if ! [ -x "$(command helm chart export ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version -d $HOME/)" ]; then
-        echo "Successfully exported chart to $HOME/"
-    else
-        helm chart ls
-        echo "${RED}We could not export the chart ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version... please set the OFFLINE_MODE to false ${NC}"
-        exit 1
-    fi
-    
 }
 
 function upgrade_chart {

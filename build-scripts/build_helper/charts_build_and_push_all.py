@@ -460,8 +460,7 @@ class HelmChart:
         else:
             os.chdir(dirname(self.chart_dir))
             try_count = 0
-
-            command = ["helm", "chart", "push", f"{HelmChart.default_registry}/{self.name}:{self.version}"]
+            command = ["helm", "push", f"{self.name}-{self.version}.tgz", f"oci://{HelmChart.default_registry}/helm-chart"]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
             while output.returncode != 0 and try_count < HelmChart.max_tries:
                 print("Error push -> try: {}".format(try_count))
@@ -497,60 +496,6 @@ class HelmChart:
                 }
                 yield log_entry
 
-    def chart_save(self):
-        os.chdir(dirname(self.chart_dir))
-        try_count = 0
-        wrong_naming = False
-        if not (self.name.endswith('chart') or self.name.endswith('workflow')):
-            log_entry = {
-                "suite": suite_tag,
-                "test": "{}:{}".format(self.name, self.version),
-                "step": "Helm save",
-                "log": "",
-                "loglevel": "ERROR",
-                "timestamp": get_timestamp(),
-                "message": "Chart save failed: {} due to name error. Name of chart has to end with -chart or -workflow!".format(self.name),
-                "rel_file": self.path,
-                "test_done": True,
-            }
-            yield log_entry
-        else:
-
-            command = ["helm", "chart", "save", self.name, f"{HelmChart.default_registry}/{self.name}:{self.version}"]
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
-            while output.returncode != 0 and try_count < HelmChart.max_tries:
-                print("Error save -> try: {}".format(try_count))
-                output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
-                try_count += 1
-            log = make_log(std_out=output.stdout, std_err=output.stderr)
-
-            if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
-                log_entry = {
-                    "suite": suite_tag,
-                    "test": "{}:{}".format(self.name, self.version),
-                    "step": "Helm save",
-                    "log": log,
-                    "loglevel": "ERROR",
-                    "timestamp": get_timestamp(),
-                    "message": "save failed: {}".format(self.name),
-                    "rel_file": self.path,
-                    "test_done": True,
-                }
-                yield log_entry
-
-            else:
-                log_entry = {
-                    "suite": suite_tag,
-                    "test": "{}:{}".format(self.name, self.version),
-                    "step": "Helm save",
-                    "log": log,
-                    "loglevel": "DEBUG",
-                    "timestamp": get_timestamp(),
-                    "message": "Chart saved successfully!",
-                    "rel_file": self.path,
-                    "test_done": True,
-                }
-                yield log_entry
 
     @staticmethod
     def check_repos(user, pwd):

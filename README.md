@@ -61,7 +61,7 @@ Kaapana is built upon the great work of many other open source projects, see the
 
 ### Supporting projects
 
-**Building Data Rich Clinical Trials - CCE_DART**: This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No 965397. Website: <https://www.ccedart.eu>
+**Building Data Rich Clinical Trials - CCE_DART**: This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No 965397. Website: <https://cce-dart.com/>
 
 **Capturing Tumor Heterogeneity in Hepatocellular Carcinoma - A Radiomics Approach Systematically Tested in Transgenic Mice** This project is partially funded by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) – 410981386. Website: <https://gepris.dfg.de/gepris/projekt/410981386>
 

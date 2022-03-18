@@ -81,12 +81,7 @@ class nnUNetTrainerV2(nnUNetTrainer):
         self.max_num_epochs = int(os.getenv("TRAIN_MAX_EPOCHS", 1000))
         self.epochs_per_round = int(os.getenv("EPOCHS_PER_ROUND", self.max_num_epochs))
         self.num_batches_per_epoch = int(os.getenv("NUM_BATCHES_PER_EPOCH", 250))
-        self.num_val_batches_per_epoch = int(os.getenv("NUM_VAL_BATCHES_PER_EPOCH", 50))
-        print(f'Using TRAIN_MAX_EPOCHS {self.max_num_epochs}')
-        print(f'Using EPOCHS_PER_ROUND {self.epochs_per_round}')
-        print(f'Using NUM_BATCHES_PER_EPOCH {self.num_batches_per_epoch}')
-        print(f'Using NUM_VAL_BATCHES_PER_EPOCH {self.num_val_batches_per_epoch}')                        
-
+        self.num_val_batches_per_epoch = int(os.getenv("NUM_VAL_BATCHES_PER_EPOCH", 50))               
         self.save_best_checkpoint = False  # whether or not to save the best checkpoint according to self.best_val_eval_criterion_MA
 
         # This is maybe a little bit ugly...
@@ -107,9 +102,16 @@ class nnUNetTrainerV2(nnUNetTrainer):
                 shutil.rmtree(before_previous_tensorboard_log_dir)
 
         self.writer = SummaryWriter(log_dir=tensorboard_log_dir)
-        with open(os.path.join('/', os.getenv('WORKFLOW_DIR'), os.getenv('OPERATOR_IN_DIR'), 'nnUNet_raw_data', os.getenv('TASK'), 'dataset.json'), "r", encoding='utf-8') as jsonData:
-            dataset = json.load(jsonData)
-        self.dataset_labels = dataset['labels']
+
+        if os.getenv('MODE') == 'training':
+            dataset_info_preprocessing_path = os.path.join('/', os.getenv('WORKFLOW_DIR'), os.getenv('OPERATOR_IN_DIR'), 'nnUNet_raw_data', os.getenv('TASK'), 'dataset.json')
+            dataset_info_path = os.path.join(self.output_folder, 'dataset.json')
+            print(f'Copying dataset.json from {dataset_info_preprocessing_path}  to {dataset_info_path}')
+            os.makedirs(os.path.dirname(dataset_info_path), exist_ok=True)
+            shutil.copyfile(dataset_info_preprocessing_path, dataset_info_path)
+            with open(dataset_info_path, "r", encoding='utf-8') as jsonData:
+                dataset = json.load(jsonData)
+            self.dataset_labels = dataset['labels']
         
         json_log_dir = Path(os.path.join('/', os.getenv('WORKFLOW_DIR'), os.getenv('OPERATOR_OUT_DIR')))
         # if json_log_dir.is_dir():
@@ -501,7 +503,6 @@ class nnUNetTrainerV2(nnUNetTrainer):
         ################################## Adapted for Kaapana ##################################
         #########################################################################################
         print('Epoch', self.epoch, self.epochs_per_round)
-        print('changes2')
         if (self.epoch > 0) and ((self.epoch+1) % self.epochs_per_round == 0) and ((self.epoch+1) != self.max_num_epochs):
             print('Interrupting training ')
             self.print_to_log_file(f"Interrupting training due to epochs_per_round={self.epochs_per_round}")

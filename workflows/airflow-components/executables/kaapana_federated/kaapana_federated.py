@@ -272,7 +272,7 @@ class KaapanaFederatedTrainingBase(ABC):
             for file_path, next_object_name in zip(tmp_site_info['file_paths'], tmp_site_info['next_object_names']):
                 file_dir = file_path.replace('.tar.gz', '')
                 KaapanaFederatedTrainingBase.apply_tar_action(file_path, file_dir)
-                KaapanaFederatedTrainingBase.fernet_encryptfile(file_path, tmp_site_info['fernet_key'])
+                KaapanaFederatedTrainingBase.fernet_encryptfile(file_path, self.client_network['fernet_key'])
 
     #                 next_object_name = obj.object_name.replace(current_federated_round_dir, next_federated_round_dir)
                 print(f'Uploading {file_path } to {next_object_name}')

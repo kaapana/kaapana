@@ -48,10 +48,10 @@ ui_forms = {
                 "items": {
                     "type": 'string',
                     "enum": [
-                        "zip-unzip-training", "model2dicom", "dcmsend", "pdf2dcm-training", "dcmsend-pdf"
+                        "zip-unzip-training", "model2dicom", "dcmsend", "upload-nnunet-data", "pdf2dcm-training", "dcmsend-pdf", "generate-nnunet-report-training"
                     ],
                 },
-                "default": ["zip-unzip-training", "model2dicom", "dcmsend", "pdf2dcm-training", "dcmsend-pdf"],
+                "default": ["zip-unzip-training", "model2dicom", "dcmsend", "upload-nnunet-data", "pdf2dcm-training", "dcmsend-pdf", "generate-nnunet-report-training"],
                 "required": True,
                 "readOnly": True
             }

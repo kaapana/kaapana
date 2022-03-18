@@ -10,6 +10,10 @@ from shutil import copy2
 from os.path import join, basename, dirname
 from tensorboardX import SummaryWriter
 
+####################### 
+##### Deprecated! ##### 
+#######################
+
 timeout = 60
 
 args_got = sys.argv[1:]

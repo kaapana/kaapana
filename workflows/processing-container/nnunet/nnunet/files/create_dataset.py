@@ -461,6 +461,11 @@ print("#")
 with open(join(task_dir, 'dataset.json'), 'w') as fp:
     json.dump(template_dataset_json, fp, indent=4, sort_keys=False)
 
+with open(join('/', os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"], 'dataset.json'), 'w') as fp:
+    # One could make this smoother, so not saving a copy of the file...
+    json.dump(template_dataset_json, fp, indent=4, sort_keys=False)
+    
+
 print("#############################################################")
 print("#")
 print("# Dataset preparation done!")

@@ -26,9 +26,9 @@ def zip_dir(zip_dir_path, target_file):
     whitelist_files = None if whitelist_files[0] == "NONE" else whitelist_files
     blacklist_files = os.getenv("BLACKLIST_FILES", "NONE").split(",")
     blacklist_files = None if blacklist_files[0] == "NONE" else blacklist_files
-    info_files = os.getenv("INFO_FILES", "NONE").split(",")
-    info_files = None if info_files[0] == "NONE" else info_files
-    target_dir = dirname(target_file)
+    # info_files = os.getenv("INFO_FILES", "NONE").split(",")
+    # info_files = None if info_files[0] == "NONE" else info_files
+    # target_dir = dirname(target_file)
     print("#")
     print(f"# whitelist_files: {whitelist_files}")
     print(f"# blacklist_files: {blacklist_files}")
@@ -41,16 +41,16 @@ def zip_dir(zip_dir_path, target_file):
             print("#")
             print(f"# Checking file {file}")
 
-            if info_files != None:
-                for info_file in info_files:
-                    info_file = info_file.replace("*", "")
-                    index_found = file.find(info_file)
-                    if index_found != -1 and index_found + len(info_file) == len(file):
-                        target_info_file_path = join(target_dir, basename(file))
-                        info_file = join(root, file)
-                        print(f"# Found info-file: {info_file}")
-                        print(f"# Target: {target_info_file_path}")
-                        copy2(info_file, target_info_file_path)
+            # if info_files != None:
+            #     for info_file in info_files:
+            #         info_file = info_file.replace("*", "")
+            #         index_found = file.find(info_file)
+            #         if index_found != -1 and index_found + len(info_file) == len(file):
+            #             target_info_file_path = join(target_dir, basename(file))
+            #             info_file = join(root, file)
+            #             print(f"# Found info-file: {info_file}")
+            #             print(f"# Target: {target_info_file_path}")
+            #             copy2(info_file, target_info_file_path)
 
             if blacklist_files != None:
                 skip_file = False

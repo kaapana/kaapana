@@ -9,6 +9,9 @@ from PIL import ImageFont
 from PIL import ImageDraw
 from datetime import datetime
 
+####################### 
+##### Deprecated! ##### 
+#######################
 
 def create_json_report(log_files, target_path):
     for log_file in log_files:

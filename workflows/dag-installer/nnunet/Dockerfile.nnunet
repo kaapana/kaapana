@@ -10,3 +10,5 @@ COPY dags/dag_nnunet_model_uninstall.py /tmp/dags/
 COPY dags/dag_nnunet_inference.py /tmp/dags/
 COPY dags/dag_nnunet_training.py /tmp/dags/
 COPY dags/dag_nnunet_ensemble.py /tmp/dags/
+
+COPY executables/generate_nnunet_report /tmp/executables/generate_nnunet_report

@@ -94,11 +94,11 @@ elif [ "$MODE" = "training" ]; then
     echo "# TRAIN_NPZ:            $TRAIN_NPZ"
     echo "#"
     
-    if ! [ -z "${TENSORBOARD_DIR}" ]; then
-        echo "# Starting monitoring:";
-        python3 -u /src/monitoring.py $RESULTS_FOLDER $TRAIN_FOLD $TENSORBOARD_DIR $nnUNet_raw_data_base &
-        echo "#"
-    fi
+    # if ! [ -z "${TENSORBOARD_DIR}" ]; then
+    #     echo "# Starting monitoring:";
+    #     python3 -u /src/monitoring.py $RESULTS_FOLDER $TRAIN_FOLD $TENSORBOARD_DIR $nnUNet_raw_data_base &
+    #     echo "#"
+    # fi
     
     if [ "$TRAIN_CONTINUE" = "True" ] || [ "$TRAIN_CONTINUE" = "true" ]; then
         continue="--continue_training"
@@ -126,15 +126,14 @@ elif [ "$MODE" = "training" ]; then
     echo "# COMMAND: nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $fp32 $npz $continue "
     nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $fp32 $npz $continue
 
-    CREATE_REPORT="True"
+    # CREATE_REPORT="True"
 
-    if [ "$CREATE_REPORT" = "True" ] || [ "$CREATE_REPORT" = "true" ]; then
-        echo "# Starting create_report ..."
-        python3 -u /src/create_report.py $RESULTS_FOLDER "/data/$OPERATOR_OUT_DIR"
-        echo "# Report created."
-        echo "#"
-    fi
-
+    # if [ "$CREATE_REPORT" = "True" ] || [ "$CREATE_REPORT" = "true" ]; then
+    #     echo "# Starting create_report ..."
+    #     python3 -u /src/create_report.py $RESULTS_FOLDER "/data/$OPERATOR_OUT_DIR"
+    #     echo "# Report created."
+    #     echo "#"
+    # fi
     
     echo "#"
     echo "# DONE"

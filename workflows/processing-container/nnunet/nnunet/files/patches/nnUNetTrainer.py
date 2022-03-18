@@ -733,7 +733,10 @@ class nnUNetTrainer(NetworkTrainer):
             log_dict.update({'loss/train_val': float(self.all_val_losses_tr_mode[-1])})
         for key, value in log_dict.items():
             self.writer.add_scalar(key, value, self.epoch)
-        log_dict.update({'epoch': self.epoch})
+        log_dict.update({
+            'epoch': self.epoch,
+            'fold': self.fold
+            })
         self.json_writer.append_data_dict(log_dict)
 
         self.print_to_log_file("Average global foreground Dice:", str(global_dc_per_class))

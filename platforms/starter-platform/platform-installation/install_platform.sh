@@ -292,17 +292,12 @@ function dump_to_tar {
 
     export CLEANUP_AFTER_TAR_DUMP
     export CONTAINER_REGISTRY_URL
-    CHART_NAME=${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version
     DUMP_TAR_DIR=$PROJECT_NAME-$chart_version
     export DUMP_TAR_DIR
     mkdir $DUMP_TAR_DIR
-    echo Exporting chart $CHART_NAME
-    helm chart export -d $DUMP_TAR_DIR $CHART_NAME
-    if [[ $CLEANUP_AFTER_TAR_DUMP == 'true' ]];
-    then
-        echo "${YELLOW} Removing $CHART_NAME}"
-        helm chart remove $CHART_NAME
-    fi
+    pull_chart
+    echo "Saving Chart $PROJECT_NAME-$chart_version.tgz"
+    mv "$PROJECT_NAME-$chart_version.tgz" $DUMP_TAR_DIR
     echo Exporting all images that start with $CONTAINER_REGISTRY_URL
     mkdir $DUMP_TAR_DIR/microk8s_images
     microk8s.ctr images ls | awk {'print $1'} | xargs -I {} bash -c 'apply_microk8s_image_export "$@"' _ {}
@@ -394,8 +389,9 @@ function install_chart {
         export TAR_LOCATION
         echo Unpacking $TAR_PATH to $TAR_LOCATION
         tar -xvf $TAR_PATH -C  $(dirname "$TAR_LOCATION")
-        echo Importing chart ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version
-        helm chart save $TAR_LOCATION/$PROJECT_NAME ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME:$chart_version
+        # Not tested...
+        mv "$DUMP_TAR_DIR/$PROJECT_NAME-$chart_version.tgz" "$HOME/$PROJECT_NAME-$chart_version.tgz"
+        CHART_PATH="$HOME/$PROJECT_NAME-$chart_version.tgz"
         echo Importing Images from $TAR_LOCATION/microk8s_images
         ls $TAR_LOCATION/microk8s_images | xargs -I {} bash -c 'apply_microk8s_image_import "$@"' _ {}
         rm -rf $TAR_LOCATION

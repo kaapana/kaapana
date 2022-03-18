@@ -1,4 +1,4 @@
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
   name: traefik-web-api-ip
@@ -13,15 +13,21 @@ spec:
     http:
       paths:
       - path: /api
+        pathType: ImplementationSpecific
         backend:
-          serviceName: traefik
-          servicePort: tr-admin
+          service:
+            name: traefik
+            port:
+              name: admin
       - path: /health
+        pathType: ImplementationSpecific
         backend:
-          serviceName: traefik
-          servicePort: tr-admin
+          service:
+            name: traefik
+            port:
+              name: admin
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
   name: traefik-ingress
@@ -36,7 +42,10 @@ spec:
     http:
       paths:
       - path: /traefik
+        pathType: ImplementationSpecific
         backend:
-          serviceName: traefik
-          servicePort: tr-admin
+          service:
+            name: traefik
+            port:
+              name: admin
 ---

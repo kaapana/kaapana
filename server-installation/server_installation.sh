@@ -37,50 +37,37 @@ else
     WHITE=""
 fi
 
-
-# DOMAIN=$(hostname -f)
-# IPADDRESS=$(hostname -i | grep -Pom 1 '[0-9.]{7,15}')
-
-# if [[ $IPADDRESS =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] && [[ ! $IPADDRESS == "127.0.0.1" ]]; then
-#     echo -e "${GREEN}IP-address: $IPADDRESS - ok!${NC}" ;
-#     echo -e "${YELLOW}Please check if this is the correct IP address of the server:${NC}" ;
-#     read -e -p "**** IP: " -i "$IPADDRESS" IPADDRESS
-# else
-#     echo
-#     echo -e "${YELLOW}Enter IP-address of the server";
-#     read -p "**** IP: ${NC}" IPADDRESS
-#     echo -e "IPADRESS: $IPADDRESS";
-# fi
-
-# echo -e ""
-# echo -e "${YELLOW}Please enter the domain (FQDN) of the server.${NC}" ;
-# echo -e "${YELLOW}The suggestion could be incorrect!${NC}" ;
-# echo -e "${YELLOW}The IP address should work as well (not recommended - will not work with valid certificates.)${NC}" ;
-# read -e -p "**** server domain (FQDN): " -i "$DOMAIN" DOMAIN
-
-# no_proxy_url="NO_PROXY=127.0.0.1,localhost,10.1.0.0/16,10.152.183.0/24,$IPADDRESS,$DOMAIN"
-
-
 function no_proxy_environment {
     echo "${GREEN}Checking no_proxy settings${NC}"
-    if [ ! -v no_proxy ] && [ ! -v NO_PROXY ]; then
+    if [ ! -v no_proxy ] && [ ! -v NO_PROXY ]; then
         echo "${YELLOW}no_proxy not found, setting it and adding ${HOSTNAME}${NC}"
-        INSERTLINE="no_proxy=$HOSTNAME"
+        echo "NO_PROXY=127.0.0.1,$HOSTNAME,10.1.0.0/16,10.152.183.0/24" >> /etc/environment
+        echo "no_proxy=127.0.0.1,$HOSTNAME,10.1.0.0/16,10.152.183.0/24" >> /etc/environment
         sed -i "$ a\\${INSERTLINE}" /etc/environment && echo "Adding $HOSTNAME to no_proxy"
     else
-        echo "${YELLOW}no_proxy/NO_PROXY found, checking if $HOSTNAME is part of it!${NC}"
-        if [ -v no_proxy ]; then
-            echo $no_proxy
-            INSERTLINE="no_proxy=$no_proxy,$HOSTNAME"
-            grep -q '\bno_proxy\b.*\b'${HOSTNAME}'\b' /etc/environment || sed -i '/no_proxy=/d' /etc/environment
-        elif [ -v NO_PROXY ]; then
-            echo $no_proxy
-            INSERTLINE="NO_PROXY=$NO_PROXY,$HOSTNAME"
-            grep -q '\bno_proxy\b.*\b'${HOSTNAME}'\b' /etc/environment || sed -i '/NO_PROXY=/d' /etc/environment
+        echo "${YELLOW}no_proxy | NO_PROXY found - check if complete ...!${NC}"
+
+        if [[ $no_proxy == *"10.152.183.0/24"* ]]; then
+            echo "${GREEN}NO_PROXY is already configured correctly...${NC}"
+            return
         fi
-        echo $INSERTLINE
-        grep -q '\bno_proxy\b.*\b'${HOSTNAME}'\b' /etc/environment  && echo "$HOSTNAME already part of no_proxy ...." || (sed -i "$ a\\${INSERTLINE}" /etc/environment && echo "Adding $HOSTNAME to no_proxy")
+
+        if grep -Fq "NO_PROXY" /etc/environment
+        then
+            sed -i "/NO_PROXY/c\NO_PROXY=$no_proxy,10.1.0.0/16,10.152.183.0/24" /etc/environment
+        else
+            echo "NO_PROXY=127.0.0.1,$HOSTNAME,10.1.0.0/16,10.152.183.0/24" >> /etc/environment
+        fi
+
+        if grep -Fq "no_proxy" /etc/environment
+        then
+            sed -i "/no_proxy/c\no_proxy=$no_proxy,10.1.0.0/16,10.152.183.0/24" /etc/environment
+        else
+            echo "no_proxy=127.0.0.1,$HOSTNAME,10.1.0.0/16,10.152.183.0/24" >> /etc/environment
+        fi
     fi
+    echo "${GREEN}Source /etc/environment ${NC}"
+    source /etc/environment
 }
 
 function proxy_environment {
@@ -258,27 +245,6 @@ export -f apply_microk8s_image_import
 
 function install_microk8s {
     
-    echo "${YELLOW}Checking /flannel/subnet.env...${NC}"
-    
-    subnet_path="/var/snap/microk8s/common/run/flannel/subnet.env"
-    if [ ! -f "$subnet_path" ]
-    then
-        echo "${YELLOW}--> Insalling subnet.env...${NC}"
-        mkdir -p /var/snap/microk8s/common/run/flannel
-        touch $subnet_path
-        set +e
-        insert_text "FLANNEL_NETWORK=10.1.0.0/16" $subnet_path
-        insert_text "FLANNEL_SUBNET=10.1.28.1/24" $subnet_path
-        insert_text "FLANNEL_MTU=1450" $subnet_path
-        insert_text "FLANNEL_IPMASQ=false" $subnet_path
-        set -e
-
-        echo "${GREEN}DONE -> subnet.env:${NC}"
-        cat $subnet_path
-
-    else
-        echo "${GREEN}--> subnet.env already found!.${NC}"
-    fi
     
     if [ ! -z "$OFFLINE_TAR_PATH" ]; then
         TAR_LOCATION=$(dirname "$OFFLINE_TAR_PATH")/$(basename "$OFFLINE_TAR_PATH" .tar.gz)
@@ -340,6 +306,8 @@ function install_microk8s {
         exit 0
     fi
     
+    echo "${YELLOW} Stopping microk8s for configuration ...${NC}"
+    microk8s.stop
     if [ -v SUDO_USER ]; then
         homedir=$(getent passwd $SUDO_USER | cut -d: -f6)
         echo "${YELLOW}Add snap bins to PATH...${NC}"
@@ -353,6 +321,7 @@ function install_microk8s {
     set +e
     echo "Enable port-range=80-32000";
     insert_text "--service-node-port-range=80-32000" /var/snap/microk8s/current/args/kube-apiserver
+    insert_text "--insecure-port=0" /var/snap/microk8s/current/args/kube-apiserver
     
     echo "Set limit of completed pods to 200";
     insert_text "--terminated-pod-gc-threshold=200" /var/snap/microk8s/current/args/kube-controller-manager
@@ -370,6 +339,7 @@ function install_microk8s {
     if [ -v no_proxy ] || [ -v NO_PROXY ]; then
         echo "${YELLOW}setting containerd no_proxy...${NC}"
         set +e
+
         if [ -v no_proxy ]; then
             insert_text "no_proxy=$no_proxy" /var/snap/microk8s/current/args/containerd-env 
         elif [ -v NO_PROXY ]; then
@@ -380,18 +350,10 @@ function install_microk8s {
         echo "No_proxy proxy not needed..."
     fi
        
-    # set +e
-    # echo "${YELLOW}Enable --authentication-token-webhook=true @kubelet ${NC}"
-    # insert_text "--authentication-token-webhook=true" /var/snap/microk8s/current/args/kubelet
-    
-    # echo "${YELLOW}Enable --authorization-mode=Webhook @kubelet ${NC}"
-    # insert_text "--authorization-mode=Webhook" /var/snap/microk8s/current/args/kubelet
-    # set -e
-    
-    echo "${YELLOW}Restarting api-server${NC}"
-    systemctl restart snap.microk8s.daemon-apiserver
-    echo "${YELLOW}Restarting kubelet${NC}"
-    systemctl restart snap.microk8s.daemon-kubelet
+    # echo "${YELLOW}Restarting api-server${NC}"
+    # systemctl restart snap.microk8s.daemon-apiserver
+    # echo "${YELLOW}Restarting kubelet${NC}"
+    # systemctl restart snap.microk8s.daemon-kubelet
 
     echo "${YELLOW}Restarting setting vm.max_map_count=262144${NC}"
 	sysctl -w vm.max_map_count=262144
@@ -399,7 +361,7 @@ function install_microk8s {
     
     echo "${YELLOW}Restarting snap.microk8s.daemon-containerd.service ...${NC}"
     systemctl daemon-reload
-    systemctl restart snap.microk8s.daemon-containerd.service 
+    # systemctl restart snap.microk8s.daemon-containerd.service 
     
     if [ -v SUDO_USER ]; then
         homedir=$(getent passwd $SUDO_USER | cut -d: -f6)
@@ -424,6 +386,7 @@ function install_microk8s {
     
     echo "${YELLOW}starting microk8s${NC}"
     microk8s.start
+
     
     if [ -v SUDO_USER ]; then
         homedir=$(getent passwd $SUDO_USER | cut -d: -f6)
@@ -458,19 +421,6 @@ function install_microk8s {
     microk8s.kubectl config view --raw > /root/.kube/config
     chmod 600 $HOME/.kube/config
 
-    snap set system refresh.hold="$(/usr/bin/date --iso-8601=seconds -d '+30 days')"
-    if (crontab -l | grep refresh.hold);then
-        echo "${GREEN}Cronjob to hold snap refresh to prevent helm and microk8s from auto-updates already set.${NC}"
-    else
-        echo "${YELLOW}Setting cronjob to hold snap refresh to prevent helm and microk8s from auto-updates.${NC}"
-        if crontab -l;then
-            crontab -l | { cat; echo '0 0 * * * /usr/bin/snap set system refresh.hold="$(/usr/bin/date --iso-8601=seconds -d '"'"'+30 days'"'"')"'; } | crontab -
-        else
-            { echo '0 0 * * * /usr/bin/snap set system refresh.hold="$(/usr/bin/date --iso-8601=seconds -d '"'"'+30 days'"'"')"'; } | crontab -
-        fi
-        echo "${GREEN}Successfully added cronjob to hold snap refresh to prevent helm and microk8s from auto-updates.${NC}"
-    fi
-    
     echo ""
     echo ""
     echo ""
@@ -494,14 +444,6 @@ function enable_gpu {
                 * ) echo "Please answer yes or no.";;
             esac
         done
-        # while true; do
-        #     read -p "Do you want to install Nvidia drivers?" yn
-        #     case $yn in
-        #         [Yy]* ) install_nvidia_drivers;break;;
-        #         [Nn]* ) break;;
-        #         * ) echo "Please answer yes or no.";;
-        #     esac
-        # done
     else
         GPU_SUPPORT=false;
     fi
@@ -587,7 +529,7 @@ function install_certs {
     else
         echo -e "files found!"
         echo -e "Creating cluster secret ..."
-        microk8s.kubectl delete secret certificate -n kube-system
+        microk8s.kubectl delete secret certificate -n kube-system || true
         microk8s.kubectl create secret tls certificate --namespace kube-system --key ./tls.key --cert ./tls.crt
         gatekeeper_pod=$(microk8s.kubectl get pods -n kube-system |grep louketo  | awk '{print $1;}')
         echo "gatekeeper pod: $gatekeeper_pod"
@@ -640,7 +582,7 @@ where opt is:
 QUIET=NA
 PREPARE_OFFLINE_SNAP=NA
 OFFLINE_TAR_PATH=""
-DEFAULT_MICRO_VERSION=1.18/stable
+DEFAULT_MICRO_VERSION=1.23/stable
 DEFAULT_HELM_VERSION=3.5/stable
 
 POSITIONAL=()

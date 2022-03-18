@@ -88,6 +88,15 @@ if test -t 1; then
     fi
 fi
 
+if ! command -v nvidia-smi &> /dev/null
+then
+    echo "${YELLOW}No GPU detected...${NC}"
+    GPU_SUPPORT="false"
+else
+    echo "${GREEN}Nvidia GPU detected!${NC}"
+    GPU_SUPPORT="true"
+fi
+
 function delete_all_images_docker {
     while true; do
         read -e -p "Do you really want to remove all the Docker images from the system?" -i " no" yn
@@ -334,18 +343,23 @@ function install_chart {
         chart_version=$DEFAULT_VERSION
     fi
 
-    if [ ! "$QUIET" = "true" ];then
-        while true; do
-            read -e -p "Enable GPU support?" -i " yes" yn
-            case $yn in
-                [Yy]* ) echo -e "${GREEN}ENABLING GPU SUPPORT${NC}" && GPU_SUPPORT="true"; break;;
-                [Nn]* ) echo -e "${YELLOW}SET NO GPU SUPPORT${NC}" && GPU_SUPPORT="false"; break;;
-                * ) echo "Please answer yes or no.";;
-            esac
-        done
+    if [ "$GPU_SUPPORT" = "true" ];then
+        echo -e "${GREEN} -> GPU found ...${NC}"
     else
-        echo -e "${YELLOW}QUIET-MODE active!${NC}"
+        if [ ! "$QUIET" = "true" ];then
+            while true; do
+                read -e -p "No Nvidia GPU detected - Enable GPU support anyway?" -i " no" yn
+                case $yn in
+                    [Yy]* ) echo -e "${GREEN}ENABLING GPU SUPPORT${NC}" && GPU_SUPPORT="true"; break;;
+                    [Nn]* ) echo -e "${YELLOW}SET NO GPU SUPPORT${NC}" && GPU_SUPPORT="false"; break;;
+                    * ) echo "Please answer yes or no.";;
+                esac
+            done
+        else
+            echo -e "${YELLOW}QUIET-MODE active!${NC}"
+        fi
     fi
+
     echo -e "${YELLOW}GPU_SUPPORT: $GPU_SUPPORT ${NC}"
     if [ "$GPU_SUPPORT" = "true" ];then
         echo -e "-> enabling GPU in Microk8s ..."

@@ -63,7 +63,7 @@ spec:
       name: log-http-port
   type: ClusterIP
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
   name: "jupyterlab-{{ $uuid }}"
@@ -79,6 +79,10 @@ spec:
     http:
       paths:
       - path: "/jupyterlab-{{ $uuid }}"
+        pathType: ImplementationSpecific
         backend:
-          serviceName: "jupyterlab-{{ $uuid }}"
-          servicePort: log-http-port
+          service:
+            name: "jupyterlab-{{ $uuid }}"
+            port:
+              name: log-http-port
+---

@@ -29,7 +29,7 @@ dependencies:
     version: "0.1.0"
     repository: file://../../services/kaapana-core/gpu-prometheus-exporter/gpu-prom-exporter-chart
   - name: traefik-chart
-    version: "2.3"
+    version: "2.6"
     repository: file://../../services/kaapana-core/traefik/traefik-chart
   - name: kube-dashboard-chart
     version: "2.0.3"

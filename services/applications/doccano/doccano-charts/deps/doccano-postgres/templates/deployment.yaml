@@ -35,8 +35,6 @@ spec:
           env:
             - name: POSTGRES_USER
               value: doccano
-            - name: POSTGRES_USER
-              value: doccano
             - name: POSTGRES_PASSWORD
               value: doccano
             # - name: POSTGRES_DB

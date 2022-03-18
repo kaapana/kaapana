@@ -104,7 +104,6 @@ class NnUnetOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             allow_federated_learning=True,
-            training_operator=True,
             # image_pull_policy="Always",
             ram_mem_mb=None,
             ram_mem_mb_lmt=None,

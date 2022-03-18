@@ -108,7 +108,7 @@ spec:
       # nodePort: 5000 # only for development!
   type: ClusterIP # only for development!
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: federated-backend-ingress
@@ -124,5 +124,7 @@ spec:
       paths:
       - path: /federated-backend
         backend:
-          serviceName: federated-backend-service
-          servicePort: 5000
+          service:
+            name: federated-backend-service
+            port:
+              number: 5000

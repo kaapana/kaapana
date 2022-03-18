@@ -24,7 +24,7 @@ global:
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana
     home_dir: /root
-    version: "0.1.1"
+    version: "0.1.3"
     kaapana_collections:
         - name: kaapana-base-collection
           version: 0.1.0 

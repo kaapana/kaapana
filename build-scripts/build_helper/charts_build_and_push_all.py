@@ -460,7 +460,7 @@ class HelmChart:
         else:
             os.chdir(dirname(self.chart_dir))
             try_count = 0
-            command = ["helm", "push", f"{self.name}-{self.version}.tgz", f"oci://{HelmChart.default_registry}/helm-chart"]
+            command = ["helm", "push", f"{self.name}-{self.version}.tgz", f"oci://{HelmChart.default_registry}"]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
             while output.returncode != 0 and try_count < HelmChart.max_tries:
                 print("Error push -> try: {}".format(try_count))

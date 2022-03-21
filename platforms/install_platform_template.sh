@@ -466,7 +466,7 @@ function pull_chart {
         for i in 1 2 3 4 5;
         do
             echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME with version $chart_version ${NC}"
-            helm pull oci://${CONTAINER_REGISTRY_URL}/helm-charts/$PROJECT_NAME --version $chart_version \
+            helm pull oci://${CONTAINER_REGISTRY_URL}/$PROJECT_NAME --version $chart_version \
                 && break \
                 || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 );
             

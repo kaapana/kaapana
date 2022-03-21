@@ -123,6 +123,7 @@ spec:
     http:
       paths:
       - path: /federated-backend
+        pathType: ImplementationSpecific
         backend:
           service:
             name: federated-backend-service

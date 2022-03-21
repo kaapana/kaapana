@@ -22,3 +22,5 @@ __pycache__
 *~
 history
 build-scripts/build-configuration.yaml
+venv
+.ipynb_checkpoints

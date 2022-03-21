@@ -31,9 +31,9 @@ spec:
             memory: 150Mi
         env:
           - name: MINIO_ACCESS_KEY
-            value: {{ .Values.global.credentials.minio_username }}
+            value: {{ .Values.global.credentials_minio_username }}
           - name: MINIO_SECRET_KEY
-            value: {{ .Values.global.credentials.minio_password }}
+            value: {{ .Values.global.credentials_minio_password }}
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret

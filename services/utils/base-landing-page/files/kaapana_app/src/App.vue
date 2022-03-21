@@ -32,6 +32,12 @@
           v-list-item-content
             v-list-item-title Extensions
           v-list-item-icon
+        v-list-item(:to="'/federated-learning'", v-if="isAuthenticated")
+          v-list-item-action
+            v-icon mdi-vector-triangle
+          v-list-item-content
+            v-list-item-title Federated Learning
+          v-list-item-icon
     v-app-bar(color="primary" dark dense clipped-left app)
       v-app-bar-nav-icon(@click.stop="drawer = !drawer")
       v-toolbar-title {{ commonData.name }}
@@ -68,6 +74,7 @@ import request from '@/request';
 import { mapGetters } from 'vuex';
 import { LOGIN, LOGOUT, CHECK_AUTH } from '@/store/actions.type';
 import { CHECK_AVAILABLE_WEBISTES, LOAD_COMMON_DATA} from '@/store/actions.type';
+
 
 export default Vue.extend({
   name: 'App',

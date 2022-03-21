@@ -10,10 +10,12 @@ from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
+from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from airflow.api.common.experimental import pool as pool_api
 from airflow.utils.log.logging_mixin import LoggingMixin
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.SegCheckOperator import SegCheckOperator
+from nnunet.GenerateNnUnetReport import GenerateNnUnetReport
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 from airflow.models import Variable
@@ -28,6 +30,8 @@ default_model = "3d_lowres"
 train_network_trainer = "nnUNetTrainerV2"
 ae_title = "nnUnet-results"
 max_epochs = 1000
+num_batches_per_epoch = 250
+num_val_batches_per_epoch = 50
 dicom_model_slice_size_limit = 70
 
 # training_results_study_uid = "1.2.826.0.1.3680043.8.498.73386889396401605965136848941191845554"
@@ -42,6 +46,22 @@ concurrency = max_active_runs * 2
 prep_threads = 2
 
 ui_forms = {
+    "elasticsearch_form": {
+        "type": "object",
+        "properties": {
+            "dataset": "$default",
+            "index": "$default",
+            "cohort_limit": "$default",
+            "single_execution": "$default",
+            "input_modality": {
+                "title": "Input Modality",
+                "default": "SEG",
+                "description": "Expected input modality.",
+                "type": "string",
+                "readOnly": True,
+            },
+        }
+    },
     "publication_form": {
         "type": "object",
         "properties": {
@@ -156,6 +176,35 @@ ui_forms = {
                 "required": True,
                 "readOnly": False
             },
+            "num_batches_per_epoch": {
+                "title": "Batches per epoch",
+                "default": num_batches_per_epoch,
+                "description": "Do only change if you know what you are doing!.",
+                "type": "integer",
+                "required": True,
+                "readOnly": False
+            },
+            "num_val_batches_per_epoch": {
+                "title": "Validation batches per epoch",
+                "default": num_val_batches_per_epoch,
+                "description": "Do only change if you know what you are doing!.",
+                "type": "integer",
+                "required": True,
+                "readOnly": False
+            },
+            "input": {
+                "title": "Input Modality",
+                "default": "SEG",
+                "description": "Expected input modality.",
+                "type": "string",
+                "readOnly": True,
+            },
+            "fp32": {
+                "type": "boolean",
+                "title": "FP32",
+                "default": False,
+                "description": "Disable mixed precision training and run old school fp32"
+            }
             # "version": {
             #     "title": "Version",
             #     "default": "0.0.1-alpha",
@@ -170,13 +219,6 @@ ui_forms = {
             #     "type": "string",
             #     "readOnly": False,
             # },
-            "input": {
-                "title": "Input Modality",
-                "default": "SEG",
-                "description": "Expected input modality.",
-                "type": "string",
-                "readOnly": True,
-            },
         }
     }
 }
@@ -265,9 +307,16 @@ nnunet_train = NnUnetOperator(
     retries=0
 )
 
-pdf2dcm = Pdf2DcmOperator(
+generate_nnunet_report = GenerateNnUnetReport(
     dag=dag,
     input_operator=nnunet_train,
+)
+
+put_to_minio = LocalMinioOperator(dag=dag, name='upload-nnunet-data', zip_files=True, action='put', action_operators=[nnunet_train, generate_nnunet_report], file_white_tuples=('.zip'))
+
+pdf2dcm = Pdf2DcmOperator(
+    dag=dag,
+    input_operator=generate_nnunet_report,
     study_uid=training_results_study_uid,
     aetitle=ae_title,
     pdf_title=f"Training Report nnUNet {TASK_NAME} {datetime.now().strftime('%d.%m.%Y %H:%M')}"
@@ -286,16 +335,16 @@ dcmseg_send_pdf = DcmSendOperator(
 zip_model = ZipUnzipOperator(
     dag=dag,
     target_filename=f"nnunet_model.zip",
-    whitelist_files="model_latest.model.pkl,model_latest.model,model_final_checkpoint.model,model_final_checkpoint.model.pkl,dataset.json,plans.pkl,*.json,*.png,*.pdf",
+    whitelist_files="model_latest.model.pkl,model_latest.model,model_final_checkpoint.model,model_final_checkpoint.model.pkl,plans.pkl,*.json,*.png,*.pdf",
     subdir="results/nnUNet",
     mode="zip",
-    info_files="dataset.json",
     batch_level=True,
     input_operator=nnunet_train
 )
 
 bin2dcm = Bin2DcmOperator(
     dag=dag,
+    dataset_info_operator=nnunet_preprocess,
     name="model2dicom",
     patient_name="nnUNet-model",
     patient_id=node_uid,
@@ -336,6 +385,6 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 get_input >> dcm2nifti_seg >> check_seg
 get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess >> nnunet_train
 
-nnunet_train >> pdf2dcm >> dcmseg_send_pdf >> clean
+nnunet_train >> generate_nnunet_report >> put_to_minio >> pdf2dcm >> dcmseg_send_pdf >> clean
 nnunet_train >> zip_model >> bin2dcm >> dcm_send_int >> clean
 # bin2dcm >> dcm_send_ext

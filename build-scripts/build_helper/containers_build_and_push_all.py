@@ -468,7 +468,7 @@ def quick_check():
     DockerContainer.used_tags_list = []
     dockerfiles_small = glob.glob(kaapana_dir+"/**/dockerfile*", recursive=True)
     for wrong in dockerfiles_small:
-        if "node_modules" in wrong:
+        if "node_modules" in wrong or "venv" in wrong:
             continue
         log_entry = {
             "suite": suite_tag,
@@ -488,7 +488,7 @@ def quick_check():
     docker_containers_list = []
     docker_containers_pending_list = []
     for dockerfile in dockerfiles:
-        if "templates_and_examples" in dockerfile:
+        if ("templates_and_examples" in dockerfile) or ("venv" in dockerfile):
             continue
             
         docker_container = DockerContainer(dockerfile)

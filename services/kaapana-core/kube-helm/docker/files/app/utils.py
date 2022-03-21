@@ -196,15 +196,21 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
         'global.slow_data_dir': os.getenv('SLOW_DATA_DIR'),
         'global.pull_policy_pods': os.getenv('PULL_POLICY_PODS'),
         'global.pull_policy_jobs': os.getenv('PULL_POLICY_JOBS'),
-        'global.offline_mode': os.environ.get('OFFLINE_MODE', 'true')
+        'global.offline_mode': os.environ.get('OFFLINE_MODE', 'true'),
+        'global.credentials_minio_username': os.getenv('MINIO_ACCESS_KEY'),
+        'global.credentials_minio_password': os.getenv('MINIO_SECRET_KEY'),
+        'global.node_id': os.getenv('NODE_ID'),
+        'global.hostname': os.getenv('HOSTNAME'),
+        'global.http_proxy': os.getenv('PROXY', ''),
+        'global.https_port': os.getenv('HTTPS_PORT', '443')
     }
 
-    http_proxy = os.getenv('PROXY', None)
-    if http_proxy is not None and http_proxy != "":
-        default_sets.update({
-            'global.http_proxy': http_proxy,
-            'global.https_proxy': http_proxy
-        })
+    # http_proxy = os.getenv('PROXY', None)
+    # if http_proxy is not None and http_proxy != "":
+    #     default_sets.update({
+    #         'global.http_proxy': http_proxy,
+    #         'global.https_proxy': http_proxy
+    #     })
 
     values = helm_show_values(name, version)
     if 'keywords' not in payload:

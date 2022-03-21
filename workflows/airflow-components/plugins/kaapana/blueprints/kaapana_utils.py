@@ -1,7 +1,14 @@
 import re
+import os
 import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 from xml.etree import ElementTree
 from datetime import datetime
+
+
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+
 
 def generate_run_id(dag_id):
     run_id = datetime.now().strftime('%y%m%d%H%M%S%f')
@@ -37,3 +44,49 @@ def cure_invalid_name(name, regex, max_length=None):
         print(f'Your name is too long, only {max_length} character are allowed, we will cut it to {name} to work with Kubernetes')
     name = _regex_match(regex, name)
     return name
+
+def get_operator_properties(*args, **kwargs):
+    if 'context' in kwargs:
+        run_id = kwargs['context']['run_id']
+        conf = kwargs['context']['dag_run'].conf
+    elif type(args) == tuple and len(args) == 1 and "run_id" in args[0]:
+        raise ValueError('Just to check if this case needs to be supported!', args, kwargs)
+        run_id = args[0]['run_id']
+    else:
+        run_id = kwargs['run_id']
+        conf =  kwargs["dag_run"].conf
+    
+    dag_run_dir = os.path.join(WORKFLOW_DIR, run_id)
+    
+    return run_id, dag_run_dir, conf
+
+# Same as in federated-backend/docker/files/app/utils.py
+#https://www.peterbe.com/plog/best-practice-with-retries-with-requests
+#https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
+def requests_retry_session(
+    retries=15, # Retries for 18.2 hours
+    backoff_factor=2,
+    status_forcelist=[404, 429, 500, 502, 503, 504],
+    session=None,
+    use_proxies=False
+):
+    session = session or requests.Session()
+    retry = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+
+    if use_proxies is True:
+        proxies = {'http': os.getenv('PROXY', None), 'https': os.getenv('PROXY', None)}
+        print('Setting proxies', proxies)
+        session.proxies.update(proxies)
+    else:
+        print('Not using proxies!')
+
+    return session 

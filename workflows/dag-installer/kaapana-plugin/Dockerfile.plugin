@@ -23,3 +23,5 @@ COPY dags/dag_tag_seg_ct_tuples.py /tmp/dags/
 COPY dags/dag_service_extract_metadata_trigger_rule.json /tmp/dags/
 
 COPY plugins/ /tmp/plugins
+
+COPY executables/kaapana_federated /tmp/executables/kaapana_federated

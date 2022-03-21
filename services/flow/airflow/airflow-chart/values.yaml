@@ -3,11 +3,7 @@ global:
     pull_policy_pods: "IfNotPresent"
     flow_namespace: "flow"
     flow_jobs_namespace: "flow-jobs"
-    hostname: 
-    credentials:
-        minio_username: "jipadmin"
-        minio_password: "DKjipTK2019"
-
+    hostname: ""
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana
 

@@ -78,8 +78,12 @@ elif [ "$MODE" = "training" ]; then
     echo "# TASK:  $TASK";
     echo "# MODEL: $MODEL";
     echo "# NETWORK_TRAINER: $TRAIN_NETWORK_TRAINER";
+    echo "# FP32:" $FP32;
     echo "#"
     echo "# MAX_EPOCHS: $TRAIN_MAX_EPOCHS";
+    echo "# EPOCHS_PER_ROUND: $EPOCHS_PER_ROUND";
+    echo "# NUM_BATCHES_PER_EPOCH: $NUM_BATCHES_PER_EPOCH";
+    echo "# NUM_VAL_BATCHES_PER_EPOCH: $NUM_VAL_BATCHES_PER_EPOCH";
     echo "#"
     echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
     echo "# nnUNet_preprocessed:  $nnUNet_preprocessed"
@@ -90,11 +94,11 @@ elif [ "$MODE" = "training" ]; then
     echo "# TRAIN_NPZ:            $TRAIN_NPZ"
     echo "#"
     
-    if ! [ -z "${TENSORBOARD_DIR}" ]; then
-        echo "# Starting monitoring:";
-        python3 -u /src/monitoring.py $RESULTS_FOLDER $TRAIN_FOLD $TENSORBOARD_DIR $nnUNet_raw_data_base &
-        echo "#"
-    fi
+    # if ! [ -z "${TENSORBOARD_DIR}" ]; then
+    #     echo "# Starting monitoring:";
+    #     python3 -u /src/monitoring.py $RESULTS_FOLDER $TRAIN_FOLD $TENSORBOARD_DIR $nnUNet_raw_data_base &
+    #     echo "#"
+    # fi
     
     if [ "$TRAIN_CONTINUE" = "True" ] || [ "$TRAIN_CONTINUE" = "true" ]; then
         continue="--continue_training"
@@ -102,6 +106,11 @@ elif [ "$MODE" = "training" ]; then
         continue=""
     fi
     
+    if [ "$FP32" = "True" ] || [ "$FP32" = "true" ]; then
+        fp32="--fp32"
+    else
+        fp32=""
+    fi
     if [ "$TRAIN_NPZ" = "True" ] || [ "$TRAIN_NPZ" = "true" ]; then
         npz="--npz"
     else
@@ -114,18 +123,17 @@ elif [ "$MODE" = "training" ]; then
     fi
     
     echo "#"
-    echo "# COMMAND: nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $npz $continue "
-    nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $npz $continue 
-    
-    CREATE_REPORT="True"
+    echo "# COMMAND: nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $fp32 $npz $continue "
+    nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $fp32 $npz $continue
 
-    if [ "$CREATE_REPORT" = "True" ] || [ "$CREATE_REPORT" = "true" ]; then
-        echo "# Starting create_report ..."
-        python3 -u /src/create_report.py $RESULTS_FOLDER "/data/$OPERATOR_OUT_DIR"
-        echo "# Report created."
-        echo "#"
-    fi
+    # CREATE_REPORT="True"
 
+    # if [ "$CREATE_REPORT" = "True" ] || [ "$CREATE_REPORT" = "true" ]; then
+    #     echo "# Starting create_report ..."
+    #     python3 -u /src/create_report.py $RESULTS_FOLDER "/data/$OPERATOR_OUT_DIR"
+    #     echo "# Report created."
+    #     echo "#"
+    # fi
     
     echo "#"
     echo "# DONE"

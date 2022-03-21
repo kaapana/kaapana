@@ -1,5 +1,6 @@
 # FROM nvidia/cuda:10.2-runtime-ubuntu18.04
-FROM nvcr.io/nvidia/pytorch:20.09-py3
+# FROM nvcr.io/nvidia/pytorch:20.09-py3
+FROM local-only/base-pytorch:0.1.0
 
 LABEL IMAGE="jupyterlab"
 LABEL VERSION="3.1.1"
@@ -22,10 +23,6 @@ LABEL CI_IGNORE="False"
 #      && rm -rf /var/lib/apt/lists/* \
 #      && pip3 install --upgrade pip
 
-
-# Common Python packages
-COPY files/requirements.txt /root/
-RUN pip3 install -r /root/requirements.txt
 
 # Disable security token for Jupyter lab
 RUN jupyter notebook --generate-config \

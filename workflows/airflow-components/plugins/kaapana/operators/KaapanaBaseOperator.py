@@ -22,6 +22,7 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 from kaapana.blueprints.kaapana_utils import generate_run_id, cure_invalid_name
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.operators.HelperFederated import federated_sharing_decorator
 from airflow.api.common.experimental import pool as pool_api
 import uuid
 import json
@@ -109,6 +110,7 @@ class KaapanaBaseOperator(BaseOperator):
                  execution_timeout=timedelta(minutes=90),
                  task_concurrency=None,
                  manage_cache=None,
+                 allow_federated_learning=False,
                  delete_input_on_success=False,
                  # Other stuff
                  batch_name=None,
@@ -161,6 +163,7 @@ class KaapanaBaseOperator(BaseOperator):
             gpu_mem_mb=gpu_mem_mb,
             gpu_mem_mb_lmt=gpu_mem_mb_lmt,
             manage_cache=manage_cache,
+            allow_federated_learning=allow_federated_learning,
             batch_name=batch_name,
             workflow_dir=workflow_dir,
             delete_input_on_success=delete_input_on_success
@@ -215,7 +218,20 @@ class KaapanaBaseOperator(BaseOperator):
                                                  }
                                                  })
         )
+        self.volume_mounts.append(VolumeMount(
+            'miniodata', mount_path='/minio', sub_path=None, read_only=False
+        ))
 
+        self.volumes.append(
+            Volume(name='miniodata', configs={
+                'hostPath':
+                {
+                    'type': 'DirectoryOrCreate',
+                    'path': os.getenv('MINIODIR', "/home/kaapana/minio")
+                }
+            })
+        )
+        
         if self.gpu_mem_mb != None or self.gpu_mem_mb_lmt != None:
             self.volume_mounts.append(VolumeMount(
                 'modeldata', mount_path='/models', sub_path=None, read_only=False
@@ -326,8 +342,16 @@ class KaapanaBaseOperator(BaseOperator):
             k = k.upper()
             self.env_vars[k] = str(v)
 
+    @federated_sharing_decorator
     @cache_operator_output
     def execute(self, context):
+
+        config_path = os.path.join(self.workflow_dir, context["run_id"], 'conf', 'conf.json')
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        if context['dag_run'].conf is not None: #not os.path.isfile(config_path) and
+            with open(os.path.join(config_path), "w") as file:
+                json.dump(context['dag_run'].conf, file)
+
         self.set_context_variables(context)
 
         if self.parallel_id is None:
@@ -346,8 +370,9 @@ class KaapanaBaseOperator(BaseOperator):
                 "CUDA_VISIBLE_DEVICES": str(gpu_id)
             })
 
-        if context['dag_run'].conf is not None and "conf" in context['dag_run'].conf and "form_data" in context['dag_run'].conf["conf"] and context['dag_run'].conf["conf"]["form_data"] is not None:
-            form_data = context['dag_run'].conf["conf"]["form_data"]
+        # if context['dag_run'].conf is not None and "conf" in context['dag_run'].conf and "form_data" in context['dag_run'].conf["conf"] and context['dag_run'].conf["conf"]["form_data"] is not None:
+        if context['dag_run'].conf is not None and "form_data" in context['dag_run'].conf and context['dag_run'].conf["form_data"] is not None:
+            form_data = context['dag_run'].conf["form_data"]
             print(form_data)
             # form_envs = {}
             # for form_key in form_data.keys():
@@ -365,6 +390,10 @@ class KaapanaBaseOperator(BaseOperator):
         for volume in self.volumes:
             if "hostPath" in volume.configs and self.data_dir == volume.configs["hostPath"]["path"]:
                 volume.configs["hostPath"]["path"] = os.path.join(volume.configs["hostPath"]["path"], context["run_id"])
+
+        self.env_vars.update({
+            "RUN_ID": context["run_id"]
+        })
 
         try:
             print("++++++++++++++++++++++++++++++++++++++++++++++++ launch pod!")
@@ -488,6 +517,7 @@ class KaapanaBaseOperator(BaseOperator):
         gpu_mem_mb,
         gpu_mem_mb_lmt,
         manage_cache,
+        allow_federated_learning,
         batch_name,
         workflow_dir,
         delete_input_on_success
@@ -509,6 +539,7 @@ class KaapanaBaseOperator(BaseOperator):
         obj.gpu_mem_mb = gpu_mem_mb
         obj.gpu_mem_mb_lmt = gpu_mem_mb_lmt
         obj.manage_cache = manage_cache or 'ignore'
+        obj.allow_federated_learning = allow_federated_learning
         obj.delete_input_on_success = delete_input_on_success
 
         obj.batch_name = batch_name if batch_name != None else BATCH_NAME

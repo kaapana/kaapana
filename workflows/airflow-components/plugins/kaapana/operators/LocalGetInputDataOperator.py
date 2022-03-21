@@ -11,12 +11,13 @@ from os.path import join, exists, dirname
 import shutil
 import glob
 import pydicom
-
+from kaapana.operators.HelperCaching import cache_operator_output
 
 class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     def check_dag_modality(self, input_modality):
-        config = self.conf["conf"] if "conf" in self.conf else None
+        # config = self.conf["conf"] if "conf" in self.conf else None
+        config = self.conf
         input_modality = input_modality.lower()
         if config is not None and "form_data" in config and config["form_data"] is not None and "input" in config[
             "form_data"]:
@@ -98,15 +99,20 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         shutil.move(src=dcm_path, dst=target)
         print(f"# Series CTP import -> OK: {series_uid}")
 
-
+    @cache_operator_output
     def start(self, ds, **kwargs):
         print("# Starting moule LocalGetInputDataOperator...")
         print("#")
         self.conf = kwargs['dag_run'].conf
 
-        if self.cohort_limit is None and self.inputs is None and self.conf is not None and "conf" in self.conf:
-            trigger_conf = self.conf["conf"]
+        # if self.cohort_limit is None and self.inputs is None and self.conf is not None and "conf" in self.conf:
+        #     trigger_conf = self.conf["conf"]
+        if self.cohort_limit is None and self.inputs is None and self.conf is not None:
+            trigger_conf = self.conf
             self.cohort_limit = int(trigger_conf["cohort_limit"]) if "cohort_limit" in trigger_conf else None
+            if "elasticsearch_form" in trigger_conf:
+                elasticsearch_data = trigger_conf["elasticsearch_form"]
+                self.cohort_limit = int(elasticsearch_data["cohort_limit"]) if ("cohort_limit" in elasticsearch_data and elasticsearch_data["cohort_limit"] is not None) else None
 
         print(f"# Cohort-limit: {self.cohort_limit}")
         print("#")

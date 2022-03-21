@@ -184,7 +184,8 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
     if not exists(target_dir):
         os.makedirs(target_dir)
 
-    dataset_info = join(dirname(binary_path), "dataset.json")
+    dataset_info = join('/', os.environ["WORKFLOW_DIR"], os.environ['DATASET_INFO_OPERATOR_DIR'], 'dataset.json') # TODO has do be changed with Jonas new version!!!
+    print(dataset_info)
     if exists(dataset_info):
         print(f"# dataset_info found!")
         with open(dataset_info) as f:

@@ -35,6 +35,36 @@ from torch.cuda.amp import autocast
 from nnunet.training.learning_rate.poly_lr import poly_lr
 from batchgenerators.utilities.file_and_folder_operations import *
 import os
+import shutil
+import json
+from torch.utils.tensorboard import SummaryWriter
+from pathlib import Path
+
+
+class JsonWriter(object):
+
+    @staticmethod
+    def _write_json(filename, data):
+        with open(filename, 'w') as json_file:
+            json.dump(data, json_file)
+            
+    @staticmethod
+    def _load_json(filename):
+        try:
+            with open(filename) as json_file:
+                exp_data = json.load(json_file)
+        except FileNotFoundError:
+            exp_data = []
+        return exp_data
+
+    def __init__(self, log_dir) -> None:
+        self.filename = os.path.join(log_dir, 'experiment_results.json')
+        # not accumulating anything because this leads to a decrease in speed over many epochs!
+
+    def append_data_dict(self, data_dict):
+        exp_data = JsonWriter._load_json(self.filename)
+        exp_data.append(data_dict)
+        JsonWriter._write_json(self.filename, exp_data)
 
 
 class nnUNetTrainerV2(nnUNetTrainer):
@@ -46,7 +76,50 @@ class nnUNetTrainerV2(nnUNetTrainer):
                  unpack_data=True, deterministic=True, fp16=False):
         super().__init__(plans_file, fold, output_folder, dataset_directory, batch_dice, stage, unpack_data,
                          deterministic, fp16)
-        self.max_num_epochs = int(os.getenv("TRAIN_MAX_EPOCHS",1000))
+
+        ################################## Adapted for Kaapana ##################################
+        self.max_num_epochs = int(os.getenv("TRAIN_MAX_EPOCHS", 1000))
+        self.epochs_per_round = int(os.getenv("EPOCHS_PER_ROUND", self.max_num_epochs))
+        self.num_batches_per_epoch = int(os.getenv("NUM_BATCHES_PER_EPOCH", 250))
+        self.num_val_batches_per_epoch = int(os.getenv("NUM_VAL_BATCHES_PER_EPOCH", 50))               
+        self.save_best_checkpoint = False  # whether or not to save the best checkpoint according to self.best_val_eval_criterion_MA
+
+        # This is maybe a little bit ugly...
+        tensorboard_log_dir = Path(os.path.join('/minio', 'tensorboard', os.getenv('RUN_ID'), os.getenv('OPERATOR_OUT_DIR')))
+        with open(os.path.join('/', os.getenv('WORKFLOW_DIR'), 'conf', 'conf.json'), 'r') as f:
+            conf_data = json.load(f)
+        if 'federated_form'in conf_data and 'from_previous_dag_run' in conf_data['federated_form'] and conf_data['federated_form']['from_previous_dag_run'] is not None:
+            previous_tensorboard_log_dir = Path(os.path.join('/minio', 'tensorboard', conf_data['federated_form']['from_previous_dag_run'], os.getenv('OPERATOR_OUT_DIR')))
+            if previous_tensorboard_log_dir.is_dir() and not tensorboard_log_dir.is_dir():
+                print('Removing log from previous round!')
+                shutil.copytree(previous_tensorboard_log_dir, tensorboard_log_dir)
+        else:
+            tensorboard_log_dir.mkdir(exist_ok=True, parents=True)
+        if 'federated_form'in conf_data and 'before_previous_dag_run' in conf_data['federated_form'] and conf_data['federated_form']['before_previous_dag_run'] is not None:
+            before_previous_tensorboard_log_dir = Path(os.path.join('/minio', 'tensorboard', conf_data['federated_form']['before_previous_dag_run'], os.getenv('OPERATOR_OUT_DIR')))
+            if before_previous_tensorboard_log_dir.is_dir():
+                print('Removing log from previous round!')
+                shutil.rmtree(before_previous_tensorboard_log_dir)
+
+        self.writer = SummaryWriter(log_dir=tensorboard_log_dir)
+
+        if os.getenv('MODE') == 'training':
+            dataset_info_preprocessing_path = os.path.join('/', os.getenv('WORKFLOW_DIR'), os.getenv('OPERATOR_IN_DIR'), 'nnUNet_raw_data', os.getenv('TASK'), 'dataset.json')
+            dataset_info_path = os.path.join(self.output_folder, 'dataset.json')
+            print(f'Copying dataset.json from {dataset_info_preprocessing_path}  to {dataset_info_path}')
+            os.makedirs(os.path.dirname(dataset_info_path), exist_ok=True)
+            shutil.copyfile(dataset_info_preprocessing_path, dataset_info_path)
+            with open(dataset_info_path, "r", encoding='utf-8') as jsonData:
+                dataset = json.load(jsonData)
+            self.dataset_labels = dataset['labels']
+        
+        json_log_dir = Path(os.path.join('/', os.getenv('WORKFLOW_DIR'), os.getenv('OPERATOR_OUT_DIR')))
+        # if json_log_dir.is_dir():
+        #     print(f'Cleaning log dir {json_log_dir}, in case there was something running before')
+        #     shutil.rmtree(json_log_dir)     
+        self.json_writer = JsonWriter(log_dir=json_log_dir)
+        # #########################################################################################
+
         self.initial_lr = 1e-2
         self.deep_supervision_scales = None
         self.ds_loss_weights = None
@@ -426,7 +499,17 @@ class nnUNetTrainerV2(nnUNetTrainer):
                                        "high momentum. High momentum (0.99) is good for datasets where it works, but "
                                        "sometimes causes issues such as this one. Momentum has now been reduced to "
                                        "0.95 and network weights have been reinitialized")
+
+        ################################## Adapted for Kaapana ##################################
+        #########################################################################################
+        print('Epoch', self.epoch, self.epochs_per_round)
+        if (self.epoch > 0) and ((self.epoch+1) % self.epochs_per_round == 0) and ((self.epoch+1) != self.max_num_epochs):
+            print('Interrupting training ')
+            self.print_to_log_file(f"Interrupting training due to epochs_per_round={self.epochs_per_round}")
+            return False
+        print(continue_training)
         return continue_training
+        #########################################################################################
 
     def run_training(self):
         """

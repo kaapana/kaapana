@@ -1,0 +1,3 @@
+---
+global:
+    fast_mount_path: "/workflows"

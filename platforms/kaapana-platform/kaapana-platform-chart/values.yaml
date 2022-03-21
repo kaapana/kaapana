@@ -11,9 +11,9 @@ global:
     flow_jobs_namespace: "flow-jobs"
     monitoring_namespace: "monitoring"
     gpu_support: false
+    credentials_minio_username: "kaapanaminio"
+    credentials_minio_password: "Kaapana2020"
     credentials:
-        minio_username: "kaapanaminio"
-        minio_password: "Kaapana2020"
         grafana_username: "admin"
         grafana_password: "admin"
         keycloak_admin_username: "admin"
@@ -34,4 +34,10 @@ global:
           version: 3.10.2
         - name: kaapana-plugin-chart
           version: 0.1.1
+        - name: federated-backend-chart
+          version: 0.1.0
+        - name: federated-setup-central-test-workflow
+          version: 0.1.0
+        - name: federated-setup-node-test-workflow
+          version: 0.1.0
 ---

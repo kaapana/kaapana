@@ -9,19 +9,19 @@ LABEL CI_IGNORE="False"
 WORKDIR /landing/app
 COPY files/kaapana_app/package*.json ./
 RUN npm install
-RUN npm install local-storage-fallback
+
 COPY files/kaapana_app .
 
-# ###############################
-# ############# Dev #############
-# ###############################
-# # In the landing-page deployment, adjust the resource limits to at least 12Gi and change the docker image to the one you are pushing 
+# # # ###############################
+# # # ############# Dev #############
+# # # ###############################
+# # # # In the landing-page deployment, adjust the resource limits to at least 12Gi and change the docker image to the one you are pushing 
 # RUN npm run build
 # WORKDIR / 
-# COPY files/kaapana_app/dev.sh .
-# RUN chmod +x dev.sh
+# COPY files/dev.sh .
+# # RUN chmod +x dev.sh
 # CMD ["/bin/sh", "dev.sh"]
-# ###############################
+# # ###############################
 
 # ###############################
 # ######### Production ##########
@@ -31,3 +31,5 @@ COPY files/kaapana_app .
 # RUN mkdir /app
 # COPY --from=build-stage /landing/app/dist /app
 # COPY files/kaapana_app/nginx.conf /etc/nginx/nginx.conf
+
+# # # ###############################

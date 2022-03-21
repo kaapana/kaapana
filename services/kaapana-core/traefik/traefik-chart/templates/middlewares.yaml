@@ -18,6 +18,7 @@ spec:
     - /jena
     - /code
     - /web-ide
+    - /federated-backend
     forceSlash: true
 ---
 apiVersion: traefik.containo.us/v1alpha1

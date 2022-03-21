@@ -3,6 +3,8 @@ pathlib==1.0.1
 pydicom==2.2.2
 dicomweb-client==0.52.0
 #slackclient
+cryptography==3.4.8
+httpx==0.22.0
 numpy==1.19.1
 scikit-learn==0.23.2
 kubernetes==11.0.0

@@ -8,3 +8,4 @@ global:
   fast_data_dir: ""
   slow_data_dir: ""
   home_dir: /root
+  hostname: ""

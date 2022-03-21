@@ -62,28 +62,6 @@ def async_dag_trigger(queue_entry):
 
     return seriesUID, result
 
-
-@csrf.exempt
-@kaapanaApi.route('/api/minio-presigned-url', methods=['POST'])
-def minio_presigned_url():
-    data = request.form.to_dict()
-    print(data)
-    if data['method'] == 'GET':
-        print(f'http://minio-service.store.svc:9000{data["path"]}')
-        resp = requests.get(f'http://minio-service.store.svc:9000{data["path"]}')
-        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-        headers = [(name, value) for (name, value) in resp.raw.headers.items() if name.lower() not in excluded_headers]
-        response = Response(resp.content, resp.status_code, headers)
-        return response
-    elif data['method'] == 'POST':
-        print(f'http://minio-service.store.svc:9000{data["path"]}')
-        file = request.files['file']
-        resp = requests.put(f'http://minio-service.store.svc:9000{data["path"]}', data=file)
-        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-        headers = [(name, value) for (name, value) in resp.raw.headers.items() if name.lower() not in excluded_headers]
-        print(resp)
-        response = Response(resp.content, resp.status_code, headers)
-        return response
         
 @csrf.exempt
 @kaapanaApi.route('/api/trigger/<string:dag_id>', methods=['POST'])

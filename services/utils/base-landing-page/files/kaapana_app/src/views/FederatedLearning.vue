@@ -69,7 +69,7 @@
                     v-container
                       v-row
                         v-col(cols='5')
-                          v-text-field(v-model='remotePost.node_id' label='Node id' required='' :disabled="remoteUpdate")
+                          v-text-field(v-model='remotePost.instance_name' label='Instance name' required='' :disabled="remoteUpdate")
                         v-col(cols='5')
                           v-text-field(v-model='remotePost.host' label='Host' required=''  :disabled="remoteUpdate")
                         v-col(cols='2')
@@ -145,7 +145,7 @@ export default Vue.extend({
       ssl_check: false,
       token: '',
       host: '',
-      node_id: '',
+      instance_name: '',
       port: 443,
       fernet_key: 'deactivated',
     }
@@ -312,7 +312,7 @@ export default Vue.extend({
         ssl_check: false,
         token: '',
         host: '',
-        node_id: '',
+        instance_name: '',
         port: 443,
         fernet_key: 'deactivated',
       }

@@ -18,14 +18,14 @@ class ClientKaapanaInstanceCreate(KaapanaInstanceBase):
 class RemoteKaapanaInstanceCreate(KaapanaInstanceBase):
     token: str
     host: str
-    node_id: str
+    instance_name: str
     port: int
     fernet_key: str = 'deactivated'
     allowed_dags: list = []
     allowed_datasets: list = []
 
 class RemoteKaapanaInstanceUpdateExternal(BaseModel):
-    node_id: str
+    instance_name: str
     allowed_dags: dict
     allowed_datasets: list
     automatic_update: bool = False
@@ -36,7 +36,7 @@ class KaapanaInstance(KaapanaInstanceBase):
     token: str
     protocol: str
     host: str
-    node_id: str
+    instance_name: str
     port: int
     fernet_key: str
     remote: bool
@@ -74,7 +74,7 @@ class JobBase(BaseModel):
     run_id: str = None
     description: str = None
     external_job_id: int = None # job_id on another system
-    addressed_kaapana_node_id: str = None # Remote Kaapana instance that is addressed, not external kaapana_instance_id!
+    addressed_kaapana_instance_name: str = None # Remote Kaapana instance that is addressed, not external kaapana_instance_id!
 
 
 class Job(JobBase):
@@ -117,7 +117,7 @@ class KaapanaInstanceWithJobs(KaapanaInstance):
 class FilterKaapanaInstances(BaseModel):
     remote: bool = True
     dag_id: str = None
-    node_ids: List = []
+    instance_names: List = []
 
 
 class JsonSchemaData(FilterKaapanaInstances):

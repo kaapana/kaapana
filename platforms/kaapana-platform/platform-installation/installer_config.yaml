@@ -12,6 +12,6 @@ https_port: 443
 dicom_port: 11112
 auth_node_port: 8000
 additional_env:
-- name: NODE_ID
+- name: INSTANCE_NAME
   default_value: "central"
-  helm_path: global.node_id
+  helm_path: global.instance_name

@@ -64,7 +64,7 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
     print('Client network')
     print(json.dumps(client_network, indent=2))
     with requests.Session() as s:
-        r = requests_retry_session(session=s).get('http://federated-backend-service.base.svc:5000/client/remote-kaapana-instance', params={'node_id': client_job['addressed_kaapana_node_id']})
+        r = requests_retry_session(session=s).get('http://federated-backend-service.base.svc:5000/client/remote-kaapana-instance', params={'instance_name': client_job['addressed_kaapana_instance_name']})
     raise_kaapana_connection_error(r)
     remote_network = r.json()
     print('Remote network')

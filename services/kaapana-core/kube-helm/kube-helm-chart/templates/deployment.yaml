@@ -81,8 +81,8 @@ spec:
           value: {{ .Values.global.credentials_minio_username }}
         - name: MINIO_SECRET_KEY
           value: {{ .Values.global.credentials_minio_password }}
-        - name: NODE_ID
-          value: {{  .Values.global.node_id }}
+        - name: INSTANCE_NAME
+          value: {{  .Values.global.instance_name }}
         - name: HOSTNAME
           value: {{  .Values.global.hostname }}
         - name: HTTPS_PORT

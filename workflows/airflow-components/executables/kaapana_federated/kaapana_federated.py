@@ -141,18 +141,18 @@ class KaapanaFederatedTrainingBase(ABC):
         KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
         self.client_network = r.json()
 
-        if 'node_ids' in self.remote_conf_data:
-            node_ids = self.remote_conf_data['node_ids']
+        if 'instance_names' in self.remote_conf_data:
+            instance_names = self.remote_conf_data['instance_names']
         else:
-            node_ids = []
+            instance_names = []
         
         if 'federated_form' in self.remote_conf_data and 'federated_round' in self.remote_conf_data['federated_form']:
             self.federated_round_start = self.remote_conf_data['federated_form']['federated_round'] + 1
         else:
             self.federated_round_start = 0
-        print(node_ids)
+        print(instance_names)
         with requests.Session() as s:
-            r = requests_retry_session(session=s).post(f'{self.client_url}/get-remote-kaapana-instances', json={'node_ids': node_ids})
+            r = requests_retry_session(session=s).post(f'{self.client_url}/get-remote-kaapana-instances', json={'instance_names': instance_names})
         KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
         self.remote_sites = r.json()
 
@@ -172,31 +172,31 @@ class KaapanaFederatedTrainingBase(ABC):
         self.remote_conf_data['federated_form']['federated_round'] = federated_round
         for site_info in self.remote_sites:
             if federated_round == 0:
-                self.tmp_federated_site_info[site_info['node_id']] = {}
+                self.tmp_federated_site_info[site_info['instance_name']] = {}
                 self.remote_conf_data['federated_form']['from_previous_dag_run'] =  None
                 self.remote_conf_data['federated_form']['before_previous_dag_run'] = None
             else:
-                self.remote_conf_data['federated_form']['before_previous_dag_run'] = self.tmp_federated_site_info[site_info['node_id']]['before_previous_dag_run']
-                self.remote_conf_data['federated_form']['from_previous_dag_run'] = self.tmp_federated_site_info[site_info['node_id']]['from_previous_dag_run']
+                self.remote_conf_data['federated_form']['before_previous_dag_run'] = self.tmp_federated_site_info[site_info['instance_name']]['before_previous_dag_run']
+                self.remote_conf_data['federated_form']['from_previous_dag_run'] = self.tmp_federated_site_info[site_info['instance_name']]['from_previous_dag_run']
 
             with requests.Session() as s:
                 r = requests_retry_session(session=s).post(f'{self.client_url}/job', json={
                     "dag_id": self.remote_conf_data['federated_form']["remote_dag_id"],
                     "conf_data": self.remote_conf_data,
                     "status": "queued",
-                    "addressed_kaapana_node_id": self.client_network['node_id'],
+                    "addressed_kaapana_instance_name": self.client_network['instance_name'],
                     "kaapana_instance_id": site_info['id']}, verify=self.client_network['ssl_check'])
 
             KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
             job = r.json()
             print('Created Job')
             print(job)
-            self.tmp_federated_site_info[site_info['node_id']] = {
+            self.tmp_federated_site_info[site_info['instance_name']] = {
                 'job_id': job['id'],
                 'fernet_key': site_info['fernet_key']
             }
     def wait_for_jobs(self, federated_round):
-        updated = {node_id: False for node_id in self.tmp_federated_site_info}
+        updated = {instance_name: False for instance_name in self.tmp_federated_site_info}
         # Waiting for updated files
         print('Waiting for updates')
         for idx in range(10000):
@@ -204,14 +204,14 @@ class KaapanaFederatedTrainingBase(ABC):
                 print(f'{10*(idx+1)} seconds')
 
             time.sleep(10) 
-            for node_id, tmp_site_info in self.tmp_federated_site_info.items():
+            for instance_name, tmp_site_info in self.tmp_federated_site_info.items():
                 with requests.Session() as s:
                     r = requests_retry_session(session=s).get(f'{self.client_url}/job', params={
                             "job_id": tmp_site_info["job_id"]
                         },  verify=self.client_network['ssl_check'])
                 job = r.json()
                 if job['status'] == 'finished':
-                    updated[node_id] = True
+                    updated[instance_name] = True
                     tmp_site_info['before_previous_dag_run'] = job['conf_data']['federated_form']['from_previous_dag_run']
                     tmp_site_info['from_previous_dag_run'] = job['run_id']
                 elif job['status'] == 'failed':
@@ -233,7 +233,7 @@ class KaapanaFederatedTrainingBase(ABC):
         current_federated_round_dir = os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round))
         next_federated_round_dir =  os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round+1))
         # Downloading all objects
-        for node_id, tmp_site_info in self.tmp_federated_site_info.items():
+        for instance_name, tmp_site_info in self.tmp_federated_site_info.items():
 #             federated_bucket = self.remote_conf_data['federated_form']['federated_bucket']
 #             if federated_round > 0:
 #                 previous_federated_round_dir = os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round-1))
@@ -246,7 +246,7 @@ class KaapanaFederatedTrainingBase(ABC):
             tmp_site_info['next_object_names'] = []
 
             print(current_federated_round_dir)
-            objects = self.minioClient.list_objects(federated_bucket, os.path.join(current_federated_round_dir, node_id), recursive=True)
+            objects = self.minioClient.list_objects(federated_bucket, os.path.join(current_federated_round_dir, instance_name), recursive=True)
             for obj in objects:
                 # https://github.com/minio/minio-py/blob/master/minio/datatypes.py#L103
                 if obj.is_dir:
@@ -264,11 +264,11 @@ class KaapanaFederatedTrainingBase(ABC):
             print('Removing objects from previous federated_round_dir on Minio')
 
             if previous_federated_round_dir is not None:
-                minio_rmtree(self.minioClient, federated_bucket, os.path.join(previous_federated_round_dir, node_id))
+                minio_rmtree(self.minioClient, federated_bucket, os.path.join(previous_federated_round_dir, instance_name))
                 
     def upload_workflow_dir_to_minio_object(self, federated_round):   
         # Push objects:
-        for node_id, tmp_site_info in self.tmp_federated_site_info.items():
+        for instance_name, tmp_site_info in self.tmp_federated_site_info.items():
             for file_path, next_object_name in zip(tmp_site_info['file_paths'], tmp_site_info['next_object_names']):
                 file_dir = file_path.replace('.tar.gz', '')
                 KaapanaFederatedTrainingBase.apply_tar_action(file_path, file_dir)
@@ -292,11 +292,11 @@ class KaapanaFederatedTrainingBase(ABC):
         for federated_round in range(self.federated_round_start, self.remote_conf_data['federated_form']['federated_total_rounds']):
             self.train_step(federated_round)
             print('Recovery conf')
-            self.tmp_federated_site_info = {node_id: {k: tmp_site_info[k] for k in ['from_previous_dag_run', 'before_previous_dag_run']} for node_id, tmp_site_info in self.tmp_federated_site_info.items()}
+            self.tmp_federated_site_info = {instance_name: {k: tmp_site_info[k] for k in ['from_previous_dag_run', 'before_previous_dag_run']} for instance_name, tmp_site_info in self.tmp_federated_site_info.items()}
             recovery_conf = {
                 "remote": False,
                 "dag_id": "Needs to be filled in manually, the dag_id of the ferederated dag!",
-                "node_ids": ["Needs to be filled manully, your own node_id!"],
+                "instance_names": ["Needs to be filled manully, your own instance_name!"],
                 "form_data": {
                     **self.local_conf_data,
                     **{f'external_schema_{k}' : v for k, v in self.remote_conf_data.items()},

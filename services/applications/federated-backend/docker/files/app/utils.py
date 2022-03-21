@@ -16,7 +16,7 @@ from minio import Minio
 
 
 HOSTNAME = os.environ['HOSTNAME']
-NODE_ID = os.environ['NODE_ID']
+INSTANCE_NAME = os.environ['INSTANCE_NAME']
 
 
 class HelperMinio():
@@ -36,7 +36,7 @@ class HelperMinio():
         return {'method': method.lower(), 'path': presigend_url.replace(f'{HelperMinio.minioClient._base_url._url.scheme}://{HelperMinio.minioClient._base_url._url.netloc}', '')}
 
     @staticmethod
-    def add_minio_urls(federated, node_id): 
+    def add_minio_urls(federated, instance_name): 
         federated_dir = federated['federated_dir']
         federated_bucket = federated['federated_bucket']
         if 'federated_round' in federated:
@@ -50,60 +50,11 @@ class HelperMinio():
         minio_urls = {}
         for federated_operator in federated['federated_operators']:
             minio_urls[federated_operator] = {  
-                'get': HelperMinio.get_custom_presigend_url('GET', federated_bucket, os.path.join(federated_dir, federated_round, node_id, f'{federated_operator}.tar.gz')),
-                'put': HelperMinio.get_custom_presigend_url('PUT', federated_bucket,  os.path.join(federated_dir, federated_round, node_id, f'{federated_operator}.tar.gz'))
+                'get': HelperMinio.get_custom_presigend_url('GET', federated_bucket, os.path.join(federated_dir, federated_round, instance_name, f'{federated_operator}.tar.gz')),
+                'put': HelperMinio.get_custom_presigend_url('PUT', federated_bucket,  os.path.join(federated_dir, federated_round, instance_name, f'{federated_operator}.tar.gz'))
             }
         return minio_urls
 
-    # @staticmethod
-    # def apply_action_to_file(minioClient, action, bucket_name, object_name, file_path, file_white_tuples=None):
-    #     print(file_path)
-    #     if file_white_tuples is not None and not file_path.lower().endswith(file_white_tuples):
-    #         print(f'Not applying action to object {object_name}, since this action is only allowed for files that end with {file_white_tuples}!')
-    #         return
-    #     if action == 'get': 
-    #         print(f"Getting file: {object_name} from {bucket_name} to {file_path}")
-    #         try:
-    #             minioClient.stat_object(bucket_name, object_name)
-    #             os.makedirs(os.path.dirname(file_path), exist_ok=True)
-    #             minioClient.fget_object(bucket_name, object_name, file_path)
-    #         except S3Error as err:
-    #             print(f"Skipping object {object_name} since it doe not exists in Minio")
-    #         except InvalidResponseError as err:
-    #             print(err)
-    #     elif action == 'remove':
-    #         print(f"Removing file: {object_name} from {bucket_name}")
-    #         try:
-    #             minioClient.remove_object(bucket_name, object_name)
-    #         except InvalidResponseError as err:
-    #             print(err)
-    #             raise
-    #     elif action == 'put':
-    #         print(f'Creating bucket {bucket_name} if it does not already exist.')
-    #         HelperMinio.make_bucket(minioClient, bucket_name)
-    #         print(f"Putting file: {file_path} to {bucket_name} to {object_name}") 
-    #         try:
-    #             minioClient.fput_object(bucket_name, object_name, file_path)
-    #         except InvalidResponseError as err:
-    #             print(err)
-    #             raise
-    #     else:
-    #         raise NameError('You need to define an action: get, remove or put!')
-
-
-
-# def get_presigend_url(minioClient, method, bucket_name, object_name, expires=timedelta(days=7)):
-#     if method not in ['GET', 'PUT']:
-#         raise NameError('Method must be either GET or PUT')
-#     presigend_url = minioClient.get_presigned_url(method, bucket_name, object_name, expires=expires)
-#     return {'method': method.lower(), 'path': presigend_url.replace(f'{minioClient._base_url._url.scheme}://{minioClient._base_url._url.netloc}', '')}
-
-# def get_minio_client(access_key, secret_key, minio_host='minio-service.store.svc', minio_port='9000'):
-#     minioClient = Minio(minio_host+":"+minio_port,
-#                         access_key=access_key,
-#                         secret_key=secret_key,
-#                         secure=False)
-#     return minioClient
 
 #https://www.peterbe.com/plog/best-practice-with-retries-with-requests
 #https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
@@ -185,7 +136,7 @@ def get_dataset_list(queryDict=None, unique_sets=False, elastic_index='meta-inde
         raise ValueError('Invalid elasticsearch query!')
 
 def execute_workflow(db_client_kaapana, conf_data, dag_id):
-    if db_client_kaapana.node_id != NODE_ID and db_client_kaapana.host != HOSTNAME:
+    if db_client_kaapana.instance_name != INSTANCE_NAME and db_client_kaapana.host != HOSTNAME:
         print('Exeuting remote job')
         if conf_data['dag'] not in json.loads(db_client_kaapana.allowed_dags):
             raise HTTPException(status_code=403, detail=f"Dag {conf_data['dag']} is not allowed to be triggered from remote!")
@@ -223,9 +174,9 @@ def raise_kaapana_connection_error(r):
 
 def delete_external_job(db: Session, db_job):
     if db_job.external_job_id is not None:
-        print(f'Deleting remote job {db_job.external_job_id}, {db_job.addressed_kaapana_node_id}')
-        same_instance = db_job.addressed_kaapana_node_id == NODE_ID
-        db_remote_kaapana_instance = crud.get_kaapana_instance(db, node_id=db_job.addressed_kaapana_node_id, remote=True)
+        print(f'Deleting remote job {db_job.external_job_id}, {db_job.addressed_kaapana_instance_name}')
+        same_instance = db_job.addressed_kaapana_instance_name == INSTANCE_NAME
+        db_remote_kaapana_instance = crud.get_kaapana_instance(db, instance_name=db_job.addressed_kaapana_instance_name, remote=True)
         params = {
             "job_id": db_job.external_job_id,
         }
@@ -243,9 +194,9 @@ def delete_external_job(db: Session, db_job):
 
 def update_external_job(db: Session, db_job):
     if db_job.external_job_id is not None:
-        print(f'Updating remote job {db_job.external_job_id}, {db_job.addressed_kaapana_node_id}')
-        same_instance = db_job.addressed_kaapana_node_id == NODE_ID
-        db_remote_kaapana_instance = crud.get_kaapana_instance(db, node_id=db_job.addressed_kaapana_node_id, remote=True)
+        print(f'Updating remote job {db_job.external_job_id}, {db_job.addressed_kaapana_instance_name}')
+        same_instance = db_job.addressed_kaapana_instance_name == INSTANCE_NAME
+        db_remote_kaapana_instance = crud.get_kaapana_instance(db, instance_name=db_job.addressed_kaapana_instance_name, remote=True)
         payload = {
                 "job_id": db_job.external_job_id,
                 "run_id": db_job.run_id,
@@ -265,65 +216,6 @@ def update_external_job(db: Session, db_job):
                 print(r.json())
 
 
-# def get_remote_updates(db: Session, periodically=False):
-#     print(100*'#')
-#     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
-#     if periodically is True and db_client_kaapana.automatic_update is False:
-#         print('Skipping automatic update!')
-#         return
-#     db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': True}))
-#     print('remote kaapana instances', db_remote_kaapana_instances)
-#     for db_remote_kaapana_instance in db_remote_kaapana_instances:
-#         same_instance = db_remote_kaapana_instance.node_id == NODE_ID
-#         if same_instance is False:
-#             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
-#             print(100*'#')
-#             print(remote_backend_url)
-
-#         udpate_instance_payload = {
-#             "node_id":  db_client_kaapana.node_id,
-#             "allowed_dags": json.loads(db_client_kaapana.allowed_dags),
-#             "allowed_datasets": json.loads(db_client_kaapana.allowed_datasets),
-#             "automatic_update": db_client_kaapana.automatic_update,
-#             "automatic_job_execution": db_client_kaapana.automatic_job_execution
-#             }
-
-#         if same_instance is True:
-#             crud.create_and_update_remote_kaapana_instance(
-#                 db=db, remote_kaapana_instance=schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload), action='external_update')
-#         else:
-#             with requests.Session() as s:                            
-#                 r = requests_retry_session(session=s).put(f'{remote_backend_url}/remote-kaapana-instance', json=udpate_instance_payload, verify=db_remote_kaapana_instance.ssl_check,
-#             headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
-#             raise_kaapana_connection_error(r)
-
-#         job_params = {
-#             "node_id": db_client_kaapana.node_id,
-#             "status": "queued"
-#         }
-#         if same_instance is True:
-#             db_incoming_jobs = crud.get_jobs(db, **job_params, remote=True)
-#             incoming_jobs = [schemas.Job(**job.__dict__).dict() for job in db_incoming_jobs]
-#         else:
-#             with requests.Session() as s:                            
-#                 r = requests_retry_session(session=s).get(f'{remote_backend_url}/jobs', params=job_params, verify=db_remote_kaapana_instance.ssl_check, 
-#             headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
-#             raise_kaapana_connection_error(r)
-#             incoming_jobs =  r.json()
-#         print(len(incoming_jobs))
-
-#         for incoming_job in incoming_jobs:
-#             print('Creating', incoming_job["id"])
-#             incoming_job['kaapana_instance_id'] = db_client_kaapana.id
-#             incoming_job['addressed_kaapana_node_id'] = db_remote_kaapana_instance.node_id
-#             incoming_job['external_job_id'] = incoming_job["id"]
-#             incoming_job['status'] = "pending"
-#             job = schemas.JobCreate(**incoming_job)
-#             db_job = crud.create_job(db, job)
-
-#     return #schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload)
-
-
 def get_remote_updates(db: Session, periodically=False):
     print(100*'#')
     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
@@ -333,9 +225,10 @@ def get_remote_updates(db: Session, periodically=False):
     db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': True}))
     print('remote kaapana instances', db_remote_kaapana_instances)
     for db_remote_kaapana_instance in db_remote_kaapana_instances:
-        same_instance = db_remote_kaapana_instance.node_id == NODE_ID
-        udpate_remote_instance_payload = {
-            "node_id":  db_client_kaapana.node_id,
+        # Todo: catch error when the request to one institution fails
+        same_instance = db_remote_kaapana_instance.instance_name == INSTANCE_NAME
+        update_remote_instance_payload = {
+            "instance_name":  db_client_kaapana.instance_name,
             "allowed_dags": json.loads(db_client_kaapana.allowed_dags),
             "allowed_datasets": json.loads(db_client_kaapana.allowed_datasets),
             "automatic_update": db_client_kaapana.automatic_update,
@@ -343,22 +236,22 @@ def get_remote_updates(db: Session, periodically=False):
             }
 
         job_params = {
-            "node_id": db_client_kaapana.node_id,
+            "instance_name": db_client_kaapana.instance_name,
             "status": "queued"
         }
         if same_instance is True:
-            incoming_data = crud.sync_client_remote(db=db, remote_kaapana_instance=schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_remote_instance_payload), **job_params)
+            incoming_data = crud.sync_client_remote(db=db, remote_kaapana_instance=schemas.RemoteKaapanaInstanceUpdateExternal(**update_remote_instance_payload), **job_params)
         else:
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
             print(100*'#')
             print(remote_backend_url)
             with requests.Session() as s:     
-                r = requests_retry_session(session=s, use_proxies=True).put(f'{remote_backend_url}/sync-client-remote', params=job_params,  json=udpate_remote_instance_payload, verify=db_remote_kaapana_instance.ssl_check, 
+                r = requests_retry_session(session=s, use_proxies=True).put(f'{remote_backend_url}/sync-client-remote', params=job_params,  json=update_remote_instance_payload, verify=db_remote_kaapana_instance.ssl_check, 
             headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
             raise_kaapana_connection_error(r)
             incoming_data =  r.json()
         incoming_jobs = incoming_data['incoming_jobs']
-        remote_kaapana_instance = schemas.RemoteKaapanaInstanceUpdateExternal(**incoming_data['udpate_remote_instance_payload'])
+        remote_kaapana_instance = schemas.RemoteKaapanaInstanceUpdateExternal(**incoming_data['update_remote_instance_payload'])
 
         crud.create_and_update_remote_kaapana_instance(db=db, remote_kaapana_instance=remote_kaapana_instance, action='external_update')
 
@@ -367,7 +260,7 @@ def get_remote_updates(db: Session, periodically=False):
         for incoming_job in incoming_jobs:
             print('Creating', incoming_job["id"])
             incoming_job['kaapana_instance_id'] = db_client_kaapana.id
-            incoming_job['addressed_kaapana_node_id'] = db_remote_kaapana_instance.node_id
+            incoming_job['addressed_kaapana_instance_name'] = db_remote_kaapana_instance.instance_name
             incoming_job['external_job_id'] = incoming_job["id"]
             incoming_job['status'] = "pending"
             job = schemas.JobCreate(**incoming_job)

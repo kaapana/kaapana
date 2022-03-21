@@ -11,8 +11,8 @@
           v-container
             //- v-row
             //-   v-col(v-if="remote" cols='12')
-            //-     v-select(v-model='node_ids' :items='available_node_ids' label='Node ids' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
-            //-   v-col(v-if="node_ids.length" cols='12')
+            //-     v-select(v-model='instance_names' :items='available_instance_names' label='Instance names' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
+            //-   v-col(v-if="instance_names.length" cols='12')
             //-     v-select(v-model='dag_id' :items='available_dags' label='Dags' chips='' hint='Select a dag')
             //-   v-col(v-for="(schema, name) in schemas" cols='12' v-if="!(remote==false && name=='federated_form')")
             //-     p {{name}}
@@ -21,18 +21,18 @@
 
             v-row
               v-col(v-if="remote" cols='12')
-                v-select(v-model='node_ids' :items='available_node_ids' label='Node ids' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
-              v-col(v-if="node_ids.length" cols='12')
+                v-select(v-model='instance_names' :items='available_instance_names' label='Instance names' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
+              v-col(v-if="instance_names.length" cols='12')
                 v-select(v-model='dag_id' :items='available_dags' label='Dags' chips='' hint='Select a dag')
               //- v-if="!(remote==false && name=='federated_form')"
               v-col(v-for="(schema, name) in schemas" cols='12')
                 p {{name}}
                 v-jsf(v-model="formData[name]" :schema="schema")
-            v-row(v-if="external_available_node_ids.length")
+            v-row(v-if="external_available_instance_names.length")
               v-col(cols='12')
                 h3 Remote Workflow
               v-col(cols='12')
-                v-select(v-model='external_node_ids' :items='external_available_node_ids' label='Node ids' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
+                v-select(v-model='external_instance_names' :items='external_available_instance_names' label='Instance names' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
             v-row(v-if="Object.keys(external_schemas).length")
               v-col(v-for="(schema, name) in external_schemas" cols='12')
                 p {{name}}
@@ -45,12 +45,12 @@
                       v-icon(color='grey lighten-1')
                         | mdi-email
                   pre.text-left Dag id: {{dag_id}}
-                  pre.text-left Node id: {{node_ids}}
-                  pre.text-left External node id: {{external_node_ids}}
+                  pre.text-left Instance name: {{instance_names}}
+                  pre.text-left External instance name: {{external_instance_names}}
                   pre.text-left {{ formData }}
         v-card-actions
           v-btn(color="orange", @click="submitWorkflow()" rounded dark) Submit job
-          v-btn(color="orange", @click="(node_ids=[]) && (dag_id=null)" rounded dark) Clear
+          v-btn(color="orange", @click="(instance_names=[]) && (dag_id=null)" rounded dark) Clear
 </template>
 
 <script>
@@ -71,10 +71,10 @@ export default {
     external_schemas: {},
     formData: {},
     available_dags: [],
-    node_ids: [],
-    external_node_ids: [],
+    instance_names: [],
+    external_instance_names: [],
     external_dag_id: null,
-    external_available_node_ids: [],
+    external_available_instance_names: [],
     dag_id: null,
     showConfData: false,
   }),
@@ -89,18 +89,18 @@ export default {
     }
   },
   computed: {
-    available_node_ids () {
-      return this.instances.map(({ node_id }) => node_id);
+    available_instance_names () {
+      return this.instances.map(({ instance_name }) => instance_name);
     },
   },
   mounted() {
   },
   watch: {
     dialogOpen () {
-      this.node_ids = []
+      this.instance_names = []
       this.dag_id = null
     },
-    node_ids() {
+    instance_names() {
       this.getDags()
       this.resetFormData()
     },
@@ -110,9 +110,9 @@ export default {
     external_dag_id() {
       this.resetExternalFormData()
     },
-    external_node_ids() {
+    external_instance_names() {
       this.resetExternalFormData()
-      if (this.external_node_ids.length) {
+      if (this.external_instance_names.length) {
         this.getExternalUiFormSchemas()
       }
     }
@@ -122,15 +122,15 @@ export default {
       this.schemas = {}
       this.formData = {}
       if (this.remote == false) {
-        this.node_ids = this.available_node_ids
+        this.instance_names = this.available_instance_names
       }
       this.resetExternalFormData()
       this.getUiFormSchemas()
-      this.external_node_ids = []
+      this.external_instance_names = []
     },
     resetExternalFormData() {
       this.external_schemas = {}
-      this.external_available_node_ids = []
+      this.external_available_instance_names = []
       if (this.external_dag_id != null) {
         console.log('getting')
         this.getAvailableExternalNodeIds()
@@ -146,7 +146,7 @@ export default {
     },
     getUiFormSchemas() {
       kaapanaApiService
-        .federatedSchemaApiPost("/get-ui-form-schemas", {remote: this.remote, dag_id: this.dag_id, node_ids: this.node_ids})
+        .federatedSchemaApiPost("/get-ui-form-schemas", {remote: this.remote, dag_id: this.dag_id, instance_names: this.instance_names})
         .then((response) => {
           let schemas = response.data
           if (this.remote==false && 'external_schemas' in schemas) {
@@ -163,7 +163,7 @@ export default {
     },
     getExternalUiFormSchemas() {
       kaapanaApiService
-        .federatedSchemaApiPost("/get-ui-form-schemas",  {remote: true, dag_id: this.external_dag_id, node_ids: this.external_node_ids})
+        .federatedSchemaApiPost("/get-ui-form-schemas",  {remote: true, dag_id: this.external_dag_id, instance_names: this.external_instance_names})
         .then((response) => {
           this.external_schemas = response.data
         })
@@ -173,7 +173,7 @@ export default {
     },
     getDags() {
       kaapanaApiService
-        .federatedClientApiPost("/get-dags", {remote: this.remote, node_ids: this.node_ids})
+        .federatedClientApiPost("/get-dags", {remote: this.remote, instance_names: this.instance_names})
         .then((response) => {
           this.available_dags = response.data;
         })
@@ -185,20 +185,20 @@ export default {
       kaapanaApiService
         .federatedClientApiPost("/get-remote-kaapana-instances", {dag_id: this.external_dag_id})
         .then((response) => {
-          this.external_available_node_ids = response.data.map(({ node_id }) => node_id);
+          this.external_available_instance_names = response.data.map(({ instance_name }) => instance_name);
         })
         .catch((err) => {
           console.log(err);
         });
     },
     submitWorkflow() {
-      if (this.external_node_ids.length) {
-        this.formData['external_schema_node_ids'] = this.external_node_ids
+      if (this.external_instance_names.length) {
+        this.formData['external_schema_instance_names'] = this.external_instance_names
       }
       kaapanaApiService
         .federatedClientApiPost("/submit-workflow-schema", {
           dag_id: this.dag_id,
-          node_ids: this.node_ids,          
+          instance_names: this.instance_names,          
           form_data: this.formData,
           remote: this.remote
         })

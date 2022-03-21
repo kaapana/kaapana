@@ -222,8 +222,8 @@ def generate_xml(binary_path, target_dir, template_path="/template.xml"):
 
     patient_name = os.getenv("PATIENT_NAME", "")
     patient_id = os.getenv("PATIENT_ID", "")
-    node_uid = os.getenv("NODE_UID", "N/A")
-    patient_id = node_uid if node_uid.lower() != "n/a" else patient_id
+    instance_name = os.getenv("INSTANCE_NAME", "N/A")
+    patient_id = instance_name if instance_name.lower() != "n/a" else patient_id
     
     manufacturer = os.getenv("MANUFACTURER", "KAAPANA")
     manufacturer_model_name = os.getenv("MANUFACTURER_MODEL", "bin2dcm")

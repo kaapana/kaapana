@@ -17,12 +17,12 @@ from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.SegCheckOperator import SegCheckOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
-from airflow.models import Variable
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INSTANCE_NAME
 
-node_uid = Variable.get(key="node_uid", default_var="N/A")
+
 study_id = "Kaapana"
-# TASK_NAME = f"Task{random.randint(100,999):03}_{node_uid}_train"
-TASK_NAME = f"Task{random.randint(100,999):03}_RACOON_{datetime.now().strftime('%d%m%y-%H%M')}"
+# TASK_NAME = f"Task{random.randint(100,999):03}_{INSTANCE_NAME}_train"
+TASK_NAME = f"Task{random.randint(100,999):03}_RACOON_{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
 seg_filter = ""
 prep_modalities = "CT"
 default_model = "3d_lowres"
@@ -114,11 +114,11 @@ ui_forms = {
                 "type": "string",
                 "readOnly": False,
             },
-            "node_uid": {
-                "title": "Site-ID",
+            "instance_name": {
+                "title": "Instance name",
                 "description": "Specify an ID for the node / site",
                 "type": "string",
-                "default": node_uid,
+                "default": INSTANCE_NAME,
                 "required": True
             },
             "shuffle_seed": {
@@ -265,7 +265,7 @@ nnunet_preprocess = NnUnetOperator(
     prep_copy_data=True,
     prep_exit_on_issue=True,
     retries=0,
-    node_uid=node_uid,
+    instance_name=INSTANCE_NAME,
     delete_input_on_success=True
 )
 
@@ -316,8 +316,8 @@ bin2dcm = Bin2DcmOperator(
     dag=dag,
     name="model2dicom",
     patient_name="nnUNet-model",
-    patient_id=node_uid,
-    node_uid=node_uid,
+    patient_id=INSTANCE_NAME,
+    instance_name=INSTANCE_NAME,
     manufacturer="Kaapana",
     manufacturer_model="nnUNet",
     version=nnunet_train.image.split(":")[-1],

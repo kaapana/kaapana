@@ -199,9 +199,10 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
         'global.offline_mode': os.environ.get('OFFLINE_MODE', 'true'),
         'global.credentials_minio_username': os.getenv('MINIO_ACCESS_KEY'),
         'global.credentials_minio_password': os.getenv('MINIO_SECRET_KEY'),
-        'global.node_id': os.getenv('NODE_ID'),
+        'global.instance_name': os.getenv('INSTANCE_NAME'),
         'global.hostname': os.getenv('HOSTNAME'),
         'global.http_proxy': os.getenv('PROXY', ''),
+        'global.https_proxy': os.getenv('PROXY', ''),
         'global.https_port': os.getenv('HTTPS_PORT', '443')
     }
 

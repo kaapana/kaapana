@@ -43,11 +43,6 @@ def get_node_info(query):
 
     return result_value
 
-def init_vars():
-    node_uid = NodeUtil.get_variable(key="node_uid", default_var=None)
-    if node_uid == None:
-        NodeUtil.get_variable("node_uid", f"node_uid_{getnode()}")
-
 
 def init_pools():
 
@@ -99,4 +94,3 @@ def init_pools():
             exit(1)
 
 init_pools()
-init_vars()

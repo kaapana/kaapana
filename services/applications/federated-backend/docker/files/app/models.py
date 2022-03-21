@@ -16,7 +16,7 @@ class Job(Base):
     id = Column(Integer, primary_key=True)
     dag_id = Column(String(64))
     external_job_id = Column(Integer)
-    addressed_kaapana_node_id = Column(String(64))
+    addressed_kaapana_instance_name = Column(String(64))
     conf_data = Column(String(51200))
     status = Column(String(64), index=True)
     run_id = Column(String(64), index=True)
@@ -39,7 +39,7 @@ class Job(Base):
 class KaapanaInstance(Base):
     __tablename__ = "kaapana_instance"
     id = Column(Integer, primary_key=True)
-    node_id = Column(String(64))
+    instance_name = Column(String(64))
     token = Column(String(100))
     remote = Column(Boolean(), index=True)
     protocol = Column(String(64), index=True)
@@ -57,7 +57,7 @@ class KaapanaInstance(Base):
     # #https://stackoverflow.com/questions/5033547/sqlalchemy-cascade-delete
     # jobs = relationship("Job", back_populates="kaapana_instance", passive_deletes=True)
 
-    __table_args__ = (UniqueConstraint('node_id', 'remote', name='_node_id_remote'),)
+    __table_args__ = (UniqueConstraint('instance_name', 'remote', name='_instance_name_remote'),)
 
     def __repr__(self):
         return '<KaapanaInstance {}://{}:{}>'.format(self.protocol, self.host, self.port)

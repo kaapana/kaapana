@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException, Response
 
 
 from . import models, schemas
-from app.utils import HOSTNAME, NODE_ID, update_external_job, delete_external_job, execute_job, get_utc_timestamp, HelperMinio, get_dag_list, raise_kaapana_connection_error
+from app.utils import HOSTNAME, INSTANCE_NAME, update_external_job, delete_external_job, execute_job, get_utc_timestamp, HelperMinio, get_dag_list, raise_kaapana_connection_error
 from urllib.parse import urlparse
 
 
@@ -31,16 +31,16 @@ def delete_kaapana_instances(db: Session):
     db.commit()
     return {"ok": True}
 
-def get_kaapana_instance(db: Session, node_id: str = None, remote: bool = True):
-    return db.query(models.KaapanaInstance).filter_by(node_id=node_id or NODE_ID, remote=remote).first()
+def get_kaapana_instance(db: Session, instance_name: str = None, remote: bool = True):
+    return db.query(models.KaapanaInstance).filter_by(instance_name=instance_name or INSTANCE_NAME, remote=remote).first()
 
 def get_kaapana_instances(db: Session, filter_kaapana_instances: schemas.FilterKaapanaInstances = None):
-    if filter_kaapana_instances.node_ids:
-        return db.query(models.KaapanaInstance).filter(models.KaapanaInstance.remote==filter_kaapana_instances.remote, models.KaapanaInstance.node_id.in_(filter_kaapana_instances.node_ids)).all()
+    if filter_kaapana_instances.instance_names:
+        return db.query(models.KaapanaInstance).filter(models.KaapanaInstance.remote==filter_kaapana_instances.remote, models.KaapanaInstance.instance_name.in_(filter_kaapana_instances.instance_names)).all()
     elif filter_kaapana_instances.dag_id is not None:
         return db.query(models.KaapanaInstance).filter(models.KaapanaInstance.remote==filter_kaapana_instances.remote, models.KaapanaInstance.allowed_dags.contains(filter_kaapana_instances.dag_id)).all()
-    elif filter_kaapana_instances.node_ids and filter_kaapana_instances.dag_id is not None:
-        return db.query(models.KaapanaInstance).filter(models.KaapanaInstance.remote==filter_kaapana_instances.remote, models.KaapanaInstance.allowed_dags.contains(filter_kaapana_instances.dag_id), models.KaapanaInstance.node_id.in_(filter_kaapana_instances.node_ids)).all()
+    elif filter_kaapana_instances.instance_names and filter_kaapana_instances.dag_id is not None:
+        return db.query(models.KaapanaInstance).filter(models.KaapanaInstance.remote==filter_kaapana_instances.remote, models.KaapanaInstance.allowed_dags.contains(filter_kaapana_instances.dag_id), models.KaapanaInstance.instance_name.in_(filter_kaapana_instances.instance_names)).all()
     else:
         return db.query(models.KaapanaInstance).filter_by(remote=filter_kaapana_instances.remote).all()
 
@@ -60,7 +60,7 @@ def create_and_update_client_kaapana_instance(db: Session, client_kaapana_instan
 
     if action == 'create':
         db_client_kaapana_instance = models.KaapanaInstance(
-            node_id=NODE_ID,
+            instance_name=INSTANCE_NAME,
             token=str(uuid.uuid4()),
             protocol='https',
             host=HOSTNAME,
@@ -95,13 +95,13 @@ def create_and_update_client_kaapana_instance(db: Session, client_kaapana_instan
 
 def create_and_update_remote_kaapana_instance(db: Session, remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate, action='create'):
     utc_timestamp = get_utc_timestamp()
-    db_remote_kaapana_instance = get_kaapana_instance(db, remote_kaapana_instance.node_id, remote=True)
+    db_remote_kaapana_instance = get_kaapana_instance(db, remote_kaapana_instance.instance_name, remote=True)
     if action == 'create':
         if db_remote_kaapana_instance:
             raise HTTPException(status_code=400, detail="Kaapana instance already exists!")
     if action == 'create':
         db_remote_kaapana_instance = models.KaapanaInstance(
-                node_id=remote_kaapana_instance.node_id,
+                instance_name=remote_kaapana_instance.instance_name,
                 token=remote_kaapana_instance.token,
                 protocol='https',
                 host=remote_kaapana_instance.host,
@@ -126,7 +126,7 @@ def create_and_update_remote_kaapana_instance(db: Session, remote_kaapana_instan
             db_remote_kaapana_instance.automatic_job_execution=remote_kaapana_instance.automatic_job_execution or False
             db_remote_kaapana_instance.time_updated=utc_timestamp
         else:
-            return Response("Your node id differs from the remote node id!", 200)
+            return Response("Your instance name differs from the remote instance name!", 200)
     else:
         raise NameError('action must be one of create, update, external_update')
     db.add(db_remote_kaapana_instance)
@@ -146,7 +146,7 @@ def create_job(db: Session, job: schemas.JobCreate):
                 'federated_operators' in job.conf_data['federated_form']):
         minio_urls = HelperMinio.add_minio_urls(
             job.conf_data['federated_form'],
-            db_kaapana_instance.node_id
+            db_kaapana_instance.instance_name
         )
         print('minio_urls ', minio_urls)
         job.conf_data['federated_form']['minio_urls'] = minio_urls
@@ -161,7 +161,7 @@ def create_job(db: Session, job: schemas.JobCreate):
         time_updated=utc_timestamp,
         external_job_id=job.external_job_id,
         dag_id=job.dag_id,
-        addressed_kaapana_node_id=job.addressed_kaapana_node_id, # or None,
+        addressed_kaapana_instance_name=job.addressed_kaapana_instance_name, # or None,
         status=job.status
     )
 
@@ -171,7 +171,7 @@ def create_job(db: Session, job: schemas.JobCreate):
         db.commit() # writing, if kaapana_id and external_job_id already exists will fail due to duplicate error
     except IntegrityError as e:
             assert isinstance(e.orig, UniqueViolation)  # proves the original exception
-            return db.query(models.Job).filter_by(external_job_id=db_job.external_job_id, addressed_kaapana_node_id=db_job.addressed_kaapana_node_id).first()
+            return db.query(models.Job).filter_by(external_job_id=db_job.external_job_id, addressed_kaapana_instance_name=db_job.addressed_kaapana_instance_name).first()
     
     update_external_job(db, db_job)
     db.refresh(db_job)
@@ -207,11 +207,11 @@ def delete_jobs(db: Session):
     db.commit()
     return {"ok": True}
 
-def get_jobs(db: Session, node_id: str = None, status: str = None, remote: bool = True):
-    if node_id is not None and status is not None:
-        return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(node_id=node_id, remote=remote).all()
-    elif node_id is not None:
-        return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(node_id=node_id, remote=remote).all()
+def get_jobs(db: Session, instance_name: str = None, status: str = None, remote: bool = True):
+    if instance_name is not None and status is not None:
+        return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).all()
+    elif instance_name is not None:
+        return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).all()
     elif status is not None:
         return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(remote=remote).all()
     else:
@@ -241,16 +241,16 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
 
     return db_job
 
-def sync_client_remote(db: Session,  remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal, node_id: str = None, status: str = None):
+def sync_client_remote(db: Session,  remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal, instance_name: str = None, status: str = None):
     db_client_kaapana = get_kaapana_instance(db, remote=False)
 
     create_and_update_remote_kaapana_instance(
         db=db, remote_kaapana_instance=remote_kaapana_instance, action='external_update')
-    db_incoming_jobs = get_jobs(db, node_id=node_id, status=status, remote=True)
+    db_incoming_jobs = get_jobs(db, instance_name=instance_name, status=status, remote=True)
     incoming_jobs = [schemas.Job(**job.__dict__).dict() for job in db_incoming_jobs]
 
-    udpate_remote_instance_payload = {
-        "node_id":  db_client_kaapana.node_id,
+    update_remote_instance_payload = {
+        "instance_name":  db_client_kaapana.instance_name,
         "allowed_dags": json.loads(db_client_kaapana.allowed_dags),
         "allowed_datasets": json.loads(db_client_kaapana.allowed_datasets),
         "automatic_update": db_client_kaapana.automatic_update,
@@ -258,5 +258,5 @@ def sync_client_remote(db: Session,  remote_kaapana_instance: schemas.RemoteKaap
         }
     return {
         'incoming_jobs': incoming_jobs,
-        'udpate_remote_instance_payload': udpate_remote_instance_payload
+        'update_remote_instance_payload': update_remote_instance_payload
     }

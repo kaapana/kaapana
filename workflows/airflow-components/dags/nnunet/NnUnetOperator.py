@@ -42,7 +42,7 @@ class NnUnetOperator(KaapanaBaseOperator):
                  inf_remove_if_empty = True,
                  protocols = None,
                  body_part = None,
-                 node_uid="N/A",
+                 instance_name="N/A",
                  models_dir="/models",
                  env_vars={},
                  parallel_id=None,
@@ -82,7 +82,7 @@ class NnUnetOperator(KaapanaBaseOperator):
             "INF_SOFTMAX": str(inf_softmax),
             "INF_SEG_FILTER": str(inf_seg_filter),
             "INF_REMOVE_IF_EMPTY": str(inf_remove_if_empty),
-            "NODE_UID": str(node_uid),
+            "INSTANCE_NAME": str(instance_name),
             "TENSORBOARD_DIR": '/tensorboard',
         }
         env_vars.update(envs)

@@ -104,12 +104,12 @@ export default {
         value: 'time_updated'
       })     
       headers.push({
-        text: 'Executing Node id',
-        value: 'kaapana_instance.node_id'
+        text: 'Executing Instance Name',
+        value: 'kaapana_instance.instance_name'
       })
       headers.push({
-        text: 'Sender Node Id',
-        value: 'addressed_kaapana_node_id'
+        text: 'Sender Instance Name',
+        value: 'addressed_kaapana_instance_name'
       })
       headers.push({
         text: 'Conf',
@@ -142,7 +142,7 @@ export default {
           job_id: item.id,
           status: 'scheduled',
           description:'The worklow was triggered!',
-          // addressed_kaapana_node_id: item.addressed_kaapana_node_id,
+          // addressed_kaapana_instance_name: item.addressed_kaapana_instance_name,
           // external_job_id: item.external_job_id
         })
         .then((response) => {

@@ -37,8 +37,8 @@ spec:
         env: # Environment variables
         - name: SECRET_KEY
           value: kaapana-secret
-        - name: NODE_ID
-          value: {{ .Values.global.node_id | default "central" }}
+        - name: INSTANCE_NAME
+          value: {{ .Values.global.instance_name | default "central" }}
         - name: HOSTNAME
           value: {{ .Values.global.hostname | default "" }}
         - name: HTTPS_PORT

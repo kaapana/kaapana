@@ -43,7 +43,7 @@ def create_json_report(log_files, target_path):
             fold_data["reference"] = dataset_json["reference"] if "reference" in dataset_json else "N/A"
             fold_data["release"] = dataset_json["release"] if "release" in dataset_json else "N/A"
             fold_data["shuffle_seed"] = dataset_json["shuffle_seed"] if "shuffle_seed" in dataset_json else "N/A"
-            fold_data["node_uid"] = dataset_json["node_uid"] if "node_uid" in dataset_json else "N/A"
+            fold_data["instance_name"] = dataset_json["instance_name"] if "instance_name" in dataset_json else "N/A"
             fold_data["max_epochs"] = dataset_json["max_epochs"] if "max_epochs" in dataset_json else "N/A"
             fold_data["tensorImageSize"] = dataset_json["tensorImageSize"] if "tensorImageSize" in dataset_json else "N/A"
 

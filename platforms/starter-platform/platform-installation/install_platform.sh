@@ -14,7 +14,7 @@ CONTAINER_REGISTRY_USERNAME=""
 CONTAINER_REGISTRY_PASSWORD=""
 
 
-NODE_ID="central"
+INSTANCE_NAME="central"
 
 FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
@@ -440,7 +440,7 @@ function install_chart {
     --set-string global.http_proxy=$http_proxy \
     --set-string global.https_proxy=$https_proxy \
     --set-string global.registry_url=$CONTAINER_REGISTRY_URL \
-    --set-string global.node_id="$NODE_ID" \
+    --set-string global.instance_name="$INSTANCE_NAME" \
     --set global.gpu_support=$GPU_SUPPORT \
     --name-template $PROJECT_NAME
 

@@ -66,13 +66,13 @@ class LocalCreateIsoInstanceOperator(KaapanaPythonBaseOperator):
         #     extra_vars=extra_vars,
         # )
 
-        extra_vars = "os_project_name=E230-Kaapana-CI os_project_id=2df9e30325c849dbadcc07d7ffd4b0d6 os_username=kaapana-ci os_password=HawaiiBeach2020 os_instance_name=tfda_iso_inst"
+        extra_vars = "os_project_name=E230-Kaapana-CI os_project_id=2df9e30325c849dbadcc07d7ffd4b0d6 os_username=os_username os_password=os_password os_instance_name=tfda_iso_inst"
         command = ["ansible-playbook", playbook_path, "--extra-vars", extra_vars]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
-        print(f'Output is {output}')
+        print(f'STD OUTPUT LOG is {output}')
         if output.returncode == 0:
-            print(f'Iso Instance created successfully! Full logs are: {output}')
-
+            print(f'Iso Instance created successfully! See full logs above...')
+        
         # print(f'IP address is {instance_ip_address} and logs are {logs}')
 
     def __init__(self,

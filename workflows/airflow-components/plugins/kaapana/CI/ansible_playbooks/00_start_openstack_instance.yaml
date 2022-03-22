@@ -4,12 +4,12 @@
   gather_facts: false
 
   vars:
-    ssh_key: "{{ os_ssh_key | default('kaapana') }}"
+    ssh_key: "{{ os_ssh_key | default('tfda_iso') }}"
     project_name: "{{ os_project_name | default('E230-DKTK-JIP') }}"
     os_project_id: "{{ os_proj_id | default('969831bf53424f1fb318a9c1d98e1941') }}"
     username: "{{ os_username }}"
     password: "{{ os_password }}"
-    instance_name: "{{ os_instance_name | default('kaapana_ci_depl_test') }}"
+    instance_name: "{{ os_instance_name | default('test_deployment_server') }}"
     volume_size: "{{ os_volume_size | default('100') }}"
     os: "{{ os_image | default('ubuntu') }}"
     instance_flavor: "{{ os_instance_flavor | default('dkfz-8.16') }}"
@@ -124,11 +124,11 @@
         regexp: 'default: "\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b'
         replace: "default: \"{{ new_instance.openstack.accessIPv4 }}"
       loop:
-      - ./01_set_new_hostname.yaml
-      - ./02_install_server_dependencies.yaml
-      - ./03_deploy_platform.yaml
-      - ./04_delete_deployment.yaml
-      - ./05_purge_filesystem.yaml
+      - ./01_install_server_dependencies.yaml
+      - ./02_deploy_platform.yaml
+      - ./03_delete_deployment.yaml
+      - ./04_purge_filesystem.yaml
+      - ./05_delete_os_instance.yaml
       delegate_to: 127.0.0.1
       ignore_errors: yes
 

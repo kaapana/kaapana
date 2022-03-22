@@ -17,8 +17,8 @@
   remote_user: "{{ remote_username }}"
   vars:
     #TODO: change hardcoded
-     ansible_ssh_private_key_file: ~/.ssh/kaapana.pem
-    
+     ansible_ssh_private_key_file: ~/.ssh/tfda_iso.pem
+
   tasks:
 
     - name: Set OpenStack hostname
@@ -29,8 +29,7 @@
     
     - name: Set server installation script path
       set_fact: 
-        #script_path: "{{ lookup('env','HOME') }}/kaapana/server-installation"
-        script_path: "/home/ubuntu/kaapana/server-installation"
+        script_path: "{{ lookup('env','HOME') }}/{{ install_script_path }}"
 
     - name: Boolean which describes if script is locally available or not
       set_fact:
@@ -61,16 +60,17 @@
       when: not is_script_local
 
     - set_fact:
-        #server_script: "{{ script_path }}/server_installation.sh"
-        server_script: "/home/ubuntu/kaapana/server-installation/server_installation.sh"
-      ignore_errors: yes 
+        server_script: "{{ script_path }}/server_installation.sh"
     
     - name: Run server dependencies install script on server
       become: yes
       environment:
         TERM: xterm
-      #script: "{{ server_script }}  --quiet"
-      script: "{{ server_script }}"
+      script: "{{ server_script }}  --quiet"
+      register: script_result
+
+    - name: stdout by running server installation script
+      debug: var=script_result.stdout_lines
 
     - name: Reboot machine...
       become: yes

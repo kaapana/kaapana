@@ -50,4 +50,4 @@ delete_iso_inst = LocalDeleteIsoEnvOperator(dag=dag)
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-create_iso_env >> install_platform >> copy_data_algo >> run_algo_send_result >> delete_iso_inst >> clean
+delete_iso_inst >> create_iso_env >> install_platform >> copy_data_algo >> run_algo_send_result >> clean

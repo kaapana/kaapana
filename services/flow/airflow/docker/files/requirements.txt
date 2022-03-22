@@ -19,7 +19,7 @@ kubernetes==11.0.0
 apache-airflow==2.2.2
 debugpy==1.3.0
 Flask-Admin
-ansible==2.9.6
+ansible
 gitpython
 openstacksdk
 selenium

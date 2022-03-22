@@ -12,18 +12,19 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.blueprints.kaapana_utils import generate_minio_credentials
 from kaapana.operators.HelperMinio import HelperMinio
-
+from kaapana.operators.HelperCaching import cache_operator_output
 
 DOCCANO_API = 'http://doccano-backend-service.store:8000/v1/'
 
 class LocalDoccanoUploadDatasetOperator(KaapanaPythonBaseOperator):
 
+    @cache_operator_output
     @rest_self_udpate
     def start(self, ds, **kwargs):
         conf = kwargs['dag_run'].conf
 
-        if 'conf' in conf and 'form_data' in conf['conf'] and conf['conf']['form_data'] is not None:
-            project_payload = conf['conf']['form_data']
+        if 'workflow_form' in conf and conf['workflow_form'] is not None:
+            project_payload = conf['workflow_form']
 
         print('project_payload', project_payload)
 
@@ -92,7 +93,7 @@ class LocalDoccanoUploadDatasetOperator(KaapanaPythonBaseOperator):
         ):
     
         super().__init__(
-           dag,
+           dag=dag,
            name=name,
            python_callable=self.start,
            execution_timeout=timedelta(minutes=30),

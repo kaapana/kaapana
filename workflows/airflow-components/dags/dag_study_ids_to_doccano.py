@@ -13,10 +13,20 @@ from airflow.models import DAG
 from doccano.LocalDoccanoUploadDatasetOperator import LocalDoccanoUploadDatasetOperator
 from doccano.LocalCreateStudyIDJsonOperator import LocalCreateStudyIDJsonOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
 
 ui_forms = {
+    "elasticsearch_form": {
+        "type": "object",
+        "properties": {
+            "dataset": "$default",
+            "index": "$default",
+            "cohort_limit": "$default",
+            "single_execution": "$default"
+        }
+    },
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -65,10 +75,11 @@ dag = DAG(
 get_input = LocalGetInputDataOperator(dag=dag, operator_out_dir='get-input-data', data_type='json')
 create_doccano_json = LocalCreateStudyIDJsonOperator(dag=dag, input_operator=get_input)
 doccano_upload = LocalDoccanoUploadDatasetOperator(dag=dag, input_operator=create_doccano_json)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 # unzip_files = LocalUnzipFileOperator(dag=dag, input_operator=get_object_from_minio)
 # upload_project = LocalNLPUploadProjectOperator(dag=dag, input_operator=unzip_files, upload_user='jipuser')
 # #dicom_send = DcmSendOperator(dag=dag, input_operator=unzip_files, ae_title='uploaded')
 # remove_object_from_minio = LocalMinioOperator(dag=dag, parallel_id='removing', action='remove', trigger_rule=TriggerRule.ALL_DONE)
 
-get_input >> create_doccano_json >> doccano_upload
+get_input >> create_doccano_json >> doccano_upload >>  clean
 # get_input >> unzip_files >> upload_project >> remove_object_from_minio

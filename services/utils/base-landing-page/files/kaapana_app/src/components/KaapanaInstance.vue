@@ -1,7 +1,7 @@
 
 <template lang="pug">
   v-card
-    v-card-title Node ID: {{ instance.instance_name }}
+    v-card-title Instance name: {{ instance.instance_name }}
       v-spacer
       v-tooltip(v-if="remote" bottom='')
         template(v-slot:activator='{ on, attrs }')

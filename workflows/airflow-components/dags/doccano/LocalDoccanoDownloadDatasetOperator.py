@@ -9,10 +9,11 @@ from io import StringIO
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
-
+from kaapana.operators.HelperCaching import cache_operator_output
 
 class LocalDoccanoDownloadDatasetOperator(KaapanaPythonBaseOperator):
 
+    @cache_operator_output
     def start(self, ds, **kwargs):
         print("Starting moule LocalNLPDownloadProjectOperator...")
         print(kwargs)
@@ -75,7 +76,7 @@ class LocalDoccanoDownloadDatasetOperator(KaapanaPythonBaseOperator):
                 *args, **kwargs):
 
         super().__init__(
-            dag,
+            dag=dag,
             name=name,
             python_callable=self.start,
             *args, **kwargs

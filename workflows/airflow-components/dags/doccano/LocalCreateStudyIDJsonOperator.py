@@ -11,16 +11,17 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.blueprints.kaapana_utils import generate_minio_credentials
 from kaapana.operators.HelperMinio import HelperMinio
+from kaapana.operators.HelperCaching import cache_operator_output
 
 class LocalCreateStudyIDJsonOperator(KaapanaPythonBaseOperator):
 
+    @cache_operator_output
     @rest_self_udpate
     def start(self, ds, **kwargs):
         conf = kwargs['dag_run'].conf
-        print('conf', conf)
-        if 'conf' in conf and 'form_data' in conf['conf'] and conf['conf']['form_data'] is not None and 'zip_files' in conf['conf']['form_data']:
-                self.zip_files = conf['conf']['form_data']['zip_files']
-                print('Zip files set by form data', self.zip_files)
+        if 'workflow_form' in conf and conf['workflow_form'] is not None and 'zip_files' in conf['workflow_form']:
+                self.zip_files = conf['workflow_form']['zip_files']
+                print('Zip files set by workflow_form', self.zip_files)
 
         run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
         batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
@@ -54,7 +55,7 @@ class LocalCreateStudyIDJsonOperator(KaapanaPythonBaseOperator):
         ):
     
         super().__init__(
-           dag,
+           dag=dag,
            name=name,
            python_callable=self.start,
            execution_timeout=timedelta(minutes=30),

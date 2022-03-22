@@ -9,6 +9,9 @@ dependencies:
   - name: doccano
     version: 0.1.0
     repository: file://../../../../../../services/applications/doccano/doccano-charts
+  - name: doccano-image-tagging-workflow
+    version: 0.1.0
+    repository: file://../../../../../../workflows/dag-installer/doccano-image-tagging/doccano-image-tagging-workflow
   - name: debug-container-chart
     version: 1.0.1
     repository: file://../../../../../../services/applications/debug-container/debug-container-chart

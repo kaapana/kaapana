@@ -105,6 +105,7 @@ if __name__ == '__main__':
 
     build_installer_scripts = False if (charts_only or docker_only) else True
 
+    container_engine = "docker" if  "container_engine" not in configuration else configuration["container_engine"]
     build_containers = False if (charts_only or installer_scripts_only) else configuration["build_containers"]
     push_containers = False if (charts_only or installer_scripts_only) else configuration["push_containers"]
     push_containers = False if build_only else push_containers
@@ -320,7 +321,7 @@ if __name__ == '__main__':
         print("-----------------------------------------------------------")
         print("------------------------ CONTAINER ------------------------")
         print("-----------------------------------------------------------")
-        config_list = (kaapana_dir, http_proxy, default_container_registry)
+        config_list = (kaapana_dir, http_proxy, container_engine, default_container_registry)
         docker_containers_list, logs = start_container_build(config=config_list)
 
         for log in logs:

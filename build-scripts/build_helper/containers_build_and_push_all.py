@@ -1,26 +1,24 @@
 #!/usr/bin/env python3
-import sys
 import glob
 import os
 import json
 from subprocess import PIPE, run
-from time import time
+from time import time, sleep
 from shutil import which
 
-suite_tag = "Docker Container"
-
-
+suite_tag = "Container"
 def container_registry_login(container_registry, username, password):
-    print(f"-> Docker registry-login: {container_registry}")
-    command = ["docker", "login", container_registry, "--username", username, "--password", password]
+    print(f"-> Container registry-login: {container_registry}")
+    command = [Container.container_engine, "login", container_registry, "--username", username, "--password", password]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
 
     if output.returncode != 0:
         print("Something went wrong!")
-        print(f"Docker couldn't login into registry {container_registry}")
+        print(f"Couldn't login into registry {container_registry}")
         print(f"Message: {output.stdout}")
         print(f"Error:   {output.stderr}")
         exit(1)
+
 
 def get_timestamp():
     return str(int(time() * 1000))
@@ -67,7 +65,8 @@ def make_log(std_out, std_err):
     return log
 
 
-class DockerContainer:
+class Container:
+    container_engine = "docker"
     used_tags_list = []
 
     def __eq__(self, other):
@@ -116,7 +115,7 @@ class DockerContainer:
                 elif line.__contains__('FROM') and not line.__contains__('#ignore'):
                     self.base_images.append(line.split("FROM ")[1].split(" ")[0].rstrip().strip().replace("\"", ""))
                 elif line.__contains__('LABEL CI_IGNORE='):
-                    self.ci_ignore = True if line.split("=")[1].rstrip().lower().replace("\"","").replace("'","") == "true" else False
+                    self.ci_ignore = True if line.split("=")[1].rstrip().lower().replace("\"", "").replace("'", "") == "true" else False
 
         if self.container_registry == None:
             self.container_registry = default_registry
@@ -128,11 +127,11 @@ class DockerContainer:
             log_entry = {
                 "suite": suite_tag,
                 "test": self.tag.replace(self.container_registry, "")[1:],
-                "step": "Docker-Tag Extraction",
+                "step": "Containerr-Tag Extraction",
                 "log": "",
                 "loglevel": "DEBUG",
                 "timestamp": get_timestamp(),
-                "message": "Docker-tag extraction successful!",
+                "message": "Containerr-Tag extraction successful!",
                 "rel_file": self.path,
                 "container": self,
             }
@@ -147,7 +146,7 @@ class DockerContainer:
             log_entry = {
                 "suite": suite_tag,
                 "test": dockerfile,
-                "step": "Docker-Tag Extraction",
+                "step": "Containerr-Tag Extraction",
                 "log": "",
                 "loglevel": "WARN",
                 "timestamp": get_timestamp(),
@@ -158,11 +157,11 @@ class DockerContainer:
             self.error = True
 
     def check_pending(self):
-        if self.tag in DockerContainer.used_tags_list:
+        if self.tag in Container.used_tags_list:
             log_entry = {
                 "suite": suite_tag,
                 "test": self.tag.replace(self.container_registry, "")[1:],
-                "step": "Docker-Tag Extraction",
+                "step": "Containerr-Tag Extraction",
                 "log": "",
                 "loglevel": "ERROR",
                 "timestamp": get_timestamp(),
@@ -175,11 +174,11 @@ class DockerContainer:
             self.error = True
         else:
             for base_image in self.base_images:
-                # if base_image not in DockerContainer.used_tags_list:
-                if default_registry in base_image and base_image not in DockerContainer.used_tags_list:
+                # if base_image not in Container.used_tags_list:
+                if default_registry in base_image and base_image not in Container.used_tags_list:
                     self.pending = True
                 else:
-                    DockerContainer.used_tags_list.append(self.tag)
+                    Container.used_tags_list.append(self.tag)
                     self.pending = False
 
         return self.pending
@@ -289,9 +288,9 @@ class DockerContainer:
         startTime = time()
         os.chdir(self.container_dir)
         if http_proxy is not None:
-            command = ["docker", "build", "--build-arg", "http_proxy={}".format(http_proxy), "--build-arg", "https_proxy={}".format(http_proxy), "-t", self.tag, "-f", self.path, "."]
+            command = [Container.container_engine, "build", "--build-arg", "http_proxy={}".format(http_proxy), "--build-arg", "https_proxy={}".format(http_proxy), "-t", self.tag, "-f", self.path, "."]
         else:
-            command = ["docker", "build", "-t", self.tag, "-f", self.path, "."]
+            command = [Container.container_engine, "build", "-t", self.tag, "-f", self.path, "."]
 
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000, env=dict(os.environ, DOCKER_BUILDKIT="1"))
         log = make_log(std_out=output.stdout, std_err=output.stderr)
@@ -300,7 +299,7 @@ class DockerContainer:
             log_entry = {
                 "suite": suite_tag,
                 "test": self.tag.replace(self.container_registry, "")[1:],
-                "step": "Docker build",
+                "step": "Container build",
                 "log": log,
                 "loglevel": "ERROR",
                 "timestamp": get_timestamp(),
@@ -314,11 +313,11 @@ class DockerContainer:
 
         hours, rem = divmod(time()-startTime, 3600)
         minutes, seconds = divmod(rem, 60)
-        print("############################ Build: {:0>2}:{:0>2}:{:05.2f} -> success".format(int(hours),int(minutes),seconds))
+        print("############################ Build: {:0>2}:{:0>2}:{:05.2f} -> success".format(int(hours), int(minutes), seconds))
         log_entry = {
             "suite": suite_tag,
             "test": self.tag.replace(self.container_registry, "")[1:],
-            "step": "Docker build",
+            "step": "Container build",
             "log": "",
             "loglevel": "DEBUG",
             "timestamp": get_timestamp(),
@@ -337,7 +336,7 @@ class DockerContainer:
             log_entry = {
                 "suite": suite_tag,
                 "test": self.tag.replace(self.container_registry, "")[1:],
-                "step": "Docker push",
+                "step": "Container push",
                 "log": "",
                 "loglevel": "DEBUG",
                 "timestamp": get_timestamp(),
@@ -352,7 +351,7 @@ class DockerContainer:
         max_retires = 2
         retries = 0
 
-        command = ["docker", "push", self.tag]
+        command = [Container.container_engine, "push", self.tag]
 
         while retries < max_retires:
             retries += 1
@@ -361,14 +360,13 @@ class DockerContainer:
                 break
 
         log = make_log(std_out=output.stdout, std_err=output.stderr)
-
-        if output.returncode == 0 and "Pushed" in output.stdout:
+        if output.returncode == 0 and ("Pushed" in output.stdout or "podman" in Container.container_engine):
             print("############################ Push -> success")
             print()
             log_entry = {
                 "suite": suite_tag,
                 "test": self.tag.replace(self.container_registry, "")[1:],
-                "step": "Docker push",
+                "step": "Container push",
                 "log": "",
                 "loglevel": "DEBUG",
                 "timestamp": get_timestamp(),
@@ -385,7 +383,7 @@ class DockerContainer:
             log_entry = {
                 "suite": suite_tag,
                 "test": self.tag.replace(self.container_registry, "")[1:],
-                "step": "Docker push",
+                "step": "Container push",
                 "log": "",
                 "loglevel": "DEBUG",
                 "timestamp": get_timestamp(),
@@ -403,7 +401,7 @@ class DockerContainer:
                 log_entry = {
                     "suite": suite_tag,
                     "test": self.tag.replace(self.container_registry, "")[1:],
-                    "step": "Docker push",
+                    "step": "Container push",
                     "log": "",
                     "loglevel": "DEBUG",
                     "timestamp": get_timestamp(),
@@ -418,7 +416,7 @@ class DockerContainer:
                 log_entry = {
                     "suite": suite_tag,
                     "test": self.tag.replace(self.container_registry, "")[1:],
-                    "step": "Docker push",
+                    "step": "Container push",
                     "log": log,
                     "loglevel": "ERROR",
                     "timestamp": get_timestamp(),
@@ -435,7 +433,7 @@ class DockerContainer:
             log_entry = {
                 "suite": suite_tag,
                 "test": self.tag.replace(self.container_registry, "")[1:],
-                "step": "Docker push",
+                "step": "Container push",
                 "log": "",
                 "loglevel": "WARN",
                 "timestamp": get_timestamp(),
@@ -451,7 +449,7 @@ class DockerContainer:
             log_entry = {
                 "suite": suite_tag,
                 "test": self.tag.replace(self.container_registry, "")[1:],
-                "step": "Docker push",
+                "step": "Container push",
                 "log": log,
                 "loglevel": "ERROR",
                 "timestamp": get_timestamp(),
@@ -465,7 +463,7 @@ class DockerContainer:
 
 
 def quick_check():
-    DockerContainer.used_tags_list = []
+    Container.used_tags_list = []
     dockerfiles_small = glob.glob(kaapana_dir+"/**/dockerfile*", recursive=True)
     for wrong in dockerfiles_small:
         if "node_modules" in wrong or "venv" in wrong:
@@ -485,51 +483,51 @@ def quick_check():
     dockerfiles = glob.glob(kaapana_dir+"/**/Dockerfile*", recursive=True)
     print("Found {} Dockerfiles".format(len(dockerfiles)))
 
-    docker_containers_list = []
-    docker_containers_pending_list = []
+    containers_list = []
+    containers_pending_list = []
     for dockerfile in dockerfiles:
         if ("templates_and_examples" in dockerfile) or ("venv" in dockerfile):
             continue
-            
-        docker_container = DockerContainer(dockerfile)
-        for log_entry in docker_container.log_list:
+
+        container = Container(dockerfile)
+        for log_entry in container.log_list:
             yield log_entry
 
-        if docker_container.error:
+        if container.error:
             continue
 
         else:
             log_entry = {
                 "suite": suite_tag,
-                "test": docker_container.tag.replace(docker_container.container_registry, "")[1:],
-                "step": "Docker-Tag Check",
+                "test": container.tag.replace(container.container_registry, "")[1:],
+                "step": "Containerr-Tag Check",
                 "log": "",
                 "loglevel": "DEBUG",
                 "timestamp": get_timestamp(),
-                "message": "Docker tag ok!",
-                "rel_file": docker_container.path,
-                "container": docker_container,
+                "message": "Container tag ok!",
+                "rel_file": container.path,
+                "container": container,
             }
             yield log_entry
 
-            if docker_container.pending:
-                docker_containers_pending_list.append(docker_container)
+            if container.pending:
+                containers_pending_list.append(container)
             else:
-                docker_containers_list.append(docker_container)
+                containers_list.append(container)
 
     max_tries = 5
     try_count = 0
 
     while try_count <= max_tries:
         try_count += 1
-        pending_copy = docker_containers_pending_list.copy()
+        pending_copy = containers_pending_list.copy()
         for pending_container in pending_copy:
             if not pending_container.check_pending():
-                docker_containers_list.append(pending_container)
-                docker_container.used_tags_list.append(docker_container.tag)
-                docker_containers_pending_list.remove(pending_container)
+                containers_list.append(pending_container)
+                container.used_tags_list.append(container.tag)
+                containers_pending_list.remove(pending_container)
 
-    for not_resolved in docker_containers_pending_list:
+    for not_resolved in containers_pending_list:
         log_entry = {
             "suite": suite_tag,
             "test": not_resolved.tag.replace(not_resolved.container_registry, "")[1:],
@@ -542,54 +540,60 @@ def quick_check():
             "container": "",
         }
 
-        if not_resolved.tag not in DockerContainer.used_tags_list:
-            docker_containers_list.append(not_resolved)
-            docker_container.used_tags_list.append(not_resolved.tag)
+        if not_resolved.tag not in Container.used_tags_list:
+            containers_list.append(not_resolved)
+            container.used_tags_list.append(not_resolved.tag)
 
         yield log_entry
 
     i = 0
-    list_size_containers = len(docker_containers_list)
+    list_size_containers = len(containers_list)
     while i < list_size_containers:
-        container = docker_containers_list[i]
+        container = containers_list[i]
         if container.container_registry.lower() == "local-only":
-            docker_containers_list.insert(0, docker_containers_list.pop(i))
+            containers_list.insert(0, containers_list.pop(i))
             i += 1
             continue
 
         for base_image in container.base_images:
             base_image_registry = base_image.split("/")[0]
             if base_image_registry == default_registry:
-                docker_containers_list.insert(len(docker_containers_list)-1, docker_containers_list.pop(i))
+                containers_list.insert(len(containers_list)-1, containers_list.pop(i))
                 list_size_containers -= 1
                 i -= 1
                 continue
 
         i += 1
-    yield docker_containers_list
+    yield containers_list
 
 
 def start_container_build(config):
     global kaapana_dir, http_proxy, default_registry
-    kaapana_dir, http_proxy, default_registry = config
+    kaapana_dir, http_proxy, container_engine, default_registry = config
+    Container.container_engine = container_engine
 
-    if which("docker") is None:
-        print("Docker was not found!")
-        print("Please install Docker on your system.")
+    if which(Container.container_engine) is None:
+        print(f"{Container.container_engine} was not found!")
+        print("Please install {Container.container_engine} on your system.")
         exit(1)
+    
+    print("")
+    print(f"Container engine: {Container.container_engine}")
+    print("")
+    sleep(2)
 
     logs = []
     for log in quick_check():
         if type(log) != dict:
-            docker_containers_list = log
+            containers_list = log
         else:
             logs.append(log)
 
     print()
-    print("Process {} containers...".format(len(docker_containers_list)))
+    print("Process {} containers...".format(len(containers_list)))
     print()
 
-    return [docker_containers_list, logs]
+    return [containers_list, logs]
 
 
 if __name__ == '__main__':

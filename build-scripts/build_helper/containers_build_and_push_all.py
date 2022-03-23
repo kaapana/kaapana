@@ -8,6 +8,17 @@ from shutil import which
 
 suite_tag = "Container"
 def container_registry_login(container_registry, username, password):
+    print(f"-> Container registry-logout: {container_registry}")
+    command = [Container.container_engine, "logout", container_registry]
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
+    
+    if output.returncode != 0:
+        print("Something went wrong!")
+        print(f"Couldn't logout from registry {container_registry}")
+        print(f"Message: {output.stdout}")
+        print(f"Error:   {output.stderr}")
+        exit(1)
+
     print(f"-> Container registry-login: {container_registry}")
     command = [Container.container_engine, "login", container_registry, "--username", username, "--password", password]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)

@@ -1,7 +1,7 @@
 echo '==============================='
 echo 'Run an awesome M2aia Application'
 echo '==============================='
-env QTWEBENGINE_DISABLE_SANDBOX=1 /m2aia/M2aia.sh &
+env QTWEBENGINE_DISABLE_SANDBOX=1 /m2aia/M2aiaWorkbench.sh &
 PID=$!
 # wait until Workbench is ready
 tail -f  /root/Desktop/logfile | while read LOGLINE

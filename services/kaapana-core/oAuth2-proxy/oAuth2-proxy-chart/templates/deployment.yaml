@@ -37,7 +37,7 @@ spec:
           - --login-url=https://{{ required "A valid hostname (or fqdn) is required!" $.Values.global.hostname }}/auth/realms/kaapana/protocol/openid-connect/auth
           - --oidc-issuer-url=https://{{ required "A valid hostname (or fqdn) is required!" $.Values.global.hostname }}/auth/realms/kaapana
         {{- end }}
-          - --upstream=https://traefik:443
+          - --upstream=https://traefik:4443
           - --provider=keycloak-oidc
           - --client-id=kaapana
           - --client-secret=uQBJzc2YDzjRfj2OCT79JDShojeqAK2R

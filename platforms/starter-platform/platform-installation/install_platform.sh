@@ -445,7 +445,7 @@ function install_chart {
     --name-template $PROJECT_NAME
 
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
-        rm -rf $CHART_PATH
+        rm $CHART_PATH
     fi
 
     print_installation_done
@@ -483,7 +483,7 @@ function upgrade_chart {
     echo "${YELLOW}version: $chart_version${NC}"
     
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
-        CHART_PATH=$HOME/$PROJECT_NAME
+        CHART_PATH=./$PROJECT_NAME
         pull_chart
     fi
     echo -e "${YELLOW}Charyt-tgz-path $CHART_PATH${NC}"

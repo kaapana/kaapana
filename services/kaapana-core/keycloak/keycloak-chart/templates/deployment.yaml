@@ -56,9 +56,9 @@ spec:
           - name: KEYCLOAK_HTTPS_PORT
             value: "8443"
           - name: ROOT_LOGLEVEL
-            value: "DEBUG"
+            value: "WARN"
           - name: KEYCLOAK_LOGLEVEL
-            value: "DEBUG"
+            value: "WARN"
           - name: PROXY_ADDRESS_FORWARDING
             value: "true"
           ports:

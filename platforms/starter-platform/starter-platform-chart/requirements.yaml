@@ -15,10 +15,6 @@ dependencies:
   - name: keycloak-chart
     version: "11.0.3"
     repository: file://../../../services/kaapana-core/keycloak/keycloak-chart
-  - name: gpu-prom-exporter-chart
-    condition: global.gpu_support
-    version: "0.1.0"
-    repository: file://../../../services/kaapana-core/gpu-prometheus-exporter/gpu-prom-exporter-chart
   - name: traefik-chart
     version: "2.6"
     repository: file://../../../services/kaapana-core/traefik/traefik-chart

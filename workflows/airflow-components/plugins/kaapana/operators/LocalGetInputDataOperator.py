@@ -309,7 +309,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             name=name,
             batch_name=batch_name,
             python_callable=self.start,
-            task_concurrency=10,
+            max_active_tis_per_dag=10,
             execution_timeout=timedelta(minutes=60),
             **kwargs
         )

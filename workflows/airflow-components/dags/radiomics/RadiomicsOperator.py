@@ -28,7 +28,7 @@ class RadiomicsOperator(KaapanaBaseOperator):
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
-            task_concurrency=10,
+            max_active_tis_per_dag=10,
             ram_mem_mb=3000,
             **kwargs
             )

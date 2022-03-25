@@ -215,9 +215,9 @@ class BaseOperator(LoggingMixin):
     :type resources: dict
     :param run_as_user: unix username to impersonate while running the task
     :type run_as_user: str
-    :param task_concurrency: When set, a task will be able to limit the concurrent
+    :param max_active_tis_per_dag: When set, a task will be able to limit the concurrent
         runs across execution_dates
-    :type task_concurrency: int
+    :type max_active_tis_per_dag: int
     :param executor_config: Additional task-level configuration parameters that are
         interpreted by a specific executor. Parameters are namespaced by the name of
         executor.
@@ -318,7 +318,7 @@ class BaseOperator(LoggingMixin):
         trigger_rule=TriggerRule.ALL_SUCCESS,  # type: str
         resources=None,  # type: Optional[Dict]
         run_as_user=None,  # type: Optional[str]
-        task_concurrency=None,  # type: Optional[int]
+        max_active_tis_per_dag=None,  # type: Optional[int]
         executor_config=None,  # type: Optional[Dict]
         do_xcom_push=True,  # type: bool
         inlets=None,  # type: Optional[Dict]
@@ -408,7 +408,7 @@ class BaseOperator(LoggingMixin):
 
         self.resources = Resources(**resources) if resources is not None else None
         self.run_as_user = run_as_user
-        self.task_concurrency = task_concurrency
+        self.max_active_tis_per_dag = max_active_tis_per_dag
         self.executor_config = executor_config or {}
         self.do_xcom_push = do_xcom_push
 

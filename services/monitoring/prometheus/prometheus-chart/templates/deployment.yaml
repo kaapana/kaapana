@@ -63,7 +63,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: prometheus
-          image: {{  .Values.global.registry_url }}/prometheus:v2.25.0
+          image: {{  .Values.global.registry_url }}/prometheus:v2.34.0
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           args:
             - "--config.file=/etc/prometheus.yaml"

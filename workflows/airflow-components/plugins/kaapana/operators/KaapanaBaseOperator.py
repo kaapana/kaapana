@@ -108,7 +108,7 @@ class KaapanaBaseOperator(BaseOperator):
                  retry_delay=timedelta(seconds=30),
                  priority_weight=1,
                  execution_timeout=timedelta(minutes=90),
-                 task_concurrency=None,
+                 max_active_tis_per_dag=None,
                  manage_cache=None,
                  allow_federated_learning=False,
                  delete_input_on_success=False,
@@ -173,7 +173,7 @@ class KaapanaBaseOperator(BaseOperator):
         self.retries = retries
         self.priority_weight = priority_weight
         self.execution_timeout = execution_timeout
-        self.task_concurrency = task_concurrency
+        self.max_active_tis_per_dag = max_active_tis_per_dag
         self.retry_delay = retry_delay
 
         # Kubernetes
@@ -304,7 +304,7 @@ class KaapanaBaseOperator(BaseOperator):
             retries=self.retries,
             priority_weight=self.priority_weight,
             execution_timeout=self.execution_timeout,
-            task_concurrency=self.task_concurrency,
+            max_active_tis_per_dag=self.max_active_tis_per_dag,
             pool=self.pool,
             pool_slots=self.pool_slots,
             retry_delay=self.retry_delay,

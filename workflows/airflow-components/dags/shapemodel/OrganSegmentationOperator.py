@@ -40,7 +40,7 @@ class OrganSegmentationOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             env_vars=env_vars,
-            task_concurrency=25,
+            max_active_tis_per_dag=25,
             ram_mem_mb=6000,
             **kwargs
             )

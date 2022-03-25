@@ -7,12 +7,13 @@ from uuid import getnode
 
 # Will show up under airflow.hooks.test_plugin.PluginHook
 
-cpu_core_query = "sum(machine_cpu_cores)"
-memory_query = "floor(sum(machine_memory_bytes)/1048576)"
-gpu_query = "sum(nvidia_gpu_num_devices)"
-gpu_mem_used_query = "ceil(sum(nvidia_gpu_memory_used_bytes)/1048576)"
-gpu_mem_available_query = "floor(sum(nvidia_gpu_memory_total_bytes)/1048576)"
+
 prometheus_url = "http://prometheus-service.monitoring.svc:9090/prometheus/api/v1/query?query="
+
+gpu_count_query = "count(DCGM_FI_DEV_POWER_USAGE{kubernetes_name='nvidia-dcgm-exporter'})"
+memory_query = "floor(sum(machine_memory_bytes)/1048576)"
+cpu_core_query = "machine_cpu_cores"
+
 
 def get_node_info(query):
     max_tries = 5
@@ -55,13 +56,12 @@ def init_pools():
         print()
         node_memory = get_node_info(query=memory_query)
         node_cpu = get_node_info(query=cpu_core_query)
-        node_gpu_mem = get_node_info(query=gpu_mem_available_query)
-        node_gpu_count = get_node_info(query=gpu_query)
+        node_gpu_count = get_node_info(query=gpu_count_query)
         try:
             print("+++++++++++++++++++++++++++++++++++++++++++++ CREATING MEMORY POOL")
             pool_api.create_or_update_pool(
                 name="MEMORY",
-                slots=abs(node_memory - 10000),
+                slots=node_memory,
                 description="Memory of the node in MB"
             )
             # Variable.set("mem_alloc", NodeUtil.mem_alloc)
@@ -75,11 +75,6 @@ def init_pools():
             # Variable.set("cpu_alloc", NodeUtil.cpu_alloc)
 
             print("+++++++++++++++++++++++++++++++++++++++++++++ CREATING GPU POOL")
-            pool_api.create_or_update_pool(
-                name="GPU_MEM",
-                slots=node_gpu_mem,
-                description="Memory of all GPUs of the node in MB"
-            )
             pool_api.create_or_update_pool(
                 name="GPU_COUNT",
                 slots=node_gpu_count,

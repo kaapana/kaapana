@@ -17,13 +17,13 @@ data:
     # A scrape configuration containing exactly one endpoint to scrape:
     # Here it's Prometheus itself.
     scrape_configs:
-    # {{- if .Values.global.gpu_support }}
-    #   - job_name: 'GPUs'
-    #     scheme: http
-    #     metrics_path: '/'
-    #     static_configs:
-    #     - targets: ['gpu-prom-exporter-service.kube-system.svc:9445']
-    # {{- end }}
+    {{- if .Values.global.gpu_support }}
+      - job_name: 'GPUs'
+        scheme: http
+        metrics_path: '/metrics'
+        static_configs:
+        - targets: ['nvidia-dcgm-exporter.gpu-operator-resources.svc:9400']
+    {{- end }}
 
       - job_name: 'prometheus'
         scheme: http

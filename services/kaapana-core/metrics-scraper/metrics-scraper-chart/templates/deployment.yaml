@@ -1,11 +1,10 @@
----
 kind: Deployment
 apiVersion: apps/v1
 metadata:
   labels:
     k8s-app: dashboard-metrics-scraper
   name: dashboard-metrics-scraper
-  namespace: kube-system
+  namespace: kubernetes-dashboard
 spec:
   replicas: 1
   revisionHistoryLimit: 10
@@ -16,20 +15,13 @@ spec:
     metadata:
       labels:
         k8s-app: dashboard-metrics-scraper
-      annotations:
-        seccomp.security.alpha.kubernetes.io/pod: 'runtime/default'
     spec:
-      initContainers:
-          - name: volume-permissions
-            image: {{  .Values.global.registry_url }}/busybox:1.31
-            imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
-            command: ["sh", "-c", "chmod -R 777 /dashboard-metrics"]
-            volumeMounts:
-            - mountPath: /dashboard-metrics
-              name: tmp-volume
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: dashboard-metrics-scraper
-          image: {{  .Values.global.registry_url }}/kube-dashboard-metrics:1.0.4
+          image: {{  .Values.global.registry_url }}/metrics-scraper:v1.0.7
           ports:
             - containerPort: 8000
               protocol: TCP
@@ -40,11 +32,6 @@ spec:
               port: 8000
             initialDelaySeconds: 30
             timeoutSeconds: 30
-          resources:
-            requests:
-              memory: 10Mi
-            limits:
-              memory: 20Mi
           volumeMounts:
           - mountPath: /tmp
             name: tmp-volume
@@ -54,11 +41,14 @@ spec:
             runAsUser: 1001
             runAsGroup: 2001
       serviceAccountName: kubernetes-dashboard
+      nodeSelector:
+        "kubernetes.io/os": linux
+      # Comment the following tolerations if Dashboard must not be deployed on master
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
       volumes:
         - name: tmp-volume
-          hostPath:
-            path: {{ .Values.global.fast_data_dir }}/dashboard-metrics
-            type: DirectoryOrCreate
+          emptyDir: {}
       imagePullSecrets:
       - name: registry-secret
----

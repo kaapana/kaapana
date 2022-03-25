@@ -209,33 +209,32 @@ class NodeUtil():
             NodeUtil.memory_available_limit = NodeUtil.mem_alloc - NodeUtil.mem_lmt
             # NodeUtil.gpu_memory_available = None if (NodeUtil.gpu_mem_alloc is None or NodeUtil.gpu_mem_used is None) else (NodeUtil.gpu_mem_alloc - NodeUtil.gpu_mem_used)
 
-            NodeUtil.set_variable("CPU_NODE", "{}/{}".format(NodeUtil.cpu_lmt, NodeUtil.cpu_alloc))
-            NodeUtil.set_variable("CPU_FREE", "{}".format(NodeUtil.cpu_available_req))
-            NodeUtil.set_variable("RAM_NODE", "{}/{}".format(NodeUtil.mem_req, NodeUtil.mem_alloc))
-            NodeUtil.set_variable("RAM_FREE", "{}".format(NodeUtil.memory_available_req))
-            # NodeUtil.set_variable("GPU_DEV_COUNT", "{}/{}".format(NodeUtil.gpu_dev_count))
-            # NodeUtil.set_variable("GPU_DEV_FREE", "{}".format(NodeUtil.gpu_dev_free))
-            # NodeUtil.set_variable("GPU_MEM", "{}/{}".format(NodeUtil.gpu_mem_used, NodeUtil.gpu_mem_alloc))
-            # NodeUtil.set_variable("GPU_MEM_FREE", "{}".format(NodeUtil.gpu_memory_available))
-            NodeUtil.set_variable("UPDATED", datetime.utcnow())
-            # NodeUtil.set_variable("cpu_alloc", "{}".format(NodeUtil.cpu_alloc))
-            # NodeUtil.set_variable("cpu_req", "{}".format(NodeUtil.cpu_req))
-            # NodeUtil.set_variable("cpu_lmt", "{}".format(NodeUtil.cpu_lmt))
-            # NodeUtil.set_variable("cpu_req_per", "{}".format(NodeUtil.cpu_req_per))
-            # NodeUtil.set_variable("cpu_lmt_per", "{}".format(NodeUtil.cpu_lmt_per))
-            # NodeUtil.set_variable("cpu_available_req", "{}".format(NodeUtil.cpu_available_req))
-            # NodeUtil.set_variable("cpu_available_limit", "{}".format(NodeUtil.cpu_available_limit))
-            # NodeUtil.set_variable("mem_alloc", "{}".format(NodeUtil.mem_alloc))
-            # NodeUtil.set_variable("mem_req", "{}".format(NodeUtil.mem_req))
-            # NodeUtil.set_variable("mem_lmt", "{}".format(NodeUtil.mem_lmt))
-            # NodeUtil.set_variable("mem_req_per", "{}".format(NodeUtil.mem_req_per))
-            # NodeUtil.set_variable("mem_lmt_per", "{}".format(NodeUtil.mem_lmt_per))
-            # NodeUtil.set_variable("memory_available_req", "{}".format(NodeUtil.memory_available_req))
-            # NodeUtil.set_variable("memory_available_limit", "{}".format(NodeUtil.memory_available_limit))
-            # NodeUtil.set_variable("gpu_count", "{}".format(NodeUtil.gpu_count))
-            # NodeUtil.set_variable("gpu_alloc", "{}".format(NodeUtil.gpu_alloc))
-            # NodeUtil.set_variable("gpu_used", "{}".format(NodeUtil.gpu_used))
-            # NodeUtil.set_variable("gpu_memory_available", "{}".format(NodeUtil.gpu_memory_available))
+            if logger != None:
+                logger.warning("#####################################")
+                logger.warning("#####################################")
+                logger.warning("")
+                logger.warning(f"# {NodeUtil.cpu_alloc=}")
+                logger.warning(f"# {NodeUtil.cpu_req=}")
+                logger.warning(f"# {NodeUtil.cpu_lmt=}")
+                logger.warning(f"# {NodeUtil.cpu_req_per=}")
+                logger.warning(f"# {NodeUtil.cpu_lmt_per=}")
+                logger.warning(f"# {NodeUtil.mem_alloc=}")
+                logger.warning(f"# {NodeUtil.mem_req=}")
+                logger.warning(f"# {NodeUtil.mem_lmt=}")
+                logger.warning(f"# {NodeUtil.mem_req_per=}")
+                logger.warning(f"# {NodeUtil.mem_lmt_per=}")
+                logger.warning(f"# {NodeUtil.gpu_dev_count=}")
+                logger.warning(f"# {NodeUtil.memory_pressure=}")
+                logger.warning(f"# {NodeUtil.disk_pressure=}")
+                logger.warning(f"# {NodeUtil.pid_pressure=}")
+                logger.warning(f"# {NodeUtil.cpu_available_req=}")
+                logger.warning(f"# {NodeUtil.cpu_available_limit=}")
+                logger.warning(f"# {NodeUtil.memory_available_req=}")
+                logger.warning(f"# {NodeUtil.memory_available_limit=}")
+                logger.warning("")
+                logger.warning("#####################################")
+                logger.warning("#####################################")
+
             return True
 
         except Exception as e:
@@ -443,6 +442,8 @@ def get_gpu_pool(task_instance, session, logger):
                 break
 
     if task_instance.pool == "GPU_COUNT":
+        task_instance.log.error(f"# if task_instance.pool == GPU_COUNT")
+        task_instance.log.error(f"# len(queued_gpu_slots): {len(queued_gpu_slots)}")
         if len(queued_gpu_slots) > 0:
             pool_id = None
             min_queue = None

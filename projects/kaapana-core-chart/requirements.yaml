@@ -28,7 +28,7 @@ dependencies:
     version: "2.6"
     repository: file://../../services/kaapana-core/traefik/traefik-chart
   - name: kube-dashboard-chart
-    version: "2.0.3"
+    version: "v2.5.1"
     repository: file://../../services/kaapana-core/kubernetes-dashboard/kube-dashboard-chart
   - name: kube-helm-chart
     version: "0.1.1"

@@ -59,6 +59,7 @@ spec:
           - --pass-access-token 
           - --skip-auth-regex=/auth/*
           - --metrics-address=:8081
+          - --reverse-proxy
           # - --set-authorization-header
           # - --set-xauthrequest
           # - --skip-auth-preflight

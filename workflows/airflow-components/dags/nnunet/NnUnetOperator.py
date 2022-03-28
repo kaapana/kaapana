@@ -49,7 +49,7 @@ class NnUnetOperator(KaapanaBaseOperator):
                  env_vars={},
                  parallel_id=None,
                  execution_timeout=execution_timeout,
-                 dev_code_server=False,
+                 dev_server=None,
                  **kwargs
                  ):
         envs = {
@@ -102,7 +102,7 @@ class NnUnetOperator(KaapanaBaseOperator):
 
 
 
-        if dev_code_server is True:
+        if dev_server is not None:
             pass
             # volume_mounts = [
             #     VolumeMount('nnunetdata', mount_path='/opt/conda/lib/python3.6/site-packages/nnunet', sub_path=None, read_only=False),
@@ -132,6 +132,6 @@ class NnUnetOperator(KaapanaBaseOperator):
             pod_resources=pod_resources,
             gpu_mem_mb=gpu_mem_mb,
             env_vars=env_vars,
-            dev_code_server=dev_code_server,
+            dev_server=dev_server,
             **kwargs
         )

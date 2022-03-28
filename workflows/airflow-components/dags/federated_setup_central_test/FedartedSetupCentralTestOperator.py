@@ -16,6 +16,7 @@ class FedartedSetupCentralTestOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name=name,
+            image=f"{default_registry}/pytorch-cpu-executer:0.1.0",
             # cmds=["tail"],
             # arguments=["-f", "/dev/null"], 
             cmds=["/bin/bash"],

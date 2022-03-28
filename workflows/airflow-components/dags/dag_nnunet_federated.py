@@ -17,6 +17,10 @@ from nnunet_federated.nnUNetFederatedOperator import nnUNetFederatedOperator
 log = LoggingMixin().log
 
 remote_dag_id = "nnunet-training"
+# skip_operators = ["zip-unzip-training", "model2dicom", "dcmsend", "upload-nnunet-data", "pdf2dcm-training", "dcmsend-pdf", "generate-nnunet-report-training"]
+# federated_operators = ["nnunet-training"]
+skip_operators = ["nnunet-training", "zip-unzip-training", "model2dicom", "dcmsend", "upload-nnunet-data", "pdf2dcm-training", "dcmsend-pdf", "generate-nnunet-report-training"]
+federated_operators = ["nnunet-preprocess"]
 ui_forms = {
     "external_schema_federated_form": {
         "type": "object",
@@ -34,11 +38,9 @@ ui_forms = {
                 "title": "Federated operators",
                 "items": {
                     "type": 'string',
-                    "enum": [
-                        "nnunet-training",
-                    ],
+                    "enum": federated_operators,
                 },
-                "default": ["nnunet-training"],
+                "default": federated_operators,
                 "required": True,
                 "readOnly": True
             },
@@ -47,11 +49,9 @@ ui_forms = {
                 "title": "Skip operators",
                 "items": {
                     "type": 'string',
-                    "enum": [
-                        "zip-unzip-training", "model2dicom", "dcmsend", "upload-nnunet-data", "pdf2dcm-training", "dcmsend-pdf", "generate-nnunet-report-training"
-                    ],
+                    "enum": skip_operators,
                 },
-                "default": ["zip-unzip-training", "model2dicom", "dcmsend", "upload-nnunet-data", "pdf2dcm-training", "dcmsend-pdf", "generate-nnunet-report-training"],
+                "default": skip_operators,
                 "required": True,
                 "readOnly": True
             }

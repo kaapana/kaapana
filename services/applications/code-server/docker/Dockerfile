@@ -33,5 +33,3 @@ FROM local-only/base-pytorch-cpu:0.1.0
 LABEL IMAGE="code-server"
 LABEL VERSION="4.2.0"
 LABEL CI_IGNORE="False"
-
-CMD ["code-server","--auth", "none", "--bind-addr", "0.0.0.0:8080"]

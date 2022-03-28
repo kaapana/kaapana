@@ -1,9 +1,9 @@
 ---
 apiVersion: v1
-appVersion: "3.1.1"
+appVersion: "3.3.2"
 description: Launches a Jupyterlab instance to explore files in Minio
 name: jupyterlab-minio-chart
-version: "3.1.1"
+version: "3.3.2"
 keywords:
 keywords:
 - kaapanaapplication

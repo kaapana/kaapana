@@ -20,8 +20,14 @@ spec:
       #   runAsUser: 1000
       containers:
       - name: jupyterlab
-        image: {{  .Values.global.registry_url }}/jupyterlab:3.1.1
+        {{- if not .Values.image }}
+        image: {{  .Values.global.registry_url }}/jupyterlab:3.3.2
+        {{- else }}
+        image: {{  .Values.image }}
+        {{- end }}
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        command: ["/bin/bash"]
+        args: ["/jupyterlab.sh"]
         resources:
           requests:
             memory: "100Mi"
@@ -33,10 +39,24 @@ spec:
         env:
         - name: INGRESS_PATH
           value: "/jupyterlab-{{ $uuid }}"
+        {{- range $envVar := .Values.envVars }}
+        - name: {{ $envVar.name }}
+          value: "{{ $envVar.value }}"
+        {{- end }}
         volumeMounts:
+          {{- if not .Values.volumeMounts }}
           - name: jupyterlabdata
             mountPath: /appdata
+          {{- else }}
+          - name: dshm
+            mountPath: /dev/shm
+          {{- end }}
+          {{- range $volumeMount := .Values.volumeMounts }}
+          - name: {{ $volumeMount.name }}
+            mountPath: "{{ $volumeMount.mountPath }}"
+          {{- end }}
       volumes:
+      {{- if not .Values.volumes }}
       - name: jupyterlabdata
         hostPath:
           {{- if .Values.mount_path }}
@@ -49,6 +69,17 @@ spec:
           path: {{ .Values.global.fast_data_dir }}/jupyterlab
           {{- end }}
           type: DirectoryOrCreate
+      {{- else }}
+      - name: dshm
+        emptyDir:
+          medium: Memory
+      {{- end }}
+      {{- range $volume := .Values.volumes }}
+      - name: {{ $volume.name }}
+        hostPath:
+          path: "{{ $volume.path }}"
+          type: DirectoryOrCreate
+      {{- end }}
       imagePullSecrets:
       - name: registry-secret
 ---

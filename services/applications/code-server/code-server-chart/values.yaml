@@ -5,7 +5,6 @@ global:
   base_namespace: ""
   fast_data_dir: ""
   slow_data_dir: ""
-subpath: "/code" 
 envVars:
 volumeMounts:
 # - name: workflowdata

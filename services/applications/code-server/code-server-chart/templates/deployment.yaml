@@ -26,7 +26,6 @@ spec:
         image: {{  .Values.image }}
         {{- end }}
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
-        # args: ["--auth","none","--disable-telemetry"]
         command: ["code-server"]
         args: ["--auth", "none", "--bind-addr", "0.0.0.0:8080"]
         env:
@@ -88,7 +87,6 @@ spec:
           path: "{{ $volume.path }}"
           type: DirectoryOrCreate
       {{- end }}
-
       imagePullSecrets:
       - name: registry-secret
 ---

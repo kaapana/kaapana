@@ -147,7 +147,7 @@ class KaapanaBaseOperator(BaseOperator):
                  pool=None,
                  pool_slots=None,
                  api_version="v1",
-                 dev_code_server=False,
+                 dev_server=None,
                  **kwargs
                  ):
 
@@ -185,7 +185,9 @@ class KaapanaBaseOperator(BaseOperator):
         self.retry_delay = retry_delay
 
         # helm
-        self.dev_code_server = dev_code_server
+        if dev_server not in [None, 'code-server', 'jupyterlab']:
+            raise NameError('dev_server must be either None, code-server or jupyterlab!')
+        self.dev_server = dev_server
 
         # Kubernetes
         self.image = image
@@ -420,7 +422,7 @@ class KaapanaBaseOperator(BaseOperator):
             "RUN_ID": context["run_id"]
         })
 
-        if self.dev_code_server is True:
+        if self.dev_server is not None:
             url = f'{KaapanaBaseOperator.HELM_API}/helm-install-chart'
             env_vars_sets = {}
             for idx, (k, v) in enumerate(self.env_vars.items()):
@@ -465,13 +467,24 @@ class KaapanaBaseOperator(BaseOperator):
                 **volume_mounts_sets,
                 **volumes_sets}
             print(helm_sets)
-            release_name = cure_invalid_name(self.kube_name, r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*", max_length=53)
-            payload = {
-                'name': 'code-server-chart',
-                'version': '4.2.0',
-                'release_name': release_name,
-                'sets': helm_sets
-            }
+            # kaapanaint is there, so that it is recognized as a pending application!
+            release_name = cure_invalid_name(f'kaapanaint-{self.kube_name}', r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*", max_length=53)
+            if self.dev_server == 'code-server':
+                payload = {
+                    'name': 'code-server-chart',
+                    'version': '4.2.0',
+                    'release_name': release_name,
+                    'sets': helm_sets
+                }
+            elif self.dev_server == 'jupyterlab':
+                payload = {
+                    'name': 'jupyterlab-chart',
+                    'version': '3.3.2',
+                    'release_name': release_name,
+                    'sets': helm_sets
+                }
+            else:
+                raise NameError('dev_server must be either None, code-server or jupyterlab!')
             print('payload')
             print(payload)
             r = requests.post(url, json=payload)

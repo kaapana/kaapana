@@ -1,38 +1,4 @@
-# FROM nvcr.io/nvidia/pytorch:20.09-py3
-
-# LABEL IMAGE="nnunet"
-# LABEL VERSION="04-21"
-# LABEL CI_IGNORE="False"
-
-# ENV OMP_NUM_THREADS=1
-# ENV PYTHONUNBUFFERED=1
-
-# ENV BRANCH=master
-# ENV NNUNET_VERSION=84b6389ae3362569cef0ff685bcb6bf24b64c693
-
-# RUN apt-get update && apt-get install -y \
-#     git \
-#     htop \
-#     zip \
-#     unzip \
-#  && rm -rf /var/lib/apt/lists/*
-
-# #RUN pip install 'pillow<7.1' --force-reinstall
-# #RUN pip install --upgrade git+https://github.com/nanohanno/hiddenlayer.git@bugfix/get_trace_graph#egg=hiddenlayer
-
-# RUN mkdir /src
-
-# WORKDIR /src
-# COPY files/requirements.txt /src
-# RUN pip install -r /src/requirements.txt
-
-# RUN mkdir /nnunet-pip-package
-# RUN git clone  --single-branch --branch ${BRANCH} https://github.com/MIC-DKFZ/nnUNet.git /nnunet-pip-package && cd /nnunet-pip-package && git checkout ${NNUNET_VERSION}
-
-# RUN cd /nnunet-pip-package && pip install ./
-
 FROM local-only/base-pytorch-gpu:0.1.0
-
 
 LABEL IMAGE="nnunet"
 LABEL VERSION="03-22"
@@ -49,7 +15,6 @@ RUN git clone  --single-branch --branch ${BRANCH} https://github.com/MIC-DKFZ/nn
 
 RUN cd /nnunet-pip-package && pip3 install ./
 
-#RUN pip install batchgenerators==0.21 # should be removed some day...
 
 COPY files/nnUNetTrainerV2.py /opt/conda/lib/python3.6/site-packages/nnunet/training/network_training/nnUNetTrainerV2.py
 COPY files/nnUNetTrainer.py /opt/conda/lib/python3.6/site-packages/nnunet/training/network_training/nnUNetTrainer.py

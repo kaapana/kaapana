@@ -28,13 +28,13 @@ dependencies:
     version: "0.1.1"
     repository: file://../../../../../../workflows/dag-installer/kaapana-plugin/kaapana-plugin-chart
   - name: jupyterlab-chart
-    version: 3.1.1
+    version: 3.3.2
     repository: file://../../../../../../services/applications/jupyterlab/jupyterlab-chart
   - name: jupyterlab-airflow-chart
-    version: 3.1.1
+    version: 3.3.2
     repository: file://../../../../../../services/applications/jupyterlab-airflow/jupyterlab-airflow-chart
   - name: jupyterlab-minio-chart
-    version: 3.1.1
+    version: 3.3.2
     repository: file://../../../../../../services/applications/jupyterlab-minio/jupyterlab-minio-chart
   - name: mitk-flow-chart
     version: "2021.02"

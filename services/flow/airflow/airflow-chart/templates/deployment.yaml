@@ -123,6 +123,8 @@ spec:
           value: {{ .Values.global.fast_data_dir }}/workflows/models
         - name: HOSTDOMAIN
           value: {{ .Values.global.hostname }}
+        - name: INSTANCE_NAME
+          value: {{ .Values.global.instance_name }}
         - name: AIRFLOW_KUBE_NAMESPACE
           value: {{ .Values.global.flow_namespace }}
         - name: SQL_ALCHEMY_CONN
@@ -186,6 +188,8 @@ spec:
           value: {{ .Values.global.http_proxy }}
         - name: HOSTDOMAIN
           value: {{ .Values.global.hostname }}
+        - name: INSTANCE_NAME
+          value: {{ .Values.global.instance_name }}
         - name: PULL_POLICY_PODS
           value: {{  .Values.global.pull_policy_pods }}
         - name: MINIOUSER

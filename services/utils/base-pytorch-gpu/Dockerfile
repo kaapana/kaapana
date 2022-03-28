@@ -1,8 +1,9 @@
 # FROM nvidia/cuda:10.2-runtime-ubuntu18.04
-FROM nvcr.io/nvidia/pytorch:20.09-py3
+#FROM nvcr.io/nvidia/pytorch:20.09-py3
+FROM nvcr.io/nvidia/pytorch:22.02-py3
 
 LABEL REGISTRY="local-only"
-LABEL IMAGE="base-pytorch"
+LABEL IMAGE="base-pytorch-gpu"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
@@ -13,20 +14,20 @@ ENV TZ=Europe
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN apt-get install -y texlive-xetex texlive-fonts-recommended texlive-plain-generic
 
+RUN apt-get update && apt-get install -y \
+    git \
+    htop \
+    zip \
+    unzip \
+ && rm -rf /var/lib/apt/lists/*
+
 # Common Python packages
 COPY files/requirements.txt /root/
 RUN pip3 install -r /root/requirements.txt
 
-# nnUNet
-ENV BRANCH=master
-ENV NNUNET_VERSION=a7d1d875e8fc3f4e93ca7b51b1ba206711844d92
-RUN mkdir -p /nnunet-pip-package
-RUN git clone  --single-branch --branch ${BRANCH} https://github.com/MIC-DKFZ/nnUNet.git /nnunet-pip-package && cd /nnunet-pip-package && git checkout ${NNUNET_VERSION}
-
-RUN cd /nnunet-pip-package && pip install ./
-
-RUN pip install batchgenerators==0.21 # should be removed some day...
-
+RUN wget https://code-server.dev/install.sh
+RUN /bin/bash install.sh --version 4.2.0
+RUN code-server --install-extension ms-python.python
 
 COPY files/run.sh /root/
 

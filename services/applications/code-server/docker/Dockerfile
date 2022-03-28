@@ -27,7 +27,7 @@
 # #     && code-server --install-extension /tmp/python.vsix \
 # #     && rm -rf /tmp/python.vsix
 
-FROM local-only/base-pytorch-gpu:0.1.0
+FROM local-only/base-pytorch-cpu:0.1.0
 
 
 LABEL IMAGE="code-server"

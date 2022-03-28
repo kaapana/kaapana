@@ -2,10 +2,9 @@ import os
 import glob
 from datetime import timedelta
 
-from kaapana.operators.PytorchExecuterBaseOperator import PytorchExecuterBaseOperator
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry
 
-class FedartedSetupCentralTestOperator(PytorchExecuterBaseOperator):
+class FedartedSetupCentralTestOperator(KaapanaBaseOperator):
 
     def __init__(self,
                  dag,

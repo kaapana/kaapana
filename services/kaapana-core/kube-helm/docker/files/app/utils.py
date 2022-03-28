@@ -362,6 +362,7 @@ def get_manifest_infos(manifest):
         ingress_path = ''
         if config['kind'] == 'Ingress':
             ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']
+            print('ingress_path', ingress_path)
             ingress_paths.append(ingress_path)
         if config['kind'] == 'Deployment':
             kube_status = get_kube_status('app', config['spec']['selector']['matchLabels']['app-name'], config['metadata']['namespace'])

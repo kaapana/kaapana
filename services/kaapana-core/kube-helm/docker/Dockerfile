@@ -1,7 +1,7 @@
 FROM python:3.9-alpine3.12
 
 LABEL IMAGE="kube-helm"
-LABEL VERSION="0.1.1"
+LABEL VERSION="0.1.2"
 LABEL CI_IGNORE="False"
 
 WORKDIR /app

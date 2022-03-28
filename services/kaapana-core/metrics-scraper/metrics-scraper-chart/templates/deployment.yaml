@@ -4,7 +4,7 @@ metadata:
   labels:
     k8s-app: dashboard-metrics-scraper
   name: dashboard-metrics-scraper
-  namespace: kubernetes-dashboard
+  namespace: kube-system
 spec:
   replicas: 1
   revisionHistoryLimit: 10

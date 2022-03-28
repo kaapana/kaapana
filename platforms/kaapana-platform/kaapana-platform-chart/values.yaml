@@ -30,7 +30,7 @@ global:
           version: 0.1.0 
     preinstall_extensions:
         - name: code-server-chart
-          version: 3.10.2
+          version: 4.2.0
         - name: kaapana-plugin-chart
           version: 0.1.1
         - name: federated-backend-chart

@@ -4,7 +4,7 @@ dependencies:
     version: 4.7.8
     repository: file://../../../../../../services/applications/adminer/adminer-chart
   - name: code-server-chart
-    version: 3.10.2
+    version: 4.2.0
     repository: file://../../../../../../services/applications/code-server/code-server-chart
   - name: doccano
     version: 0.1.0

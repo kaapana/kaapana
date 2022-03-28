@@ -1,7 +1,17 @@
 ---
 global:
-    registry_url: ""
-    pull_policy_pods: ""
-    base_namespace: ""
-    fast_data_dir: ""
-    slow_data_dir: ""
+  registry_url: ""
+  pull_policy_pods: ""
+  base_namespace: ""
+  fast_data_dir: ""
+  slow_data_dir: ""
+subpath: "/code" 
+envVars:
+volumeMounts:
+# - name: workflowdata
+#   mountPath: /root
+volumes:
+# - name: workflowdata
+#   path: /home/kaapana/workflows/
+  
+

@@ -279,14 +279,18 @@ class KaapanaFederatedTrainingBase(ABC):
                 self.minioClient.fput_object(self.remote_conf_data['federated_form']['federated_bucket'], next_object_name, file_path)
 
         print('Finished round', federated_round)
-        
+    
+    def on_train_step_end(self, federated_round):
+        pass
+    
     def train_step(self, federated_round):
         self.distribute_jobs(federated_round)
         self.wait_for_jobs(federated_round)
         self.download_minio_objects_to_workflow_dir(federated_round)
         # Working with downloaded objects
         self.update_data(federated_round)
-        self.upload_workflow_dir_to_minio_object(federated_round)  
+        self.upload_workflow_dir_to_minio_object(federated_round)
+        self.on_train_step_end(federated_round)
     
     def train(self):
         for federated_round in range(self.federated_round_start, self.remote_conf_data['federated_form']['federated_total_rounds']):

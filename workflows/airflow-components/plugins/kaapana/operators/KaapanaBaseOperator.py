@@ -2,6 +2,8 @@ import os
 import glob
 import re
 import shutil
+import requests
+import time
 from datetime import datetime
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -31,7 +33,6 @@ import json
 default_registry = os.getenv("DEFAULT_REGISTRY", "")
 default_project = os.getenv("DEFAULT_PROJECT", "")
 http_proxy = os.getenv("PROXY", None)
-
 
 class KaapanaBaseOperator(BaseOperator):
     """
@@ -82,6 +83,10 @@ class KaapanaBaseOperator(BaseOperator):
         XCom when the container completes.
     :type xcom_push: bool
     """
+
+    HELM_API = 'http://kube-helm-service.kube-system.svc:5000/kube-helm-api'
+    TIMEOUT = 60 * 60 * 12
+
     pod_stopper = PodStopper()
 
     @apply_defaults
@@ -111,6 +116,7 @@ class KaapanaBaseOperator(BaseOperator):
                  max_active_tis_per_dag=None,
                  manage_cache=None,
                  allow_federated_learning=False,
+                 whitelist_federated_learning=None,
                  delete_input_on_success=False,
                  # Other stuff
                  batch_name=None,
@@ -141,6 +147,7 @@ class KaapanaBaseOperator(BaseOperator):
                  pool=None,
                  pool_slots=None,
                  api_version="v1",
+                 dev_code_server=False,
                  **kwargs
                  ):
 
@@ -164,6 +171,7 @@ class KaapanaBaseOperator(BaseOperator):
             gpu_mem_mb_lmt=gpu_mem_mb_lmt,
             manage_cache=manage_cache,
             allow_federated_learning=allow_federated_learning,
+            whitelist_federated_learning=whitelist_federated_learning,
             batch_name=batch_name,
             workflow_dir=workflow_dir,
             delete_input_on_success=delete_input_on_success
@@ -175,6 +183,9 @@ class KaapanaBaseOperator(BaseOperator):
         self.execution_timeout = execution_timeout
         self.max_active_tis_per_dag = max_active_tis_per_dag
         self.retry_delay = retry_delay
+
+        # helm
+        self.dev_code_server = dev_code_server
 
         # Kubernetes
         self.image = image
@@ -202,6 +213,7 @@ class KaapanaBaseOperator(BaseOperator):
         self.kind = kind
         self.data_dir = os.getenv('DATADIR', "")
         self.model_dir = os.getenv('MODELDIR', "")
+        self.executables_dir = os.getenv('EXECUTABLESDIR', "")
         self.result_message = None
         self.host_network = host_network
         self.enable_proxy = enable_proxy
@@ -221,6 +233,9 @@ class KaapanaBaseOperator(BaseOperator):
         self.volume_mounts.append(VolumeMount(
             'miniodata', mount_path='/minio', sub_path=None, read_only=False
         ))
+        self.volume_mounts.append(VolumeMount(
+            'executablesdata', mount_path='/executables', sub_path=None, read_only=False
+        ))
 
         self.volumes.append(
             Volume(name='miniodata', configs={
@@ -228,6 +243,16 @@ class KaapanaBaseOperator(BaseOperator):
                 {
                     'type': 'DirectoryOrCreate',
                     'path': os.getenv('MINIODIR', "/home/kaapana/minio")
+                }
+            })
+        )
+
+        self.volumes.append(
+            Volume(name='executablesdata', configs={
+                'hostPath':
+                {
+                    'type': 'DirectoryOrCreate',
+                    'path': self.executables_dir
                 }
             })
         )
@@ -360,7 +385,7 @@ class KaapanaBaseOperator(BaseOperator):
             self.kube_name = f'{self.name}-{self.parallel_id}'
 
         self.kube_name = self.kube_name.lower() + "-" + str(uuid.uuid4())[:8]
-        self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63)
+        self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63) # actually 63, but because of helm set to 53, maybe...
 
         self.pool = context["ti"].pool
         self.pool_slots = context["ti"].pool_slots
@@ -395,6 +420,75 @@ class KaapanaBaseOperator(BaseOperator):
             "RUN_ID": context["run_id"]
         })
 
+        if self.dev_code_server is True:
+            url = f'{KaapanaBaseOperator.HELM_API}/helm-install-chart'
+            env_vars_sets = {}
+            for idx, (k, v) in enumerate(self.env_vars.items()):
+                env_vars_sets.update({
+                    f'envVars[{idx}].name': f"{k}",
+                    f'envVars[{idx}].value': f"{v}"
+                })
+
+            volume_mounts_sets = {}
+            idx = 0
+            for volume_mount in self.volume_mounts:
+                print('vm name', volume_mount.name)
+                print('vm mount_path', volume_mount.mount_path)
+                if volume_mount.name in volume_mounts_sets.values() or volume_mount.name == 'dshm':
+                    print(f'Warning {volume_mount.name} already in volume_mount dict!')
+                    continue
+                volume_mounts_sets.update({
+                    f'volumeMounts[{idx}].name': f"{volume_mount.name}",
+                    f'volumeMounts[{idx}].mountPath': f"{volume_mount.mount_path}"
+                })
+                idx = idx + 1
+            print(volume_mounts_sets)
+            volumes_sets = {}
+            idx = 0
+            for volume in self.volumes:
+                if 'hostPath' in volume.configs:
+                    print('v name', volume.name)
+                    print('v path', volume.configs['hostPath']['path'])
+                    if volume.name in volumes_sets.values() or volume.name == 'dshm':
+                        print(f'Warning {volume.name} already in volume dict!')
+                        continue
+                    volumes_sets.update({
+                        f'volumes[{idx}].name': f"{volume.name}",
+                        f'volumes[{idx}].path': f"{volume.configs['hostPath']['path']}"
+                    })
+                    idx = idx + 1
+            print(volumes_sets)
+
+            helm_sets = {
+                'image': self.image,
+                **env_vars_sets,
+                **volume_mounts_sets,
+                **volumes_sets}
+            print(helm_sets)
+            release_name = cure_invalid_name(self.kube_name, r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*", max_length=53)
+            payload = {
+                'name': 'code-server-chart',
+                'version': '4.2.0',
+                'release_name': release_name,
+                'sets': helm_sets
+            }
+            print('payload')
+            print(payload)
+            r = requests.post(url, json=payload)
+            print(r)
+            print(r.text)
+            r.raise_for_status()
+            t_end = time.time() + KaapanaBaseOperator.TIMEOUT
+            while time.time() < t_end:
+                time.sleep(15)
+                url = f'{KaapanaBaseOperator.HELM_API}/view-chart-status'
+                r = requests.get(url, params={'release_name': release_name})
+                if r.status_code == 500:
+                    print(f'Release {release_name} was uninstalled. My job is done here!')
+                    break
+                r.raise_for_status()
+            return 
+                
         try:
             print("++++++++++++++++++++++++++++++++++++++++++++++++ launch pod!")
             print(self.name)
@@ -518,6 +612,7 @@ class KaapanaBaseOperator(BaseOperator):
         gpu_mem_mb_lmt,
         manage_cache,
         allow_federated_learning,
+        whitelist_federated_learning,
         batch_name,
         workflow_dir,
         delete_input_on_success
@@ -540,6 +635,7 @@ class KaapanaBaseOperator(BaseOperator):
         obj.gpu_mem_mb_lmt = gpu_mem_mb_lmt
         obj.manage_cache = manage_cache or 'ignore'
         obj.allow_federated_learning = allow_federated_learning
+        obj.whitelist_federated_learning = whitelist_federated_learning
         obj.delete_input_on_success = delete_input_on_success
 
         obj.batch_name = batch_name if batch_name != None else BATCH_NAME

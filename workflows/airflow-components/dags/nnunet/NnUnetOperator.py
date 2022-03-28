@@ -44,9 +44,12 @@ class NnUnetOperator(KaapanaBaseOperator):
                  body_part = None,
                  instance_name="N/A",
                  models_dir="/models",
+                 allow_federated_learning=False,
+                 whitelist_federated_learning=None,
                  env_vars={},
                  parallel_id=None,
                  execution_timeout=execution_timeout,
+                 dev_code_server=False,
                  **kwargs
                  ):
         envs = {
@@ -96,19 +99,39 @@ class NnUnetOperator(KaapanaBaseOperator):
                 gpu_mem_mb = 5500
 
         parallel_id = parallel_id if parallel_id is not None else mode
+
+
+
+        if dev_code_server is True:
+            pass
+            # volume_mounts = [
+            #     VolumeMount('nnunetdata', mount_path='/opt/conda/lib/python3.6/site-packages/nnunet', sub_path=None, read_only=False),
+            # ]
+
+            # volumes = [
+            #     Volume(name='nnunetdata', configs={
+            #         'hostPath':
+            #         {
+            #             'type': 'DirectoryOrCreate',
+            #             'path': '/home/ubuntu/dev/nnUNet/nnunet'
+            #         }
+            #     })
+            # ]
+
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/nnunet:04-21",
+            image=f"{default_registry}/nnunet:03-22",
             name="nnunet",
             parallel_id=parallel_id,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
-            allow_federated_learning=True,
-            # image_pull_policy="Always",
+            allow_federated_learning=allow_federated_learning,
+            whitelist_federated_learning=whitelist_federated_learning,
             ram_mem_mb=None,
             ram_mem_mb_lmt=None,
             pod_resources=pod_resources,
             gpu_mem_mb=gpu_mem_mb,
             env_vars=env_vars,
+            dev_code_server=dev_code_server,
             **kwargs
         )

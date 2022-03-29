@@ -4,7 +4,7 @@ metadata:
   name: traefik
   namespace: kube-system
 spec:
-  type: NodePort
+  type: ClusterIP
   ports:
     - protocol: TCP
       name: web
@@ -15,7 +15,6 @@ spec:
     - protocol: TCP
       name: websecure
       port: 4443
-      nodePort: 8443
   selector:
     app: traefik
 ---

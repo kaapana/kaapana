@@ -6,7 +6,7 @@ const AuthService = {
     return new Promise((resolve, reject) => {
       let oauthUrl = ''
       if (Vue.config.productionTip === true) {
-        oauthUrl = '/oauth/token'
+        oauthUrl = '/oauth2/userinfo'
       } else {
         oauthUrl = '/jsons/testingAuthenticationToken.json'
       }
@@ -20,7 +20,7 @@ const AuthService = {
     })
   },
   logout() {
-    location.href = '/oauth/logout?redirect=/'
+    location.href = '/oauth2/sign_out?redirect=/oauth2/sign_in'
     //location.href = '/oauth/logout' // without redirect since redirect lead often to the error page and people had to renter the url
   },
   getFederatedHeaders() {

@@ -9,22 +9,12 @@ metadata:
 spec:
   selector:
     app-name: keycloak
-{{- if ne ( .Values.global.https_port | default "443") "443" }}
-  type: NodePort
-  ports:
-  - name: kc-http-port
-    port: 80
-    targetPort: http
-    nodePort: {{ .Values.global.auth_node_port }}
-    protocol: TCP
-{{- else }}
   type: ClusterIP
   ports:
   - name: kc-http-port
     port: 80
     targetPort: http
     protocol: TCP
-{{- end }}
 ---
 apiVersion: v1
 kind: Service

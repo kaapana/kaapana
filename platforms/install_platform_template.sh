@@ -21,9 +21,8 @@ FAST_DATA_DIR="{{ fast_data_dir|default('/home/kaapana')}}" # Directory on the s
 SLOW_DATA_DIR="{{ slow_data_dir|default('/home/kaapana')}}" # Directory on the server, where the DICOM images will be stored (can be slower)
 
 HTTP_PORT="{{ http_port|default(80)|int }}"      # -> has to be 80
-HTTPS_PORT="{{ https_port|default(443) }}"    # HTTPS port -> port <AUTH_NODE_PORT> is additionaly needed if the port differs from 443
+HTTPS_PORT="{{ https_port|default(443) }}"    # HTTPS port
 DICOM_PORT="{{ dicom_port|default(11112) }}"  # configure DICOM receiver port
-AUTH_NODE_PORT="{{ auth_node_port|default(8000) }}"
 
 PULL_POLICY_PODS="{{ pull_policy_pods|default('IfNotPresent') }}"
 PULL_POLICY_JOBS="{{ pull_policy_jobs|default('IfNotPresent') }}"
@@ -429,7 +428,6 @@ function install_chart {
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.http_port="$HTTP_PORT" \
     --set-string global.https_port="$HTTPS_PORT" \
-    --set-string global.auth_node_port="$AUTH_NODE_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.home_dir="$HOME" \
@@ -540,9 +538,9 @@ function install_certs {
         echo -e "Creating cluster secret ..."
         microk8s.kubectl delete secret certificate -n kube-system
         microk8s.kubectl create secret tls certificate --namespace kube-system --key ./tls.key --cert ./tls.crt
-        louketo_pod=$(microk8s.kubectl get pods -n kube-system |grep louketo  | awk '{print $1;}')
-        echo "louketo pod: $louketo_pod"
-        microk8s.kubectl -n kube-system delete pod $louketo_pod
+        auth_proxy_pod=$(microk8s.kubectl get pods -n kube-system |grep oauth2-proxy  | awk '{print $1;}')
+        echo "auth_proxy_pod pod: $auth_proxy_pod"
+        microk8s.kubectl -n kube-system delete pod $auth_proxy_pod
     fi
 
     echo -e "${GREEN}DONE${NC}"

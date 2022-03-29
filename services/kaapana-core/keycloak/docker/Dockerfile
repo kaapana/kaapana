@@ -1,8 +1,8 @@
-FROM jboss/keycloak:11.0.2
+FROM jboss/keycloak:16.1.1
 
 
 LABEL IMAGE="keycloak"
-LABEL VERSION="11.0.2"
+LABEL VERSION="16.1.1"
 LABEL CI_IGNORE="False"
 
 

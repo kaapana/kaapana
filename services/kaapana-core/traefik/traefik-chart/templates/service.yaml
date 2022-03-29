@@ -4,6 +4,7 @@ metadata:
   name: traefik
   namespace: kube-system
 spec:
+  type: ClusterIP
   ports:
     - protocol: TCP
       name: web

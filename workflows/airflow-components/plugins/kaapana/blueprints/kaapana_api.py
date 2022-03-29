@@ -391,6 +391,6 @@ def get_access_token():
 @kaapanaApi.route('/api/getminiocredentials')
 @csrf.exempt
 def get_minio_credentials():
-    x_auth_token = request.args.get('x-auth-token')
+    x_auth_token = request.args.get('X-Auth-Token')
     access_key, secret_key, session_token = generate_minio_credentials(x_auth_token)
     return jsonify({'accessKey': access_key, 'secretKey': secret_key, 'sessionToken': session_token}), 200

@@ -15,7 +15,7 @@
   remote_user: "{{ remote_username }}"
   vars:
     #TODO: change hardcoded
-    ansible_ssh_private_key_file: ~/.ssh/kaapana.pem
+    ansible_ssh_private_key_file: ~/.ssh/tfda_iso.pem
   tasks:
     - name: Set platform installation script path
       set_fact: 

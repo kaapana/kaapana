@@ -9,7 +9,7 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 class LocalInstallPlatformDepsOnIsoEnvOperator(KaapanaPythonBaseOperator):
 
-    def start(self, ds, **kwargs):
+    def start(self, ds, ti, **kwargs):
         print("Installing platform dependencies on isolated environment...")
         print(kwargs)
 
@@ -35,35 +35,16 @@ class LocalInstallPlatformDepsOnIsoEnvOperator(KaapanaPythonBaseOperator):
         if not os.path.isfile(server_deps_playbook_path):
             print("Server dependencies installer playbook yaml file not found.")
             exit(1)
-        
-        # extra_vars = {
-        #     "os_project_name": "E230-Kaapana-CI",
-        #     "os_project_id": "2df9e30325c849dbadcc07d7ffd4b0d6",
-        #     "os_instance_name": "tfda-airfl-iso-env-test",
-        #     "os_username": "os_username",
-        #     "os_password": "os_password",
-        #     "os_image": "ubuntu",
-        #     "os_ssh_key": "kaapana",
-        #     "os_volume_size": "100",
-        #     "os_instance_flavor": "dkfz-8.16",
-        # }
 
-        # instance_ip_address, logs = execute(
-        #     playbook_path,
-        #     testsuite="Setup Test Server",
-        #     testname="Start OpenStack instance: {}".format("ubuntu"),
-        #     hosts=["localhost"],
-        #     extra_vars=extra_vars,
-        # )
-
-        extra_vars = "target_host=10.128.130.165 remote_username=root local_script=true install_script_path=tfda_platform"
+        iso_env_ip = ti.xcom_pull(key="iso_env_ip", task_ids="create-iso-inst")
+        extra_vars = f"target_host={iso_env_ip} remote_username=root local_script=true install_script_path=tfda_platform"
         command = ["ansible-playbook", server_deps_playbook_path, "--extra-vars", extra_vars]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
-        print(f'Server dependencies OUTPUT LOG is {output}')
+        print(f'STD OUTPUT LOG is {output.stdout}')
         if output.returncode == 0:
             print(f'Platform dependencies installed successfully! See full logs above...')
         else:
-            print("Platform dependencies couldn't be installed successfully! Cannot proceed further...")
+            print(f"Platform dependencies couldn't be installed successfully! Cannot proceed further...\nERROR LOGS:\n{output.stderr}")
             exit(1)
 
     def __init__(self,

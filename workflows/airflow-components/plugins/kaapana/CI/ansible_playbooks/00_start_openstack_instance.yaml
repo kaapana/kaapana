@@ -27,12 +27,12 @@
         - "{{ os_username }}"
         - "{{ os_password }}"
 
-    - name: Check if custom operating system supported
-      fail: msg="{{ os }} not suppored! [centos7 centos8 ubuntu]"
-      when: 
-      - os |lower != "centos7"
-      - os |lower != "centos8"
-      - os |lower != "ubuntu"
+    # - name: Check if custom operating system supported
+    #   fail: msg="{{ os }} not suppored! [centos7 centos8 ubuntu]"
+    #   when: 
+    #   - os |lower != "centos7"
+    #   - os |lower != "centos8"
+    #   - os |lower != "ubuntu"
       
     - name: Set custom Instance Image (operating system)
       set_fact:
@@ -138,4 +138,4 @@
 
     - name: RETURN
       debug:
-        msg: "{{ new_instance.openstack.accessIPv4 }}"
+        msg: "isolated_env_ip: {{ new_instance.openstack.accessIPv4 }}"

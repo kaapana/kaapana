@@ -9,7 +9,7 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 class LocalDeployPlatformOnIsoEnvOperator(KaapanaPythonBaseOperator):
 
-    def start(self, ds, **kwargs):
+    def start(self, ds, ti, **kwargs):
         print("Installing platform on isolated environment...")
         print(kwargs)
 
@@ -29,42 +29,26 @@ class LocalDeployPlatformOnIsoEnvOperator(KaapanaPythonBaseOperator):
         #     with zipfile.ZipFile(file_path, 'r') as zip_ref:
         #         zip_ref.extractall(batch_output_dir)
         
-        # extra_vars = {
-        #     "os_project_name": "E230-Kaapana-CI",
-        #     "os_project_id": "2df9e30325c849dbadcc07d7ffd4b0d6",
-        #     "os_instance_name": "tfda-airfl-iso-env-test",
-        #     "os_username": "os_username",
-        #     "os_password": "os_password",
-        #     "os_image": "ubuntu",
-        #     "os_ssh_key": "kaapana",
-        #     "os_volume_size": "100",
-        #     "os_instance_flavor": "dkfz-8.16",
-        # }
-
-        # instance_ip_address, logs = execute(
-        #     playbook_path,
-        #     testsuite="Setup Test Server",
-        #     testname="Start OpenStack instance: {}".format("ubuntu"),
-        #     hosts=["localhost"],
-        #     extra_vars=extra_vars,
-        # )
-        registry_user = ""
-        registry_pwd = ""
-        registry_url = ""
-        extra_vars = f"target_host=10.128.130.165 remote_username=root local_script=true install_script_path=tfda_platform registry_user={registry_user} registry_pwd={registry_pwd} registry_url={registry_url}"
         platform_install_playbook_path = os.path.join(
         playbooks_dir, "02_deploy_platform.yaml"
         )
         if not os.path.isfile(platform_install_playbook_path):
             print("Platform deployment playbook yaml file not found.")
             exit(1)
+
+        registry_user = ""
+        registry_pwd = ""
+        registry_url = ""
+        iso_env_ip = ti.xcom_pull(key="iso_env_ip", task_ids="create-iso-inst")
+
+        extra_vars = f"target_host={iso_env_ip} remote_username=root local_script=true install_script_path=tfda_platform registry_user={registry_user} registry_pwd={registry_pwd} registry_url={registry_url}"
         command = ["ansible-playbook", platform_install_playbook_path, "--extra-vars", extra_vars]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
-        print(f'Platform deployment OUTPUT LOG is {output}')
+        print(f'STD OUTPUT LOG is {output.stdout}')
         if output.returncode == 0:
-            print(f'Platform installed successfully! See full logs right above...')
+            print(f'Platform installed successfully! See full logs above...')
         else:
-            print("Platform installation FAILED! Cannot proceed further...")
+            print("Platform installation FAILED! Cannot proceed further...\nERROR LOGS:\n{output.stderr}")
             exit(1)
 
     def __init__(self,

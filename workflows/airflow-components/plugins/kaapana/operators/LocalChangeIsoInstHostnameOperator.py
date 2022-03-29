@@ -7,10 +7,10 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
-class LocalDeleteIsoEnvOperator(KaapanaPythonBaseOperator):
+class LocalChangeIsoInstHostnameOperator(KaapanaPythonBaseOperator):
 
-    def start(self, ds, **kwargs):
-        print("Delete isolated environment...")
+    def start(self, ds, ti, **kwargs):
+        print("Changing hostname of isolated environment...")
         print(kwargs)
 
         kaapana_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -29,24 +29,23 @@ class LocalDeleteIsoEnvOperator(KaapanaPythonBaseOperator):
         #     with zipfile.ZipFile(file_path, 'r') as zip_ref:
         #         zip_ref.extractall(batch_output_dir)
 
-        playbook_path = os.path.join(
-        playbooks_dir, "05_delete_os_instance.yaml"
+        server_deps_playbook_path = os.path.join(
+        playbooks_dir, "01_change_hostname.yaml"
         )
-        if not os.path.isfile(playbook_path):
-            print("playbook yaml not found.")
+        if not os.path.isfile(server_deps_playbook_path):
+            print("Playbook file not found.")
             exit(1)
-        
-        os_project_name = "E230-Kaapana-CI"
-        os_project_id = "2df9e30325c849dbadcc07d7ffd4b0d6"
-        os_instance_name = "tfda-airfl-iso-env-test"
-        os_username = ""
-        os_password = ""
-        extra_vars = f"os_project_name={os_project_name} os_project_id={os_project_id} os_username={os_username} os_password={os_password} os_instance_name={os_instance_name}"
-        command = ["ansible-playbook", playbook_path, "--extra-vars", extra_vars]
+
+        iso_env_ip = ti.xcom_pull(key="iso_env_ip", task_ids="create-iso-inst")
+        extra_vars = f"target_host={iso_env_ip} remote_username=root"
+        command = ["ansible-playbook", server_deps_playbook_path, "--extra-vars", extra_vars]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
-        print(f'STD OUTPUT LOG is {output}')
+        print(f'STD OUTPUT LOG is {output.stdout}')
         if output.returncode == 0:
-            print(f'Instance deleted successfully! See full logs above...')
+            print(f'Hostname of the isolated instance changed successfully! See full logs above...')
+        else:
+            print(f"Hostname couldn't be changed! Cannot proceed further...\nERROR LOGS:\n{output.stderr}")
+            exit(1)
 
     def __init__(self,
                  dag,
@@ -54,7 +53,7 @@ class LocalDeleteIsoEnvOperator(KaapanaPythonBaseOperator):
 
         super().__init__(
             dag=dag,
-            name="delete-iso-env",
+            name="change-iso-hostname",
             python_callable=self.start,
             **kwargs
         )

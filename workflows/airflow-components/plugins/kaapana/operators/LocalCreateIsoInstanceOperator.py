@@ -3,23 +3,17 @@ import sys
 import glob
 import zipfile
 from subprocess import PIPE, run
+import re
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
-# scripts_dir = os.path.join(WORKFLOW_DIR, "CI", "scripts")
-# playbooks_dir = os.path.join(WORKFLOW_DIR, "CI", "ansible_playbooks")
-# kaapana_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# scripts_dir = os.path.join(kaapana_dir, "CI", "scripts")
-# # playbook_dir = os.path.join(kaapana_int_dir, "CI", "ansible_playbooks")
-# # sys.path.insert(1, scripts_dir)
-# # import kaapana.CI.scripts.ci_playbook_execute as playbook_executor
-from kaapana.CI.scripts.ci_playbook_execute import execute
+import kaapana.CI.scripts.ci_playbook_execute as ci_execute
 
 
 class LocalCreateIsoInstanceOperator(KaapanaPythonBaseOperator):
 
-    def start(self, ds, **kwargs):
+    def start(self, ds, ti, **kwargs):
         print("Starting an isolated environment...")
         print(kwargs)
 
@@ -58,20 +52,38 @@ class LocalCreateIsoInstanceOperator(KaapanaPythonBaseOperator):
         #     "os_instance_flavor": "dkfz-8.16",
         # }
 
-        # instance_ip_address, logs = execute(
+        # instance_ip_address, logs = ci_execute.execute(
         #     playbook_path,
         #     testsuite="Setup Test Server",
         #     testname="Start OpenStack instance: {}".format("ubuntu"),
         #     hosts=["localhost"],
         #     extra_vars=extra_vars,
         # )
+        
+        os_project_name = "E230-Kaapana-CI"
+        os_project_id = "2df9e30325c849dbadcc07d7ffd4b0d6"
+        os_instance_name = "tfda-airfl-iso-env-test"
+        os_username = ""
+        os_password = ""
+        os_image = "bd2a2141-9e1d-484c-85ce-3d40222c1682"
+        # os_ssh_key = "kaapana"
+        # os_volume_size = "100"
+        # os_instance_flavor = "dkfz-8.16"
 
-        extra_vars = "os_project_name=E230-Kaapana-CI os_project_id=2df9e30325c849dbadcc07d7ffd4b0d6 os_username=os_username os_password=os_password os_instance_name=tfda_iso_inst"
+        extra_vars = f"os_project_name={os_project_name} os_project_id={os_project_id} os_username={os_username} os_password={os_password} os_instance_name=tfda_iso_inst, os_instance_name={os_instance_name} os_image={os_image}"
         command = ["ansible-playbook", playbook_path, "--extra-vars", extra_vars]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
-        print(f'STD OUTPUT LOG is {output}')
+        print(f'STD OUTPUT LOG is {output.stdout}')
         if output.returncode == 0:
-            print(f'Iso Instance created successfully! See full logs above...')
+            print(f'Iso Instance created successfully!')
+            ## extract ip address from stdout
+            # ip_addr_string = re.findall('isolated_env_ip: \d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', output.stdout)
+            ip_addr_string = re.findall(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', output.stdout)
+            # ip_address = re.match('\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', ip_addr_string)
+            print(f'IP address of new TFDA isolated instance is: {ip_addr_string[-1]}')
+            ti.xcom_push(key="iso_env_ip", value=ip_addr_string[-1])
+        else:
+            print(f"Failed to create isolated environment! ERROR LOGS:\n{output.stderr}")
         
         # print(f'IP address is {instance_ip_address} and logs are {logs}')
 

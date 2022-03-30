@@ -47,6 +47,9 @@ function no_proxy_environment {
     else
         echo "${YELLOW}no_proxy | NO_PROXY found - check if complete ...!${NC}"
 
+        # remove any " from no_proxy ENV
+        no_proxy=$( echo $no_proxy | sed 's/"//g')
+        
         if [[ $no_proxy == *"10.152.183.0/24"* ]]; then
             echo "${GREEN}NO_PROXY is already configured correctly...${NC}"
             return

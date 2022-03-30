@@ -17,6 +17,7 @@ class nnUNetFederatedOperator(KaapanaBaseOperator):
             dag=dag,
             name=name,
             image=f"{default_registry}/pytorch-cpu-executer:0.1.0",
+            image_pull_secrets=["registry-secret"],
             # cmds=["tail"],
             # arguments=["-f", "/dev/null"], 
             cmds=["/bin/bash"],

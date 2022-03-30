@@ -28,14 +28,18 @@ class LocalCreateStudyIDJsonOperator(KaapanaPythonBaseOperator):
         print(batch_folder)
 
         to_be_uploaded = []
+        already_there = []
         for batch_element_dir in batch_folder:
             metadata_json = os.path.join(batch_element_dir, self.operator_in_dir, 'metadata.json')
             print(metadata_json)
             with open(metadata_json) as f:
                 data = json.load(f)
-                to_be_uploaded.append({
-                    "text": f'study-id-{data["0020000D StudyInstanceUID_keyword"]}'
-                })            
+                study_id = data["0020000D StudyInstanceUID_keyword"]
+                if study_id not in already_there:
+                    to_be_uploaded.append({
+                        "text": f'study-id-{study_id}'
+                    })            
+                    already_there.append(study_id)
         
         print(to_be_uploaded)
         

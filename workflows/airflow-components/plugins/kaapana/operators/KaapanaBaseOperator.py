@@ -187,6 +187,8 @@ class KaapanaBaseOperator(BaseOperator):
         # helm
         if dev_server not in [None, 'code-server', 'jupyterlab']:
             raise NameError('dev_server must be either None, code-server or jupyterlab!')
+        if dev_server is not None:
+            self.execution_timeout = None
         self.dev_server = dev_server
 
         # Kubernetes

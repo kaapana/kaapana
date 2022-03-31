@@ -44,9 +44,12 @@ class LocalDeleteIsoEnvOperator(KaapanaPythonBaseOperator):
         extra_vars = f"os_project_name={os_project_name} os_project_id={os_project_id} os_username={os_username} os_password={os_password} os_instance_name={os_instance_name}"
         command = ["ansible-playbook", playbook_path, "--extra-vars", extra_vars]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
-        print(f'STD OUTPUT LOG is {output}')
+        print(f'STD OUTPUT LOG is {output.stdout}')
         if output.returncode == 0:
             print(f'Instance deleted successfully! See full logs above...')
+        else:
+            print(f"FAILED to delete instance! See ERROR LOGS:\n{output.stderr}")
+            exit(1)
 
     def __init__(self,
                  dag,

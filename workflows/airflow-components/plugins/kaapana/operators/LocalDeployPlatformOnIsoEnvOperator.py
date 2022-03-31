@@ -48,7 +48,7 @@ class LocalDeployPlatformOnIsoEnvOperator(KaapanaPythonBaseOperator):
         if output.returncode == 0:
             print(f'Platform installed successfully! See full logs above...')
         else:
-            print("Platform installation FAILED! Cannot proceed further...\nERROR LOGS:\n{output.stderr}")
+            print(f"Platform installation FAILED! Cannot proceed further...\nERROR LOGS:\n{output.stderr}")
             exit(1)
 
     def __init__(self,

@@ -84,10 +84,6 @@ export default Vue.extend({
   computed: {
     ...mapGetters(['currentUser', 'isAuthenticated', 'externalWebpages', 'commonData']),
   },
-  mounted() {
-    // this.minioCall()
-    console.log("#TODO Skip Minio...")
-  },
   methods: {
     login() {
       this.$store
@@ -96,18 +92,6 @@ export default Vue.extend({
     },
     logout() {
       this.$store.dispatch(LOGOUT)
-    },
-    minioCall() {
-         request.get('/flow/kaapana/api/getaccesstoken').then(response => {
-            let payload = {"id":1,"jsonrpc":"2.0","params":{"token": response.data["xAuthToken"]},"method":"web.LoginSTS"}
-            request.post('/minio/webrpc', payload).then(response => {
-                storage.setItem('token', `${response.data.result["token"]}`)
-            }).catch(error => {
-              console.log('Could not generate the minio token...', error)
-            })
-        }).catch(error => {
-          console.log('Could not load the access-token', error)
-        })
     }
   },
   beforeCreate () {

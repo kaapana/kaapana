@@ -15,46 +15,46 @@ spec:
       protocol: TCP
       targetPort: 9000
 ---
-apiVersion: networking.k8s.io/v1 
-kind: Ingress
-metadata:
-  name: minio-ingress
-  namespace: {{ .Values.global.store_namespace }}
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
-    # ingress.kubernetes.io/custom-request-headers: "Authorization:||cookie:"
-    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
-spec:
-  rules:
-  - host:
-    http:
-      paths:
-      - path: /minio
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: minio-service
-            port:
-              number: 9000
-  - host:
-    http:
-      paths:
-      - path: /uploads
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: minio-service
-            port:
-              number: 9000
-  - host:
-    http:
-      paths:
-      - path: /downloads
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: minio-service
-            port:
-              number: 9000
----
+# apiVersion: networking.k8s.io/v1 
+# kind: Ingress
+# metadata:
+#   name: minio-ingress
+#   namespace: store
+#   annotations:
+#     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+#     traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+#     # ingress.kubernetes.io/custom-request-headers: "Authorization:||cookie:"
+#     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+# spec:
+#   rules:
+#   - host:
+#     http:
+#       paths:
+#       - path: /minio
+#         pathType: ImplementationSpecific
+#         backend:
+#           service:
+#             name: minio-service
+#             port:
+#               number: 9000
+#   - host:
+#     http:
+#       paths:
+#       - path: /uploads
+#         pathType: ImplementationSpecific
+#         backend:
+#           service:
+#             name: minio-service
+#             port:
+#               number: 9000
+#   - host:
+#     http:
+#       paths:
+#       - path: /downloads
+#         pathType: ImplementationSpecific
+#         backend:
+#           service:
+#             name: minio-service
+#             port:
+#               number: 9000
+# ---

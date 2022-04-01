@@ -2,19 +2,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: minio-deployment
+  name: minio-console-deployment
   namespace: {{ .Values.global.store_namespace }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: minio
+      app-name: minio-console
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app-name: minio
+        app-name: minio-console
     spec:
       initContainers:
         - name: init
@@ -22,51 +22,43 @@ spec:
           imagePullPolicy: {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
-              value: "keycloak,keycloak-internal-service.kube-system.svc,443"
+              value: "keycloak,keycloak-internal-service.kube-system.svc,443;minio,minio-service.store.svc,9000"
             - name: DELAY
               value: "3"
             - name: TIMEOUT
               value: "10"
       containers:
-      - name: minio
-        image: {{  .Values.global.registry_url }}/minio:2022.03.26
+      - name: minio-console
+        image: {{  .Values.global.registry_url }}/minio-console:0.15.6
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
-        command: ["minio"]
-        args: ["server", "/export", "--address", "0.0.0.0:9000"]
+        args: ["server", "--host", "0.0.0.0", "--port", "9001"]
         env:
-        - name: MINIO_BROWSER
-          value: "off"
-        - name: MINIO_ROOT_USER
-          value:  {{ .Values.global.credentials_minio_username }}
-        - name: MINIO_ROOT_PASSWORD
-          value: {{ .Values.global.credentials_minio_password }}
-        - name: MINIO_IDENTITY_OPENID_CONFIG_URL
+        - name: KAAPANA_ADDRESS
+          value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}"
+        - name: CONSOLE_SUBPATH
+          value: /minio-console/
+        - name: CONSOLE_MINIO_SERVER
+          value: http://minio-service.store.svc:9000
+        - name: CONSOLE_IDP_URL
           value: "http://keycloak-external-service.kube-system.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
-        - name: MINIO_IDENTITY_OPENID_CLIENT_ID
+        - name: CONSOLE_IDP_CLIENT_ID
           value: "kaapana"
-        - name: MINIO_IDENTITY_OPENID_CLIENT_SECRET
+        - name: CONSOLE_IDP_SECRET
           value: "uQBJzc2YDzjRfj2OCT79JDShojeqAK2R"
         - name: MINIO_IDENTITY_OPENID_CLAIM_NAME
           value: "policy"
-        - name: MINIO_IDENTITY_OPENID_REDIRECT_URI
+        - name: CONSOLE_IDP_CALLBACK # has to be set as allowed redirect urls in keyloak https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/minio-console/oauth_callback/
           value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/minio-console/oauth_callback/"
-        # - name: MINIO_SERVER_DEBUG
-        #   value: "on"
+        - name: CONSOLE_SECURE_FRAME_DENY
+          value: "off"
         ports:
-        - containerPort: 9000
+        - name: minio-console
+          containerPort: 9001
         resources:
           requests:
             memory: 200Mi
           limits:
             memory: 1000Mi
-        volumeMounts:
-        - name: export  # must match the volume name, above
-          mountPath: "/export"
-      volumes:
-      - name: export 
-        hostPath:
-          path: {{ .Values.global.slow_data_dir }}/minio
-          type: DirectoryOrCreate
       imagePullSecrets:
       - name: registry-secret
 ---

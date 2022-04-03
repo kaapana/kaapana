@@ -27,10 +27,10 @@ const routes = [
         },
     },
     {
-        name: 'federated-learning',
-        path: '/federated-learning',
-        component: () => import('@/views/FederatedLearning.vue'),
-        title: 'FederatedLearning',
+        name: 'federated',
+        path: '/federated',
+        component: () => import('@/views/Federated.vue'),
+        title: 'Federated',
         permissions: {
             isPublic: false,
         },

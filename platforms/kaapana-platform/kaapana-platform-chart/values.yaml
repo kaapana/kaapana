@@ -33,10 +33,4 @@ global:
           version: 4.2.0
         - name: kaapana-plugin-chart
           version: 0.1.1
-        - name: federated-backend-chart
-          version: 0.1.0
-        - name: federated-setup-central-test-workflow
-          version: 0.1.0
-        - name: federated-setup-node-test-workflow
-          version: 0.1.0
 ---

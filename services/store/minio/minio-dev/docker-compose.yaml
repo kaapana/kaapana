@@ -1,8 +1,8 @@
 version: '3.7'
 services:
   minio:
-    image: {{  .Values.global.registry_url }}/minio:2022.03.26
-    entrypoint: minio server /data --address 0.0.0.0:9000
+    image: minio/minio:RELEASE.2022-04-01T03-41-39Z
+    command: server /data --address 0.0.0.0:9000
     expose:
       - "9000"
     environment:
@@ -17,18 +17,18 @@ services:
       MINIO_IDENTITY_OPENID_REDIRECT_URI: "http://127.0.0.1:9001/oauth_callback/"
       MINIO_SERVER_DEBUG: "on"
   console:
-    image: {{  .Values.global.registry_url }}/minio:2022.03.26
-    entrypoint: minio-console server --host 0.0.0.0 --port 9001
+    image: minio/console:v0.15.8
+    command: server --host 0.0.0.0 --port 9001
     expose:
       - "9001"
     environment:
-      CONSOLE_SUBPATH: /blub/
+      CONSOLE_SUBPATH: /minio-subpath/
       CONSOLE_MINIO_SERVER: http://minio:9000
       CONSOLE_IDP_URL: "http://193.174.49.36:8081/auth/realms/kaapana/.well-known/openid-configuration"
       CONSOLE_IDP_CLIENT_ID: "kaapana"
       CONSOLE_IDP_SECRET: "1c4645f0-e654-45a1-a8b6-cf28790104ea"
       MINIO_IDENTITY_OPENID_CLAIM_NAME: policy
-      CONSOLE_IDP_CALLBACK: "http://127.0.0.1:9001/blub/oauth_callback/"
+      CONSOLE_IDP_CALLBACK: "http://127.0.0.1:9001/minio-subpath/oauth_callback/"
   nginx:
     image: nginx:1.19.2-alpine
     hostname: nginx

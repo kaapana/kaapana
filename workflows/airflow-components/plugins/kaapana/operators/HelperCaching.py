@@ -111,6 +111,9 @@ def cache_operator_output(func):
 
         if federated is not None and 'from_previous_dag_run' in federated and federated['from_previous_dag_run'] is not None:
             if 'federated_operators' in federated and self.operator_out_dir in federated['federated_operators']:
+                if self.whitelist_federated_learning is not None:
+                    print('Since self.whitelist_federated_learning  not None still copying the data, in the federated_sharing_decorator decorator the whitelist data will be oerwritten!') 
+                    from_previous_dag_run_action(self.operator_out_dir, 'from_previous_dag_run', dag_run_dir, federated)
                 pass
             elif omit_from_previous_dag_run is True:
                 pass

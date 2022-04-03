@@ -303,7 +303,7 @@ nnunet_preprocess = NnUnetOperator(
     instance_name=INSTANCE_NAME,
     allow_federated_learning=True,
     whitelist_federated_learning=["dataset_properties.pkl", "intensityproperties.pkl"],
-    dev_server=None
+    dev_server=None #'code-server'
 )
 
 nnunet_train = NnUnetOperator(

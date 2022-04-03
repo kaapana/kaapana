@@ -77,12 +77,8 @@ class nnUNetTrainerV2(nnUNetTrainer):
         super().__init__(plans_file, fold, output_folder, dataset_directory, batch_dice, stage, unpack_data,
                          deterministic, fp16)
 
-        ################################## Adapted for Kaapana ##################################
-        self.max_num_epochs = int(os.getenv("TRAIN_MAX_EPOCHS", 1000))
-        self.epochs_per_round = int(os.getenv("EPOCHS_PER_ROUND", self.max_num_epochs))
-        self.num_batches_per_epoch = int(os.getenv("NUM_BATCHES_PER_EPOCH", 250))
-        self.num_val_batches_per_epoch = int(os.getenv("NUM_VAL_BATCHES_PER_EPOCH", 50))               
-        self.save_best_checkpoint = False  # whether or not to save the best checkpoint according to self.best_val_eval_criterion_MA
+        ################################## Adapted for Kaapana ##################################           
+        # self.save_best_checkpoint = False  # whether or not to save the best checkpoint according to self.best_val_eval_criterion_MA
 
         # This is maybe a little bit ugly...
         tensorboard_log_dir = Path(os.path.join('/minio', 'tensorboard', os.getenv('RUN_ID'), os.getenv('OPERATOR_OUT_DIR')))
@@ -501,7 +497,7 @@ class nnUNetTrainerV2(nnUNetTrainer):
         ################################## Adapted for Kaapana ##################################
         #########################################################################################
         print('Epoch', self.epoch, self.epochs_per_round)
-        if (self.epoch > 0) and ((self.epoch+1) % self.epochs_per_round == 0) and ((self.epoch+1) != self.max_num_epochs):
+        if ((self.epoch+1) % self.epochs_per_round == 0) and ((self.epoch+1) != self.max_num_epochs):
             print('Interrupting training ')
             self.print_to_log_file(f"Interrupting training due to epochs_per_round={self.epochs_per_round}")
             return False

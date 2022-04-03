@@ -101,22 +101,21 @@ class NnUnetOperator(KaapanaBaseOperator):
         parallel_id = parallel_id if parallel_id is not None else mode
 
 
+        # volume_mounts = []
+        # volumes = []
+        # volume_mounts = [
+        #     VolumeMount('nnunetdata', mount_path='/opt/conda/lib/python3.8/site-packages/nnunet', sub_path=None, read_only=False),
+        # ]
 
-        if dev_server is not None:
-            pass
-            # volume_mounts = [
-            #     VolumeMount('nnunetdata', mount_path='/opt/conda/lib/python3.6/site-packages/nnunet', sub_path=None, read_only=False),
-            # ]
-
-            # volumes = [
-            #     Volume(name='nnunetdata', configs={
-            #         'hostPath':
-            #         {
-            #             'type': 'DirectoryOrCreate',
-            #             'path': '/home/ubuntu/dev/nnUNet/nnunet'
-            #         }
-            #     })
-            # ]
+        # volumes = [
+        #     Volume(name='nnunetdata', configs={
+        #         'hostPath':
+        #         {
+        #             'type': 'DirectoryOrCreate',
+        #             'path': '/home/ubuntu/dev/nnUNet/nnunet'
+        #         }
+        #     })
+        # ]
 
         super().__init__(
             dag=dag,
@@ -132,6 +131,8 @@ class NnUnetOperator(KaapanaBaseOperator):
             pod_resources=pod_resources,
             gpu_mem_mb=gpu_mem_mb,
             env_vars=env_vars,
+            # volume_mounts=volume_mounts,
+            # volumes=volumes,
             dev_server=dev_server,
             **kwargs
         )

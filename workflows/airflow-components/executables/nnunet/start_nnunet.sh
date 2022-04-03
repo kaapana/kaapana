@@ -25,6 +25,7 @@ if [ "$MODE" = "preprocess" ]; then
     echo "# Starting preprocessing..."
     echo "#"
     echo "# PREPROCESS:      $PREP_PREPROCESS";
+    echo "# PREP_INCREMENT_STEP: $PREP_INCREMENT_STEP";
     echo "# CHECK_INTEGRITY: $PREP_CHECK_INTEGRITY";
     echo "#"
     echo "# OMP_THREAD_LIMIT" $OMP_THREAD_LIMIT
@@ -39,11 +40,13 @@ if [ "$MODE" = "preprocess" ]; then
     echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base";
     echo "# nnUNet_preprocessed:  $nnUNet_preprocessed";
     echo "# RESULTS_FOLDER:       $RESULTS_FOLDER";
-    echo "#"
-    echo "# Starting create_dataset..."
-    echo "#"
-    python3 -u ./create_dataset.py
-    
+    if [ "$PREP_INCREMENT_STEP" = "all" ] || [ "$PREP_INCREMENT_STEP" = "to_dataset_properties" ]; then
+        echo "#"
+        echo "# Starting create_dataset..."
+        echo "#"
+        python3 -u ./create_dataset.py
+    fi
+
     if [ "$PREP_CHECK_INTEGRITY" = "True" ] || [ "$PREP_CHECK_INTEGRITY" = "true" ]; then
         preprocess_verify="--verify_dataset_integrity"
     else
@@ -55,10 +58,10 @@ if [ "$MODE" = "preprocess" ]; then
     else
         preprocess="-no_pp"
     fi
-    
-    echo "# COMMAND: nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify"
+
+    echo "# COMMAND: nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP"
     echo "#"
-    nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify
+    nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP
     echo "#"
     echo "# Dataset itegrity OK!"
     echo "#"

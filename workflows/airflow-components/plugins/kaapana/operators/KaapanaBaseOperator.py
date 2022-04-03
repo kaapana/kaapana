@@ -371,8 +371,9 @@ class KaapanaBaseOperator(BaseOperator):
             k = k.upper()
             self.env_vars[k] = str(v)
 
-    @federated_sharing_decorator
+    # The order of this decorators matters because of the whitelist_federated_learning variable, do not change them!
     @cache_operator_output
+    @federated_sharing_decorator
     def execute(self, context):
 
         config_path = os.path.join(self.workflow_dir, context["run_id"], 'conf', 'conf.json')

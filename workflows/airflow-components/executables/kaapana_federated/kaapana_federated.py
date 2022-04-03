@@ -171,7 +171,7 @@ class KaapanaFederatedTrainingBase(ABC):
         # Starting round!
         self.remote_conf_data['federated_form']['federated_round'] = federated_round
         for site_info in self.remote_sites:
-            if federated_round == 0:
+            if site_info['instance_name'] not in self.tmp_federated_site_info:
                 self.tmp_federated_site_info[site_info['instance_name']] = {}
                 self.remote_conf_data['federated_form']['from_previous_dag_run'] =  None
                 self.remote_conf_data['federated_form']['before_previous_dag_run'] = None
@@ -201,7 +201,7 @@ class KaapanaFederatedTrainingBase(ABC):
         print('Waiting for updates')
         for idx in range(10000):
             if idx%6 == 0:
-                print(f'{10*(idx+1)} seconds')
+                print(f'{10*idx} seconds')
 
             time.sleep(10) 
             for instance_name, tmp_site_info in self.tmp_federated_site_info.items():

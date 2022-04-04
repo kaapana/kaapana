@@ -14,12 +14,12 @@
             v-list-item-title {{section.label}}
           v-list-item(v-for="(subSection, subSectionKey) in section.subSections" :key="subSection.id" :to="{ name: 'ew-section-view', params: { ewSection: sectionKey, ewSubSection: subSectionKey }}")
             v-list-item-title(v-text="subSection.label")
-        v-list-item(:to="'/data-upload'" v-if="isAuthenticated")
-          v-list-item-action
-            v-icon mdi-cloud-upload
-          v-list-item-content
-            v-list-item-title Data upload
-          v-list-item-icon
+        //- v-list-item(:to="'/data-upload'" v-if="isAuthenticated")
+        //-   v-list-item-action
+        //-     v-icon mdi-cloud-upload
+        //-   v-list-item-content
+        //-     v-list-item-title Data upload
+        //-   v-list-item-icon
         v-list-item(:to="'/pending-applications'" v-if="isAuthenticated")
           v-list-item-action
             v-icon mdi-gamepad-variant

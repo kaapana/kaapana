@@ -208,9 +208,15 @@ ui_forms = {
             },
             "prep_preprocess": {
                 "type": "boolean",
-                "title": "PREP_PREPROCESS",
+                "title": "Execute preprocessing",
                 "default": True,
                 "description": "Set this flag if you dont want to run the preprocessing. If this is set then this script will only run the experiment planning and create the plans file"
+            },
+            "prep_check_integrity": {
+                "type": "boolean",
+                "title": "Check integrity",
+                "default": True,
+                "description": "Whether to check integrity of data"
             }
             # "version": {
             #     "title": "Version",

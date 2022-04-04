@@ -11,7 +11,7 @@ from airflow.models import DAG
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from doccano.LocalDoccanoDownloadDatasetOperator import LocalDoccanoDownloadDatasetOperator
-
+from doccano.ProcessStudyIdsOperator import ProcessStudyIdsOperator
 log = LoggingMixin().log
 
 args = {
@@ -31,10 +31,7 @@ dag = DAG(
     )
 
 download_dataset = LocalDoccanoDownloadDatasetOperator(dag=dag)
-# get_object_from_minio = LocalMinioOperator(dag=dag, action_operator_dirs=['dicoms'], operator_out_dir='dicoms')
 unzip_files = LocalUnzipFileOperator(dag=dag, input_operator=download_dataset)
-# dicom_send = DcmSendOperator(dag=dag, input_operator=unzip_files, ae_title='uploaded', level='batch')
-# remove_object_from_minio = LocalMinioOperator(dag=dag, parallel_id='removing', action='remove', trigger_rule=TriggerRule.ALL_DONE)
-# clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
-download_dataset >> unzip_files
-# get_object_from_minio >> unzip_files >> dicom_send >> remove_object_from_minio >> clean
+dicom_send = ProcessStudyIdsOperator(dag=dag, dev_server=None, input_operator=unzip_files)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+download_dataset >> unzip_files >> dicom_send >> clean

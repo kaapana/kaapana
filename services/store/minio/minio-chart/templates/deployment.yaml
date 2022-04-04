@@ -2,7 +2,6 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  # This name uniquely identifies the Deployment
   name: minio-deployment
   namespace: {{ .Values.global.store_namespace }}
 spec:
@@ -20,7 +19,7 @@ spec:
       initContainers:
         - name: init
           image: {{  .Values.global.registry_url }}/service_checker:1.1
-          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          imagePullPolicy: {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
               value: "keycloak,keycloak-internal-service.kube-system.svc,443"
@@ -30,39 +29,42 @@ spec:
               value: "10"
       containers:
       - name: minio
-        image: {{  .Values.global.registry_url }}/minio:2021.03.12
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
-        args:
-        - server
-        - /storage
+        image: {{  .Values.global.registry_url }}/minio:2022.03.26
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        command: ["minio"]
+        args: ["server", "/export", "--address", "0.0.0.0:9000"]
         env:
-        - name: MINIO_IDENTITY_OPENID_CLIENT_ID
-          value: "kaapana"
-        - name: MINIO_KAAPANA_AUTHORIZATION_ENDPOINT
-          value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/auth/realms/kaapana/protocol/openid-connect/auth"
-        # - name: MINIO_IDENTITY_OPENID_JWKS_URL
-        #  value: https://vm-129-6.cloud.dkfz-heidelberg.de/auth/realms/kaapana/protocol/openid-connect/certs
+        - name: MINIO_BROWSER
+          value: "off"
+        - name: MINIO_ROOT_USER
+          value:  {{ .Values.global.credentials_minio_username }}
+        - name: MINIO_ROOT_PASSWORD
+          value: {{ .Values.global.credentials_minio_password }}
         - name: MINIO_IDENTITY_OPENID_CONFIG_URL
           value: "http://keycloak-external-service.kube-system.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
-        # Minio access key and secret key
-        - name: MINIO_ACCESS_KEY
-          value: {{ .Values.global.credentials_minio_username }}
-        - name: MINIO_SECRET_KEY
-          value: {{ .Values.global.credentials_minio_password }}
+        - name: MINIO_IDENTITY_OPENID_CLIENT_ID
+          value: "kaapana"
+        - name: MINIO_IDENTITY_OPENID_CLIENT_SECRET
+          value: "uQBJzc2YDzjRfj2OCT79JDShojeqAK2R"
+        - name: MINIO_IDENTITY_OPENID_CLAIM_NAME
+          value: "policy"
+        - name: MINIO_IDENTITY_OPENID_REDIRECT_URI
+          value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/minio-console/oauth_callback/"
+        # - name: MINIO_SERVER_DEBUG
+        #   value: "on"
         ports:
         - containerPort: 9000
         resources:
           requests:
             memory: 200Mi
           limits:
-            memory: 500Mi
+            memory: 1000Mi
         volumeMounts:
-        - name: storage # must match the volume name, above
-          mountPath: "/storage"
+        - name: export  # must match the volume name, above
+          mountPath: "/export"
       volumes:
-      - name: storage
+      - name: export 
         hostPath:
-          # path: /home/kaapana/minio
           path: {{ .Values.global.slow_data_dir }}/minio
           type: DirectoryOrCreate
       imagePullSecrets:

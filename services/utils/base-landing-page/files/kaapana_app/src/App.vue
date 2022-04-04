@@ -14,12 +14,12 @@
             v-list-item-title {{section.label}}
           v-list-item(v-for="(subSection, subSectionKey) in section.subSections" :key="subSection.id" :to="{ name: 'ew-section-view', params: { ewSection: sectionKey, ewSubSection: subSectionKey }}")
             v-list-item-title(v-text="subSection.label")
-        v-list-item(:to="'/data-upload'" v-if="isAuthenticated")
-          v-list-item-action
-            v-icon mdi-cloud-upload
-          v-list-item-content
-            v-list-item-title Data upload
-          v-list-item-icon
+        //- v-list-item(:to="'/data-upload'" v-if="isAuthenticated")
+        //-   v-list-item-action
+        //-     v-icon mdi-cloud-upload
+        //-   v-list-item-content
+        //-     v-list-item-title Data upload
+        //-   v-list-item-icon
         v-list-item(:to="'/pending-applications'" v-if="isAuthenticated")
           v-list-item-action
             v-icon mdi-gamepad-variant
@@ -32,11 +32,11 @@
           v-list-item-content
             v-list-item-title Extensions
           v-list-item-icon
-        v-list-item(:to="'/federated-learning'", v-if="isAuthenticated")
+        v-list-item(:to="'/federated'", v-if="isAuthenticated && federatedBackendAvailable")
           v-list-item-action
             v-icon mdi-vector-triangle
           v-list-item-content
-            v-list-item-title Federated Learning
+            v-list-item-title Federated
           v-list-item-icon
     v-app-bar(color="primary" dark dense clipped-left app)
       v-app-bar-nav-icon(@click.stop="drawer = !drawer")
@@ -70,6 +70,7 @@
 import Vue from 'vue';
 import storage from 'local-storage-fallback'
 import request from '@/request';
+import kaapanaApiService from '@/common/kaapanaApi.service.ts'
 
 import { mapGetters } from 'vuex';
 import { LOGIN, LOGOUT, CHECK_AUTH } from '@/store/actions.type';
@@ -80,13 +81,10 @@ export default Vue.extend({
   name: 'App',
   data: () => ({
     drawer: true,
+    federatedBackendAvailable: false
   }),
   computed: {
     ...mapGetters(['currentUser', 'isAuthenticated', 'externalWebpages', 'commonData']),
-  },
-  mounted() {
-    // this.minioCall()
-    console.log("#TODO Skip Minio...")
   },
   methods: {
     login() {
@@ -96,23 +94,18 @@ export default Vue.extend({
     },
     logout() {
       this.$store.dispatch(LOGOUT)
-    },
-    minioCall() {
-         request.get('/flow/kaapana/api/getaccesstoken').then(response => {
-            let payload = {"id":1,"jsonrpc":"2.0","params":{"token": response.data["xAuthToken"]},"method":"web.LoginSTS"}
-            request.post('/minio/webrpc', payload).then(response => {
-                storage.setItem('token', `${response.data.result["token"]}`)
-            }).catch(error => {
-              console.log('Could not generate the minio token...', error)
-            })
-        }).catch(error => {
-          console.log('Could not load the access-token', error)
-        })
     }
   },
   beforeCreate () {
     this.$store.dispatch(CHECK_AVAILABLE_WEBISTES)
     this.$store.dispatch(LOAD_COMMON_DATA)
+  },
+  mounted () {
+      request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
+        this.federatedBackendAvailable = kaapanaApiService.checkUrl(response.data, '/federated-backend')
+      }).catch((error: any) => {
+        console.log('Something went wrong with traefik', error)
+      })
   },
   onIdle() {
     console.log('checking', this.$store.getters.isAuthenticated)

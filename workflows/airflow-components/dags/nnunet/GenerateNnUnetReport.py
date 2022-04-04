@@ -2,10 +2,9 @@ import os
 import glob
 from datetime import timedelta
 
-from kaapana.operators.PytorchExecuterBaseOperator import PytorchExecuterBaseOperator
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry
 
-class GenerateNnUnetReport(PytorchExecuterBaseOperator):
+class GenerateNnUnetReport(KaapanaBaseOperator):
 
     def __init__(self,
                  dag,
@@ -17,6 +16,8 @@ class GenerateNnUnetReport(PytorchExecuterBaseOperator):
         super().__init__(
             dag=dag,
             name=name,
+            image=f"{default_registry}/pytorch-cpu-executer:0.1.0",
+            image_pull_secrets=["registry-secret"],
             # cmds=["tail"],
             # arguments=["-f", "/dev/null"], 
             cmds=["/bin/bash"],

@@ -205,6 +205,18 @@ ui_forms = {
                 "title": "FP32",
                 "default": False,
                 "description": "Disable mixed precision training and run old school fp32"
+            },
+            "prep_preprocess": {
+                "type": "boolean",
+                "title": "Execute preprocessing",
+                "default": True,
+                "description": "Set this flag if you dont want to run the preprocessing. If this is set then this script will only run the experiment planning and create the plans file"
+            },
+            "prep_check_integrity": {
+                "type": "boolean",
+                "title": "Check integrity",
+                "default": True,
+                "description": "Whether to check integrity of data"
             }
             # "version": {
             #     "title": "Version",
@@ -295,6 +307,9 @@ nnunet_preprocess = NnUnetOperator(
     prep_exit_on_issue=True,
     retries=0,
     instance_name=INSTANCE_NAME,
+    allow_federated_learning=True,
+    whitelist_federated_learning=["dataset_properties.pkl", "intensityproperties.pkl"],
+    dev_server=None #'code-server'
 )
 
 nnunet_train = NnUnetOperator(
@@ -303,8 +318,10 @@ nnunet_train = NnUnetOperator(
     train_max_epochs=max_epochs,
     input_operator=nnunet_preprocess,
     model=default_model,
+    allow_federated_learning=True,
     train_network_trainer=train_network_trainer,
     train_fold='all',
+    dev_server=None,
     retries=0
 )
 

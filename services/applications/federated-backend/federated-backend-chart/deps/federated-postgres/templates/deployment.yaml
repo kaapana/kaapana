@@ -20,7 +20,7 @@ spec:
       containers:
       - name: federated-postgres
         image: {{  .Values.global.registry_url }}/postgres:9.6-alpine
-        # image: registry.hzdr.de/k.kades/kaapana-klaus-dev/postgres:9.6-alpine
+        # image: {{  .Values.global.registry_url }}/postgres:9.6-alpine
         # imagePullPolicy: Always
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env: # Environment variables

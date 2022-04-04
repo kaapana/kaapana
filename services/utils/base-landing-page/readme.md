@@ -44,7 +44,7 @@ spec:
       containers:
         - name: landingpage
           image: >-
-            registry.hzdr.de/k.kades/kaapana-klaus-dev/landing-page-kaapana:0.1.3-dev
+            {{  .Values.global.registry_url }}/landing-page-kaapana:0.1.3-dev
           command:
             - sh
           args:

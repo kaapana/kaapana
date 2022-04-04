@@ -58,6 +58,7 @@ spec:
           - --force-https
           - --pass-access-token 
           - --skip-auth-regex=/auth/*
+          - --skip-auth-regex=/federated-backend/remote/*
           - --metrics-address=:8081
           - --reverse-proxy
           # - --set-authorization-header

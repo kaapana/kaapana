@@ -3,6 +3,7 @@ import os
 import shutil
 import functools
 import json
+from pathlib import Path
 import requests
 import tarfile
 from cryptography.fernet import Fernet
@@ -34,15 +35,19 @@ def fernet_decryptfile(filepath, key):
     with open(filepath, 'wb') as dec_file:
         dec_file.write(decrypted)
         
-def apply_tar_action(dst_filename, src_dir):
-    print(f'Tar {src_dir} to {dst_filename}')
-    with tarfile.open(dst_filename, "w:gz") as tar:
-        tar.add(src_dir, arcname=os.path.basename(src_dir))
-
 def apply_untar_action(src_filename, dst_dir):
     print(f'Untar {src_filename} to {dst_dir}')
     with tarfile.open(src_filename, "r:gz")as tar:
         tar.extractall(dst_dir)
+
+def apply_tar_action(dst_filename, src_dir, whitelist_extensions_tuples=None):
+    with tarfile.open(dst_filename, "w:gz") as tar:
+        if whitelist_extensions_tuples is not None:
+            for file_path in Path(src_dir).rglob('*'):
+                if file_path.name.endswith(tuple(whitelist_extensions_tuples)):
+                    tar.add(file_path, arcname=os.path.relpath(file_path, os.path.dirname(src_dir)), recursive=False)
+        else:
+            tar.add(src_dir, arcname=os.path.basename(src_dir))
 
 def raise_kaapana_connection_error(r):
     if r.history:
@@ -52,7 +57,7 @@ def raise_kaapana_connection_error(r):
     except:
         raise ValueError(f'Something was not okay with your request code {r}: {r.text}!')
 
-def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_dir, client_job_id):
+def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_dir, client_job_id, whitelist_federated_learning=None):
     data = federated['minio_urls'][operator_out_dir][action]
     with requests.Session() as s:
         r = requests_retry_session(session=s).get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id': client_job_id})
@@ -77,7 +82,7 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
         src_dir = os.path.join(root_dir, operator_out_dir)
         if not os.path.isdir(src_dir):
             raise ValueError(f'{src_dir} does not exist, you most probably try to push results on a batch-element level, however, so far only bach level output is supported for federated learning!')
-        apply_tar_action(filename, src_dir)
+        apply_tar_action(filename, src_dir, whitelist_federated_learning)
         fernet_encryptfile(filename, client_network['fernet_key'])
         with open(filename, "rb") as tar:
             print(f'Putting {filename} to {remote_network}')
@@ -105,10 +110,10 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
     os.remove(filename)
     
                 
-def federated_action(operator_out_dir, action, dag_run_dir, federated, client_job_id):
+def federated_action(operator_out_dir, action, dag_run_dir, federated, client_job_id, whitelist_federated_learning=None):
 
     if federated['minio_urls'] is not None and operator_out_dir in federated['minio_urls']:
-        apply_minio_presigned_url_action(action, federated, operator_out_dir, dag_run_dir, client_job_id)
+        apply_minio_presigned_url_action(action, federated, operator_out_dir, dag_run_dir, client_job_id, whitelist_federated_learning)
 
 #######################
 
@@ -140,7 +145,7 @@ def federated_sharing_decorator(func):
     
         if federated is not None and 'federated_operators' in federated and self.operator_out_dir in federated['federated_operators']:
             print('Putting data')
-            federated_action(self.operator_out_dir, 'put', dag_run_dir, federated, conf['client_job_id'])
+            federated_action(self.operator_out_dir, 'put', dag_run_dir, federated, conf['client_job_id'], self.whitelist_federated_learning)
 
         return x
 

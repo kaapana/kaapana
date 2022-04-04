@@ -382,7 +382,7 @@ def dag_run_status(dag_id, run_id):
 @kaapanaApi.route('/api/getaccesstoken')
 @csrf.exempt
 def get_access_token():
-    x_auth_token = request.headers.get('X-Auth-Token')
+    x_auth_token = request.headers.get('X-Forwarded-Access-Token')
     if x_auth_token is None:
         return jsonify({'message': 'No X-Auth-Token found in your request, seems that you are calling me from the backend!'}), 404
     return jsonify(xAuthToken=x_auth_token)
@@ -391,6 +391,6 @@ def get_access_token():
 @kaapanaApi.route('/api/getminiocredentials')
 @csrf.exempt
 def get_minio_credentials():
-    x_auth_token = request.args.get('X-Auth-Token')
+    x_auth_token = request.headers.get('X-Forwarded-Access-Token')
     access_key, secret_key, session_token = generate_minio_credentials(x_auth_token)
     return jsonify({'accessKey': access_key, 'secretKey': secret_key, 'sessionToken': session_token}), 200

@@ -4,7 +4,6 @@ import zipfile
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
-# Changed
 
 
 class LocalUnzipFileOperator(KaapanaPythonBaseOperator):
@@ -27,11 +26,12 @@ class LocalUnzipFileOperator(KaapanaPythonBaseOperator):
 
     def __init__(self,
                  dag,
+                name="unzip-file",
                  **kwargs):
 
         super().__init__(
             dag=dag,
-            name="unzip-file",
+            name=name,
             python_callable=self.start,
             **kwargs
         )

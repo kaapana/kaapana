@@ -362,6 +362,7 @@ def get_manifest_infos(manifest):
         ingress_path = ''
         if config['kind'] == 'Ingress':
             ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']
+            print('ingress_path', ingress_path)
             ingress_paths.append(ingress_path)
         if config['kind'] == 'Deployment':
             kube_status = get_kube_status('app', config['spec']['selector']['matchLabels']['app-name'], config['metadata']['namespace'])
@@ -390,7 +391,7 @@ def get_extensions_list():
     extensions_list = []
     try:
         if update_running or (not smth_pending and last_refresh_timestamp != None and extensions_list_cached and (time.time() - last_refresh_timestamp) < refresh_delay):
-            # print("Using cached extension-list...", flush=True)
+            print("Using cached extension-list...", flush=True)
             pass
         else:
             print("Generating new extension-list...", flush=True)
@@ -455,7 +456,7 @@ def get_extensions_list():
 
     except subprocess.CalledProcessError as e:
         success = False
-
+    print('succes', success)
     return success, extensions_list_cached
 
 

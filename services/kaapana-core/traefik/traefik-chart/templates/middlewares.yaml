@@ -16,7 +16,6 @@ spec:
     - /grafana
     - /orthanc
     - /jena
-    - /code
     - /web-ide
     - /federated-backend
     forceSlash: true

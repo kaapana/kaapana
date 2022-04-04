@@ -119,7 +119,7 @@ class NnUnetOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/nnunet:03-22",
+            image=f"{default_registry}/nnunet-gpu:03-22",
             name="nnunet",
             parallel_id=parallel_id,
             image_pull_secrets=["registry-secret"],

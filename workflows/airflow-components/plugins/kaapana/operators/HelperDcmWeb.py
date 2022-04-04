@@ -90,10 +90,24 @@ class HelperDcmWeb():
         }
         url = HelperDcmWeb.pacs_dcmweb + "/wado"
         response = requests.get(url, params=payload)
-        fileName = objectUID+".dcm"
-        filePath = os.path.join(target_dir, fileName)
-        with open(filePath, "wb") as f:
-            f.write(response.content)
+        if response.status_code == 200:
+            fileName = objectUID+".dcm"
+            filePath = os.path.join(target_dir, fileName)
+            with open(filePath, "wb") as f:
+                f.write(response.content)
+        else:
+            print("################################")
+            print("#")
+            print("# Download of requested objectUID was not successful!")
+            print(f"# seriesUID: {seriesUID}")
+            print(f"# studyUID: {studyUID}")
+            print(f"# objectUID: {objectUID}")
+            print(f"# Status code: {response.status_code}")
+            print(f"# Response content: {response.content}")
+            print("#")
+            print("################################")
+            exit(1)
+
 
     @staticmethod
     def quido_rs(aet: str, sub_url: str):

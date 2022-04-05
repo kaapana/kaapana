@@ -300,6 +300,8 @@ class Container:
         os.chdir(self.container_dir)
         if http_proxy is not None:
             command = [Container.container_engine, "build", "--build-arg", "http_proxy={}".format(http_proxy), "--build-arg", "https_proxy={}".format(http_proxy), "-t", self.tag, "-f", self.path, "."]
+        elif self.tag.split('/')[-1].startswith('dag'):
+            command = [Container.container_engine, "build", "--no-cache", "-t", self.tag, "-f", self.path, "."]
         else:
             command = [Container.container_engine, "build", "-t", self.tag, "-f", self.path, "."]
 

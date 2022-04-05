@@ -13,7 +13,7 @@ def rest_self_udpate(func):
     '''
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
-        if kwargs["dag_run"]  is not None and 'rest_call' in kwargs["dag_run"].conf and kwargs["dag_run"].conf['rest_call'] is not None:
+        if kwargs["dag_run"] is not None and kwargs["dag_run"].conf is not None and 'rest_call' in kwargs["dag_run"].conf and kwargs["dag_run"].conf['rest_call'] is not None:
             payload = kwargs["dag_run"].conf['rest_call']
             operator_conf = {}
             if 'operators' in payload and self.name in payload['operators']:

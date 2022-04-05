@@ -20,6 +20,7 @@ class LocalCleanUpExpiredWorkflowDataOperator(KaapanaPythonBaseOperator):
         for dag_id in os.listdir(WORKFLOW_DIR):
             target_dir = os.path.join(WORKFLOW_DIR, dag_id)
             youngest_time = 0
+            modified_time = 0
             for file_path in glob.glob(f'{target_dir}/**/*', recursive=True):
                 modified_time = os.path.getmtime(file_path)
                 if modified_time > youngest_time:

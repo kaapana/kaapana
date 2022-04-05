@@ -9,7 +9,7 @@ from multiprocessing.pool import ThreadPool
 
 # For shell-execution
 from subprocess import PIPE, run
-execution_timeout = 120
+execution_timeout = 1200
 
 # Counter to check if smth has been processed
 processed_count = 0

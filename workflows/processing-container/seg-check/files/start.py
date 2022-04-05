@@ -351,7 +351,10 @@ def merge_niftis(queue_dict):
 
     base_image_loaded = nib.load(base_image_path)
     base_image_dimensions = base_image_loaded.shape
-    new_gt_map = np.zeros_like(base_image_loaded.get_fdata().astype(int))
+    try:
+        new_gt_map = np.zeros_like(base_image_loaded.get_fdata().astype(int)) # This one fails!
+    except EOFError:
+        return queue_dict, "false satori export" 
     # new_gt_map_int_encodings = list(np.unique(new_gt_map))
 
     local_labels_info = {"Clear Label": 0}
@@ -912,6 +915,11 @@ for queue_dict, nifti_result in nifti_results:
             print("# Skipping -> deleting batch-elements for gt-image: ")
             print("#")
             print("##################################################")
+    elif nifti_result == "false satori export":
+        remove_elements = True
+        print("# Skipping -> deleting batch-elements for gt-image: ")
+        print("#")
+        print("##################################################")  
     else:
         print(f"# Unknown status message: {nifti_result}")
         exit(1)

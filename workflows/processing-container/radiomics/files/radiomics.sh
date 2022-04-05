@@ -26,57 +26,63 @@ function radiomics {
         img_dir="${path_array[$len_array-2]}"
         echo "IMG DIR: " $img_dir
         
-        maskfile=$(ls $MASKDIR/*.nrrd | head -1)
+        # for maskfile in $(find $MASKDIR  -name '*.nrrd' | while read f ); do
+        find $MASKDIR  -name '*.nrrd' | while read maskfile; do
+            echo $maskfile
+        # for maskfile in `find $MASKDIR -type f -name "*.nrrd"`; do
+        # for maskfile in $(ls $MASKDIR/*.nrrd | head -1); do
+            echo "Maskfile $maskfile"
+            if [ "$maskfile" == "bin" ];
+            then 
+                echo "Could not find mask-file!"
+                echo "path: $MASKDIR/*.nrrd"
+                exit 1
+            fi
 
-        if [ $maskfile == "bin" ];
-        then 
-            echo "Could not find mask-file!"
-            echo "path: $MASKDIR/*.nrrd"
-            exit 1
-        fi
+            echo "Mask-file found: $maskfile"
+            mkdir -p $OUTPUTDIR
 
-        echo "Mask-file found: $maskfile"
-        mkdir -p $OUTPUTDIR
+            maskfile_name=$(basename "$maskfile")
+            seg_name="${maskfile_name/.nrrd/}"  
+            seg_name="${seg_name// /_}"  
+            echo "Extracteds seg-name $seg_name"
 
-        maskfile_name=$(basename $maskfile)
-        seg_name="${maskfile_name/.nrrd/}"  
-        echo "Extracteds seg-name $seg_name"
+            filename="${filename%.*}";
+            xml_filepath=$OUTPUTDIR/$seg_name'_radiomics.xml';
+            csv_filepath=$OUTPUTDIR/$seg_name'_radiomics.csv';
+            json_filepath=$OUTPUTDIR/$seg_name'_radiomics.json';
 
-        filename="${filename%.*}";
-        xml_filepath=$OUTPUTDIR/$seg_name'_radiomics.xml';
-        csv_filepath=$OUTPUTDIR/$seg_name'_radiomics.csv';
-        json_filepath=$OUTPUTDIR/$seg_name'_radiomics.json';
+            echo "###################################################################### CONFIG"
+            echo "#"
+            echo "#"
+            echo '# xml_filepath: ' $xml_filepath
+            echo '# csv_filepath: ' $csv_filepath
+            echo "# INPUT-FILE: " $file
+            echo "# MASK-DIR: "$MASKDIR/
+            echo "# MASKF-FILE: " $maskfile
+            echo "#"
+            echo "# xml_filepath:  $xml_filepath"
+            echo "# csv_filepath:  $csv_filepath"
+            echo "# json_filepath: $json_filepath"
+            echo "#"
 
-        echo "###################################################################### CONFIG"
-        echo "#"
-        echo "#"
-        echo '# xml_filepath: ' $xml_filepath
-        echo '# csv_filepath: ' $csv_filepath
-        echo "# INPUT-FILE: " $file
-        echo "# MASK-DIR: "$MASKDIR/
-        echo "# MASKF-FILE: " $maskfile
-        echo "#"
-        echo "# xml_filepath:  $xml_filepath"
-        echo "# csv_filepath:  $csv_filepath"
-        echo "# json_filepath: $json_filepath"
-        echo "#"
-
-        install -Dv / "$xml_filepath"
-        echo "###"
-        echo "### COMMAND: /src/MitkCLGlobalImageFeatures.sh -i $file -o $csv_filepath -x $xml_filepath -m $maskfile -rm 1 -sp 1 -head 1 -fl-head 1 $PARAMETERS"
-        echo "###"
-        /src/MitkCLGlobalImageFeatures.sh -i "$file" -o "$csv_filepath" -x "$xml_filepath" -m "$maskfile" -rm 1 -sp 1 -head 1 -fl-head 1 $PARAMETERS
-        # /src/MitkCLGlobalImageFeatures.sh -i "$file" -o "$csv_filepath" -x "$xml_filepath" -m "$maskfile" -rm 1 -sp 1 -head 1 -fl-head 1 -fo 1 -cooc 1
-        
-        retVal=$?
-        if [ $retVal -ne 0 ]; then
-            echo "MitkCLGlobalImageFeatures Error!"
-            exit 1;
-        else
-            echo "MitkCLGlobalImageFeatures DONE!"
-            echo "# Converting XML -> JSON ...";
-            cat "$xml_filepath" | xq >> $json_filepath
-        fi
+            install -Dv / "$xml_filepath"
+            echo "###"
+            echo "### COMMAND: /src/MitkCLGlobalImageFeatures.sh -i $file -o $csv_filepath -x $xml_filepath -m $maskfile -rm 1 -sp 1 -head 1 -fl-head 1 $PARAMETERS"
+            echo "###"
+            /src/MitkCLGlobalImageFeatures.sh -i "$file" -o "$csv_filepath" -x "$xml_filepath" -m "$maskfile" -rm 1 -sp 1 -head 1 -fl-head 1 $PARAMETERS
+            # /src/MitkCLGlobalImageFeatures.sh -i "$file" -o "$csv_filepath" -x "$xml_filepath" -m "$maskfile" -rm 1 -sp 1 -head 1 -fl-head 1 -fo 1 -cooc 1
+            
+            retVal=$?
+            if [ $retVal -ne 0 ]; then
+                echo "MitkCLGlobalImageFeatures Error!"
+                exit 1;
+            else
+                echo "MitkCLGlobalImageFeatures DONE!"
+                echo "# Converting XML -> JSON ...";
+                cat "$xml_filepath" | xq >> $json_filepath
+            fi
+        done
     done
 
     if [ "$loop_counter" -gt 0 ]

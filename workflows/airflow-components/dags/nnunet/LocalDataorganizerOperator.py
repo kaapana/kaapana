@@ -125,7 +125,7 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
             print("#")
             print("##################################################")
             print("#")
-            exit(1)
+            # exit(1)
         else:
             print("# DONE #")
 

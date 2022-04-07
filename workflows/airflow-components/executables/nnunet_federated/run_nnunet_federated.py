@@ -34,7 +34,9 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         print(f"Overwriting prep_increment_step to to_dataset_properties!")
 
         self.remote_conf_data['workflow_form']['prep_increment_step'] = 'to_dataset_properties'
-
+        # We increase the total federated round by one, because we need the final round to download the final model.
+        # The nnUNet won't train an epoch longer, since its train_max_epochs!
+        self.remote_conf_data['federated_form']['federated_total_rounds'] = self.remote_conf_data['federated_form']['federated_total_rounds'] + 1
         print(f"Epochs per round {self.remote_conf_data['workflow_form']['epochs_per_round']}")
         
     def tensorboard_logs(self, federated_round):

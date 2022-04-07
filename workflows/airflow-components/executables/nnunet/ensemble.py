@@ -143,7 +143,7 @@ if len(ensemble_dirs) < 2:
     print("#")
     print("##################################################")
     print("#")
-    exit(1)
+    exit(0)
 
 pred_min_combination = pred_min_combination if pred_min_combination is not None else len(ensemble_dirs)
 pred_min_combination = 2 if pred_min_combination < 2 else pred_min_combination

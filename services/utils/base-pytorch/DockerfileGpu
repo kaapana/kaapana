@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/pytorch:22.02-py3
+ FROM nvcr.io/nvidia/pytorch:22.02-py3
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-pytorch-gpu"
@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
 # Only for jupyternotebook: jupyter nbconvert --to html --no-input ...
 ENV TZ=Europe
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-RUN apt-get install -y texlive-xetex texlive-fonts-recommended texlive-plain-generic
+RUN apt-get install -y texlive-xetex texlive-fonts-recommended texlive-plain-generic pandoc
 
 # Common Python packages
 RUN python -m pip install --upgrade pip

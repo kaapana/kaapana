@@ -26,12 +26,6 @@
           v-list-item-content
             v-list-item-title Pending applications
           v-list-item-icon
-        v-list-item(:to="'/extensions'", v-if="isAuthenticated")
-          v-list-item-action
-            v-icon mdi-apps
-          v-list-item-content
-            v-list-item-title Extensions
-          v-list-item-icon
         v-list-item(:to="'/results-browser'", v-if="isAuthenticated && staticWebsiteAvailable")
           v-list-item-action
             v-icon mdi-file-tree
@@ -43,6 +37,12 @@
             v-icon mdi-vector-triangle
           v-list-item-content
             v-list-item-title Federated
+          v-list-item-icon
+        v-list-item(:to="'/extensions'", v-if="isAuthenticated")
+          v-list-item-action
+            v-icon mdi-apps
+          v-list-item-content
+            v-list-item-title Extensions
           v-list-item-icon
     v-app-bar(color="primary" dark dense clipped-left app)
       v-app-bar-nav-icon(@click.stop="drawer = !drawer")

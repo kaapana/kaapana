@@ -91,7 +91,7 @@ def get_utc_timestamp():
     utc_time = dt.replace(tzinfo=timezone.utc)
     return utc_time
 
-def get_dag_list(only_dag_names=True, filter_allowed_dags=[]):
+def get_dag_list(only_dag_names=True, filter_allowed_dags=None):
     with requests.Session() as s:
         r = requests_retry_session(session=s).get('http://airflow-service.flow.svc:8080/flow/kaapana/api/getdags')
     raise_kaapana_connection_error(r)
@@ -100,10 +100,12 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=[]):
     if only_dag_names is True:
         return sorted(list(dags.keys()))
     else:
-        if filter_allowed_dags:
+        if filter_allowed_dags is None:
+            return dags
+        elif filter_allowed_dags:
             return {dag: dags[dag] for dag in filter_allowed_dags if dag in dags}
         else:
-            return dags
+            return {}
 
 def get_dataset_list(queryDict=None, unique_sets=False, elastic_index='meta-index'):
     _elastichost = "elastic-meta-service.meta.svc:9200"

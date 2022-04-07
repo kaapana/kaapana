@@ -60,7 +60,11 @@ dependencies:
   - name: shapemodel-workflow
     version: 0.1.1
     repository: file://../../../../../../workflows/dag-installer/shapemodel/shapemodel-workflow
+  - name: static-website-chart
+    version: 0.1.0
+    repository: file://../../../../../../services/applications/static-website/static-website-chart
   - name: tensorboard-chart
     version: 2.5.0
     repository: file://../../../../../../services/applications/tensorboard/tensorboard-chart 
+
     

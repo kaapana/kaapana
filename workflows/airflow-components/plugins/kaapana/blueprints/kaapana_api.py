@@ -380,6 +380,7 @@ def dag_run_status(dag_id, run_id):
     )
 
 
+# Should be all moved to kaapana backend!!
 # Authorization topics
 @kaapanaApi.route('/api/getaccesstoken')
 @csrf.exempt
@@ -396,3 +397,62 @@ def get_minio_credentials():
     x_auth_token = request.headers.get('X-Forwarded-Access-Token')
     access_key, secret_key, session_token = generate_minio_credentials(x_auth_token)
     return jsonify({'accessKey': access_key, 'secretKey': secret_key, 'sessionToken': session_token}), 200
+
+
+@kaapanaApi.route('/api/get-static-website-results')
+@csrf.exempt
+def get_static_website_results():
+    import uuid
+    import os
+    from minio import Minio
+
+    def build_tree(item, filepath, org_filepath):
+    # Adapted from https://stackoverflow.com/questions/8484943/construct-a-tree-from-list-os-file-paths-python-performance-dependent
+        splits = filepath.split('/', 1)
+        if len(splits) == 1:
+            print(splits)
+            # item.update({
+            #     "name": splits[0]
+            #     # "file": "html",
+            # })
+            # if "vuetifyItems" not in item:
+            #     item["vuetifyItems"] = []
+            item["vuetifyFiles"].append({
+                "name": splits[0],
+                "file": "html",
+                "path": f"/static-website-browser/{org_filepath}"
+            })
+        else:
+            parent_folder, filepath = splits
+            if parent_folder not in item:
+                item[parent_folder] = {"vuetifyFiles": []}
+            build_tree(item[parent_folder], filepath, org_filepath)
+            
+    def get_vuetify_tree_structure(tree):
+        subtree = []
+        for parent, children in tree.items():
+            print(parent, children)
+            if parent == 'vuetifyFiles':
+                subtree = children
+            else:
+                subtree.append({
+                    'name': parent,
+                    'path': str(uuid.uuid4()),
+                    'children': get_vuetify_tree_structure(children)
+                })
+        return subtree
+
+    _minio_host='minio-service.store.svc'
+    _minio_port='9000'
+    minioClient = Minio(_minio_host+":"+_minio_port,
+                        access_key='kaapanaminio',
+                        secret_key='Kaapana2020',
+                        secure=False)
+
+
+    tree = {"vuetifyFiles": []}
+    objects = minioClient.list_objects("staticwebsiteresults", recursive=True)
+    for obj in objects:
+        if obj.object_name.endswith('html'):
+            build_tree(tree, obj.object_name, obj.object_name)
+    return jsonify(get_vuetify_tree_structure(tree)), 200

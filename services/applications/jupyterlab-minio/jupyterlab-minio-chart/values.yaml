@@ -1,3 +1,0 @@
----
-global:
-    slow_mount_path: "/minio"

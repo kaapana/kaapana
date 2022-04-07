@@ -1,8 +1,7 @@
-{{- $uuid := uuidv4 | trunc 10 }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: static-website-{{ $uuid }}
+  name: static-website-{{ .Values.postfix }}
   namespace: {{ .Values.global.base_namespace }}
   labels:
     k8s-app: static-website
@@ -10,11 +9,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: static-website-{{ $uuid }}
+      app-name: static-website-{{ .Values.postfix }}
   template:
     metadata:
       labels:
-        app-name: static-website-{{ $uuid }}
+        app-name: static-website-{{ .Values.postfix }}
     spec:
       containers:
       - name: static-website
@@ -27,7 +26,7 @@ spec:
             memory: "500Mi"
         env:
           - name: INGRESS_PATH
-            value: "/static-website-{{ $uuid }}"
+            value: "/static-website-{{ .Values.postfix }}"
         volumeMounts:
           - name: staticwebsiteresults
             mountPath: /usr/share/nginx/html/
@@ -46,11 +45,11 @@ spec:
 kind: Service
 apiVersion: v1
 metadata:
-  name: static-website-{{ $uuid }}
+  name: static-website-{{ .Values.postfix }}
   namespace: {{ .Values.global.base_namespace }}
 spec:
   selector:
-    app-name: static-website-{{ $uuid }}
+    app-name: static-website-{{ .Values.postfix }}
   ports:
     - protocol: TCP
       port: 80
@@ -60,33 +59,33 @@ spec:
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
-  name: static-website-strip-{{ $uuid }}
+  name: static-website-strip-{{ .Values.postfix }}
   namespace: {{ .Values.global.base_namespace }}
 spec:
   stripPrefix:
     prefixes:
-    - /static-website-{{ $uuid }}
+    - /static-website-{{ .Values.postfix }}
     forceSlash: true
 ---
 apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
-  name: static-website-{{ $uuid }}
+  name: static-website-{{ .Values.postfix }}
   namespace: {{ .Values.global.base_namespace }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.base_namespace }}-static-website-strip-{{ $uuid }}@kubernetescrd,kube-system-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.base_namespace }}-static-website-strip-{{ .Values.postfix }}@kubernetescrd,kube-system-errorpages@kubernetescrd
     traefik.ingress.kubernetes.io/preserve-host: "true"
 spec:
   rules:
   - host: 
     http:
       paths:
-      - path: "/static-website-{{ $uuid }}"
+      - path: "/static-website-{{ .Values.postfix }}"
         pathType: ImplementationSpecific
         backend:
           service:
-            name: static-website-{{ $uuid }}
+            name: static-website-{{ .Values.postfix }}
             port:
               name: log-http-port
 ---

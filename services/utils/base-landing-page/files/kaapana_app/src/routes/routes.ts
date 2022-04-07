@@ -36,6 +36,15 @@ const routes = [
         },
     },
     {
+        name: 'results-browser',
+        path: '/results-browser',
+        component: () => import('@/views/ResultsBrowser.vue'),
+        title: 'Results browser',
+        permissions: {
+            isPublic: false,
+        },
+    },
+    {
         name: 'data-upload',
         path: '/data-upload',
         component: () => import('@/views/DataUpload.vue'),

@@ -32,6 +32,12 @@
           v-list-item-content
             v-list-item-title Extensions
           v-list-item-icon
+        v-list-item(:to="'/results-browser'", v-if="isAuthenticated && staticWebsiteAvailable")
+          v-list-item-action
+            v-icon mdi-file-tree
+          v-list-item-content
+            v-list-item-title Results browser
+          v-list-item-icon
         v-list-item(:to="'/federated'", v-if="isAuthenticated && federatedBackendAvailable")
           v-list-item-action
             v-icon mdi-vector-triangle
@@ -74,14 +80,15 @@ import kaapanaApiService from '@/common/kaapanaApi.service.ts'
 
 import { mapGetters } from 'vuex';
 import { LOGIN, LOGOUT, CHECK_AUTH } from '@/store/actions.type';
-import { CHECK_AVAILABLE_WEBISTES, LOAD_COMMON_DATA} from '@/store/actions.type';
+import { CHECK_AVAILABLE_WEBSITES, LOAD_COMMON_DATA} from '@/store/actions.type';
 
 
 export default Vue.extend({
   name: 'App',
   data: () => ({
     drawer: true,
-    federatedBackendAvailable: false
+    federatedBackendAvailable: false,
+    staticWebsiteAvailable: false
   }),
   computed: {
     ...mapGetters(['currentUser', 'isAuthenticated', 'externalWebpages', 'commonData']),
@@ -97,12 +104,17 @@ export default Vue.extend({
     }
   },
   beforeCreate () {
-    this.$store.dispatch(CHECK_AVAILABLE_WEBISTES)
+    this.$store.dispatch(CHECK_AVAILABLE_WEBSITES)
     this.$store.dispatch(LOAD_COMMON_DATA)
   },
   mounted () {
       request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
         this.federatedBackendAvailable = kaapanaApiService.checkUrl(response.data, '/federated-backend')
+      }).catch((error: any) => {
+        console.log('Something went wrong with traefik', error)
+      })
+      request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
+        this.staticWebsiteAvailable = kaapanaApiService.checkUrl(response.data, '/static-website-browser')
       }).catch((error: any) => {
         console.log('Something went wrong with traefik', error)
       })

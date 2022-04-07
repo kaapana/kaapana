@@ -263,8 +263,17 @@ const kaapanaApiService = {
         reject(error)
       });
     })
+  },
+  kaapanaApiGet(subUrl: any, params: any = null) {
+    return new Promise((resolve, reject) => {
+      request.get('/flow/kaapana/api/' + subUrl, { params }).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        console.log('Failed: ' + error.response.data)
+        reject(error)
+      })
+    })
   }
-
 }
 
 export default kaapanaApiService

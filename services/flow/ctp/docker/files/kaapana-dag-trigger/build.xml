@@ -10,7 +10,9 @@
 	<path id="classpath">
 		<pathelement location="${libraries}/CTP.jar"/>
 		<pathelement location="${libraries}/util.jar"/>
-		<pathelement location="${libraries}/log4j.jar"/>
+		<pathelement location="${libraries}/log4j/log4j-1.2-api-2.17.2.jar"/>
+		<pathelement location="${libraries}/log4j/log4j-api-2.17.2.jar"/>
+		<pathelement location="${libraries}/log4j/log4j-core-2.17.2.jar"/>
         <pathelement location="${libraries}/json-simple-1.1.1.jar"/>
         <pathelement location="${libraries}/commons-collections4-4.4.jar"/>
 	</path>

@@ -15,6 +15,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: fastapi-backend-service
+  # namespace: base
   namespace: {{ .Values.global.base_namespace }}
   labels:
     app-name: fastapi-backend
@@ -29,13 +30,13 @@ spec:
       nodePort: 5000 # only for development!
   type: NodePort # only for development!
 {{- else }}
-    - name: hw-http
+- name: hw-http
       port: 5000 
       targetPort: 5000
   type: ClusterIP
 {{- end }}
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: fastapi-backend-ingress
@@ -50,6 +51,9 @@ spec:
     http:
       paths:
       - path: /{{ .Values.global.path_prefix }}
+        pathType: ImplementationSpecific
         backend:
-          serviceName: fastapi-backend-service
-          servicePort: 5000
+          service:
+            name: fastapi-backend-service
+            port: 
+              number: 5000

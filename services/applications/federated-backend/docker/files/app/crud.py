@@ -52,7 +52,7 @@ def create_and_update_client_kaapana_instance(db: Session, client_kaapana_instan
             return 'deactivated'
     utc_timestamp = get_utc_timestamp()
     allowed_dags = json.dumps(get_dag_list(only_dag_names=False, filter_allowed_dags=client_kaapana_instance.allowed_dags))
-    allowed_datasets = json.dumps([dataset for dataset in client_kaapana_instance.allowed_dags if dataset in get_dataset_list(unique_sets=True)])
+    allowed_datasets = json.dumps([dataset for dataset in client_kaapana_instance.allowed_datasets if dataset in get_dataset_list(unique_sets=True)])
     db_client_kaapana_instance = get_kaapana_instance(db, remote=False)
     if action == 'create':
         if db_client_kaapana_instance:

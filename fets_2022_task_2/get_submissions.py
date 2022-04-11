@@ -18,7 +18,8 @@ API_KEY = ""
 
 
 base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'subm_logs')
-tasks = [("pixel", 9614846), ("sample", 9614847)]
+# tasks = [("pixel", 9614846), ("sample", 9614847)]
+tasks = [("FeTS 2022 TESTING Queue", 9615030)]
 
 
 def sync_mood_dir():
@@ -39,6 +40,7 @@ def get_username_by_id(id, syn):
 
 
 def process_submission(subm, task_name, task_dir):
+    ## Somewhere here we can trigger Airflow
     subm_user = subm["userId"]
     subm_id = subm["id"]
     subm_docker_name = subm["dockerRepositoryName"]
@@ -101,6 +103,15 @@ if __name__ == "__main__":
         #     description="Predict progression of MMSE scores for final scoring",
         #     contentSource="syn28532982"))
 
+        # evaluation_id = "9615030"
+        # my_submission_entity = "syn29267328"
+        # print("\nSubmit docker to queue for evaluation...")
+        # submission = syn.submit(
+        #     evaluation = evaluation_id,
+        #     entity = my_submission_entity,
+        #     name = "My first submission", # An arbitrary name for your submission
+        #     team = "TFDA") # Optional, can also pass a Team object or id
+            
         print("\nChecking for new submissions...")
         for task_name, task_id in tasks:
             print(f"Checking {task_name}...")

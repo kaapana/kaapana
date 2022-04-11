@@ -1,10 +1,11 @@
-# Same python version as in pytorch-gpu
-FROM python:3.8.10
+ FROM nvcr.io/nvidia/pytorch:22.02-py3
 
 LABEL REGISTRY="local-only"
-LABEL IMAGE="base-pytorch-cpu"
+LABEL IMAGE="base-pytorch-gpu"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
+
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
     git \
@@ -13,8 +14,6 @@ RUN apt-get update && apt-get install -y \
     unzip
 
 # Only for jupyternotebook: jupyter nbconvert --to html --no-input ...
-ENV TZ=Europe
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN apt-get install -y texlive-xetex texlive-fonts-recommended texlive-plain-generic pandoc
 
 # Common Python packages

@@ -36,7 +36,7 @@
                     v-btn(@click='resetClientForm')
                       | clear
             workflow-execution(:remote="remote" :instances="[clientInstance]")
-            v-btn(v-if="clientInstance" color='orange' @click.stop="checkForRemoteUpdates()" rounded dark ) Update remote
+            v-btn(v-if="clientInstance" color='orange' @click.stop="checkForRemoteUpdates()" rounded dark ) Sync remote
             v-btn(v-if="!clientInstance" color='orange' @click.stop="clientDialog=true" rounded dark) Add client instance
             //- v-btn(v-if="clientInstance" color='orange' @click="submitWorkflow()" rounded dark) Execute Client Workflow
             v-btn(@click.stop="changeTab(1)" color="primary" rounded dark) Switch to remote instance

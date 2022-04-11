@@ -79,17 +79,6 @@ spec:
       #   hostPath:
       #     path: /home/ubuntu/dev/federated-backend/docker/files
       #     type: DirectoryOrCreate
-# ---
-# apiVersion: traefik.containo.us/v1alpha1
-# kind: Middleware
-# metadata:
-#   name: strip-prefix-federated-backend
-#   namespace: base
-# spec:
-#   stripPrefix:
-#     prefixes:
-#     - /federated-backend
-#     forceSlash: true
 ---
 apiVersion: v1
 kind: Service
@@ -105,8 +94,7 @@ spec:
     - name: hw-http
       port: 5000 
       targetPort: 5000
-      # nodePort: 5000 # only for development!
-  type: ClusterIP # only for development!
+  type: ClusterIP
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress

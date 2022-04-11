@@ -227,7 +227,6 @@ def get_remote_updates(db: Session, periodically=False):
     db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': True}))
     print('remote kaapana instances', db_remote_kaapana_instances)
     for db_remote_kaapana_instance in db_remote_kaapana_instances:
-        # Todo: catch error when the request to one institution fails
         same_instance = db_remote_kaapana_instance.instance_name == INSTANCE_NAME
         update_remote_instance_payload = {
             "instance_name":  db_client_kaapana.instance_name,
@@ -250,6 +249,9 @@ def get_remote_updates(db: Session, periodically=False):
             with requests.Session() as s:     
                 r = requests_retry_session(session=s, use_proxies=True).put(f'{remote_backend_url}/sync-client-remote', params=job_params,  json=update_remote_instance_payload, verify=db_remote_kaapana_instance.ssl_check, 
             headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+            if r.status_code == 405:
+                print(f'Warning!!! We could not reach the following backend {db_remote_kaapana_instance.host}')
+                continue
             raise_kaapana_connection_error(r)
             incoming_data =  r.json()
         incoming_jobs = incoming_data['incoming_jobs']

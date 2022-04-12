@@ -1,5 +1,5 @@
 http_proxy: ""
-default_container_registry: "registry.hzdr.de/santhosh.parampottupadam/tfdamvp1"
+default_container_registry: ""
 log_level: "WARN"
 build_containers: true
 push_containers: true

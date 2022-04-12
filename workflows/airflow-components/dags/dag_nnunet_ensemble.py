@@ -20,8 +20,9 @@ default_interpolation_order = "default"
 # default_interpolation_order = "default"
 default_prep_thread_count = 1
 default_nifti_thread_count = 1
-test_cohort_limit = 5
+test_cohort_limit = None
 organ_filter = None
+model = '3d_fullres'
 
 parallel_processes = 3
 ui_forms = {
@@ -97,7 +98,7 @@ get_test_images = LocalGetInputDataOperator(
     dag=dag,
     name="nnunet-cohort",
     batch_name="nnunet-cohort",
-    cohort_limit=test_cohort_limit,
+    cohort_limit=None,
     inputs=[
         {
             "elastic-query": {
@@ -105,33 +106,11 @@ get_test_images = LocalGetInputDataOperator(
                     "bool": {
                         "must": [
                             {
-                                "query_string": {
-                                    "query": "*",
-                                    "analyze_wildcard": True,
-                                    "default_field": "*"
-                                }
-                            },
-                            {
                                 "bool": {
                                     "should": [
                                         {
                                             "match_phrase": {
-                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Kidney-Left"
-                                            }
-                                        },
-                                        {
-                                            "match_phrase": {
-                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Kidney-Right"
-                                            }
-                                        },
-                                        {
-                                            "match_phrase": {
-                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Liver"
-                                            }
-                                        },
-                                        {
-                                            "match_phrase": {
-                                                "0008103E SeriesDescription_keyword.keyword": "shape-organseg:0.1.1 - Spleen"
+                                                "00120020 ClinicalTrialProtocolID_keyword.keyword": "test_fl"
                                             }
                                         }
                                     ],
@@ -194,7 +173,7 @@ get_ref_ct_series_from_gt = LocalGetRefSeriesOperator(
     parallel_id="ct",
     modality=None,
     batch_name=str(get_test_images.operator_out_dir),
-    delete_input_on_success=True
+    delete_input_on_success=False
 )
 
 dcm2nifti_ct = DcmConverterOperator(
@@ -231,6 +210,7 @@ extract_model = GetTaskModelOperator(
 nnunet_predict = NnUnetOperator(
     dag=dag,
     mode="inference",
+    model=model,
     input_modality_operators=[dcm2nifti_ct],
     inf_softmax=True,
     inf_batch_dataset=True,

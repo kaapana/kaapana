@@ -13,12 +13,16 @@ from datetime import datetime
 
 import os
 
+
+START_DATE = days_ago(1)
+
 log = LoggingMixin().log
 
 args = {
     'ui_visible': False,
     'owner': 'kaapana',
-    'start_date': days_ago(0),
+    'depends_on_past': False,
+    'start_date': START_DATE,
     'retries': 0,
     'retry_delay': timedelta(seconds=30)
 }
@@ -27,6 +31,7 @@ dag = DAG(
     dag_id='service-sync-dags-with-db',
     default_args=args,
     schedule_interval="@daily",
+    start_date=START_DATE,
     concurrency=1,
     max_active_runs=1,
     tags=['service']

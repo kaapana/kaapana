@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 sys.path.insert(0, '../')
 sys.path.insert(0, '/executables')
-from kaapana_federated.kaapana_federated import KaapanaFederatedTrainingBase, requests_retry_session
+from common.kaapana_federated.KaapanaFederatedTraining import KaapanaFederatedTrainingBase, requests_retry_session
 
 
 class FederatedSetupTestFederatedTraining(KaapanaFederatedTrainingBase):

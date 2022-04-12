@@ -2,6 +2,7 @@ import sys, os
 import glob
 import json
 import requests
+import random
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
@@ -36,13 +37,7 @@ def requests_retry_session(
 
     return session 
 
-batch_input_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
-
-with open(os.path.join(batch_input_dir, 'doccanoadmin.json') ) as f:
-    annotations = json.load(f)
-for annotation in annotations:
-    ae_titles = ",".join(annotation['label'])
-    study_id = annotation['data'][9:] 
+def send_dicoms(series_id, ae_titles):
     conf_data = {
         "query": {
             "bool": {
@@ -58,7 +53,7 @@ for annotation in annotations:
                             "should": [
                                 {
                                     "match_phrase": {
-                                        "0020000D StudyInstanceUID_keyword.keyword": study_id
+                                        "0020000E SeriesInstanceUID_keyword.keyword": series_id
                                     }
                                 }
                             ],
@@ -73,7 +68,7 @@ for annotation in annotations:
         },
         "index": "meta-index",
         "dag": "send-dicom",
-        "cohort_limit": 100,
+        "cohort_limit": 1,
         "form_data": {
             "host": os.getenv('HOSTDOMAIN'),
             "port": 11112,
@@ -81,13 +76,41 @@ for annotation in annotations:
             "single_execution": True
         }
     }
-    print(conf_data)
     with requests.Session() as s:
         resp = requests_retry_session(session=s).post(f'http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/meta-trigger',  json={
             'conf': {
                 **conf_data,
             }})
 
-    print(resp)
-    print(resp.text)
     resp.raise_for_status()
+
+train_aetitle = os.getenv('TRAIN_AETITLE')
+test_aetitle = os.getenv('TEST_AETITLE')
+random_seed = int(os.getenv('RANDOM_SEED', 1))
+split = float(os.getenv('SPLIT', 0.8))
+
+print(f'Using train_aetitle: {train_aetitle}, test_aetitle: {test_aetitle}, split: {split} and random_seed: {random_seed}')
+
+batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
+
+
+if split > 1:
+    train_split = int(split)
+else:
+    train_split = round(split * len(batch_folders))
+
+if train_split > len(batch_folders):
+    raise ValueError('Train split is bigger than the number of selected samples!')
+
+random.seed(random_seed)
+random.shuffle(batch_folders)
+
+print(f'Sending train data')
+for batch_element_dir in batch_folders[:train_split]:
+    series_id = os.path.basename(batch_element_dir)
+    send_dicoms(series_id, train_aetitle)
+
+print(f'Sending test data')
+for batch_element_dir in batch_folders[train_split:]:
+    series_id = os.path.basename(batch_element_dir)
+    send_dicoms(series_id, test_aetitle)

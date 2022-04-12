@@ -18,7 +18,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         conf = kwargs['dag_run'].conf
         print('conf', conf)
-        if 'conf' in conf and 'form_data' in conf['conf'] and conf['conf']['form_data'] is not None and 'zip_files' in conf['conf']['form_data']:
+        if conf is not None and 'conf' in conf and 'form_data' in conf['conf'] and conf['conf']['form_data'] is not None and 'zip_files' in conf['conf']['form_data']:
                 self.zip_files = conf['conf']['form_data']['zip_files']
                 print('Zip files set by form data', self.zip_files)
 
@@ -38,7 +38,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         session_token = None
         
         # Todo: actually should be in pre_execute, however, when utilizing Airflow PythonOperator pre_execute seems to have no effect...
-        if 'Key' in conf:
+        if conf is not None and 'Key' in conf:
             self.bucket_name = conf['Key'].split('/')[0]
             self.object_name= "/".join(conf['Key'].split('/')[1:])
             print(f'Setting bucket name to {self.bucket_name} and object name to {self.object_name}')

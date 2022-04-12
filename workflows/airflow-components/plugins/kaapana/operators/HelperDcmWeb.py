@@ -151,7 +151,7 @@ class HelperDcmWeb():
         for series_uid in series_uids:
             if series_uid not in series_uids_keep:
                 HelperDcmWeb.log.warn("Series %s does not exist for study %s on PACS", series_uid, study_uid)
-                return
+                continue
             series_uids_keep.remove(series_uid)
         
         with tempfile.TemporaryDirectory() as tmp_dir:

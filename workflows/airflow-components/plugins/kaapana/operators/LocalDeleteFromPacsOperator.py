@@ -43,13 +43,13 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
                         else:
                             study2series_deletion[study_uid] = [series_uid]
 
-            for study_uid, series_uids in study2series_deletion.items():
-                self.log.info("Deleting series: %s from study: %s", series_uids, study_uid)
-                HelperDcmWeb.delete_series(
-                    aet = self.pacs_aet,
-                    series_uids = series_uids,
-                    study_uid = study_uid,
-                )
+        for study_uid, series_uids in study2series_deletion.items():
+            self.log.info("Deleting series: %s from study: %s", series_uids, study_uid)
+            HelperDcmWeb.delete_series(
+                aet = self.pacs_aet,
+                series_uids = series_uids,
+                study_uid = study_uid,
+            )
 
 
     def __init__(self,

@@ -17,7 +17,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='service-process-incoming-dcm',
+    dag_id='process-incoming-dcm-docker',
     default_args=args,
     schedule_interval=None,
     concurrency=50,
@@ -27,27 +27,19 @@ dag = DAG(
 
 get_input = LocalGetInputDataOperator(dag=dag)
 
-dcm_check = LocalMultiAETitleOperator(
+
+
+dcm_send = DcmSendOperator(
     dag=dag,
-    input_operator=get_input
+    input_operator=get_input,
+    pacs_host='dcm4chee-service.store.svc',
+    pacs_port=11115,
+    ae_title='KAAPANA',
+    check_arrival=True
 )
 
-# dcm_send = DcmSendOperator(
-#    dag=dag,
-#    input_operator=dcm_check,
-#    pacs_host='dcm4chee-service.store.svc',
-#    pacs_port=11115,
-#    ae_title='KAAPANA',
-#    check_arrival=True
-#)
 
-auto_trigger_operator = LocalAutoTriggerOperator(
-    dag=dag,
-    input_operator=dcm_check
-)
-check_ctp = LocalCtpQuarantineCheckOperator(dag=dag)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
-#get_input >> dcm_check >> dcm_send >> auto_trigger_operator >> check_ctp >> clean
-get_input >> dcm_check >> auto_trigger_operator >> check_ctp >> clean
+get_input >>  dcm_send >> clean

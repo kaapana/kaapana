@@ -1,0 +1,14 @@
+[
+    {
+        "search_tags": {},
+        "dag_ids": {
+            "process-incoming-dcm-docker": {
+                "fetch_method": "copy",
+                "rest_call": {
+                    "global": {}
+                },
+                "single_execution" : false
+            }
+        }
+    }
+]

@@ -123,7 +123,8 @@ def federated_sharing_decorator(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
 
-        run_id, dag_run_dir, conf = get_operator_properties(*args, **kwargs)
+        run_id, dag_run_dir, dag_run, downstream_tasks = get_operator_properties(*args, **kwargs)
+        conf = dag_run.conf
 
         if conf is not None and 'federated_form' in conf and conf['federated_form'] is not None:
             federated = conf['federated_form']

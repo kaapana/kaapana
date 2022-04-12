@@ -4,6 +4,7 @@ import functools
 from datetime import timedelta
 
 from airflow.operators.python import PythonOperator
+from airflow.models.skipmixin import SkipMixin
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 
 def rest_self_udpate(func):
@@ -28,7 +29,7 @@ def rest_self_udpate(func):
         return func(self, *args, **kwargs)
     return wrapper
 
-class KaapanaPythonBaseOperator(PythonOperator):
+class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
     def __init__(
         self,
         dag,

@@ -14,6 +14,7 @@ from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
 from kaapana.kubetools.pod import Pod
 from kaapana.kubetools.pod_stopper import PodStopper
+from airflow.models.skipmixin import SkipMixin
 from kaapana.kubetools.resources import Resources as PodResources
 from datetime import datetime, timedelta
 from airflow.utils.trigger_rule import TriggerRule
@@ -35,7 +36,7 @@ default_registry = os.getenv("DEFAULT_REGISTRY", "")
 default_project = os.getenv("DEFAULT_PROJECT", "")
 http_proxy = os.getenv("PROXY", None)
 
-class KaapanaBaseOperator(BaseOperator):
+class KaapanaBaseOperator(BaseOperator, SkipMixin):
     """
     Execute a task in a Kubernetes Pod
 

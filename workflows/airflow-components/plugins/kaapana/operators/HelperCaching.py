@@ -87,8 +87,8 @@ def cache_operator_output(func):
         if self.manage_cache not in ['ignore', 'cache', 'overwrite', 'clear']:
             raise AssertionError("Invalid name '{}' for manage_cache. It must be set to None, 'ignore', 'cache', 'overwrite' or 'clear'".format(self.manage_cache))
 
-        run_id, dag_run_dir, conf = get_operator_properties(*args, **kwargs)
-
+        run_id, dag_run_dir, dag_run, downstream_tasks = get_operator_properties(*args, **kwargs)
+        conf = dag_run.conf
         if conf is not None and 'client_job_id' in conf:
             update_job(conf['client_job_id'], status='running', run_id=run_id, description=f'Running the operator {self.name}')
         
@@ -98,26 +98,20 @@ def cache_operator_output(func):
             print(federated)
             last_round = 'federated_total_rounds' in federated and 'federated_round' in federated and int(federated['federated_total_rounds']) == (int(federated['federated_round'])+1)
             print('Last round', last_round)
-            omit_from_previous_dag_run= False
         else:
             federated = None
 
-        if federated is not None and 'skip_operators' in federated and self.operator_out_dir in federated['skip_operators']:
-            if last_round is False:
+        if federated is not None and 'skip_operators' in federated and self.operator_out_dir in federated['skip_operators'] and last_round is False:
                 print('Skipping')
                 return
-            else:
-                omit_from_previous_dag_run = True
 
         if federated is not None and 'from_previous_dag_run' in federated and federated['from_previous_dag_run'] is not None:
-            if 'federated_operators' in federated and self.operator_out_dir in federated['federated_operators']:
+            if 'skip_operators' in federated and self.operator_out_dir in federated['skip_operators'] and last_round is True:
+                print(f"Ignoring from_previous_dag_run_action for opperators since we are in the last round and we are part of the skip_operators...")
+            elif 'federated_operators' in federated and self.operator_out_dir in federated['federated_operators']:
                 if self.whitelist_federated_learning is not None:
                     print('Since self.whitelist_federated_learning  not None still copying the data, in the federated_sharing_decorator decorator the whitelist data will be oerwritten!') 
                     from_previous_dag_run_action(self.operator_out_dir, 'from_previous_dag_run', dag_run_dir, federated)
-                pass
-            elif omit_from_previous_dag_run is True:
-                pass
-                print(f"Ignoring from_previous_dag_run_action for opperators since we are in the last round and we are part of the skip_operators...")
             else:
                 print(f'Copying data from previous workflow for {self.operator_out_dir}')
                 from_previous_dag_run_action(self.operator_out_dir, 'from_previous_dag_run', dag_run_dir, federated)
@@ -145,6 +139,28 @@ def cache_operator_output(func):
             print(f'{", ".join(cache_operator_dirs)} output saved to cache')
         else:
             print('Caching is not used!')
+
+        if federated is not None and 'skip_operators' in federated and last_round is False:
+            downstream_tasks_ids = [task.task_id for task in downstream_tasks]
+            if downstream_tasks and set(downstream_tasks_ids).issubset(set(federated['skip_operators'])):
+                print('We will skip the rest!', downstream_tasks)
+                if 'before_previous_dag_run' in federated and federated['before_previous_dag_run'] is not None:
+                    before_previous_dag_run_dir = os.path.join(WORKFLOW_DIR, conf['federated_form']['before_previous_dag_run'])
+                    print(f'Removing batch files from before_previous_dag_run_dir: {before_previous_dag_run_dir}')
+                    if os.path.isdir(before_previous_dag_run_dir):
+                        shutil.rmtree(before_previous_dag_run_dir)     
+                print('Update remote job')
+                if conf is not None and 'client_job_id' in conf:
+                    update_job(conf['client_job_id'], status='finished', run_id=dag_run.run_id, description=f'Finished successfully')
+
+                if 'before_previous_dag_run' in federated and federated['before_previous_dag_run'] is not None:
+                    before_previous_dag_run_dir = os.path.join(WORKFLOW_DIR, conf['federated_form']['before_previous_dag_run'])
+                    print(f'Removing batch files from before_previous_dag_run_dir: {before_previous_dag_run_dir}')
+                    if os.path.isdir(before_previous_dag_run_dir):
+                        shutil.rmtree(before_previous_dag_run_dir)
+
+                print('Skipping the following tasks', downstream_tasks)
+                self.skip(dag_run, dag_run.execution_date, downstream_tasks)
 
         return x
 

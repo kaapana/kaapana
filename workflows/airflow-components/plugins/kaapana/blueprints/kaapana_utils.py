@@ -48,17 +48,20 @@ def cure_invalid_name(name, regex, max_length=None):
 def get_operator_properties(*args, **kwargs):
     if 'context' in kwargs:
         run_id = kwargs['context']['run_id']
-        conf = kwargs['context']['dag_run'].conf
+        dag_run = kwargs['context']['dag_run']
+        downstream_tasks = kwargs['context']['task'].get_flat_relatives(upstream=False)
+
     elif type(args) == tuple and len(args) == 1 and "run_id" in args[0]:
         raise ValueError('Just to check if this case needs to be supported!', args, kwargs)
         run_id = args[0]['run_id']
     else:
         run_id = kwargs['run_id']
-        conf =  kwargs["dag_run"].conf
+        dag_run = kwargs['dag_run']
+        downstream_tasks = kwargs['task'].get_flat_relatives(upstream=False)
     
     dag_run_dir = os.path.join(WORKFLOW_DIR, run_id)
     
-    return run_id, dag_run_dir, conf
+    return run_id, dag_run_dir, dag_run, downstream_tasks
 
 # Same as in federated-backend/docker/files/app/utils.py
 #https://www.peterbe.com/plog/best-practice-with-retries-with-requests

@@ -186,8 +186,8 @@ spec:
           value: {{ .Values.global.fast_data_dir }}/workflows/models
         - name: MINIODIR
           value: {{ .Values.global.slow_data_dir }}/minio
-        - name: EXECUTABLESDIR
-          value: {{ .Values.global.fast_data_dir }}/workflows/executables
+        - name: COMMONDIR
+          value: {{ .Values.global.fast_data_dir }}/workflows/common
         - name: PROXY
           value: {{ .Values.global.http_proxy }}
         - name: HOSTDOMAIN

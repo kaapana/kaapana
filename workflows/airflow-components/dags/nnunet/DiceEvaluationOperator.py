@@ -32,8 +32,6 @@ class DiceEvaluationOperator(KaapanaBaseOperator):
             name=name,
             batch_name=batch_name,
             image_pull_secrets=["registry-secret"],
-            cmds=["python3"],
-            arguments=["-u", "/executables/nnunet/dice_evaluation/start.py"],
             execution_timeout=execution_timeout,
             env_vars=env_vars,
             ram_mem_mb=62000,

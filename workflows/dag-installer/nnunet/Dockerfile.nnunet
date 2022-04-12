@@ -11,4 +11,5 @@ COPY dags/dag_nnunet_inference.py /tmp/dags/
 COPY dags/dag_nnunet_training.py /tmp/dags/
 COPY dags/dag_nnunet_ensemble.py /tmp/dags/
 
-COPY executables/nnunet /tmp/executables/nnunet
+COPY common/notebooks/nnunet_ensemble /tmp/common/notebooks/nnunet_ensemble
+COPY common/notebooks/nnunet_training /tmp/common/notebooks/nnunet_training

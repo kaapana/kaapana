@@ -7,4 +7,4 @@ LABEL CI_IGNORE="False"
 COPY dags/dag_nnunet_federated.py /tmp/dags/
 COPY dags/nnunet_federated /tmp/dags/nnunet_federated
 
-COPY executables/nnunet_federated /tmp/executables/nnunet_federated
+COPY common/scripts/nnunet_federated /tmp/common/scripts/nnunet_federated

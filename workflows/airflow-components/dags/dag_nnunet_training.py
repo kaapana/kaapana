@@ -327,7 +327,7 @@ generate_nnunet_report = PytorchCpuExecuterOperator(
     dag=dag,
     name='generate-nnunet-report',
     input_operator=nnunet_train,
-    arguments=["/executables/nnunet/notebooks/run_generate_nnunet_report.sh"]
+    arguments=["/common/notebooks/nnunet_training/run_generate_nnunet_report.sh"]
 )
 
 put_to_minio = LocalMinioOperator(dag=dag, name='upload-nnunet-data', zip_files=True, action='put', action_operators=[nnunet_train, generate_nnunet_report], file_white_tuples=('.zip'))

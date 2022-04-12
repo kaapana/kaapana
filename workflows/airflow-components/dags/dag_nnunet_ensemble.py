@@ -314,7 +314,7 @@ nnunet_evaluation_notebook = PytorchCpuExecuterOperator(
     dag=dag,
     name='nnunet-evaluation-notebook',
     input_operator=evaluation,
-    arguments=["/executables/nnunet/notebooks/run_nnunet_evaluation_notebook.sh"],
+    arguments=["/common/notebooks/nnunet_ensemble/run_nnunet_evaluation_notebook.sh"],
     # dev_server='jupyterlab'
 )
 

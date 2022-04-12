@@ -220,7 +220,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.kind = kind
         self.data_dir = os.getenv('DATADIR', "")
         self.model_dir = os.getenv('MODELDIR', "")
-        self.executables_dir = os.getenv('EXECUTABLESDIR', "")
+        self.common_dir = os.getenv('COMMONDIR', "")
         self.result_message = None
         self.host_network = host_network
         self.enable_proxy = enable_proxy
@@ -241,7 +241,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             'miniodata', mount_path='/minio', sub_path=None, read_only=False
         ))
         self.volume_mounts.append(VolumeMount(
-            'executablesdata', mount_path='/executables', sub_path=None, read_only=False
+            'commondata', mount_path='/common', sub_path=None, read_only=False
         ))
 
         self.volumes.append(
@@ -255,11 +255,11 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         )
 
         self.volumes.append(
-            Volume(name='executablesdata', configs={
+            Volume(name='commondata', configs={
                 'hostPath':
                 {
                     'type': 'DirectoryOrCreate',
-                    'path': self.executables_dir
+                    'path': self.common_dir
                 }
             })
         )

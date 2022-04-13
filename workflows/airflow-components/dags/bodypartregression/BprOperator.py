@@ -19,14 +19,14 @@ class BprOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="{}{}/bodypartregression:v1.3".format(default_registry, default_project),
+            image=f"{default_registry}/bodypartregression:v1.3",
             name="bodypartregression",
             parallel_id=parallel_id,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             ram_mem_mb=3000,
             ram_mem_mb_lmt=6000,
-            training_operator=False,
+            gpu_mem_mb=4000,
             gpu_mem_mb=None,
             env_vars=env_vars,
             **kwargs

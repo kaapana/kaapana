@@ -124,7 +124,7 @@ spec:
         - name: HOSTDOMAIN
           value: {{ .Values.global.hostname }}
         - name: HTTPS_PORT
-          value: {{ .Values.global.https_port }}
+          value: "{{ .Values.global.https_port }}"
         - name: INSTANCE_NAME
           value: {{ .Values.global.instance_name }}
         - name: AIRFLOW_KUBE_NAMESPACE
@@ -192,6 +192,8 @@ spec:
           value: {{ .Values.global.http_proxy }}
         - name: HOSTDOMAIN
           value: {{ .Values.global.hostname }}
+        - name: HTTPS_PORT
+          value: "{{ .Values.global.https_port }}"
         - name: INSTANCE_NAME
           value: {{ .Values.global.instance_name }}
         - name: PULL_POLICY_PODS

@@ -13,7 +13,7 @@ dependencies:
     version: 0.1.0
     repository: file://../../../../../../workflows/dag-installer/doccano-image-tagging/doccano-image-tagging-workflow
   - name: debug-container-chart
-    version: 1.0.1
+    version: 0.1.1
     repository: file://../../../../../../services/applications/debug-container/debug-container-chart
   - name: federated-backend-chart
     version: 0.1.0

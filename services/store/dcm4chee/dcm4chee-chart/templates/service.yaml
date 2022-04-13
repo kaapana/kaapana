@@ -70,7 +70,7 @@ metadata:
   namespace: {{ .Values.global.store_namespace }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: store-rewrite-pacs@kubernetescrd,kube-system-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.store_namespace }}-rewrite-pacs@kubernetescrd,kube-system-errorpages@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

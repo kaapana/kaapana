@@ -1253,7 +1253,7 @@ class SchedulerJob(BaseJob):
         adjusted_task_instances_to_examine: List[TI] = []
         is_any_gpu_pool_task = False
         for task_instance in task_instances_to_examine:
-            if task_instance.pool == "GPU_COUNT":
+            if task_instance.pool == "NODE_GPU_COUNT":
                 self.log.error("Getting new POOLS...")
                 is_any_gpu_pool_task = True
                 try:

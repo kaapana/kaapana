@@ -28,10 +28,8 @@ parallel_processes = 1
 Represents a blueprint kaapanaApi
 """
 kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
-
-
 def async_dag_trigger(queue_entry):
-    hit, dag_id, tmp_conf = queue_entry
+    hit, dag_id, tmp_conf, username = queue_entry
     hit = hit["_source"]
     studyUID = hit[HelperElasticsearch.study_uid_tag]
     seriesUID = hit[HelperElasticsearch.series_uid_tag]
@@ -41,6 +39,7 @@ def async_dag_trigger(queue_entry):
     print(f"# Triggering {dag_id} - series: {seriesUID}")
 
     conf = {
+        "user_public_id": username,
         "inputs": [
             {
                 "dcm-uid": {
@@ -66,7 +65,9 @@ def async_dag_trigger(queue_entry):
 @csrf.exempt
 @kaapanaApi.route('/api/trigger/<string:dag_id>', methods=['POST'])
 def trigger_dag(dag_id):
+    headers = dict(request.headers)
     data = request.get_json(force=True)
+    username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
     if 'conf' in data:
         tmp_conf = data['conf']
     else:
@@ -163,7 +164,7 @@ def trigger_dag(dag_id):
 
             queue = []
             for hit in hits:
-                queue.append((hit, dag_id, tmp_conf))
+                queue.append((hit, dag_id, tmp_conf,username))
 
             trigger_results = ThreadPool(parallel_processes).imap_unordered(async_dag_trigger, queue)
             for seriesUID, result in trigger_results:
@@ -171,6 +172,7 @@ def trigger_dag(dag_id):
 
         else:
             conf = {
+                "user_public_id": username,
                 "inputs": [
                     {
                         "elastic-query": {

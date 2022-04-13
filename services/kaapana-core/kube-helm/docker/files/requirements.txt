@@ -1,5 +1,5 @@
 psycopg2==2.9.1
-Flask==1.1.2
+Flask==2.1.0
 itsdangerous==2.0.1
 gunicorn==20.0.4
 python-dotenv==0.13.0

@@ -10,6 +10,7 @@ from pathlib import Path
 import requests
 import time
 
+
 class LocalDicomSendOperator(KaapanaPythonBaseOperator):
     def check_if_arrived(self, seriesUID):
         print("#")
@@ -49,18 +50,23 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
             print(send_dir)
             print("############### no dicoms found...!")
             raise FileNotFoundError
-        print(f'Sending {send_dir} to {self.host} {self.port} with aetitle {self.aetitle} and aetitle_send {self.aetitle_send}')
-        command = ['dcmsend', '-v', f'{self.host}', f'{self.port}', '-aet', f'{self.aetitle_send}', '-aec', f'{self.aetitle}', '--scan-directories',
+        print(
+            f'Sending {send_dir} to {self.host} {self.port} with aetitle {self.aetitle} and aetitle_send {self.aetitle_send}')
+        command = ['dcmsend', '-v', f'{self.host}', f'{self.port}', '-aet', f'{self.aetitle_send}', '-aec',
+                   f'{self.aetitle}', '--scan-directories',
                    '--recurse', f'{send_dir}']
         timeout = self.execution_timeout.seconds - 60
         print("The timeout is set to: ", timeout)
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
-        if output.returncode != 0:
+        if output.returncode != 0 or "with status SUCCESS" not in str(output):
             print("############### Something went wrong with dcmsend!")
             for line in str(output).split("\\n"):
                 print(line)
             print("##################################################")
             exit(1)
+        else:
+            print(f"Success! output: {output}")
+            print("")
         if self.check_arrival and not self.check_if_arrived(seriesUID=series_uid):
             print(f"Arrival check failed!")
             exit(1)
@@ -68,7 +74,6 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
     def start(self, **kwargs):
         run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
         batch_folders = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
-        no_data_processed = True
         for batch_element_dir in batch_folders:
             print("input operator ", self.operator_in_dir)
             element_input_dir = os.path.join(batch_element_dir, self.operator_in_dir)
@@ -78,16 +83,12 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
             number_of_instances = len(dcm_files)
             if number_of_instances == 0:
                 continue
-
             print("Number of instances to send: ", number_of_instances)
             dcm_file = dcm_files[0]
             print("dcm-file: {}".format(dcm_file))
             ds = pydicom.dcmread(dcm_file)
             series_uid = str(ds[0x0020, 0x000E].value)
             self.send_dicom_data(element_input_dir, series_uid)
-
-
-
 
     def __init__(self,
                  dag,
@@ -104,10 +105,8 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
         self.aetitle = ae_title
         self.aetitle_send = aetitle_send
         self.check_arrival = check_arrival
-        self.name = "save_to_local_pacs"
+        self.name = "local-dcm-send"
         self.task_id = self.name
-        
-
 
         super().__init__(
             dag=dag,
@@ -116,6 +115,3 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
             python_callable=self.start,
             execution_timeout=timedelta(minutes=60),
             **kwargs)
-
-
-

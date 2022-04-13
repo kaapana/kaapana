@@ -3,7 +3,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalAutoTriggerOperator import LocalAutoTriggerOperator
 from kaapana.operators.LocalMultiAETitleOperator import LocalMultiAETitleOperator
-from kaapana.operators.DcmSendOperator import DcmSendOperator
+from kaapana.operators.LocalDicomSendOperator import LocalDicomSendOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 from datetime import timedelta
@@ -32,14 +32,14 @@ dcm_check = LocalMultiAETitleOperator(
     input_operator=get_input
 )
 
-# dcm_send = DcmSendOperator(
-#    dag=dag,
-#    input_operator=dcm_check,
-#    pacs_host='dcm4chee-service.store.svc',
-#    pacs_port=11115,
-#    ae_title='KAAPANA',
-#    check_arrival=True
-#)
+dcm_send = LocalDicomSendOperator(
+   dag=dag,
+   input_operator=dcm_check,
+   pacs_host='dcm4chee-service.store.svc',
+   pacs_port=11115,
+   ae_title='KAAPANA',
+   check_arrival=True
+)
 
 auto_trigger_operator = LocalAutoTriggerOperator(
     dag=dag,
@@ -49,5 +49,4 @@ check_ctp = LocalCtpQuarantineCheckOperator(dag=dag)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
-#get_input >> dcm_check >> dcm_send >> auto_trigger_operator >> check_ctp >> clean
-get_input >> dcm_check >> auto_trigger_operator >> check_ctp >> clean
+get_input >> dcm_check >> dcm_send >> auto_trigger_operator >> check_ctp >> clean

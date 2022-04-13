@@ -112,9 +112,11 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 # (7FE0,0008) Float Pixel Data
                 # (7FE0,0009) Double Float Pixel Data
                 # (7FE0,0010) Pixel Data
-                ret = subprocess.call([command], shell=True)
-                if ret != 0:
+                output = subprocess.run([command], shell=True)
+                if output.returncode != 0:
                     print("Something went wrong with dcmodify...")
+                    print(f"Message: {output.stdout}")
+                    print(f"Error:   {output.stderr}")
                     exit(1)
                 self.executeDcm2Json(dcm_file_path, json_file_path)
 

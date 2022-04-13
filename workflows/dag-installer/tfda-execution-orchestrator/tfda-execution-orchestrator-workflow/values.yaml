@@ -1,0 +1,5 @@
+---
+global:
+    image: "dag-tfda-execution-orchestrator"
+    version: "0.0.1"
+    action: "copy"

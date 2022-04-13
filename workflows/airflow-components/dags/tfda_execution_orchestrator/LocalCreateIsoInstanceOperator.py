@@ -17,9 +17,9 @@ class LocalCreateIsoInstanceOperator(KaapanaPythonBaseOperator):
         print("Starting an isolated environment...")
         print(kwargs)
 
-        kaapana_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        scripts_dir = os.path.join(kaapana_dir, "CI", "scripts")
-        playbooks_dir = os.path.join(kaapana_dir, "CI", "ansible_playbooks")
+        dags_dir = os.path.dirname(os.path.abspath(__file__)))
+        scripts_dir = os.path.join(dags_dir, "tfda_execution_orchestrator", "scripts")
+        playbooks_dir = os.path.join(dags_dir, "tfda_execution_orchestrator", "ansible_playbooks")
         print(f'Playbooks directory is {playbooks_dir}, and scripts are in {scripts_dir}, and kaapana dir is {kaapana_dir}')
         # run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
         # batch_input_dir = os.path.join(run_dir, self.operator_in_dir)

@@ -48,7 +48,7 @@ dag = DAG(
     max_active_runs=10,
     schedule_interval=None,
 )
-print("DAG executing begins... ")
+
 create_iso_env = LocalCreateIsoInstanceOperator(dag=dag)
 # change_hostname = LocalChangeIsoInstHostnameOperator(dag=dag)
 install_platform_dependencies = LocalInstallPlatformDepsOnIsoEnvOperator(dag=dag)

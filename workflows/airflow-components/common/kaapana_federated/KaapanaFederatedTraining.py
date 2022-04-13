@@ -73,19 +73,19 @@ class KaapanaFederatedTrainingBase(ABC):
         with open(filepath, 'wb') as dec_file:
             dec_file.write(decrypted)
 
-    # Todo move in Jonas library as normal function             
-    @staticmethod
-    def apply_tar_action(dst_filename, src_dir):
-        print(f'Tar {src_dir} to {dst_filename}')
-        with tarfile.open(dst_filename, "w:gz") as tar:
-            tar.add(src_dir, arcname=os.path.basename(src_dir))
-
     # Todo move in Jonas library as normal function 
-    @staticmethod
     def apply_untar_action(src_filename, dst_dir):
         print(f'Untar {src_filename} to {dst_dir}')
-        with tarfile.open(src_filename, "r:gz")as tar:
+        with tarfile.open(src_filename, "r:gz" if src_filename.endswith('gz') is True else "r") as tar:
             tar.extractall(dst_dir)
+
+    # Todo move in Jonas library as normal function             
+    def apply_tar_action(dst_filename, src_dir):
+        print(f'Tar {src_dir} to {dst_filename}')
+        with tarfile.open(dst_filename, "w:gz" if dst_filename.endswith('gz') is True else "w") as tar:
+            tar.add(src_dir, arcname=os.path.basename(src_dir))
+
+
             
     # Todo move in Jonas library as normal function 
     @staticmethod
@@ -105,7 +105,7 @@ class KaapanaFederatedTrainingBase(ABC):
         if "federated_bucket" not in conf_data["external_schema_federated_form"]:
             conf_data["external_schema_federated_form"]["federated_bucket"] = conf_data["external_schema_federated_form"]["remote_dag_id"]
         if "federated_dir" not in conf_data["external_schema_federated_form"]:
-            conf_data["external_schema_federated_form"]["federated_dir"] = os.getenv('RUN_ID', str(uuid.uuid4())) 
+            conf_data["external_schema_federated_form"]["federated_dir"] = self.federated_dir
         return conf_data
 
     def __init__(self, workflow_dir=None,
@@ -113,14 +113,16 @@ class KaapanaFederatedTrainingBase(ABC):
                  secret_key='Kaapana2020',
                  minio_host='minio-service.store.svc',
                  minio_port='9000',
+                 use_minio_mount=None,
                 ):
         
+        self.use_minio_mount = use_minio_mount
+        self.federated_dir = os.getenv('RUN_ID', str(uuid.uuid4()))
         workflow_dir = workflow_dir or os.getenv('WORKFLOW_DIR', f'/appdata/data/federated-setup-central-test-220316153201233296')
         print('working directory', workflow_dir)
         conf_data = self.get_conf(workflow_dir)
         print(conf_data)
-        self.fl_working_dir = os.path.join('/', workflow_dir, os.getenv('OPERATOR_OUT_DIR', 'federated-operator'))
-        
+
         self.remote_conf_data = {}
         self.local_conf_data = {}
         self.tmp_federated_site_info = {}
@@ -134,6 +136,13 @@ class KaapanaFederatedTrainingBase(ABC):
                 pass
             else:
                 self.local_conf_data[k] = v
+
+
+        if self.use_minio_mount is None:
+            self.fl_working_dir = os.path.join('/', workflow_dir, os.getenv('OPERATOR_OUT_DIR', 'federated-operator'))
+        else:
+            self.fl_working_dir = os.path.join(self.use_minio_mount, self.remote_conf_data['federated_form']['remote_dag_id'], self.remote_conf_data['federated_form']['federated_dir'])
+        print(self.fl_working_dir)
 
         self.client_url = 'http://federated-backend-service.base.svc:5000/client'
         with requests.Session() as s:
@@ -234,14 +243,6 @@ class KaapanaFederatedTrainingBase(ABC):
         next_federated_round_dir =  os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round+1))
         # Downloading all objects
         for instance_name, tmp_site_info in self.tmp_federated_site_info.items():
-#             federated_bucket = self.remote_conf_data['federated_form']['federated_bucket']
-#             if federated_round > 0:
-#                 previous_federated_round_dir = os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round-1))
-#             else:
-#                 previous_federated_round_dir = None
-#             current_federated_round_dir = os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round))
-#             next_federated_round_dir =  os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round+1))
-            
             tmp_site_info['file_paths'] = []
             tmp_site_info['next_object_names'] = []
 
@@ -249,14 +250,14 @@ class KaapanaFederatedTrainingBase(ABC):
             objects = self.minioClient.list_objects(federated_bucket, os.path.join(current_federated_round_dir, instance_name), recursive=True)
             for obj in objects:
                 # https://github.com/minio/minio-py/blob/master/minio/datatypes.py#L103
-                if obj.is_dir:
-                    pass
+                if obj.is_dir or not obj.object_name.endswith('.tar'):
+                    continue
                 else:
                     file_path = os.path.join(self.fl_working_dir, os.path.relpath(obj.object_name, self.remote_conf_data['federated_form']['federated_dir']))
                     file_dir = os.path.dirname(file_path)
                     os.makedirs(file_dir, exist_ok=True)
-                    self.minioClient.fget_object(federated_bucket, obj.object_name, file_path)
-                    #self.minioClient.remove_object(federated_bucket, obj.object_name)
+                    if self.use_minio_mount is None:
+                        self.minioClient.fget_object(federated_bucket, obj.object_name, file_path)
                     KaapanaFederatedTrainingBase.fernet_decryptfile(file_path, tmp_site_info['fernet_key'])
                     KaapanaFederatedTrainingBase.apply_untar_action(file_path, file_dir)
                     tmp_site_info['file_paths'].append(file_path)
@@ -270,14 +271,16 @@ class KaapanaFederatedTrainingBase(ABC):
         # Push objects:
         for instance_name, tmp_site_info in self.tmp_federated_site_info.items():
             for file_path, next_object_name in zip(tmp_site_info['file_paths'], tmp_site_info['next_object_names']):
-                file_dir = file_path.replace('.tar.gz', '')
+                file_dir = file_path.replace('.tar', '')
                 KaapanaFederatedTrainingBase.apply_tar_action(file_path, file_dir)
                 KaapanaFederatedTrainingBase.fernet_encryptfile(file_path, self.client_network['fernet_key'])
-
-    #                 next_object_name = obj.object_name.replace(current_federated_round_dir, next_federated_round_dir)
                 print(f'Uploading {file_path } to {next_object_name}')
-                self.minioClient.fput_object(self.remote_conf_data['federated_form']['federated_bucket'], next_object_name, file_path)
-
+                if self.use_minio_mount is None:
+                    self.minioClient.fput_object(self.remote_conf_data['federated_form']['federated_bucket'], next_object_name, file_path)
+                else:
+                    dst = os.path.join(self.use_minio_mount, self.remote_conf_data['federated_form']['federated_bucket'], next_object_name)
+                    os.makedirs(os.path.dirname(dst), exist_ok=True)
+                    shutil.copyfile(file_path, dst)
         print('Finished round', federated_round)
     
     def on_train_step_end(self, federated_round):

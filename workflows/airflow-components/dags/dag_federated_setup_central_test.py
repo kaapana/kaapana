@@ -16,6 +16,8 @@ from federated_setup_central_test.FedartedSetupCentralTestOperator import Fedart
 log = LoggingMixin().log
 
 remote_dag_id = "federated-setup-node-test"
+skip_operators= ["federated-setup-skip-test", "workflow-cleaner"]
+federated_operators = ["federated-setup-federated-test"]
 ui_forms = {
     "external_schema_federated_form": {
         "type": "object",
@@ -33,11 +35,9 @@ ui_forms = {
                 "title": "Federated operators",
                 "items": {
                     "type": 'string',
-                    "enum": [
-                        "federated-setup-federated-test",
-                    ],
+                    "enum": federated_operators,
                 },
-                "default": ["federated-setup-federated-test"],
+                "default": federated_operators,
                 "required": True,
                 "readOnly": True
             },
@@ -46,11 +46,9 @@ ui_forms = {
                 "title": "Skip operators",
                 "items": {
                     "type": 'string',
-                    "enum": [
-                        "federated-setup-skip-test",
-                    ],
+                    "enum": skip_operators,
                 },
-                "default": ["federated-setup-skip-test"],
+                "default": skip_operators,
                 "required": True,
                 "readOnly": True
             }

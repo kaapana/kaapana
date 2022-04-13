@@ -24,8 +24,8 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         pkl_file = checkpoint + ".pkl"
         return restore_model(pkl_file, checkpoint, False)
 
-    def __init__(self, run_id=None, workflow_dir=None, federated_operators=None, skip_operators=None):
-        super().__init__(workflow_dir)
+    def __init__(self, workflow_dir=None, use_minio_mount=None):
+        super().__init__(workflow_dir=workflow_dir, use_minio_mount=use_minio_mount)
         
         if self.remote_conf_data['workflow_form']['train_max_epochs'] % self.remote_conf_data['federated_form']['federated_total_rounds'] != 0:
             raise ValueError('train_max_epochs has to be multiple of federated_total_rounds')
@@ -86,7 +86,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             # to from_previous_dag_run not None. Mybe there is a better solution for the future...
             for instance_name, tmp_site_info in self.tmp_federated_site_info.items():
                 nnunet_training_file_path = tmp_site_info['file_paths'][0].replace('nnunet-preprocess', 'nnunet-training')
-                nnunet_training_dir = nnunet_training_file_path.replace('.tar.gz', '')
+                nnunet_training_dir = nnunet_training_file_path.replace('.tar', '')
                 Path(nnunet_training_dir).mkdir(exist_ok=True)
                 tmp_site_info['file_paths'].append(nnunet_training_file_path)
                 nnunet_training_next_object_name = tmp_site_info['next_object_names'][0].replace('nnunet-preprocess', 'nnunet-training')
@@ -135,7 +135,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         print(federated_round, self.remote_conf_data['federated_form']['federated_total_rounds'])
 
 if __name__ == "__main__":
-    kaapana_ft = nnUNetFederatedTraining()
+    kaapana_ft = nnUNetFederatedTraining(use_minio_mount='/minio')
     kaapana_ft.train_step(-1)
     kaapana_ft.train()
 

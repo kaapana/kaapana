@@ -35,13 +35,15 @@ def fernet_decryptfile(filepath, key):
     with open(filepath, 'wb') as dec_file:
         dec_file.write(decrypted)
         
+# Todo move in Jonas library as normal function 
 def apply_untar_action(src_filename, dst_dir):
     print(f'Untar {src_filename} to {dst_dir}')
-    with tarfile.open(src_filename, "r:gz")as tar:
+    with tarfile.open(src_filename, "r:gz" if src_filename.endswith('gz') is True else "r") as tar:
         tar.extractall(dst_dir)
 
+# Todo move in Jonas library as normal function
 def apply_tar_action(dst_filename, src_dir, whitelist_extensions_tuples=None):
-    with tarfile.open(dst_filename, "w:gz") as tar:
+    with tarfile.open(dst_filename, "w:gz" if dst_filename.endswith('gz') is True else "w") as tar:
         if whitelist_extensions_tuples is not None:
             for file_path in Path(src_dir).rglob('*'):
                 if file_path.name.endswith(tuple(whitelist_extensions_tuples)):

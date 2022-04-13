@@ -46,6 +46,7 @@
       - project_name != "E230-Kaapana-CI"
       - project_name != "E230-Production"
       - project_name != "E130-OP41"
+      - project_name != "E230-TFDA"
 
     - name: Set network ID for project E230 to avoid conflict, because E230 has 2 network items
       set_fact: 
@@ -67,7 +68,8 @@
         # instance_image: ubuntu-sever-18.04-vanilla
         # instance_image: Ubuntu-18.04-LTS
         # instance_image: Ubuntu-18.04-LTS-DKFZ
-        instance_image: Ubuntu-20.04-LTS-DKFZ
+        # instance_image: Ubuntu-20.04-LTS-DKFZ
+        instance_image: Ubuntu-20.04-LTS-DKFZ-2021-10-25
       when: os |lower == "ubuntu"
 
     - name: check ssh_key_file present
@@ -85,7 +87,7 @@
       os_server:
         state: present
         auth:
-          auth_url: "https://cloud.dkfz-heidelberg.de:13000"
+          auth_url: "https://cloud.hdf.dkfz-heidelberg.de:13000"
           username: "{{ username }}"
           password: "{{ password }}"
           user_domain_name: "AD"

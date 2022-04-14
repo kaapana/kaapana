@@ -27,6 +27,9 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
     def __init__(self, workflow_dir=None, use_minio_mount=None):
         super().__init__(workflow_dir=workflow_dir, use_minio_mount=use_minio_mount)
         
+        if 'federated_round' in self.remote_conf_data and self.remote_conf_data['federated_form']['federated_round'] > -1:
+            print('Removing one federated_total_rounds since since we are running in recovery mode!')
+            self.remote_conf_data['federated_form']['federated_total_rounds'] = self.remote_conf_data['federated_form']['federated_total_rounds'] - 1
         if self.remote_conf_data['workflow_form']['train_max_epochs'] % self.remote_conf_data['federated_form']['federated_total_rounds'] != 0:
             raise ValueError('train_max_epochs has to be multiple of federated_total_rounds')
         else:
@@ -41,11 +44,11 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         
     def tensorboard_logs(self, federated_round):
         current_federated_round_dir = Path(os.path.join(self.fl_working_dir, str(federated_round)))
-        for instance_name, _ in self.tmp_federated_site_info.items():
-            filename = current_federated_round_dir / instance_name / 'nnunet-training' / 'experiment_results.json'
+        for site_info in self.remote_sites:
+            filename = current_federated_round_dir / site_info['instance_name'] / 'nnunet-training' / 'experiment_results.json'
             with open(filename) as json_file:
                 exp_data = json.load(json_file)
-            tensorboard_log_dir = Path(os.path.join('/minio', 'tensorboard', self.remote_conf_data["federated_form"]["federated_dir"], os.getenv('OPERATOR_OUT_DIR', 'federated-operator'), instance_name))
+            tensorboard_log_dir = Path(os.path.join('/minio', 'tensorboard', self.remote_conf_data["federated_form"]["federated_dir"], os.getenv('OPERATOR_OUT_DIR', 'federated-operator'), site_info['instance_name']))
             if tensorboard_log_dir.is_dir():
                 print('Removing previous logs, since we will write all logs again...')
                 shutil.rmtree(tensorboard_log_dir)
@@ -55,7 +58,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                     if key != 'epoch' and key != 'fold':
                         self.writer.add_scalar(key, value, epoch_data['epoch'])
                 
-    def update_data(self, federated_round):     
+    def update_data(self, federated_round, tmp_central_site_info):     
         print(Path(os.path.join(self.fl_working_dir, str(federated_round))))
         
         if federated_round == -1:
@@ -84,7 +87,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
 
             # Dummy creation of nnunet-training folder, because a tar is expected in the next round due
             # to from_previous_dag_run not None. Mybe there is a better solution for the future...
-            for instance_name, tmp_site_info in self.tmp_federated_site_info.items():
+            for instance_name, tmp_site_info in tmp_central_site_info.items():
                 nnunet_training_file_path = tmp_site_info['file_paths'][0].replace('nnunet-preprocess', 'nnunet-training')
                 nnunet_training_dir = nnunet_training_file_path.replace('.tar', '')
                 Path(nnunet_training_dir).mkdir(exist_ok=True)
@@ -126,6 +129,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         if federated_round == -1:
             print('Taking actions...')
             self.remote_conf_data['federated_form']['skip_operators'].remove('nnunet-training')
+            self.remote_conf_data['federated_form']['skip_operators'] = self.remote_conf_data['federated_form']['skip_operators'] + ['get-input-data', 'get-ref-series-ct', 'dcmseg2nrrd', 'dcm-converter-ct', 'seg-check']
             self.remote_conf_data['workflow_form']['prep_increment_step'] = 'from_dataset_properties'
         else:
             if federated_round == 0:
@@ -136,6 +140,9 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
 
 if __name__ == "__main__":
     kaapana_ft = nnUNetFederatedTraining(use_minio_mount='/minio')
-    kaapana_ft.train_step(-1)
+    if 'federated_round' in kaapana_ft.remote_conf_data and kaapana_ft.remote_conf_data['federated_form']['federated_round'] > -1:
+        print('Skipping preprocessing since we are running in recovery mode!')
+    else:
+        kaapana_ft.train_step(-1)
     kaapana_ft.train()
 

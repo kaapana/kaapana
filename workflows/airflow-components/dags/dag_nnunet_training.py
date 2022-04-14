@@ -18,6 +18,7 @@ from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.SegCheckOperator import SegCheckOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
+from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INSTANCE_NAME
 
 
@@ -307,6 +308,7 @@ nnunet_preprocess = NnUnetOperator(
     instance_name=INSTANCE_NAME,
     allow_federated_learning=True,
     whitelist_federated_learning=["dataset_properties.pkl", "intensityproperties.pkl"],
+    trigger_rule=TriggerRule.NONE_FAILED,
     dev_server=None #'code-server'
 )
 

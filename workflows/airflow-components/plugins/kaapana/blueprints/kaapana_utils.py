@@ -67,8 +67,8 @@ def get_operator_properties(*args, **kwargs):
 #https://www.peterbe.com/plog/best-practice-with-retries-with-requests
 #https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
 def requests_retry_session(
-    retries=15, # Retries for 18.2 hours
-    backoff_factor=2,
+    retries=16,
+    backoff_factor=1,
     status_forcelist=[404, 429, 500, 502, 503, 504],
     session=None,
     use_proxies=False
@@ -85,6 +85,7 @@ def requests_retry_session(
     session.mount('http://', adapter)
     session.mount('https://', adapter)
 
+    print('Trying again')
     if use_proxies is True:
         proxies = {'http': os.getenv('PROXY', None), 'https': os.getenv('PROXY', None)}
         print('Setting proxies', proxies)

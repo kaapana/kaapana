@@ -8,6 +8,7 @@ import os
 import uuid
 import shutil
 import tarfile
+import threading
 from minio import Minio
 from abc import ABC, abstractmethod
 from requests.adapters import HTTPAdapter
@@ -18,8 +19,8 @@ from requests.packages.urllib3.util.retry import Retry
 
 # Todo move in Jonas library as normal function 
 def requests_retry_session(
-    retries=15, # Retries for 18.2 hours
-    backoff_factor=2,
+    retries=16,
+    backoff_factor=1,
     status_forcelist=[404, 429, 500, 502, 503, 504],
     session=None,
 ):
@@ -172,10 +173,6 @@ class KaapanaFederatedTrainingBase(ABC):
             secure=False)
 
     
-    @abstractmethod
-    def update_data(self, federated_round):
-        pass
-    
     def distribute_jobs(self, federated_round):
         # Starting round!
         self.remote_conf_data['federated_form']['federated_round'] = federated_round
@@ -204,6 +201,7 @@ class KaapanaFederatedTrainingBase(ABC):
                 'job_id': job['id'],
                 'fernet_key': site_info['fernet_key']
             }
+    
     def wait_for_jobs(self, federated_round):
         updated = {instance_name: False for instance_name in self.tmp_federated_site_info}
         # Waiting for updated files
@@ -233,7 +231,7 @@ class KaapanaFederatedTrainingBase(ABC):
                 print(k, v)
             raise ValueError('There are lacking updates, please check what is going on!')
     
-    def download_minio_objects_to_workflow_dir(self, federated_round):
+    def download_minio_objects_to_workflow_dir(self, federated_round, tmp_central_site_info):
         federated_bucket = self.remote_conf_data['federated_form']['federated_bucket']
         if federated_round > 0:
             previous_federated_round_dir = os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round-1))
@@ -242,7 +240,7 @@ class KaapanaFederatedTrainingBase(ABC):
         current_federated_round_dir = os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round))
         next_federated_round_dir =  os.path.join(self.remote_conf_data['federated_form']['federated_dir'], str(federated_round+1))
         # Downloading all objects
-        for instance_name, tmp_site_info in self.tmp_federated_site_info.items():
+        for instance_name, tmp_site_info in tmp_central_site_info.items():
             tmp_site_info['file_paths'] = []
             tmp_site_info['next_object_names'] = []
 
@@ -266,10 +264,14 @@ class KaapanaFederatedTrainingBase(ABC):
 
             if previous_federated_round_dir is not None:
                 minio_rmtree(self.minioClient, federated_bucket, os.path.join(previous_federated_round_dir, instance_name))
+
+    @abstractmethod
+    def update_data(self, federated_round, tmp_central_site_info):
+        pass
                 
-    def upload_workflow_dir_to_minio_object(self, federated_round):   
+    def upload_workflow_dir_to_minio_object(self, federated_round, tmp_central_site_info):   
         # Push objects:
-        for instance_name, tmp_site_info in self.tmp_federated_site_info.items():
+        for instance_name, tmp_site_info in tmp_central_site_info.items():
             for file_path, next_object_name in zip(tmp_site_info['file_paths'], tmp_site_info['next_object_names']):
                 file_dir = file_path.replace('.tar', '')
                 KaapanaFederatedTrainingBase.apply_tar_action(file_path, file_dir)
@@ -286,13 +288,18 @@ class KaapanaFederatedTrainingBase(ABC):
     def on_train_step_end(self, federated_round):
         pass
     
+    def central_steps(self, federated_round, tmp_central_site_info):
+        # Working with downloaded objects
+        self.download_minio_objects_to_workflow_dir(federated_round, tmp_central_site_info)
+        self.update_data(federated_round, tmp_central_site_info)
+        self.upload_workflow_dir_to_minio_object(federated_round, tmp_central_site_info)
+
     def train_step(self, federated_round):
         self.distribute_jobs(federated_round)
         self.wait_for_jobs(federated_round)
-        self.download_minio_objects_to_workflow_dir(federated_round)
-        # Working with downloaded objects
-        self.update_data(federated_round)
-        self.upload_workflow_dir_to_minio_object(federated_round)
+        tmp_central_site_info = { instance_name: tmp_site_info for instance_name, tmp_site_info in self.tmp_federated_site_info.items() }
+        download_thread = threading.Thread(target=self.central_steps, name="central_step", args=(federated_round, tmp_central_site_info))
+        download_thread.start()
         self.on_train_step_end(federated_round)
     
     def train(self):

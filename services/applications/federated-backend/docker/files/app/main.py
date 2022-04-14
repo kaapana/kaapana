@@ -22,26 +22,30 @@ app.include_router(
     prefix="/remote",
     # tags=["admin"],
     dependencies=[Depends(get_token_header)],
-    responses={418: {"description": "I'm a teapot"}},
+    responses={418: {"description": "I'm the remote backend..."}},
 )
 app.include_router(
     client.router,
     prefix="/client",
     # tags=["admin"],
-    responses={418: {"description": "I'm a teapot"}},
+    responses={418: {"description": "I'm the clients backend..."}},
 )
 
 app.include_router(
     json_schemas.router,
     prefix="/json-schemas",
     # tags=["admin"],
-    responses={418: {"description": "I'm a teapot"}},
+    responses={418: {"description": "I'm the json schemes backend..."}},
 )
 
 
 @app.on_event("startup")
-@repeat_every(seconds=20)  # 1 hour
+@repeat_every(seconds=float(os.getenv('REMOTE_SYNC_INTERVAL', 2.5)))
 def periodically_get_remote_updates():
     print('Checking for updates!')
     with SessionLocal() as db:
-        get_remote_updates(db, periodically=True)
+        try:
+            get_remote_updates(db, periodically=True)
+        except Exception as e:
+            print('Something went wrong updating')
+            print(e)

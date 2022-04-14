@@ -11,7 +11,7 @@ for pool in pools:
 
 if "NODE_RAM" not in pools_dict:
     print("Create Memory Pool ...")
-    node_memory = get_node_memory()
+    node_memory = abs(get_node_memory() - 10000)
     print(f"{node_memory=}")
     pool_api.create_or_update_pool(
         name="NODE_RAM",
@@ -31,7 +31,7 @@ if "NODE_CPU_CORES" not in pools_dict:
         description="Count of CPU-cores of the node"
     )
 
-if "NODE_GPU_COUNT" not in pools_dict or (os.getenv("GPU_SUPPORT","false").lower() == "true" and pools_dict["NODE_GPU_COUNT"] == 0):
+if "NODE_GPU_COUNT" not in pools_dict or (os.getenv("GPU_SUPPORT", "false").lower() == "true" and pools_dict["NODE_GPU_COUNT"] == 0):
     print("Create GPU Pool ...")
     node_gpu_infos = get_node_gpu_infos()
     print(f"{node_gpu_infos=}")

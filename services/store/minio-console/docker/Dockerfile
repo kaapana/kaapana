@@ -11,7 +11,7 @@ RUN  \
 
 COPY files/provider.go /gitcode/console/pkg/auth/idp/oauth2/provider.go 
 COPY files/LoginPage.tsx /gitcode/console/portal-ui/src/screens/LoginPage/LoginPage.tsx
-
+COPY files/utils.ts /gitcode/console/portal-ui/src/screens/Console/Buckets/ListBuckets/Objects/utils.ts
 
 WORKDIR /app
 # COPY ./portal-ui/package.json ./

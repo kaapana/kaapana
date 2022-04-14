@@ -30,9 +30,9 @@ train_network_trainer = "nnUNetTrainerV2"
 
 study_uid = pydicom.uid.generate_uid()
 
-gpu_count_pool = pool_api.get_pool(name="GPU_COUNT")
+gpu_count_pool = pool_api.get_pool(name="NODE_GPU_COUNT")
 gpu_count = int(gpu_count_pool.slots) if gpu_count_pool is not None else 1
-cpu_count_pool = pool_api.get_pool(name="CPU")
+cpu_count_pool = pool_api.get_pool(name="NODE_CPU_CORES")
 prep_threads = int(cpu_count_pool.slots//8) if cpu_count_pool is not None else 4
 prep_threads = 2 if prep_threads < 2 else prep_threads
 prep_threads = 9 if prep_threads > 9 else prep_threads

@@ -88,6 +88,7 @@ class KaapanaBaseOperator(BaseOperator):
     TIMEOUT = 60 * 60 * 12
 
     pod_stopper = PodStopper()
+    env_pull_policy = os.getenv('PULL_POLICY_PODS',"None")
 
     @apply_defaults
     def __init__(self,
@@ -127,7 +128,7 @@ class KaapanaBaseOperator(BaseOperator):
                  image_pull_secrets=None,
                  startup_timeout_seconds=120,
                  namespace='flow-jobs',
-                 image_pull_policy=os.getenv('PULL_POLICY_PODS', 'IfNotPresent'),
+                 image_pull_policy= env_pull_policy if env_pull_policy == env_pull_policy.lower() == "never" else 'IfNotPresent',
                  volume_mounts=None,
                  volumes=None,
                  pod_resources=None,
@@ -677,12 +678,8 @@ class KaapanaBaseOperator(BaseOperator):
             obj.operator_in_dir = operator_in_dir
 
         if obj.pool == None:
-            if obj.gpu_mem_mb != None:
-                obj.pool = "GPU_COUNT"
-                obj.pool_slots = obj.gpu_mem_mb
-            else:
-                obj.pool = "MEMORY"
-                obj.pool_slots = obj.ram_mem_mb if obj.ram_mem_mb is not None else 1
+            obj.pool = "NODE_RAM"
+            obj.pool_slots = obj.ram_mem_mb if obj.ram_mem_mb is not None else 1
 
         obj.executor_config = {
             "cpu_millicores": obj.cpu_millicores,

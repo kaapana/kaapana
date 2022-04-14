@@ -13,7 +13,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 
 args = {
     'ui_visible': False,
-    'owner': 'kaapana',
+    'owner': 'system',
     'start_date': days_ago(0),
     'retries': 0,
     'retry_delay': timedelta(seconds=10),

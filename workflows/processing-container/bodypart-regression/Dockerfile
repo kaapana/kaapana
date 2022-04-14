@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     curl \
+    python3-opencv \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

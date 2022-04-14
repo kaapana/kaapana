@@ -16,7 +16,7 @@ log = LoggingMixin().log
 
 args = {
     'ui_visible': False,
-    'owner': 'kaapana',
+    'owner': 'system',
     'start_date': days_ago(0),
     'retries': 2,
     'retry_delay': timedelta(seconds=30),

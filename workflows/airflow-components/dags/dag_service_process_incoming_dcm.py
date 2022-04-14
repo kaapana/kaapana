@@ -10,7 +10,7 @@ from datetime import timedelta
 
 args = {
     'ui_visible': False,
-    'owner': 'kaapana',
+    'owner': 'system',
     'start_date': days_ago(0),
     'retries': 1,
     'retry_delay': timedelta(seconds=60)

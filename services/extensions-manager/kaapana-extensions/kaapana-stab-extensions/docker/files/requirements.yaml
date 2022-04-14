@@ -40,7 +40,7 @@ dependencies:
     version: "2021.02"
     repository: file://../../../../../../services/applications/mitk-workbench/mitk-workbench-chart
   - name: nnunet-workflow
-    version: 04-21
+    version: 03-22
     repository: file://../../../../../../workflows/dag-installer/nnunet/nnunet-workflow
   - name: nnunet-federated-workflow
     version: 0.1.0

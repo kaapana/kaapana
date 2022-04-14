@@ -487,13 +487,14 @@ class NetworkTrainer(object):
             continue_training = self.on_epoch_end()
 
             epoch_end_time = time()
-
+            
+            self.print_to_log_file("This epoch took %f s\n" % (epoch_end_time - epoch_start_time))
             if not continue_training:
                 # allows for early stopping
                 break
 
             self.epoch += 1
-            self.print_to_log_file("This epoch took %f s\n" % (epoch_end_time - epoch_start_time))
+
 
         self.epoch -= 1  # if we don't do this we can get a problem with loading model_final_checkpoint.
 

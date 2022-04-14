@@ -52,6 +52,11 @@
       set_fact: 
         network_id: "6ca0c141-3a54-4439-8ae6-45eafb93b0fa"
       when: project_name == "E230"
+    
+    - name: Select the external-DKFZ-net for project E230-TFDA
+      set_fact: 
+        network_id: "c75c116a-410a-4f94-97ef-0de50a58f20f"
+      when: project_name == "E230-TFDA"
 
     - name: Set CentOs7 as image
       set_fact:

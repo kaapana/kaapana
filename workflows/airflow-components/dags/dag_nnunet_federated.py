@@ -78,5 +78,5 @@ dag = DAG(
 )
 
 nnunet_federated = nnUNetFederatedOperator(dag=dag, dev_server=None)
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 nnunet_federated >> clean

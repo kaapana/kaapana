@@ -161,6 +161,7 @@ class KaapanaFederatedTrainingBase(ABC):
         
         if 'federated_form' in self.remote_conf_data and 'federated_round' in self.remote_conf_data['federated_form']:
             self.federated_round_start = self.remote_conf_data['federated_form']['federated_round'] + 1
+            print(f'Running in recovery mode and starting from round {self.federated_round_start}')
         else:
             self.federated_round_start = 0
         print(instance_names)
@@ -311,19 +312,22 @@ class KaapanaFederatedTrainingBase(ABC):
     def train(self):
         for federated_round in range(self.federated_round_start, self.remote_conf_data['federated_form']['federated_total_rounds']):
             self.train_step(federated_round)
-            print('Recovery conf')
+            print('Recovery conf for round {}')
             self.tmp_federated_site_info = {instance_name: {k: tmp_site_info[k] for k in ['from_previous_dag_run', 'before_previous_dag_run']} for instance_name, tmp_site_info in self.tmp_federated_site_info.items()}
             recovery_conf = {
                 "remote": False,
-                "dag_id": "Needs to be filled in manually, the dag_id of the ferederated dag!",
-                "instance_names": ["Needs to be filled manully, your own instance_name!"],
+                "dag_id": os.getenv('DAG_ID'),
+                "instance_names": [instance_name for instance_name, _ in self.tmp_federated_site_info.items()],
                 "form_data": {
                     **self.local_conf_data,
                     **{f'external_schema_{k}' : v for k, v in self.remote_conf_data.items()},
                     'tmp_federated_site_info': self.tmp_federated_site_info
                     }
             }
+            print('Recovery conf formatted')
             print(json.dumps(recovery_conf, indent=2))
+            print('Recovery conf in one line')
+            print(json.dumps(recovery_conf))
             recovery_path = os.path.join(self.fl_working_dir, str(federated_round), "recovery_conf.json")
             os.makedirs(os.path.basename(recovery_path), exist_ok=True)
             with open(recovery_path, "w", encoding='utf-8') as jsonData:

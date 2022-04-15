@@ -417,16 +417,18 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             context['dag_run'].conf["rest_call"] = {'global': form_data}
         if context['dag_run'].conf is not None and "rest_call" in context['dag_run'].conf and context['dag_run'].conf["rest_call"] is not None:
             self.rest_env_vars_update(context['dag_run'].conf["rest_call"])
-            print("CONTAINER ENVS:")
-            print(json.dumps(self.env_vars, indent=4, sort_keys=True))
+
+        self.env_vars.update({
+            "RUN_ID": context["dag_run"].run_id,
+            "DAG_ID": context["dag_run"].dag_id
+        })
+
+        print("CONTAINER ENVS:")
+        print(json.dumps(self.env_vars, indent=4, sort_keys=True))
 
         for volume in self.volumes:
             if "hostPath" in volume.configs and self.data_dir == volume.configs["hostPath"]["path"]:
                 volume.configs["hostPath"]["path"] = os.path.join(volume.configs["hostPath"]["path"], context["run_id"])
-
-        self.env_vars.update({
-            "RUN_ID": context["run_id"]
-        })
 
         if self.dev_server is not None:
             url = f'{KaapanaBaseOperator.HELM_API}/helm-install-chart'

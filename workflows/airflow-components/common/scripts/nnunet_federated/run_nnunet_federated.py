@@ -27,7 +27,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
     def __init__(self, workflow_dir=None, use_minio_mount=None, use_threading=True):
         super().__init__(workflow_dir=workflow_dir, use_minio_mount=use_minio_mount, use_threading=use_threading)
         
-        if 'federated_round' in self.remote_conf_data and self.remote_conf_data['federated_form']['federated_round'] > -1:
+        if 'federated_round' in self.remote_conf_data['federated_form'] and self.remote_conf_data['federated_form']['federated_round'] > -1:
             print('Removing one federated_total_rounds since since we are running in recovery mode!')
             self.remote_conf_data['federated_form']['federated_total_rounds'] = self.remote_conf_data['federated_form']['federated_total_rounds'] - 1
         if self.remote_conf_data['workflow_form']['train_max_epochs'] % self.remote_conf_data['federated_form']['federated_total_rounds'] != 0:
@@ -140,7 +140,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
 
 if __name__ == "__main__":
     kaapana_ft = nnUNetFederatedTraining(use_minio_mount='/minio', use_threading=True)
-    if 'federated_round' in kaapana_ft.remote_conf_data and kaapana_ft.remote_conf_data['federated_form']['federated_round'] > -1:
+    if 'federated_round' in kaapana_ft.remote_conf_data['federated_form'] and kaapana_ft.remote_conf_data['federated_form']['federated_round'] > -1:
         print('Skipping preprocessing since we are running in recovery mode!')
     else:
         kaapana_ft.train_step(-1)

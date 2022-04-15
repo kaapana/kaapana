@@ -84,7 +84,9 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
         src_dir = os.path.join(root_dir, operator_out_dir)
         if not os.path.isdir(src_dir):
             raise ValueError(f'{src_dir} does not exist, you most probably try to push results on a batch-element level, however, so far only bach level output is supported for federated learning!')
+        print(f'Tar {filename}')
         apply_tar_action(filename, src_dir, whitelist_federated_learning)
+        print(f'Encrypting {filename}')
         fernet_encryptfile(filename, client_network['fernet_key'])
         with open(filename, "rb") as tar:
             print(f'Putting {filename} to {remote_network}')
@@ -93,7 +95,7 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
             with requests.Session() as s:
                 r = requests_retry_session(session=s, use_proxies=True).post(minio_presigned_url, verify=ssl_check, files={'file': tar}, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']})
                 raise_kaapana_connection_error(r)
-
+        print(f'Finished uploading {filename}!')
     if action == 'get':
         print(f'Getting {filename} from {remote_network}')
         os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -102,13 +104,12 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
                 raise_kaapana_connection_error(r)
                 with open(filename, 'wb') as f:
                     for chunk in r.iter_content(chunk_size=8192): 
-                        # If you have chunk encoded response uncomment if
-                        # and set chunk_size parameter to None.
-                        #if chunk: 
                         f.write(chunk)
+        print(f'Decrypting {filename}')
         fernet_decryptfile(filename, remote_network['fernet_key'])
+        print(f'Untar {filename}')
         apply_untar_action(filename, os.path.join(root_dir))
-
+        print(f'Finished {filename}!')
     os.remove(filename)
     
                 

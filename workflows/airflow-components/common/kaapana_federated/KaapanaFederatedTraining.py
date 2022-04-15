@@ -115,9 +115,12 @@ class KaapanaFederatedTrainingBase(ABC):
                  minio_host='minio-service.store.svc',
                  minio_port='9000',
                  use_minio_mount=None,
+                 use_threading=True,
                 ):
         
         self.use_minio_mount = use_minio_mount
+        self.use_threading = use_threading
+        self.central_thread = None
         self.federated_dir = os.getenv('RUN_ID', str(uuid.uuid4()))
         workflow_dir = workflow_dir or os.getenv('WORKFLOW_DIR', f'/appdata/data/federated-setup-central-test-220316153201233296')
         print('working directory', workflow_dir)
@@ -298,8 +301,11 @@ class KaapanaFederatedTrainingBase(ABC):
         self.distribute_jobs(federated_round)
         self.wait_for_jobs(federated_round)
         tmp_central_site_info = { instance_name: tmp_site_info for instance_name, tmp_site_info in self.tmp_federated_site_info.items() }
-        download_thread = threading.Thread(target=self.central_steps, name="central_step", args=(federated_round, tmp_central_site_info))
-        download_thread.start()
+        if self.use_threading is True:
+            self.central_thread = threading.Thread(target=self.central_steps, name="central_step", args=(federated_round, tmp_central_site_info))
+            self.central_thread.start()
+        else:
+            self.central_steps(federated_round, tmp_central_site_info)
         self.on_train_step_end(federated_round)
     
     def train(self):
@@ -318,7 +324,9 @@ class KaapanaFederatedTrainingBase(ABC):
                     }
             }
             print(json.dumps(recovery_conf, indent=2))
-            with open(os.path.join(self.fl_working_dir, str(federated_round), "recovery_conf.json"), "w", encoding='utf-8') as jsonData:
+            recovery_path = os.path.join(self.fl_working_dir, str(federated_round), "recovery_conf.json")
+            os.makedirs(os.path.basename(recovery_path), exist_ok=True)
+            with open(recovery_path, "w", encoding='utf-8') as jsonData:
                 json.dump(recovery_conf, jsonData, indent=2, sort_keys=True, ensure_ascii=True)
             if federated_round > 0:
                 previous_fl_working_round_dir = os.path.join(self.fl_working_dir, str(federated_round-1))
@@ -326,4 +334,6 @@ class KaapanaFederatedTrainingBase(ABC):
                 if os.path.isdir(previous_fl_working_round_dir):
                     shutil.rmtree(previous_fl_working_round_dir)
         print('Cleaning up minio')
+        if self.central_thread is not None:
+            self.central_thread.join()
         minio_rmtree(self.minioClient, self.remote_conf_data['federated_form']['federated_bucket'], self.remote_conf_data['federated_form']['federated_dir'])

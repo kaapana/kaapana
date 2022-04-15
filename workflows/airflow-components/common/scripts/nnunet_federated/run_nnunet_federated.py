@@ -24,8 +24,8 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         pkl_file = checkpoint + ".pkl"
         return restore_model(pkl_file, checkpoint, False)
 
-    def __init__(self, workflow_dir=None, use_minio_mount=None):
-        super().__init__(workflow_dir=workflow_dir, use_minio_mount=use_minio_mount)
+    def __init__(self, workflow_dir=None, use_minio_mount=None, use_threading=True):
+        super().__init__(workflow_dir=workflow_dir, use_minio_mount=use_minio_mount, use_threading=use_threading)
         
         if 'federated_round' in self.remote_conf_data and self.remote_conf_data['federated_form']['federated_round'] > -1:
             print('Removing one federated_total_rounds since since we are running in recovery mode!')
@@ -139,10 +139,9 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         print(federated_round, self.remote_conf_data['federated_form']['federated_total_rounds'])
 
 if __name__ == "__main__":
-    kaapana_ft = nnUNetFederatedTraining(use_minio_mount='/minio')
+    kaapana_ft = nnUNetFederatedTraining(use_minio_mount='/minio', use_threading=True)
     if 'federated_round' in kaapana_ft.remote_conf_data and kaapana_ft.remote_conf_data['federated_form']['federated_round'] > -1:
         print('Skipping preprocessing since we are running in recovery mode!')
     else:
         kaapana_ft.train_step(-1)
     kaapana_ft.train()
-

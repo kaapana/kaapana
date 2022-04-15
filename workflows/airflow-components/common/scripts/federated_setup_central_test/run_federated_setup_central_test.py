@@ -9,8 +9,8 @@ from kaapana_federated.KaapanaFederatedTraining import KaapanaFederatedTrainingB
 
 class FederatedSetupTestFederatedTraining(KaapanaFederatedTrainingBase):
     
-    def __init__(self, workflow_dir=None, use_minio_mount=None):
-        super().__init__(workflow_dir=workflow_dir, use_minio_mount=use_minio_mount)
+    def __init__(self, workflow_dir=None, use_minio_mount=None, use_threading=True):
+        super().__init__(workflow_dir=workflow_dir, use_minio_mount=use_minio_mount, use_threading=use_threading)
             
     def update_data(self, federated_round, tmp_central_site_info):
         print(Path(self.fl_working_dir) / str(federated_round))
@@ -18,5 +18,5 @@ class FederatedSetupTestFederatedTraining(KaapanaFederatedTrainingBase):
         print(federated_round)
 
 if __name__ == "__main__":
-    kaapana_ft = FederatedSetupTestFederatedTraining(use_minio_mount='/minio')
+    kaapana_ft = FederatedSetupTestFederatedTraining(use_minio_mount='/minio', use_threading=True)
     kaapana_ft.train()

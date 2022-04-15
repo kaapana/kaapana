@@ -343,7 +343,7 @@ def get_kube_status(kind, name, namespace):
             states['age'].append(age)
     except subprocess.CalledProcessError as e:
         print(f'Could not get kube status of {name}')
-
+        print(e)
     return states
 
 
@@ -359,6 +359,8 @@ def get_manifest_infos(manifest):
     }
 
     for config in manifest:
+        if config is None:
+            continue
         ingress_path = ''
         if config['kind'] == 'Ingress':
             ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']

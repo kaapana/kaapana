@@ -18,8 +18,6 @@ class DcmSendOperator(KaapanaBaseOperator):
                 env_vars=None,
                 level='element',
                 check_arrival=False,
-                enable_proxy=False,
-                host_network=False,
                 execution_timeout=timedelta(minutes=60),
                 **kwargs
                 ):
@@ -49,8 +47,6 @@ class DcmSendOperator(KaapanaBaseOperator):
             image=f"{default_registry}/dcmsend:3.6.4",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
-            host_network=host_network,
-            enable_proxy=enable_proxy,
             execution_timeout=execution_timeout,
             **kwargs
         )

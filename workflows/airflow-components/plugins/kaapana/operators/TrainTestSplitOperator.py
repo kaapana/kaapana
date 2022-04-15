@@ -14,13 +14,6 @@ class TrainTestSplitOperator(KaapanaBaseOperator):
                  *args, **kwargs
                  ):
 
-        if env_vars is None:
-            env_vars = {}
-        envs = {
-            "HOSTDOMAIN": os.getenv('HOSTDOMAIN'),
-        }
-        env_vars.update(envs)
-
         super().__init__(
             dag=dag,
             name=name,

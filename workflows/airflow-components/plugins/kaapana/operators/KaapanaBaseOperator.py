@@ -34,7 +34,7 @@ import logging
 
 default_registry = os.getenv("DEFAULT_REGISTRY", "")
 default_project = os.getenv("DEFAULT_PROJECT", "")
-http_proxy = os.getenv("PROXY", None)
+default_proxy = os.getenv("PROXY", "")
 
 class KaapanaBaseOperator(BaseOperator, SkipMixin):
     """
@@ -134,8 +134,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                  volume_mounts=None,
                  volumes=None,
                  pod_resources=None,
-                 enable_proxy=False,
-                 host_network=False,
                  in_cluster=False,
                  cluster_context=None,
                  labels=None,
@@ -222,8 +220,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.model_dir = os.getenv('MODELDIR', "")
         self.common_dir = os.getenv('COMMONDIR', "")
         self.result_message = None
-        self.host_network = host_network
-        self.enable_proxy = enable_proxy
 
         self.volume_mounts.append(VolumeMount(
             'workflowdata', mount_path='/data', sub_path=None, read_only=False
@@ -313,20 +309,13 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             "WORKFLOW_DIR": str(self.workflow_dir),
             "BATCH_NAME": str(self.batch_name),
             "OPERATOR_OUT_DIR": str(self.operator_out_dir),
-            "BATCHES_INPUT_DIR": f"/{self.workflow_dir}/{self.batch_name}"
+            "BATCHES_INPUT_DIR": f"/{self.workflow_dir}/{self.batch_name}",
         }
+        if default_proxy:
+            envs.update({"PROXY": default_proxy})
+
         if hasattr(self, 'operator_in_dir'):
             envs["OPERATOR_IN_DIR"] = str(self.operator_in_dir)
-
-        if http_proxy is not None and http_proxy != "" and self.enable_proxy:
-            envs.update(
-                {
-                    "http_proxy": http_proxy,
-                    "https_proxy": http_proxy,
-                    "HTTP_PROXY": http_proxy,
-                    "HTTPS_PROXY": http_proxy,
-                }
-            )
 
         envs.update(self.env_vars)
         self.env_vars = envs
@@ -531,7 +520,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 image_pull_secrets=self.image_pull_secrets,
                 resources=self.pod_resources,
                 annotations=self.annotations,
-                host_network=self.host_network,
                 affinity=self.affinity
             )
             launcher = pod_launcher.PodLauncher(extract_xcom=self.xcom_push)

@@ -73,9 +73,9 @@ for annotation in annotations:
         },
         "index": "meta-index",
         "dag": "send-dicom",
-        "cohort_limit": 100,
+        "cohort_limit": None,
         "form_data": {
-            "host": os.getenv('HOSTDOMAIN'),
+            "host": "ctp-dicom-service.flow.svc",
             "port": 11112,
             "aetitle": ae_titles,
             "single_execution": True

@@ -70,7 +70,7 @@ def send_dicoms(series_id, ae_titles):
         "dag": "send-dicom",
         "cohort_limit": 1,
         "form_data": {
-            "host": os.getenv('HOSTDOMAIN'),
+            "host": "ctp-dicom-service.flow.svc",
             "port": 11112,
             "aetitle": ae_titles,
             "single_execution": True

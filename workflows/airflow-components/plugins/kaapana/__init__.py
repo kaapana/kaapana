@@ -2,13 +2,7 @@ from airflow.models import Pool as pool_api
 from kaapana.kubetools.prometheus_query import get_node_memory, get_node_mem_percent, get_node_cpu, get_node_cpu_util_percent, get_node_gpu_infos
 import os
 
-print("__init__ kaapana plugin")
-pools = pool_api.get_pools()
-
-pools_dict = {}
-for pool in pools:
-    pools_dict[pool.pool] = pool.slots
-
+pools_dict = pool_api.slots_stats()
 if "NODE_RAM" not in pools_dict:
     print("Create Memory Pool ...")
     node_memory = abs(get_node_memory() - 10000)
@@ -31,7 +25,7 @@ if "NODE_CPU_CORES" not in pools_dict:
         description="Count of CPU-cores of the node"
     )
 
-if "NODE_GPU_COUNT" not in pools_dict or (os.getenv("GPU_SUPPORT", "false").lower() == "true" and pools_dict["NODE_GPU_COUNT"] == 0):
+if "NODE_GPU_COUNT" not in pools_dict or (os.getenv("GPU_SUPPORT", "false").lower() == "true" and pools_dict["NODE_GPU_COUNT"]["total"] == 0):
     print("Create GPU Pool ...")
     node_gpu_infos = get_node_gpu_infos()
     print(f"{node_gpu_infos=}")

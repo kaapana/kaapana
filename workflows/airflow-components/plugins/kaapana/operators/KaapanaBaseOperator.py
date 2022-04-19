@@ -28,7 +28,8 @@ from kaapana.operators.HelperFederated import federated_sharing_decorator
 from airflow.api.common.experimental import pool as pool_api
 import uuid
 import json
-
+from kaapana import pools_dict
+import logging
 
 default_registry = os.getenv("DEFAULT_REGISTRY", "")
 default_project = os.getenv("DEFAULT_PROJECT", "")
@@ -393,10 +394,10 @@ class KaapanaBaseOperator(BaseOperator):
         self.kube_name = self.kube_name.lower() + "-" + str(uuid.uuid4())[:8]
         self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63) # actually 63, but because of helm set to 53, maybe...
 
-        self.pool = context["ti"].pool
-        self.pool_slots = context["ti"].pool_slots
-        if "GPU" in self.pool and len(self.pool.split("_")) == 3:
-            gpu_id = self.pool.split("_")[1]
+        # self.pool = context["ti"].pool
+        # self.pool_slots = context["ti"].pool_slots
+        if "NODE_GPU_" in self.pool and self.pool.count("_") == 3:
+            gpu_id = self.pool.split("_")[2]
             self.env_vars.update({
                 "CUDA_VISIBLE_DEVICES": str(gpu_id)
             })
@@ -679,8 +680,37 @@ class KaapanaBaseOperator(BaseOperator):
 
         if obj.pool == None:
             if obj.gpu_mem_mb != None:
-                obj.pool = "NODE_GPU_COUNT"
-                obj.pool_slots =  1
+                gpu_pool_list = []
+                for k, v in pools_dict.items(): 
+                    if "NODE_GPU_" in k and k.count("_") == 3 and v["total"] > obj.gpu_mem_mb:
+                        v["name"] = k
+                        v["id"] = k.split("_")[2]
+                        gpu_pool_list.append(v)
+                gpu_pool_list = sorted(gpu_pool_list, key=lambda d: d['total'], reverse=False)
+
+                gpu_pool_found = None
+                for pool in gpu_pool_list:
+                    gpu_id = pool["id"] 
+                    free_space = pool["open"]
+                    if free_space > obj.gpu_mem_mb:
+                        gpu_pool_found = gpu_id
+
+                if gpu_pool_found == None:
+                    for pool in gpu_pool_list:
+                        gpu_id = pool["id"] 
+                        capacity = pool["total"]
+                        if capacity > obj.gpu_mem_mb:
+                            gpu_pool_found = gpu_id
+                
+                if gpu_pool_found == None:
+                    logging.warn("No GPU identified for the job!")
+                    logging.warn(f"{obj.gpu_mem_mb=}")
+                    logging.warn(f"SETTING POOL NODE_GPU_COUNT == 1")
+                    obj.pool = "NODE_GPU_COUNT"
+                    obj.pool_slots =  1
+                else:
+                    obj.pool = f"NODE_GPU_{gpu_pool_found}_MEM"
+                    obj.pool_slots =  obj.gpu_mem_mb
             else:
                 obj.pool = "NODE_RAM"
                 obj.pool_slots = obj.ram_mem_mb if obj.ram_mem_mb is not None else 1

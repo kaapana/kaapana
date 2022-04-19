@@ -88,7 +88,6 @@ def requests_retry_session(
     session.mount('http://', adapter)
     session.mount('https://', adapter)
 
-    print('Trying again')
     if use_proxies is True:
         proxies = {'http': os.getenv('PROXY', None), 'https': os.getenv('PROXY', None)}
         print('Setting proxies', proxies)

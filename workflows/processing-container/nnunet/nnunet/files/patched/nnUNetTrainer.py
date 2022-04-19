@@ -22,6 +22,7 @@ from typing import Tuple, List
 import matplotlib
 import numpy as np
 import torch
+import time
 from batchgenerators.utilities.file_and_folder_operations import *
 from torch import nn
 from torch.optim import lr_scheduler
@@ -733,7 +734,8 @@ class nnUNetTrainer(NetworkTrainer):
             self.writer.add_scalar(key, value, self.epoch)
         log_dict.update({
             'epoch': self.epoch,
-            'fold': self.fold
+            'fold': self.fold,
+            'timestamp': time.time()
             })
         self.json_writer.append_data_dict(log_dict)
 

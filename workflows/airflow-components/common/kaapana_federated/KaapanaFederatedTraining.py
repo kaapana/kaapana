@@ -9,6 +9,7 @@ import uuid
 import shutil
 import tarfile
 import threading
+import functools
 from minio import Minio
 from abc import ABC, abstractmethod
 from requests.adapters import HTTPAdapter
@@ -16,6 +17,50 @@ from abc import ABC, abstractmethod
 from minio.deleteobjects import DeleteObject
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+
+# Todo move in Jonas library as normal function 
+def timeit(func):
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        ts = time.time()
+        x = func(self, *args, **kwargs)
+        te = time.time()
+        self.json_writer.append_data_dict({
+            'name': func.__name__,
+            'execution_time': te-ts,
+            'timestamp': time.time(),
+            'args': args,
+            'kwargs': kwargs
+        })
+        return x
+    return wrapper
+    
+# Todo move in Jonas library as normal function 
+class JsonWriter(object):
+
+    @staticmethod
+    def _write_json(filename, data):
+        with open(filename, 'w') as json_file:
+            json.dump(data, json_file)
+            
+    @staticmethod
+    def _load_json(filename):
+        try:
+            with open(filename) as json_file:
+                exp_data = json.load(json_file)
+        except FileNotFoundError:
+            exp_data = []
+        return exp_data
+
+    def __init__(self, log_dir) -> None:
+        self.filename = os.path.join(log_dir, 'fl_stats.json')
+        os.makedirs(os.path.dirname(self.filename), exist_ok=True)
+        # not accumulating anything because this leads to a decrease in speed over many epochs!
+
+    def append_data_dict(self, data_dict):
+        exp_data = JsonWriter._load_json(self.filename)
+        exp_data.append(data_dict)
+        JsonWriter._write_json(self.filename, exp_data)
 
 # Todo move in Jonas library as normal function 
 def requests_retry_session(
@@ -87,7 +132,6 @@ class KaapanaFederatedTrainingBase(ABC):
             tar.add(src_dir, arcname=os.path.basename(src_dir))
 
 
-            
     # Todo move in Jonas library as normal function 
     @staticmethod
     def raise_kaapana_connection_error(r):
@@ -122,9 +166,10 @@ class KaapanaFederatedTrainingBase(ABC):
         self.use_threading = use_threading
         self.central_thread = None
         self.federated_dir = os.getenv('RUN_ID', str(uuid.uuid4()))
-        workflow_dir = workflow_dir or os.getenv('WORKFLOW_DIR', f'/appdata/data/federated-setup-central-test-220316153201233296')
-        print('working directory', workflow_dir)
-        conf_data = self.get_conf(workflow_dir)
+        self.workflow_dir = workflow_dir or os.getenv('WORKFLOW_DIR', f'/appdata/data/federated-setup-central-test-220316153201233296')
+        print('working directory', self.workflow_dir)
+
+        conf_data = self.get_conf(self.workflow_dir)
         print(conf_data)
 
         self.remote_conf_data = {}
@@ -143,10 +188,12 @@ class KaapanaFederatedTrainingBase(ABC):
 
 
         if self.use_minio_mount is None:
-            self.fl_working_dir = os.path.join('/', workflow_dir, os.getenv('OPERATOR_OUT_DIR', 'federated-operator'))
+            self.fl_working_dir = os.path.join('/', self.workflow_dir, os.getenv('OPERATOR_OUT_DIR', 'federated-operator'))
         else:
             self.fl_working_dir = os.path.join(self.use_minio_mount, self.remote_conf_data['federated_form']['remote_dag_id'], self.remote_conf_data['federated_form']['federated_dir'])
         print(self.fl_working_dir)
+
+        self.json_writer = JsonWriter(log_dir=self.fl_working_dir)
 
         self.client_url = 'http://federated-backend-service.base.svc:5000/client'
         with requests.Session() as s:
@@ -176,7 +223,7 @@ class KaapanaFederatedTrainingBase(ABC):
             secret_key=secret_key,
             secure=False)
 
-    
+    @timeit
     def distribute_jobs(self, federated_round):
         # Starting round!
         self.remote_conf_data['federated_form']['federated_round'] = federated_round
@@ -206,6 +253,7 @@ class KaapanaFederatedTrainingBase(ABC):
                 'fernet_key': site_info['fernet_key']
             }
     
+    @timeit
     def wait_for_jobs(self, federated_round):
         updated = {instance_name: False for instance_name in self.tmp_federated_site_info}
         # Waiting for updated files
@@ -234,7 +282,8 @@ class KaapanaFederatedTrainingBase(ABC):
             for k, v in updated.items():
                 print(k, v)
             raise ValueError('There are lacking updates, please check what is going on!')
-    
+
+    @timeit
     def download_minio_objects_to_workflow_dir(self, federated_round, tmp_central_site_info):
         federated_bucket = self.remote_conf_data['federated_form']['federated_bucket']
         if federated_round > 0:
@@ -270,9 +319,11 @@ class KaapanaFederatedTrainingBase(ABC):
                 minio_rmtree(self.minioClient, federated_bucket, os.path.join(previous_federated_round_dir, instance_name))
 
     @abstractmethod
+    @timeit
     def update_data(self, federated_round, tmp_central_site_info):
         pass
-                
+
+    @timeit
     def upload_workflow_dir_to_minio_object(self, federated_round, tmp_central_site_info):   
         # Push objects:
         for instance_name, tmp_site_info in tmp_central_site_info.items():
@@ -288,30 +339,34 @@ class KaapanaFederatedTrainingBase(ABC):
                     os.makedirs(os.path.dirname(dst), exist_ok=True)
                     shutil.copyfile(file_path, dst)
         print('Finished round', federated_round)
-    
+
+    @timeit
     def on_train_step_end(self, federated_round):
         pass
     
+    @timeit
     def central_steps(self, federated_round, tmp_central_site_info):
         # Working with downloaded objects
-        self.download_minio_objects_to_workflow_dir(federated_round, tmp_central_site_info)
-        self.update_data(federated_round, tmp_central_site_info)
-        self.upload_workflow_dir_to_minio_object(federated_round, tmp_central_site_info)
+        self.download_minio_objects_to_workflow_dir(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
+        self.update_data(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
+        self.upload_workflow_dir_to_minio_object(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
 
+    @timeit
     def train_step(self, federated_round):
-        self.distribute_jobs(federated_round)
-        self.wait_for_jobs(federated_round)
+        self.distribute_jobs(federated_round=federated_round)
+        self.wait_for_jobs(federated_round=federated_round)
         tmp_central_site_info = { instance_name: tmp_site_info for instance_name, tmp_site_info in self.tmp_federated_site_info.items() }
         if self.use_threading is True:
-            self.central_thread = threading.Thread(target=self.central_steps, name="central_step", args=(federated_round, tmp_central_site_info))
+            self.central_thread = threading.Thread(target=self.central_steps, name="central_step", kwargs={'federated_round': federated_round, 'tmp_central_site_info': tmp_central_site_info})
             self.central_thread.start()
         else:
-            self.central_steps(federated_round, tmp_central_site_info)
-        self.on_train_step_end(federated_round)
+            self.central_steps(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
+        self.on_train_step_end(federated_round=federated_round)
     
+    @timeit    
     def train(self):
         for federated_round in range(self.federated_round_start, self.remote_conf_data['federated_form']['federated_total_rounds']):
-            self.train_step(federated_round)
+            self.train_step(federated_round=federated_round)
             print('Recovery conf for round {}')
             self.tmp_federated_site_info = {instance_name: {k: tmp_site_info[k] for k in ['from_previous_dag_run', 'before_previous_dag_run']} for instance_name, tmp_site_info in self.tmp_federated_site_info.items()}
             recovery_conf = {
@@ -340,4 +395,11 @@ class KaapanaFederatedTrainingBase(ABC):
         print('Cleaning up minio')
         if self.central_thread is not None:
             self.central_thread.join()
+
+        if self.use_minio_mount is not None:
+            dst = os.path.join('/', self.workflow_dir, os.getenv('OPERATOR_OUT_DIR', 'federated-operator'), os.path.basename(self.json_writer.filename))
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copyfile(self.json_writer.filename, dst)
+
+    def clean_up_minio(self):
         minio_rmtree(self.minioClient, self.remote_conf_data['federated_form']['federated_bucket'], self.remote_conf_data['federated_form']['federated_dir'])

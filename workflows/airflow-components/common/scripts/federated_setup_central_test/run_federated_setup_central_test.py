@@ -20,3 +20,4 @@ class FederatedSetupTestFederatedTraining(KaapanaFederatedTrainingBase):
 if __name__ == "__main__":
     kaapana_ft = FederatedSetupTestFederatedTraining(use_minio_mount='/minio', use_threading=True)
     kaapana_ft.train()
+    kaapana_ft.clean_up_minio()

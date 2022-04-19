@@ -12,6 +12,7 @@ class Bin2DcmOperator(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  dataset_info_operator=None,
+                 dataset_info_operator_in_dir=None,
                  file_extensions="*.zip",
                  size_limit=100,
                  patient_id="",
@@ -31,8 +32,11 @@ class Bin2DcmOperator(KaapanaBaseOperator):
                  **kwargs
                  ):
 
+        if dataset_info_operator_in_dir is None:
+            dataset_info_operator_in_dir = dataset_info_operator.operator_out_dir if dataset_info_operator is not None else ''
+        
         envs = {
-            "DATASET_INFO_OPERATOR_DIR": dataset_info_operator.operator_out_dir if dataset_info_operator is not None else '',
+            "DATASET_INFO_OPERATOR_DIR": dataset_info_operator_in_dir,
             "STUDY_ID": str(study_id),
             "STUDY_UID": str(study_uid),
             "STUDY_DESCRIPTION": str(study_description),

@@ -9,4 +9,4 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY files/start.py /kaapanasrc/
 
-CMD ["python3", "-m", "/kaapanasrc/start.py"]
+CMD ["python3", "-u", "/kaapanasrc/start.py"]

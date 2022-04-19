@@ -389,7 +389,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         if "NODE_GPU_" in self.pool and self.pool.count("_") == 3:
             gpu_id = self.pool.split("_")[2]
             self.env_vars.update({
-                "CUDA_VISIBLE_DEVICES": str(gpu_id)
+                "CUDA_VISIBLE_DEVICES": str(0) # Todo needs to be dynamic!
             })
 
         # if context['dag_run'].conf is not None and "conf" in context['dag_run'].conf and "form_data" in context['dag_run'].conf["conf"] and context['dag_run'].conf["conf"]["form_data"] is not None:

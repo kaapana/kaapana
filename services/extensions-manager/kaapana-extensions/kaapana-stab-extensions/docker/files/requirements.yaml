@@ -45,3 +45,6 @@ dependencies:
   - name: fastapi-backend-chart
     version: 0.1.0
     repository: file://../../../../../../services/base/fastapi-backend/fastapi-backend-chart
+  - name: tfda-execution-orchestrator-workflow
+    version: 0.0.1
+    repository: file://../../../../../../workflows/dag-installer/tfda-execution-orchestrator/tfda-execution-orchestrator-workflow

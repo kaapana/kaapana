@@ -4,7 +4,7 @@
   gather_facts: false
 
   vars:
-    ssh_key: "{{ os_ssh_key | default('tfda_iso') }}"
+    ssh_key: "{{ os_ssh_key | default('kaapana') }}"
     project_name: "{{ os_project_name | default('E230-DKTK-JIP') }}"
     os_project_id: "{{ os_proj_id | default('969831bf53424f1fb318a9c1d98e1941') }}"
     username: "{{ os_username }}"
@@ -50,8 +50,9 @@
 
     - name: Set network ID for project E230 to avoid conflict, because E230 has 2 network items
       set_fact: 
-        network_id: "6ca0c141-3a54-4439-8ae6-45eafb93b0fa"
-      when: project_name == "E230"
+        #network_id: "6ca0c141-3a54-4439-8ae6-45eafb93b0fa"
+        network_id: "1ebc9079-e20e-4a3b-9eec-1054808c8382"
+      when: project_name == "E230-TFDA"
 
     - name: Set CentOs7 as image
       set_fact:
@@ -102,9 +103,11 @@
         terminate_volume: True
         boot_from_volume: True
         security_groups: default
-        auto_ip: yes
-        wait: yes
-        timeout: 120
+        #auto_ip: yes
+        #wait: yes
+        #timeout: 120
+        floating_ips:
+          - 10.133.26.2
         meta:
           hostname: new_instance.localdomain
       register: new_instance
@@ -113,12 +116,12 @@
       command: ssh-keygen -R {{ new_instance.openstack.accessIPv4 }}
       ignore_errors: yes
 
-    - name: Wait for SSH on the Instance
-      command: "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i ~/.ssh/{{ ssh_key }}.pem root@{{ new_instance.openstack.accessIPv4 }} true"
-      register: result
-      until: result.rc == 0
-      retries: 6
-      delay: 10
+    #- name: Wait for SSH on the Instance
+      #command: "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i ~/.ssh/{{ ssh_key }}.pem root@{{ new_instance.openstack.accessIPv4 }} true"
+      #register: result
+      #until: result.rc == 0
+      #retries: 6
+      #delay: 10
 
     - name: replace ip
       replace:

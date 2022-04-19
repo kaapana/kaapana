@@ -8,7 +8,7 @@
   gather_facts: no
   vars:
     - target: "{{ target_host }}"
-      default: "10.128.128.218"
+      default: 10.133.26.2"
 
   tasks:
     - add_host:

@@ -8,8 +8,6 @@ import re
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
-import kaapana.CI.scripts.ci_playbook_execute as ci_execute
-
 
 class LocalCreateIsoInstanceOperator(KaapanaPythonBaseOperator):
 

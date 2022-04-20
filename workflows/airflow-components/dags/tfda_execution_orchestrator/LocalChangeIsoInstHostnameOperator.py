@@ -13,10 +13,10 @@ class LocalChangeIsoInstHostnameOperator(KaapanaPythonBaseOperator):
         print("Changing hostname of isolated environment...")
         print(kwargs)
 
-        dir = os.path.dirname(os.path.abspath(__file__)))
+        dir = os.path.dirname(os.path.abspath(__file__))
         scripts_dir = os.path.join(dir, "scripts")
         playbooks_dir = os.path.join(dir, "ansible_playbooks")
-        print(f'Playbooks directory is {playbooks_dir}, and scripts are in {scripts_dir}, and kaapana dir is {kaapana_dir}')
+        print(f'Playbooks directory is {playbooks_dir}, and scripts are in {scripts_dir}, and directory is {dir}')
         # run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
         # batch_input_dir = os.path.join(run_dir, self.operator_in_dir)
         # print('input_dir', batch_input_dir)

@@ -1,2 +1,2 @@
-Flask==0.10.1
+Flask==2.1.0
 itsdangerous==2.0.1

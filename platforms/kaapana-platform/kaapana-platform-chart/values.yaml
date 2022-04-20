@@ -34,6 +34,6 @@ global:
           version: 3.10.2
         - name: kaapana-plugin-chart
           version: 0.1.1
-        - name: tfda-execution-orchestrator-workflow-chart
+        - name: tfda-execution-orchestrator-workflow
           version: 0.0.1
 ---

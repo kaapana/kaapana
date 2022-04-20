@@ -126,7 +126,7 @@ def federated_sharing_decorator(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
 
-        max_retries = 5
+        max_retries = 10
         run_id, dag_run_dir, dag_run, downstream_tasks = get_operator_properties(*args, **kwargs)
         conf = dag_run.conf
 
@@ -144,7 +144,6 @@ def federated_sharing_decorator(func):
                 'you will need to set the flag allow_federated_learning=True in order to permit the operator to be used in federated learning scenarios')
             if 'from_previous_dag_run' in federated and federated['from_previous_dag_run'] is not None:
                 print('Downloading data from Minio')
-                # ToDo add trying tarfile.ReadError: unexpected end of data
                 try_count = 0
                 while try_count < max_retries:
                     print("Try: {}".format(try_count))

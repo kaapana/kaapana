@@ -165,6 +165,7 @@ class KaapanaFederatedTrainingBase(ABC):
         self.use_minio_mount = use_minio_mount
         self.use_threading = use_threading
         self.central_thread = None
+        self.central_thread_error = None
         self.federated_dir = os.getenv('RUN_ID', str(uuid.uuid4()))
         self.workflow_dir = workflow_dir or os.getenv('WORKFLOW_DIR', f'/appdata/data/federated-setup-central-test-220316153201233296')
         print('working directory', self.workflow_dir)
@@ -262,7 +263,11 @@ class KaapanaFederatedTrainingBase(ABC):
             if idx%6 == 0:
                 print(f'{10*idx} seconds')
 
-            time.sleep(10) 
+            if self.central_thread_error is not None:
+                print(f'An error occured in a thread! You need to manually kill all running processes of the clients.')
+                raise self.central_thread_error
+            time.sleep(10)
+
             for instance_name, tmp_site_info in self.tmp_federated_site_info.items():
                 with requests.Session() as s:
                     r = requests_retry_session(session=s).get(f'{self.client_url}/job', params={
@@ -347,9 +352,12 @@ class KaapanaFederatedTrainingBase(ABC):
     @timeit
     def central_steps(self, federated_round, tmp_central_site_info):
         # Working with downloaded objects
-        self.download_minio_objects_to_workflow_dir(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
-        self.update_data(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
-        self.upload_workflow_dir_to_minio_object(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
+        try:
+            self.download_minio_objects_to_workflow_dir(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
+            self.update_data(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
+            self.upload_workflow_dir_to_minio_object(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
+        except Exception as e:
+            self.central_thread_error = e
 
     @timeit
     def train_step(self, federated_round):

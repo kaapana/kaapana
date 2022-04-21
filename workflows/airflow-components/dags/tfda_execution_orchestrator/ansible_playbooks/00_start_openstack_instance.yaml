@@ -109,7 +109,7 @@
         boot_from_volume: True
         security_groups: default
         delete_fip: yes
-        auto_ip: yes
+        # auto_ip: yes
         reuse_ips: yes
         wait: yes
         timeout: 120

@@ -28,7 +28,7 @@
         OS_TENANT_ID: "{{ os_project_id }}"
       openstack.cloud.server_info:
         auth:
-          auth_url: "https://cloud.dkfz-heidelberg.de:13000"
+          auth_url: "https://cloud.hdf.dkfz-heidelberg.de:13000"
           username: "{{ os_username }}"
           password: "{{ os_password }}"
           user_domain_name: "AD"
@@ -45,7 +45,7 @@
         os_server:
           state: absent
           auth:
-            auth_url: "https://cloud.dkfz-heidelberg.de:13000"
+            auth_url: "https://cloud.hdf.dkfz-heidelberg.de:13000"
             username: "{{ os_username }}"
             password: "{{ os_password }}"
             user_domain_name: "AD"

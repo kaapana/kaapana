@@ -174,8 +174,7 @@ dcm_query = DcmQueryOperator(
     start_date=start_date,
     end_date=end_date,
     level=level,
-    max_query_size= max_query_size,
-    host_network=True,
+    max_query_size= max_query_size
 )
 
 dcm2meta_json = Dcm2MetaJsonLinesOperator(

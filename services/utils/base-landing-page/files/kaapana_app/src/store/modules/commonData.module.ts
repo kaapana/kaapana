@@ -2,7 +2,7 @@ import kaapanaApiService from '@/common/kaapanaApi.service.ts'
 import CommonDataService from '@/common/commonData.service.ts'
 
 import {
-  CHECK_AVAILABLE_WEBISTES,
+  CHECK_AVAILABLE_WEBSITES,
   LOAD_COMMON_DATA,
 } from '@/store/actions.type'
 import { SET_AVAILABLE_WEBISTES, SET_COMMON_DATA } from '@/store/mutations.type'
@@ -29,7 +29,7 @@ const getters = {
 }
 
 const actions = {
-  [CHECK_AVAILABLE_WEBISTES](context: any) {
+  [CHECK_AVAILABLE_WEBSITES](context: any) {
     console.log('checking')
     return new Promise((resolve: any) => {
       kaapanaApiService.getExternalWebpages().then((externalWebpages: any) => {

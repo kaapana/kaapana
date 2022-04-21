@@ -1,5 +1,0 @@
----
-dependencies:
-  # - name: logging-management-chart # - kaapanaapplication # Leads to problems in kube-helm backend/Extensions on dashboard. ingres in manifest is not found and therefore extensions can not be listed anymore... 
-  #   version: 0.1.0
-  #   repository: file://../../../../../../services/applications/logging-management/logging-management-chart

@@ -14,6 +14,7 @@ from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
 from kaapana.kubetools.pod import Pod
 from kaapana.kubetools.pod_stopper import PodStopper
+from airflow.models.skipmixin import SkipMixin
 from kaapana.kubetools.resources import Resources as PodResources
 from datetime import datetime, timedelta
 from airflow.utils.trigger_rule import TriggerRule
@@ -33,9 +34,9 @@ import logging
 
 default_registry = os.getenv("DEFAULT_REGISTRY", "")
 default_project = os.getenv("DEFAULT_PROJECT", "")
-http_proxy = os.getenv("PROXY", None)
+default_proxy = os.getenv("PROXY", "")
 
-class KaapanaBaseOperator(BaseOperator):
+class KaapanaBaseOperator(BaseOperator, SkipMixin):
     """
     Execute a task in a Kubernetes Pod
 
@@ -133,8 +134,6 @@ class KaapanaBaseOperator(BaseOperator):
                  volume_mounts=None,
                  volumes=None,
                  pod_resources=None,
-                 enable_proxy=False,
-                 host_network=False,
                  in_cluster=False,
                  cluster_context=None,
                  labels=None,
@@ -219,10 +218,8 @@ class KaapanaBaseOperator(BaseOperator):
         self.kind = kind
         self.data_dir = os.getenv('DATADIR', "")
         self.model_dir = os.getenv('MODELDIR', "")
-        self.executables_dir = os.getenv('EXECUTABLESDIR', "")
+        self.common_dir = os.getenv('COMMONDIR', "")
         self.result_message = None
-        self.host_network = host_network
-        self.enable_proxy = enable_proxy
 
         self.volume_mounts.append(VolumeMount(
             'workflowdata', mount_path='/data', sub_path=None, read_only=False
@@ -240,7 +237,7 @@ class KaapanaBaseOperator(BaseOperator):
             'miniodata', mount_path='/minio', sub_path=None, read_only=False
         ))
         self.volume_mounts.append(VolumeMount(
-            'executablesdata', mount_path='/executables', sub_path=None, read_only=False
+            'commondata', mount_path='/common', sub_path=None, read_only=False
         ))
 
         self.volumes.append(
@@ -254,11 +251,11 @@ class KaapanaBaseOperator(BaseOperator):
         )
 
         self.volumes.append(
-            Volume(name='executablesdata', configs={
+            Volume(name='commondata', configs={
                 'hostPath':
                 {
                     'type': 'DirectoryOrCreate',
-                    'path': self.executables_dir
+                    'path': self.common_dir
                 }
             })
         )
@@ -312,20 +309,13 @@ class KaapanaBaseOperator(BaseOperator):
             "WORKFLOW_DIR": str(self.workflow_dir),
             "BATCH_NAME": str(self.batch_name),
             "OPERATOR_OUT_DIR": str(self.operator_out_dir),
-            "BATCHES_INPUT_DIR": f"/{self.workflow_dir}/{self.batch_name}"
+            "BATCHES_INPUT_DIR": f"/{self.workflow_dir}/{self.batch_name}",
         }
+        if default_proxy:
+            envs.update({"PROXY": default_proxy})
+
         if hasattr(self, 'operator_in_dir'):
             envs["OPERATOR_IN_DIR"] = str(self.operator_in_dir)
-
-        if http_proxy is not None and http_proxy != "" and self.enable_proxy:
-            envs.update(
-                {
-                    "http_proxy": http_proxy,
-                    "https_proxy": http_proxy,
-                    "HTTP_PROXY": http_proxy,
-                    "HTTPS_PROXY": http_proxy,
-                }
-            )
 
         envs.update(self.env_vars)
         self.env_vars = envs
@@ -416,16 +406,18 @@ class KaapanaBaseOperator(BaseOperator):
             context['dag_run'].conf["rest_call"] = {'global': form_data}
         if context['dag_run'].conf is not None and "rest_call" in context['dag_run'].conf and context['dag_run'].conf["rest_call"] is not None:
             self.rest_env_vars_update(context['dag_run'].conf["rest_call"])
-            print("CONTAINER ENVS:")
-            print(json.dumps(self.env_vars, indent=4, sort_keys=True))
+
+        self.env_vars.update({
+            "RUN_ID": context["dag_run"].run_id,
+            "DAG_ID": context["dag_run"].dag_id
+        })
+
+        print("CONTAINER ENVS:")
+        print(json.dumps(self.env_vars, indent=4, sort_keys=True))
 
         for volume in self.volumes:
             if "hostPath" in volume.configs and self.data_dir == volume.configs["hostPath"]["path"]:
                 volume.configs["hostPath"]["path"] = os.path.join(volume.configs["hostPath"]["path"], context["run_id"])
-
-        self.env_vars.update({
-            "RUN_ID": context["run_id"]
-        })
 
         if self.dev_server is not None:
             url = f'{KaapanaBaseOperator.HELM_API}/helm-install-chart'
@@ -528,7 +520,6 @@ class KaapanaBaseOperator(BaseOperator):
                 image_pull_secrets=self.image_pull_secrets,
                 resources=self.pod_resources,
                 annotations=self.annotations,
-                host_network=self.host_network,
                 affinity=self.affinity
             )
             launcher = pod_launcher.PodLauncher(extract_xcom=self.xcom_push)

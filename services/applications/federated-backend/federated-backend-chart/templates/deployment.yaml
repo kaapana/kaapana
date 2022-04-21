@@ -53,11 +53,13 @@ spec:
           value: "/federated-backend"
         - name: DATABASE_URL
           value: postgresql://federateduser:federatedpassword@federated-postgres-service.base.svc:5432
+        - name: REMOTE_SYNC_INTERVAL
+          value: "2.5 "
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         resources:
           limits:
-            memory: "10Gi"
+            memory: "5Gi"
           requests:
             memory: "100Mi"
         volumeMounts:
@@ -79,17 +81,6 @@ spec:
       #   hostPath:
       #     path: /home/ubuntu/dev/federated-backend/docker/files
       #     type: DirectoryOrCreate
-# ---
-# apiVersion: traefik.containo.us/v1alpha1
-# kind: Middleware
-# metadata:
-#   name: strip-prefix-federated-backend
-#   namespace: base
-# spec:
-#   stripPrefix:
-#     prefixes:
-#     - /federated-backend
-#     forceSlash: true
 ---
 apiVersion: v1
 kind: Service
@@ -105,8 +96,7 @@ spec:
     - name: hw-http
       port: 5000 
       targetPort: 5000
-      # nodePort: 5000 # only for development!
-  type: ClusterIP # only for development!
+  type: ClusterIP
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress

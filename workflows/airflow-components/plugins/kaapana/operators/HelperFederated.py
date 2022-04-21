@@ -35,13 +35,15 @@ def fernet_decryptfile(filepath, key):
     with open(filepath, 'wb') as dec_file:
         dec_file.write(decrypted)
         
+# Todo move in Jonas library as normal function 
 def apply_untar_action(src_filename, dst_dir):
     print(f'Untar {src_filename} to {dst_dir}')
-    with tarfile.open(src_filename, "r:gz")as tar:
+    with tarfile.open(src_filename, "r:gz" if src_filename.endswith('gz') is True else "r") as tar:
         tar.extractall(dst_dir)
 
+# Todo move in Jonas library as normal function
 def apply_tar_action(dst_filename, src_dir, whitelist_extensions_tuples=None):
-    with tarfile.open(dst_filename, "w:gz") as tar:
+    with tarfile.open(dst_filename, "w:gz" if dst_filename.endswith('gz') is True else "w") as tar:
         if whitelist_extensions_tuples is not None:
             for file_path in Path(src_dir).rglob('*'):
                 if file_path.name.endswith(tuple(whitelist_extensions_tuples)):
@@ -82,7 +84,9 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
         src_dir = os.path.join(root_dir, operator_out_dir)
         if not os.path.isdir(src_dir):
             raise ValueError(f'{src_dir} does not exist, you most probably try to push results on a batch-element level, however, so far only bach level output is supported for federated learning!')
+        print(f'Tar {filename}')
         apply_tar_action(filename, src_dir, whitelist_federated_learning)
+        print(f'Encrypting {filename}')
         fernet_encryptfile(filename, client_network['fernet_key'])
         with open(filename, "rb") as tar:
             print(f'Putting {filename} to {remote_network}')
@@ -91,7 +95,7 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
             with requests.Session() as s:
                 r = requests_retry_session(session=s, use_proxies=True).post(minio_presigned_url, verify=ssl_check, files={'file': tar}, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']})
                 raise_kaapana_connection_error(r)
-
+        print(f'Finished uploading {filename}!')
     if action == 'get':
         print(f'Getting {filename} from {remote_network}')
         os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -100,13 +104,12 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
                 raise_kaapana_connection_error(r)
                 with open(filename, 'wb') as f:
                     for chunk in r.iter_content(chunk_size=8192): 
-                        # If you have chunk encoded response uncomment if
-                        # and set chunk_size parameter to None.
-                        #if chunk: 
                         f.write(chunk)
+        print(f'Decrypting {filename}')
         fernet_decryptfile(filename, remote_network['fernet_key'])
+        print(f'Untar {filename}')
         apply_untar_action(filename, os.path.join(root_dir))
-
+        print(f'Finished {filename}!')
     os.remove(filename)
     
                 
@@ -123,7 +126,9 @@ def federated_sharing_decorator(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
 
-        run_id, dag_run_dir, conf = get_operator_properties(*args, **kwargs)
+        max_retries = 10
+        run_id, dag_run_dir, dag_run, downstream_tasks = get_operator_properties(*args, **kwargs)
+        conf = dag_run.conf
 
         if conf is not None and 'federated_form' in conf and conf['federated_form'] is not None:
             federated = conf['federated_form']
@@ -139,7 +144,24 @@ def federated_sharing_decorator(func):
                 'you will need to set the flag allow_federated_learning=True in order to permit the operator to be used in federated learning scenarios')
             if 'from_previous_dag_run' in federated and federated['from_previous_dag_run'] is not None:
                 print('Downloading data from Minio')
-                federated_action(self.operator_out_dir, 'get', dag_run_dir, federated, conf['client_job_id'])
+                try_count = 0
+                while try_count < max_retries:
+                    print("Try: {}".format(try_count))
+                    try_count += 1
+                    try:
+                        federated_action(self.operator_out_dir, 'get', dag_run_dir, federated, conf['client_job_id'])
+                        break
+                    except tarfile.ReadError as e:
+                        print("The files was not downloaded properly...")
+                        print("Trying again the download!")
+
+                if try_count >= max_retries:
+                    print("------------------------------------")
+                    print("Max retries reached!")
+                    print("------------------------------------")
+                    raise ValueError("We were not able to download the file probarly!")
+
+
 
         x = func(self, *args, **kwargs)
     

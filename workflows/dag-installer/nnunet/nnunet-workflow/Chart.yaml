@@ -1,8 +1,8 @@
 ---
 apiVersion: v1
-appVersion: "04-21"
+appVersion: "03-22"
 description: nnUNet workflow for inference and training
 name: nnunet-workflow
-version: "04-21"
+version: "03-22"
 keywords:
 - kaapanaworkflow

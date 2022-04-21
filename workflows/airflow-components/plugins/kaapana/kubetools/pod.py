@@ -66,7 +66,6 @@ class Pod():
             resources=None,
             annotations=None,
             restart_policy='Never',
-            host_network=False,
             affinity=None
     ):
 
@@ -95,7 +94,6 @@ class Pod():
         self.last_kube_status = None 
         self.last_af_status = None
         self.task_instance = None
-        self.host_network = host_network
 
     def get_kube_object(self):
         pod_api_version = self.api_version
@@ -110,7 +108,6 @@ class Pod():
         # spec
         pod_spec = kubernetes.client.V1PodSpec(containers=[])
         pod_spec.restart_policy=self.restart_policy
-        pod_spec.host_network = self.host_network
 
 
         # spec - node_selector

@@ -1,0 +1,8 @@
+apiVersion: v1
+appVersion: "0.1.0"
+description: Launches a Tensorboard instance, which crawls for logs in Minio
+name: static-website-chart
+version: "0.1.0"
+keywords:
+- kaapanaapplication
+    

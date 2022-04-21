@@ -11,13 +11,14 @@ from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.PytorchCpuExecuterOperator import PytorchCpuExecuterOperator
 from airflow.api.common.experimental import pool as pool_api
 from airflow.utils.log.logging_mixin import LoggingMixin
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.SegCheckOperator import SegCheckOperator
-from nnunet.GenerateNnUnetReport import GenerateNnUnetReport
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
+from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INSTANCE_NAME
 
 
@@ -307,6 +308,7 @@ nnunet_preprocess = NnUnetOperator(
     instance_name=INSTANCE_NAME,
     allow_federated_learning=True,
     whitelist_federated_learning=["dataset_properties.pkl", "intensityproperties.pkl"],
+    trigger_rule=TriggerRule.NONE_FAILED,
     dev_server=None #'code-server'
 )
 
@@ -323,9 +325,11 @@ nnunet_train = NnUnetOperator(
     retries=0
 )
 
-generate_nnunet_report = GenerateNnUnetReport(
+generate_nnunet_report = PytorchCpuExecuterOperator(
     dag=dag,
+    name='generate-nnunet-report',
     input_operator=nnunet_train,
+    arguments=["/common/notebooks/nnunet_training/run_generate_nnunet_report.sh"]
 )
 
 put_to_minio = LocalMinioOperator(dag=dag, name='upload-nnunet-data', zip_files=True, action='put', action_operators=[nnunet_train, generate_nnunet_report], file_white_tuples=('.zip'))

@@ -24,4 +24,5 @@ COPY dags/dag_service_extract_metadata_trigger_rule.json /tmp/dags/
 
 COPY plugins/ /tmp/plugins
 
-COPY executables/common /tmp/executables/common
+COPY common/kaapana_federated /tmp/common/kaapana_federated
+COPY common/scripts/train_test_split /tmp/common/scripts/train_test_split

@@ -21,7 +21,7 @@ class GenerateNnUnetReport(KaapanaBaseOperator):
             # cmds=["tail"],
             # arguments=["-f", "/dev/null"], 
             cmds=["/bin/bash"],
-            arguments=["/executables/generate_nnunet_report/run.sh"], 
+            arguments=["/common/scripts/generate_nnunet_report/run.sh"], 
             execution_timeout=execution_timeout,
             ram_mem_mb=1000,
             ram_mem_mb_lmt=3000,

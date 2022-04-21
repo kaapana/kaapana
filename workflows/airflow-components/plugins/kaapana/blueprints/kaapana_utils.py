@@ -1,5 +1,6 @@
 import re
 import os
+import shutil
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
@@ -45,27 +46,32 @@ def cure_invalid_name(name, regex, max_length=None):
     name = _regex_match(regex, name)
     return name
 
+
 def get_operator_properties(*args, **kwargs):
     if 'context' in kwargs:
         run_id = kwargs['context']['run_id']
-        conf = kwargs['context']['dag_run'].conf
+        dag_run = kwargs['context']['dag_run']
+        downstream_tasks = kwargs['context']['task'].get_flat_relatives(upstream=False)
+
     elif type(args) == tuple and len(args) == 1 and "run_id" in args[0]:
         raise ValueError('Just to check if this case needs to be supported!', args, kwargs)
         run_id = args[0]['run_id']
     else:
         run_id = kwargs['run_id']
-        conf =  kwargs["dag_run"].conf
+        dag_run = kwargs['dag_run']
+        downstream_tasks = kwargs['task'].get_flat_relatives(upstream=False)
     
     dag_run_dir = os.path.join(WORKFLOW_DIR, run_id)
     
-    return run_id, dag_run_dir, conf
+    return run_id, dag_run_dir, dag_run, downstream_tasks
+
 
 # Same as in federated-backend/docker/files/app/utils.py
 #https://www.peterbe.com/plog/best-practice-with-retries-with-requests
 #https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
 def requests_retry_session(
-    retries=15, # Retries for 18.2 hours
-    backoff_factor=2,
+    retries=16,
+    backoff_factor=1,
     status_forcelist=[404, 429, 500, 502, 503, 504],
     session=None,
     use_proxies=False
@@ -90,3 +96,13 @@ def requests_retry_session(
         print('Not using proxies!')
 
     return session 
+
+
+def clean_previous_dag_run(conf, run_identifier):
+    if conf is not None and 'federated_form' in conf and conf['federated_form'] is not None:
+        federated = conf['federated_form']
+        if run_identifier in federated and federated[run_identifier] is not None:
+            dag_run_dir = os.path.join(WORKFLOW_DIR, conf['federated_form'][run_identifier])
+            print(f'Removing batch files from {run_identifier}: {dag_run_dir}')
+            if os.path.isdir(dag_run_dir):
+                shutil.rmtree(dag_run_dir)

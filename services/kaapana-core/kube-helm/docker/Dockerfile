@@ -8,7 +8,7 @@ WORKDIR /app
 
 RUN apk update && apk add postgresql-dev python3-dev gcc musl-dev
 
-ENV KUBE_LATEST_VERSION="v1.23"
+ENV KUBE_LATEST_VERSION="v1.23.0"
 ENV HELM_VERSION="v3.8.1"
 
 RUN apk add --no-cache ca-certificates bash git openssh curl \

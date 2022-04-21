@@ -72,7 +72,6 @@ dcm_send = DcmSendOperator(
     ae_title=ae_title,
     pacs_host=pacs_host,
     pacs_port=pacs_port,
-    host_network=True,
     level='element'
 )
 

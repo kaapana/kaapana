@@ -8,7 +8,7 @@ from dicomweb_client.api import DICOMwebClient
 from multiprocessing.pool import ThreadPool
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-
+from kaapana.operators.HelperCaching import cache_operator_output
 
 class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     def download_series(self, series):
@@ -28,6 +28,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
         return message
 
+    @cache_operator_output
     def get_files(self, ds, **kwargs):
         print("# Starting module LocalGetRefSeriesOperator")
 

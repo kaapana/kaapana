@@ -30,12 +30,6 @@ dependencies:
   - name: jupyterlab-chart
     version: 3.3.2
     repository: file://../../../../../../services/applications/jupyterlab/jupyterlab-chart
-  - name: jupyterlab-airflow-chart
-    version: 3.3.2
-    repository: file://../../../../../../services/applications/jupyterlab-airflow/jupyterlab-airflow-chart
-  - name: jupyterlab-minio-chart
-    version: 3.3.2
-    repository: file://../../../../../../services/applications/jupyterlab-minio/jupyterlab-minio-chart
   - name: mitk-flow-chart
     version: "2021.02"
     repository: file://../../../../../../services/applications/mitk-flow/mitk-flow-chart
@@ -46,7 +40,7 @@ dependencies:
     version: "2021.02"
     repository: file://../../../../../../services/applications/mitk-workbench/mitk-workbench-chart
   - name: nnunet-workflow
-    version: 04-21
+    version: 03-22
     repository: file://../../../../../../workflows/dag-installer/nnunet/nnunet-workflow
   - name: nnunet-federated-workflow
     version: 0.1.0
@@ -60,7 +54,11 @@ dependencies:
   - name: shapemodel-workflow
     version: 0.1.1
     repository: file://../../../../../../workflows/dag-installer/shapemodel/shapemodel-workflow
+  - name: static-website-chart
+    version: 0.1.0
+    repository: file://../../../../../../services/applications/static-website/static-website-chart
   - name: tensorboard-chart
     version: 2.5.0
     repository: file://../../../../../../services/applications/tensorboard/tensorboard-chart 
+
     

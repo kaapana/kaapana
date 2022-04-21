@@ -54,12 +54,12 @@ spec:
         - name: DATABASE_URL
           value: postgresql://federateduser:federatedpassword@federated-postgres-service.base.svc:5432
         - name: REMOTE_SYNC_INTERVAL
-          value: "5"
+          value: "2.5 "
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         resources:
           limits:
-            memory: "16Gi"
+            memory: "5Gi"
           requests:
             memory: "100Mi"
         volumeMounts:

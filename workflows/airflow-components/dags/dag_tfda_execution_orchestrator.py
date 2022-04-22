@@ -42,15 +42,7 @@ deploy_platform = LocalDeployPlatformOnIsoEnvOperator(dag=dag)
 copy_data_algo = LocalCopyDataAndAlgoOperator(dag=dag)
 run_algo_send_result = LocalRunAlgoSendResultOperator(dag=dag)
 delete_iso_inst = LocalDeleteIsoEnvOperator(dag=dag)
-# dcm_send = DcmSendOperator(
-#     dag=dag,
-#     input_operator=get_input,
-#     ae_title=ae_title,
-#     pacs_host=pacs_host,
-#     pacs_port=pacs_port,
-#     host_network=True,
-#     level='element'
-# )
+
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 

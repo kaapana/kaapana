@@ -71,7 +71,7 @@ We expect the sudo systemctl restart snapd
 
 #. Helm
 
-   :code:`sudo snap install helm --classic --channel=3.5/stable`
+   :code:`sudo snap install helm --classic --channel=3.7/stable`
 
 #. Reboot
 

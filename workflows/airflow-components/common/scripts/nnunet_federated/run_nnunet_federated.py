@@ -97,11 +97,11 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         else:
             print('Training mode')  
             self.tensorboard_logs(federated_round)
-            models_path = Path(os.path.join(self.fl_working_dir, str(federated_round)))
+            current_federated_round_dir = Path(os.path.join(self.fl_working_dir, str(federated_round)))
             averaged_state_dict = collections.OrderedDict()
             averaged_amp_grad_scaler = dict()
             print('Loading averaged checkpoints')
-            for idx, fname in enumerate(models_path.rglob('model_final_checkpoint.model')):
+            for idx, fname in enumerate(current_federated_round_dir.rglob('model_final_checkpoint.model')):
                 print(fname)
                 checkpoint = torch.load(fname, map_location=torch.device('cpu'))
                 if idx==0:
@@ -118,12 +118,22 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                             averaged_amp_grad_scaler[key] = (averaged_amp_grad_scaler[key] + checkpoint['amp_grad_scaler'][key]) / 2.
 
             print('Saving averaged checkpoints')
-            for idx, fname in enumerate(models_path.rglob('model_final_checkpoint.model')):
+            for idx, fname in enumerate(current_federated_round_dir.rglob('model_final_checkpoint.model')):
                 print(fname)
                 checkpoint['state_dict'] = averaged_state_dict
     #             if 'amp_grad_scaler' in checkpoint.keys():
     #                 checkpoint['amp_grad_scaler'] = averaged_amp_grad_scaler
                 torch.save(checkpoint, fname)
+
+            if self.remote_conf_data['federated_form']['federated_total_rounds'] == federated_round+1 and self.use_minio_mount is not None:
+                src = current_federated_round_dir / self.remote_sites[0]['instance_name'] / 'nnunet-training' 
+                dst = os.path.join('/', self.workflow_dir, 'nnunet-training')
+                print(f'Last round! Copying final nnunet-training files from {src} to {dst}')
+                if os.path.exists(dst):
+                    shutil.rmtree(dst)
+                shutil.copytree(src=src, dst=dst)
+                shutil.copyfile(src=os.path.join(os.path.dirname(fname), 'dataset.json'), dst=os.path.join(dst, 'dataset.json')) # A little bit ugly... but necessary for Bin2Dcm operator
+
 
     def on_train_step_end(self, federated_round):
         if federated_round == -1:
@@ -131,10 +141,10 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             self.remote_conf_data['federated_form']['skip_operators'].remove('nnunet-training')
             self.remote_conf_data['federated_form']['skip_operators'] = self.remote_conf_data['federated_form']['skip_operators'] + ['get-input-data', 'get-ref-series-ct', 'dcmseg2nrrd', 'dcm-converter-ct', 'seg-check']
             self.remote_conf_data['workflow_form']['prep_increment_step'] = 'from_dataset_properties'
+        elif federated_round == 0:
+            print('Removing nnunet-preprocess from federated_operators')
+            self.remote_conf_data['federated_form']['federated_operators'].remove('nnunet-preprocess')
         else:
-            if federated_round == 0:
-                print('Removing nnunet-preprocess from federated_operators')
-                self.remote_conf_data['federated_form']['federated_operators'].remove('nnunet-preprocess')
             self.remote_conf_data['workflow_form']['train_continue'] = True
         print(federated_round, self.remote_conf_data['federated_form']['federated_total_rounds'])
 
@@ -145,3 +155,4 @@ if __name__ == "__main__":
     else:
         kaapana_ft.train_step(-1)
     kaapana_ft.train()
+    kaapana_ft.clean_up_minio()

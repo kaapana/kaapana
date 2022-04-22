@@ -58,7 +58,7 @@ dependencies:
     version: 0.1.0
     repository: file://../../../../../../services/applications/static-website/static-website-chart
   - name: tensorboard-chart
-    version: 2.5.0
+    version: 2.8.0
     repository: file://../../../../../../services/applications/tensorboard/tensorboard-chart 
 
     

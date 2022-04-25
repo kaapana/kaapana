@@ -13,7 +13,7 @@ import numpy as np
 import synapseclient as sc
 from synapseclient import Evaluation
 
-EMAIL = "santhosh.parampottupadam@dkfz-heidelberg.de"
+EMAIL = ""
 API_KEY = ""
 
 
@@ -104,13 +104,13 @@ if __name__ == "__main__":
         #     contentSource="syn28532982"))
 
         # evaluation_id = "9615030"
-        # my_submission_entity = "syn29267328"
-        # print("\nSubmit docker to queue for evaluation...")
+        # my_submission_entity = "syn29340324"
+        # print("\nSubmit container to queue for evaluation...")
         # submission = syn.submit(
         #     evaluation = evaluation_id,
         #     entity = my_submission_entity,
-        #     name = "My first submission", # An arbitrary name for your submission
-        #     team = "TFDA") # Optional, can also pass a Team object or id
+        #     name = "My second submission") # An arbitrary name for your submission
+        #     # team = "TFDA") # Optional, can also pass a Team object or id
             
         print("\nChecking for new submissions...")
         for task_name, task_id in tasks:
@@ -119,21 +119,23 @@ if __name__ == "__main__":
             task_dir = os.path.join(base_dir, task_name)
             for subm in syn.getSubmissions(task_id):
                 if subm["id"] not in subm_dict:
-                    process_submission(subm, task_name, task_dir)
+                    # process_submission(subm, task_name, task_dir)
                     subm_dict[subm["id"]] = "open"
+                    subm_dict["registry"] = subm["dockerRepositoryName"]
                     open_list.append(subm["id"])
 
-                    time.sleep(60)
+                    # time.sleep(60)
 
-        print("\nSynching results...")  # TODO !!!!!
-        sync_mood_dir()
+        # print("\nSynching results...")  # TODO !!!!!
+        # sync_mood_dir()
 
         print("Checking open tasks...")
         open_list_copy = open_list.copy()
         for s_id in open_list_copy:
-            if os.path.exists(os.path.join(subm_logs_path, "sample", s_id, "end.txt")) or os.path.exists(
-                os.path.join(subm_logs_path, "pixel", s_id, "end.txt")
-            ):
+            # if os.path.exists(os.path.join(subm_logs_path, "sample", s_id, "end.txt")) or os.path.exists(
+            #     os.path.join(subm_logs_path, "pixel", s_id, "end.txt")
+            # ):
+            if os.path.exists(os.path.join(subm_logs_path, "FeTS 2022 TESTING Queue", s_id, "end.txt")):
                 subm_dict[s_id] = "finished"
                 open_list.remove(s_id)
 
@@ -142,4 +144,4 @@ if __name__ == "__main__":
             json.dump(subm_dict, fp_)
 
         print("\nTaking (coffee) a break now...")
-        time.sleep(60 * 60 * 1)
+        # time.sleep(60 * 60 * 1)

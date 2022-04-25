@@ -13,8 +13,8 @@ import numpy as np
 import synapseclient as sc
 from synapseclient import Evaluation
 
-EMAIL = ""
-API_KEY = ""
+EMAIL = "kaushalap"
+API_KEY = "oMCPZW8DsypN7LeHhBHarAxTYbeBZoCOalaJAUYlv1OaoQ/Y6XGfEFrkxwQJhYHINjtQRioeJ40kjkZv5Q870g=="
 
 
 base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "subm_logs")

@@ -17,7 +17,7 @@ EMAIL = ""
 API_KEY = ""
 
 
-base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'subm_logs')
+base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "subm_logs")
 # tasks = [("pixel", 9614846), ("sample", 9614847)]
 tasks = [("FeTS 2022 TESTING Queue", 9615030)]
 
@@ -65,9 +65,7 @@ def process_submission(subm, task_name, task_dir):
     )
 
     cluster_cmd = cluster_cmd.replace("'", '\\"')
-    shell_cmd = (
-        f"ssh -i /home/david/.ssh/id_rsa zimmerer@odcf-lsf01.dkfz.de 'bash -lc \"sh cluster_run.sh {cluster_cmd} \"'"
-    )
+    shell_cmd = f"ssh -i /home/david/.ssh/id_rsa zimmerer@odcf-lsf01.dkfz.de 'bash -lc \"sh cluster_run.sh {cluster_cmd} \"'"
 
     print("Executing Image on Cluster...")
     subprocess.call(shell_cmd, shell=True)
@@ -78,7 +76,9 @@ def process_submission(subm, task_name, task_dir):
 
 if __name__ == "__main__":
 
-    subm_logs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'subm_logs')
+    subm_logs_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "data", "subm_logs"
+    )
 
     subm_dict = {}
     subm_dict_path = os.path.join(subm_logs_path, "subm_dict.json")
@@ -111,7 +111,7 @@ if __name__ == "__main__":
         #     entity = my_submission_entity,
         #     name = "My second submission") # An arbitrary name for your submission
         #     # team = "TFDA") # Optional, can also pass a Team object or id
-            
+
         print("\nChecking for new submissions...")
         for task_name, task_id in tasks:
             print(f"Checking {task_name}...")
@@ -121,7 +121,7 @@ if __name__ == "__main__":
                 if subm["id"] not in subm_dict:
                     # process_submission(subm, task_name, task_dir)
                     subm_dict[subm["id"]] = "open"
-                    subm_dict["registry"] = subm["dockerRepositoryName"]
+                    subm_dict[f'{subm["id"]}_registry'] = subm["dockerRepositoryName"]
                     open_list.append(subm["id"])
 
                     # time.sleep(60)
@@ -135,7 +135,9 @@ if __name__ == "__main__":
             # if os.path.exists(os.path.join(subm_logs_path, "sample", s_id, "end.txt")) or os.path.exists(
             #     os.path.join(subm_logs_path, "pixel", s_id, "end.txt")
             # ):
-            if os.path.exists(os.path.join(subm_logs_path, "FeTS 2022 TESTING Queue", s_id, "end.txt")):
+            if os.path.exists(
+                os.path.join(subm_logs_path, "FeTS 2022 TESTING Queue", s_id, "end.txt")
+            ):
                 subm_dict[s_id] = "finished"
                 open_list.remove(s_id)
 

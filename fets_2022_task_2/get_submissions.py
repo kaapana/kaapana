@@ -7,18 +7,18 @@ from datetime import datetime
 import traceback
 import time
 import sys
+from subprocess import PIPE, run
 
 # import docker
 import numpy as np
 import synapseclient as sc
 from synapseclient import Evaluation
 
-EMAIL = "kaushalap"
-API_KEY = "oMCPZW8DsypN7LeHhBHarAxTYbeBZoCOalaJAUYlv1OaoQ/Y6XGfEFrkxwQJhYHINjtQRioeJ40kjkZv5Q870g=="
+EMAIL = ""
+API_KEY = ""
 
 
 base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "subm_logs")
-# tasks = [("pixel", 9614846), ("sample", 9614847)]
 tasks = [("FeTS 2022 TESTING Queue", 9615030)]
 
 
@@ -98,10 +98,6 @@ if __name__ == "__main__":
 
         # client = docker.from_env()
         syn = sc.login(email=EMAIL, apiKey=API_KEY)
-        # evaluation = syn.store(Evaluation(
-        #     name="Q1 Final",
-        #     description="Predict progression of MMSE scores for final scoring",
-        #     contentSource="syn28532982"))
 
         # evaluation_id = "9615030"
         # my_submission_entity = "syn29340324"
@@ -123,6 +119,15 @@ if __name__ == "__main__":
                     subm_dict[subm["id"]] = "open"
                     subm_dict[f'{subm["id"]}_registry'] = subm["dockerRepositoryName"]
                     open_list.append(subm["id"])
+                    print("Logging into container registry!!!")
+                    command = ["docker", "login", "docker.synapse.org", "-u", "kaushalap", "-p", "hubriFotuv@01"]
+                    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
+                    print("Pulling container...")
+                    command2 = ["docker", "pull", subm["dockerRepositoryName"]]
+                    output2 = run(command2, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
+                    print("Saving container...")
+                    command3 = ["docker", "save", subm["dockerRepositoryName"], "-o", f"{subm['id']}.tar"]
+                    output3 = run(command3, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
 
                     # time.sleep(60)
 
@@ -132,9 +137,6 @@ if __name__ == "__main__":
         print("Checking open tasks...")
         open_list_copy = open_list.copy()
         for s_id in open_list_copy:
-            # if os.path.exists(os.path.join(subm_logs_path, "sample", s_id, "end.txt")) or os.path.exists(
-            #     os.path.join(subm_logs_path, "pixel", s_id, "end.txt")
-            # ):
             if os.path.exists(
                 os.path.join(subm_logs_path, "FeTS 2022 TESTING Queue", s_id, "end.txt")
             ):

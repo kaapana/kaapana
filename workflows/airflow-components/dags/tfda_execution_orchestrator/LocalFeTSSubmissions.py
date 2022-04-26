@@ -1,6 +1,7 @@
+import json
 import os
-import glob
-import zipfile
+import synapseclient as sc
+
 from subprocess import PIPE, run
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
@@ -11,6 +12,8 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
         EMAIL = ""
         API_KEY = ""
         subm_logs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'subm_logs')
+        base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "subm_logs")
+        tasks = [("FeTS 2022 TESTING Queue", 9615030)]
 
         subm_dict = {}
         subm_dict_path = os.path.join(subm_logs_path, "subm_dict.json")
@@ -48,7 +51,7 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
                     command2 = ["docker", "pull", subm["dockerRepositoryName"]]
                     output2 = run(command2, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
                     print("Saving container...")
-                    command3 = ["docker", "save", subm["dockerRepositoryName"], "-o", f"{subm["id"]}.tar"]
+                    command3 = ["docker", "save", subm["dockerRepositoryName"], "-o", f"{subm['id']}.tar"]
                     output3 = run(command3, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
 
                     # time.sleep(60)

@@ -22,21 +22,22 @@ from datetime import datetime, timedelta
 
 
 args = {
-    'depends_on_past': False,
-    'start_date': datetime(2022, 4, 26, 00, 00),
-    'retries': 1,
-    'retry_delay': timedelta(minutes=10),
-    'catchup': False
+    "depends_on_past": False,
+    "start_date": datetime(2022, 4, 26, 00, 00),
+    "retries": 1,
+    "retry_delay": timedelta(minutes=10),
+    "catchup": False,
 }
 
 # Instantiate a DAG my_dag that runs every day
 # DAG objects contain tasks
 # Time is in UTC!!!
-dag = DAG(dag_id='dag-tfda-fets-task',
-             default_args=default_args,
-             schedule_interval='0 0 1 * *', )  # 8:30AM EST
+dag = DAG(
+    dag_id="dag-tfda-fets-task",
+    default_args=args,
+    schedule_interval="0 0 1 * *",
+)
 
-# Hack to stop backfilling upstream tasks
 
 evaluate_submissions = LocalFeTSSubmissions(dag=dag)
 test = LocalFeTSTest(dag=dag)

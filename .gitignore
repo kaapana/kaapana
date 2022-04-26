@@ -15,8 +15,8 @@ __pycache__
 *.pyc
 *.lock
 *.tgz
+*.pem
+*.pub
 ## Linux
 *~
 history
-build-scripts/build-configuration.yaml
-services/flow/airflow/docker/files/tfda_iso.pem

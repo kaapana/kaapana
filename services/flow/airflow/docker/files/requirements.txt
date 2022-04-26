@@ -24,4 +24,3 @@ gitpython
 openstacksdk
 selenium
 synapseclient
-docker==5.0.3

@@ -37,7 +37,8 @@ class LocalInstallPlatformDepsOnIsoEnvOperator(KaapanaPythonBaseOperator):
             exit(1)
 
         iso_env_ip = ti.xcom_pull(key="iso_env_ip", task_ids="create-iso-inst")
-        extra_vars = f"target_host={iso_env_ip} remote_username=root local_script=true install_script_path=tfda_platform"
+        install_script_path = "airflow/dags/tfda_execution_orchestrator/install_scripts"
+        extra_vars = f"target_host={iso_env_ip} remote_username=root local_script=true install_script_path={install_script_path}"
         command = ["ansible-playbook", server_deps_playbook_path, "--extra-vars", extra_vars]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
         print(f'STD OUTPUT LOG is {output.stdout}')

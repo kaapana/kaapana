@@ -40,8 +40,9 @@ class LocalDeployPlatformOnIsoEnvOperator(KaapanaPythonBaseOperator):
         registry_pwd = ""
         registry_url = ""
         iso_env_ip = ti.xcom_pull(key="iso_env_ip", task_ids="create-iso-inst")
+        install_script_path = "airflow/dags/tfda_execution_orchestrator/install_scripts"
 
-        extra_vars = f"target_host={iso_env_ip} remote_username=root local_script=true install_script_path=tfda_platform registry_user={registry_user} registry_pwd={registry_pwd} registry_url={registry_url}"
+        extra_vars = f"target_host={iso_env_ip} remote_username=root local_script=true install_script_path={install_script_path} registry_user={registry_user} registry_pwd={registry_pwd} registry_url={registry_url}"
         command = ["ansible-playbook", platform_install_playbook_path, "--extra-vars", extra_vars]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
         print(f'STD OUTPUT LOG is {output.stdout}')

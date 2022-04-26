@@ -35,12 +35,7 @@
           v-list-item-content
             v-list-item-title TFDA
           v-list-item-icon
-        v-list-item(:to="'/status'", v-if="isAuthenticated")
-          v-list-item-action
-            v-icon mdi-calendar-clock
-          v-list-item-content
-            v-list-item-title Status
-          v-list-item-icon
+
     v-app-bar(color="primary", dark, dense, clipped-left, app)
       v-app-bar-nav-icon(@click.stop="drawer = !drawer")
       v-toolbar-title {{ commonData.name }}

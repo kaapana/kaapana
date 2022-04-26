@@ -16,7 +16,7 @@
   remote_user: "{{ remote_username }}"
   vars:
     #TODO: change hardcoded
-    ansible_ssh_private_key_file: ~/.ssh/kaapana.pem
+    ansible_ssh_private_key_file: ~/.ssh/tfda_iso.pem
   # remote_user: "ubuntu"
   # TODO: data could be in any instance and  multiple instance... todo
   tasks:
@@ -26,17 +26,21 @@
         #dest: /home/ubuntu/
         #mode: 0777
 
-    - name: Copy data
-      become: yes
-      copy:
-        src: "/home/kaapana/minio/{{ bucket_name }}"
-        dest: "/home/kaapana/minio"
-        directory_mode: yes
-        mode: 0775
+    # - name: Copy data
+    #   become: yes
+    #   copy:
+    #     src: "/home/kaapana/minio/{{ bucket_name }}"
+    #     dest: "/home/kaapana/minio"
+    #     directory_mode: yes
+    #     mode: 0775
 
+    - name: Set platform installation script path
+      set_fact: 
+        container_path: "{{ lookup('env','HOME') }}/{{ algo_path }}"
+    
     - name: Copy chart
       # become: yes
       copy:
-        src: "{{ chart_path }}/{{ chart_filename }}"
+        src: "{{ container_path }}"
         dest: "/home/ubuntu"
         # directory_mode: yes

@@ -11,14 +11,16 @@ from subprocess import PIPE, run
 
 import docker
 import getpass
+import requests
 import numpy as np
 import synapseclient as sc
 from synapseclient import Evaluation
 
-# synapse_user = ""
-# registry_pwd = ""
+synapse_user = ""
+registry_pwd = ""
 API_KEY = ""
 container_registry = "docker.synapse.org"
+kaapana_workflow_dir = os.path.join("/home", "kaapana", "workflows")
 
 base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 # tasks = [("FeTS 2022 TESTING Queue", 9615030)]
@@ -100,7 +102,7 @@ if __name__ == "__main__":
     while True:
 
         docker_client = docker.from_env()
-        synapse_user = input("Enter Synapse User: ")
+        # synapse_user = input("Enter Synapse User: ")
         syn = sc.login(email=synapse_user, apiKey=API_KEY)
 
         # evaluation_id = "9615030"
@@ -119,7 +121,7 @@ if __name__ == "__main__":
             for subm in syn.getSubmissions(task_id):
                 if subm["id"] not in subm_dict:
                     print("Logging into container registry!!!")                    
-                    registry_pwd = getpass.getpass("docker registry password: ")
+                    # registry_pwd = getpass.getpass("docker registry password: ")
                     docker_client.login(username=synapse_user, password=registry_pwd, registry=container_registry)
                     print("Pulling container...")
                     docker_client.images.pull(repository=subm["dockerRepositoryName"])
@@ -130,9 +132,14 @@ if __name__ == "__main__":
                     for chunk in image.save():
                       f.write(chunk)
                     f.close()
+                    print("Moving downloaded tarball to platform workflow directory...")
+                    workflows_tarball_path = os.path.join(kaapana_workflow_dir, "dags", "tfda_execution_orchestrator", "tarball")
+                    command = ["sudo", "mv", tar_path, workflows_tarball_path]
+                    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
 
                     ## TODO iso env workflow with MedPerf eval client
                     # process_submission(subm, task_name, task_dir)
+                    resp = requests.post(url='http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/tfda-execution-orchestrator', json={"tarball_name": f"{subm['id']}.tar"})
                     
                     subm_dict[subm["id"]] = "open"
                     subm_dict[f'{subm["id"]}_registry'] = subm["dockerRepositoryName"]

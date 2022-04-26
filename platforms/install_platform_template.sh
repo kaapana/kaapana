@@ -509,6 +509,28 @@ function check_credentials {
     helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD ${CONTAINER_REGISTRY_URL}
 }
 
+function install_self_signed_cert {
+    echo -e "Creating self-signed certificates..."
+    PUBKEY=$(mktemp)
+    PRIVKEY=$(mktemp)
+
+    openssl genrsa 4096 > $PRIVKEY
+    openssl req -new -x509 -nodes -sha256 -days 365 -key $PRIVKEY -out $PUBKEY -subj "/CN=$(hostname)" -addext "extendedKeyUsage = serverAuth"
+    if [ ! -f $PUBKEY ] || [ ! -f $PRIVKEY ]; then
+        echo -e "${RED}Creation of self-signed certificates failed${NC}"
+        exit 1
+    fi
+
+    echo -e "Installing certificates"
+    microk8s.kubectl -n kube-system delete secret certificate
+    microk8s.kubectl --insecure-skip-tls-verify=true -n kube-system create secret tls certificate --key $PRIVKEY --cert $PUBKEY
+    microk8s.kubectl --insecure-skip-tls-verify=true -n store create secret generic certificate-store --from-file=$PRIVKEY --from-file=$PUBKEY
+
+    echo -e "Removing self-signed certificate files..."
+    rm $PUBKEY
+    rm $PRIVKEY
+}
+
 function install_certs {
     echo -e "Checking if Kubectl is installed..."
     command -v microk8s.kubectl >/dev/null 2>&1 || {
@@ -753,4 +775,5 @@ elif [[ $deployments == *"$PROJECT_NAME"* ]] && [[ $QUIET = true ]];then
 else
     echo -e "${GREEN}No previous deployment found -> installation${NC}"
     install_chart
+    install_self_signed_cert
 fi

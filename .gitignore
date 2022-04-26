@@ -19,3 +19,4 @@ __pycache__
 *~
 history
 build-scripts/build-configuration.yaml
+services/flow/airflow/docker/files/tfda_iso.pem

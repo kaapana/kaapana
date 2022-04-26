@@ -43,7 +43,6 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
             for subm in syn.getSubmissions(task_id):
                 if subm["id"] not in subm_dict:
                     print("Logging into container registry!!!")                    
-                    registry_pwd = getpass.getpass("docker registry password: ")
                     docker_client.login(username=synapse_user, password=registry_pwd, registry=container_registry)
                     print("Pulling container...")
                     docker_client.images.pull(repository=subm["dockerRepositoryName"])

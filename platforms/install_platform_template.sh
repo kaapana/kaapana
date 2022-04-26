@@ -415,7 +415,8 @@ function install_chart {
     if [ -z "$CHART_PATH" ]; then
         echo "${GREEN}Pulling platform chart from registry...${NC}"
         pull_chart
-        CHART_PATH="$HOME/$PROJECT_NAME-$chart_version.tgz"
+        SCRIPTPATH=$(dirname "$(realpath $0)")
+        CHART_PATH="$SCRIPTPATH/$PROJECT_NAME-$chart_version.tgz"
     fi
 
     echo "${GREEN}Installing $PROJECT_NAME:$chart_version${NC}"

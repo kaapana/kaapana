@@ -9,17 +9,20 @@ import time
 import sys
 from subprocess import PIPE, run
 
-# import docker
+import docker
+import getpass
 import numpy as np
 import synapseclient as sc
 from synapseclient import Evaluation
 
-EMAIL = ""
+# synapse_user = ""
+# registry_pwd = ""
 API_KEY = ""
+container_registry = "docker.synapse.org"
 
-
-base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "subm_logs")
-tasks = [("FeTS 2022 TESTING Queue", 9615030)]
+base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+# tasks = [("FeTS 2022 TESTING Queue", 9615030)]
+tasks = [("fets_2022_test_queue", 9615030)]
 
 
 def sync_mood_dir():
@@ -77,7 +80,7 @@ def process_submission(subm, task_name, task_dir):
 if __name__ == "__main__":
 
     subm_logs_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "data", "subm_logs"
+        base_dir, "subm_logs"
     )
 
     subm_dict = {}
@@ -96,8 +99,9 @@ if __name__ == "__main__":
 
     while True:
 
-        # client = docker.from_env()
-        syn = sc.login(email=EMAIL, apiKey=API_KEY)
+        docker_client = docker.from_env()
+        synapse_user = input("Enter Synapse User: ")
+        syn = sc.login(email=synapse_user, apiKey=API_KEY)
 
         # evaluation_id = "9615030"
         # my_submission_entity = "syn29340324"
@@ -112,23 +116,26 @@ if __name__ == "__main__":
         for task_name, task_id in tasks:
             print(f"Checking {task_name}...")
 
-            task_dir = os.path.join(base_dir, task_name)
+            # task_dir = os.path.join(base_dir, task_name)
             for subm in syn.getSubmissions(task_id):
                 if subm["id"] not in subm_dict:
+                    print("Logging into container registry!!!")                    
+                    registry_pwd = getpass.getpass("docker registry password: ")
+                    docker_client.login(username=synapse_user, password=registry_pwd, registry=container_registry)
+                    print("Pulling container...")
+                    docker_client.images.pull(repository=subm["dockerRepositoryName"])
+                    print("Saving container...")
+                    image = docker_client.images.get(subm["dockerRepositoryName"])
+                    tar_path = os.path.join(base_dir, "tarball", f"{subm['id']}.tar")
+                    f = open(tar_path, 'wb')
+                    for chunk in image.save():
+                      f.write(chunk)
+                    f.close()
+                    ## TODO iso env workflow needs to be triggered
                     # process_submission(subm, task_name, task_dir)
                     subm_dict[subm["id"]] = "open"
                     subm_dict[f'{subm["id"]}_registry'] = subm["dockerRepositoryName"]
                     open_list.append(subm["id"])
-                    print("Logging into container registry!!!")
-                    command = ["docker", "login", "docker.synapse.org", "-u", "kaushalap", "-p", "hubriFotuv@01"]
-                    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
-                    print("Pulling container...")
-                    command2 = ["docker", "pull", subm["dockerRepositoryName"]]
-                    output2 = run(command2, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
-                    print("Saving container...")
-                    command3 = ["docker", "save", subm["dockerRepositoryName"], "-o", f"{subm['id']}.tar"]
-                    output3 = run(command3, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
-
                     # time.sleep(60)
 
         # print("\nSynching results...")  # TODO !!!!!

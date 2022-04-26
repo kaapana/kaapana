@@ -115,7 +115,6 @@ if __name__ == "__main__":
         print("\nChecking for new submissions...")
         for task_name, task_id in tasks:
             print(f"Checking {task_name}...")
-
             # task_dir = os.path.join(base_dir, task_name)
             for subm in syn.getSubmissions(task_id):
                 if subm["id"] not in subm_dict:
@@ -131,8 +130,10 @@ if __name__ == "__main__":
                     for chunk in image.save():
                       f.write(chunk)
                     f.close()
-                    ## TODO iso env workflow needs to be triggered
+
+                    ## TODO iso env workflow with MedPerf eval client
                     # process_submission(subm, task_name, task_dir)
+                    
                     subm_dict[subm["id"]] = "open"
                     subm_dict[f'{subm["id"]}_registry'] = subm["dockerRepositoryName"]
                     open_list.append(subm["id"])
@@ -145,7 +146,7 @@ if __name__ == "__main__":
         open_list_copy = open_list.copy()
         for s_id in open_list_copy:
             if os.path.exists(
-                os.path.join(subm_logs_path, "FeTS 2022 TESTING Queue", s_id, "end.txt")
+                os.path.join(subm_logs_path, "fets_2022_test_queue", s_id, "end.txt")
             ):
                 subm_dict[s_id] = "finished"
                 open_list.remove(s_id)

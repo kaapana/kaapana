@@ -1,6 +1,8 @@
 import json
 import os
 import synapseclient as sc
+import docker
+import getpass
 
 from subprocess import PIPE, run
 
@@ -9,11 +11,13 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
     def start(self, ds, ti, **kwargs):
-        EMAIL = ""
+        synapse_user = ""
+        registry_pwd = ""
         API_KEY = ""
-        subm_logs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'subm_logs')
-        base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "subm_logs")
-        tasks = [("FeTS 2022 TESTING Queue", 9615030)]
+        container_registry = "docker.synapse.org"
+        base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+        subm_logs_path = os.path.join(base_dir, "subm_logs")
+        tasks = [("fets_2022_test_queue", 9615030)]
 
         subm_dict = {}
         subm_dict_path = os.path.join(subm_logs_path, "subm_dict.json")
@@ -29,38 +33,41 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
             if s_state == "open":
                 open_list.append(s_id)
         
+        docker_client = docker.from_env()
         print("Logging into Synapse...")
-        syn = sc.login(email=EMAIL, apiKey=API_KEY)
+        syn = sc.login(email=synapse_user, apiKey=API_KEY)
 
         print("\nChecking for new submissions...")
         for task_name, task_id in tasks:
             print(f"Checking {task_name}...")
-
-            task_dir = os.path.join(base_dir, task_name)
             for subm in syn.getSubmissions(task_id):
                 if subm["id"] not in subm_dict:
-                    ## TODO MedPerf eval client, run here the sub-dag iso exec
+                    print("Logging into container registry!!!")                    
+                    registry_pwd = getpass.getpass("docker registry password: ")
+                    docker_client.login(username=synapse_user, password=registry_pwd, registry=container_registry)
+                    print("Pulling container...")
+                    docker_client.images.pull(repository=subm["dockerRepositoryName"])
+                    print("Saving container...")
+                    image = docker_client.images.get(subm["dockerRepositoryName"])
+                    tar_path = os.path.join(base_dir, "tarball", f"{subm['id']}.tar")
+                    f = open(tar_path, 'wb')
+                    for chunk in image.save():
+                      f.write(chunk)
+                    f.close()
+
+                    ## TODO iso env workflow with MedPerf eval client
                     # process_submission(subm, task_name, task_dir)
+
                     subm_dict[subm["id"]] = "open"
                     subm_dict[f'{subm["id"]}_registry'] = subm["dockerRepositoryName"]
                     open_list.append(subm["id"])
-                    print("Logging into container registry!!!")
-                    command = ["docker", "login", "docker.synapse.org", "-u", "kaushalap", "-p", "hubriFotuv@01"]
-                    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
-                    print("Pulling container...")
-                    command2 = ["docker", "pull", subm["dockerRepositoryName"]]
-                    output2 = run(command2, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
-                    print("Saving container...")
-                    command3 = ["docker", "save", subm["dockerRepositoryName"], "-o", f"{subm['id']}.tar"]
-                    output3 = run(command3, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
-
                     # time.sleep(60)
 
         print("Checking open tasks...")
         open_list_copy = open_list.copy()
         for s_id in open_list_copy:
-            if os.path.exists(os.path.join(subm_logs_path, "sample", s_id, "end.txt")) or os.path.exists(
-                os.path.join(subm_logs_path, "pixel", s_id, "end.txt")
+            if os.path.exists(
+                os.path.join(subm_logs_path, "fets_2022_test_queue", s_id, "end.txt")
             ):
                 subm_dict[s_id] = "finished"
                 open_list.remove(s_id)

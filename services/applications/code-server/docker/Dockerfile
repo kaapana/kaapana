@@ -1,7 +1,7 @@
-FROM codercom/code-server:4.2.0
+FROM codercom/code-server:3.10.2
 
 LABEL IMAGE="code-server"
-LABEL VERSION="4.2.0"
+LABEL VERSION="3.10.2"
 LABEL CI_IGNORE="False"
 
 user root
@@ -15,7 +15,14 @@ RUN sudo -E apt-get update && sudo -E apt-get install -y \
 COPY files/requirements.txt /
 RUN python3 -m pip install --no-cache-dir -r /requirements.txt && rm /requirements.txt 
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
-RUN code-server --install-extension ms-python.python
+# RUN code-server --install-extension ms-python.python
+
+RUN curl -# -L -o /tmp/ms-python-release.vsix "https://github.com/microsoft/vscode-python/releases/download/2020.5.86806/ms-python-release.vsix" && \
+    code-server --version && \ 
+    # Below line doesn't work due to a bug that always installs latest version... working around this with vsix file install
+    #code-server --install-extension ms-python.python@2020.5.86806 && \
+    code-server --install-extension /tmp/ms-python-release.vsix && \
+    code-server --list-extensions --show-versions
 
 # extensions to code-server
 

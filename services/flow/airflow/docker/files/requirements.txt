@@ -23,5 +23,5 @@ ansible
 gitpython
 openstacksdk
 selenium
-synapseclient==2.5.1
+synapseclient
 docker==5.0.3

@@ -1,7 +1,7 @@
-FROM codercom/code-server:3.10.2
+FROM codercom/code-server:4.2.0
 
 LABEL IMAGE="code-server"
-LABEL VERSION="3.10.2"
+LABEL VERSION="4.2.0"
 LABEL CI_IGNORE="False"
 
 user root

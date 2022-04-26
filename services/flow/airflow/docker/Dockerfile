@@ -51,8 +51,8 @@ RUN mkdir -p /root/.ssh
 COPY files/tfda_iso.pem  /root/.ssh/tfda_iso.pem
 RUN chmod 600 /root/.ssh/tfda_iso.pem
 
-RUN mkdir -p /root/tfda_platform
-COPY files/server_installation.sh /root/tfda_platform/server_installation.sh
-COPY files/install_platform.sh /root/tfda_platform/install_platform.sh
+# RUN mkdir -p /root/tfda_platform
+# COPY files/server_installation.sh /root/tfda_platform/server_installation.sh
+# COPY files/install_platform.sh /root/tfda_platform/install_platform.sh
 
 ENTRYPOINT ["./bootstrap.sh"]

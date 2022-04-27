@@ -1,5 +1,0 @@
----
-global:
-  registry_url: ""
-  pull_policy_pods: ""
-  base_namespace: ""

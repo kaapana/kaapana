@@ -1,8 +1,5 @@
 ---
 dependencies:
-  - name: adminer-chart
-    version: 4.7.8
-    repository: file://../../../../../../services/applications/adminer/adminer-chart
   - name: code-server-chart
     version: 4.2.0
     repository: file://../../../../../../services/applications/code-server/code-server-chart

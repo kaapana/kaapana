@@ -1,7 +1,6 @@
 import json
 import os
 import synapseclient as sc
-import docker
 import getpass
 
 from subprocess import PIPE, run
@@ -12,9 +11,7 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
     def start(self, ds, ti, **kwargs):
         synapse_user = ""
-        registry_pwd = ""
         API_KEY = ""
-        container_registry = "docker.synapse.org"
         base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
         subm_logs_path = os.path.join(base_dir, "subm_logs")
         tasks = [("fets_2022_test_queue", 9615030)]
@@ -33,7 +30,6 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
             if s_state == "open":
                 open_list.append(s_id)
         
-        docker_client = docker.from_env()
         print("Logging into Synapse...")
         syn = sc.login(email=synapse_user, apiKey=API_KEY)
 
@@ -42,17 +38,6 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
             print(f"Checking {task_name}...")
             for subm in syn.getSubmissions(task_id):
                 if subm["id"] not in subm_dict:
-                    print("Logging into container registry!!!")                    
-                    docker_client.login(username=synapse_user, password=registry_pwd, registry=container_registry)
-                    print("Pulling container...")
-                    docker_client.images.pull(repository=subm["dockerRepositoryName"])
-                    print("Saving container...")
-                    image = docker_client.images.get(subm["dockerRepositoryName"])
-                    tar_path = os.path.join(base_dir, "tarball", f"{subm['id']}.tar")
-                    f = open(tar_path, 'wb')
-                    for chunk in image.save():
-                      f.write(chunk)
-                    f.close()
 
                     ## TODO iso env workflow with MedPerf eval client
                     # process_submission(subm, task_name, task_dir)

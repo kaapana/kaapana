@@ -39,7 +39,7 @@ create_iso_env = LocalCreateIsoInstanceOperator(dag=dag)
 # change_hostname = LocalChangeIsoInstHostnameOperator(dag=dag)
 install_platform_dependencies = LocalInstallPlatformDepsOnIsoEnvOperator(dag=dag)
 deploy_platform = LocalDeployPlatformOnIsoEnvOperator(dag=dag)
-copy_data_algo = LocalCopyDataAndAlgoOperator(dag=dag)
+copy_data_algo = LocalCopyDataAndAlgoOperator(dag=dag, tarball_file="tarball_name")
 run_algo_send_result = LocalRunAlgoSendResultOperator(dag=dag)
 delete_iso_inst = LocalDeleteIsoEnvOperator(dag=dag)
 

@@ -1,5 +1,6 @@
 FROM ubuntu:20.04
-
+ENV http_proxy http://www-int2.dkfz-heidelberg.de:80
+ENV https_proxy http://www-int2.dkfz-heidelberg.de:80
 LABEL IMAGE="airflow"
 LABEL VERSION="2.2.2"
 LABEL CI_IGNORE="False"
@@ -54,5 +55,14 @@ RUN chmod 600 /root/.ssh/tfda_iso.pem
 # RUN mkdir -p /root/tfda_platform
 # COPY files/server_installation.sh /root/tfda_platform/server_installation.sh
 # COPY files/install_platform.sh /root/tfda_platform/install_platform.sh
+
+# SKOPEO Installation
+
+
+RUN echo "deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_20.04/ /" |  tee /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+RUN curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_20.04/Release.key |  apt-key add -
+RUN  apt-get update
+RUN  apt-get -y install skopeo
+
 
 ENTRYPOINT ["./bootstrap.sh"]

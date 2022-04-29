@@ -414,7 +414,8 @@ function install_chart {
     if [ -z "$CHART_PATH" ]; then
         echo "${GREEN}Pulling platform chart from registry...${NC}"
         pull_chart
-        CHART_PATH="$HOME/$PROJECT_NAME-$chart_version.tgz"
+        SCRIPTPATH=$(dirname "$(realpath $0)")
+        CHART_PATH="$SCRIPTPATH/$PROJECT_NAME-$chart_version.tgz"
     fi
 
     echo "${GREEN}Installing $PROJECT_NAME:$chart_version${NC}"
@@ -504,6 +505,28 @@ function check_credentials {
         fi
     done
     helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD ${CONTAINER_REGISTRY_URL}
+}
+
+function install_self_signed_cert {
+    echo -e "Creating self-signed certificates..."
+    PUBKEY=$(mktemp)
+    PRIVKEY=$(mktemp)
+
+    openssl genrsa 4096 > $PRIVKEY
+    openssl req -new -x509 -nodes -sha256 -days 365 -key $PRIVKEY -out $PUBKEY -subj "/CN=$(hostname)" -addext "extendedKeyUsage = serverAuth"
+    if [ ! -f $PUBKEY ] || [ ! -f $PRIVKEY ]; then
+        echo -e "${RED}Creation of self-signed certificates failed${NC}"
+        exit 1
+    fi
+
+    echo -e "Installing certificates"
+    microk8s.kubectl -n kube-system delete secret certificate
+    microk8s.kubectl --insecure-skip-tls-verify=true -n kube-system create secret tls certificate --key $PRIVKEY --cert $PUBKEY
+    microk8s.kubectl --insecure-skip-tls-verify=true -n store create secret generic certificate-store --from-file=$PRIVKEY --from-file=$PUBKEY
+
+    echo -e "Removing self-signed certificate files..."
+    rm $PUBKEY
+    rm $PRIVKEY
 }
 
 function install_certs {
@@ -750,4 +773,5 @@ elif [[ $deployments == *"$PROJECT_NAME"* ]] && [[ $QUIET = true ]];then
 else
     echo -e "${GREEN}No previous deployment found -> installation${NC}"
     install_chart
+    install_self_signed_cert
 fi

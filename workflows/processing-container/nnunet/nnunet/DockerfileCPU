@@ -18,12 +18,13 @@ RUN cd /nnunet-pip-package && pip3 install ./
 # Seems to be autoinstalled in gpu package...
 RUN pip install tensorboard==2.8.0
 
-COPY files/network_trainer.py /opt/conda/lib/python3.8/site-packages/nnunet/training/network_training/network_trainer.py
-COPY files/nnUNet_plan_and_preprocess.py /opt/conda/lib/python3.8/site-packages/nnunet/experiment_planning/nnUNet_plan_and_preprocess.py
-COPY files/nnUNetTrainer.py /opt/conda/lib/python3.8/site-packages/nnunet/training/network_training/nnUNetTrainer.py
-COPY files/nnUNetTrainerV2.py /opt/conda/lib/python3.8/site-packages/nnunet/training/network_training/nnUNetTrainerV2.py
-COPY files/predict.py /opt/conda/lib/python3.8/site-packages/nnunet/inference/predict.py
-COPY files/run_training.py /opt/conda/lib/python3.8/site-packages/nnunet/run/run_training.py
+COPY files/patched/network_trainer.py /opt/conda/lib/python3.8/site-packages/nnunet/training/network_training/network_trainer.py
+COPY files/patched/nnUNet_plan_and_preprocess.py /opt/conda/lib/python3.8/site-packages/nnunet/experiment_planning/nnUNet_plan_and_preprocess.py
+COPY files/patched/nnUNetTrainer.py /opt/conda/lib/python3.8/site-packages/nnunet/training/network_training/nnUNetTrainer.py
+COPY files/patched/nnUNetTrainerV2.py /opt/conda/lib/python3.8/site-packages/nnunet/training/network_training/nnUNetTrainerV2.py
+COPY files/patched/predict.py /opt/conda/lib/python3.8/site-packages/nnunet/inference/predict.py
+COPY files/patched/run_training.py /opt/conda/lib/python3.8/site-packages/nnunet/run/run_training.py
 
-WORKDIR /executables/nnunet/
+COPY files/nnunet /kaapanasrc
+WORKDIR /kaapanasrc
 CMD ["bash","start_nnunet.sh"]

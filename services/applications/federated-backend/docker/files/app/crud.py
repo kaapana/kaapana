@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException, Response
 
 
 from . import models, schemas
-from app.utils import HOSTNAME, INSTANCE_NAME, update_external_job, delete_external_job, execute_job, get_utc_timestamp, HelperMinio, get_dag_list, raise_kaapana_connection_error
+from app.utils import HOSTNAME, INSTANCE_NAME, get_dataset_list, update_external_job, delete_external_job, execute_job, get_utc_timestamp, HelperMinio, get_dag_list, raise_kaapana_connection_error
 from urllib.parse import urlparse
 
 
@@ -52,7 +52,7 @@ def create_and_update_client_kaapana_instance(db: Session, client_kaapana_instan
             return 'deactivated'
     utc_timestamp = get_utc_timestamp()
     allowed_dags = json.dumps(get_dag_list(only_dag_names=False, filter_allowed_dags=client_kaapana_instance.allowed_dags))
-    print(allowed_dags)
+    allowed_datasets = json.dumps([dataset for dataset in client_kaapana_instance.allowed_datasets if dataset in get_dataset_list(unique_sets=True)])
     db_client_kaapana_instance = get_kaapana_instance(db, remote=False)
     if action == 'create':
         if db_client_kaapana_instance:
@@ -69,7 +69,7 @@ def create_and_update_client_kaapana_instance(db: Session, client_kaapana_instan
             fernet_key=_get_fernet_key(client_kaapana_instance.fernet_encrypted),
             remote=False,
             allowed_dags=allowed_dags,
-            allowed_datasets=json.dumps(client_kaapana_instance.allowed_datasets),
+            allowed_datasets=allowed_datasets,
             time_created=utc_timestamp,
             time_updated=utc_timestamp,
             automatic_update=client_kaapana_instance.automatic_update or False,
@@ -82,7 +82,7 @@ def create_and_update_client_kaapana_instance(db: Session, client_kaapana_instan
             db_client_kaapana_instance.fernet_key = 'deactivated'
         db_client_kaapana_instance.ssl_check=client_kaapana_instance.ssl_check
         db_client_kaapana_instance.allowed_dags=allowed_dags
-        db_client_kaapana_instance.allowed_datasets=json.dumps(client_kaapana_instance.allowed_datasets)
+        db_client_kaapana_instance.allowed_datasets=allowed_datasets
         db_client_kaapana_instance.automatic_update=client_kaapana_instance.automatic_update or False
         db_client_kaapana_instance.automatic_job_execution=client_kaapana_instance.automatic_job_execution or False
     else:

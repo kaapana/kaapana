@@ -14,6 +14,7 @@ from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
 from kaapana.kubetools.pod import Pod
 from kaapana.kubetools.pod_stopper import PodStopper
+from airflow.models.skipmixin import SkipMixin
 from kaapana.kubetools.resources import Resources as PodResources
 from datetime import datetime, timedelta
 from airflow.utils.trigger_rule import TriggerRule
@@ -28,13 +29,14 @@ from kaapana.operators.HelperFederated import federated_sharing_decorator
 from airflow.api.common.experimental import pool as pool_api
 import uuid
 import json
-
+from kaapana import pools_dict
+import logging
 
 default_registry = os.getenv("DEFAULT_REGISTRY", "")
 default_project = os.getenv("DEFAULT_PROJECT", "")
-http_proxy = os.getenv("PROXY", None)
+default_proxy = os.getenv("PROXY", "")
 
-class KaapanaBaseOperator(BaseOperator):
+class KaapanaBaseOperator(BaseOperator, SkipMixin):
     """
     Execute a task in a Kubernetes Pod
 
@@ -88,6 +90,7 @@ class KaapanaBaseOperator(BaseOperator):
     TIMEOUT = 60 * 60 * 12
 
     pod_stopper = PodStopper()
+    env_pull_policy = os.getenv('PULL_POLICY_PODS',"None")
 
     @apply_defaults
     def __init__(self,
@@ -127,12 +130,10 @@ class KaapanaBaseOperator(BaseOperator):
                  image_pull_secrets=None,
                  startup_timeout_seconds=120,
                  namespace='flow-jobs',
-                 image_pull_policy=os.getenv('PULL_POLICY_PODS', 'IfNotPresent'),
+                 image_pull_policy= env_pull_policy if env_pull_policy == env_pull_policy.lower() == "never" else 'IfNotPresent',
                  volume_mounts=None,
                  volumes=None,
                  pod_resources=None,
-                 enable_proxy=False,
-                 host_network=False,
                  in_cluster=False,
                  cluster_context=None,
                  labels=None,
@@ -217,10 +218,8 @@ class KaapanaBaseOperator(BaseOperator):
         self.kind = kind
         self.data_dir = os.getenv('DATADIR', "")
         self.model_dir = os.getenv('MODELDIR', "")
-        self.executables_dir = os.getenv('EXECUTABLESDIR', "")
+        self.common_dir = os.getenv('COMMONDIR', "")
         self.result_message = None
-        self.host_network = host_network
-        self.enable_proxy = enable_proxy
 
         self.volume_mounts.append(VolumeMount(
             'workflowdata', mount_path='/data', sub_path=None, read_only=False
@@ -238,7 +237,7 @@ class KaapanaBaseOperator(BaseOperator):
             'miniodata', mount_path='/minio', sub_path=None, read_only=False
         ))
         self.volume_mounts.append(VolumeMount(
-            'executablesdata', mount_path='/executables', sub_path=None, read_only=False
+            'commondata', mount_path='/common', sub_path=None, read_only=False
         ))
 
         self.volumes.append(
@@ -252,11 +251,11 @@ class KaapanaBaseOperator(BaseOperator):
         )
 
         self.volumes.append(
-            Volume(name='executablesdata', configs={
+            Volume(name='commondata', configs={
                 'hostPath':
                 {
                     'type': 'DirectoryOrCreate',
-                    'path': self.executables_dir
+                    'path': self.common_dir
                 }
             })
         )
@@ -310,20 +309,13 @@ class KaapanaBaseOperator(BaseOperator):
             "WORKFLOW_DIR": str(self.workflow_dir),
             "BATCH_NAME": str(self.batch_name),
             "OPERATOR_OUT_DIR": str(self.operator_out_dir),
-            "BATCHES_INPUT_DIR": f"/{self.workflow_dir}/{self.batch_name}"
+            "BATCHES_INPUT_DIR": f"/{self.workflow_dir}/{self.batch_name}",
         }
+        if default_proxy:
+            envs.update({"PROXY": default_proxy})
+
         if hasattr(self, 'operator_in_dir'):
             envs["OPERATOR_IN_DIR"] = str(self.operator_in_dir)
-
-        if http_proxy is not None and http_proxy != "" and self.enable_proxy:
-            envs.update(
-                {
-                    "http_proxy": http_proxy,
-                    "https_proxy": http_proxy,
-                    "HTTP_PROXY": http_proxy,
-                    "HTTPS_PROXY": http_proxy,
-                }
-            )
 
         envs.update(self.env_vars)
         self.env_vars = envs
@@ -392,10 +384,10 @@ class KaapanaBaseOperator(BaseOperator):
         self.kube_name = self.kube_name.lower() + "-" + str(uuid.uuid4())[:8]
         self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63) # actually 63, but because of helm set to 53, maybe...
 
-        self.pool = context["ti"].pool
-        self.pool_slots = context["ti"].pool_slots
-        if "GPU" in self.pool and len(self.pool.split("_")) == 3:
-            gpu_id = self.pool.split("_")[1]
+        # self.pool = context["ti"].pool
+        # self.pool_slots = context["ti"].pool_slots
+        if "NODE_GPU_" in self.pool and self.pool.count("_") == 3:
+            gpu_id = self.pool.split("_")[2]
             self.env_vars.update({
                 "CUDA_VISIBLE_DEVICES": str(gpu_id)
             })
@@ -414,16 +406,18 @@ class KaapanaBaseOperator(BaseOperator):
             context['dag_run'].conf["rest_call"] = {'global': form_data}
         if context['dag_run'].conf is not None and "rest_call" in context['dag_run'].conf and context['dag_run'].conf["rest_call"] is not None:
             self.rest_env_vars_update(context['dag_run'].conf["rest_call"])
-            print("CONTAINER ENVS:")
-            print(json.dumps(self.env_vars, indent=4, sort_keys=True))
+
+        self.env_vars.update({
+            "RUN_ID": context["dag_run"].run_id,
+            "DAG_ID": context["dag_run"].dag_id
+        })
+
+        print("CONTAINER ENVS:")
+        print(json.dumps(self.env_vars, indent=4, sort_keys=True))
 
         for volume in self.volumes:
             if "hostPath" in volume.configs and self.data_dir == volume.configs["hostPath"]["path"]:
                 volume.configs["hostPath"]["path"] = os.path.join(volume.configs["hostPath"]["path"], context["run_id"])
-
-        self.env_vars.update({
-            "RUN_ID": context["run_id"]
-        })
 
         if self.dev_server is not None:
             url = f'{KaapanaBaseOperator.HELM_API}/helm-install-chart'
@@ -526,7 +520,6 @@ class KaapanaBaseOperator(BaseOperator):
                 image_pull_secrets=self.image_pull_secrets,
                 resources=self.pod_resources,
                 annotations=self.annotations,
-                host_network=self.host_network,
                 affinity=self.affinity
             )
             launcher = pod_launcher.PodLauncher(extract_xcom=self.xcom_push)
@@ -678,10 +671,39 @@ class KaapanaBaseOperator(BaseOperator):
 
         if obj.pool == None:
             if obj.gpu_mem_mb != None:
-                obj.pool = "GPU_COUNT"
-                obj.pool_slots = obj.gpu_mem_mb
+                gpu_pool_list = []
+                for k, v in pools_dict.items(): 
+                    if "NODE_GPU_" in k and k.count("_") == 3 and v["total"] > obj.gpu_mem_mb:
+                        v["name"] = k
+                        v["id"] = k.split("_")[2]
+                        gpu_pool_list.append(v)
+                gpu_pool_list = sorted(gpu_pool_list, key=lambda d: d['total'], reverse=False)
+
+                gpu_pool_found = None
+                for pool in gpu_pool_list:
+                    gpu_id = pool["id"] 
+                    free_space = pool["open"]
+                    if free_space > obj.gpu_mem_mb:
+                        gpu_pool_found = gpu_id
+
+                if gpu_pool_found == None:
+                    for pool in gpu_pool_list:
+                        gpu_id = pool["id"] 
+                        capacity = pool["total"]
+                        if capacity > obj.gpu_mem_mb:
+                            gpu_pool_found = gpu_id
+                
+                if gpu_pool_found == None:
+                    logging.warn("No GPU identified for the job!")
+                    logging.warn(f"{obj.gpu_mem_mb=}")
+                    logging.warn(f"SETTING POOL NODE_GPU_COUNT == 1")
+                    obj.pool = "NODE_GPU_COUNT"
+                    obj.pool_slots =  1
+                else:
+                    obj.pool = f"NODE_GPU_{gpu_pool_found}_MEM"
+                    obj.pool_slots =  obj.gpu_mem_mb
             else:
-                obj.pool = "MEMORY"
+                obj.pool = "NODE_RAM"
                 obj.pool_slots = obj.ram_mem_mb if obj.ram_mem_mb is not None else 1
 
         obj.executor_config = {

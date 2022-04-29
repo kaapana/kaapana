@@ -1,7 +1,7 @@
 FROM local-only/dag-installer:0.1.0
 
 LABEL IMAGE="dag-nnunet"
-LABEL VERSION="04-21"
+LABEL VERSION="03-22"
 LABEL CI_IGNORE="False"
 
 COPY dags/nnunet /tmp/dags/nnunet
@@ -11,5 +11,5 @@ COPY dags/dag_nnunet_inference.py /tmp/dags/
 COPY dags/dag_nnunet_training.py /tmp/dags/
 COPY dags/dag_nnunet_ensemble.py /tmp/dags/
 
-COPY executables/nnunet /tmp/executables/nnunet
-COPY executables/generate_nnunet_report /tmp/executables/generate_nnunet_report
+COPY common/notebooks/nnunet_ensemble /tmp/common/notebooks/nnunet_ensemble
+COPY common/notebooks/nnunet_training /tmp/common/notebooks/nnunet_training

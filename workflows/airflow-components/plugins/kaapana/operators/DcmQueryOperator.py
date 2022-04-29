@@ -20,8 +20,6 @@ class DcmQueryOperator(KaapanaBaseOperator):
                  max_query_size: str = None,
                  env_vars=None,
                  level='study',
-                 enable_proxy = False,
-                 host_network = False,
                  execution_timeout=timedelta(minutes=20),
                  **kwargs
                  ):
@@ -60,8 +58,6 @@ class DcmQueryOperator(KaapanaBaseOperator):
             name="dcmqr",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
-            host_network=host_network,
-            enable_proxy=enable_proxy,
             execution_timeout=execution_timeout,
             **kwargs
         )

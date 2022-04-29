@@ -67,14 +67,12 @@ def send_dcm_dir(input_dir):
     print(f"#")
         
     command = ["dcmsend", "-v", f"{server}", f"{port}", "-aet", f"push_tool", "-aec", f"{local_dataset}", "--scan-directories", "--scan-pattern", f"{scan_pattern}", "--recurse", f"{input_dir}"]
-    # command_str = " ".join(command)
-    # print(f"# COMMAND: {command_str}")
-    try:
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=execution_timeout)
-    except Exception as e:
-        print("############### Command error !!")
-        print(f"############### log: {e}")
-        if "timeout" in str(e):
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=execution_timeout)
+    if output.returncode != 0:
+        print("Something went wrong -> sending failed!")
+        print(f"Message: {output.stdout}")
+        print(f"Error:   {output.stderr}")
+        if "timeout" in str(output.stderr):
             send_delay += 10
             send_delay += 10
         time.sleep(send_delay)

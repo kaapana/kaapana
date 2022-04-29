@@ -329,13 +329,14 @@ def get_kube_status(kind, name, namespace):
     }
 
     try:
+        # Todo might be replaced by json or yaml output in the future with the flag -o json!
         resp = subprocess.check_output(
             f'kubectl -n {namespace} get pod -l={kind}-name={name}',
             stderr=subprocess.STDOUT,
             shell=True
         )
-        for row in re.findall(r'(.*\n)', resp.decode("utf-8"))[1:]:
-            name, ready, status, restarts, age = row.split()
+        for row in re.findall(r'(.*\n)', resp.decode("utf-8"))[1:]:           
+            name, ready, status, restarts, age = re.split('\s\s+', row)
             states['name'].append(name)
             states['ready'].append(ready)
             states['status'].append(status)
@@ -343,7 +344,7 @@ def get_kube_status(kind, name, namespace):
             states['age'].append(age)
     except subprocess.CalledProcessError as e:
         print(f'Could not get kube status of {name}')
-
+        print(e)
     return states
 
 
@@ -359,6 +360,8 @@ def get_manifest_infos(manifest):
     }
 
     for config in manifest:
+        if config is None:
+            continue
         ingress_path = ''
         if config['kind'] == 'Ingress':
             ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']

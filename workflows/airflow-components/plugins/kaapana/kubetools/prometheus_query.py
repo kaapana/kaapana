@@ -17,6 +17,7 @@ cpu_util_cores_used_query = "sum(rate (container_cpu_usage_seconds_total{id=\"/\
 gpu_count_query = "count(DCGM_FI_DEV_POWER_USAGE{kubernetes_name='nvidia-dcgm-exporter'})"
 gpu_mem_used_device_query = "DCGM_FI_DEV_FB_USED{kubernetes_name='nvidia-dcgm-exporter',instance=~'.+',gpu=~'<replace>'}"
 gpu_mem_available_device_query = "DCGM_FI_DEV_FB_FREE{kubernetes_name='nvidia-dcgm-exporter',instance=~'.+',gpu=~'<replace>'}"
+gpu_infos_query="DCGM_FI_DEV_FB_FREE{app='nvidia-dcgm-exporter'}"
 
 def get_node_info(query):
     tries = 0
@@ -77,31 +78,13 @@ def get_node_cpu_util_percent(logger=None):
 
 def get_node_gpu_infos(logger=None):
     gpu_infos = []
-    node_gpu_count, success = get_node_info(query=gpu_count_query)
-    for i in range(0, node_gpu_count):
-        tries = 0
-        max_tries = 4
-        success = False
-        while not success and tries < max_tries:
-            request_url = f"{prometheus_url}{gpu_mem_available_device_query.replace('<replace>', str(i))}"
-            response = requests.get(request_url)
-            result = response.json()
-            if "data" in result and "result" in result["data"] and isinstance(result["data"]["result"], list) and len(result["data"]["result"]) > 0:
-                result = result["data"]["result"][0]
-                name = result["metric"]["name"]
-                mem_capacity = result["value"][1]
-                success = True
-            else:
-                time.sleep(1)
-                tries += 1
-        if success:
-            gpu_info = {
-                "id": i,
-                "name": name,
-                "mem_capacity": int(float(mem_capacity)),
-            }
-            print(json.dumps(gpu_info, indent=4, sort_keys=True, default=str))
-            gpu_infos.append(gpu_info)
-        elif logger != None:
-            logger.error(f"+++++++++ Could not fetch node-info for get_node_gpu_infos: {i}")
+    request_url = f"{prometheus_url}{gpu_infos_query}"
+    response = requests.get(request_url)
+    result = response.json()
+    if "status" in result and result["status"] == "success":
+        gpu_infos = result["data"]["result"]
+
+    elif logger != None:
+        logger.error(f"+++++++++ Could not fetch node-info for GPUs")
+
     return gpu_infos

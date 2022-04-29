@@ -127,7 +127,6 @@ async def submit_workflow_json_schema(json_schema_data: schemas.JsonSchemaData, 
     else:
         db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': json_schema_data.remote, 'instance_names': json_schema_data.instance_names}))
         for db_remote_kaapana_instance in db_remote_kaapana_instances:
-            # Todo: catch error when the request to one institution fails
             job = schemas.JobCreate(**{
                 "conf_data": conf_data,
                 "status": "queued",

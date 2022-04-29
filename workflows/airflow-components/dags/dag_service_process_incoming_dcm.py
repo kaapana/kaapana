@@ -3,14 +3,14 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalAutoTriggerOperator import LocalAutoTriggerOperator
 from kaapana.operators.LocalMultiAETitleOperator import LocalMultiAETitleOperator
-from kaapana.operators.DcmSendOperator import DcmSendOperator
+from kaapana.operators.LocalDicomSendOperator import LocalDicomSendOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 from datetime import timedelta
 
 args = {
     'ui_visible': False,
-    'owner': 'kaapana',
+    'owner': 'system',
     'start_date': days_ago(0),
     'retries': 1,
     'retry_delay': timedelta(seconds=60)
@@ -32,13 +32,13 @@ dcm_check = LocalMultiAETitleOperator(
     input_operator=get_input
 )
 
-dcm_send = DcmSendOperator(
-    dag=dag,
-    input_operator=dcm_check,
-    pacs_host='dcm4chee-service.store.svc',
-    pacs_port=11115,
-    ae_title='KAAPANA',
-    check_arrival=True
+dcm_send = LocalDicomSendOperator(
+   dag=dag,
+   input_operator=dcm_check,
+   pacs_host='dcm4chee-service.store.svc',
+   pacs_port=11115,
+   ae_title='KAAPANA',
+   check_arrival=True
 )
 
 auto_trigger_operator = LocalAutoTriggerOperator(

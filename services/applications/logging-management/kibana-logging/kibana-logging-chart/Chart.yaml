@@ -1,6 +1,0 @@
----
-apiVersion: v1
-appVersion: "6.8.12"
-description: Chart for Kibana with JIP adjustments
-name: kibana-logging-chart
-version: "6.8.12"

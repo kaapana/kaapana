@@ -19,7 +19,7 @@ class FedartedSetupCentralTestOperator(KaapanaBaseOperator):
             image=f"{default_registry}/pytorch-cpu-executer:0.1.0",
             image_pull_secrets=["registry-secret"],
             cmds=["python3"],
-            arguments=["-u", "/executables/federated_setup_central_test/run_federated_setup_central_test.py"], 
+            arguments=["-u", "/common/scripts/federated_setup_central_test/run_federated_setup_central_test.py"], 
             execution_timeout=execution_timeout,
             ram_mem_mb=1000,
             ram_mem_mb_lmt=3000,

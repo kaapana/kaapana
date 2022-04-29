@@ -1,6 +1,0 @@
----
-dependencies:
-  - name: jupyterlab-chart
-    version: "3.3.2"
-    repository: file://../../jupyterlab/jupyterlab-chart
-    

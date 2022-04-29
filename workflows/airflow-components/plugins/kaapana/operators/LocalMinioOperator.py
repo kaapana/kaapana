@@ -11,9 +11,11 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.blueprints.kaapana_utils import generate_minio_credentials
 from kaapana.operators.HelperMinio import HelperMinio
+from kaapana.operators.HelperCaching import cache_operator_output
 
 class LocalMinioOperator(KaapanaPythonBaseOperator):
 
+    @cache_operator_output
     @rest_self_udpate
     def start(self, ds, **kwargs):
         conf = kwargs['dag_run'].conf

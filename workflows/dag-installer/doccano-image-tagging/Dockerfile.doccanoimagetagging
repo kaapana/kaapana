@@ -9,4 +9,4 @@ COPY dags/dag_study_ids_to_doccano.py /tmp/dags/
 
 COPY dags/doccano /tmp/dags/doccano
 
-COPY executables/doccano_processing /tmp/executables/doccano_processing
+COPY common/scripts/doccano_processing /tmp/common/scripts/doccano_processing

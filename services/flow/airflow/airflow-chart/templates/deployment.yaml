@@ -79,7 +79,7 @@ spec:
         - name: airflow-plugins
           mountPath: /root/airflow/plugins
       - name: init-airflow-db
-        image: {{  .Values.global.registry_url }}/airflow:2.2.4
+        image: {{  .Values.global.registry_url }}/airflow:2.2.5
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["init"]
         resources:
@@ -108,7 +108,7 @@ spec:
               key: sql_alchemy_conn
       containers:
       - name: webserver
-        image: {{  .Values.global.registry_url }}/airflow:2.2.4
+        image: {{  .Values.global.registry_url }}/airflow:2.2.5
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         ports:
         - name: webserver
@@ -123,10 +123,14 @@ spec:
           value: {{ .Values.global.fast_data_dir }}/workflows/models
         - name: HOSTDOMAIN
           value: {{ .Values.global.hostname }}
+        - name: HTTPS_PORT
+          value: "{{ .Values.global.https_port }}"
         - name: INSTANCE_NAME
           value: {{ .Values.global.instance_name }}
         - name: AIRFLOW_KUBE_NAMESPACE
           value: {{ .Values.global.flow_namespace }}
+        - name: GPU_SUPPORT
+          value: "{{ .Values.global.gpu_support }}"
         - name: SQL_ALCHEMY_CONN
           valueFrom:
             secretKeyRef:
@@ -168,7 +172,7 @@ spec:
         #     path: /flow
         #     port: 8080
       - name: scheduler
-        image: {{  .Values.global.registry_url }}/airflow:2.2.4
+        image: {{  .Values.global.registry_url }}/airflow:2.2.5
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["scheduler"]
         env:
@@ -182,12 +186,14 @@ spec:
           value: {{ .Values.global.fast_data_dir }}/workflows/models
         - name: MINIODIR
           value: {{ .Values.global.slow_data_dir }}/minio
-        - name: EXECUTABLESDIR
-          value: {{ .Values.global.fast_data_dir }}/workflows/executables
+        - name: COMMONDIR
+          value: {{ .Values.global.fast_data_dir }}/workflows/common
         - name: PROXY
           value: {{ .Values.global.http_proxy }}
         - name: HOSTDOMAIN
           value: {{ .Values.global.hostname }}
+        - name: HTTPS_PORT
+          value: "{{ .Values.global.https_port }}"
         - name: INSTANCE_NAME
           value: {{ .Values.global.instance_name }}
         - name: PULL_POLICY_PODS

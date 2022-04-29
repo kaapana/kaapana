@@ -14,6 +14,8 @@ from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.PytorchCpuExecuterOperator import PytorchCpuExecuterOperator
 from nnunet.SegCheckOperator import SegCheckOperator
 
 default_interpolation_order = "default"
@@ -304,10 +306,19 @@ evaluation = DiceEvaluationOperator(
     input_operator=seg_check_inference,
     ensemble_operator=seg_check_ensemble,
     parallel_processes=1,
-    parallel_id="",
     trigger_rule="all_done",
     batch_name=str(get_test_images.operator_out_dir)
 )
+
+nnunet_evaluation_notebook = PytorchCpuExecuterOperator(
+    dag=dag,
+    name='nnunet-evaluation-notebook',
+    input_operator=evaluation,
+    arguments=["/common/notebooks/nnunet_ensemble/run_nnunet_evaluation_notebook.sh"],
+    # dev_server='jupyterlab'
+)
+
+put_to_minio = LocalMinioOperator(dag=dag, name='upload-staticwebsiteresults', bucket_name='staticwebsiteresults', action='put', action_operators=[nnunet_evaluation_notebook], file_white_tuples=('.html', '.pdf'))
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
 
@@ -315,4 +326,4 @@ get_test_images >> sort_gt >> dcm2nifti_gt >> seg_check_gt
 sort_gt >> get_ref_ct_series_from_gt >> dcm2nifti_ct >> nnunet_predict >> do_inference >> seg_check_inference >> seg_check_gt >> evaluation
 get_input >> dcm2bin >> extract_model >> nnunet_predict >> nnunet_ensemble >> do_ensemble
 do_inference >> do_ensemble >> seg_check_ensemble >> evaluation 
-seg_check_inference >> evaluation >> clean
+seg_check_inference >> evaluation >> nnunet_evaluation_notebook >> put_to_minio >> clean

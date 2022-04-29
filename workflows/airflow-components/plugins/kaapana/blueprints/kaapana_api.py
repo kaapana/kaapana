@@ -28,10 +28,8 @@ parallel_processes = 1
 Represents a blueprint kaapanaApi
 """
 kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
-
-
 def async_dag_trigger(queue_entry):
-    hit, dag_id, tmp_conf = queue_entry
+    hit, dag_id, tmp_conf, username = queue_entry
     hit = hit["_source"]
     studyUID = hit[HelperElasticsearch.study_uid_tag]
     seriesUID = hit[HelperElasticsearch.series_uid_tag]
@@ -41,6 +39,7 @@ def async_dag_trigger(queue_entry):
     print(f"# Triggering {dag_id} - series: {seriesUID}")
 
     conf = {
+        "user_public_id": username,
         "inputs": [
             {
                 "dcm-uid": {
@@ -66,7 +65,9 @@ def async_dag_trigger(queue_entry):
 @csrf.exempt
 @kaapanaApi.route('/api/trigger/<string:dag_id>', methods=['POST'])
 def trigger_dag(dag_id):
+    headers = dict(request.headers)
     data = request.get_json(force=True)
+    username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
     if 'conf' in data:
         tmp_conf = data['conf']
     else:
@@ -163,7 +164,7 @@ def trigger_dag(dag_id):
 
             queue = []
             for hit in hits:
-                queue.append((hit, dag_id, tmp_conf))
+                queue.append((hit, dag_id, tmp_conf,username))
 
             trigger_results = ThreadPool(parallel_processes).imap_unordered(async_dag_trigger, queue)
             for seriesUID, result in trigger_results:
@@ -171,6 +172,7 @@ def trigger_dag(dag_id):
 
         else:
             conf = {
+                "user_public_id": username,
                 "inputs": [
                     {
                         "elastic-query": {
@@ -378,6 +380,7 @@ def dag_run_status(dag_id, run_id):
     )
 
 
+# Should be all moved to kaapana backend!!
 # Authorization topics
 @kaapanaApi.route('/api/getaccesstoken')
 @csrf.exempt
@@ -394,3 +397,63 @@ def get_minio_credentials():
     x_auth_token = request.headers.get('X-Forwarded-Access-Token')
     access_key, secret_key, session_token = generate_minio_credentials(x_auth_token)
     return jsonify({'accessKey': access_key, 'secretKey': secret_key, 'sessionToken': session_token}), 200
+
+
+@kaapanaApi.route('/api/get-static-website-results')
+@csrf.exempt
+def get_static_website_results():
+    import uuid
+    import os
+    from minio import Minio
+
+    def build_tree(item, filepath, org_filepath):
+    # Adapted from https://stackoverflow.com/questions/8484943/construct-a-tree-from-list-os-file-paths-python-performance-dependent
+        splits = filepath.split('/', 1)
+        if len(splits) == 1:
+            print(splits)
+            # item.update({
+            #     "name": splits[0]
+            #     # "file": "html",
+            # })
+            # if "vuetifyItems" not in item:
+            #     item["vuetifyItems"] = []
+            item["vuetifyFiles"].append({
+                "name": splits[0],
+                "file": "html",
+                "path": f"/static-website-browser/{org_filepath}"
+            })
+        else:
+            parent_folder, filepath = splits
+            if parent_folder not in item:
+                item[parent_folder] = {"vuetifyFiles": []}
+            build_tree(item[parent_folder], filepath, org_filepath)
+            
+    def get_vuetify_tree_structure(tree):
+        subtree = []
+        for parent, children in tree.items():
+            print(parent, children)
+            if parent == 'vuetifyFiles':
+                subtree = children
+            else:
+                subtree.append({
+                    'name': parent,
+                    'path': str(uuid.uuid4()),
+                    'children': get_vuetify_tree_structure(children)
+                })
+        return subtree
+
+    _minio_host='minio-service.store.svc'
+    _minio_port='9000'
+    minioClient = Minio(_minio_host+":"+_minio_port,
+                        access_key='kaapanaminio',
+                        secret_key='Kaapana2020',
+                        secure=False)
+
+
+    tree = {"vuetifyFiles": []}
+    objects = minioClient.list_objects("staticwebsiteresults", prefix='results', recursive=True)
+    for obj in objects:
+        if obj.object_name.endswith('html'):
+            # Stripping the results for the second argument
+            build_tree(tree, obj.object_name[8:], obj.object_name)
+    return jsonify(get_vuetify_tree_structure(tree)), 200

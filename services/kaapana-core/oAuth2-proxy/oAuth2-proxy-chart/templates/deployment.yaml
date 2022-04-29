@@ -55,7 +55,7 @@ spec:
           - --skip-oidc-discovery
           - --insecure-oidc-allow-unverified-email 
           - --email-domain=*
-          - --force-https
+          - --force-https=true
           - --pass-access-token 
           - --skip-auth-regex=/auth/*
           - --skip-auth-regex=/federated-backend/remote/*

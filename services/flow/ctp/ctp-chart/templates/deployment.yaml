@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: ctp-container
-          image: {{  .Values.global.registry_url }}/ctp:0.1.2
+          image: {{  .Values.global.registry_url }}/ctp:0.1.3
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           ports:
             - containerPort: 11112

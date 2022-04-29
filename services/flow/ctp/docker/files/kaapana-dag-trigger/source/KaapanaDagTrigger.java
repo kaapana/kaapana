@@ -405,7 +405,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                         if(doesBatchFolderExists){
                             //batch folder has not finished the trigger process
                             //let the batch finish first, therefore restart:
-                            logger.info("batch folder is still in process, restart airflow call for this serires");
+                            logger.info("batch folder is still in process, restart airflow call for this series");
                             processAirlfowCall();
                             return;
                         }

@@ -5,56 +5,48 @@ metadata:
   namespace: {{ .Values.global.flow_namespace }}
 data:
    webserver_config.py: |+
-    #
-    # Licensed to the Apache Software Foundation (ASF) under one
-    # or more contributor license agreements.  See the NOTICE file
-    # distributed with this work for additional information
-    # regarding copyright ownership.  The ASF licenses this file
-    # to you under the Apache License, Version 2.0 (the
-    # "License"); you may not use this file except in compliance
-    # with the License.  You may obtain a copy of the License at
-    #
-    #   http://www.apache.org/licenses/LICENSE-2.0
-    #
-    # Unless required by applicable law or agreed to in writing,
-    # software distributed under the License is distributed on an
-    # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    # KIND, either express or implied.  See the License for the
-    # specific language governing permissions and limitations
-    # under the License.
-    """Default configuration for the Airflow webserver"""
-    import os
-
-    from airflow.www.fab_security.manager import AUTH_DB
-
-    # from airflow.www.fab_security.manager import AUTH_LDAP
+    from flask import get_flashed_messages, request, redirect, flash
+    from flask_appbuilder import expose
+    from flask_appbuilder._compat import as_unicode
+    from flask_appbuilder.security.views import AuthView
     # from airflow.www.fab_security.manager import AUTH_OAUTH
-    # from airflow.www.fab_security.manager import AUTH_OID
-    # from airflow.www.fab_security.manager import AUTH_REMOTE_USER
+    from airflow.www.fab_security.manager import AUTH_REMOTE_USER
+    from flask_login import login_user, logout_user
+    from airflow.www.security import AirflowSecurityManager
+    AUTH_TYPE = AUTH_REMOTE_USER
+    AUTH_USER_REGISTRATION = True
+    AUTH_USER_REGISTRATION_ROLE = "Admin"
+
+    class CustomAuthRemoteUserView(AuthView):
+        login_template = ""
+
+        @expose("/login/")
+        def login(self):
+            username = request.headers.get('X-Forwarded-Preferred-Username')
+            email = request.headers.get('X-Forwarded-Email:')
+            print(f"##### {username=}")
+
+            if username:
+                user = self.appbuilder.sm.auth_user_remote_user(username)
+                print(f"############### {user=}")
+                if user is None:
+                    flash(as_unicode(self.invalid_login_message), "warning")
+                else:
+                    login_user(user)
+            else:
+                flash(as_unicode(self.invalid_login_message), "warning")
+
+            # Flush "Access is Denied" flash messaage
+            get_flashed_messages()
+            return redirect(self.appbuilder.get_url_for_index)
+
+        @expose("/logout/")
+        def logout(self):
+            logout_user()
+            return redirect("/oauth2/sign_out?redirect=/")
+
+    class CustomAirflowSecurityManager(AirflowSecurityManager):
+        authremoteuserview = CustomAuthRemoteUserView
 
 
-    basedir = os.path.abspath(os.path.dirname(__file__))
-
-    # Flask-WTF flag for CSRF
-    WTF_CSRF_ENABLED = True
-
-    # ----------------------------------------------------
-    # AUTHENTICATION CONFIG
-    # ----------------------------------------------------
-    # For details on how to set up each of the following authentication, see
-    # http://flask-appbuilder.readthedocs.io/en/latest/security.html# authentication-methods
-    # for details.
-
-    # The authentication type
-    # AUTH_OID : Is for OpenID
-    # AUTH_DB : Is for database
-    # AUTH_LDAP : Is for LDAP
-    # AUTH_REMOTE_USER : Is for using REMOTE_USER from web server
-    # AUTH_OAUTH : Is for OAuth
-    AUTH_TYPE = AUTH_DB
-
-    # Uncomment to setup Full admin role name
-    AUTH_ROLE_ADMIN = 'Admin'
-
-    # Uncomment to setup Public role name, no authentication needed
-    AUTH_ROLE_PUBLIC = 'Admin'
+    SECURITY_MANAGER_CLASS = CustomAirflowSecurityManager

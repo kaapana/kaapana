@@ -30,6 +30,11 @@ spec:
           value: federatedpassword
         ports: # Port(s) on which your application runs
           - containerPort: 5432
+        resources:
+          limits:
+            memory: "5Gi"
+          requests:
+            memory: "100Mi"
         volumeMounts:
           - name: federated-postgres-data # key of volume moment
             mountPath: "/var/lib/postgresql/data" # path in container

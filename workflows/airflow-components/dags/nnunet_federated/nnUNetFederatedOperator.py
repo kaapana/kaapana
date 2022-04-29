@@ -19,7 +19,7 @@ class nnUNetFederatedOperator(KaapanaBaseOperator):
             image=f"{default_registry}/nnunet-cpu:03-22",
             image_pull_secrets=["registry-secret"],
             cmds=["python3"],
-            arguments=["-u", "/executables/nnunet_federated/run_nnunet_federated.py"],
+            arguments=["-u", "/common/scripts/nnunet_federated/run_nnunet_federated.py"],
             execution_timeout=execution_timeout,
             ram_mem_mb=1000,
             ram_mem_mb_lmt=3000,

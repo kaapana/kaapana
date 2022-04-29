@@ -5,7 +5,9 @@ global:
     base_namespace: ""
     fast_data_dir: ""
     slow_data_dir: ""
+    slow_mount_path: "/minio"
 envVars:
+
 volumeMounts:
 # - name: workflowdata
 #   mountPath: /root

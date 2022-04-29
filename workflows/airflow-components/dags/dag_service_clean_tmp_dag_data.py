@@ -19,7 +19,7 @@ log = LoggingMixin().log
 
 args = {
     'ui_visible': False,
-    'owner': 'kaapana',
+    'owner': 'system',
     'depends_on_past': False,
     'start_date': START_DATE,
     'retries': 0,

@@ -50,8 +50,8 @@ class HelperMinio():
         minio_urls = {}
         for federated_operator in federated['federated_operators']:
             minio_urls[federated_operator] = {  
-                'get': HelperMinio.get_custom_presigend_url('GET', federated_bucket, os.path.join(federated_dir, federated_round, instance_name, f'{federated_operator}.tar.gz')),
-                'put': HelperMinio.get_custom_presigend_url('PUT', federated_bucket,  os.path.join(federated_dir, federated_round, instance_name, f'{federated_operator}.tar.gz'))
+                'get': HelperMinio.get_custom_presigend_url('GET', federated_bucket, os.path.join(federated_dir, federated_round, instance_name, f'{federated_operator}.tar')),
+                'put': HelperMinio.get_custom_presigend_url('PUT', federated_bucket,  os.path.join(federated_dir, federated_round, instance_name, f'{federated_operator}.tar'))
             }
         return minio_urls
 
@@ -59,8 +59,8 @@ class HelperMinio():
 #https://www.peterbe.com/plog/best-practice-with-retries-with-requests
 #https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
 def requests_retry_session(
-    retries=15, # Retries for 18.2 hours
-    backoff_factor=2,
+    retries=16,
+    backoff_factor=1,
     status_forcelist=[404, 429, 500, 502, 503, 504],
     session=None,
     use_proxies=False
@@ -91,7 +91,7 @@ def get_utc_timestamp():
     utc_time = dt.replace(tzinfo=timezone.utc)
     return utc_time
 
-def get_dag_list(only_dag_names=True, filter_allowed_dags=[]):
+def get_dag_list(only_dag_names=True, filter_allowed_dags=None):
     with requests.Session() as s:
         r = requests_retry_session(session=s).get('http://airflow-service.flow.svc:8080/flow/kaapana/api/getdags')
     raise_kaapana_connection_error(r)
@@ -100,10 +100,12 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=[]):
     if only_dag_names is True:
         return sorted(list(dags.keys()))
     else:
-        if filter_allowed_dags:
+        if filter_allowed_dags is None:
+            return dags
+        elif filter_allowed_dags:
             return {dag: dags[dag] for dag in filter_allowed_dags if dag in dags}
         else:
-            return dags
+            return {}
 
 def get_dataset_list(queryDict=None, unique_sets=False, elastic_index='meta-index'):
     _elastichost = "elastic-meta-service.meta.svc:9200"
@@ -225,7 +227,6 @@ def get_remote_updates(db: Session, periodically=False):
     db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': True}))
     print('remote kaapana instances', db_remote_kaapana_instances)
     for db_remote_kaapana_instance in db_remote_kaapana_instances:
-        # Todo: catch error when the request to one institution fails
         same_instance = db_remote_kaapana_instance.instance_name == INSTANCE_NAME
         update_remote_instance_payload = {
             "instance_name":  db_client_kaapana.instance_name,
@@ -248,6 +249,9 @@ def get_remote_updates(db: Session, periodically=False):
             with requests.Session() as s:     
                 r = requests_retry_session(session=s, use_proxies=True).put(f'{remote_backend_url}/sync-client-remote', params=job_params,  json=update_remote_instance_payload, verify=db_remote_kaapana_instance.ssl_check, 
             headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+            if r.status_code == 405:
+                print(f'Warning!!! We could not reach the following backend {db_remote_kaapana_instance.host}')
+                continue
             raise_kaapana_connection_error(r)
             incoming_data =  r.json()
         incoming_jobs = incoming_data['incoming_jobs']

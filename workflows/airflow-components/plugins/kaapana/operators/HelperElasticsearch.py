@@ -5,6 +5,7 @@ class HelperElasticsearch():
     series_uid_tag = "0020000E SeriesInstanceUID_keyword"
     SOPInstanceUID_tag = "00080018 SOPInstanceUID_keyword"
     modality_tag = "00080060 Modality_keyword"
+    protocol_name_tag = "00181030 ProtocolName_keyword"
 
     _elastichost = "elastic-meta-service.meta.svc:9200"
     es = Elasticsearch(hosts=_elastichost)
@@ -17,7 +18,8 @@ class HelperElasticsearch():
         queryDict = {}
         queryDict["query"] = elastic_query
         queryDict["_source"] = {"includes": [HelperElasticsearch.study_uid_tag, HelperElasticsearch.series_uid_tag,
-                                             HelperElasticsearch.SOPInstanceUID_tag, HelperElasticsearch.modality_tag]}
+                                             HelperElasticsearch.SOPInstanceUID_tag, HelperElasticsearch.modality_tag,
+                                             HelperElasticsearch.protocol_name_tag]}
 
         try:
             res = HelperElasticsearch.es.search(index=[elastic_index], body=queryDict, size=10000, from_=0)

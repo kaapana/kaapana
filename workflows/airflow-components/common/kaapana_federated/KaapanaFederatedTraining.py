@@ -320,7 +320,7 @@ class KaapanaFederatedTrainingBase(ABC):
                     tmp_site_info['next_object_names'].append(obj.object_name.replace(current_federated_round_dir, next_federated_round_dir))
             print('Removing objects from previous federated_round_dir on Minio')
 
-            if previous_federated_round_dir is not None:
+            if previous_federated_round_dir is not None and self.use_minio_mount is None:
                 minio_rmtree(self.minioClient, federated_bucket, os.path.join(previous_federated_round_dir, instance_name))
 
     @abstractmethod
@@ -397,7 +397,7 @@ class KaapanaFederatedTrainingBase(ABC):
                 json.dump(recovery_conf, jsonData, indent=2, sort_keys=True, ensure_ascii=True)
             if federated_round > 0:
                 previous_fl_working_round_dir = os.path.join(self.fl_working_dir, str(federated_round-1))
-                print('Removing previous round files')
+                print(f'Removing previous round files {previous_fl_working_round_dir}')
                 if os.path.isdir(previous_fl_working_round_dir):
                     shutil.rmtree(previous_fl_working_round_dir)
         print('Cleaning up minio')

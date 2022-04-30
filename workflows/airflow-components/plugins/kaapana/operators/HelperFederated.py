@@ -6,7 +6,9 @@ import json
 from pathlib import Path
 import requests
 import tarfile
+import urllib3
 from cryptography.fernet import Fernet
+from socket import timeout
 
 
 from minio import Minio
@@ -100,7 +102,7 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
         print(f'Getting {filename} from {remote_network}')
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         with requests.Session() as s:
-            with requests_retry_session(session=s, use_proxies=True).get(minio_presigned_url, verify=ssl_check, stream=True, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']}) as r:
+            with requests_retry_session(session=s, use_proxies=True).get(minio_presigned_url, verify=ssl_check, stream=True, timeout=600, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']}) as r:
                 raise_kaapana_connection_error(r)
                 with open(filename, 'wb') as f:
                     for chunk in r.iter_content(chunk_size=8192): 
@@ -153,6 +155,26 @@ def federated_sharing_decorator(func):
                         break
                     except tarfile.ReadError as e:
                         print("The files was not downloaded properly...")
+                        print(e)
+                        print("Trying again the download!")
+                    except urllib3.exceptions.ReadTimeoutError as e:
+                        print("Timeout, data could not retrieved")
+                        print(e)
+                        print("Trying again the download!")
+                    except requests.exceptions.ConnectionError as e:
+                        print("Connection Error, data could not retrieved")
+                        print(e)
+                        print("Trying again the download!")
+                    except urllib3.exceptions.ProtocolError as e:
+                        print("ProtocolError, data could not retrieved")
+                        print(e)
+                        print("Trying again the download!")        
+                    except urllib3.exceptions.MaxRetryError as e:
+                        print("MaxRetryError, data could not retrieved")
+                        print(e)
+                        print("Trying again the download!")                                         
+                    except timeout:
+                        print("Timeout, data could not retrieved")
                         print("Trying again the download!")
 
                 if try_count >= max_retries:

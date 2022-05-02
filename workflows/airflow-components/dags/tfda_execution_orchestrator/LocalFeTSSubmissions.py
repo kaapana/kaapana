@@ -2,6 +2,7 @@ import json
 import os
 import synapseclient as sc
 import getpass
+import requests
 
 from subprocess import PIPE, run
 
@@ -12,6 +13,8 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
     def start(self, ds, ti, **kwargs):
         synapse_user = ""
         API_KEY = ""
+        synapse_pw = ""
+        container_reg = "docker.synapse.org"
         base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
         subm_logs_path = os.path.join(base_dir, "subm_logs")
         tasks = [("fets_2022_test_queue", 9615030)]
@@ -33,6 +36,10 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
         print("Logging into Synapse...")
         syn = sc.login(email=synapse_user, apiKey=API_KEY)
 
+        print("Logging into container registry!!!") 
+        command = ["skopeo", "login", "--username", f"{synapse_user}", "--password", f"{synapse_pw}", f"{container_reg}"]
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
+
         print("\nChecking for new submissions...")
         for task_name, task_id in tasks:
             print(f"Checking {task_name}...")
@@ -41,6 +48,13 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
 
                     ## TODO iso env workflow with MedPerf eval client
                     # process_submission(subm, task_name, task_dir)
+                    
+                    print("Pulling container...")
+                    command2 = ["skopeo", "copy", f"docker://{subm['dockerRepositoryName']}:latest", f"docker-archive:/root/airflow/dags/tfda_execution_orchestrator/tarball/{subm['id']}.tar", "--additional-tag", f"{subm['id']}:latest"]
+                    output2 = run(command2, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
+                    print("Triggering isolated execution orchestrator...")
+                    resp = requests.post('http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/tfda-execution-orchestrator', verify = False)
+                    print(f"Response code: {resp}\nResponse details: {resp.text}")
 
                     subm_dict[subm["id"]] = "open"
                     subm_dict[f'{subm["id"]}_registry'] = subm["dockerRepositoryName"]

@@ -361,8 +361,7 @@ function install_chart {
 
     if [ "$GPU_SUPPORT" = "true" ];then
         echo -e "-> enabling GPU in Microk8s ..."
-        exist_deployments=$(helm ls |cut -f1 |tail -n +2)
-        if [[ $exist_deployments == *"gpu-operator"* ]];then
+        if [[ $deployments == *"gpu-operator"* ]];then
             echo -e "-> gpu-operator chart already exists"
         else
             microk8s.enable gpu

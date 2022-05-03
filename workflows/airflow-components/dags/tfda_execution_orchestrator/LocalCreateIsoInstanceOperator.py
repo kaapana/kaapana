@@ -62,7 +62,6 @@ class LocalCreateIsoInstanceOperator(KaapanaPythonBaseOperator):
         else:
             print(f"Failed to create isolated environment! ERROR LOGS:\n{output.stderr}")
         
-        # print(f'IP address is {instance_ip_address} and logs are {logs}')
 
     def __init__(self,
                  dag,

@@ -10,16 +10,7 @@ from tfda_execution_orchestrator.LocalFeTSTest import LocalFeTSTest
 
 log = LoggingMixin().log
 
-from airflow.models import Variable
-
-# Operator
-from airflow.operators.bash_operator import BashOperator
-
-
 from datetime import datetime, timedelta
-
-# script_dir = Variable.get('fets_scripts_path')  # where my Python scripts live
-
 
 args = {
     "depends_on_past": False,
@@ -42,5 +33,4 @@ dag = DAG(
 evaluate_submissions = LocalFeTSSubmissions(dag=dag)
 test = LocalFeTSTest(dag=dag)
 
-# set task relationship
 evaluate_submissions >> test

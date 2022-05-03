@@ -1,7 +1,6 @@
 import os
 import secrets
 import subprocess
-import json
 import yaml
 
 from fastapi import APIRouter, Response, Request
@@ -149,12 +148,12 @@ async def pending_applications():
 
     except subprocess.CalledProcessError as e:
         return Response(f"{e.output}", 500)
-    return json.dumps(extensions_list)
+    return extensions_list
 
 
 @router.get("/extensions")
 async def extensions():
-    return json.dumps(utils.extensions_list_cached)
+    return utils.extensions_list_cached
 
 
 @router.get("/list-helm-charts")
@@ -185,6 +184,6 @@ async def view_helm_env():
 async def view_chart_status(release_name: str):
     status = utils.helm_status(release_name, settings.namespace)
     if status:
-        return json.dumps(status)
+        return status
     else:
         return Response(f"Release not found", 404)

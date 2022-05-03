@@ -5,7 +5,7 @@ import getpass
 import requests
 
 from subprocess import PIPE, run
-
+from airflow.api.common.experimental.trigger_dag import trigger_dag as trigger
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
@@ -46,15 +46,21 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
             for subm in syn.getSubmissions(task_id):
                 if subm["id"] not in subm_dict:
 
-                    ## TODO iso env workflow with MedPerf eval client
-                    # process_submission(subm, task_name, task_dir)
                     
                     print("Pulling container...")
                     command2 = ["skopeo", "copy", f"docker://{subm['dockerRepositoryName']}:latest", f"docker-archive:/root/airflow/dags/tfda_execution_orchestrator/tarball/{subm['id']}.tar", "--additional-tag", f"{subm['id']}:latest"]
                     output2 = run(command2, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
+                    
                     print("Triggering isolated execution orchestrator...")
-                    resp = requests.post('http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/tfda-execution-orchestrator', verify = False)
-                    print(f"Response code: {resp}\nResponse details: {resp.text}")
+                    ## TODO iso env workflow with MedPerf eval client
+                    self.conf = kwargs['dag_run'].conf
+                    self.conf["subm_id"] = subm["id"]
+                    self.trigger_dag_id = "tfda-execution-orchestrator"
+                    # self.dag_run_id = kwargs['dag_run'].run_id
+                    dag_run_id = generate_run_id(self.trigger_dag_id)
+                    trigger(dag_id=self.trigger_dag_id, run_id=dag_run_id, conf=self.conf,
+                                    replace_microseconds=False)
+                    ## TODO add delay between sub-dag triggers
 
                     subm_dict[subm["id"]] = "open"
                     subm_dict[f'{subm["id"]}_registry'] = subm["dockerRepositoryName"]

@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 
 args = {
     "depends_on_past": False,
-    "start_date": datetime(2022, 4, 26, 00, 00),
+    "start_date": datetime(2022, 5, 7, 00, 00),
     "retries": 1,
     "retry_delay": timedelta(minutes=10),
     "catchup": False,
@@ -35,7 +35,7 @@ args = {
 dag = DAG(
     dag_id="dag-tfda-fets-task",
     default_args=args,
-    schedule_interval="0 0 1 * *",
+    # schedule_interval="0 0 1 * *",
 )
 
 

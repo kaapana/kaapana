@@ -17,7 +17,6 @@
   vars:
     #TODO: change hardcoded
     ansible_ssh_private_key_file: ~/.ssh/tfda_iso.pem
-  # remote_user: "ubuntu"
   # TODO: data could be in any instance and  multiple instance... todo
   tasks:
     #- name: Download a Image Test
@@ -34,9 +33,9 @@
     #     directory_mode: yes
     #     mode: 0775
 
-    - name: Set platform installation script path
+    - name: Set algorithm container path
       set_fact: 
-        container_path: "{{ lookup('env','HOME') }}/{{ algo_path }}"
+        container_path: "{{ lookup('env','HOME') }}/{{ tarball_path }}"
     
     - name: Copy chart
       # become: yes

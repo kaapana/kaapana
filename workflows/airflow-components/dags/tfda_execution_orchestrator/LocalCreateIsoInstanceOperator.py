@@ -13,12 +13,11 @@ class LocalCreateIsoInstanceOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, ti, **kwargs):
         print("Starting an isolated environment...")
-        print(kwargs)
 
-        dir = os.path.dirname(os.path.abspath(__file__))
-        scripts_dir = os.path.join(dir, "scripts")
-        playbooks_dir = os.path.join(dir, "ansible_playbooks")
-        print(f'Playbooks directory is {playbooks_dir}, and scripts are in {scripts_dir}, and directory is {dir}')
+        operator_dir = os.path.dirname(os.path.abspath(__file__))
+        scripts_dir = os.path.join(operator_dir, "scripts")
+        playbooks_dir = os.path.join(operator_dir, "ansible_playbooks")
+        print(f'Playbooks directory is {playbooks_dir}, and scripts are in {scripts_dir}, and directory is {operator_dir}')
         # run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
         # batch_input_dir = os.path.join(run_dir, self.operator_in_dir)
         # print('input_dir', batch_input_dir)
@@ -38,37 +37,17 @@ class LocalCreateIsoInstanceOperator(KaapanaPythonBaseOperator):
             print("playbook yaml not found.")
             exit(1)
         
-        # extra_vars = {
-        #     "os_project_name": "E230-Kaapana-CI",
-        #     "os_project_id": "2df9e30325c849dbadcc07d7ffd4b0d6",
-        #     "os_instance_name": "tfda-airfl-iso-env-test",
-        #     "os_username": os_username,
-        #     "os_password": os_password,
-        #     "os_image": "ubuntu",
-        #     "os_ssh_key": "kaapana",
-        #     "os_volume_size": "100",
-        #     "os_instance_flavor": "dkfz-8.16",
-        # }
-
-        # instance_ip_address, logs = ci_execute.execute(
-        #     playbook_path,
-        #     testsuite="Setup Test Server",
-        #     testname="Start OpenStack instance: {}".format("ubuntu"),
-        #     hosts=["localhost"],
-        #     extra_vars=extra_vars,
-        # )
-        
-        os_project_name = "E230-Kaapana-CI"
-        os_project_id = "2df9e30325c849dbadcc07d7ffd4b0d6"
+        os_project_name = "E230-TFDA"
+        os_project_id = "f4a5b8b7adf3422d85b28b06f116941c"
         os_instance_name = "tfda-airfl-iso-env-test"
         os_username = ""
         os_password = ""
         os_image = "bd2a2141-9e1d-484c-85ce-3d40222c1682"
         # os_ssh_key = "kaapana"
         # os_volume_size = "100"
-        # os_instance_flavor = "dkfz-8.16"
+        os_instance_flavor = "dkfz.gpu-V100S-16CD"
 
-        extra_vars = f"os_project_name={os_project_name} os_project_id={os_project_id} os_username={os_username} os_password={os_password} os_instance_name=tfda_iso_inst, os_instance_name={os_instance_name} os_image={os_image}"
+        extra_vars = f"os_project_name={os_project_name} os_project_id={os_project_id} os_username={os_username} os_password={os_password} os_instance_name=tfda_iso_inst, os_instance_name={os_instance_name} os_image={os_image} os_instance_flavor={os_instance_flavor}"        
         command = ["ansible-playbook", playbook_path, "--extra-vars", extra_vars]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
         print(f'STD OUTPUT LOG is {output.stdout}')

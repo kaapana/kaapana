@@ -35,7 +35,7 @@
 
     - name: Set algorithm container path
       set_fact: 
-        container_path: "{{ lookup('env','HOME') }}/{{ tarball_path }}"
+        container_path: "{{ tarball_path }}"
     
     - name: Copy chart
       # become: yes

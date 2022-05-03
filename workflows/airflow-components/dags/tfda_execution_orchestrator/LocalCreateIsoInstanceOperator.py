@@ -42,7 +42,7 @@ class LocalCreateIsoInstanceOperator(KaapanaPythonBaseOperator):
         os_instance_name = "tfda-airfl-iso-env-test"
         os_username = ""
         os_password = ""
-        os_image = "bd2a2141-9e1d-484c-85ce-3d40222c1682"
+        os_image = "ubuntu"
         # os_ssh_key = "kaapana"
         # os_volume_size = "100"
         os_instance_flavor = "dkfz.gpu-V100S-16CD"

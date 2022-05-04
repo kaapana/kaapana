@@ -22,6 +22,6 @@ class nnUNetFederatedOperator(KaapanaBaseOperator):
             arguments=["-u", "/common/scripts/nnunet_federated/run_nnunet_federated.py"],
             execution_timeout=execution_timeout,
             ram_mem_mb=1000,
-            ram_mem_mb_lmt=3000,
+            ram_mem_mb_lmt=20000,
             *args, **kwargs
         )

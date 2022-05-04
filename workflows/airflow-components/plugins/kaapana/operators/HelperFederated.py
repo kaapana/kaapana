@@ -14,7 +14,8 @@ from socket import timeout
 from minio import Minio
 
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
-from kaapana.blueprints.kaapana_utils import get_operator_properties, requests_retry_session
+from kaapana.blueprints.kaapana_utils import get_operator_properties, requests_retry_session, trying_request_action
+
 
 ##### To be copied
 def fernet_encryptfile(filepath, key):
@@ -64,7 +65,7 @@ def raise_kaapana_connection_error(r):
 def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_dir, client_job_id, whitelist_federated_learning=None):
     data = federated['minio_urls'][operator_out_dir][action]
     with requests.Session() as s:
-        r = requests_retry_session(session=s).get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id': client_job_id})
+        r = requests_retry_session(session=s).get('http://federated-backend-service.base.svc:5000/client/job', timeout=60, params={'job_id': client_job_id})
     raise_kaapana_connection_error(r)
     client_job = r.json()
     print('Client job')
@@ -73,7 +74,7 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
     print('Client network')
     print(json.dumps(client_network, indent=2))
     with requests.Session() as s:
-        r = requests_retry_session(session=s).get('http://federated-backend-service.base.svc:5000/client/remote-kaapana-instance', params={'instance_name': client_job['addressed_kaapana_instance_name']})
+        r = requests_retry_session(session=s).get('http://federated-backend-service.base.svc:5000/client/remote-kaapana-instance', timeout=60, params={'instance_name': client_job['addressed_kaapana_instance_name']})
     raise_kaapana_connection_error(r)
     remote_network = r.json()
     print('Remote network')
@@ -95,7 +96,7 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
             # with requests.post(minio_presigned_url, verify=ssl_check, files={'file': tar}, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']}) as r:
             #     raise_kaapana_connection_error(r)
             with requests.Session() as s:
-                r = requests_retry_session(session=s, use_proxies=True).post(minio_presigned_url, verify=ssl_check, files={'file': tar}, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']})
+                r = requests_retry_session(session=s, use_proxies=True).post(minio_presigned_url, verify=ssl_check, timeout=600, files={'file': tar}, headers={'FederatedAuthorization': remote_network['token'], 'presigned-url': data['path']})
                 raise_kaapana_connection_error(r)
         print(f'Finished uploading {filename}!')
     if action == 'get':
@@ -114,12 +115,13 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
         print(f'Finished {filename}!')
     os.remove(filename)
     
-                
+
+
 def federated_action(operator_out_dir, action, dag_run_dir, federated, client_job_id, whitelist_federated_learning=None):
 
     if federated['minio_urls'] is not None and operator_out_dir in federated['minio_urls']:
-        apply_minio_presigned_url_action(action, federated, operator_out_dir, dag_run_dir, client_job_id, whitelist_federated_learning)
-
+        print(f'Applying federated action {action} data from Minio')
+        trying_request_action(apply_minio_presigned_url_action, action, federated, operator_out_dir, dag_run_dir, client_job_id, whitelist_federated_learning)
 #######################
 
 
@@ -146,44 +148,7 @@ def federated_sharing_decorator(func):
                 'you will need to set the flag allow_federated_learning=True in order to permit the operator to be used in federated learning scenarios')
             if 'from_previous_dag_run' in federated and federated['from_previous_dag_run'] is not None:
                 print('Downloading data from Minio')
-                try_count = 0
-                while try_count < max_retries:
-                    print("Try: {}".format(try_count))
-                    try_count += 1
-                    try:
-                        federated_action(self.operator_out_dir, 'get', dag_run_dir, federated, conf['client_job_id'])
-                        break
-                    except tarfile.ReadError as e:
-                        print("The files was not downloaded properly...")
-                        print(e)
-                        print("Trying again the download!")
-                    except urllib3.exceptions.ReadTimeoutError as e:
-                        print("Timeout, data could not retrieved")
-                        print(e)
-                        print("Trying again the download!")
-                    except requests.exceptions.ConnectionError as e:
-                        print("Connection Error, data could not retrieved")
-                        print(e)
-                        print("Trying again the download!")
-                    except urllib3.exceptions.ProtocolError as e:
-                        print("ProtocolError, data could not retrieved")
-                        print(e)
-                        print("Trying again the download!")        
-                    except urllib3.exceptions.MaxRetryError as e:
-                        print("MaxRetryError, data could not retrieved")
-                        print(e)
-                        print("Trying again the download!")                                         
-                    except timeout:
-                        print("Timeout, data could not retrieved")
-                        print("Trying again the download!")
-
-                if try_count >= max_retries:
-                    print("------------------------------------")
-                    print("Max retries reached!")
-                    print("------------------------------------")
-                    raise ValueError("We were not able to download the file probarly!")
-
-
+                federated_action(self.operator_out_dir, 'get', dag_run_dir, federated, conf['client_job_id'])
 
         x = func(self, *args, **kwargs)
     

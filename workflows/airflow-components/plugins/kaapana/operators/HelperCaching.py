@@ -13,16 +13,16 @@ from minio import Minio
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperMinio import HelperMinio
 from kaapana.operators.HelperFederated import raise_kaapana_connection_error
-from kaapana.blueprints.kaapana_utils import get_operator_properties, requests_retry_session, clean_previous_dag_run
+from kaapana.blueprints.kaapana_utils import get_operator_properties, requests_retry_session, clean_previous_dag_run, trying_request_action
 
 def update_job(client_job_id, status, run_id=None, description=None):
     with requests.Session() as s:
-        r = requests_retry_session(session=s).get('http://federated-backend-service.base.svc:5000/client/job', params={'job_id': client_job_id})
+        r = requests_retry_session(session=s).get('http://federated-backend-service.base.svc:5000/client/job', timeout=60, params={'job_id': client_job_id})
     raise_kaapana_connection_error(r)
     client_job = r.json()
 
     with requests.Session() as s:
-        r = requests_retry_session(session=s).put('http://federated-backend-service.base.svc:5000/client/job', verify=False, json={
+        r = requests_retry_session(session=s).put('http://federated-backend-service.base.svc:5000/client/job', timeout=60, verify=False, json={
             'job_id': client_job_id, 
             'status': status,
             'run_id': run_id,
@@ -91,7 +91,7 @@ def cache_operator_output(func):
         downstream_tasks_ids = [task.task_id for task in downstream_tasks]
         conf = dag_run.conf
         if conf is not None and 'client_job_id' in conf:
-            update_job(conf['client_job_id'], status='running', run_id=run_id, description=f'Running the operator {self.name}')
+            trying_request_action(update_job, conf['client_job_id'], status='running', run_id=run_id, description=f'Running the operator {self.name}')
         
         if conf is not None and 'federated_form' in conf and conf['federated_form'] is not None:
             federated = conf['federated_form']
@@ -138,7 +138,7 @@ def cache_operator_output(func):
             x = func(self, *args, **kwargs)
         except Exception as e:
             if conf is not None and 'client_job_id' in conf:
-                update_job(conf['client_job_id'], status='failed', run_id=run_id, description=f'Operator {self.name} had an exception {e}')
+                trying_request_action(update_job, conf['client_job_id'], status='failed', run_id=run_id, description=f'Operator {self.name} had an exception {e}')
             raise e
 
         if self.manage_cache  == 'cache' or self.manage_cache == 'overwrite':
@@ -152,7 +152,7 @@ def cache_operator_output(func):
             clean_previous_dag_run(conf, 'before_previous_dag_run')
             print('Update remote job')
             if conf is not None and 'client_job_id' in conf:
-                update_job(conf['client_job_id'], status='finished', run_id=dag_run.run_id, description=f'Finished successfully')
+                trying_request_action(update_job, conf['client_job_id'], status='finished', run_id=dag_run.run_id, description=f'Finished successfully')
 
             print('Skipping the following tasks', downstream_tasks)
             self.skip(dag_run, dag_run.execution_date, downstream_tasks)

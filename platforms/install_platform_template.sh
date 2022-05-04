@@ -13,6 +13,15 @@ CONTAINER_REGISTRY_URL="{{ container_registry_url|default('', true) }}" # empty 
 CONTAINER_REGISTRY_USERNAME="{{ container_registry_username|default('', true) }}"
 CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}"
 
+CREDENTIALS_MINIO_USERNAME="{{ credentials_minio_username|default('kaapanaminio', true) }}"
+CREDENTIALS_MINIO_PASSWORD="{{ credentials_minio_password|default('Kaapana2020', true) }}"
+
+GRAFANA_USERNAME="{{ grafana_username|default('admin', true) }}"
+GRAFANA_PASSWORD="{{ grafana_password|default('admin', true) }}"
+
+KEYCLOAK_ADMIN_USERNAME="{{ keycloak_admin_username|default('admin', true) }}"
+KEYCLOAK_ADMIN_PASSWORD="{{ keycloak_admin_passowrd|default('Kaapana2020', true) }}"
+
 {% for item in additional_env %}
 {{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}
 {%- endfor %}
@@ -437,6 +446,12 @@ function install_chart {
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
     --set-string global.credentials.registry_username="$CONTAINER_REGISTRY_USERNAME" \
     --set-string global.credentials.registry_password="$CONTAINER_REGISTRY_PASSWORD" \
+    --set-string global.credentials.credentials_minio_username="$CREDENTIALS_MINIO_USERNAME" \
+    --set-string global.credentials.credentials_minio_password="$CREDENTIALS_MINIO_PASSWORD" \
+    --set-string global.credentials.grafana_username="$GRAFANA_USERNAME" \
+    --set-string global.credentials.grafana_password="$GRAFANA_PASSWORD" \
+    --set-string global.credentials.keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
+    --set-string global.credentials.keycloak_admin_passowrd="$KEYCLOAK_ADMIN_PASSWORD" \
     --set-string global.http_proxy=$http_proxy \
     --set-string global.https_proxy=$https_proxy \
     --set-string global.registry_url=$CONTAINER_REGISTRY_URL \

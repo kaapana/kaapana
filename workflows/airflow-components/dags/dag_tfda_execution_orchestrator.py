@@ -2,27 +2,13 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
-from tfda_execution_orchestrator.LocalCreateIsoInstanceOperator import (
-    LocalCreateIsoInstanceOperator,
-)
-from tfda_execution_orchestrator.LocalChangeIsoInstHostnameOperator import (
-    LocalChangeIsoInstHostnameOperator,
-)
-from tfda_execution_orchestrator.LocalInstallPlatformDepsOnIsoEnvOperator import (
-    LocalInstallPlatformDepsOnIsoEnvOperator,
-)
-from tfda_execution_orchestrator.LocalDeployPlatformOnIsoEnvOperator import (
-    LocalDeployPlatformOnIsoEnvOperator,
-)
-from tfda_execution_orchestrator.LocalCopyDataAndAlgoOperator import (
-    LocalCopyDataAndAlgoOperator,
-)
-from tfda_execution_orchestrator.LocalRunAlgoSendResultOperator import (
-    LocalRunAlgoSendResultOperator,
-)
-from tfda_execution_orchestrator.LocalDeleteIsoEnvOperator import (
-    LocalDeleteIsoEnvOperator,
-)
+from tfda_execution_orchestrator.LocalCreateIsoInstanceOperator import LocalCreateIsoInstanceOperator
+from tfda_execution_orchestrator.LocalChangeIsoInstHostnameOperator import LocalChangeIsoInstHostnameOperator
+from tfda_execution_orchestrator.LocalInstallPlatformDepsOnIsoEnvOperator import LocalInstallPlatformDepsOnIsoEnvOperator
+from tfda_execution_orchestrator.LocalDeployPlatformOnIsoEnvOperator import LocalDeployPlatformOnIsoEnvOperator
+from tfda_execution_orchestrator.LocalCopyDataAndAlgoOperator import LocalCopyDataAndAlgoOperator
+from tfda_execution_orchestrator.LocalRunAlgoSendResultOperator import LocalRunAlgoSendResultOperator
+from tfda_execution_orchestrator.LocalDeleteIsoEnvOperator import LocalDeleteIsoEnvOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 

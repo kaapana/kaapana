@@ -13,6 +13,15 @@ CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip
 CONTAINER_REGISTRY_USERNAME=""
 CONTAINER_REGISTRY_PASSWORD=""
 
+CREDENTIALS_MINIO_USERNAME="kaapanaminio"
+CREDENTIALS_MINIO_PASSWORD="Kaapana2020"
+
+GRAFANA_USERNAME="admin"
+GRAFANA_PASSWORD="admin"
+
+KEYCLOAK_ADMIN_USERNAME="admin"
+KEYCLOAK_ADMIN_PASSWORD="Kaapana2020"
+
 
 INSTANCE_NAME="central"
 
@@ -436,6 +445,12 @@ function install_chart {
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
     --set-string global.credentials.registry_username="$CONTAINER_REGISTRY_USERNAME" \
     --set-string global.credentials.registry_password="$CONTAINER_REGISTRY_PASSWORD" \
+    --set-string global.credentials.credentials_minio_username="$CREDENTIALS_MINIO_USERNAME" \
+    --set-string global.credentials.credentials_minio_password="$CREDENTIALS_MINIO_PASSWORD" \
+    --set-string global.credentials.grafana_username="$GRAFANA_USERNAME" \
+    --set-string global.credentials.grafana_password="$GRAFANA_PASSWORD" \
+    --set-string global.credentials.keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
+    --set-string global.credentials.keycloak_admin_passowrd="$KEYCLOAK_ADMIN_PASSWORD" \
     --set-string global.http_proxy=$http_proxy \
     --set-string global.https_proxy=$https_proxy \
     --set-string global.registry_url=$CONTAINER_REGISTRY_URL \

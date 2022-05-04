@@ -41,7 +41,7 @@ spec:
         volumeMounts:
           {{- if not .Values.volumeMounts }}
           - name: codeserverdata
-            mountPath: /root
+            mountPath: /kaapanasrc
           {{- else }}
           - name: dshm
             mountPath: /dev/shm

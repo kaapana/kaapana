@@ -20,13 +20,13 @@ import ci_playbooks
 
 
 # defaults
-""" os_image = "ubuntu"
+os_image = "ubuntu"
 volume_size = "100"
 instance_flavor = "dkfz-8.16"
 ssh_key = "kaapana"
 os_project_name = "E230-Production"
 os_project_id = "8c5c6d678a4e4a01b9d8794262e6b85d"
-instance_name = "tfda-iso-env-test" """
+instance_name = "tfda-iso-env-test"
 
 # E230
 """os_image = "ubuntu"

@@ -42,7 +42,6 @@ elif airflow_mode == "webserver":
     else:
         logging.error("KaapanaPoolManager nothing to do ...")
 
-
 elif airflow_mode == "scheduler":
     if UtilService.last_update == None: 
         UtilService.init_util_service()

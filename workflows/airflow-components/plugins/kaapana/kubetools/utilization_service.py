@@ -7,8 +7,6 @@ from airflow.models import Variable
 import os
 import logging
 from kaapana.kubetools.prometheus_query import get_node_gpu_infos
-from airflow.settings import Session
-
 
 class UtilService():
     query_delay = None
@@ -55,13 +53,13 @@ class UtilService():
         UtilService.ureg.load_definitions(units_file_path)
         UtilService.Q_ = UtilService.ureg.Quantity
 
-        UtilService.session = Session()
-
         UtilService.get_utilization()
 
     @staticmethod
     def get_utilization(logger=logging):
         logger.error("UtilService -> get_utilization")
+        from airflow.settings import Session
+        UtilService.session = Session()
 
         data = {}
         UtilService.last_update = datetime.now()
@@ -192,6 +190,8 @@ class UtilService():
     @staticmethod
     def check_operator_scheduling(task_instance, logger=logging):
         logger.info(f"UtilService: check_operator_scheduling {task_instance.task_id=}")
+        from airflow.settings import Session
+        UtilService.session = Session()
         # try:
         #     enable_job_scheduler = True if Variable.get("enable_job_scheduler", default_var="True").lower() == "true" else False
         #     job_scheduler_delay = int(Variable.get("job_scheduler_delay", default_var=5))
@@ -202,6 +202,7 @@ class UtilService():
         if not enable_job_scheduler:
             return True
 
+        logging.info(f"{UtilService.last_update=}")
         if UtilService.last_update == None:
             UtilService.init_util_service()
 

@@ -7,11 +7,13 @@ from time import time, sleep
 from shutil import which
 
 suite_tag = "Container"
+skip_push_no_changes = False
+
 def container_registry_login(container_registry, username, password):
     print(f"-> Container registry-logout: {container_registry}")
     command = [Container.container_engine, "logout", container_registry]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
-    
+
     if output.returncode != 0:
         print("Something went wrong!")
         print(f"Couldn't logout from registry {container_registry}")
@@ -109,6 +111,7 @@ class Container:
         self.container_dir = os.path.dirname(dockerfile)
         self.log_list = []
         self.base_images = []
+        self.build_changes = True
 
         if not os.path.isfile(dockerfile):
             print("ERROR: Dockerfile not found.")
@@ -338,11 +341,31 @@ class Container:
             "rel_file": self.path,
             "container": self,
         }
+
+        if "---> Running in" not in output.stdout:
+            self.build_changes = False
+
         yield log_entry
 
     def push(self, retry=True):
         print()
         print("############################ Push Container: {}".format(self.tag))
+        if not self.build_changes and skip_push_no_changes:
+            print("############################ Push skipped -> no build changes!")
+            log_entry = {
+                "suite": suite_tag,
+                "test": self.tag.replace(self.container_registry, "")[1:],
+                "step": "Container push",
+                "log": "",
+                "loglevel": "DEBUG",
+                "timestamp": get_timestamp(),
+                "message": "Push skipped -> no build changes",
+                "rel_file": self.path,
+                "container": self,
+                "test_done": True,
+            }
+            yield log_entry
+            return
 
         if self.container_registry == "local" or self.container_registry == "local-only":
             print("############################ Push skipped -> local registry found!")
@@ -589,7 +612,7 @@ def start_container_build(config):
         print(f"{Container.container_engine} was not found!")
         print("Please install {Container.container_engine} on your system.")
         exit(1)
-    
+
     print("")
     print(f"Container engine: {Container.container_engine}")
     print("")

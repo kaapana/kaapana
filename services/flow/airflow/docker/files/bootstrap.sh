@@ -17,8 +17,6 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
-# launch the appropriate process
-
 if [ "$1" = "init" ]
 then
 	echo ""

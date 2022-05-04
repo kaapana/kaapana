@@ -5,8 +5,6 @@ from kaapana.kubetools.prometheus_query import get_node_memory, get_node_cpu, ge
 from threading import Thread
 import os
 import logging
-from airflow.settings import Session
-
 
 class KaapanaPoolManager(Thread):
     pools_dict = None
@@ -24,7 +22,6 @@ class KaapanaPoolManager(Thread):
     def __init__(self, event):
         Thread.__init__(self)
         self.stopped = event
-        KaapanaPoolManager.session = Session()
         KaapanaPoolManager.gpu_support = os.getenv("GPU_SUPPORT", "false").lower() == "true"
         if KaapanaPoolManager.gpu_support:
             KaapanaPoolManager.query_delay = KaapanaPoolManager.short_delay
@@ -38,6 +35,8 @@ class KaapanaPoolManager(Thread):
     @staticmethod
     def check_pools(logger=logging, force=False):
         logger.error(f"KaapanaPoolManager -> check_pools!")
+        from airflow.settings import Session
+        KaapanaPoolManager.session = Session()
 
         KaapanaPoolManager.pools_dict = pool_api.slots_stats()
         pool_id = "NODE_RAM"

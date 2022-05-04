@@ -669,41 +669,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             obj.operator_in_dir = operator_in_dir
 
         if obj.pool == None:
-            if obj.gpu_mem_mb != None:
-                gpu_pool_list = []
-                for k, v in KaapanaPoolManager.pools_dict.items(): 
-                    if "NODE_GPU_" in k and k.count("_") == 3 and v["total"] > obj.gpu_mem_mb:
-                        v["name"] = k
-                        v["id"] = k.split("_")[2]
-                        gpu_pool_list.append(v)
-                gpu_pool_list = sorted(gpu_pool_list, key=lambda d: d['total'], reverse=False)
-
-                gpu_pool_found = None
-                for pool in gpu_pool_list:
-                    gpu_id = pool["id"] 
-                    free_space = pool["open"]
-                    if free_space > obj.gpu_mem_mb:
-                        gpu_pool_found = gpu_id
-
-                if gpu_pool_found == None:
-                    for pool in gpu_pool_list:
-                        gpu_id = pool["id"] 
-                        capacity = pool["total"]
-                        if capacity > obj.gpu_mem_mb:
-                            gpu_pool_found = gpu_id
-                
-                if gpu_pool_found == None:
-                    logging.warn("No GPU identified for the job!")
-                    logging.warn(f"{obj.gpu_mem_mb=}")
-                    logging.warn(f"SETTING POOL NODE_GPU_COUNT == 1")
-                    obj.pool = "NODE_GPU_COUNT"
-                    obj.pool_slots =  1
-                else:
-                    obj.pool = f"NODE_GPU_{gpu_pool_found}_MEM"
-                    obj.pool_slots =  obj.gpu_mem_mb
-            else:
-                obj.pool = "NODE_RAM"
-                obj.pool_slots = obj.ram_mem_mb if obj.ram_mem_mb is not None else 1
+            obj.pool = "NODE_RAM"
+            obj.pool_slots = obj.ram_mem_mb if obj.ram_mem_mb is not None else 1
 
         obj.executor_config = {
             "cpu_millicores": obj.cpu_millicores,

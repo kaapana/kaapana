@@ -8,7 +8,7 @@ import logging
 airflow_mode = getenv("AIRFLOW_MODE", None)
 logging.error(f"{airflow_mode=}")
 if airflow_mode == "init":
-    KaapanaPoolManager.check_pools(force=True)
+    pass
 
 elif airflow_mode == "webserver":
     enable_pool_manager = True if Variable.get("enable_pool_manager").lower() == "true" else False
@@ -44,30 +44,5 @@ elif airflow_mode == "webserver":
 
 
 elif airflow_mode == "scheduler":
-    enable_job_scheduler = True if Variable.get("enable_job_scheduler").lower() == "true" else False
-    job_scheduler_delay = int(Variable.get("job_scheduler_delay"))
-
-    if UtilService.self_object == None:
-    # if (UtilService.self_object == None or not UtilService.self_object.is_alive()) and enable_job_scheduler:
-        logging.error("KaapanaUtilServive activated -> starting service ...")
-        UtilService.stopFlag = Event()
-        UtilService.query_delay = job_scheduler_delay
-        UtilService.self_object = UtilService(event=UtilService.stopFlag)
-        # UtilService.self_object.start()
-
-    # elif UtilService.self_object != None and UtilService.self_object.is_alive() and not enable_job_scheduler:
-    #     logging.error("KaapanaUtilServive deactivated -> shutting down ...")
-    #     UtilService.stopFlag.set()
-    #     UtilService.stopFlag = Event()
-
-    # elif UtilService.self_object != None and UtilService.self_object.is_alive() and UtilService.query_delay != job_scheduler_delay:
-    #     logging.error("airflow_mode == scheduler - 4")
-    #     UtilService.stopFlag.set()
-    #     UtilService.query_delay = job_scheduler_delay
-    #     UtilService.stopFlag = Event()
-    #     thread = UtilService(event=UtilService.stopFlag)
-    #     thread.start()
-    # else:
-    #     logging.error("KaapanaUtilServive already running")
-        
-    UtilService.get_utilization()
+    if UtilService.last_update == None: 
+        UtilService.init_util_service()

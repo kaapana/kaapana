@@ -1,47 +1,73 @@
-from airflow.models import Pool as pool_api
-from kaapana.kubetools.prometheus_query import get_node_memory, get_node_mem_percent, get_node_cpu, get_node_cpu_util_percent, get_node_gpu_infos
-import os
+from airflow.models import Variable
+from kaapana.kubetools.utilization_service import UtilService
+from kaapana.kubetools.kaapana_pool_manager import KaapanaPoolManager
+from threading import Event
+from os import getenv
+import logging
 
-pools_dict = pool_api.slots_stats()
-if "NODE_RAM" not in pools_dict:
-    print("Create Memory Pool ...")
-    node_memory = abs(get_node_memory() - 10000)
-    print(f"{node_memory=}")
-    pool_api.create_or_update_pool(
-        name="NODE_RAM",
-        slots=node_memory,
-        description="Memory of the node in MB"
-    )
+airflow_mode = getenv("AIRFLOW_MODE", None)
+logging.error(f"{airflow_mode=}")
+if airflow_mode == "init":
+    KaapanaPoolManager.check_pools(force=True)
 
-if "NODE_CPU_CORES" not in pools_dict:
-    print("Create CPU Pool ...")
-    node_cpu = get_node_cpu()
-    print(f"{node_cpu=}")
-    node_gpu_info = get_node_gpu_infos
-    print(f"{get_node_gpu_infos=}")
-    pool_api.create_or_update_pool(
-        name="NODE_CPU_CORES",
-        slots=node_cpu,
-        description="Count of CPU-cores of the node"
-    )
+elif airflow_mode == "webserver":
+    enable_pool_manager = True if Variable.get("enable_pool_manager").lower() == "true" else False
+    pool_manager_delay = int(Variable.get("pool_manager_delay"))
 
-if "NODE_GPU_COUNT" not in pools_dict or (os.getenv("GPU_SUPPORT", "false").lower() == "true" and pools_dict["NODE_GPU_COUNT"]["total"] == 0):
-    print("Create GPU Pool ...")
-    node_gpu_infos = get_node_gpu_infos()
-    print(f"{node_gpu_infos=}")
-    pool_api.create_or_update_pool(
-        name="NODE_GPU_COUNT",
-        slots=len(node_gpu_infos),
-        description="Count of GPUs of the node"
-    )
+    if KaapanaPoolManager.self_object != None:
+        logging.error(f"Is alive {KaapanaPoolManager.self_object.is_alive()}")
 
-    for gpu_info in node_gpu_infos:
-        node = gpu_info["metric"]["Hostname"]
-        gpu_id = gpu_info["metric"]["gpu"]
-        gpu_name = gpu_info["metric"]["modelName"]
-        capacity = int(gpu_info["value"][1])
-        pool_api.create_or_update_pool(
-            name=f"NODE_GPU_{gpu_id}_MEM",
-            slots=capacity,
-            description=f"{gpu_name} capacity in MB"
-        )
+    if (KaapanaPoolManager.self_object == None or not KaapanaPoolManager.self_object.is_alive()) and enable_pool_manager:
+        logging.error("KaapanaPoolManager activated -> starting service ...")
+        KaapanaPoolManager.stopFlag = Event()
+        KaapanaPoolManager.query_delay = pool_manager_delay
+        KaapanaPoolManager.self_object = KaapanaPoolManager(event=KaapanaPoolManager.stopFlag)
+        KaapanaPoolManager.self_object.start()
+
+    elif KaapanaPoolManager.self_object != None and KaapanaPoolManager.self_object.is_alive() and not enable_pool_manager:
+        logging.error("KaapanaPoolManager deactivated -> shutting down ...")
+        KaapanaPoolManager.stopFlag.set()
+        KaapanaPoolManager.stopFlag = Event()
+
+    elif KaapanaPoolManager.self_object != None and KaapanaPoolManager.self_object.is_alive() and KaapanaPoolManager.query_delay != pool_manager_delay:
+        logging.error("KaapanaPoolManager alive and different delay ...")
+        KaapanaPoolManager.stopFlag.set()
+        KaapanaPoolManager.query_delay = pool_manager_delay
+        KaapanaPoolManager.stopFlag = Event()
+        KaapanaPoolManager.self_object = KaapanaPoolManager(event=KaapanaPoolManager.stopFlag)
+        KaapanaPoolManager.self_object.start()
+
+    elif KaapanaPoolManager.self_object != None and KaapanaPoolManager.self_object.is_alive():
+        logging.error("KaapanaPoolManager is running")
+    else:
+        logging.error("KaapanaPoolManager nothing to do ...")
+
+
+elif airflow_mode == "scheduler":
+    enable_job_scheduler = True if Variable.get("enable_job_scheduler").lower() == "true" else False
+    job_scheduler_delay = int(Variable.get("job_scheduler_delay"))
+
+    if UtilService.self_object == None:
+    # if (UtilService.self_object == None or not UtilService.self_object.is_alive()) and enable_job_scheduler:
+        logging.error("KaapanaUtilServive activated -> starting service ...")
+        UtilService.stopFlag = Event()
+        UtilService.query_delay = job_scheduler_delay
+        UtilService.self_object = UtilService(event=UtilService.stopFlag)
+        # UtilService.self_object.start()
+
+    # elif UtilService.self_object != None and UtilService.self_object.is_alive() and not enable_job_scheduler:
+    #     logging.error("KaapanaUtilServive deactivated -> shutting down ...")
+    #     UtilService.stopFlag.set()
+    #     UtilService.stopFlag = Event()
+
+    # elif UtilService.self_object != None and UtilService.self_object.is_alive() and UtilService.query_delay != job_scheduler_delay:
+    #     logging.error("airflow_mode == scheduler - 4")
+    #     UtilService.stopFlag.set()
+    #     UtilService.query_delay = job_scheduler_delay
+    #     UtilService.stopFlag = Event()
+    #     thread = UtilService(event=UtilService.stopFlag)
+    #     thread.start()
+    # else:
+    #     logging.error("KaapanaUtilServive already running")
+        
+    UtilService.get_utilization()

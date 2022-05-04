@@ -26,10 +26,9 @@ from kaapana.blueprints.kaapana_utils import generate_run_id, cure_invalid_name
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
-from airflow.api.common.experimental import pool as pool_api
 import uuid
 import json
-from kaapana import pools_dict
+from kaapana.kubetools.kaapana_pool_manager import KaapanaPoolManager
 import logging
 
 default_registry = os.getenv("DEFAULT_REGISTRY", "")
@@ -672,7 +671,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         if obj.pool == None:
             if obj.gpu_mem_mb != None:
                 gpu_pool_list = []
-                for k, v in pools_dict.items(): 
+                for k, v in KaapanaPoolManager.pools_dict.items(): 
                     if "NODE_GPU_" in k and k.count("_") == 3 and v["total"] > obj.gpu_mem_mb:
                         v["name"] = k
                         v["id"] = k.split("_")[2]

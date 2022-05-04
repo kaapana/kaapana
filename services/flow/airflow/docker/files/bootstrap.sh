@@ -24,17 +24,34 @@ then
 	echo ""
 	echo "Airflow init DB..."
 	echo ""
+	export AIRFLOW_MODE=init
 	airflow db init || { echo 'ERROR: airflow initdb' ; exit 1; }
 	airflow db upgrade || { echo 'ERROR: airflow db upgrade' ; exit 1; }
+	
+	airflow variables get enable_scheduler
+	if [ $? -ne 0 ]; then
+		echo Setting default variables!
+		airflow variables set enable_job_scheduler True
+		airflow variables set job_scheduler_delay 5
+		airflow variables set enable_pool_manager True
+		airflow variables set pool_manager_delay 10
+
+        airflow variables set cluster_requested_memory_mb 0
+		airflow variables set cluster_available_memory_mb 0
+        airflow variables set cluster_available_cpu 0
+        airflow variables set cluster_gpu_count 0
+	fi
 	echo "DONE"
 fi
 
 if [ "$1" = "webserver" ]
 then
+	export AIRFLOW_MODE=webserver
 	exec airflow webserver
 fi
 
 if [ "$1" = "scheduler" ]
 then
+	export AIRFLOW_MODE=scheduler
 	exec airflow scheduler
 fi

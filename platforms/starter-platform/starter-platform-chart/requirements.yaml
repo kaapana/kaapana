@@ -23,7 +23,7 @@ dependencies:
     repository: file://../../../services/kaapana-core/kubernetes-dashboard/kube-dashboard-chart
   - name: kube-helm-chart
     version: "0.1.3"
-    repository: file://../../../services/kaapana-core/kube-helm/fastapi/kube-helm-chart
+    repository: file://../../../services/kaapana-core/kube-helm/kube-helm-chart
   - name: extensions-init-chart
     version: "0.1.0"
     condition: Release.IsInstall

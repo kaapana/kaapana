@@ -11,7 +11,7 @@ from app import utils
 from .config import settings
 
 
-router = APIRouter(prefix=settings.application_root)
+router = APIRouter()
 templates = Jinja2Templates(
     directory=os.path.abspath(os.path.expanduser('app/templates'))
 )

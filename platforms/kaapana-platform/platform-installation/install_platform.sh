@@ -225,7 +225,7 @@ function get_domain {
 
 function delete_deployment {
     echo -e "${YELLOW}Uninstalling releases${NC}"
-    helm ls --date --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm uninstall ${NO_HOOKS} %; sleep 2"
+    helm ls --date --reverse -A | awk '{ if (/gpu-operator/ ) { } else print }' | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm uninstall ${NO_HOOKS} %; sleep 2"
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
@@ -367,9 +367,14 @@ function install_chart {
     fi
 
     echo -e "${YELLOW}GPU_SUPPORT: $GPU_SUPPORT ${NC}"
+
     if [ "$GPU_SUPPORT" = "true" ];then
         echo -e "-> enabling GPU in Microk8s ..."
-        microk8s.enable gpu
+        if [[ $deployments == *"gpu-operator"* ]];then
+            echo -e "-> gpu-operator chart already exists"
+        else
+            microk8s.enable gpu
+        fi
     fi
     get_domain
     

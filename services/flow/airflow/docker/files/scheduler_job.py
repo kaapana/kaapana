@@ -482,10 +482,8 @@ class SchedulerJob(BaseJob):
                             session.merge(task_instance)
                             
                         starved_tasks.add((task_instance.dag_id, task_instance.task_id))
-                        self.log.error(f"Not executing {task_instance} since the UtilService check was negative!")
+                        self.log.warning(f"Not executing {task_instance} since the UtilService check was negative!")
                         continue
-                    else:
-                        self.log.error(f"UtilService check was positive: {task_instance}!")
 
                     executable_tis.append(task_instance)
                     open_slots -= task_instance.pool_slots

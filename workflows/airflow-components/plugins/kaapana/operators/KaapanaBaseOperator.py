@@ -666,8 +666,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         elif operator_in_dir is not None:
             obj.operator_in_dir = operator_in_dir
 
+        enable_job_scheduler = True if Variable.get("enable_job_scheduler", default_var="True").lower() == "true" else False
         if obj.pool == None:
-            enable_job_scheduler = True if Variable.get("enable_job_scheduler", default_var="True").lower() == "true" else False
             if not enable_job_scheduler and obj.gpu_mem_mb != None and obj.gpu_mem_mb != 0:
                 obj.pool = "NODE_GPU_COUNT"
                 obj.pool_slots = 1
@@ -678,7 +678,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         obj.executor_config = {
             "cpu_millicores": obj.cpu_millicores,
             "ram_mem_mb": obj.ram_mem_mb,
-            "gpu_mem_mb": obj.gpu_mem_mb
+            "gpu_mem_mb": obj.gpu_mem_mb,
+            "enable_job_scheduler": enable_job_scheduler
         }
 
         return obj

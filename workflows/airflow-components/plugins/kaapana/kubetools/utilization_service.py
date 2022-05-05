@@ -174,12 +174,12 @@ class UtilService():
                                 logger=logger
                             )
             else:
-                UtilService.node_gpu_list = []
                 UtilService.pool_gpu_count = UtilService.gpu_dev_count
 
             pool_id = "NODE_RAM"
             processing_memory_node = abs(UtilService.mem_alloc - UtilService.mem_req)
-            if UtilService.pool_mem == None or UtilService.pool_mem != processing_memory_node:
+            if UtilService.pool_mem == None:
+            # if UtilService.pool_mem == None or UtilService.pool_mem != processing_memory_node:
                 UtilService.create_pool(
                     pool_name=pool_id,
                     pool_slots=processing_memory_node,
@@ -231,11 +231,12 @@ class UtilService():
     @staticmethod
     def check_operator_scheduling(task_instance, logger=logging):
         logger.info(f"UtilService: check_operator_scheduling {task_instance.task_id=}")
-        enable_job_scheduler = True
         job_scheduler_delay = 5
 
-        if not enable_job_scheduler:
+        if "enable_job_scheduler" in task_instance.executor_config and not task_instance.executor_config["enable_job_scheduler"]:
+            logger.warning(f"UtilService: enable_job_scheduler disabled!")
             return True
+
 
         logging.info(f"{UtilService.last_update=}")
         if UtilService.last_update == None:
@@ -244,21 +245,29 @@ class UtilService():
         elif (datetime.now() - UtilService.last_update).total_seconds() > job_scheduler_delay:
             UtilService.get_utilization(logger=logger)
 
-        if "gpu_mem_mb" in task_instance.executor_config and task_instance.executor_config["gpu_mem_mb"] != None and "gpu" not in str(task_instance.pool).lower():
-            gpu_mem_mb = task_instance.executor_config["gpu_mem_mb"]
-            for gpu_info in UtilService.node_gpu_list:
-                pool_id = gpu_info["pool_id"]
-                capacity = gpu_info["capacity"]
-                free = gpu_info["free"]
-                logger.error(f"GPU: {pool_id}: {capacity} - {free} !")
+        if "gpu_mem_mb" in task_instance.executor_config and task_instance.executor_config["gpu_mem_mb"] != None:
+            logger.error(f"Found GPU dependency in TI !")
+            if "gpu" in str(task_instance.pool).lower():
+                logger.error(f"GPU pool already set!")
+            else:
+                gpu_mem_mb = task_instance.executor_config["gpu_mem_mb"]
+                for gpu_info in UtilService.node_gpu_list:
+                    pool_id = gpu_info["pool_id"]
+                    capacity = gpu_info["capacity"]
+                    free = gpu_info["free"]
+                    logger.error(f"GPU: {pool_id}: {capacity} - {free} !")
 
-                if capacity >= gpu_mem_mb and free >= gpu_mem_mb:
-                    logger.error(f"Found GPU for the TI: {pool_id}: {capacity} !")
-                    return False, pool_id, gpu_mem_mb
+                    if capacity >= gpu_mem_mb and free >= gpu_mem_mb:
+                        logger.error(f"Found GPU for the TI: {pool_id}: {capacity} !")
+                        return False, pool_id, gpu_mem_mb
+            
+                    if capacity >= gpu_mem_mb:
+                        logger.error(f"Found GPU for the TI: {pool_id}: {capacity} !")
+                        return False, pool_id, gpu_mem_mb
 
-            logger.error(f"No GPU for the TI found! -> Not scheduling !")
-            pool_id = "NODE_GPU_COUNT"
-            return False, pool_id, gpu_mem_mb
+                logger.error(f"No GPU for the TI found! -> Not scheduling !")
+                pool_id = "NODE_GPU_COUNT"
+                return False, pool_id, gpu_mem_mb
 
         if UtilService.memory_pressure:
             logger.error("UtilService.memory_pressure == TRUE -> not scheduling!")

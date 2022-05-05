@@ -155,22 +155,24 @@ class UtilService():
 
                 if UtilService.gpu_dev_count > 0:
                     UtilService.node_gpu_list = get_node_gpu_infos(logger=logger) if UtilService.gpu_dev_count > 0 else []
-                    for gpu_info in UtilService.node_gpu_list:
-                        node = gpu_info["node"]
-                        gpu_id = gpu_info["gpu_id"]
-                        pool_id = gpu_info["pool_id"]
-                        gpu_name = gpu_info["gpu_name"]
-                        capacity = gpu_info["capacity"]
-                        logger.info(f"Adjust pool {pool_id}: {capacity}")
+                    if len(UtilService.node_gpu_list) == 0:
+                        UtilService.pool_gpu_count = None
+                    else:
+                        for gpu_info in UtilService.node_gpu_list:
+                            node = gpu_info["node"]
+                            gpu_id = gpu_info["gpu_id"]
+                            pool_id = gpu_info["pool_id"]
+                            gpu_name = gpu_info["gpu_name"]
+                            capacity = gpu_info["capacity"]
+                            logger.info(f"Adjust pool {pool_id}: {capacity}")
 
-                        create_pool = False
-                        UtilService.create_pool(
-                            pool_name=pool_id,
-                            pool_slots=capacity,
-                            pool_description=f"{gpu_name} capacity in MB",
-                            logger=logger
-                        )
-
+                            create_pool = False
+                            UtilService.create_pool(
+                                pool_name=pool_id,
+                                pool_slots=capacity,
+                                pool_description=f"{gpu_name} capacity in MB",
+                                logger=logger
+                            )
             else:
                 UtilService.node_gpu_list = []
                 UtilService.pool_gpu_count = UtilService.gpu_dev_count
@@ -229,12 +231,6 @@ class UtilService():
     @staticmethod
     def check_operator_scheduling(task_instance, logger=logging):
         logger.info(f"UtilService: check_operator_scheduling {task_instance.task_id=}")
-        from airflow.settings import Session
-        UtilService.session = Session()
-        # try:
-        #     enable_job_scheduler = True if Variable.get("enable_job_scheduler", default_var="True").lower() == "true" else False
-        #     job_scheduler_delay = int(Variable.get("job_scheduler_delay", default_var=5))
-        # except:
         enable_job_scheduler = True
         job_scheduler_delay = 5
 

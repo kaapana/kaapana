@@ -26,17 +26,10 @@ then
 	airflow db init || { echo 'ERROR: airflow initdb' ; exit 1; }
 	airflow db upgrade || { echo 'ERROR: airflow db upgrade' ; exit 1; }
 	
-	airflow variables get enable_scheduler
+	set +e
+	airflow variables get enable_job_scheduler
 	if [ $? -ne 0 ]; then
 		echo Setting default variables!
-		# airflow variables set job_scheduler_delay 5
-		# airflow variables set pool_manager_delay 10
-		# airflow variables set enable_pool_manager True
-
-        # airflow variables set cluster_requested_memory_mb 0
-		# airflow variables set cluster_available_memory_mb 0
-        # airflow variables set cluster_available_cpu 0
-        # airflow variables set cluster_gpu_count 0
 		airflow variables set enable_job_scheduler True
 		
 		ram=$(free --mega | awk '{print $2}' | sed -n 2p)
@@ -44,6 +37,7 @@ then
 		airflow pools set NODE_RAM $ram "init"
 		airflow pools set NODE_CPU_CORES 1 "init"
 	fi
+	set -e
 	echo "DONE"
 fi
 

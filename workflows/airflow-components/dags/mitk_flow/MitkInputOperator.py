@@ -162,7 +162,7 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
                         })
                     else:
                         print('Reference images to segmentation not found!')
-                        exit(1)
+                        raise ValueError('ERROR')
                 # otherwise only open images without segmentation
                 else:
                     print("No segementaion, create scene with image only")

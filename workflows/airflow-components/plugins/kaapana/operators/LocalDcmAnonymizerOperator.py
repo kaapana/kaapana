@@ -17,7 +17,7 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
 
         if os.environ.get('DCMDICTPATH') is None:
             print("DCMDICTPATH not found...")
-            exit(1)
+            raise ValueError('ERROR')
 
         anonymize_dict_path = os.path.dirname(os.path.realpath(__file__))+"/anonymize-tags.json"
 
@@ -54,7 +54,7 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
                 ret = subprocess.call([file_command], shell=True)
                 if ret != 0:
                     print("Something went wrong with dcmodify...")
-                    exit(1)
+                    raise ValueError('ERROR')
 
                 if self.single_slice:
                     break
@@ -80,7 +80,7 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
             print("dcmdictpath: {}".format(os.getenv('DCMDICTPATH')))
             print("dict_path: {}".format(os.getenv('DICT_PATH')))
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-            exit(1)
+            raise ValueError('ERROR')
 
         super().__init__(
             dag=dag,

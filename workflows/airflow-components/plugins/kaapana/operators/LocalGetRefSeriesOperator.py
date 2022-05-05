@@ -19,7 +19,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                 target_dir=series['target_dir']
             )
             if not download_successful:
-                exit(1)
+                raise ValueError('ERROR')
             message = f"OK: Series {series['reference_series_uid']}"
         except Exception as e:
             print(f"#### Something went wrong: {series['reference_series_uid']}")
@@ -68,7 +68,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                 print("# Abort.")
                 print("# ")
                 print("# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                exit(1)
+                raise ValueError('ERROR')
             for series in pacs_series:
                 series_uid = series['0020000E']['Value'][0]
                 download_series_list.append(
@@ -100,7 +100,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                 print("# Abort.")
                 print("# ")
                 print("# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                exit(1)
+                raise ValueError('ERROR')
             for series in pacs_series:
                 series_uid = series['0020000E']['Value'][0]
                 download_series_list.append(
@@ -124,7 +124,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                         incoming_dcm = pydicom.dcmread(dcm_files[0])
                     else:
                         print(f"# Could not find any input DICOM series -> search_policy: {self.search_policy}")
-                        exit(1)
+                        raise ValueError('ERROR')
 
                 if self.search_policy == None:
                     print("No search_policy -> only dicom_tags will be used...")
@@ -144,7 +144,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                                 print("# Abort.")
                                 print("# ")
                                 print("# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                                exit(1)
+                                raise ValueError('ERROR')
                             search_filters['SeriesInstanceUID'] = str(ref_series[0x0020, 0x000E].value)
                             break
                     else:
@@ -154,7 +154,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                         print("# Abort.")
                         print("# ")
                         print("# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                        exit(1)
+                        raise ValueError('ERROR')
                 elif self.search_policy == 'study_uid':
                     search_filters['StudyInstanceUID'] = incoming_dcm.StudyInstanceUID
                     if self.modality:
@@ -168,7 +168,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                         print("# Abort.")
                         print("# ")
                         print("# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                        exit(1)
+                        raise ValueError('ERROR')
 
                     patient_uid = incoming_dcm[0x0010, 0x0020].value
                     search_filters['PatientID'] = patient_uid
@@ -182,7 +182,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                     print("# Abort.")
                     print("# ")
                     print("# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                    exit(1)
+                    raise ValueError('ERROR')
 
                 pacs_series = client.search_for_series(search_filters=search_filters)
                 print(f"Found series: {len(pacs_series)}")
@@ -198,7 +198,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                     print("# Abort.")
                     print("# ")
                     print("# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                    exit(1)
+                    raise ValueError('ERROR')
                 for series in pacs_series:
                     series_uid = series['0020000E']['Value'][0]
 
@@ -225,7 +225,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             print("# Abort.")
             print("# ")
             print("# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-            exit(1)
+            raise ValueError('ERROR')
 
         if len(download_series_list) == 0:
             print("# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -234,7 +234,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             print("# Abort.")
             print("# ")
             print("# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-            exit(1)
+            raise ValueError('ERROR')
 
         if self.limit_file_count != None:
             download_series_list = download_series_list[:self.limit_file_count]
@@ -244,7 +244,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         for result in results:
             print(result)
             if "error" in result.lower():
-                exit(1)
+                raise ValueError('ERROR')
 
     def __init__(self,
                  dag,

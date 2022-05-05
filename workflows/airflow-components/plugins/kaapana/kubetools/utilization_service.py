@@ -7,7 +7,7 @@ import logging
 from kaapana.kubetools.prometheus_query import get_node_gpu_infos
 from subprocess import PIPE, run, Popen
 # from subprocess import STDOUT, check_output
-
+from kubernetes.client.models.v1_container_image import V1ContainerImage
 
 class UtilService():
     query_delay = None
@@ -56,6 +56,9 @@ class UtilService():
 
     @staticmethod
     def init_util_service():
+        def names(self, names):
+            self._names = names
+        V1ContainerImage.names = V1ContainerImage.names.setter(names)
         k8s.config.load_incluster_config()
         UtilService.core_v1 = k8s.client.CoreV1Api()
         UtilService.ureg = UnitRegistry()
@@ -231,6 +234,7 @@ class UtilService():
     @staticmethod
     def check_operator_scheduling(task_instance, logger=logging):
         logger.info(f"UtilService: check_operator_scheduling {task_instance.task_id=}")
+        gpu_support = True if os.getenv('GPU_SUPPORT', "False").lower() == "true" else False
         job_scheduler_delay = 5
 
         if "enable_job_scheduler" in task_instance.executor_config and not task_instance.executor_config["enable_job_scheduler"]:
@@ -266,8 +270,11 @@ class UtilService():
                         return False, pool_id, gpu_mem_mb
 
                 logger.error(f"No GPU for the TI found! -> Not scheduling !")
-                pool_id = "NODE_GPU_COUNT"
-                return False, pool_id, gpu_mem_mb
+                if not gpu_support:
+                    pool_id = "NODE_GPU_COUNT"
+                    return False, pool_id, gpu_mem_mb
+                else:
+                    return False, None, None
 
         if UtilService.memory_pressure:
             logger.error("UtilService.memory_pressure == TRUE -> not scheduling!")

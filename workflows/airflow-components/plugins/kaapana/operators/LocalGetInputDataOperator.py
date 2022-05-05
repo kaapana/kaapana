@@ -34,7 +34,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     print("")
                     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                    exit(1)
+                    raise ValueError('ERROR')
 
             else:
                 print(f"DAG modality: {dag_modality} is not supported!")
@@ -127,7 +127,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             if not os.path.isdir(dcm_path):
                 print(f"Could not find dicom dir: {dcm_path}")
                 print("Abort!")
-                exit(1)
+                raise ValueError('ERROR')
             self.move_series(dag_run_id, series_uid, dcm_path)
             return
         if self.conf and "ctpBatch" in self.conf:
@@ -188,11 +188,11 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 if "query" not in elastic_query:
                     print("'query' not found in 'elastic-query': {}".format(input))
                     print("abort...")
-                    exit(1)
+                    raise ValueError('ERROR')
                 if "index" not in elastic_query:
                     print("'index' not found in 'elastic-query': {}".format(input))
                     print("abort...")
-                    exit(1)
+                    raise ValueError('ERROR')
 
                 query = elastic_query["query"]
                 index = elastic_query["index"]
@@ -226,11 +226,11 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 if "study-uid" not in dcm_uid:
                     print("'study-uid' not found in 'dcm-uid': {}".format(input))
                     print("abort...")
-                    exit(1)
+                    raise ValueError('ERROR')
                 if "series-uid" not in dcm_uid:
                     print("'series-uid' not found in 'dcm-uid': {}".format(input))
                     print("abort...")
-                    exit(1)
+                    raise ValueError('ERROR')
 
                 if "modality" in dcm_uid and self.check_modality:
                     modality = dcm_uid["modality"]
@@ -252,7 +252,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 print("Unknown input: {}".format(input))
                 print("Supported 'dcm-uid' and 'elastic-query' ")
                 print("Dag-conf: {}".format(self.conf))
-                exit(1)
+                raise ValueError('ERROR')
 
         print("")
         print(f"## SERIES FOUND: {len(download_list)}")
@@ -268,7 +268,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             print(f"# No series to download !! ")
             print("#")
             print("#####################################################")
-            exit(1)
+            raise ValueError('ERROR')
         series_download_fail = []
         results = ThreadPool(self.parallel_downloads).imap_unordered(self.get_data, download_list)
         for download_successful, series_uid in results:
@@ -285,7 +285,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 print(f"# Series: {series_uid} failed !")
                 print("#")
             print("#####################################################")
-            exit(1)
+            raise ValueError('ERROR')
 
     def __init__(self,
                  dag,

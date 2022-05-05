@@ -541,7 +541,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     @staticmethod
     def on_failure(info_dict):
         print("##################################################### ON FAILURE!")
-        print("## POD: {}".format(info_dict["ti"].task.kube_name))
         keep_pod_messages = [
             State.SUCCESS,
             State.FAILED

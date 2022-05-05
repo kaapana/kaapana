@@ -105,7 +105,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                     print(err_msg)
 
                 print("ERROR @PUSH FILE TO ELASTIC")
-                exit(1)
+                raise ValueError('ERROR')
         else:
             print("INDEX NOT EXISTING!")
 
@@ -137,7 +137,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                 print(f"# check_count >= avalability_check_max_tries {self.avalability_check_max_tries}")
                 print("# Error! ")
                 print("#")
-                exit(1)
+                raise ValueError('ERROR')
 
             print(f"# -> waiting {self.avalability_check_delay} s")
             time.sleep(self.avalability_check_delay)
@@ -156,7 +156,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             old_json = es.get(index=self.elastic_index, doc_type="_doc", id=self.instanceUID)["_source"]
             print("Series already found in ES")
             if self.no_update:
-                exit(1)
+                raise ValueError('ERROR')
         except Exception as e:
             print("doc is not updated! -> not found in es")
             print(e)

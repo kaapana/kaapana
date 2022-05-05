@@ -63,7 +63,7 @@ class LocalDeleteFromElasticOperator(KaapanaPythonBaseOperator):
             print(res)
         except Exception as e:
             print("ERROR deleting from elasticsearch: {}".format(str(e)))
-            exit(1)
+            raise ValueError('ERROR')
 
     def __init__(self,
                  dag,

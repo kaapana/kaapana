@@ -151,7 +151,7 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
                     print("# ")
                     shutil.move(batch_element_dir, target_dir)
                 if self.abort_on_error:
-                    exit(1)
+                    raise ValueError('ERROR')
 
         print("# ")
         if len(ignored_cases) > 0:

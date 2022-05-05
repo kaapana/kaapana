@@ -668,7 +668,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         if obj.pool == None:
             enable_job_scheduler = True if Variable.get("enable_job_scheduler", default_var="True").lower() == "true" else False
-            if enable_job_scheduler and obj.gpu_mem_mb != None and obj.gpu_mem_mb != 0:
+            if not enable_job_scheduler and obj.gpu_mem_mb != None and obj.gpu_mem_mb != 0:
                 obj.pool = "NODE_GPU_COUNT"
                 obj.pool_slots = 1
             else:

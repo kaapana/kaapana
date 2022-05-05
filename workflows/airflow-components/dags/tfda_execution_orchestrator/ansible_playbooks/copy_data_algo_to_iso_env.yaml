@@ -17,6 +17,7 @@
   vars:
     #TODO: change hardcoded
     ansible_ssh_private_key_file: ~/.ssh/tfda_iso.pem
+    singularity_image_name: docker-to-singularity.sif
   # TODO: data could be in any instance and  multiple instance... todo
   tasks:
     #- name: Download a Image Test
@@ -35,7 +36,7 @@
 
     - name: Set algorithm container path
       set_fact: 
-        container_path: "{{ tarball_path }}"
+        container_path: "{{ tarball_path }}/{{ filename }}"
     
     - name: Copy chart
       # become: yes
@@ -43,3 +44,13 @@
         src: "{{ container_path }}"
         dest: "/home/ubuntu"
         # directory_mode: yes
+
+    - name: Convert Docker container to Singularity
+      shell: 
+      args:
+        cmd: singularity build {{ singularity_image_name }} docker-archive://{{ filename }}
+        chdir: /home/ubuntu
+
+    - name: show me the path and filename
+      debug: 
+        msg: "Singularity image name is {{ singularity_image_name }} and docker filename is {{ filename }}"

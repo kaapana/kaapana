@@ -52,7 +52,6 @@
             project_name: "{{ os_project_name }}"
           name: "{{ os_instance_name }}"
           terminate_volume: True
-          boot_from_volume: True
           # delete_fip: True
           timeout: 120
         register: del_instance

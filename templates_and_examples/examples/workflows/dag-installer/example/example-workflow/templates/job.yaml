@@ -20,7 +20,7 @@ spec:
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
-              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/kube-helm-api/health-check"
+              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/health-check"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
@@ -50,7 +50,7 @@ spec:
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
-              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/kube-helm-api/health-check"
+              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/health-check"
             - name: DELAY
               value: "2"
             - name: TIMEOUT

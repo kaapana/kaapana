@@ -41,7 +41,7 @@ spec:
 {{- end }}
       containers:
       - name: kube-helm
-        image: {{  .Values.global.registry_url }}/kube-helm:0.1.2
+        image: {{  .Values.global.registry_url }}/kube-helm:0.1.3
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         resources:
           limits:

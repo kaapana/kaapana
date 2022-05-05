@@ -28,8 +28,8 @@ from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
 import uuid
 import json
-from kaapana.kubetools.kaapana_pool_manager import KaapanaPoolManager
 import logging
+from airflow.models import Variable
 
 default_registry = os.getenv("DEFAULT_REGISTRY", "")
 default_project = os.getenv("DEFAULT_PROJECT", "")
@@ -669,8 +669,13 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             obj.operator_in_dir = operator_in_dir
 
         if obj.pool == None:
-            obj.pool = "NODE_RAM"
-            obj.pool_slots = obj.ram_mem_mb if obj.ram_mem_mb is not None else 1
+            enable_job_scheduler = True if Variable.get("enable_job_scheduler", default_var="True").lower() == "true" else False
+            if enable_job_scheduler and obj.gpu_mem_mb != None and obj.gpu_mem_mb != 0:
+                obj.pool = "NODE_GPU_COUNT"
+                obj.pool_slots = 1
+            else:
+                obj.pool = "NODE_RAM"
+                obj.pool_slots = obj.ram_mem_mb if obj.ram_mem_mb is not None else 1
 
         obj.executor_config = {
             "cpu_millicores": obj.cpu_millicores,

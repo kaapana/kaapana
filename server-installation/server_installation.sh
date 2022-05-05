@@ -335,7 +335,7 @@ function install_microk8s {
 
         echo "${YELLOW}Set auto-completion for kubectl: $USER_HOME/.bashrc ${NC}"
         set +e
-        insert_text "microk8s.kubectl --help > /dev/null 2>&1 && source <(microk8s.kubectl completion bash)" $USER_HOME/.bashrc
+        insert_text "# microk8s.kubectl --help > /dev/null 2>&1 && source <(microk8s.kubectl completion bash)" $USER_HOME/.bashrc
         set -e
         
         echo "${YELLOW}Starting microk8s${NC}"

@@ -1,15 +1,17 @@
-from requests import session
 import kubernetes as k8s
 from datetime import datetime
 from pint import UnitRegistry
 from collections import defaultdict
-from airflow.models import Variable
 import os
 import logging
 from kaapana.kubetools.prometheus_query import get_node_gpu_infos
+from subprocess import PIPE, run, Popen
+# from subprocess import STDOUT, check_output
+
 
 class UtilService():
     query_delay = None
+    api_client = None
 
     ureg = None
     last_update = None
@@ -40,7 +42,17 @@ class UtilService():
     memory_available_limit = None
     gpu_memory_available = None
 
+    pool_mem = None
+    pool_cpu = None
+    pool_gpu_count = None
+
     node_gpu_list = []
+
+    @staticmethod
+    def create_pool(pool_name, pool_slots, pool_description, logger=logging):
+        command = ["airflow", "pools", "set", str(pool_name), str(pool_slots), str(pool_description)]
+        logger.error(f"Creating pool {pool_name}: {pool_slots} - {pool_description}")
+        output = Popen(command)
 
     @staticmethod
     def init_util_service():
@@ -53,13 +65,9 @@ class UtilService():
         UtilService.ureg.load_definitions(units_file_path)
         UtilService.Q_ = UtilService.ureg.Quantity
 
-        UtilService.get_utilization()
-
     @staticmethod
     def get_utilization(logger=logging):
         logger.error("UtilService -> get_utilization")
-        from airflow.settings import Session
-        UtilService.session = Session()
 
         data = {}
         UtilService.last_update = datetime.now()
@@ -135,27 +143,58 @@ class UtilService():
             UtilService.memory_available_req = abs(UtilService.mem_alloc - UtilService.mem_req)
             UtilService.memory_available_limit = abs(UtilService.mem_alloc - UtilService.mem_lmt)
 
-            if UtilService.gpu_dev_count > 0:
-                cluster_gpu_count = Variable.get('cluster_gpu_count', default_var=None)
-                UtilService.node_gpu_list = get_node_gpu_infos(logger=logger) if UtilService.gpu_dev_count > 0 else []
+            pool_id = "NODE_GPU_COUNT"
+            if UtilService.pool_gpu_count == None or UtilService.pool_gpu_count != UtilService.gpu_dev_count:
+                UtilService.create_pool(
+                    pool_name=pool_id,
+                    pool_slots=UtilService.gpu_dev_count,
+                    pool_description="Pool for the GPU device count",
+                    logger=logger
+                )
+                UtilService.pool_gpu_count = UtilService.gpu_dev_count
 
-                if cluster_gpu_count != None and cluster_gpu_count != UtilService.gpu_dev_count:
-                    Variable.update("cluster_gpu_count", UtilService.gpu_dev_count, session=UtilService.session)
+                if UtilService.gpu_dev_count > 0:
+                    UtilService.node_gpu_list = get_node_gpu_infos(logger=logger) if UtilService.gpu_dev_count > 0 else []
+                    for gpu_info in UtilService.node_gpu_list:
+                        node = gpu_info["node"]
+                        gpu_id = gpu_info["gpu_id"]
+                        pool_id = gpu_info["pool_id"]
+                        gpu_name = gpu_info["gpu_name"]
+                        capacity = gpu_info["capacity"]
+                        logger.info(f"Adjust pool {pool_id}: {capacity}")
+
+                        create_pool = False
+                        UtilService.create_pool(
+                            pool_name=pool_id,
+                            pool_slots=capacity,
+                            pool_description=f"{gpu_name} capacity in MB",
+                            logger=logger
+                        )
+
             else:
                 UtilService.node_gpu_list = []
+                UtilService.pool_gpu_count = UtilService.gpu_dev_count
 
-            cluster_requested_memory_mb = Variable.get(key='cluster_requested_memory_mb', default_var=None)
-            cluster_available_memory_mb = Variable.get(key='cluster_available_memory_mb', default_var=None)
-            cluster_available_cpu = Variable.get(key='cluster_available_cpu', default_var=None)
+            pool_id = "NODE_RAM"
+            processing_memory_node = abs(UtilService.mem_alloc - UtilService.mem_req)
+            if UtilService.pool_mem == None or UtilService.pool_mem != processing_memory_node:
+                UtilService.create_pool(
+                    pool_name=pool_id,
+                    pool_slots=processing_memory_node,
+                    pool_description="Pool for the available nodes RAM memory in MB",
+                    logger=logger
+                )
+                UtilService.pool_mem = processing_memory_node
 
-            if cluster_requested_memory_mb != None and cluster_requested_memory_mb != UtilService.mem_req:
-                Variable.update(key="cluster_requested_memory_mb", value=UtilService.mem_req, session=UtilService.session)
-
-            if cluster_available_memory_mb != None and cluster_available_memory_mb != UtilService.mem_alloc:
-                Variable.update(key="cluster_available_memory_mb", value=UtilService.mem_alloc, session=UtilService.session)
-
-            if cluster_available_cpu != None and cluster_available_cpu != UtilService.cpu_alloc:
-                Variable.update(key="cluster_available_cpu", value=UtilService.cpu_alloc, session=UtilService.session)
+            pool_id = "NODE_CPU_CORES"
+            if UtilService.pool_cpu == None or UtilService.pool_cpu != UtilService.cpu_alloc:
+                UtilService.create_pool(
+                    pool_name=pool_id,
+                    pool_slots=UtilService.cpu_alloc,
+                    pool_description="Pool for the available CPU cores",
+                    logger=logger
+                )
+                UtilService.pool_cpu = UtilService.cpu_alloc
 
             logger.debug("#####################################")
             logger.debug("#####################################")
@@ -205,9 +244,8 @@ class UtilService():
         logging.info(f"{UtilService.last_update=}")
         if UtilService.last_update == None:
             UtilService.init_util_service()
-
-        logging.info(f"check_operator_scheduling: ")
-        if (datetime.now() - UtilService.last_update).total_seconds() > job_scheduler_delay:
+            UtilService.get_utilization(logger=logger)
+        elif (datetime.now() - UtilService.last_update).total_seconds() > job_scheduler_delay:
             UtilService.get_utilization(logger=logger)
 
         if "gpu_mem_mb" in task_instance.executor_config and task_instance.executor_config["gpu_mem_mb"] != None and "gpu" not in str(task_instance.pool).lower():

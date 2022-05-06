@@ -2,9 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
 import datetime
-import os
-#engine = create_engine('postgresql://postgres:1234@localhost:5432/postgres')
-engine = create_engine(os.getenv("DATAMODEL_DATABASE"))
+engine = create_engine('postgresql://postgres:1234@localhost:5432/postgres')
 #for testing in memory db
 #engine = create_engine('sqlite:////tmp/db.sqlite', echo=True)
 # use session_factory() to get a new Session

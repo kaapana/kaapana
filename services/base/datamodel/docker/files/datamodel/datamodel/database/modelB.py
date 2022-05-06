@@ -4,10 +4,8 @@ from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import (scoped_session, sessionmaker, relationship,
                             backref)
-from sqlalchemy.ext.declarative import declarative_base
-from datetime import datetime
 from .base import Base
-from .type import DataType, StorageLocation
+
 
 class DataEntityB(Base):
     __tablename__ = 'dataentityb'

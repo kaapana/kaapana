@@ -1,3 +1,3 @@
 #!/bin/sh
 echo "Running at $APPLICATION_ROOT"
-SCRIPT_NAME=$APPLICATION_ROOT gunicorn -b :5000 --timeout 100 --access-logfile - --error-logfile - run:app
+uvicorn app.main:app --reload --host 0.0.0.0 --port 5000 --workers 4 --root-path $APPLICATION_ROOT

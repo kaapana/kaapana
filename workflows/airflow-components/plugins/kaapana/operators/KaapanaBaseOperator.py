@@ -385,7 +385,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63) # actually 63, but because of helm set to 53, maybe...
 
         if "NODE_GPU_" in str(context["task_instance"].pool) and str(context["task_instance"].pool).count("_") == 3:
-            gpu_id = self.pool.split("_")[2]
+            gpu_id = str(context["task_instance"].pool).split("_")[2]
             self.env_vars.update({
                 "CUDA_VISIBLE_DEVICES": str(gpu_id)
             })

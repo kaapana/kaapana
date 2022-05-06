@@ -312,15 +312,15 @@ class UtilService():
 
         if UtilService.memory_pressure:
             logger.error("UtilService.memory_pressure == TRUE -> not scheduling!")
-            return False, None, None
+            return False, task_instance.pool, task_instance.pool_slots
 
         if UtilService.disk_pressure:
             logger.error("UtilService.disk_pressure == TRUE -> not scheduling!")
-            return False, None, None
+            return False, task_instance.pool, task_instance.pool_slots
 
         if UtilService.pid_pressure:
             logger.error("UtilService.pid_pressure == TRUE -> not scheduling!")
-            return False, None, None
+            return False, task_instance.pool, task_instance.pool_slots
 
         if "cpu_millicores" in task_instance.executor_config and task_instance.executor_config["cpu_millicores"] != None:
             # TODO
@@ -332,4 +332,4 @@ class UtilService():
                 return False, None, None
 
         logging.info("ok")
-        return True, None, None
+        return True, task_instance.pool, task_instance.pool_slots

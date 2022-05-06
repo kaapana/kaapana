@@ -58,7 +58,6 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from kaapana.kubetools.utilization_service import UtilService
 
-
 TI = models.TaskInstance
 DR = models.DagRun
 DM = models.DagModel
@@ -476,11 +475,13 @@ class SchedulerJob(BaseJob):
 
                     util_service_success, pool_id, pool_slots = UtilService.check_operator_scheduling(task_instance=task_instance, logger=self.log)
                     if not util_service_success:
-                        if pool_id != None:
+                        if pool_id != task_instance.pool or pool_slots != task_instance.pool_slots:
                             task_instance.pool = pool_id
                             task_instance.pool_slots = pool_slots
                             session.merge(task_instance)
-                            
+                            session.flush()
+                            # session.commit()
+                        
                         starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                         self.log.warning(f"Not executing {task_instance} since the UtilService check was negative!")
                         continue
@@ -515,7 +516,7 @@ class SchedulerJob(BaseJob):
         Stats.gauge('scheduler.tasks.starving', num_starving_tasks_total)
         Stats.gauge('scheduler.tasks.running', num_tasks_in_executor)
         Stats.gauge('scheduler.tasks.executable', len(executable_tis))
-
+        
         if len(executable_tis) > 0:
             task_instance_str = "\n\t".join(repr(x) for x in executable_tis)
             self.log.info("Setting the following tasks to queued state:\n\t%s", task_instance_str)
@@ -531,6 +532,7 @@ class SchedulerJob(BaseJob):
 
         for ti in executable_tis:
             make_transient(ti)
+
         return executable_tis
 
     @provide_session

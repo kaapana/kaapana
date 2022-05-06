@@ -85,7 +85,9 @@ def get_node_gpu_infos(logger=logging):
                 "gpu_name": gpu_name,
                 "used": used,
                 "free": free,
-                "capacity": capacity
+                "capacity": capacity,
+                "queued_count": 0,
+                "queued_mb": 0
             })
 
         gpu_list = sorted(gpu_list, key=lambda d: d['capacity'])

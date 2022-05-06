@@ -31,6 +31,7 @@ import json
 import logging
 from airflow.models import Variable
 
+
 default_registry = os.getenv("DEFAULT_REGISTRY", "")
 default_project = os.getenv("DEFAULT_PROJECT", "")
 default_proxy = os.getenv("PROXY", "")
@@ -549,8 +550,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         if result_message not in keep_pod_messages:
             print("RESULT_MESSAGE: {}".format(result_message))
             print("--> delete pod!")
-            pod_id = info_dict["ti"].task.kube_name
-            KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=pod_id)
+            if hasattr(info_dict["ti"].task, 'kube_name'):
+                pod_id = info_dict["ti"].task.kube_name
+                KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=pod_id)
 
     @staticmethod
     def on_success(info_dict):
@@ -581,8 +583,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         if result_message not in keep_pod_messages:
             print("RESULT_MESSAGE: {}".format(result_message))
             print("--> delete pod!")
-            pod_id = info_dict["ti"].task.kube_name
-            KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=pod_id)
+            if hasattr(info_dict["ti"].task, 'kube_name'):
+                pod_id = info_dict["ti"].task.kube_name
+                KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=pod_id)
 
     @staticmethod
     def on_execute(info_dict):

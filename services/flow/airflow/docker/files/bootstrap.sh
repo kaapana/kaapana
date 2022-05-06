@@ -17,24 +17,38 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
-# launch the appropriate process
-
 if [ "$1" = "init" ]
 then
 	echo ""
 	echo "Airflow init DB..."
 	echo ""
+	export AIRFLOW_MODE=init
 	airflow db init || { echo 'ERROR: airflow initdb' ; exit 1; }
 	airflow db upgrade || { echo 'ERROR: airflow db upgrade' ; exit 1; }
+	
+	set +e
+	airflow variables get enable_job_scheduler
+	if [ $? -ne 0 ]; then
+		echo Setting default variables!
+		airflow variables set enable_job_scheduler True
+		
+		ram=$(free --mega | awk '{print $2}' | sed -n 2p)
+		airflow pools set NODE_GPU_COUNT 0 "init"
+		airflow pools set NODE_RAM $ram "init"
+		airflow pools set NODE_CPU_CORES 1 "init"
+	fi
+	set -e
 	echo "DONE"
 fi
 
 if [ "$1" = "webserver" ]
 then
+	export AIRFLOW_MODE=webserver
 	exec airflow webserver
 fi
 
 if [ "$1" = "scheduler" ]
 then
+	export AIRFLOW_MODE=scheduler
 	exec airflow scheduler
 fi

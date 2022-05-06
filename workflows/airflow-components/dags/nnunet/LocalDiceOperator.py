@@ -72,7 +72,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
             print(f"# Couldn't find a 'Clear Label' 0 in NIFTI!")
             print(f"# NIFTI-path: {nifti_path}")
             print("#")
-            exit(1)
+            raise ValueError('ERROR')
 
         return nifti_numpy, nifti_labels
 
@@ -226,7 +226,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
             print("#")
             print("##################################################")
             print("#")
-            exit(1)
+            raise ValueError('ERROR')
         else:
             print("#")
             print(f"# ----> {processed_count} FILES HAVE BEEN PROCESSED!")

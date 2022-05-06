@@ -237,8 +237,6 @@ function enable_gpu {
         echo "${YELLOW}Activating GPU...${NC}"
         microk8s.enable gpu && echo "${GREEN}OK${NC}" || (echo "${YELLOW}Trying with LD_LIBRARY_PATH to activate GPU...${NC}" && LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+LD_LIBRARY_PATH:}/lib64" microk8s.enable gpu) || (echo "${RED}######################## ERROR WHILE ACTIVATING GPU! ########################${NC}" && exit 1)
         echo "${YELLOW}Waiting for nvidia-device-plugin-daemonset...${NC}"
-        #TODO check if still the same
-        microk8s.kubectl rollout status -n kube-system daemonset nvidia-device-plugin-daemonset --timeout=120s
     else
         echo "${YELLOW}No GPU support.${NC}"
     fi
@@ -335,7 +333,7 @@ function install_microk8s {
 
         echo "${YELLOW}Set auto-completion for kubectl: $USER_HOME/.bashrc ${NC}"
         set +e
-        insert_text "microk8s.kubectl --help > /dev/null 2>&1 && source <(microk8s.kubectl completion bash)" $USER_HOME/.bashrc
+        insert_text "# microk8s.kubectl --help > /dev/null 2>&1 && source <(microk8s.kubectl completion bash)" $USER_HOME/.bashrc
         set -e
         
         echo "${YELLOW}Starting microk8s${NC}"

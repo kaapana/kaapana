@@ -117,6 +117,8 @@ spec:
         env:
         - name: AIRFLOW_HOME
           value: "/root/airflow"
+        - name: AIRFLOW__LOGGING__LOGGING_LEVEL
+          value: "WARNING"
         - name: DATADIR
           value: {{ .Values.global.fast_data_dir }}/workflows/data
         - name: MODELDIR
@@ -178,6 +180,8 @@ spec:
         env:
         - name: DEFAULT_REGISTRY
           value: "{{  .Values.global.registry_url }}"
+        - name: AIRFLOW__LOGGING__LOGGING_LEVEL
+          value: "WARNING"
         - name: AIRFLOW_HOME
           value: "/root/airflow"
         - name: DATADIR

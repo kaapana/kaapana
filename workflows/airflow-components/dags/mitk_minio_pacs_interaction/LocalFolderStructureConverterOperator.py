@@ -19,7 +19,7 @@ class LocalFolderStructureConverterOperator(KaapanaPythonBaseOperator):
                     glob.glob(os.path.join(batch_element_dir, self.operator_in_dir, "*.dcm*"), recursive=True))
                 if len(dcm_files) == 0:
                     print("no input files")
-                    exit(1)
+                    raise ValueError('ERROR')
                 file_object = self.construct_path(structured_item, dcm_files[0], None)
                 file_object = file_object.encode("ascii", errors="ignore").decode() #strip non ascii
                 output_folder = os.path.join(run_dir)

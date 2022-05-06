@@ -266,8 +266,10 @@ class UtilService():
                         gpu_info = UtilService.node_gpu_list[i]
                         pool_id = gpu_info["pool_id"]
                         if pool_id in UtilService.node_gpu_queued_dict:
-                            if UtilService.node_gpu_queued_dict[pool_id] > 50:
-                                UtilService.node_gpu_queued_dict[pool_id] = 0
+                            if UtilService.node_gpu_queued_dict[pool_id] > 10:
+                                for key,value in UtilService.node_gpu_queued_dict.items():
+                                    UtilService.node_gpu_queued_dict[key] = 0
+
                         UtilService.node_gpu_list[i]["queued_count"] = UtilService.node_gpu_queued_dict[pool_id]
 
                 logger.info(f"GPU status:")

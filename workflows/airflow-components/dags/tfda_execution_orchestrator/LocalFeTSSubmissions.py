@@ -5,11 +5,18 @@ import getpass
 import requests
 
 from subprocess import PIPE, run
+from airflow.models import DagRun
+from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.api.common.experimental.trigger_dag import trigger_dag as trigger
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
+    def get_most_recent_dag_run(self, dag_id):
+        dag_runs = DagRun.find(dag_id=dag_id)
+        dag_runs.sort(key=lambda x: x.execution_date, reverse=True)
+        return dag_runs[0] if dag_runs else None
+
     def start(self, ds, ti, **kwargs):
         synapse_user = ""
         API_KEY = ""
@@ -45,22 +52,34 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
             print(f"Checking {task_name}...")
             for subm in syn.getSubmissions(task_id):
                 if subm["id"] not in subm_dict:
-
                     
                     print("Pulling container...")
                     command2 = ["skopeo", "copy", f"docker://{subm['dockerRepositoryName']}:latest", f"docker-archive:/root/airflow/dags/tfda_execution_orchestrator/tarball/{subm['id']}.tar", "--additional-tag", f"{subm['id']}:latest"]
                     output2 = run(command2, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
-                    
                     print("Triggering isolated execution orchestrator...")
-                    ## TODO iso env workflow with MedPerf eval client
                     self.conf = kwargs['dag_run'].conf
                     self.conf["subm_id"] = subm["id"]
                     self.trigger_dag_id = "tfda-execution-orchestrator"
                     # self.dag_run_id = kwargs['dag_run'].run_id
+
+                    dag_run = self.get_most_recent_dag_run(self.trigger_dag_id)
+                    if dag_run:
+                        print(f'The most recent DagRun was EXECUTED at: {dag_run.execution_date}!!!!')
+
+                    dag_state = get_dag_run_state(dag_id="tfda-execution-orchestrator", execution_date=dag_run.execution_date)
+                    print(f"****************The STATE of the main dag is {dag_state}****************")
+
+                    while dag_state['state'] != "failed" and dag_state['state'] != "success":
+                        dag_run = self.get_most_recent_dag_run(self.trigger_dag_id)
+                        # if dag_run:
+                        #     print(f'The most recent DagRun was EXECUTED at: {dag_run.execution_date}!!!!')
+
+                        dag_state = get_dag_run_state(dag_id="tfda-execution-orchestrator", execution_date=dag_run.execution_date)
+                        # print(f"****************The STATE of the main dag is {dag_state}****************")    
+
                     dag_run_id = generate_run_id(self.trigger_dag_id)
                     trigger(dag_id=self.trigger_dag_id, run_id=dag_run_id, conf=self.conf,
                                     replace_microseconds=False)
-                    ## TODO add delay between sub-dag triggers
 
                     subm_dict[subm["id"]] = "open"
                     subm_dict[f'{subm["id"]}_registry'] = subm["dockerRepositoryName"]

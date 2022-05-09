@@ -247,7 +247,7 @@ class UtilService():
 
         if "enable_job_scheduler" in task_instance.executor_config and not task_instance.executor_config["enable_job_scheduler"]:
             logger.warning(f"UtilService: enable_job_scheduler disabled!")
-            return True
+            return True, task_instance.pool, task_instance.pool_slots
 
         logging.info(f"{UtilService.last_update=}")
         if UtilService.last_update == None:
@@ -310,7 +310,7 @@ class UtilService():
                     pool_id = "NODE_GPU_COUNT"
                     return False, pool_id, gpu_mem_mb
                 else:
-                    return False, None, None
+                    return False, task_instance.pool, task_instance.pool_slots
 
         if UtilService.memory_pressure:
             logger.error("UtilService.memory_pressure == TRUE -> not scheduling!")
@@ -331,7 +331,7 @@ class UtilService():
         if "ram_mem_mb" in task_instance.executor_config and task_instance.executor_config["ram_mem_mb"] != None:
             if task_instance.executor_config["ram_mem_mb"] > UtilService.memory_available_req:
                 logger.error("TI ram_mem_mb > UtilService.memory_available_req -> not scheduling!")
-                return False, None, None
+                return False, task_instance.pool, task_instance.pool_slots
 
         logging.info("ok")
         return True, task_instance.pool, task_instance.pool_slots

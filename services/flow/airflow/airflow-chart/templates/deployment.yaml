@@ -22,10 +22,7 @@ metadata:
   namespace: {{ .Values.global.flow_namespace }}
 subjects:
   - kind: ServiceAccount
-    # Reference to upper's `metadata.name`
     name: default
-    # Reference to upper's `metadata.namespace`
-    # namespace: default
     namespace: {{ .Values.global.flow_namespace }}
 roleRef:
   kind: ClusterRole
@@ -39,10 +36,7 @@ metadata:
   namespace: {{ .Values.global.flow_namespace }}
 subjects:
   - kind: ServiceAccount
-    # Reference to upper's `metadata.name`
     name: default
-    # Reference to upper's `metadata.namespace`
-    # namespace: default
     namespace: {{ .Values.global.flow_namespace }}-jobs
 roleRef:
   kind: ClusterRole

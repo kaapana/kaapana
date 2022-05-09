@@ -1,10 +1,10 @@
 #!/bin/bash
 set -euf -o pipefail
 
-# check if stdout is a terminal...
+# check if stdout is a terminal
 if test -t 1; then
 
-    # see if it supports colors...
+    # see if it supports colors
     ncolors=$(tput colors)
 
     if test -n "$ncolors" && test $ncolors -ge 8; then
@@ -68,7 +68,7 @@ export -f apply_microk8s_image_import
 
 function proxy_environment {
     
-    echo "${YELLOW}Checking proxy settings...${NC}"
+    echo "${YELLOW}Checking proxy settings ...${NC}"
     
     if [ ! -v http_proxy ]; then
         echo "${RED}No proxy has been found!${NC}"
@@ -100,7 +100,7 @@ function no_proxy_environment {
         no_proxy=$( echo $no_proxy | sed 's/"//g')
         
         if [[ $no_proxy == *"10.152.183.0/24"* ]]; then
-            echo "${GREEN}NO_PROXY is already configured correctly...${NC}"
+            echo "${GREEN}NO_PROXY is already configured correctly ...${NC}"
             return
         fi
 
@@ -145,7 +145,7 @@ function install_packages_centos {
     echo "${YELLOW}Enabling snap${NC}"
     systemctl enable --now snapd.socket
 
-    echo "${YELLOW}Create link...${NC}"
+    echo "${YELLOW}Create link ...${NC}"
     ln -sf /var/lib/snapd/snap /snap
 
     echo "${YELLOW}Waiting for snap ...${NC}"
@@ -161,10 +161,10 @@ function install_packages_centos {
         echo "${GREEN}/etc/profile.d/set_path.sh already exists!${NC}"
     fi
 
-    [[ ":$PATH:" != *":/snap/bin"* ]] && echo "${YELLOW}adding snap path...${NC}" && source /etc/profile.d/set_path.sh
+    [[ ":$PATH:" != *":/snap/bin"* ]] && echo "${YELLOW}adding snap path ...${NC}" && source /etc/profile.d/set_path.sh
 
     if [ -v http_proxy ]; then
-        echo "${YELLOW}setting snap proxy...${NC}"
+        echo "${YELLOW}setting snap proxy ...${NC}"
         snap set system proxy.http="$http_proxy"
         snap set system proxy.https="$http_proxy"
     else
@@ -176,7 +176,7 @@ function install_packages_ubuntu {
     if [ -x "$(command -v nano)" ] && [ -x "$(command -v jq)" ] && [ -x "$(command -v snap)" ]; then
         echo "${GREEN}Dependencies ok.${NC}"
     else
-        echo "${YELLOW}Check if apt is locked...${NC}"
+        echo "${YELLOW}Check if apt is locked ...${NC}"
         i=0
         tput sc
         
@@ -188,7 +188,7 @@ function install_packages_ubuntu {
                 3 ) j="/" ;;
             esac
             tput rc
-            echo -en "\r[$j] Waiting for other software managers to finish..." 
+            echo -en "\r[$j] Waiting for other software managers to finish ..." 
             sleep 0.5
             ((i=i+1))
         done 
@@ -234,9 +234,9 @@ function enable_gpu {
     fi
 
     if [ $GPU_SUPPORT == true ];then
-        echo "${YELLOW}Activating GPU...${NC}"
-        microk8s.enable gpu && echo "${GREEN}OK${NC}" || (echo "${YELLOW}Trying with LD_LIBRARY_PATH to activate GPU...${NC}" && LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+LD_LIBRARY_PATH:}/lib64" microk8s.enable gpu) || (echo "${RED}######################## ERROR WHILE ACTIVATING GPU! ########################${NC}" && exit 1)
-        echo "${YELLOW}Waiting for nvidia-device-plugin-daemonset...${NC}"
+        echo "${YELLOW}Activating GPU ...${NC}"
+        microk8s.enable gpu && echo "${GREEN}OK${NC}" || (echo "${YELLOW}Trying with LD_LIBRARY_PATH to activate GPU ...${NC}" && LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+LD_LIBRARY_PATH:}/lib64" microk8s.enable gpu) || (echo "${RED}######################## ERROR WHILE ACTIVATING GPU! ########################${NC}" && exit 1)
+        echo "${YELLOW}Waiting for nvidia-device-plugin-daemonset ...${NC}"
     else
         echo "${YELLOW}No GPU support.${NC}"
     fi
@@ -338,13 +338,13 @@ function install_microk8s {
         
         echo "${YELLOW}Starting microk8s${NC}"
         microk8s.start
-        echo "${YELLOW}Wait until microk8s is ready...${NC}"
+        echo "${YELLOW}Wait until microk8s is ready ...${NC}"
         microk8s.status --wait-ready >/dev/null 2>&1
         
         echo "${YELLOW}Enable microk8s RBAC ...${NC}"
         microk8s.enable rbac
 
-        echo "${YELLOW}Enable microk8s DNS...${NC}"
+        echo "${YELLOW}Enable microk8s DNS ...${NC}"
         microk8s.enable dns:$DNS
 
         echo "${YELLOW}Waiting for DNS to be ready ...${NC}"

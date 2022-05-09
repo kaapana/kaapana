@@ -341,6 +341,9 @@ function install_microk8s {
         echo "${YELLOW}Wait until microk8s is ready...${NC}"
         microk8s.status --wait-ready >/dev/null 2>&1
         
+        echo "${YELLOW}Enable microk8s RBAC ...${NC}"
+        microk8s.enable rbac
+
         echo "${YELLOW}Enable microk8s DNS...${NC}"
         microk8s.enable dns:$DNS
 

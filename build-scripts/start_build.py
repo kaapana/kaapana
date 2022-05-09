@@ -185,7 +185,7 @@ if __name__ == '__main__':
 
     log_level = configuration["log_level"].upper()
     if log_level not in supported_log_levels:
-        print("Log level {} not supported.")
+        print(f"Log level {log_level} not supported.")
         print("Please use 'DEBUG','WARN' or 'ERROR' for log_level in build-configuration.json")
         exit(1)
 

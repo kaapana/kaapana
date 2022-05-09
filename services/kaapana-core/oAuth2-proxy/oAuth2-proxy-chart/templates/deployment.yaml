@@ -37,7 +37,7 @@ spec:
           - --login-url=https://{{ required "A valid hostname (or fqdn) is required!" $.Values.global.hostname }}/auth/realms/kaapana/protocol/openid-connect/auth
           - --oidc-issuer-url=https://{{ required "A valid hostname (or fqdn) is required!" $.Values.global.hostname }}/auth/realms/kaapana
         {{- end }}
-          - --upstream=https://traefik:4443
+          - --upstream=https://traefik:{{ .Values.global.https_port }}
           - --provider=keycloak-oidc
           - --client-id=kaapana
           - --client-secret=uQBJzc2YDzjRfj2OCT79JDShojeqAK2R
@@ -45,7 +45,6 @@ spec:
           - --oidc-jwks-url=https://keycloak-internal-service.kube-system.svc/auth/realms/kaapana/protocol/openid-connect/certs
           - --profile-url=https://keycloak-internal-service.kube-system.svc/auth/realms/kaapana/protocol/openid-connect/userinfo
           - --cookie-secret=P7AiFgxZhLuuTZ2iuIQHSnYWrDlU_NVaA-Su1dZ9HMQ=
-          - --http-address=0.0.0.0:8080
           - --https-address=0.0.0.0:8443
           - --tls-cert-file=/ssl/tls.crt 
           - --tls-key-file=/ssl/tls.key
@@ -55,7 +54,7 @@ spec:
           - --skip-oidc-discovery
           - --insecure-oidc-allow-unverified-email 
           - --email-domain=*
-          - --force-https=true
+          # - --force-https=true
           - --pass-access-token 
           - --skip-auth-regex=/auth/*
           - --skip-auth-regex=/federated-backend/remote/*

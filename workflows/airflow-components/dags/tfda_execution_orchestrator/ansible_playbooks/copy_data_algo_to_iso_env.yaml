@@ -26,13 +26,13 @@
         #dest: /home/ubuntu/
         #mode: 0777
 
-    # - name: Copy data
-    #   become: yes
-    #   copy:
-    #     src: "/home/kaapana/minio/{{ bucket_name }}"
-    #     dest: "/home/kaapana/minio"
-    #     directory_mode: yes
-    #     mode: 0775
+    - name: Copy FeTS mockup data to iso env
+      # become: yes
+      copy:
+        src: "{{ test_data_path }}"
+        dest: "/home/ubuntu"
+        # directory_mode: yes
+        # mode: 0775
 
     - name: Set algorithm container path
       set_fact: 

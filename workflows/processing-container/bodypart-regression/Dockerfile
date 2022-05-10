@@ -1,10 +1,4 @@
 FROM pytorchlightning/pytorch_lightning:base-cuda-py3.9-torch1.11
-# FROM local-only/base-pytorch-gpu:0.1.0
-# FROM python:3.8-slim-buster
-# FROM nvcr.io/nvidia/pytorch:20.09-py3 
-# FROM nvcr.io/nvidia/pytorch:21.01-py3
-# This image makes trubles - pandas and skipy cant be found
-# FROM python:3.8-slim-buster
 
 LABEL IMAGE="bodypartregression"
 LABEL VERSION="v1.3"
@@ -41,6 +35,5 @@ RUN unzip BodyPartRegression/src/models/public_bpr_model.zip -d BodyPartRegressi
 WORKDIR /app/BodyPartRegression
 COPY requirements.txt /files/requirements.txt
 RUN pip3 install -r /files/requirements.txt
-# RUN pip3 install -e .
 
 CMD ["python3", "-u", "starter.py"]

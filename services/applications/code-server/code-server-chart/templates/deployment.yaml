@@ -1,4 +1,7 @@
 {{- $uuid := uuidv4 | trunc 10 }}
+{{- if not .Values.image }}
+{{- $uuid = "server" }}
+{{- end }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -41,7 +44,7 @@ spec:
         volumeMounts:
           {{- if not .Values.volumeMounts }}
           - name: codeserverdata
-            mountPath: /root
+            mountPath: /kaapanasrc
           {{- else }}
           - name: dshm
             mountPath: /dev/shm

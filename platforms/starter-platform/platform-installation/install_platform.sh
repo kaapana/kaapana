@@ -13,6 +13,15 @@ CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip
 CONTAINER_REGISTRY_USERNAME=""
 CONTAINER_REGISTRY_PASSWORD=""
 
+CREDENTIALS_MINIO_USERNAME="kaapanaminio"
+CREDENTIALS_MINIO_PASSWORD="Kaapana2020"
+
+GRAFANA_USERNAME="admin"
+GRAFANA_PASSWORD="admin"
+
+KEYCLOAK_ADMIN_USERNAME="admin"
+KEYCLOAK_ADMIN_PASSWORD="Kaapana2020"
+
 
 INSTANCE_NAME="central"
 
@@ -216,7 +225,7 @@ function get_domain {
 
 function delete_deployment {
     echo -e "${YELLOW}Uninstalling releases${NC}"
-    helm ls --date --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm uninstall ${NO_HOOKS} %; sleep 2"
+    helm ls --date --reverse -A | awk '{ if (/gpu-operator/ ) { } else print }' | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm uninstall ${NO_HOOKS} %; sleep 2"
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
@@ -360,7 +369,11 @@ function install_chart {
     echo -e "${YELLOW}GPU_SUPPORT: $GPU_SUPPORT ${NC}"
     if [ "$GPU_SUPPORT" = "true" ];then
         echo -e "-> enabling GPU in Microk8s ..."
-        microk8s.enable gpu
+        if [[ $deployments == *"gpu-operator"* ]];then
+            echo -e "-> gpu-operator chart already exists"
+        else
+            microk8s.enable gpu
+        fi
     fi
     get_domain
     
@@ -436,6 +449,12 @@ function install_chart {
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
     --set-string global.credentials.registry_username="$CONTAINER_REGISTRY_USERNAME" \
     --set-string global.credentials.registry_password="$CONTAINER_REGISTRY_PASSWORD" \
+    --set-string global.credentials.credentials_minio_username="$CREDENTIALS_MINIO_USERNAME" \
+    --set-string global.credentials.credentials_minio_password="$CREDENTIALS_MINIO_PASSWORD" \
+    --set-string global.credentials.grafana_username="$GRAFANA_USERNAME" \
+    --set-string global.credentials.grafana_password="$GRAFANA_PASSWORD" \
+    --set-string global.credentials.keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
+    --set-string global.credentials.keycloak_admin_passowrd="$KEYCLOAK_ADMIN_PASSWORD" \
     --set-string global.http_proxy=$http_proxy \
     --set-string global.https_proxy=$https_proxy \
     --set-string global.registry_url=$CONTAINER_REGISTRY_URL \

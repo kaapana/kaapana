@@ -14,8 +14,11 @@ from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from nnunet.LocalModelGetInputDataOperator import LocalModelGetInputDataOperator
+# from kaapana.operators.LocalPatchedGetInputDataOperator import LocalPatchedGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.PytorchCpuExecuterOperator import PytorchCpuExecuterOperator
+from kaapana.operators.HelperElasticsearch import HelperElasticsearch
 from nnunet.SegCheckOperator import SegCheckOperator
 
 default_interpolation_order = "default"
@@ -26,17 +29,58 @@ test_cohort_limit = None
 organ_filter = None
 model = '3d_fullres'
 
+
+hits = HelperElasticsearch.get_query_cohort(elastic_query={
+                "match_all": {} 
+            }, elastic_index='meta-index')
+
+available_protocol_names = []
+if hits is not None:
+    for hit in hits:
+        if '00181030 ProtocolName_keyword' in hit['_source']:
+            available_protocol_name_hits = hit['_source']['00181030 ProtocolName_keyword']
+            if isinstance(available_protocol_name_hits, str):
+                available_protocol_name_hits = [available_protocol_name_hits]
+            available_protocol_names = available_protocol_names + available_protocol_name_hits
+else:
+    raise ValueError('Invalid elasticsearch query!')
+
 parallel_processes = 3
 ui_forms = {
-    "workflow_form": {
+    "elasticsearch_form": {
         "type": "object",
         "properties": {
-            "input": {
+            "dataset": "$default",
+            "index": "$default",
+            "cohort_limit": "$default",
+            "single_execution": "$default",
+            "input_modality": {
                 "title": "Input Modality",
-                "default": "OT",
+                "default": "SEG",
                 "description": "Expected input modality.",
                 "type": "string",
                 "readOnly": True,
+            },
+        }
+    },
+    "workflow_form": {
+        "type": "object",
+        "properties": {
+            # "input": {
+            #     "title": "Input Modality",
+            #     "default": "OT",
+            #     "description": "Expected input modality.",
+            #     "type": "string",
+            #     "readOnly": True,
+            # },
+            "model_protocols": {
+                "title": "Model protocols",
+                "description": "Protocol of model",
+                "type": "array",
+                "items": {
+                    "type": 'string',
+                    "enum": available_protocol_names
+                }            
             },
             "interpolation_order": {
                 "title": "interpolation order",
@@ -101,31 +145,31 @@ get_test_images = LocalGetInputDataOperator(
     name="nnunet-cohort",
     batch_name="nnunet-cohort",
     cohort_limit=None,
-    inputs=[
-        {
-            "elastic-query": {
-                "query": {
-                    "bool": {
-                        "must": [
-                            {
-                                "bool": {
-                                    "should": [
-                                        {
-                                            "match_phrase": {
-                                                "00120020 ClinicalTrialProtocolID_keyword.keyword": "test_fl"
-                                            }
-                                        }
-                                    ],
-                                    "minimum_should_match": 1
-                                }
-                            }
-                        ]
-                    }
-                },
-                "index": "meta-index"
-            }
-        }
-    ],
+    # inputs=[
+    #     {
+    #         "elastic-query": {
+    #             "query": {
+    #                 "bool": {
+    #                     "must": [
+    #                         {
+    #                             "bool": {
+    #                                 "should": [
+    #                                     {
+    #                                         "match_phrase": {
+    #                                             "00120020 ClinicalTrialProtocolID_keyword.keyword": "test_fl"
+    #                                         }
+    #                                     }
+    #                                 ],
+    #                                 "minimum_should_match": 1
+    #                             }
+    #                         }
+    #                     ]
+    #                 }
+    #             },
+    #             "index": "meta-index"
+    #         }
+    #     }
+    # ],
     parallel_downloads=5,
     check_modality=False
 )
@@ -187,8 +231,9 @@ dcm2nifti_ct = DcmConverterOperator(
     output_format='nii.gz'
 )
 
-get_input = LocalGetInputDataOperator(
+get_input = LocalModelGetInputDataOperator(
     dag=dag,
+    name='get-models',
     check_modality=True,
     parallel_downloads=5
 )

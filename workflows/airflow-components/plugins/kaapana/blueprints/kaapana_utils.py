@@ -2,10 +2,13 @@ import re
 import os
 import shutil
 import requests
+import tarfile
+import urllib3
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from xml.etree import ElementTree
 from datetime import datetime
+from socket import timeout
 
 
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
@@ -96,6 +99,49 @@ def requests_retry_session(
         print('Not using proxies!')
 
     return session 
+
+
+def trying_request_action(func, *args, **kwargs):
+    max_retries = 5
+    try_count = 0
+    while try_count < max_retries:
+        print("Try: {}".format(try_count))
+        try_count += 1
+        try:
+            return func(*args, **kwargs)
+        except tarfile.ReadError as e:
+            print("The files was not downloaded properly...")
+            print(e)
+            print(f"Trying again action on {func.__name__}")
+        except urllib3.exceptions.ReadTimeoutError as e:
+            print("Reaad timeout error")
+            print(e)
+            print(f"Trying again action on {func.__name__}")
+        except requests.exceptions.ConnectionError as e:
+            print("Connection Error")
+            print(e)
+            print(f"Trying again action on {func.__name__}")
+        except urllib3.exceptions.ProtocolError as e:
+            print("ProtocolError")
+            print(e)
+            print(f"Trying again action on {func.__name__}")
+        except urllib3.exceptions.MaxRetryError as e:
+            print("MaxRetryError")
+            print(e)
+            print(f"Trying again action on {func.__name__}")        
+        except ValueError as e: # because of raise_kaapana_connection_error
+            print("ValueError")
+            print(e)
+            print(f"Trying again action on {func.__name__}")            
+        except timeout:
+            print("Timeout")
+            print(f"Trying again action on {func.__name__}")
+
+    if try_count >= max_retries:
+        print("------------------------------------")
+        print("Max retries reached!")
+        print("------------------------------------")
+        raise ValueError(f"We were not able to apply action on {func.__name__}")
 
 
 def clean_previous_dag_run(conf, run_identifier):

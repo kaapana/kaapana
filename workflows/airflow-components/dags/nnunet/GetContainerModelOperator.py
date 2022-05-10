@@ -19,7 +19,7 @@ class GetContainerModelOperator(KaapanaBaseOperator):
         else:
             print("Could not find task in dagrun_conf!")
             print("Abort!")
-            exit(1)
+            raise ValueError('ERROR')
 
         self.model_path = os.path.join(self.af_models_dir,"nnUNet", self.model, self.task_id)
         print("Check if model already present: {}".format(self.model_path))
@@ -46,7 +46,7 @@ class GetContainerModelOperator(KaapanaBaseOperator):
         if not self.skip_execute:
             if not os.path.isdir(self.model_path):
                 print("Model {} still not found after execution!".format(self.task_id))
-                exit(1)
+                raise ValueError('ERROR')
         super().post_execute(context,result)
 
     def __init__(self,

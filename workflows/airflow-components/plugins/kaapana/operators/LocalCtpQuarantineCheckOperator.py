@@ -47,7 +47,7 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
                         print("Trigger all already moved files.")
                         conf = {"dataInputDirs": list(target_list)}
                         trigger(dag_id=self.trigger_dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
-                    exit(1)
+                    raise ValueError('ERROR')
 
                 print(("TRIGGERING! DAG-ID: %s RUN_ID: %s" % (self.trigger_dag_id, dag_run_id)))
                 trigger(dag_id=self.trigger_dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)

@@ -7,7 +7,7 @@ import warnings
 
 tmp_prefix = '/tmp/'
 workflow_prefix = '/workflows/'
-HELM_API='http://kube-helm-service.kube-system.svc:5000/kube-helm-api'
+HELM_API='http://kube-helm-service.kube-system.svc:5000'
 
 regex = r'image=(\"|\'|f\"|f\')([\w\-\\{\}.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)(\"|\'|f\"|f\')'
 

@@ -88,7 +88,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
             if len(dcm_files) == 0:
                 print("No dicom file found!")
-                exit(1)
+                raise ValueError('ERROR')
 
             print('length', len(dcm_files))
             for dcm_file_path in dcm_files:
@@ -117,7 +117,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                     print("Something went wrong with dcmodify...")
                     print(f"Message: {output.stdout}")
                     print(f"Error:   {output.stderr}")
-                    exit(1)
+                    raise ValueError('ERROR')
                 self.executeDcm2Json(dcm_file_path, json_file_path)
 
                 json_dict = self.cleanJsonData(json_file_path)
@@ -154,7 +154,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         ret = subprocess.call(command, shell=True)
         if ret != 0:
             print("Something went wrong with dcm2json...")
-            exit(1)
+            raise ValueError('ERROR')
         return
 
     def withAppostroph(self, content):
@@ -237,7 +237,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ could not convert time!")
                 print("time_str: {}".format(time_str))
                 if self.exit_on_error:
-                    exit(1)
+                    raise ValueError('ERROR')
 
             # HH:mm:ss.SSSSS
             time_string = ("%02i:%02i:%02i.%06i" % (hour, minute, sec, fsec))
@@ -253,7 +253,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             print("Value: {}".format(time_str))
             print(e)
             if self.exit_on_error:
-                exit(1)
+                raise ValueError('ERROR')
 
     def check_list(self, value_list):
         tmp_data = []
@@ -313,7 +313,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                             print("Could not extract age from: {}".format(value_str))
                             print(e)
                             if self.exit_on_error:
-                                exit(1)
+                                raise ValueError('ERROR')
 
                     elif vr == "AT":
                         # Attribute Tag
@@ -357,7 +357,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                             print("Could not extract date from: {}".format(value_str))
                             print(e)
                             if self.exit_on_error:
-                                exit(1)
+                                raise ValueError('ERROR')
 
                     elif vr == "DS":
                         # Decimal String
@@ -378,7 +378,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         else:
                             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
                             if self.exit_on_error:
-                                exit(1)
+                                raise ValueError('ERROR')
 
                     elif vr == "DT":
                         # Date Time
@@ -415,7 +415,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                                 print("Skipping...")
                                 print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                                 if self.exit_on_error:
-                                    exit(1)
+                                    raise ValueError('ERROR')
 
                             if date_time_string is not None:
 
@@ -433,7 +433,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                             print("Could not extract Date Time from: {}".format(value_str))
                             print(e)
                             if self.exit_on_error:
-                                exit(1)
+                                raise ValueError('ERROR')
 
                     elif vr == "FL":
                         # Floating Point Single
@@ -447,7 +447,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         else:
                             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
                             if self.exit_on_error:
-                                exit(1)
+                                raise ValueError('ERROR')
 
                     elif vr == "FD":
                         # Floating Point Double
@@ -461,7 +461,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         else:
                             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
                             if self.exit_on_error:
-                                exit(1)
+                                raise ValueError('ERROR')
 
                     elif vr == "IS":
                         # Integer String
@@ -476,7 +476,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         else:
                             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
                             if self.exit_on_error:
-                                exit(1)
+                                raise ValueError('ERROR')
 
                     elif vr == "LO":
                         # Long String
@@ -517,7 +517,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         else:
                             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
                             if self.exit_on_error:
-                                exit(1)
+                                raise ValueError('ERROR')
 
                     elif vr == "OF":
                         # Other Float String
@@ -574,7 +574,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         else:
                             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
                             if self.exit_on_error:
-                                exit(1)
+                                raise ValueError('ERROR')
 
                     elif vr == "SQ":
                         result = []
@@ -593,12 +593,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                                     else:
                                         print("Attention!")
                                         if self.exit_on_error:
-                                            exit(1)
+                                            raise ValueError('ERROR')
 
                             else:
                                 print("ATTENTION!")
                                 if self.exit_on_error:
-                                    exit(1)
+                                    raise ValueError('ERROR')
 
                         elif isinstance(value_str, dict):
                             new_key = new_key+"_object"
@@ -617,7 +617,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         else:
                             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
                             if self.exit_on_error:
-                                exit(1)
+                                raise ValueError('ERROR')
 
                     elif vr == "ST":
                         # Short Text
@@ -681,7 +681,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         else:
                             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
                             if self.exit_on_error:
-                                exit(1)
+                                raise ValueError('ERROR')
 
                     elif vr == "UN":
                         # Unknown
@@ -701,7 +701,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         else:
                             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
                             if self.exit_on_error:
-                                exit(1)
+                                raise ValueError('ERROR')
 
                     elif vr == "UT":
                         # Unlimited Text
@@ -730,7 +730,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                     logging.error("#")
                     logging.error("#")
                     logging.error("#")
-                    exit(1)
+                    raise ValueError('ERROR')
 
             else:
                 if "InlineBinary" in value:
@@ -761,7 +761,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         except Exception as e:
             print("##########################################################################        correction of json file  failed!")
             print(e)
-            exit(1)
+            raise ValueError('ERROR')
 
     def cleanJsonData(self, path):
         """
@@ -926,7 +926,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             print("dcmdictpath: {}".format(os.getenv('DCMDICTPATH')))
             print("dict_path: {}".format(os.getenv('DICT_PATH')))
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-            exit(1)
+            raise ValueError('ERROR')
 
         super().__init__(
             dag=dag,

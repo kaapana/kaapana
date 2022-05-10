@@ -86,12 +86,12 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                         })
             if no_data_processed:
                 print("No files processed in any batch folder!")
-                exit(1)
+                raise ValueError('ERROR')
         else:
             if self.conf == None or not "inputs" in self.conf:
                 print("No config or inputs in config found!")
                 print("Abort.")
-                exit(1)
+                raise ValueError('ERROR')
             inputs = self.conf["inputs"]
             if not isinstance(inputs, list):
                 inputs = [inputs]
@@ -102,11 +102,11 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                     if "query" not in elastic_query:
                         print("'query' not found in 'elastic-query': {}".format(input))
                         print("abort...")
-                        exit(1)
+                        raise ValueError('ERROR')
                     if "index" not in elastic_query:
                         print("'index' not found in 'elastic-query': {}".format(input))
                         print("abort...")
-                        exit(1)
+                        raise ValueError('ERROR')
 
                     query = elastic_query["query"]
                     index = elastic_query["index"]
@@ -134,11 +134,11 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                     if "study-uid" not in dcm_uid:
                         print("'study-uid' not found in 'dcm-uid': {}".format(input))
                         print("abort...")
-                        exit(1)
+                        raise ValueError('ERROR')
                     if "series-uid" not in dcm_uid:
                         print("'series-uid' not found in 'dcm-uid': {}".format(input))
                         print("abort...")
-                        exit(1)
+                        raise ValueError('ERROR')
 
                     study_uid = dcm_uid["study-uid"]
                     series_uid = dcm_uid["series-uid"]
@@ -159,7 +159,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                     print("Unknown input: {}".format(input))
                     print("Supported 'dcm-uid' and 'elastic-query' ")
                     print("Dag-conf: {}".format(self.conf))
-                    exit(1)
+                    raise ValueError('ERROR')
 
         return dicom_info_list
 
@@ -177,7 +177,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
             else:
                 print(('Directory not copied. Error: %s' % e))
                 raise Exception('Directory not copied. Error: %s' % e)
-                exit(1)
+                raise ValueError('ERROR')
 
     def trigger_dag(self, ds, **kwargs):
         pending_dags = []
@@ -216,7 +216,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                         print()
                         print("#############################################################")
                         print()
-                        exit(1)
+                        raise ValueError('ERROR')
 
         print()
         print("#############################################################")
@@ -273,7 +273,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                                 print("This is unexpected behaviour -> error")
                                 print()
                                 print("#############################################################")
-                                exit(1)
+                                raise ValueError('ERROR')
 
                 elif state == "failed":
                     print()
@@ -283,7 +283,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                     print()
                     print("#############################################################")
                     print()
-                    exit(1)
+                    raise ValueError('ERROR')
                 else:
                     print()
                     print("#############################################################")
@@ -294,7 +294,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                     print()
                     print("#############################################################")
                     print()
-                    exit(1)
+                    raise ValueError('ERROR')
 
             time.sleep(self.delay)
 

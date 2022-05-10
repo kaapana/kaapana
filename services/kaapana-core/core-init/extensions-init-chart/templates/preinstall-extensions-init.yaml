@@ -15,7 +15,7 @@ spec:
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
-              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/kube-helm-api/health-check"
+              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/health-check"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
@@ -37,7 +37,7 @@ spec:
         image: {{  $.Values.global.registry_url }}/service_checker:1.1
         imagePullPolicy:  {{ $.Values.global.pull_policy_pods }}
         command: ["/bin/sh", "-c"]
-        args: ["echo -e \"import requests;r=requests.post('http://kube-helm-service.kube-system.svc:5000/kube-helm-api/helm-install-chart', json={'name': '{{ $extension.name }}', 'version': '{{ $extension.version }}' });print(r)\" | python3"]
+        args: ["echo -e \"import requests;r=requests.post('http://kube-helm-service.kube-system.svc:5000/helm-install-chart', json={'name': '{{ $extension.name }}', 'version': '{{ $extension.version }}' });print(r)\" | python3"]
 {{- end }}
       restartPolicy: Never
       volumes:

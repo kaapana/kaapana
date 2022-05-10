@@ -13,6 +13,7 @@ from argparse import ArgumentParser
 from build_helper.charts_build_and_push_all import HelmChart
 from build_helper.containers_build_and_push_all import start_container_build, container_registry_login
 from build_helper.charts_build_and_push_all import init_helm_charts, helm_registry_login
+from build_helper import containers_build_and_push_all
 
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
 log_list = {
@@ -105,12 +106,14 @@ if __name__ == '__main__':
 
     build_installer_scripts = False if (charts_only or docker_only) else True
 
-    container_engine = "docker" if  "container_engine" not in configuration else configuration["container_engine"]
+    container_engine = "docker" if "container_engine" not in configuration else configuration["container_engine"]
     build_containers = False if (charts_only or installer_scripts_only) else configuration["build_containers"]
     push_containers = False if (charts_only or installer_scripts_only) else configuration["push_containers"]
     push_containers = False if build_only else push_containers
     push_dev_only = configuration["push_dev_containers_only"] if "push_dev_containers_only" in configuration else False
     default_container_registry = configuration["default_container_registry"] if "default_container_registry" in configuration else ""
+    skip_push_no_changes_config = configuration["skip_push_no_changes"] if "skip_push_no_changes" in configuration else False
+    containers_build_and_push_all.skip_push_no_changes = skip_push_no_changes_config
 
     create_package = configuration["create_package"]
     if default_container_registry == "" and not create_package:
@@ -124,7 +127,7 @@ if __name__ == '__main__':
         os.makedirs(build_dir, exist_ok=True)
 
     build_charts = False if (docker_only or installer_scripts_only) else configuration["build_charts"]
-    push_charts = False if (docker_only or installer_scripts_only)  else configuration["push_charts"]
+    push_charts = False if (docker_only or installer_scripts_only) else configuration["push_charts"]
     push_charts = False if build_only else push_charts
 
     if default_container_registry == "" and push_charts:
@@ -182,7 +185,7 @@ if __name__ == '__main__':
 
     log_level = configuration["log_level"].upper()
     if log_level not in supported_log_levels:
-        print("Log level {} not supported.")
+        print(f"Log level {log_level} not supported.")
         print("Please use 'DEBUG','WARN' or 'ERROR' for log_level in build-configuration.json")
         exit(1)
 
@@ -191,24 +194,22 @@ if __name__ == '__main__':
     startTime = time()
     print("-----------------------------------------------------------")
 
-
     if build_installer_scripts:
         print("-----------------------------------------------------------")
         print("-------------------- Installer scripts --------------------")
         print("-----------------------------------------------------------")
         platforms_dir = Path(kaapana_dir) / "platforms"
         print(str(platforms_dir))
-        file_loader = FileSystemLoader(str(platforms_dir)) # directory of template file
+        file_loader = FileSystemLoader(str(platforms_dir))  # directory of template file
         env = Environment(loader=file_loader)
         for config_path in platforms_dir.rglob('installer_config.yaml'):
             platform_params = yaml.load(open(config_path), Loader=yaml.FullLoader)
             print(f'Creating installer script for {platform_params["project_name"]}')
-            template = env.get_template('install_platform_template.sh') # load template file
+            template = env.get_template('install_platform_template.sh')  # load template file
 
             output = template.render(**platform_params)
-            with open (config_path.parents[0] / 'install_platform.sh', 'w') as rsh:
+            with open(config_path.parents[0] / 'install_platform.sh', 'w') as rsh:
                 rsh.write(output)
-
 
     if build_charts:
         print("-----------------------------------------------------------")
@@ -284,7 +285,7 @@ if __name__ == '__main__':
                     print_log_entry(log_entry, kind="CHARTS")
                     if log_entry['loglevel'].upper() == "ERROR":
                         raise SkipException("SKIP {}: lint_chart() error!".format(log_entry['test']), log=log_entry)
-                
+
                 if not disable_kubeval:
                     print("kubeval ...")
                     for log_entry in chart.lint_kubeval():
@@ -316,7 +317,7 @@ if __name__ == '__main__':
             except SkipException as error:
                 print("SkipException: {}".format(str(error)))
                 continue
-            
+
     if build_containers:
         print("-----------------------------------------------------------")
         print("------------------------ CONTAINER ------------------------")
@@ -390,7 +391,6 @@ if __name__ == '__main__':
                 print(log[1])
                 print("-----------------------------------------------------------")
                 print()
-
 
     hours, rem = divmod(time()-startTime, 3600)
     minutes, seconds = divmod(rem, 60)

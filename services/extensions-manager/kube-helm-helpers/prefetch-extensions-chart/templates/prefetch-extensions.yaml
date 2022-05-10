@@ -20,7 +20,7 @@ spec:
           imagePullPolicy: {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
-              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/kube-helm-api/health-check"
+              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/health-check"
             - name: FILES_AND_FOLDERS_EXISTS
               value: "/root/charts/extensions"
             - name: DELAY
@@ -34,7 +34,7 @@ spec:
       - name: prefetch-extensions-{{ $uuid }}
         image: {{  .Values.global.registry_url }}/service_checker:1.1
         command: ["/bin/sh", "-c"]
-        args: ["echo -e \"import requests;requests.get('http://kube-helm-service.kube-system.svc:5000/kube-helm-api/prefetch-extension-docker')\" | python3; sleep 10"]
+        args: ["echo -e \"import requests;requests.get('http://kube-helm-service.kube-system.svc:5000/prefetch-extension-docker')\" | python3; sleep 10"]
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
       volumes:
       - name: helmextensions

@@ -247,7 +247,7 @@ for log_cleanup_id in range(1, NUMBER_OF_WORKERS + 1):
             executor_config={
                 "cpu_millicores": 100,
                 "ram_mem_mb": 50,
-                "gpu_mem_mb": 0
+                "gpu_mem_mb": None
             },
             dag=dag)
 

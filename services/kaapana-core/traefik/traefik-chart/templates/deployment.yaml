@@ -33,10 +33,10 @@ spec:
             - '--providers.kubernetescrd'
             - '--providers.file.filename=/config/conf.toml'
             - '--providers.file.watch=true'
-            - '--entrypoints.web.address=:8000'
+            - '--entrypoints.web.address=:{{ .Values.global.http_port }}'
             - '--entrypoints.web.http.redirections.entryPoint.to=websecure'
             - '--entrypoints.web.http.redirections.entryPoint.scheme=https'
-            - '--entrypoints.websecure.address=:4443'
+            - '--entrypoints.websecure.address=:{{ .Values.global.https_port }}'
             - '--entryPoints.websecure.http.tls=true'
             - '--entrypoints.dicom.Address=:11112'
             # - '--serversTransport.insecureSkipVerify=true'
@@ -52,9 +52,9 @@ spec:
             - '--metrics.prometheus=true'
           ports:
             - name: web
-              containerPort: 8000
+              containerPort: {{ .Values.global.http_port }}
             - name: websecure
-              containerPort: 4443
+              containerPort: {{ .Values.global.https_port }}
             - name: admin
               containerPort: 8080
           resources:

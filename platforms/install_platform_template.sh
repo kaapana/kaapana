@@ -13,6 +13,15 @@ CONTAINER_REGISTRY_URL="{{ container_registry_url|default('', true) }}" # empty 
 CONTAINER_REGISTRY_USERNAME="{{ container_registry_username|default('', true) }}"
 CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}"
 
+CREDENTIALS_MINIO_USERNAME="{{ credentials_minio_username|default('kaapanaminio', true) }}"
+CREDENTIALS_MINIO_PASSWORD="{{ credentials_minio_password|default('Kaapana2020', true) }}"
+
+GRAFANA_USERNAME="{{ grafana_username|default('admin', true) }}"
+GRAFANA_PASSWORD="{{ grafana_password|default('admin', true) }}"
+
+KEYCLOAK_ADMIN_USERNAME="{{ keycloak_admin_username|default('admin', true) }}"
+KEYCLOAK_ADMIN_PASSWORD="{{ keycloak_admin_passowrd|default('Kaapana2020', true) }}"
+
 {% for item in additional_env %}
 {{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}
 {%- endfor %}
@@ -217,7 +226,7 @@ function get_domain {
 
 function delete_deployment {
     echo -e "${YELLOW}Uninstalling releases${NC}"
-    helm ls --date --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm uninstall ${NO_HOOKS} %; sleep 2"
+    helm ls --date --reverse -A | awk '{ if (/gpu-operator/ ) { } else print }' | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm uninstall ${NO_HOOKS} %; sleep 2"
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
@@ -361,7 +370,11 @@ function install_chart {
     echo -e "${YELLOW}GPU_SUPPORT: $GPU_SUPPORT ${NC}"
     if [ "$GPU_SUPPORT" = "true" ];then
         echo -e "-> enabling GPU in Microk8s ..."
-        microk8s.enable gpu
+        if [[ $deployments == *"gpu-operator"* ]];then
+            echo -e "-> gpu-operator chart already exists"
+        else
+            microk8s.enable gpu
+        fi
     fi
     get_domain
     
@@ -437,6 +450,12 @@ function install_chart {
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
     --set-string global.credentials.registry_username="$CONTAINER_REGISTRY_USERNAME" \
     --set-string global.credentials.registry_password="$CONTAINER_REGISTRY_PASSWORD" \
+    --set-string global.credentials.credentials_minio_username="$CREDENTIALS_MINIO_USERNAME" \
+    --set-string global.credentials.credentials_minio_password="$CREDENTIALS_MINIO_PASSWORD" \
+    --set-string global.credentials.grafana_username="$GRAFANA_USERNAME" \
+    --set-string global.credentials.grafana_password="$GRAFANA_PASSWORD" \
+    --set-string global.credentials.keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
+    --set-string global.credentials.keycloak_admin_passowrd="$KEYCLOAK_ADMIN_PASSWORD" \
     --set-string global.http_proxy=$http_proxy \
     --set-string global.https_proxy=$https_proxy \
     --set-string global.registry_url=$CONTAINER_REGISTRY_URL \

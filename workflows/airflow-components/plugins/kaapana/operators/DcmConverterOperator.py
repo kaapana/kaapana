@@ -26,7 +26,7 @@ class DcmConverterOperator(KaapanaBaseOperator):
         if output_format != "nrrd" and (output_format != "nii.gz" and output_format != "nii"):
             print(("output format %s is currently not supported!" % output_format))
             print("Dcm2nrrdOperator options: 'nrrd' or 'nii'")
-            exit(1)
+            raise ValueError('ERROR')
 
         super().__init__(
             dag=dag,

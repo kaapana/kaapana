@@ -63,13 +63,13 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
             for line in str(output).split("\\n"):
                 print(line)
             print("##################################################")
-            exit(1)
+            raise ValueError('ERROR')
         else:
             print(f"Success! output: {output}")
             print("")
         if self.check_arrival and not self.check_if_arrived(seriesUID=series_uid):
             print(f"Arrival check failed!")
-            exit(1)
+            raise ValueError('ERROR')
 
     def start(self, **kwargs):
         run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)

@@ -26,11 +26,11 @@ from kaapana.blueprints.kaapana_utils import generate_run_id, cure_invalid_name
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
-from airflow.api.common.experimental import pool as pool_api
 import uuid
 import json
-from kaapana import pools_dict
 import logging
+from airflow.models import Variable
+
 
 default_registry = os.getenv("DEFAULT_REGISTRY", "")
 default_project = os.getenv("DEFAULT_PROJECT", "")
@@ -86,7 +86,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     :type xcom_push: bool
     """
 
-    HELM_API = 'http://kube-helm-service.kube-system.svc:5000/kube-helm-api'
+    HELM_API = 'http://kube-helm-service.kube-system.svc:5000'
     TIMEOUT = 60 * 60 * 12
 
     pod_stopper = PodStopper()
@@ -384,10 +384,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.kube_name = self.kube_name.lower() + "-" + str(uuid.uuid4())[:8]
         self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63) # actually 63, but because of helm set to 53, maybe...
 
-        # self.pool = context["ti"].pool
-        # self.pool_slots = context["ti"].pool_slots
-        if "NODE_GPU_" in self.pool and self.pool.count("_") == 3:
-            gpu_id = self.pool.split("_")[2]
+        if "NODE_GPU_" in str(context["task_instance"].pool) and str(context["task_instance"].pool).count("_") == 3:
+            gpu_id = str(context["task_instance"].pool).split("_")[2]
             self.env_vars.update({
                 "CUDA_VISIBLE_DEVICES": str(gpu_id)
             })
@@ -544,7 +542,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     @staticmethod
     def on_failure(info_dict):
         print("##################################################### ON FAILURE!")
-        print("## POD: {}".format(info_dict["ti"].task.kube_name))
         keep_pod_messages = [
             State.SUCCESS,
             State.FAILED
@@ -553,8 +550,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         if result_message not in keep_pod_messages:
             print("RESULT_MESSAGE: {}".format(result_message))
             print("--> delete pod!")
-            pod_id = info_dict["ti"].task.kube_name
-            KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=pod_id)
+            if hasattr(info_dict["ti"].task, 'kube_name'):
+                pod_id = info_dict["ti"].task.kube_name
+                KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=pod_id)
 
     @staticmethod
     def on_success(info_dict):
@@ -585,8 +583,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         if result_message not in keep_pod_messages:
             print("RESULT_MESSAGE: {}".format(result_message))
             print("--> delete pod!")
-            pod_id = info_dict["ti"].task.kube_name
-            KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=pod_id)
+            if hasattr(info_dict["ti"].task, 'kube_name'):
+                pod_id = info_dict["ti"].task.kube_name
+                KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=pod_id)
 
     @staticmethod
     def on_execute(info_dict):
@@ -669,39 +668,11 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         elif operator_in_dir is not None:
             obj.operator_in_dir = operator_in_dir
 
+        enable_job_scheduler = True if Variable.get("enable_job_scheduler", default_var="True").lower() == "true" else False
         if obj.pool == None:
-            if obj.gpu_mem_mb != None:
-                gpu_pool_list = []
-                for k, v in pools_dict.items(): 
-                    if "NODE_GPU_" in k and k.count("_") == 3 and v["total"] > obj.gpu_mem_mb:
-                        v["name"] = k
-                        v["id"] = k.split("_")[2]
-                        gpu_pool_list.append(v)
-                gpu_pool_list = sorted(gpu_pool_list, key=lambda d: d['total'], reverse=False)
-
-                gpu_pool_found = None
-                for pool in gpu_pool_list:
-                    gpu_id = pool["id"] 
-                    free_space = pool["open"]
-                    if free_space > obj.gpu_mem_mb:
-                        gpu_pool_found = gpu_id
-
-                if gpu_pool_found == None:
-                    for pool in gpu_pool_list:
-                        gpu_id = pool["id"] 
-                        capacity = pool["total"]
-                        if capacity > obj.gpu_mem_mb:
-                            gpu_pool_found = gpu_id
-                
-                if gpu_pool_found == None:
-                    logging.warn("No GPU identified for the job!")
-                    logging.warn(f"{obj.gpu_mem_mb=}")
-                    logging.warn(f"SETTING POOL NODE_GPU_COUNT == 1")
-                    obj.pool = "NODE_GPU_COUNT"
-                    obj.pool_slots =  1
-                else:
-                    obj.pool = f"NODE_GPU_{gpu_pool_found}_MEM"
-                    obj.pool_slots =  obj.gpu_mem_mb
+            if not enable_job_scheduler and obj.gpu_mem_mb != None and obj.gpu_mem_mb != 0:
+                obj.pool = "NODE_GPU_COUNT"
+                obj.pool_slots = 1
             else:
                 obj.pool = "NODE_RAM"
                 obj.pool_slots = obj.ram_mem_mb if obj.ram_mem_mb is not None else 1
@@ -709,7 +680,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         obj.executor_config = {
             "cpu_millicores": obj.cpu_millicores,
             "ram_mem_mb": obj.ram_mem_mb,
-            "gpu_mem_mb": obj.gpu_mem_mb
+            "gpu_mem_mb": obj.gpu_mem_mb,
+            "enable_job_scheduler": enable_job_scheduler
         }
 
         return obj

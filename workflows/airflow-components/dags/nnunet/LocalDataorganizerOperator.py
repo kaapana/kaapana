@@ -106,7 +106,7 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
                     shutil.copy2(json_file, target_json_path)
                 else:
                     print(f"# No json found!")
-                    exit(1)
+                    raise ValueError('ERROR')
                 print(f"#")
             print(f"#")
 

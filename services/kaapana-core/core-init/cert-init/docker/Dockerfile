@@ -5,8 +5,8 @@ LABEL VERSION="0.0.1"
 LABEL CI_IGNORE="False"
 
 RUN apk add --no-cache kubectl --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl bash
 
 WORKDIR /cert
-COPY create-secret.sh .
-CMD ["./create-secret.sh"]
+COPY handle-secret.sh .
+CMD ["./handle-secret.sh"]

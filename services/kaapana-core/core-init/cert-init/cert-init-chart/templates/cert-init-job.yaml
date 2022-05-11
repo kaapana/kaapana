@@ -19,10 +19,24 @@ spec:
           limits:
             memory: 200Mi
         env:
+        - name: ACTION
+          value: "install"
+        - name: SECRET_NAME
+          value: "{{  .Values.global.tls_secret.name }}"
+        - name: SECRET_NAMESPACE
+          value: "{{  .Values.global.tls_secret.namespace }}"
         - name: COMMON_NAME
-          value: "kaapana"
+          value: "{{  .Values.global.tls_secret.common_name }}"
         - name: EXPIRATION
-          value: "365"
+          value: "{{  .Values.global.tls_secret.expiration }}"
+        volumeMounts:
+        - name: tls-storage
+          mountPath: /cert/tls
+      volumes:
+      - name: tls-storage
+        hostPath:
+          path: "{{ .Values.global.fast_data_dir }}/tls"
+          type: DirectoryOrCreate
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret

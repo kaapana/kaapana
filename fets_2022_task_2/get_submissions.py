@@ -23,7 +23,6 @@ container_registry = "docker.synapse.org"
 kaapana_workflow_dir = os.path.join("/home", "kaapana", "workflows")
 
 base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-# tasks = [("FeTS 2022 TESTING Queue", 9615030)]
 tasks = [("fets_2022_test_queue", 9615030)]
 
 
@@ -45,7 +44,6 @@ def get_username_by_id(id, syn):
 
 
 def process_submission(subm, task_name, task_dir):
-    ## Somewhere here we can trigger Airflow
     subm_user = subm["userId"]
     subm_id = subm["id"]
     subm_docker_name = subm["dockerRepositoryName"]
@@ -106,12 +104,12 @@ if __name__ == "__main__":
         syn = sc.login(email=synapse_user, apiKey=API_KEY)
 
         # evaluation_id = "9615030"
-        # my_submission_entity = "syn29340324"
+        # my_submission_entity = "syn30324641"
         # print("\nSubmit container to queue for evaluation...")
         # submission = syn.submit(
         #     evaluation = evaluation_id,
         #     entity = my_submission_entity,
-        #     name = "My second submission") # An arbitrary name for your submission
+        #     name = "nnunet_example") # An arbitrary name for your submission
         #     # team = "TFDA") # Optional, can also pass a Team object or id
 
         print("\nChecking for new submissions...")

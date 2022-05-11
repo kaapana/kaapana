@@ -8,6 +8,8 @@ from subprocess import PIPE, run
 from airflow.models import DagRun
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.api.common.experimental.trigger_dag import trigger_dag as trigger
+from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
+from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
@@ -28,17 +30,12 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
 
         subm_dict = {}
         subm_dict_path = os.path.join(subm_logs_path, "subm_dict.json")
+        subm_ids_list = []
+        new_dag = True
 
         if os.path.exists(subm_dict_path):
             with open(subm_dict_path, "r") as fp_:
                 subm_dict = json.load(fp_)
-                # json.load(fp_)
-
-        open_list = []
-
-        for s_id, s_state in subm_dict.items():
-            if s_state == "open":
-                open_list.append(s_id)
         
         print("Logging into Synapse...")
         syn = sc.login(email=synapse_user, apiKey=API_KEY)
@@ -46,16 +43,23 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
         print("Logging into container registry!!!") 
         command = ["skopeo", "login", "--username", f"{synapse_user}", "--password", f"{synapse_pw}", f"{container_reg}"]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
+        if output.returncode != 0:
+            print(f"Error logging into container registry! Exiting... \nERROR LOGS: {output.stderr}")
+            exit(1)
 
         print("\nChecking for new submissions...")
         for task_name, task_id in tasks:
             print(f"Checking {task_name}...")
             for subm in syn.getSubmissions(task_id):
                 if subm["id"] not in subm_dict:
-                    
+                    subm_ids_list.append(subm["id"])
                     print("Pulling container...")
                     command2 = ["skopeo", "copy", f"docker://{subm['dockerRepositoryName']}:latest", f"docker-archive:/root/airflow/dags/tfda_execution_orchestrator/tarball/{subm['id']}.tar", "--additional-tag", f"{subm['id']}:latest"]
                     output2 = run(command2, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
+                    if output2.returncode != 0:
+                        print(f"Error while trying to download container! Skipping... ERROR LOGS:\n {output2.stderr} ")
+                        subm_dict[subm["id"]] = "skipped"
+                        continue
                     print("Triggering isolated execution orchestrator...")
                     self.conf = kwargs['dag_run'].conf
                     self.conf["subm_id"] = subm["id"]
@@ -64,43 +68,35 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
 
                     dag_run = self.get_most_recent_dag_run(self.trigger_dag_id)
                     if dag_run:
-                        print(f'The most recent DagRun was EXECUTED at: {dag_run.execution_date}!!!!')
+                        print(f'The most recent DagRun was executed at: {dag_run.execution_date}!!!')
 
                     dag_state = get_dag_run_state(dag_id="tfda-execution-orchestrator", execution_date=dag_run.execution_date)
-                    print(f"****************The STATE of the main dag is {dag_state}****************")
+                    print(f"**************** The state of evaluation of submission with ID {subm_dict[subm_ids_list[-2]]} is: {dag_state['state']} ****************")
 
                     while dag_state['state'] != "failed" and dag_state['state'] != "success":
                         dag_run = self.get_most_recent_dag_run(self.trigger_dag_id)
-                        # if dag_run:
-                        #     print(f'The most recent DagRun was EXECUTED at: {dag_run.execution_date}!!!!')
-
-                        dag_state = get_dag_run_state(dag_id="tfda-execution-orchestrator", execution_date=dag_run.execution_date)
-                        # print(f"****************The STATE of the main dag is {dag_state}****************")    
+                        dag_state = get_dag_run_state(dag_id="tfda-execution-orchestrator", execution_date=dag_run.execution_date)                        
+                    
+                    if dag_state['state'] == "failed" and not new_dag:
+                        print(f"**************** The evaluation of submission with ID {subm_dict[subm_ids_list[-2]]} has FAILED ****************")
+                        subm_dict[subm_ids_list[-2]] = "failed"
+                    if dag_state['state'] == "success" and not new_dag:
+                        print(f"**************** The evaluation of submission with ID {subm_dict[subm_ids_list[-2]]} was SUCCESSFUL ****************")
+                        subm_dict[subm_ids_list[-2]] = "success"
 
                     dag_run_id = generate_run_id(self.trigger_dag_id)
-                    trigger(dag_id=self.trigger_dag_id, run_id=dag_run_id, conf=self.conf,
-                                    replace_microseconds=False)
-
-                    subm_dict[subm["id"]] = "open"
-                    subm_dict[f'{subm["id"]}_registry'] = subm["dockerRepositoryName"]
-                    open_list.append(subm["id"])
-                    # time.sleep(60)
-
-        print("Checking open tasks...")
-        open_list_copy = open_list.copy()
-        for s_id in open_list_copy:
-            if os.path.exists(
-                os.path.join(subm_logs_path, "fets_2022_test_queue", s_id, "end.txt")
-            ):
-                subm_dict[s_id] = "finished"
-                open_list.remove(s_id)
+                    try:
+                        trigger(dag_id=self.trigger_dag_id, run_id=dag_run_id, conf=self.conf,
+                                        replace_microseconds=False)
+                    except Exception as e:
+                        print(f"Error while triggering isolated workflow for submission with ID: {subm['id']}...")
+                        print(e)
+                        subm_dict[subm["id"]] = "exception"
+                    new_dag = False
 
         print("Saving submission dict...")
         with open(subm_dict_path, "w") as fp_:
             json.dump(subm_dict, fp_)
-
-        print("\nTaking (coffee) a break now...")
-        # time.sleep(60 * 60 * 1)
 
     def __init__(self,
                  dag,

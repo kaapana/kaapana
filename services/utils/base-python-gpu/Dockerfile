@@ -12,7 +12,9 @@ RUN apt-get update && apt-get install -y \
     git \
     htop \
     zip \
-    unzip
+    unzip \
+    nano \
+    && rm -rf /var/lib/apt/lists/*
 
 # Common Python packages
 RUN python -m pip install --upgrade pip
@@ -26,7 +28,8 @@ RUN code-server --install-extension ms-python.python
 
 # Juyterlab
 # Only for jupyternotebook: jupyter nbconvert --to html --no-input ...
-RUN apt-get install -y texlive-xetex texlive-fonts-recommended texlive-plain-generic pandoc
+RUN apt-get update && apt-get install -y texlive-xetex texlive-fonts-recommended texlive-plain-generic pandoc \
+    && rm -rf /var/lib/apt/lists/*
 # Disable security token for Jupyter lab
 RUN jupyter notebook --generate-config \
  && sed -i "s/^.*NotebookApp.token.*$/c.NotebookApp.token = ''/g" /root/.jupyter/jupyter_notebook_config.py

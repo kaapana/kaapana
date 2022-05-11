@@ -5,7 +5,7 @@ LABEL VERSION="sha-0489118"
                    
 LABEL CI_IGNORE="False"
 
-RUN apk add --no-cache git
+WORKDIR /
 
 # git hack to replace git:// with https:// -> dkfz proxy 
 RUN git config --global url."https://".insteadOf git://

@@ -19,7 +19,7 @@ spec:
         - name: ACTION
           value: "remove"
         - name: CHARTS_DIR
-          value: charts/helpers
+          value: /charts/helpers
         volumeMounts:
         - name: data
           mountPath: /charts
@@ -31,7 +31,7 @@ spec:
         - name: ACTION
           value: "remove"
         - name: CHARTS_DIR
-          value: charts/collections
+          value: /charts/collections
         volumeMounts:
         - name: data
           mountPath: /charts

@@ -1,4 +1,4 @@
-elasticsearch==8.1.2
+elasticsearch==7.13.4
 pathlib==1.0.1
 pydicom==2.3.0
 # dicomweb-client==0.52.0

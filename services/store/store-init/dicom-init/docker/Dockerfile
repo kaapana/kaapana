@@ -1,16 +1,11 @@
-FROM ubuntu:20.04
+FROM local-only/base-python-cpu:0.1.0
 ARG DEBIAN_FRONTEND=noninteractive
 
 LABEL IMAGE="dicom-init"
 LABEL VERSION="0.1.2"
 LABEL CI_IGNORE="False"
 
-RUN apt-get update && apt-get install -y \
-    dcmtk \
-    python3 \
-    python3-pip \
-    curl \
-    unzip \
+RUN apt-get update -y && apt-get install -y dcmtk \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl --header "DEPLOY-TOKEN: EaexsV_q2BKG8BeurRT8" --output /test-dicoms.zip "https://gitlab.hzdr.de/api/v4/projects/2521/packages/generic/test-data/0.0.3/init-dicoms.zip" \

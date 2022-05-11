@@ -8,6 +8,6 @@ ENV BATCHES_INPUT_DIR /input
 ENV OPERATOR_IN_DIR initial-input
 ENV OPERATOR_OUT_DIR radiomics
 
-COPY files/radiomics.sh /
+COPY files/radiomics.sh /kaapanasrc/
 
-CMD ["/bin/bash", "/radiomics.sh"]
+CMD ["/bin/bash", "/kaapanasrc/radiomics.sh"]

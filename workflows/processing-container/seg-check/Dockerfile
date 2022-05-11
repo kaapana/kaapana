@@ -4,8 +4,8 @@ LABEL IMAGE="seg-check"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-COPY files/requirements.txt /src
-RUN pip3 install -r /src/requirements.txt
+COPY files/requirements.txt /
+RUN pip3 install -r /requirements.txt
 
 ENV BATCHES_INPUT_DIR /input
 ENV OPERATOR_IN_DIRS initial-input
@@ -16,10 +16,10 @@ ENV OPERATOR_OUT_DIR seg-check
 ENV INTERPOLATOR 1 
 ENV ORG_IMG_IN_DIR ""
 
-ENV EXECUTABLE /src/MitkCLResampleImageToReference.sh
+ENV EXECUTABLE /kaapanasrc/MitkCLResampleImageToReference.sh
 
-COPY files/start.py /start.py
-CMD ["python3","-u","/start.py"]
+COPY files/start.py /kaapanasrc/
+CMD ["python3","-u","/kaapanasrc/start.py"]
 
 # root@cd72f914f1cd:/opt# ./MitkCLResampleImageToReference.sh 
 # Running Command Line Utility *Resample Image To Reference*

@@ -1,4 +1,4 @@
-FROM python:3.9.7
+FROM local-only/base-python-cpu:0.1.0
 
 LABEL IMAGE="treshhold-segmentation"
 LABEL VERSION="0.1.0"

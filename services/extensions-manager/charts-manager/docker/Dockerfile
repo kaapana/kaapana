@@ -5,6 +5,6 @@ LABEL IMAGE="charts-manager"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-COPY files/run.py run.py
+COPY files/run.py /kaapanasrc/
 
-CMD ["python3","-u","/run.py"]
+CMD ["python3","-u","/kaapanasrc/run.py"]

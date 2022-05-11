@@ -187,6 +187,25 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
     name = payload["name"]
     version = payload["version"]
 
+    # default_sets = {
+    #     #'global.registry_url': os.getenv('REGISTRY_URL'),
+    #     'global.base_namespace': os.getenv('BASE_NAMESPACE'),
+    #     'global.flow_namespace': os.getenv('FLOW_NAMESPACE'),
+    #     'global.flow_jobs_namespace': os.getenv('FLOW_JOBS_NAMESPACE'),
+    #     #'global.fast_data_dir': os.getenv('FAST_DATA_DIR'),
+    #     #'global.slow_data_dir': os.getenv('SLOW_DATA_DIR'),
+    #     #'global.pull_policy_pods': os.getenv('PULL_POLICY_PODS'),
+    #     #'global.pull_policy_jobs': os.getenv('PULL_POLICY_JOBS'),
+    #     #'global.offline_mode': os.environ.get('OFFLINE_MODE', 'true'),
+    #     'global.credentials_minio_username': os.getenv('MINIO_ACCESS_KEY'),
+    #     'global.credentials_minio_password': os.getenv('MINIO_SECRET_KEY'),
+    #     #'global.instance_name': os.getenv('INSTANCE_NAME'),
+    #     #'global.hostname': os.getenv('HOSTNAME'),
+    #     #'global.http_proxy': os.getenv('PROXY', ''),
+    #     #'global.https_proxy': os.getenv('PROXY', ''),
+    #     #'global.https_port': os.getenv('HTTPS_PORT', '443')
+    # }
+
     default_sets = {
         'global.registry_url': os.getenv('REGISTRY_URL'),
         'global.base_namespace': os.getenv('BASE_NAMESPACE'),

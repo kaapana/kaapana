@@ -1,3 +1,0 @@
-nibabel
-albumentations
-pytorch-lightning

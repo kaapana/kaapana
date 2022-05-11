@@ -30,6 +30,6 @@ dependencies:
     repository: file://../../../services/kaapana-core/core-init/extensions-init-chart
   - name: cert-init-chart
     version: "0.0.1"
-    repository: file://../../services/kaapana-core/core-init/cert-init/cert-init-chart
+    repository: file://../../../services/kaapana-core/core-init/cert-init/cert-init-chart
    
     

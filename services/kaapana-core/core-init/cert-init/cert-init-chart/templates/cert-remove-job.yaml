@@ -1,0 +1,37 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: remove-secret
+  namespace: kube-system
+  annotations:
+    # post-delete will remove the registry-secret and therfor the job can not pull the image
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
+spec:
+  template:
+    metadata:
+      name: remove-secret
+    spec:
+      containers:
+      - name: cert-init
+        image: {{  .Values.global.registry_url }}/cert-init:0.0.1
+        imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
+        resources:
+          requests:
+            memory: 200Mi
+          limits:
+            memory: 200Mi
+        env:
+        - name: ACTION
+          value: "remove"
+        - name: SECRET_NAME
+          value: {{  .Values.global.tls_secret.name }}
+        - name: SECRET_NAMESPACE
+          value: {{  .Values.global.tls_secret.namespace }}
+      restartPolicy: Never
+      # the container needs to delete secrets in .Values.global.tls_secret.namespace
+      serviceAccountName: kubernetes-dashboard
+      imagePullSecrets:
+      - name: registry-secret

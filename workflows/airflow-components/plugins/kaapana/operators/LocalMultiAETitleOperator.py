@@ -10,12 +10,11 @@ from shutil import copyfile
 
 
 class LocalMultiAETitleOperator(KaapanaPythonBaseOperator):
-
     # CTP stores called AE titel in https://dicom.innolitics.com/ciods/stereometric-relationship/clinical-trial-subject/00120020
     AETITLE_IN_META = "00120020 ClinicalTrialProtocolID_keyword"
     AETITLE_DICOM_TAG = "ClinicalTrialProtocolID"
     AETITLE_SEPERATOR = ";"
-    AETITLE_DEFAULT = "KAAPANA"
+    AETITLE_DEFAULT = "PROBLEMATIC"
 
     def _add_aetitle(self, src_file, target_file, aetitle_to_append):
         ds = pydicom.dcmread(src_file, force=True)
@@ -41,14 +40,14 @@ class LocalMultiAETitleOperator(KaapanaPythonBaseOperator):
 
     def _check_series(self, input_dir, output_dir):
         dcm_file_list = glob.glob(input_dir + "/*.dcm", recursive=True)
-        dcm_file = pydicom.dcmread(dcm_file_list[0],force=True)
+        dcm_file = pydicom.dcmread(dcm_file_list[0], force=True)
         series_uid = dcm_file[0x0020, 0x000E].value
         try:
             series_trail_subject = dcm_file[self.AETITLE_DICOM_TAG].value
         except KeyError as e:
             print("Key not found:")
             print(e)
-            print("setting a default AETITLE")
+            print("setting a default AETITLE for problemetic file")
             series_trail_subject = self.AETITLE_DEFAULT
         print(f"Sending AETITLE is: {series_trail_subject}")
         metadata = HelperElasticsearch.get_series_metadata(series_uid)
@@ -64,7 +63,7 @@ class LocalMultiAETitleOperator(KaapanaPythonBaseOperator):
                     # older indexes only contain a single string but new format is a list
                     if isinstance(aetitle_to_append, str):
                         aetitle_to_append = [aetitle_to_append]
-                    
+
                     self._add_aetitle(src_file, target_file, aetitle_to_append)
         else:
             print("No metadata found for this series, normal import")

@@ -41,13 +41,15 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
                         shutil.move(str(dcm_file), target)
                     conf = {"dataInputDirs": list(target_list)}
                 except Exception as e:
+                    print("An exception occurred, when moving files:")
                     print(e)
-                    print("An exception occurred, when moving files.")
+                    print("Please have a look at this file:" + dcm_file)
+                    print("Remove or future process unvaild file")
                     if target_list:
                         print("Trigger all already moved files.")
                         conf = {"dataInputDirs": list(target_list)}
                         trigger(dag_id=self.trigger_dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
-                    raise ValueError('ERROR')
+                    exit(1)
 
                 print(("TRIGGERING! DAG-ID: %s RUN_ID: %s" % (self.trigger_dag_id, dag_run_id)))
                 trigger(dag_id=self.trigger_dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)

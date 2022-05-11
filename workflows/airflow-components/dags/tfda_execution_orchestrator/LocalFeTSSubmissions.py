@@ -60,30 +60,29 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
                         print(f"Error while trying to download container! Skipping... ERROR LOGS:\n {output2.stderr} ")
                         subm_dict[subm["id"]] = "skipped"
                         continue
-                    print("Triggering isolated execution orchestrator...")
-                    self.conf = kwargs['dag_run'].conf
-                    self.conf["subm_id"] = subm["id"]
                     self.trigger_dag_id = "tfda-execution-orchestrator"
                     # self.dag_run_id = kwargs['dag_run'].run_id
 
                     dag_run = self.get_most_recent_dag_run(self.trigger_dag_id)
                     if dag_run:
-                        print(f'The most recent DagRun was executed at: {dag_run.execution_date}!!!')
+                        print(f'The most recent isolated workflow was executed at: {dag_run.execution_date}!!!')
 
                     dag_state = get_dag_run_state(dag_id="tfda-execution-orchestrator", execution_date=dag_run.execution_date)
-                    print(f"**************** The state of evaluation of submission with ID {subm_dict[subm_ids_list[-2]]} is: {dag_state['state']} ****************")
 
                     while dag_state['state'] != "failed" and dag_state['state'] != "success":
                         dag_run = self.get_most_recent_dag_run(self.trigger_dag_id)
                         dag_state = get_dag_run_state(dag_id="tfda-execution-orchestrator", execution_date=dag_run.execution_date)                        
                     
                     if dag_state['state'] == "failed" and not new_dag:
-                        print(f"**************** The evaluation of submission with ID {subm_dict[subm_ids_list[-2]]} has FAILED ****************")
+                        print(f"**************** The evaluation of submission with ID {subm_ids_list[-2]} has FAILED ****************")
                         subm_dict[subm_ids_list[-2]] = "failed"
                     if dag_state['state'] == "success" and not new_dag:
-                        print(f"**************** The evaluation of submission with ID {subm_dict[subm_ids_list[-2]]} was SUCCESSFUL ****************")
+                        print(f"**************** The evaluation of submission with ID {subm_ids_list[-2]} was SUCCESSFUL ****************")
                         subm_dict[subm_ids_list[-2]] = "success"
 
+                    print("Triggering isolated execution orchestrator...")
+                    self.conf = kwargs['dag_run'].conf
+                    self.conf["subm_id"] = subm["id"]
                     dag_run_id = generate_run_id(self.trigger_dag_id)
                     try:
                         trigger(dag_id=self.trigger_dag_id, run_id=dag_run_id, conf=self.conf,

@@ -1,4 +1,5 @@
-FROM python:3.9-slim
+# FROM python:3.9-slim
+FROM local-only/base-python-alpine:0.1.0
 # FROM python:3.9-alpine3.12
 
 LABEL IMAGE="dcmstruct2nifti"

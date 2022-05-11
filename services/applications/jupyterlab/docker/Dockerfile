@@ -1,4 +1,4 @@
-FROM local-only/base-pytorch-gpu:0.1.0
+FROM local-only/base-python-gpu:0.1.0
 
 LABEL IMAGE="jupyterlab"
 LABEL VERSION="3.3.2"

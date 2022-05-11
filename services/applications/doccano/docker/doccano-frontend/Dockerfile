@@ -1,4 +1,4 @@
-FROM python:3.9-alpine3.12 as build-stage
+FROM local-only/base-python-alpine:0.1.0 as build-stage
 
 LABEL IMAGE="doccano-frontend"
 LABEL VERSION="sha-0489118"

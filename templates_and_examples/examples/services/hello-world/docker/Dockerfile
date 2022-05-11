@@ -1,4 +1,4 @@
-FROM python:3.8-alpine
+FROM local-only/base-python-alpine:0.1.0
 
 LABEL IMAGE="hello-world"
 LABEL VERSION="0.1.0"

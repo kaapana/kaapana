@@ -1,10 +1,8 @@
-FROM python:3.9-alpine3.12
+FROM local-only/base-python-alpine:0.1.0
 
 LABEL IMAGE="service_checker"
 LABEL VERSION="1.1"
 LABEL CI_IGNORE="False"
-
-RUN pip install requests
 
 COPY files/service_checker.py /service_checker/service_checker.py
 

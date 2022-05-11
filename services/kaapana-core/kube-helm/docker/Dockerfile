@@ -1,12 +1,10 @@
-FROM python:3.9-alpine3.12
+FROM local-only/base-python-alpine:0.1.0
 
 LABEL IMAGE="kube-helm"
 LABEL VERSION="0.1.3"
 LABEL CI_IGNORE="False"
 
 WORKDIR /app
-
-RUN apk update && apk add postgresql-dev python3-dev gcc musl-dev
 
 ENV KUBE_LATEST_VERSION="v1.23.0"
 ENV HELM_VERSION="v3.8.1"

@@ -1,0 +1,8 @@
+# Versions should be equal to base-python-gpu container check with pip freeze
+elasticsearch==8.1.2
+pydicom==2.3.0
+cryptography==3.4.8
+kubernetes==23.3.0
+minio==7.1.5
+pathlib==1.0.1
+requests==2.27.1

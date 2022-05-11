@@ -1,4 +1,4 @@
-FROM python:3.10.2
+FROM local-only/base-python-cpu:0.1.0
 
 LABEL IMAGE="dcmqi"
 LABEL VERSION="v1.2.4"

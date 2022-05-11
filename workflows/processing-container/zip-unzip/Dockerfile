@@ -1,4 +1,4 @@
-FROM python:3.9-alpine3.12
+FROM local-only/base-python-alpine:0.1.0
 
 LABEL IMAGE="zip-unzip"
 LABEL VERSION="3.0.0"

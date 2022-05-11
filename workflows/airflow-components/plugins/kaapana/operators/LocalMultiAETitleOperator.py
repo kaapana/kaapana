@@ -15,6 +15,7 @@ class LocalMultiAETitleOperator(KaapanaPythonBaseOperator):
     AETITLE_IN_META = "00120020 ClinicalTrialProtocolID_keyword"
     AETITLE_DICOM_TAG = "ClinicalTrialProtocolID"
     AETITLE_SEPERATOR = ";"
+    AETITLE_DEFAULT = "KAAPANA"
 
     def _add_aetitle(self, src_file, target_file, aetitle_to_append):
         ds = pydicom.dcmread(src_file, force=True)
@@ -42,7 +43,13 @@ class LocalMultiAETitleOperator(KaapanaPythonBaseOperator):
         dcm_file_list = glob.glob(input_dir + "/*.dcm", recursive=True)
         dcm_file = pydicom.dcmread(dcm_file_list[0],force=True)
         series_uid = dcm_file[0x0020, 0x000E].value
-        series_trail_subject = dcm_file[self.AETITLE_DICOM_TAG].value
+        try:
+            series_trail_subject = dcm_file[self.AETITLE_DICOM_TAG].value
+        except KeyError as e:
+            print("Key not found:")
+            print(e)
+            print("setting a default AETITLE")
+            series_trail_subject = self.AETITLE_DEFAULT
         print(f"Sending AETITLE is: {series_trail_subject}")
         metadata = HelperElasticsearch.get_series_metadata(series_uid)
         if metadata:

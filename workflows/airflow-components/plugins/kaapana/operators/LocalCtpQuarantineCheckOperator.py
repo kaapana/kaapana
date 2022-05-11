@@ -43,7 +43,7 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
                 except Exception as e:
                     print("An exception occurred, when moving files:")
                     print(e)
-                    print("Please have a look at this file:" + dcm_file)
+                    print("Please have a look at this file:" + str(dcm_file))
                     print("Remove or future process unvaild file")
                     if target_list:
                         print("Trigger all already moved files.")

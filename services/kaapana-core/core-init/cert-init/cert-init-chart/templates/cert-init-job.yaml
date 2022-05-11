@@ -38,5 +38,7 @@ spec:
           path: "{{ .Values.global.fast_data_dir }}/tls"
           type: DirectoryOrCreate
       restartPolicy: Never
+      # the container needs to create secrets in .Values.global.tls_secret.namespace
+      serviceAccountName: kubernetes-dashboard
       imagePullSecrets:
       - name: registry-secret

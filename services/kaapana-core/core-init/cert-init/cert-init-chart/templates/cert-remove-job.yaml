@@ -31,5 +31,7 @@ spec:
         - name: SECRET_NAMESPACE
           value: {{  .Values.global.tls_secret.namespace }}
       restartPolicy: Never
+      # the container needs to delete secrets in .Values.global.tls_secret.namespace
+      serviceAccountName: kubernetes-dashboard
       imagePullSecrets:
       - name: registry-secret

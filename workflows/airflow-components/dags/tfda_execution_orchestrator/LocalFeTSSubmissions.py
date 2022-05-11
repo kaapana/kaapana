@@ -30,8 +30,6 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
 
         subm_dict = {}
         subm_dict_path = os.path.join(subm_logs_path, "subm_dict.json")
-        subm_ids_list = []
-        new_dag = True
 
         if os.path.exists(subm_dict_path):
             with open(subm_dict_path, "r") as fp_:
@@ -47,12 +45,11 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
             print(f"Error logging into container registry! Exiting... \nERROR LOGS: {output.stderr}")
             exit(1)
 
-        print("\nChecking for new submissions...")
+        print("Checking for new submissions...")
         for task_name, task_id in tasks:
             print(f"Checking {task_name}...")
             for subm in syn.getSubmissions(task_id):
-                if subm["id"] not in subm_dict:
-                    subm_ids_list.append(subm["id"])
+                if subm["id"] not in subm_dict:                    
                     print("Pulling container...")
                     command2 = ["skopeo", "copy", f"docker://{subm['dockerRepositoryName']}:latest", f"docker-archive:/root/airflow/dags/tfda_execution_orchestrator/tarball/{subm['id']}.tar", "--additional-tag", f"{subm['id']}:latest"]
                     output2 = run(command2, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
@@ -60,27 +57,10 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
                         print(f"Error while trying to download container! Skipping... ERROR LOGS:\n {output2.stderr} ")
                         subm_dict[subm["id"]] = "skipped"
                         continue
+                    
+                    print("Triggering isolated execution orchestrator...")
                     self.trigger_dag_id = "tfda-execution-orchestrator"
                     # self.dag_run_id = kwargs['dag_run'].run_id
-
-                    dag_run = self.get_most_recent_dag_run(self.trigger_dag_id)
-                    if dag_run:
-                        print(f'The most recent isolated workflow was executed at: {dag_run.execution_date}!!!')
-
-                    dag_state = get_dag_run_state(dag_id="tfda-execution-orchestrator", execution_date=dag_run.execution_date)
-
-                    while dag_state['state'] != "failed" and dag_state['state'] != "success":
-                        dag_run = self.get_most_recent_dag_run(self.trigger_dag_id)
-                        dag_state = get_dag_run_state(dag_id="tfda-execution-orchestrator", execution_date=dag_run.execution_date)                        
-                    
-                    if dag_state['state'] == "failed" and not new_dag:
-                        print(f"**************** The evaluation of submission with ID {subm_ids_list[-2]} has FAILED ****************")
-                        subm_dict[subm_ids_list[-2]] = "failed"
-                    if dag_state['state'] == "success" and not new_dag:
-                        print(f"**************** The evaluation of submission with ID {subm_ids_list[-2]} was SUCCESSFUL ****************")
-                        subm_dict[subm_ids_list[-2]] = "success"
-
-                    print("Triggering isolated execution orchestrator...")
                     self.conf = kwargs['dag_run'].conf
                     self.conf["subm_id"] = subm["id"]
                     dag_run_id = generate_run_id(self.trigger_dag_id)
@@ -91,7 +71,23 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
                         print(f"Error while triggering isolated workflow for submission with ID: {subm['id']}...")
                         print(e)
                         subm_dict[subm["id"]] = "exception"
-                    new_dag = False
+
+                    dag_run = self.get_most_recent_dag_run(self.trigger_dag_id)
+                    if dag_run:
+                        print(f'The latest isolated workflow has been triggered at: {dag_run.execution_date}!!!')
+
+                    dag_state = get_dag_run_state(dag_id="tfda-execution-orchestrator", execution_date=dag_run.execution_date)
+
+                    while dag_state['state'] != "failed" and dag_state['state'] != "success":
+                        dag_run = self.get_most_recent_dag_run(self.trigger_dag_id)
+                        dag_state = get_dag_run_state(dag_id="tfda-execution-orchestrator", execution_date=dag_run.execution_date)                        
+                    
+                    if dag_state['state'] == "failed":
+                        print(f"**************** The evaluation of submission with ID {subm['id']} has FAILED ****************")
+                        subm_dict[subm['id']] = "failed"
+                    if dag_state['state'] == "success":
+                        print(f"**************** The evaluation of submission with ID {subm['id']} was SUCCESSFUL ****************")
+                        subm_dict[subm['id']] = "success"
 
         print("Saving submission dict...")
         with open(subm_dict_path, "w") as fp_:

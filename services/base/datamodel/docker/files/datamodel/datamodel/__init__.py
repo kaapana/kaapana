@@ -1,8 +1,8 @@
 import logging
 import sys
-# import os
+import os
 # from .globals import *
-# from .Datamodel import KaapanaDatamodel
+from .DataModelC import KaapanaDatamodelC as KaapanaDatamodel
 # from .Exceptions import DatamodelException
 
 # DM = None
@@ -21,9 +21,17 @@ import sys
 #
 # _init()
 #
-audit_logger = logging.getLogger('datamodel_audit')
-audit_logger.setLevel(logging.INFO)
-logger = logging.getLogger('datamodel')
-logger.setLevel(logging.DEBUG)
-#logger.addHandler(logging.FileHandler("datamodel"))
-audit_logger.addHandler(logging.FileHandler("datamodel_audit"))
+DM = KaapanaDatamodel()
+logging_file = os.path.join("log", "datamodel.log")
+if not os.path.isdir("log"):
+    os.mkdir("log")
+
+logging.basicConfig(filename=logging_file, format='%(asctime)s (%(levelname)s) %(message)s', level=logging.DEBUG,
+                    datefmt='%d.%m.%Y %H:%M:%S')
+streamHandler = logging.StreamHandler(sys.stdout)
+streamHandler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+streamHandler.setFormatter(formatter)
+
+logger = logging.getLogger()
+logger.addHandler(streamHandler)

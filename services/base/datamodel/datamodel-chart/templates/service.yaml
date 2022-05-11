@@ -9,6 +9,7 @@ spec:
   ports:
     - protocol: TCP
       port: 5000
+      targetPort: 5000
       name: datamodel-http
   type: ClusterIP
 ---
@@ -20,24 +21,29 @@ metadata:
 spec:
   stripPrefix:
     prefixes:
-      - /datamodel
-      - /datamodel/
+    - /datamodel
+    forceSlash: true
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: datamodel-ingress
   namespace: {{ .Values.global.base_namespace }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,{{ .Values.global.base_namespace }}-datamodel-strip-prefix@kubernetescrd
-    traefik.ingress.kubernetes.io/preserve-host: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: base-datamodel-strip-prefix@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
   - host: 
     http:
       paths:
       - path: /datamodel
+        pathType: ImplementationSpecific
         backend:
-          serviceName: datamodel-service
-          servicePort: datamodel-http
+          service:
+            name: datamodel-service
+            port:
+              name: datamodel-http
+---
+

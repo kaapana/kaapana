@@ -22,9 +22,7 @@ RUN pip install -e ./datamodel
 
 # COPY files/ ./
 COPY files/app ./app
-COPY files/run.py ./
 COPY files/boot.sh ./
 RUN chmod +x ./boot.sh
-ENV FLASK_APP run.py
 EXPOSE 5000
-CMD ./boot.sh
+ENTRYPOINT ["./boot.sh"]

@@ -35,6 +35,7 @@ class Query:
             # for link in linker:
             #     if 'source'
             patient_list.append(patient)
+        return patient_list
 
 
 

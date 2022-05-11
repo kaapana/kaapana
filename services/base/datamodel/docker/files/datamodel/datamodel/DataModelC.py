@@ -45,16 +45,12 @@ class KaapanaDatamodelC:
     def import_dicom(self, content):
         self.log.info("Importing dicom data")
         print(content["files"])
-        self.dicom_data_importer.import_data(content["files"], content["options"])
+        self.dicom_data_importer.import_data(content["files"])
 
 
     def import_raw(self, content):
         self.log.info("Raw import not implemented yet")
         #self.raw_data_importer.import_data(content["files"], content["options"])
-
-
-    def setup_db(self, app):
-        Database.setup_db(app)
 
     def init_db(self):
         Database.init_db()

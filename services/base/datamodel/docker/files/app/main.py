@@ -1,21 +1,16 @@
 import requests
 from fastapi import Depends, FastAPI, Request
-
-from .internal import admin
-from .routers import remote, extensions, monitoring, users, storage, workflow
-from .dependencies import get_query_token, get_token_header
-from . import crud, models
-from .database import SessionLocal, engine
 from datamodel import DM
-models.Base.metadata.create_all(bind=engine)
-
-
+from datamodel.database.schema import schema
+from strawberry.fastapi import GraphQLRouter
+from .routers import importer
 
 app = FastAPI()
+DM.init_db()
 
+app.include_router(importer.router)
 
-DM.setup_db(app)
-app.datamodel = DM
-
-
+graphql_app = GraphQLRouter(schema)
 app.include_router(graphql_app, prefix="/graphql")
+
+

@@ -47,14 +47,6 @@ class Database:
         refresh()
 
     @staticmethod
-    def setup_db(app):
-        from datamodel.database.schema import schema
-        graphql_app = GraphQLRouter(schema)
-
-        app.include_router(graphql_app, prefix="/graphql")
-        init_db()
-
-    @staticmethod
     def init_db():
         init_db()
 

@@ -98,15 +98,12 @@ class DicomDataImporterC(DataImporterC):
                                                         type=links['source_type'] + "2" + links['target'])
                             break
 
-    def import_data(self, files, options=None):
+    def import_data(self, files):
         patient_name_last = None
         patient_id_last = None
         study_uid_last = None
         series_uid_last = None
         # Step 0 before the datamodel (or TODO maybe after, and add path later
-        storage_path = None
-        if "storage_path" in options:
-            storage_path = options["storage_path"]
         entityB_collection_series = []
         entityB_collection_study = []
         entityB_collection_patient = []

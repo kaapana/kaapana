@@ -89,5 +89,5 @@ Write the Dockerfile for the workflow which installs requirements, copies the ``
     CMD ["python3","-u","/example-workflow.py"]             # execute script
 
 **TODO:**
-* Dockerfiles for services
-* Dockerfiles for extensions
+* Dockerfile for service
+* Dockerfile for extension

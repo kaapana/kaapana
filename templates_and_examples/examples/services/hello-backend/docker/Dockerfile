@@ -4,6 +4,8 @@ LABEL IMAGE="hello-backend"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="True"
 
+RUN apk update && apk add postgresql-dev \
+    && rm -rf /var/cache/apk/*
 
 WORKDIR /app
 

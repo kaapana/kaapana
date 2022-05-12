@@ -48,10 +48,14 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
         print("Checking for new submissions...")
         for task_name, task_id in tasks:
             print(f"Checking {task_name}...")
-            for subm in syn.getSubmissions(task_id):
-                if subm["id"] not in subm_dict:                    
+            for subm in syn.getSubmissions(task_id):         
+                if subm["id"] not in subm_dict or subm_dict.get(subm['id']) != "success":
                     print("Pulling container...")
-                    command2 = ["skopeo", "copy", f"docker://{subm['dockerRepositoryName']}:latest", f"docker-archive:/root/airflow/dags/tfda_execution_orchestrator/tarball/{subm['id']}.tar", "--additional-tag", f"{subm['id']}:latest"]
+                    tarball_file = os.path.join(tarball_path, f"{subm['id']}.tar")
+                    if os.path.exists(tarball_file):
+                        print(f"Submission tarball already exists... deleting it now to pull latest!!")
+                        os.remove(tarball_file)
+                    command2 = ["skopeo", "copy", f"docker://{subm['dockerRepositoryName']}:latest", f"docker-archive:{tarball_file}", "--additional-tag", f"{subm['id']}:latest"]
                     output2 = run(command2, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
                     if output2.returncode != 0:
                         print(f"Error while trying to download container! Skipping... ERROR LOGS:\n {output2.stderr} ")
@@ -88,6 +92,8 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
                     if dag_state['state'] == "success":
                         print(f"**************** The evaluation of submission with ID {subm['id']} was SUCCESSFUL ****************")
                         subm_dict[subm['id']] = "success"
+                else:
+                    print("Submission already SUCCESSFUL!!!!")
 
         print("Saving submission dict...")
         with open(subm_dict_path, "w") as fp_:

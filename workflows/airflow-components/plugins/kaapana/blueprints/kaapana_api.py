@@ -99,7 +99,7 @@ def trigger_dag(dag_id):
             "query": tmp_conf["query"],
             "index": tmp_conf["index"],
             "single_execution": single_execution,
-            "cohort_limit": int(tmp_conf["cohort_limit"]) if "cohort_limit" in tmp_conf else None
+            "cohort_limit": int(tmp_conf["cohort_limit"]) if "cohort_limit" in tmp_conf and tmp_conf["cohort_limit"] is not None else None
         }
     ################################################################################################
 
@@ -451,7 +451,7 @@ def get_static_website_results():
 
 
     tree = {"vuetifyFiles": []}
-    objects = minioClient.list_objects("staticwebsiteresults", prefix='results', recursive=True)
+    objects = minioClient.list_objects("staticwebsiteresults", prefix=None, recursive=True)
     for obj in objects:
         if obj.object_name.endswith('html'):
             # Stripping the results for the second argument

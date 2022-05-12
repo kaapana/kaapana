@@ -24,5 +24,5 @@ COPY files/patched/predict.py /opt/conda/lib/python3.8/site-packages/nnunet/infe
 COPY files/patched/run_training.py /opt/conda/lib/python3.8/site-packages/nnunet/run/run_training.py
 
 COPY files/nnunet /kaapanasrc/
-WORKDIR /kaapanasrc/nnunet/
-CMD ["bash","start_nnunet.sh"]
+WORKDIR /kaapanasrc/
+CMD ["bash","/kaapanasrc/start_nnunet.sh"]

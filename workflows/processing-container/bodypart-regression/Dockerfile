@@ -13,8 +13,8 @@ ENV PYTHONUNBUFFERED=1
 RUN apt-get update && apt-get install -y --no-install-recommends python3-opencv \
     && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get purge -y libhwloc-dev libhwloc-plugins
 WORKDIR /kaapanasrc
-
 # Clone directory from git
 RUN git clone  --single-branch --branch master https://github.com/MIC-DKFZ/BodyPartRegression.git && cd BodyPartRegression && git checkout v1.1 
 
@@ -26,6 +26,6 @@ RUN unzip BodyPartRegression/src/models/public_bpr_model.zip -d BodyPartRegressi
 
 WORKDIR /kaapanasrc/BodyPartRegression
 COPY files/requirements.txt /requirements.txt
-RUN pip3 install -r /requirements.txt
+RUN pip3 uninstall -y torch torchtext &&  pip3 install -r /requirements.txt
 
 CMD ["python3", "-u", "starter.py"]

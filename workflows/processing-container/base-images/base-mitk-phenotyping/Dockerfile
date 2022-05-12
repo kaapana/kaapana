@@ -1,4 +1,4 @@
-FROM local-only/base-python-cpu:0.1.0
+FROM ubuntu:20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -16,9 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxt-dev \
     xvfb \
     qtbase5-dev \
-    # python3 \
-    # python3-pip \
-    # dcmtk \
+    python3 \
+    python3-pip \
+    dcmtk \
     jq \
     && rm -rf /var/lib/apt/lists/*
 

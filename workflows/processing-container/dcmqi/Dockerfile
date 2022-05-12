@@ -5,7 +5,7 @@ LABEL VERSION="v1.2.4"
 LABEL CI_IGNORE="False"
 
 # set work directory
-WORKDIR /app
+WORKDIR /kaapanasrc
 
 COPY files/requirements.txt ./
 RUN pip3 install -r ./requirements.txt
@@ -27,4 +27,4 @@ COPY files/tid1500writer.py /kaapanasrc/
 COPY files/convert.sh /kaapanasrc/
 RUN chmod +x /kaapanasrc/convert.sh
 
-ENTRYPOINT ["/bin/bash", "./kaapanasrc/convert.sh"]
+ENTRYPOINT ["/bin/bash", "/kaapanasrc/convert.sh"]

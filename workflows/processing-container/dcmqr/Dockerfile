@@ -9,4 +9,4 @@ RUN pip3 install --no-cache-dir -r /requirements.txt
 COPY files/query.py /kaapanasrc/
 COPY files/run-query.sh /kaapanasrc/
 
-CMD ./kaapanasrc/run-query.sh
+CMD /kaapanasrc/run-query.sh

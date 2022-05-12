@@ -79,7 +79,7 @@ async def update_extensions():
 
 
 @ router.get("/helm-delete-chart")
-async def helm_delete_chart(release_name: str, release_version: str):
+async def helm_delete_chart(release_name: str, release_version: str = None):
     try:
         utils.helm_delete(release_name=release_name, release_version=release_version)
         return {"message": "Successfully uninstalled", "status": "200"}

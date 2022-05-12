@@ -1,8 +1,9 @@
 FROM local-only/base-python-cpu:0.1.0
+
 ARG DEBIAN_FRONTEND=noninteractive
 
 LABEL REGISTRY="local-only"
-LABEL IMAGE="mitk-phenotyping"
+LABEL IMAGE="base-mitk-phenotyping"
 LABEL VERSION="2021-02-18"
 LABEL CI_IGNORE="False"
 

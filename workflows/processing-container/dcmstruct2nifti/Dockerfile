@@ -1,4 +1,4 @@
-FROM local-only/base-python-cpu:0.1.0
+FROM python:3.9-slim
 
 LABEL IMAGE="dcmstruct2nifti"
 LABEL VERSION="0.1.0"

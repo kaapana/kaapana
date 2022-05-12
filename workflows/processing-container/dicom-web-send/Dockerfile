@@ -17,3 +17,4 @@ COPY files/dcmweb.py /kaapanasrc/
 
 
 CMD ["python","-u","/kaapanasrc/dcmweb.py"]
+

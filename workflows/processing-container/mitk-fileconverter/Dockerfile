@@ -1,4 +1,4 @@
-FROM local-only/mitk-phenotyping:2021-02-18
+FROM local-only/base-mitk-phenotyping:2021-02-18
 
 LABEL IMAGE="mitk-fileconverter"
 LABEL VERSION="2021-02-18-fix"

@@ -1,4 +1,4 @@
-FROM local-only/mitk-phenotyping:2021-02-18 as build_container
+FROM local-only/base-mitk-phenotyping:2021-02-18 as build_container
 
 LABEL IMAGE="mitk-resample"
 LABEL VERSION="2021-02-18"

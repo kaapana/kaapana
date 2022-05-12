@@ -29,7 +29,7 @@ USER node
 
 FROM golang:1.17 as golayer
 
-RUN apt-get update -y && apt-get install -y ca-certificates \
+RUN apt-get update -y && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # ADD go.mod /go/src/github.com/minio/console/go.mod

@@ -1,4 +1,4 @@
-FROM local-only/base-python-gpu:0.1.0
+FROM local-only/base-pytorch-gpu:0.1.0
 
 LABEL IMAGE="bodypartregression"
 LABEL VERSION="v1.3"
@@ -10,7 +10,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Turns off buffering for easier container logging
 ENV PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y python3-opencv \
+RUN apt-get update && apt-get install -y --no-install-recommends python3-opencv \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /kaapanasrc

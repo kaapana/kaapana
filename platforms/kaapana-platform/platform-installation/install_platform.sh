@@ -42,6 +42,8 @@ GPU_SUPPORT="false"
 NO_HOOKS=""
 
 DEFAULT_CLEANUP_AFTER_TAR_DUMP="false"
+HELM_NAMESPACE="kaapana"
+
 
 if [ "$DEV_MODE" == "true" ]; then
     PULL_POLICY_PODS="Always"
@@ -225,7 +227,7 @@ function get_domain {
 
 function delete_deployment {
     echo -e "${YELLOW}Uninstalling releases${NC}"
-    helm ls --date --reverse -A | awk '{ if (/gpu-operator/ ) { } else print }' | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm uninstall ${NO_HOOKS} %; sleep 2"
+    helm -n $HELM_NAMESPACE ls --date --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $HELM_NAMESPACE uninstall ${NO_HOOKS} %; sleep 2"
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
@@ -326,7 +328,7 @@ function prefetch_extensions {
     echo -e "Prefetching all extension docker container"
     release_name=prefetch-extensions-chart-$(echo $(uuidgen --hex) | cut -c1-10)
     PREFETCH_CHART_PATH=$(find $FAST_DATA_DIR/charts/helpers/ -name "prefetch-extensions*" -type f)
-    helm install $PREFETCH_CHART_PATH\
+    helm -n $HELM_NAMESPACE install $PREFETCH_CHART_PATH\
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
     --set-string global.registry_url=$CONTAINER_REGISTRY_URL \
     --set-string global.fast_data_dir=$FAST_DATA_DIR \
@@ -336,7 +338,7 @@ function prefetch_extensions {
     --name-template $release_name \
 
     sleep 10
-    helm uninstall $release_name
+    helm -n $HELM_NAMESPACE uninstall $release_name
     echo -e "${GREEN}OK!${NC}"
 }
 
@@ -433,7 +435,7 @@ function install_chart {
 
     echo "${GREEN}Installing $PROJECT_NAME:$chart_version${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
-    helm install $CHART_PATH \
+    helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
     --set-string global.version="$chart_version" \
     --set-string global.hostname="$DOMAIN" \
     --set-string global.dev_ports="$DEV_PORTS" \
@@ -447,6 +449,7 @@ function install_chart {
     --set-string global.pull_policy_jobs="$PULL_POLICY_JOBS" \
     --set-string global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
+    --set-string global.helm_namespace="$HELM_NAMESPACE" \
     --set-string global.credentials.registry_username="$CONTAINER_REGISTRY_USERNAME" \
     --set-string global.credentials.registry_password="$CONTAINER_REGISTRY_PASSWORD" \
     --set-string global.credentials.credentials_minio_username="$CREDENTIALS_MINIO_USERNAME" \
@@ -505,7 +508,7 @@ function upgrade_chart {
         pull_chart
     fi
     echo -e "${YELLOW}Charyt-tgz-path $CHART_PATH${NC}"
-    helm upgrade $PROJECT_NAME $CHART_PATH --devel --version $chart_version --set-string global.version="$chart_version" --reuse-values 
+    helm -n $HELM_NAMESPACE upgrade $PROJECT_NAME $CHART_PATH --devel --version $chart_version --set-string global.version="$chart_version" --reuse-values 
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm -rf $CHART_PATH
     fi
@@ -728,7 +731,7 @@ else
 fi
 
 echo -e "${YELLOW}Get helm deployments...${NC}"
-deployments=$(helm ls |cut -f1 |tail -n +2)
+deployments=$(helm -n $HELM_NAMESPACE ls |cut -f1 |tail -n +2)
 echo "Current deployments: " 
 echo $deployments
 

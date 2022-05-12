@@ -67,19 +67,19 @@ def helm_show_chart(name=None, version=None, package=None):
     return yaml.load(chart)
 
 
-def helm_get_manifest(release_name, namespace):
+def helm_get_manifest(release_name, helm_namespace=settings.helm_namespace):
     try:
         manifest = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} -n {namespace} get manifest {release_name}', stderr=subprocess.STDOUT, shell=True)
+            f'{os.environ["HELM_PATH"]} -n {helm_namespace} get manifest {release_name}', stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as e:
         return []
     return list(yaml.load_all(manifest))
 
 
-def helm_get_values(release_name, namespace):
+def helm_get_values(release_name, helm_namespace=settings.helm_namespace):
     try:
         values = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} -n {namespace} get values -o json {release_name}', stderr=subprocess.STDOUT, shell=True)
+            f'{os.environ["HELM_PATH"]} -n {helm_namespace} get values -o json {release_name}', stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as e:
         return dict()
     if values == b'null\n':
@@ -87,16 +87,16 @@ def helm_get_values(release_name, namespace):
     return json.loads(values)
 
 
-def helm_status(release_name, namespace):
+def helm_status(release_name, helm_namespace=settings.helm_namespace):
     try:
         status = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} -n {namespace} status {release_name}', stderr=subprocess.STDOUT, shell=True)
+            f'{os.environ["HELM_PATH"]} -n {helm_namespace} status {release_name}', stderr=subprocess.STDOUT, shell=True)
     except subprocess.CalledProcessError as e:
         return dict()
     return yaml.load(status)
 
 
-def helm_prefetch_extension_docker():
+def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
     # regex = r'image: ([\w\-\.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)'
     regex = r'image: (.*)\/([\w\-\.]+):([\w\-\.]+)'
     extensions = helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaint', 'kaapanaworkflow'])
@@ -120,7 +120,7 @@ def helm_prefetch_extension_docker():
         else:
             print(f'Prefetching {chart_name}')
             try:
-                release, _ = helm_install(payload, settings.namespace, helm_command_addons='--dry-run', in_background=False)
+                release, _ = helm_install(payload, helm_command_addons='--dry-run', in_background=False)
                 manifest = json.loads(release.decode("utf-8"))["manifest"]
                 matches = re.findall(regex, manifest)
                 if matches:
@@ -132,7 +132,7 @@ def helm_prefetch_extension_docker():
                         try:
                             pull_docker_image(release_name, docker_image, docker_version, docker_registry_url)
                         except subprocess.CalledProcessError as e:
-                            helm_delete(release_name=release_name, namespace=settings.namespace, release_version=chart["version"])
+                            helm_delete(release_name=release_name, release_version=chart["version"])
                             print(e)
             except subprocess.CalledProcessError as e:
                 print(f'Skipping {chart_name} due to {e.output.decode("utf-8")}')
@@ -142,14 +142,14 @@ def helm_prefetch_extension_docker():
             dag['sets'] = {
                 'action': 'prefetch'
             }
-            helm_comman_suffix = f'--wait --atomic --timeout=120m0s; sleep 10;{os.environ["HELM_PATH"]} delete --no-hooks -n {settings.namespace} {dag["release_name"]}'
-            helm_install(dag, settings.namespace, helm_comman_suffix=helm_comman_suffix)
+            helm_comman_suffix = f'--wait --atomic --timeout=120m0s; sleep 10;{os.environ["HELM_PATH"]} -n {helm_namespace} delete --no-hooks {dag["release_name"]}'
+            helm_install(dag, helm_comman_suffix=helm_comman_suffix)
         except subprocess.CalledProcessError as e:
             print(f'Skipping {dag["name"]} due to {e.output.decode("utf-8")}')
-            helm_delete(release_name=dag['release_name'], namespace=settings.namespace, release_version=chart["version"], helm_command_addons='--no-hooks')
+            helm_delete(release_name=dag['release_name'], release_version=chart["version"], helm_command_addons='--no-hooks')
 
 
-def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, timeout='120m0s'):
+def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, timeout='120m0s', helm_namespace=settings.helm_namespace):
     print(f'Pulling {docker_registry_url}/{docker_image}:{docker_version}')
 
     try:
@@ -174,11 +174,11 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
         'release_name': release_name
     }
 
-    helm_comman_suffix = f'--wait --atomic --timeout {timeout}; sleep 10;{os.environ["HELM_PATH"]} delete -n {settings.namespace} {release_name}'
-    helm_install(payload, settings.namespace, helm_comman_suffix=helm_comman_suffix, helm_cache_path=settings.helm_helpers_cache)
+    helm_comman_suffix = f'--wait --atomic --timeout {timeout}; sleep 10;{os.environ["HELM_PATH"]} -n {helm_namespace} delete {release_name}'
+    helm_install(payload, helm_comman_suffix=helm_comman_suffix, helm_cache_path=settings.helm_helpers_cache)
 
 
-def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix='', helm_delete_prefix='', in_background=True, helm_cache_path=None):
+def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_addons='', helm_comman_suffix='', helm_delete_prefix='', in_background=True, helm_cache_path=None):
     global smth_pending, extensions_list_cached
     smth_pending = True
 
@@ -261,7 +261,7 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
     else:
         release_name = name
 
-    status = helm_status(release_name, namespace)
+    status = helm_status(release_name)
     if status:
         if 'kaapanamultiinstallable' in keywords:
             print('Installing again since its kaapanamultiinstallable')
@@ -275,7 +275,7 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
         for key, value in payload["sets"].items():
             helm_sets = helm_sets + f" --set {key}='{value}'"
 
-    helm_command = f'{helm_delete_prefix}{os.environ["HELM_PATH"]} install {helm_command_addons} -n {namespace} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_comman_suffix}'
+    helm_command = f'{helm_delete_prefix}{os.environ["HELM_PATH"]} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_comman_suffix}'
     for item in extensions_list_cached:
         if item["releaseName"] == release_name and item["version"] == version:
             item["successful"] = 'pending'
@@ -286,11 +286,11 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
         return subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command
 
 
-def helm_delete(release_name, namespace, release_version=None, helm_command_addons=''):
+def helm_delete(release_name, helm_namespace=settings.helm_namespace, release_version=None, helm_command_addons=''):
     # release version only important for extensions charts!
     global smth_pending, extensions_list_cached
     smth_pending = True
-    helm_command = f'{os.environ["HELM_PATH"]} uninstall {helm_command_addons} -n {namespace} {release_name}'
+    helm_command = f'{os.environ["HELM_PATH"]} -n {helm_namespace} uninstall {helm_command_addons} {release_name}'
     subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
     if release_version is not None:
         for item in extensions_list_cached:
@@ -298,10 +298,10 @@ def helm_delete(release_name, namespace, release_version=None, helm_command_addo
                 item["successful"] = 'pending'
 
 
-def helm_ls(namespace, release_filter=''):
+def helm_ls(helm_namespace=settings.helm_namespace, release_filter=''):
     try:
         resp = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} -n {namespace} --filter {release_filter} ls --deployed --pending --failed --uninstalling -o json', stderr=subprocess.STDOUT, shell=True)
+            f'{os.environ["HELM_PATH"]} -n {helm_namespace} --filter {release_filter} ls --deployed --pending --failed --uninstalling -o json', stderr=subprocess.STDOUT, shell=True)
         return json.loads(resp)
     except subprocess.CalledProcessError as e:
         return []
@@ -448,14 +448,14 @@ def get_extensions_list():
                 # replace with helm ls outside the loop see also next
                 # add one central kubectl get pods -A from which manifest will look up its values
 
-                status = helm_status(extension["name"], settings.namespace)
+                status = helm_status(extension["name"])
                 if 'kaapanamultiinstallable' in extension['keywords'] or not status:
                     extension['installed'] = 'no'
                     extensions_list.append(extension)
-                for release in helm_ls(settings.namespace, extension["name"]):
+                for release in helm_ls(release_filter=extension["name"]):
                     for version in extension["versions"]:
                         if release['chart'] == f'{extension["name"]}-{version}':
-                            manifest = helm_get_manifest(release['name'], settings.namespace)
+                            manifest = helm_get_manifest(release['name'])
                             kube_status, ingress_paths = get_manifest_infos(manifest)
 
                             running_extension = copy.deepcopy(extension)

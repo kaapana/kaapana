@@ -55,6 +55,8 @@ spec:
           value: "/kube-helm-api"
         - name: HELM_PATH
           value: "/usr/local/bin/helm"
+        - name: HELM_NAMESPACE
+          value: {{  .Values.global.helm_namespace }}
         - name: REGISTRY_URL
           value: {{  .Values.global.registry_url }}
         - name: OFFLINE_MODE

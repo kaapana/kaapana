@@ -19,7 +19,8 @@ RUN apk update && apk add --no-cache \
     openssl-dev \
     postgresql-dev \
     python3-dev \
-    zlib-dev
+    zlib-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Common Python packages
 RUN python -m pip install --upgrade pip
@@ -31,7 +32,7 @@ RUN pip3 install -r /root/requirements.txt
 # https://github.com/martinussuherman/alpine-code-server
 # https://coder.com/docs/code-server/latest/install#standalone-releases
 ENV VERSION=4.2.0
-RUN apk add --no-cache gcompat
+RUN apk update && apk add --no-cache gcompat && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p ~/.local/lib ~/.local/bin
 RUN curl -fL https://github.com/coder/code-server/releases/download/v$VERSION/code-server-$VERSION-linux-amd64.tar.gz \
   | tar -C ~/.local/lib -xz && \

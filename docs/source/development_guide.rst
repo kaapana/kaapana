@@ -177,7 +177,7 @@ Deploy a Flask Application on the platform
 
 Step 1: Create and run our Flask app locally
 --------------------------------------------
-As a starting point, we first develop a Flask application and run it locally. The source code of the Hello-World Flask application can be found in the ``templates_and_examples/examples/services/hello-world``! In case you have never worked with Flask `this  <https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world>`_ tutorial will get you started!
+As a starting point, we first develop a Flask application and run it locally. The source code of the Hello-World Flask application can be found in the ``templates_and_examples/examples/services/hello-world/docker/files``! In case you have never worked with Flask `this  <https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world>`_ tutorial will get you started!
 
 
 First of all install the requirements.
@@ -364,6 +364,7 @@ Last step is to restart the ``kaapana-stab-extensions`` pod. You can either dele
 
 Since in the ``Chart.yaml`` definition we have added ``kaapanaapplication`` to the keywords, your application should also appear in the extension list now.
 
+.. _Provide a workflow as an extension:
 
 Provide a workflow as an extension
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

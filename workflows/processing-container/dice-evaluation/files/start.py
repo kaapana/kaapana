@@ -10,7 +10,7 @@ import numpy as np
 import nibabel as nib
 import torch
 import pandas as pd
-from monai.metrics import compute_meandice
+from monai.metrics import compute_meandice, compute_average_surface_distance
 from pprint import pprint
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -141,7 +141,7 @@ def check_prediction_info(seg_info):
     return True
 
 
-def get_dice_score(input_data):
+def get_metric_score(input_data):
     global dice_results, global_seg_check_info, max_label_encoding, processed_count, include_background, model_counter
     batch_id, single_model_pred_files, gt_file, ensemble_pred_file = input_data
 
@@ -173,12 +173,12 @@ def get_dice_score(input_data):
         single_model_prediction = None
         pred_tensor = torch.from_numpy(one_hot_encoding_pred)
         one_hot_encoding_pred = None
-
         dice_scores = compute_meandice(y_pred=pred_tensor, y=gt_tensor, include_background=include_background).numpy()[0]
+        asd_scores = compute_average_surface_distance(y_pred=pred_tensor, y=gt_tensor, include_background=include_background).numpy()[0]
         pred_tensor = None
-        print(f"# {model_pred_file} -> scores: {list(dice_scores)}")
-        results[model_id][pred_file_id] = list(dice_scores)
-
+        print(f"# {model_pred_file} -> dice_scores: {list(dice_scores)}")
+        print(f"# {model_pred_file} -> asd_scores: {list(asd_scores)}")
+        results[model_id] = {pred_file_id: {'dice_scores': list(dice_scores), 'asd_scores': list(np.float32(asd_scores)) }} # numpy casting to have same format as dice_score
     if ensemble_pred_file is not None:
         info_json = ensemble_pred_file.replace(".nii.gz", ".json")
         print(f"# info_json: {info_json}")
@@ -200,10 +200,13 @@ def get_dice_score(input_data):
         one_hot_encoding_ensemble = None
 
         dice_scores = compute_meandice(y_pred=ensemble_tensor, y=gt_tensor, include_background=include_background).numpy()[0]
+        asd_scores = compute_average_surface_distance(y_pred=ensemble_tensor, y=gt_tensor, include_background=include_background).numpy()[0]
+
         pred_tensor = None
 
-        print(f"# ensemble: {ensemble_pred_file} -> scores: {list(dice_scores)}")
-        results["ensemble"] = {ensemble_file_id: list(dice_scores)}
+        print(f"# ensemble: {ensemble_pred_file} -> dice_scores: {list(dice_scores)}")
+        print(f"# ensemble: {ensemble_pred_file} -> asd_scores: {list(asd_scores)}")
+        results["ensemble"] = {ensemble_file_id: {'dice_scores': list(dice_scores), 'asd_scores': list(np.float32(asd_scores)) }}
 
     return True, batch_id, results
 
@@ -294,8 +297,8 @@ print(f"#")
 print(f"# Starting {parallel_processes} parallel jobs -> job_count: {len(queue_list)} ...")
 print(f"#")
 print(f"#")
-results = ThreadPool(parallel_processes).imap_unordered(get_dice_score, queue_list)
-for success, batch_id, results in results:
+results = ThreadPool(parallel_processes).imap_unordered(get_metric_score, queue_list)
+for success, batch_id, result in results:
     if success:
         processed_count += 1
         print("#")
@@ -303,7 +306,7 @@ for success, batch_id, results in results:
         print("#")
         assert batch_id not in dice_results
 
-        dice_results[batch_id] = results
+        dice_results[batch_id] = result
     else:
         print("#")
         print(f"# {batch_id}: issue!")
@@ -342,17 +345,19 @@ for batch_id, model_results in dice_results.items():
         print(f"model_id: {model_id}")
         for file_id, dice_info in file_results.items():
             print(f"file_id: {model_id}")
-            for array_index in range(0, len(dice_info)):
+            for array_index in range(0, len(dice_info['dice_scores'])):
                 class_label = list(global_seg_check_info.keys())[list(global_seg_check_info.values()).index(array_index+1)]
-                class_dice = float(dice_info[array_index])
+                class_dice = float(dice_info['dice_scores'][array_index])
+                class_asd = float(dice_info['asd_scores'][array_index])
                 result_table.append([
                     file_id,
                     model_id,
                     class_label,
-                    class_dice
+                    class_dice,
+                    class_asd
                 ])
 
-df_data = pd.DataFrame(result_table, columns=['Series', 'Model', 'Label', 'Dice'])
+df_data = pd.DataFrame(result_table, columns=['Series', 'Model', 'Label', 'Dice', 'ASD'])
 df_data.to_csv(join(batch_output_dir, "dice_results.csv"), sep='\t')
 
 print("# DONE #")

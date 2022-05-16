@@ -1,0 +1,44 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cert-init
+  namespace: kube-system
+spec:
+  template:
+    metadata:
+      name: cert-init
+    spec:
+      containers:
+      - name: cert-init
+        image: {{  .Values.global.registry_url }}/cert-init:0.0.1
+        imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
+        resources:
+          requests:
+            memory: 200Mi
+          limits:
+            memory: 200Mi
+        env:
+        - name: ACTION
+          value: "install"
+        - name: SECRET_NAME
+          value: "{{  .Values.global.tls_secret.name }}"
+        - name: SECRET_NAMESPACE
+          value: "{{  .Values.global.tls_secret.namespace }}"
+        - name: COMMON_NAME
+          value: "{{  .Values.global.tls_secret.common_name }}"
+        - name: EXPIRATION
+          value: "{{  .Values.global.tls_secret.expiration }}"
+        volumeMounts:
+        - name: tls-storage
+          mountPath: /cert/tls
+      volumes:
+      - name: tls-storage
+        hostPath:
+          path: "{{ .Values.global.fast_data_dir }}/tls"
+          type: DirectoryOrCreate
+      restartPolicy: Never
+      # the container needs to create secrets in .Values.global.tls_secret.namespace
+      serviceAccountName: kubernetes-dashboard
+      imagePullSecrets:
+      - name: registry-secret

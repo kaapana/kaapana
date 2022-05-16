@@ -1,7 +1,7 @@
 ---
 dependencies:
   - name: dcm4chee-chart
-    version: "5.23.1"
+    version: "5.26.0"
     repository: file://../../../../services/store/dcm4chee/dcm4chee-chart
   - name: ohif-chart
     version: "4.12.26"

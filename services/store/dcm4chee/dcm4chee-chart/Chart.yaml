@@ -1,7 +1,7 @@
 ---
 apiVersion: v1
-appVersion: "5.23.1"
+appVersion: "5.26.0"
 description: Chart for Dcm4Chee
 name: dcm4chee-chart
-version: "5.23.1"
+version: "5.26.0"
 

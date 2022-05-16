@@ -9,7 +9,6 @@ from tfda_execution_orchestrator.LocalDeployPlatformOnIsoEnvOperator import Loca
 from tfda_execution_orchestrator.LocalCopyDataAndAlgoOperator import LocalCopyDataAndAlgoOperator
 from tfda_execution_orchestrator.LocalRunAlgoSendResultOperator import LocalRunAlgoSendResultOperator
 from tfda_execution_orchestrator.LocalDeleteIsoEnvOperator import LocalDeleteIsoEnvOperator
-from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
@@ -42,8 +41,6 @@ create_iso_env = LocalCreateIsoInstanceOperator(dag=dag)
 copy_data_algo = LocalCopyDataAndAlgoOperator(dag=dag)
 run_algo_send_result = LocalRunAlgoSendResultOperator(dag=dag)
 delete_iso_inst = LocalDeleteIsoEnvOperator(dag=dag)
-
-
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 delete_iso_inst >> create_iso_env >> copy_data_algo >> run_algo_send_result >> clean

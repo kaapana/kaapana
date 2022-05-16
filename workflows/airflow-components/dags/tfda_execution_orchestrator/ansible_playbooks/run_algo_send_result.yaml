@@ -8,39 +8,35 @@
     - add_host:
         name: "{{ target }}"
         groups: os_server
+
 - name: Run algorithm on data in isolated environment and send results back to parent data site
   hosts: os_server
   strategy: free
+  gather_facts: yes
   remote_user: "{{ remote_username }}"
-  # remote_user: "ubuntu"
   vars:
     #TODO: change hardcoded
-    ansible_ssh_private_key_file: ~/.ssh/kaapana.pem
+    ansible_ssh_private_key_file: ~/.ssh/tfda_iso.pem
+  environment:
+    PATH: '/home/ubuntu/.local/bin:{{ ansible_env.PATH }}'
 
   tasks:
-    
-    - name: Run algorithm chart on data
-      command: "helm install /home/ubuntu/{{ chart_filename }} --generate-name"
-      #async: 15
-      #poll: 0
-    - name: Sleep for 5 seconds until output generate
-      wait_for:
-        timeout: 5
-      delegate_to: 127.0.0.1
-    - name: Change directory permission
+    - name: Run MedPerf client on the submission
+      shell: /home/ubuntu/.local/bin/medperf --storage=/home/ubuntu/medperf/medperf-env test -b {{ benchmark_id }}
+      args:
+        chdir: /home/ubuntu/medperf
+
+    - name: Compress results file
+      archive: 
+        path: /home/ubuntu/medperf/medperf-env/results/{{ benchmark_id }}
+        dest: "/home/ubuntu/medperf/medperf-env/results/{{ subm_id }}_results.zip"
+        format: zip
+
+    - name: Copy results back to the parent host
       become: yes
-      file:
-        path: /home/kaapana/minio/output
-        state: directory
-        recurse: yes
-        mode: '0777'
-    - name: Copy results back to the parent data site
-      become: yes
-      become_user: ubuntu
       ## Currently Ansible doesn't directly support directory/recursive copying from remote to local
       fetch:
-        src: /home/kaapana/minio/output/test.json
-        # src: "/home/ubuntu/test/test.json"
-        dest: /home/kaapana/minio/workflow_results/
-        # dest: "/home/ubuntu/test/"
+        src: "/home/ubuntu/medperf/medperf-env/results/{{ subm_id }}_results.zip"
+        dest: "{{ subm_results_path }}/"
         flat: yes
+        

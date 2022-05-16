@@ -7,10 +7,11 @@ LABEL CI_IGNORE="False"
 ENV TZ=Europe/Berlin
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     openjdk-8-jdk \
-    ant
+    ant \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build-ctp
 
@@ -39,7 +40,7 @@ RUN cd ./build/kaapana-dag-trigger \
 FROM ubuntu:20.04
 
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     default-jre \
  && rm -rf /var/lib/apt/lists/*
 

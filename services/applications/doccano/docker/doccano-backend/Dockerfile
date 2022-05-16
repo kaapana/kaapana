@@ -1,10 +1,10 @@
-FROM python:3.9-alpine3.12 as build-stage
+FROM alpine/git:v2.34.2 as build-stage
 
 LABEL IMAGE="doccano-backend"
 LABEL VERSION="sha-0489118"
 LABEL CI_IGNORE="False"
 
-RUN apk add --no-cache git
+WORKDIR /
 
 RUN git clone https://github.com/doccano/doccano.git doccano && cd doccano && git checkout 0489118f92084d85b30a95a8b306636dfae38ff9
 

@@ -1,4 +1,4 @@
-FROM pytorchlightning/pytorch_lightning:base-cuda-py3.9-torch1.11
+FROM local-only/base-pytorch-gpu:0.1.0
 
 LABEL IMAGE="bodypartregression"
 LABEL VERSION="v1.3"
@@ -10,19 +10,11 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Turns off buffering for easier container logging
 ENV PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y \
-    git \
-    htop \
-    zip \
-    unzip \
-    curl \
-    python3-opencv \
- && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends python3-opencv \
+    && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
-
-RUN pip3 install --upgrade pip
-
+RUN apt-get purge -y libhwloc-dev libhwloc-plugins
+WORKDIR /kaapanasrc
 # Clone directory from git
 RUN git clone  --single-branch --branch master https://github.com/MIC-DKFZ/BodyPartRegression.git && cd BodyPartRegression && git checkout v1.1 
 
@@ -32,8 +24,8 @@ RUN curl https://zenodo.org/record/5113483/files/public_bpr_model.zip?download=1
 
 RUN unzip BodyPartRegression/src/models/public_bpr_model.zip -d BodyPartRegression/src/models/
 
-WORKDIR /app/BodyPartRegression
-COPY requirements.txt /files/requirements.txt
-RUN pip3 install -r /files/requirements.txt
+WORKDIR /kaapanasrc/BodyPartRegression
+COPY files/requirements.txt /requirements.txt
+RUN pip3 uninstall -y torch torchtext &&  pip3 install -r /requirements.txt
 
 CMD ["python3", "-u", "starter.py"]

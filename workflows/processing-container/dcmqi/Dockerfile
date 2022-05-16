@@ -1,11 +1,11 @@
-FROM python:3.10.2
+FROM local-only/base-python-cpu:0.1.0
 
 LABEL IMAGE="dcmqi"
 LABEL VERSION="v1.2.4"
 LABEL CI_IGNORE="False"
 
 # set work directory
-WORKDIR /app
+WORKDIR /kaapanasrc
 
 COPY files/requirements.txt ./
 RUN pip3 install -r ./requirements.txt
@@ -15,15 +15,16 @@ RUN mkdir -p /app/src && wget --no-check-certificate https://github.com/QIICR/dc
     && mkdir -p /app/dcmqi && tar -xzf /app/src/dcmqi.tar.gz --strip 1 -C /app/dcmqi && rm -rf /app/src/dcmqi.tar.gz
 
 #RUN cat /etc/os-release
-RUN apt-get update
-RUN apt-get -y install vim
-#COPY files/create_segmentation_json.py .
-COPY files/code_lookup_table.json .
-COPY files/tid1500_template.json .
-COPY files/itkimage2segimage.py .
-COPY files/segimage2itkimage.py .
-COPY files/tid1500writer.py .
-COPY files/convert.sh .
-RUN chmod +x convert.sh
+RUN apt-get update && apt-get -y install vim  \
+    && rm -rf /var/lib/apt/lists/*
 
-ENTRYPOINT ["/bin/bash", "./convert.sh"]
+#COPY files/create_segmentation_json.py .
+COPY files/code_lookup_table.json /kaapanasrc/
+COPY files/tid1500_template.json /kaapanasrc/
+COPY files/itkimage2segimage.py /kaapanasrc/
+COPY files/segimage2itkimage.py /kaapanasrc/
+COPY files/tid1500writer.py /kaapanasrc/
+COPY files/convert.sh /kaapanasrc/
+RUN chmod +x /kaapanasrc/convert.sh
+
+ENTRYPOINT ["/bin/bash", "/kaapanasrc/convert.sh"]

@@ -13,6 +13,7 @@ from kaapana.blueprints.kaapana_utils import generate_minio_credentials
 from kaapana.operators.HelperMinio import HelperMinio
 from kaapana.operators.HelperCaching import cache_operator_output
 
+
 class LocalMinioOperator(KaapanaPythonBaseOperator):
 
     @cache_operator_output
@@ -21,11 +22,11 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         conf = kwargs['dag_run'].conf
         print('conf', conf)
         if conf is not None and 'conf' in conf and 'form_data' in conf['conf'] and conf['conf']['form_data'] is not None and 'zip_files' in conf['conf']['form_data']:
-                self.zip_files = conf['conf']['form_data']['zip_files']
-                print('Zip files set by form data', self.zip_files)
+            self.zip_files = conf['conf']['form_data']['zip_files']
+            print('Zip files set by form data', self.zip_files)
 
         ###################
-        # TODO: Can't be used like this, since token expires, we should use presigned_urls, which should be generated when the airflow is triggered 
+        # TODO: Can't be used like this, since token expires, we should use presigned_urls, which should be generated when the airflow is triggered
         # if 'conf' in conf:
         #     if 'x_auth_token' in conf['conf']:
         #         access_key, secret_key, session_token = generate_minio_credentials(conf['conf']['x_auth_token'])
@@ -34,39 +35,38 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         #         secret_key = os.environ.get('MINIOPASSWORD')
         #         session_token = None
         ###################
-        
+
         access_key = os.environ.get('MINIOUSER')
         secret_key = os.environ.get('MINIOPASSWORD')
         session_token = None
-        
+
         # Todo: actually should be in pre_execute, however, when utilizing Airflow PythonOperator pre_execute seems to have no effect...
         if conf is not None and 'Key' in conf:
             self.bucket_name = conf['Key'].split('/')[0]
-            self.object_name= "/".join(conf['Key'].split('/')[1:])
+            self.object_name = "/".join(conf['Key'].split('/')[1:])
             print(f'Setting bucket name to {self.bucket_name} and object name to {self.object_name}')
-        
+
         minioClient = Minio(self.minio_host+":"+self.minio_port,
                             access_key=access_key,
                             secret_key=secret_key,
                             session_token=session_token,
                             secure=False)
 
-
         run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id) if self.run_dir is None else os.path.join(self.run_dir)
         batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
         print(batch_folder)
-        
+
         if self.bucket_name is None:
             print("No BUCKETID env set!")
             self.bucket_name = kwargs['dag'].dag_id
             print(("Generated Bucket-Id: %s" % self.bucket_name))
-         
+
         object_dirs = []
         # Get contents from run_dir
         object_dirs = object_dirs + self.action_operator_dirs
         for action_operator in self.action_operators:
             object_dirs.append(action_operator.operator_out_dir)
-            
+
         # Get contents from batch_elements
         for batch_element_dir in batch_folder:
             for operator_dir in self.action_operator_dirs:
@@ -82,14 +82,13 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         for object_dir in object_dirs:
             for action_file in self.action_files:
                 object_names.append(os.path.join(object_dir, action_file))
-        
 
         if self.zip_files:
             timestamp = (datetime.datetime.now() + timedelta(hours=2)).strftime("%y-%m-%d-%H:%M:%S%f")
             target_dir = os.path.join(run_dir, self.operator_out_dir)
             if not os.path.exists(target_dir):
                 os.makedirs(target_dir)
-                
+
             zip_object_name = f"{kwargs['dag'].dag_id}_{timestamp}.zip"
             zip_file_path = os.path.join(target_dir, zip_object_name)
             with ZipFile(zip_file_path, 'w') as zipObj:
@@ -103,16 +102,16 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                         for name in files:
                             file_path = os.path.join(path, name)
                             rel_dir = os.path.relpath(path, run_dir)
-                            rel_dir = '' if rel_dir== '.' else rel_dir
+                            rel_dir = '' if rel_dir == '.' else rel_dir
                             if rel_dir == self.operator_out_dir:
                                 print('Skipping files in {rel_dir}, due to recursive zipping!')
                                 continue
-                            object_name =os.path.join(rel_dir, name)
+                            object_name = os.path.join(rel_dir, name)
                             zipObj.write(os.path.join(path, name), object_name)
-            
+
             HelperMinio.apply_action_to_file(minioClient, 'put', self.bucket_name, zip_object_name, zip_file_path, self.file_white_tuples)
             return
-                            
+
         if object_names:
             print(f'Applying action "{self.action}" to files {object_names}')
             HelperMinio.apply_action_to_object_names(minioClient, self.action, self.bucket_name, run_dir, object_names, self.file_white_tuples)
@@ -121,7 +120,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                 print(f'Applying action to whole bucket')
             else:
                 print(f'Applying action "{self.action}" to files in: {object_dirs}')
-                
+
             HelperMinio.apply_action_to_object_dirs(minioClient,
                                                     self.action,
                                                     self.bucket_name,
@@ -129,29 +128,29 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                                                     object_dirs,
                                                     self.file_white_tuples,
                                                     self.split_level)
-        
+
         return
 
     def __init__(self,
-        dag,
-        action='get',
-        name=None,
-        run_dir=None,
-        bucket_name=None,
-        action_operators=None,
-        action_operator_dirs=None,
-        action_files=None,
-        minio_host='minio-service.store.svc',
-        minio_port='9000',
-        file_white_tuples=None,
-        zip_files=False,
-        split_level=None,
-        **kwargs
-        ):
-    
+                 dag,
+                 action='get',
+                 name=None,
+                 run_dir=None,
+                 bucket_name=None,
+                 action_operators=None,
+                 action_operator_dirs=None,
+                 action_files=None,
+                 minio_host='minio-service.store.svc',
+                 minio_port='9000',
+                 file_white_tuples=None,
+                 zip_files=False,
+                 split_level=None,
+                 **kwargs
+                 ):
+
         if action not in ['get', 'remove', 'put']:
             raise AssertionError('action must be get, remove or put')
-        
+
         if action == 'put':
             file_white_tuples = file_white_tuples or ('.json', '.mat', '.py', '.zip', '.txt', '.gz', '.csv', 'pdf', 'png', 'jpg')
         name = name or f'minio-actions-{action}'
@@ -168,9 +167,9 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         self.split_level = split_level
 
         super(LocalMinioOperator, self).__init__(
-           dag=dag,
-           name=name,
-           python_callable=self.start,
-           execution_timeout=timedelta(minutes=30),
-           **kwargs
+            dag=dag,
+            name=name,
+            python_callable=self.start,
+            execution_timeout=timedelta(minutes=30),
+            **kwargs
         )

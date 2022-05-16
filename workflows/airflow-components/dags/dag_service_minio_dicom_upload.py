@@ -33,6 +33,7 @@ dag = DAG(
 get_object_from_minio = LocalMinioOperator(
     dag=dag,
     action_operator_dirs=['dicoms'],
+    batch_level=True,
     operator_out_dir='dicoms'
 )
 

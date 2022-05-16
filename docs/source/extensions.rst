@@ -3,6 +3,24 @@
 Extensions
 ==========
 
+Introduction
+^^^^^^^^^
+The *Extension* functional unit can be considered as an app store.
+It allows (un-)installing components, which can either be workflows or applications.
+Workflows are algorithms which are executed via `Apache Airflow <https://airflow.apache.org/>`_.
+In addition to the distinction in kinds, there is also an distinction in version, either *stable* or *experimental*.
+*Experimental* extensions are not properly tested yet, while *stable* extensions are. There are filters on top of the extension functional unit page, which allow to filter by those criteria.
+The filters are automatically applied and will update the extension list below.
+For each extension in the list, there is a button for installing or uninstalling, depending on the current status.
+When clicking the *install* button, the extension will be downloaded and installed. The current helm and kubernetes status of the freshly installed extension can be seen in the respective columns.
+For installing a specific version of an extension, the dropdown in the *version* column can be used.
+Uninstalling an extension is as easy as installing one by clicking on *uninstall* for the respective extension in the extension list.
+
+A detailed description of available workflows and applications can be found in :ref:`extensions workflows` and :ref:`extensions applications`.
+Information about how to integrate custom components into the platform via the *Extension* functional unit can be found at :ref:`Deploy a Flask Application on the platform` and :ref:`Provide a workflow as an extension`.
+
+.. _extensions workflows:
+
 Workflows
 ^^^^^^^^^
 
@@ -119,6 +137,7 @@ Radiomics (radiomics-dcmseg)
 | **Start processing:**
 | Select  *radiomics* + *BATCH PROCESSING* or *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
 
+.. _extensions applications:
 
 Applications
 ^^^^^^^^^^^^

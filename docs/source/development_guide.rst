@@ -364,6 +364,7 @@ Last step is to restart the ``kaapana-stab-extensions`` pod. You can either dele
 
 Since in the ``Chart.yaml`` definition we have added ``kaapanaapplication`` to the keywords, your application should also appear in the extension list now.
 
+.. _Provide a workflow as an extension:
 
 Provide a workflow as an extension
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

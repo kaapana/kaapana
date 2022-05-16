@@ -8,6 +8,20 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
 class Pdf2DcmOperator(KaapanaBaseOperator):
+    """
+    Operator saves DICOM meta information in a DICOM Encapsulated PDF Storage SOP instance.
+
+    This operator either takes DICOM meta information or reads the DICOM meta information from existing DICOM files.
+    The DICOM meta information are converted to a DICOM Encapsulated PDF Storage SOP instance and are stored in a specified ouput directory.
+    The converting process is done by DCMTK's pdf2dcm function: https://support.dcmtk.org/docs/pdf2dcm.html .
+
+    **Inputs:**
+    * (either) PDF file containing all DICOM meta information
+    * (or) DICOM file to extract DICOM meta information from
+
+    **Outputs:**
+    * DICOM Encapsulated PDF Storage SOP instance containing the extracted DICOM meta information
+    """
 
     def __init__(self,
                  dag,
@@ -22,6 +36,18 @@ class Pdf2DcmOperator(KaapanaBaseOperator):
                  execution_timeout=timedelta(minutes=10),
                  **kwargs
                  ):
+
+        """
+        :param pdf_title: Title of PDF file that is DICOM encapsulated.
+        :dicom_operator: Used to find DICOM files from which DICOM meta information is extracted.
+        :aetitle: DICOM meta information.
+        :study_uid: DICOM meta information.
+        :study_description: DICOM meta information.
+        :patient_id: DICOM meta information.
+        :patient_name: DICOM meta information.
+        :env_vars: Dictionary to store environmental variables.
+        :execution_timeout:
+        """
 
         if env_vars is None:
             env_vars = {}

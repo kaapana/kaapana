@@ -1,15 +1,14 @@
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 
-from kaapana.operators.LocalUnzipFileOperator import LocalUnzipFileOperator
+from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
-from datetime import timedelta
 from airflow.models import DAG
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from datetime import timedelta
 
 
 log = LoggingMixin().log
@@ -29,13 +28,37 @@ dag = DAG(
     concurrency=10,
     max_active_runs=5,
     tags=['service']
-    )
+)
 
+get_object_from_minio = LocalMinioOperator(
+    dag=dag,
+    action_operator_dirs=['dicoms'],
+    operator_out_dir='dicoms'
+)
 
-get_object_from_minio = LocalMinioOperator(dag=dag, action_operator_dirs=['dicoms'], operator_out_dir='dicoms')
-unzip_files = LocalUnzipFileOperator(dag=dag, input_operator=get_object_from_minio)
-dicom_send = DcmSendOperator(dag=dag, input_operator=unzip_files, ae_title='uploaded', level='batch')
-remove_object_from_minio = LocalMinioOperator(dag=dag, parallel_id='removing', action='remove', trigger_rule=TriggerRule.ALL_DONE)
-clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
+unzip_files = ZipUnzipOperator(
+    dag=dag,
+    input_operator=get_object_from_minio,
+    mode="unzip"
+)
+
+dicom_send = DcmSendOperator(
+    dag=dag,
+    input_operator=unzip_files,
+    ae_title='uploaded',
+    level='batch'
+)
+
+remove_object_from_minio = LocalMinioOperator(
+    dag=dag,
+    parallel_id='removing',
+    action='remove',
+    trigger_rule=TriggerRule.ALL_DONE
+)
+
+clean = LocalWorkflowCleanerOperator(
+    dag=dag,
+    clean_workflow_dir=True
+)
 
 get_object_from_minio >> unzip_files >> dicom_send >> remove_object_from_minio >> clean

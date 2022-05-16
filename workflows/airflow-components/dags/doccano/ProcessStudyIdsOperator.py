@@ -1,7 +1,5 @@
 import os
-import glob
 from datetime import timedelta
-
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry
 
 class ProcessStudyIdsOperator(KaapanaBaseOperator):

@@ -44,7 +44,7 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
         if filepath is not None and filepath != "":
             with open(filepath,'rb') as file:
                 attachment = MIMEApplication(file.read())
-            attachment.add_header('Content-Disposition', 'attachment', filename=f"result_{sending_ts.strftime('%Y_%m_%d')}.zip")
+            attachment.add_header('Content-Disposition', 'attachment', filename=f"result_{subm_id}_{sending_ts.strftime('%Y-%m-%d')}.zip")
             msgRoot.attach(attachment)
 
         s = smtplib.SMTP(host='mailhost2.dkfz-heidelberg.de', port=25)
@@ -126,6 +126,7 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
                         dag_run = self.get_most_recent_dag_run(self.trigger_dag_id)
                         dag_state = get_dag_run_state(dag_id="tfda-execution-orchestrator", execution_date=dag_run.execution_date)                        
                     
+                    sending_ts = datetime.now()
                     if dag_state["state"] == "failed":
                         print(f"**************** The evaluation of submission with ID {subm_id} has FAILED ****************")
                         subm_dict[subm_id] = "failed"
@@ -159,7 +160,7 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
                             </body>
                         </html>
                         """.format(subm_id)
-                        self.send_email(email_address="kaushal.parekh@dkfz-heidelberg.de", message=message, filepath=f"{subm_results_path}/{subm_id}_results.zip", subm_id=subm_id)
+                        self.send_email(email_address="", message=message, filepath=f"{subm_results_path}/results_{subm_id}_{sending_ts.strftime('%Y-%m-%d')}.zip", subm_id=subm_id)
                 else:
                     print("Submission already SUCCESSFUL!!!!")
 

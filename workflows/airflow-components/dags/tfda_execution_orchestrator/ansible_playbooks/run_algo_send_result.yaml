@@ -22,21 +22,21 @@
 
   tasks:
     - name: Run MedPerf client on the submission
-      shell: /home/ubuntu/.local/bin/medperf --storage=/home/ubuntu/medperf/medperf-env test -b {{ benchmark_id }}
+      shell: medperf --storage=medperf-env test -b {{ benchmark_id }}
       args:
         chdir: /home/ubuntu/medperf
 
     - name: Compress results file
       archive: 
         path: /home/ubuntu/medperf/medperf-env/results/{{ benchmark_id }}
-        dest: "/home/ubuntu/medperf/medperf-env/results/{{ subm_id }}_results.zip"
+        dest: "/home/ubuntu/medperf/medperf-env/results/results_{{ subm_id }}_{{ '%Y-%m-%d' | strftime }}.zip"
         format: zip
 
     - name: Copy results back to the parent host
       become: yes
       ## Currently Ansible doesn't directly support directory/recursive copying from remote to local
       fetch:
-        src: "/home/ubuntu/medperf/medperf-env/results/{{ subm_id }}_results.zip"
+        src: "/home/ubuntu/medperf/medperf-env/results/results_{{ subm_id }}_{{ '%Y-%m-%d' | strftime }}.zip"
         dest: "{{ subm_results_path }}/"
         flat: yes
         

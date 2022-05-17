@@ -59,7 +59,7 @@ launch_app = KaapanaApplicationOperator(dag=dag,
                                         name="application-mitk-flow",
                                         input_operator=mitk_input,
                                         chart_name='mitk-flow-chart',
-                                        version='2021.02')
+                                        version='2022.04')
 send_dicom = DcmSendOperator(dag=dag, input_operator=launch_app, ae_title="MITK-flow")
 clean = LocalWorkflowCleanerOperator(dag=dag)
 

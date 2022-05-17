@@ -16,7 +16,7 @@ spec:
     spec:
       initContainers:
         - name: copy-kube-helm-helpers
-          image: {{ $.Values.global.registry_url }}/kube-helm-helpers:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.version | default "0" }}__0.1.0
+          image: {{ $.Values.global.registry_url }}/kube-helm-helpers:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__0.1.0
           imagePullPolicy: {{ $.Values.global.pull_policy_pods }}
           env:
           - name: ACTION
@@ -28,7 +28,7 @@ spec:
             mountPath: /charts
 {{- range $collection := $.Values.global.kaapana_collections }}
         - name: copy-{{ $collection.name }}
-          image: {{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.version | default "0" }}__{{ $collection.version }}
+          image: {{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ $collection.version }}
           imagePullPolicy: {{ $.Values.global.pull_policy_pods }}
           env:
           - name: ACTION
@@ -41,7 +41,7 @@ spec:
 {{- end }}
       containers:
       - name: kube-helm
-        image: {{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.version | default "0" }}__0.1.3
+        image: {{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__0.1.3
         imagePullPolicy:  {{ $.Values.global.pull_policy_pods }}
         resources:
           limits:
@@ -58,7 +58,7 @@ spec:
         - name: PLATFORM_ABBR
           value: {{ $.Values.global.platform_abbr }}
         - name: PLATFORM_VERSION
-          value: {{ $.Values.global.version }}
+          value: {{ $.Values.global.platform_version }}
         - name: HELM_NAMESPACE
           value: {{ $.Values.global.helm_namespace }}
         - name: REGISTRY_URL

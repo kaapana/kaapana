@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: doccano-backend
-        image: {{ .Values.global.registry_url }}/doccano-backend:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__sha-0489118
+        image: {{ .Values.global.registry_url }}/doccano-backend:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__sha-0489118
         imagePullPolicy: {{ .Values.global.pull_policy_pods | default "IfNotPresent" }}
         ports:
         - containerPort: 8000 

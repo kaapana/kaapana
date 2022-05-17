@@ -16,7 +16,7 @@ spec:
     spec:
       initContainers:
       - name: init
-        image: {{ .Values.global.registry_url }}/service_checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__1.1
+        image: {{ .Values.global.registry_url }}/service_checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env:
           - name: WAIT
@@ -27,7 +27,7 @@ spec:
             value: "10"
       containers:
         - name: oauth2-proxy-container
-          image: {{ .Values.global.registry_url }}/oauth2-proxy:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__7.2.1
+          image: {{ .Values.global.registry_url }}/oauth2-proxy:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__7.2.1
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           args:
         {{- if ne (.Values.global.https_port | default "443") "443" }}

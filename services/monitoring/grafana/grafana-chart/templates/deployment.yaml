@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: grafana
-        image: {{ .Values.global.registry_url }}/grafana:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__8.4.4
+        image: {{ .Values.global.registry_url }}/grafana:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__8.4.4
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env:
         # - name: GF_SERVER_ROOT_URL

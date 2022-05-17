@@ -11,7 +11,7 @@ spec:
     spec:
       initContainers:
         - name: init-kube-helm
-          image: {{ $.Values.global.registry_url }}/service_checker:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.version | default "0" }}__1.1
+          image: {{ $.Values.global.registry_url }}/service_checker:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__1.1
           imagePullPolicy: {{ $.Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
@@ -21,20 +21,20 @@ spec:
             - name: TIMEOUT
               value: "10"
         - name: init-extensions
-          image: {{ $.Values.global.registry_url }}/service_checker:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.version | default "0" }}__1.1
+          image: {{ $.Values.global.registry_url }}/service_checker:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__1.1
           imagePullPolicy: {{ $.Values.global.pull_policy_jobs }}
           env:
             - name: DELAY
               value: "2"
             - name: FILES_AND_FOLDERS_EXISTS
-              value: "{{- range $extension := $.Values.global.preinstall_extensions }}/root/charts/extensions/{{ $extension.name }}-{{ $extension.version }}.tgz;{{- end }}"
+              value: "{{- range $extension := $.Values.global.preinstall_extensions }}/root/charts/extensions/{{ $extension.name }}-{{ $extension.platform_version }}.tgz;{{- end }}"
           volumeMounts:
             - name: helmextensions
               mountPath: "/root/charts"
       containers:
 {{- range $extension := $.Values.global.preinstall_extensions }}
       - name: preinstall-{{ uuidv4 | trunc 10 }}
-        image: {{ $.Values.global.registry_url }}/service_checker:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.version | default "0" }}__1.1
+        image: {{ $.Values.global.registry_url }}/service_checker:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__1.1
         imagePullPolicy:  {{ $.Values.global.pull_policy_pods }}
         command: ["/bin/sh", "-c"]
         args: ["echo -e \"import requests;r=requests.post('http://kube-helm-service.kube-system.svc:5000/helm-install-chart', json={'name': '{{ $extension.name }}', 'version': '{{ $extension.version }}' });print(r)\" | python3"]

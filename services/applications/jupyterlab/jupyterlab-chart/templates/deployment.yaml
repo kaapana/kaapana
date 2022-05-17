@@ -21,7 +21,7 @@ spec:
       containers:
       - name: jupyterlab
         {{- if not .Values.image }}
-        image: {{ .Values.global.registry_url }}/jupyterlab:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__3.3.2
+        image: {{ .Values.global.registry_url }}/jupyterlab:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__3.3.2
         {{- else }}
         image: {{ .Values.image }}
         {{- end }}

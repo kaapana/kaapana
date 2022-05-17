@@ -24,7 +24,7 @@ spec:
       containers:
       - name: code-server
         {{- if not .Values.image }}
-        image: {{ .Values.global.registry_url }}/code-server:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__4.2.0
+        image: {{ .Values.global.registry_url }}/code-server:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__4.2.0
         {{- else }}
         image: {{ .Values.image }}
         {{- end }}

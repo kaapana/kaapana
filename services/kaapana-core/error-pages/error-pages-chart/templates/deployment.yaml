@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: error-pages-container
-        image: {{ .Values.global.registry_url }}/error-pages:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__1.0.1
+        image: {{ .Values.global.registry_url }}/error-pages:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.0.1
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         resources:
           requests:

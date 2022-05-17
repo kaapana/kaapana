@@ -438,7 +438,7 @@ function install_chart {
     echo "${GREEN}Installing $PROJECT_NAME:$chart_version${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
-    --set-string global.version="$chart_version" \
+    --set-string global.platform_version="$chart_version" \
     --set-string global.platform_abbr="$PROJECT_ABBR" \
     --set-string global.hostname="$DOMAIN" \
     --set-string global.dev_ports="$DEV_PORTS" \
@@ -512,7 +512,7 @@ function upgrade_chart {
         pull_chart
     fi
     echo -e "${YELLOW}Charyt-tgz-path $CHART_PATH${NC}"
-    helm -n $HELM_NAMESPACE upgrade $PROJECT_NAME $CHART_PATH --devel --version $chart_version --set-string global.version="$chart_version" --reuse-values 
+    helm -n $HELM_NAMESPACE upgrade $PROJECT_NAME $CHART_PATH --devel --version $chart_version --set-string global.platform_version="$chart_version" --reuse-values 
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm -rf $CHART_PATH
     fi

@@ -20,7 +20,7 @@ spec:
         runAsUser: 1000
       containers:
       - name: tensorboard
-        image: {{ .Values.global.registry_url }}/tensorboard:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__2.8.0
+        image: {{ .Values.global.registry_url }}/tensorboard:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__2.8.0
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           requests:

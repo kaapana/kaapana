@@ -16,7 +16,7 @@ spec:
     spec:
       initContainers:
         - name: init
-          image: {{ .Values.global.registry_url }}/service_checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__1.1
+          image: {{ .Values.global.registry_url }}/service_checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
@@ -27,7 +27,7 @@ spec:
               value: "10"
       containers:
       - name: prefetch-{{ .Values.global.image }}
-        image: "{{- if .Values.global.custom_registry_url }}{{ .Values.global.custom_registry_url }}{{- else}}{{ .Values.global.registry_url }}{{- end }}{{- if .Values.global.custom_registry_project }}{{ .Values.global.custom_registry_project }}{{- else}}{{ .Values.global.registry_project }}{{- end }}/{{ .Values.global.image }}:{{ .Values.global.version }}"
+        image: "{{- if .Values.global.custom_registry_url }}{{ .Values.global.custom_registry_url }}{{- else}}{{ .Values.global.registry_url }}{{- end }}{{- if .Values.global.custom_registry_project }}{{ .Values.global.custom_registry_project }}{{- else}}{{ .Values.global.registry_project }}{{- end }}/{{ .Values.global.image }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ .Values.global.version }}"
         env:
           - name: ACTION
             value: {{ .Values.global.action }}
@@ -45,7 +45,7 @@ spec:
     spec:
       initContainers:
         - name: init
-          image: {{ .Values.global.registry_url }}/service_checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__1.1
+          image: {{ .Values.global.registry_url }}/service_checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
@@ -56,7 +56,7 @@ spec:
               value: "10"
       containers:
       - name: copy-{{ .Values.global.image }}
-        image: "{{- if .Values.global.custom_registry_url }}{{ .Values.global.custom_registry_url }}{{- else}}{{ .Values.global.registry_url }}{{- end }}{{- if .Values.global.custom_registry_project }}{{ .Values.global.custom_registry_project }}{{- else}}{{ .Values.global.registry_project }}{{- end }}/{{ .Values.global.image }}:{{ .Values.global.version }}"
+        image: "{{- if .Values.global.custom_registry_url }}{{ .Values.global.custom_registry_url }}{{- else}}{{ .Values.global.registry_url }}{{- end }}{{- if .Values.global.custom_registry_project }}{{ .Values.global.custom_registry_project }}{{- else}}{{ .Values.global.registry_project }}{{- end }}/{{ .Values.global.image }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ .Values.global.version }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
         - name: ACTION

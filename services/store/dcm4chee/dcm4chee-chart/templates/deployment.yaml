@@ -16,7 +16,7 @@ spec:
     spec:
       initContainers:
       - name: init
-        image: {{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/service_checker:1.1
+        image: {{ .Values.global.registry_url }}/service_checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
           - name: WAIT
@@ -27,7 +27,7 @@ spec:
             value: "10"
       containers:
         - name: dcm4chee-container
-          image: {{ .Values.global.registry_url }}{{ .Values.global.registry_project }}/dcm4chee-arc:5.26.0
+          image: {{ .Values.global.registry_url }}/dcm4chee-arc:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__5.26.0
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
           - name: ARCHIVE_DEVICE_NAME

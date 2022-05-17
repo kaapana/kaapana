@@ -31,10 +31,10 @@ class LocalServiceSyncDagsDbOperator(KaapanaPythonBaseOperator):
         file_dags = []
         for key, dag in dagbag.dags.items():
             file_dags.append(dag.dag_id)
-        print('file_dags', file_dags)
+        print(f"{file_dags=}")
 
         dags_to_delete = [item for item in db_dags if item not in file_dags]
-        print(dags_to_delete)
+        print(f"{dags_to_delete=}")
         for dag_id in dags_to_delete:
             print('Deleting', dag_id)
             r = requests.delete(f'{AIRFLOW_API}flow/api/experimental/dags/{dag_id}')

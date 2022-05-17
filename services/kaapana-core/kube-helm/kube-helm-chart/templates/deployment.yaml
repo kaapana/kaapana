@@ -55,6 +55,8 @@ spec:
           value: "/kube-helm-api"
         - name: HELM_PATH
           value: "/usr/local/bin/helm"
+        - name: PLATFORM_ABBR
+          value: {{ $.Values.global.platform_abbr }}
         - name: HELM_NAMESPACE
           value: {{ $.Values.global.helm_namespace }}
         - name: REGISTRY_URL
@@ -114,7 +116,7 @@ spec:
           path: {{ $.Values.global.home_dir }}/.cache/helm
           type: DirectoryOrCreate
       - name: helmlocal
-        hostPath:
+        hostPath: # TODO we really need to mount Helm? I think we should just install it in the container...
           path: {{ $.Values.global.home_dir }}/.local/share/helm
           type: DirectoryOrCreate
       serviceAccountName: kubernetes-dashboard

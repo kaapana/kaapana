@@ -67,7 +67,24 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
 
             node = ElementTree.Element("node", UID="Node_1")
             ElementTree.SubElement(node, "data", {'type': "Image", 'file': element['file_image']})
+            ElementTree.SubElement(node, "properties", file="image_props")
             start_tree = ElementTree.ElementTree(node)
+            # add image name, to prevent auto-created segmentation with e.g. / in seg name
+            output_file = os.path.join(element['scene_dir'], "image_props")
+            image_name = ElementTree.Element("property", {'key': "name", 'type': "StringProperty"})
+            ElementTree.SubElement(image_name, "string", value=element['image_seriesUID'])
+            image_layer = ElementTree.Element("property", {'key': "layer", 'type': "IntProperty"})
+            ElementTree.SubElement(image_layer, "int", value="0")
+
+            start_prop = ElementTree.ElementTree(image_name)
+            print('Writing image_props')
+            start_prop.write(output_file, xml_declaration=True, encoding='utf-8', method="xml")
+
+            xmlstr = ElementTree.tostring(image_layer, encoding='utf-8', method="xml").decode()
+            print('Writing layer property to property file')
+            with open(output_file, "a") as myfile:
+                myfile.write(xmlstr)
+
             output_file = os.path.join(element['scene_dir'], "input.mitksceneindex")
             print('Writing scene file')
             start_tree.write(output_file, xml_declaration=True, encoding='utf-8', method="xml")
@@ -87,10 +104,17 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
                 output_file = os.path.join(element['scene_dir'], "segmetation_props")
                 seg_name = ElementTree.Element("property", {'key': "name", 'type': "StringProperty"})
                 ElementTree.SubElement(seg_name, "string", value="Segmentation")
+                seg_layer = ElementTree.Element("property", {'key': "layer", 'type': "IntProperty"})
+                ElementTree.SubElement(seg_layer, "int", value="1")
                 start_prop = ElementTree.ElementTree(seg_name)
+
                 print('Writing segmetation_props')
                 start_prop.write(output_file, xml_declaration=True, encoding='utf-8', method="xml")
 
+                xmlstr = ElementTree.tostring(seg_layer, encoding='utf-8', method="xml").decode()
+                print('Writing layer property to property file')
+                with open(output_file, "a") as myfile:
+                    myfile.write(xmlstr)
                 # Setting the referenceFile is a workaround, because of limitations saving existing dicm-seg objects
                 # https://phabricator.mitk.org/T26953
                 output_file = os.path.join(element['scene_dir'], "segmetation_data_props")
@@ -135,6 +159,7 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
             print("Dicmo flies: ", dcm_files)
             if len(dcm_files) > 0:
                 incoming_dcm = pydicom.dcmread(dcm_files[0])
+                seriesUID = incoming_dcm.SeriesInstanceUID
 
                 # check if it is a segmentation, if so, download the referencing images
                 if "ReferencedSeriesSequence" in incoming_dcm:
@@ -158,7 +183,8 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
                             'file_image': os.path.join(REF_IMG, file_names[0]),
                             'file_seg': os.path.join(self.operator_in_dir, os.path.basename(dcm_files[0])),
                             'scene_dir': batch_element_dir,
-                            'file_image_container_list': data_path_list
+                            'file_image_container_list': data_path_list,
+                            'image_seriesUID' : seriesUID
                         })
                     else:
                         print('Reference images to segmentation not found!')
@@ -170,7 +196,8 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
                         'hasSegementation': False,
                         'file_image': os.path.join(self.operator_in_dir, os.path.basename(dcm_files[0])),
                         'file_seg': None,
-                        'scene_dir': batch_element_dir
+                        'scene_dir': batch_element_dir,
+                        'image_seriesUID' : seriesUID
                     })
             self.createScene(mitk_scenes)
 
@@ -189,5 +216,3 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
             python_callable=self.get_files,
             **kwargs
         )
-
-

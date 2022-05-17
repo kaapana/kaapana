@@ -1,5 +1,0 @@
----
-global:
-    image: "dag-mitk-workbench"
-    version: "2021.02"
-    action: "copy"

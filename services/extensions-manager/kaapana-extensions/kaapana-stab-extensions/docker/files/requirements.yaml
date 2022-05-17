@@ -8,7 +8,7 @@ dependencies:
     repository: file://../../../../../../services/applications/doccano/doccano-charts
   - name: doccano-image-tagging-workflow
     version: 0.1.0
-    repository: file://../../../../../../workflows/dag-installer/doccano-image-tagging/doccano-image-tagging-workflow
+    repository: file://../../../../../../data-processing/processing-pipelines/doccano-image-tagging/extension/doccano-image-tagging-workflow
   - name: debug-container-chart
     version: 0.1.1
     repository: file://../../../../../../services/applications/debug-container/debug-container-chart
@@ -17,40 +17,37 @@ dependencies:
     repository: file://../../../../../../services/applications/federated-backend/federated-backend-chart
   - name: federated-setup-central-test-workflow
     version: 0.1.0
-    repository: file://../../../../../../workflows/dag-installer/federated-setup-central-test/federated-setup-central-test-workflow
+    repository: file://../../../../../../data-processing/processing-pipelines/federated-setup-central-test/extension/federated-setup-central-test-workflow
   - name: federated-setup-node-test-workflow
     version: 0.1.0
-    repository: file://../../../../../../workflows/dag-installer/federated-setup-node-test/federated-setup-node-test-workflow
+    repository: file://../../../../../../data-processing/processing-pipelines/federated-setup-node-test/extension/federated-setup-node-test-workflow
   - name: kaapana-plugin-chart
     version: "0.1.1"
-    repository: file://../../../../../../workflows/dag-installer/kaapana-plugin/kaapana-plugin-chart
+    repository: file://../../../../../../data-processing/kaapana-plugin/extension/kaapana-plugin-chart
   - name: jupyterlab-chart
     version: 3.3.2
     repository: file://../../../../../../services/applications/jupyterlab/jupyterlab-chart
-  - name: mitk-flow-chart
-    version: "2021.02"
-    repository: file://../../../../../../services/applications/mitk-flow/mitk-flow-chart
   - name: mitk-flow-workflow
     version: "2021-01-19"
-    repository: file://../../../../../../workflows/dag-installer/mitk-flow/mitk-flow-workflow
+    repository: file://../../../../../../data-processing/processing-pipelines/mitk-flow/extension/mitk-flow-workflow
   - name: mitk-workbench-chart
     version: "2021.02"
     repository: file://../../../../../../services/applications/mitk-workbench/mitk-workbench-chart
   - name: nnunet-workflow
     version: 03-22
-    repository: file://../../../../../../workflows/dag-installer/nnunet/nnunet-workflow
+    repository: file://../../../../../../data-processing/processing-pipelines/nnunet/extension/nnunet-workflow
   - name: nnunet-federated-workflow
     version: 0.1.0
-    repository: file://../../../../../../workflows/dag-installer/nnunet-federated/nnunet-federated-workflow
+    repository: file://../../../../../../data-processing/processing-pipelines/nnunet-federated/extension/nnunet-federated-workflow
   - name: bodypartregression-workflow
     version: 0.1.0
-    repository: file://../../../../../../workflows/dag-installer/bodypartregression/bodypartregression-workflow
+    repository: file://../../../../../../data-processing/processing-pipelines/bodypartregression/extension/bodypartregression-workflow
   - name: radiomics-workflow
     version: 0.1.1
-    repository: file://../../../../../../workflows/dag-installer/radiomics/radiomics-workflow
+    repository: file://../../../../../../data-processing/processing-pipelines/radiomics/extension/radiomics-workflow
   - name: shapemodel-workflow
     version: 0.1.1
-    repository: file://../../../../../../workflows/dag-installer/shapemodel/shapemodel-workflow
+    repository: file://../../../../../../data-processing/processing-pipelines/shapemodel/extension/shapemodel-workflow
   - name: static-website-chart
     version: 0.1.0
     repository: file://../../../../../../services/applications/static-website/static-website-chart

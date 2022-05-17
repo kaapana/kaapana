@@ -60,7 +60,7 @@ spec:
     spec:
       initContainers:
       - name: service-kaapana-plugin-check
-        image: {{  .Values.global.registry_url }}/service_checker:1.1
+        image: {{ .Values.global.registry_url }}/service_checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__1.1
         imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
         env:
         - name: WAIT
@@ -73,7 +73,7 @@ spec:
         - name: airflow-plugins
           mountPath: /root/airflow/plugins
       - name: init-airflow-db
-        image: {{  .Values.global.registry_url }}/airflow:2.2.5
+        image: {{ .Values.global.registry_url }}/airflow:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__2.2.5
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["init"]
         resources:
@@ -102,7 +102,7 @@ spec:
               key: sql_alchemy_conn
       containers:
       - name: webserver
-        image: {{  .Values.global.registry_url }}/airflow:2.2.5
+        image: {{ .Values.global.registry_url }}/airflow:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__2.2.5
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         ports:
         - name: webserver
@@ -168,12 +168,12 @@ spec:
         #     path: /flow
         #     port: 8080
       - name: scheduler
-        image: {{  .Values.global.registry_url }}/airflow:2.2.5
+        image: {{ .Values.global.registry_url }}/airflow:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__2.2.5
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["scheduler"]
         env:
         - name: DEFAULT_REGISTRY
-          value: "{{  .Values.global.registry_url }}"
+          value: "{{ .Values.global.registry_url }}"
         - name: AIRFLOW__LOGGING__LOGGING_LEVEL
           value: "INFO"
         - name: AIRFLOW_HOME
@@ -195,7 +195,7 @@ spec:
         - name: INSTANCE_NAME
           value: {{ .Values.global.instance_name }}
         - name: PULL_POLICY_PODS
-          value: {{  .Values.global.pull_policy_pods }}
+          value: {{ .Values.global.pull_policy_pods }}
         - name: MINIOUSER
           value: {{ .Values.global.credentials_minio_username }}
         - name: MINIOPASSWORD

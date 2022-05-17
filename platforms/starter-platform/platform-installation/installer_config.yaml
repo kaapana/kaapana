@@ -1,5 +1,6 @@
 project_name: starter-platform-chart
-default_version: 0.1.1
+project_abbr: kp
+default_version: 0.1.3
 offline_mode: 'false'
 dev_mode: 'true'
 container_registry_url:

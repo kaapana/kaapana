@@ -1,9 +1,0 @@
-FROM local-only/dag-installer:0.1.0
-
-LABEL IMAGE="dag-mitk-workbench"
-LABEL VERSION="2021.02"
-LABEL CI_IGNORE="False"
-
-COPY dags/dag_minio_structure_stacker.py /tmp/dags/
-COPY dags/dag_minio_seg_to_pacs.py /tmp/dags/
-COPY dags/mitk_minio_pacs_interaction /tmp/dags/mitk_minio_pacs_interaction

@@ -12,7 +12,7 @@ spec:
     spec:
       initContainers:
       - name: init
-        image: {{  .Values.global.registry_url }}/service_checker:1.1
+        image: {{ .Values.global.registry_url }}/service_checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__1.1
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
           - name: WAIT
@@ -23,7 +23,7 @@ spec:
             value: "10"
       containers:
       - name: init-meta
-        image: {{  .Values.global.registry_url }}/init-meta:6.8.12
+        image: {{ .Values.global.registry_url }}/init-meta:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__6.8.12
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
           - name: DOMAIN

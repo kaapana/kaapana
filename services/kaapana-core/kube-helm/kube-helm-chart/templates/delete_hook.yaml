@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: remove-kube-helm-helpers
-        image: "{{ .Values.global.registry_url }}/kube-helm-helpers:0.1.0"
+        image: {{ $.Values.global.registry_url }}/kube-helm-helpers:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.version | default "0" }}__0.1.0
         imagePullPolicy: Never
         env:
         - name: ACTION
@@ -23,9 +23,9 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /charts
-{{- range $collection := .Values.global.kaapana_collections }}
+{{- range $collection := $.Values.global.kaapana_collections }}
       - name: remove-{{ $collection.name }}
-        image: "{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $collection.version }}"
+        image: {{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.version | default "0" }}__{{ $collection.version }}
         imagePullPolicy: Never
         env:
         - name: ACTION
@@ -41,7 +41,7 @@ spec:
       volumes:
       - name: data
         hostPath:
-          path: "{{ .Values.global.fast_data_dir }}/charts"
+          path: {{ $.Values.global.fast_data_dir }}/charts
           type: DirectoryOrCreate
       restartPolicy: Never
       imagePullSecrets:

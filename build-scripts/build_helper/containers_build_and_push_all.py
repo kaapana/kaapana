@@ -8,6 +8,9 @@ from shutil import which
 
 suite_tag = "Container"
 skip_push_no_changes = False
+platform_abbr = "kp"
+platform_version = "0.1.3"
+
 
 def container_registry_login(container_registry, username, password):
     print(f"-> Container registry-logout: {container_registry}")
@@ -135,7 +138,7 @@ class Container:
             self.container_registry = default_registry
 
         if self.image_version != None and self.image_version != "" and self.image_name != None and self.image_name != "":
-            self.tag = self.container_registry+"/"+self.image_name+":"+self.image_version
+            self.tag = self.container_registry+"/"+self.image_name+":"+platform_abbr+"_"+platform_version+"__"+self.image_version
             self.check_pending()
 
             log_entry = {

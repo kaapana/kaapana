@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: alertmanager
-        image: {{  .Values.global.registry_url }}/alert-manager:v0.24.0
+        image: {{ .Values.global.registry_url }}/alert-manager:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__v0.24.0
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         command: ["/bin/alertmanager"]
         args: ["--config.file=/conf/alertmanager.yml","--storage.path=/alertmanager"]

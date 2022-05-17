@@ -19,7 +19,7 @@ spec:
     spec:
       initContainers:
         - name: init
-          image: {{  .Values.global.registry_url }}/service_checker:1.1
+          image: {{ .Values.global.registry_url }}/service_checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__1.1
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
@@ -30,7 +30,7 @@ spec:
               value: "10"
       containers:
       - name: federated-backend
-        image: {{  .Values.global.registry_url }}/federated-backend:0.1.0
+        image: {{ .Values.global.registry_url }}/federated-backend:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__0.1.0
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         command: ["/bin/sh"]
         args: ["/app/boot.sh"] 

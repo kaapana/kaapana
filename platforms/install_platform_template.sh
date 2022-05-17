@@ -4,6 +4,7 @@ export HELM_EXPERIMENTAL_OCI=1
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
 PROJECT_NAME="{{ project_name }}" # name of the platform Helm chart
+PROJECT_ABBR="{{ project_abbr }}" # abbrevention for the platform-name
 DEFAULT_VERSION="{{ default_version }}"    # version of the platform Helm chart
 
 OFFLINE_MODE="{{ offline_mode|default('false', true) }}" # true or false
@@ -438,6 +439,7 @@ function install_chart {
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
     --set-string global.version="$chart_version" \
+    --set-string global.platform_abbr="$PROJECT_ABBR" \
     --set-string global.hostname="$DOMAIN" \
     --set-string global.dev_ports="$DEV_PORTS" \
     --set-string global.offline_mode="$OFFLINE_MODE" \

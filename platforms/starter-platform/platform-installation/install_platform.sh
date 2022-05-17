@@ -4,7 +4,8 @@ export HELM_EXPERIMENTAL_OCI=1
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
 PROJECT_NAME="starter-platform-chart" # name of the platform Helm chart
-DEFAULT_VERSION="0.1.1"    # version of the platform Helm chart
+PROJECT_ABBR="kp" # abbrevention for the platform-name
+DEFAULT_VERSION="0.1.3"    # version of the platform Helm chart
 
 OFFLINE_MODE="false" # true or false
 DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart
@@ -437,6 +438,7 @@ function install_chart {
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
     --set-string global.version="$chart_version" \
+    --set-string global.platform_abbr="$PROJECT_ABBR" \
     --set-string global.hostname="$DOMAIN" \
     --set-string global.dev_ports="$DEV_PORTS" \
     --set-string global.offline_mode="$OFFLINE_MODE" \

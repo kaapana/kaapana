@@ -18,7 +18,7 @@ spec:
     spec:
       initContainers:
         - name: init
-          image: {{  .Values.global.registry_url }}/service_checker:1.1
+          image: {{ .Values.global.registry_url }}/service_checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__1.1
           imagePullPolicy: {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
@@ -29,7 +29,7 @@ spec:
               value: "10"
       containers:
       - name: minio
-        image: {{  .Values.global.registry_url }}/minio:2022.03.26
+        image: {{ .Values.global.registry_url }}/minio:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__2022.03.26
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         command: ["minio"]
         args: ["server", "/export", "--address", "0.0.0.0:9000"]

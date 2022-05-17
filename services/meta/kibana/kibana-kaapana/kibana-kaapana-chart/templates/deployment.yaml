@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: kibana-meta-container          
-          image: {{  .Values.global.registry_url }}/kibana-kaapana:6.8.12
+          image: {{ .Values.global.registry_url }}/kibana-kaapana:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.version | default "0" }}__6.8.12
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           # env:
           # - name: NODE_OPTIONS

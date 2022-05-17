@@ -3,6 +3,24 @@ from datetime import timedelta
 
 
 class ResampleOperator(KaapanaBaseOperator):
+    """
+    Operator to resample NIFTI images.
+
+    This operator resamples NIFTI images (.nii.gz file format) according to a defined shape served by a template image.
+    The resampling is executed using MITK's "MitkCLResampleImageToReference.sh".
+    The resampling is executed without additional registration.
+    Possible interpolator types are a linear interpolator (0), a nearest neighbor interpolator (1) and a sinc interpolator (2).
+
+    **Inputs:**
+
+    * input_operator: Data which should be resampled.
+    * original_img_operator: Data element which serves as a shape template for the to-be-resampled input data.
+    * operator_out_dir: Directory in which the resampled data is saved.
+
+    **Outputs:**
+
+    * resampled NIFTI images
+    """
 
     def __init__(self,
                  dag,
@@ -15,7 +33,13 @@ class ResampleOperator(KaapanaBaseOperator):
                  execution_timeout=timedelta(minutes=320),
                  **kwargs
                  ):
-
+        """
+        :param original_img_operator: Data element which serves as a shape template for the to-be-resampled input data.
+        :param original_img_batch_name: Batch nahem of template data element.
+        :param format: = .nii.gz NIFTI image format.
+        :param interpolator: Interpolation mechanism to resample input images according to reference image's shape. 0 = linear (default), 1 = nearest neighbor, 2 = sinc.
+        """
+        
         if env_vars is None:
             env_vars = {}
 

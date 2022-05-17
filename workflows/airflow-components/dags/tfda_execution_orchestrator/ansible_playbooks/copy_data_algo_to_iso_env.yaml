@@ -20,29 +20,29 @@
     singularity_image_name: docker-to-singularity.sif
   # TODO: data could be in any or multiple instances
   tasks:
-    - name: Copy FeTS mockup data to iso env
-      copy:
-        src: "{{ test_data_path }}"
-        dest: "/home/ubuntu"
-        # directory_mode: yes
-        # mode: 0775
+    # - name: Copy FeTS mockup data to iso env
+    #   copy:
+    #     src: "{{ test_data_path }}"
+    #     dest: "/home/ubuntu"
+    #     # directory_mode: yes
+    #     # mode: 0775
 
     - name: Set algorithm container path
       set_fact: 
         container_path: "{{ tarball_path }}/{{ filename }}"
     
-    - name: Copy chart
+    - name: Copy container file
       copy:
         src: "{{ container_path }}"
         dest: "/home/ubuntu"
         # directory_mode: yes
 
-    - name: Convert Docker container to Singularity
-      shell: 
-      args:
-        cmd: singularity build {{ singularity_image_name }} docker-archive://{{ filename }}
-        chdir: /home/ubuntu
+    # - name: Convert Docker container to Singularity
+    #   shell: 
+    #   args:
+    #     cmd: singularity build {{ singularity_image_name }} docker-archive://{{ filename }}
+    #     chdir: /home/ubuntu
 
-    - name: show me the path and filename
-      debug: 
-        msg: "Singularity image name is {{ singularity_image_name }} and docker filename is {{ filename }}"
+    # - name: show me the path and filename
+    #   debug: 
+    #     msg: "Singularity image name is {{ singularity_image_name }} and docker filename is {{ filename }}"

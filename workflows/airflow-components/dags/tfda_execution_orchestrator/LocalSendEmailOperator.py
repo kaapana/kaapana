@@ -24,7 +24,7 @@ class LocalSendEmailOperator(KaapanaPythonBaseOperator):
         from_address = "CI@kaapana.dkfz"
         sending_ts = datetime.now()
 
-        sub = f'Evaluation Results for submission (ID:{subm_id}) FeTS 2022'
+        sub = f'Evaluation Results for submission (ID: {subm_id}) FeTS 2022'
         
         msgRoot = MIMEMultipart('related')
         msgRoot['From'] = from_address

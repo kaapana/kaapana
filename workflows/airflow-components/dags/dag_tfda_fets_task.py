@@ -5,7 +5,6 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.models import Variable
 from airflow.operators.bash_operator import BashOperator
 from tfda_execution_orchestrator.LocalFeTSSubmissions import LocalFeTSSubmissions
-from tfda_execution_orchestrator.LocalSendEmailOperator import LocalSendEmailOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from datetime import datetime, timedelta
 
@@ -30,7 +29,6 @@ dag = DAG(
 )
 
 evaluate_submissions = LocalFeTSSubmissions(dag=dag)
-send_email = LocalSendEmailOperator(dag=dag)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-evaluate_submissions >> send_email >> clean
+evaluate_submissions >> clean

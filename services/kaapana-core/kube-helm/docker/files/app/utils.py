@@ -185,7 +185,7 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
     helm_cache_path = helm_cache_path or settings.helm_extensions_cache
 
     name = payload["name"]
-    chart_version = payload["version"]
+    version = payload["version"]
 
     # default_sets = {
     #     #'global.registry_url': os.getenv('REGISTRY_URL'),
@@ -234,9 +234,9 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
     #         'global.https_proxy': http_proxy
     #     })
 
-    values = helm_show_values(name, chart_version)
+    values = helm_show_values(name, version)
     if 'keywords' not in payload:
-        chart = helm_show_chart(name, chart_version)
+        chart = helm_show_chart(name, version)
         if 'keywords' in chart:
             keywords = chart['keywords']
         else:
@@ -279,7 +279,7 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
 
     helm_command = f'{helm_delete_prefix}{os.environ["HELM_PATH"]} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_comman_suffix}'
     for item in extensions_list_cached:
-        if item["releaseName"] == release_name and item["version"] == chart_version:
+        if item["releaseName"] == release_name and item["version"] == version:
             item["successful"] = 'pending'
 
     if in_background is False:

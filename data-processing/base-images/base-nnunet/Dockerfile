@@ -1,6 +1,7 @@
 FROM local-only/base-python-gpu:0.1.0
 
-LABEL IMAGE="base-nnunet-gpu"
+LABEL REGISTRY="local-only"
+LABEL IMAGE="base-nnunet"
 LABEL VERSION="03-22"
 LABEL CI_IGNORE="False"
 

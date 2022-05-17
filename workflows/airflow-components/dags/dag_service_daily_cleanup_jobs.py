@@ -1,3 +1,58 @@
+import logging
+import os
+import airflow
+import jinja2
+from airflow.configuration import conf
+from airflow.models import DAG, Variable
+from airflow.operators.bash_operator import BashOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.dates import days_ago
+from airflow.utils.trigger_rule import TriggerRule
+from datetime import timedelta
+from airflow.models import DAG
+from datetime import timedelta
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.dates import days_ago
+from kaapana.operators.LocalServiceSyncDagsDbOperator import LocalServiceSyncDagsDbOperator
+from kaapana.operators.LocalCleanUpExpiredWorkflowDataOperator import LocalCleanUpExpiredWorkflowDataOperator
+from kaapana.operators.LocalCtpQuarantineCheckOperator import LocalCtpQuarantineCheckOperator
+
+
+log = LoggingMixin().log
+
+
+START_DATE = days_ago(1)
+
+args = {
+    'ui_visible': False,
+    'owner': 'system',
+    'depends_on_past': False,
+    'start_date': START_DATE,
+    'retries': 0,
+    'retry_delay': timedelta(minutes=1)
+}
+
+dag = DAG(
+    dag_id='service-daily-cleanup-jobs',
+    default_args=args,
+    schedule_interval="@daily",
+    start_date=args["start_date"],
+    concurrency=1,
+    max_active_runs=1,
+    tags=['service'],
+    template_undefined=jinja2.Undefined
+)
+
+remove_delete_dags = LocalServiceSyncDagsDbOperator(dag=dag)
+remove_delete_dags
+
+clean_up = LocalCleanUpExpiredWorkflowDataOperator(dag=dag, expired_period=timedelta(days=14))
+clean_up
+check_ctp_quarantine = LocalCtpQuarantineCheckOperator(dag=dag)
+check_ctp_quarantine
+
+# airflow-log-cleanup
 """
 A maintenance workflow that you can deploy into Airflow to periodically clean
 out the task logs to avoid those getting too big.
@@ -24,20 +79,7 @@ airflow trigger_dag --conf '[curly-braces]"maxLogAgeInDays":30[curly-braces]' ai
 --conf options:
     maxLogAgeInDays:<INT> - Optional
 """
-import logging
-import os
-from datetime import timedelta
-
-import airflow
-import jinja2
-from airflow.configuration import conf
-from airflow.models import DAG, Variable
-from airflow.operators.bash_operator import BashOperator
-from airflow.operators.dummy_operator import DummyOperator
-
-# airflow-log-cleanup
 DAG_ID = os.path.basename(__file__).replace(".pyc", "").replace(".py", "")
-START_DATE = airflow.utils.dates.days_ago(1)
 try:
     BASE_LOG_FOLDER = conf.get("core", "BASE_LOG_FOLDER").rstrip("/")
 except Exception as e:
@@ -85,26 +127,6 @@ if ENABLE_DELETE_CHILD_LOG.lower() == "true":
             "Airflow Configurations: " + str(e)
         )
 
-default_args = {
-    'ui_visible': False,
-    'owner': "system",
-    'depends_on_past': False,
-    'email': ALERT_EMAIL_ADDRESSES,
-    'email_on_failure': True,
-    'email_on_retry': False,
-    'start_date': START_DATE,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=1)
-}
-
-dag = DAG(
-    DAG_ID,
-    default_args=default_args,
-    schedule_interval=SCHEDULE_INTERVAL,
-    start_date=START_DATE,
-    tags=['service'],
-    template_undefined=jinja2.Undefined
-)
 if hasattr(dag, 'doc_md'):
     dag.doc_md = __doc__
 if hasattr(dag, 'catchup'):

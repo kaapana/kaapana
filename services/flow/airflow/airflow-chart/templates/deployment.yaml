@@ -117,6 +117,10 @@ spec:
           value: {{ .Values.global.fast_data_dir }}/workflows/data
         - name: MODELDIR
           value: {{ .Values.global.fast_data_dir }}/workflows/models
+        - name: PLATFORM_ABBR
+          value: {{ .Values.global.platform_abbr }}
+        - name: PLATFORM_VERSION
+          value: {{ .Values.global.platform_version }}
         - name: HOSTDOMAIN
           value: {{ .Values.global.hostname }}
         - name: HTTPS_PORT
@@ -188,6 +192,10 @@ spec:
           value: {{ .Values.global.fast_data_dir }}/minio/data-processing-dev
         - name: PROXY
           value: {{ .Values.global.http_proxy }}
+        - name: PLATFORM_ABBR
+          value: {{ .Values.global.platform_abbr }}
+        - name: PLATFORM_VERSION
+          value: {{ .Values.global.platform_version }}
         - name: HOSTDOMAIN
           value: {{ .Values.global.hostname }}
         - name: HTTPS_PORT

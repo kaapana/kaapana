@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: remove-{{ .Values.global.chart_container_image }}
-        image: "{{- if .Values.global.custom_registry_url }}{{ .Values.global.custom_registry_url }}{{- else}}{{ .Values.global.registry_url }}{{- end }}/{{ .Values.global.chart_container_image }}:{{ .Values.global.chart_container_version }}"
+        image: "{{- if .Values.global.custom_registry_url }}{{ .Values.global.custom_registry_url }}{{- else}}{{ .Values.global.registry_url }}{{- end }}/{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ .Values.global.chart_container_image }}:{{ .Values.global.chart_container_version }}"
         imagePullPolicy: Never
         env:
         - name: ACTION

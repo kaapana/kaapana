@@ -22,13 +22,13 @@ async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
-@ router.get("/health-check")
+@router.get("/health-check")
 async def health_check():
     # TODO return JSON object
     return Response(f"Kube-Helm api is up and running!", 200)
 
 
-@ router.get("/update-extensions")
+@router.get("/update-extensions")
 async def update_extensions():
     if settings.offline_mode is True:
         return Response(f"We will not prefetch the extensions since the platform runs in offline mode!", 200)
@@ -78,7 +78,7 @@ async def update_extensions():
         return Response(f"We had troubles updating the extensions", 500)
 
 
-@ router.get("/helm-delete-chart")
+@router.get("/helm-delete-chart")
 async def helm_delete_chart(release_name: str, release_version: str = None):
     try:
         utils.helm_delete(release_name=release_name, release_version=release_version)

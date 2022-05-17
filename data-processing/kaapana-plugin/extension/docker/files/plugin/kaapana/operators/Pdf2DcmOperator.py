@@ -3,7 +3,7 @@ import glob
 from datetime import timedelta
 import pydicom
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
@@ -40,7 +40,7 @@ class Pdf2DcmOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/pdf2dcm:3.6.4",
+            image=f"{default_registry}/pdf2dcm:{default_platform_abbr}_{default_platform_version}__3.6.4",
             name="pdf2dcm",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,

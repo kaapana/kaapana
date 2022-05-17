@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
 
 
 class TemplateExecPythonOperator(KaapanaBaseOperator):
@@ -15,7 +15,7 @@ class TemplateExecPythonOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name='temp-exec-python',
-            image=f"{default_registry}/python-template:0.1.0",
+            image=f"{default_registry}/python-template:{default_platform_abbr}_{default_platform_version}__0.1.0",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             *args,

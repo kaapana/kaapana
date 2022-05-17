@@ -1,7 +1,7 @@
 from datetime import timedelta, datetime
 
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, \
-    default_registry
+    default_registry, default_platform_abbr, default_platform_version
 
 
 class DcmSendOperator(KaapanaBaseOperator):
@@ -59,7 +59,7 @@ class DcmSendOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name=name,
-            image=f"{default_registry}/dcmsend:3.6.4",
+            image=f"{default_registry}/dcmsend:{default_platform_abbr}_{default_platform_version}__3.6.4",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             execution_timeout=execution_timeout,

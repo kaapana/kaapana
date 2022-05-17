@@ -11,7 +11,7 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.blueprints.kaapana_utils import cure_invalid_name
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
 
 
 class KaapanaApplicationOperator(KaapanaPythonBaseOperator):

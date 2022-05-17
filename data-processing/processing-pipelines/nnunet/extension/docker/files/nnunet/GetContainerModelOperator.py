@@ -2,7 +2,7 @@ from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
 from kaapana.kubetools.resources import Resources as PodResources
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
 from datetime import timedelta
 import os
 

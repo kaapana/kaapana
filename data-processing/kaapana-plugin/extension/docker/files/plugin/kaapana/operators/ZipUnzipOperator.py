@@ -2,7 +2,7 @@ import os
 import glob
 from datetime import timedelta
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
@@ -37,7 +37,7 @@ class ZipUnzipOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/zip-unzip:3.0.0",
+            image=f"{default_registry}/zip-unzip:{default_platform_abbr}_{default_platform_version}__3.0.0",
             name="zip-unzip",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,

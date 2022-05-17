@@ -282,6 +282,7 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
         if item["releaseName"] == release_name and item["version"] == version:
             item["successful"] = 'pending'
 
+    print('hello', helm_command)
     if in_background is False:
         return subprocess.check_output(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command
     else:

@@ -1,4 +1,4 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project, default_registry, default_project
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
 from datetime import timedelta
 
 class DcmSeg2ItkOperator(KaapanaBaseOperator):
@@ -25,7 +25,7 @@ class DcmSeg2ItkOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/dcmqi:v1.2.4",
+            image=f"{default_registry}/dcmqi:{default_platform_abbr}_{default_platform_version}__v1.2.4",
             name="dcmseg2nrrd",
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],

@@ -33,7 +33,10 @@ from airflow.models import Variable
 
 
 default_registry = os.getenv("DEFAULT_REGISTRY", "")
-default_project = os.getenv("DEFAULT_PROJECT", "")
+default_platform_abbr = os.getenv("PLATFORM_ABBR", "")
+default_platform_version = os.getenv("PLATFORM_VERSION", "")
+
+
 default_proxy = os.getenv("PROXY", "")
 
 class KaapanaBaseOperator(BaseOperator, SkipMixin):

@@ -1,4 +1,4 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
 from datetime import timedelta
 
 
@@ -47,7 +47,7 @@ class SegCheckOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/seg-check:0.1.0",
+            image=f"{default_registry}/seg-check:{default_platform_abbr}_{default_platform_version}__0.1.0",
             name=name,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,

@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from airflow.operators.python import PythonOperator
 from airflow.models.skipmixin import SkipMixin
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
 
 def rest_self_udpate(func):
     '''

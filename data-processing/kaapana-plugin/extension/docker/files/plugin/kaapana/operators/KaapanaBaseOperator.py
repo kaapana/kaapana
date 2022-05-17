@@ -218,7 +218,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.kind = kind
         self.data_dir = os.getenv('DATADIR', "")
         self.model_dir = os.getenv('MODELDIR', "")
-        self.common_dir = os.getenv('COMMONDIR', "")
+        self.dev_dir = os.getenv('DEVDIR', "")
         self.result_message = None
 
         self.volume_mounts.append(VolumeMount(
@@ -236,9 +236,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.volume_mounts.append(VolumeMount(
             'miniodata', mount_path='/minio', sub_path=None, read_only=False
         ))
-        self.volume_mounts.append(VolumeMount(
-            'commondata', mount_path='/common', sub_path=None, read_only=False
-        ))
 
         self.volumes.append(
             Volume(name='miniodata', configs={
@@ -246,16 +243,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 {
                     'type': 'DirectoryOrCreate',
                     'path': os.getenv('MINIODIR', "/home/kaapana/minio")
-                }
-            })
-        )
-
-        self.volumes.append(
-            Volume(name='commondata', configs={
-                'hostPath':
-                {
-                    'type': 'DirectoryOrCreate',
-                    'path': self.common_dir
                 }
             })
         )
@@ -418,6 +405,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 volume.configs["hostPath"]["path"] = os.path.join(volume.configs["hostPath"]["path"], context["run_id"])
 
         if self.dev_server is not None:
+
             url = f'{KaapanaBaseOperator.HELM_API}/helm-install-chart'
             env_vars_sets = {}
             for idx, (k, v) in enumerate(self.env_vars.items()):
@@ -426,11 +414,23 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     f'envVars[{idx}].value': f"{v}"
                 })
 
+            self.volume_mounts.append(VolumeMount(
+                'devdata', mount_path='/dev', sub_path=None, read_only=False
+            ))
+
+            self.volumes.append(
+                Volume(name='devdata', configs={
+                    'hostPath':
+                    {
+                        'type': 'DirectoryOrCreate',
+                        'path': self.dev_dir
+                    }
+                })
+            )
+
             volume_mounts_sets = {}
             idx = 0
             for volume_mount in self.volume_mounts:
-                print('vm name', volume_mount.name)
-                print('vm mount_path', volume_mount.mount_path)
                 if volume_mount.name in volume_mounts_sets.values() or volume_mount.name == 'dshm':
                     print(f'Warning {volume_mount.name} already in volume_mount dict!')
                     continue
@@ -444,8 +444,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             idx = 0
             for volume in self.volumes:
                 if 'hostPath' in volume.configs:
-                    print('v name', volume.name)
-                    print('v path', volume.configs['hostPath']['path'])
                     if volume.name in volumes_sets.values() or volume.name == 'dshm':
                         print(f'Warning {volume.name} already in volume dict!')
                         continue

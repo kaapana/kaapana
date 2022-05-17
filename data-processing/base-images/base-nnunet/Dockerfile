@@ -1,11 +1,16 @@
-FROM local-only/base-pytorch-gpu:0.1.0
+FROM local-only/base-python-gpu:0.1.0
 
-LABEL IMAGE="nnunet-gpu"
+LABEL IMAGE="base-nnunet-gpu"
 LABEL VERSION="03-22"
 LABEL CI_IGNORE="False"
 
 ENV OMP_NUM_THREADS=1
 ENV PYTHONUNBUFFERED=1
+
+# Todo: Check how we should handle this case with jupyter nbconvert
+# Only for jupyternotebook: jupyter nbconvert --to html --no-input ...
+RUN apt-get update && apt-get install -y texlive-xetex texlive-fonts-recommended texlive-plain-generic pandoc \
+    && rm -rf /var/lib/apt/lists/*
 
 # nnUNet
 ENV BRANCH=master
@@ -23,6 +28,4 @@ COPY files/patched/nnUNetTrainerV2.py /opt/conda/lib/python3.8/site-packages/nnu
 COPY files/patched/predict.py /opt/conda/lib/python3.8/site-packages/nnunet/inference/predict.py
 COPY files/patched/run_training.py /opt/conda/lib/python3.8/site-packages/nnunet/run/run_training.py
 
-COPY files/nnunet /kaapanasrc/
 WORKDIR /kaapanasrc/
-CMD ["bash","/kaapanasrc/start_nnunet.sh"]

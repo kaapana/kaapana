@@ -17,9 +17,9 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from nnunet.LocalModelGetInputDataOperator import LocalModelGetInputDataOperator
 # from kaapana.operators.LocalPatchedGetInputDataOperator import LocalPatchedGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
-from kaapana.operators.PytorchCpuExecuterOperator import PytorchCpuExecuterOperator
 from kaapana.operators.HelperElasticsearch import HelperElasticsearch
 from nnunet.SegCheckOperator import SegCheckOperator
+from nnunet.NnUnetNotebookOperator import NnUnetNotebookOperator
 
 default_interpolation_order = "default"
 # default_interpolation_order = "default"
@@ -355,11 +355,11 @@ evaluation = DiceEvaluationOperator(
     batch_name=str(get_test_images.operator_out_dir)
 )
 
-nnunet_evaluation_notebook = PytorchCpuExecuterOperator(
+nnunet_evaluation_notebook = NnUnetNotebookOperator(
     dag=dag,
     name='nnunet-evaluation-notebook',
     input_operator=evaluation,
-    arguments=["/common/notebooks/nnunet_ensemble/run_nnunet_evaluation_notebook.sh"],
+    arguments=["/kaapanasrc/run_nnunet_evaluation_notebook.sh"],
     # dev_server='jupyterlab'
 )
 

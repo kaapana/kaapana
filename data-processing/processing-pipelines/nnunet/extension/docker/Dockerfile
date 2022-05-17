@@ -10,6 +10,3 @@ COPY files/dag_nnunet_model_uninstall.py /tmp/dags/
 COPY files/dag_nnunet_inference.py /tmp/dags/
 COPY files/dag_nnunet_training.py /tmp/dags/
 COPY files/dag_nnunet_ensemble.py /tmp/dags/
-
-# COPY common/notebooks/nnunet_ensemble /tmp/common/notebooks/nnunet_ensemble
-# COPY common/notebooks/nnunet_training /tmp/common/notebooks/nnunet_training

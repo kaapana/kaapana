@@ -17,10 +17,8 @@ class TrainTestSplitOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name=name,
-            image=f"{default_registry}/pytorch-cpu-executer:0.1.0",
+            image=f"{default_registry}/train-test-split:0.1.0",
             image_pull_secrets=["registry-secret"],
-            cmds=["python3"],
-            arguments=["-u", "/common/scripts/train_test_split/run_train_test_split.py"], 
             env_vars=env_vars,
             execution_timeout=execution_timeout,
             ram_mem_mb=1000,

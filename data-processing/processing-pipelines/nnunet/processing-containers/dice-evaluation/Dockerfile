@@ -1,4 +1,4 @@
-FROM local-only/base-pytorch-cpu:0.1.0
+FROM local-only/base-python-cpu:0.1.0
 
 LABEL IMAGE="dice-evaluation"
 LABEL VERSION="0.1.0"

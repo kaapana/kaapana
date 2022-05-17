@@ -6,5 +6,3 @@ LABEL CI_IGNORE="False"
 
 COPY files/dag_nnunet_federated.py /tmp/dags/
 COPY files/nnunet_federated /tmp/dags/nnunet_federated
-
-# COPY common/scripts/nnunet_federated /tmp/common/scripts/nnunet_federated

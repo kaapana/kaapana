@@ -2,7 +2,7 @@ FROM nvcr.io/nvidia/pytorch:22.02-py3
 # FROM pytorchlightning/pytorch_lightning:base-cuda-py3.9-torch1.11
 
 LABEL REGISTRY="local-only"
-LABEL IMAGE="base-pytorch-gpu"
+LABEL IMAGE="base-python-gpu"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 

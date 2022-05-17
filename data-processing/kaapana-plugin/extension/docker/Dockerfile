@@ -21,6 +21,3 @@ COPY files/dags/dag_tag_train_test_split_dataset.py /tmp/dags/
 COPY files/dags/dag_service_extract_metadata_trigger_rule.json /tmp/dags/
 
 COPY files/plugin/ /tmp/plugins
-
-# COPY common/kaapana_federated /tmp/common/kaapana_federated
-# COPY common/scripts/train_test_split /tmp/common/scripts/train_test_split

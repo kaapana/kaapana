@@ -12,7 +12,7 @@ from nnunet.training.model_restore import restore_model
 from batchgenerators.utilities.file_and_folder_operations import join
 
 sys.path.insert(0, '../')
-sys.path.insert(0, '/common')
+sys.path.insert(0, '/kaapanasrc')
 from kaapana_federated.KaapanaFederatedTraining import KaapanaFederatedTrainingBase, requests_retry_session
 
 

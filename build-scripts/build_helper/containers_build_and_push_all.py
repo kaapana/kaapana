@@ -138,7 +138,10 @@ class Container:
             self.container_registry = default_registry
 
         if self.image_version != None and self.image_version != "" and self.image_name != None and self.image_name != "":
-            self.tag = self.container_registry+"/"+self.image_name+":"+platform_abbr+"_"+platform_version+"__"+self.image_version
+            if "local-only" in self.container_registry.lower():
+                self.tag = self.container_registry+"/"+self.image_name+":"+self.image_version
+            else:
+                self.tag = self.container_registry+"/"+self.image_name+":"+platform_abbr+"_"+platform_version+"__"+self.image_version
             self.check_pending()
 
             log_entry = {

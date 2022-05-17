@@ -109,7 +109,7 @@ if __name__ == '__main__':
 
     batch_folders = sorted([f for f in glob.glob(join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 
-    if mode == "zip":
+    if mode.lower() == "zip":
         print(f"# target_filename: {target_filename}")
 
         if not batch_level:
@@ -128,14 +128,16 @@ if __name__ == '__main__':
             zip_dir_path = join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'], subdir)
             zip_dir(zip_dir_path=zip_dir_path, target_file=zip_target)
 
-    elif mode == "upzip":
+    elif mode.lower() == "unzip":
         if not batch_level:
             for batch_element_dir in batch_folders:
                 element_input_dir = join(batch_element_dir, os.environ['OPERATOR_IN_DIR'])
                 element_output_dir = join(batch_element_dir, os.environ['OPERATOR_OUT_DIR'])
                 pathlib.Path(element_output_dir).mkdir(parents=True, exist_ok=True)
 
+                print(f"Search dir: {element_input_dir}")
                 zip_files = glob.glob(join(element_input_dir, "*.zip"), recursive=True)
+                print(f"Files found: {zip_files}")
                 for zip_file in zip_files:
                     unzip_file(zip_path=zip_file, target_path=element_output_dir)
 

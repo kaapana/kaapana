@@ -602,6 +602,21 @@ def quick_check():
         i += 1
     yield containers_list
 
+    i = 0
+    list_size_containers = len(containers_list)
+    while i < list_size_containers:
+        container = containers_list[i]
+        prioritize = False
+        for base_image in container.base_images:
+            if container.container_registry.lower() == "local-only" and 'local-only' in base_image:
+                prioritize = True
+        if prioritize is True:
+            print(container.tag)
+            containers_list.insert(0, containers_list.pop(i))
+        i += 1
+
+    yield containers_list
+
 
 def start_container_build(config):
     global kaapana_dir, http_proxy, default_registry

@@ -27,7 +27,7 @@ spec:
             value: "10"
       containers:
         - name: dcm4chee-container
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/dcm4chee-arc:5.23.1
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/dcm4chee-arc:5.26.0
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
           - name: ARCHIVE_DEVICE_NAME

@@ -1,11 +1,11 @@
-FROM python:3.9-alpine3.12 as build-stage
+FROM alpine/git:v2.34.2 as build-stage
 
 LABEL IMAGE="doccano-frontend"
 LABEL VERSION="sha-0489118"
                    
 LABEL CI_IGNORE="False"
 
-RUN apk add --no-cache git
+WORKDIR /
 
 # git hack to replace git:// with https:// -> dkfz proxy 
 RUN git config --global url."https://".insteadOf git://

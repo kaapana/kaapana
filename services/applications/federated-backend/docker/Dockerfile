@@ -6,7 +6,7 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /app
 
-RUN apk add gcc musl-dev libffi-dev openssl-dev python3-dev
+RUN apk update && apk add gcc musl-dev libffi-dev openssl-dev python3-dev && rm -rf /var/cache/apk/*
 
 COPY files/requirements.txt requirements.txt
 RUN pip install -r requirements.txt

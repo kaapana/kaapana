@@ -1,0 +1,16 @@
+diff --git a/platform/core/src/DICOMWeb/getModalities.js b/platform/core/src/DICOMWeb/getModalities.js
+index 9d124f59b..22408b570 100644
+--- a/platform/core/src/DICOMWeb/getModalities.js
++++ b/platform/core/src/DICOMWeb/getModalities.js
+@@ -3,8 +3,8 @@ export default function getModalities(Modality, ModalitiesInStudy) {
+     return {};
+   }
+ 
+-  const modalities = Modality || {
+-    vr: 'CS',
++  const modalities = {
++    vr: Modality.vr,
+     Value: [],
+   };
+ 
+ 

@@ -1,20 +1,14 @@
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
-
 from datetime import timedelta
-
 from airflow.models import DAG
-
 from kaapana.operators.LocalCleanUpExpiredWorkflowDataOperator import LocalCleanUpExpiredWorkflowDataOperator
 from kaapana.operators.LocalCtpQuarantineCheckOperator import LocalCtpQuarantineCheckOperator
 from datetime import timedelta
-from datetime import datetime
 
-import os
 
 START_DATE = days_ago(1)
-
 log = LoggingMixin().log
 
 args = {

@@ -22,7 +22,7 @@ spec:
           - name: ACTION
             value: copy
           - name: CHARTS_DIR
-            value: charts/helpers
+            value: /charts/helpers
           volumeMounts:
           - name: helmextensions
             mountPath: /charts
@@ -34,7 +34,7 @@ spec:
           - name: ACTION
             value: copy
           - name: CHARTS_DIR
-            value: charts/collections
+            value: /charts/collections
           volumeMounts:
           - name: helmextensions
             mountPath: /charts
@@ -55,6 +55,8 @@ spec:
           value: "/kube-helm-api"
         - name: HELM_PATH
           value: "/usr/local/bin/helm"
+        - name: HELM_NAMESPACE
+          value: {{  .Values.global.helm_namespace }}
         - name: REGISTRY_URL
           value: {{  .Values.global.registry_url }}
         - name: OFFLINE_MODE

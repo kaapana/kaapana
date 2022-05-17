@@ -57,6 +57,8 @@ spec:
           value: "/usr/local/bin/helm"
         - name: PLATFORM_ABBR
           value: {{ $.Values.global.platform_abbr }}
+        - name: PLATFORM_VERSION
+          value: {{ $.Values.global.version }}
         - name: HELM_NAMESPACE
           value: {{ $.Values.global.helm_namespace }}
         - name: REGISTRY_URL

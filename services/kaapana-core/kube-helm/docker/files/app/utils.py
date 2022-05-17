@@ -209,6 +209,7 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
     default_sets = {
         'global.registry_url': os.getenv('REGISTRY_URL'),
         'global.platform_abbr': os.getenv('PLATFORM_ABBR'),
+        'global.version': os.getenv('PLATFORM_VERSION'),
         'global.base_namespace': os.getenv('BASE_NAMESPACE'),
         'global.flow_namespace': os.getenv('FLOW_NAMESPACE'),
         'global.flow_jobs_namespace': os.getenv('FLOW_JOBS_NAMESPACE'),

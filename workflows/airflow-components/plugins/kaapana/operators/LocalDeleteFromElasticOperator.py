@@ -14,6 +14,16 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
 class LocalDeleteFromElasticOperator(KaapanaPythonBaseOperator):
+    """
+    Operator to remove series from Elasticsearch's index.
+
+    This operator removes either selected series or whole studies from Elasticsearch's index for the functional unit Meta.
+    The operator relies on Elasticsearch's "delete_by_query" function.
+
+    **Inputs:**
+
+    * Input data which should be removed is given via input parameter: input_operator.
+    """
 
     def start(self, ds, **kwargs):
         conf = kwargs['dag_run'].conf
@@ -74,7 +84,15 @@ class LocalDeleteFromElasticOperator(KaapanaPythonBaseOperator):
                  delete_all_documents=False,
                  delete_complete_study=False,
                  **kwargs):
-
+        """
+        :param delete_operator:
+        :param elastic_host: Needed to create and confgire an Elasticsearch object.
+        :param elastic_port: Needed to create and confgire an Elasticsearch object.
+        :param elastic_index: A comma-separeted list of index names to search for Elasticsearch's "delete_by_query".
+        :param delete_all_documents: Specifies the amount of removed data to all documents.
+        :param delete_complete_study: Specifies the amount of removed data to all series of a specified study.
+        """
+        
         self.elastic_host = elastic_host
         self.elastic_port = elastic_port
         self.elastic_index = elastic_index

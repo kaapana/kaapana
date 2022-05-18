@@ -32,45 +32,44 @@ async def health_check():
 async def update_extensions():
     if settings.offline_mode is True:
         return Response(f"We will not prefetch the extensions since the platform runs in offline mode!", 200)
-    try:
-        utils.helm_repo_index(settings.helm_collections_cache)
-    except subprocess.CalledProcessError as e:
-        return Response(f"Could not create index.yaml!", 500)
-
-    with open(os.path.join(settings.helm_collections_cache, 'index.yaml'), 'r') as stream:
-        try:
-            extension_packages = yaml.safe_load(stream)
-        except yaml.YAMLError as exc:
-            print(exc)
+    chart = {
+        'name': 'update-collections-chart',
+        'version': '0.1.0'
+    } 
+    print(chart['name'], chart['version'])
+    payload = {k: chart[k] for k in ('name', 'version')}
 
     install_error = False
-    for _, chart_versions in extension_packages['entries'].items():
-        for chart in chart_versions:
-            print(chart['name'], chart['version'])
-            release_name = f"{chart['name']}-{chart['version']}"
+    for idx, kube_helm_collection in enumerate(settings.kube_helm_collections.split(';')[:-1]):
 
-            payload = {k: chart[k] for k in ('name', 'version')}
-            payload.update({'release_name': release_name})
+        release_name = f"{chart['name']}-{chart['version']}-{str(idx)}" 
 
-            if not utils.helm_status(release_name):
-                try:
-                    print(f'Installing {release_name}')
-                    utils.helm_install(
-                        payload, helm_cache_path=settings.helm_collections_cache, in_background=False)
-                except subprocess.CalledProcessError as e:
-                    install_error = True
-                    utils.helm_delete(release_name)
-                    print(e)
-            else:
-                try:
-                    print('helm deleting and reinstalling')
-                    helm_delete_prefix = f'{os.environ["HELM_PATH"]} -n {settings.helm_namespace} uninstall {release_name} --timeout 5m;'
-                    utils.helm_install(payload, helm_delete_prefix=helm_delete_prefix,
-                                       helm_cache_path=settings.helm_collections_cache, in_background=False)
-                except subprocess.CalledProcessError as e:
-                    install_error = True
-                    utils.helm_delete(release_name)
-                    print(e)
+        payload.update({
+            'release_name': release_name,
+            'sets': {
+                'kube_helm_collection': kube_helm_collection
+            }
+        })
+
+        if not utils.helm_status(release_name):
+            try:
+                print(f'Installing {release_name}')
+                utils.helm_install(
+                    payload, helm_cache_path=settings.helm_collections_cache, in_background=False)
+            except subprocess.CalledProcessError as e:
+                install_error = True
+                utils.helm_delete(release_name)
+                print(e)
+        else:
+            try:
+                print('helm deleting and reinstalling')
+                helm_delete_prefix = f'{os.environ["HELM_PATH"]} -n {settings.helm_namespace} uninstall {release_name} --timeout 5m;'
+                utils.helm_install(payload, helm_delete_prefix=helm_delete_prefix,
+                                    helm_cache_path=settings.helm_collections_cache, in_background=False)
+            except subprocess.CalledProcessError as e:
+                install_error = True
+                utils.helm_delete(release_name)
+                print(e)
 
     if install_error is False:
         return Response(f"Successfully updated the extensions", 202)

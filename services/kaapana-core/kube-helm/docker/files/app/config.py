@@ -16,7 +16,8 @@ class Settings(BaseSettings):
     application_root: str
 
     helm_extensions_cache: str = "/root/charts/extensions"
-    helm_collections_cache: str = "/root/charts/collections"
+    helm_collections_cache: str = "/root/update-collections"
+    kube_helm_collections: str = os.getenv("KUBE_HELM_COLLECTIONS", "")
     helm_helpers_cache: str = "/root/charts/helpers"
     helm_namespace: str = os.getenv("HELM_NAMESPACE", "default") 
     registry_url: str

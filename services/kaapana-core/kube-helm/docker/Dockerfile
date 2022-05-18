@@ -1,5 +1,4 @@
 FROM python:3.9-alpine3.12
-
 LABEL IMAGE="kube-helm"
 LABEL VERSION="0.1.3"
 LABEL CI_IGNORE="False"
@@ -25,6 +24,8 @@ COPY files/requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY files/ ./
+
+COPY files/update-collections-chart-0.1.0.tgz /root/update-collections/
 RUN chmod +x boot.sh
 
 EXPOSE 5000

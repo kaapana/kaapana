@@ -23,19 +23,6 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /charts
-{{- range $collection := $.Values.global.kaapana_collections }}
-      - name: remove-{{ $collection.name }}
-        image: {{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ $collection.version }}
-        imagePullPolicy: Never
-        env:
-        - name: ACTION
-          value: "remove"
-        - name: CHARTS_DIR
-          value: /charts/collections
-        volumeMounts:
-        - name: data
-          mountPath: /charts
-{{- end }}
       securityContext:
         runAsUser: 0
       volumes:

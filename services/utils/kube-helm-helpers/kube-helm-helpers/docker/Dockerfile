@@ -1,4 +1,4 @@
-FROM local-only/charts-manager:0.1.0
+FROM local-only/base-charts-manager:0.1.0
 
 LABEL IMAGE="kube-helm-helpers"
 LABEL VERSION="0.1.0"

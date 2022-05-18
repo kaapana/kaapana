@@ -26,19 +26,6 @@ spec:
           volumeMounts:
           - name: helmextensions
             mountPath: /charts
-{{- range $collection := $.Values.global.kaapana_collections }}
-        - name: copy-{{ $collection.name }}
-          image: {{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ $collection.version }}
-          imagePullPolicy: {{ $.Values.global.pull_policy_pods }}
-          env:
-          - name: ACTION
-            value: copy
-          - name: CHARTS_DIR
-            value: /charts/collections
-          volumeMounts:
-          - name: helmextensions
-            mountPath: /charts
-{{- end }}
       containers:
       - name: kube-helm
         image: {{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__0.1.3
@@ -93,6 +80,8 @@ spec:
           value: {{ $.Values.global.hostname }}
         - name: HTTPS_PORT
           value: "{{ $.Values.global.https_port }}"
+        - name: KUBE_HELM_COLLECTIONS
+          value: "{{- range $collection := $.Values.global.kube_helm_collections }}{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ $collection.version }};{{- end }}"        
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         volumeMounts:

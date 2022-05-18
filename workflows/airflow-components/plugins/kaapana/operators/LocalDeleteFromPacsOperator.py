@@ -8,6 +8,16 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
 class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
+    """
+    Operator to remove series from PACS system.
+
+    This operator removes either selected series or whole studies from Kaapana's integrated research PACS system by DCM4Chee.
+    The operaator relies on "delete_study" function of Kaapana's "HelperDcmWeb" operator.
+
+    **Inputs:**
+
+    * Input data which should be removed given by input parameter: input_operator.
+    """
 
     def start(self, ds, **kwargs):
         conf = kwargs['dag_run'].conf
@@ -60,6 +70,12 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
                  delete_complete_study=False,
                  wait_time=5,
                  **kwargs):
+        """
+        :param pacs_host: Needed to specify "pacs_dcmweb_endpoint".
+        :param pacs_port: Needed to specify "pacs_dcmweb_endpoint".
+        :param pacs_aet: Is by default set to "KAAPANA" and is used as a template AE-title for "HelperDcmWeb"'s "delete_study" function.
+        :param delete_complete_study: Specifies the amount of removed data to all series of a specified study.
+        """
 
         self.pacs_host = pacs_host
         self.pacs_port = pacs_port

@@ -8,6 +8,7 @@ from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
+from challengeutils import utils
 
 from subprocess import PIPE, run
 from airflow.models import DagRun
@@ -44,7 +45,7 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
         if filepath is not None and filepath != "":
             with open(filepath,'rb') as file:
                 attachment = MIMEApplication(file.read())
-            attachment.add_header('Content-Disposition', 'attachment', filename=f"result_{subm_id}_{sending_ts.strftime('%Y-%m-%d')}.zip")
+            attachment.add_header('Content-Disposition', 'attachment', filename=f"results_{subm_id}_{sending_ts.strftime('%Y-%m-%d')}.zip")
             msgRoot.attach(attachment)
 
         s = smtplib.SMTP(host='mailhost2.dkfz-heidelberg.de', port=25)
@@ -143,6 +144,7 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
                             </body>
                         </html>
                         """.format(subm_id)
+                        utils.change_submission_status(syn, subm_id, status="INVALID")
                         self.send_email(email_address="kaushal.parekh@dkfz-heidelberg.de", message=message, filepath="", subm_id=subm_id)
                     if dag_state["state"] == "success":
                         print(f"**************** The evaluation of submission with ID {subm_id} was SUCCESSFUL ****************")
@@ -160,6 +162,7 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
                             </body>
                         </html>
                         """.format(subm_id)
+                        utils.change_submission_status(syn, subm_id, status="ACCEPTED")
                         self.send_email(email_address="", message=message, filepath=f"{subm_results_path}/results_{subm_id}_{sending_ts.strftime('%Y-%m-%d')}.zip", subm_id=subm_id)
                 else:
                     print("Submission already SUCCESSFUL!!!!")

@@ -24,3 +24,4 @@ gitpython
 openstacksdk
 selenium
 synapseclient
+challengeutils==4.1.0

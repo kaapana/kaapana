@@ -15,6 +15,7 @@ import requests
 import numpy as np
 import synapseclient as sc
 from synapseclient import Evaluation
+from challengeutils import utils
 
 synapse_user = ""
 registry_pwd = ""
@@ -102,14 +103,16 @@ if __name__ == "__main__":
         docker_client = docker.from_env()
         # synapse_user = input("Enter Synapse User: ")
         syn = sc.login(email=synapse_user, apiKey=API_KEY)
+        # utils.change_submission_status(syn, "9720351", status="ACCEPTED")
+        # utils.delete_submission(syn, "9720605")
 
         # evaluation_id = "9615030"
-        # my_submission_entity = "syn30324641"
+        # my_submission_entity = "syn30613408"
         # print("\nSubmit container to queue for evaluation...")
         # submission = syn.submit(
         #     evaluation = evaluation_id,
         #     entity = my_submission_entity,
-        #     name = "nnunet_example") # An arbitrary name for your submission
+        #     name = "brats-scan-20") # An arbitrary name for your submission
         #     # team = "TFDA") # Optional, can also pass a Team object or id
 
         print("\nChecking for new submissions...")
@@ -117,6 +120,7 @@ if __name__ == "__main__":
             print(f"Checking {task_name}...")
             # task_dir = os.path.join(base_dir, task_name)
             for subm in syn.getSubmissions(task_id):
+                synapse_user_details = syn.getUserProfile(id=subm["UserId"])
                 if subm["id"] not in subm_dict:
                     print("Logging into container registry!!!")                    
                     # registry_pwd = getpass.getpass("docker registry password: ")

@@ -25,7 +25,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY files/backend/ ./
 
-COPY files/update-collections-chart-0.1.0.tgz /root/update-collections/
+COPY files/update-collections-chart-0.1.0.tgz /root/collections/
+COPY files/pull-docker-chart-0.1.1.tgz /root/helpers/
 RUN chmod +x boot.sh
 
 EXPOSE 5000

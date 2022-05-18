@@ -30,47 +30,8 @@ async def health_check():
 
 @router.get("/update-extensions")
 async def update_extensions():
-    if settings.offline_mode is True:
-        return Response(f"We will not prefetch the extensions since the platform runs in offline mode!", 200)
-    chart = {
-        'name': 'update-collections-chart',
-        'version': '0.1.0'
-    } 
-    print(chart['name'], chart['version'])
-    payload = {k: chart[k] for k in ('name', 'version')}
 
-    install_error = False
-    for idx, kube_helm_collection in enumerate(settings.kube_helm_collections.split(';')[:-1]):
-
-        release_name = f"{chart['name']}-{chart['version']}-{str(idx)}" 
-
-        payload.update({
-            'release_name': release_name,
-            'sets': {
-                'kube_helm_collection': kube_helm_collection
-            }
-        })
-
-        if not utils.helm_status(release_name):
-            try:
-                print(f'Installing {release_name}')
-                utils.helm_install(
-                    payload, helm_cache_path=settings.helm_collections_cache, in_background=False)
-            except subprocess.CalledProcessError as e:
-                install_error = True
-                utils.helm_delete(release_name)
-                print(e)
-        else:
-            try:
-                print('helm deleting and reinstalling')
-                helm_delete_prefix = f'{os.environ["HELM_PATH"]} -n {settings.helm_namespace} uninstall {release_name} --timeout 5m;'
-                utils.helm_install(payload, helm_delete_prefix=helm_delete_prefix,
-                                    helm_cache_path=settings.helm_collections_cache, in_background=False)
-            except subprocess.CalledProcessError as e:
-                install_error = True
-                utils.helm_delete(release_name)
-                print(e)
-
+    install_error = utils.execute_update_extensions()
     if install_error is False:
         return Response(f"Successfully updated the extensions", 202)
     else:
@@ -89,6 +50,7 @@ async def helm_delete_chart(release_name: str, release_version: str = None):
 @router.post("/helm-install-chart")
 async def helm_add_custom_chart(request: Request):
     # TODO check if chart already exists and return https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409
+    helm_command = 'nothing to say...'
     try:
         payload = await request.json()
         resp, helm_command = utils.helm_install(payload)

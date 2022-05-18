@@ -45,6 +45,7 @@ NO_HOOKS=""
 
 DEFAULT_CLEANUP_AFTER_TAR_DUMP="{{default_cleanup_after_tar_dump|default('false')}}"
 HELM_NAMESPACE="kaapana"
+PREFETCH_EXTENSIONS="{{ prefetch_extensions|default('false') }}"
 
 
 if [ "$DEV_MODE" == "true" ]; then
@@ -320,29 +321,6 @@ function clean_up_kubernetes {
 #     rm -rf $DUMP_TAR_DIR
 # }
 
-function prefetch_extensions {
-    if [ "$OFFLINE_MODE" == "true" ]; then
-        echo "${RED}ERROR: --prefetch-extensions can only be executed when OFFLINE_MODE is set to false. ${NC}"
-        echo "${YELLOW}ATTENTION: --prefetch-extensions only works, when you have also installed the platform with OFFLINE_MODE set to false!! ${NC}"
-        exit 0
-    fi
-
-    echo -e "Prefetching all extension docker container"
-    release_name=prefetch-extensions-chart-$(echo $(uuidgen --hex) | cut -c1-10)
-    PREFETCH_CHART_PATH=$(find $FAST_DATA_DIR/charts/helpers/ -name "prefetch-extensions*" -type f)
-    helm -n $HELM_NAMESPACE install $PREFETCH_CHART_PATH\
-    --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
-    --set-string global.registry_url=$CONTAINER_REGISTRY_URL \
-    --set-string global.fast_data_dir=$FAST_DATA_DIR \
-    --wait \
-    --atomic \
-    --timeout 15m0s \
-    --name-template $release_name \
-
-    sleep 10
-    helm -n $HELM_NAMESPACE uninstall $release_name
-    echo -e "${GREEN}OK!${NC}"
-}
 
 function install_chart {
 
@@ -443,6 +421,7 @@ function install_chart {
     --set-string global.hostname="$DOMAIN" \
     --set-string global.dev_ports="$DEV_PORTS" \
     --set-string global.offline_mode="$OFFLINE_MODE" \
+    --set-string global.prefetch_extensions="$PREFETCH_EXTENSIONS" \
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.http_port="$HTTP_PORT" \
     --set-string global.https_port="$HTTPS_PORT" \
@@ -614,7 +593,6 @@ _Flag: --install-certs set new HTTPS-certificates for the platform
 _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
 _Flag: --remove-all-images-docker will delete all Docker images from the system
 _Flag: --quiet, meaning non-interactive operation
-_Flag: --prefetch-extensions is used to prefetch every docker image which might be needed when installing an extension. You should execute this, if you want to go offline after installation.
 _Flag: --dump-to-tar, export the current platform to a tarball
 
 _Argument: --chart-path [path-to-chart-tgz]
@@ -700,11 +678,6 @@ do
 
         --remove-all-images-docker)
             delete_all_images_docker
-            exit 0
-        ;;
-
-        --prefetch-extensions)
-            prefetch_extensions
             exit 0
         ;;
 

@@ -5,7 +5,7 @@ import re
 import warnings
 
 tmp_prefix = '/tmp/'
-extensions_prefix = os.getenv('CHARTS_DIR', '/charts/extensions')
+extensions_prefix = os.getenv('CHARTS_DIR', '/extensions')
 
 def listdir_nohidden(path):
     for f in os.listdir(path):

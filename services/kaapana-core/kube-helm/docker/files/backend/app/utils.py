@@ -95,7 +95,6 @@ def helm_status(release_name, helm_namespace=settings.helm_namespace):
         return dict()
     return yaml.load(status)
 
-
 def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
     # regex = r'image: ([\w\-\.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)'
     regex = r'image: (.*)\/([\w\-\.]+):([\w\-\.]+)'
@@ -387,7 +386,6 @@ def get_manifest_infos(manifest):
         ingress_path = ''
         if config['kind'] == 'Ingress':
             ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']
-            print('ingress_path', ingress_path)
             ingress_paths.append(ingress_path)
         if config['kind'] == 'Deployment':
             kube_status = get_kube_status('app', config['spec']['selector']['matchLabels']['app-name'], config['metadata']['namespace'])
@@ -483,6 +481,50 @@ def get_extensions_list():
         success = False
     print('success', success)
     return success, extensions_list_cached
+
+def execute_update_extensions():
+    if settings.offline_mode is True:
+        return Response(f"We will not prefetch the extensions since the platform runs in offline mode!", 200)
+    chart = {
+        'name': 'update-collections-chart',
+        'version': '0.1.0'
+    } 
+    print(chart['name'], chart['version'])
+    payload = {k: chart[k] for k in ('name', 'version')}
+
+    install_error = False
+    for idx, kube_helm_collection in enumerate(settings.kube_helm_collections.split(';')[:-1]):
+
+        release_name = f"{chart['name']}-{chart['version']}-{str(idx)}" 
+
+        payload.update({
+            'release_name': release_name,
+            'sets': {
+                'kube_helm_collection': kube_helm_collection
+            }
+        })
+
+        if not helm_status(release_name):
+            try:
+                print(f'Installing {release_name}')
+                helm_install(
+                    payload, helm_cache_path=settings.helm_collections_cache, in_background=False)
+            except subprocess.CalledProcessError as e:
+                install_error = True
+                helm_delete(release_name)
+                print(e)
+        else:
+            try:
+                print('helm deleting and reinstalling')
+                helm_delete_prefix = f'{os.environ["HELM_PATH"]} -n {settings.helm_namespace} uninstall {release_name} --timeout 5m;'
+                helm_install(payload, helm_delete_prefix=helm_delete_prefix,
+                                    helm_cache_path=settings.helm_collections_cache, in_background=False)
+            except subprocess.CalledProcessError as e:
+                install_error = True
+                helm_delete(release_name)
+                print(e)
+
+    return install_error
 
 
 if charts_cached == None:

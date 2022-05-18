@@ -22,13 +22,13 @@ spec:
           value: {{ .Values.global.charts_dir }}
         volumeMounts:
         - name: data
-          mountPath: /charts
+          mountPath: /extensions
       # securityContext:
       #   runAsUser: 0
       volumes:
       - name: data
         hostPath:
-          path: "{{ .Values.global.fast_data_dir }}/charts"
+          path: "{{ .Values.global.fast_data_dir }}/extensions"
           type: DirectoryOrCreate
       restartPolicy: Never
       imagePullSecrets:
@@ -58,13 +58,13 @@ spec:
           value: {{ .Values.global.charts_dir }}
         volumeMounts:
         - name: data
-          mountPath: /charts
+          mountPath: /extensions
       securityContext:
         runAsUser: 0
       volumes:
       - name: data
         hostPath:
-          path: "{{ .Values.global.fast_data_dir }}/charts"
+          path: "{{ .Values.global.fast_data_dir }}/extensions"
           type: DirectoryOrCreate
       restartPolicy: Never
       imagePullSecrets:

@@ -15,14 +15,15 @@ class Settings(BaseSettings):
     secret_key: str
     application_root: str
 
-    helm_extensions_cache: str = "/root/charts/extensions"
-    helm_collections_cache: str = "/root/update-collections"
+    helm_extensions_cache: str = "/root/extensions"
+    helm_collections_cache: str = "/root/collections"
     kube_helm_collections: str = os.getenv("KUBE_HELM_COLLECTIONS", "")
-    helm_helpers_cache: str = "/root/charts/helpers"
+    prefetch_extensions: bool = True if os.environ.get('PREFETCH_EXTENSIONS', 'true') in ['true', 'True'] else False
+    helm_helpers_cache: str = "/root/helpers"
     helm_namespace: str = os.getenv("HELM_NAMESPACE", "default") 
     registry_url: str
 
-    offline_mode: bool
+    offline_mode: bool = True if os.environ.get('OFFLINE_MODE', 'false') in ['true', 'True'] else False
 
 
 settings = Settings()

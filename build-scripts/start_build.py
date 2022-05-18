@@ -1,409 +1,269 @@
 #!/usr/bin/env python3
-from genericpath import exists
 from shutil import which, copy, rmtree
 import yaml
-import json
 import os
-import getpass
-from glob import glob
+import logging
+from os.path import join, dirname, basename, exists, isfile, isdir
 from time import time
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 from argparse import ArgumentParser
-from build_helper.charts_build_and_push_all import HelmChart
-from build_helper.containers_build_and_push_all import start_container_build, container_registry_login
-from build_helper.charts_build_and_push_all import init_helm_charts, helm_registry_login
-from build_helper import containers_build_and_push_all
+from build_helper.charts_helper import HelmChart, init_helm_charts, helm_registry_login
+from build_helper.container_helper import Container, container_registry_login
+from build_helper.build_utils import BuildUtils
 
-os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
-log_list = {
-    "CONTAINERS": [],
-    "CHARTS": [],
-    "OTHER": []
-}
-supported_log_levels = ["DEBUG", "WARN", "ERROR"]
+build_dir = join(dirname(dirname(os.path.realpath(__file__))), "build")
+if exists(build_dir):
+    rmtree(build_dir)
+os.makedirs(build_dir, exist_ok=True)
 
+# Create a custom logger
+logging.getLogger().setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
 
-class SkipException(Exception):
-    """Exception raised for errors within the build-process.
+c_handler = logging.StreamHandler()
+c_handler.setLevel(logging.DEBUG)
 
-    Attributes:
-        reason  -- reason why the container was skipped for the build process
-    """
+f_handler = logging.FileHandler(join(build_dir, "build.log"))
+f_handler.setLevel(logging.DEBUG)
 
-    def __init__(self, reason, log=None):
-        self.reason = reason
-        if "container" in log:
-            del log['container']
-        self.log = log
-        super().__init__(self.reason)
+c_format = logging.Formatter('%(levelname)s - %(message)s')
+f_format = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+c_handler.setFormatter(c_format)
+f_handler.setFormatter(f_format)
 
-    def __str__(self):
-        if self.log is not None:
-            return self.reason + "\n" + json.dumps(self.log, indent=4, sort_keys=True)
-        else:
-            return self.reason
+# Add handlers to the logger
+logger.addHandler(c_handler)
+logger.addHandler(f_handler)
 
+supported_log_levels = ["DEBUG", "INFO", "WARN", "ERROR"]
 
-def print_log_entry(log_entry, kind="OTHER"):
-    log_entry_loglevel = log_entry['loglevel'].upper()
-    if supported_log_levels.index(log_entry_loglevel) >= log_level:
-        print("-----------------------------------------------------------")
-        print("Log: {}".format(log_entry["test"]))
-        print("Step: {}".format(log_entry["step"] if "step" in log_entry else "N/A"))
-        print("Message: {}".format(log_entry["message"] if "message" in log_entry else "N/A"))
-        print("-----------------------------------------------------------")
-
-    if "container" in log_entry:
-        del log_entry['container']
-    log_list[kind].append([log_entry_loglevel, json.dumps(log_entry, indent=4, sort_keys=True)])
-
-
+terminal_width = int(os.get_terminal_size()[0] * 0.5)
 if __name__ == '__main__':
-
     parser = ArgumentParser()
     parser.add_argument("-c", "--config", dest="config_filepath", default=None, help="Path the the build-configuration.yaml")
     parser.add_argument("-u", "--username", dest="username", default=None, help="Username")
     parser.add_argument("-p", "--password", dest="password", default=None, required=False, help="Password")
-    parser.add_argument("-bo", "--build-only", dest="build_only", default=False, action='store_true', help="Just building the containers and charts -> no pushing")
-    parser.add_argument("-iso", "--installer-scripts-only", dest="installer_scripts_only", default=False, action='store_true', help="Just build all installation scripts.")
-    parser.add_argument("-co", "--charts-only", dest="charts_only", default=False, action='store_true', help="Just build all helm charts.")
-    parser.add_argument("-do", "--docker-only", dest="docker_only", default=False, action='store_true', help="Just build all Docker containers charts.")
-    parser.add_argument("-dk", "--disable-kubeval", dest="disable_kubeval", default=False, action='store_true', help="Disable helm kubeval linting.")
-    parser.add_argument("-bd", "--build-dir", dest="build_dir", default=None, help="base dir to search for containers and charts.")
-
+    parser.add_argument("-bo", "--build-only", dest="build_only", default=None, action='store_true', help="Just building the containers and charts -> no pushing")
+    parser.add_argument("-kd", "--kaapana-dir", dest="kaapaa_dir", default=None, help="Kaapana repo path.")
+    parser.add_argument("-ll", "--log-level", dest="log_level", default=None, help="Set log-level.")
+    parser.add_argument("-el", "--enable-linting", dest="enable_linting", default=None, help="Enable Helm Chart lint & kubeval.")
+    parser.add_argument("-ee", "--exit-on-error", dest="exit_on_error", default=None, help="Stop build-process if error occurs.")
+    parser.add_argument("-pf", "--plartform-filter", dest="platform_filter", default=None, help="Specify platform-chart-names to be build (comma seperated).")
+    parser.add_argument("-es", "--external-sources", dest="external_source_dirs", default=None, help="External dirs to search for containers and charts.")
     args = parser.parse_args()
-    registry_user = args.username
-    registry_pwd = args.password
-    build_only = args.build_only
-    charts_only = args.charts_only
-    docker_only = args.docker_only
-    installer_scripts_only = args.installer_scripts_only
-    config_filepath = args.config_filepath
-    disable_kubeval = args.disable_kubeval
-    build_dir = args.build_dir
 
-    kaapana_dir = build_dir if build_dir is not None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    kaapana_dir = args.kaapaa_dir if args.kaapaa_dir != None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if not os.path.isdir(os.path.join(kaapana_dir, "platforms")):
-        print("The dir 'platforms' was not found! -> wrong kaapana_dir? -> exit!")
-        print("-----------------------------------------------------------")
+        logger.error("-----------------------------------------------------------")
+        logger.error("The dir 'platforms' was not found! -> wrong kaapana_dir? -> exit!")
+        logger.error("-----------------------------------------------------------")
         exit(1)
 
+    config_filepath = args.config_filepath
     config_filepath = config_filepath if config_filepath is not None else os.path.join(kaapana_dir, "build-scripts", "build-configuration.yaml")
     if not os.path.isfile(config_filepath):
-        print("The build-configuration.yaml file was not found at: {}".format(config_filepath))
-        print("-----------------------------------------------------------")
+        logger.error(f"The build-configuration.yaml file was not found at: {config_filepath}")
+        logger.error("-----------------------------------------------------------")
         exit(1)
-    print("-----------------------------------------------------------")
-    print("--------------- loading build-configuration ---------------")
-    print("-----------------------------------------------------------")
+    logger.info("-----------------------------------------------------------")
+    logger.info("--------------- loading build-configuration ---------------")
+    logger.info("-----------------------------------------------------------")
 
     with open(config_filepath, 'r') as stream:
         try:
             configuration = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
-            print(exc)
+            logger.info(exc)
 
-    build_installer_scripts = False if (charts_only or docker_only) else True
+    conf_http_proxy = configuration["http_proxy"]
+    conf_default_registry = configuration["default_registry"]
+    conf_container_engine = configuration["container_engine"]
+    conf_log_level = configuration["log_level"]
+    conf_build_only = configuration["build_only"]
+    conf_platform_filter = configuration["platform_filter"].split(",") if configuration["platform_filter"].replace(" ","") != "" else []
+    conf_external_source_dirs = configuration["external_source_dirs"].split(",") if configuration["external_source_dirs"].replace(" ","") != "" else []
+    conf_exit_on_error = configuration["exit_on_error"]
+    conf_enable_linting = configuration["enable_linting"]
+    conf_enable_build_kit = 1 if "enable_build_kit" in configuration and configuration["enable_build_kit"] else 0
+
+    registry_user = args.username
+    registry_pwd = args.password
+
+    build_only = args.build_only if args.build_only != None else conf_build_only
+    external_source_dirs = args.external_source_dirs.split(",") if args.external_source_dirs != None else conf_external_source_dirs
+    log_level = args.log_level if args.log_level != None else conf_log_level
+    enable_linting = args.enable_linting if args.enable_linting != None else conf_enable_linting
+    exit_on_error = args.exit_on_error if args.exit_on_error != None else conf_exit_on_error
+    platform_filter = args.platform_filter.split(",") if args.platform_filter != None else conf_platform_filter
+
+    for external_source_dir in external_source_dirs:
+        if not os.path.isdir(external_source_dir):
+            logger.error("-----------------------------------------------------------")
+            logger.error(f"External source-dir: {external_source_dir} does not exist -> exit!")
+            logger.error("-----------------------------------------------------------")
+            exit(1)
+
+    charts_lint = True if enable_linting else False
+    charts_kubeval = True if enable_linting else False
+    charts_push = False if build_only else True
+    containers_push = False if build_only else True
+    container_build = True
+    build_installer_scripts = True
 
     container_engine = "docker" if "container_engine" not in configuration else configuration["container_engine"]
-    build_containers = False if (charts_only or installer_scripts_only) else configuration["build_containers"]
-    push_containers = False if (charts_only or installer_scripts_only) else configuration["push_containers"]
-    push_containers = False if build_only else push_containers
-    push_dev_only = configuration["push_dev_containers_only"] if "push_dev_containers_only" in configuration else False
-    default_container_registry = configuration["default_container_registry"] if "default_container_registry" in configuration else ""
-    skip_push_no_changes_config = configuration["skip_push_no_changes"] if "skip_push_no_changes" in configuration else False
-    containers_build_and_push_all.skip_push_no_changes = skip_push_no_changes_config
+    default_registry = configuration["default_registry"] if "default_registry" in configuration else ""
 
-    create_package = configuration["create_package"]
-    if default_container_registry == "" and not create_package:
-        print("local build: Forcing create_package = True !")
-        create_package = True
+    http_proxy = conf_http_proxy if conf_http_proxy != "" else None
+    http_proxy = os.environ.get("http_proxy", "") if http_proxy == None and os.environ.get("http_proxy", None) != None else None
 
-    build_dir = os.path.join(kaapana_dir, "build")
-    if exists(build_dir):
-        rmtree(build_dir)
-    if create_package:
-        os.makedirs(build_dir, exist_ok=True)
 
-    build_charts = False if (docker_only or installer_scripts_only) else configuration["build_charts"]
-    push_charts = False if (docker_only or installer_scripts_only) else configuration["push_charts"]
-    push_charts = False if build_only else push_charts
+    logger.info("")
+    logger.info("-----------------------------------------------------------")
+    logger.info("")
+    logger.info("                       BUILD CONFIG                        ")
+    logger.info("")
+    logger.info("-----------------------------------------------------------")
+    logger.info(f"{http_proxy=}")
+    logger.info(f"{build_only=}")
+    logger.info(f"{external_source_dirs=}")
+    logger.info(f"{log_level=}")
+    logger.info(f"{enable_linting=}")
+    logger.info(f"{exit_on_error=}")
+    logger.info(f"{platform_filter=}")
+    logger.info(f"{charts_kubeval=}")
+    logger.info(f"{charts_kubeval=}")
+    logger.info(f"{charts_push=}")
+    logger.info(f"{container_build=}")
+    logger.info(f"{containers_push=}")
+    logger.info(f"{build_installer_scripts=}")
+    logger.info(f"{container_engine=}")
+    logger.info(f"{default_registry=}")
+    logger.info("")
+    logger.info("-----------------------------------------------------------")
+    
+    if not build_only:
+        if registry_user is None:
+            registry_user = os.getenv("REGISTRY_USER", None)
+        if registry_pwd is None:
+            registry_pwd = os.getenv("REGISTRY_PW", None)
 
-    if default_container_registry == "" and push_charts:
-        print("local build: Forcing push_charts = False !")
-        push_charts = False
+        if registry_user == None or registry_pwd == None:
+            logger.error("REGISTRY CREDENTIALS ERROR:")
+            logger.error(f"{build_only=} -> registry_user == None or registry_pwd == None")
+            logger.error("You have to either specify --username & --password ")
+            logger.error("Or use the ENVs: 'REGISTRY_USER' & 'REGISTRY_PW' !")
+            exit(1)
 
-    if default_container_registry == "" and push_containers:
-        print("local build: Forcing push_containers = False !")
-        push_containers = False
-
-    print()
-    print("build_containers: {}".format(build_containers))
-    print("push_containers: {}".format(push_containers))
-    print()
-    print("build_charts: {}".format(build_charts))
-    print("push_charts: {}".format(push_charts))
-
-    if configuration["http_proxy"] == "":
-        http_proxy = os.environ.get("http_proxy", "")
-    else:
-        http_proxy = configuration["http_proxy"]
-
-    if http_proxy == "":
-        print("no proxy configured...")
-        http_proxy = None
-    else:
-        print(f"Using http_proxy: {http_proxy}")
-
-    if default_container_registry == "":
-        default_container_registry = "local"
-    print("-----------------------------------------------------------")
-    print("Using default_container_registry: {}".format(default_container_registry))
-    print("-----------------------------------------------------------")
-
-    if push_charts or push_containers:
-        if registry_user is None or registry_pwd is None:
-            if os.getenv("REGISTRY_USER", None) is None or os.getenv("REGISTRY_PW", None) is None:
-                print()
-                print("ENVs 'REGISTRY_USER' and 'REGISTRY_PW' not found! ")
-                print()
-
-                registry_user = input("User for {}: ".format(default_container_registry))
-                print()
-                print("Registry-User: {}".format(registry_user))
-                registry_pwd = getpass.getpass("password: ")
-            else:
-                print("Using ENV registry-credentials ...")
-                registry_user = os.getenv("REGISTRY_USER", None)
-                registry_pwd = os.getenv("REGISTRY_PW", None)
-
-        if push_containers:
-            container_registry_login(container_registry=default_container_registry, username=registry_user, password=registry_pwd)
-        if push_charts:
-            helm_registry_login(container_registry=default_container_registry, username=registry_user, password=registry_pwd)
-
-    log_level = configuration["log_level"].upper()
     if log_level not in supported_log_levels:
-        print(f"Log level {log_level} not supported.")
-        print("Please use 'DEBUG','WARN' or 'ERROR' for log_level in build-configuration.json")
+        logger.error(f"Log level {log_level} not supported.")
+        logger.error("Please use 'DEBUG','WARN' or 'ERROR' for log_level in build-configuration.json")
         exit(1)
 
-    log_level = supported_log_levels.index(log_level)
+    logger.debug(f"LOG-LEVEL: {log_level}")
+
+    if log_level == "DEBUG":
+        c_handler.setLevel(logging.DEBUG)
+    elif log_level == "INFO":
+        c_handler.setLevel(logging.INFO)
+    elif log_level == "WARN":
+        c_handler.setLevel(logging.WARNING)
+    elif log_level == "ERROR":
+        c_handler.setLevel(logging.ERROR)
+    else:
+        logger.error(f"Log level {log_level} not identified!")
+        exit(1)
+
+    log_level_int = supported_log_levels.index(log_level)
+
+    BuildUtils.init(
+        kaapana_dir=kaapana_dir,
+        build_dir=build_dir,
+        external_source_dirs=external_source_dirs,
+        platform_filter=platform_filter,
+        default_registry=default_registry,
+        http_proxy=http_proxy,
+        exit_on_error=exit_on_error,
+        logger=logger,
+        enable_build_kit = conf_enable_build_kit
+    )
+
+
+    Container.init_containers(
+        container_engine=container_engine,
+        enable_build=container_build,
+        enable_push=containers_push,
+    )
+    if not build_only:
+        container_registry_login(username=registry_user, password=registry_pwd)
+        helm_registry_login(username=registry_user, password=registry_pwd)
+
+    container_images_available = Container.collect_containers()
+    BuildUtils.add_container_images_available(container_images_available=container_images_available)
+    charts_available = HelmChart.collect_charts()
+    
+    init_helm_charts(
+        save_tree=True,
+        enable_push=charts_push,
+        enable_lint=charts_lint,
+        enable_kubeval=charts_kubeval,
+    )
 
     startTime = time()
-    print("-----------------------------------------------------------")
-
     if build_installer_scripts:
-        print("-----------------------------------------------------------")
-        print("-------------------- Installer scripts --------------------")
-        print("-----------------------------------------------------------")
+        logger.info("-----------------------------------------------------------")
+        logger.info("-------------------- Installer scripts --------------------")
+        logger.info("-----------------------------------------------------------")
         platforms_dir = Path(kaapana_dir) / "platforms"
-        print(str(platforms_dir))
+        logger.info(str(platforms_dir))
         file_loader = FileSystemLoader(str(platforms_dir))  # directory of template file
         env = Environment(loader=file_loader)
         for config_path in platforms_dir.rglob('installer_config.yaml'):
             platform_params = yaml.load(open(config_path), Loader=yaml.FullLoader)
-            print(f'Creating installer script for {platform_params["project_name"]}')
+            logger.info(f'# Creating installer script for {platform_params["project_name"]}')
             template = env.get_template('install_platform_template.sh')  # load template file
 
             output = template.render(**platform_params)
             with open(config_path.parents[0] / 'install_platform.sh', 'w') as rsh:
                 rsh.write(output)
 
-    if build_charts:
-        print("-----------------------------------------------------------")
-        print("------------------------- CHARTS --------------------------")
-        print("-----------------------------------------------------------")
+    logger.info("")
+    logger.info("-----------------------------------------------------------")
+    logger.info("------------------ BUILD PLATFORM CHARTS ------------------")
+    logger.info("-----------------------------------------------------------")
+    logger.info("")
 
-        print("Init HelmCharts...")
-        init_helm_charts(kaapana_dir=kaapana_dir, chart_registry=default_container_registry)
+    HelmChart.generate_platform_build_tree()
+    HelmChart.build_platforms()
+    
 
-        print("Start quick_check...")
-        # for log_entry in HelmChart.quick_check(push_charts_to_docker):
-        for log_entry in HelmChart.quick_check():
-            if isinstance(log_entry, dict):
-                print_log_entry(log_entry, kind="CHARTS")
-            else:
-                all_charts = log_entry
-
-        print("Creating build order ...")
-
-        tries = 0
-        max_tries = 5
-        build_ready_list = []
-        not_ready_list = all_charts.copy()
-        while len(not_ready_list) > 0 and tries < max_tries:
-            tries += 1
-            all_ready = True
-            not_ready_list_tmp = []
-            for chart in not_ready_list:
-                chart.dependencies_ready = True
-                for dependency in chart.dependencies:
-                    ready_charts = [ready_chart for ready_chart in build_ready_list if ready_chart.name == dependency["name"] and ready_chart.version == dependency["version"]]
-                    if len(ready_charts) == 0:
-                        chart.dependencies_ready = False
-                        break
-                if chart.dependencies_ready:
-                    build_ready_list.append(chart)
-                else:
-                    not_ready_list_tmp.append(chart)
-
-            not_ready_list = not_ready_list_tmp
-
-        if tries >= max_tries:
-            print("#########################################################################")
-            print("")
-            print("                    Issue with dependencies!")
-            print("")
-            print("#########################################################################")
-            print("")
-            for chart in not_ready_list:
-                print(f"Missing dependencies for chart: {chart.name}")
-                print("")
-            print("")
-            exit(1)
-
-        print("Start build- and push-process ...")
-        i = 0
-        for chart in build_ready_list:
-            i += 1
-            try:
-                print()
-                print("chart: {}".format(chart.chart_id))
-                print("{}/{}".format(i, len(build_ready_list)))
-                print()
-                chart.remove_tgz_files()
-                print("dep up ...")
-                for log_entry in chart.dep_up():
-                    print_log_entry(log_entry, kind="CHARTS")
-                    if log_entry['loglevel'].upper() == "ERROR":
-                        raise SkipException("SKIP {}: dep_up() error!".format(log_entry['test']), log=log_entry)
-
-                print("linting ...")
-                for log_entry in chart.lint_chart():
-                    print_log_entry(log_entry, kind="CHARTS")
-                    if log_entry['loglevel'].upper() == "ERROR":
-                        raise SkipException("SKIP {}: lint_chart() error!".format(log_entry['test']), log=log_entry)
-
-                if not disable_kubeval:
-                    print("kubeval ...")
-                    for log_entry in chart.lint_kubeval():
-                        print_log_entry(log_entry, kind="CHARTS")
-                        if log_entry['loglevel'].upper() == "ERROR":
-                            raise SkipException("SKIP {}: lint_kubeval() error!".format(log_entry['test']), log=log_entry)
-
-                if "platforms" in chart.chart_dir and not chart.local_only and chart.name != 'dummy-collection':
-                    print("platform-chart! -> creating package ...")
-                    for log_entry in chart.package():
-                        print_log_entry(log_entry, kind="CHARTS")
-                        if log_entry['loglevel'].upper() == "ERROR":
-                            raise SkipException("SKIP {}: package() error!".format(log_entry['test']), log=log_entry)
-                        else:
-                            packages = glob(os.path.join(os.path.dirname(chart.chart_dir), '*.tgz'))
-                            for package in packages:
-                                if push_charts is True:
-                                    print("pushing chart ...")
-                                    for log_entry in chart.chart_push():
-                                        print_log_entry(log_entry, kind="CHARTS")
-                                        if log_entry['loglevel'].upper() == "ERROR":
-                                            raise SkipException("SKIP {}: chart_push() error!".format(log_entry['test']), log=log_entry)
-                                if create_package:
-                                    copy(package, build_dir)
-                                os.remove(package)
-                if chart.name == 'update-collections-chart' or chart.name == 'pull-docker-chart':
-                    print("update-collections-chart or pull-docker-chart! -> creating package ...")
-                    for log_entry in chart.package():
-                        print_log_entry(log_entry, kind="CHARTS")
-                        if log_entry['loglevel'].upper() == "ERROR":
-                            raise SkipException("SKIP {}: package() error!".format(log_entry['test']), log=log_entry)
-                        else:
-                            packages = glob(os.path.join(os.path.dirname(chart.chart_dir), '*.tgz'))
-
-                print()
-                print()
-            except SkipException as error:
-                print("SkipException: {}".format(str(error)))
-                continue
-
-    if build_containers:
-        print("-----------------------------------------------------------")
-        print("------------------------ CONTAINER ------------------------")
-        print("-----------------------------------------------------------")
-        config_list = (kaapana_dir, http_proxy, container_engine, default_container_registry)
-        docker_containers_list, logs = start_container_build(config=config_list)
-
-        for log in logs:
-            if supported_log_levels.index(log['loglevel'].upper()) >= log_level:
-                print_log_entry(log, kind="CONTAINERS")
-            if log['loglevel'].upper() == "ERROR":
-                exit(1)
-
-        i = 0
-        for docker_container in docker_containers_list:
-            i += 1
-            print()
-            print("Container: {}".format(docker_container.tag.replace(docker_container.container_registry, "")[1:]))
-            print("{}/{}".format(i, len(docker_containers_list)))
-            print()
-            try:
-                if docker_container.ci_ignore:
-                    print('SKIP {}: CI_IGNORE == True!'.format(docker_container.tag.replace(docker_container.container_registry, "")[1:]))
-                    continue
-                for log in docker_container.check_prebuild():
-                    print_log_entry(log, kind="CONTAINERS")
-                    if log['loglevel'].upper() == "ERROR":
-                        raise SkipException('SKIP {}: check_prebuild() failed!'.format(log['test']), log=log)
-
-                for log in docker_container.build():
-                    print_log_entry(log, kind="CONTAINERS")
-                    if log['loglevel'].upper() == "ERROR":
-                        raise SkipException('SKIP {}: build() failed!'.format(log['test']), log=log)
-
-                if push_containers:
-                    if push_dev_only and not docker_container.dev:
-                        print(f"Skipping push for {docker_container.tag.split('/')[-1]} -> no dev container")
-                        continue
-
-                    for log in docker_container.push():
-                        print_log_entry(log, kind="CONTAINERS")
-                        if log['loglevel'].upper() == "ERROR":
-                            raise SkipException('SKIP {}: push() failed!'.format(log['test']), log=log)
-
-            except SkipException as error:
-                print("SkipException: {}".format(str(error)))
-                continue
-
-    print("-----------------------------------------------------------")
-    if len(log_list["CHARTS"]) > 0:
-        print("")
-        print("-----------------------------------------------------------")
-        print("--------------------- Chart issues: -----------------------")
-        print("-----------------------------------------------------------")
-        print("")
-        for log in log_list["CHARTS"]:
-            if supported_log_levels.index(log[0]) >= log_level:
-                print(log[1])
-                print("-----------------------------------------------------------")
-                print()
-    print("-----------------------------------------------------------")
-
-    if len(log_list["CONTAINERS"]) > 0:
-        print("")
-        print("-----------------------------------------------------------")
-        print("------------------- Container issues: ---------------------")
-        print("-----------------------------------------------------------")
-        print("")
-        for log in log_list["CONTAINERS"]:
-            if supported_log_levels.index(log[0]) >= log_level:
-                print(log[1])
-                print("-----------------------------------------------------------")
-                print()
+    if len(BuildUtils.issues_list) > 0:
+        logger.info("")
+        logger.info("-----------------------------------------------------------")
+        logger.info("------------------------ ISSUES: --------------------------")
+        logger.info("-----------------------------------------------------------")
+        for issue in BuildUtils.issues_list:
+            component = issue["component"]
+            name = issue["name"]
+            level = issue["level"]
+            log = issue["log"]
+            msg = issue["msg"]
+            timestamp = issue["timestamp"]
+            filepath = issue["filepath"]
+            logger.warning("")
+            logger.warning(f"{level} -> {component}:{name}")
+            logger.warning(f"{msg=}")
+            logger.warning(log)
+            logger.warning("")
+            logger.warning("-----------------------------------------------------------")
 
     hours, rem = divmod(time()-startTime, 3600)
     minutes, seconds = divmod(rem, 60)
-    print("-----------------------------------------------------------")
-    print("------------------ TIME NEEDED: {:0>2}:{:0>2}:{:0>2} -----------------".format(int(hours), int(minutes), int(seconds)))
-    print("-----------------------------------------------------------")
-    print("-------------------------- DONE ---------------------------")
-    print("-----------------------------------------------------------")
+    logger.info("")
+    logger.info("")
+    logger.info("")
+    logger.info("-----------------------------------------------------------")
+    logger.info("------------------ TIME NEEDED: {:0>2}:{:0>2}:{:0>2} -----------------".format(int(hours), int(minutes), int(seconds)))
+    logger.info("-----------------------------------------------------------")
+    logger.info("-------------------------- DONE ---------------------------")
+    logger.info("-----------------------------------------------------------")

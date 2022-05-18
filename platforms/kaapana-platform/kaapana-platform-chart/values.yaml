@@ -26,7 +26,7 @@ global:
     home_dir: /root
     version: "0.1.3"
     kube_helm_collections:
-        - name: kaapana-collection
+        - name: kaapana-extension-collection
           version: 0.1.0
     preinstall_extensions:
         - name: code-server-chart

@@ -311,8 +311,8 @@ if __name__ == '__main__':
                                 if create_package:
                                     copy(package, build_dir)
                                 os.remove(package)
-                if chart.name == 'update-collections-chart':
-                    print("update-collections-chart! -> creating package ...")
+                if chart.name == 'update-collections-chart' or chart.name == 'pull-docker-chart':
+                    print("update-collections-chart or pull-docker-chart! -> creating package ...")
                     for log_entry in chart.package():
                         print_log_entry(log_entry, kind="CHARTS")
                         if log_entry['loglevel'].upper() == "ERROR":

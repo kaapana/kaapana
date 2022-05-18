@@ -23,7 +23,7 @@ RUN curl https://storage.googleapis.com/kubernetes-release/release/${KUBE_LATEST
 COPY files/requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY files/ ./
+COPY files/backend/ ./
 
 COPY files/update-collections-chart-0.1.0.tgz /root/update-collections/
 RUN chmod +x boot.sh

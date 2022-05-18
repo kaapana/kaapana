@@ -293,7 +293,7 @@ if __name__ == '__main__':
                         if log_entry['loglevel'].upper() == "ERROR":
                             raise SkipException("SKIP {}: lint_kubeval() error!".format(log_entry['test']), log=log_entry)
 
-                if "platforms" in chart.chart_dir and not chart.local_only:
+                if "platforms" in chart.chart_dir and not chart.local_only and chart.name != 'dummy-collection':
                     print("platform-chart! -> creating package ...")
                     for log_entry in chart.package():
                         print_log_entry(log_entry, kind="CHARTS")
@@ -311,6 +311,14 @@ if __name__ == '__main__':
                                 if create_package:
                                     copy(package, build_dir)
                                 os.remove(package)
+                if chart.name == 'update-collections-chart':
+                    print("update-collections-chart! -> creating package ...")
+                    for log_entry in chart.package():
+                        print_log_entry(log_entry, kind="CHARTS")
+                        if log_entry['loglevel'].upper() == "ERROR":
+                            raise SkipException("SKIP {}: package() error!".format(log_entry['test']), log=log_entry)
+                        else:
+                            packages = glob(os.path.join(os.path.dirname(chart.chart_dir), '*.tgz'))
 
                 print()
                 print()

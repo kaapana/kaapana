@@ -1,7 +1,7 @@
 ---
 apiVersion: v1
-appVersion: dummy
-description: dummy
-name: dummy
+appVersion: dummy-collection
+description: dummy-collection
+name: dummy-collection
 version: 0.0
 ignore_linting: true

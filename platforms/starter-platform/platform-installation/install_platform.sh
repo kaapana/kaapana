@@ -133,69 +133,69 @@ function delete_all_images_microk8s {
     done
 }
 
-function import_containerd {
-    echo "${GREEN}Starting image import into containerd...${NC}"
-    while true; do
-        read -e -p "Should all locally built Docker containers be deleted after the import?" -i " no" yn
-        case $yn in
-            [Yy]* ) echo -e "${GREEN}Local containers will be removed from Docker after the upload to microk8s${NC}" && DEL_CONTAINERS="true"; break;;
-            [Nn]* ) echo -e "${YELLOW}Containers will be kept${NC}" && DEL_CONTAINERS="false"; break;;
-            * ) echo "Please answer yes or no.";;
-        esac
-    done
-    IMAGE_COUNTER=0
-    containerd_imgs=( $(microk8s ctr images ls -q) )
-    docker_images_count=$(docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | wc -l)
-    echo "${GREEN}Found $docker_images_count Docker images to import...${NC}"
-    echo 
-    docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | while read IMAGE; do
-        hash=$(docker images --no-trunc --quiet $IMAGE)
-        IMAGE_COUNTER=$((IMAGE_COUNTER+1)) 
-        echo ""
-        echo "${GREEN}Container $IMAGE_COUNTER/$docker_images_count: $IMAGE${NC}"
-        if [[ " ${containerd_imgs[*]} " == *"$hash"* ]]; then
-            echo "${GREEN}Already found -> ok${NC}"
-        else
-            echo "${YELLOW}Not found -> generating *.tar ...${NC}"
-            docker save $IMAGE > ./image.tar
-            if [ $? -eq 0 ]; then
-                echo "${GREEN}created.${NC}"
-            else
-                echo "${RED}Failed to create *.tar of image!${NC}"
-                exit 1
-            fi
-            echo "${GREEN}Import image into containerd...${NC}"
-            microk8s ctr image import image.tar
-            if [ $? -eq 0 ]; then
-                echo "${GREEN}Import ok.${NC}"
-            else
-                echo "${RED}Failed to import image!${NC}"
-                exit 1
-            fi
-            echo "${GREEN}Remove tmp image.tar file...${NC}"
-            rm image.tar
-            if [ $? -eq 0 ]; then
-                echo "${GREEN}deleted.${NC}"
-            else
-                echo "${RED}Failed to remove image-tar!${NC}"
-                exit 1
-            fi
-        fi
+# function import_containerd {
+#     echo "${GREEN}Starting image import into containerd...${NC}"
+#     while true; do
+#         read -e -p "Should all locally built Docker containers be deleted after the import?" -i " no" yn
+#         case $yn in
+#             [Yy]* ) echo -e "${GREEN}Local containers will be removed from Docker after the upload to microk8s${NC}" && DEL_CONTAINERS="true"; break;;
+#             [Nn]* ) echo -e "${YELLOW}Containers will be kept${NC}" && DEL_CONTAINERS="false"; break;;
+#             * ) echo "Please answer yes or no.";;
+#         esac
+#     done
+#     IMAGE_COUNTER=0
+#     containerd_imgs=( $(microk8s ctr images ls -q) )
+#     docker_images_count=$(docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | wc -l)
+#     echo "${GREEN}Found $docker_images_count Docker images to import...${NC}"
+#     echo 
+#     docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | while read IMAGE; do
+#         hash=$(docker images --no-trunc --quiet $IMAGE)
+#         IMAGE_COUNTER=$((IMAGE_COUNTER+1)) 
+#         echo ""
+#         echo "${GREEN}Container $IMAGE_COUNTER/$docker_images_count: $IMAGE${NC}"
+#         if [[ " ${containerd_imgs[*]} " == *"$hash"* ]]; then
+#             echo "${GREEN}Already found -> ok${NC}"
+#         else
+#             echo "${YELLOW}Not found -> generating *.tar ...${NC}"
+#             docker save $IMAGE > ./image.tar
+#             if [ $? -eq 0 ]; then
+#                 echo "${GREEN}created.${NC}"
+#             else
+#                 echo "${RED}Failed to create *.tar of image!${NC}"
+#                 exit 1
+#             fi
+#             echo "${GREEN}Import image into containerd...${NC}"
+#             microk8s ctr image import image.tar
+#             if [ $? -eq 0 ]; then
+#                 echo "${GREEN}Import ok.${NC}"
+#             else
+#                 echo "${RED}Failed to import image!${NC}"
+#                 exit 1
+#             fi
+#             echo "${GREEN}Remove tmp image.tar file...${NC}"
+#             rm image.tar
+#             if [ $? -eq 0 ]; then
+#                 echo "${GREEN}deleted.${NC}"
+#             else
+#                 echo "${RED}Failed to remove image-tar!${NC}"
+#                 exit 1
+#             fi
+#         fi
 
-        if [ "$DEL_CONTAINERS" = "true" ];then
-            echo "${GREEN}Deleting Docker-image: $IMAGE${NC}"
-            docker rmi $IMAGE
-            echo "${GREEN}deleted.${NC}"
-        fi
-    done
+#         if [ "$DEL_CONTAINERS" = "true" ];then
+#             echo "${GREEN}Deleting Docker-image: $IMAGE${NC}"
+#             docker rmi $IMAGE
+#             echo "${GREEN}deleted.${NC}"
+#         fi
+#     done
 
-    if [ "$DEL_CONTAINERS" = "true" ];then
-        echo "${GREEN}Deleting all remaining Docker-images...${NC}"
-        docker system prune --all --force
-        echo "${GREEN}done.${NC}"
-    fi
-    echo "${GREEN}All images successfully imported!${NC}"
-}
+#     if [ "$DEL_CONTAINERS" = "true" ];then
+#         echo "${GREEN}Deleting all remaining Docker-images...${NC}"
+#         docker system prune --all --force
+#         echo "${GREEN}done.${NC}"
+#     fi
+#     echo "${GREEN}All images successfully imported!${NC}"
+# }
 
 function get_domain {
     DOMAIN=$(hostname -f)
@@ -228,7 +228,7 @@ function get_domain {
 
 function delete_deployment {
     echo -e "${YELLOW}Uninstalling releases${NC}"
-    helm -n $HELM_NAMESPACE ls --date --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $HELM_NAMESPACE uninstall ${NO_HOOKS} %; sleep 2"
+    helm -n $HELM_NAMESPACE ls --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $HELM_NAMESPACE uninstall --wait ${NO_HOOKS} %; sleep 2"
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
@@ -260,64 +260,64 @@ function clean_up_kubernetes {
     microk8s.kubectl delete jobs --all
 }
 
-apply_microk8s_image_import() {
-    IMAGE=$1
-    BASE_NAME=(${IMAGE//:/ })
-    BASE_NAME=${BASE_NAME[0]}
-    echo Uploading $IMAGE
-    microk8s ctr images import --base-name ${BASE_NAME//@/\/} $TAR_LOCATION/microk8s_images/$IMAGE
-}
+# apply_microk8s_image_import() {
+#     IMAGE=$1
+#     BASE_NAME=(${IMAGE//:/ })
+#     BASE_NAME=${BASE_NAME[0]}
+#     echo Uploading $IMAGE
+#     microk8s ctr images import --base-name ${BASE_NAME//@/\/} $TAR_LOCATION/microk8s_images/$IMAGE
+# }
 
-export -f apply_microk8s_image_import
+# export -f apply_microk8s_image_import
 
-apply_microk8s_image_export() {
-    IMAGE=$1
-    if [[ $IMAGE == $CONTAINER_REGISTRY_URL* ]] && [[ $IMAGE != *"@"* ]];
-    then
-        echo "${GREEN}Exporting $IMAGE"
-        microk8s ctr images export $DUMP_TAR_DIR/microk8s_images/${IMAGE//\//@} $IMAGE
-    fi
+# apply_microk8s_image_export() {
+#     IMAGE=$1
+#     if [[ $IMAGE == $CONTAINER_REGISTRY_URL* ]] && [[ $IMAGE != *"@"* ]];
+#     then
+#         echo "${GREEN}Exporting $IMAGE"
+#         microk8s ctr images export $DUMP_TAR_DIR/microk8s_images/${IMAGE//\//@} $IMAGE
+#     fi
 
-    if [[ $IMAGE == $CONTAINER_REGISTRY_URL* ]] && [[ $CLEANUP_AFTER_TAR_DUMP == 'true' ]];
-    then
-        echo "${YELLOW}Removing $IMAGE"
-        microk8s ctr images remove $IMAGE
-    fi
-    return 0
-}
+#     if [[ $IMAGE == $CONTAINER_REGISTRY_URL* ]] && [[ $CLEANUP_AFTER_TAR_DUMP == 'true' ]];
+#     then
+#         echo "${YELLOW}Removing $IMAGE"
+#         microk8s ctr images remove $IMAGE
+#     fi
+#     return 0
+# }
 
-export -f apply_microk8s_image_export
+# export -f apply_microk8s_image_export
 
-function dump_to_tar {
+# function dump_to_tar {
 
-    if [ ! "$QUIET" = "true" ];then
-        echo -e ""
-        read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to export? Make sure the verison is available!: ${NC}" -i $DEFAULT_VERSION chart_version;
-    else
-        chart_version=$DEFAULT_VERSION
-    fi
+#     if [ ! "$QUIET" = "true" ];then
+#         echo -e ""
+#         read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to export? Make sure the verison is available!: ${NC}" -i $DEFAULT_VERSION chart_version;
+#     else
+#         chart_version=$DEFAULT_VERSION
+#     fi
 
-    if [ ! "$QUIET" = "true" ];then
-        echo -e ""
-        read -e -p "${YELLOW}Should the images be removed from microk8s after your dump (true or false)?: ${NC}" -i $DEFAULT_CLEANUP_AFTER_TAR_DUMP CLEANUP_AFTER_TAR_DUMP;
-    else
-        CLEANUP_AFTER_TAR_DUMP=$DEFAULT_CLEANUP_AFTER_TAR_DUMP
-    fi
+#     if [ ! "$QUIET" = "true" ];then
+#         echo -e ""
+#         read -e -p "${YELLOW}Should the images be removed from microk8s after your dump (true or false)?: ${NC}" -i $DEFAULT_CLEANUP_AFTER_TAR_DUMP CLEANUP_AFTER_TAR_DUMP;
+#     else
+#         CLEANUP_AFTER_TAR_DUMP=$DEFAULT_CLEANUP_AFTER_TAR_DUMP
+#     fi
 
-    export CLEANUP_AFTER_TAR_DUMP
-    export CONTAINER_REGISTRY_URL
-    DUMP_TAR_DIR=$PROJECT_NAME-$chart_version
-    export DUMP_TAR_DIR
-    mkdir $DUMP_TAR_DIR
-    pull_chart
-    echo "Saving Chart $PROJECT_NAME-$chart_version.tgz"
-    mv "$PROJECT_NAME-$chart_version.tgz" $DUMP_TAR_DIR
-    echo Exporting all images that start with $CONTAINER_REGISTRY_URL
-    mkdir $DUMP_TAR_DIR/microk8s_images
-    microk8s.ctr images ls | awk {'print $1'} | xargs -I {} bash -c 'apply_microk8s_image_export "$@"' _ {}
-    tar -czvf $DUMP_TAR_DIR.tar.gz $DUMP_TAR_DIR
-    rm -rf $DUMP_TAR_DIR
-}
+#     export CLEANUP_AFTER_TAR_DUMP
+#     export CONTAINER_REGISTRY_URL
+#     DUMP_TAR_DIR=$PROJECT_NAME-$chart_version
+#     export DUMP_TAR_DIR
+#     mkdir $DUMP_TAR_DIR
+#     pull_chart
+#     echo "Saving Chart $PROJECT_NAME-$chart_version.tgz"
+#     mv "$PROJECT_NAME-$chart_version.tgz" $DUMP_TAR_DIR
+#     echo Exporting all images that start with $CONTAINER_REGISTRY_URL
+#     mkdir $DUMP_TAR_DIR/microk8s_images
+#     microk8s.ctr images ls | awk {'print $1'} | xargs -I {} bash -c 'apply_microk8s_image_export "$@"' _ {}
+#     tar -czvf $DUMP_TAR_DIR.tar.gz $DUMP_TAR_DIR
+#     rm -rf $DUMP_TAR_DIR
+# }
 
 function prefetch_extensions {
     if [ "$OFFLINE_MODE" == "true" ]; then
@@ -397,7 +397,7 @@ function install_chart {
         CONTAINER_REGISTRY_USERNAME=""
         CONTAINER_REGISTRY_PASSWORD=""
         CONTAINER_REGISTRY_URL="local"
-        import_containerd
+        # import_containerd
     elif [ ! -z "$TAR_PATH" ]; then
         if [ "$OFFLINE_MODE" == "false" ]; then
             echo "${RED}You need to set OFFLINE_MODE=true in the install_platform.sh script in order to install from a tarball"
@@ -411,7 +411,7 @@ function install_chart {
         mv "$DUMP_TAR_DIR/$PROJECT_NAME-$chart_version.tgz" "$HOME/$PROJECT_NAME-$chart_version.tgz"
         CHART_PATH="$HOME/$PROJECT_NAME-$chart_version.tgz"
         echo Importing Images from $TAR_LOCATION/microk8s_images
-        ls $TAR_LOCATION/microk8s_images | xargs -I {} bash -c 'apply_microk8s_image_import "$@"' _ {}
+        # ls $TAR_LOCATION/microk8s_images | xargs -I {} bash -c 'apply_microk8s_image_import "$@"' _ {}
         rm -rf $TAR_LOCATION
         echo
     elif [ -z "$CONTAINER_REGISTRY_URL" ]; then
@@ -686,10 +686,10 @@ do
             exit 0
         ;;
 
-        --dump-to-tar)
-            dump_to_tar
-            exit 0
-        ;;
+        # --dump-to-tar)
+        #     dump_to_tar
+        #     exit 0
+        # ;;
 
         --remove-all-images-ctr)
             delete_all_images_microk8s

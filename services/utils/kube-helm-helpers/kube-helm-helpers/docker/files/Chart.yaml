@@ -1,7 +1,7 @@
 ---
 apiVersion: v1
-appVersion: dummy
-description: dummy
-name: dummy
+appVersion: dummy-kube-helm
+description: dummy-kube-helm
+name: dummy-kube-helm
 version: 0.0
 ignore_linting: true

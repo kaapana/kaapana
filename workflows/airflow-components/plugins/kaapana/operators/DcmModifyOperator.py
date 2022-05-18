@@ -7,6 +7,22 @@ from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_r
 
 
 class DcmModifyOperator(KaapanaBaseOperator):
+    """
+    Operator to modify DICOM tags.
+
+    This operator serves to modify DICOM tags of DICOM files.
+    The opartor relies on DCMTK's "dcmodify" function.
+
+    **Inputs:**
+
+    * DICOM files which should be modified.
+    * DICOM tags which should be modified in given DICOM files.
+
+    **Outputs:**
+
+    * Modified DICOM files according to DICOM tags.
+    """
+
     execution_timeout = timedelta(seconds=60)
 
     def __init__(self,
@@ -17,6 +33,9 @@ class DcmModifyOperator(KaapanaBaseOperator):
                  execution_timeout=execution_timeout,
                  **kwargs
                  ):
+        """
+        :param dicom_tags_to_modify: List of all DICOM tags which should be modified in given DICOM file. Specify using the following syntax: eg: "(0008,0016)=1.2.840.10008.5.1.4.1.1.88.11;(0008,0017)=1.2.840.10008.5.1.4.1.1.88.11; ... .
+        """
 
         envs = {
             "DICOM_TAGS_TO_MODIFY": str(dicom_tags_to_modify),

@@ -20,7 +20,7 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
-    def send_email(self, email_address, message, filepath, subm_id):
+    def send_email(self, email_address, cc_address, message, filepath, subm_id):
         assert(email_address != "", "Please specify the recipient of the Email")
         print("++++++++++++++++++++++++++++++++++++++++++++++++++++")
         print("SENDING EMAIL: {}".format(email_address))
@@ -34,6 +34,8 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
         msgRoot = MIMEMultipart('related')
         msgRoot['From'] = from_address
         msgRoot['To'] = email_address
+        if cc_address is not None and cc_address != "":
+            msgRoot['Cc'] = cc_address
         msgRoot['Subject'] = sub
 
         msgAlt = MIMEMultipart('alternative')
@@ -49,7 +51,7 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
             msgRoot.attach(attachment)
 
         s = smtplib.SMTP(host='mailhost2.dkfz-heidelberg.de', port=25)
-        s.sendmail(from_address, email_address, msgRoot.as_string())
+        s.sendmail(from_address, msgRoot["To"].split(", ") + msgRoot["Cc"].split(", "), msgRoot.as_string())
         s.quit()
     
     def get_most_recent_dag_run(self, dag_id):
@@ -128,6 +130,12 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
                         dag_state = get_dag_run_state(dag_id="tfda-execution-orchestrator", execution_date=dag_run.execution_date)                        
                     
                     sending_ts = datetime.now()
+
+                    # Get Synapse user ID
+                    synapse_user_details = syn.getUserProfile(id=subm["userId"])
+                    cc_address = ""
+                    synapse_user_id = f"{synapse_user_details['userName']}@synapse.org"
+
                     if dag_state["state"] == "failed":
                         print(f"**************** The evaluation of submission with ID {subm_id} has FAILED ****************")
                         subm_dict[subm_id] = "failed"
@@ -145,7 +153,7 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
                         </html>
                         """.format(subm_id)
                         utils.change_submission_status(syn, subm_id, status="INVALID")
-                        self.send_email(email_address="kaushal.parekh@dkfz-heidelberg.de", message=message, filepath="", subm_id=subm_id)
+                        self.send_email(email_address=synapse_user_id, cc_address=cc_address, message=message, filepath="", subm_id=subm_id)
                     if dag_state["state"] == "success":
                         print(f"**************** The evaluation of submission with ID {subm_id} was SUCCESSFUL ****************")
                         subm_dict[subm_id] = "success"
@@ -163,9 +171,9 @@ class LocalFeTSSubmissions(KaapanaPythonBaseOperator):
                         </html>
                         """.format(subm_id)
                         utils.change_submission_status(syn, subm_id, status="ACCEPTED")
-                        self.send_email(email_address="", message=message, filepath=f"{subm_results_path}/results_{subm_id}_{sending_ts.strftime('%Y-%m-%d')}.zip", subm_id=subm_id)
+                        self.send_email(email_address=synapse_user_id, cc_address=cc_address, message=message, filepath=f"{subm_results_path}/results_{subm_id}_{sending_ts.strftime('%Y-%m-%d')}.zip", subm_id=subm_id)
                 else:
-                    print("Submission already SUCCESSFUL!!!!")
+                    print("Submission already SUCCESSFULLY evaluated!!!!")
 
         print("Saving submission dict...")
         with open(subm_dict_path, "w") as fp_:

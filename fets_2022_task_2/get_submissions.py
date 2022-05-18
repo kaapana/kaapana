@@ -120,7 +120,7 @@ if __name__ == "__main__":
             print(f"Checking {task_name}...")
             # task_dir = os.path.join(base_dir, task_name)
             for subm in syn.getSubmissions(task_id):
-                synapse_user_details = syn.getUserProfile(id=subm["UserId"])
+                synapse_user_details = syn.getUserProfile(id=subm["userId"])
                 if subm["id"] not in subm_dict:
                     print("Logging into container registry!!!")                    
                     # registry_pwd = getpass.getpass("docker registry password: ")

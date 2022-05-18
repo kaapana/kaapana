@@ -1,4 +1,4 @@
-FROM python:3.9-alpine3.12
+FROM local-only/base-python-alpine:0.1.0
 
 LABEL IMAGE="example-pool-jsons"
 LABEL VERSION="0.1.0"

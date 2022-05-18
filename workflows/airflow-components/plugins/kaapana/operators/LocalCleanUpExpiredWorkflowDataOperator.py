@@ -6,7 +6,6 @@ import glob
 from datetime import timedelta
 from datetime import datetime
 import shutil
-
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import WORKFLOW_DIR
 

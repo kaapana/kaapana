@@ -1,5 +1,5 @@
 from pydantic import BaseSettings
-
+import os
 
 class Settings(BaseSettings):
     """
@@ -14,12 +14,11 @@ class Settings(BaseSettings):
     """
     secret_key: str
     application_root: str
-    namespace: str = "default"
 
     helm_extensions_cache: str = "/root/charts/extensions"
     helm_collections_cache: str = "/root/charts/collections"
     helm_helpers_cache: str = "/root/charts/helpers"
-
+    helm_namespace: str = os.getenv("HELM_NAMESPACE", "default") 
     registry_url: str
 
     offline_mode: bool

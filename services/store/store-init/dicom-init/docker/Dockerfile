@@ -5,7 +5,7 @@ LABEL IMAGE="dicom-init"
 LABEL VERSION="0.1.2"
 LABEL CI_IGNORE="False"
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     dcmtk \
     python3 \
     python3-pip \

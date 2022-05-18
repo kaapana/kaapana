@@ -34,7 +34,7 @@ class DiceEvaluationOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             env_vars=env_vars,
-            ram_mem_mb=62000,
+            ram_mem_mb=6200,
             ram_mem_mb_lmt=150000,
             **kwargs
         )

@@ -13,7 +13,7 @@ ENV DCMDICTPATH /scripts/dicom.dic
 ENV DICT_PATH /scripts/dicom_tag_dict.json
 
 WORKDIR /
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
         wget \
         python3.8 \
         python3.8-dev \

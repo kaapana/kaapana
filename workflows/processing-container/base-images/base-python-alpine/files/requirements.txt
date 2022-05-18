@@ -1,0 +1,5 @@
+# Versions should be equal to base-python-gpu container check with pip freeze
+pydicom==2.3.0
+pathlib==1.0.1
+requests==2.27.1
+jupyterlab==3.3.2

@@ -1,17 +1,24 @@
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator, default_registry
-from kaapana.blueprints.kaapana_global_variables import WORKFLOW_DIR, BATCH_NAME
-from datetime import timedelta
-import sys, os
 import glob
-import shutil
-from subprocess import PIPE, run
-import pydicom
-from pathlib import Path
-import requests
+import os
 import time
+from datetime import timedelta
+from pathlib import Path
+from subprocess import PIPE, run
+
+import pydicom
+import requests
+from kaapana.blueprints.kaapana_global_variables import WORKFLOW_DIR, BATCH_NAME
+from kaapana.operators.KaapanaPythonBaseOperator import \
+    KaapanaPythonBaseOperator
 
 
 class LocalDicomSendOperator(KaapanaPythonBaseOperator):
+    """
+    Operator sends data to the platform locally.
+
+    This operator is used for sending data to the platform locally.
+    For dcmsend documentation please have a look at https://support.dcmtk.org/docs/dcmsend.html.
+    """
     def check_if_arrived(self, seriesUID):
         print("#")
         print("############### Check if DICOMs arrived ###############")
@@ -92,12 +99,19 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
 
     def __init__(self,
                  dag,
-                 pacs_host='dcm4chee-service.store.svc',
-                 pacs_port="11115",
-                 ae_title="KAAPANA",
-                 aetitle_send="kaapana",
-                 check_arrival="False",
+                 pacs_host:str='dcm4chee-service.store.svc',
+                 pacs_port:str="11115",
+                 ae_title:str="KAAPANA",
+                 aetitle_send:str="kaapana",
+                 check_arrival:str="False",
                  **kwargs):
+        """
+        :param pacs_host: Host of PACS
+        :param pacs_port: Port of PACS
+        :param ae_title: calling Application Entity (AE) title
+        :param aetitle_send: called AE title of peer
+        :param check_arrival: Verifies if data transfer was successful
+        """
 
         # The use of the local operator, to be able to set the aetitle_send!
         self.host = pacs_host

@@ -7,6 +7,21 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
 class ZipUnzipOperator(KaapanaBaseOperator):
+    """
+    Operator to extract or pack zip archives.
+
+    This operator packs or extracts a set of files using a container. Its execution fails no files have been processed. When extracting it extracts all files provided in the output of its input operator. When packing it packs all files but those extracted and included by a white or blacklist into a single zip file in it's output directory.
+
+    **Inputs:**
+
+    * When packing (e.g. mode is zip) the operator which files should be packed.
+    * When extracting (e.g. mode is unzip) nothing.
+
+    **Outputs:**
+
+    * When packing the packed zipfile under the given name.
+    * When extracting the extracted files
+    """
 
     def __init__(self,
                  dag,
@@ -20,6 +35,14 @@ class ZipUnzipOperator(KaapanaBaseOperator):
                  execution_timeout=timedelta(minutes=10),
                  **kwargs
                  ):
+        """
+        :param target_filename: Only for packing. The created file.
+        :param subdir: Only for packing. Subdir used to pack, if empty all data are packed.
+        :param mode: "zip" for packing "unzip" for extracting
+        :param whitelist_files: Only for packing. List of files to include seperated by ',' eg: "*.txt,*.png" or whole filenames
+        :param blacklist_files: Only for packing. List of files to exclude seperated by ',' eg: "*.txt,*.png" or whole filenames
+        :param info_file: additional files to add to the target zip files
+        """
 
         if env_vars is None:
             env_vars = {}

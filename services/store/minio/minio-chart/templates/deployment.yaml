@@ -37,9 +37,9 @@ spec:
         - name: MINIO_BROWSER
           value: "off"
         - name: MINIO_ROOT_USER
-          value:  {{ .Values.global.credentials_minio_username }}
+          value: "{{ .Values.global.credentials_minio_username }}"
         - name: MINIO_ROOT_PASSWORD
-          value: {{ .Values.global.credentials_minio_password }}
+          value: "{{ .Values.global.credentials_minio_password }}"
         - name: MINIO_IDENTITY_OPENID_CONFIG_URL
           value: "http://keycloak-external-service.kube-system.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
         - name: MINIO_IDENTITY_OPENID_CLIENT_ID

@@ -28,10 +28,10 @@ dependencies:
     version: 3.3.2
     repository: file://../../../../services/applications/jupyterlab/jupyterlab-chart
   - name: mitk-flow-workflow
-    version: "2021-01-19"
+    version: "2022.04"
     repository: file://../../../../data-processing/processing-pipelines/mitk-flow/extension/mitk-flow-workflow
   - name: mitk-workbench-chart
-    version: "2021.02"
+    version: "2022.04"
     repository: file://../../../../services/applications/mitk-workbench/mitk-workbench-chart
   - name: nnunet-workflow
     version: 03-22

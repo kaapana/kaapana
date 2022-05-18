@@ -60,7 +60,7 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
         - name: ACTION
-          value: {{ .Values.action }}
+          value: "{{ .Values.action }}"
         volumeMounts:
         - name: data
           mountPath: "/workflows"

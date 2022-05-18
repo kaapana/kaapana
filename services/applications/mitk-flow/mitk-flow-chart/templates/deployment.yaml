@@ -2,32 +2,44 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: mitk-vol-{{ $uuid }}
+  name: mitk-flow-{{ $uuid }}
   namespace: {{ .Values.global.base_namespace }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: mitk-vol-{{ $uuid }}
+      app-name: mitk-flow-{{ $uuid }}
   template:
     metadata:
       labels:
-        app-name: mitk-vol-{{ $uuid }}
+        app-name: mitk-flow-{{ $uuid }}
     spec:
       restartPolicy: Always
       containers:
         # ToDo add init-container to wait for db-host
       - name: mitk
-        image: {{ .Values.global.registry_url }}/mitk-workbench:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__2022.04
+        image: {{  .Values.global.registry_url }}/mitk-flow:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__2022.04
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           requests:
-            memory: "5Gi"
+            memory: "4Gi"
           limits:
             memory: "8Gi"
         env:
         - name: INGRESS_PATH
-          value: "mitk-vol-{{ $uuid }}"
+          value: mitk-flow-{{ $uuid }}
+        - name: USER
+          value: mitk
+        - name: PASSWORD
+          value: mitk
+        - name: WORKFLOW_DIR
+          value: "{{ .Values.workflow_dir }}"
+        - name: BATCH_NAME
+          value: "{{ .Values.batch_name }}"
+        - name: OPERATOR_OUT_DIR
+          value: "{{ .Values.operator_out_dir }}" 
+        - name: OPERATOR_IN_DIR
+          value: "{{ .Values.operator_in_dir }}"           
         volumeMounts:
         - name: mitk-data
           mountPath: /data
@@ -46,10 +58,10 @@ spec:
 kind: Service
 apiVersion: v1
 metadata:
-  name: mitk-vol-{{ $uuid }}
+  name: mitk-flow-{{ $uuid }}
   namespace: {{ .Values.global.base_namespace }}
   labels:
-    app: mitk-vol-{{ $uuid }}
+    app: mitk-flow-{{ $uuid }}
 spec:
   ports:
     - protocol: TCP
@@ -58,39 +70,37 @@ spec:
       name: pt-mitk-http
   type: ClusterIP
   selector:
-    app-name: mitk-vol-{{ $uuid }}
+    app-name: mitk-flow-{{ $uuid }}
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
-  name: mitk-vol-{{ $uuid }}-redirect
+  name: mitk-flow-{{ $uuid }}-redirect
   namespace: {{ .Values.global.base_namespace }}
 spec:
   redirectRegex:
-    regex: ^.*/mitk-vol-{{ $uuid }}([^\/]*)$
-    replacement: /mitk-vol-{{ $uuid }}/
+    regex: ^.*/mitk-flow-{{ $uuid }}([^\/]*)$
+    replacement: /mitk-flow-{{ $uuid }}/
 ---
 apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
-  name: mitk-vol-{{ $uuid }}
+  name: mitk-flow-{{ $uuid }}
   namespace: {{ .Values.global.base_namespace }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,{{ .Values.global.base_namespace }}-mitk-vol-{{ $uuid }}-redirect@kubernetescrd,kube-system-strip-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,{{ .Values.global.base_namespace }}-mitk-flow-{{ $uuid }}-redirect@kubernetescrd,kube-system-strip-prefix@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
   - host:
     http:
       paths:
-      - path: /mitk-vol-{{ $uuid }}
+      - path: /mitk-flow-{{ $uuid }}
         pathType: ImplementationSpecific
         backend:
           service:
-            name: mitk-vol-{{ $uuid }}
+            name: mitk-flow-{{ $uuid }}
             port:
               name: pt-mitk-http
 ---
-
-          

@@ -114,21 +114,21 @@ spec:
         - name: AIRFLOW__LOGGING__LOGGING_LEVEL
           value: "INFO"
         - name: DATADIR
-          value: {{ .Values.global.fast_data_dir }}/workflows/data
+          value: "{{ .Values.global.fast_data_dir }}/workflows/data"
         - name: MODELDIR
-          value: {{ .Values.global.fast_data_dir }}/workflows/models
+          value: "{{ .Values.global.fast_data_dir }}/workflows/models"
         - name: PLATFORM_ABBR
-          value: {{ .Values.global.platform_abbr }}
+          value: "{{ .Values.global.platform_abbr }}"
         - name: PLATFORM_VERSION
-          value: {{ .Values.global.platform_version }}
+          value: "{{ .Values.global.platform_version }}"
         - name: HOSTDOMAIN
-          value: {{ .Values.global.hostname }}
+          value: "{{ .Values.global.hostname }}"
         - name: HTTPS_PORT
           value: "{{ .Values.global.https_port }}"
         - name: INSTANCE_NAME
-          value: {{ .Values.global.instance_name }}
+          value: "{{ .Values.global.instance_name }}"
         - name: AIRFLOW_KUBE_NAMESPACE
-          value: {{ .Values.global.flow_namespace }}
+          value: "{{ .Values.global.flow_namespace }}"
         - name: GPU_SUPPORT
           value: "{{ .Values.global.gpu_support }}"
         - name: SQL_ALCHEMY_CONN
@@ -183,31 +183,31 @@ spec:
         - name: AIRFLOW_HOME
           value: "/root/airflow"
         - name: DATADIR
-          value: {{ .Values.global.fast_data_dir }}/workflows/data
+          value: "{{ .Values.global.fast_data_dir }}/workflows/data"
         - name: MODELDIR
-          value: {{ .Values.global.fast_data_dir }}/workflows/models
+          value: "{{ .Values.global.fast_data_dir }}/workflows/models"
         - name: MINIODIR
-          value: {{ .Values.global.slow_data_dir }}/minio
+          value: "{{ .Values.global.slow_data_dir }}/minio"
         - name: DEVDIR
-          value: {{ .Values.global.fast_data_dir }}/minio/data-processing-dev
+          value: "{{ .Values.global.fast_data_dir }}/minio/data-processing-dev"
         - name: PROXY
-          value: {{ .Values.global.http_proxy }}
+          value: "{{ .Values.global.http_proxy }}"
         - name: PLATFORM_ABBR
-          value: {{ .Values.global.platform_abbr }}
+          value: "{{ .Values.global.platform_abbr }}"
         - name: PLATFORM_VERSION
-          value: {{ .Values.global.platform_version }}
+          value: "{{ .Values.global.platform_version }}"
         - name: HOSTDOMAIN
-          value: {{ .Values.global.hostname }}
+          value: "{{ .Values.global.hostname }}"
         - name: HTTPS_PORT
           value: "{{ .Values.global.https_port }}"
         - name: INSTANCE_NAME
-          value: {{ .Values.global.instance_name }}
+          value: "{{ .Values.global.instance_name }}"
         - name: PULL_POLICY_PODS
-          value: {{ .Values.global.pull_policy_pods }}
+          value: "{{ .Values.global.pull_policy_pods }}"
         - name: MINIOUSER
-          value: {{ .Values.global.credentials_minio_username }}
+          value: "{{ .Values.global.credentials_minio_username }}"
         - name: MINIOPASSWORD
-          value: {{ .Values.global.credentials_minio_password }}
+          value: "{{ .Values.global.credentials_minio_password }}"
         - name: AIRFLOW_KUBE_NAMESPACE
           valueFrom:
             fieldRef:

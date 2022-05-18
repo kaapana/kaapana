@@ -27,9 +27,9 @@ spec:
         - name: ACTION
           value: "remove"
         - name: SECRET_NAME
-          value: {{ .Values.global.tls_secret.name }}
+          value: "{{ .Values.global.tls_secret.name }}"
         - name: SECRET_NAMESPACE
-          value: {{ .Values.global.tls_secret.namespace }}
+          value: "{{ .Values.global.tls_secret.namespace }}"
       restartPolicy: Never
       # the container needs to delete secrets in .Values.global.tls_secret.namespace
       serviceAccountName: kubernetes-dashboard

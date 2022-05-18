@@ -1,0 +1,8 @@
+apiVersion: v1
+version: "2022.04"
+description: A Helm chart for MITK-flow
+name: mitk-flow-chart
+version: "2022.04"
+keywords:
+- kaapanaint
+

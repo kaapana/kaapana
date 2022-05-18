@@ -229,7 +229,7 @@ function get_domain {
 
 function delete_deployment {
     echo -e "${YELLOW}Uninstalling releases${NC}"
-    helm -n $HELM_NAMESPACE ls --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $HELM_NAMESPACE uninstall --wait ${NO_HOOKS} %; sleep 2"
+    helm -n $HELM_NAMESPACE ls --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $HELM_NAMESPACE uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
@@ -439,12 +439,12 @@ function install_chart {
     --set-string global.credentials.grafana_password="$GRAFANA_PASSWORD" \
     --set-string global.credentials.keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
     --set-string global.credentials.keycloak_admin_passowrd="$KEYCLOAK_ADMIN_PASSWORD" \
-    --set-string global.http_proxy=$http_proxy \
-    --set-string global.https_proxy=$https_proxy \
-    --set-string global.registry_url=$CONTAINER_REGISTRY_URL \
+    --set-string global.http_proxy="$http_proxy" \
+    --set-string global.https_proxy="$https_proxy" \
+    --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
     --set-string global.instance_name="$INSTANCE_NAME" \
-    --set global.gpu_support=$GPU_SUPPORT \
-    --name-template $PROJECT_NAME
+    --set global.gpu_support="$GPU_SUPPORT" \
+    --name-template "$PROJECT_NAME"
 
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm $CHART_PATH

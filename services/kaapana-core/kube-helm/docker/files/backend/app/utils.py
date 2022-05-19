@@ -534,6 +534,7 @@ def execute_update_extensions():
                 helm_delete_prefix = f'{os.environ["HELM_PATH"]} -n {settings.helm_namespace} uninstall {release_name} --wait --timeout 5m;'
                 helm_install(payload, helm_delete_prefix=helm_delete_prefix,
                                     helm_cache_path=settings.helm_collections_cache, in_background=False)
+                message = f"Successfully updated the extensions"
             except subprocess.CalledProcessError as e:
                 install_error = True
                 helm_delete(release_name)

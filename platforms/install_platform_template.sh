@@ -260,9 +260,9 @@ function install_chart {
 
         OFFLINE_MODE="true"
         DEV_MODE="false"
-        PULL_POLICY_PODS="Never"
-        PULL_POLICY_JOBS="Never"
-        PULL_POLICY_OPERATORS="Never"
+        PULL_POLICY_PODS="IfNotPresent"
+        PULL_POLICY_JOBS="IfNotPresent"
+        PULL_POLICY_OPERATORS="IfNotPresent"
         PREFETCH_EXTENSIONS="false"
 
         CONTAINER_REGISTRY_USERNAME=""

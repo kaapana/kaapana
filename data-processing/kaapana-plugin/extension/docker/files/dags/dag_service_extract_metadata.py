@@ -6,6 +6,7 @@ from datetime import timedelta
 from airflow.models import DAG
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
 
 log = LoggingMixin().log
 
@@ -29,6 +30,9 @@ dag = DAG(
 get_input = LocalGetInputDataOperator(dag=dag, operator_out_dir='get-input-data')
 extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=get_input, delete_private_tags=True)
 push_json = LocalJson2MetaOperator(dag=dag, input_operator=get_input, json_operator=extract_metadata)
+tagging = LocalTaggingOperator(dag=dag, input_operator=extract_metadata, add_tags_from_file=True)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> extract_metadata >> push_json >> clean
+get_input >> extract_metadata >> push_json >> tagging >> clean
+extract_metadata >> tagging
+

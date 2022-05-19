@@ -66,8 +66,6 @@ class BuildUtils:
 
         build_order = []
         for entry in graph_bottom_up:
-            if "nnunet" in entry:
-                print()
             if "root" in entry.lower():
                 continue
 
@@ -148,7 +146,7 @@ class BuildUtils:
 
     @staticmethod
     def generate_component_usage_info():
-        unused_containers_json_path = join(BuildUtils.build_dir, "build_unused_containers.json")
+        unused_containers_json_path = join(BuildUtils.build_dir, "build_containers_unused.json")
         BuildUtils.logger.debug("")
         BuildUtils.logger.debug("Collect unused containers:")
         BuildUtils.logger.debug("")
@@ -199,7 +197,7 @@ class BuildUtils:
         BuildUtils.logger.debug("Collect all charts present:")
         BuildUtils.logger.debug("")
         unused_charts = []
-        for chart_id,ychart in BuildUtils.charts_unused.items():
+        for chart_id, chart in BuildUtils.charts_unused.items():
             BuildUtils.logger.debug(f"{chart.chart_id}")
             unused_charts.append(chart.get_dict())
 

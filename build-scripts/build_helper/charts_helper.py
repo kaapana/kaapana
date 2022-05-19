@@ -10,6 +10,8 @@ from os.path import join, dirname, basename, exists, isfile, isdir
 from time import time
 from pathlib import Path
 from build_helper.build_utils import BuildUtils
+from build_helper.container_helper import Container
+
 import networkx as nx
 
 suite_tag = "Charts"
@@ -812,8 +814,45 @@ class HelmChart:
                     msg=f"{container_id} could not be found in available containers!",
                     level="FATAL"
                 )
-        #TODO Klaus hier passt es: containers_built hat alle container Objekte - container.build_tag gibt dir die finalen tags
+    
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
+        if BuildUtils.create_offline_installation is True:
+            BuildUtils.logger.info("Generating platform docker dump.")
+            command = [
+                Container.container_engine, "save"] + [
+                    container.build_tag for container in containers_built if not container.build_tag.startswith('local-only')] +[
+                        "-o", str(Path(os.path.dirname(platform_chart.build_chart_dir)) / f"{platform_chart.name}-{platform_chart.version}.tar")]
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
+            if output.returncode != 0:
+                BuildUtils.logger.error(f"Docker save failed {output.stderr}!")
+                BuildUtils.generate_issue(
+                    component="docker save",
+                    name="Docker save",
+                    msg=f"Docker save failed {output.stderr}!",
+                    level="FATAL"
+                )
+            BuildUtils.logger.info("Finished: Generating platform docker dump.")
+        
+        # if BuildUtils.push_to_microk8s is True:
+        #     BuildUtils.logger.info("Pushing containers to microk8s.")
+        #     for container_to_build in [container.build_tag for container in containers_built if not container.build_tag.startswith('local-only')][0:2]:
+        #         parking_file = str(Path(os.path.dirname(platform_chart.build_chart_dir)) / "parking.tar")
+        #         command = [Container.container_engine, "save", container_to_build, "-o", parking_file]
+        #         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)                
+        #         command = ["microk8s.ctr", "image", "import", parking_file, "&&", "rm", parking_file]
+        #         print(command)
+        #         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
+        #         print(output)
+        #         if output.returncode != 0:
+        #             BuildUtils.logger.error(f"Microk8s image push failed {output.stderr}!")
+        #             BuildUtils.generate_issue(
+        #                 component="Microk8s image push",
+        #                 name="Microk8s image push",
+        #                 msg=f"Microk8s image push failed {output.stderr}!",
+        #                 level="FATAL"
+        #             )
+        #         BuildUtils.logger.info(f"Pushing {container_to_build} succesfully to microk8s")
+        #     BuildUtils.logger.info("Finished: Pushing containers to microk8s.")            
 
     @staticmethod
     def generate_platform_build_tree():

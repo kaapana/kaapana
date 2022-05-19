@@ -75,18 +75,18 @@ async def pull_docker_image(request: Request):
         return Response(f"We could not download your container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}", 500)
 
 
-@router.get("/prefetch-extension-docker")
-async def prefetch_extension_docker():
-    print('prefechting')
-    if settings.offline_mode is False:
-        try:
-            utils.helm_prefetch_extension_docker()
-            return Response(f"Trying to prefetch all docker container of extensions", 200)
-        except:
-            return Response(f"An error occured!", 500)
-    else:
-        print('Offline mode is set to False!')
-        return Response(f"We will not prefetch the extensions since the platform was installed with OFFLINE_MODE set to true!", 200)
+# @router.get("/prefetch-extension-docker")
+# async def prefetch_extension_docker():
+#     print('prefechting')
+#     if settings.offline_mode is False:
+#         try:
+#             utils.helm_prefetch_extension_docker()
+#             return Response(f"Trying to prefetch all docker container of extensions", 200)
+#         except:
+#             return Response(f"An error occured!", 500)
+#     else:
+#         print('Offline mode is set to False!')
+#         return Response(f"We will not prefetch the extensions since the platform was installed with OFFLINE_MODE set to true!", 200)
 
 
 @router.get("/pending-applications")

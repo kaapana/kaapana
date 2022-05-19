@@ -18,6 +18,7 @@ class BuildUtils:
     issues_list = None
     exit_on_error = True
     enable_build_kit = None
+    create_offline_installation = None
 
     @staticmethod
     def add_container_images_available(container_images_available):
@@ -39,7 +40,10 @@ class BuildUtils:
             chart_object.check_dependencies()
 
     @staticmethod
-    def init(kaapana_dir, build_dir, external_source_dirs, platform_filter, default_registry, http_proxy, logger, exit_on_error, enable_build_kit):
+    def init(kaapana_dir, build_dir, external_source_dirs, platform_filter, default_registry, http_proxy, logger, exit_on_error, enable_build_kit, 
+        create_offline_installation):
+        #, push_to_microk8s):
+        
         BuildUtils.logger = logger
         BuildUtils.kaapana_dir = kaapana_dir
         BuildUtils.build_dir = build_dir
@@ -52,6 +56,8 @@ class BuildUtils:
 
         BuildUtils.base_images_used = []
         BuildUtils.enable_build_kit = enable_build_kit
+        BuildUtils.create_offline_installation = create_offline_installation
+        # BuildUtils.push_to_microk8s = push_to_microk8s
 
     @staticmethod
     def get_timestamp():

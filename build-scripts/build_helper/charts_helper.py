@@ -790,6 +790,7 @@ class HelmChart:
         BuildUtils.logger.info(f"{platform_chart.chart_id}: DONE")
 
         BuildUtils.logger.info("Start container build...")
+        containers_built = []
         container_count = len(build_order)
         for i in range(0, container_count):
             container_id = build_order[i]
@@ -801,6 +802,7 @@ class HelmChart:
                 if container_to_build.local_image and container_to_build.build_tag == None:
                     container_to_build.build_tag = container_to_build.tag
                 container_to_build.build()
+                containers_built.append(container_to_build)
                 container_to_build.push()
             else:
                 BuildUtils.logger.error(f"{container_id} could not be found in available containers!")
@@ -810,7 +812,7 @@ class HelmChart:
                     msg=f"{container_id} could not be found in available containers!",
                     level="FATAL"
                 )
-
+        #TODO Klaus hier passt es: containers_built hat alle container Objekte - container.build_tag gibt dir die finalen tags
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
 
     @staticmethod

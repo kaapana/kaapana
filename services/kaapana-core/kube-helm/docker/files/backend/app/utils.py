@@ -483,8 +483,22 @@ def get_extensions_list():
     return success, extensions_list_cached
 
 def execute_update_extensions():
-    if settings.offline_mode is True:
-        return Response(f"We will not prefetch the extensions since the platform runs in offline mode!", 200)
+    # Copied from kaapna_utils.py, maybe overhad...
+    def _cure_invalid_name(name, regex, max_length=None):
+        def _regex_match(regex, name):
+            if re.fullmatch(regex, name) is None:
+                invalid_characters = re.sub(regex, '', name)
+                for c in invalid_characters:
+                    name = name.replace(c, '')
+                print(f'Your name does not fullfill the regex {regex}, we adapt it to {name} to work with Kubernetes')
+            return name
+        name = _regex_match(regex, name)
+        if max_length is not None and len(name) > max_length:
+            name = name[:max_length]
+            print(f'Your name is too long, only {max_length} character are allowed, we will cut it to {name} to work with Kubernetes')
+        name = _regex_match(regex, name)
+        return name
+
     chart = {
         'name': 'update-collections-chart',
         'version': '0.1.0'
@@ -493,10 +507,9 @@ def execute_update_extensions():
     payload = {k: chart[k] for k in ('name', 'version')}
 
     install_error = False
+    message = f"No kube_helm_collections defined..."
     for idx, kube_helm_collection in enumerate(settings.kube_helm_collections.split(';')[:-1]):
-
-        release_name = f"{chart['name']}-{chart['version']}-{str(idx)}" 
-
+        release_name = _cure_invalid_name("-".join(kube_helm_collection.split('/')[-1].split(':')), r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*", max_length=53)
         payload.update({
             'release_name': release_name,
             'sets': {
@@ -509,22 +522,25 @@ def execute_update_extensions():
                 print(f'Installing {release_name}')
                 helm_install(
                     payload, helm_cache_path=settings.helm_collections_cache, in_background=False)
+                message = f"Successfully updated the extensions"
             except subprocess.CalledProcessError as e:
                 install_error = True
                 helm_delete(release_name)
                 print(e)
+                message = f"We had troubles updating the extensions"
         else:
             try:
                 print('helm deleting and reinstalling')
-                helm_delete_prefix = f'{os.environ["HELM_PATH"]} -n {settings.helm_namespace} uninstall {release_name} --timeout 5m;'
+                helm_delete_prefix = f'{os.environ["HELM_PATH"]} -n {settings.helm_namespace} uninstall {release_name} --wait --timeout 5m;'
                 helm_install(payload, helm_delete_prefix=helm_delete_prefix,
                                     helm_cache_path=settings.helm_collections_cache, in_background=False)
             except subprocess.CalledProcessError as e:
                 install_error = True
                 helm_delete(release_name)
                 print(e)
-
-    return install_error
+                message = f"We had troubles updating the extensions"
+        
+    return install_error, message
 
 
 if charts_cached == None:

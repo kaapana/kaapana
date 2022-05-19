@@ -1,7 +1,9 @@
 import os
 import secrets
 import subprocess
-import yaml
+import json
+import time
+from pathlib import Path
 
 from fastapi import APIRouter, Response, Request
 from fastapi.templating import Jinja2Templates
@@ -30,12 +32,11 @@ async def health_check():
 
 @router.get("/update-extensions")
 async def update_extensions():
-
-    install_error = utils.execute_update_extensions()
+    install_error, message = utils.execute_update_extensions()
     if install_error is False:
-        return Response(f"Successfully updated the extensions", 202)
+        return Response(message, 202)
     else:
-        return Response(f"We had troubles updating the extensions", 500)
+        return Response(message, 500)
 
 
 @router.get("/helm-delete-chart")
@@ -145,3 +146,54 @@ async def view_chart_status(release_name: str):
         return status
     else:
         return Response(f"Release not found", 404)
+
+@router.get("/extensions-init")
+async def extensions_init():
+    print('##############################################################################')
+    print('Update extensions on startup!')
+    print('##############################################################################')
+    install_error, message = utils.execute_update_extensions()
+    if install_error is False:
+        print(message)
+    else:
+        return Response(f"Error updating the extensions", 500)
+
+    print('##############################################################################')
+    print('Preinstalling extensions on startup!')
+    print('##############################################################################')
+    preinstall_extensions = json.loads(os.environ.get('PREINSTALL_EXTENSIONS', '[]').replace(',]', ']'))
+    for extension in preinstall_extensions:
+        helm_command = 'nothing to say...'
+        extension_found = False
+        for _ in range(10):
+            time.sleep(1)
+            extension_path = Path(settings.helm_extensions_cache) / f'{extension["name"]}-{extension["version"]}.tgz'
+            if extension_path.is_file():
+                extension_found = True
+                continue
+            else:
+                print('Extension not there yet')
+        if extension_found is False:
+            print(f'Skipping {extension_path}, since we could find the extension in the file system')
+            continue
+        try:
+            resp, helm_command = utils.helm_install(extension)
+            print(f"Trying to install chart with {helm_command}", resp)
+        except Exception as e:
+            print(f'Skipping {extension_path}, since we had problems installing the extension')
+
+
+    print('##############################################################################')
+    print('Prefechting extensions on startup!')
+    print('##############################################################################')
+    if settings.offline_mode is False and settings.prefetch_extensions is True:
+        try:
+            utils.helm_prefetch_extension_docker()
+            print(f"Trying to prefetch all docker container of extensions")
+        except:
+            print(f"Could not prefetch the docker containers, please check the logs")
+    else:
+        print('Offline mode is set to False!')
+        print("Not prefetching...")
+
+    return Response(f"Successfully exectued extensions-init", 200)

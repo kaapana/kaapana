@@ -2,29 +2,29 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: copy-kube-helm-collections-{{ $uuid }}
+  name: remove-kube-helm-collections-{{ $uuid }}
   namespace: default
+  annotations:
+    "helm.sh/hook": post-delete
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
 spec:
   template:
     spec:
       containers:
-      - name: copy-kube-helm-collections-{{ $uuid }}
+      - name: remove-kube-helm-collections-{{ $uuid }}
         image: "{{ .Values.kube_helm_collection }}"
-        {{- if .Values.global.offline_mode }}
         imagePullPolicy: Never
-        {{- else }}
-        imagePullPolicy: Always
-        {{- end }}
         env:
         - name: ACTION
-          value: copy
+          value: "remove"
         - name: CHARTS_DIR
           value: "{{ .Values.global.charts_dir }}"
         volumeMounts:
         - name: data
           mountPath: /extensions
-      # securityContext:
-      #   runAsUser: 0
+      securityContext:
+        runAsUser: 0
       volumes:
       - name: data
         hostPath:

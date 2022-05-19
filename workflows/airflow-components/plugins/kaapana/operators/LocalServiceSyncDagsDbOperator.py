@@ -14,7 +14,15 @@ from kaapana.blueprints.kaapana_global_variables import WORKFLOW_DIR
 
 
 class LocalServiceSyncDagsDbOperator(KaapanaPythonBaseOperator):
+    """
+    Operator to synchronize DAG-files with Airflow.
 
+    This operator synchronizes DAG-files on the file system with the Airflow API.
+    So far, this operator supports the synchronization of DAGs in terms of removing DAGs from the Airflow API.
+    The operator checks whether a DAG-file is still present in the Airflow API but not anymore in the DAG-files on the file-system, and removes the DAG from the Airflow API.
+    This operator is applied when uninstalling extensions from the platform.
+    """
+    
     def start(self, ds, **kwargs):
         conf = kwargs['dag_run'].conf
 
@@ -48,6 +56,9 @@ class LocalServiceSyncDagsDbOperator(KaapanaPythonBaseOperator):
         expired_period=timedelta(days=60),
         **kwargs
         ):
+        """
+        :param dag:
+        """
         
         self.expired_period = expired_period
         

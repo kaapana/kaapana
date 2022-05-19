@@ -126,7 +126,6 @@ class BuildUtils:
         }
         BuildUtils.issues_list.append(issue)
 
-        BuildUtils.logger.error(json.dumps(issue, indent=4, sort_keys=True))
         if level == "WARN":
             BuildUtils.logger.warn(f"Added issue:")
             BuildUtils.logger.warn(json.dumps(issue, indent=4, sort_keys=True))

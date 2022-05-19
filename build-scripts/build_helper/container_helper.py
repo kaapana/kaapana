@@ -215,7 +215,7 @@ class Container:
 
     def build(self):
         if Container.enable_build:
-            BuildUtils.logger.info(f"{self.build_tag}: build")
+            BuildUtils.logger.debug(f"{self.build_tag}: build")
             if self.container_pushed:
                 BuildUtils.logger.debug(f"{self.build_tag}: already build -> skip")
                 return
@@ -244,12 +244,13 @@ class Container:
                 self.already_built = True
                 hours, rem = divmod(time()-startTime, 3600)
                 minutes, seconds = divmod(rem, 60)
-                BuildUtils.logger.info("{}: Build-time: {:0>2}:{:0>2}:{:05.2f}".format(self.build_tag, int(hours), int(minutes), seconds))
+                BuildUtils.logger.info("{}: Sucess! -> Build-time: {:0>2}:{:0>2}:{:05.2f}".format(self.build_tag, int(hours), int(minutes), seconds))
                 self.container_build = True
         else:
             BuildUtils.logger.debug(f"{self.build_tag}: build disabled")
 
     def push(self, retry=True):
+        BuildUtils.logger.debug(f"{self.build_tag}: push")
         if Container.enable_push:
             if not self.local_image:
                 BuildUtils.logger.debug(f"{self.build_tag}: push")

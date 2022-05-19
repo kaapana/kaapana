@@ -730,6 +730,12 @@ class HelmChart:
                     src=dockerfile_path,
                     dst=build_dockerfile_path
                 )
+                if len(collection_container.base_images) > 0:
+                    base_image_container = [x for x in BuildUtils.container_images_available if x.tag == collection_container.base_images[0].tag]
+                    assert len(base_image_container) == 1
+                    base_image_container=base_image_container[0]
+                    base_image_container.build_tag = base_image_container.tag
+                    base_image_container.build()
                 collection_container.path = build_dockerfile_path
                 collection_container.container_dir = collection.build_chart_dir
                 collection_container.build_tag = f"{BuildUtils.default_registry}/{collection_container.image_name}:{platform.version_prefix}{collection_container.image_version}"

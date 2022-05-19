@@ -6,5 +6,5 @@ log_level: "INFO" # DEBUG, INFO, WARN or ERROR
 build_only: false # Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/
 platform_filter: "" # comma sperated platform-chart-names
 external_source_dirs: "" # comma sperated paths 
-exit_on_error: true
+exit_on_error: false
 enable_linting: false

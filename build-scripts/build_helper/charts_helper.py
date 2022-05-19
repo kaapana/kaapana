@@ -255,15 +255,19 @@ class HelmChart:
         self.ignore_linting = False
         if "ignore_linting" in chart_yaml:
             self.ignore_linting = chart_yaml["ignore_linting"]
-
-        self.kaapana_type = None
-        if "kaapana_type" in chart_yaml:
-            self.kaapana_type = chart_yaml["kaapana_type"].lower()
-
+        
         self.path = self.chartfile
         self.chart_dir = dirname(chartfile)
         self.chart_id = f"{self.name}:{self.version}"
         BuildUtils.logger.debug(f"{self.chart_id}: chart init")
+
+        self.kaapana_type = None
+        if "kaapana_type" in chart_yaml:
+            self.kaapana_type = chart_yaml["kaapana_type"].lower()
+        elif "keywords" in chart_yaml and "kaapanaworkflow" in chart_yaml["keywords"]:
+            self.kaapana_type = "kaapanaworkflow"
+ 
+
         self.check_container_use()
 
     def add_dependency_by_id(self, dependency_id):
@@ -449,6 +453,26 @@ class HelmChart:
             else:
                 BuildUtils.logger.debug(f"{self.chart_id}: container already present: {container_found.tag}")
 
+            if container_found.operator_containers != None:
+                for operator_container in container_found.operator_containers:
+                    oparator_container_found = [x for x in BuildUtils.container_images_available if x.tag == operator_container]
+                    if len(oparator_container_found) == 1:
+                        oparator_container_found=oparator_container_found[0]
+                        if oparator_container_found.tag not in self.chart_containers:
+                            self.chart_containers[oparator_container_found.tag] = oparator_container_found
+                        else:
+                            BuildUtils.logger.debug(f"{self.chart_id}: operator container already present: {oparator_container_found.tag}")
+                    else:
+                        BuildUtils.logger.error(f"Chart oeprator container needed {operator_container}")
+                        BuildUtils.generate_issue(
+                            component=suite_tag,
+                            name=f"{self.chart_id}",
+                            msg=f"Chart operator container not found in available images: {operator_container}",
+                            level="ERROR",
+                            path=self.chart_dir
+                        )
+
+
         else:
             BuildUtils.logger.error(f"Chart container needed {container_tag}")
             BuildUtils.logger.error(f"Chart container issue - found: {len(containers_found)}")
@@ -462,6 +486,17 @@ class HelmChart:
 
     def check_container_use(self):
         BuildUtils.logger.debug(f"{self.chart_id}: check_container_use")
+        
+        if self.kaapana_type == "kaapanaworkflow":
+            values_file = join(self.chart_dir,"values.yaml")
+            if exists(values_file):
+                with open(str(values_file)) as f:
+                    values_yaml = yaml.safe_load(f)
+                if "global" in values_yaml and "image" in values_yaml["global"]:
+                    image = values_yaml["global"]["image"]
+                    version = values_yaml["global"]["version"]
+                    image_id = f"{BuildUtils.default_registry}/{image}:{version}"
+                    self.add_container_by_tag(container_tag=image_id)
 
         template_dirs = (f"{self.chart_dir}/templates/*.yaml", f"{self.chart_dir}/crds/*.yaml")  # the tuple of file types
         files_grabbed = []

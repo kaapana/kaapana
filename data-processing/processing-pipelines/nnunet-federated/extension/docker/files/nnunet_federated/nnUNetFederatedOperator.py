@@ -16,7 +16,7 @@ class nnUNetFederatedOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name=name,
-            image=f"{default_registry}/nnunet-federated:{default_platform_abbr}_{default_platform_version}__03-22",
+            image=f"{default_registry}/nnunet-federated:{default_platform_abbr}_{default_platform_version}__0.1.0",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             ram_mem_mb=1000,

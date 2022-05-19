@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+version: 0.1.0
+name: kaapana-extension-collection
+description: kaapana-extension-collection
+kaapana_type: extenstion-collection
+ignore_linting: true

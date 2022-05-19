@@ -7,6 +7,8 @@ from shutil import which
 from build_helper.build_utils import BuildUtils
 
 suite_tag = "Container"
+
+
 def container_registry_login(username, password):
     BuildUtils.logger.info(f"-> Container registry-logout: {BuildUtils.default_registry}")
     command = [Container.container_engine, "logout", BuildUtils.default_registry]
@@ -29,6 +31,7 @@ def container_registry_login(username, password):
         BuildUtils.logger.error(f"Message: {output.stdout}")
         BuildUtils.logger.error(f"Error:   {output.stderr}")
         exit(1)
+
 
 class BaseImage:
     registry = None
@@ -139,6 +142,7 @@ class Container:
         self.container_build = False
         self.container_pushed = False
         self.local_image = False
+        self.build_tag = None
         self.operator_containers = None
 
         if not os.path.isfile(dockerfile):
@@ -181,11 +185,11 @@ class Container:
             self.tag = self.registry+"/"+self.image_name+":"+self.image_version
             if "local-only" in self.tag:
                 self.local_image = True
-        
+
         self.check_if_dag()
 
     def check_prebuild(self):
-        BuildUtils.logger.debug(f"{self.tag}: check_prebuild")
+        BuildUtils.logger.debug(f"{self.build_tag}: check_prebuild")
         os.chdir(self.container_dir)
         pre_build_script = os.path.dirname(self.path)+"/pre_build.sh"
         if os.path.isfile(pre_build_script):
@@ -193,13 +197,13 @@ class Container:
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3600)
 
             if output.returncode == 0:
-                BuildUtils.logger.debug(f"{self.tag}: pre-build ok.")
+                BuildUtils.logger.debug(f"{self.build_tag}: pre-build ok.")
 
             else:
-                BuildUtils.logger.error(f"{self.tag}: pre-build failed!")
+                BuildUtils.logger.error(f"{self.build_tag}: pre-build failed!")
                 BuildUtils.generate_issue(
                     component=suite_tag,
-                    name=f"{self.tag}",
+                    name=f"{self.build_tag}",
                     msg="pre-build failed!",
                     level="ERROR",
                     output=output,
@@ -207,30 +211,30 @@ class Container:
                 )
 
         else:
-            BuildUtils.logger.debug(f"{self.tag}: no pre-build script!")
+            BuildUtils.logger.debug(f"{self.build_tag}: no pre-build script!")
 
     def build(self):
         if Container.enable_build:
-            BuildUtils.logger.debug(f"{self.tag}: build")
+            BuildUtils.logger.info(f"{self.build_tag}: build")
             if self.container_pushed:
-                BuildUtils.logger.debug(f"{self.tag}: already build -> skip")
+                BuildUtils.logger.debug(f"{self.build_tag}: already build -> skip")
                 return
 
             startTime = time()
             os.chdir(self.container_dir)
             if BuildUtils.http_proxy is not None:
                 command = [Container.container_engine, "build", "--build-arg", f"http_proxy={BuildUtils.http_proxy}",
-                           "--build-arg", f"https_proxy={BuildUtils.http_proxy}", "-t", self.tag, "-f", self.path, "."]
+                           "--build-arg", f"https_proxy={BuildUtils.http_proxy}", "-t", self.build_tag, "-f", self.path, "."]
             else:
-                command = [Container.container_engine, "build", "-t", self.tag, "-f", self.path, "."]
+                command = [Container.container_engine, "build", "-t", self.build_tag, "-f", self.path, "."]
 
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000, env=dict(os.environ, DOCKER_BUILDKIT=f"{BuildUtils.enable_build_kit}"))
 
             if output.returncode != 0:
-                BuildUtils.logger.error(f"{self.tag}: build failed!")
+                BuildUtils.logger.error(f"{self.build_tag}: build failed!")
                 BuildUtils.generate_issue(
                     component=suite_tag,
-                    name=f"{self.tag}",
+                    name=f"{self.build_tag}",
                     msg="container build failed!",
                     level="ERROR",
                     output=output,
@@ -240,24 +244,24 @@ class Container:
                 self.already_built = True
                 hours, rem = divmod(time()-startTime, 3600)
                 minutes, seconds = divmod(rem, 60)
-                BuildUtils.logger.info("{}: Build-time: {:0>2}:{:0>2}:{:05.2f}".format(self.tag, int(hours), int(minutes), seconds))
+                BuildUtils.logger.info("{}: Build-time: {:0>2}:{:0>2}:{:05.2f}".format(self.build_tag, int(hours), int(minutes), seconds))
                 self.container_build = True
         else:
-            BuildUtils.logger.debug(f"{self.tag}: build disabled")
+            BuildUtils.logger.debug(f"{self.build_tag}: build disabled")
 
     def push(self, retry=True):
         if Container.enable_push:
             if not self.local_image:
-                BuildUtils.logger.debug(f"{self.tag}: push")
+                BuildUtils.logger.debug(f"{self.build_tag}: push")
                 if self.container_pushed:
-                    BuildUtils.logger.debug(f"{self.tag}: already pushed -> skip")
+                    BuildUtils.logger.debug(f"{self.build_tag}: already pushed -> skip")
                     return
-                
+
                 if not self.container_build:
-                    BuildUtils.logger.warning(f"{self.tag}: push skipped -> container not build!")
+                    BuildUtils.logger.warning(f"{self.build_tag}: push skipped -> container not build!")
                     BuildUtils.generate_issue(
                         component=suite_tag,
-                        name=f"{self.tag}",
+                        name=f"{self.build_tag}",
                         msg="Push skipped -> container not build!",
                         level="WARNING",
                         path=self.container_dir
@@ -266,7 +270,7 @@ class Container:
                 max_retires = 2
                 retries = 0
 
-                command = [Container.container_engine, "push", self.tag]
+                command = [Container.container_engine, "push", self.build_tag]
 
                 while retries < max_retires:
                     retries += 1
@@ -275,48 +279,48 @@ class Container:
                         break
 
                 if output.returncode == 0 and ("Pushed" in output.stdout or "podman" in Container.container_engine):
-                    BuildUtils.logger.info(f"{self.tag}: pushed")
+                    BuildUtils.logger.info(f"{self.build_tag}: pushed")
                     self.container_pushed = True
 
                 if output.returncode == 0:
-                    BuildUtils.logger.info(f"{self.tag}: pushed -> nothing was changed.")
+                    BuildUtils.logger.info(f"{self.build_tag}: pushed -> nothing was changed.")
                     self.container_pushed = True
 
                 elif output.returncode != 0 and "configured as immutable" in output.stderr:
-                    BuildUtils.logger.info(f"{self.tag}: not pushed -> immutable!")
+                    BuildUtils.logger.info(f"{self.build_tag}: not pushed -> immutable!")
                     self.container_pushed = True
 
                 elif output.returncode != 0 and "read only mode" in output.stderr and retry:
-                    BuildUtils.logger.info(f"{self.tag}: not pushed -> read only mode!")
+                    BuildUtils.logger.info(f"{self.build_tag}: not pushed -> read only mode!")
                     self.container_pushed = True
 
                 elif output.returncode != 0 and "denied" in output.stderr and retry:
-                    BuildUtils.logger.error(f"{self.tag}: not pushed -> access denied!")
+                    BuildUtils.logger.error(f"{self.build_tag}: not pushed -> access denied!")
                     BuildUtils.generate_issue(
                         component=suite_tag,
-                        name=f"{self.tag}",
+                        name=f"{self.build_tag}",
                         msg="container pushed failed!",
                         level="ERROR",
                         output=output,
                         path=self.container_dir
                     )
                 else:
-                    BuildUtils.logger.error(f"{self.tag}: not pushed -> unknown reason!")
+                    BuildUtils.logger.error(f"{self.build_tag}: not pushed -> unknown reason!")
                     BuildUtils.generate_issue(
                         component=suite_tag,
-                        name=f"{self.tag}",
+                        name=f"{self.build_tag}",
                         msg="container pushed failed!",
                         level="ERROR",
                         output=output,
                         path=self.container_dir
                     )
             else:
-                BuildUtils.logger.debug(f"{self.tag}: push skipped -> local registry found")
+                BuildUtils.logger.debug(f"{self.build_tag}: push skipped -> local registry found")
         else:
-            BuildUtils.logger.debug(f"{self.tag}: push disabled")
-        
+            BuildUtils.logger.debug(f"{self.build_tag}: push disabled")
+
     def check_if_dag(self):
-        self.operator_containers=[]
+        self.operator_containers = []
         python_files = glob(self.container_dir+"/**/*.py", recursive=True)
         for python_file in python_files:
             if "operator" not in python_file.lower():
@@ -325,9 +329,9 @@ class Container:
             with open(python_file, "r") as python_content:
                 for line in python_content:
                     if "image=" in line and "{default_registry}" in line:
-                        line = line.split("\"")[1].replace(" ","")
-                        line = line.replace("{default_platform_abbr}_{default_platform_version}__","")
-                        container_id = line.replace("{default_registry}",BuildUtils.default_registry)
+                        line = line.split("\"")[1].replace(" ", "")
+                        line = line.replace("{default_platform_abbr}_{default_platform_version}__", "")
+                        container_id = line.replace("{default_registry}", BuildUtils.default_registry)
                         self.operator_containers.append(container_id)
 
     @staticmethod

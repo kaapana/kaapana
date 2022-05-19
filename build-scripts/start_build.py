@@ -234,8 +234,6 @@ if __name__ == '__main__':
     logger.info("")
 
     HelmChart.generate_platform_build_tree()
-    HelmChart.build_platforms()
-    
 
     if len(BuildUtils.issues_list) > 0:
         logger.info("")

@@ -1,7 +1,6 @@
 from time import time
 import json
 import networkx as nx
-# import matplotlib.pyplot as plt
 from os.path import join, dirname, basename, exists, isfile, isdir
 
 
@@ -18,7 +17,6 @@ class BuildUtils:
     external_source_dirs = None
     issues_list = None
     exit_on_error = True
-    build_graph = None
     enable_build_kit = None
 
     @staticmethod
@@ -51,8 +49,7 @@ class BuildUtils:
         BuildUtils.external_source_dirs = external_source_dirs
         BuildUtils.exit_on_error = exit_on_error
         BuildUtils.issues_list = []
-        BuildUtils.build_graph = nx.DiGraph(directed=True)
-        BuildUtils.build_graph.add_node("ROOT")
+
         BuildUtils.base_images_used = []
         BuildUtils.enable_build_kit = enable_build_kit
 
@@ -61,8 +58,8 @@ class BuildUtils:
         return str(int(time() * 1000))
 
     @staticmethod
-    def get_build_order():
-        graph_bottom_up = list(reversed(list(nx.topological_sort(BuildUtils.build_graph))))
+    def get_build_order(build_graph):
+        graph_bottom_up = list(reversed(list(nx.topological_sort(build_graph))))
 
         build_order = []
         for entry in graph_bottom_up:
@@ -80,17 +77,11 @@ class BuildUtils:
                     print(f"{entry_id} not found!")
                 continue
             elif "base-image:" in entry:
-                if "mitk-base:0.1.0" in entry_id:
-                    print()
                 if entry_id in BuildUtils.container_images_unused:
                     del BuildUtils.container_images_unused[entry_id]
-                else:
-                    print(f"{entry_id} not found!")
             elif "container:" in entry:
                 if entry_id in BuildUtils.container_images_unused:
                     del BuildUtils.container_images_unused[entry_id]
-                else:
-                    print(f"{entry_id} not found!")
 
                 if "local-only" not in name and BuildUtils.default_registry not in name:
                     continue

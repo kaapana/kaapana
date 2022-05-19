@@ -1,5 +1,5 @@
 project_name: starter-platform-chart
-project_abbr: kp
+project_abbr: sp
 default_version: 0.1.3
 offline_mode: 'false'
 prefetch_extensions: 'false'

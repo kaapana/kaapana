@@ -827,6 +827,8 @@ class HelmChart:
                 charts_to_build.append(chart_object)
 
                 HelmChart.build_platform(platform_chart=chart_object)
+        
+        BuildUtils.generate_component_usage_info()
 
 
 ############################################################

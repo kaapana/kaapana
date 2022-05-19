@@ -83,14 +83,9 @@ class BuildUtils:
                 if entry_id in BuildUtils.container_images_unused:
                     del BuildUtils.container_images_unused[entry_id]
 
-                if "local-only" not in name and BuildUtils.default_registry not in name:
-                    continue
+            if "local-only" in name or BuildUtils.default_registry in name:
                 build_order.append(entry_id)
 
-            else:
-                print()
-
-        BuildUtils.generate_component_usage_info()
         return build_order
 
     @staticmethod

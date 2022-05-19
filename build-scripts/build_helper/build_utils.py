@@ -80,6 +80,8 @@ class BuildUtils:
                     print(f"{entry_id} not found!")
                 continue
             elif "base-image:" in entry:
+                if "mitk-base:0.1.0" in entry_id:
+                    print()
                 if entry_id in BuildUtils.container_images_unused:
                     del BuildUtils.container_images_unused[entry_id]
                 else:

@@ -487,14 +487,17 @@ class HelmChart:
     def check_container_use(self):
         BuildUtils.logger.debug(f"{self.chart_id}: check_container_use")
         
-        if self.kaapana_type == "kaapanaworkflow":
-            values_file = join(self.chart_dir,"values.yaml")
-            if exists(values_file):
-                with open(str(values_file)) as f:
-                    values_yaml = yaml.safe_load(f)
-                if "global" in values_yaml and "image" in values_yaml["global"]:
-                    image = values_yaml["global"]["image"]
-                    version = values_yaml["global"]["version"]
+        # if self.kaapana_type == "kaapanaworkflow":
+        values_file = join(self.chart_dir,"values.yaml")
+        if exists(values_file):
+            with open(str(values_file)) as f:
+                values_yaml = list(yaml.load_all(f, yaml.FullLoader))
+            for yaml_file in values_yaml:
+                if yaml_file == None:
+                    continue
+                if "global" in yaml_file and "image" in yaml_file["global"]:
+                    image = yaml_file["global"]["image"]
+                    version = yaml_file["global"]["version"]
                     image_id = f"{BuildUtils.default_registry}/{image}:{version}"
                     self.add_container_by_tag(container_tag=image_id)
 

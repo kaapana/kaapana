@@ -316,20 +316,19 @@ class Container:
             BuildUtils.logger.debug(f"{self.tag}: push disabled")
         
     def check_if_dag(self):
-        if "dag-" in self.tag.lower():
-            self.operator_containers=[]
-            python_files = glob(self.container_dir+"/**/*.py", recursive=True)
-            for python_file in python_files:
-                if "operator" not in python_file.lower():
-                    continue
+        self.operator_containers=[]
+        python_files = glob(self.container_dir+"/**/*.py", recursive=True)
+        for python_file in python_files:
+            if "operator" not in python_file.lower():
+                continue
 
-                with open(python_file, "r") as python_content:
-                    for line in python_content:
-                        if "image=" in line and "{default_registry}" in line:
-                            line = line.split("\"")[1].replace(" ","")
-                            line = line.replace("{default_platform_abbr}_{default_platform_version}__","")
-                            container_id = line.replace("{default_registry}",BuildUtils.default_registry)
-                            self.operator_containers.append(container_id)
+            with open(python_file, "r") as python_content:
+                for line in python_content:
+                    if "image=" in line and "{default_registry}" in line:
+                        line = line.split("\"")[1].replace(" ","")
+                        line = line.replace("{default_platform_abbr}_{default_platform_version}__","")
+                        container_id = line.replace("{default_registry}",BuildUtils.default_registry)
+                        self.operator_containers.append(container_id)
 
     @staticmethod
     def init_containers(container_engine, enable_build=True, enable_push=True):

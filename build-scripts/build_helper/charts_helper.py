@@ -797,8 +797,11 @@ class HelmChart:
             BuildUtils.logger.info(f"container {i}/{container_count}: {container_id}")
             container_to_build = [x for x in BuildUtils.container_images_available if x.tag == container_id]
             if len(container_to_build) == 1:
-                container_to_build[0].build()
-                container_to_build[0].push()
+                container_to_build= container_to_build[0]
+                if container_to_build.local_image and container_to_build.build_tag == None:
+                    container_to_build.build_tag = container_to_build.tag
+                container_to_build.build()
+                container_to_build.push()
             else:
                 BuildUtils.logger.error(f"{container_id} could not be found in available containers!")
                 BuildUtils.generate_issue(

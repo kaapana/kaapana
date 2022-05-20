@@ -182,7 +182,6 @@ class HelmChart:
         self.dependencies = {}
         self.collections = {}
         self.dependencies_count_all = None
-        self.images_to_be_build = None
         self.values_yaml = None
         self.requirements_yaml = None
         self.chart_yaml = None
@@ -559,24 +558,6 @@ class HelmChart:
                 output=output,
                 path=self.chart_dir
             )
-
-    def build_containers(self):
-        BuildUtils.logger.debug(f"{self.chart_id}: build_containers")
-        if self.images_to_be_build == None:
-            BuildUtils.logger.debug(f"{self.chart_id}: No containers to build!")
-            return
-        for container_to_build in self.images_to_be_build:
-            BuildUtils.logger.info("")
-            BuildUtils.logger.info("")
-            BuildUtils.logger.info("#########################################################################")
-            BuildUtils.logger.info("")
-            BuildUtils.logger.info(f"{self.chart_id}: building container: {container_to_build.container_id}")
-            if container_to_build.already_built:
-                BuildUtils.logger.info(f"{self.chart_id}: {container_to_build.container_id} was already build.")
-            else:
-                container_to_build.check_prebuild()
-                container_to_build.build()
-                container_to_build.push()
 
     def remove_tgz_files(self):
         BuildUtils.logger.debug(f"{self.chart_id}: remove_tgz_files")

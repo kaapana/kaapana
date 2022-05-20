@@ -77,7 +77,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
             time.sleep(15)
             url = f'{KaapanaApplicationOperator.HELM_API}/view-chart-status'
             r = requests.get(url, params={'release_name': release_name})
-            if r.status_code == 500:
+            if r.status_code == 500 or r.status_code == 404:
                 print(f'Release {release_name} was uninstalled. My job is done here!')
                 break
             r.raise_for_status()

@@ -418,7 +418,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 })
 
             self.volume_mounts.append(VolumeMount(
-                'devdata', mount_path='/dev', sub_path=None, read_only=False
+                'devdata', mount_path='/devdata', sub_path=None, read_only=False
             ))
 
             self.volumes.append(
@@ -492,7 +492,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 time.sleep(15)
                 url = f'{KaapanaBaseOperator.HELM_API}/view-chart-status'
                 r = requests.get(url, params={'release_name': release_name})
-                if r.status_code == 500:
+                if r.status_code == 500 or r.status_code == 404:
                     print(f'Release {release_name} was uninstalled. My job is done here!')
                     break
                 r.raise_for_status()

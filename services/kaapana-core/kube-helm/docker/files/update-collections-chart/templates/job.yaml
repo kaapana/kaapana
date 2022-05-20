@@ -11,7 +11,7 @@ spec:
       - name: copy-kube-helm-collections-{{ $uuid }}
         image: "{{ .Values.kube_helm_collection }}"
         {{- if .Values.global.offline_mode }}
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
         {{- else }}
         imagePullPolicy: Always
         {{- end }}

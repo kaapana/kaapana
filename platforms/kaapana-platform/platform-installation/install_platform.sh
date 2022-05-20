@@ -245,6 +245,7 @@ function install_chart {
 
         if [ $(basename "$CHART_PATH") != "$PROJECT_NAME-$DEFAULT_VERSION.tgz" ]; then
             echo "${RED} Verison of chart_path $CHART_PATH differs from PROJECT_NAME: $PROJECT_NAME and DEFAULT_VERSION: $DEFAULT_VERSION in the installer script.${NC}" 
+            exit 1
         fi
 
         while true; do

@@ -167,7 +167,7 @@ class KaapanaFederatedTrainingBase(ABC):
         self.central_thread = None
         self.central_thread_error = None
         self.federated_dir = os.getenv('RUN_ID', str(uuid.uuid4()))
-        self.workflow_dir = workflow_dir or os.getenv('WORKFLOW_DIR', f'/appdata/data/federated-setup-central-test-220316153201233296')
+        self.workflow_dir = workflow_dir or os.getenv('WORKFLOW_DIR', f'/kaapanasrc/data/federated-setup-central-test-220316153201233296')
         print('working directory', self.workflow_dir)
 
         conf_data = self.get_conf(self.workflow_dir)

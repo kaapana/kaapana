@@ -103,6 +103,12 @@ ui_forms = {
                 "default": TASK_NAME,
                 "required": True
             },
+            "experiment_name": {
+                "title": "Experiment name",
+                "description": "Specify a name for the training task",
+                "type": "string",
+                "required": False
+            },
             "model": {
                 "title": "Network",
                 "default": default_model,
@@ -329,7 +335,7 @@ generate_nnunet_report = NnUnetNotebookOperator(
     dag=dag,
     name='generate-nnunet-report',
     input_operator=nnunet_train,
-    arguments=["/kaapanasrc/run_generate_nnunet_report.sh"]
+    arguments=["/kaapanasrc/notebooks/nnunet_training/run_generate_nnunet_report.sh"]
 )
 
 put_to_minio = LocalMinioOperator(dag=dag, name='upload-nnunet-data', zip_files=True, action='put', action_operators=[nnunet_train, generate_nnunet_report], file_white_tuples=('.zip'))

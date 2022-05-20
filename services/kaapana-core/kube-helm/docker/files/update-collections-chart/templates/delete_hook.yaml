@@ -14,7 +14,7 @@ spec:
       containers:
       - name: remove-kube-helm-collections-{{ $uuid }}
         image: "{{ .Values.kube_helm_collection }}"
-        imagePullPolicy: Never
+        imagePullPolicy: IfNotPresent
         env:
         - name: ACTION
           value: "remove"

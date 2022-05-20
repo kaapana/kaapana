@@ -73,6 +73,12 @@ ui_forms = {
             #     "type": "string",
             #     "readOnly": True,
             # },
+            "experiment_name": {
+                "title": "Experiment name",
+                "description": "Specify a name for the training task",
+                "type": "string",
+                "required": False
+            },
             "model_protocols": {
                 "title": "Model protocols",
                 "description": "Protocol of model",
@@ -266,6 +272,7 @@ nnunet_predict = NnUnetOperator(
     inf_remove_if_empty=False,
     interpolation_order=default_interpolation_order,
     models_dir=extract_model.operator_out_dir,
+    # dev_server="code-server"
 )
 
 do_inference = LocalDataorganizerOperator(
@@ -359,8 +366,8 @@ nnunet_evaluation_notebook = NnUnetNotebookOperator(
     dag=dag,
     name='nnunet-evaluation-notebook',
     input_operator=evaluation,
-    arguments=["/kaapanasrc/run_nnunet_evaluation_notebook.sh"],
-    # dev_server='jupyterlab'
+    arguments=["/kaapanasrc/notebooks/nnunet_ensemble/run_nnunet_evaluation_notebook.sh"],
+    # dev_server='code-server'
 )
 
 put_to_minio = LocalMinioOperator(dag=dag, name='upload-staticwebsiteresults', bucket_name='staticwebsiteresults', action='put', action_operators=[nnunet_evaluation_notebook], file_white_tuples=('.html', '.pdf'))

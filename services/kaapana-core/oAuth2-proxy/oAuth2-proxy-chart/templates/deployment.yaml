@@ -46,7 +46,7 @@ spec:
           - --oidc-jwks-url=https://keycloak-internal-service.kube-system.svc/auth/realms/kaapana/protocol/openid-connect/certs
           - --profile-url=https://keycloak-internal-service.kube-system.svc/auth/realms/kaapana/protocol/openid-connect/userinfo
           - --https-address=0.0.0.0:8443
-          - --http-address=0.0.0.0:8080
+          # - --http-address=0.0.0.0:8080
           - --metrics-address=:8081
           - --tls-cert-file=/ssl/tls.crt 
           - --tls-key-file=/ssl/tls.key
@@ -70,8 +70,8 @@ spec:
           ports:
           - name: metrics
             containerPort: 8081
-          - name: http
-            containerPort: 8080
+          # - name: http
+          #   containerPort: 8080
           - name: https
             containerPort: 8443
           resources:

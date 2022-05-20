@@ -58,9 +58,9 @@ if __name__ == '__main__':
 
     kaapana_dir = args.kaapaa_dir if args.kaapaa_dir != None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if not os.path.isdir(os.path.join(kaapana_dir, "platforms")):
-        logger.error("-----------------------------------------------------------")
+        logger.error("----------------------------------------------------------------------")
         logger.error("The dir 'platforms' was not found! -> wrong kaapana_dir? -> exit!")
-        logger.error("-----------------------------------------------------------")
+        logger.error("----------------------------------------------------------------------")
         exit(1)
 
     config_filepath = args.config_filepath

@@ -1,11 +1,9 @@
 
 import os
 import time
-import glob
 from datetime import timedelta
 from datetime import datetime
 import requests
-import shutil
 
 from airflow.models.dagbag import DagBag
 
@@ -32,6 +30,7 @@ class LocalServiceSyncDagsDbOperator(KaapanaPythonBaseOperator):
             except:
                 print(f"Connections issue: {url}")
                 success = False
+                time.sleep(5)
 
         if tries >= max_tries:
             print(f"Could not connect to: {url}")

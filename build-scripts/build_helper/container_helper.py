@@ -463,7 +463,7 @@ class Container:
                 if base_image.local_image and base_image.tag not in Container.container_object_list:
                     container.missing_base_images.append(base_image)
                     BuildUtils.logger.error("")
-                    BuildUtils.logger.error(f"-> {container.container_id} - base_image missing: {base_image.tag}")
+                    BuildUtils.logger.error(f"-> {container.tag} - base_image missing: {base_image.tag}")
                     BuildUtils.logger.error("")
                     if BuildUtils.exit_on_error:
                         exit(1)

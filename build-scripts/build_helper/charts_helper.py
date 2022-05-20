@@ -3,8 +3,7 @@ from glob import glob
 import shutil
 import yaml
 import os
-import copy
-from treelib import Node, Tree
+from treelib import Tree
 from subprocess import PIPE, run
 from os.path import join, dirname, basename, exists, isfile, isdir
 from time import time
@@ -27,7 +26,7 @@ def generate_tree_node(chart_object, tree, parent):
         tree.create_node("containers", containers_node_id, parent=node_id)
         for container_tag, container in chart_object.chart_containers.items():
             container_node_id = f"{node_id}-{container.image_name}-{container.image_version}"
-            tree.create_node(container.tag, container_node_id, parent=containers_node_id)
+            tree.create_node(container.build_tag, container_node_id, parent=containers_node_id)
 
             if len(container.base_images) > 0:
                 base_images_node_id = f"{container_node_id}-base-images"
@@ -279,7 +278,7 @@ class HelmChart:
                     BuildUtils.logger.warning(f"{self.chart_id}: {self.chart_dir} and")
                     BuildUtils.logger.warning(f"{self.chart_id}: {chart_identified.chart_dir}!")
                     BuildUtils.logger.warning(f"{self.chart_id}: -> using {chart_identified.chart_dir} as dependency..")
-                    self.dependencies[chart_identified] = chart_identified.chart_id
+                    self.dependencies[chart_identified.chart_id] = chart_identified
                 else:
                     BuildUtils.logger.warning(f"The right dependency could not be identified! -> found:")
                     for dep_found in chart_available:
@@ -569,7 +568,7 @@ class HelmChart:
 
     def lint_chart(self):
         if HelmChart.enable_lint:
-            BuildUtils.logger.info(f"{self.chart_id}: dep_lint_chartup")
+            BuildUtils.logger.info(f"{self.chart_id}: lint_chart")
             os.chdir(self.build_chart_dir)
             command = ["helm", "lint"]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=20)

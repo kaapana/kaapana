@@ -4,10 +4,10 @@ container_engine: "docker" # docker or podman
 enable_build_kit: false
 log_level: "INFO" # DEBUG, INFO, WARN or ERROR
 build_only: true # Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/
-create_offline_installation: true # whether to create a docker dump from which the platfrom can be installed
+create_offline_installation: false # whether to create a docker dump from which the platfrom can be installed
 push_to_microk8s: false
-exit_on_error: true
+exit_on_error: false
 enable_linting: true
 skip_push_no_changes: false # Advanced feature - should be false usually
-platform_filter: "kaapana-platform-chart" # comma sperated platform-chart-names
-external_source_dirs: "" # comma sperated paths 
+platform_filter: "racoon-platform-chart" # comma sperated platform-chart-names
+external_source_dirs: "/home/jonas/projects/racoon-repo" # comma sperated paths 

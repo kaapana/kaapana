@@ -46,7 +46,7 @@ if __name__ == '__main__':
     parser.add_argument("-p", "--password", dest="password", default=None, required=False, help="Password")
     parser.add_argument("-bo", "--build-only", dest="build_only", default=None, action='store_true', help="Just building the containers and charts -> no pushing")
     parser.add_argument("-oi", "--create-offline-installation", dest="create_offline_installation", default=None, help="Will create a docker dump, from which the platfrom can be installed.")
-    # parser.add_argument("-pm", "--push-to-microk8s", dest="push_to_microk8s", default=None, help="Will create a docker dump, from which the platfrom can be installed.")
+    parser.add_argument("-pm", "--push-to-microk8s", dest="push_to_microk8s", default=None, help="Will create a docker dump, from which the platfrom can be installed.")
     parser.add_argument("-kd", "--kaapana-dir", dest="kaapaa_dir", default=None, help="Kaapana repo path.")
     parser.add_argument("-ll", "--log-level", dest="log_level", default=None, help="Set log-level.")
     parser.add_argument("-el", "--enable-linting", dest="enable_linting", default=None, help="Enable Helm Chart lint & kubeval.")
@@ -85,7 +85,7 @@ if __name__ == '__main__':
     conf_log_level = configuration["log_level"]
     conf_build_only = configuration["build_only"]
     conf_create_offline_installation = configuration["create_offline_installation"]
-    # conf_push_to_microk8s = configuration["push_to_microk8s"]
+    conf_push_to_microk8s = configuration["push_to_microk8s"]
     conf_platform_filter = configuration["platform_filter"].split(",") if configuration["platform_filter"].replace(" ", "") != "" else []
     conf_external_source_dirs = configuration["external_source_dirs"].split(",") if configuration["external_source_dirs"].replace(" ", "") != "" else []
     conf_exit_on_error = configuration["exit_on_error"]
@@ -98,7 +98,7 @@ if __name__ == '__main__':
 
     build_only = args.build_only if args.build_only != None else conf_build_only
     create_offline_installation = args.create_offline_installation if args.create_offline_installation != None else conf_create_offline_installation
-    # push_to_microk8s = args.push_to_microk8s if args.push_to_microk8s != None else conf_push_to_microk8s
+    push_to_microk8s = args.push_to_microk8s if args.push_to_microk8s != None else conf_push_to_microk8s
     external_source_dirs = args.external_source_dirs.split(",") if args.external_source_dirs != None else conf_external_source_dirs
     log_level = args.log_level if args.log_level != None else conf_log_level
     enable_linting = args.enable_linting if args.enable_linting != None else conf_enable_linting
@@ -145,7 +145,7 @@ if __name__ == '__main__':
     logger.info(f"{charts_push=}")
     logger.info(f"{container_build=}")
     logger.info(f"{containers_push=}")
-    # logger.info(f"{push_to_microk8s=}")
+    logger.info(f"{push_to_microk8s=}")
     logger.info(f"{build_installer_scripts=}")
     logger.info(f"{container_engine=}")
     logger.info(f"{default_registry=}")
@@ -199,7 +199,7 @@ if __name__ == '__main__':
         enable_build_kit=conf_enable_build_kit,
         create_offline_installation=create_offline_installation,
         skip_push_no_changes=skip_push_no_changes,
-        # push_to_microk8s=push_to_microk8s
+        push_to_microk8s=push_to_microk8s
     )
 
     Container.init_containers(

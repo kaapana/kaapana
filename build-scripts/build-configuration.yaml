@@ -5,7 +5,7 @@ enable_build_kit: false
 log_level: "INFO" # DEBUG, INFO, WARN or ERROR
 build_only: false # Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/
 create_offline_installation: false # whether to create a docker dump from which the platfrom can be installed
-# push_to_microk8s: false
+push_to_microk8s: false
 platform_filter: "" # comma sperated platform-chart-names
 external_source_dirs: "" # comma sperated paths 
 exit_on_error: true

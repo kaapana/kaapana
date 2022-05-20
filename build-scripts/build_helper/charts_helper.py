@@ -813,27 +813,6 @@ class HelmChart:
                 )
             BuildUtils.logger.info("Finished: Generating platform docker dump.")
         
-        # if BuildUtils.push_to_microk8s is True:
-        #     BuildUtils.logger.info("Pushing containers to microk8s.")
-        #     for container_to_build in [container.build_tag for container in containers_built if not container.build_tag.startswith('local-only')][0:2]:
-        #         parking_file = str(Path(os.path.dirname(platform_chart.build_chart_dir)) / "parking.tar")
-        #         command = [Container.container_engine, "save", container_to_build, "-o", parking_file]
-        #         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)                
-        #         command = ["microk8s.ctr", "image", "import", parking_file, "&&", "rm", parking_file]
-        #         print(command)
-        #         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
-        #         print(output)
-        #         if output.returncode != 0:
-        #             BuildUtils.logger.error(f"Microk8s image push failed {output.stderr}!")
-        #             BuildUtils.generate_issue(
-        #                 component="Microk8s image push",
-        #                 name="Microk8s image push",
-        #                 msg=f"Microk8s image push failed {output.stderr}!",
-        #                 level="FATAL"
-        #             )
-        #         BuildUtils.logger.info(f"Pushing {container_to_build} succesfully to microk8s")
-        #     BuildUtils.logger.info("Finished: Pushing containers to microk8s.")            
-
     @staticmethod
     def generate_platform_build_tree():
         BuildUtils.logger.info(f"generate_platform_build_tree")

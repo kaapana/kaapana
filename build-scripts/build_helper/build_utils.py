@@ -20,6 +20,7 @@ class BuildUtils:
     enable_build_kit = None
     create_offline_installation = None
     skip_push_no_changes = None
+    push_to_microk8s = None
 
     @staticmethod
     def add_container_images_available(container_images_available):
@@ -42,8 +43,7 @@ class BuildUtils:
 
     @staticmethod
     def init(kaapana_dir, build_dir, external_source_dirs, platform_filter, default_registry, http_proxy, logger, exit_on_error, enable_build_kit,
-             create_offline_installation, skip_push_no_changes):
-        # , push_to_microk8s):
+             create_offline_installation, skip_push_no_changes, push_to_microk8s):
 
         BuildUtils.logger = logger
         BuildUtils.kaapana_dir = kaapana_dir
@@ -59,7 +59,7 @@ class BuildUtils:
         BuildUtils.enable_build_kit = enable_build_kit
         BuildUtils.create_offline_installation = create_offline_installation
         BuildUtils.skip_push_no_changes = skip_push_no_changes
-        # BuildUtils.push_to_microk8s = push_to_microk8s
+        BuildUtils.push_to_microk8s = push_to_microk8s
 
     @staticmethod
     def get_timestamp():

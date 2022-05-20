@@ -79,28 +79,10 @@ spec:
         volumeMounts:
           - name: helmextensions
             mountPath: "/root/extensions"
-          - name: helmconfig
-            mountPath: "/root/.config/helm"
-          - name: helmcache
-            mountPath: "/root/.cache/helm"
-          - name: helmlocal
-            mountPath: "/root/.local/share/helm"
       volumes:
       - name: helmextensions
         hostPath:
           path: {{ $.Values.global.fast_data_dir }}/extensions
-          type: DirectoryOrCreate
-      - name: helmconfig
-        hostPath:
-          path: {{ $.Values.global.home_dir }}/.config/helm
-          type: DirectoryOrCreate
-      - name: helmcache
-        hostPath:
-          path: {{ $.Values.global.home_dir }}/.cache/helm
-          type: DirectoryOrCreate
-      - name: helmlocal
-        hostPath: # TODO we really need to mount Helm? I think we should just install it in the container...
-          path: {{ $.Values.global.home_dir }}/.local/share/helm
           type: DirectoryOrCreate
       serviceAccountName: kubernetes-dashboard
       imagePullSecrets:

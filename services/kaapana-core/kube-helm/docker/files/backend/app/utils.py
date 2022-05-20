@@ -119,7 +119,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
         else:
             print(f'Prefetching {chart_name}')
             try:
-                release, _ = helm_install(payload, helm_command_addons='--dry-run', in_background=False)
+                release, _, _ = helm_install(payload, helm_command_addons='--dry-run', in_background=False)
                 manifest = json.loads(release.decode("utf-8"))["manifest"]
                 matches = re.findall(regex, manifest)
                 if matches:
@@ -269,7 +269,7 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
         elif helm_delete_prefix:
             print('Deleting and then installing again!')
         else:
-            return "already installed", 'no_helm_command'
+            return f"already installed {release_name}", "Nothing more to say", release_name
 
     helm_sets = ''
     if "sets" in payload:
@@ -283,9 +283,9 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
 
     print('hello', helm_command)
     if in_background is False:
-        return subprocess.check_output(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command
+        return subprocess.check_output(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command, release_name
     else:
-        return subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command
+        return subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command, release_name
 
 
 def helm_delete(release_name, helm_namespace=settings.helm_namespace, release_version=None, helm_command_addons=''):
@@ -482,22 +482,23 @@ def get_extensions_list():
     print('success', success)
     return success, extensions_list_cached
 
-def execute_update_extensions():
-    # Copied from kaapna_utils.py, maybe overhad...
-    def _cure_invalid_name(name, regex, max_length=None):
-        def _regex_match(regex, name):
-            if re.fullmatch(regex, name) is None:
-                invalid_characters = re.sub(regex, '', name)
-                for c in invalid_characters:
-                    name = name.replace(c, '')
-                print(f'Your name does not fullfill the regex {regex}, we adapt it to {name} to work with Kubernetes')
-            return name
-        name = _regex_match(regex, name)
-        if max_length is not None and len(name) > max_length:
-            name = name[:max_length]
-            print(f'Your name is too long, only {max_length} character are allowed, we will cut it to {name} to work with Kubernetes')
-        name = _regex_match(regex, name)
+# Copied from kaapna_utils.py, maybe overhad...
+def cure_invalid_name(name, regex, max_length=None):
+    def _regex_match(regex, name):
+        if re.fullmatch(regex, name) is None:
+            invalid_characters = re.sub(regex, '', name)
+            for c in invalid_characters:
+                name = name.replace(c, '')
+            print(f'Your name does not fullfill the regex {regex}, we adapt it to {name} to work with Kubernetes')
         return name
+    name = _regex_match(regex, name)
+    if max_length is not None and len(name) > max_length:
+        name = name[:max_length]
+        print(f'Your name is too long, only {max_length} character are allowed, we will cut it to {name} to work with Kubernetes')
+    name = _regex_match(regex, name)
+    return name
+
+def execute_update_extensions():
 
     chart = {
         'name': 'update-collections-chart',
@@ -509,7 +510,7 @@ def execute_update_extensions():
     install_error = False
     message = f"No kube_helm_collections defined..."
     for idx, kube_helm_collection in enumerate(settings.kube_helm_collections.split(';')[:-1]):
-        release_name = _cure_invalid_name("-".join(kube_helm_collection.split('/')[-1].split(':')), r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*", max_length=53)
+        release_name = cure_invalid_name("-".join(kube_helm_collection.split('/')[-1].split(':')), r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*", max_length=53)
         payload.update({
             'release_name': release_name,
             'sets': {
@@ -542,9 +543,3 @@ def execute_update_extensions():
                 message = f"We had troubles updating the extensions"
         
     return install_error, message
-
-
-if charts_cached == None:
-    helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
-
-rt = RepeatedTimer(5, get_extensions_list)

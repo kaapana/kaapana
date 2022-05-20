@@ -54,7 +54,7 @@ async def helm_add_custom_chart(request: Request):
     helm_command = 'nothing to say...'
     try:
         payload = await request.json()
-        resp, helm_command = utils.helm_install(payload)
+        resp, helm_command, _ = utils.helm_install(payload)
         return Response(f"Trying to install chart with {helm_command}", 200)
     except:
         return Response(f"A helm command error occured while executing {helm_command}!", 500)
@@ -75,18 +75,18 @@ async def pull_docker_image(request: Request):
         return Response(f"We could not download your container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}", 500)
 
 
-# @router.get("/prefetch-extension-docker")
-# async def prefetch_extension_docker():
-#     print('prefechting')
-#     if settings.offline_mode is False:
-#         try:
-#             utils.helm_prefetch_extension_docker()
-#             return Response(f"Trying to prefetch all docker container of extensions", 200)
-#         except:
-#             return Response(f"An error occured!", 500)
-#     else:
-#         print('Offline mode is set to False!')
-#         return Response(f"We will not prefetch the extensions since the platform was installed with OFFLINE_MODE set to true!", 200)
+@router.get("/prefetch-extension-docker")
+async def prefetch_extension_docker():
+    print('prefechting')
+    if settings.offline_mode is False:
+        try:
+            utils.helm_prefetch_extension_docker()
+            return Response(f"Trying to prefetch all docker container of extensions", 200)
+        except:
+            return Response(f"An error occured!", 500)
+    else:
+        print('Offline mode is set to False!')
+        return Response(f"We will not prefetch the extensions since the platform was installed with OFFLINE_MODE set to true!", 200)
 
 
 @router.get("/pending-applications")
@@ -146,54 +146,3 @@ async def view_chart_status(release_name: str):
         return status
     else:
         return Response(f"Release not found", 404)
-
-@router.get("/extensions-init")
-async def extensions_init():
-    print('##############################################################################')
-    print('Update extensions on startup!')
-    print('##############################################################################')
-    install_error, message = utils.execute_update_extensions()
-    if install_error is False:
-        print(message)
-    else:
-        return Response(f"Error updating the extensions", 500)
-
-    print('##############################################################################')
-    print('Preinstalling extensions on startup!')
-    print('##############################################################################')
-    preinstall_extensions = json.loads(os.environ.get('PREINSTALL_EXTENSIONS', '[]').replace(',]', ']'))
-    for extension in preinstall_extensions:
-        helm_command = 'nothing to say...'
-        extension_found = False
-        for _ in range(10):
-            time.sleep(1)
-            extension_path = Path(settings.helm_extensions_cache) / f'{extension["name"]}-{extension["version"]}.tgz'
-            if extension_path.is_file():
-                extension_found = True
-                continue
-            else:
-                print('Extension not there yet')
-        if extension_found is False:
-            print(f'Skipping {extension_path}, since we could find the extension in the file system')
-            continue
-        try:
-            resp, helm_command = utils.helm_install(extension)
-            print(f"Trying to install chart with {helm_command}", resp)
-        except Exception as e:
-            print(f'Skipping {extension_path}, since we had problems installing the extension')
-
-
-    print('##############################################################################')
-    print('Prefechting extensions on startup!')
-    print('##############################################################################')
-    if settings.offline_mode is False and settings.prefetch_extensions is True:
-        try:
-            utils.helm_prefetch_extension_docker()
-            print(f"Trying to prefetch all docker container of extensions")
-        except:
-            print(f"Could not prefetch the docker containers, please check the logs")
-    else:
-        print('Offline mode is set to False!')
-        print("Not prefetching...")
-
-    return Response(f"Successfully exectued extensions-init", 200)

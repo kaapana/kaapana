@@ -235,11 +235,15 @@ class Container:
             if output.returncode == 0:
                 if "---> Running in" in output.stdout:
                     self.container_build_status = "built"
+                    BuildUtils.logger.info(f"{self.build_tag}: Build sucessful.")
                 else:
                     self.container_build_status = "nothing_changed"
-                    hours, rem = divmod(time()-startTime, 3600)
-                    minutes, seconds = divmod(rem, 60)
-                    BuildUtils.logger.info("{}: Build sucessful! -> Build-time: {:0>2}:{:0>2}:{:05.2f}".format(self.build_tag, int(hours), int(minutes), seconds))
+                    BuildUtils.logger.info(f"{self.build_tag}: Build sucessful - no changes.")
+            
+                hours, rem = divmod(time()-startTime, 3600)
+                minutes, seconds = divmod(rem, 60)
+                BuildUtils.logger.info("{}: Build-time: {:0>2}:{:0>2}:{:05.2f}".format(self.build_tag, int(hours), int(minutes), seconds))
+            
             else:
                 self.container_build_status = "failed"
                 BuildUtils.logger.error(f"{self.build_tag}: Build failed!")

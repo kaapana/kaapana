@@ -76,14 +76,14 @@ def generate_build_graph(platform_chart):
     nx_build_graph.add_edge("ROOT", nx_node_id)
     for chart_id, chart_object in platform_chart.dependencies.items():
         tree = generate_tree_node(chart_object=chart_object, tree=tree, parent=root_node_id.lower())
-        nx_build_graph = generate_nx_node(chart_object=chart_object,graph=nx_build_graph, parent=nx_node_id)
+        nx_build_graph = generate_nx_node(chart_object=chart_object, graph=nx_build_graph, parent=nx_node_id)
 
     if len(platform_chart.collections) > 0:
         collections_root = f"{root_node_id.lower()}-collections"
         tree.create_node(collections_root, collections_root, parent=root_node_id.lower())
         for chart_id, chart_object in platform_chart.collections.items():
             tree = generate_tree_node(chart_object=chart_object, tree=tree, parent=collections_root)
-            nx_build_graph = generate_nx_node(chart_object=chart_object,graph=nx_build_graph, parent=nx_node_id)
+            nx_build_graph = generate_nx_node(chart_object=chart_object, graph=nx_build_graph, parent=nx_node_id)
 
     tree_json_path = join(BuildUtils.build_dir, platform_chart.name, f"tree-{platform_chart.name}.txt")
     tree.save2file(tree_json_path)
@@ -96,7 +96,7 @@ def generate_build_graph(platform_chart):
             BuildUtils.logger.info(line.strip('\n'))
 
     BuildUtils.logger.info("")
-    
+
     return nx_build_graph
 
 
@@ -186,6 +186,7 @@ class HelmChart:
         self.requirements_yaml = None
         self.chart_yaml = None
         self.version_prefix = None
+        self.build_chart_dir = None
 
         assert isfile(chartfile)
 
@@ -524,10 +525,12 @@ class HelmChart:
                             self.add_container_by_tag(container_tag=container_tag)
 
     def dep_up(self, chart_dir=None, log_list=[]):
-        BuildUtils.logger.debug(f"{self.chart_id}: dep_up")
         if chart_dir is None:
             chart_dir = self.chart_dir
             log_list = []
+            BuildUtils.logger.info(f"{self.chart_id}: dep_up")
+        else:
+            BuildUtils.logger.debug(f"{chart_dir.split('/')[-1]}: dep_up")
 
         dep_charts = join(chart_dir, "charts")
         if isdir(dep_charts):
@@ -555,7 +558,7 @@ class HelmChart:
             )
 
     def remove_tgz_files(self):
-        BuildUtils.logger.debug(f"{self.chart_id}: remove_tgz_files")
+        BuildUtils.logger.info(f"{self.chart_id}: remove_tgz_files")
         glob_path = '{}/charts'.format(self.chart_dir)
         for path in Path(glob_path).rglob('*.tgz'):
             os.remove(path)
@@ -566,7 +569,7 @@ class HelmChart:
 
     def lint_chart(self):
         if HelmChart.enable_lint:
-            BuildUtils.logger.debug(f"{self.chart_id}: lint_chart")
+            BuildUtils.logger.info(f"{self.chart_id}: dep_lint_chartup")
             os.chdir(self.build_chart_dir)
             command = ["helm", "lint"]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=20)
@@ -693,12 +696,16 @@ class HelmChart:
             BuildUtils.logger.info(f"{chart.chart_id}: create_build_version for collection!")
             for collection_id, collection in chart.collections.items():
                 parent = HelmChart.create_build_version(chart=collection, platform=platform, parent_chart_dir=None)
-                for dep_id, dep_chart in collection.dependencies.items():
-                    dep_chart.dep_up()
-                    dep_chart.lint_chart()
-                    dep_chart.lint_kubeval()
-                    dep_chart.make_package()
+                collection_dependency_count = len(collection.dependencies)
+                for c_index, (c_key, c_dep_chart) in enumerate(collection.dependencies.items()):
+                    BuildUtils.logger.info(f"Collection chart {c_index+1}/{collection_dependency_count}: {c_key}:")
+                    c_dep_chart.dep_up()
+                    c_dep_chart.lint_chart()
+                    c_dep_chart.lint_kubeval()
+                    c_dep_chart.make_package()
+                    BuildUtils.logger.info("")
 
+                BuildUtils.logger.info("")
                 assert len(collection.chart_containers) == 1
 
                 collection_container = list(collection.chart_containers.items())[0][1]
@@ -711,7 +718,7 @@ class HelmChart:
                 if len(collection_container.base_images) > 0:
                     base_image_container = [x for x in BuildUtils.container_images_available if x.tag == collection_container.base_images[0].tag]
                     assert len(base_image_container) == 1
-                    base_image_container=base_image_container[0]
+                    base_image_container = base_image_container[0]
                     base_image_container.build_tag = base_image_container.tag
                     base_image_container.container_build_status = "None"
                     base_image_container.container_push_status = "None"
@@ -741,15 +748,24 @@ class HelmChart:
 
         build_requirements = join(target_dir, "requirements.yaml")
         if os.path.exists(build_requirements):
-            os.remove(build_requirements)
+            with open(build_requirements, "r") as f:
+                lines = f.readlines()
+            with open(build_requirements, "w") as f:
+                for line in lines:
+                    if "repository:" not in line.strip("\n"):
+                        f.write(line)
 
-        for dep_chart_id, dep_chart in chart.dependencies.items():
-            HelmChart.create_build_version(chart=dep_chart, platform=platform, parent_chart_dir=target_dir)
-            assert exists(dep_chart.build_chartfile)
-            tmp_build_chart = HelmChart(chartfile=dep_chart.build_chartfile)
+        main_dependency_count = len(chart.dependencies)
+        for m_index, (m_key, m_dep_chart) in enumerate(chart.dependencies.items()):
+            HelmChart.create_build_version(chart=m_dep_chart, platform=platform, parent_chart_dir=target_dir)
+            assert exists(m_dep_chart.build_chartfile)
+            tmp_build_chart = HelmChart(chartfile=m_dep_chart.build_chartfile)
+            BuildUtils.logger.info(f"chart {m_index+1}/{main_dependency_count}: {tmp_build_chart.name}:")
+            tmp_build_chart.build_chart_dir = tmp_build_chart.chart_dir
             tmp_build_chart.dep_up()
             tmp_build_chart.lint_chart()
             tmp_build_chart.lint_kubeval()
+            BuildUtils.logger.info("")
 
         for chart_container_id, chart_container in chart.chart_containers.items():
             chart_container.build_tag = f"{BuildUtils.default_registry}/{chart_container.image_name}:{platform.version_prefix}{chart_container.image_version}"
@@ -777,10 +793,10 @@ class HelmChart:
         for i in range(0, container_count):
             container_id = build_order[i]
             BuildUtils.logger.info("")
-            BuildUtils.logger.info(f"container {i}/{container_count}: {container_id}")
+            BuildUtils.logger.info(f"container {i+1}/{container_count}: {container_id}")
             container_to_build = [x for x in BuildUtils.container_images_available if x.tag == container_id]
             if len(container_to_build) == 1:
-                container_to_build= container_to_build[0]
+                container_to_build = container_to_build[0]
                 if container_to_build.local_image and container_to_build.build_tag == None:
                     container_to_build.build_tag = container_to_build.tag
                 container_to_build.build()
@@ -794,13 +810,13 @@ class HelmChart:
                     msg=f"{container_id} could not be found in available containers!",
                     level="FATAL"
                 )
-    
+
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
         if BuildUtils.create_offline_installation is True:
             BuildUtils.logger.info("Generating platform docker dump.")
             command = [
                 Container.container_engine, "save"] + [
-                    container.build_tag for container in containers_built if not container.build_tag.startswith('local-only')] +[
+                    container.build_tag for container in containers_built if not container.build_tag.startswith('local-only')] + [
                         "-o", str(Path(os.path.dirname(platform_chart.build_chart_dir)) / f"{platform_chart.name}-{platform_chart.version}.tar")]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
             if output.returncode != 0:
@@ -812,7 +828,7 @@ class HelmChart:
                     level="FATAL"
                 )
             BuildUtils.logger.info("Finished: Generating platform docker dump.")
-        
+
     @staticmethod
     def generate_platform_build_tree():
         BuildUtils.logger.info(f"generate_platform_build_tree")
@@ -830,7 +846,7 @@ class HelmChart:
                 charts_to_build.append(chart_object)
 
                 HelmChart.build_platform(platform_chart=chart_object)
-        
+
         BuildUtils.generate_component_usage_info()
 
 

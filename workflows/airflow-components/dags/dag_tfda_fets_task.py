@@ -11,9 +11,8 @@ from datetime import datetime, timedelta
 log = LoggingMixin().log
 
 args = {
-    "depends_on_past": False,
-    "start_date": datetime(2022, 4, 26, 00, 00),
-    "retries": 1,
+    "start_date": days_ago(0),
+    "retries": 0,
     "retry_delay": timedelta(minutes=10),
     "catchup": False,
 }

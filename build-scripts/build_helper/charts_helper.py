@@ -507,25 +507,20 @@ class HelmChart:
                     if "image:" in line:
                         line = line.split("image:")[1].replace("\"", "").replace("'", "").replace("`", "").replace("$", "").replace(" ", "")
                         if "#" in line.split("image:")[0]:
-                            BuildUtils.logger.warn(f"Commented: {line} -> skip")
+                            BuildUtils.logger.debug(f"Commented: {line} -> skip")
                             continue
                         elif "-if" in line:
-                            BuildUtils.logger.warn(f"Templated: {line} -> skip")
+                            BuildUtils.logger.debug(f"Templated: {line} -> skip")
                             continue
 
                         elif ".Values.image" in line or "collection.name" in line or "kube_helm_collection" in line:
-                            BuildUtils.logger.warn(f"Templated image: {line} -> skip")
+                            BuildUtils.logger.debug(f"Templated image: {line} -> skip")
                             continue
                         else:
-                            # container_tag = line.replace("{{.Values.global.registry_url}}", BuildUtils.default_registry)
-                            # container_tag = line.replace("{{.Values.global.registry_url}}", BuildUtils.default_registry)
-                            # container_tag = line.replace("{{.Values.global.registry_url}}", BuildUtils.default_registry)
                             container_tag = line.replace("}", "").replace("{", "").replace(" ", "").replace("$", "")
                             container_tag = container_tag.replace(".Values.global.registry_url", BuildUtils.default_registry)
                             container_tag = container_tag.replace(".Values.global.platform_abbr|defaultuk_", "")
                             container_tag = container_tag.replace(".Values.global.platform_version|default0__", "")
-                            if "values" in container_tag.lower():
-                                print()
                             self.add_container_by_tag(container_tag=container_tag)
 
     def dep_up(self, chart_dir=None, log_list=[]):

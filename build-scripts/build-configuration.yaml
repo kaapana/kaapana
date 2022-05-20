@@ -4,10 +4,10 @@ container_engine: "docker" # docker or podman
 enable_build_kit: false # Should be false for now: Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/ 
 log_level: "INFO" # DEBUG, INFO, WARN or ERROR
 build_only: false # charts and containers will only be build and not pushed to the registry
-create_offline_installation: false # whether to create a docker dump from which the platfrom can be installed offline
+create_offline_installation: false # Advanced feature - whether to create a docker dump from which the platfrom can be installed offline (file-size ~50GB)
 push_to_microk8s: false # Advanced feature - inject container directly into microk8s after build
 exit_on_error: false  # stop immediately if an issue occurs
 enable_linting: true # should be true - checks deployment validity
 skip_push_no_changes: false # Advanced feature - should be false usually
 platform_filter: "" # comma sperated platform-chart-names
-external_source_dirs: "/home/jonas/projects/racoon-repo" # comma sperated paths 
+external_source_dirs: "" # comma sperated paths 

@@ -718,11 +718,14 @@ class HelmChart:
                     assert len(base_image_container) == 1
                     base_image_container=base_image_container[0]
                     base_image_container.build_tag = base_image_container.tag
+                    base_image_container.container_build_status = "None"
+                    base_image_container.container_push_status = "None"
                     base_image_container.build()
                 collection_container.path = build_dockerfile_path
                 collection_container.container_dir = collection.build_chart_dir
                 collection_container.build_tag = f"{BuildUtils.default_registry}/{collection_container.image_name}:{platform.version_prefix}{collection_container.image_version}"
-                collection_container.container_pushed = False
+                collection_container.container_build_status = "None"
+                collection_container.container_push_status = "None"
                 collection_container.check_prebuild()
                 collection_container.build()
                 collection_container.push()
@@ -755,7 +758,8 @@ class HelmChart:
 
         for chart_container_id, chart_container in chart.chart_containers.items():
             chart_container.build_tag = f"{BuildUtils.default_registry}/{chart_container.image_name}:{platform.version_prefix}{chart_container.image_version}"
-            chart_container.container_pushed = False
+            chart_container.container_build_status = "None"
+            chart_container.container_push_status = "None"
 
         return target_dir
 

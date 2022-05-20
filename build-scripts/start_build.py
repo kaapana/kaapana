@@ -50,6 +50,7 @@ if __name__ == '__main__':
     parser.add_argument("-kd", "--kaapana-dir", dest="kaapaa_dir", default=None, help="Kaapana repo path.")
     parser.add_argument("-ll", "--log-level", dest="log_level", default=None, help="Set log-level.")
     parser.add_argument("-el", "--enable-linting", dest="enable_linting", default=None, help="Enable Helm Chart lint & kubeval.")
+    parser.add_argument("-sp", "--skip-push-no-changes", dest="skip_push_no_changes", default=None, help="Skip the image push if it didn't change.")
     parser.add_argument("-ee", "--exit-on-error", dest="exit_on_error", default=None, help="Stop build-process if error occurs.")
     parser.add_argument("-pf", "--plartform-filter", dest="platform_filter", default=None, help="Specify platform-chart-names to be build (comma seperated).")
     parser.add_argument("-es", "--external-sources", dest="external_source_dirs", default=None, help="External dirs to search for containers and charts.")
@@ -85,11 +86,12 @@ if __name__ == '__main__':
     conf_build_only = configuration["build_only"]
     conf_create_offline_installation = configuration["create_offline_installation"]
     # conf_push_to_microk8s = configuration["push_to_microk8s"]
-    conf_platform_filter = configuration["platform_filter"].split(",") if configuration["platform_filter"].replace(" ","") != "" else []
-    conf_external_source_dirs = configuration["external_source_dirs"].split(",") if configuration["external_source_dirs"].replace(" ","") != "" else []
+    conf_platform_filter = configuration["platform_filter"].split(",") if configuration["platform_filter"].replace(" ", "") != "" else []
+    conf_external_source_dirs = configuration["external_source_dirs"].split(",") if configuration["external_source_dirs"].replace(" ", "") != "" else []
     conf_exit_on_error = configuration["exit_on_error"]
     conf_enable_linting = configuration["enable_linting"]
     conf_enable_build_kit = 1 if "enable_build_kit" in configuration and configuration["enable_build_kit"] else 0
+    conf_skip_push_no_changes = configuration["skip_push_no_changes"]
 
     registry_user = args.username
     registry_pwd = args.password
@@ -102,6 +104,7 @@ if __name__ == '__main__':
     enable_linting = args.enable_linting if args.enable_linting != None else conf_enable_linting
     exit_on_error = args.exit_on_error if args.exit_on_error != None else conf_exit_on_error
     platform_filter = args.platform_filter.split(",") if args.platform_filter != None else conf_platform_filter
+    skip_push_no_changes = args.skip_push_no_changes if args.skip_push_no_changes != None else conf_skip_push_no_changes
 
     for external_source_dir in external_source_dirs:
         if not os.path.isdir(external_source_dir):
@@ -122,7 +125,6 @@ if __name__ == '__main__':
 
     http_proxy = conf_http_proxy if conf_http_proxy != "" else None
     http_proxy = os.environ.get("http_proxy", "") if http_proxy == None and os.environ.get("http_proxy", None) != None else None
-
 
     logger.info("")
     logger.info("-----------------------------------------------------------")
@@ -147,9 +149,10 @@ if __name__ == '__main__':
     logger.info(f"{build_installer_scripts=}")
     logger.info(f"{container_engine=}")
     logger.info(f"{default_registry=}")
+    logger.info(f"{skip_push_no_changes=}")
     logger.info("")
     logger.info("-----------------------------------------------------------")
-    
+
     if not build_only:
         if registry_user is None:
             registry_user = os.getenv("REGISTRY_USER", None)
@@ -195,9 +198,9 @@ if __name__ == '__main__':
         logger=logger,
         enable_build_kit=conf_enable_build_kit,
         create_offline_installation=create_offline_installation,
+        skip_push_no_changes=skip_push_no_changes,
         # push_to_microk8s=push_to_microk8s
     )
-
 
     Container.init_containers(
         container_engine=container_engine,
@@ -211,7 +214,7 @@ if __name__ == '__main__':
     container_images_available = Container.collect_containers()
     BuildUtils.add_container_images_available(container_images_available=container_images_available)
     charts_available = HelmChart.collect_charts()
-    
+
     init_helm_charts(
         save_tree=True,
         enable_push=charts_push,

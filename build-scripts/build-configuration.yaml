@@ -10,3 +10,4 @@ platform_filter: "" # comma sperated platform-chart-names
 external_source_dirs: "" # comma sperated paths 
 exit_on_error: true
 enable_linting: false
+skip_push_no_changes: false

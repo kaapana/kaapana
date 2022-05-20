@@ -216,7 +216,7 @@ class Container:
 
     def build(self):
         if Container.enable_build:
-            BuildUtils.logger.debug(f"{self.build_tag}: start building ...")
+            BuildUtils.logger.info(f"{self.build_tag}: start building ...")
             
             if self.container_push_status == "pushed":
                 BuildUtils.logger.debug(f"{self.build_tag}: already build -> skip")
@@ -325,7 +325,7 @@ class Container:
                 BuildUtils.logger.info(f"{self.build_tag}: Skipping push: local image! ")
                 return
 
-            BuildUtils.logger.debug(f"{self.build_tag}: start pushing! ")
+            BuildUtils.logger.info(f"{self.build_tag}: start pushing! ")
             retries = 0
             command = [Container.container_engine, "push", self.build_tag]
             while retries < max_retries:

@@ -275,8 +275,8 @@ class HelmChart:
 
                 if chart_identified != False and chart_identified != None:
                     BuildUtils.logger.warning(f"{self.chart_id}: Identified dependency:")
-                    BuildUtils.logger.warning(f"{self.chart_id}: {self.chart_dir} and")
-                    BuildUtils.logger.warning(f"{self.chart_id}: {chart_identified.chart_dir}!")
+                    BuildUtils.logger.debug(f"{self.chart_id}: {self.chart_dir} and")
+                    BuildUtils.logger.debug(f"{self.chart_id}: {chart_identified.chart_dir}!")
                     BuildUtils.logger.warning(f"{self.chart_id}: -> using {chart_identified.chart_dir} as dependency..")
                     self.dependencies[chart_identified.chart_id] = chart_identified
                 else:
@@ -525,9 +525,10 @@ class HelmChart:
 
     def dep_up(self, chart_dir=None, log_list=[]):
         if chart_dir is None:
-            chart_dir = self.chart_dir
+            chart_dir = self.build_chart_dir
             log_list = []
             BuildUtils.logger.info(f"{self.chart_id}: dep_up")
+            
         else:
             BuildUtils.logger.debug(f"{chart_dir.split('/')[-1]}: dep_up")
 
@@ -553,16 +554,16 @@ class HelmChart:
                 msg="chart dep_up failed!",
                 level="ERROR",
                 output=output,
-                path=self.chart_dir
+                path=self.build_chart_dir
             )
 
     def remove_tgz_files(self):
         BuildUtils.logger.info(f"{self.chart_id}: remove_tgz_files")
-        glob_path = '{}/charts'.format(self.chart_dir)
+        glob_path = '{}/charts'.format(self.build_chart_dir)
         for path in Path(glob_path).rglob('*.tgz'):
             os.remove(path)
 
-        requirements_lock = '{}/requirements.lock'.format(self.chart_dir)
+        requirements_lock = f"{self.build_chart_dir}/requirements.lock"
         if exists(requirements_lock):
             os.remove(requirements_lock)
 
@@ -580,7 +581,7 @@ class HelmChart:
                     msg="chart lint failed!",
                     level="WARN",
                     output=output,
-                    path=self.chart_dir
+                    path=self.build_chart_dir
                 )
             else:
                 BuildUtils.logger.debug(f"{self.chart_id}: lint_chart ok")
@@ -601,7 +602,7 @@ class HelmChart:
                     msg="chart kubeval failed!",
                     level="WARN",
                     output=output,
-                    path=self.chart_dir
+                    path=self.build_chart_dir
                 )
             else:
                 BuildUtils.logger.debug(f"{self.chart_id}: lint_kubeval ok")
@@ -623,7 +624,7 @@ class HelmChart:
                 msg="chart make_package failed!",
                 level="ERROR",
                 output=output,
-                path=self.chart_dir
+                path=self.build_chart_dir
             )
 
     def push(self):
@@ -646,7 +647,7 @@ class HelmChart:
                     msg="chart push failed!",
                     level="ERROR",
                     output=output,
-                    path=self.chart_dir
+                    path=self.build_chart_dir
                 )
             else:
                 BuildUtils.logger.debug(f"{self.chart_id}: push ok")
@@ -761,6 +762,8 @@ class HelmChart:
             tmp_build_chart = HelmChart(chartfile=m_dep_chart.build_chartfile)
             BuildUtils.logger.info(f"chart {m_index+1}/{main_dependency_count}: {tmp_build_chart.name}:")
             tmp_build_chart.build_chart_dir = tmp_build_chart.chart_dir
+            if "build" not in tmp_build_chart.build_chart_dir:
+                print()
             tmp_build_chart.dep_up()
             tmp_build_chart.lint_chart()
             tmp_build_chart.lint_kubeval()

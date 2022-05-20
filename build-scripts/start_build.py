@@ -264,7 +264,10 @@ if __name__ == '__main__':
             logger.warning("")
             logger.warning(f"{level} -> {component}:{name}")
             logger.warning(f"{msg=}")
-            logger.warning(log)
+            if len(log) > 0:
+                for line_number, line in log.items():
+                    if not line.isdigit():
+                        logger.warning(line)
             logger.warning("")
             logger.warning("-----------------------------------------------------------")
 

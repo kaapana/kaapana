@@ -61,5 +61,5 @@ spec:
           service:
             name: oauth2-cluster-service
             port:
-              name: http-port
+              name: https-port
 ---

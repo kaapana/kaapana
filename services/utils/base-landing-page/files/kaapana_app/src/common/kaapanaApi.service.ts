@@ -85,6 +85,7 @@ const kaapanaApiService = {
             elasticSearchUrl = '/jsons/testingKibanaResponse.json'
           }
 
+          request.setTimeout(2000)
           request.get(elasticSearchUrl, {
             params: {
               source: JSON.stringify(query),

@@ -256,8 +256,42 @@ class Container:
             self.container_build_status = "disabled"
 
     def push(self, retry=True):
-        BuildUtils.logger.debug(f"{self.build_tag}: start pushing ...")
-        if Container.enable_push or BuildUtils.push_to_microk8s is True:
+        BuildUtils.logger.debug(f"{self.build_tag}: in push()")
+        
+        if BuildUtils.push_to_microk8s is True:
+            BuildUtils.logger.debug(f"{self.build_tag}: push_to_microk8s")
+
+            BuildUtils.logger.info(f"Pushing {self.build_tag} to microk8s")
+            parking_file = "parking.tar"
+            command = [Container.container_engine, "save", self.build_tag, "-o", parking_file]
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
+            if output.returncode != 0:
+                BuildUtils.logger.error(f"Docker save failed {output.stderr}!")
+                BuildUtils.generate_issue(
+                    component="Microk8s push",
+                    name="docker save",
+                    msg=f"Docker save failed {output.stderr}!",
+                    level="FATAL"
+                )
+                return
+
+            command = ["microk8s","ctr", "image", "import", parking_file]
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
+            if os.path.exists(parking_file):
+                os.remove(parking_file)
+            if output.returncode != 0:
+                BuildUtils.logger.error(f"Microk8s image push failed {output.stderr}!")
+                BuildUtils.generate_issue(
+                    component="Microk8s image push",
+                    name="Microk8s image push",
+                    msg=f"Microk8s image push failed {output.stderr}!",
+                    level="FATAL"
+                )
+                return
+
+            BuildUtils.logger.info(f"Sucessfully pushed {self.build_tag} to microk8s")
+        
+        if Container.enable_push:
             BuildUtils.logger.debug(f"{self.build_tag}: push enabled")
 
             if self.container_build_status == "nothing_changed":
@@ -281,100 +315,73 @@ class Container:
                     level="WARNING",
                     path=self.container_dir
                 )
+                return
 
             elif self.local_image:
                 BuildUtils.logger.info(f"{self.build_tag}: Skipping push: local image! ")
                 return
 
+            BuildUtils.logger.debug(f"{self.build_tag}: start pushing! ")
+            retries = 0
+            command = [Container.container_engine, "push", self.build_tag]
+            while retries < max_retries:
+                retries += 1
+                output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
+                if output.returncode == 0 or "configured as immutable" in output.stderr:
+                    break
+
+            if output.returncode == 0:
+                self.container_push_status = "pushed"
+
+                if "Pushed" in output.stdout or "podman" in Container.container_engine:
+                    BuildUtils.logger.info(f"{self.build_tag}: pushed -> success")
+                else:
+                    BuildUtils.logger.info(f"{self.build_tag}: pushed -> success but nothing was changed!")
+
             else:
-                if Container.enable_push:
-                    retries = 0
+                self.container_push_status = "not_pushed"
 
-                    command = [Container.container_engine, "push", self.build_tag]
+                if "configured as immutable" in output.stderr:
+                    BuildUtils.logger.warning(f"{self.build_tag}: not pushed -> immutable!")
+                    BuildUtils.generate_issue(
+                        component=suite_tag,
+                        name=f"{self.build_tag}",
+                        msg=f"Container not pushed -> immutable!",
+                        level="WARNING",
+                        path=self.container_dir
+                    )
 
-                    while retries < max_retries:
-                        retries += 1
-                        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
-                        if output.returncode == 0 or "configured as immutable" in output.stderr:
-                            break
+                elif "read only mode" in output.stderr and retry:
+                    BuildUtils.logger.warning(f"{self.build_tag}: not pushed -> read only mode!")
+                    BuildUtils.generate_issue(
+                        component=suite_tag,
+                        name=f"{self.build_tag}",
+                        msg=f"Container not pushed -> read only mode!",
+                        level="WARNING",
+                        path=self.container_dir
+                    )
 
-                    if output.returncode == 0:
-                        self.container_push_status = "pushed"
-
-                        if "Pushed" in output.stdout or "podman" in Container.container_engine:
-                            BuildUtils.logger.info(f"{self.build_tag}: pushed -> success")
-
-                    else:
-                        self.container_push_status = "not_pushed"
-
-                        if "configured as immutable" in output.stderr:
-                            BuildUtils.logger.warning(f"{self.build_tag}: not pushed -> immutable!")
-                            BuildUtils.generate_issue(
-                                component=suite_tag,
-                                name=f"{self.build_tag}",
-                                msg=f"Container not pushed -> immutable!",
-                                level="WARNING",
-                                path=self.container_dir
-                            )
-
-                        elif "read only mode" in output.stderr and retry:
-                            BuildUtils.logger.warning(f"{self.build_tag}: not pushed -> read only mode!")
-                            BuildUtils.generate_issue(
-                                component=suite_tag,
-                                name=f"{self.build_tag}",
-                                msg=f"Container not pushed -> read only mode!",
-                                level="WARNING",
-                                path=self.container_dir
-                            )
-
-                        elif "denied" in output.stderr and retry:
-                            BuildUtils.logger.error(f"{self.build_tag}: not pushed -> access denied!")
-                            BuildUtils.generate_issue(
-                                component=suite_tag,
-                                name=f"{self.build_tag}",
-                                msg="container not pushed -> access denied!",
-                                level="ERROR",
-                                output=output,
-                                path=self.container_dir
-                            )
-                        else:
-                            BuildUtils.logger.error(f"{self.build_tag}: not pushed -> unknown reason!")
-                            BuildUtils.generate_issue(
-                                component=suite_tag,
-                                name=f"{self.build_tag}",
-                                msg="container not pushed -> unknown reason!",
-                                level="ERROR",
-                                output=output,
-                                path=self.container_dir
-                            )
+                elif "denied" in output.stderr and retry:
+                    BuildUtils.logger.error(f"{self.build_tag}: not pushed -> access denied!")
+                    BuildUtils.generate_issue(
+                        component=suite_tag,
+                        name=f"{self.build_tag}",
+                        msg="container not pushed -> access denied!",
+                        level="ERROR",
+                        output=output,
+                        path=self.container_dir
+                    )
+                else:
+                    BuildUtils.logger.error(f"{self.build_tag}: not pushed -> unknown reason!")
+                    BuildUtils.generate_issue(
+                        component=suite_tag,
+                        name=f"{self.build_tag}",
+                        msg="container not pushed -> unknown reason!",
+                        level="ERROR",
+                        output=output,
+                        path=self.container_dir
+                    )
                             
-                if BuildUtils.push_to_microk8s is True:
-                    BuildUtils.logger.info(f"Pushing {self.build_tag} to microk8s")
-                    parking_file = "parking.tar"
-                    command = [Container.container_engine, "save", self.build_tag, "-o", parking_file]
-                    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
-                    if output.returncode != 0:
-                        BuildUtils.logger.error(f"Docker save failed {output.stderr}!")
-                        BuildUtils.generate_issue(
-                            component="Microk8s push",
-                            name="docker save",
-                            msg=f"Docker save failed {output.stderr}!",
-                            level="FATAL"
-                        )
-
-                    command = ["microk8s","ctr", "image", "import", parking_file]
-                    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
-                    if os.path.exists(parking_file):
-                        os.remove(parking_file)
-                    if output.returncode != 0:
-                        BuildUtils.logger.error(f"Microk8s image push failed {output.stderr}!")
-                        BuildUtils.generate_issue(
-                            component="Microk8s image push",
-                            name="Microk8s image push",
-                            msg=f"Microk8s image push failed {output.stderr}!",
-                            level="FATAL"
-                        )
-                    BuildUtils.logger.info(f"Sucessfully pushed {self.build_tag} to microk8s")
         else:
             BuildUtils.logger.info(f"{self.build_tag}: push disabled")
             self.container_push_status = "disabled"

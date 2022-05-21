@@ -41,7 +41,7 @@ supported_log_levels = ["DEBUG", "INFO", "WARN", "ERROR"]
 terminal_width = int(os.get_terminal_size()[0] * 0.5)
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument("-c", "--config", dest="config_filepath", default=None, help="Path the the build-configuration.yaml")
+    parser.add_argument("-c", "--config", dest="config_filepath", default=None, help="Path the the build-config.yaml")
     parser.add_argument("-u", "--username", dest="username", default=None, help="Username")
     parser.add_argument("-p", "--password", dest="password", default=None, required=False, help="Password")
     parser.add_argument("-bo", "--build-only", dest="build_only", default=None, action='store_true', help="Just building the containers and charts -> no pushing")
@@ -64,7 +64,7 @@ if __name__ == '__main__':
         exit(1)
 
     config_filepath = args.config_filepath
-    config_filepath = config_filepath if config_filepath is not None else os.path.join(kaapana_dir, "build-scripts", "build-configuration.yaml")
+    config_filepath = config_filepath if config_filepath is not None else os.path.join(kaapana_dir, "build-scripts", "build-config.yaml")
     if not os.path.isfile(config_filepath):
         logger.error(f"The build-configuration.yaml file was not found at: {config_filepath}")
         logger.error("-----------------------------------------------------------")
@@ -168,7 +168,7 @@ if __name__ == '__main__':
 
     if log_level not in supported_log_levels:
         logger.error(f"Log level {log_level} not supported.")
-        logger.error("Please use 'DEBUG','WARN' or 'ERROR' for log_level in build-configuration.json")
+        logger.error("Please use 'DEBUG','WARN' or 'ERROR' for log_level in build-config.yaml")
         exit(1)
 
     logger.debug(f"LOG-LEVEL: {log_level}")

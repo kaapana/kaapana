@@ -5,4 +5,4 @@ global:
     base_namespace: ""
     fast_data_dir: ""
     slow_data_dir: ""
-    
+mount_path: ""

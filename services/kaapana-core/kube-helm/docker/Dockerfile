@@ -1,5 +1,4 @@
 FROM python:3.9-alpine3.12
-
 LABEL IMAGE="kube-helm"
 LABEL VERSION="0.1.3"
 LABEL CI_IGNORE="False"
@@ -24,7 +23,12 @@ RUN curl https://storage.googleapis.com/kubernetes-release/release/${KUBE_LATEST
 COPY files/requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY files/ ./
+COPY files/backend/ ./
+
+COPY files/update-collections-chart /root/collections/update-collections-chart
+RUN /usr/local/bin/helm package /root/collections/update-collections-chart -d /root/collections
+COPY files/pull-docker-chart /root/helpers/pull-docker-chart
+RUN /usr/local/bin/helm package /root/helpers/pull-docker-chart -d /root/helpers
 RUN chmod +x boot.sh
 
 EXPOSE 5000

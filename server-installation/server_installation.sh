@@ -122,7 +122,7 @@ function no_proxy_environment {
     source /etc/environment
 }
 
-function install_packages_centos {
+function install_packages_almalinux {
     echo "${YELLOW}Check packages...${NC}"
     if [ -x "$(command -v snap)" ] && [ -x "$(command -v jq)" ]; then
         echo "${GREEN}Dependencies ok.${NC}"
@@ -503,8 +503,8 @@ where opt is:
 
 _Argument: -os --operating-system [opt]
 where opt is:
-    CentOS Linux --> Centos
-    Ubuntu       --> Ubuntu
+    AlmaLinux --> AlmaLinux
+    Ubuntu    --> Ubuntu
     default: $OS_PRESENT"
 
 QUIET=NA
@@ -575,8 +575,8 @@ do
             exit 0
         ;;
         
-        --install-centos-packages)
-            install_packages_centos
+        --install-almalinux-packages)
+            install_packages_almalinux
             exit 0
         ;;
         
@@ -601,10 +601,10 @@ done
 
 
 case "$OS_PRESENT" in
-    "CentOS Linux")
-        echo -e "${GREEN}Starting CentOs installation...${NC}";
+    "AlmaLinux")
+        echo -e "${GREEN}Starting AlmaLinux installation...${NC}";
         proxy_environment
-        install_packages_centos
+        install_packages_almalinux
         install_microk8s
     ;;
 
@@ -626,7 +626,7 @@ case "$OS_PRESENT" in
 
     *)  
         echo "${RED}Your OS: $OS_PRESENT is not supported at the moment.${NC}"
-        echo "${RED}This scripts suppors: Ubuntu and CentOS Linux${NC}"
+        echo "${RED}This scripts suppors: Ubuntu and AlmaLinux${NC}"
         echo -e "$usage"
         exit 1
 esac

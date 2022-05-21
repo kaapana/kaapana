@@ -25,9 +25,9 @@ global:
     slow_data_dir: /home/kaapana
     home_dir: /root
     version: "0.1.3"
-    kaapana_collections:
-        - name: kaapana-base-collection
-          version: 0.1.0 
+    kube_helm_collections:
+        - name: kaapana-extension-collection
+          version: 0.1.0
     preinstall_extensions:
         - name: code-server-chart
           version: 4.2.0

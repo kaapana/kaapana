@@ -16,7 +16,7 @@ spec:
     spec:
       initContainers:
       - name: init
-        image: <registry>/service_checker:1.1
+        image: <registry>/service-checker:1.1
         imagePullPolicy:  Always
         env:
           - name: WAIT

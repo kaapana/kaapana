@@ -26,9 +26,6 @@ global:
     # default_system_limits_cpu: 1
     http_proxy: ""
     https_proxy: ""
-    kaapana_collections:
-        - name: kaapana-base-collection
-          version: 0.1.0
     preinstall_extensions:
         - name: code-server-chart
           version: 4.2.0

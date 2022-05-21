@@ -1,8 +1,0 @@
----
-dependencies: 
-  - name: prefetch-extensions-chart
-    version: 0.1.1
-    repository: file://../../../prefetch-extensions-chart
-  - name: pull-docker-chart
-    version: 0.1.1
-    repository: file://../../../pull-docker-chart

@@ -19,8 +19,7 @@ spec:
     spec:
       containers:
       - name: federated-postgres
-        image: {{  .Values.global.registry_url }}/postgres:9.6-alpine
-        # image: {{  .Values.global.registry_url }}/postgres:9.6-alpine
+        image: {{ .Values.global.registry_url }}/postgres:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__9.6-alpine
         # imagePullPolicy: Always
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env: # Environment variables

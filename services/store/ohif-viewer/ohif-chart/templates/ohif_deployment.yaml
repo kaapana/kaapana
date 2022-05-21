@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: ohif-container
-          image: {{  .Values.global.registry_url }}/ohif:4.12.26
+          image: {{ .Values.global.registry_url }}/ohif:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__4.12.26
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           ports:
             - containerPort: 80

@@ -11,7 +11,7 @@ spec:
     spec:
       containers:
       - name: cert-init
-        image: {{  .Values.global.registry_url }}/cert-init:0.0.1
+        image: {{ .Values.global.registry_url }}/cert-init:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.0.1
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         resources:
           requests:
@@ -22,13 +22,13 @@ spec:
         - name: ACTION
           value: "install"
         - name: SECRET_NAME
-          value: "{{  .Values.global.tls_secret.name }}"
+          value: "{{ .Values.global.tls_secret.name }}"
         - name: SECRET_NAMESPACE
-          value: "{{  .Values.global.tls_secret.namespace }}"
+          value: "{{ .Values.global.tls_secret.namespace }}"
         - name: COMMON_NAME
-          value: "{{  .Values.global.tls_secret.common_name }}"
+          value: "{{ .Values.global.tls_secret.common_name }}"
         - name: EXPIRATION
-          value: "{{  .Values.global.tls_secret.expiration }}"
+          value: "{{ .Values.global.tls_secret.expiration }}"
         volumeMounts:
         - name: tls-storage
           mountPath: /cert/tls

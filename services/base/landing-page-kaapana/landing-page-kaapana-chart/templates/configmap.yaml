@@ -6,7 +6,7 @@ data:
       "name": "Kaapana platform",
       "shortName": "Kaapana",
       "infoText": "Welcome to Kaapana",
-      "version": "{{ .Values.global.version }}"
+      "version": "{{ .Values.global.platform_version }}"
     }
   defaultExternalWebpages.json: |-
     {

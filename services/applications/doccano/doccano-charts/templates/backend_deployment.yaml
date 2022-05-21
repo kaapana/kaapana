@@ -1,0 +1,64 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: doccano-backend
+  namespace: {{ .Values.global.store_namespace | default "store" }}
+  labels:
+    k8s-app: doccano-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: doccano-backend
+  template:
+    metadata:
+      labels:
+        app-name: doccano-backend
+    spec:
+      containers:
+      - name: doccano-backend
+        image: {{ .Values.global.registry_url }}/doccano-backend:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__sha-0489118
+        imagePullPolicy: {{ .Values.global.pull_policy_pods | default "IfNotPresent" }}
+        ports:
+        - containerPort: 8000 
+          protocol: TCP
+        resources:
+          requests:
+            memory: 100Mi
+          limits:
+            memory: 500Mi
+        env:
+        - name: ADMIN_USERNAME
+          value: doccanoadmin
+        - name: ADMIN_PASSWORD
+          value: doccano123   
+        - name: ADMIN_EMAIL
+          value: docanno-admin@example.com
+        - name: CELERY_BROKER_URL
+          value: "amqp://doccano:doccano@doccano-rabbitmq"
+        - name: DATABASE_URL
+          value: "postgres://doccano:doccano@postgres-doccano:5432/doccano?sslmode=disable"
+        - name: ALLOW_SIGNUP # Has currently no effect
+          value: "False" 
+        - name: DEBUG
+          value: "True" 
+        - name: OAUTH_GITHUB_KEY
+          value: YOUR_CLIENT_ID
+        - name: OAUTH_GITHUB_SECRET
+          value: YOUR_CLIENT_SECRET
+        volumeMounts:
+          - name: static-volume
+            mountPath: /backend/static-files
+          - name: media
+            mountPath: /backend/media
+      volumes:
+      - name:  static-volume
+        hostPath:
+          path: {{ .Values.global.fast_data_dir | default "/home/kaapana" }}/doccano/static
+          type: DirectoryOrCreate
+      - name:  media
+        hostPath:
+          path: {{ .Values.global.fast_data_dir | default "/home/kaapana" }}/doccano/media
+          type: DirectoryOrCreate
+      imagePullSecrets:
+      - name: registry-secret

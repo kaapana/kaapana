@@ -1,3 +1,0 @@
----
-global:
-    pull_policy_jobs: "IfNotPresent"

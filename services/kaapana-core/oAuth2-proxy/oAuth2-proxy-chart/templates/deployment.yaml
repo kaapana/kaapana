@@ -16,7 +16,7 @@ spec:
     spec:
       initContainers:
       - name: init
-        image: {{  .Values.global.registry_url }}/service_checker:1.1
+        image: {{ .Values.global.registry_url }}/service-checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env:
           - name: WAIT
@@ -27,7 +27,7 @@ spec:
             value: "10"
       containers:
         - name: oauth2-proxy-container
-          image: {{  .Values.global.registry_url }}/oauth2-proxy:7.2.1
+          image: {{ .Values.global.registry_url }}/oauth2-proxy:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__7.2.1
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           args:
         {{- if ne (.Values.global.https_port | default "443") "443" }}
@@ -41,14 +41,17 @@ spec:
           - --provider=keycloak-oidc
           - --client-id=kaapana
           - --client-secret=uQBJzc2YDzjRfj2OCT79JDShojeqAK2R
+          - --cookie-secret=P7AiFgxZhLuuTZ2iuIQHSnYWrDlU_NVaA-Su1dZ9HMQ=
           - --redeem-url=https://keycloak-internal-service.kube-system.svc/auth/realms/kaapana/protocol/openid-connect/token
           - --oidc-jwks-url=https://keycloak-internal-service.kube-system.svc/auth/realms/kaapana/protocol/openid-connect/certs
           - --profile-url=https://keycloak-internal-service.kube-system.svc/auth/realms/kaapana/protocol/openid-connect/userinfo
-          - --cookie-secret=P7AiFgxZhLuuTZ2iuIQHSnYWrDlU_NVaA-Su1dZ9HMQ=
           - --https-address=0.0.0.0:8443
+          # - --http-address=0.0.0.0:8080
+          - --metrics-address=:8081
           - --tls-cert-file=/ssl/tls.crt 
           - --tls-key-file=/ssl/tls.key
           - --ssl-insecure-skip-verify
+          - --cookie-expire=15m
           - --ssl-upstream-insecure-skip-verify
           - --skip-provider-button
           - --skip-oidc-discovery
@@ -58,7 +61,6 @@ spec:
           - --pass-access-token 
           - --skip-auth-regex=/auth/*
           - --skip-auth-regex=/federated-backend/remote/*
-          - --metrics-address=:8081
           - --reverse-proxy
           # - --set-authorization-header
           # - --set-xauthrequest
@@ -66,8 +68,10 @@ spec:
           # - --insecure-oidc-skip-nonce
           # - --show-debug-on-error
           ports:
-          - name: http
-            containerPort: 8080
+          - name: metrics
+            containerPort: 8081
+          # - name: http
+          #   containerPort: 8080
           - name: https
             containerPort: 8443
           resources:

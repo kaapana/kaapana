@@ -3,15 +3,34 @@ set -euf -o pipefail
 export HELM_EXPERIMENTAL_OCI=1
 # if unusual home dir of user: sudo dpkg-reconfigure apparmor
 
-PROJECT_NAME="kaapana-platform-chart" # name of the platform Helm chart
-DEFAULT_VERSION="0.1.3"    # version of the platform Helm chart
+######################################################
+# Main platform configuration
+######################################################
 
-OFFLINE_MODE="false" # true or false
-DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart
+PROJECT_NAME="kaapana-platform-chart" # name of the platform Helm chart
+PROJECT_ABBR="kp" # abbrevention for the platform-name
+DEFAULT_VERSION="0.1.3"    # version of the platform Helm chart
 
 CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 CONTAINER_REGISTRY_USERNAME=""
 CONTAINER_REGISTRY_PASSWORD=""
+
+######################################################
+# Installation configuration
+######################################################
+
+DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart
+DEV_PORTS="false"
+GPU_SUPPORT="false"
+
+HELM_NAMESPACE="kaapana"
+PREFETCH_EXTENSIONS="false"
+CHART_PATH=""
+NO_HOOKS=""
+
+######################################################
+# Individual platform configuration
+######################################################
 
 CREDENTIALS_MINIO_USERNAME="kaapanaminio"
 CREDENTIALS_MINIO_PASSWORD="Kaapana2020"
@@ -22,9 +41,6 @@ GRAFANA_PASSWORD="admin"
 KEYCLOAK_ADMIN_USERNAME="admin"
 KEYCLOAK_ADMIN_PASSWORD="Kaapana2020"
 
-
-INSTANCE_NAME="central"
-
 FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
 
@@ -32,39 +48,16 @@ HTTP_PORT="80"      # -> has to be 80
 HTTPS_PORT="443"    # HTTPS port
 DICOM_PORT="11112"  # configure DICOM receiver port
 
-PULL_POLICY_PODS="IfNotPresent"
-PULL_POLICY_JOBS="IfNotPresent"
-PULL_POLICY_OPERATORS="IfNotPresent"
 
-DEV_PORTS="false"
-GPU_SUPPORT="false"
+INSTANCE_NAME="central"
 
-NO_HOOKS=""
-
-DEFAULT_CLEANUP_AFTER_TAR_DUMP="false"
-HELM_NAMESPACE="kaapana"
-
-
-if [ "$DEV_MODE" == "true" ]; then
-    PULL_POLICY_PODS="Always"
-    PULL_POLICY_JOBS="Always"
-    PULL_POLICY_OPERATORS="Always"
-fi
-
-if [ "$OFFLINE_MODE" == "true" ]; then
-    DEV_MODE="false"
-    PULL_POLICY_PODS="Never"
-    PULL_POLICY_JOBS="Never"
-    PULL_POLICY_OPERATORS="Never"
-fi
+######################################################
 
 if [ -z ${http_proxy+x} ] || [ -z ${https_proxy+x} ]; then
     http_proxy=""
     https_proxy=""
 fi
 
-CHART_PATH=""
-TAR_PATH=""
 script_name=`basename "$0"`
 
 # set default values for the colors
@@ -132,70 +125,6 @@ function delete_all_images_microk8s {
     done
 }
 
-function import_containerd {
-    echo "${GREEN}Starting image import into containerd...${NC}"
-    while true; do
-        read -e -p "Should all locally built Docker containers be deleted after the import?" -i " no" yn
-        case $yn in
-            [Yy]* ) echo -e "${GREEN}Local containers will be removed from Docker after the upload to microk8s${NC}" && DEL_CONTAINERS="true"; break;;
-            [Nn]* ) echo -e "${YELLOW}Containers will be kept${NC}" && DEL_CONTAINERS="false"; break;;
-            * ) echo "Please answer yes or no.";;
-        esac
-    done
-    IMAGE_COUNTER=0
-    containerd_imgs=( $(microk8s ctr images ls -q) )
-    docker_images_count=$(docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | wc -l)
-    echo "${GREEN}Found $docker_images_count Docker images to import...${NC}"
-    echo 
-    docker images --filter=reference="local/*" | tr -s ' ' | cut -d " " -f 1,2 | tr ' ' ':' | tail -n +2 | while read IMAGE; do
-        hash=$(docker images --no-trunc --quiet $IMAGE)
-        IMAGE_COUNTER=$((IMAGE_COUNTER+1)) 
-        echo ""
-        echo "${GREEN}Container $IMAGE_COUNTER/$docker_images_count: $IMAGE${NC}"
-        if [[ " ${containerd_imgs[*]} " == *"$hash"* ]]; then
-            echo "${GREEN}Already found -> ok${NC}"
-        else
-            echo "${YELLOW}Not found -> generating *.tar ...${NC}"
-            docker save $IMAGE > ./image.tar
-            if [ $? -eq 0 ]; then
-                echo "${GREEN}created.${NC}"
-            else
-                echo "${RED}Failed to create *.tar of image!${NC}"
-                exit 1
-            fi
-            echo "${GREEN}Import image into containerd...${NC}"
-            microk8s ctr image import image.tar
-            if [ $? -eq 0 ]; then
-                echo "${GREEN}Import ok.${NC}"
-            else
-                echo "${RED}Failed to import image!${NC}"
-                exit 1
-            fi
-            echo "${GREEN}Remove tmp image.tar file...${NC}"
-            rm image.tar
-            if [ $? -eq 0 ]; then
-                echo "${GREEN}deleted.${NC}"
-            else
-                echo "${RED}Failed to remove image-tar!${NC}"
-                exit 1
-            fi
-        fi
-
-        if [ "$DEL_CONTAINERS" = "true" ];then
-            echo "${GREEN}Deleting Docker-image: $IMAGE${NC}"
-            docker rmi $IMAGE
-            echo "${GREEN}deleted.${NC}"
-        fi
-    done
-
-    if [ "$DEL_CONTAINERS" = "true" ];then
-        echo "${GREEN}Deleting all remaining Docker-images...${NC}"
-        docker system prune --all --force
-        echo "${GREEN}done.${NC}"
-    fi
-    echo "${GREEN}All images successfully imported!${NC}"
-}
-
 function get_domain {
     DOMAIN=$(hostname -f)
 
@@ -227,7 +156,7 @@ function get_domain {
 
 function delete_deployment {
     echo -e "${YELLOW}Uninstalling releases${NC}"
-    helm -n $HELM_NAMESPACE ls --date --reverse -A | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $HELM_NAMESPACE uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
+    helm -n $HELM_NAMESPACE ls --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $HELM_NAMESPACE uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
@@ -249,6 +178,8 @@ function delete_deployment {
         exit 1
     fi
     
+    microk8s.kubectl delete namespace kaapana
+
     echo -e "${GREEN}####################################  UNINSTALLATION DONE  ############################################${NC}"
 }
 
@@ -259,92 +190,22 @@ function clean_up_kubernetes {
     microk8s.kubectl delete jobs --all
 }
 
-apply_microk8s_image_import() {
-    IMAGE=$1
-    BASE_NAME=(${IMAGE//:/ })
-    BASE_NAME=${BASE_NAME[0]}
-    echo Uploading $IMAGE
-    microk8s ctr images import --base-name ${BASE_NAME//@/\/} $TAR_LOCATION/microk8s_images/$IMAGE
-}
-
-export -f apply_microk8s_image_import
-
-apply_microk8s_image_export() {
-    IMAGE=$1
-    if [[ $IMAGE == $CONTAINER_REGISTRY_URL* ]] && [[ $IMAGE != *"@"* ]];
-    then
-        echo "${GREEN}Exporting $IMAGE"
-        microk8s ctr images export $DUMP_TAR_DIR/microk8s_images/${IMAGE//\//@} $IMAGE
-    fi
-
-    if [[ $IMAGE == $CONTAINER_REGISTRY_URL* ]] && [[ $CLEANUP_AFTER_TAR_DUMP == 'true' ]];
-    then
-        echo "${YELLOW}Removing $IMAGE"
-        microk8s ctr images remove $IMAGE
-    fi
-    return 0
-}
-
-export -f apply_microk8s_image_export
-
-function dump_to_tar {
-
-    if [ ! "$QUIET" = "true" ];then
-        echo -e ""
-        read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to export? Make sure the verison is available!: ${NC}" -i $DEFAULT_VERSION chart_version;
-    else
-        chart_version=$DEFAULT_VERSION
-    fi
-
-    if [ ! "$QUIET" = "true" ];then
-        echo -e ""
-        read -e -p "${YELLOW}Should the images be removed from microk8s after your dump (true or false)?: ${NC}" -i $DEFAULT_CLEANUP_AFTER_TAR_DUMP CLEANUP_AFTER_TAR_DUMP;
-    else
-        CLEANUP_AFTER_TAR_DUMP=$DEFAULT_CLEANUP_AFTER_TAR_DUMP
-    fi
-
-    export CLEANUP_AFTER_TAR_DUMP
-    export CONTAINER_REGISTRY_URL
-    DUMP_TAR_DIR=$PROJECT_NAME-$chart_version
-    export DUMP_TAR_DIR
-    mkdir $DUMP_TAR_DIR
-    pull_chart
-    echo "Saving Chart $PROJECT_NAME-$chart_version.tgz"
-    mv "$PROJECT_NAME-$chart_version.tgz" $DUMP_TAR_DIR
-    echo Exporting all images that start with $CONTAINER_REGISTRY_URL
-    mkdir $DUMP_TAR_DIR/microk8s_images
-    microk8s.ctr images ls | awk {'print $1'} | xargs -I {} bash -c 'apply_microk8s_image_export "$@"' _ {}
-    tar -czvf $DUMP_TAR_DIR.tar.gz $DUMP_TAR_DIR
-    rm -rf $DUMP_TAR_DIR
-}
-
-function prefetch_extensions {
-    if [ "$OFFLINE_MODE" == "true" ]; then
-        echo "${RED}ERROR: --prefetch-extensions can only be executed when OFFLINE_MODE is set to false. ${NC}"
-        echo "${YELLOW}ATTENTION: --prefetch-extensions only works, when you have also installed the platform with OFFLINE_MODE set to false!! ${NC}"
-        exit 0
-    fi
-
-    echo -e "Prefetching all extension docker container"
-    release_name=prefetch-extensions-chart-$(echo $(uuidgen --hex) | cut -c1-10)
-    PREFETCH_CHART_PATH=$(find $FAST_DATA_DIR/charts/helpers/ -name "prefetch-extensions*" -type f)
-    helm -n $HELM_NAMESPACE install $PREFETCH_CHART_PATH\
-    --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
-    --set-string global.registry_url=$CONTAINER_REGISTRY_URL \
-    --set-string global.fast_data_dir=$FAST_DATA_DIR \
-    --wait \
-    --atomic \
-    --timeout 15m0s \
-    --name-template $release_name \
-
-    sleep 10
-    helm -n $HELM_NAMESPACE uninstall $release_name
-    echo -e "${GREEN}OK!${NC}"
+function upload_tar {
+    echo "${YELLOW}Importing the images fromt the tar, this might take up to one hour...!${NC}"
+    microk8s.ctr images import $TAR_PATH
+    echo "${GREEN}Finished image uplaod! You should now be able to install the platfrom by specifying the chart path.${NC}"
 }
 
 function install_chart {
 
-    if [ ! "$QUIET" = "true" ];then
+    if [ -z "$CONTAINER_REGISTRY_URL" ]; then
+        echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the install_platform.sh script!${NC}"
+        echo "${RED}ABORT${NC}"
+        exit 1
+    fi
+
+
+    if [ ! "$QUIET" = "true" ] && [ -z "$CHART_PATH" ];then
         echo -e ""
         read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to install?: ${NC}" -i $DEFAULT_VERSION chart_version;
     else
@@ -380,53 +241,48 @@ function install_chart {
     get_domain
     
     if [ ! -z "$CHART_PATH" ]; then
-        echo "${GREEN}Setting local chart config.${NC}"
-        if [ ! -f $CHART_PATH ]; then
-            echo "${RED}Chart file not found at $CHART_PATH!${NC}"
-            echo "${RED}Please specify the full absolute path to the chart.tgz-file!${NC}"
+        echo -e "${YELLOW}Please note, since you have specified a chart file, you install the platform in OFFLINE_MODE='true'.${NC}"
+        echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
+        echo -e "${YELLOW}Images are uploaded either with a previous installation from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
+
+        if [ $(basename "$CHART_PATH") != "$PROJECT_NAME-$DEFAULT_VERSION.tgz" ]; then
+            echo "${RED} Verison of chart_path $CHART_PATH differs from PROJECT_NAME: $PROJECT_NAME and DEFAULT_VERSION: $DEFAULT_VERSION in the installer script.${NC}" 
             exit 1
         fi
-        
-        echo "${GREEN}Force PULL_POLICY to 'IfNotPresent' !${NC}"
+
+        while true; do
+        echo -e "${YELLOW}You are installing the platform in offline mode!${NC}"
+            read -p "${YELLOW}Please confirm that you are sure that all images are present in microk8s (yes/no): ${NC}" yn
+                case $yn in
+                    [Yy]* ) break;;
+                    [Nn]* ) exit;;
+                    * ) echo "Please answer yes or no.";;
+                esac
+        done
+
+        OFFLINE_MODE="true"
         DEV_MODE="false"
         PULL_POLICY_PODS="IfNotPresent"
         PULL_POLICY_JOBS="IfNotPresent"
         PULL_POLICY_OPERATORS="IfNotPresent"
+        PREFETCH_EXTENSIONS="false"
 
         CONTAINER_REGISTRY_USERNAME=""
         CONTAINER_REGISTRY_PASSWORD=""
-        CONTAINER_REGISTRY_URL="local"
-        import_containerd
-    elif [ ! -z "$TAR_PATH" ]; then
-        if [ "$OFFLINE_MODE" == "false" ]; then
-            echo "${RED}You need to set OFFLINE_MODE=true in the install_platform.sh script in order to install from a tarball"
-            exit 1
+    else
+        OFFLINE_MODE="false"
+        PULL_POLICY_PODS="IfNotPresent"
+        PULL_POLICY_JOBS="IfNotPresent"
+        PULL_POLICY_OPERATORS="IfNotPresent"
+
+        if [ "$DEV_MODE" == "true" ]; then
+            PULL_POLICY_PODS="Always"
+            PULL_POLICY_JOBS="Always"
+            PULL_POLICY_OPERATORS="Always"
         fi
-        TAR_LOCATION=$(dirname "$TAR_PATH")/$(basename "$TAR_PATH" .tar.gz)
-        export TAR_LOCATION
-        echo Unpacking $TAR_PATH to $TAR_LOCATION
-        tar -xvf $TAR_PATH -C  $(dirname "$TAR_LOCATION")
-        # Not tested...
-        mv "$DUMP_TAR_DIR/$PROJECT_NAME-$chart_version.tgz" "$HOME/$PROJECT_NAME-$chart_version.tgz"
-        CHART_PATH="$HOME/$PROJECT_NAME-$chart_version.tgz"
-        echo Importing Images from $TAR_LOCATION/microk8s_images
-        ls $TAR_LOCATION/microk8s_images | xargs -I {} bash -c 'apply_microk8s_image_import "$@"' _ {}
-        rm -rf $TAR_LOCATION
-        echo
-    elif [ -z "$CONTAINER_REGISTRY_URL" ]; then
-        echo "${RED}CONTAINER_REGISTRY_URL need to be set! -> please adjust the install_platform.sh script!${NC}"
-        echo "${RED}ABORT${NC}"
-        exit 1
-    elif [ "$OFFLINE_MODE" == "true" ]; then
-        CONTAINER_REGISTRY_USERNAME=""
-        CONTAINER_REGISTRY_PASSWORD=""
-        echo "${YELLOW}Installing the platform in offline mode${NC}"
-    else    
+
         echo "${YELLOW}Helm login registry...${NC}"
         check_credentials
-    fi
-
-    if [ -z "$CHART_PATH" ]; then
         echo "${GREEN}Pulling platform chart from registry...${NC}"
         pull_chart
         SCRIPTPATH=$(dirname "$(realpath $0)")
@@ -436,10 +292,12 @@ function install_chart {
     echo "${GREEN}Installing $PROJECT_NAME:$chart_version${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
-    --set-string global.version="$chart_version" \
+    --set-string global.platform_version="$chart_version" \
+    --set-string global.platform_abbr="$PROJECT_ABBR" \
     --set-string global.hostname="$DOMAIN" \
     --set-string global.dev_ports="$DEV_PORTS" \
     --set-string global.offline_mode="$OFFLINE_MODE" \
+    --set-string global.prefetch_extensions="$PREFETCH_EXTENSIONS" \
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.http_port="$HTTP_PORT" \
     --set-string global.https_port="$HTTPS_PORT" \
@@ -458,12 +316,12 @@ function install_chart {
     --set-string global.credentials.grafana_password="$GRAFANA_PASSWORD" \
     --set-string global.credentials.keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
     --set-string global.credentials.keycloak_admin_passowrd="$KEYCLOAK_ADMIN_PASSWORD" \
-    --set-string global.http_proxy=$http_proxy \
-    --set-string global.https_proxy=$https_proxy \
-    --set-string global.registry_url=$CONTAINER_REGISTRY_URL \
+    --set-string global.http_proxy="$http_proxy" \
+    --set-string global.https_proxy="$https_proxy" \
+    --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
     --set-string global.instance_name="$INSTANCE_NAME" \
-    --set global.gpu_support=$GPU_SUPPORT \
-    --name-template $PROJECT_NAME
+    --set global.gpu_support="$GPU_SUPPORT" \
+    --name-template "$PROJECT_NAME"
 
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm $CHART_PATH
@@ -477,42 +335,18 @@ function install_chart {
 
 
 function pull_chart {
-    if [ "$OFFLINE_MODE" == "false" ]; then
-        for i in 1 2 3 4 5;
-        do
-            echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME with version $chart_version ${NC}"
-            helm pull oci://${CONTAINER_REGISTRY_URL}/$PROJECT_NAME --version $chart_version \
-                && break \
-                || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 );
-            
-            if [ $i -eq 5 ];then
-                echo -e "${RED}Could not pull chart! -> abort${NC}"
-                exit 1
-            fi 
-        done
-    fi
-}
-
-function upgrade_chart {
-    if [ ! "$QUIET" = "true" ];then
-        read -e -p "${YELLOW}Which version should be deployed?: ${NC}" -i $DEFAULT_VERSION chart_version;
-    else
-        chart_version=$DEFAULT_VERSION
-    fi
-
-    echo "${YELLOW}Upgrading release: $PROJECT_NAME ${NC}"
-    echo "${YELLOW}version: $chart_version${NC}"
-    
-    if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
-        CHART_PATH=./$PROJECT_NAME
-        pull_chart
-    fi
-    echo -e "${YELLOW}Charyt-tgz-path $CHART_PATH${NC}"
-    helm -n $HELM_NAMESPACE upgrade $PROJECT_NAME $CHART_PATH --devel --version $chart_version --set-string global.version="$chart_version" --reuse-values 
-    if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
-        rm -rf $CHART_PATH
-    fi
-    print_installation_done
+    for i in 1 2 3 4 5;
+    do
+        echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME with version $chart_version ${NC}"
+        helm pull oci://${CONTAINER_REGISTRY_URL}/$PROJECT_NAME --version $chart_version \
+            && break \
+            || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 );
+        
+        if [ $i -eq 5 ];then
+            echo -e "${RED}Could not pull chart! -> abort${NC}"
+            exit 1
+        fi 
+    done
 }
 
 function check_credentials {
@@ -610,14 +444,13 @@ _Flag: --install-certs set new HTTPS-certificates for the platform
 _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
 _Flag: --remove-all-images-docker will delete all Docker images from the system
 _Flag: --quiet, meaning non-interactive operation
-_Flag: --prefetch-extensions is used to prefetch every docker image which might be needed when installing an extension. You should execute this, if you want to go offline after installation.
-_Flag: --dump-to-tar, export the current platform to a tarball
 
-_Argument: --chart-path [path-to-chart-tgz]
-_Argument: --tar-path [path-to-a-tarball]
+_Argument: --version of the platform [version]
 _Argument: --username [Docker regsitry username]
 _Argument: --password [Docker regsitry password]
 _Argument: --port [Set main https-port]
+_Argument: --chart-path [path-to-chart-tgz]
+_Argument: --upload-tar [path-to-a-tarball]
 
 _Argument: --version [version]
 
@@ -667,11 +500,11 @@ do
             shift # past value
         ;;
 
-        --tar-path)
+        --upload-tar)
             TAR_PATH="$2"
             echo -e "${GREEN}SET TAR_PATH: $TAR_PATH !${NC}";
-            shift # past argument
-            shift # past value
+            upload_tar
+            exit 0
         ;;
 
         --quiet)
@@ -684,11 +517,6 @@ do
             exit 0
         ;;
 
-        --dump-to-tar)
-            dump_to_tar
-            exit 0
-        ;;
-
         --remove-all-images-ctr)
             delete_all_images_microk8s
             exit 0
@@ -696,11 +524,6 @@ do
 
         --remove-all-images-docker)
             delete_all_images_docker
-            exit 0
-        ;;
-
-        --prefetch-extensions)
-            prefetch_extensions
             exit 0
         ;;
 
@@ -738,15 +561,10 @@ echo $deployments
 if [[ $deployments == *"$PROJECT_NAME"* ]] && [[ ! $QUIET = true ]];then
     echo -e "${YELLOW}$PROJECT_NAME already deployed!${NC}"
     PS3='select option: '
-    options=("Upgrade" "Re-install" "Uninstall" "Quit")
+    options=("Re-install" "Uninstall" "Quit")
     select opt in "${options[@]}"
     do
         case $opt in
-            "Upgrade")
-                echo -e "${YELLOW}Starting upgrade...${NC}"
-                upgrade_chart
-                break
-                ;;
             "Re-install")
                 echo -e "${YELLOW}Starting re-installation...${NC}"
                 delete_deployment

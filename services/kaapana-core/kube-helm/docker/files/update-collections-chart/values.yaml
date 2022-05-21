@@ -1,0 +1,7 @@
+---
+global:
+    action: "copy"
+    pull_policy_jobs: "IfNotPresent"
+    charts_dir: "/extensions"
+    chart_container_image:
+    chart_container_version:

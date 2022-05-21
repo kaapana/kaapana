@@ -81,6 +81,7 @@ spec:
           path: {{ $.Values.global.fast_data_dir }}/extensions
           type: DirectoryOrCreate
       restartPolicy: Never
+      serviceAccountName: kubernetes-dashboard
       imagePullSecrets:
       - name: registry-secret
   backoffLimit: 2

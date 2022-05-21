@@ -178,6 +178,8 @@ function delete_deployment {
         exit 1
     fi
     
+    kubectl delete namespace kaapana
+
     echo -e "${GREEN}####################################  UNINSTALLATION DONE  ############################################${NC}"
 }
 

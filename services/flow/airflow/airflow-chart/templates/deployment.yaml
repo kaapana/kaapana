@@ -60,7 +60,7 @@ spec:
     spec:
       initContainers:
       - name: service-kaapana-plugin-check
-        image: {{ .Values.global.registry_url }}/service_checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
+        image: {{ .Values.global.registry_url }}/service-checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
         imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
         env:
         - name: WAIT

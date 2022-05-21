@@ -1,6 +1,6 @@
 FROM python:3.9-alpine3.12
 
-LABEL IMAGE="service_checker"
+LABEL IMAGE="service-checker"
 LABEL VERSION="1.1"
 LABEL CI_IGNORE="False"
 

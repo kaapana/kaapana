@@ -99,7 +99,9 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
     # regex = r'image: ([\w\-\.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)'
     regex = r'image: (.*)\/([\w\-\.]+):([\w\-\.]+)'
     extensions = helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaint', 'kaapanaworkflow'])
+    installed_release_names = []
     dags = []
+    image_dict = {}
     for chart_name, chart in extensions.items():
         if os.path.isfile(f'{settings.helm_extensions_cache}/{chart_name}.tgz') is not True:
             print(f'{chart_name} not found')
@@ -111,44 +113,58 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
             'release_name': f'prefetch-{chart_name}'
         }
 
-        if 'kaapanaexperimental' in chart["keywords"]:
-            print(f'Skipping {chart_name}, since its experimental')
-            continue
-        elif 'kaapanaworkflow' in chart["keywords"]:
+        # if 'kaapanaexperimental' in chart["keywords"]:
+        #     print(f'Skipping {chart_name}, since its experimental')
+        #     continue
+        if 'kaapanaworkflow' in chart["keywords"]:
             dags.append(payload)
         else:
             print(f'Prefetching {chart_name}')
-            try:
-                release, _, _ = helm_install(payload, helm_command_addons='--dry-run', in_background=False)
-                manifest = json.loads(release.decode("utf-8"))["manifest"]
-                matches = re.findall(regex, manifest)
-                if matches:
-                    for match in matches:
-                        docker_registry_url = match[0]
-                        docker_image = match[1]
-                        docker_version = match[2]
-                        release_name = f'pull-docker-chart-{secrets.token_hex(10)}'
-                        try:
-                            pull_docker_image(release_name, docker_image, docker_version, docker_registry_url)
-                        except subprocess.CalledProcessError as e:
-                            helm_delete(release_name=release_name, release_version=chart["version"])
-                            print(e)
-            except subprocess.CalledProcessError as e:
-                print(f'Skipping {chart_name} due to {e.output.decode("utf-8")}')
+            if helm_status(payload["name"]):
+                print(f'Skipping {payload["name"]} since it is already installed')
+                continue
+            release, _, release_name = helm_install(payload, helm_command_addons='--dry-run', in_background=False)
+            manifest = json.loads(release.decode("utf-8"))["manifest"]
+            matches = re.findall(regex, manifest)
+            if matches:
+                for match in matches:
+                    docker_registry_url = match[0]
+                    docker_image = match[1]
+                    docker_version = match[2]
+                    image_dict.update({f'{docker_registry_url}/{docker_image}:{docker_version}': {
+                        'docker_registry_url': docker_registry_url,
+                        'docker_image': docker_image,
+                        'docker_version': docker_version
+                    }})
+
+    for name, payload in image_dict.items():
+        try:
+            release_name = f'pull-docker-chart-{secrets.token_hex(10)}'
+            release, helm_command, release_name  = pull_docker_image(release_name, **payload, in_background=False)
+            installed_release_names.append(release_name)
+        except subprocess.CalledProcessError as e:
+            helm_delete(release_name=release_name, release_version=chart["version"])
+            raise ValueError(e) 
+
     for dag in dags:
         try:
             print(f'Prefetching {dag["name"]}')
             dag['sets'] = {
                 'action': 'prefetch'
             }
+            if helm_status(dag["name"]):
+                print(f'Skipping {dag["name"]} since it is already installed')
+                continue
             helm_comman_suffix = f'--wait --atomic --timeout=120m0s; sleep 10;{os.environ["HELM_PATH"]} -n {helm_namespace} delete --no-hooks {dag["release_name"]}'
-            helm_install(dag, helm_comman_suffix=helm_comman_suffix)
+            release, helm_command, release_name = helm_install(dag, helm_comman_suffix=helm_comman_suffix, in_background=False)
+            installed_release_names.append(release_name)
         except subprocess.CalledProcessError as e:
-            print(f'Skipping {dag["name"]} due to {e.output.decode("utf-8")}')
             helm_delete(release_name=dag['release_name'], release_version=chart["version"], helm_command_addons='--no-hooks')
+            raise ValueError(e)  
 
+    return installed_release_names
 
-def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, timeout='120m0s', helm_namespace=settings.helm_namespace):
+def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, timeout='120m0s', helm_namespace=settings.helm_namespace, in_background=True):
     print(f'Pulling {docker_registry_url}/{docker_image}:{docker_version}')
 
     try:
@@ -174,7 +190,7 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
     }
 
     helm_comman_suffix = f'--wait --atomic --timeout {timeout}; sleep 10;{os.environ["HELM_PATH"]} -n {helm_namespace} delete {release_name}'
-    helm_install(payload, helm_comman_suffix=helm_comman_suffix, helm_cache_path=settings.helm_helpers_cache)
+    return helm_install(payload, helm_comman_suffix=helm_comman_suffix, helm_cache_path=settings.helm_helpers_cache, in_background=in_background)
 
 
 def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_addons='', helm_comman_suffix='', helm_delete_prefix='', in_background=True, helm_cache_path=None):
@@ -269,7 +285,7 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
         elif helm_delete_prefix:
             print('Deleting and then installing again!')
         else:
-            return f"already installed {release_name}", "Nothing more to say", release_name
+            return "Already installed!", "Nothing more to say", release_name
 
     helm_sets = ''
     if "sets" in payload:

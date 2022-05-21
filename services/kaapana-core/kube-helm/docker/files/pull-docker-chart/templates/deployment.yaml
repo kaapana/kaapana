@@ -1,8 +1,8 @@
----
+{{- $uuid := uuidv4 | trunc 10 }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: pull-{{ .Values.image }}
+  name: pull-{{ $uuid }}
   namespace: default
 spec:
   selector:

@@ -15,7 +15,7 @@ spec:
 apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
-  name: error-pages-ingress-ip
+  name: openedc-ingress-ip
   namespace: kube-system
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure

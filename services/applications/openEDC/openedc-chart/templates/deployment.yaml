@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: openedc-container
-        image: {{  .Values.global.registry_url }}/openedc:0.1.0
+        image: {{  .Values.global.registry_url }}/openedc:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.1.0
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         resources:
           requests:

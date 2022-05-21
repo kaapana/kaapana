@@ -16,7 +16,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: openedc-ingress-ip
-  namespace: kube-system
+  namespace: base
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd

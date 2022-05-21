@@ -22,9 +22,10 @@ if settings.offline_mode is False and settings.prefetch_extensions is True:
         if sum(list(releases_installed.values())) == len(releases_installed):
             print(f'Sucessfully uninstalled all prefetching releases {" ".join(releases_installed.keys())}')
             break
+    if sum(list(releases_installed.values())) != len(releases_installed):
+        raise NameError(f'Not all prefetching releases were uninstalled successfully {" ".join(releases_installed.keys())}')
+        
 else:
     print(f'Offline mode is set to {settings.offline_mode} and prefetch_extensions is set to {settings.prefetch_extensions}!')
     print("Not prefetching...")
 
-if sum(list(releases_installed.values())) != len(releases_installed):
-    raise NameError(f'Not all prefetching releases were uninstalled successfully {" ".join(releases_installed.keys())}')

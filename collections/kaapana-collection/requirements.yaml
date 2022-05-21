@@ -54,5 +54,6 @@ dependencies:
   - name: tensorboard-chart
     version: 2.8.0
     repository: file://../../../../services/applications/tensorboard/tensorboard-chart 
-
-    
+  - name: openedc-chart
+    version: 0.1.0
+    repository: file://../../../../services/applications/openEDC/openedc-chart

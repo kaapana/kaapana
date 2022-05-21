@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from shutil import which, copy, rmtree
+from shutil import copyfile, rmtree
 import yaml
 import os
 import logging
@@ -65,8 +65,17 @@ if __name__ == '__main__':
 
     config_filepath = args.config_filepath
     config_filepath = config_filepath if config_filepath is not None else os.path.join(kaapana_dir, "build-scripts", "build-config.yaml")
+    template_config_filepath = os.path.join(kaapana_dir, "build-scripts", "build-config-template.yaml")
     if not os.path.isfile(config_filepath):
-        logger.error(f"The build-configuration.yaml file was not found at: {config_filepath}")
+        logger.error("")
+        logger.error("")
+        logger.error(f"The build-configuration.yaml was not found!")
+        logger.error(f"Default config has been created -> please adjust as needed !!")
+        logger.error("")
+        logger.error(f"See: {config_filepath}")
+        copyfile(src=template_config_filepath, dst=config_filepath)
+        logger.error("")
+        logger.error("")
         logger.error("-----------------------------------------------------------")
         exit(1)
     logger.info("-----------------------------------------------------------")

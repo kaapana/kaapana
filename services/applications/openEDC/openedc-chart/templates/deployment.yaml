@@ -1,0 +1,31 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openedc
+  namespace: base
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: openedc
+  template:
+    metadata:
+      labels:
+        app-name: openedc
+    spec:
+      containers:
+      - name: openedc-container
+        image: {{  .Values.global.registry_url }}/openedc:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.1.0
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        resources:
+          requests:
+            memory: 20Mi
+          limits:
+            memory: 30Mi
+        ports:
+        - name: http-port
+          containerPort: 80
+      imagePullSecrets:
+      - name: registry-secret
+---

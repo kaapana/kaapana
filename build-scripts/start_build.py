@@ -116,9 +116,9 @@ if __name__ == '__main__':
 
     for external_source_dir in external_source_dirs:
         if not os.path.isdir(external_source_dir):
-            logger.error("-----------------------------------------------------------")
+            logger.error("---------------------------------------------------------------------------------------------")
             logger.error(f"External source-dir: {external_source_dir} does not exist -> exit!")
-            logger.error("-----------------------------------------------------------")
+            logger.error("---------------------------------------------------------------------------------------------")
             exit(1)
 
     charts_lint = True if enable_linting else False
@@ -140,26 +140,28 @@ if __name__ == '__main__':
     logger.info("                       BUILD CONFIG                        ")
     logger.info("")
     logger.info("-----------------------------------------------------------")
+    logger.info("")
     logger.info(f"{http_proxy=}")
-    logger.info(f"{build_only=}")
-    logger.info(f"{create_offline_installation=}")
-    logger.info(f"{external_source_dirs=}")
-    logger.info(f"{log_level=}")
-    logger.info(f"{enable_linting=}")
-    logger.info(f"{exit_on_error=}")
     logger.info(f"{platform_filter=}")
-    logger.info(f"{charts_kubeval=}")
+    logger.info(f"{external_source_dirs=}")
+    logger.info(f"{default_registry=}")
+    logger.info(f"{log_level=}")
+    logger.info(f"{exit_on_error=}")
+    logger.info(f"{container_engine=}")
+    logger.info(f"{build_only=}")
+    logger.info(f"{charts_lint=}")
     logger.info(f"{charts_kubeval=}")
     logger.info(f"{charts_push=}")
-    logger.info(f"{container_build=}")
+    logger.info(f"{enable_linting=}")
     logger.info(f"{containers_push=}")
-    logger.info(f"{push_to_microk8s=}")
-    logger.info(f"{build_installer_scripts=}")
-    logger.info(f"{container_engine=}")
-    logger.info(f"{default_registry=}")
+    logger.info(f"{container_build=}")
     logger.info(f"{skip_push_no_changes=}")
+    logger.info(f"{create_offline_installation=}")
+    logger.info(f"{build_installer_scripts=}")
+    logger.info(f"{push_to_microk8s=}")
     logger.info("")
     logger.info("-----------------------------------------------------------")
+
 
     if not build_only:
         if registry_user is None:

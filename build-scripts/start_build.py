@@ -38,7 +38,6 @@ logger.addHandler(f_handler)
 
 supported_log_levels = ["DEBUG", "INFO", "WARN", "ERROR"]
 
-terminal_width = int(os.get_terminal_size()[0] * 0.5)
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument("-c", "--config", dest="config_filepath", default=None, help="Path the the build-config.yaml")

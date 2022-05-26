@@ -11,9 +11,9 @@ PROJECT_NAME="kaapana-platform-chart" # name of the platform Helm chart
 PROJECT_ABBR="kp" # abbrevention for the platform-name
 DEFAULT_VERSION="0.1.3"    # version of the platform Helm chart
 
-CONTAINER_REGISTRY_URL="registry.hzdr.de/k.kades/kaapana-mai" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
-CONTAINER_REGISTRY_USERNAME="kaapana-mai"
-CONTAINER_REGISTRY_PASSWORD="QexpywsyNnEG9SFTZy7u"
+CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
+CONTAINER_REGISTRY_USERNAME=""
+CONTAINER_REGISTRY_PASSWORD=""
 
 ######################################################
 # Installation configuration

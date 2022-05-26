@@ -262,6 +262,7 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
     helm_sets = ''
     if "sets" in payload:
         for key, value in payload["sets"].items():
+            value = value.replace(",","\,").replace("'", '\'"\'').replace(" ", "")
             helm_sets = helm_sets + f" --set {key}='{value}'"
 
     helm_command = f'{helm_delete_prefix}{os.environ["HELM_PATH"]} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_comman_suffix}'

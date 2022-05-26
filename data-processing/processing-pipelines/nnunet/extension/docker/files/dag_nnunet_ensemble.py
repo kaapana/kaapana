@@ -371,7 +371,16 @@ nnunet_evaluation_notebook = NnUnetNotebookOperator(
     # dev_server='code-server'
 )
 
-put_to_minio = LocalMinioOperator(dag=dag, name='upload-staticwebsiteresults', bucket_name='staticwebsiteresults', action='put', action_operators=[nnunet_evaluation_notebook], file_white_tuples=('.html', '.pdf'))
+put_to_minio = LocalMinioOperator(
+    dag=dag,
+    name='upload-nnunet-evaluation',
+    zip_files=True,
+    action='put',
+    action_operators=[evaluation, nnunet_evaluation_notebook],
+    file_white_tuples=('.zip')
+    )
+
+put_report_to_minio = LocalMinioOperator(dag=dag, name='upload-staticwebsiteresults', bucket_name='staticwebsiteresults', action='put', action_operators=[nnunet_evaluation_notebook], file_white_tuples=('.html', '.pdf'))
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
 
@@ -379,4 +388,4 @@ get_test_images >> sort_gt >> dcm2nifti_gt >> seg_check_gt
 sort_gt >> get_ref_ct_series_from_gt >> dcm2nifti_ct >> nnunet_predict >> do_inference >> seg_check_inference >> seg_check_gt >> evaluation
 get_input >> dcm2bin >> extract_model >> nnunet_predict >> nnunet_ensemble >> do_ensemble
 do_inference >> do_ensemble >> seg_check_ensemble >> evaluation 
-seg_check_inference >> evaluation >> nnunet_evaluation_notebook >> put_to_minio >> clean
+seg_check_inference >> evaluation >> nnunet_evaluation_notebook >> put_to_minio >> put_report_to_minio >> clean

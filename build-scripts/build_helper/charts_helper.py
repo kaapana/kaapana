@@ -180,6 +180,7 @@ class HelmChart:
         self.chartfile = chartfile
         self.dependencies = {}
         self.collections = {}
+        self.kaapana_collections = []
         self.dependencies_count_all = None
         self.values_yaml = None
         self.requirements_yaml = None
@@ -245,6 +246,9 @@ class HelmChart:
             project_name = platform_params["project_name"]
             project_version = platform_params["default_version"]
             project_abbr = platform_params["project_abbr"]
+            if "kaapana_collections" in platform_params:
+                self.kaapana_collections = platform_params["kaapana_collections"]
+
             self.version_prefix = f"{project_abbr}_{project_version}__"
 
         self.check_container_use()
@@ -390,16 +394,11 @@ class HelmChart:
 
     def check_collections(self):
         BuildUtils.logger.debug(f"{self.chart_id}: check_collections")
-        if self.values_yaml == None:
-            BuildUtils.logger.debug(f"{self.chart_id}: no values.yaml found -> return")
+        if not self.kaapana_collections:
+            BuildUtils.logger.debug(f"{self.chart_id}: no kaapana_collections -> return")
             return
 
-        kaapana_collections = []
-        if self.values_yaml != None and "global" in self.values_yaml and "kube_helm_collections" in self.values_yaml["global"]:
-            platform_collections = self.values_yaml["global"]["kube_helm_collections"]
-            kaapana_collections.extend(platform_collections)
-
-        for collection in kaapana_collections:
+        for collection in self.kaapana_collections:
             extension_collection_id = f"{collection['name']}:{collection['version']}"
             collection_chart = [x for x in BuildUtils.charts_available if x == extension_collection_id]
             if len(collection_chart) == 1:
@@ -461,7 +460,7 @@ class HelmChart:
 
         # if self.kaapana_type == "kaapanaworkflow":
         if self.values_yaml != None:
-            if "global" in self.values_yaml and "image" in self.values_yaml["global"]:
+            if "global" in self.values_yaml and self.values_yaml["global"] is not None and "image" in self.values_yaml["global"]:
                 image = self.values_yaml["global"]["image"]
                 version = self.values_yaml["global"]["version"]
                 if image != None and version != None:

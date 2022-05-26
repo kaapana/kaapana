@@ -23,46 +23,20 @@ spec:
           value: "/kube-helm-api"
         - name: HELM_PATH
           value: "/usr/local/bin/helm"
-        - name: PLATFORM_ABBR
-          value: {{ $.Values.global.platform_abbr }}
-        - name: PLATFORM_VERSION
-          value: {{ $.Values.global.platform_version }}
+        - name: RELEASE_NAME
+          value: {{ $.Values.global.release_name }}
         - name: HELM_NAMESPACE
           value: {{ $.Values.global.helm_namespace }}
         - name: REGISTRY_URL
           value: {{ $.Values.global.registry_url }}
         - name: OFFLINE_MODE
           value: '{{ $.Values.global.offline_mode }}'
-        - name: BASE_NAMESPACE
-          value: {{ $.Values.global.base_namespace }}
-        - name: FLOW_NAMESPACE
-          value: {{ $.Values.global.flow_namespace }}
-        - name: FLOW_JOBS_NAMESPACE
-          value: {{ $.Values.global.flow_jobs_namespace }}
-        - name: PULL_POLICY_PODS
-          value: {{ $.Values.global.pull_policy_pods }}
-        - name: PULL_POLICY_JOBS
-          value: {{ $.Values.global.pull_policy_jobs }}
-        - name: FAST_DATA_DIR
-          value: {{ $.Values.global.fast_data_dir }}
-        - name: SLOW_DATA_DIR
-          value: {{ $.Values.global.slow_data_dir }}
 {{- if $.Values.global.http_proxy }}
         - name: PROXY
           value: {{ $.Values.global.http_proxy }}
 {{- end }}
-        - name: MINIO_ACCESS_KEY
-          value: "{{ $.Values.global.credentials_minio_username }}"
-        - name: MINIO_SECRET_KEY
-          value: "{{ $.Values.global.credentials_minio_password }}"
-        - name: INSTANCE_NAME
-          value: "{{ $.Values.global.instance_name }}"
-        - name: HOSTNAME
-          value: "{{ $.Values.global.hostname }}"
-        - name: HTTPS_PORT
-          value: "{{ $.Values.global.https_port }}"
-        - name: KUBE_HELM_COLLECTIONS
-          value: "{{- range $collection := $.Values.global.kube_helm_collections }}{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ $collection.version }};{{- end }}"
+        - name: KAAPANA_COLLECTIONS
+          value: "{{- range $collection := $.Values.global.kaapana_collections }}{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ $collection.version }};{{- end }}"
         - name: PREINSTALL_EXTENSIONS
           value: '[{{- range $extension := $.Values.global.preinstall_extensions }}{"name": "{{ $extension.name }}", "version": "{{ $extension.version }}"},{{- end }}]'
         - name: PREFETCH_EXTENSIONS
@@ -123,46 +97,20 @@ spec:
           value: "/kube-helm-api"
         - name: HELM_PATH
           value: "/usr/local/bin/helm"
-        - name: PLATFORM_ABBR
-          value: {{ $.Values.global.platform_abbr }}
-        - name: PLATFORM_VERSION
-          value: {{ $.Values.global.platform_version }}
+        - name: RELEASE_NAME
+          value: {{ $.Values.global.release_name }}
         - name: HELM_NAMESPACE
           value: {{ $.Values.global.helm_namespace }}
         - name: REGISTRY_URL
           value: {{ $.Values.global.registry_url }}
         - name: OFFLINE_MODE
           value: '{{ $.Values.global.offline_mode }}'
-        - name: BASE_NAMESPACE
-          value: {{ $.Values.global.base_namespace }}
-        - name: FLOW_NAMESPACE
-          value: {{ $.Values.global.flow_namespace }}
-        - name: FLOW_JOBS_NAMESPACE
-          value: {{ $.Values.global.flow_jobs_namespace }}
-        - name: PULL_POLICY_PODS
-          value: {{ $.Values.global.pull_policy_pods }}
-        - name: PULL_POLICY_JOBS
-          value: {{ $.Values.global.pull_policy_jobs }}
-        - name: FAST_DATA_DIR
-          value: {{ $.Values.global.fast_data_dir }}
-        - name: SLOW_DATA_DIR
-          value: {{ $.Values.global.slow_data_dir }}
 {{- if $.Values.global.http_proxy }}
         - name: PROXY
           value: {{ $.Values.global.http_proxy }}
 {{- end }}
-        - name: MINIO_ACCESS_KEY
-          value: "{{ $.Values.global.credentials_minio_username }}"
-        - name: MINIO_SECRET_KEY
-          value: "{{ $.Values.global.credentials_minio_password }}"
-        - name: INSTANCE_NAME
-          value: "{{ $.Values.global.instance_name }}"
-        - name: HOSTNAME
-          value: "{{ $.Values.global.hostname }}"
-        - name: HTTPS_PORT
-          value: "{{ $.Values.global.https_port }}"
-        - name: KUBE_HELM_COLLECTIONS
-          value: "{{- range $collection := $.Values.global.kube_helm_collections }}{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ $collection.version }};{{- end }}"
+        - name: KAAPANA_COLLECTIONS
+          value: "{{- range $collection := $.Values.global.kaapana_collections }}{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ $collection.version }};{{- end }}"
         - name: PREINSTALL_EXTENSIONS
           value: '[{{- range $extension := $.Values.global.preinstall_extensions }}{"name": "{{ $extension.name }}", "version": "{{ $extension.version }}"},{{- end }}]'
         - name: PREFETCH_EXTENSIONS
@@ -188,46 +136,20 @@ spec:
           value: "/kube-helm-api"
         - name: HELM_PATH
           value: "/usr/local/bin/helm"
-        - name: PLATFORM_ABBR
-          value: {{ $.Values.global.platform_abbr }}
-        - name: PLATFORM_VERSION
-          value: {{ $.Values.global.platform_version }}
+        - name: RELEASE_NAME
+          value: {{ $.Values.global.release_name }}
         - name: HELM_NAMESPACE
           value: {{ $.Values.global.helm_namespace }}
         - name: REGISTRY_URL
           value: {{ $.Values.global.registry_url }}
         - name: OFFLINE_MODE
           value: '{{ $.Values.global.offline_mode }}'
-        - name: BASE_NAMESPACE
-          value: {{ $.Values.global.base_namespace }}
-        - name: FLOW_NAMESPACE
-          value: {{ $.Values.global.flow_namespace }}
-        - name: FLOW_JOBS_NAMESPACE
-          value: {{ $.Values.global.flow_jobs_namespace }}
-        - name: PULL_POLICY_PODS
-          value: {{ $.Values.global.pull_policy_pods }}
-        - name: PULL_POLICY_JOBS
-          value: {{ $.Values.global.pull_policy_jobs }}
-        - name: FAST_DATA_DIR
-          value: {{ $.Values.global.fast_data_dir }}
-        - name: SLOW_DATA_DIR
-          value: {{ $.Values.global.slow_data_dir }}
 {{- if $.Values.global.http_proxy }}
         - name: PROXY
           value: {{ $.Values.global.http_proxy }}
 {{- end }}
-        - name: MINIO_ACCESS_KEY
-          value: "{{ $.Values.global.credentials_minio_username }}"
-        - name: MINIO_SECRET_KEY
-          value: "{{ $.Values.global.credentials_minio_password }}"
-        - name: INSTANCE_NAME
-          value: "{{ $.Values.global.instance_name }}"
-        - name: HOSTNAME
-          value: "{{ $.Values.global.hostname }}"
-        - name: HTTPS_PORT
-          value: "{{ $.Values.global.https_port }}"
-        - name: KUBE_HELM_COLLECTIONS
-          value: "{{- range $collection := $.Values.global.kube_helm_collections }}{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ $collection.version }};{{- end }}"
+        - name: KAAPANA_COLLECTIONS
+          value: "{{- range $collection := $.Values.global.kaapana_collections }}{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ $collection.version }};{{- end }}"
         - name: PREINSTALL_EXTENSIONS
           value: '[{{- range $extension := $.Values.global.preinstall_extensions }}{"name": "{{ $extension.name }}", "version": "{{ $extension.version }}"},{{- end }}]'
         - name: PREFETCH_EXTENSIONS

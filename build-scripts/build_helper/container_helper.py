@@ -263,6 +263,9 @@ class Container:
         BuildUtils.logger.debug(f"{self.build_tag}: in push()")
         
         if BuildUtils.push_to_microk8s is True:
+            if self.build_tag.startswith('local-only'):
+                BuildUtils.logger.info(f"Skipping: Pushing {self.build_tag} to microk8s, due to local-only")
+                return
             BuildUtils.logger.debug(f"{self.build_tag}: push_to_microk8s")
 
             BuildUtils.logger.info(f"Pushing {self.build_tag} to microk8s")

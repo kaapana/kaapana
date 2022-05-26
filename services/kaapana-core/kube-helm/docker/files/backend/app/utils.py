@@ -202,45 +202,17 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
     name = payload["name"]
     version = payload["version"]
 
-    # default_sets = {
-    #     #'global.registry_url': os.getenv('REGISTRY_URL'),
-    #     'global.base_namespace': os.getenv('BASE_NAMESPACE'),
-    #     'global.flow_namespace': os.getenv('FLOW_NAMESPACE'),
-    #     'global.flow_jobs_namespace': os.getenv('FLOW_JOBS_NAMESPACE'),
-    #     #'global.fast_data_dir': os.getenv('FAST_DATA_DIR'),
-    #     #'global.slow_data_dir': os.getenv('SLOW_DATA_DIR'),
-    #     #'global.pull_policy_pods': os.getenv('PULL_POLICY_PODS'),
-    #     #'global.pull_policy_jobs': os.getenv('PULL_POLICY_JOBS'),
-    #     #'global.offline_mode': os.environ.get('OFFLINE_MODE', 'true'),
-    #     'global.credentials_minio_username': os.getenv('MINIO_ACCESS_KEY'),
-    #     'global.credentials_minio_password': os.getenv('MINIO_SECRET_KEY'),
-    #     #'global.instance_name': os.getenv('INSTANCE_NAME'),
-    #     #'global.hostname': os.getenv('HOSTNAME'),
-    #     #'global.http_proxy': os.getenv('PROXY', ''),
-    #     #'global.https_proxy': os.getenv('PROXY', ''),
-    #     #'global.https_port': os.getenv('HTTPS_PORT', '443')
-    # }
+    release_values = helm_get_values("kaapana-platform-chart")
 
-    default_sets = {
-        'global.registry_url': os.getenv('REGISTRY_URL'),
-        'global.platform_abbr': os.getenv('PLATFORM_ABBR'),
-        'global.platform_version': os.getenv('PLATFORM_VERSION'),
-        'global.base_namespace': os.getenv('BASE_NAMESPACE'),
-        'global.flow_namespace': os.getenv('FLOW_NAMESPACE'),
-        'global.flow_jobs_namespace': os.getenv('FLOW_JOBS_NAMESPACE'),
-        'global.fast_data_dir': os.getenv('FAST_DATA_DIR'),
-        'global.slow_data_dir': os.getenv('SLOW_DATA_DIR'),
-        'global.pull_policy_pods': os.getenv('PULL_POLICY_PODS'),
-        'global.pull_policy_jobs': os.getenv('PULL_POLICY_JOBS'),
-        'global.offline_mode': os.environ.get('OFFLINE_MODE', 'true'),
-        'global.credentials_minio_username': os.getenv('MINIO_ACCESS_KEY'),
-        'global.credentials_minio_password': os.getenv('MINIO_SECRET_KEY'),
-        'global.instance_name': os.getenv('INSTANCE_NAME'),
-        'global.hostname': os.getenv('HOSTNAME'),
-        'global.http_proxy': os.getenv('PROXY', ''),
-        'global.https_proxy': os.getenv('PROXY', ''),
-        'global.https_port': os.getenv('HTTPS_PORT', '443')
-    }
+    default_sets = {}
+    if 'global' in release_values:
+        for k, v in release_values['global'].items():
+            default_sets[f'global.{k}'] = v
+    default_sets.pop('global.preinstall_extensions', None)
+    default_sets.pop('global.kaapana_collections', None)
+
+    print('Using default sets')
+    print(json.dumps(default_sets, indent=4, sort_keys=True))
 
     # http_proxy = os.getenv('PROXY', None)
     # if http_proxy is not None and http_proxy != "":
@@ -297,7 +269,8 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
         if item["releaseName"] == release_name and item["version"] == version:
             item["successful"] = 'pending'
 
-    print('hello', helm_command)
+    print('Executing')
+    print(helm_command)
     if in_background is False:
         return subprocess.check_output(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command, release_name
     else:
@@ -524,8 +497,8 @@ def execute_update_extensions():
     payload = {k: chart[k] for k in ('name', 'version')}
 
     install_error = False
-    message = f"No kube_helm_collections defined..."
-    for idx, kube_helm_collection in enumerate(settings.kube_helm_collections.split(';')[:-1]):
+    message = f"No kaapana_collections defined..."
+    for idx, kube_helm_collection in enumerate(settings.kaapana_collections.split(';')[:-1]):
         release_name = cure_invalid_name("-".join(kube_helm_collection.split('/')[-1].split(':')), r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*", max_length=53)
         payload.update({
             'release_name': release_name,

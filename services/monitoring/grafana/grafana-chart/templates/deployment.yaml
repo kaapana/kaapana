@@ -26,9 +26,9 @@ spec:
         # - name: GF_AUTH_ANONYMOUS_ORG_NAME
         #   value: "Main Org."
         - name: GF_SECURITY_ADMIN_PASSWORD
-          value: {{ .Values.global.credentials.grafana_password }}
+          value: {{ .Values.global.credentials_grafana_password }}
         - name: GF_SECURITY_ADMIN_USER
-          value: {{ .Values.global.credentials.grafana_username }}
+          value: {{ .Values.global.credentials_grafana_username }}
         ports:
         - containerPort: 3000
           protocol: TCP

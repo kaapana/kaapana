@@ -291,7 +291,7 @@ Alternatively, you can also set your own private registry for helm Install
 
 ::
 
-   helm install --set-string global.registry_url=<private-registry>  --set-string global.credentials.registry_username=<username> --set-string global.credentials.registry_password=<password>  hello-world-chart hello-world-chart-0.1.0.tgz
+   helm install --set-string global.registry_url=<private-registry>  --set-string global.credentials_registry_username=<username> --set-string global.credentials_registry_password=<password>  hello-world-chart hello-world-chart-0.1.0.tgz
 
 
 Either way, you should have the same result as before when you created the deployment with ``kubectl``. With ``helm ls`` you can view all helm releases that are currently running.
@@ -423,7 +423,7 @@ Next we will update helm dependencies and build the chart.
 
    helm dep up
    helm package .
-   helm install --set-string global.registry_url=<private-registry>  --set-string global.credentials.registry_username=<username> --set-string global.credentials.registry_password=<password> example-workflow example-workflow-0.1.0.tgz
+   helm install --set-string global.registry_url=<private-registry>  --set-string global.credentials_registry_username=<username> --set-string global.credentials_registry_password=<password> example-workflow example-workflow-0.1.0.tgz
 
 
 Run ``helm ls`` and you should see ``example-workflow``

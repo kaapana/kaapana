@@ -33,9 +33,9 @@ spec:
           - name: KEYCLOAK_IMPORT
             value: /import/kaapana-realm.json
           - name: KEYCLOAK_USER
-            value: {{ .Values.global.credentials.keycloak_admin_username }}
+            value: {{ .Values.global.credentials_keycloak_admin_username }}
           - name: KEYCLOAK_PASSWORD
-            value: {{ .Values.global.credentials.keycloak_admin_password }}
+            value: {{ .Values.global.credentials_keycloak_admin_password }}
           - name: DB_VENDOR
             value: "postgres"
           - name: DB_ADDR

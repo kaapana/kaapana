@@ -12,7 +12,7 @@ else:
     raise NameError(message)
 
 releases_installed = {}
-for idx, kube_helm_collection in enumerate(settings.kube_helm_collections.split(';')[:-1]):
+for idx, kube_helm_collection in enumerate(settings.kaapana_collections.split(';')[:-1]):
     release_name = cure_invalid_name("-".join(kube_helm_collection.split('/')[-1].split(':')), r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*", max_length=53)
     releases_installed[release_name] = False
 

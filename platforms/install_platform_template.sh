@@ -35,11 +35,11 @@ NO_HOOKS=""
 CREDENTIALS_MINIO_USERNAME="{{ credentials_minio_username|default('kaapanaminio', true) }}"
 CREDENTIALS_MINIO_PASSWORD="{{ credentials_minio_password|default('Kaapana2020', true) }}"
 
-GRAFANA_USERNAME="{{ grafana_username|default('admin', true) }}"
-GRAFANA_PASSWORD="{{ grafana_password|default('admin', true) }}"
+GRAFANA_USERNAME="{{ credentials_grafana_username|default('admin', true) }}"
+GRAFANA_PASSWORD="{{ credentials_grafana_password|default('admin', true) }}"
 
-KEYCLOAK_ADMIN_USERNAME="{{ keycloak_admin_username|default('admin', true) }}"
-KEYCLOAK_ADMIN_PASSWORD="{{ keycloak_admin_passowrd|default('Kaapana2020', true) }}"
+KEYCLOAK_ADMIN_USERNAME="{{ credentials_keycloak_admin_username|default('admin', true) }}"
+KEYCLOAK_ADMIN_PASSWORD="{{ credentials_keycloak_admin_password|default('Kaapana2020', true) }}"
 
 FAST_DATA_DIR="{{ fast_data_dir|default('/home/kaapana')}}" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="{{ slow_data_dir|default('/home/kaapana')}}" # Directory on the server, where the DICOM images will be stored (can be slower)
@@ -158,6 +158,7 @@ function get_domain {
 function delete_deployment {
     echo -e "${YELLOW}Uninstalling releases${NC}"
     helm -n $HELM_NAMESPACE ls --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $HELM_NAMESPACE uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
+    microk8s.kubectl delete namespace kaapana    
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
@@ -178,8 +179,7 @@ function delete_deployment {
         echo "${RED}Once everything is deleted you can reinstall the platform!${NC}"
         exit 1
     fi
-    
-    microk8s.kubectl delete namespace kaapana
+
 
     echo -e "${GREEN}####################################  UNINSTALLATION DONE  ############################################${NC}"
 }
@@ -293,35 +293,53 @@ function install_chart {
     echo "${GREEN}Installing $PROJECT_NAME:$chart_version${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
-    --set-string global.platform_version="$chart_version" \
-    --set-string global.platform_abbr="$PROJECT_ABBR" \
-    --set-string global.hostname="$DOMAIN" \
+    --set-string global.base_namespace="base" \
+    --set-string global.core_namespace="kube-system" \
+    --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
+    --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
+    --set-string global.credentials_minio_username="$CREDENTIALS_MINIO_USERNAME" \
+    --set-string global.credentials_minio_password="$CREDENTIALS_MINIO_PASSWORD" \
+    --set-string global.credentials_grafana_username="$GRAFANA_USERNAME" \
+    --set-string global.credentials_grafana_password="$GRAFANA_PASSWORD" \
+    --set-string global.credentials_keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
+    --set-string global.credentials_keycloak_admin_password="$KEYCLOAK_ADMIN_PASSWORD" \
     --set-string global.dev_ports="$DEV_PORTS" \
-    --set-string global.offline_mode="$OFFLINE_MODE" \
-    --set-string global.prefetch_extensions="$PREFETCH_EXTENSIONS" \
     --set-string global.dicom_port="$DICOM_PORT" \
-    --set-string global.http_port="$HTTP_PORT" \
-    --set-string global.https_port="$HTTPS_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
-    --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
+    --set-string global.flow_namespace="flow" \
+    --set-string global.flow_jobs_namespace="flow-jobs" \
+    --set-string global.gpu_support="$GPU_SUPPORT" \
+    --set-string global.helm_namespace="$HELM_NAMESPACE" \
     --set-string global.home_dir="$HOME" \
+    --set-string global.hostname="$DOMAIN" \
+    --set-string global.http_port="$HTTP_PORT" \
+    --set-string global.http_proxy="$http_proxy" \
+    --set-string global.https_port="$HTTPS_PORT" \
+    --set-string global.https_proxy="$https_proxy" \
+    {% for item in kaapana_collections -%}
+    --set-string global.kaapana_collections[{{loop.index0}}].name="{{ item.name }}" \
+    --set-string global.kaapana_collections[{{loop.index0}}].version="{{ item.version }}" \
+    {% endfor -%}
+    --set-string global.monitoring_namespace="monitoring" \
+    --set-string global.meta_namespace="meta" \
+    --set-string global.offline_mode="$OFFLINE_MODE" \
+    --set-string global.platform_abbr="$PROJECT_ABBR" \
+    --set-string global.platform_version="$chart_version" \
+    --set-string global.prefetch_extensions="$PREFETCH_EXTENSIONS" \
+    {% for item in preinstall_extensions -%}
+    --set-string global.preinstall_extensions[{{loop.index0}}].name="{{ item.name }}" \
+    --set-string global.preinstall_extensions[{{loop.index0}}].version="{{ item.version }}" \
+    {% endfor -%}
     --set-string global.pull_policy_jobs="$PULL_POLICY_JOBS" \
     --set-string global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
-    --set-string global.helm_namespace="$HELM_NAMESPACE" \
-    --set-string global.credentials.registry_username="$CONTAINER_REGISTRY_USERNAME" \
-    --set-string global.credentials.registry_password="$CONTAINER_REGISTRY_PASSWORD" \
-    --set-string global.credentials.credentials_minio_username="$CREDENTIALS_MINIO_USERNAME" \
-    --set-string global.credentials.credentials_minio_password="$CREDENTIALS_MINIO_PASSWORD" \
-    --set-string global.credentials.grafana_username="$GRAFANA_USERNAME" \
-    --set-string global.credentials.grafana_password="$GRAFANA_PASSWORD" \
-    --set-string global.credentials.keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
-    --set-string global.credentials.keycloak_admin_passowrd="$KEYCLOAK_ADMIN_PASSWORD" \
-    --set-string global.http_proxy="$http_proxy" \
-    --set-string global.https_proxy="$https_proxy" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
-    --set-string global.instance_name="$INSTANCE_NAME" \
-    --set global.gpu_support="$GPU_SUPPORT" \
+    --set-string global.release_name="$PROJECT_NAME" \
+    --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
+    --set-string global.store_namespace="store" \
+    --set-string global.version="$chart_version" \
+    {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
+    {% endfor -%}
     --name-template "$PROJECT_NAME"
 
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then

@@ -35,9 +35,9 @@ class LocalModelGetInputDataOperator(LocalGetInputDataOperator):
             }
         }
 
-        if "model_protocols" in conf['workflow_form']:
+        if "tasks" in conf['workflow_form']:
             bool_should = []
-            for protocol in conf['workflow_form']['model_protocols']:
+            for protocol in conf['workflow_form']['tasks']:
                 bool_should.append({
                     "match_phrase": {
                         "00181030 ProtocolName_keyword.keyword": {

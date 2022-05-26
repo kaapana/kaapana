@@ -338,7 +338,22 @@ generate_nnunet_report = NnUnetNotebookOperator(
     arguments=["/kaapanasrc/notebooks/nnunet_training/run_generate_nnunet_report.sh"]
 )
 
-put_to_minio = LocalMinioOperator(dag=dag, name='upload-nnunet-data', zip_files=True, action='put', action_operators=[nnunet_train, generate_nnunet_report], file_white_tuples=('.zip'))
+put_to_minio = LocalMinioOperator(
+    dag=dag,
+    name='upload-nnunet-data',
+    zip_files=True,
+    action='put',
+    action_operators=[nnunet_train, generate_nnunet_report],
+    file_white_tuples=('.zip')
+    )
+
+put_report_to_minio = LocalMinioOperator(dag=dag,
+    name='upload-staticwebsiteresults',
+    bucket_name='staticwebsiteresults',
+    action='put',
+    action_operators=[generate_nnunet_report],
+    file_white_tuples=('.html', '.pdf')
+    )
 
 pdf2dcm = Pdf2DcmOperator(
     dag=dag,
@@ -411,6 +426,6 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 get_input >> dcm2nifti_seg >> check_seg
 get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess >> nnunet_train
 
-nnunet_train >> generate_nnunet_report >> put_to_minio >> pdf2dcm >> dcmseg_send_pdf >> clean
+nnunet_train >> generate_nnunet_report >> put_to_minio >> put_report_to_minio >> pdf2dcm >> dcmseg_send_pdf >> clean
 nnunet_train >> zip_model >> bin2dcm >> dcm_send_int >> clean
 # bin2dcm >> dcm_send_ext

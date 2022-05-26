@@ -15,6 +15,7 @@ from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from nnunet.LocalModelGetInputDataOperator import LocalModelGetInputDataOperator
+from nnunet.getTasks import get_tasks
 # from kaapana.operators.LocalPatchedGetInputDataOperator import LocalPatchedGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.HelperElasticsearch import HelperElasticsearch
@@ -22,13 +23,10 @@ from nnunet.SegCheckOperator import SegCheckOperator
 from nnunet.NnUnetNotebookOperator import NnUnetNotebookOperator
 
 default_interpolation_order = "default"
-# default_interpolation_order = "default"
 default_prep_thread_count = 1
 default_nifti_thread_count = 1
 test_cohort_limit = None
 organ_filter = None
-model = '3d_fullres'
-
 
 hits = HelperElasticsearch.get_query_cohort(elastic_query={
                 "match_all": {} 
@@ -79,14 +77,29 @@ ui_forms = {
                 "type": "string",
                 "required": False
             },
-            "model_protocols": {
-                "title": "Model protocols",
-                "description": "Protocol of model",
+            "tasks": {
+                "title": "Tasks available",
+                "description": "Select available tasks",
                 "type": "array",
                 "items": {
                     "type": 'string',
                     "enum": available_protocol_names
                 }            
+            },
+            "model": {
+                "title": "Pre-trained models",
+                "description": "Select one of the available models.",
+                "type": "string",
+                "default": "3d_lowres",
+                "required": True,
+                "enum": ["2d", "3d_fullres", "3d_lowres", "3d_cascade_fullres"],
+            },
+            "inf_softmax": {
+                "title": "enable softmax",
+                "description": "Enable softmax export?",
+                "type": "boolean",
+                "default": True,
+                "readOnly": False,
             },
             "interpolation_order": {
                 "title": "interpolation order",
@@ -110,13 +123,6 @@ ui_forms = {
                 "description": "Set NIFTI export thread count.",
                 "default": default_nifti_thread_count,
                 "required": True
-            },
-            "inf_seg_filter": {
-                "title": "SEG filter",
-                "default": str(organ_filter),
-                "description": "Labels to filter the predictions (eg 'spleen,liver,...')",
-                "type": "string",
-                "readOnly": False,
             },
             "single_execution": {
                 "title": "single execution",
@@ -263,14 +269,9 @@ extract_model = GetTaskModelOperator(
 nnunet_predict = NnUnetOperator(
     dag=dag,
     mode="inference",
-    model=model,
     input_modality_operators=[dcm2nifti_ct],
-    inf_softmax=True,
     inf_batch_dataset=True,
-    inf_threads_prep=1,
-    inf_threads_nifti=1,
     inf_remove_if_empty=False,
-    interpolation_order=default_interpolation_order,
     models_dir=extract_model.operator_out_dir,
     # dev_server="code-server"
 )

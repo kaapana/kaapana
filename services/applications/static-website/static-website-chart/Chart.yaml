@@ -5,4 +5,5 @@ name: static-website-chart
 version: "0.1.0"
 keywords:
 - kaapanaapplication
+- kaapanaexperimental
     

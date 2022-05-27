@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.DcmSendOperator import DcmSendOperator
+from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 
@@ -12,11 +12,19 @@ ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            "aetitle": {
-                "title": "Receiver AE-title/Dataset name",
-                "description": "Specify the port of the DICOM receiver.",
+            "action": {
+                "title": "Action",
+                "description": "Choose if you want to add/delete tags",
+                "enum": ["add", "delete"],
                 "type": "string",
-                "default": ae_title,
+                "default": "add",
+                "required": True
+            },
+            "tags": {
+                "title": "Tags",
+                "description": "Specify a , seperated list of tags to add/delete (e.g. tag1,tag2)",
+                "type": "string",
+                "default": "",
                 "required": True
             },
             "single_execution": {
@@ -47,14 +55,8 @@ dag = DAG(
     schedule_interval=None
 )
 
-get_input = LocalGetInputDataOperator(dag=dag)
-
-dcm_send = DcmSendOperator(
-    dag=dag,
-    input_operator=get_input,
-    ae_title=ae_title
-)
-
+get_input = LocalGetInputDataOperator(dag=dag, data_type="json")
+tagging = LocalTaggingOperator(dag=dag, input_operator=get_input)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> dcm_send >> clean
+get_input >> tagging >> clean

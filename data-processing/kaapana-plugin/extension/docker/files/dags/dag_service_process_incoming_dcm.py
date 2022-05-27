@@ -1,7 +1,6 @@
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalAutoTriggerOperator import LocalAutoTriggerOperator
-from kaapana.operators.LocalMultiAETitleOperator import LocalMultiAETitleOperator
 from kaapana.operators.LocalDicomSendOperator import LocalDicomSendOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
@@ -26,14 +25,9 @@ dag = DAG(
 
 get_input = LocalGetInputDataOperator(dag=dag)
 
-dcm_check = LocalMultiAETitleOperator(
-    dag=dag,
-    input_operator=get_input
-)
-
 dcm_send = LocalDicomSendOperator(
    dag=dag,
-   input_operator=dcm_check,
+   input_operator=get_input,
    pacs_host='dcm4chee-service.store.svc',
    pacs_port=11115,
    ae_title='KAAPANA',
@@ -42,10 +36,10 @@ dcm_send = LocalDicomSendOperator(
 
 auto_trigger_operator = LocalAutoTriggerOperator(
     dag=dag,
-    input_operator=dcm_check
+    input_operator=get_input
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
-get_input >> dcm_check >> dcm_send >> auto_trigger_operator >> clean
+get_input >> dcm_send >> auto_trigger_operator >> clean

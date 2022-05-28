@@ -40,9 +40,9 @@ class NnUnetOperator(KaapanaBaseOperator):
                  inf_threads_nifti=1,
                  inf_softmax=False,
                  inf_seg_filter=None,
-                 inf_remove_if_empty = True,
-                 protocols = None,
-                 body_part = None,
+                 inf_remove_if_empty=True,
+                 protocols=None,
+                 body_part=None,
                  instance_name="N/A",
                  models_dir="/models",
                  allow_federated_learning=False,
@@ -93,7 +93,6 @@ class NnUnetOperator(KaapanaBaseOperator):
         env_vars.update(envs)
 
         gpu_mem_mb = None
-        pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=None)
         if mode == "training" or mode == "inference" or mode == "ensemble":
             if mode == "training":
                 gpu_mem_mb = 11000
@@ -101,6 +100,10 @@ class NnUnetOperator(KaapanaBaseOperator):
                 gpu_mem_mb = 5500
 
         parallel_id = parallel_id if parallel_id is not None else mode
+
+        # pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=None)
+        pod_resources = None
+        ram_mem_mb = 16000
 
         super().__init__(
             dag=dag,
@@ -111,8 +114,7 @@ class NnUnetOperator(KaapanaBaseOperator):
             execution_timeout=execution_timeout,
             allow_federated_learning=allow_federated_learning,
             whitelist_federated_learning=whitelist_federated_learning,
-            ram_mem_mb=None,
-            ram_mem_mb_lmt=None,
+            ram_mem_mb=ram_mem_mb,
             pod_resources=pod_resources,
             gpu_mem_mb=gpu_mem_mb,
             env_vars=env_vars,

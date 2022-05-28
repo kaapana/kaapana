@@ -12,19 +12,17 @@ from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from airflow.api.common.experimental import pool as pool_api
-from airflow.utils.log.logging_mixin import LoggingMixin
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.SegCheckOperator import SegCheckOperator
 from nnunet.NnUnetNotebookOperator import NnUnetNotebookOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 from airflow.utils.trigger_rule import TriggerRule
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INSTANCE_NAME
+from kaapana.blueprints.kaapana_global_variables import INSTANCE_NAME
 
 
 
 study_id = "Kaapana"
-# TASK_NAME = f"Task{random.randint(100,999):03}_{INSTANCE_NAME}_train"
 TASK_NAME = f"Task{random.randint(100,999):03}_RACOON_{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
 seg_filter = ""
 prep_modalities = "CT"
@@ -35,8 +33,6 @@ max_epochs = 1000
 num_batches_per_epoch = 250
 num_val_batches_per_epoch = 50
 dicom_model_slice_size_limit = 70
-
-# training_results_study_uid = "1.2.826.0.1.3680043.8.498.73386889396401605965136848941191845554"
 training_results_study_uid = None
 
 gpu_count_pool = pool_api.get_pool(name="NODE_GPU_COUNT")

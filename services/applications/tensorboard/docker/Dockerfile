@@ -4,11 +4,12 @@ LABEL IMAGE="tensorboard"
 LABEL VERSION="2.8.0"
 LABEL CI_IGNORE="False"
 
-RUN pip3 install --no-cache-dir tensorboard==2.8.0
-
-COPY files/tensorboard.sh /
-
 ENV INGRESS_PATH /tensorboard
 ENV LOG_DIR=/data
+
+COPY files/requirements.txt /src/requirements.txt
+RUN pip3 install --no-cache-dir -r /src/requirements.txt
+
+COPY files/tensorboard.sh /
 
 CMD ["/bin/sh", "/tensorboard.sh"]

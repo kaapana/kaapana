@@ -1,22 +1,19 @@
-import logging
-import os
-import airflow
-import jinja2
-from airflow.configuration import conf
-from airflow.models import DAG, Variable
-from airflow.operators.bash_operator import BashOperator
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
-from airflow.utils.trigger_rule import TriggerRule
-from datetime import timedelta
-from airflow.models import DAG
-from datetime import timedelta
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
 from kaapana.operators.LocalServiceSyncDagsDbOperator import LocalServiceSyncDagsDbOperator
 from kaapana.operators.LocalCleanUpExpiredWorkflowDataOperator import LocalCleanUpExpiredWorkflowDataOperator
 from kaapana.operators.LocalCtpQuarantineCheckOperator import LocalCtpQuarantineCheckOperator
+from airflow.operators.bash_operator import BashOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.log.logging_mixin import LoggingMixin
+from datetime import timedelta
+import logging
+import os
+import jinja2
+from airflow.configuration import conf
+from airflow.models import DAG, Variable
+from airflow.utils.dates import days_ago
+from airflow.models import DAG
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.dates import days_ago
 
 
 log = LoggingMixin().log
@@ -44,7 +41,7 @@ dag = DAG(
     template_undefined=jinja2.Undefined
 )
 
-remove_delete_dags = LocalServiceSyncDagsDbOperator(dag=dag)
+remove_delete_dags = LocalServiceSyncDagsDbOperator(dag=dag, retries=3, retry_delay=timedelta(minutes=2))
 remove_delete_dags
 
 clean_up = LocalCleanUpExpiredWorkflowDataOperator(dag=dag, expired_period=timedelta(days=14))

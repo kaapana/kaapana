@@ -116,8 +116,6 @@ class NnUnetOperator(KaapanaBaseOperator):
             pod_resources=pod_resources,
             gpu_mem_mb=gpu_mem_mb,
             env_vars=env_vars,
-            # volume_mounts=volume_mounts,
-            # volumes=volumes,
             dev_server=dev_server,
             **kwargs
         )

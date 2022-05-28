@@ -1,0 +1,44 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: doccano-celery
+  namespace: {{ .Values.global.store_namespace | default "store" }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: doccano-celery
+  template:
+    metadata:
+      labels:
+        app-name: doccano-celery
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: doccano-celery
+          image: {{  .Values.global.registry_url }}/doccano-backend:sha-50db4e9
+          imagePullPolicy: {{ .Values.global.pull_policy_pods | default "IfNotPresent" }}
+          command: ["/opt/bin/prod-celery.sh"]
+          resources:
+            requests:
+              memory: 100Mi
+            limits:
+              memory: 500Mi
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: CELERY_BROKER_URL
+              value: "amqp://doccano:doccano@doccano-rabbitmq"
+            - name: DATABASE_URL
+              value: "postgres://doccano:doccano@postgres-doccano:5432/doccano?sslmode=disable"
+          volumeMounts:
+            - name: media
+              mountPath: /backend/media
+      volumes:
+      - name:  media
+        hostPath:
+          path: {{ .Values.global.fast_data_dir | default "/home/kaapana" }}/doccano/media
+          type: DirectoryOrCreate
+      imagePullSecrets:
+      - name: registry-secret

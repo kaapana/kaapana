@@ -5,6 +5,9 @@ class Config(object):
     SECRET_KEY = os.environ['SECRET_KEY']
     APPLICATION_ROOT = os.environ['APPLICATION_ROOT']
     NAMESPACE = 'default'
-    HELM_REPOSITORY_CACHE="/root/.extensions"
-    CHART_REGISTRY_PROJECT = os.environ['CHART_REGISTRY_PROJECT']
-    VERSION = os.environ['VERSION']
+    HELM_EXTENSIONS_CACHE="/root/charts/extensions"
+    HELM_COLLECTIONS_CACHE="/root/charts/collections"
+    HELM_HELPERS_CACHE="/root/charts/helpers"
+    REGISTRY_URL = os.environ['REGISTRY_URL']
+    OFFLINE_MODE = True if os.environ.get('OFFLINE_MODE', 'true').lower() == 'true' else False
+    

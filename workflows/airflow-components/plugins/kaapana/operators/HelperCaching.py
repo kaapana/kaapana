@@ -2,12 +2,12 @@
 import os
 import glob
 import functools
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INITIAL_INPUT_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperMinio import HelperMinio
 
 def cache_action(cache_operator_dirs, action, dag_run_dir):
     loaded_from_cache = True
-    batch_folders = [f for f in glob.glob(os.path.join(dag_run_dir, BATCH_NAME, '*'))]
+    batch_folders = sorted([f for f in glob.glob(os.path.join(dag_run_dir, BATCH_NAME, '*'))])
     if not batch_folders:
         loaded_from_cache=False
     local_root_dir = os.path.join(dag_run_dir, BATCH_NAME)

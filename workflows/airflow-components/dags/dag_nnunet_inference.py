@@ -4,6 +4,7 @@ from datetime import timedelta
 from airflow.models import DAG
 from datetime import datetime
 from nnunet.NnUnetOperator import NnUnetOperator
+from nnunet.getTasks import get_tasks
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
 # from nnunet.GetContainerModelOperator import GetContainerModelOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
@@ -12,16 +13,13 @@ from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
-import pathlib
-import json
-import os
+max_active_runs = 10
+concurrency = max_active_runs * 2
+default_interpolation_order = "default"
+default_prep_thread_count = 1
+default_nifti_thread_count = 1
 
-tasks_json_path = os.path.join("/root/airflow/dags", "nnunet", "nnunet_tasks.json")
-with open(tasks_json_path) as f:
-    tasks = json.load(f)
-
-available_tasks = [*{k: v for (k, v) in tasks.items() if "supported" in tasks[k] and tasks[k]["supported"]}]
-
+available_pretrained_task_names, installed_tasks, all_selectable_tasks = get_tasks()
 ui_forms = {
     "publication_form": {
         "type": "object",
@@ -61,7 +59,7 @@ ui_forms = {
                 "title": "Tasks available",
                 "description": "Select one of the available tasks.",
                 "type": "string",
-                "enum": available_tasks,
+                "enum": sorted(list(all_selectable_tasks.keys())),
                 "required": True
             },
             "description": {
@@ -118,13 +116,50 @@ ui_forms = {
                 "dependsOn": [
                     "task"
                 ]
+            },
+            "inf_softmax": {
+                "title": "enable softmax",
+                "description": "Enable softmax export?",
+                "type": "boolean",
+                "default": False,
+                "readOnly": False,
+            },
+            "interpolation_order": {
+                "title": "interpolation order",
+                "default": default_interpolation_order,
+                "description": "Set interpolation_order.",
+                "enum": ["default", "0", "1", "2", "3"],
+                "type": "string",
+                "readOnly": False,
+                "required": True
+            },
+            "inf_threads_prep": {
+                "title": "Pre-processing threads",
+                "type": "integer",
+                "default": default_prep_thread_count,
+                "description": "Set pre-processing thread count.",
+                "required": True
+            },
+            "inf_threads_nifti": {
+                "title": "NIFTI threads",
+                "type": "integer",
+                "description": "Set NIFTI export thread count.",
+                "default": default_nifti_thread_count,
+                "required": True
+            },
+            "single_execution": {
+                "title": "single execution",
+                "description": "Should each series be processed separately?",
+                "type": "boolean",
+                "default": True,
+                "readOnly": False,
             }
         }
     }
 }
 args = {
     'ui_visible': True,
-    'ui_dag_info': tasks,
+    'ui_dag_info': all_selectable_tasks,
     'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),
@@ -135,27 +170,45 @@ args = {
 dag = DAG(
     dag_id='nnunet-predict',
     default_args=args,
-    concurrency=50,
-    max_active_runs=30,
+    concurrency=concurrency,
+    max_active_runs=max_active_runs,
     schedule_interval=None
 )
 
-get_input = LocalGetInputDataOperator(dag=dag,check_modality=True)
+get_input = LocalGetInputDataOperator(
+    dag=dag,
+    parallel_downloads=5,
+    check_modality=True
+)
 get_task_model = GetTaskModelOperator(dag=dag)
 # get_task_model = GetContainerModelOperator(dag=dag)
-dcm2nifti = DcmConverterOperator(dag=dag, output_format='nii.gz')
-nnunet_predict = NnUnetOperator(dag=dag, input_dirs=[dcm2nifti.operator_out_dir], input_operator=dcm2nifti)
+dcm2nifti = DcmConverterOperator(
+    dag=dag,
+    input_operator=get_input,
+    output_format='nii.gz'
+)
+
+nnunet_predict = NnUnetOperator(
+    dag=dag,
+    mode="inference",
+    input_modality_operators=[dcm2nifti],
+    inf_threads_prep=2,
+    inf_threads_nifti=2
+)
 
 alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     dag=dag,
+    input_operator=get_input,
     segmentation_operator=nnunet_predict,
     input_type="multi_label_seg",
     multi_label_seg_name=alg_name,
+    skip_empty_slices=True,
     alg_name=alg_name
 )
 
 dcmseg_send_multi = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi)
-clean = LocalWorkflowCleanerOperator(dag=dag)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> get_task_model >> dcm2nifti >> nnunet_predict >> nrrd2dcmSeg_multi >> dcmseg_send_multi >> clean
+get_task_model >> nnunet_predict
+get_input >> dcm2nifti >> nnunet_predict >> nrrd2dcmSeg_multi >> dcmseg_send_multi >> clean

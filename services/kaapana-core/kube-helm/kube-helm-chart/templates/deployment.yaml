@@ -14,9 +14,34 @@ spec:
       labels:
         app-name: kube-helm
     spec:
+      initContainers:
+        - name: copy-kube-helm-helpers
+          image: "{{  .Values.global.registry_url }}/kube-helm-helpers:0.1.0"
+          imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+          env:
+          - name: ACTION
+            value: copy
+          - name: CHARTS_DIR
+            value: charts/helpers
+          volumeMounts:
+          - name: helmextensions
+            mountPath: /charts
+{{- range $collection := .Values.global.kaapana_collections }}
+        - name: copy-{{ $collection.name }}
+          image: "{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $collection.version }}"
+          imagePullPolicy: {{ $.Values.global.pull_policy_pods }}
+          env:
+          - name: ACTION
+            value: copy
+          - name: CHARTS_DIR
+            value: charts/collections
+          volumeMounts:
+          - name: helmextensions
+            mountPath: /charts
+{{- end }}
       containers:
       - name: kube-helm
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/kube-helm:0.1.0
+        image: {{  .Values.global.registry_url }}/kube-helm:0.1.1
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         resources:
           limits:
@@ -32,12 +57,8 @@ spec:
           value: "/usr/local/bin/helm"
         - name: REGISTRY_URL
           value: {{  .Values.global.registry_url }}
-        - name: REGISTRY_PROJECT
-          value: {{  .Values.global.registry_project }}
-        - name: CHART_REGISTRY_PROJECT
-          value: {{  .Values.global.chart_registry_project }}
-        - name: VERSION
-          value: {{ .Values.global.version }}
+        - name: OFFLINE_MODE
+          value: '{{  .Values.global.offline_mode }}'
         - name: BASE_NAMESPACE
           value: {{  .Values.global.base_namespace }}
         - name: FLOW_NAMESPACE
@@ -52,15 +73,15 @@ spec:
           value: {{  .Values.global.fast_data_dir }}
         - name: SLOW_DATA_DIR
           value: {{  .Values.global.slow_data_dir }}
-{{ if .Values.global.http_proxy }}
+{{- if .Values.global.http_proxy }}
         - name: PROXY
           value: {{ .Values.global.http_proxy }}
-{{ end }}
+{{- end }}
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         volumeMounts:
           - name: helmextensions
-            mountPath: "/root/.extensions"
+            mountPath: "/root/charts"
           - name: helmconfig
             mountPath: "/root/.config/helm"
           - name: helmcache
@@ -70,7 +91,7 @@ spec:
       volumes:
       - name: helmextensions
         hostPath:
-          path: {{ .Values.global.home_dir }}/.extensions
+          path: {{ .Values.global.fast_data_dir }}/charts
           type: DirectoryOrCreate
       - name: helmconfig
         hostPath:

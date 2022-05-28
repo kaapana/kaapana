@@ -14,7 +14,7 @@ class OrganSegmentationOperator(KaapanaBaseOperator):
                  spleen_operator=None,
                  parallel_id=None,
                  execution_timeout=execution_timeout,
-                 *args, **kwargs
+                 **kwargs
                  ):
 
         if env_vars is None:
@@ -34,14 +34,13 @@ class OrganSegmentationOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="{}{}/shape-organseg:0.1.1".format(default_registry, default_project),
+            image=f"{default_registry}/shape-organseg:0.1.1",
             name="organ-segmentation",
             parallel_id=parallel_id,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             env_vars=env_vars,
-            task_concurrency=10,
-            ram_mem_mb=4000,
-            *args, 
+            task_concurrency=25,
+            ram_mem_mb=6000,
             **kwargs
             )

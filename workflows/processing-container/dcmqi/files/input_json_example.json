@@ -1,0 +1,57 @@
+{
+    "SeriesDescription": "RACOON covid analysis results",
+    "DeviceObserverName": "TUD + UKF covid analysis",
+    "DeviceObserverManufacturer": "Kaapana",
+    "measurement_groups": [
+        {
+            "TrackingIdentifier": "Measurement xyz",
+            "finding_site_keyword": "Lung",
+            "finding_keyword": "GGO",
+            "AlgorithmName": "nnunet xyz",
+            "AlgorithmVersion": "nnunet xyz",
+            "AlgorithmParameters": "learning rate: 2;dropout: xyz",
+            "SegSeriesFilename": "segmentation.dcm",
+            "Measurement_list": [
+                {
+                    "value": "41920.0",
+                    "quantity": {
+                        "CodeValue": "N/A",
+                        "CodeMeaning": "GGO",
+                        "CodingSchemeDesignator": "RACOON"
+                    },
+                    "units": {
+                        "CodeValue": "cm3",
+                        "CodeMeaning": "cubic centimeter",
+                        "CodingSchemeDesignator": "RACOON"
+                    }
+                },
+                {
+                    "value": "79.0",
+                    "quantity": {
+                        "CodeValue": "N/A",
+                        "CodeMeaning": "Cons non malignant",
+                        "CodingSchemeDesignator": "RACOON"
+                    },
+                    "units": {
+                        "CodeValue": "cm3",
+                        "CodeMeaning": "cubic centimeter",
+                        "CodingSchemeDesignator": "RACOON"
+                    }
+                },
+                {
+                    "value": "79.0",
+                    "quantity": {
+                        "CodeValue": "N/A",
+                        "CodeMeaning": "Pleural Effusion",
+                        "CodingSchemeDesignator": "RACOON"
+                    },
+                    "units": {
+                        "CodeValue": "cm3",
+                        "CodeMeaning": "cubic centimeter",
+                        "CodingSchemeDesignator": "RACOON"
+                    }
+                }
+            ]
+        }
+    ]
+}

@@ -12,7 +12,7 @@ spec:
     spec:
       initContainers:
       - name: init
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/service_checker:1.1
+        image: {{  .Values.global.registry_url }}/service_checker:1.1
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
           - name: WAIT
@@ -23,11 +23,13 @@ spec:
             value: "10"
       containers:
       - name: init-meta
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/init-meta:6.8.12
+        image: {{  .Values.global.registry_url }}/init-meta:6.8.12
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
           - name: DOMAIN
             value: "{{ required "A valid hostname (or fqdn) is required!" .Values.global.hostname }}"
+          - name: HTTPS_PORT
+            value: "{{ .Values.global.https_port }}"
           - name: STACKVERSION
             value: "6.8.12"
           - name: OVERRIDE_OBJECTS
@@ -53,7 +55,7 @@ spec:
             mountPath: /dashboards/kibana-dashboard.json
             subPath: kibana-dashboard.json
       # Do not restart containers after they exit
-      restartPolicy: OnFailure
+      restartPolicy: Never
       volumes:
       - name: kibana-dashboard-file
         configMap:
@@ -63,4 +65,4 @@ spec:
             path: kibana-dashboard.json
       imagePullSecrets:
       - name: registry-secret
-  backoffLimit: 0
+  backoffLimit: 10

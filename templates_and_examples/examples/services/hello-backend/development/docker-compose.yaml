@@ -1,7 +1,7 @@
 version: '3'
 services:
   hello-backend:
-    image: <docker-registry><docker-repo>/hello-backend:1.0-dkfz
+    image: <docker-registry><docker-repo>/hello-backend:0.1.0
     environment:
       SECRET_KEY: jip-secret
       HELLO_WORLD_USER: Klaus

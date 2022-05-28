@@ -4,18 +4,15 @@ import json
 import elasticsearch
 import elasticsearch.helpers
 from datetime import datetime
-import sys
-import fileinput
 import glob
 import traceback
 import logging
 import pydicom
 import errno
 import time
-
+from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INITIAL_INPUT_DIR
-
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
 
@@ -31,27 +28,45 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         if self.dicom_operator is not None:
             self.rel_dicom_dir = self.dicom_operator.operator_out_dir
         else:
-            self.rel_dicom_dir = INITIAL_INPUT_DIR
+            self.rel_dicom_dir = self.operator_in_dir
 
         self.run_id = kwargs['dag_run'].run_id
         print(("RUN_ID: %s" % self.run_id))
 
-        es = elasticsearch.Elasticsearch(
-            [{'host': self.elastic_host, 'port': self.elastic_port}])
+        es = elasticsearch.Elasticsearch([{'host': self.elastic_host, 'port': self.elastic_port}])
 
         for batch_element_dir in batch_folder:
-            dcm_files = sorted(glob.glob(os.path.join(batch_element_dir, self.rel_dicom_dir, "*.dcm*"), recursive=True))
 
-            self.get_id(dcm_files[0])
+            if self.jsonl_operator:
+                #jsonl_dir = os.path.join(batch_element_dir, self.jsonl_operator.operator_out_dir)
+                jsonl_dir = os.path.join(batch_element_dir, self.jsonl_operator.operator_out_dir)
+                jsonl_list = glob.glob(jsonl_dir+'/**/*.jsonl', recursive=True)
+                for jsonl_file in jsonl_list:
+                    print(("Pushing file: %s to elasticsearch!" % jsonl_file))
+                    with open(jsonl_file, encoding='utf-8') as f:
+                        for line in f:
+                            obj = json.loads(line)
+                            self.push_json(obj)
+            else:
+                # TODO: is this dcm check neccesary? InstanceID is set in upload
+                dcm_files = sorted(glob.glob(os.path.join(batch_element_dir, self.rel_dicom_dir, "*.dcm*"), recursive=True))
+                self.get_id(dcm_files[0])
 
-            json_dir = os.path.join(batch_element_dir, self.json_operator.operator_out_dir)
-            print(("Pushing json files from: %s" % json_dir))
-            json_list = glob.glob(json_dir+'/**/*.json', recursive=True)
-            print(("Found json files: %s" % len(json_list)))
+                json_dir = os.path.join(batch_element_dir, self.json_operator.operator_out_dir)
+                print(("Pushing json files from: %s" % json_dir))
+                json_list = glob.glob(json_dir+'/**/*.json', recursive=True)
+                print("#")
+                print("#")
+                print("#")
+                print("####  Found json files: %s" % len(json_list))
+                print("#")
+                assert len(json_list) > 0
 
-            for j_file in json_list:
-                print(("Pushing file: %s to elasticsearch!" % j_file))
-                self.push_json(j_file)
+                for json_file in json_list:
+                    print(("Pushing file: %s to elasticsearch!" % json_file))
+                    with open(json_file, encoding='utf-8') as f:
+                        new_json = json.load(f)
+                    self.push_json(new_json)
 
     def mkdir_p(self, path):
         try:
@@ -66,22 +81,19 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         if dcm_file is not None:
             self.instanceUID = pydicom.dcmread(dcm_file)[0x0020, 0x000e].value
             self.patient_id = pydicom.dcmread(dcm_file)[0x0010, 0x0020].value
-            self.modality = pydicom.dcmread(dcm_file)[0x0008, 0x0060].value
             print(("Dicom instanceUID: %s" % self.instanceUID))
             print(("Dicom Patient ID: %s" % self.patient_id))
-            print(("Dicom Modality: %s" % self.modality))
         elif self.set_dag_id:
             self.instanceUID = self.run_id
         else:
             print("dicom_operator and dct_to_push not specified!")
 
-    def push_json(self, json_file):
+    def push_json(self, json_dict):
         global es
         if (es.indices.exists(self.elastic_index)):
             try:
-                print(("Index", self.elastic_index,
-                       "exists, producing inserts and streaming them into ES."))
-                for ok, item in elasticsearch.helpers.streaming_bulk(es, self.produce_inserts(json_file), chunk_size=500, raise_on_error=True):
+                print(("Index", self.elastic_index, "exists, producing inserts and streaming them into ES."))
+                for ok, item in elasticsearch.helpers.streaming_bulk(es, self.produce_inserts(json_dict), chunk_size=500, raise_on_error=True):
                     print(("status: %s" % item['index']['result']))
                     if not ok:
                         print(("appendJsonToIndex(): %s Item: %s" % (ok, item)))
@@ -113,22 +125,33 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
 
     #     return old_json
 
-    def produce_inserts(self, json_file):
-        global es
-        if self.instanceUID is None:
-            with open(json_file, encoding='utf-8') as f:
-                file_dict = json.load(f)
-            if "0020000E SeriesInstanceUID_keyword" in file_dict:
-                self.instanceUID = file_dict["0020000E SeriesInstanceUID_keyword"]
-            else:
-                print("Could not find SeriesUID...")
+
+    def check_pacs_availability(self, instanceUID: str):
+        print("#")
+        print("# Checking if series available in PACS...")
+        check_count = 0
+        while not HelperDcmWeb.checkIfSeriesAvailable(seriesUID=instanceUID):
+            print("#")
+            print(f"# Series {instanceUID} not found in PACS-> try: {check_count}")
+            if check_count >= self.avalability_check_max_tries:
+                print(f"# check_count >= avalability_check_max_tries {self.avalability_check_max_tries}")
+                print("# Error! ")
+                print("#")
                 exit(1)
 
-        with open(json_file, encoding='utf-8') as f:
-            new_json = json.load(f)
+            print(f"# -> waiting {self.avalability_check_delay} s")
+            time.sleep(self.avalability_check_delay)
+            check_count += 1
+
+    def produce_inserts(self, new_json):
+        global es
+        
+
+        if self.check_in_pacs:
+            self.check_pacs_availability(self.instanceUID)
 
         global elastic_indexname
-        InstanceUID = self.instanceUID
+
         try:
             old_json = es.get(index=self.elastic_index, doc_type="_doc", id=self.instanceUID)["_source"]
             print("Series already found in ES")
@@ -139,51 +162,61 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             print(e)
             old_json = {}
 
+        bpr_key = "predicted_bodypart_string"
         for new_key in new_json:
+            if new_key == bpr_key and bpr_key in old_json and old_json[bpr_key].lower() != "n/a":
+                continue
             new_value = new_json[new_key]
             old_json[new_key] = new_value
 
-        uid = self.instanceUID
         index = self.elastic_index
 
         try:
 
             doc = {}
-            doc["_id"] = uid
+            doc["_id"] = self.instanceUID
             doc["_index"] = index
             doc["_type"] = "_doc"
             doc["_source"] = old_json
 
             yield doc
         except (KeyError) as e:
-            print(('KeyError in produce_inserts():', e, ', from input line: ',
-                   line[line.find('InstanceUID')-32:line.find('InstanceUID')+172]))
+            print(('KeyError in produce_inserts():', e, ', from input line: ', line[line.find('InstanceUID')-32:line.find('InstanceUID')+172]))
             pass
 
     def __init__(self,
                  dag,
                  dicom_operator=None,
                  json_operator=None,
+                 jsonl_operator=None,
                  set_dag_id=False,
                  no_update=False,
+                 avalability_check_delay = 10,
+                 avalability_check_max_tries = 15,
                  elastic_host='elastic-meta-service.meta.svc',
                  elastic_port=9200,
                  elastic_index="meta-index",
-                 *args, **kwargs):
+                 check_in_pacs=True,
+                 *args, 
+                 **kwargs):
 
         self.dicom_operator = dicom_operator
         self.json_operator = json_operator
+        self.jsonl_operator = jsonl_operator
 
+        self.avalability_check_delay = avalability_check_delay
+        self.avalability_check_max_tries = avalability_check_max_tries
         self.set_dag_id = set_dag_id
         self.no_update = no_update
         self.elastic_host = elastic_host
         self.elastic_port = elastic_port
         self.elastic_index = elastic_index
         self.instanceUID = None
+        self.check_in_pacs = check_in_pacs
 
         super().__init__(
             dag=dag,
             name="json2meta",
             python_callable=self.start,
-            *args, **kwargs
+            **kwargs
         )

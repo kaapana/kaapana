@@ -1,14 +1,14 @@
-FROM python:3
+FROM python:3.9-slim
 
 LABEL IMAGE="tensorboard"
-LABEL VERSION="2.3.0"
+LABEL VERSION="2.5.0"
 LABEL CI_IGNORE="False"
 
-RUN pip3 install tensorboard==2.3.0
+RUN python -m pip install --upgrade pip && pip3 install --no-cache-dir tensorboard==2.5.0
 
 COPY files/tensorboard.sh /
 
 ENV INGRESS_PATH /tensorboard
 ENV LOG_DIR=/data
 
-CMD ["/bin/bash", "/tensorboard.sh"]
+CMD ["/bin/sh", "/tensorboard.sh"]

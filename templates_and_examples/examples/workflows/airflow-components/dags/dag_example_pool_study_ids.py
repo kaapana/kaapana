@@ -32,6 +32,6 @@ get_input = LocalGetInputDataOperator(dag=dag)
 extract = ExtractStudyIdOperator(dag=dag)
 pool_jsons = PoolJsonsOperator(dag=dag, input_operator=extract)
 put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[pool_jsons])
-clean = LocalWorkflowCleanerOperator(dag=dag)
+clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
 get_input >> extract >> pool_jsons >> put_to_minio >> clean

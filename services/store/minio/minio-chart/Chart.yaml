@@ -1,8 +1,8 @@
 ---
 apiVersion: v1
-appVersion: "2020.09.17"
+appVersion: "2021.03.12"
 description: Chart for Min.io
 name: minio-chart
-version: "2020.09.17"
+version: "2021.03.12"
 
 

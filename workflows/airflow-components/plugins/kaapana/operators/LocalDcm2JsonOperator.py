@@ -22,7 +22,55 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperCaching import cache_operator_output
 
+
 class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
+
+    @staticmethod
+    def get_label_tags(metadata):
+        result_dict = {}
+        segmentation_label_list = []
+        rtstruct_organ_list = []
+        rtstruct_marker_list = []
+        rtstruct_other_list = []
+
+        ref_list = None
+        if "30060080" in metadata:
+            try:
+                ref_list = [entry["300600A4"]["Value"][0] for entry in metadata["30060080"]["Value"]]
+            except Exception as e:
+                ref_list = None
+
+        if "30060020" in metadata:
+            size_list = len(metadata["30060020"]["Value"])
+            for idx, label_entry in enumerate(metadata["30060020"]["Value"]):
+                if "30060026" in label_entry:
+                    value = label_entry["30060026"]["Value"][0].replace(",", "-")
+                    if ref_list is not None and len(ref_list) == size_list:
+                        label_type = ref_list[idx]
+                        if label_type.lower() == "marker":
+                            rtstruct_marker_list.append(value)
+                        elif label_type.lower() == "organ":
+                            rtstruct_organ_list.append(value)
+                        else:
+                            rtstruct_other_list.append(value)
+                    else:
+                        rtstruct_other_list.append(value)
+
+        if "00620002" in metadata:
+            for label_entry in metadata["00620002"]["Value"]:
+                if "00620005" in label_entry:
+                    value = label_entry["00620005"]["Value"][0].replace(",", "-")
+                    segmentation_label_list.append(value)
+        result_dict["segmentation_labels_list_keyword"] = ",".join(sorted(segmentation_label_list)) if len(segmentation_label_list) > 0 else None
+        result_dict["00620005 Segment Label_keyword"] = segmentation_label_list
+        result_dict["rtstruct_organ_list_keyword"] = ",".join(sorted(rtstruct_organ_list)) if len(rtstruct_organ_list) > 0 else None
+        result_dict["rtstruct_marker_list_keyword"] = ",".join(sorted(rtstruct_marker_list)) if len(rtstruct_marker_list) > 0 else None
+        result_dict["rtstruct_other_list_keyword"] = ",".join(sorted(rtstruct_other_list)) if len(rtstruct_other_list) > 0 else None
+        result_dict["rtstruct_organ_keyword"] = rtstruct_organ_list
+        result_dict["rtstruct_marker_keyword"] = rtstruct_marker_list
+        result_dict["rtstruct_other_keyword"] = rtstruct_other_list
+
+        return result_dict
 
     @cache_operator_output
     def start(self, ds, **kwargs):
@@ -507,6 +555,10 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         new_key = new_key+"_keyword"
                         new_meta_data[new_key] = str(value_str)
 
+                    elif vr == "UC":
+                        new_key = new_key+"_keyword"
+                        new_meta_data[new_key] = str(value_str)
+
                     elif vr == "SL":
                         # Signed Long
                         # Signed binary integer 32 bits long in 2's complement form.
@@ -658,13 +710,24 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         new_meta_data[new_key] = (value_str)
 
                     else:
-                        dt = parser.parse(value_str)
-                        date_output = dt.isoformat(' ')
+                        print(f"################ VR in ELSE!: {vr}")
+                        print(f"DICOM META: {dicom_meta[key]}")
+                        new_key = new_key+"_keyword"
+                        new_meta_data[new_key] = (value_str)
 
                 except Exception as e:
+                    logging.error("#")
+                    logging.error("#")
+                    logging.error("#")
+                    logging.error("################################### EXCEPTION #######################################")
+                    logging.error("#")
+                    logging.error(f"DICOM META: {dicom_meta[key]}")
                     logging.error(traceback.format_exc())
-                    print(value_str)
-                    print(e)
+                    logging.error(value_str)
+                    logging.error(e)
+                    logging.error("#")
+                    logging.error("#")
+                    logging.error("#")
                     exit(1)
 
             else:
@@ -730,53 +793,71 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             with open(path, encoding='utf-8') as dicom_meta:
                 dicom_metadata = json.load(dicom_meta)
 
+        label_results = {}
+        if "00080060" in dicom_metadata and (dicom_metadata["00080060"]["Value"][0] == "RTSTRUCT" or dicom_metadata["00080060"]["Value"][0] == "SEG"):
+            label_results = LocalDcm2JsonOperator.get_label_tags(dicom_metadata)
         new_meta_data = self.replace_tags(dicom_metadata)
+        new_meta_data.update(label_results)
 
         if "0008002A AcquisitionDateTime_datetime" in new_meta_data:
             time_tag_used = "AcquisitionDateTime_datetime"
             date_time_formatted = new_meta_data["0008002A AcquisitionDateTime_datetime"]
-
-        elif "00080032 AcquisitionTime_time" in new_meta_data and "00080022 AcquisitionDate_date" in new_meta_data:
-            time_tag_used = "AcquisitionDate & AcquisitionTime"
-            AcquisitionTime = new_meta_data["00080032 AcquisitionTime_time"]
-            AcquisitionDate = new_meta_data["00080022 AcquisitionDate_date"]
-            date_time_string = AcquisitionDate+" "+AcquisitionTime
-            date_time_formatted = parser.parse(
-                date_time_string).strftime(self.format_date_time)
-
-        elif "00080031 SeriesTime_time" in new_meta_data and "00080021 SeriesDate_date" in new_meta_data:
-            time_tag_used = "SeriesTime & SeriesDate"
-            SeriesTime = new_meta_data["00080031 SeriesTime_time"]
-            SeriesDate = new_meta_data["00080021 SeriesDate_date"]
-
-            date_time_string = SeriesDate+" "+SeriesTime
-            date_time_formatted = parser.parse(
-                date_time_string).strftime(self.format_date_time)
-
-        elif "00080030 StudyTime_time" in new_meta_data and "00080020 StudyDate_date" in new_meta_data:
-            time_tag_used = "StudyDate & StudyTime"
-            StudyDate = new_meta_data["00080020 StudyDate_date"]
-            StudyTime = new_meta_data["00080030 StudyTime_time"]
-
-            date_time_string = StudyDate+" "+StudyTime
-            date_time_formatted = parser.parse(
-                date_time_string).strftime(self.format_date_time)
-
         else:
-            time_tag_used = "NONE"
-            print("###################################################################                NO AcquisitionTime!")
-            if self.exit_on_error:
-                exit(1)
-            date_time_string = "1999-09-09 09:09:09.000000"
+            time_tag_used = ""
+            extracted_date = None
+            extracted_time = None
+            if "00080022 AcquisitionDate_date" in new_meta_data:
+                time_tag_used = "AcquisitionDate"
+                extracted_date = new_meta_data["00080022 AcquisitionDate_date"]
+            elif "00080021 SeriesDate_date" in new_meta_data:
+                time_tag_used = "SeriesDate"
+                extracted_date = new_meta_data["00080021 SeriesDate_date"]
+            elif "00080023 ContentDate_date" in new_meta_data:
+                time_tag_used = "ContentDate"
+                extracted_date = new_meta_data["00080023 ContentDate_date"]
+            elif "00080020 StudyDate_date" in new_meta_data:
+                time_tag_used = "StudyDate"
+                extracted_date = new_meta_data["00080020 StudyDate_date"]
+
+            if "00080032 AcquisitionTime_time" in new_meta_data:
+                time_tag_used += " + AcquisitionTime"
+                extracted_time = new_meta_data["00080032 AcquisitionTime_time"]
+            elif "00080031 SeriesTime_time" in new_meta_data:
+                time_tag_used += " + SeriesTime"
+                extracted_time = new_meta_data["00080031 SeriesTime_time"]
+            elif "00080033 ContentTime_time" in new_meta_data:
+                time_tag_used += " + ContentTime"
+                extracted_time = new_meta_data["00080033 ContentTime_time"]
+            elif "00080030 StudyTime_time" in new_meta_data:
+                time_tag_used += " + StudyTime"
+                extracted_time = new_meta_data["00080030 StudyTime_time"]
+
+            if extracted_date == None:
+                print("###########################        NO AcquisitionDate! -> set to today")
+                time_tag_used += "date not found -> arriving date"
+                extracted_date = datetime.now().strftime(self.format_date)
+
+            if extracted_time == None:
+                print("###########################        NO AcquisitionTime! -> set to now")
+                time_tag_used += " + time not found -> arriving time"
+                extracted_time = datetime.now().strftime(self.format_time)
+
+            date_time_string = extracted_date+" "+extracted_time
             date_time_formatted = parser.parse(date_time_string).strftime(self.format_date_time)
 
         date_time_formatted = self.convert_time_to_utc(date_time_formatted, self.format_date_time)
         new_meta_data["timestamp"] = date_time_formatted
 
-        new_meta_data["timestamp_arrived_datetime"] = self.convert_time_to_utc(datetime.now().strftime(self.format_date_time), self.format_date_time)
+        timestamp_arrived = datetime.now()
+        new_meta_data["timestamp_arrived_datetime"] = self.convert_time_to_utc(timestamp_arrived.strftime(self.format_date_time), self.format_date_time)
+
+        new_meta_data["timestamp_arrived_date"] = new_meta_data["timestamp_arrived_datetime"][:10]
+        new_meta_data["timestamp_arrived_hour_integer"] = new_meta_data["timestamp_arrived_datetime"][11:13]
+
         new_meta_data["dayofweek_integer"] = datetime.strptime(
             date_time_formatted, self.format_date_time).weekday()
         new_meta_data["time_tag_used_keyword"] = time_tag_used
+        new_meta_data["predicted_bodypart_string"] = "N/A"
 
         if "00100030 PatientBirthDate_date" in new_meta_data:
             birthdate = new_meta_data["00100030 PatientBirthDate_date"]
@@ -790,13 +871,22 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                  (birthday_datetime.month, birthday_datetime.day))
 
             if "00101010 PatientAge_keyword" in new_meta_data:
-                age_meta = int(
-                    new_meta_data["00101010 PatientAge_keyword"][:-1])
+                age_meta = int(new_meta_data["00101010 PatientAge_keyword"][:-1])
                 if patient_age_scan is not age_meta:
-                    print(
-                        "########################################################################################### DIFF IN AGE!")
-
+                    print("########################################################################################### DIFF IN AGE!")
             new_meta_data["00101010 PatientAge_integer"] = patient_age_scan
+
+        elif "00101010 PatientAge_keyword" in new_meta_data:
+            try:
+                age_meta = int(new_meta_data["00101010 PatientAge_keyword"][:-1])
+                new_meta_data["00101010 PatientAge_integer"] = age_meta
+            except Exception as e:
+                print("######### Could not extract age-int from metadata...")
+
+        if "00120020 ClinicalTrialProtocolID_keyword" in new_meta_data:
+            aetitles = new_meta_data["00120020 ClinicalTrialProtocolID_keyword"].split(";")
+            print(f"ClinicalTrialProtocolIDs {aetitles}")
+            new_meta_data["00120020 ClinicalTrialProtocolID_keyword"] = aetitles
 
         return new_meta_data
 
@@ -813,7 +903,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                  exit_on_error=False,
                  delete_private_tags=True,
                  bulk=False,
-                 *args, **kwargs):
+                 **kwargs):
 
         self.dcmodify_path = 'dcmodify'
         self.dcm2json_path = 'dcm2json'
@@ -837,8 +927,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             exit(1)
 
         super().__init__(
-            dag,
+            dag=dag,
             name="dcm2json",
             python_callable=self.start,
-            *args, **kwargs
+            ram_mem_mb=10,
+            **kwargs
         )

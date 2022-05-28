@@ -1,4 +1,6 @@
-[![Documentation Status](https://readthedocs.org/projects/kaapana/badge/?version=release-0.1.0)](https://kaapana.readthedocs.io/en/release-0.1.0/?badge=release-0.1.0)
+[![Documentation Status](https://readthedocs.org/projects/kaapana/badge/?version=latest)](https://kaapana.readthedocs.io/en/latest/?badge=latest)
+<a href="https://join.slack.com/t/kaapana/shared_invite/zt-hilvek0w-ucabihas~jn9PDAM0O3gVQ/"><img src="https://img.shields.io/badge/chat-slack-blueviolet" /></a>
+
 ## What is Kaapana?
 
 Kaapana (from the hawaiian word kaʻāpana, meaning "distributor" or "part") is an open source toolkit for state of the art platform provisioning in the field of medical data analysis. The applications comprise  AI-based workflows and federated learning scenarios with a focus on radiological and radiotherapeutic imaging. 
@@ -27,7 +29,7 @@ Kaapana is constantly developing and currently includes the following key-featur
 
 Currently the most widely used platform realized using Kaapana is the Joint Imaging Platform (JIP) of the German Cancer Consortium (DKTK). The [JIP](https://jip.dktk.dkfz.de/jiphomepage/) is currently being deployed at all 36 german university hospitals with the objective of distributed radiological image analysis and quantification.
 
-For more information, please also take a look at our recent publication of the Kaapana-based Joint Imaging Platform in JCO Clinical Cancer Informatics (LINK WILL COME SOONISH).
+For more information, please also take a look at our recent publication of the Kaapana-based [Joint Imaging Platform in JCO Clinical Cancer Informatics](https://ascopubs.org/doi/full/10.1200/CCI.20.00045).
 
 ## Documentation
 
@@ -54,5 +56,24 @@ If not, see <https://www.gnu.org/licenses/>.
 You can use Kaapana to build any product you like, including commercial closed source ones since it is a highly modular system. Kaapana is licensed under the [GNU Affero General Public License](https://www.gnu.org/licenses/agpl-3.0.en.html) for now since we want to ensure that we can integrate all developments and contributions to its core system for maximum benefit to the community and give everything back. We consider switching to a more liberal license in the future. This decision will depend on how our project develops and what the feedback from the community is regarding the license. 
 
 Kaapana is built upon the great work of many other open source projects, see the documentation for details. For now we only release source code we created ourselves, since providing pre-built docker containers and licensing for highly modular container based systems is [a complex task](https://www.linuxfoundation.org/blog/2020/04/docker-containers-what-are-the-open-source-licensing-considerations/). We have done our very best to fulfil all requirements, and the choice of AGPL was motivated mainly to make sure we can improve and advance Kaapana in the best way for the whole community. If you have thoughts about this or if you disagree with our way using a particular third-party toolkit or miss something please let us know and get in touch. We are open for any feedback and advice on this challenging topic.
+
+## Acknowledgments
+
+### Supporting projects
+
+**Building Data Rich Clinical Trials - CCE_DART**: This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No 965397. Website: <https://cce-dart.com/>
+
+**Capturing Tumor Heterogeneity in Hepatocellular Carcinoma - A Radiomics Approach Systematically Tested in Transgenic Mice** This project is partially funded by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) – 410981386. Website: <https://gepris.dfg.de/gepris/projekt/410981386>
+
+**Data Science Driven Surgical Oncology Project**: This work was partially supported by the Data Science Driven Surgical Oncology Project (DSdSO), funded by the Surgical Oncology Program at the National Center for Tumor Diseases (NCT), Heidelberg, a partnership by DKFZ, UKHD, Heidelberg University. Website: <https://www.nct-heidelberg.de/forschung/precision-local-therapy-and-image-guidance/surgical-oncology.html>
+
+**Joint Imaging Platform**: This work was partially supported by Joint Imaging Platform, funded by the German Cancer Consortium. Website: <https://jip.dktk.dkfz.de/jiphomepage/>
+
+**HiGHmed**: This work was partially supported by the HiGHmed Consortium, funded by the German Federal Ministry of Education and Research (BMBF, funding code 01ZZ1802A)). Website: <https://highmed.org/>
+
+**RACOON**: This work was partially supported by RACOON, funded by the German Federal Ministry of Education and ResearchDieses in the Netzwerk Universitätsmedizin (NUM; funding code 01KX2021). Website: <https://www.netzwerk-universitaetsmedizin.de/projekte/racoon>
+
+**Trustworthy Federated Data Analysis - TFDA**: This work is partially funded by the Helmholtz Association within the project "Trustworthy Federated Data Analytics” (TFDA) (funding number
+ZT-I-OO1 4). Website: <https://tfda.hmsp.center/>
 
 Copyright (C) 2020  German Cancer Research Center (DKFZ)

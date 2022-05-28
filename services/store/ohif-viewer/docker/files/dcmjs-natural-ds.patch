@@ -1,0 +1,11 @@
+--- node_modules/dcmjs/build/dcmjs.es.js.old	2021-04-01 16:13:39.755351407 +0200
++++ node_modules/dcmjs/build/dcmjs.es.js	2021-04-01 16:15:33.119409498 +0200
+@@ -2778,6 +2778,8 @@
+               naturalValues.push(DicomMetaDictionary.naturalizeDataset(data.Value[index]));
+             });
+             naturalDataset[naturalName] = naturalValues;
++          } else if (data.vr === "DS") {
++            naturalDataset[naturalName] = data.Value.map(x => { return Number(x) });
+           } else {
+             naturalDataset[naturalName] = data.Value;
+           }

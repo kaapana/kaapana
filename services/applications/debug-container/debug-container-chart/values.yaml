@@ -1,0 +1,4 @@
+---
+global:
+    registry_url: ""
+    pull_policy_pods: "IfNotPresent"

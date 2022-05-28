@@ -17,9 +17,9 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
                  multi_label_seg_info_json=None,          
                  multi_label_seg_name=None,
                  series_description=None,
+                 skip_empty_slices=False,
                  env_vars=None,
-                 execution_timeout=timedelta(minutes=5),
-                 *args,
+                 execution_timeout=timedelta(minutes=90),
                  **kwargs):
 
         if env_vars is None:
@@ -41,18 +41,19 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
             "ALGORITHM_TYPE": alg_type,
             "SERIES_NUMBER": "300",
             "INSTANCE_NUMBER": "1",
+            "SKIP_EMPTY_SLICES": f"{skip_empty_slices}",
             "DCMQI_COMMAND": 'itkimage2segimage'
         }
         env_vars.update(envs)
 
         super().__init__(
             dag=dag,
-            image="{}{}/dcmqi:v1.2.2".format(default_registry, default_project),
+            image=f"{default_registry}/dcmqi:v1.2.4",
             name="nrrd2dcmseg",
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
-            ram_mem_mb=1000,
-            *args,
+            ram_mem_mb=3000,
+            ram_mem_mb_lmt=6000,
             **kwargs
             )

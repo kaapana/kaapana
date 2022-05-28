@@ -21,7 +21,7 @@ spec:
     spec:
       initContainers:
           - name: volume-permissions
-            image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/busybox:1.31
+            image: {{  .Values.global.registry_url }}/busybox:1.31
             imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
             command: ["sh", "-c", "chmod -R 777 /dashboard-metrics"]
             volumeMounts:
@@ -29,7 +29,7 @@ spec:
               name: tmp-volume
       containers:
         - name: dashboard-metrics-scraper
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/kube-dashboard-metrics:1.0.4
+          image: {{  .Values.global.registry_url }}/kube-dashboard-metrics:1.0.4
           ports:
             - containerPort: 8000
               protocol: TCP

@@ -1,0 +1,70 @@
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ldap
+  namespace: {{ .Values.global.store_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: ldap
+  template:
+    metadata:
+      labels:
+        app-name: ldap
+    spec:
+      containers:
+        - name: ldap-container
+          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/dcm4chee-ldap:2.4.56-23.1
+          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          env:
+          - name: ARCHIVE_HOST
+            value: {{ required "A valid hostname (or fqdn) is required!" .Values.global.hostname }}
+          - name: KEYCLOAK_HOST
+            value: todo
+          - name: TZ
+            value: Europe/Paris
+          - name: ARCHIVE_DEVICE_NAME
+            value: kaapana
+          - name: AE_TITLE
+            value: KAAPANA
+          - name: DICOM_PORT
+            value: "11112"
+          - name: HL7_PORT
+            value: "2575"
+          - name: STORAGE_DIR
+            value: /storage/fs1
+          - name: IMPORT_LDIF
+            value: /import/dcm4che-iid.ldif
+          # - name: EXT_INIT_CONFIG
+          #   value: /import/dcm4che-iid.ldif
+          ports:
+            - containerPort: 389
+          resources:
+            requests:
+              memory: 20Mi
+            limits:
+              memory: 30Mi
+          volumeMounts:
+            - mountPath: /var/lib/openldap/openldap-data
+              name: ldap
+            - mountPath: /etc/openldap/slapd.d
+              name: slapd
+            - mountPath: /import
+              name: ldif
+      volumes:
+      - name: ldap
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}/ldap
+          type: DirectoryOrCreate
+      - name: slapd
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}/slapd.d
+          type: DirectoryOrCreate
+      - name: ldif
+        configMap:
+          name: dcm4che-iid-config
+      imagePullSecrets:
+      - name: registry-secret

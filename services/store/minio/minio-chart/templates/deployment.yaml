@@ -19,18 +19,18 @@ spec:
     spec:
       initContainers:
         - name: init
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/service_checker:1.1
+          image: {{  .Values.global.registry_url }}/service_checker:1.1
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
-              value: "keycloak,keycloak-service.kube-system.svc,443"
+              value: "keycloak,keycloak-internal-service.kube-system.svc,443"
             - name: DELAY
               value: "3"
             - name: TIMEOUT
               value: "10"
       containers:
       - name: minio
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/minio:2020.09.17
+        image: {{  .Values.global.registry_url }}/minio:2021.03.12
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args:
         - server
@@ -39,11 +39,11 @@ spec:
         - name: MINIO_IDENTITY_OPENID_CLIENT_ID
           value: "kaapana"
         - name: MINIO_KAAPANA_AUTHORIZATION_ENDPOINT
-          value: "https://{{ .Values.global.hostname }}/auth/realms/kaapana/protocol/openid-connect/auth"
+          value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/auth/realms/kaapana/protocol/openid-connect/auth"
         # - name: MINIO_IDENTITY_OPENID_JWKS_URL
         #  value: https://vm-129-6.cloud.dkfz-heidelberg.de/auth/realms/kaapana/protocol/openid-connect/certs
         - name: MINIO_IDENTITY_OPENID_CONFIG_URL
-          value: "http://keycloak-service.kube-system.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
+          value: "http://keycloak-external-service.kube-system.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
         # Minio access key and secret key
         - name: MINIO_ACCESS_KEY
           value: {{ .Values.global.credentials.minio_username }}

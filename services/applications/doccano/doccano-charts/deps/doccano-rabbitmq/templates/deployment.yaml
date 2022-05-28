@@ -1,0 +1,36 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: doccano-rabbitmq
+  namespace: {{ .Values.global.store_namespace | default "store" }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: doccano-rabbitmq
+  template:
+    metadata:
+      labels:
+        app-name: doccano-rabbitmq
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: doccano-rabbitmq
+          image: {{  .Values.global.registry_url }}/rabbitmq:3.8
+          imagePullPolicy: {{ .Values.global.pull_policy_pods | default "IfNotPresent" }}
+          ports:
+            - containerPort: 5672
+              protocol: TCP
+          resources:
+            requests:
+              memory: 100Mi
+            limits:
+              memory: 500Mi
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              value: doccano
+            - name: RABBITMQ_DEFAULT_PASS
+              value: doccano
+      imagePullSecrets:
+      - name: registry-secret

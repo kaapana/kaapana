@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+appVersion: "2021-01-19"
+description: Interactive MITK segmenation
+name: mitk-flow-workflow
+version: "2021-01-19"
+keywords:
+- kaapanaworkflow
+- kaapanaexperimental

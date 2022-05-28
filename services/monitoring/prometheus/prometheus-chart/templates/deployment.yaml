@@ -37,7 +37,7 @@ subjects:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: prometheus-deployment
+  name: prometheus
   namespace: {{ .Values.global.monitoring_namespace }}
 spec:
   replicas: 1
@@ -51,7 +51,7 @@ spec:
     spec:
       initContainers:
       - name: volume-permissions
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/busybox:1.31
+        image: {{  .Values.global.registry_url }}/busybox:1.31
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         command: ["sh", "-c", "chown -R 1000:1000 /prometheus"]
         volumeMounts:
@@ -63,7 +63,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: prometheus
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/prometheus:v2.20.1
+          image: {{  .Values.global.registry_url }}/prometheus:v2.25.0
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           args:
             - "--config.file=/etc/prometheus.yaml"
@@ -74,9 +74,9 @@ spec:
             - containerPort: 9090
           resources:
             requests:
-              memory: 150Mi
+              memory: 300Mi
             limits:
-              memory: 500Mi
+              memory: 3000Mi
           volumeMounts:
             - name: prometheus-alerts-vol
               mountPath: /etc/prometheus/

@@ -11,29 +11,25 @@ spec:
     spec:
       initContainers:
       - name: init
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/service_checker:1.1
+        image: {{  .Values.global.registry_url }}/service_checker:1.1
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
           - name: WAIT
-            value: "ctp,ctp-service.flow.svc,11112;dcm4che,dcm4chee-service.store.svc,11115;elastic,elastic-meta-service.meta.svc,9200;airflow,airflow-service.flow.svc,8080,/flow/kaapana/api/getdags"
+            value: "ctp,ctp-dicom-service.flow.svc,11112;dcm4che,dcm4chee-service.store.svc,11115;elastic,elastic-meta-service.meta.svc,9200;airflow,airflow-service.flow.svc,8080,/flow/kaapana/api/getdags"
           - name: DELAY
             value: "2"
           - name: TIMEOUT
             value: "10"
       containers:
       - name: dicom-init
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/dicom-init:0.1.0
+        image: {{  .Values.global.registry_url }}/dicom-init:0.1.2
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         resources:
           requests:
-            memory: 150Mi
+            memory: 200Mi
           limits:
-            memory: 150Mi
+            memory: 1500Mi
         env:
-        - name: CTP_HOST
-          value: "ctp-service.flow.svc"
-        - name: CTP_PORT
-          value: "11112"
         - name: DCM4CHEE
           value: "http://dcm4chee-service.store.svc:8080"
         - name: AET
@@ -53,4 +49,5 @@ spec:
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret
-  backoffLimit: 0    
+  backoffLimit: 5
+  

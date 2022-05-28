@@ -10,29 +10,34 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 class DcmSendOperator(KaapanaBaseOperator):
 
     def __init__(self,
-                 dag,
-                 ae_title='KAAPANA',
-                 pacs_host= 'ctp-service.flow.svc',
-                 pacs_port='11112',
-                 env_vars=None,
-                 level='element',
-                 execution_timeout=timedelta(minutes=20),
-                 *args, **kwargs
-                 ):
+                dag,
+                name="dcmsend",
+                ae_title='NONE',
+                pacs_host='ctp-dicom-service.flow.svc',
+                pacs_port='11112',
+                env_vars=None,
+                level='element',
+                check_arrival=False,
+                enable_proxy=False,
+                host_network=False,
+                execution_timeout=timedelta(minutes=60),
+                **kwargs
+                ):
 
-        if level not in ['element', 'pile']:
-            raise NameError('level must be either "element" or "pile". \
-                If pile, an operator folder next to the batch folder with .dcm files is expected. \
+        if level not in ['element', 'batch']:
+            raise NameError('level must be either "element" or "batch". \
+                If batch, an operator folder next to the batch folder with .dcm files is expected. \
                 If element, *.dcm are expected in the corresponding operator with .dcm files is expected.'
-            )
+                            )
 
         if env_vars is None:
             env_vars = {}
-        
+
         envs = {
             "HOST": str(pacs_host),
             "PORT": str(pacs_port),
             "AETITLE": str(ae_title),
+            "CHECK_ARRIVAL": str(check_arrival),
             "LEVEL": str(level)
         }
 
@@ -40,10 +45,12 @@ class DcmSendOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="{}{}/dcmsend:3.6.2".format(default_registry, default_project),
-            name="dcmsend",
+            name=name,
+            image=f"{default_registry}/dcmsend:3.6.4",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
+            host_network=host_network,
+            enable_proxy=enable_proxy,
             execution_timeout=execution_timeout,
-            *args, **kwargs
-            )
+            **kwargs
+        )

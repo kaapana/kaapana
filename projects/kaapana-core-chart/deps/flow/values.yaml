@@ -1,0 +1,16 @@
+---
+global:
+    flow_namespace: "flow"
+    flow_jobs_namespace: "flow-jobs"
+    default_flow_requests_mem: "50Mi"
+    default_flow_limits_mem: "50Mi"
+    # default_flow_requests_cpu: 0.5
+    # default_flow_limits_cpu: 1
+    default_flow_jobs_requests_mem: "50Mi"
+    default_flow_jobs_limits_mem: "150Mi"
+    # default_flow_jobs_requests_cpu: 0.5
+    # default_flow_jobs_limits_cpu: 1
+    credentials:
+        registry_url: ""
+        registry_username: ""
+        registry_password: ""

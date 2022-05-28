@@ -1,0 +1,15 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: doccano-backend-service
+  namespace: {{ .Values.global.store_namespace | default "store" }}
+spec:
+  selector:
+    app-name: doccano-backend
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+      nodePort: 8010
+      name: log-http-port

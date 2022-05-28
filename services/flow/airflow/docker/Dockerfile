@@ -1,7 +1,7 @@
 FROM ubuntu:20.04
 
 LABEL IMAGE="airflow"
-LABEL VERSION="1.10.12"
+LABEL VERSION="2.2.4"
 LABEL CI_IGNORE="False"
 
 ENV SLUGIFY_USES_TEXT_UNIDECODE=yes
@@ -11,7 +11,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN apt-get update && apt-get install -y \
         wget \
-        python3-dev \
+        python3.8-dev \
         python3-pip \
         libczmq-dev \
         libcurlpp-dev \
@@ -33,7 +33,7 @@ RUN pip3 install -U setuptools
 
 WORKDIR /
 COPY files/requirements.txt ./
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.4/constraints-3.8.txt"
 
 ENV DCMDICTPATH /scripts/dicom.dic
 ENV DICT_PATH /scripts/dicom_tag_dict.json

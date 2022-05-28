@@ -1,33 +1,38 @@
 #!/usr/bin/env python3
 import sys
+import yaml
 import glob
 import os
 import json
 from subprocess import PIPE, run
 
+from os.path import join, dirname, basename, exists, isfile, isdir
 from shutil import copyfile
 from argparse import ArgumentParser
 from time import time
 from pathlib import Path
 
 suite_tag = "Helm Charts"
-build_ready_list = None
 
 
 def get_timestamp():
     return str(int(time() * 1000))
 
 
-def check_helm_installed():
-    command = ["helm", "push", "--help"]
+def helm_registry_login(container_registry, username, password):
+    print(f"-> Helm registry-login: {container_registry}")
+    command = ["helm", "registry", "login", container_registry, "--username", username, "--password", password]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
 
-    if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
-        print("Helm ist not installed correctly!")
-        print("Make sure Helm > v3 and the 'push'-plugin is installed!")
-        print("hint: helm plugin install https://github.com/chartmuseum/helm-push")
+    if output.returncode != 0:
+        print("Something went wrong!")
+        print(f"Helm couldn't login into registry {container_registry}")
+        print(f"Message: {output.stdout}")
+        print(f"Error:   {output.stderr}")
         exit(1)
 
+
+def check_helm_installed():
     command = ["helm", "kubeval", "--help"]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
     if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
@@ -54,31 +59,31 @@ def make_log(std_out, std_err):
 
 
 class HelmChart:
-    repos_needed = []
+    registries_needed = []
     docker_containers_used = {}
     max_tries = 3
-    default_registry = None
-    default_project = None
     kaapana_dir = None
+    default_registry = None
 
     def __eq__(self, other):
         return "{}:{}".format(self.name, self.version) == "{}:{}".format(other.name, other.version)
 
     def __init__(self, chartfile):
         self.name = None
-        self.repo = None
         self.version = None
         self.nested = False
+        self.chart_id = None
         self.ignore_linting = False
         self.log_list = []
         self.chartfile = chartfile
+        self.local_only = False
+        self.dev_version = False
+        self.dependencies = []
+        self.dependencies_ready = False
 
-        if not os.path.isfile(chartfile):
+        if not isfile(chartfile):
             print("ERROR: Chartfile not found.")
             exit(1)
-
-        if os.path.dirname(os.path.dirname(chartfile)).split("/")[-1] == "charts":
-            self.nested = True
 
         with open(chartfile) as f:
             read_file = f.readlines()
@@ -87,44 +92,26 @@ class HelmChart:
             for line in read_file:
                 if "name:" in line:
                     self.name = line.split(": ")[1].strip()
-                elif "repo:" in line:
-                    self.repo = line.split(": ")[1].strip()
                 elif "version:" in line:
-                    self.version = line.split(": ")[1].strip()
+                    self.version = line.split(": ")[1].strip().replace('"', '').replace("'", '')
                 elif "ignore_linting:" in line:
                     self.ignore_linting = line.split(": ")[1].strip().lower() == "true"
 
-        if self.repo is None:
-            self.repo = HelmChart.default_project
-
-        if self.name is not None and self.version is not None and self.repo is not None:
+        if self.name is not None and self.version is not None:
             self.path = self.chartfile
-            self.chart_dir = os.path.dirname(chartfile)
-            self.dev = False
-            self.requirements_ready = False
-            self.requirements = []
+            self.chart_dir = dirname(chartfile)
 
             if "-vdev" in self.version:
-                self.dev = True
+                self.dev_version = True
 
-            self.chart_id = "{}/{}:{}".format(self.repo, self.name, self.version)
+            if "/deps/" in chartfile:
+                self.local_only = True
+                # self.repo = f"file://deps/{self.name}"
 
-            print("")
-            print("Adding new chart:")
-            print("name: {}".format(self.name))
-            print("version: {}".format(self.version))
-            print("repo: {}".format(self.repo))
-            print("chart_id: {}".format(self.chart_id))
-            print("dev: {}".format(self.dev))
-            print("nested: {}".format(self.nested))
-            print("file: {}".format(self.chartfile))
-            print("")
-
-            if self.repo not in HelmChart.repos_needed:
-                HelmChart.repos_needed.append(self.repo)
+            self.chart_id = f"{self.name}:{self.version}"
 
             if not self.nested:
-                for log_entry in self.check_requirements():
+                for log_entry in self.check_dependencies():
                     self.log_list.append(log_entry)
                 log_entry = {
                     "suite": suite_tag,
@@ -159,69 +146,104 @@ class HelmChart:
             print("ERROR: Cound not extract all infos from chart...")
             print("name: {}".format(self.name if self.name is not None else chartfile))
             print("version: {}".format(self.version if self.name is not None else ""))
-            print("repo: {}".format(self.repo if self.name is not None else ""))
             print("file: {}".format(self.chartfile if self.name is not None else ""))
             print("")
             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
             print("")
 
-    def check_requirements(self):
+    def check_dependencies(self):
         log_list = []
+        dependencie_count_all = 0
+        dependencie_count_found = 0
         for requirements_file in Path(self.chart_dir).rglob('requirements.yaml'):
+            requirements_yaml = {}
             with open(str(requirements_file)) as f:
-                requirements_file = f.readlines()
-            requirements_file = [x.strip() for x in requirements_file]
-            last_req_name = ""
-            last_req_version = ""
-            req_repo = ""
+                requirements_yaml = yaml.safe_load(f)
 
-            req_names_count = 0
-            req_version_count = 0
-            req_repo_count = 0
+            if requirements_yaml == None or "dependencies" not in requirements_yaml or requirements_yaml["dependencies"] == None:
+                continue
+            dependencie_count_all += len(requirements_yaml["dependencies"])
+            for dependency in requirements_yaml["dependencies"]:
+                check_chart_yaml = None
+                if dependency["repository"].startswith('file://deps'):
+                    check_chart_yaml = join(self.chart_dir, dependency["repository"].replace("file://", ""), "Chart.yaml")
+                elif dependency["repository"].startswith('file://'):
+                    dep_dir = str(requirements_file)
+                    for i in range(0, dependency["repository"].count("../")+1):
+                        dep_dir = dirname(dep_dir)
+                    check_chart_yaml = join(dep_dir, dependency["repository"].replace("file://", "").replace("../", ""), "Chart.yaml")
+                else:
+                    log_entry = {
+                        "suite": suite_tag,
+                        "test": self.name,
+                        "step": "Check Dependencies",
+                        "log": {"Missing dependency": dependency["name"]},
+                        "loglevel": "WARN",
+                        "timestamp": get_timestamp(),
+                        "message": f"{self.chart_dir}: Found non file-based dependency!",
+                        "rel_file": "",
+                    }
+                    log_list.append(log_entry)
+                    continue
 
-            for line in requirements_file:
-                if "name:" in line and "#" not in line:
-                    req_names_count += 1
-                    last_req_name = line.split(": ")[1].strip()
-                if "version:" in line and "#" not in line:
-                    req_version_count += 1
-                    last_req_version = line.split(": ")[1].strip()
-                if "repository:" in line and "#" not in line:
-                    req_repo_count += 1
-                    req_repo = line.split("/")[-1].strip()
+                if check_chart_yaml != None:
+                    if not isfile(check_chart_yaml):
+                        log_entry = {
+                            "suite": suite_tag,
+                            "test": self.name,
+                            "step": "Check Dependencies",
+                            "log": {"Missing dependency": dependency["name"]},
+                            "loglevel": "ERROR",
+                            "timestamp": get_timestamp(),
+                            "message": f"{self.chart_dir}: Specified file-dependency was not found @{check_chart_yaml} !",
+                            "rel_file": "",
+                        }
+                        log_list.append(log_entry)
+                        continue
 
-                if req_repo != "" and last_req_name != "" and last_req_version != "":
-                    req_id = "{}/{}:{}".format(req_repo,
-                                               last_req_name, last_req_version)
+                    chart_content = None
+                    with open(check_chart_yaml, 'r') as stream:
+                        chart_content = yaml.safe_load(stream)
+                    if chart_content["version"] != dependency["version"]:
+                        log_entry = {
+                            "suite": suite_tag,
+                            "test": self.name,
+                            "step": "Check Dependencies",
+                            "log": {"Missing dependency": dependency["name"]},
+                            "loglevel": "ERROR",
+                            "timestamp": get_timestamp(),
+                            "message": f"{self.chart_dir}: Specified file-dependency wrong version speciefied {chart_content['version']} found {dependency['version']} !",
+                            "rel_file": "",
+                        }
+                        log_list.append(log_entry)
+                        continue
+                    else:
+                        dependencie_count_found += 1
 
-                    if req_id not in self.requirements:
-                        self.requirements.append(req_id)
+            self.dependencies.extend(requirements_yaml["dependencies"])
 
-                    last_req_name = ""
-                    last_req_version = ""
-                    req_repo = ""
+            log_entry = {
+                "suite": suite_tag,
+                "test": f"{self.name}:{self.version}",
+                "step": "Requirements",
+                "loglevel": "DEBUG",
+                "timestamp": get_timestamp(),
+                "log": "",
+                "message": "Requirements extracted successfully.",
+                "rel_file": self.chart_dir,
+            }
+            log_list.append(log_entry)
+            print(f"{self.name}: found {dependencie_count_found}/{dependencie_count_all} dependencies.")
 
-            if not (req_names_count == req_repo_count == req_version_count):
+            if dependencie_count_found != dependencie_count_all:
                 log_entry = {
                     "suite": suite_tag,
-                    "test": "{}:{}".format(self.name, self.version),
-                    "step": "Requirements",
-                    "loglevel": "FATAL",
+                    "test": f"{self.name}:{self.version}",
+                    "step": "Check Dependencies",
+                    "loglevel": "ERROR",
                     "timestamp": get_timestamp(),
                     "log": "",
-                    "message": "Something went wrong with requirements extraction.",
-                    "rel_file": self.chart_dir,
-                }
-                log_list.append(log_entry)
-            else:
-                log_entry = {
-                    "suite": suite_tag,
-                    "test": "{}:{}".format(self.name, self.version),
-                    "step": "Requirements",
-                    "loglevel": "DEBUG",
-                    "timestamp": get_timestamp(),
-                    "log": "",
-                    "message": "Requirements extracted successfully.",
+                    "message": f"{self.chart_dir}: Issue with dependencies!",
                     "rel_file": self.chart_dir,
                 }
                 log_list.append(log_entry)
@@ -229,14 +251,26 @@ class HelmChart:
         return log_list
 
     def check_container_use(self):
-        glob_path = '{}/templates/*.yaml'.format(self.chart_dir)
-        for yaml_file in glob.glob(glob_path, recursive=True):
+        template_dirs = (f"{self.chart_dir}/templates/*.yaml", f"{self.chart_dir}/deps/**/templates.yaml")  # the tuple of file types
+        files_grabbed = []
+        for template_dir in template_dirs:
+            files_grabbed.extend(glob.glob(template_dir))
+        for yaml_file in files_grabbed:
             with open(yaml_file, "r") as yaml_content:
                 for line in yaml_content:
                     line = line.rstrip()
-                    if "dktk-jip-registry.dkfz.de" in line and "image" in line and "#" not in line:
-                        docker_container = "dktk-jip-registry.dkfz.de" + \
-                            line.split("dktk-jip-registry.dkfz.de")[1].replace(" ", "").replace(",", "").lower()
+                    if "image:" in line:
+                        line = line.split("image:")
+                        if "#" in line[0]:
+                            print("Commented -> skip")
+                            continue
+                        elif "}}" in line[1]:
+                            docker_container = line[1].split(" }}/")[-1].lower()
+                        elif line[1].count("/") == 2:
+                            docker_container = line[1].split("/")[-1].lower()
+                        else:
+                            print("Issue with image line in template-yaml!")
+                            continue
                         if docker_container not in HelmChart.docker_containers_used.keys():
                             HelmChart.docker_containers_used[docker_container] = yaml_file
 
@@ -245,11 +279,11 @@ class HelmChart:
             chart_dir = self.chart_dir
             log_list = []
 
-        dep_charts = os.path.join(chart_dir, "charts")
-        if os.path.isdir(dep_charts):
+        dep_charts = join(chart_dir, "charts")
+        if isdir(dep_charts):
             for item in os.listdir(dep_charts):
-                path = os.path.join(dep_charts, item)
-                if os.path.isdir(path):
+                path = join(dep_charts, item)
+                if isdir(path):
                     log_list = self.dep_up(chart_dir=path, log_list=log_list)
 
         os.chdir(chart_dir)
@@ -296,7 +330,7 @@ class HelmChart:
             os.remove(path)
 
         requirements_lock = '{}/requirements.lock'.format(self.chart_dir)
-        if os.path.exists(requirements_lock):
+        if exists(requirements_lock):
             os.remove(requirements_lock)
 
     def lint_chart(self):
@@ -314,7 +348,7 @@ class HelmChart:
         else:
             os.chdir(self.chart_dir)
             command = ["helm", "lint"]
-            output = run(command, stdout=PIPE, stderr=PIPE,universal_newlines=True, timeout=20)
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=20)
             log = make_log(std_out=output.stdout, std_err=output.stderr)
 
             if output.returncode != 0:
@@ -377,7 +411,7 @@ class HelmChart:
         yield log_entry
 
     def package(self):
-        os.chdir(os.path.dirname(self.chart_dir))
+        os.chdir(dirname(self.chart_dir))
         command = ["helm", "package", self.name]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
         log = make_log(std_out=output.stdout, std_err=output.stderr)
@@ -409,49 +443,120 @@ class HelmChart:
             }
             yield log_entry
 
-    def push(self):
-        os.chdir(os.path.dirname(self.chart_dir))
-        try_count = 0
-
-        command = ["helm", "push", self.name, self.repo]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
-        while output.returncode != 0 and try_count < HelmChart.max_tries:
-            print("Error push -> try: {}".format(try_count))
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
-            try_count += 1
-        log = make_log(std_out=output.stdout, std_err=output.stderr)
-
-        if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
+    def chart_push(self):
+        if not (self.name.endswith('chart') or self.name.endswith('workflow')):
             log_entry = {
                 "suite": suite_tag,
                 "test": "{}:{}".format(self.name, self.version),
-                "step": "Helm push",
-                "log": log,
+                "step": "Helm push chart to docker",
+                "log": "",
                 "loglevel": "ERROR",
                 "timestamp": get_timestamp(),
-                "message": "push failed: {}".format(self.name),
+                "message": "Chart push failed: {} due to name error. Name of chart has to end with -chart or -workflow!".format(self.name),
                 "rel_file": self.path,
                 "test_done": True,
             }
             yield log_entry
-
         else:
+            os.chdir(dirname(self.chart_dir))
+            try_count = 0
+
+            command = ["helm", "chart", "push", f"{HelmChart.default_registry}/{self.name}:{self.version}"]
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+            while output.returncode != 0 and try_count < HelmChart.max_tries:
+                print("Error push -> try: {}".format(try_count))
+                output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+                try_count += 1
+            log = make_log(std_out=output.stdout, std_err=output.stderr)
+
+            if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
+                log_entry = {
+                    "suite": suite_tag,
+                    "test": "{}:{}".format(self.name, self.version),
+                    "step": "Helm push chart to docker",
+                    "log": log,
+                    "loglevel": "ERROR",
+                    "timestamp": get_timestamp(),
+                    "message": "push failed: {}".format(self.name),
+                    "rel_file": self.path,
+                    "test_done": True,
+                }
+                yield log_entry
+
+            else:
+                log_entry = {
+                    "suite": suite_tag,
+                    "test": "{}:{}".format(self.name, self.version),
+                    "step": "Helm push",
+                    "log": log,
+                    "loglevel": "DEBUG",
+                    "timestamp": get_timestamp(),
+                    "message": "Chart pushed successfully!",
+                    "rel_file": self.path,
+                    "test_done": True,
+                }
+                yield log_entry
+
+    def chart_save(self):
+        os.chdir(dirname(self.chart_dir))
+        try_count = 0
+        wrong_naming = False
+        if not (self.name.endswith('chart') or self.name.endswith('workflow')):
             log_entry = {
                 "suite": suite_tag,
                 "test": "{}:{}".format(self.name, self.version),
-                "step": "Helm push",
-                "log": log,
-                "loglevel": "DEBUG",
+                "step": "Helm save",
+                "log": "",
+                "loglevel": "ERROR",
                 "timestamp": get_timestamp(),
-                "message": "Chart pushed successfully!",
+                "message": "Chart save failed: {} due to name error. Name of chart has to end with -chart or -workflow!".format(self.name),
                 "rel_file": self.path,
                 "test_done": True,
             }
             yield log_entry
+        else:
+
+            command = ["helm", "chart", "save", self.name, f"{HelmChart.default_registry}/{self.name}:{self.version}"]
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+            while output.returncode != 0 and try_count < HelmChart.max_tries:
+                print("Error save -> try: {}".format(try_count))
+                output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+                try_count += 1
+            log = make_log(std_out=output.stdout, std_err=output.stderr)
+
+            if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
+                log_entry = {
+                    "suite": suite_tag,
+                    "test": "{}:{}".format(self.name, self.version),
+                    "step": "Helm save",
+                    "log": log,
+                    "loglevel": "ERROR",
+                    "timestamp": get_timestamp(),
+                    "message": "save failed: {}".format(self.name),
+                    "rel_file": self.path,
+                    "test_done": True,
+                }
+                yield log_entry
+
+            else:
+                log_entry = {
+                    "suite": suite_tag,
+                    "test": "{}:{}".format(self.name, self.version),
+                    "step": "Helm save",
+                    "log": log,
+                    "loglevel": "DEBUG",
+                    "timestamp": get_timestamp(),
+                    "message": "Chart saved successfully!",
+                    "rel_file": self.path,
+                    "test_done": True,
+                }
+                yield log_entry
 
     @staticmethod
     def check_repos(user, pwd):
         for repo in HelmChart.repos_needed:
+            if repo.startswith('file://'):
+                continue
             command = ["helm", "repo", "add", "--username", user, "--password", pwd, repo, HelmChart.default_registry + repo]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=30)
             log = make_log(std_out=output.stdout, std_err=output.stderr)
@@ -506,13 +611,9 @@ class HelmChart:
 
     @staticmethod
     def quick_check():
-        global build_ready_list
-        build_ready_list = []
-
         chartfiles = glob.glob(HelmChart.kaapana_dir+"/**/Chart.yaml", recursive=True)
         chartfiles = sorted(chartfiles, key=lambda p: (-p.count(os.path.sep), p))
 
-        chartfiles_count = len(chartfiles)
         print("Found {} Charts".format(len(chartfiles)))
 
         charts_list = []
@@ -527,88 +628,19 @@ class HelmChart:
                     yield log
                 charts_list.append(chart_object)
 
-        resolve_tries = 0
-
-        while resolve_tries <= HelmChart.max_tries and len(charts_list) != 0:
-            resolve_tries += 1
-
-            to_do_charts = []
-            for chart in charts_list:
-                if len(chart.requirements) == 0:
-                    build_ready_list.append(chart)
-                else:
-                    requirements_left = []
-                    for requirement in chart.requirements:
-                        found = False
-                        for ready_chart in build_ready_list:
-                            if requirement == ready_chart.chart_id:
-                                found = True
-                        if not found:
-                            requirements_left.append(requirement)
-
-                    chart.requirements = requirements_left
-
-                    if len(requirements_left) > 0:
-                        to_do_charts.append(chart)
-                    else:
-                        log_entry = {
-                            "suite": suite_tag,
-                            "test": chart.name,
-                            "step": "Check Dependencies",
-                            "log": "",
-                            "loglevel": "DEBUG",
-                            "timestamp": get_timestamp(),
-                            "message": "All dependencies ok",
-                            "rel_file": "",
-                        }
-                        build_ready_list.append(chart)
-                        yield log_entry
-
-            charts_list = to_do_charts
-
-        if resolve_tries > HelmChart.max_tries:
-            for chart in reversed(charts_list):
-                miss_deps = []
-                for req in chart.requirements:
-                    miss_deps.append(req)
-
-                log_entry = {
-                    "suite": suite_tag,
-                    "test": chart.name,
-                    "step": "Check Dependencies",
-                    "log": {"Missing dependency": miss_deps},
-                    "loglevel": "ERROR",
-                    "timestamp": get_timestamp(),
-                    "message": "Could not resolve all dependencies",
-                    "rel_file": "",
-                }
-                yield log_entry
-                build_ready_list.append(chart)
-
-        else:
-            log_entry = {
-                "suite": suite_tag,
-                "test": chart.name,
-                "step": "Check Dependencies",
-                "log": "",
-                "loglevel": "DEBUG",
-                "timestamp": get_timestamp(),
-                "message": "Successful",
-                "rel_file": "",
-            }
-            yield log_entry
-
-        yield build_ready_list
+        print("")
+        print("-> quick_check done. ")
+        print("")
+        yield charts_list
 
 
 ############################################################
 ######################   START   ###########################
 ############################################################
 
-def init_helm_charts(kaapana_dir, chart_registry, default_project):
+def init_helm_charts(kaapana_dir, chart_registry):
     HelmChart.kaapana_dir = kaapana_dir
     HelmChart.default_registry = chart_registry
-    HelmChart.default_project = default_project
     check_helm_installed()
 
 

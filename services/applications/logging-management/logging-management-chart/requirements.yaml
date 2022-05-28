@@ -1,0 +1,10 @@
+dependencies:
+  - name: elasticsearch-logging-chart
+    version: "6.8.12"
+    repository: file://../elsaticsearch-logging/elasticsearch-logging-chart
+  - name: kibana-logging-chart
+    version: "6.8.12"
+    repository: file://../kibana-logging/kibana-logging-chart
+  - name: fluentd-chart
+    version: "2.5.2"
+    repository: file://../fluentd/fluentd-chart

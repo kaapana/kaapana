@@ -4,10 +4,13 @@ import os
 import json
 from datetime import timedelta
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INITIAL_INPUT_DIR
-
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.HelperElasticsearch import HelperElasticsearch
+from multiprocessing.pool import ThreadPool
+from os.path import join, exists, dirname
+import shutil
+import glob
+import pydicom
 
 
 class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
@@ -15,9 +18,10 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
     def check_dag_modality(self, input_modality):
         config = self.conf["conf"] if "conf" in self.conf else None
         input_modality = input_modality.lower()
-        if config is not None and "form_data" in config and config["form_data"] is not None and "input" in config["form_data"]:
+        if config is not None and "form_data" in config and config["form_data"] is not None and "input" in config[
+            "form_data"]:
             dag_modality = config["form_data"]["input"].lower()
-            if dag_modality == "ct" or dag_modality == "mri" or dag_modality == "mrt" or dag_modality == "seg":
+            if dag_modality == "ct" or dag_modality == "mri" or dag_modality == "mrt" or dag_modality == "seg" or dag_modality == "ot":
                 if input_modality != dag_modality:
                     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -32,8 +36,8 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     exit(1)
 
             else:
-                print("DAG modality: {} is not supported!")
-                print("Supported modalities: CT,MRI,MRT,SEG")
+                print(f"DAG modality: {dag_modality} is not supported!")
+                print("Supported modalities: CT,MRI,MRT,SEG,OT")
                 print("Skipping 'check_dag_modality'")
                 return
 
@@ -42,47 +46,137 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             print("Skipping 'check_dag_modality'")
             return
 
-    def get_data(self, studyUID, seriesUID, dag_run_id):
-        target_dir = os.path.join(WORKFLOW_DIR, dag_run_id, BATCH_NAME, f'{seriesUID}', INITIAL_INPUT_DIR)
+    def get_data(self, series_dict):
+        download_successful = True
+        studyUID, seriesUID, dag_run_id = series_dict["studyUID"], series_dict["seriesUID"], series_dict["dag_run_id"]
+        print(f"Start download series: {seriesUID}")
+        target_dir = os.path.join(self.workflow_dir, dag_run_id, self.batch_name, f'{seriesUID}', self.operator_out_dir)
+        print(f"# Target_dir: {target_dir}")
 
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)
 
         if self.data_type == "dicom":
-            HelperDcmWeb.downloadSeries(studyUID=studyUID, seriesUID=seriesUID, target_dir=target_dir)
+            download_successful = HelperDcmWeb.downloadSeries(
+                seriesUID=seriesUID,
+                target_dir=target_dir
+            )
+            if not download_successful:
+                print("Could not download DICOM data!")
+                download_successful = False
 
         elif self.data_type == "json":
             meta_data = HelperElasticsearch.get_series_metadata(series_uid=seriesUID)
-            json_path = os.path.join(target_dir, "metadata.json")
+            json_path = join(target_dir, "metadata.json")
             with open(json_path, 'w') as fp:
                 json.dump(meta_data, fp, indent=4, sort_keys=True)
 
         elif self.data_type == "minio":
             print("Not supported yet!")
             print("abort...")
-            exit(1)
+            download_successful = False
 
         else:
             print("unknown data-mode!")
             print("abort...")
-            exit(1)
+            download_successful = False
+
+        return download_successful, seriesUID
+
+    def move_series(self, dag_run_id: str, series_uid: str, dcm_path: str):
+        print("#")
+        print("############################ Get input data ############################")
+        print("#")
+        print(f"# SeriesUID:  {series_uid}")
+        print(f"# RUN_id:     {dag_run_id}")
+        print("#")
+        target = join("/data", dag_run_id, "batch", series_uid, self.operator_out_dir)
+
+        print("#")
+        print(f"# Moving data from {dcm_path} -> {target}")
+        print("#")
+        shutil.move(src=dcm_path, dst=target)
+        print(f"# Series CTP import -> OK: {series_uid}")
+
 
     def start(self, ds, **kwargs):
-        print("Starting moule LocalGetInputDataOperator...")
+        print("# Starting moule LocalGetInputDataOperator...")
+        print("#")
         self.conf = kwargs['dag_run'].conf
-        dag_run_id = kwargs['dag_run'].run_id
 
-        if self.conf == None or not "inputs" in self.conf:
+        if self.cohort_limit is None and self.inputs is None and self.conf is not None and "conf" in self.conf:
+            trigger_conf = self.conf["conf"]
+            self.cohort_limit = int(trigger_conf["cohort_limit"]) if "cohort_limit" in trigger_conf else None
+
+        print(f"# Cohort-limit: {self.cohort_limit}")
+        print("#")
+
+        dag_run_id = kwargs['dag_run'].run_id
+        if self.conf and ("seriesInstanceUID" in self.conf):
+            series_uid = self.conf.get('seriesInstanceUID')
+            dcm_path = join("/ctpinput", self.conf.get('dicom_path'))
+            print("#")
+            print(f"# Dicom-path: {dcm_path}")
+
+            if not os.path.isdir(dcm_path):
+                print(f"Could not find dicom dir: {dcm_path}")
+                print("Abort!")
+                exit(1)
+            self.move_series(dag_run_id, series_uid, dcm_path)
+            return
+        if self.conf and "ctpBatch" in self.conf:
+            batch_folder = join("/ctpinput", self.conf.get('dicom_path'))
+            print(f"# Batch folder: {batch_folder}")
+            dcm_series_paths = [f for f in glob.glob(batch_folder+"/*")]
+            for dcm_series_path in dcm_series_paths:
+                dcm_file_list = glob.glob(dcm_series_path + "/*.dcm", recursive=True)
+                if dcm_file_list:
+                    dcm_file = pydicom.dcmread(dcm_file_list[0], force=True)
+                    series_uid = dcm_file[0x0020, 0x000E].value
+                    self.move_series(dag_run_id, series_uid, dcm_series_path)
+            # remove parent batch folder
+            if not os.listdir(batch_folder):
+                shutil.rmtree(batch_folder)
+            return
+
+        if self.conf and "dataInputDirs" in self.conf:
+            dataInputDirs = self.conf.get('dataInputDirs')
+            if not isinstance(dataInputDirs, list):
+                dataInputDirs = [dataInputDirs]
+            for src in dataInputDirs:
+                target = join(dirname(src), self.operator_out_dir)
+                if src == target:
+                    print("#")
+                    print(f"# Data is already at out dir location -> {target}")
+                    print("#")
+                else:
+                    print("#")
+                    print(f"# Moving data from {src} -> {target}")
+                    print("#")
+                    shutil.move(src=src, dst=target)
+                    print("# Dag input dir correctly ajusted.")
+            return
+
+        if self.inputs is None and self.conf == None or not "inputs" in self.conf:
             print("No config or inputs in config found!")
             print("Skipping...")
             return
 
-        inputs = self.conf["inputs"]
+        if self.inputs is None:
+            self.inputs = self.conf["inputs"]
 
-        if not isinstance(inputs, list):
-            inputs = [inputs]
+        if not isinstance(self.inputs, list):
+            self.inputs = [self.inputs]
 
-        for input in inputs:
+        print("#")
+        print("#")
+        print("# Inputs:")
+        print("#")
+        print(json.dumps(self.inputs, indent=4, sort_keys=True))
+        print("#")
+        print("#")
+        download_list = []
+        for input in self.inputs:
             if "elastic-query" in input:
                 elastic_query = input["elastic-query"]
                 if "query" not in elastic_query:
@@ -106,13 +200,19 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     series_uid = series[HelperElasticsearch.series_uid_tag]
                     # SOPInstanceUID = series[ElasticDownloader.SOPInstanceUID_tag]
                     modality = series[HelperElasticsearch.modality_tag]
-                    print(("studyUID %s" % study_uid))
-                    print(("seriesUID %s" % series_uid))
-                    print(("modality %s" % modality))
+
+                    print(f"# Found elastic result: {modality}: {series_uid}")
                     if self.check_modality:
+                        print("# checking modality...")
                         self.check_dag_modality(input_modality=modality)
 
-                    self.get_data(studyUID=study_uid, seriesUID=series_uid, dag_run_id=dag_run_id)
+                    download_list.append(
+                        {
+                            "studyUID": study_uid,
+                            "seriesUID": series_uid,
+                            "dag_run_id": dag_run_id
+                        }
+                    )
 
             elif "dcm-uid" in input:
                 dcm_uid = input["dcm-uid"]
@@ -133,7 +233,13 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 study_uid = dcm_uid["study-uid"]
                 series_uid = dcm_uid["series-uid"]
 
-                self.get_data(studyUID=study_uid, seriesUID=series_uid, dag_run_id=dag_run_id)
+                download_list.append(
+                    {
+                        "studyUID": study_uid,
+                        "seriesUID": series_uid,
+                        "dag_run_id": dag_run_id
+                    }
+                )
 
             else:
                 print("Error with dag-config!")
@@ -142,20 +248,62 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 print("Dag-conf: {}".format(self.conf))
                 exit(1)
 
+        print("")
+        print(f"## SERIES FOUND: {len(download_list)}")
+        print("")
+        print(f"## SERIES LIMIT: {self.cohort_limit}")
+        download_list = download_list[:self.cohort_limit] if self.cohort_limit is not None else download_list
+        print("")
+        print(f"## SERIES TO LOAD: {len(download_list)}")
+        print("")
+        if len(download_list) == 0:
+            print("#####################################################")
+            print("#")
+            print(f"# No series to download !! ")
+            print("#")
+            print("#####################################################")
+            exit(1)
+        series_download_fail = []
+        results = ThreadPool(self.parallel_downloads).imap_unordered(self.get_data, download_list)
+        for download_successful, series_uid in results:
+            print(f"# Series download ok: {series_uid}")
+            if not download_successful:
+                series_download_fail.append(series_uid)
+
+        if len(series_download_fail) > 0:
+            print("#####################################################")
+            print("#")
+            print(f"# Some series could not be downloaded! ")
+            for series_uid in series_download_fail:
+                print("#")
+                print(f"# Series: {series_uid} failed !")
+                print("#")
+            print("#####################################################")
+            exit(1)
+
     def __init__(self,
                  dag,
+                 inputs=None,
+                 name="get-input-data",
                  data_type="dicom",
                  check_modality=False,
-                 *args,
+                 cohort_limit=None,
+                 parallel_downloads=3,
+                 batch_name=None,
                  **kwargs):
+
+        self.inputs = inputs
         self.data_type = data_type
+        self.cohort_limit = cohort_limit
         self.check_modality = check_modality
+        self.parallel_downloads = parallel_downloads
 
         super().__init__(
-            dag,
-            name="get-input-data",
+            dag=dag,
+            name=name,
+            batch_name=batch_name,
             python_callable=self.start,
             task_concurrency=10,
-            execution_timeout=timedelta(minutes=15),
-            *args, **kwargs
+            execution_timeout=timedelta(minutes=60),
+            **kwargs
         )

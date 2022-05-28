@@ -1,0 +1,18 @@
+---
+dependencies:
+  - name: kaapana-core-chart
+    version: "0.1.1"
+    repository: file://../../../projects/kaapana-core-chart
+  - name: kibana-kaapana-chart
+    version: "6.8.12"
+    repository: file://../../../services/meta/kibana/kibana-kaapana/kibana-kaapana-chart
+  - name: meta-init-chart
+    condition: Release.IsInstall
+    version: "6.8.12"
+    repository: file://../../../services/meta/meta-init/meta-init-chart
+  - name: elasticsearch-chart
+    version: "6.8.12"
+    repository: file://../../../services/meta/elasticsearch-oss/elasticsearch-chart
+  - name: landing-page-kaapana-chart
+    version: "0.1.3"
+    repository: file://../../../services/base/landing-page-kaapana/landing-page-kaapana-chart

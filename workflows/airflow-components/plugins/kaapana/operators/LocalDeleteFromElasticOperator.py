@@ -16,6 +16,10 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 class LocalDeleteFromElasticOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
+        conf = kwargs['dag_run'].conf
+        if 'conf' in conf and 'form_data' in conf['conf'] and conf['conf']['form_data'] is not None and 'delete_complete_study' in conf['conf']['form_data']:
+                self.delete_complete_study = conf['conf']['form_data']['delete_complete_study']
+                print('Delete entire study set to ', self.delete_complete_study)
         self.es = Elasticsearch([{'host': self.elastic_host, 'port': self.elastic_port}])
         if self.delete_all_documents:
             print("Delting all documents from elasticsearch...")
@@ -69,7 +73,7 @@ class LocalDeleteFromElasticOperator(KaapanaPythonBaseOperator):
                  elastic_index="meta-index",
                  delete_all_documents=False,
                  delete_complete_study=False,
-                 *args, **kwargs):
+                 **kwargs):
 
         self.elastic_host = elastic_host
         self.elastic_port = elastic_port
@@ -78,8 +82,8 @@ class LocalDeleteFromElasticOperator(KaapanaPythonBaseOperator):
         self.delete_complete_study = delete_complete_study
 
         super().__init__(
-            dag,
+            dag=dag,
             name='delete-meta',
             python_callable=self.start,
-            *args, **kwargs
+            **kwargs
         )

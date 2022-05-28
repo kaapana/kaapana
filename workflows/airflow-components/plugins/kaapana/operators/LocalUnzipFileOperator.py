@@ -27,11 +27,11 @@ class LocalUnzipFileOperator(KaapanaPythonBaseOperator):
 
     def __init__(self,
                  dag,
-                 *args, **kwargs):
+                 **kwargs):
 
         super().__init__(
-            dag,
+            dag=dag,
             name="unzip-file",
             python_callable=self.start,
-            *args, **kwargs
+            **kwargs
         )

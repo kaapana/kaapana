@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+appVersion: "0.1.0"
+description: Logging Managment
+name: logging-management-chart
+version: "0.1.0"
+keywords:
+- kaapanaapplication
+- kaapanaint
+

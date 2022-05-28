@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+appVersion: "0.1.0"
+description: Copies and removes extensions
+name: charts-manager-chart
+version: "0.1.0"
+    

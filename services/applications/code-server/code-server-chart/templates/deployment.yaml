@@ -20,7 +20,7 @@ spec:
         runAsUser: 0
       containers:
       - name: code-server
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/code-server:3.5.0
+        image: {{  .Values.global.registry_url }}/code-server:3.10.2
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["--auth","none","--disable-telemetry"]        
         resources:
@@ -31,20 +31,26 @@ spec:
         volumeMounts:
           - name: workflowdata
             mountPath: /home/coder/workflows
-          - name: keybindings-config
-            mountPath: /home/coder/keybindings.json
+          - name: configs
+            # mountPath: /home/coder/keybindings.json
+            mountPath: /root/.local/share/code-server/User/keybindings.json
             subPath: keybindings.json
+          - name: configs
+            mountPath:  /home/coder/.vscode/launch.json
+            subPath: launch.json
       volumes:
       - name: workflowdata
         hostPath:
           path: {{ .Values.global.fast_data_dir }}/workflows/
           type: DirectoryOrCreate
-      - name: keybindings-config
+      - name: configs
         configMap:
           name: code-server-config
           items:
           - key: keybindings.json
             path: keybindings.json
+          - key: launch.json
+            path: launch.json
       imagePullSecrets:
       - name: registry-secret
 ---

@@ -4,15 +4,10 @@ from sqlalchemy.orm.exc import NoResultFound
 from datetime import datetime
 import airflow.api
 from http import HTTPStatus
-from airflow.api.common.experimental import delete_dag as delete
-from airflow.api.common.experimental import pool as pool_api
-from airflow.api.common.experimental.get_task import get_task
-from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun, DagModel, DAG, DagBag
 from airflow import settings
 from airflow.utils import timezone
-from airflow.bin.cli import get_dags
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.app import csrf
 import glob
@@ -20,16 +15,50 @@ import json
 import time
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.blueprints.kaapana_utils import generate_minio_credentials
-from airflow.api.common.experimental.trigger_dag import trigger_dag as trigger
+from airflow.api.common.trigger_dag import trigger_dag as trigger
 from kaapana.operators.HelperElasticsearch import HelperElasticsearch
 from flask import current_app as app
+from multiprocessing.pool import ThreadPool
 
 _log = LoggingMixin().log
-
+parallel_processes = 1
 """
 Represents a blueprint kaapanaApi
 """
 kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
+
+
+def async_dag_trigger(queue_entry):
+    hit, dag_id, tmp_conf = queue_entry
+    hit = hit["_source"]
+    studyUID = hit[HelperElasticsearch.study_uid_tag]
+    seriesUID = hit[HelperElasticsearch.series_uid_tag]
+    SOPInstanceUID = hit[HelperElasticsearch.SOPInstanceUID_tag]
+    modality = hit[HelperElasticsearch.modality_tag]
+
+    print(f"# Triggering {dag_id} - series: {seriesUID}")
+
+    conf = {
+        "inputs": [
+            {
+                "dcm-uid": {
+                    "study-uid": studyUID,
+                    "series-uid": seriesUID,
+                    "modality": modality
+                }
+            }
+        ],
+        "conf": tmp_conf
+    }
+
+    dag_run_id = generate_run_id(dag_id)
+    try:
+        result = trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
+    except Exception as e:
+        pass
+
+    return seriesUID, result
+
 
 @csrf.exempt
 @kaapanaApi.route('/api/trigger/<string:dag_id>', methods=['POST'])
@@ -50,15 +79,16 @@ def trigger_dag(dag_id):
         query = tmp_conf["query"]
         index = tmp_conf["index"]
         dag_id = tmp_conf["dag"]
-        bulk = tmp_conf["bulk"]
-        single_processing = False if bulk == "BATCH PROCESSING" else True
+        form_data = tmp_conf["form_data"] if "form_data" in tmp_conf else None
+        cohort_limit = int(tmp_conf["cohort_limit"] if "cohort_limit" in tmp_conf else None)
+        single_execution = True if form_data is not None and "single_execution" in form_data and form_data["single_execution"] else False
 
-        print("query: {}".format(query))
-        print("index: {}".format(index))
-        print("dag_id: {}".format(dag_id))
-        print("single_processing: {}".format(single_processing))
+        print(f"query: {query}")
+        print(f"index: {index}")
+        print(f"dag_id: {dag_id}")
+        print(f"single_execution: {single_execution}")
 
-        if single_processing:
+        if single_execution:
             hits = HelperElasticsearch.get_query_cohort(elastic_query=query, elastic_index=index)
             if hits is None:
                 message = ["Error in HelperElasticsearch: {}!".format(dag_id)]
@@ -66,29 +96,16 @@ def trigger_dag(dag_id):
                 response.status_code = 500
                 return response
 
-            print("SERIES TO LOAD: {}".format(len(hits)))
+            hits = hits[:cohort_limit] if cohort_limit is not None else hits
+
+            queue = []
             for hit in hits:
-                hit = hit["_source"]
-                studyUID = hit[HelperElasticsearch.study_uid_tag]
-                seriesUID = hit[HelperElasticsearch.series_uid_tag]
-                SOPInstanceUID = hit[HelperElasticsearch.SOPInstanceUID_tag]
-                modality = hit[HelperElasticsearch.modality_tag]
+                queue.append((hit, dag_id, tmp_conf))
 
-                conf = {
-                    "inputs": [
-                        {
-                            "dcm-uid": {
-                                "study-uid": studyUID,
-                                "series-uid": seriesUID,
-                                "modality": modality
-                            }
-                        }
-                    ],
-                    "conf": tmp_conf
-                }
+            trigger_results = ThreadPool(parallel_processes).imap_unordered(async_dag_trigger, queue)
+            for seriesUID, result in trigger_results:
+                print(f"#  Done: {seriesUID}:{result}")
 
-                dag_run_id = generate_run_id(dag_id)
-                trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
         else:
             conf = {
                 "inputs": [
@@ -123,6 +140,7 @@ def trigger_dag(dag_id):
         message = ["{} created!".format(dr.dag_id)]
         response = jsonify(message=message)
         return response
+
 
 @kaapanaApi.route('/api/getdagruns', methods=['GET'])
 @csrf.exempt
@@ -207,7 +225,7 @@ def get_dags_endpoint():
 
         del dag_dict['_sa_instance_state']
         dags[dag_id] = dag_dict
-    
+
     app.config['JSON_SORT_KEYS'] = False
     return jsonify(dags)
 
@@ -256,6 +274,22 @@ def get_dag_runs(dag_id):
     return jsonify(dag_id=dag_id, run_ids=run_ids)
 
 
+@kaapanaApi.route('/api/dags/<dag_id>/dagRuns/state/<state>/count', methods=['GET'])
+@csrf.exempt
+def get_num_dag_runs_by_state(dag_id, state):
+    """
+    The old api /api/experimental/dags/<dag_id>/dag_runs?state=running has been replaced by
+    /api/v1/dags/<dag_id>/dagRuns where filtering via state is not possible anymore.
+    this endpoint is directly retuning the needed info for the CTP.
+    """
+    session = settings.Session()
+    query = session.query(DagRun)
+    state = state.lower() if state else None
+    query = query.filter(DagRun.dag_id == dag_id, DagRun.state == state)
+    number_of_dagruns = query.count()
+    return jsonify(number_of_dagruns=number_of_dagruns)
+
+
 @kaapanaApi.route('/api/dagdetails/<dag_id>/<run_id>', methods=['GET'])
 @csrf.exempt
 def dag_run_status(dag_id, run_id):
@@ -295,5 +329,4 @@ def get_access_token():
 def get_minio_credentials():
     x_auth_token = request.args.get('x-auth-token')
     access_key, secret_key, session_token = generate_minio_credentials(x_auth_token)
-    return jsonify({'accessKey': access_key, 'secretKey': secret_key, 'sessionToken': session_token }), 200
-
+    return jsonify({'accessKey': access_key, 'secretKey': secret_key, 'sessionToken': session_token}), 200

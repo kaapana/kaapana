@@ -20,11 +20,12 @@ from random import randint
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 from kaapana.blueprints.kaapana_utils import generate_run_id, cure_invalid_name
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INITIAL_INPUT_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperCaching import cache_operator_output
-from pprint import pprint
+from airflow.api.common.experimental import pool as pool_api
 import uuid
 import json
+
 
 default_registry = os.getenv("DEFAULT_REGISTRY", "")
 default_project = os.getenv("DEFAULT_PROJECT", "")
@@ -88,11 +89,13 @@ class KaapanaBaseOperator(BaseOperator):
                  name,
                  image=None,
                  # Directories
-                 operator_out_dir=None,
                  input_operator=None,
+                 operator_in_dir=None,
+                 operator_out_dir=None,
                  # Airflow
                  task_id=None,
                  parallel_id=None,
+                 keep_parallel_id=True,
                  trigger_rule=TriggerRule.ALL_SUCCESS,
                  ram_mem_mb=500,
                  ram_mem_mb_lmt=None,
@@ -101,12 +104,15 @@ class KaapanaBaseOperator(BaseOperator):
                  gpu_mem_mb=None,
                  gpu_mem_mb_lmt=None,
                  retries=1,
-                 retry_delay=timedelta(seconds=60),
+                 retry_delay=timedelta(seconds=30),
                  priority_weight=1,
                  execution_timeout=timedelta(minutes=90),
                  task_concurrency=None,
                  manage_cache=None,
+                 delete_input_on_success=False,
                  # Other stuff
+                 batch_name=None,
+                 workflow_dir=None,
                  cmds=None,
                  arguments=None,
                  env_vars=None,
@@ -114,7 +120,6 @@ class KaapanaBaseOperator(BaseOperator):
                  startup_timeout_seconds=120,
                  namespace='flow-jobs',
                  image_pull_policy=os.getenv('PULL_POLICY_PODS', 'IfNotPresent'),
-                 training_operator=False,
                  volume_mounts=None,
                  volumes=None,
                  pod_resources=None,
@@ -134,7 +139,7 @@ class KaapanaBaseOperator(BaseOperator):
                  pool=None,
                  pool_slots=None,
                  api_version="v1",
-                 *args, **kwargs
+                 **kwargs
                  ):
 
         KaapanaBaseOperator.set_defaults(
@@ -143,7 +148,9 @@ class KaapanaBaseOperator(BaseOperator):
             task_id=task_id,
             operator_out_dir=operator_out_dir,
             input_operator=input_operator,
+            operator_in_dir=operator_in_dir,
             parallel_id=parallel_id,
+            keep_parallel_id=keep_parallel_id,
             trigger_rule=trigger_rule,
             pool=pool,
             pool_slots=pool_slots,
@@ -153,7 +160,10 @@ class KaapanaBaseOperator(BaseOperator):
             cpu_millicores_lmt=cpu_millicores_lmt,
             gpu_mem_mb=gpu_mem_mb,
             gpu_mem_mb_lmt=gpu_mem_mb_lmt,
-            manage_cache=manage_cache
+            manage_cache=manage_cache,
+            batch_name=batch_name,
+            workflow_dir=workflow_dir,
+            delete_input_on_success=delete_input_on_success
         )
 
         # Airflow
@@ -162,8 +172,6 @@ class KaapanaBaseOperator(BaseOperator):
         self.execution_timeout = execution_timeout
         self.task_concurrency = task_concurrency
         self.retry_delay = retry_delay
-
-        self.training_operator = training_operator
 
         # Kubernetes
         self.image = image
@@ -190,22 +198,38 @@ class KaapanaBaseOperator(BaseOperator):
         self.secrets = secrets
         self.kind = kind
         self.data_dir = os.getenv('DATADIR', "")
+        self.model_dir = os.getenv('MODELDIR', "")
         self.result_message = None
         self.host_network = host_network
         self.enable_proxy = enable_proxy
 
         self.volume_mounts.append(VolumeMount(
-            'dcmdata', mount_path='/data', sub_path=None, read_only=False))
-        volume_config = {
-            'hostPath':
-            {
-                'type': 'DirectoryOrCreate',
-                'path': self.data_dir
-            }
-        }
-        self.volumes.append(Volume(name='dcmdata', configs=volume_config))
+            'workflowdata', mount_path='/data', sub_path=None, read_only=False
+        ))
 
-        if self.training_operator:
+        self.volumes.append(
+            Volume(name='workflowdata', configs={'hostPath':
+                                                 {
+                                                     'type': 'DirectoryOrCreate',
+                                                     'path': self.data_dir
+                                                 }
+                                                 })
+        )
+
+        if self.gpu_mem_mb != None or self.gpu_mem_mb_lmt != None:
+            self.volume_mounts.append(VolumeMount(
+                'modeldata', mount_path='/models', sub_path=None, read_only=False
+            ))
+
+            self.volumes.append(
+                Volume(name='modeldata', configs={'hostPath':
+                                                  {
+                                                      'type': 'DirectoryOrCreate',
+                                                      'path': self.model_dir
+                                                  }
+                                                  })
+            )
+
             self.volume_mounts.append(VolumeMount(
                 'tensorboard', mount_path='/tensorboard', sub_path=None, read_only=False))
             tb_config = {
@@ -217,23 +241,34 @@ class KaapanaBaseOperator(BaseOperator):
             }
             self.volumes.append(Volume(name='tensorboard', configs=tb_config))
 
+            self.volume_mounts.append(VolumeMount(
+                'dshm', mount_path='/dev/shm', sub_path=None, read_only=False))
+            volume_config = {
+                'emptyDir':
+                {
+                    'medium': 'Memory',
+                }
+            }
+            self.volumes.append(Volume(name='dshm', configs=volume_config))
+
         if self.pod_resources is None:
             pod_resources = PodResources(
                 request_cpu="{}m".format(self.cpu_millicores) if self.cpu_millicores != None else None,
                 limit_cpu="{}m".format(self.cpu_millicores+100) if self.cpu_millicores != None else None,
                 request_memory="{}Mi".format(self.ram_mem_mb),
                 limit_memory="{}Mi".format(self.ram_mem_mb_lmt if self.ram_mem_mb_lmt is not None else self.ram_mem_mb+100),
-                limit_gpu=1 if self.gpu_mem_mb is not None else None
+                limit_gpu=None  # 1 if self.gpu_mem_mb is not None else None
             )
             self.pod_resources = pod_resources
 
         envs = {
-            "WORKFLOW_DIR": str(WORKFLOW_DIR),
-            "BATCH_NAME": str(BATCH_NAME),
+            "WORKFLOW_DIR": str(self.workflow_dir),
+            "BATCH_NAME": str(self.batch_name),
             "OPERATOR_OUT_DIR": str(self.operator_out_dir),
-            "OPERATOR_IN_DIR": str(self.operator_in_dir),
-            "BATCHES_INPUT_DIR": "/{}/{}".format(WORKFLOW_DIR, BATCH_NAME)
+            "BATCHES_INPUT_DIR": f"/{self.workflow_dir}/{self.batch_name}"
         }
+        if hasattr(self, 'operator_in_dir'):
+            envs["OPERATOR_IN_DIR"] = str(self.operator_in_dir)
 
         if http_proxy is not None and http_proxy != "" and self.enable_proxy:
             envs.update(
@@ -269,7 +304,7 @@ class KaapanaBaseOperator(BaseOperator):
             on_retry_callback=KaapanaBaseOperator.on_retry,
             on_execute_callback=KaapanaBaseOperator.on_execute,
             executor_config=self.executor_config,
-            *args, **kwargs
+            **kwargs
         )
 
     def clear(self, start_date=None, end_date=None, upstream=False, downstream=False, session=None):
@@ -280,22 +315,55 @@ class KaapanaBaseOperator(BaseOperator):
 
         super.clear(start_date=start_date, end_date=end_date, upstream=upstream, downstream=downstream, session=session)
 
+    def rest_env_vars_update(self, payload):
+        operator_conf = {}
+        if 'global' in payload:
+            operator_conf.update(payload['global'])
+        if 'operators' in payload and self.name in payload['operators']:
+            operator_conf.update(payload['operators'][self.name])
+
+        for k, v in operator_conf.items():
+            k = k.upper()
+            self.env_vars[k] = str(v)
+
     @cache_operator_output
     def execute(self, context):
         self.set_context_variables(context)
+
+        if self.parallel_id is None:
+            self.kube_name = f'{self.name}'
+        else:
+            self.kube_name = f'{self.name}-{self.parallel_id}'
+
+        self.kube_name = self.kube_name.lower() + "-" + str(uuid.uuid4())[:8]
+        self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63)
+
+        self.pool = context["ti"].pool
+        self.pool_slots = context["ti"].pool_slots
+        if "GPU" in self.pool and len(self.pool.split("_")) == 3:
+            gpu_id = self.pool.split("_")[1]
+            self.env_vars.update({
+                "CUDA_VISIBLE_DEVICES": str(gpu_id)
+            })
+
         if context['dag_run'].conf is not None and "conf" in context['dag_run'].conf and "form_data" in context['dag_run'].conf["conf"] and context['dag_run'].conf["conf"]["form_data"] is not None:
             form_data = context['dag_run'].conf["conf"]["form_data"]
-            form_envs = {}
-            for form_key in form_data.keys():
-                form_envs[form_key.upper()] = form_data[form_key]
+            print(form_data)
+            # form_envs = {}
+            # for form_key in form_data.keys():
+            #     form_envs[str(form_key.upper())] = str(form_data[form_key])
 
-            self.env_vars.update(form_envs)
-
+            # self.env_vars.update(form_envs)
+            # print("CONTAINER ENVS:")
+            # print(json.dumps(self.env_vars, indent=4, sort_keys=True))
+            context['dag_run'].conf["rest_call"] = {'global': form_data}
+        if context['dag_run'].conf is not None and "rest_call" in context['dag_run'].conf and context['dag_run'].conf["rest_call"] is not None:
+            self.rest_env_vars_update(context['dag_run'].conf["rest_call"])
             print("CONTAINER ENVS:")
             print(json.dumps(self.env_vars, indent=4, sort_keys=True))
 
         for volume in self.volumes:
-            if self.data_dir == volume.configs["hostPath"]["path"]:
+            if "hostPath" in volume.configs and self.data_dir == volume.configs["hostPath"]["path"]:
                 volume.configs["hostPath"]["path"] = os.path.join(volume.configs["hostPath"]["path"], context["run_id"])
 
         try:
@@ -344,6 +412,7 @@ class KaapanaBaseOperator(BaseOperator):
     @staticmethod
     def on_failure(info_dict):
         print("##################################################### ON FAILURE!")
+        print("## POD: {}".format(info_dict["ti"].task.kube_name))
         keep_pod_messages = [
             State.SUCCESS,
             State.FAILED
@@ -357,11 +426,25 @@ class KaapanaBaseOperator(BaseOperator):
 
     @staticmethod
     def on_success(info_dict):
-        pass
+        print("##################################################### on_success!")
+        ti = info_dict["ti"].task
+        if ti.delete_input_on_success:
+            print("#### deleting input-dirs...!")
+            data_dir  = os.path.join(WORKFLOW_DIR, info_dict['run_id'])
+            batch_folders = sorted([f for f in glob.glob(os.path.join(data_dir, 'batch', '*'))])
+            for batch_element_dir in batch_folders:
+                element_input_dir = os.path.join(batch_element_dir, ti.operator_in_dir)
+                print(f"# Deleting: {element_input_dir} ...")
+                shutil.rmtree(element_input_dir, ignore_errors=True)
+
+            batch_input_dir = os.path.join(data_dir, ti.operator_in_dir)
+            print(f"# Deleting: {batch_input_dir} ...")
+            shutil.rmtree(batch_input_dir, ignore_errors=True)
 
     @staticmethod
     def on_retry(info_dict):
         print("##################################################### on_retry!")
+        print("## POD: {}".format(info_dict["ti"].task.kube_name))
         keep_pod_messages = [
             State.SUCCESS,
             State.FAILED
@@ -383,14 +466,6 @@ class KaapanaBaseOperator(BaseOperator):
         print(result)
 
     def set_context_variables(self, context):
-        if self.parallel_id is None:
-            self.kube_name = f'{self.name}'
-        else:
-            self.kube_name = f'{self.name}-{self.parallel_id}'
-
-        self.kube_name = self.kube_name + "-" + str(uuid.uuid4())[:4]
-        self.kube_name = self.kube_name + f'-{self.extract_timestamp(context["run_id"])}'
-        self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63)
         self.labels['run_id'] = cure_invalid_name(context["run_id"], r'(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?')
 
     @staticmethod
@@ -400,7 +475,9 @@ class KaapanaBaseOperator(BaseOperator):
         task_id,
         operator_out_dir,
         input_operator,
+        operator_in_dir,
         parallel_id,
+        keep_parallel_id,
         trigger_rule,
         pool,
         pool_slots,
@@ -410,7 +487,10 @@ class KaapanaBaseOperator(BaseOperator):
         cpu_millicores_lmt,
         gpu_mem_mb,
         gpu_mem_mb_lmt,
-        manage_cache
+        manage_cache,
+        batch_name,
+        workflow_dir,
+        delete_input_on_success
     ):
 
         obj.name = name
@@ -429,11 +509,15 @@ class KaapanaBaseOperator(BaseOperator):
         obj.gpu_mem_mb = gpu_mem_mb
         obj.gpu_mem_mb_lmt = gpu_mem_mb_lmt
         obj.manage_cache = manage_cache or 'ignore'
+        obj.delete_input_on_success = delete_input_on_success
+
+        obj.batch_name = batch_name if batch_name != None else BATCH_NAME
+        obj.workflow_dir = workflow_dir if workflow_dir != None else WORKFLOW_DIR
 
         if obj.task_id is None:
             obj.task_id = obj.name
 
-        if input_operator is not None and obj.parallel_id is None and input_operator.parallel_id is not None:
+        if input_operator is not None and obj.parallel_id is None and input_operator.parallel_id is not None and keep_parallel_id:
             obj.parallel_id = input_operator.parallel_id
 
         if obj.parallel_id is not None:
@@ -442,18 +526,20 @@ class KaapanaBaseOperator(BaseOperator):
         if obj.operator_out_dir is None:
             obj.operator_out_dir = obj.task_id
 
+        if input_operator is not None and operator_in_dir is not None:
+            raise NameError('You need to define either input_operator or operator_in_dir!')
         if input_operator is not None:
             obj.operator_in_dir = input_operator.operator_out_dir
-        else:
-            obj.operator_in_dir = INITIAL_INPUT_DIR
+        elif operator_in_dir is not None:
+            obj.operator_in_dir = operator_in_dir
 
         if obj.pool == None:
             if obj.gpu_mem_mb != None:
                 obj.pool = "GPU_COUNT"
-                obj.pool_slots = 1
+                obj.pool_slots = obj.gpu_mem_mb
             else:
                 obj.pool = "MEMORY"
-                obj.pool_slots = obj.ram_mem_mb
+                obj.pool_slots = obj.ram_mem_mb if obj.ram_mem_mb is not None else 1
 
         obj.executor_config = {
             "cpu_millicores": obj.cpu_millicores,

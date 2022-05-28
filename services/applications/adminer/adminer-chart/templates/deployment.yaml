@@ -1,0 +1,22 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: adminer
+  namespace: {{ .Values.global.base_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: adminer
+  template:
+    metadata:
+      labels:
+        app-name: adminer
+    spec:
+      containers:
+      - name: adminer
+        image: {{ .Values.global.registry_url }}/adminer:4.7.8
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+      imagePullSecrets:
+      - name: registry-secret

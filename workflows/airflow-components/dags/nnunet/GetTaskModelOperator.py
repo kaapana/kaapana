@@ -1,7 +1,6 @@
 from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
 from kaapana.kubetools.resources import Resources as PodResources
-
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 from datetime import timedelta
 import os
@@ -12,15 +11,21 @@ class GetTaskModelOperator(KaapanaBaseOperator):
 
     def __init__(self,
                  dag,
+                 name="get-task-model",
                  task_id=None,
+                 zip_file=False,
+                 target_level="default",
+                 operator_out_dir="/models",
+                 mode="install_pretrained",
                  env_vars={},
                  execution_timeout=execution_timeout,
-                 *args,
                  **kwargs
                  ):
 
         envs = {
-            "MODELDIR": "/models",
+            "MODE": str(mode),
+            "TARGET_LEVEL": str(target_level),
+            "ZIP_FILE": str(zip_file)
         }
         env_vars.update(envs)
 
@@ -46,8 +51,9 @@ class GetTaskModelOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image="{}{}/nnunet-get-models:0.1.0".format(default_registry, default_project),
-            name="get-task-model",
+            image=f"{default_registry}/nnunet-get-models:0.1.1",
+            name=name,
+            operator_out_dir=operator_out_dir,
             image_pull_secrets=["registry-secret"],
             volumes=volumes,
             volume_mounts=volume_mounts,
@@ -56,6 +62,5 @@ class GetTaskModelOperator(KaapanaBaseOperator):
             enable_proxy=True,
             host_network=True,
             ram_mem_mb=1000,
-            *args,
             **kwargs
         )

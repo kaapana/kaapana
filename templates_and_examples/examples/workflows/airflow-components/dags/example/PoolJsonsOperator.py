@@ -13,7 +13,7 @@ class PoolJsonsOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name='pool-json',
-            image="{}{}/example-pool-jsons:0.1.0".format(default_registry, default_project),
+            image=f"{default_registry}/example-pool-jsons:0.1.0",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             *args,

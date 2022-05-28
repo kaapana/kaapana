@@ -64,7 +64,7 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
                  bulk=False,
                  overwrite=True,
                  single_slice=False,
-                 *args, **kwargs):
+                 **kwargs):
 
         self.dcmodify_path = 'dcmodify'
         self.bulk = bulk
@@ -83,8 +83,8 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
             exit(1)
 
         super().__init__(
-            dag,
+            dag=dag,
             name="dcm-anonymizer",
             python_callable=self.start,
-            *args, **kwargs
+            **kwargs
         )

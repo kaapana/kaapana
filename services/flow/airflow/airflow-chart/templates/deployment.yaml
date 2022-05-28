@@ -65,8 +65,21 @@ spec:
         app-name: airflow
     spec:
       initContainers:
-      - name: init
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/airflow:1.10.12
+      - name: service-kaapana-plugin-check
+        image: {{  .Values.global.registry_url }}/service_checker:1.1
+        imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
+        env:
+        - name: WAIT
+          value: "postgres,postgres-airflow,5432;prometheus,prometheus-service.monitoring.svc,9090"
+        - name: DELAY
+          value: "5"
+        - name: FILES_AND_FOLDERS_EXISTS
+          value: "/root/airflow/plugins/kaapana"
+        volumeMounts:
+        - name: airflow-plugins
+          mountPath: /root/airflow/plugins
+      - name: init-airflow-db
+        image: {{  .Values.global.registry_url }}/airflow:2.2.4
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["init"]
         resources:
@@ -78,6 +91,9 @@ spec:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg
           subPath: airflow.cfg
+        - name: airflow-webserver-config
+          mountPath: /root/airflow/webserver_config.py
+          subPath: webserver_config.py
         - name: airflow-dags
           mountPath: /root/airflow/dags
         - name: airflow-plugins
@@ -85,10 +101,6 @@ spec:
         env:
         - name: AIRFLOW_HOME
           value: "/root/airflow"
-        - name: WAIT
-          value: "postgres,postgres-airflow,5432;prometheus,prometheus-service.monitoring.svc,9090"
-        - name: DELAY
-          value: "5"
         - name: SQL_ALCHEMY_CONN
           valueFrom:
             secretKeyRef:
@@ -96,7 +108,7 @@ spec:
               key: sql_alchemy_conn
       containers:
       - name: webserver
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/airflow:1.10.12
+        image: {{  .Values.global.registry_url }}/airflow:2.2.4
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         ports:
         - name: webserver
@@ -107,6 +119,8 @@ spec:
           value: "/root/airflow"
         - name: DATADIR
           value: {{ .Values.global.fast_data_dir }}/workflows/data
+        - name: MODELDIR
+          value: {{ .Values.global.fast_data_dir }}/workflows/models
         - name: HOSTDOMAIN
           value: {{ .Values.global.hostname }}
         - name: AIRFLOW_KUBE_NAMESPACE
@@ -125,12 +139,17 @@ spec:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg
           subPath: airflow.cfg
+        - name: airflow-webserver-config
+          mountPath: /root/airflow/webserver_config.py
+          subPath: webserver_config.py
         - name: airflow-dags
           mountPath: /root/airflow/dags
         - name: airflow-plugins
           mountPath: /root/airflow/plugins
         - name: airflow-logs
           mountPath: /root/airflow/logs
+        - name: modeldata
+          mountPath: /models
         # readinessProbe:
         #   initialDelaySeconds: 120
         #   timeoutSeconds: 5
@@ -147,18 +166,18 @@ spec:
         #     path: /flow
         #     port: 8080
       - name: scheduler
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/airflow:1.10.12
+        image: {{  .Values.global.registry_url }}/airflow:2.2.4
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["scheduler"]
         env:
         - name: DEFAULT_REGISTRY
           value: "{{  .Values.global.registry_url }}"
-        - name: DEFAULT_PROJECT
-          value: "{{  .Values.global.registry_project }}"
         - name: AIRFLOW_HOME
           value: "/root/airflow"
         - name: DATADIR
           value: {{ .Values.global.fast_data_dir }}/workflows/data
+        - name: MODELDIR
+          value: {{ .Values.global.fast_data_dir }}/workflows/models
         - name: PROXY
           value: {{ .Values.global.http_proxy }}
         - name: HOSTDOMAIN
@@ -187,14 +206,17 @@ spec:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg
           subPath: airflow.cfg
+        - name: airflow-webserver-config
+          mountPath: /root/airflow/webserver_config.py
+          subPath: webserver_config.py
         - name: airflow-dags
           mountPath: /root/airflow/dags
         - name: airflow-logs
           mountPath: /root/airflow/logs
         - name: airflow-plugins
           mountPath: /root/airflow/plugins
-        - name: airflow-models
-          mountPath: /root/airflow/models
+        - name: modeldata
+          mountPath: /models
         - name: ctpinput
           mountPath: /ctpinput
         - name: workflowdata
@@ -205,6 +227,9 @@ spec:
       - name: airflow-configmap
         configMap:
           name: airflow-configmap
+      - name: airflow-webserver-config
+        configMap:
+          name: airflow-webserver-config
       - name: airflow-dags
         hostPath:
           path: {{ .Values.global.fast_data_dir }}/workflows/dags
@@ -217,7 +242,7 @@ spec:
         hostPath:
           path: {{ .Values.global.fast_data_dir }}/workflows/plugins
           type: DirectoryOrCreate
-      - name: airflow-models
+      - name: modeldata
         hostPath:
           path: {{ .Values.global.fast_data_dir }}/workflows/models
           type: DirectoryOrCreate

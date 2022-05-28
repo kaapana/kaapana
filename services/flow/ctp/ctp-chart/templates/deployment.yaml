@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: ctp-container
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/ctp:0.1.1
+          image: {{  .Values.global.registry_url }}/ctp:0.1.2
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           ports:
             - containerPort: 11112
@@ -24,9 +24,9 @@ spec:
             - containerPort: 7777
           resources:
             requests:
-              memory: 250Mi
+              memory: 1024Mi
             limits:
-              memory: 2500Mi
+              memory: 3000Mi
           volumeMounts:
             - name: ctp-data
               mountPath: /data/
@@ -35,11 +35,9 @@ spec:
             - name: config-file
               mountPath: /opt/CTP/config.xml
               subPath: config.xml
-          livenessProbe:
-            tcpSocket:
-              port: 1050
-            initialDelaySeconds: 30
-            periodSeconds: 120
+            - name: launcher-properties
+              mountPath: /opt/CTP/Launcher.properties
+              subPath: Launcher.properties
       volumes:
       - name: ctp-data
         hostPath:
@@ -55,6 +53,12 @@ spec:
           items:
           - key: config.xml
             path: config.xml
+      - name: launcher-properties
+        configMap:
+          name: ctp-config
+          items:
+          - key: Launcher.properties
+            path: Launcher.properties
       imagePullSecrets:
       - name: registry-secret
 ---

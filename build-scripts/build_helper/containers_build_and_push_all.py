@@ -10,6 +10,18 @@ from shutil import which
 suite_tag = "Docker Container"
 
 
+def container_registry_login(container_registry, username, password):
+    print(f"-> Docker registry-login: {container_registry}")
+    command = ["docker", "login", container_registry, "--username", username, "--password", password]
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
+
+    if output.returncode != 0:
+        print("Something went wrong!")
+        print(f"Docker couldn't login into registry {container_registry}")
+        print(f"Message: {output.stdout}")
+        print(f"Error:   {output.stderr}")
+        exit(1)
+
 def get_timestamp():
     return str(int(time() * 1000))
 
@@ -22,7 +34,7 @@ def generate_image_version_list(container_list):
             if base_image not in base_images_dict.keys():
                 base_images_dict[base_image] = []
 
-            base_images_dict[base_image].append(container.tag.replace(container.docker_registry, "")[1:])
+            base_images_dict[base_image].append(container.tag.replace(container.container_registry, "")[1:])
 
     sorted_tags = sorted(base_images_dict, key=lambda k: len(base_images_dict[k]), reverse=True)
 
@@ -74,8 +86,7 @@ class DockerContainer:
 
     def __init__(self, dockerfile):
         self.maintainers = {}
-        self.docker_registry = None
-        self.project_name = None
+        self.container_registry = None
         self.image_name = None
         self.image_version = None
         self.tag = None
@@ -97,9 +108,7 @@ class DockerContainer:
             lines = f.readlines()
             for line in lines:
                 if line.__contains__('LABEL REGISTRY='):
-                    self.docker_registry = line.split("=")[1].rstrip().strip().replace("\"", "")
-                elif line.__contains__('LABEL REGISTRY_PROJECT='):
-                    self.project_name = line.split("=")[1].rstrip().strip().replace("\"", "")
+                    self.container_registry = line.split("=")[1].rstrip().strip().replace("\"", "")
                 elif line.__contains__('LABEL IMAGE='):
                     self.image_name = line.split("=")[1].rstrip().strip().replace("\"", "")
                 elif line.__contains__('LABEL VERSION='):
@@ -107,24 +116,18 @@ class DockerContainer:
                 elif line.__contains__('FROM') and not line.__contains__('#ignore'):
                     self.base_images.append(line.split("FROM ")[1].split(" ")[0].rstrip().strip().replace("\"", ""))
                 elif line.__contains__('LABEL CI_IGNORE='):
-                    self.ci_ignore = True if line.split("=")[1].rstrip().strip().replace("\"", "").lower() == "true" else False
+                    self.ci_ignore = True if line.split("=")[1].rstrip().lower().replace("\"","").replace("'","") == "true" else False
 
-        if self.docker_registry == None:
-            self.docker_registry = default_registry
-        if self.project_name is None and default_project is not None and self.docker_registry.lower() != "local":
-            self.project_name = default_project
+        if self.container_registry == None:
+            self.container_registry = default_registry
 
-        if self.image_version != None and self.image_name != None and self.image_version != "" and self.image_name != "":
-            if self.project_name is not None and self.docker_registry != "local" and self.docker_registry != "local-only":
-                self.tag = self.docker_registry+"/"+self.project_name + "/"+self.image_name+":"+self.image_version
-            else:
-                self.tag = self.docker_registry+"/"+self.image_name+":"+self.image_version
-
+        if self.image_version != None and self.image_version != "" and self.image_name != None and self.image_name != "":
+            self.tag = self.container_registry+"/"+self.image_name+":"+self.image_version
             self.check_pending()
 
             log_entry = {
                 "suite": suite_tag,
-                "test": self.tag.replace(self.docker_registry, "")[1:],
+                "test": self.tag.replace(self.container_registry, "")[1:],
                 "step": "Docker-Tag Extraction",
                 "log": "",
                 "loglevel": "DEBUG",
@@ -158,7 +161,7 @@ class DockerContainer:
         if self.tag in DockerContainer.used_tags_list:
             log_entry = {
                 "suite": suite_tag,
-                "test": self.tag.replace(self.docker_registry, "")[1:],
+                "test": self.tag.replace(self.container_registry, "")[1:],
                 "step": "Docker-Tag Extraction",
                 "log": "",
                 "loglevel": "ERROR",
@@ -190,7 +193,7 @@ class DockerContainer:
             if "dags" not in sub_dirs and "plugins" not in sub_dirs:
                 log_entry = {
                     "suite": suite_tag,
-                    "test": self.tag.replace(self.docker_registry, "")[1:],
+                    "test": self.tag.replace(self.container_registry, "")[1:],
                     "step": "Airflow Component",
                     "log": "",
                     "loglevel": "ERROR",
@@ -205,7 +208,7 @@ class DockerContainer:
             else:
                 log_entry = {
                     "suite": suite_tag,
-                    "test": self.tag.replace(self.docker_registry, "")[1:],
+                    "test": self.tag.replace(self.container_registry, "")[1:],
                     "step": "Airflow Component",
                     "log": "",
                     "loglevel": "DEBUG",
@@ -220,7 +223,7 @@ class DockerContainer:
         else:
             log_entry = {
                 "suite": suite_tag,
-                "test": self.tag.replace(self.docker_registry, "")[1:],
+                "test": self.tag.replace(self.container_registry, "")[1:],
                 "step": "Airflow Component",
                 "log": "",
                 "loglevel": "DEBUG",
@@ -232,6 +235,7 @@ class DockerContainer:
             self.log_list.append(log_entry)
 
     def check_prebuild(self):
+        os.chdir(self.container_dir)
         pre_build_script = os.path.dirname(self.path)+"/pre_build.sh"
         if os.path.isfile(pre_build_script):
             command = [pre_build_script]
@@ -241,7 +245,7 @@ class DockerContainer:
             if output.returncode == 0:
                 log_entry = {
                     "suite": suite_tag,
-                    "test": self.tag.replace(self.docker_registry, "")[1:],
+                    "test": self.tag.replace(self.container_registry, "")[1:],
                     "step": "check_prebuild",
                     "log": log,
                     "loglevel": "DEBUG",
@@ -255,7 +259,7 @@ class DockerContainer:
             else:
                 log_entry = {
                     "suite": suite_tag,
-                    "test": self.tag.replace(self.docker_registry, "")[1:],
+                    "test": self.tag.replace(self.container_registry, "")[1:],
                     "step": "check_prebuild",
                     "log": log,
                     "loglevel": "ERROR",
@@ -269,7 +273,7 @@ class DockerContainer:
         else:
             log_entry = {
                 "suite": suite_tag,
-                "test": self.tag.replace(self.docker_registry, "")[1:],
+                "test": self.tag.replace(self.container_registry, "")[1:],
                 "step": "check_prebuild",
                 "log": "",
                 "loglevel": "DEBUG",
@@ -289,13 +293,13 @@ class DockerContainer:
         else:
             command = ["docker", "build", "-t", self.tag, "-f", self.path, "."]
 
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000, env=dict(os.environ, DOCKER_BUILDKIT="1"))
         log = make_log(std_out=output.stdout, std_err=output.stderr)
 
         if output.returncode != 0:
             log_entry = {
                 "suite": suite_tag,
-                "test": self.tag.replace(self.docker_registry, "")[1:],
+                "test": self.tag.replace(self.container_registry, "")[1:],
                 "step": "Docker build",
                 "log": log,
                 "loglevel": "ERROR",
@@ -313,7 +317,7 @@ class DockerContainer:
         print("############################ Build: {:0>2}:{:0>2}:{:05.2f} -> success".format(int(hours),int(minutes),seconds))
         log_entry = {
             "suite": suite_tag,
-            "test": self.tag.replace(self.docker_registry, "")[1:],
+            "test": self.tag.replace(self.container_registry, "")[1:],
             "step": "Docker build",
             "log": "",
             "loglevel": "DEBUG",
@@ -328,11 +332,11 @@ class DockerContainer:
         print()
         print("############################ Push Container: {}".format(self.tag))
 
-        if self.docker_registry == "local" or self.docker_registry == "local-only":
+        if self.container_registry == "local" or self.container_registry == "local-only":
             print("############################ Push skipped -> local registry found!")
             log_entry = {
                 "suite": suite_tag,
-                "test": self.tag.replace(self.docker_registry, "")[1:],
+                "test": self.tag.replace(self.container_registry, "")[1:],
                 "step": "Docker push",
                 "log": "",
                 "loglevel": "DEBUG",
@@ -352,7 +356,7 @@ class DockerContainer:
 
         while retries < max_retires:
             retries += 1
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3600)
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
             if output.returncode == 0 or "configured as immutable" in output.stderr:
                 break
 
@@ -363,7 +367,7 @@ class DockerContainer:
             print()
             log_entry = {
                 "suite": suite_tag,
-                "test": self.tag.replace(self.docker_registry, "")[1:],
+                "test": self.tag.replace(self.container_registry, "")[1:],
                 "step": "Docker push",
                 "log": "",
                 "loglevel": "DEBUG",
@@ -380,7 +384,7 @@ class DockerContainer:
                 "############################ Push successful -> but nothing was changed")
             log_entry = {
                 "suite": suite_tag,
-                "test": self.tag.replace(self.docker_registry, "")[1:],
+                "test": self.tag.replace(self.container_registry, "")[1:],
                 "step": "Docker push",
                 "log": "",
                 "loglevel": "DEBUG",
@@ -395,10 +399,10 @@ class DockerContainer:
         elif output.returncode != 0 and "configured as immutable" in output.stderr:
             print(
                 "############################ Push -> immutable -> no -vdev version -> ok")
-            if "-vdev" not in self.tag:
+            if not self.dev:
                 log_entry = {
                     "suite": suite_tag,
-                    "test": self.tag.replace(self.docker_registry, "")[1:],
+                    "test": self.tag.replace(self.container_registry, "")[1:],
                     "step": "Docker push",
                     "log": "",
                     "loglevel": "DEBUG",
@@ -413,7 +417,7 @@ class DockerContainer:
             else:
                 log_entry = {
                     "suite": suite_tag,
-                    "test": self.tag.replace(self.docker_registry, "")[1:],
+                    "test": self.tag.replace(self.container_registry, "")[1:],
                     "step": "Docker push",
                     "log": log,
                     "loglevel": "ERROR",
@@ -430,7 +434,7 @@ class DockerContainer:
             print("############################ Push -> read only mode -> RETRY!")
             log_entry = {
                 "suite": suite_tag,
-                "test": self.tag.replace(self.docker_registry, "")[1:],
+                "test": self.tag.replace(self.container_registry, "")[1:],
                 "step": "Docker push",
                 "log": "",
                 "loglevel": "WARN",
@@ -446,7 +450,7 @@ class DockerContainer:
             print("############################ Push -> ERROR!")
             log_entry = {
                 "suite": suite_tag,
-                "test": self.tag.replace(self.docker_registry, "")[1:],
+                "test": self.tag.replace(self.container_registry, "")[1:],
                 "step": "Docker push",
                 "log": log,
                 "loglevel": "ERROR",
@@ -497,7 +501,7 @@ def quick_check():
         else:
             log_entry = {
                 "suite": suite_tag,
-                "test": docker_container.tag.replace(docker_container.docker_registry, "")[1:],
+                "test": docker_container.tag.replace(docker_container.container_registry, "")[1:],
                 "step": "Docker-Tag Check",
                 "log": "",
                 "loglevel": "DEBUG",
@@ -521,14 +525,14 @@ def quick_check():
         pending_copy = docker_containers_pending_list.copy()
         for pending_container in pending_copy:
             if not pending_container.check_pending():
-                docker_containers_list.append(docker_container)
+                docker_containers_list.append(pending_container)
                 docker_container.used_tags_list.append(docker_container.tag)
                 docker_containers_pending_list.remove(pending_container)
 
     for not_resolved in docker_containers_pending_list:
         log_entry = {
             "suite": suite_tag,
-            "test": not_resolved.tag.replace(not_resolved.docker_registry, "")[1:],
+            "test": not_resolved.tag.replace(not_resolved.container_registry, "")[1:],
             "step": "Base-Image Check",
             "log": "",
             "loglevel": "WARN",
@@ -548,7 +552,7 @@ def quick_check():
     list_size_containers = len(docker_containers_list)
     while i < list_size_containers:
         container = docker_containers_list[i]
-        if container.docker_registry.lower() == "local-only":
+        if container.container_registry.lower() == "local-only":
             docker_containers_list.insert(0, docker_containers_list.pop(i))
             i += 1
             continue
@@ -566,8 +570,8 @@ def quick_check():
 
 
 def start_container_build(config):
-    global kaapana_dir, http_proxy, default_registry, default_project
-    kaapana_dir, http_proxy, default_registry, default_project = config
+    global kaapana_dir, http_proxy, default_registry
+    kaapana_dir, http_proxy, default_registry = config
 
     if which("docker") is None:
         print("Docker was not found!")

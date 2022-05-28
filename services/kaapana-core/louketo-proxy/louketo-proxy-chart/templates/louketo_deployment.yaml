@@ -16,18 +16,18 @@ spec:
     spec:
       initContainers:
       - name: init
-        image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/service_checker:1.1
+        image: {{  .Values.global.registry_url }}/service_checker:1.1
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env:
           - name: WAIT
-            value: "keycloak,keycloak-service.kube-system.svc,443"
+            value: "keycloak,keycloak-internal-service.kube-system.svc,443"
           - name: DELAY
             value: "3"
           - name: TIMEOUT
             value: "10"
       containers:
         - name: louketo-container
-          image: {{  .Values.global.registry_url }}{{  .Values.global.registry_project }}/louketo-proxy:0.1.0
+          image: {{  .Values.global.registry_url }}/louketo-proxy:0.1.0
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           args: ["--config","/app/louketo.cfg"]
           ports:
@@ -37,9 +37,9 @@ spec:
             containerPort: 8443
           resources:
             requests:
-              memory: 20Mi
-            limits:
               memory: 50Mi
+            limits:
+              memory: 150Mi
           volumeMounts:
             - name: config-file
               mountPath: /app

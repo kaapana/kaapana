@@ -1,15 +1,15 @@
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_project
 from datetime import timedelta
 
-
 class RadiomicsOperator(KaapanaBaseOperator):
 
     def __init__(self,
                  dag,
                  mask_operator,
+                 parameters = "--all-features",
                  env_vars=None,
                  execution_timeout=timedelta(minutes=120),
-                 *args, **kwargs
+                 **kwargs
                  ):
 
         if env_vars is None:
@@ -17,19 +17,18 @@ class RadiomicsOperator(KaapanaBaseOperator):
 
         envs = {
             "MASK_OPERATOR_DIR": str(mask_operator.operator_out_dir),
+            "PARAMETERS": str(parameters),
         }
 
         env_vars.update(envs)
-
         super().__init__(
             dag=dag,
-            image="{}{}/mitk-radiomics:15.10.20-master".format(default_registry, default_project),
+            image=f"{default_registry}/mitk-radiomics:2021-02-18",
             name="radiomics",
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             task_concurrency=10,
             ram_mem_mb=3000,
-            *args,
             **kwargs
             )

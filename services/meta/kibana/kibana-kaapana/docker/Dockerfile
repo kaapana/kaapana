@@ -14,7 +14,7 @@ RUN bin/kibana-plugin install file:///workflow_trigger-0.0.1.zip
 USER kibana
 
 COPY files/replace_files/ui_app.pug /usr/share/kibana/src/ui/ui_render/views/ui_app.pug
-# COPY files/replace_files/logo.png /usr/share/kibana/optimize/bundles/logo.png
-# COPY files/replace_files/commons.style.css /usr/share/kibana/optimize/bundles/commons.style.css
-# COPY files/replace_files/index.css /usr/share/kibana/built_assets/css/plugins/kibana/index.css
+COPY files/replace_files/logo.png /usr/share/kibana/optimize/bundles/logo.png
+COPY files/replace_files/commons.style.css /usr/share/kibana/optimize/bundles/commons.style.css
+COPY files/replace_files/index.css /usr/share/kibana/built_assets/css/plugins/kibana/index.css
 

@@ -1,0 +1,18 @@
+[
+    {
+        "search_tags": 
+        {
+                "0x0008,0x0060": "CT"
+        },
+        "dag_ids": {
+            "bodypart-regression": {
+                "fetch_method": "pacs",
+                "rest_call": {
+                    "global": {
+                        "single_execution": true
+                    }
+                }
+            }
+        }
+    }
+]

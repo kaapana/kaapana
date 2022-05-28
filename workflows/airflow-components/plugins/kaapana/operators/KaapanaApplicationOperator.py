@@ -3,10 +3,11 @@ import shutil
 import glob
 import time
 import secrets
+import json
 import requests
 from airflow.exceptions import AirflowException
 from datetime import timedelta
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator, rest_self_udpate
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.blueprints.kaapana_utils import cure_invalid_name
 
@@ -25,9 +26,20 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
         return cure_invalid_name(release_name, r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
                                  max_length=53)
 
+    def rest_sets_update(self, payload):
+        operator_conf = {}
+        if 'global' in payload:
+            operator_conf.update(payload['global'])
+        if 'operators' in payload and self.name in payload['operators']:
+            operator_conf.update(payload['operators'][self.name])
+
+        for k, v in operator_conf.items():
+            self.sets[k] = str(v)
+
+    @rest_self_udpate
     def start(self, ds, **kwargs):
-        print(kwargs)        
-        release_name = KaapanaApplicationOperator._get_release_name(kwargs)
+        print(kwargs)
+        release_name = KaapanaApplicationOperator._get_release_name(kwargs) if self.release_name is None else self.release_name
 
         payload = {
             'name': f'{self.chart_name}',
@@ -42,6 +54,11 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
                 "batches_input_dir": "/{}/{}".format(WORKFLOW_DIR, BATCH_NAME)
             }
         }
+
+        if kwargs["dag_run"] is not None and 'rest_call' in kwargs["dag_run"].conf and kwargs["dag_run"].conf['rest_call'] is not None:
+            self.rest_sets_update(kwargs["dag_run"].conf['rest_call']) 
+            print("CHART INSTALL SETS:")
+            print(json.dumps(self.sets, indent=4, sort_keys=True))
 
         for set_key, set_value in self.sets.items():
             payload['sets'][set_key] = set_value
@@ -80,17 +97,10 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
         KaapanaApplicationOperator.uninstall_helm_chart(info_dict)
 
     @staticmethod
-    def on_success(info_dict):
-        pass
-
-    @staticmethod
     def on_retry(info_dict):
         print("##################################################### ON RETRY!")
         KaapanaApplicationOperator.uninstall_helm_chart(info_dict)
 
-    @staticmethod
-    def on_execute(info_dict):
-        pass
 
     def __init__(self,
                  dag,
@@ -99,23 +109,19 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
                  name="helm-chart",
                  data_dir=None,
                  sets=None,
-                 *args, **kwargs):
+                 release_name=None,
+                 **kwargs):
 
         self.chart_name = chart_name
         self.version = version
         self.sets = sets or dict()
         self.data_dir = data_dir or os.getenv('DATADIR', "")
+        self.release_name=release_name
 
         super().__init__(
             dag=dag,
             name=name,
             python_callable=self.start,
             execution_timeout=timedelta(seconds=KaapanaApplicationOperator.TIMEOUT),
-            on_failure_callback=KaapanaApplicationOperator.on_failure,
-            on_success_callback=KaapanaApplicationOperator.on_success,
-            on_retry_callback=KaapanaApplicationOperator.on_retry,
-            on_execute_callback=KaapanaApplicationOperator.on_execute,
-            *args, **kwargs
+            **kwargs
         )
-
-

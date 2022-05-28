@@ -20,8 +20,8 @@ spec:
     spec:
       containers:
       - name: hello-postgres
-        image: postgres:12.0-alpine # ideally should also be pull from a custom docker regsitry
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        image: <docker-registry><docker-repo>/postgres:9.6-alpine
+        imagePullPolicy: Always
         #imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env: # Environment variables
         - name: POSTGRES_USER

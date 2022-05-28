@@ -21,6 +21,10 @@
 			<attr name="remove_tags" required="no" default="no" options="yes|no"/>
 			<attr name="unchangedCounter" requiered="no" default="2"/>
 				<helptext>The airflow dag is triggered after about 2sec*unchangeCount</helptext>
+			<attr name="limitTriggerOnRunningDagsUrl" required="no" default="">
+				<helptext>URL to get running dag rund of dagName (http://airflow-service.flow.svc.cluster.local:8080/flow/api/experimental/dags/dagName/dag_runs?state=running)</helptext>
+			<attr name="runningDagLimits" required="no" default=""/>
+				<helptext>Trigger airflow only below limit</helptext>
 		</ExportService>		
 	</Components>
 </TemplateDefinitions>

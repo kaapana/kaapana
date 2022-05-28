@@ -7,13 +7,14 @@ from zipfile import ZipFile
 import datetime
 from datetime import timedelta
 
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator, rest_self_udpate
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.blueprints.kaapana_utils import generate_minio_credentials
 from kaapana.operators.HelperMinio import HelperMinio
 
 class LocalMinioOperator(KaapanaPythonBaseOperator):
 
+    @rest_self_udpate
     def start(self, ds, **kwargs):
         conf = kwargs['dag_run'].conf
         print('conf', conf)
@@ -49,7 +50,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                             secure=False)
 
 
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
+        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id) if self.run_dir is None else os.path.join(self.run_dir)
         batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
         print(batch_folder)
         
@@ -119,13 +120,20 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
             else:
                 print(f'Applying action "{self.action}" to files in: {object_dirs}')
                 
-            HelperMinio.apply_action_to_object_dirs(minioClient, self.action, self.bucket_name, run_dir, object_dirs, self.file_white_tuples)
+            HelperMinio.apply_action_to_object_dirs(minioClient,
+                                                    self.action,
+                                                    self.bucket_name,
+                                                    run_dir,
+                                                    object_dirs,
+                                                    self.file_white_tuples,
+                                                    self.split_level)
         
         return
 
     def __init__(self,
         dag,
         action='get',
+        run_dir=None,
         bucket_name=None,
         action_operators=None,
         action_operator_dirs=None,
@@ -134,7 +142,8 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         minio_port='9000',
         file_white_tuples=None,
         zip_files=False,
-        *args, **kwargs
+        split_level=None,
+        **kwargs
         ):
     
         if action not in ['get', 'remove', 'put']:
@@ -142,8 +151,9 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         
         if action == 'put':
             file_white_tuples = file_white_tuples or ('.json', '.mat', '.py', '.zip', '.txt', '.gz', '.csv', 'pdf', 'png', 'jpg')
-
+        
         self.action = action
+        self.run_dir = run_dir
         self.bucket_name = bucket_name
         self.action_operator_dirs = action_operator_dirs or []
         self.action_operators = action_operators or []
@@ -152,12 +162,12 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         self.minio_port = minio_port
         self.file_white_tuples = file_white_tuples
         self.zip_files = zip_files
-        
+        self.split_level = split_level
+
         super(LocalMinioOperator, self).__init__(
-           dag,
+           dag=dag,
            name=f'minio-actions-{action}',
            python_callable=self.start,
            execution_timeout=timedelta(minutes=30),
-           *args,
            **kwargs
         )

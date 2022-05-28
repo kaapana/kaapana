@@ -1,6 +1,5 @@
 ---
 global:
-    pull_policy_jobs: ""
-image: "dag-radiomics"
-version: "0.1.0"
-action: "copy"
+    image: "dag-radiomics"
+    version: "0.1.1"
+    action: "copy"

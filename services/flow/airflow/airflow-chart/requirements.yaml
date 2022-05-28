@@ -1,6 +1,5 @@
 ---
 dependencies:
-  - name: kaapana-plugin-chart
-    version: "0.1.0"
-    # condition: Release.IsInstall
-    repository: https://dktk-jip-registry.dkfz.de/chartrepo/kaapana-public
+  - name: airflow-postgres
+    version: "9.6.1"
+    repository: file://deps/airflow-postgres

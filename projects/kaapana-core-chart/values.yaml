@@ -1,0 +1,59 @@
+---
+global:
+    pull_policy_pods: "IfNotPresent"
+    pull_policy_jobs: "IfNotPresent"
+    pull_policy_operators: "IfNotPresent"
+    core_namespace: "kube-system"
+    base_namespace: "base"
+    meta_namespace: "meta"
+    store_namespace: "store"
+    flow_namespace: "flow"
+    flow_jobs_namespace: "flow-jobs"
+    monitoring_namespace: "monitoring"
+    gpu_support: false
+    credentials:
+        minio_username: "admin"
+        minio_password: "Kaapana2019"
+        grafana_username: "admin"
+        grafana_password: "admin"
+        keycloak_admin_username: "admin"
+        keycloak_admin_password: "KaapanA"
+        keycloak_user_username: "admin"
+        keycloak_user_password: "KaapanA"
+    dicom_port: "11112"
+    http_port: "80"
+    https_port: "443"
+    auth_node_port: "8000"
+    fast_data_dir: /home/kaapana
+    slow_data_dir: /home/kaapana
+    default_base_requests_mem: "50Mi"
+    default_base_limits_mem: "50Mi"
+    # default_base_requests_cpu: 0.5
+    # default_base_limits_cpu: 1
+    default_flow_requests_mem: "50Mi"
+    default_flow_limits_mem: "50Mi"
+    # default_flow_requests_cpu: 0.5
+    # default_flow_limits_cpu: 1
+    default_flow_jobs_requests_mem: "50Mi"
+    default_flow_jobs_limits_mem: "150Mi"
+    # default_flow_jobs_requests_cpu: 0.5
+    # default_flow_jobs_limits_cpu: 1
+    default_meta_requests_mem: "50Mi"
+    default_meta_limits_mem: "50Mi"
+    # default_meta_requests_cpu: 0.5
+    # default_meta_limits_cpu: 1
+    default_monitoring_requests_mem: "50Mi"
+    default_monitoring_limits_mem: "50Mi"
+    # default_monitoring_requests_cpu: 0.5
+    # default_monitoring_limits_cpu: 1
+    default_store_requests_mem: "50Mi"
+    default_store_limits_mem: "50Mi"
+    # default_store_requests_cpu: 0.5
+    # default_store_limits_cpu: 1
+
+    default_system_requests_mem: "50Mi"
+    default_system_limits_mem: "50Mi"
+    # default_system_requests_cpu: 0.5
+    # default_system_limits_cpu: 1
+    http_proxy: ""
+    https_proxy: ""

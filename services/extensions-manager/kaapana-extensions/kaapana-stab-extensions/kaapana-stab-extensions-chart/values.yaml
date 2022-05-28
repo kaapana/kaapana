@@ -1,0 +1,6 @@
+---
+global:
+    pull_policy_jobs: "IfNotPresent"
+    action: "copy"
+    chart_container_image: "kaapana-stab-extensions"
+    chart_container_version: "0.1.0"

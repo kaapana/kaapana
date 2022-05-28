@@ -1,0 +1,8 @@
+requests==2.26.0
+numpy==1.19.1
+graphviz==0.17
+nibabel==3.2.1
+pydicom==2.2.2
+tensorboardX==2.4
+pillow==7.0.0
+pynvml==8.0.4

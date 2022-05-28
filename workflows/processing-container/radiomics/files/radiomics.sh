@@ -8,9 +8,10 @@ function radiomics {
 
     loop_counter=0
     organ=$(echo "$ORGAN" | awk '{print tolower($0)}')
-    echo 'INPUTDIR: ' $INPUTDIR
-    echo 'OUTPUTDIR: ' $OUTPUTDIR
-    echo 'MASKDIR: ' $MASKDIR
+    echo 'INPUTDIR: '   $INPUTDIR
+    echo 'OUTPUTDIR: '  $OUTPUTDIR
+    echo 'MASKDIR: '    $MASKDIR
+    echo 'PARAMETERS: ' $PARAMETERS
 
     export BULK="False"
 
@@ -18,7 +19,7 @@ function radiomics {
     for file in $(find $INPUTDIR  -name '*.nrrd'); do
         ((++loop_counter))
         filename=$(basename -- "$file");
-        echo "File found: $file"
+        echo "Image-file found: $file"
 
         IFS=/ read -a path_array <<< $file
         len_array=${#path_array[@]}
@@ -34,49 +35,38 @@ function radiomics {
             exit 1
         fi
 
-        echo "Mkdir $OUTPUTDIR"
+        echo "Mask-file found: $maskfile"
         mkdir -p $OUTPUTDIR
 
-
-        regex="-(.+)\.nrrd"
-
-        if [[ $maskfile =~ $regex ]]; then
-            seg_name=${BASH_REMATCH[1]}
-        else
-            echo "unable to parse string $maskfile"
-        fi
-
-        echo "Seg name $seg_name"
-
+        maskfile_name=$(basename $maskfile)
+        seg_name="${maskfile_name/.nrrd/}"  
+        echo "Extracteds seg-name $seg_name"
 
         filename="${filename%.*}";
         xml_filepath=$OUTPUTDIR/$seg_name'_radiomics.xml';
         csv_filepath=$OUTPUTDIR/$seg_name'_radiomics.csv';
+        json_filepath=$OUTPUTDIR/$seg_name'_radiomics.json';
 
-        sleep 5
         echo "###################################################################### CONFIG"
-        echo ""
-        echo ""
-        echo ""
-        echo 'xml_filepath: ' $xml_filepath
-        echo 'csv_filepath: ' $csv_filepath
-        echo "INPUT-FILE: " $file
-        echo "MASK-DIR: "$MASKDIR/
-        echo "MASKF-FILE: " $maskfile
-        echo "Creating DCM_UID: " $img_dir
-        echo "$img_dir" > $OUTPUTDIR/dcm_uid.txt
+        echo "#"
+        echo "#"
+        echo '# xml_filepath: ' $xml_filepath
+        echo '# csv_filepath: ' $csv_filepath
+        echo "# INPUT-FILE: " $file
+        echo "# MASK-DIR: "$MASKDIR/
+        echo "# MASKF-FILE: " $maskfile
+        echo "#"
+        echo "# xml_filepath:  $xml_filepath"
+        echo "# csv_filepath:  $csv_filepath"
+        echo "# json_filepath: $json_filepath"
+        echo "#"
 
-        dcm_uid=$(cat $OUTPUTDIR/dcm_uid.txt)
-        if [ -z "$dcm_uid" ];
-        then 
-            echo "dcm_uid.txt not found!"
-            echo "Path: " $OUTPUTDIR/dcm_uid.txt
-            exit 1
-        fi
-
-        install -Dv / $xml_filepath
-
-        /mitk/MitkCLGlobalImageFeatures.sh -i $file -o $csv_filepath -x $xml_filepath -m $maskfile -rm 1 -sp 1 -head 1 -fl-head 1 -fo 1 -cooc 1
+        install -Dv / "$xml_filepath"
+        echo "###"
+        echo "### COMMAND: /src/MitkCLGlobalImageFeatures.sh -i $file -o $csv_filepath -x $xml_filepath -m $maskfile -rm 1 -sp 1 -head 1 -fl-head 1 $PARAMETERS"
+        echo "###"
+        /src/MitkCLGlobalImageFeatures.sh -i "$file" -o "$csv_filepath" -x "$xml_filepath" -m "$maskfile" -rm 1 -sp 1 -head 1 -fl-head 1 $PARAMETERS
+        # /src/MitkCLGlobalImageFeatures.sh -i "$file" -o "$csv_filepath" -x "$xml_filepath" -m "$maskfile" -rm 1 -sp 1 -head 1 -fl-head 1 -fo 1 -cooc 1
         
         retVal=$?
         if [ $retVal -ne 0 ]; then
@@ -84,6 +74,8 @@ function radiomics {
             exit 1;
         else
             echo "MitkCLGlobalImageFeatures DONE!"
+            echo "# Converting XML -> JSON ...";
+            cat "$xml_filepath" | xq >> $json_filepath
         fi
     done
 

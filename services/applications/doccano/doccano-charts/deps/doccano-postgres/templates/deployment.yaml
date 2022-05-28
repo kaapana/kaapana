@@ -1,0 +1,55 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: postgres-doccano
+  namespace: {{ .Values.global.store_namespace | default "store" }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: postgres-doccano
+  template:
+    metadata:
+      labels:
+        app-name: postgres-doccano
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: postgres
+          image: {{  .Values.global.registry_url }}/postgres:9.6-alpine
+          args: ["-c", "max_connections=200"]
+          imagePullPolicy: {{ .Values.global.pull_policy_pods | default "IfNotPresent" }}
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          resources:
+            requests:
+              memory: 100Mi
+            limits:
+              memory: 500Mi
+          volumeMounts:
+            - name: dbvol
+              mountPath: /var/lib/postgresql/data/pgdata
+              subPath: pgdata
+          env:
+            - name: POSTGRES_USER
+              value: doccano
+            - name: POSTGRES_USER
+              value: doccano
+            - name: POSTGRES_PASSWORD
+              value: doccano
+            # - name: POSTGRES_DB
+            #   value: airflow
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POD_IP
+              valueFrom: { fieldRef: { fieldPath: status.podIP } }
+      volumes:
+        - name: dbvol
+          # emptyDir: {}
+          hostPath:
+            path: {{ .Values.global.fast_data_dir | default "/home/kaapana" }}/postgres-doccano
+            type: DirectoryOrCreate
+      imagePullSecrets:
+      - name: registry-secret

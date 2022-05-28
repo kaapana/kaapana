@@ -1,4 +1,3 @@
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
@@ -6,7 +5,6 @@ from datetime import datetime
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.getTasks import get_tasks
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
-# from nnunet.GetContainerModelOperator import GetContainerModelOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
@@ -193,7 +191,8 @@ nnunet_predict = NnUnetOperator(
     mode="inference",
     input_modality_operators=[dcm2nifti],
     inf_threads_prep=2,
-    inf_threads_nifti=2
+    inf_threads_nifti=2,
+    execution_timeout = timedelta(minutes=15)
 )
 
 alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]

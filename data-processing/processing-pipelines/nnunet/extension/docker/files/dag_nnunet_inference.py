@@ -192,7 +192,7 @@ nnunet_predict = NnUnetOperator(
     input_modality_operators=[dcm2nifti],
     inf_threads_prep=2,
     inf_threads_nifti=2,
-    execution_timeout = timedelta(minutes=15)
+    execution_timeout = timedelta(minutes=30)
 )
 
 alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]

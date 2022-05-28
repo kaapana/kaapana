@@ -62,12 +62,15 @@ class HelperDcmWeb():
             for objectUID in objectUIDList:
                 studyUID = objectUID[0]
                 objectUID = objectUID[1]
-                HelperDcmWeb.downloadObject(
+                result = HelperDcmWeb.downloadObject(
                     studyUID=studyUID,
                     seriesUID=seriesUID,
                     objectUID=objectUID,
                     target_dir=target_dir
                 )
+                if not result:
+                    return False
+
             return True
         else:
             print("################################")
@@ -95,6 +98,9 @@ class HelperDcmWeb():
             filePath = os.path.join(target_dir, fileName)
             with open(filePath, "wb") as f:
                 f.write(response.content)
+            
+            return True
+        
         else:
             print("################################")
             print("#")
@@ -106,8 +112,7 @@ class HelperDcmWeb():
             print(f"# Response content: {response.content}")
             print("#")
             print("################################")
-            exit(1)
-
+            return False
 
     @staticmethod
     def quido_rs(aet: str, sub_url: str):

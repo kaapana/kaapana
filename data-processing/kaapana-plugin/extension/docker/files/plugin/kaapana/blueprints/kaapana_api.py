@@ -453,6 +453,6 @@ def get_static_website_results():
     tree = {"vuetifyFiles": []}
     objects = minioClient.list_objects("staticwebsiteresults", prefix=None, recursive=True)
     for obj in objects:
-        if obj.object_name.endswith('html'):
+        if obj.object_name.endswith('html') and obj.object_name != 'index.html':
             build_tree(tree, obj.object_name, obj.object_name)
     return jsonify(get_vuetify_tree_structure(tree)), 200

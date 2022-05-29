@@ -158,7 +158,6 @@ function get_domain {
 function delete_deployment {
     echo -e "${YELLOW}Uninstalling releases${NC}"
     helm -n $HELM_NAMESPACE ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $HELM_NAMESPACE uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
-    microk8s.kubectl delete namespace kaapana    
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
@@ -171,6 +170,9 @@ function delete_deployment {
             break
         fi
     done
+    
+    echo -e "${YELLOW}Removing namespace kaapana...${NC}"
+    microk8s.kubectl delete namespace kaapana --ignore-not-found=true
 
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while uninstalling please check manually if there are still namespaces or pods floating around. Everything must be delete before the installation:${NC}"

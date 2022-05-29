@@ -558,13 +558,14 @@ class HelmChart:
 
     def remove_tgz_files(self):
         BuildUtils.logger.info(f"{self.chart_id}: remove_tgz_files")
-        glob_path = '{}/charts'.format(self.build_chart_dir)
-        for path in Path(glob_path).rglob('*.tgz'):
-            os.remove(path)
+        for chart_dir in [self.build_chart_dir, self.chart_dir]:
+            glob_path = '{}/charts'.format(chart_dir)
+            for path in Path(glob_path).rglob('*.tgz'):
+                os.remove(path)
 
-        requirements_lock = f"{self.build_chart_dir}/requirements.lock"
-        if exists(requirements_lock):
-            os.remove(requirements_lock)
+            requirements_lock = f"{chart_dir}/requirements.lock"
+            if exists(requirements_lock):
+                os.remove(requirements_lock)
 
     def lint_chart(self):
         if HelmChart.enable_lint:

@@ -29,8 +29,21 @@ test_cohort_limit = None
 organ_filter = None
 
 hits = HelperElasticsearch.get_query_cohort(elastic_query={
-                "match_all": {} 
-            }, elastic_index='meta-index')
+            "bool": {
+                "must": [
+                    {
+                        "match_all": {}
+                    },
+                    {
+                        "match_phrase": {
+                            "00080060 Modality_keyword.keyword": {
+                                "query": 'OT'
+                            }
+                        }
+                    }
+                ],
+            }
+        }, elastic_index='meta-index')
 
 available_protocol_names = []
 if hits is not None:

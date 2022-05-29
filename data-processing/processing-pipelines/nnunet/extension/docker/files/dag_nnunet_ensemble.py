@@ -395,7 +395,7 @@ put_to_minio = LocalMinioOperator(
 
 put_report_to_minio = LocalMinioOperator(dag=dag, name='upload-staticwebsiteresults', bucket_name='staticwebsiteresults', action='put', action_operators=[nnunet_evaluation_notebook], file_white_tuples=('.html', '.pdf'))
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_test_images >> sort_gt >> dcm2nifti_gt >> seg_check_gt 
 sort_gt >> get_ref_ct_series_from_gt >> dcm2nifti_ct >> nnunet_predict >> do_inference >> seg_check_inference >> seg_check_gt >> evaluation

@@ -75,6 +75,7 @@ const kaapanaApiService = {
             query: {
               exists: { field: 'dashboard' },
             },
+            _source: ["dashboard.title"]
           };
 
           let elasticSearchUrl = ''

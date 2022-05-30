@@ -1,7 +1,7 @@
 {
-    "description": "Kaapana release v0.1.3 on May 30, 2022",
-    "title": "kaapana/kaapana: v0.1.3",
-    "version": "0.1.3",
+    "description": "Kaapana release v0.1.4 TBD",
+    "title": "kaapana/kaapana: v0.1.4",
+    "version": "0.1.4",
     "license": {
         "id": "AGPL-3.0"
     },
@@ -78,7 +78,7 @@
     "related_identifiers": [
         {
             "scheme": "url",
-            "identifier": "https://kaapana.readthedocs.io/en/release-0.1.3/",
+            "identifier": "https://kaapana.readthedocs.io/en/release-0.1.4/",
             "relation": "isDocumentedBy",
             "resource_type": "publication-softwaredocumentation"
         },

@@ -170,31 +170,6 @@ get_test_images = LocalGetInputDataOperator(
     name="nnunet-cohort",
     batch_name="nnunet-cohort",
     cohort_limit=None,
-    # inputs=[
-    #     {
-    #         "elastic-query": {
-    #             "query": {
-    #                 "bool": {
-    #                     "must": [
-    #                         {
-    #                             "bool": {
-    #                                 "should": [
-    #                                     {
-    #                                         "match_phrase": {
-    #                                             "00120020 ClinicalTrialProtocolID_keyword.keyword": "test_fl"
-    #                                         }
-    #                                     }
-    #                                 ],
-    #                                 "minimum_should_match": 1
-    #                             }
-    #                         }
-    #                     ]
-    #                 }
-    #             },
-    #             "index": "meta-index"
-    #         }
-    #     }
-    # ],
     parallel_downloads=5,
     check_modality=False
 )

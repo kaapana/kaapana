@@ -115,7 +115,7 @@ def get_dataset_list(queryDict=None, unique_sets=False, elastic_index='meta-inde
             "query": {
                 "match_all": {} 
             },
-            "_source": ['00120020 ClinicalTrialProtocolID_keyword']
+            "_source": ['dataset_tags_keyword']
         }
 
     try:
@@ -126,7 +126,7 @@ def get_dataset_list(queryDict=None, unique_sets=False, elastic_index='meta-inde
     if 'hits' in res and 'hits' in res['hits']:
         datasets = []
         for hit in res['hits']['hits']:
-            dataset = hit['_source']['00120020 ClinicalTrialProtocolID_keyword']
+            dataset = hit['_source']['dataset_tags_keyword']
             if isinstance(dataset, str):
                 dataset = [dataset]
             datasets.append(dataset)

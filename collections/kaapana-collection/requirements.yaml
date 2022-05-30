@@ -33,6 +33,9 @@ dependencies:
   - name: mitk-workbench-chart
     version: "2022.04"
     repository: file://../../../../services/applications/mitk-workbench/mitk-workbench-chart
+  - name: mitk-flow-chart
+    version: "2022.04"
+    repository: file://../../../../services/applications/mitk-workbench/mitk-flow-chart
   - name: nnunet-workflow
     version: 03-22
     repository: file://../../../../data-processing/processing-pipelines/nnunet/extension/nnunet-workflow

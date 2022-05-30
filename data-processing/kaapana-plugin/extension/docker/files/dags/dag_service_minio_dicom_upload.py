@@ -33,6 +33,7 @@ dag = DAG(
 get_object_from_minio = LocalMinioOperator(
     dag=dag,
     action_operator_dirs=['dicoms'],
+    file_white_tuples=('.zip'),
     operator_out_dir='dicoms'
 )
 
@@ -54,6 +55,7 @@ remove_object_from_minio = LocalMinioOperator(
     dag=dag,
     parallel_id='removing',
     action='remove',
+    file_white_tuples=('.zip'),
     trigger_rule=TriggerRule.ALL_DONE
 )
 

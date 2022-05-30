@@ -161,7 +161,7 @@ args = {
     'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),
-    'retries': 0,
+    'retries': 2,
     'retry_delay': timedelta(seconds=60)
 }
 
@@ -192,7 +192,7 @@ nnunet_predict = NnUnetOperator(
     input_modality_operators=[dcm2nifti],
     inf_threads_prep=2,
     inf_threads_nifti=2,
-    execution_timeout = timedelta(minutes=15)
+    execution_timeout = timedelta(minutes=30)
 )
 
 alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]

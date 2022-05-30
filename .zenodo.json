@@ -1,12 +1,12 @@
 {
-    "description": "Initial Kaapana release v0.1.0 on Oct 27, 2020",
-    "title": "kaapana/kaapana: v0.1.1",
-    "version": "0.1.1",
+    "description": "Kaapana release v0.1.3-beta on May 30, 2022",
+    "title": "kaapana/kaapana: v0.1.3-beta",
+    "version": "0.1.3-beta",
     "license": {
         "id": "AGPL-3.0"
     },
     "upload_type": "software",
-    "publication_date": "2020-10-27",
+    "publication_date": "2022-05-30",
     "creators": [
         {
             "affiliation": "German Cancer Research Center",
@@ -22,11 +22,39 @@
         },
         {
             "affiliation": "German Cancer Research Center",
-            "name": "Ralf Floca"
+            "name": "Philipp Schader"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Kaushal Parekh"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Santhosh Parampottupadam"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Ünal Akünal"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Markus Bujotzek"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Stefan Denner"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Maximilian Fischer"
         },
         {
             "affiliation": "German Cancer Research Center",
             "name": "Peter Neher"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Ralf Floca"
         },
         {
             "affiliation": "German Cancer Research Center",
@@ -50,7 +78,7 @@
     "related_identifiers": [
         {
             "scheme": "url",
-            "identifier": "https://kaapana.readthedocs.io/en/release-0.1.0/",
+            "identifier": "https://kaapana.readthedocs.io/en/release-0.1.3-beta/",
             "relation": "isDocumentedBy",
             "resource_type": "publication-softwaredocumentation"
         },

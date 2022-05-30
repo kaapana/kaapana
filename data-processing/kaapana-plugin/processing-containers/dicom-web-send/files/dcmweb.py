@@ -5,7 +5,6 @@ from dicomweb_client.api import DICOMwebClient
 import pydicom
 import glob
 
-
 def downloadObject(studyUID, seriesUID, objectUID, downloadDir):
     global client
     payload = {
@@ -22,9 +21,7 @@ def downloadObject(studyUID, seriesUID, objectUID, downloadDir):
     print("Writing file {0} to {1} ...".format(fileName, downloadDir))
     with open(filePath, "wb") as f:
         f.write(response.content)
-
     return filePath
-
 
 def downloadSeries(studyUID, seriesUID, baseDir):
     global client

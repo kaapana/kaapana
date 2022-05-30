@@ -97,9 +97,9 @@ class nnUNetTrainerV2(nnUNetTrainer):
                 print('Removing log from previous round!')
                 shutil.rmtree(before_previous_tensorboard_log_dir)
 
-        self.writer = SummaryWriter(log_dir=tensorboard_log_dir)
 
         if os.getenv('MODE') == 'training':
+            self.writer = SummaryWriter(log_dir=tensorboard_log_dir)
             dataset_info_preprocessing_path = os.path.join('/', os.getenv('WORKFLOW_DIR'), os.getenv('OPERATOR_IN_DIR'), 'nnUNet_raw_data', os.getenv('TASK'), 'dataset.json')
             dataset_info_path = os.path.join(self.output_folder, 'dataset.json')
             print(f'Copying dataset.json from {dataset_info_preprocessing_path}  to {dataset_info_path}')

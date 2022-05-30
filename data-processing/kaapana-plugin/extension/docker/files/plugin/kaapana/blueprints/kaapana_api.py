@@ -398,6 +398,26 @@ def get_minio_credentials():
     access_key, secret_key, session_token = generate_minio_credentials(x_auth_token)
     return jsonify({'accessKey': access_key, 'secretKey': secret_key, 'sessionToken': session_token}), 200
 
+@kaapanaApi.route('/api/get-kibana-dashboards')
+@csrf.exempt
+def get_kibana_dashboards():
+    try:
+        res = HelperElasticsearch.es.search(body={
+        "query": {
+            "exists": {
+            "field": "dashboard"
+            }
+        },
+        "_source": ["dashboard.title"]
+        }, size=10000, from_=0)
+    except Exception as e:
+        print("ERROR in elasticsearch search!")
+        return jsonify({'Error message': e}), 500
+
+    hits = res['hits']['hits']
+    dashboards = list(sorted([ hit['_source']['dashboard']['title'] for hit in hits ]))
+    return jsonify({'dashboards': dashboards}), 200
+
 
 @kaapanaApi.route('/api/get-static-website-results')
 @csrf.exempt
@@ -453,6 +473,6 @@ def get_static_website_results():
     tree = {"vuetifyFiles": []}
     objects = minioClient.list_objects("staticwebsiteresults", prefix=None, recursive=True)
     for obj in objects:
-        if obj.object_name.endswith('html'):
+        if obj.object_name.endswith('html') and obj.object_name != 'index.html':
             build_tree(tree, obj.object_name, obj.object_name)
     return jsonify(get_vuetify_tree_structure(tree)), 200

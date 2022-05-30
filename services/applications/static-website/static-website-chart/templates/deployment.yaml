@@ -15,6 +15,15 @@ spec:
       labels:
         app-name: static-website-{{ .Values.postfix }}
     spec:
+      initContainers:
+      - name: static-webiste-copy
+        image: {{ .Values.global.registry_url }}/static-website:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.1.0
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        command: ["/bin/sh"]
+        args: ["/kaapanasrc/copy.sh"]
+        volumeMounts:
+          - name: staticwebsiteresults
+            mountPath: /usr/share/nginx/html/
       containers:
       - name: static-website
         image: {{ .Values.global.registry_url }}/static-website:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.1.0

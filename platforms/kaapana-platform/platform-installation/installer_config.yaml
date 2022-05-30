@@ -1,6 +1,6 @@
 project_name: kaapana-platform-chart
 project_abbr: kp
-default_version: 0.1.3
+default_version: 0.1.3-beta
 offline_mode: 'false'
 prefetch_extensions: 'false'
 dev_mode: 'true'

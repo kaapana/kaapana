@@ -104,6 +104,7 @@ class NnUnetOperator(KaapanaBaseOperator):
         # pod_resources = PodResources(request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None, limit_gpu=None)
         pod_resources = None
         ram_mem_mb = 16000
+        ram_mem_mb_lmt = 45000
 
         super().__init__(
             dag=dag,
@@ -115,6 +116,7 @@ class NnUnetOperator(KaapanaBaseOperator):
             allow_federated_learning=allow_federated_learning,
             whitelist_federated_learning=whitelist_federated_learning,
             ram_mem_mb=ram_mem_mb,
+            ram_mem_mb_lmt=ram_mem_mb_lmt,
             pod_resources=pod_resources,
             gpu_mem_mb=gpu_mem_mb,
             env_vars=env_vars,

@@ -726,7 +726,6 @@ class nnUNetTrainer(NetworkTrainer):
                 if int(idx) == 0: #label_name == 'Clear Label'
                     continue
                 log_dict.update({f'foreground-dice/label_{label_name}': float(global_dc_per_class[int(idx)-1])})
-                # self.writer.add_scalar(f'foreground-dice/label_{label_name}', global_dc_per_class[int(idx)-1], self.epoch)
 
         if len(self.all_val_losses_tr_mode) > 0:
             log_dict.update({'loss/train_val': float(self.all_val_losses_tr_mode[-1])})

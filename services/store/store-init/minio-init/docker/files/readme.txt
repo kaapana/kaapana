@@ -1,0 +1,2 @@
+I am a dicom upload folder. You can drop here a zip file that contains .dcms files. Once uploaded the Airflow pipeline service-minio-dicom-upload
+ will be triggered to send the containing dicoms to the platform.

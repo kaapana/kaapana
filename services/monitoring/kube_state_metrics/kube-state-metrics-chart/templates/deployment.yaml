@@ -4,7 +4,7 @@ kind: Deployment
 metadata:
   labels:
     app.kubernetes.io/name: kube-state-metrics
-    app.kubernetes.io/version: v1.9.7
+    app.kubernetes.io/version: v2.4.2
   name: kube-state-metrics
   namespace: kube-system
 spec:
@@ -16,11 +16,11 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: kube-state-metrics
-        app.kubernetes.io/version: v1.9.7
+        app.kubernetes.io/version: v2.4.2
     spec:
       containers:
       - name: kube-state-metrics
-        image: {{  .Values.global.registry_url }}/kube-state-metrics:v1.9.7
+        image: {{ .Values.global.registry_url }}/kube-state-metrics:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__v2.4.2
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         livenessProbe:
           httpGet:

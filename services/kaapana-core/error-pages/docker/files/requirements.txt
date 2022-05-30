@@ -1,1 +1,5 @@
-Flask==0.10.1
+Flask==1.1.2
+itsdangerous==2.0.1
+Jinja2==3.0.3
+connexion==2.6.0
+werkzeug==2.0.2

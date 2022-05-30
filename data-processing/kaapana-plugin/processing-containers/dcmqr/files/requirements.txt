@@ -1,0 +1,2 @@
+jsonlines==2.0.0
+pynetdicom==1.5.6

@@ -1,7 +1,0 @@
----
-apiVersion: v1
-appVersion: dummy
-description: dummy
-name: dummy
-version: 0.0
-ignore_linting: true

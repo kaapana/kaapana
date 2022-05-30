@@ -1,0 +1,5 @@
+---
+global:
+    image: "dag-nnunet"
+    version: "03-22"
+    action: "copy"

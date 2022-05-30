@@ -5,4 +5,12 @@ global:
     base_namespace: ""
     fast_data_dir: ""
     slow_data_dir: ""
-mount_path: ""
+    slow_mount_path: "/minio"
+envVars:
+
+volumeMounts:
+# - name: workflowdata
+#   mountPath: /root
+volumes:
+# - name: workflowdata
+#   path: /home/kaapana/workflows/

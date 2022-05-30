@@ -1,6 +1,6 @@
-FROM kubernetesui/dashboard:v2.0.3
+FROM kubernetesui/dashboard:v2.5.1
 
 LABEL IMAGE="kube-dashboard"
-LABEL VERSION="2.0.3"
+LABEL VERSION="v2.5.1"
 LABEL CI_IGNORE="False"
 

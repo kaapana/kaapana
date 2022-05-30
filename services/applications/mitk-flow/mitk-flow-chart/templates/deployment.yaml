@@ -18,7 +18,7 @@ spec:
       containers:
         # ToDo add init-container to wait for db-host
       - name: mitk
-        image: {{  .Values.global.registry_url }}/mitk-flow:2021.02
+        image: {{  .Values.global.registry_url }}/mitk-flow:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__2022.04
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           requests:
@@ -33,13 +33,13 @@ spec:
         - name: PASSWORD
           value: mitk
         - name: WORKFLOW_DIR
-          value: {{ .Values.workflow_dir }}
+          value: "{{ .Values.workflow_dir }}"
         - name: BATCH_NAME
-          value: {{ .Values.batch_name }}
+          value: "{{ .Values.batch_name }}"
         - name: OPERATOR_OUT_DIR
-          value: {{ .Values.operator_out_dir }} 
+          value: "{{ .Values.operator_out_dir }}" 
         - name: OPERATOR_IN_DIR
-          value: {{ .Values.operator_in_dir }}           
+          value: "{{ .Values.operator_in_dir }}"           
         volumeMounts:
         - name: mitk-data
           mountPath: /data
@@ -82,7 +82,7 @@ spec:
     regex: ^.*/mitk-flow-{{ $uuid }}([^\/]*)$
     replacement: /mitk-flow-{{ $uuid }}/
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
   name: mitk-flow-{{ $uuid }}
@@ -97,7 +97,10 @@ spec:
     http:
       paths:
       - path: /mitk-flow-{{ $uuid }}
+        pathType: ImplementationSpecific
         backend:
-          serviceName: mitk-flow-{{ $uuid }}
-          servicePort: pt-mitk-http
+          service:
+            name: mitk-flow-{{ $uuid }}
+            port:
+              name: pt-mitk-http
 ---

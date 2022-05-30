@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-console-service
+  namespace: {{ .Values.global.store_namespace }}
+  labels:
+    app-name: minio-console
+spec:
+  selector:
+    app-name: minio-console
+  type: ClusterIP
+  ports:
+    - port: 9001
+      protocol: TCP
+      targetPort: 9001
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: rewrite-minio-console
+  namespace: {{ .Values.global.store_namespace }}
+spec:
+  replacePathRegex:
+    regex: ^/minio-console/(.*)
+    replacement: /${1}
+---
+apiVersion: networking.k8s.io/v1 
+kind: Ingress
+metadata:
+  name: minio-console-ingress
+  namespace: {{ .Values.global.store_namespace }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: store-rewrite-minio-console@kubernetescrd,kube-system-errorpages@kubernetescrd # uncomment later!
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /minio-console
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: minio-console-service
+            port:
+              number: 9001
+--- 

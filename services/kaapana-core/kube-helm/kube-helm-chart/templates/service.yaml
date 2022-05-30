@@ -14,14 +14,14 @@ spec:
   selector:
     app-name: kube-helm
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: kube-helm-ingress
   namespace: kube-system
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,kube-system-strip-prefix@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
@@ -29,7 +29,10 @@ spec:
     http:
       paths:
       - path: /kube-helm-api
+        pathType: ImplementationSpecific
         backend:
-          serviceName: kube-helm-service
-          servicePort: 5000
+          service:
+            name: kube-helm-service
+            port:
+              number: 5000
 ---

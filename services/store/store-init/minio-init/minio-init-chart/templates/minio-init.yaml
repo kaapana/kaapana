@@ -11,7 +11,7 @@ spec:
     spec:
       initContainers:
       - name: init
-        image: {{  .Values.global.registry_url }}/service_checker:1.1
+        image: {{ .Values.global.registry_url }}/service-checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
         imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
         env:
           - name: WAIT
@@ -22,7 +22,7 @@ spec:
             value: "10"
       containers:
       - name: minio-init
-        image: {{  .Values.global.registry_url }}/minio-init:0.1.2
+        image: {{ .Values.global.registry_url }}/minio-init:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__2022.03.31
         imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
         resources:
           requests:
@@ -31,9 +31,9 @@ spec:
             memory: 150Mi
         env:
           - name: MINIO_ACCESS_KEY
-            value: {{ .Values.global.credentials.minio_username }}
+            value: {{ .Values.global.credentials_minio_username }}
           - name: MINIO_SECRET_KEY
-            value: {{ .Values.global.credentials.minio_password }}
+            value: {{ .Values.global.credentials_minio_password }}
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret

@@ -14,35 +14,10 @@ spec:
       labels:
         app-name: kube-helm
     spec:
-      initContainers:
-        - name: copy-kube-helm-helpers
-          image: "{{  .Values.global.registry_url }}/kube-helm-helpers:0.1.0"
-          imagePullPolicy: {{ .Values.global.pull_policy_pods }}
-          env:
-          - name: ACTION
-            value: copy
-          - name: CHARTS_DIR
-            value: charts/helpers
-          volumeMounts:
-          - name: helmextensions
-            mountPath: /charts
-{{- range $collection := .Values.global.kaapana_collections }}
-        - name: copy-{{ $collection.name }}
-          image: "{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $collection.version }}"
-          imagePullPolicy: {{ $.Values.global.pull_policy_pods }}
-          env:
-          - name: ACTION
-            value: copy
-          - name: CHARTS_DIR
-            value: charts/collections
-          volumeMounts:
-          - name: helmextensions
-            mountPath: /charts
-{{- end }}
       containers:
       - name: kube-helm
-        image: {{  .Values.global.registry_url }}/kube-helm:0.1.1
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        image: {{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__0.1.3
+        imagePullPolicy:  {{ $.Values.global.pull_policy_pods }}
         resources:
           limits:
             memory: "1Gi"
@@ -55,56 +30,35 @@ spec:
           value: "/kube-helm-api"
         - name: HELM_PATH
           value: "/usr/local/bin/helm"
+        - name: RELEASE_NAME
+          value: {{ $.Values.global.release_name }}
+        - name: HELM_NAMESPACE
+          value: {{ $.Values.global.helm_namespace }}
         - name: REGISTRY_URL
-          value: {{  .Values.global.registry_url }}
+          value: {{ $.Values.global.registry_url }}
         - name: OFFLINE_MODE
-          value: '{{  .Values.global.offline_mode }}'
-        - name: BASE_NAMESPACE
-          value: {{  .Values.global.base_namespace }}
-        - name: FLOW_NAMESPACE
-          value: {{  .Values.global.flow_namespace }}
-        - name: FLOW_JOBS_NAMESPACE
-          value: {{  .Values.global.flow_jobs_namespace }}
-        - name: PULL_POLICY_PODS
-          value: {{  .Values.global.pull_policy_pods }}
-        - name: PULL_POLICY_JOBS
-          value: {{  .Values.global.pull_policy_jobs }}
-        - name: FAST_DATA_DIR
-          value: {{  .Values.global.fast_data_dir }}
-        - name: SLOW_DATA_DIR
-          value: {{  .Values.global.slow_data_dir }}
-{{- if .Values.global.http_proxy }}
+          value: '{{ $.Values.global.offline_mode }}'
+{{- if $.Values.global.http_proxy }}
         - name: PROXY
-          value: {{ .Values.global.http_proxy }}
+          value: {{ $.Values.global.http_proxy }}
 {{- end }}
+        - name: KAAPANA_COLLECTIONS
+          value: "{{- range $collection := $.Values.global.kaapana_collections }}{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ $collection.version }};{{- end }}"
+        - name: PREINSTALL_EXTENSIONS
+          value: '[{{- range $extension := $.Values.global.preinstall_extensions }}{"name": "{{ $extension.name }}", "version": "{{ $extension.version }}"},{{- end }}]'
+        - name: PREFETCH_EXTENSIONS
+          value: "{{ $.Values.global.prefetch_extensions }}"
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         volumeMounts:
           - name: helmextensions
-            mountPath: "/root/charts"
-          - name: helmconfig
-            mountPath: "/root/.config/helm"
-          - name: helmcache
-            mountPath: "/root/.cache/helm"
-          - name: helmlocal
-            mountPath: "/root/.local/share/helm"
+            mountPath: "/root/extensions"
       volumes:
       - name: helmextensions
         hostPath:
-          path: {{ .Values.global.fast_data_dir }}/charts
+          path: {{ $.Values.global.fast_data_dir }}/extensions
           type: DirectoryOrCreate
-      - name: helmconfig
-        hostPath:
-          path: {{ .Values.global.home_dir }}/.config/helm
-          type: DirectoryOrCreate
-      - name: helmcache
-        hostPath:
-          path: {{ .Values.global.home_dir }}/.cache/helm
-          type: DirectoryOrCreate
-      - name: helmlocal
-        hostPath:
-          path: {{ .Values.global.home_dir }}/.local/share/helm
-          type: DirectoryOrCreate
+      serviceAccountName: kubernetes-dashboard
       imagePullSecrets:
       - name: registry-secret
 ---

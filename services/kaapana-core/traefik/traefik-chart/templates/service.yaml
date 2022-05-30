@@ -7,14 +7,26 @@ spec:
   type: ClusterIP
   ports:
     - protocol: TCP
+      name: websecure
+      port: {{ .Values.global.https_port }}
+    - protocol: TCP
+      name: admin
       port: 8080
-      name: tr-admin
+  selector:
+    app: traefik
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik-http
+  namespace: kube-system
+spec:
+  type: NodePort
+  ports:
     - protocol: TCP
-      port: 80
-      name: traefik-http
-    - protocol: TCP
-      port: 443
-      name: traefik-https
+      name: web
+      port: {{ .Values.global.http_port }}
+      nodePort: {{ .Values.global.http_port }}
   selector:
     app: traefik
 ---

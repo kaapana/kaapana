@@ -1,0 +1,5 @@
+---
+global:
+    image: "dag-mitk-flow"
+    version: "2022.04"
+    action: "copy"

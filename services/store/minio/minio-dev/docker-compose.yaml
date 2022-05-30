@@ -1,0 +1,41 @@
+version: '3.7'
+services:
+  minio:
+    image: minio/minio:RELEASE.2022-04-01T03-41-39Z
+    command: server /data --address 0.0.0.0:9000
+    expose:
+      - "9000"
+    environment:
+      MINIO_BROWSER: "off"
+      MINIO_ROOT_USER: kaapana
+      MINIO_ROOT_PASSWORD: adminadmin
+      MINIO_KAAPANA_AUTHORIZATION_ENDPOINT: "http://193.174.49.36:8081/auth/realms/kaapana/protocol/openid-connect/auth"
+      MINIO_IDENTITY_OPENID_CONFIG_URL: "http://193.174.49.36:8081/auth/realms/kaapana/.well-known/openid-configuration"
+      MINIO_IDENTITY_OPENID_CLIENT_ID: "kaapana"
+      MINIO_IDENTITY_OPENID_CLIENT_SECRET: "1c4645f0-e654-45a1-a8b6-cf28790104ea"
+      MINIO_IDENTITY_OPENID_CLAIM_NAME: policy
+      MINIO_IDENTITY_OPENID_REDIRECT_URI: "http://127.0.0.1:9001/oauth_callback/"
+      MINIO_SERVER_DEBUG: "on"
+  console:
+    image: minio/console:v0.15.8
+    command: server --host 0.0.0.0 --port 9001
+    expose:
+      - "9001"
+    environment:
+      CONSOLE_SUBPATH: /minio-subpath/
+      CONSOLE_MINIO_SERVER: http://minio:9000
+      CONSOLE_IDP_URL: "http://193.174.49.36:8081/auth/realms/kaapana/.well-known/openid-configuration"
+      CONSOLE_IDP_CLIENT_ID: "kaapana"
+      CONSOLE_IDP_SECRET: "1c4645f0-e654-45a1-a8b6-cf28790104ea"
+      MINIO_IDENTITY_OPENID_CLAIM_NAME: policy
+      CONSOLE_IDP_CALLBACK: "http://127.0.0.1:9001/minio-subpath/oauth_callback/"
+  nginx:
+    image: nginx:1.19.2-alpine
+    hostname: nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    depends_on:
+      - console

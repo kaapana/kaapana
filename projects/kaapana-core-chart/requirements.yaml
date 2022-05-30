@@ -18,27 +18,22 @@ dependencies:
   - name: error-pages-chart
     version: "0.1.1"
     repository: file://../../services/kaapana-core/error-pages/error-pages-chart
-  - name: louketo-proxy-chart
-    version: "0.1"
-    repository: file://../../services/kaapana-core/louketo-proxy/louketo-proxy-chart
+  - name: oAuth2-proxy-chart
+    version: "7.2.1"
+    repository: file://../../services/kaapana-core/oAuth2-proxy/oAuth2-proxy-chart
   - name: keycloak-chart
-    version: "11.0.3"
+    version: "16.1.1"
     repository: file://../../services/kaapana-core/keycloak/keycloak-chart
-  - name: gpu-prom-exporter-chart
-    condition: global.gpu_support
-    version: "0.1.0"
-    repository: file://../../services/kaapana-core/gpu-prometheus-exporter/gpu-prom-exporter-chart
   - name: traefik-chart
-    version: "2.3"
+    version: "2.6"
     repository: file://../../services/kaapana-core/traefik/traefik-chart
   - name: kube-dashboard-chart
-    version: "2.0.3"
+    version: "v2.5.1"
     repository: file://../../services/kaapana-core/kubernetes-dashboard/kube-dashboard-chart
   - name: kube-helm-chart
-    version: "0.1.1"
+    version: "0.1.3"
     repository: file://../../services/kaapana-core/kube-helm/kube-helm-chart
-  - name: extensions-init-chart
-    version: "0.1.0"
-    condition: Release.IsInstall
-    repository: file://../../services/kaapana-core/core-init/extensions-init-chart
-    
+  - name: cert-init-chart
+    version: "0.0.1"
+    repository: file://../../services/kaapana-core/core-init/cert-init/cert-init-chart
+  

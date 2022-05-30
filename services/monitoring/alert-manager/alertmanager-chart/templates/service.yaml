@@ -15,7 +15,7 @@ spec:
       protocol: TCP
       targetPort: 9093
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
   name: alertmanager-ingress
@@ -30,6 +30,10 @@ spec:
     http:
       paths:
       - path: /alert
+        pathType: ImplementationSpecific
         backend:
-          serviceName: alertmanager-service
-          servicePort: 9093
+          service:
+            name: alertmanager-service
+            port:
+              number: 9093
+---

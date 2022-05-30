@@ -1,6 +1,7 @@
 ---
 apiVersion: v1
-appVersion: "0.1.1"
-description: Starter Platform
-name: starter-platform-chart
 version: "0.1.1"
+appVersion: "0.1.1"
+name: starter-platform-chart
+description: Starter Platform
+kaapana_type: "platform"

@@ -16,8 +16,9 @@ spec:
     - /grafana
     - /orthanc
     - /jena
-    - /code
     - /web-ide
+    - /federated-backend
+    - /kube-helm-api
     forceSlash: true
 ---
 apiVersion: traefik.containo.us/v1alpha1
@@ -45,7 +46,6 @@ spec:
     regex: ^.*/traefik$
     replacement: /traefik/dashboard/#/
 ---
----
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
@@ -54,14 +54,13 @@ metadata:
 spec:
   headers:
     customRequestHeaders:
-      X-Auth-Token:
-      X-Auth-Username:
-      X-Auth-Username:
-      X-Auth-Userid:
-      X-Auth-Email:
-      X-Auth-Subject:
-      Authorization:
-      kc-state:
-      cookie:
+      X-Auth-Token: ""
+      X-Auth-Username: ""
+      X-Auth-Userid: ""
+      X-Auth-Email: ""
+      X-Auth-Subject: ""
+      Authorization: ""
+      kc-state: ""
+      cookie: ""
 ---
     

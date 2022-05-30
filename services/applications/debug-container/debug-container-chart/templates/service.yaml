@@ -6,7 +6,7 @@ metadata:
   namespace: kube-system
 spec:
   selector:
-    app-name: debug
+    app-name: debug-container
   ports:
     - protocol: TCP
       port: 5000
@@ -14,15 +14,13 @@ spec:
       name: log-http-port
   type: ClusterIP
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
   name: debug-ingress-ip
   namespace: kube-system
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
-    # ingress.kubernetes.io/custom-request-headers: "X-Auth-Token:||X-Auth-Username:||X-Auth-Username:||X-Auth-Userid:||X-Auth-Email:||X-Auth-Subject:||Authorization:||kc-state:||cookie:"
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
@@ -30,8 +28,11 @@ spec:
     http:
       paths:
       - path: /debug
+        pathType: ImplementationSpecific
         backend:
-          serviceName: debug-service
-          servicePort: log-http-port
+          service:
+            name: debug-service
+            port:
+              name: log-http-port
 ---
 

@@ -20,7 +20,7 @@ spec:
         runAsUser: 1000
       containers:
       - name: tensorboard
-        image: {{  .Values.global.registry_url }}/tensorboard:2.5.0
+        image: {{ .Values.global.registry_url }}/tensorboard:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__2.8.0
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           requests:
@@ -39,7 +39,7 @@ spec:
           {{- if .Values.mount_path }}
           path: {{ .Values.mount_path }}
           {{- else }}
-          path: {{ .Values.global.fast_data_dir }}/workflows/data
+          path: {{ .Values.global.slow_data_dir }}/minio/tensorboard
           {{- end }}
           type: DirectoryOrCreate
       imagePullSecrets:
@@ -59,7 +59,7 @@ spec:
       name: log-http-port
   type: ClusterIP
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
   name: tensorboard-{{ $uuid }}
@@ -80,6 +80,10 @@ spec:
     http:
       paths:
       - path: "/tensorboard-{{ $uuid }}"
+        pathType: ImplementationSpecific
         backend:
-          serviceName: tensorboard-{{ $uuid }}
-          servicePort: log-http-port
+          service:
+            name: tensorboard-{{ $uuid }}
+            port:
+              name: log-http-port
+---

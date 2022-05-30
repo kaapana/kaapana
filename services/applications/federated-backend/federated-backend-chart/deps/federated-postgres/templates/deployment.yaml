@@ -1,0 +1,61 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # This name uniquely identifies the Deployment
+  name: federated-postgres-deployment
+  namespace: {{ .Values.global.base_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: federated-postgres
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: federated-postgres
+    spec:
+      containers:
+      - name: federated-postgres
+        image: {{ .Values.global.registry_url }}/postgres:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__9.6-alpine
+        # imagePullPolicy: Always
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        env: # Environment variables
+        - name: POSTGRES_USER
+          value: federateduser
+        - name: POSTGRES_PASSWORD
+          value: federatedpassword
+        ports: # Port(s) on which your application runs
+          - containerPort: 5432
+        resources:
+          limits:
+            memory: "5Gi"
+          requests:
+            memory: "100Mi"
+        volumeMounts:
+          - name: federated-postgres-data # key of volume moment
+            mountPath: "/var/lib/postgresql/data" # path in container
+      volumes:
+      - name: federated-postgres-data # key of volume mount
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}/federated-postgres
+          type: DirectoryOrCreate
+      imagePullSecrets:
+        - name: registry-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: federated-postgres-service
+  # namespace: base
+  namespace: {{ .Values.global.base_namespace }}
+  labels:
+    app-name: federated-postgres
+spec:
+  selector:
+    app-name: federated-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432

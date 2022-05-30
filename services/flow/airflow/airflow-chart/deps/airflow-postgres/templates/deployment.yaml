@@ -33,7 +33,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: postgres
-          image: {{  .Values.global.registry_url }}/postgres:9.6-alpine
+          image: {{ .Values.global.registry_url }}/postgres:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__9.6-alpine
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           args: ["-c", "max_connections=200"]          
           ports:
@@ -49,8 +49,6 @@ spec:
               mountPath: /var/lib/postgresql/data/pgdata
               subPath: pgdata
           env:
-            - name: POSTGRES_USER
-              value: root
             - name: POSTGRES_USER
               value: root
             - name: POSTGRES_PASSWORD

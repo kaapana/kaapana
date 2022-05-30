@@ -61,7 +61,7 @@ echo "project:         $project"
 echo "image:           $image"
 echo "version:         $version"
 echo "DOCKER_TAG: $docker_tag"
-DOCKER_BUILDKIT=1 docker build -t  $docker_tag . && echo "Docker Build -> OK " || { echo "Docker Build -> FAILED!" ; exit 1; }
+DOCKER_BUILDKIT=0 docker build -t  $docker_tag . && echo "Docker Build -> OK " || { echo "Docker Build -> FAILED!" ; exit 1; }
 if [[ ! $docker_tag == *"local-only"* ]]; then
     echo "STARTED PUSHING..."
     docker push $docker_tag && echo "Docker Push -> OK "  || { echo "Docker Push -> FAILED!" ; exit 1; }

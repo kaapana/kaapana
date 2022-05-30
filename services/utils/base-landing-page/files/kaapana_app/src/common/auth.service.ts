@@ -6,7 +6,7 @@ const AuthService = {
     return new Promise((resolve, reject) => {
       let oauthUrl = ''
       if (Vue.config.productionTip === true) {
-        oauthUrl = '/oauth/token'
+        oauthUrl = '/oauth2/userinfo'
       } else {
         oauthUrl = '/jsons/testingAuthenticationToken.json'
       }
@@ -20,8 +20,21 @@ const AuthService = {
     })
   },
   logout() {
-    location.href = '/oauth/logout?redirect=/'
+    location.href = '/oauth2/sign_out?rd=/auth/realms/kaapana/protocol/openid-connect/logout'
     //location.href = '/oauth/logout' // without redirect since redirect lead often to the error page and people had to renter the url
   },
+  getFederatedHeaders() {
+    return new Promise((resolve, reject) => {
+      request.get('/federated-backend/client/client-kaapana-instance').then((response: any) =>  {
+        resolve({
+          FederatedAuthorization: response.data['token']
+        })
+      }).catch((error: any) => {
+        // console.log('not token there', error)
+        // reject(error)
+      })
+
+    })
+  }
 }
 export default AuthService

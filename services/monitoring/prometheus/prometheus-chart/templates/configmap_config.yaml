@@ -20,9 +20,9 @@ data:
     {{- if .Values.global.gpu_support }}
       - job_name: 'GPUs'
         scheme: http
-        metrics_path: '/'
+        metrics_path: '/metrics'
         static_configs:
-        - targets: ['gpu-prom-exporter-service.kube-system.svc:9445']
+        - targets: ['nvidia-dcgm-exporter.gpu-operator-resources.svc:9400']
     {{- end }}
 
       - job_name: 'prometheus'
@@ -31,14 +31,11 @@ data:
         static_configs:
         - targets: ['prometheus-service.monitoring.svc:9090']
 
-      - job_name: 'louketo'
-        tls_config:
-          insecure_skip_verify: true
-        scheme: https
-        metrics_path: '/oauth/metrics'
+      - job_name: 'oAuth2-proxy'
+        scheme: http
+        metrics_path: '/metrics'
         static_configs:
-        - targets: ['louketo-service.kube-system.svc:8443']
-
+        - targets: ['oauth2-metrics-service.kube-system.svc:8081']
 
       - job_name: "traefik"
         scrape_interval: 30s

@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+
+exec /root/.local/lib/code-server-4.2.0/code-server "$@"

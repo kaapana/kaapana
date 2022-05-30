@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import request from '@/request.ts'
+import AuthService from '@/common/auth.service.ts'
 
 const kaapanaApiService = {
 
@@ -70,36 +71,17 @@ const kaapanaApiService = {
             }
           }
         }).then(() => {
-          const query = {
-            query: {
-              exists: { field: 'dashboard' },
-            },
-          };
 
-          let elasticSearchUrl = ''
-
-          if (Vue.config.productionTip === true) {
-            elasticSearchUrl = '/elasticsearch/.kibana/_search'
-          } else {
-            elasticSearchUrl = '/jsons/testingKibanaResponse.json'
-          }
-
-          request.get(elasticSearchUrl, {
-            params: {
-              source: JSON.stringify(query),
-              source_content_type: 'application/json',
-            },
-          })
-            .then((response: { data: { [x: string]: { [x: string]: any } } }) => {
-              var hits = response.data['hits']['hits']
-              hits.sort((a: any, b: any) => a['_source']['dashboard']['title'].localeCompare(b['_source']['dashboard']['title']));
+          let kibanaDashboardsUrl = '/flow/kaapana/api/get-kibana-dashboards'
+          request.get(kibanaDashboardsUrl)
+            .then((response: { data: any }) => {
+              var dashboards = response.data['dashboards']
               const kibanaSubsections: { [k: string]: any } = {};
-
-              hits.forEach((dashboard: any, index: any) => {
+              dashboards.forEach((title: any, index: any) => {
                 kibanaSubsections['kibana' + String(index)] =
                 {
-                  label: dashboard['_source']['dashboard']['title'],
-                  linkTo: location.protocol + '//' + location.host + '/meta/app/kibana#/dashboards?title=' + dashboard['_source']['dashboard']['title'] + '&embed=true&_g=()',
+                  label: title,
+                  linkTo: location.protocol + '//' + location.host + '/meta/app/kibana#/dashboards?title=' + title + '&embed=true&_g=()',
                 }
               });
 
@@ -132,6 +114,146 @@ const kaapanaApiService = {
       }
     }
     return availableRoute
+  },
+
+  federatedClientApiPost(subUrl: any, payload: any = null, params: any=null) {
+    return new Promise((resolve, reject) => {
+      request.post('/federated-backend/client' + subUrl, payload, { params: params}).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        console.log('Failed: ' + error.response.data)
+        reject(error)
+      })
+    })
+  },
+
+  federatedClientApiGet(subUrl: any, params: any = null) {
+    return new Promise((resolve, reject) => {
+      request.get('/federated-backend/client' + subUrl, { params }).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        console.log('Failed: ' + error.response.data)
+        reject(error)
+      })
+    })
+  },
+
+  federatedSchemaApiPost(subUrl: any, payload: any = null, params: any=null) {
+    return new Promise((resolve, reject) => {
+      request.post('/federated-backend/json-schemas' + subUrl, payload, { params: params}).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        console.log('Failed: ' + error.response.data)
+        reject(error)
+      })
+    })
+  },
+
+  federatedSchemaApiGet(subUrl: any, params: any = null) {
+    return new Promise((resolve, reject) => {
+      request.get('/federated-backend/json-schemas' + subUrl, { params }).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        console.log('Failed: ' + error.response.data)
+        reject(error)
+      })
+    })
+  },
+
+
+  federatedClientApiPut(subUrl: any, payload: any=null, params: any=null) {
+    return new Promise((resolve, reject) => {
+      request.put('/federated-backend/client' + subUrl,  payload, { params: params }).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        console.log('Failed: ' + error.response.data)
+        reject(error)
+      })
+    })
+  },
+
+  federatedClientApiDelete(subUrl: any, params: any = null) {
+    return new Promise((resolve, reject) => {
+      request.delete('/federated-backend/client' + subUrl, { params: params} ).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        console.log('Failed: ' + error.response.data)
+        reject(error)
+      })
+    })
+  },
+
+  federatedRemoteApiPut(subUrl: any, payload: any = null,  params: any=null) {
+    return new Promise((resolve, reject) => {
+      AuthService.getFederatedHeaders().then((response: any) =>  {
+        request.put('/federated-backend/remote' + subUrl, payload, { params: params, headers: response}).then((response: any) => {
+          resolve(response)
+        }).catch((error: any) => {
+          console.log('Failed: ' + error.response.data)
+          reject(error)
+        })
+      }).catch((error: any) => {
+        console.log(error);
+        reject(error)
+      });
+    })
+  },
+
+  federatedRemoteApiPost(subUrl: any, payload: any=null, params: any=null) {
+    return new Promise((resolve, reject) => {
+      AuthService.getFederatedHeaders().then((response: any) =>  {
+        request.post('/federated-backend/remote' + subUrl, payload, {params: params, headers: response}).then((response: any) => {
+          resolve(response)
+        }).catch((error: any) => {
+          console.log('Failed: ' + error.response.data)
+          reject(error)
+        })
+      }).catch((error: any) => {
+        console.log(error);
+        reject(error)
+      });
+    })
+  },
+
+  federatedRemoteApiGet(subUrl: any, params: any = null) {
+    return new Promise((resolve, reject) => {
+      AuthService.getFederatedHeaders().then((response: any) =>  {
+        request.get('/federated-backend/remote' + subUrl, { params , headers: response}).then((response: any) => {
+          resolve(response)
+        }).catch((error: any) => {
+          console.log('Failed: ' + error.response.data)
+          reject(error)
+        })
+      }).catch((error: any) => {
+        console.log(error);
+        reject(error)
+      });
+    })
+  },
+  federatedRemoteApiDelete(subUrl: any, params: any = null) {
+    return new Promise((resolve, reject) => {
+      AuthService.getFederatedHeaders().then((response: any) =>  {
+        request.delete('/federated-backend/remote' + subUrl, { params , headers: response}).then((response: any) => {
+          resolve(response)
+        }).catch((error: any) => {
+          console.log('Failed: ' + error.response.data)
+          reject(error)
+        })
+      }).catch((error: any) => {
+        console.log(error);
+        reject(error)
+      });
+    })
+  },
+  kaapanaApiGet(subUrl: any, params: any = null) {
+    return new Promise((resolve, reject) => {
+      request.get('/flow/kaapana/api/' + subUrl, { params }).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        console.log('Failed: ' + error.response.data)
+        reject(error)
+      })
+    })
   }
 }
 

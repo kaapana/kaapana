@@ -16,7 +16,7 @@ spec:
     spec:
       initContainers:
       - name: init
-        image: {{  .Values.global.registry_url }}/service_checker:1.1
+        image: {{ .Values.global.registry_url }}/service-checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env:
           - name: WAIT
@@ -27,18 +27,15 @@ spec:
             value: "10"
       containers: 
         - name: keycloak-container
-          image: {{  .Values.global.registry_url }}/keycloak:11.0.2
+          image: {{ .Values.global.registry_url }}/keycloak:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__16.1.1
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
-          # args: ["-b","0.0.0.0","-c", "standalone-ha.xml", "-Dkeycloak.migration.action=export", "-Dkeycloak.migration.provider=dir","-Dkeycloak.migration.dir=/opt/jboss/keycloak/standalone/configuration/export" ]
-          # args: ["-b","0.0.0.0","-c", "standalone-ha.xml", "-Dkeycloak.migration.action=import", "-Dkeycloak.migration.provider=dir","-Dkeycloak.migration.dir=/opt/jboss/keycloak/standalone/configuration/import","-Dkeycloak.migration.strategy=IGNORE_EXISTING"]
-          # args: ["-Djboss.socket.binding.port-offset=100","-Dkeycloak.migration.action=export","-Dkeycloak.migration.provider=singleFile","-Dkeycloak.migration.realmName=kaapana","-Dkeycloak.migration.usersExportStrategy=REALM_FILE","-Dkeycloak.migration.file=/tmp/kaapana.json"]
           env:
           - name: KEYCLOAK_IMPORT
             value: /import/kaapana-realm.json
           - name: KEYCLOAK_USER
-            value: {{ .Values.global.credentials.keycloak_admin_username }}
+            value: {{ .Values.global.credentials_keycloak_admin_username }}
           - name: KEYCLOAK_PASSWORD
-            value: {{ .Values.global.credentials.keycloak_admin_password }}
+            value: {{ .Values.global.credentials_keycloak_admin_password }}
           - name: DB_VENDOR
             value: "postgres"
           - name: DB_ADDR
@@ -56,9 +53,9 @@ spec:
           - name: KEYCLOAK_HTTPS_PORT
             value: "8443"
           - name: ROOT_LOGLEVEL
-            value: "DEBUG"
+            value: "WARN"
           - name: KEYCLOAK_LOGLEVEL
-            value: "DEBUG"
+            value: "WARN"
           - name: PROXY_ADDRESS_FORWARDING
             value: "true"
           ports:
@@ -74,9 +71,6 @@ spec:
             limits:
               memory: 700Mi
           volumeMounts:
-            # - name: export
-            #   mountPath: /tmp
-            # mountPath: /opt/jboss/keycloak/standalone/configuration/export
             - name: keycloak-realm
               mountPath: /import
             - name: ssl-config-files
@@ -89,10 +83,6 @@ spec:
           #   initialDelaySeconds: 30
           #   periodSeconds: 20
       volumes:
-      # - name: export
-      #   hostPath:
-      #     path: /home/kaapana/keycloak_export
-      #     type: DirectoryOrCreate
       - name: keycloak-realm
         configMap:
           name: keycloak-config

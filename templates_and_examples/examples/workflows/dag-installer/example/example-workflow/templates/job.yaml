@@ -16,19 +16,18 @@ spec:
     spec:
       initContainers:
         - name: init
-          image: {{  .Values.global.registry_url }}/service_checker:1.1
+          image: {{ .Values.global.registry_url }}/service-checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
-              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/kube-helm-api/health-check"
+              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/health-check"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
               value: "10"
       containers:
       - name: prefetch-{{ .Values.image }}
-        image: "{{  .Values.global.registry_url }}/{{ .Values.image }}:{{ .Values.version }}"
-  #      image: "{{ .Values.global.registry_url }}/{{ .Values.image }}:{{ .Values.version }}"
+        image: "{{ .Values.global.registry_url }}/{{ .Values.image }}:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__{{ .Values.version }}"
         env:
           - name: ACTION
             value: {{ .Values.action }}
@@ -46,23 +45,22 @@ spec:
     spec:
       initContainers:
         - name: init
-          image: {{  .Values.global.registry_url }}/service_checker:1.1
+          image: {{ .Values.global.registry_url }}/service-checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
-              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/kube-helm-api/health-check"
+              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/health-check"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
               value: "10"
       containers:
       - name: copy-{{ .Values.image }}
-        image: "{{  .Values.global.registry_url }}/{{ .Values.image }}:{{ .Values.version }}"
-  #      image: "{{ .Values.global.registry_url }}/{{ .Values.image }}:{{ .Values.version }}"
+        image: "{{ .Values.global.registry_url }}/{{ .Values.image }}:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__{{ .Values.version }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
         - name: ACTION
-          value: {{ .Values.action }}
+          value: "{{ .Values.action }}"
         volumeMounts:
         - name: data
           mountPath: "/workflows"

@@ -15,7 +15,7 @@ spec:
       protocol: TCP
       targetPort: 3000
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
   name: grafna-ingress
@@ -31,6 +31,10 @@ spec:
     http:
       paths:
       - path: /grafana
+        pathType: ImplementationSpecific
         backend:
-          serviceName: grafana
-          servicePort: 3000
+          service:
+            name: grafana
+            port:
+              number: 3000
+---

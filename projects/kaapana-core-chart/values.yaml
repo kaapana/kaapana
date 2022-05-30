@@ -11,19 +11,17 @@ global:
     flow_jobs_namespace: "flow-jobs"
     monitoring_namespace: "monitoring"
     gpu_support: false
-    credentials:
-        minio_username: "admin"
-        minio_password: "Kaapana2019"
-        grafana_username: "admin"
-        grafana_password: "admin"
-        keycloak_admin_username: "admin"
-        keycloak_admin_password: "KaapanA"
-        keycloak_user_username: "admin"
-        keycloak_user_password: "KaapanA"
+    credentials_minio_username: "admin"
+    credentials_minio_password: "Kaapana2019"
+    credentials_grafana_username: "admin"
+    credentials_grafana_password: "admin"
+    credentials_keycloak_admin_username: "admin"
+    credentials_keycloak_admin_password: "KaapanA"
+    credentials_keycloak_user_username: "admin"
+    credentials_keycloak_user_password: "KaapanA"
     dicom_port: "11112"
     http_port: "80"
     https_port: "443"
-    auth_node_port: "8000"
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana
     default_base_requests_mem: "50Mi"

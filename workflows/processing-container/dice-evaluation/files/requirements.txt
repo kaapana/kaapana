@@ -1,5 +1,0 @@
-nibabel==3.2.1
-torch==1.9.1
-numpy==1.21.2
-monai==0.7.0
-seaborn==0.11.2

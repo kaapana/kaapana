@@ -2,6 +2,5 @@
 global:
     pull_policy_pods: "IfNotPresent"
     monitoring_namespace: "monitoring"
-    credentials:
-        grafana_username: "admin"
-        grafana_password: "admin"
+    credentials_grafana_username: "admin"
+    credentials_grafana_password: "admin"

@@ -1,0 +1,4 @@
+---
+global:
+    base_namespace: "base"
+    pull_policy_pods: "Always"

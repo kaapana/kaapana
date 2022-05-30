@@ -1,0 +1,78 @@
+# Copy me and only adapt values.yaml and Chart.yaml!
+{{- if eq .Values.global.action "prefetch" }}
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: prefetch-{{ .Values.global.image }}
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app-name: prefetch-{{ .Values.global.image }}-{{ .Values.global.version }}
+  template:
+    metadata:
+      labels:
+        app-name: prefetch-{{ .Values.global.image }}-{{ .Values.global.version }}
+    spec:
+      initContainers:
+        - name: init
+          image: {{ .Values.global.registry_url }}/service-checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
+          imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
+          env:
+            - name: WAIT
+              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/health-check"
+            - name: DELAY
+              value: "2"
+            - name: TIMEOUT
+              value: "10"
+      containers:
+      - name: prefetch-{{ .Values.global.image }}
+        image: "{{- if .Values.global.custom_registry_url }}{{ .Values.global.custom_registry_url }}{{- else}}{{ .Values.global.registry_url }}{{- end }}/{{ .Values.global.image }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ .Values.global.version }}"
+        env:
+          - name: ACTION
+            value: {{ .Values.global.action }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+      imagePullSecrets:
+        - name: registry-secret
+{{- else }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.global.image }}
+  namespace: default
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: init
+          image: {{ .Values.global.registry_url }}/service-checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
+          imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
+          env:
+            - name: WAIT
+              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/health-check"
+            - name: DELAY
+              value: "2"
+            - name: TIMEOUT
+              value: "10"
+      containers:
+      - name: copy-{{ .Values.global.image }}
+        image: "{{- if .Values.global.custom_registry_url }}{{ .Values.global.custom_registry_url }}{{- else}}{{ .Values.global.registry_url }}{{- end }}/{{ .Values.global.image }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ .Values.global.version }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
+        env:
+        - name: ACTION
+          value: "{{ .Values.global.action }}"
+        volumeMounts:
+        - name: data
+          mountPath: "/workflows"
+      # securityContext:
+      #   runAsUser: 0
+      volumes:
+      - name: data
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}/workflows
+          type: DirectoryOrCreate
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: registry-secret
+  backoffLimit: 0
+{{- end }}

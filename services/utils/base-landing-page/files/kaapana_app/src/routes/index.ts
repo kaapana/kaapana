@@ -46,7 +46,7 @@ router.beforeEach((to, from, next) => {
     // location.href = '/#' + to.fullPath
     // href also reloads, might be that reload is enough to refresh token then the next url will be successfully entered,
     // otherwise the user is redirected to the login page
-    location.reload() // works but the user is not redirected to the correct site
+    // location.reload() // works but the user is not redirected to the correct site
   });
 })
 

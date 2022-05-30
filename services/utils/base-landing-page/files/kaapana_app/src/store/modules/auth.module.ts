@@ -36,6 +36,7 @@ const actions = {
         context.commit(SET_AUTH, jwt)
         resolve('logged in')
       }).catch((err: any) => {
+        console.log("CHECK_AUTH Error")
         console.log(err)
         context.commit(SET_ERROR, err)
         context.commit(PURGE_AUTH)
@@ -52,8 +53,8 @@ const mutations = {
   [SET_AUTH](state: any, jwt: any) {
     state.isAuthenticated = true
     state.user = {
-        username: jwt.preferred_username,
-        role: jwt.realm_access.roles.indexOf('admin') > -1 ? 'admin' : 'user',
+        username: jwt.preferredUsername,
+        role: jwt.groups.indexOf('role:admin') > -1 ? 'admin' : 'user',
       }
     state.errors = {}
   },

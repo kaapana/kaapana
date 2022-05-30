@@ -14,7 +14,7 @@
 
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../workflows/airflow-components/plugins'))
+sys.path.insert(0, os.path.abspath('../../data-processing/kaapana-plugin/extension/docker/files/plugin'))
 #sys.path.insert(1, os.path.abspath('../../workflows/airflow-components/'))
 
 
@@ -51,7 +51,7 @@ extensions = [
 
 pdf_documents = [('index', u'kaapana_docs', 'Kaapana documentation', u'MIC @DKFZ'), ]
 mermaid_params = ['--theme', 'forest', '--width', '200', '--backgroundColor', 'transparent']
-autodoc_mock_imports = ['airflow', 'flask', 'flask_admin', 'flask_appbuilder', 'sqlalchemy', 'elasticsearch', 'pydicom', 'kubernetes', 'dicomweb_client', 'minio']
+autodoc_mock_imports = ['airflow', 'flask', 'flask_admin', 'flask_appbuilder', 'sqlalchemy', 'elasticsearch', 'pydicom', 'kubernetes', 'dicomweb_client', 'minio', 'kubernetes']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

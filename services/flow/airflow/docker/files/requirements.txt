@@ -18,10 +18,10 @@ minio == 6.0.2
 kubernetes==11.0.0
 apache-airflow==2.2.2
 debugpy==1.3.0
-Flask-Admin
-ansible
-gitpython
-openstacksdk
-selenium
-synapseclient
+Flask-Admin==1.6.0
+ansible==5.7.0
+gitpython==3.1.24
+openstacksdk==0.61.0
+selenium==4.1.3
+synapseclient==2.6.0
 challengeutils==4.1.0

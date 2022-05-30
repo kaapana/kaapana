@@ -39,7 +39,7 @@ class LocalCreateIsoInstanceOperator(KaapanaPythonBaseOperator):
         
         os_project_name = "E230-TFDA"
         os_project_id = "f4a5b8b7adf3422d85b28b06f116941c"
-        os_instance_name = "tfda-airflow-iso-env"
+        os_instance_name = "tfda-airflow-iso-envt"
         os_username = ""
         os_password = ""
         os_image = "a1f0cfe9-8761-41fc-bcbb-92cc1de034ae"
@@ -47,7 +47,7 @@ class LocalCreateIsoInstanceOperator(KaapanaPythonBaseOperator):
         os_volume_size = "150"
         os_instance_flavor = "dkfz.gpu-V100S-16CD"
 
-        extra_vars = f"os_project_name={os_project_name} os_project_id={os_project_id} os_username={os_username} os_password={os_password}, os_instance_name={os_instance_name} os_image={os_image}, os_volume_size={os_volume_size} os_instance_flavor={os_instance_flavor}"        
+        extra_vars = f"os_project_name={os_project_name} os_project_id={os_project_id} os_username={os_username} os_password={os_password} os_instance_name={os_instance_name} os_image={os_image} os_volume_size={os_volume_size} os_instance_flavor={os_instance_flavor}"        
         command = ["ansible-playbook", playbook_path, "--extra-vars", extra_vars]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
         print(f'STD OUTPUT LOG is {output.stdout}')

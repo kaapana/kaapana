@@ -26,7 +26,7 @@ author = 'MIC @DKFZ'
 # The short X.Y version
 version = '0.1.3'
 # The full version, including alpha/beta/rc tags
-release = '0.1.3-beta'
+release = '0.1.3'
 
 
 # -- General configuration ---------------------------------------------------

@@ -31,5 +31,6 @@ RUN code-server --install-extension ms-python.python
 RUN jupyter notebook --generate-config \
  && sed -i "s/^.*NotebookApp.token.*$/c.NotebookApp.token = ''/g" /root/.jupyter/jupyter_notebook_config.py
 COPY files/jupyterlab.sh /
+COPY files/kaapana_federated /kaapana_federated
 
 WORKDIR /kaapanasrc

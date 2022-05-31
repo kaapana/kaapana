@@ -29,7 +29,7 @@ ae_title = "nnUnet-results"
 remote_dag_id = "nnunet-training"
 # skip_operators = ["zip-unzip-training", "model2dicom", "dcmsend", "upload-nnunet-data", "pdf2dcm-training", "dcmsend-pdf", "generate-nnunet-report-training"]
 # federated_operators = ["nnunet-training"]
-skip_operators = ["nnunet-training", "zip-unzip-training", "model2dicom", "dcmsend", "upload-nnunet-data", "pdf2dcm-training", "dcmsend-pdf", "generate-nnunet-report-training", "workflow-cleaner"]
+skip_operators = ["nnunet-training", "zip-unzip-training", "model2dicom", "dcmsend", "generate-nnunet-report-training", "upload-nnunet-data", "upload-staticwebsiteresults", "pdf2dcm-training", "dcmsend-pdf", "workflow-cleaner"]
 federated_operators = ["nnunet-preprocess", "nnunet-training"]
 ui_forms = {
     "external_schema_federated_form": {

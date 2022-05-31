@@ -10,10 +10,11 @@ import collections
 from torch.utils.tensorboard import SummaryWriter
 from nnunet.training.model_restore import restore_model
 from batchgenerators.utilities.file_and_folder_operations import join
+import os, psutil
 
 sys.path.insert(0, '../')
 sys.path.insert(0, '/kaapanasrc')
-from kaapana_federated.KaapanaFederatedTraining import KaapanaFederatedTrainingBase, requests_retry_session
+from kaapana_federated.KaapanaFederatedTraining import KaapanaFederatedTrainingBase, timeit
 
 
 class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
@@ -57,7 +58,8 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                 for key, value in epoch_data.items():
                     if key != 'epoch' and key != 'fold':
                         self.writer.add_scalar(key, value, epoch_data['epoch'])
-                
+
+    @timeit
     def update_data(self, federated_round, tmp_central_site_info):     
         print(Path(os.path.join(self.fl_working_dir, str(federated_round))))
         
@@ -98,32 +100,40 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             print('Training mode')  
             self.tensorboard_logs(federated_round)
             current_federated_round_dir = Path(os.path.join(self.fl_working_dir, str(federated_round)))
-            averaged_state_dict = collections.OrderedDict()
-            averaged_amp_grad_scaler = dict()
+            print(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2)
+            # Not 100% sure if it is necessary to put those into functions, I did this to be sure to not allocated unnecssary memory...
+            def _sum_state_dicts(fname, idx):
+                checkpoint = torch.load(fname, map_location=torch.device('cpu'))
+                if idx==0:
+                    sum_state_dict = checkpoint['state_dict']
+                else:
+                    sum_state_dict = torch.load('tmp_state_dict.pt')
+                    for key, value in checkpoint['state_dict'].items():
+                        sum_state_dict[key] =  sum_state_dict[key] + checkpoint['state_dict'][key]
+                torch.save(sum_state_dict, 'tmp_state_dict.pt')
+
+            def _save_state_dict(fname, averaged_state_dict):
+                checkpoint = torch.load(fname, map_location=torch.device('cpu'))
+                checkpoint['state_dict'] = averaged_state_dict
+                torch.save(checkpoint, fname)
+
             print('Loading averaged checkpoints')
             for idx, fname in enumerate(current_federated_round_dir.rglob('model_final_checkpoint.model')):
                 print(fname)
-                checkpoint = torch.load(fname, map_location=torch.device('cpu'))
-                if idx==0:
-                    for key, value in checkpoint['state_dict'].items():
-                        averaged_state_dict[key] = value
-                    if 'amp_grad_scaler' in checkpoint.keys():
-                        for key, value in checkpoint['amp_grad_scaler'].items():
-                            averaged_amp_grad_scaler[key] = value 
-                else:
-                    for key, value in checkpoint['state_dict'].items():
-                        averaged_state_dict[key] =  (averaged_state_dict[key] + checkpoint['state_dict'][key]) / 2.
-                    if 'amp_grad_scaler' in checkpoint.keys():
-                        for key, value in checkpoint['amp_grad_scaler'].items():
-                            averaged_amp_grad_scaler[key] = (averaged_amp_grad_scaler[key] + checkpoint['amp_grad_scaler'][key]) / 2.
+                _sum_state_dicts(fname, idx)
+                print(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2)
+            
+            sum_state_dict = torch.load('tmp_state_dict.pt')
+
+            averaged_state_dict = collections.OrderedDict()
+            for key, value in sum_state_dict.items():
+                averaged_state_dict[key] = sum_state_dict[key] / (idx+1.)
 
             print('Saving averaged checkpoints')
             for idx, fname in enumerate(current_federated_round_dir.rglob('model_final_checkpoint.model')):
                 print(fname)
-                checkpoint['state_dict'] = averaged_state_dict
-    #             if 'amp_grad_scaler' in checkpoint.keys():
-    #                 checkpoint['amp_grad_scaler'] = averaged_amp_grad_scaler
-                torch.save(checkpoint, fname)
+                _save_state_dict(fname, averaged_state_dict)
+                print(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2)
 
             if self.remote_conf_data['federated_form']['federated_total_rounds'] == federated_round+1 and self.use_minio_mount is not None:
                 src = current_federated_round_dir / self.remote_sites[0]['instance_name'] / 'nnunet-training' 
@@ -134,7 +144,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                 shutil.copytree(src=src, dst=dst)
                 shutil.copyfile(src=os.path.join(os.path.dirname(fname), 'dataset.json'), dst=os.path.join(dst, 'dataset.json')) # A little bit ugly... but necessary for Bin2Dcm operator
 
-
+    @timeit
     def on_train_step_end(self, federated_round):
         if federated_round == -1:
             print('Taking actions...')

@@ -370,6 +370,10 @@ class KaapanaFederatedTrainingBase(ABC):
         else:
             self.central_steps(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
         self.on_train_step_end(federated_round=federated_round)
+
+        print('Threads')
+        for thread in threading.enumerate(): 
+            print(thread.name)
     
     @timeit    
     def train(self):

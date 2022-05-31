@@ -63,7 +63,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
     def update_data(self, federated_round, tmp_central_site_info):     
         print(Path(os.path.join(self.fl_working_dir, str(federated_round))))
         
-        if federated_round == -1:
+        if federated_round == -2:
             print('Preprocessing round!')
             preprocessing_path = Path(os.path.join(self.fl_working_dir, str(federated_round)))
             dataset_properties_files = []
@@ -124,7 +124,8 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                 print(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2)
             
             sum_state_dict = torch.load('tmp_state_dict.pt')
-
+            os.remove("tmp_state_dict.pt")
+                
             averaged_state_dict = collections.OrderedDict()
             for key, value in sum_state_dict.items():
                 averaged_state_dict[key] = sum_state_dict[key] / (idx+1.)
@@ -146,23 +147,26 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
 
     @timeit
     def on_train_step_end(self, federated_round):
-        if federated_round == -1:
+        if federated_round == -2:
             print('Taking actions...')
             self.remote_conf_data['federated_form']['skip_operators'].remove('nnunet-training')
             self.remote_conf_data['federated_form']['skip_operators'] = self.remote_conf_data['federated_form']['skip_operators'] + ['get-input-data', 'get-ref-series-ct', 'dcmseg2nrrd', 'dcm-converter-ct', 'seg-check']
             self.remote_conf_data['workflow_form']['prep_increment_step'] = 'from_dataset_properties'
-        elif federated_round == 0:
+        elif federated_round == -1:
             print('Removing nnunet-preprocess from federated_operators')
             self.remote_conf_data['federated_form']['federated_operators'].remove('nnunet-preprocess')
+            print('Setting prep_increment_step to empty')
+            self.remote_conf_data['workflow_form']['prep_increment_step'] = ''
         else:
             self.remote_conf_data['workflow_form']['train_continue'] = True
         print(federated_round, self.remote_conf_data['federated_form']['federated_total_rounds'])
 
 if __name__ == "__main__":
     kaapana_ft = nnUNetFederatedTraining(use_minio_mount='/minio', use_threading=True)
-    if 'federated_round' in kaapana_ft.remote_conf_data['federated_form'] and kaapana_ft.remote_conf_data['federated_form']['federated_round'] > -1:
+    if 'federated_round' in kaapana_ft.remote_conf_data['federated_form'] and kaapana_ft.remote_conf_data['federated_form']['federated_round'] >= 0:
         print('Skipping preprocessing since we are running in recovery mode!')
     else:
+        kaapana_ft.train_step(-2)
         kaapana_ft.train_step(-1)
     kaapana_ft.train()
     kaapana_ft.clean_up_minio()

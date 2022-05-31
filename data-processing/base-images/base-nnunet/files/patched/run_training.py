@@ -162,6 +162,11 @@ def main():
 
     trainer.initialize(not validation_only)
 
+    if os.getenv('PREP_INCREMENT_STEP', None) == 'from_dataset_properties':
+        trainer.save_checkpoint(join(trainer.output_folder, "model_final_checkpoint.model"))
+        print("Preparation round: Model-averaging")
+        return
+
     if find_lr:
         trainer.find_lr()
     else:

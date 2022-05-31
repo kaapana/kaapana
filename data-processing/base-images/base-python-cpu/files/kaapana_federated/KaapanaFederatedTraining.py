@@ -306,7 +306,7 @@ class KaapanaFederatedTrainingBase(ABC):
             objects = self.minioClient.list_objects(federated_bucket, os.path.join(current_federated_round_dir, instance_name), recursive=True)
             for obj in objects:
                 # https://github.com/minio/minio-py/blob/master/minio/datatypes.py#L103
-                if obj.is_dir or not obj.object_name.endswith('.tar'):
+                if obj.is_dir or not obj.object_name.endswith('.tar') or os.path.basename(obj.object_name).replace('.tar', '') not in self.remote_conf_data["federated_form"]["federated_operators"]:
                     continue
                 else:
                     file_path = os.path.join(self.fl_working_dir, os.path.relpath(obj.object_name, self.remote_conf_data['federated_form']['federated_dir']))

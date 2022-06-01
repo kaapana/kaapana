@@ -161,7 +161,7 @@ Before you start the build-process, you should have a look at the build-configur
 
 Adjust build-configuration:
 
-| :code:`nano kaapana/build-scripts/build-configuration.yaml`
+| :code:`nano kaapana/build-scripts/build-config.yaml`
 
 Start the build process:
 

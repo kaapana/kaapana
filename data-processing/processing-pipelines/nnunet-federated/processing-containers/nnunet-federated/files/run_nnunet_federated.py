@@ -97,8 +97,9 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                 nnunet_training_next_object_name = tmp_site_info['next_object_names'][0].replace('nnunet-preprocess', 'nnunet-training')
                 tmp_site_info['next_object_names'].append(nnunet_training_next_object_name)
         else:
-            print('Training mode')  
-            self.tensorboard_logs(federated_round)
+            print('Training mode')
+            if federated_round >= 0:
+                self.tensorboard_logs(federated_round)
             current_federated_round_dir = Path(os.path.join(self.fl_working_dir, str(federated_round)))
             print(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2)
             # Not 100% sure if it is necessary to put those into functions, I did this to be sure to not allocated unnecssary memory...

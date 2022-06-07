@@ -6,7 +6,7 @@
 #  to you under the Apache License, Version 2.0 (the            *
 #  "License"); you may not use this file except in compliance   *
 #  with the License.  You may obtain a copy of the License at   *
-#                                                               *
+#          
 #    http://www.apache.org/licenses/LICENSE-2.0                 *
 #                                                               *
 #  Unless required by applicable law or agreed to in writing,   *
@@ -130,6 +130,14 @@ spec:
             secretKeyRef:
               name: airflow-secrets
               key: sql_alchemy_conn
+{{- if .Values.global.http_proxy }}
+        - name: http_proxy
+          value: {{ .Values.global.http_proxy }}
+{{- end }}
+{{- if .Values.global.https_proxy }}
+        - name: https_proxy
+          value: {{ .Values.global.https_proxy }}
+{{- end }}
         resources:
           requests:
             memory: 600Mi
@@ -260,4 +268,4 @@ spec:
           type: DirectoryOrCreate
       imagePullSecrets:
       - name: registry-secret
----
+---                                                

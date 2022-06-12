@@ -25,8 +25,8 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         pkl_file = checkpoint + ".pkl"
         return restore_model(pkl_file, checkpoint, False)
 
-    def __init__(self, workflow_dir=None, use_minio_mount=None, use_threading=True):
-        super().__init__(workflow_dir=workflow_dir, use_minio_mount=use_minio_mount, use_threading=use_threading)
+    def __init__(self, workflow_dir=None, use_minio_mount=None):
+        super().__init__(workflow_dir=workflow_dir, use_minio_mount=use_minio_mount)
         
         if 'federated_round' in self.remote_conf_data['federated_form'] and self.remote_conf_data['federated_form']['federated_round'] > -1:
             print('Removing one federated_total_rounds since since we are running in recovery mode!')
@@ -147,7 +147,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                 shutil.copyfile(src=os.path.join(os.path.dirname(fname), 'dataset.json'), dst=os.path.join(dst, 'dataset.json')) # A little bit ugly... but necessary for Bin2Dcm operator
 
     @timeit
-    def on_train_step_end(self, federated_round):
+    def on_wait_for_jobs_end(self, federated_round):
         if federated_round == -2:
             print('Taking actions...')
             self.remote_conf_data['federated_form']['skip_operators'].remove('nnunet-training')
@@ -160,10 +160,11 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             self.remote_conf_data['workflow_form']['prep_increment_step'] = ''
         else:
             self.remote_conf_data['workflow_form']['train_continue'] = True
+            self.run_in_parallel = True
         print(federated_round, self.remote_conf_data['federated_form']['federated_total_rounds'])
 
 if __name__ == "__main__":
-    kaapana_ft = nnUNetFederatedTraining(use_minio_mount='/minio', use_threading=True)
+    kaapana_ft = nnUNetFederatedTraining(use_minio_mount='/minio')
     if 'federated_round' in kaapana_ft.remote_conf_data['federated_form'] and kaapana_ft.remote_conf_data['federated_form']['federated_round'] >= 0:
         print('Skipping preprocessing since we are running in recovery mode!')
     else:

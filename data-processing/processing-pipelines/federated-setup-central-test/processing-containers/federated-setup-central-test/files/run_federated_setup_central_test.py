@@ -8,8 +8,8 @@ from kaapana_federated.KaapanaFederatedTraining import KaapanaFederatedTrainingB
 
 class FederatedSetupTestFederatedTraining(KaapanaFederatedTrainingBase):
     
-    def __init__(self, workflow_dir=None, use_minio_mount=None, use_threading=True):
-        super().__init__(workflow_dir=workflow_dir, use_minio_mount=use_minio_mount, use_threading=use_threading)
+    def __init__(self, workflow_dir=None, use_minio_mount=None):
+        super().__init__(workflow_dir=workflow_dir, use_minio_mount=use_minio_mount)
 
     @timeit  
     def update_data(self, federated_round, tmp_central_site_info):
@@ -17,7 +17,11 @@ class FederatedSetupTestFederatedTraining(KaapanaFederatedTrainingBase):
         print(tmp_central_site_info)
         print(federated_round)
 
+    @timeit
+    def on_wait_for_jobs_end(self, federated_round):
+        self.run_in_parallel = True
+
 if __name__ == "__main__":
-    kaapana_ft = FederatedSetupTestFederatedTraining(use_minio_mount='/minio', use_threading=True)
+    kaapana_ft = FederatedSetupTestFederatedTraining(use_minio_mount='/minio')
     kaapana_ft.train()
     kaapana_ft.clean_up_minio()

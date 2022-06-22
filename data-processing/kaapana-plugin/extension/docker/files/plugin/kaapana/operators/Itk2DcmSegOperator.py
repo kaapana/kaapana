@@ -4,7 +4,19 @@ from datetime import timedelta
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
 
 class Itk2DcmSegOperator(KaapanaBaseOperator):
+    """
+        Operator converts segmentation data into .dcm segmentation files.
+        
+        This operator takes .nrrd segmentation files and creates .dcm segmentation files.
+        The operator uses the dcmqi libary.
+        For dcmqi documentation please have a look at https://qiicr.gitbook.io/dcmqi-guide/.
+        
+        **Inputs:**
+        * .nrrd segmentation file 
 
+        **Outputs:**
+        * .dcm segmentation file
+    """
     def __init__(self,
                  dag,
                  segmentation_operator,
@@ -21,6 +33,23 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
                  env_vars=None,
                  execution_timeout=timedelta(minutes=90),
                  **kwargs):
+        """
+        :param segmentation_operator: Operator object used for segmentation
+        :param input_type: "multi_label_seg" or "single_label_segs"
+           If "multi_label_seg", a json file inside OPERATOR_IMAGE_LIST_INPUT_DIR must exist containing parts as follows {"seg_info": ["spleen", "right@kidney"]}
+        :param alg_name: Name of the algorithm
+        :param creator_name: Name of the creator
+        :param alg_type: Type of the algorithm. Default: "AUTOMATIC"
+        :param single_label_seg_info: "from_file_name" or e.g. "right@kidney" or "abdomen"
+        :param create_multi_label_dcm_from_single_label_segs: True or False
+        :param multi_label_seg_info_json: name of json file inside OPERATOR_IMAGE_LIST_INPUT_DIR that contains the organ seg infos e.g. {"seg_info": ["spleen", "right@kidney"]}
+        :param multi_label_seg_name: Name used for multi-label segmentation object, if it will be created
+        :param series_description: Description of the series
+        :param skip_empty_slices: Whether empty sclices of the series should be skipped. Default: False
+        :param env_vars: Environment variables
+        :param execution_timeout: max time allowed for the execution of this task instance, if it goes beyond it will raise and fail
+
+        """
 
         if env_vars is None:
             env_vars = {}

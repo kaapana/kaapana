@@ -12,7 +12,6 @@ slow_data_dir: "/home/kaapana"
 http_port: 80
 https_port: 443
 dicom_port: 11112
-auth_node_port: 8000
 kaapana_collections:
 - name: kaapana-extension-collection
   version: 0.1.0

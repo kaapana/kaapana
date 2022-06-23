@@ -5,8 +5,6 @@ import os
 import logging
 from os.path import join, dirname, basename, exists, isfile, isdir
 from time import time
-from pathlib import Path
-from jinja2 import Environment, FileSystemLoader
 from argparse import ArgumentParser
 from build_helper.charts_helper import HelmChart, init_helm_charts, helm_registry_login
 from build_helper.container_helper import Container, container_registry_login
@@ -162,7 +160,6 @@ if __name__ == '__main__':
     logger.info("")
     logger.info("-----------------------------------------------------------")
 
-
     if not build_only:
         if registry_user is None:
             registry_user = os.getenv("REGISTRY_USER", None)
@@ -182,7 +179,6 @@ if __name__ == '__main__':
         exit(1)
 
     logger.debug(f"LOG-LEVEL: {log_level}")
-
     if log_level == "DEBUG":
         c_handler.setLevel(logging.DEBUG)
     elif log_level == "INFO":
@@ -194,8 +190,6 @@ if __name__ == '__main__':
     else:
         logger.error(f"Log level {log_level} not identified!")
         exit(1)
-
-    log_level_int = supported_log_levels.index(log_level)
 
     BuildUtils.init(
         kaapana_dir=kaapana_dir,
@@ -233,23 +227,6 @@ if __name__ == '__main__':
     )
 
     startTime = time()
-    if build_installer_scripts:
-        logger.info("-----------------------------------------------------------")
-        logger.info("-------------------- Installer scripts --------------------")
-        logger.info("-----------------------------------------------------------")
-        platforms_dir = Path(kaapana_dir) / "platforms"
-        logger.info(str(platforms_dir))
-        file_loader = FileSystemLoader(str(platforms_dir))  # directory of template file
-        env = Environment(loader=file_loader)
-        for config_path in platforms_dir.rglob('installer_config.yaml'):
-            platform_params = yaml.load(open(config_path), Loader=yaml.FullLoader)
-            logger.info(f'# Creating installer script for {platform_params["project_name"]}')
-            template = env.get_template('install_platform_template.sh')  # load template file
-
-            output = template.render(**platform_params)
-            with open(config_path.parents[0] / 'install_platform.sh', 'w') as rsh:
-                rsh.write(output)
-
     logger.info("")
     logger.info("-----------------------------------------------------------")
     logger.info("------------------ BUILD PLATFORM CHARTS ------------------")

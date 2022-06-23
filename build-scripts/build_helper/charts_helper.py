@@ -10,12 +10,53 @@ from time import time
 from pathlib import Path
 from build_helper.build_utils import BuildUtils
 from build_helper.container_helper import Container
+from jinja2 import Environment, FileSystemLoader
 
 import networkx as nx
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
 
+
+def generate_installation_script(platform_chart):
+    BuildUtils.logger.info(f"-> Generate platform installation script for {platform_chart.name} ...")
+    file_loader = FileSystemLoader(join(BuildUtils.kaapana_dir, "platforms"))  # directory of template file
+    env = Environment(loader=file_loader)
+
+    platform_dir = dirname(platform_chart.chart_dir)
+    install_script_config_path = list(Path(platform_dir).rglob("installer_config.yaml"))
+
+    if len(install_script_config_path) != 1:
+        BuildUtils.logger.error(f"Could not find platform installation-script config for {platform_chart.name} at {dirname(platform_chart.chart_dir)}")
+        BuildUtils.logger.error(f"{install_script_config_path=}")
+        BuildUtils.generate_issue(
+            component=suite_tag,
+            name="generate_installation_script",
+            msg=f"Could not find platform installation-script config for {platform_chart.name} at {dirname(platform_chart.chart_dir)}",
+            level="ERROR"
+        )
+        return
+
+    platform_params = yaml.load(open(install_script_config_path[0]), Loader=yaml.FullLoader)
+    platform_params["project_name"] = platform_chart.name
+    platform_params["default_version"] = platform_chart.version
+    platform_params["project_abbr"] = platform_chart.project_abbr
+    template = env.get_template('install_platform_template.sh')  # load template file
+
+    output = template.render(**platform_params)
+
+    platform_install_script_path = join(platform_dir,"platform-installation","install_platform.sh")
+    with open(platform_install_script_path, 'w') as rsh:
+        rsh.write(output)
+
+    platform_install_script_path_build = join(dirname(platform_chart.build_chart_dir),"platform-installation","install_platform.sh")
+    if not os.path.exists(dirname(platform_install_script_path_build)):
+        os.makedirs(dirname(platform_install_script_path_build))
+    
+    with open(platform_install_script_path_build, 'w') as rsh:
+        rsh.write(output)
+
+    BuildUtils.logger.debug(f"Install script generated.")
 
 def generate_tree_node(chart_object, tree, parent):
     node_id = f"{parent}-{chart_object.name}"
@@ -171,6 +212,7 @@ class HelmChart:
 
     def __init__(self, chartfile):
         self.name = None
+        self.project_abbr = None
         self.version = None
         self.chart_id = None
         self.kaapana_type = None
@@ -223,6 +265,7 @@ class HelmChart:
 
         self.name = self.chart_yaml["name"]
         self.version = self.chart_yaml["version"]
+        self.project_abbr = self.chart_yaml["project_abbr"] if "project_abbr" in self.chart_yaml else None
 
         self.ignore_linting = False
         if "ignore_linting" in self.chart_yaml:
@@ -231,25 +274,25 @@ class HelmChart:
         self.chart_id = f"{self.name}:{self.version}"
         BuildUtils.logger.debug(f"{self.chart_id}: chart init")
 
-        self.kaapana_type = None
+
         if "kaapana_type" in self.chart_yaml:
             self.kaapana_type = self.chart_yaml["kaapana_type"].lower()
         elif "keywords" in self.chart_yaml and "kaapanaworkflow" in self.chart_yaml["keywords"]:
             self.kaapana_type = "kaapanaworkflow"
 
         if self.kaapana_type == "platform":
+            
+            assert self.project_abbr != None
+
             installer_config = glob(dirname(self.chart_dir)+"/**/installer_config.yaml", recursive=True)
             assert len(installer_config) == 1
 
             installer_config = installer_config[0]
             platform_params = yaml.load(open(installer_config), Loader=yaml.FullLoader)
-            project_name = platform_params["project_name"]
-            project_version = platform_params["default_version"]
-            project_abbr = platform_params["project_abbr"]
             if "kaapana_collections" in platform_params:
                 self.kaapana_collections = platform_params["kaapana_collections"]
 
-            self.version_prefix = f"{project_abbr}_{project_version}__"
+            self.version_prefix = f"{self.project_abbr}_{self.version}__"
 
         self.check_container_use()
 
@@ -262,6 +305,7 @@ class HelmChart:
         if len(chart_available) == 1:
             dep_chart = chart_available[0]
             self.dependencies[dep_chart.chart_id] = dep_chart
+            BuildUtils.logger.debug(f"{self.chart_id}: dependency found: {dep_chart.chart_id}")
         else:
             BuildUtils.logger.warning(f"{self.chart_id}: check_dependencies failed! {dependency_id}")
             if len(chart_available) > 1:
@@ -278,15 +322,15 @@ class HelmChart:
                                 chart_identified = False
 
                 if chart_identified != False and chart_identified != None:
-                    BuildUtils.logger.warning(f"{self.chart_id}: Identified dependency:")
+                    BuildUtils.logger.debug(f"{self.chart_id}: Identified dependency:")
                     BuildUtils.logger.debug(f"{self.chart_id}: {self.chart_dir} and")
                     BuildUtils.logger.debug(f"{self.chart_id}: {chart_identified.chart_dir}!")
                     BuildUtils.logger.warning(f"{self.chart_id}: -> using {chart_identified.chart_dir} as dependency..")
                     self.dependencies[chart_identified.chart_id] = chart_identified
                 else:
-                    BuildUtils.logger.warning(f"The right dependency could not be identified! -> found:")
+                    BuildUtils.logger.error(f"The right dependency could not be identified! -> found:")
                     for dep_found in chart_available:
-                        BuildUtils.logger.warning(f"{dep_found.chart_id}: {dep_found.chartfile}")
+                        BuildUtils.logger.error(f"{dep_found.chart_id}: {dep_found.chartfile}")
 
                     BuildUtils.generate_issue(
                         component=suite_tag,
@@ -295,6 +339,7 @@ class HelmChart:
                         level="ERROR"
                     )
             elif len(chart_available) == 0:
+                BuildUtils.logger.error(f"{self.chart_id}: check_dependencies failed! {dependency_id} -> not found!")
                 BuildUtils.generate_issue(
                     component=suite_tag,
                     name=f"{self.chart_id}",
@@ -457,9 +502,8 @@ class HelmChart:
 
         if self.kaapana_type == "extenstion-collection":
             self.add_container_by_tag(container_tag=f"{BuildUtils.default_registry}/{self.chart_id}")
-
-        # if self.kaapana_type == "kaapanaworkflow":
-        if self.values_yaml != None:
+        
+        elif self.values_yaml != None: # if self.kaapana_type == "kaapanaworkflow":
             if "global" in self.values_yaml and self.values_yaml["global"] is not None and "image" in self.values_yaml["global"]:
                 image = self.values_yaml["global"]["image"]
                 version = self.values_yaml["global"]["version"]
@@ -527,7 +571,7 @@ class HelmChart:
             chart_dir = self.build_chart_dir
             log_list = []
             BuildUtils.logger.info(f"{self.chart_id}: dep_up")
-            
+
         else:
             BuildUtils.logger.debug(f"{chart_dir.split('/')[-1]}: dep_up")
 
@@ -543,6 +587,7 @@ class HelmChart:
         command = ["helm", "dep", "up"]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
         while output.returncode != 0 and try_count < HelmChart.max_tries:
+            BuildUtils.logger.warning(f"chart dep up failed -> try: {try_count}")
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
             try_count += 1
         if output.returncode != 0:
@@ -635,7 +680,7 @@ class HelmChart:
             command = ["helm", "push", f"{self.name}-{self.version}.tgz", f"oci://{BuildUtils.default_registry}"]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
             while output.returncode != 0 and try_count < HelmChart.max_tries:
-                BuildUtils.logger.info("Error push -> try: {}".format(try_count))
+                BuildUtils.logger.warning(f"chart push failed -> try: {try_count}")
                 output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
                 try_count += 1
 
@@ -778,16 +823,19 @@ class HelmChart:
 
     @staticmethod
     def build_platform(platform_chart):
-        BuildUtils.logger.info(f"build_platform: {platform_chart.name}")
+        BuildUtils.logger.info(f"-> Start platform-build for: {platform_chart.name}")
 
         HelmChart.create_build_version(chart=platform_chart, platform=platform_chart)
         nx_graph = generate_build_graph(platform_chart=platform_chart)
         build_order = BuildUtils.get_build_order(build_graph=nx_graph)
 
         assert exists(platform_chart.build_chartfile)
+        BuildUtils.logger.debug(f"creating chart package ...")
         platform_chart.make_package()
         platform_chart.push()
         BuildUtils.logger.info(f"{platform_chart.chart_id}: DONE")
+
+        generate_installation_script(platform_chart)
 
         BuildUtils.logger.info("Start container build...")
         containers_built = []
@@ -814,6 +862,7 @@ class HelmChart:
                 )
 
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
+
         if BuildUtils.create_offline_installation is True:
             BuildUtils.logger.info("Generating platform docker dump.")
             command = [

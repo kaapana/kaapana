@@ -9,7 +9,8 @@ tmp_prefix = '/tmp/'
 workflow_prefix = '/workflows/'
 HELM_API='http://kube-helm-service.kube-system.svc:5000'
 
-regex = r'image=(\"|\'|f\"|f\')([\w\-\\{\}.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)(\"|\'|f\"|f\')'
+# regex = r'image=(\"|\'|f\"|f\')([\w\-\\{\}.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)(\"|\'|f\"|f\')'
+regex = r'image=(\"|\'|f\"|f\')([\w\-\\{\}.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\\{\}\.]+)(\"|\'|f\"|f\')'
 
 def listdir_nohidden(path):
     for f in os.listdir(path):

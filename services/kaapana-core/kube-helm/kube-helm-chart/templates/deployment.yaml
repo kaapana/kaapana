@@ -36,6 +36,10 @@ spec:
           value: {{ $.Values.global.helm_namespace }}
         - name: REGISTRY_URL
           value: {{ $.Values.global.registry_url }}
+        - name: PLATFORM_ABBR
+          value: {{ $.Values.global.platform_abbr | default "uk" }}
+        - name: PLATFORM_VERSION
+          value: {{ $.Values.global.platform_version | default "0" }}
         - name: OFFLINE_MODE
           value: '{{ $.Values.global.offline_mode }}'
 {{- if $.Values.global.http_proxy }}

@@ -178,6 +178,8 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
         except yaml.YAMLError as exc:
             print(exc)
 
+    if "{default_platform_abbr}_{default_platform_version}" in docker_version:
+        docker_version = docker_version.replace("{default_platform_abbr}_{default_platform_version}", f"{os.getenv('PLATFORM_ABBR')}_{os.getenv('PLATFORM_VERSION')}")
     payload = {
         'name': 'pull-docker-chart',
         'version': helper_charts['entries']['pull-docker-chart'][0]['version'],
@@ -202,7 +204,7 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
     name = payload["name"]
     version = payload["version"]
 
-    release_values = helm_get_values("kaapana-platform-chart")
+    release_values = helm_get_values(os.getenv("RELEASE_NAME"))
 
     default_sets = {}
     if 'global' in release_values:

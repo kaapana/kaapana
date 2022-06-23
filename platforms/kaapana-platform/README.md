@@ -1,8 +1,7 @@
 # kaapana Base Platform
 
 ## Maintainer: 
-- Jonas Scherer
-- Klaus Kades
+- Kaapana Team @DKFZ
 
 ## Description:
 

@@ -25,7 +25,7 @@ spec:
             memory: "100Mi"
         env: # Environment variables
         - name: SECRET_KEY
-          value: kaapana-secret
+          value: "kaapana-secret"
         - name: APPLICATION_ROOT
           value: "/kube-helm-api"
         - name: HELM_PATH
@@ -37,14 +37,14 @@ spec:
         - name: REGISTRY_URL
           value: {{ $.Values.global.registry_url }}
         - name: PLATFORM_ABBR
-          value: {{ $.Values.global.platform_abbr | default "uk" }}
+          value: '{{ $.Values.global.platform_abbr | default "uk" }}'
         - name: PLATFORM_VERSION
-          value: {{ $.Values.global.platform_version | default "0" }}
+          value: '{{ $.Values.global.platform_version | default "0" }}'
         - name: OFFLINE_MODE
-          value: '{{ $.Values.global.offline_mode }}'
+          value: "{{ $.Values.global.offline_mode }}"
 {{- if $.Values.global.http_proxy }}
         - name: PROXY
-          value: {{ $.Values.global.http_proxy }}
+          value: "{{ $.Values.global.http_proxy }}"
 {{- end }}
         - name: KAAPANA_COLLECTIONS
           value: "{{- range $collection := $.Values.global.kaapana_collections }}{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ $collection.version }};{{- end }}"

@@ -229,6 +229,8 @@ class HelmChart:
         self.chart_yaml = None
         self.version_prefix = None
         self.build_chart_dir = None
+        self.kubeval_done = False
+        self.helmlint_done = False
 
         assert isfile(chartfile)
 
@@ -613,6 +615,8 @@ class HelmChart:
                 os.remove(requirements_lock)
 
     def lint_chart(self):
+        if self.helmlint_done:
+            return
         if HelmChart.enable_lint:
             BuildUtils.logger.info(f"{self.chart_id}: lint_chart")
             os.chdir(self.build_chart_dir)
@@ -630,10 +634,14 @@ class HelmChart:
                 )
             else:
                 BuildUtils.logger.debug(f"{self.chart_id}: lint_chart ok")
+                self.helmlint_done = True
         else:
             BuildUtils.logger.debug(f"{self.chart_id}: lint_chart disabled")
 
     def lint_kubeval(self):
+        if self.kubeval_done:
+            return
+        
         if HelmChart.enable_kubeval:
             BuildUtils.logger.info(f"{self.chart_id}: lint_kubeval")
             os.chdir(self.build_chart_dir)
@@ -651,6 +659,7 @@ class HelmChart:
                 )
             else:
                 BuildUtils.logger.debug(f"{self.chart_id}: lint_kubeval ok")
+                self.kubeval_done = True
         else:
             BuildUtils.logger.debug(f"{self.chart_id}: kubeval disabled")
 

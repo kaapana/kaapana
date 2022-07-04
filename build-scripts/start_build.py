@@ -235,12 +235,18 @@ if __name__ == '__main__':
 
     HelmChart.generate_platform_build_tree()
 
+    issue_count = 0
     if len(BuildUtils.issues_list) > 0:
         logger.info("")
         logger.info("-----------------------------------------------------------")
         logger.info("------------------------ ISSUES: --------------------------")
         logger.info("-----------------------------------------------------------")
         for issue in BuildUtils.issues_list:
+            logger.warning("")
+            logger.warning("")
+            logger.warning("-----------------------------------------------------------")
+            logger.warning(f"------------------------ ISSUE: {issue_count} -------------------------")
+            logger.warning("-----------------------------------------------------------")
             component = issue["component"]
             name = issue["name"]
             level = issue["level"]
@@ -256,7 +262,7 @@ if __name__ == '__main__':
                     if not line.isdigit():
                         logger.warning(line)
             logger.warning("")
-            logger.warning("-----------------------------------------------------------")
+            issue_count += 1
 
     hours, rem = divmod(time()-startTime, 3600)
     minutes, seconds = divmod(rem, 60)

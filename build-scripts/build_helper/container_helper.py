@@ -217,9 +217,20 @@ class Container:
     def build(self):
         if Container.enable_build:
             BuildUtils.logger.info(f"{self.build_tag}: start building ...")
-            
+
             if self.container_push_status == "pushed":
                 BuildUtils.logger.debug(f"{self.build_tag}: already build -> skip")
+                return
+
+            if self.ci_ignore:
+                BuildUtils.logger.warning(f"{self.build_tag}: {self.ci_ignore=} -> skip")
+                BuildUtils.generate_issue(
+                    component=suite_tag,
+                    name=f"{self.build_tag}",
+                    msg=f"Container build skipped: {self.ci_ignore=} !",
+                    level="WARING",
+                    path=self.container_dir
+                )
                 return
 
             startTime = time()
@@ -239,11 +250,11 @@ class Container:
                 else:
                     self.container_build_status = "nothing_changed"
                     BuildUtils.logger.info(f"{self.build_tag}: Build sucessful - no changes.")
-            
+
                 hours, rem = divmod(time()-startTime, 3600)
                 minutes, seconds = divmod(rem, 60)
                 BuildUtils.logger.info("{}: Build-time: {:0>2}:{:0>2}:{:05.2f}".format(self.build_tag, int(hours), int(minutes), seconds))
-            
+
             else:
                 self.container_build_status = "failed"
                 BuildUtils.logger.error(f"{self.build_tag}: Build failed!")
@@ -261,7 +272,17 @@ class Container:
 
     def push(self, retry=True):
         BuildUtils.logger.debug(f"{self.build_tag}: in push()")
-        
+        if self.ci_ignore:
+            BuildUtils.logger.warning(f"{self.build_tag}: {self.ci_ignore=} -> skip")
+            BuildUtils.generate_issue(
+                component=suite_tag,
+                name=f"{self.build_tag}",
+                msg=f"Container push skipped: {self.ci_ignore=} !",
+                level="WARING",
+                path=self.container_dir
+            )
+            return
+
         if BuildUtils.push_to_microk8s is True:
             if self.build_tag.startswith('local-only'):
                 BuildUtils.logger.info(f"Skipping: Pushing {self.build_tag} to microk8s, due to local-only")
@@ -278,11 +299,11 @@ class Container:
                     component="Microk8s push",
                     name="docker save",
                     msg=f"Docker save failed {output.stderr}!",
-                    level="FATAL"
+                    level="ERROR"
                 )
                 return
 
-            command = ["microk8s","ctr", "image", "import", parking_file]
+            command = ["microk8s", "ctr", "image", "import", parking_file]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
             if os.path.exists(parking_file):
                 os.remove(parking_file)
@@ -292,12 +313,12 @@ class Container:
                     component="Microk8s image push",
                     name="Microk8s image push",
                     msg=f"Microk8s image push failed {output.stderr}!",
-                    level="FATAL"
+                    level="ERROR"
                 )
                 return
 
             BuildUtils.logger.info(f"Sucessfully pushed {self.build_tag} to microk8s")
-        
+
         if Container.enable_push:
             BuildUtils.logger.debug(f"{self.build_tag}: push enabled")
 
@@ -388,7 +409,7 @@ class Container:
                         output=output,
                         path=self.container_dir
                     )
-                            
+
         else:
             BuildUtils.logger.info(f"{self.build_tag}: push disabled")
             self.container_push_status = "disabled"

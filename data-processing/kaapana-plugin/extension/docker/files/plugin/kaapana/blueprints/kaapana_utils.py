@@ -3,6 +3,7 @@ import os
 import shutil
 import requests
 import tarfile
+import time
 import urllib3
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
@@ -102,7 +103,7 @@ def requests_retry_session(
 
 
 def trying_request_action(func, *args, **kwargs):
-    max_retries = 5
+    max_retries = 10
     try_count = 0
     while try_count < max_retries:
         print("Try: {}".format(try_count))
@@ -112,6 +113,7 @@ def trying_request_action(func, *args, **kwargs):
         except tarfile.ReadError as e:
             print("The files was not downloaded properly...")
             print(e)
+            time.sleep(5)
             print(f"Trying again action on {func.__name__}")
         except urllib3.exceptions.ReadTimeoutError as e:
             print("Reaad timeout error")
@@ -119,6 +121,10 @@ def trying_request_action(func, *args, **kwargs):
             print(f"Trying again action on {func.__name__}")
         except requests.exceptions.ConnectionError as e:
             print("Connection Error")
+            print(e)
+            print(f"Trying again action on {func.__name__}")
+        except requests.exceptions.ChunkedEncodingError as e:
+            print("ChunkedEncodingError")
             print(e)
             print(f"Trying again action on {func.__name__}")
         except urllib3.exceptions.ProtocolError as e:

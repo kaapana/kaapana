@@ -287,7 +287,7 @@ function install_chart {
         check_credentials
         echo "${GREEN}Pulling platform chart from registry...${NC}"
         pull_chart
-        SCRIPTPATH=$(dirname "$(realpath $0)")
+        SCRIPTPATH="$PWD"
         CHART_PATH="$SCRIPTPATH/$PROJECT_NAME-$chart_version.tgz"
     fi
 

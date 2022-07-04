@@ -7,7 +7,7 @@ LABEL CI_IGNORE="False"
 
 RUN sed -i 's#mirror://mirrors.ubuntu.com/mirrors.txt#http://archive.ubuntu.com/ubuntu/#' /etc/apt/sources.list;
 
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub
+RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \

@@ -46,6 +46,6 @@ RUN chmod +x /usr/bin/code-server
 RUN code-server --install-extension ms-python.python
 
 # Jupyterlab
-RUN jupyter notebook --generate-config \
- && sed -i "s/^.*NotebookApp.token.*$/c.NotebookApp.token = ''/g" /root/.jupyter/jupyter_notebook_config.py
+RUN jupyter-lab --generate-config \
+ && sed -i "s/^.*ServerApp.token.*$/c.ServerApp.token = ''/g" /root/.jupyter/jupyter_lab_config.py
 COPY files/jupyterlab.sh /

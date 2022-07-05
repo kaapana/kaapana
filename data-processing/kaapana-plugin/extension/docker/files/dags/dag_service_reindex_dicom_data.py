@@ -42,7 +42,7 @@ def start_reindexing(ds, **kwargs):
     print("Start re-index")
 
     dcm_dirs = []
-    file_list = glob.glob(pacs_data_dir+"/**/*", recursive=True)
+    file_list = glob.glob(pacs_data_dir+"/fs1/**/*", recursive=True)
     for fi in file_list:
         if os.path.isfile(fi):
             dcm_dirs.append(os.path.dirname(fi))

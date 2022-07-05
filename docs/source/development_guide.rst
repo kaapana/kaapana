@@ -304,7 +304,7 @@ In order to remove the chart execute:
 
 In case you want to push the helm chart to a registry you first need to do the following steps:
 
-* Install two plugins on the server (if you are on CentOS you might need to install git first with ``sudo yum install git``):
+* Install two plugins on the server:
 
 :: 
 

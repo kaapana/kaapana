@@ -9,5 +9,5 @@ push_to_microk8s: false # Advanced feature - inject container directly into micr
 exit_on_error: true  # stop immediately if an issue occurs
 enable_linting: true # should be true - checks deployment validity
 skip_push_no_changes: false # Advanced feature - should be false usually
-platform_filter: "" # comma sperated platform-chart-names
+platform_filter: "kaapana-platform-chart" # comma sperated platform-chart-names
 external_source_dirs: "" # comma sperated paths 

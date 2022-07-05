@@ -877,7 +877,7 @@ class HelmChart:
             command = [
                 Container.container_engine, "save"] + [
                     container.build_tag for container in containers_built if not container.build_tag.startswith('local-only')] + [
-                        "-o", str(Path(os.path.dirname(platform_chart.build_chart_dir)) / f"{platform_chart.name}-{platform_chart.version}.tar")]
+                        "-o", str(Path(os.path.dirname(platform_chart.build_chart_dir)) / f"{platform_chart.name}-{platform_chart.version}-containers.tar")]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
             if output.returncode != 0:
                 BuildUtils.logger.error(f"Docker save failed {output.stderr}!")

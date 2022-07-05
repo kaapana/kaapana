@@ -130,11 +130,7 @@ if __name__ == '__main__':
     default_registry = configuration["default_registry"] if "default_registry" in configuration else ""
 
     http_proxy = conf_http_proxy if conf_http_proxy != "" else None
-<<<<<<< HEAD
     http_proxy = os.environ.get("http_proxy") if (http_proxy == None and os.environ.get("http_proxy", None) != None) else http_proxy
-=======
-    http_proxy = os.environ.get("http_proxy", "") if http_proxy == None and os.environ.get("http_proxy", None) != None else http_proxy
->>>>>>> develop
 
     logger.info("")
     logger.info("-----------------------------------------------------------")

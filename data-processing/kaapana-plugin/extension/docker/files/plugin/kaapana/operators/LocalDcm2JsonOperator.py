@@ -24,6 +24,21 @@ from kaapana.operators.HelperCaching import cache_operator_output
 
 
 class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
+    """
+    Operator to convert DICOM files to JSON.
+    The operator uses the dcmtk tool dcm2json https://support.dcmtk.org/docs/dcm2json.html
+    Additionally some keywords and values are transformed to increase the usability to find/search key-values.
+
+
+    **Inputs:**
+    * exit_on_error: exit with error, when some key/values are missing or mismatching.
+    * delete_private_tags: uses dcmtk's dcmodify to remove some specific to be known private tags
+    * bulk: process all files of a series or only the first one (default)
+
+    **Outputs:**
+
+    * json file: output json file. DICOM tags are converted to a json file.
+    """
 
     @staticmethod
     def get_label_tags(metadata):
@@ -906,6 +921,11 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                  delete_private_tags=True,
                  bulk=False,
                  **kwargs):
+        """
+        :param exit_on_error: 'True' or 'False' (default). Exit with error, when some key/values are missing or mismatching.
+        :param delete_private_tags:'True' (default) or 'False'. removes some specific to be known private tags
+        :param bulk: 'True' or 'False' (default). Process all files of a series or only the first one.
+        """
 
         self.dcmodify_path = 'dcmodify'
         self.dcm2json_path = 'dcm2json'

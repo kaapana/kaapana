@@ -10,8 +10,12 @@ from datetime import timedelta
 
 class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
     """
-        Checks the CTP quarantine folder, for files. If files are found,
-        trigger_dag_id is triggerd.
+        Operator to check the CTP quarantine folder (FASTDATADIR/ctp/incoming/.quarantines), for dicom files.
+        If files are found, trigger_dag_id is triggered.
+         **Inputs:**
+         Quarantine folder of the CTP
+        **Outputs:**
+        Found quarantine files are processed as incoming files and added to the PACs and meta.
     """
     def check(self, **kwargs):
         conf = kwargs['dag_run'].conf
@@ -60,6 +64,12 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
                  max_number_of_batch_files=2000,
                  target_dir="get-input-data",
                  **kwargs):
+        """
+        :param trigger_dag_id: Is by default "service-process-incoming-dcm", has to be set for a different incoming process.
+        :param max_number_of_batch_files: default 2000, defines the maximum of files handled in a single dag trigger.
+        :param target_dir: The input dir of the trigger_dag_id. Has to be set, for a different incoming process.
+        """
+
 
         name = "ctp-quarantine-check"
         self.trigger_dag_id = trigger_dag_id

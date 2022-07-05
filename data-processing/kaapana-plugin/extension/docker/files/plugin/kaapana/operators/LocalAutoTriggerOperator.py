@@ -13,6 +13,31 @@ from pathlib import Path
 
 
 class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
+    """
+        Operator to trigger workflows from within a workflow.
+        To automatically trigger workflows configuration JSON files with the name */*trigger_rule.json* are needed.
+        The operator search for all files with this extension in the dags folder.
+
+        **Inputs:**
+
+        JSON file example:
+       [
+          {
+             "search_tags": {},
+             "dag_ids": {
+                   <dag id to trigger>: {
+                      "fetch_method": "copy",
+                      "single_execution" : false
+                   }
+             }
+          }
+       ]
+
+        **Outputs:**
+
+        * all workflows with predefined trigger rules are triggered
+        """
+
     def trigger_it(self, triggering):
         dag_id = triggering["dag_id"]
         dag_run_id = triggering["dag_run_id"]

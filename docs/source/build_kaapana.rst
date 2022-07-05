@@ -2,21 +2,32 @@
 
 Build Kaapana
 =============
+It is important that the building of Kaapana (including the cloning of the repository etc.) is completely separated from the actual installation / deployment of the platform.
+Building the repository, which is described in this chapter, refers to the creation of the required containers and Helm Charts needed for an installation.
+The results of this build (containers and charts) are usually pushed into a registry and downloaded from there for the installation on the actual deployment server (where the platform will be running).
 
-Build Requirements
-------------------
+.. important::
+
+  | **1) Do you really need to build the project?**
+  | Only build the project if you don't have access to an existing registry containing the Kaapana binaries or if you want to setup your own infrastructure. (Evaluation registry access can be requested at the DKFZ Kaaoana Team)
+  | 
+  | **2) You don't need to build the repository at the deployment server!**
+  | A typical misunderstanding we have often been hearing is that you need to clone the repository on the deployment server and build it there. That is not the case! The repository can be built on a completely different machine and the results then made available via a registry. Practically, it is even recommended to separate the repository and the deployment server. Of course it is possible to build the repository on the deployment server (and there is also the possibility to work completely without a registry) - but this should be done in rather rare cases. 
+  | 
+
+Installation Of Requirements
+----------------------------
+Perform these steps on the build-machine! Recommended operating system is Ubuntu 20.04.
 
 .. important::
 
   | **Disk space needed:**
-  | For the complete build of the project ~50GB of container images will be stored at :code:`/var/snap/docker/common/var-lib-docker`.
-  | If you use build-mode local it will be ~120GB since each container will be also imported separately into containerd.
-  | In the future we will also provide an option to delete the docker image after the import.
+  | For the complete build of the project ~60GB of container images will be stored at :code:`/var/snap/docker/common/var-lib-docker`.
+  | 50GB additional if you enable the generation of an offline-installation-tarball (build-config: create_offline_installation).
+  |
 
 Before you get started you should be familiar with the basic concepts and components of Kaapana see :ref:`what_is_kaapana`.
 You should also have the following packages installed on your build-system.
-
-We expect the sudo systemctl restart snapd
 
 #. Dependencies 
 
@@ -24,15 +35,15 @@ We expect the sudo systemctl restart snapd
 
       .. tab:: Ubuntu
 
-         | :code:`sudo apt update && sudo apt install -y curl git python3 python3-pip`
+         | :code:`sudo apt update && sudo apt install -y nano curl git python3 python3-pip`
 
-      .. tab:: Centos
+      .. tab:: AlmaLinux
 
-         | :code:`sudo yum install -y curl git python3 python3-pip`
+         | TBD
 
 #. Clone the repository:
 
-   | :code:`git clone https://github.com/kaapana/kaapana.git` 
+   | :code:`git clone -b master https://github.com/kaapana/kaapana.git` 
 
 #. Python requirements 
    
@@ -49,15 +60,9 @@ We expect the sudo systemctl restart snapd
          | :code:`sudo apt install -y snapd`
          | A **reboot** is needed afterwards!
 
-      .. tab:: Centos
+      .. tab:: AlmaLinux
 
-         | Check if snap is already installed: :code:`snap help --all`
-         | If **not** run the following commands:
-         | :code:`sudo yum install -y epel-release`
-         | :code:`sudo yum update -y`
-         | :code:`sudo yum install snapd`
-         | :code:`sudo systemctl enable --now snapd.socket`
-         | :code:`sudo snap wait system seed.loaded`
+         | TBD
 
 #. Docker
 
@@ -87,82 +92,69 @@ We expect the sudo systemctl restart snapd
    | :code:`helm plugin install https://github.com/instrumenta/helm-kubeval`
 
 
-Build modes
------------
+Start Build
+------------
 
-The easiest way to get started is to have access to a container registry with **already built containers** for Kaapana. This is comparable to a binary of regular software projects.
-**OR** 
-you could also request for Kaapana binaries directly to one of our developers. They should provide you with a tarball with the build docker containers. 
+#. Generate default build-config
 
-If you **have access** to the binaries from any of the above 2 ways, you can continue with **step 3**.
+   :code:`./kaapana/build-scripts/start_build.py`
 
-If you **don't** have access to the Kaapana binaries directly, then you need to build them yourself first.
+#. Open the build-configuration file
 
-| The complete build will take **~1h** (depending on the system)! 
-| Currently Kaapana supports two different **build-modes**:
+   :code:`nano kaapana/build-scripts/build-config.yaml`
 
-#. **Local build**
+#. Adjust the configuration to your needs (emphasized lines need to be adjusted)
 
-   | By choosing this option you will need **no external container registry** to install the platform.
-   | All containers will be build and used locally on the server.
+   .. tabs::
 
-#. **Container registry**
+      .. tab:: Build With Remote Registry
+         
+         We recommend building the project using a registry. If you do not have access to an established registry, we recommend using `Gitlab <https://gitlab.com>`_, which provides a cost-free option to use a private container registry.
+         
+         .. code-block:: python
+            :emphasize-lines: 2
 
-   | This option will use a remote container registry.
-   | Since we're also using charts and other artifacts, the registry must have `OCI support <https://opencontainers.org/>`__ .
-   | We recommend `Gitlab <https://gitlab.com/>`__ or `Harbor <https://goharbor.io/>`__ as registry software.
-   | Unfortunately, Dockerhub does not yet support OCI, and thus cannot currently be used with Kaapana. We recommend `gitlab.com <https://gitlab.com/>`__ as a replacement.
+            http_proxy: "" # put the proxy here if needed
+            default_registry: "registry.<gitlab-url>/<group/user>/<project>" # registry url incl. project Gitlab template: "registry.<gitlab-url>/<group/user>/<project>"
+            container_engine: "docker" # docker or podman
+            enable_build_kit: false # Should be false for now: Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/ 
+            log_level: "INFO" # DEBUG, INFO, WARN or ERROR
+            build_only: false # charts and containers will only be build and not pushed to the registry
+            create_offline_installation: false # Advanced feature - whether to create a docker dump from which the platfrom can be installed offline (file-size ~50GB)
+            push_to_microk8s: false # Advanced feature - inject container directly into microk8s after build
+            exit_on_error: true  # stop immediately if an issue occurs
+            enable_linting: true # should be true - checks deployment validity
+            skip_push_no_changes: false # Advanced feature - should be false usually
+            platform_filter: "kaapana-platform-chart" # comma sperated platform-chart-names
+            external_source_dirs: "" # comma sperated paths 
 
-The following sections include a configuration example for each of the options (if applicable).
+      .. tab:: Build Without Remote Registry (Local Only)
 
-Build Dockerfiles and Helm Charts
----------------------------------
+         Not recommended!
 
-The build-process will be handled with a build-script, which you can find within the repository at :code:`kaapana/build-scripts/start_build.py`.
+         .. code-block:: python
+            :emphasize-lines: 2,6,7
 
-Before you start the build-process, you should have a look at the build-configuration at :code:`kaapana/build-scripts/build-configuration.yaml` and adapt it accordingly to your chosen build configuration as shown below.
+            http_proxy: "" # put the proxy here if needed
+            default_registry: "registry.<gitlab-url>/<group/user>/<project>" # registry url incl. project Gitlab template: "registry.<gitlab-url>/<group/user>/<project>"
+            container_engine: "docker" # docker or podman
+            enable_build_kit: false # Should be false for now: Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/ 
+            log_level: "INFO" # DEBUG, INFO, WARN or ERROR
+            build_only: true # charts and containers will only be build and not pushed to the registry
+            create_offline_installation: true # Advanced feature - whether to create a docker dump from which the platfrom can be installed offline (file-size ~50GB)
+            push_to_microk8s: false # Advanced feature - inject container directly into microk8s after build
+            exit_on_error: true  # stop immediately if an issue occurs
+            enable_linting: true # should be true - checks deployment validity
+            skip_push_no_changes: false # Advanced feature - should be false usually
+            platform_filter: "kaapana-platform-chart" # comma sperated platform-chart-names
+            external_source_dirs: "" # comma sperated paths 
 
-.. tabs::
+#. After the configuration has been adjsuted, the build process can be started with:
 
-   .. tab:: Local build
+   | :code:`./kaapana/build-scripts/start_build.py -u <registry user> -p <registry password>`
 
-      .. code-block:: python
-         :emphasize-lines: 2,3,4,5,6,7,8,9,10,11
+   This takes usually (depending on your hardware) around 1h.
 
-         http_proxy: ""
-         default_container_registry: ""
-         log_level: "WARN"
-         build_containers: true
-         push_containers: false
-         push_dev_containers_only: false
-         build_charts: true
-         push_charts: false
-         create_package: true
+#. You can find the build-logs and results at :code:`./kaapana/build`
 
-   .. tab:: Private registry
-
-      | You need to login first: :code:`docker login <registry-url>`.
-      | Then you must adjust the configuration as follows:
-
-      .. code-block:: python
-         :emphasize-lines: 2,3,4,5,6,7,8,9,10,11
-
-         http_proxy: ""
-         default_container_registry: "<registry-url>" (e.g. registry.gitlab.com/<user>/<project> .)
-         log_level: "WARN"
-         build_containers: true
-         push_containers: true
-         push_dev_containers_only: false
-         build_charts: true
-         push_charts: true
-         create_package: false
-
-
-
-Adjust build-configuration:
-
-| :code:`nano kaapana/build-scripts/build-configuration.yaml`
-
-Start the build process:
-
-| :code:`python3 kaapana/build-scripts/start_build.py`
+#. If everything has worked, you can proceed with the installation of the deployment server: :ref:`install_kaapana`.

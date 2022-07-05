@@ -16,7 +16,7 @@ What's needed to run Kaapana?
    | You will need some kind of :term:`server` to run the platform on.
    | Minimum specs:
 
-   - OS: CentOS 8, Ubuntu 20.04 or Ubuntu Server 20.04
+   - OS: Ubuntu 20.04 or Ubuntu Server 20.04
    - CPU: 4 cores 
    - Memory: 8GB (for processing > 30GB recommended) 
    - Storage: 100GB (deploy only) / 150GB (local build)  -> (recommended >200GB) 

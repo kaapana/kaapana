@@ -286,8 +286,8 @@ function install_chart {
         echo "${YELLOW}Helm login registry...${NC}"
         check_credentials
         echo "${GREEN}Pulling platform chart from registry...${NC}"
-        pull_chart
         SCRIPTPATH=$(dirname "$(realpath $0)")
+        pull_chart $SCRIPTPATH
         CHART_PATH="$SCRIPTPATH/$PROJECT_NAME-$chart_version.tgz"
     fi
 
@@ -355,7 +355,7 @@ function pull_chart {
     for i in 1 2 3 4 5;
     do
         echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME with version $chart_version ${NC}"
-        helm pull oci://${CONTAINER_REGISTRY_URL}/$PROJECT_NAME --version $chart_version \
+        helm pull oci://${CONTAINER_REGISTRY_URL}/$PROJECT_NAME --version $chart_version -d $1 \
             && break \
             || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 );
         

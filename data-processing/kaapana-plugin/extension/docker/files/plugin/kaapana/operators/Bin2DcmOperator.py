@@ -7,6 +7,25 @@ from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_r
 
 
 class Bin2DcmOperator(KaapanaBaseOperator):
+    """
+    Operator to encode binary data into DICOM or to decode binary data from DICOM.
+
+    This operator encodes or decodes files using a container.
+    The container uses the dcmtk tool xml2dcm https://support.dcmtk.org/docs/xml2dcm.html
+    Binary files can be split up in chunks of a specific size [size_limit]
+
+    **Inputs:**
+
+    * The input_operator
+    * When decoding: file_extension *.dcm
+    + When encoding: file_extensions, size_limit and additional encoded string parameters
+
+    **Outputs:**
+
+    * When encoding: DICOM files
+    * When decoding: binary file (e.g. zip-file)
+    """
+
     execution_timeout = timedelta(minutes=10)
 
     def __init__(self,
@@ -31,6 +50,24 @@ class Bin2DcmOperator(KaapanaBaseOperator):
                  execution_timeout=execution_timeout,
                  **kwargs
                  ):
+        """
+        :param dataset_info_operator: Only encoding. Input operator producing dataset.json as output.
+        :param dataset_info_operator_in_dir: Only encoding. Directory with a dataset.json file used in study_description.
+        :param file_extensions: for decoding *.dcm, for encoding list of extensions to include seperated by ',' eg:  "*.zip,*.bin"
+        :param size_limit: Only for decoding. Allows to split up the binary in chunks of a specific size in bytes.
+        :param patient_id: Only for decoding. Name written in DICOM tag.
+        :param patient_name: Only for decoding. Name written in DICOM tag.
+        :param protocol_name: Only for decoding. Name written in DICOM tag.
+        :param instance_name: Only for decoding. Name written in DICOM tag.
+        :param version: Only for decoding. Name written in DICOM tag.
+        :param manufacturer: Only for decoding. Name written in DICOM tag.
+        :param manufacturer_model: Only for decoding. Name written in DICOM tag.
+        :param study_description: Only for decoding. Name written in DICOM tag.
+        :param series_description: Only for decoding. Name written in DICOM tag.
+        :param study_id: Only for decoding. Name written in DICOM tag.
+        :param study_uid: Only for decoding. Name written in DICOM tag.
+        """
+
 
         if dataset_info_operator_in_dir is None:
             dataset_info_operator_in_dir = dataset_info_operator.operator_out_dir if dataset_info_operator is not None else ''

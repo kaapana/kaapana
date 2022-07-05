@@ -14,6 +14,23 @@ import pydicom
 from kaapana.operators.HelperCaching import cache_operator_output
 
 class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
+    """
+    Operator to get input data for a workflow/dag.
+
+    This operator pulls all defined files from it's defined source and stores the files in the workflow directory.
+    All subsequent operators can get and process the files from within the workflow directory.
+    Typacally this operator can be used as the first operator in a workflow.
+
+    **Inputs:**
+
+    * inputs: 'dcm-uid' or 'elastic-query'
+    * data_type: 'dicom' or 'json'
+    * cohort_limit: limit the download series list number
+
+    **Outputs:**
+
+    * Stores downloaded 'dicoms' or 'json' files in the 'operator_out_dir'
+    """
 
     def check_dag_modality(self, input_modality):
         # config = self.conf["conf"] if "conf" in self.conf else None
@@ -297,6 +314,14 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                  parallel_downloads=3,
                  batch_name=None,
                  **kwargs):
+        """
+        :param inputs: 'dcm-uid' or 'elastic-query'.
+        :param data_type: 'dicom' or 'json'
+        :param check_modality: 'True' or 'False'
+        :param cohort_limit: limits the download list
+        :param parallel_downloads: default 3, number of parallel downloads
+        """
+
 
         self.inputs = inputs
         self.data_type = data_type

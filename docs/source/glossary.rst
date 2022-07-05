@@ -51,7 +51,6 @@ Glossary
 
       Currently the following operating systems are supported by the script:
 
-      - Centos 8
       - Ubuntu 20.04
       - Ubuntu Server 20.04
 

@@ -11,6 +11,13 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.operators.HelperCaching import cache_operator_output
 
 class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
+    """
+    Operator to get DICOM series.
+
+    This operator downloads DICOM series from a given PACS system according to specified search filters.
+    The downloading is executed in a structured manner such that the downloaded data is saved to target directories named with the series_uid.
+    """
+    
     def download_series(self, series):
         print("# Downloading series: {}".format(series["reference_series_uid"]))
         try:
@@ -261,6 +268,21 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                  aetitle="KAAPANA",
                  batch_name=None,
                  **kwargs):
+
+        """
+        :param name: "get-ref-series" (default)
+        :param search_policy: reference_uid
+        :param modality: None (defalut)
+        :param taget_level: "batch_element" (default)
+        :param dicom_tags: (empty list by default)
+        :param expected_file_count: either number of files (type: int) or "all"
+        :param limit_file_count: to limit number of files
+        :param parallel_downloads: number of files to download in parallel (default: 3)
+        :param pacs_dcmweb_host: "http://dcm4chee-service.store.svc" (default)
+        :param pacs_dcmweb_port: 8080 (default)
+        :param aetitle: "KAAPANA" (default)
+        :param batch_name: None (default)
+        """
 
         self.modality = modality
         self.target_level = target_level

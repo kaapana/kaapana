@@ -885,7 +885,7 @@ class HelmChart:
                     component="docker save",
                     name="Docker save",
                     msg=f"Docker save failed {output.stderr}!",
-                    level="FATAL"
+                    level="ERROR"
                 )
             BuildUtils.logger.info("Finished: Generating platform docker dump.")
 

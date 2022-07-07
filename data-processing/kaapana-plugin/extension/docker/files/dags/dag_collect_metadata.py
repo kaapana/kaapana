@@ -46,7 +46,7 @@ dag = DAG(
 
 get_input = LocalGetInputDataOperator(dag=dag)
 anonymizer = LocalDcmAnonymizerOperator(dag=dag, input_operator=get_input, single_slice=True)
-extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=anonymizer, delete_private_tags=False)
+extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=anonymizer)
 concat_metadata = LocalConcatJsonOperator(dag=dag, name='concatenated-metadata', input_operator=extract_metadata)
 put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[concat_metadata], bucket_name="downloads", zip_files=True)
 clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)

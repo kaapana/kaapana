@@ -216,13 +216,6 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
     print('Using default sets')
     print(json.dumps(default_sets, indent=4, sort_keys=True))
 
-    # http_proxy = os.getenv('PROXY', None)
-    # if http_proxy is not None and http_proxy != "":
-    #     default_sets.update({
-    #         'global.http_proxy': http_proxy,
-    #         'global.https_proxy': http_proxy
-    #     })
-
     values = helm_show_values(name, version)
     if 'keywords' not in payload:
         chart = helm_show_chart(name, version)

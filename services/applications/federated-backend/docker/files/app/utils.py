@@ -78,7 +78,16 @@ def requests_retry_session(
     session.mount('https://', adapter)
 
     if use_proxies is True:
-        proxies = {'http': os.getenv('PROXY', None), 'https': os.getenv('PROXY', None)}
+        proxies = {
+            'http': os.getenv('PROXY', None),
+            'https': os.getenv('PROXY', None),
+            'no_proxy': 'airflow-service.flow,airflow-service.flow.svc,' \
+                'ctp-dicom-service.flow,ctp-dicom-service.flow.svc,'\
+                    'dcm4chee-service.store,dcm4chee-service.store.svc,'\
+                        'elastic-meta-service.meta,elastic-meta-service.meta.svc'\
+                            'federated-backend-service.base,federated-backend-service.base.svc,' \
+                                'minio-service.store,minio-service.store.svc'
+        }
         print('Setting proxies', proxies)
         session.proxies.update(proxies)
     else:
@@ -187,7 +196,7 @@ def delete_external_job(db: Session, db_job):
         else:
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
             with requests.Session() as s:          
-                r = requests_retry_session(session=s, use_proxies=True).delete(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, params=params, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+                r = requests_retry_session(session=s).delete(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, params=params, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
             if r.status_code == 404:
                 print(f'External job {db_job.external_job_id} does not exist')
             else:
@@ -210,7 +219,7 @@ def update_external_job(db: Session, db_job):
         else:
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
             with requests.Session() as s:                            
-                r = requests_retry_session(session=s, use_proxies=True).put(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, json=payload, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+                r = requests_retry_session(session=s).put(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, json=payload, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
             if r.status_code == 404:
                 print(f'External job {db_job.external_job_id} does not exist')
             else:
@@ -247,7 +256,7 @@ def get_remote_updates(db: Session, periodically=False):
             print(100*'#')
             print(remote_backend_url)
             with requests.Session() as s:     
-                r = requests_retry_session(session=s, use_proxies=True).put(f'{remote_backend_url}/sync-client-remote', params=job_params,  json=update_remote_instance_payload, verify=db_remote_kaapana_instance.ssl_check, 
+                r = requests_retry_session(session=s).put(f'{remote_backend_url}/sync-client-remote', params=job_params,  json=update_remote_instance_payload, verify=db_remote_kaapana_instance.ssl_check, 
             headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
             if r.status_code == 405:
                 print(f'Warning!!! We could not reach the following backend {db_remote_kaapana_instance.host}')

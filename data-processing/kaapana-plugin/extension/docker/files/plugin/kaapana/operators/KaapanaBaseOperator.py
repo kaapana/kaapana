@@ -37,7 +37,6 @@ default_platform_abbr = os.getenv("PLATFORM_ABBR", "")
 default_platform_version = os.getenv("PLATFORM_VERSION", "")
 
 
-default_proxy = os.getenv("PROXY", "")
 
 class KaapanaBaseOperator(BaseOperator, SkipMixin):
     """
@@ -125,6 +124,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                  whitelist_federated_learning=None,
                  delete_input_on_success=False,
                  # Other stuff
+                 enable_proxy=False,
+                 no_proxy=None,
                  batch_name=None,
                  workflow_dir=None,
                  cmds=None,
@@ -301,8 +302,17 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             "OPERATOR_OUT_DIR": str(self.operator_out_dir),
             "BATCHES_INPUT_DIR": f"/{self.workflow_dir}/{self.batch_name}",
         }
-        if default_proxy:
-            envs.update({"PROXY": default_proxy})
+
+        if enable_proxy is True and os.getenv("PROXY", None) is not None:
+            envs.update({
+                "http_proxy": os.getenv("PROXY", ""),
+                "https_proxy": os.getenv("PROXY", ""),
+            })
+
+        if no_proxy is not None:
+            envs.update({
+                "no_proxy": no_proxy
+            })
 
         if hasattr(self, 'operator_in_dir'):
             envs["OPERATOR_IN_DIR"] = str(self.operator_in_dir)

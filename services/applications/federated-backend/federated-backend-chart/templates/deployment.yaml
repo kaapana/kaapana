@@ -43,8 +43,12 @@ spec:
           value: {{ .Values.global.hostname | default "" }}
         - name: HTTPS_PORT
           value: "{{ .Values.global.https_port }}"
-        - name: PROXY
+        - name: http_proxy
           value: {{ .Values.global.http_proxy }}
+        - name: https_proxy
+          value: {{ .Values.global.http_proxy }}
+        - name: no_proxy
+          value: "federated-postgres-service.base,federated-postgres-service.base.svc,airflow-service.flow,airflow-service.flow.svc,minio-service.store,minio-service.store.svc,elastic-meta-service.meta,elastic-meta-service.meta.svc"
         - name: MINIOUSER
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIOPASSWORD

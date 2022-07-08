@@ -93,14 +93,22 @@ def requests_retry_session(
     session.mount('https://', adapter)
 
     if use_proxies is True:
-        proxies = {'http': os.getenv('PROXY', None), 'https': os.getenv('PROXY', None)}
+        proxies = {
+            'http': os.getenv('PROXY', None),
+            'https': os.getenv('PROXY', None),
+            'no_proxy': 'airflow-service.flow,airflow-service.flow.svc,' \
+                'ctp-dicom-service.flow,ctp-dicom-service.flow.svc,'\
+                    'dcm4chee-service.store,dcm4chee-service.store.svc,'\
+                        'elastic-meta-service.meta,elastic-meta-service.meta.svc'\
+                            'federated-backend-service.base,federated-backend-service.base.svc,' \
+                                'minio-service.store,minio-service.store.svc'
+        }
         print('Setting proxies', proxies)
         session.proxies.update(proxies)
     else:
         print('Not using proxies!')
 
     return session 
-
 
 def trying_request_action(func, *args, **kwargs):
     max_retries = 10

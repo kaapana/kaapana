@@ -10,17 +10,18 @@ class GetTaskModelOperator(KaapanaBaseOperator):
     execution_timeout = timedelta(minutes=240)
 
     def __init__(self,
-                 dag,
-                 name="get-task-model",
-                 task_id=None,
-                 zip_file=False,
-                 target_level="default",
-                 operator_out_dir="/models",
-                 mode="install_pretrained",
-                 env_vars={},
-                 execution_timeout=execution_timeout,
-                 **kwargs
-                 ):
+                dag,
+                name="get-task-model",
+                task_id=None,
+                zip_file=False,
+                target_level="default",
+                operator_out_dir="/models",
+                mode="install_pretrained",
+                enable_proxy=True,
+                env_vars={},
+                execution_timeout=execution_timeout,
+                **kwargs
+                ):
 
         envs = {
             "MODE": str(mode),
@@ -59,6 +60,7 @@ class GetTaskModelOperator(KaapanaBaseOperator):
             volume_mounts=volume_mounts,
             execution_timeout=execution_timeout,
             env_vars=env_vars,
+            enable_proxy=enable_proxy,
             ram_mem_mb=1000,
             **kwargs
         )

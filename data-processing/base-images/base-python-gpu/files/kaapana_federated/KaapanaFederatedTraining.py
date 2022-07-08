@@ -67,6 +67,7 @@ def requests_retry_session(
     backoff_factor=1,
     status_forcelist=[404, 429, 500, 502, 503, 504],
     session=None,
+    use_proxies=False
 ):
     session = session or requests.Session()
     retry = Retry(
@@ -79,6 +80,23 @@ def requests_retry_session(
     adapter = HTTPAdapter(max_retries=retry)
     session.mount('http://', adapter)
     session.mount('https://', adapter)
+
+    if use_proxies is True:
+        proxies = {
+            'http': os.getenv('PROXY', None),
+            'https': os.getenv('PROXY', None),
+            'no_proxy': 'airflow-service.flow,airflow-service.flow.svc,' \
+                'ctp-dicom-service.flow,ctp-dicom-service.flow.svc,'\
+                    'dcm4chee-service.store,dcm4chee-service.store.svc,'\
+                        'elastic-meta-service.meta,elastic-meta-service.meta.svc'\
+                            'federated-backend-service.base,federated-backend-service.base.svc,' \
+                                'minio-service.store,minio-service.store.svc'
+        }
+        print('Setting proxies', proxies)
+        session.proxies.update(proxies)
+    else:
+        print('Not using proxies!')
+
     return session 
 
 def minio_rmtree(minioClient, bucket_name, object_name):

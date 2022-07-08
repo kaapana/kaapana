@@ -13,13 +13,9 @@ AETITLE = os.getenv('AETITLE', 'NONE')
 AETITLE = None if AETITLE == "NONE" else AETITLE
 LEVEL = os.getenv('LEVEL', 'element')
 
-setting_proxies = False if (HOST.startswith(("ctp-dicom-service.flow", "dcm4chee-service.store")) or os.getenv("PROXY", None) is None) else True
-
 check_arrival = os.getenv("CHECK_ARRIVAL", "False")
 check_arrival = True if check_arrival.lower() == "true" else False
 
-print(f'Setting proxies {setting_proxies}')
-print(f"Proxy: {os.getenv('PROXY')}")
 print(f"AETITLE: {AETITLE}")
 print(f"LEVEL: {LEVEL}")
 
@@ -85,12 +81,6 @@ def send_dicom_data(send_dir, aetitle=AETITLE, check_arrival=False, timeout=60):
     print(f'Sending {send_dir} to {HOST} {PORT} with aetitle {aetitle}')
     # To process even if the input contains non-DICOM files the --no-halt option is needed (e.g. zip-upload functionality)
     env = dict(os.environ)
-    if setting_proxies is True:
-        print('Setting proxies...')
-        env["http_proxy"] = os.getenv("PROXY")
-        env["https_proxy"] = os.getenv("PROXY")
-        env["HTTP_PROXY"] = os.getenv("PROXY")
-        env["HTTPS_PROXY"] = os.getenv("PROXY")
     command = ['dcmsend', '-v', f'{HOST}', f'{PORT}', '-aet', 'kaapana', '-aec', f'{aetitle}', '--scan-directories', '--no-halt', '--recurse', f'{send_dir}']
     print(" ".join(command))
     max_retries = 5

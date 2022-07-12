@@ -4,9 +4,11 @@ import glob
 import pydicom
 from os.path import join, basename, dirname
 from datetime import timedelta
+from pathlib import Path
 from dicomweb_client.api import DICOMwebClient
 from multiprocessing.pool import ThreadPool
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
+from kaapana.operators.HelperElasticsearch import HelperElasticsearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.HelperCaching import cache_operator_output
 
@@ -21,13 +23,25 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     def download_series(self, series):
         print("# Downloading series: {}".format(series["reference_series_uid"]))
         try:
-            download_successful = HelperDcmWeb.downloadSeries(
-                seriesUID=series["reference_series_uid"],
-                target_dir=series['target_dir']
-            )
-            if not download_successful:
-                raise ValueError('ERROR')
-            message = f"OK: Series {series['reference_series_uid']}"
+            if self.data_type == "dicom":
+                download_successful = HelperDcmWeb.downloadSeries(
+                    seriesUID=series["reference_series_uid"],
+                    target_dir=series['target_dir']
+                )
+                if not download_successful:
+                    raise ValueError('ERROR')
+                message = f"OK: Series {series['reference_series_uid']}"
+            elif self.data_type == "json":
+                Path(series['target_dir']).mkdir(parents=True, exist_ok=True)
+                meta_data = HelperElasticsearch.get_series_metadata(series_uid=series["reference_series_uid"])
+                json_path = join(series['target_dir'], "metadata.json")
+                with open(json_path, 'w') as fp:
+                    json.dump(meta_data, fp, indent=4, sort_keys=True)
+                message = f"OK: Series {series['reference_series_uid']}"
+            else:
+                print("Unknown data-mode!")
+                message = f"ERROR: Series {series['reference_series_uid']}"
+
         except Exception as e:
             print(f"#### Something went wrong: {series['reference_series_uid']}")
             print(e)
@@ -257,6 +271,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                  dag,
                  name='get-ref-series',
                  search_policy="reference_uid",  # reference_uid, study_uid, patient_uid
+                 data_type="dicom",
                  modality=None,
                  target_level="batch_element",
                  dicom_tags=[],
@@ -272,6 +287,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         """
         :param name: "get-ref-series" (default)
         :param search_policy: reference_uid
+        :param data_type: 'dicom' or 'json'
         :param modality: None (defalut)
         :param taget_level: "batch_element" (default)
         :param dicom_tags: (empty list by default)
@@ -285,6 +301,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         """
 
         self.modality = modality
+        self.data_type = data_type
         self.target_level = target_level
         self.dicom_tags = dicom_tags  # studyID dicom_tags=[{'id':'StudyID','value':'nnUnet'},{...}]
         self.expected_file_count = expected_file_count

@@ -6,8 +6,6 @@ from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 
-ae_title = "NONE"
-
 ui_forms = {
     "workflow_form": {
         "type": "object",
@@ -51,7 +49,7 @@ dag = DAG(
     dag_id='tag-dataset',
     default_args=args,
     concurrency=10,
-    max_active_runs=10,
+    max_active_runs=1,
     schedule_interval=None
 )
 

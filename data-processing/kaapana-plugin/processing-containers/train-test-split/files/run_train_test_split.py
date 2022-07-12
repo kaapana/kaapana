@@ -1,104 +1,28 @@
 import sys, os
 import glob
 import json
-import requests
 import random
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
+from pathlib import Path
 
-# Should be moved from kaapana library in the future!
-#https://www.peterbe.com/plog/best-practice-with-retries-with-requests
-#https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
-def requests_retry_session(
-    retries=16,
-    backoff_factor=1,
-    status_forcelist=[404, 429, 500, 502, 503, 504],
-    session=None,
-    use_proxies=False
-):
-    session = session or requests.Session()
-    retry = Retry(
-        total=retries,
-        read=retries,
-        connect=retries,
-        backoff_factor=backoff_factor,
-        status_forcelist=status_forcelist,
-    )
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount('http://', adapter)
-    session.mount('https://', adapter)
-
-    if use_proxies is True:
-        proxies = {
-            'http': os.getenv('PROXY', None),
-            'https': os.getenv('PROXY', None),
-            'no_proxy': 'airflow-service.flow,airflow-service.flow.svc,' \
-                'ctp-dicom-service.flow,ctp-dicom-service.flow.svc,'\
-                    'dcm4chee-service.store,dcm4chee-service.store.svc,'\
-                        'elastic-meta-service.meta,elastic-meta-service.meta.svc'\
-                            'federated-backend-service.base,federated-backend-service.base.svc,' \
-                                'minio-service.store,minio-service.store.svc'
-        }
-        print('Setting proxies', proxies)
-        session.proxies.update(proxies)
-    else:
-        print('Not using proxies!')
-
-    return session 
-
-def send_dicoms(series_id, ae_titles):
-    conf_data = {
-        "query": {
-            "bool": {
-                "must": [
-                    {
-                        "match_all": {}
-                    },
-                    {
-                        "match_all": {}
-                    },
-                    {
-                        "bool": {
-                            "should": [
-                                {
-                                    "match_phrase": {
-                                        "0020000E SeriesInstanceUID_keyword.keyword": series_id
-                                    }
-                                }
-                            ],
-                            "minimum_should_match": 1
-                        }
-                    }
-                ],
-                "filter": [],
-                "should": [],
-                "must_not": []
-            }
-        },
-        "index": "meta-index",
-        "dag": "send-dicom",
-        "cohort_limit": 1,
-        "form_data": {
-            "host": "ctp-dicom-service.flow.svc",
-            "port": 11112,
-            "aetitle": ae_titles,
-            "single_execution": True
-        }
-    }
-    with requests.Session() as s:
-        resp = requests_retry_session(session=s).post(f'http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/meta-trigger',  json={
-            'conf': {
-                **conf_data,
-            }})
-
-    resp.raise_for_status()
-
-train_aetitle = os.getenv('TRAIN_AETITLE')
-test_aetitle = os.getenv('TEST_AETITLE')
+train_tag = os.getenv('TRAIN_TAG', 'train')
+test_tag = os.getenv('TEST_TAG', 'test')
 random_seed = int(os.getenv('RANDOM_SEED', 1))
 split = float(os.getenv('SPLIT', 0.8))
 
-print(f'Using train_aetitle: {train_aetitle}, test_aetitle: {test_aetitle}, split: {split} and random_seed: {random_seed}')
+def add_tag(batch_element_dir, tag):
+    json_files = sorted(glob.glob(os.path.join(batch_element_dir, os.environ['OPERATOR_IN_DIR'], "*.json*"), recursive=True))
+    for meta_files in json_files:
+        print(f"Do tagging for file {meta_files}")
+        with open(meta_files) as fs:
+            metadata = json.load(fs)
+        metadata['train_test_split_tag'] = [tag]
+        target_dir = Path(batch_element_dir) / os.environ['OPERATOR_OUT_DIR']
+        target_dir.mkdir(parents=True, exist_ok=True)
+        with open(target_dir / "metadata.json", 'w') as fp:
+            json.dump(metadata, fp, indent=4, sort_keys=True)
+
+            
+print(f'Using train_tag: {train_tag}, test_tag: {test_tag}, split: {split} and random_seed: {random_seed}')
 
 batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 
@@ -113,13 +37,8 @@ if train_split > len(batch_folders):
 
 random.seed(random_seed)
 random.shuffle(batch_folders)
-
-print(f'Sending train data')
 for batch_element_dir in batch_folders[:train_split]:
-    series_id = os.path.basename(batch_element_dir)
-    send_dicoms(series_id, train_aetitle)
+    add_tag(batch_element_dir, train_tag)
 
-print(f'Sending test data')
 for batch_element_dir in batch_folders[train_split:]:
-    series_id = os.path.basename(batch_element_dir)
-    send_dicoms(series_id, test_aetitle)
+    add_tag(batch_element_dir, test_tag)

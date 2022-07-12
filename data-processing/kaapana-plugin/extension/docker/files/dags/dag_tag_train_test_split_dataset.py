@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.DcmSendOperator import DcmSendOperator
+from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
 from kaapana.operators.TrainTestSplitOperator import TrainTestSplitOperator
 
 from airflow.utils.dates import days_ago
@@ -36,13 +36,13 @@ ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            "train_aetitle": {
+            "train_tag": {
                 "title": "Train dataset name",
                 "description": "Name of the train dataset.",
                 "type": "string",
                 "required": True
             },
-            "test_aetitle": {
+            "test_tag": {
                 "title": "Test dataset name",
                 "description": "Name of the test dataset",
                 "type": "string",
@@ -78,12 +78,13 @@ dag = DAG(
     dag_id='tag-train-test-split-dataset',
     default_args=args,
     concurrency=10,
-    max_active_runs=10,
+    max_active_runs=1,
     schedule_interval=None
 )
 
-get_input = LocalGetInputDataOperator(dag=dag)
-train_test_split = TrainTestSplitOperator(dag=dag, input_operator=get_input)
+get_input = LocalGetInputDataOperator(dag=dag, data_type="json")
+train_test_split = TrainTestSplitOperator(dag=dag, input_operator=get_input, dev_server="code-server")
+tag_dataset = LocalTaggingOperator(dag=dag, input_operator=train_test_split, add_tags_from_file=True, tags_to_add_from_file=["train_test_split_tag"])
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> train_test_split >> clean
+get_input >> train_test_split >> tag_dataset >> clean

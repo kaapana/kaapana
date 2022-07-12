@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from glob import glob
 import os
+from posixpath import dirname
 from subprocess import PIPE, run
 from time import time, sleep
 from shutil import which

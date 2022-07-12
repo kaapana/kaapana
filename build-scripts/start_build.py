@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 from shutil import copyfile, rmtree
 import yaml
 import os
@@ -165,6 +166,14 @@ if __name__ == '__main__':
             registry_user = os.getenv("REGISTRY_USER", None)
         if registry_pwd is None:
             registry_pwd = os.getenv("REGISTRY_PW", None)
+        
+        if registry_user == None:
+            registry_user = input("Enter your registry username:")
+            registry_user = None if registry_user == "" else registry_user
+
+        if registry_pwd == None:
+            registry_pwd = input("Enter your registry password:")
+            registry_pwd = None if registry_pwd == "" else registry_pwd
 
         if registry_user == None or registry_pwd == None:
             logger.error("REGISTRY CREDENTIALS ERROR:")
@@ -189,6 +198,12 @@ if __name__ == '__main__':
         c_handler.setLevel(logging.ERROR)
     else:
         logger.error(f"Log level {log_level} not identified!")
+        exit(1)
+
+    if len(external_source_dirs) == 1 and external_source_dirs[0] == "..":
+        kaapana_dir = dirname(kaapana_dir)
+        external_source_dirs = []
+        logger.warning(f"Found submodule-configuration! -> change kaapana_dir to: {kaapana_dir}")
         exit(1)
 
     BuildUtils.init(

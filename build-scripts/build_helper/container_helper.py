@@ -83,6 +83,10 @@ class BaseImage:
             self.registry = tag.split("/")[0]
             self.project = tag.split("/")[1]
             self.name = tag.split("/")[2].split(":")[0]
+        elif tag.count("/") == 3:
+            self.registry = tag.split("/")[0]
+            self.project = f"{tag.split('/')[1]}/{tag.split('/')[2]}"
+            self.name = tag.split("/")[3].split(":")[0]
         else:
             BuildUtils.logger.error("Could not extract base-image!")
             exit(1)
@@ -465,10 +469,9 @@ class Container:
                 BuildUtils.logger.info("")
 
         if len(dockerfiles_found) != len(set(dockerfiles_found)):
-            BuildUtils.logger.warning("")
             BuildUtils.logger.warning("-> Duplicate Dockerfiles found!")
 
-        dockerfiles_found = set(dockerfiles_found)
+        dockerfiles_found = sorted(set(dockerfiles_found))
 
         for dockerfile in dockerfiles_found:
             container = Container(dockerfile)

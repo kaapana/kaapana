@@ -3,6 +3,7 @@
 from shutil import copyfile, rmtree
 import yaml
 import os
+import json
 import logging
 from os.path import join, dirname, basename, exists, isfile, isdir
 from time import time
@@ -11,31 +12,7 @@ from build_helper.charts_helper import HelmChart, init_helm_charts, helm_registr
 from build_helper.container_helper import Container, container_registry_login
 from build_helper.build_utils import BuildUtils
 
-build_dir = join(dirname(dirname(os.path.realpath(__file__))), "build")
-if exists(build_dir):
-    rmtree(build_dir)
-os.makedirs(build_dir, exist_ok=True)
-
-# Create a custom logger
-logging.getLogger().setLevel(logging.DEBUG)
-logger = logging.getLogger(__name__)
-
-c_handler = logging.StreamHandler()
-c_handler.setLevel(logging.DEBUG)
-
-f_handler = logging.FileHandler(join(build_dir, "build.log"))
-f_handler.setLevel(logging.DEBUG)
-
-c_format = logging.Formatter('%(levelname)s - %(message)s')
-f_format = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-c_handler.setFormatter(c_format)
-f_handler.setFormatter(f_format)
-
-# Add handlers to the logger
-logger.addHandler(c_handler)
-logger.addHandler(f_handler)
-
-supported_log_levels = ["DEBUG", "INFO", "WARN", "ERROR"]
+supported_log_levels = ["DEBUG", "INFO", "WARNING", "ERROR"]
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -45,16 +22,42 @@ if __name__ == '__main__':
     parser.add_argument("-bo", "--build-only", dest="build_only", default=None, action='store_true', help="Just building the containers and charts -> no pushing")
     parser.add_argument("-oi", "--create-offline-installation", dest="create_offline_installation", default=None, help="Will create a docker dump, from which the platfrom can be installed.")
     parser.add_argument("-pm", "--push-to-microk8s", dest="push_to_microk8s", default=None, help="Will create a docker dump, from which the platfrom can be installed.")
-    parser.add_argument("-kd", "--kaapana-dir", dest="kaapaa_dir", default=None, help="Kaapana repo path.")
     parser.add_argument("-ll", "--log-level", dest="log_level", default=None, help="Set log-level.")
     parser.add_argument("-el", "--enable-linting", dest="enable_linting", default=None, help="Enable Helm Chart lint & kubeval.")
     parser.add_argument("-sp", "--skip-push-no-changes", dest="skip_push_no_changes", default=None, help="Skip the image push if it didn't change.")
     parser.add_argument("-ee", "--exit-on-error", dest="exit_on_error", default=None, help="Stop build-process if error occurs.")
     parser.add_argument("-pf", "--plartform-filter", dest="platform_filter", default=None, help="Specify platform-chart-names to be build (comma seperated).")
+    parser.add_argument("-bd", "--build-dir", dest="build_dir", default=None, help="Specify the main Kaapana repo-dir to build from.")
+    parser.add_argument("-kd", "--kaapana-dir", dest="kaapana_dir", default=None, help="Specify the main Kaapana repo-dir to build from.")
     parser.add_argument("-es", "--external-sources", dest="external_source_dirs", default=None, help="External dirs to search for containers and charts.")
     args = parser.parse_args()
 
-    kaapana_dir = args.kaapaa_dir if args.kaapaa_dir != None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    kaapana_dir = args.kaapana_dir if args.kaapana_dir != None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    build_dir = args.build_dir if args.build_dir != None else  join(dirname(dirname(os.path.realpath(__file__))), "build")
+    
+    if exists(build_dir):
+        rmtree(build_dir)
+    os.makedirs(build_dir, exist_ok=True)
+
+    # Create a custom logger
+    logging.getLogger().setLevel(logging.DEBUG)
+    logger = logging.getLogger(__name__)
+
+    c_handler = logging.StreamHandler()
+    c_handler.setLevel(logging.DEBUG)
+
+    f_handler = logging.FileHandler(join(build_dir, "build.log"))
+    f_handler.setLevel(logging.DEBUG)
+
+    c_format = logging.Formatter('%(levelname)s - %(message)s')
+    f_format = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    c_handler.setFormatter(c_format)
+    f_handler.setFormatter(f_format)
+
+    # Add handlers to the logger
+    logger.addHandler(c_handler)
+    logger.addHandler(f_handler)
+
     if not os.path.isdir(os.path.join(kaapana_dir, "platforms")):
         logger.error("----------------------------------------------------------------------")
         logger.error("The dir 'platforms' was not found! -> wrong kaapana_dir? -> exit!")
@@ -142,6 +145,7 @@ if __name__ == '__main__':
     logger.info("")
     logger.info(f"{http_proxy=}")
     logger.info(f"{platform_filter=}")
+    logger.info(f"{kaapana_dir=}")
     logger.info(f"{external_source_dirs=}")
     logger.info(f"{default_registry=}")
     logger.info(f"{log_level=}")
@@ -184,7 +188,7 @@ if __name__ == '__main__':
 
     if log_level not in supported_log_levels:
         logger.error(f"Log level {log_level} not supported.")
-        logger.error("Please use 'DEBUG','WARN' or 'ERROR' for log_level in build-config.yaml")
+        logger.error("Please use 'DEBUG','WARNING' or 'ERROR' for log_level in build-config.yaml")
         exit(1)
 
     logger.debug(f"LOG-LEVEL: {log_level}")
@@ -192,18 +196,12 @@ if __name__ == '__main__':
         c_handler.setLevel(logging.DEBUG)
     elif log_level == "INFO":
         c_handler.setLevel(logging.INFO)
-    elif log_level == "WARN":
+    elif log_level == "WARNING":
         c_handler.setLevel(logging.WARNING)
     elif log_level == "ERROR":
         c_handler.setLevel(logging.ERROR)
     else:
         logger.error(f"Log level {log_level} not identified!")
-        exit(1)
-
-    if len(external_source_dirs) == 1 and external_source_dirs[0] == "..":
-        kaapana_dir = dirname(kaapana_dir)
-        external_source_dirs = []
-        logger.warning(f"Found submodule-configuration! -> change kaapana_dir to: {kaapana_dir}")
         exit(1)
 
     BuildUtils.init(
@@ -262,20 +260,7 @@ if __name__ == '__main__':
             logger.warning("-----------------------------------------------------------")
             logger.warning(f"------------------------ ISSUE: {issue_count} -------------------------")
             logger.warning("-----------------------------------------------------------")
-            component = issue["component"]
-            name = issue["name"]
-            level = issue["level"]
-            log = issue["log"]
-            msg = issue["msg"]
-            timestamp = issue["timestamp"]
-            filepath = issue["filepath"]
-            logger.warning("")
-            logger.warning(f"{level} -> {component}:{name}")
-            logger.warning(f"{msg=}")
-            if len(log) > 0:
-                for line_number, line in log.items():
-                    if not line.isdigit():
-                        logger.warning(line)
+            BuildUtils.logger.warning(json.dumps(issue, indent=4, sort_keys=False))
             logger.warning("")
             issue_count += 1
 

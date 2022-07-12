@@ -121,23 +121,17 @@ class BuildUtils:
         issue = {
             "component": component,
             "name": name,
-            "level": level,
-            "log": log,
-            "msg": msg,
-            "timestamp": BuildUtils.get_timestamp(),
             "filepath": path,
+            "level": level,
+            "msg": msg,
+            "log": log,
+            "timestamp": BuildUtils.get_timestamp(),
         }
         BuildUtils.issues_list.append(issue)
+        BuildUtils.logger.warning(json.dumps(issue, indent=4, sort_keys=False))
 
-        if level == "WARN":
-            BuildUtils.logger.warn(f"Added issue:")
-            BuildUtils.logger.warn(json.dumps(issue, indent=4, sort_keys=True))
-        elif BuildUtils.exit_on_error or level == "FATAL":
-            BuildUtils.logger.error(json.dumps(issue, indent=4, sort_keys=True))
+        if BuildUtils.exit_on_error or level == "FATAL":
             exit(1)
-        else:
-            BuildUtils.logger.debug("Added issue:")
-            BuildUtils.logger.debug(json.dumps(issue, indent=4, sort_keys=True))
 
     @staticmethod
     def generate_component_usage_info():

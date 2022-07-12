@@ -628,7 +628,7 @@ class HelmChart:
                     component=suite_tag,
                     name=f"{self.chart_id}",
                     msg="chart lint failed!",
-                    level="WARN",
+                    level="WARNING",
                     output=output,
                     path=self.build_chart_dir
                 )
@@ -653,7 +653,7 @@ class HelmChart:
                     component=suite_tag,
                     name=f"{self.chart_id}",
                     msg="chart kubeval failed!",
-                    level="WARN",
+                    level="WARNING",
                     output=output,
                     path=self.build_chart_dir
                 )
@@ -720,7 +720,10 @@ class HelmChart:
             charts_found.extend(glob(external_source_dir+"/**/Chart.yaml", recursive=True))
             BuildUtils.logger.info(f"Found {len(charts_found)} Charts")
 
-        charts_found = sorted(charts_found, key=lambda p: (-p.count(os.path.sep), p))
+        if len(charts_found) != len(set(charts_found)):
+            BuildUtils.logger.warning("-> Duplicate Charts found!")
+
+        charts_found = sorted(set(charts_found), key=lambda p: (-p.count(os.path.sep), p))
 
         BuildUtils.logger.info("")
         BuildUtils.logger.info(f"--> Found {len(charts_found)} Charts across sources")
@@ -891,7 +894,6 @@ class HelmChart:
 
     @staticmethod
     def generate_platform_build_tree():
-        BuildUtils.logger.info(f"generate_platform_build_tree")
         charts_to_build = []
         for chart_object in BuildUtils.charts_available:
             if chart_object.kaapana_type != None and chart_object.kaapana_type == "platform":

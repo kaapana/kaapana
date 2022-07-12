@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException, Response
 
 
 from . import models, schemas
-from app.utils import HOSTNAME, INSTANCE_NAME, get_dataset_list, update_external_job, delete_external_job, execute_job, get_utc_timestamp, HelperMinio, get_dag_list, raise_kaapana_connection_error
+from app.utils import HOSTNAME, INSTANCE_NAME, get_dataset_list, update_external_job, delete_external_job, execute_job, check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, raise_kaapana_connection_error
 from urllib.parse import urlparse
 
 
@@ -225,7 +225,14 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
 
     if job.status == 'scheduled' and db_job.kaapana_instance.remote == False:
         print(f'Executing  job {db_job.id}')
-        execute_job(db_job)
+        conf_data = json.loads(db_job.conf_data)
+        conf_data['client_job_id'] = db_job.id
+        dag_id_and_dataset = check_dag_id_and_dataset(db_job.kaapana_instance, conf_data, db_job.dag_id, db_job.addressed_kaapana_instance_name) 
+        if dag_id_and_dataset is not None:
+            job.status = 'failed'
+            job.description = dag_id_and_dataset
+        else:
+            execute_job(conf_data, db_job.dag_id)
 
     if (db_job.kaapana_instance.remote != remote) and db_job.status not in ["queued", "finished", "failed"]:
         raise HTTPException(status_code=401, detail="You are not allowed to update this job, since its on the client site")

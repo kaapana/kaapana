@@ -42,7 +42,6 @@ app.include_router(
 @app.on_event("startup")
 @repeat_every(seconds=float(os.getenv('REMOTE_SYNC_INTERVAL', 2.5)))
 def periodically_get_remote_updates():
-    print('Checking for updates!')
     with SessionLocal() as db:
         try:
             get_remote_updates(db, periodically=True)

@@ -3,6 +3,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
 from doccano.LocalDoccanoDownloadDatasetOperator import LocalDoccanoDownloadDatasetOperator
 from doccano.ProcessStudyIdsOperator import ProcessStudyIdsOperator
 from datetime import timedelta
@@ -28,17 +29,20 @@ download_dataset = LocalDoccanoDownloadDatasetOperator(dag=dag)
 unzip_files = ZipUnzipOperator(
     dag=dag,
     input_operator=download_dataset,
-    mode="unzip"
+    mode="unzip",
+    batch_level=True
 )
 
-dicom_send = ProcessStudyIdsOperator(
+doccano_tags = ProcessStudyIdsOperator(
     dag=dag,
     input_operator=unzip_files
 )
+
+tag_dataset = LocalTaggingOperator(dag=dag, input_operator=doccano_tags, add_tags_from_file=True, tags_to_add_from_file=["doccano_tags"])
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
     clean_workflow_dir=True
 )
 
-download_dataset >> unzip_files >> dicom_send >> clean
+download_dataset >> unzip_files >> doccano_tags >> tag_dataset >> clean

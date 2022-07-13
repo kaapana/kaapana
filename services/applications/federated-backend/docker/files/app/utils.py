@@ -102,7 +102,7 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None):
         r = requests_retry_session(session=s).get('http://airflow-service.flow.svc:8080/flow/kaapana/api/getdags')
     raise_kaapana_connection_error(r)
     dags = r.json()
-    dags = {dag: dag_data for dag, dag_data in dags.items() if 'ui_forms' in dag_data}
+    dags = {dag: dag_data for dag, dag_data in dags.items() if 'ui_federated' in dag_data}
     if only_dag_names is True:
         return sorted(list(dags.keys()))
     else:

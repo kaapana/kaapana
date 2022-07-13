@@ -1,14 +1,29 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
 from datetime import timedelta
+
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, \
+    default_registry, default_platform_abbr, default_platform_version
 
 
 class OrganSegmentationOperator(KaapanaBaseOperator):
+    """
+    Segments organs using a 3D Statistical Shape Model
+
+    Paper: https://pubmed.ncbi.nlm.nih.gov/27541630/
+
+    **Inputs:**
+
+    * Data in NRRD format
+
+    **Outputs:**
+
+    * Segmentations in NRRD format
+    """
 
     execution_timeout = timedelta(minutes=30)
 
     def __init__(self,
                  dag,
-                 mode,
+                 mode: str,
                  threads=8,
                  env_vars=None,
                  spleen_operator=None,
@@ -16,6 +31,10 @@ class OrganSegmentationOperator(KaapanaBaseOperator):
                  execution_timeout=execution_timeout,
                  **kwargs
                  ):
+        """
+        :param mode: Organ of interest. [unityCS, Liver, Spleen, RightKidney, LeftKidneyOnly]
+        :param spleen_operator: Optional OrganSegmentationOperator with mode='spleen'
+        """
 
         if env_vars is None:
             env_vars = {}

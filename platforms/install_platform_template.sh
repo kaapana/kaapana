@@ -178,6 +178,7 @@ function delete_deployment {
         echo "${RED}Something went wrong while uninstalling please check manually if there are still namespaces or pods floating around. Everything must be delete before the installation:${NC}"
         echo "${RED}kubectl get pods -A${NC}"
         echo "${RED}kubectl get namespaces${NC}"
+        echo "${RED}Executing './install_platform.sh --purge-kube-and-helm' is an option to force the resources to be removed.${NC}"        
         echo "${RED}Once everything is deleted you can reinstall the platform!${NC}"
         exit 1
     fi
@@ -187,10 +188,15 @@ function delete_deployment {
 }
 
 function clean_up_kubernetes {
-    echo "${YELLOW}Deleting all deployments ${NC}"
-    microk8s.kubectl delete deployments --all
-    echo "${YELLOW}Deleting all jobs${NC}"
-    microk8s.kubectl delete jobs --all
+    for n in default base meta flow flow-jobs monitoring store;
+    do
+        echo "${YELLOW}Deleting all deployments in namespace ${n} ${NC}"
+        microk8s.kubectl -n $n delete deployments --all
+        echo "${YELLOW}Deleting all jobs in namespace ${n} ${NC}"
+        microk8s.kubectl -n $n delete jobs --all
+    done
+    echo "${YELLOW}Removing remove-secret job${NC}"
+    microk8s.kubectl -n kube-system delete job --ignore-not-found remove-secret
 }
 
 function upload_tar {
@@ -464,6 +470,7 @@ usage="$(basename "$0")
 _Flag: --install-certs set new HTTPS-certificates for the platform
 _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
 _Flag: --remove-all-images-docker will delete all Docker images from the system
+_Flag: --purge-kube-and-helm will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the uninstallation fails or runs forerver.
 _Flag: --quiet, meaning non-interactive operation
 
 _Argument: --version of the platform [version]

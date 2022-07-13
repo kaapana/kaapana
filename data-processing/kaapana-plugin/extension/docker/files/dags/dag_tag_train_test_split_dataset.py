@@ -21,7 +21,7 @@ ui_forms = {
                 "default": "SEG",
                 "description": "Expected input modality.",
                 "type": "string",
-                "readOnly": True,
+                "required": True
             },
             "single_execution": {
                 "type": "boolean",

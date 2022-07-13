@@ -1,4 +1,5 @@
 import os
+import urllib3
 from fastapi import Depends, FastAPI, Request
 
 from .internal import admin
@@ -11,6 +12,7 @@ from app.utils import get_remote_updates
 
 models.Base.metadata.create_all(bind=engine)
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 app = FastAPI(openapi_prefix=os.getenv('APPLICATION_ROOT', ''))
 

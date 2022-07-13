@@ -198,11 +198,11 @@ def check_dag_id_and_dataset(db_client_kaapana, conf_data, dag_id, addressed_kaa
         if dag_id not in json.loads(db_client_kaapana.allowed_dags):
             return f"Dag {dag_id} is not allowed to be triggered from remote!"
         if "elasticsearch_form" in conf_data:
-            queried_data = get_dataset_list(conf_data["elasticsearch_form"], unique_sets=True)
-            if not queried_data or ((set(queried_data) & set(json.loads(db_client_kaapana.allowed_datasets))) != set(queried_data)):
-                return f"Queried datasets " \
-                    f"{''.join(queried_data)} are not part of allowed datasets:" \
-                    f"{','.join(json.loads(db_client_kaapana.allowed_datasets))}!"
+            queried_data = get_dataset_list(conf_data["elasticsearch_form"])
+            if not queried_data or (not all([bool(set(d) & set(json.loads(db_client_kaapana.allowed_datasets))) for d in queried_data])):
+                return f"Queried series with tags " \
+                    f"{', '.join(sorted(list(set([d for item in queried_data for d in item]))))} are not all part of allowed datasets:" \
+                    f"{', '.join(json.loads(db_client_kaapana.allowed_datasets))}!"
     return None
 
 def execute_job(conf_data, dag_id):

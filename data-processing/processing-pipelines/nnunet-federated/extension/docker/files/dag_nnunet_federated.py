@@ -131,6 +131,6 @@ dcm_send_int = DcmSendOperator(
 
 put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[nnunet_federated], zip_files=True, file_white_tuples=('.zip'))
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 nnunet_federated >> zip_model >> bin2dcm >> dcm_send_int >> clean
 nnunet_federated >> put_to_minio >> clean

@@ -6,6 +6,12 @@ Glossary
 .. glossary::
     :sorted:
 
+    container
+      A container is a self contained virtual environment that packages a software along with the code and all of the dependencies. In this way, it can run quickly and reliably on any environment. Commonly available containerization technologies are provided by `Docker <https://www.docker.com/resources/what-container/>`_, `Podman <https://docs.podman.io/en/latest/>`_. A container is stored as an image. Such an image is built using a file, e.g. a Dockerfile in case of Docker containers.
+    
+    build
+      A build is a system in which a container images are built using a file, e.g. a Dockerfile in case of Docker containers.
+    
     platform
       A platform describes a system that runs on a remote server and is accessible via the browser. The :term:`kaapana-platform` is an example of a platform. Using kaapana, you can basically build your own platform by putting the services and extensions together that you need.
     
@@ -13,8 +19,11 @@ Glossary
       The kaapana-platform is an example platform with a default configuration that contains many of the typical platform components. This basic platform can be used as a starting-point to derive a customized platform for your specific project. 
 
     registry
-      A registry is a storage and content delivery system, holding named Docker images, available in different tagged versions. 
+      A registry is a storage and content delivery system, holding named Docker images, available in different tagged versions. A registry can be private or public. Examples of such registries are, `DockerHub <https://hub.docker.com/>`_, Elastic Container Registry (ECR) provided by Amazon's AWS.
     
+    deployment
+      When a container image is run on a target environment such as a cloud or an on-premises server, such an event is called a deployment. Such a deployment can also be a part of a larger software or platform as in the case of Kaapana.
+
     workflow
       A workflow in our definition is basically an Airflow DAG. It is a number of processing steps applied to a cohort of images. Synonyms used for :term:`"workflow<workflow>` are :term:`"pipeline"<pipeline>` or ":term:`"DAG"<dag>`". Some of the workflows are preinstalled in the platform. Other workflows can be installed and added via the :term:`extensions<extension>` to Airflow.
 

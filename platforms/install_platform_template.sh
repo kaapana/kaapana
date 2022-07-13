@@ -188,13 +188,15 @@ function delete_deployment {
 }
 
 function clean_up_kubernetes {
-    for n in default base meta flow flow-jobs monitoring store;
+    for n in base meta flow flow-jobs monitoring store;
     do
-        echo "${YELLOW}Deleting all deployments in namespace ${n} ${NC}"
-        microk8s.kubectl -n $n delete deployments --all
-        echo "${YELLOW}Deleting all jobs in namespace ${n} ${NC}"
-        microk8s.kubectl -n $n delete jobs --all
+        echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
+        microk8s.kubectl delete --ignore-not-found namespace $n
     done
+    echo "${YELLOW}Deleting all deployments in namespace default ${NC}"
+    microk8s.kubectl delete deployments --all
+    echo "${YELLOW}Deleting all jobs in namespace default ${NC}"
+    microk8s.kubectl delete jobs --all
     echo "${YELLOW}Removing remove-secret job${NC}"
     microk8s.kubectl -n kube-system delete job --ignore-not-found remove-secret
 }

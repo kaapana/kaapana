@@ -49,15 +49,15 @@ To do this, you can use the :term:`server-installation-script`, located at :code
    | :code:`sed -i 's/8.8.8.8,8.8.4.4/192.55.188.199,192.55.188.177/g' server_installation.sh`
    | :code:`cat server_installation.sh | grep DNS=`
 
-3. Execute the script:
+4. Execute the script:
 
    | :code:`sudo ./server_installation.sh`
 
-4. Reboot the system 
+5. Reboot the system 
 
    | :code:`sudo reboot`
 
-5. (optional) Enable GPU support for Microk8s 
+6. (optional) Enable GPU support for Microk8s 
 
    | :code:`sudo ./server_installation.sh -gpu`
 

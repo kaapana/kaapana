@@ -9,22 +9,12 @@ from airflow.exceptions import AirflowException
 from datetime import timedelta
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator, rest_self_udpate
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
-from kaapana.blueprints.kaapana_utils import cure_invalid_name
-
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
+from kaapana.blueprints.kaapana_utils import cure_invalid_name, get_release_name
 
 
 class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
     HELM_API = 'http://kube-helm-service.kube-system.svc:5000'
     TIMEOUT = 60 * 60 * 12
-
-    @staticmethod
-    def _get_release_name(kwargs):
-        task_id = kwargs['ti'].task_id
-        run_id = kwargs['run_id']
-        release_name = f'kaapanaint-{run_id}'
-        return cure_invalid_name(release_name, r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
-                                 max_length=53)
 
     def rest_sets_update(self, payload):
         operator_conf = {}
@@ -39,7 +29,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
     @rest_self_udpate
     def start(self, ds, **kwargs):
         print(kwargs)
-        release_name = KaapanaApplicationOperator._get_release_name(kwargs) if self.release_name is None else self.release_name
+        release_name = get_release_name(kwargs) if self.release_name is None else self.release_name
 
         payload = {
             'name': f'{self.chart_name}',
@@ -84,22 +74,22 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
 
     @staticmethod
     def uninstall_helm_chart(kwargs):
-        release_name = KaapanaApplicationOperator._get_release_name(kwargs)
-        url = f'{KaapanaApplicationOperator.HELM_API}/helm-uninstall-chart'
+        release_name = get_release_name(kwargs)
+        url = f'{KaapanaApplicationOperator.HELM_API}/helm-delete-chart'
         r = requests.get(url, params={'release_name': release_name})
         r.raise_for_status()
         print(r)
         print(r.text)
 
     @staticmethod
-    def on_failure(info_dict):
+    def on_failure(context):
         print("##################################################### ON FAILURE!")
-        KaapanaApplicationOperator.uninstall_helm_chart(info_dict)
+        KaapanaApplicationOperator.uninstall_helm_chart(context)
 
     @staticmethod
-    def on_retry(info_dict):
+    def on_retry(context):
         print("##################################################### ON RETRY!")
-        KaapanaApplicationOperator.uninstall_helm_chart(info_dict)
+        KaapanaApplicationOperator.uninstall_helm_chart(context)
 
 
     def __init__(self,

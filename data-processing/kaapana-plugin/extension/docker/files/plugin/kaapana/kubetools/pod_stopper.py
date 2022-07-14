@@ -43,8 +43,8 @@ class PodStopper(LoggingMixin):
                 'Exception when attempting to delete namespaced Pod.')
             raise
 
-    def stop_pod_by_name(self, pod_id, namespace="flow-jobs"):
-        max_tries= 10
+    def stop_pod_by_name(self, pod_id, namespace="flow-jobs", phase=None):
+        max_tries= 20
         delay=6
         tries = 0 
         found = False 
@@ -52,13 +52,22 @@ class PodStopper(LoggingMixin):
         print("")
         self.log.info("################ Deleting Pod: {}".format(pod_id))
         try:
-            pods_list = [pod.metadata.name for pod in self._client.list_namespaced_pod(namespace=namespace, pretty=True).items]    
-            while pod_id in pods_list and tries < max_tries:
+            while tries < max_tries:
                 self.log.info("### attempt: {}".format(tries))
-                found = True
-                self._client.delete_namespaced_pod(name=pod_id, body=req, namespace=namespace, grace_period_seconds=0)  
+                try:
+                    resp = self._client.read_namespaced_pod(name=pod_id,namespace=namespace)
+                    found = True
+                    if phase is not None and resp.status.phase != phase:
+                        success_message = f"################ Skipping deleting, since its not in phase {phase}!"
+                        break
+                    self._client.delete_namespaced_pod(name=pod_id, body=req, namespace=namespace, grace_period_seconds=0) 
+                except ApiException as e:
+                    if e.status != 404:
+                        raise
+                    else:
+                        success_message = "################ Pod deleted."
+                        break
                 time.sleep(delay+tries)
-                pods_list = [pod.metadata.name for pod in self._client.list_namespaced_pod(namespace=namespace, pretty=True).items]
                 tries+=1
             
             if tries >= max_tries:
@@ -66,12 +75,12 @@ class PodStopper(LoggingMixin):
             elif not found:
                 self.log.info("################ Pod not found!")
             else:
-                self.log.info("################ Pod deleted.")
+                self.log.info(success_message)
 
             print("")
 
         except Exception as e:
             self.log.exception("Exception when attempting to delete namespaced Pod.")
-            self.log.exceptionrint("Could not delete pod: {}".format(pod_id))
+            self.log.exception("Could not delete pod: {}".format(pod_id))
             self.log.exception(e)
 

@@ -98,6 +98,15 @@ class PodLauncher(LoggingMixin):
             startup_timeout (int): Timeout for startup of the pod (if pod is pending for
              too long, considers task a failure
         """
+
+        try:
+            resp = self._client.read_namespaced_pod(name=pod.name,namespace=pod.namespace)
+            self.log.debug('Pod already exists, we will delete it and then start your pod.')
+            PodLauncher.pod_stopper.stop_pod_by_name(pod_id=resp.metadata.name)
+        except ApiException as e:
+            if e.status != 404:
+                raise
+
         resp = self.run_pod_async(pod)
         curr_time = dt.now()
 

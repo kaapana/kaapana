@@ -17,8 +17,14 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 def generate_run_id(dag_id):
     run_id = datetime.now().strftime('%y%m%d%H%M%S%f')
-    run_id = "{}-{}".format(dag_id, run_id)
+    run_id = "{}-{}".format(run_id, dag_id)
     return run_id
+
+def get_release_name(kwargs):
+    run_id = kwargs['run_id']
+    release_name = f'kaapanaint-{run_id}'
+    return cure_invalid_name(release_name, r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
+                                max_length=53)
 
 
 def generate_minio_credentials(x_auth_token):

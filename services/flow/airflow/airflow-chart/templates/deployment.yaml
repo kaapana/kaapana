@@ -188,8 +188,8 @@ spec:
           value: "{{ .Values.global.fast_data_dir }}/workflows/models"
         - name: MINIODIR
           value: "{{ .Values.global.slow_data_dir }}/minio"
-        - name: DEVDIR
-          value: "{{ .Values.global.fast_data_dir }}/minio/data-processing-dev"
+        - name: KAAPANA_DEV_DIR
+          value: "{{ .Values.global.fast_data_dir }}/minio/kaapana-dev-data"
         - name: PROXY
           value: "{{ .Values.global.http_proxy }}"
         - name: PLATFORM_ABBR

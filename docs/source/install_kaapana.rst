@@ -44,9 +44,9 @@ To do this, you can use the :term:`server-installation-script`, located at :code
 
    | :code:`chmod +x server_installation.sh`
 
-3. It's important to add your custom :term:`DNS` to the server installation script before you proceed, e.g. by running the following command to add the DKFZ DNS:
+3. It's important to add your custom :term:`DNS` to the server installation script before you proceed, e.g. by running the following command to add the custom DNS:
    
-   | :code:`sed -i 's/8.8.8.8,8.8.4.4/192.55.188.199,192.55.188.177/g' server_installation.sh`
+   | :code:`sed -i 's/8.8.8.8,8.8.4.4/<add_your_custom_dns_here>/g' server_installation.sh`
    | :code:`cat server_installation.sh | grep DNS=`
 
 4. Execute the script:

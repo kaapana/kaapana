@@ -6,6 +6,9 @@ Glossary
 .. glossary::
     :sorted:
 
+    DNS
+      The Domain Name System (DNS) is the phonebook of the Internet. Humans access information online through domain names, e.g. www.dkfz.de. Web browsers interact through Internet Protocol (IP) addresses. DNS translates domain names to IP addresses so browsers can load Internet resources.
+    
     container
       A container is a self contained virtual environment that packages a software along with the code and all of the dependencies. In this way, it can run quickly and reliably on any environment. Commonly available containerization technologies are provided by `Docker <https://www.docker.com/resources/what-container/>`_, `Podman <https://docs.podman.io/en/latest/>`_. A container is stored as an image. Such an image is built using a file, e.g. a Dockerfile in case of Docker containers.
     

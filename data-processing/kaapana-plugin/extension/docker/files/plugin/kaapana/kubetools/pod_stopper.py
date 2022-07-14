@@ -43,7 +43,7 @@ class PodStopper(LoggingMixin):
                 'Exception when attempting to delete namespaced Pod.')
             raise
 
-    def stop_pod_by_name(self, pod_id, namespace="flow-jobs", phase=None):
+    def stop_pod_by_name(self, pod_id, namespace="flow-jobs", phases=None):
         max_tries= 20
         delay=6
         tries = 0 
@@ -57,8 +57,8 @@ class PodStopper(LoggingMixin):
                 try:
                     resp = self._client.read_namespaced_pod(name=pod_id,namespace=namespace)
                     found = True
-                    if phase is not None and resp.status.phase != phase:
-                        success_message = f"################ Skipping deleting, since its not in phase {phase}!"
+                    if phases is not None and resp.status.phase not in phases:
+                        success_message = f"################ Skipping deleting, since its not in phase {','.join(phases)}!"
                         break
                     self._client.delete_namespaced_pod(name=pod_id, body=req, namespace=namespace, grace_period_seconds=0) 
                 except ApiException as e:

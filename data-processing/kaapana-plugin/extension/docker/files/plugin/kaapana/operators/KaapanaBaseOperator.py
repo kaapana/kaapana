@@ -573,7 +573,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         """
         print("##################################################### ON FAILURE!")
         kube_name = cure_invalid_name(context["run_id"], r'[a-z]([-a-z0-9]*[a-z0-9])?', 63)
-        KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=kube_name, phase='Running')
+        KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=kube_name, phases=['Pending', 'Running'])
         release_name = get_release_name(context)
         url = f'{KaapanaBaseOperator.HELM_API}/view-chart-status'
         r = requests.get(url, params={'release_name': release_name})

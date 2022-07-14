@@ -17,7 +17,7 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 def generate_run_id(dag_id):
     run_id = datetime.now().strftime('%y%m%d%H%M%S%f')
-    run_id = "{}-{}".format(run_id, dag_id)
+    run_id = "{}-{}".format(dag_id, run_id)
     return run_id
 
 def get_release_name(kwargs):
@@ -51,7 +51,7 @@ def cure_invalid_name(name, regex, max_length=None):
         return name
     name = _regex_match(regex, name)
     if max_length is not None and len(name) > max_length:
-        name = name[:max_length]
+        name = name[-max_length:]
         print(f'Your name is too long, only {max_length} character are allowed, we will cut it to {name} to work with Kubernetes')
     name = _regex_match(regex, name)
     return name

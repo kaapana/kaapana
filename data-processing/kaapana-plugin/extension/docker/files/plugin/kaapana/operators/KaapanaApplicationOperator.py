@@ -83,14 +83,17 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
 
     @staticmethod
     def on_failure(context):
+        """
+        Use this method with caution, because it unclear at which state the context object is updated!
+        """
         print("##################################################### ON FAILURE!")
-        KaapanaApplicationOperator.uninstall_helm_chart(context)
 
     @staticmethod
     def on_retry(context):
+        """
+        Use this method with caution, because it unclear at which state the context object is updated!
+        """
         print("##################################################### ON RETRY!")
-        KaapanaApplicationOperator.uninstall_helm_chart(context)
-
 
     def __init__(self,
                  dag,

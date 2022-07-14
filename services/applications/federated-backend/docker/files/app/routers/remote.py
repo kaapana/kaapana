@@ -39,8 +39,8 @@ async def get_job(job_id: int, db: Session = Depends(get_db)):
     return crud.get_job(db, job_id)
 
 @router.get("/jobs", response_model=List[schemas.JobWithKaapanaInstance])
-async def get_jobs(instance_name: str = None, status: str = None, db: Session = Depends(get_db)):
-    return crud.get_jobs(db, instance_name, status, remote=True)
+async def get_jobs(instance_name: str = None, status: str = None, limit: int = None, db: Session = Depends(get_db)):
+    return crud.get_jobs(db, instance_name, status, remote=True, limit=limit)
 
 @router.put("/job", response_model=schemas.JobWithKaapanaInstance)
 async def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):

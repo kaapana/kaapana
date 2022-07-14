@@ -502,8 +502,10 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 r.raise_for_status()
             return 
 
-        KaapanaBaseOperator.delete_operator_out_dir(context['run_id'], self.operator_out_dir)
-        
+        if self.allow_federated_learning is False:
+            # Note that in FL settings we might load data into the directory via prehooks
+            KaapanaBaseOperator.delete_operator_out_dir(context['run_id'], self.operator_out_dir)
+    
         try:
             print("++++++++++++++++++++++++++++++++++++++++++++++++ launch pod!")
             print(self.name)

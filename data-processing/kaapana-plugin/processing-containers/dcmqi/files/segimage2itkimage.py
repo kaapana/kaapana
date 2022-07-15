@@ -10,7 +10,7 @@ DCMQI = '/app/dcmqi/bin'
 output_type = os.environ.get('OUTPUT_TYPE', 'nrrd')
 seg_filter = os.environ.get('SEG_FILTER', "")
 if seg_filter != "":
-    seg_filter = seg_filter.lower().replace(" ","").split(",")
+    seg_filter = [s.strip() for s in seg_filter.lower().split(",")]
     print(f"Set filters: {seg_filter}")
 else:
     seg_filter = None

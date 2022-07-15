@@ -1,7 +1,7 @@
 .. _extensions start:
 
-Extensions
-==========
+Kaapana Extensions
+==================
 
 Introduction
 ^^^^^^^^^

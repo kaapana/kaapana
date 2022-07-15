@@ -6,3 +6,5 @@ Frequently Asked Questions (FAQ)
 
     faq/*
     
+    tech-basics/*
+    

@@ -129,13 +129,6 @@ Other Changes
 * Use regular toctree instead of toc for singlehtml builder (#507)
 * Cleanup whitespace in templates (#1060)
 
-Development version (|development_version|)
-===========================================
-
-.. |development_version| replace:: 0.1.3-beta
-
-.. _release-0.1.3-beta:
-
 0.1.3-beta
 ==========
 

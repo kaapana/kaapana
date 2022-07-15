@@ -12,12 +12,15 @@ Welcome to Kaapana's documentation!
    what_is_kaapana
    getting_started
    build_kaapana
+   build_system
    install_kaapana
+   uninstall_kaapana
+   tech_basics_root
    user_guide
    extensions
    development_guide
    api
-   faq
+   faq_root
    glossary
    releases
    main_license

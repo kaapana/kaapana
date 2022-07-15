@@ -43,7 +43,7 @@ dag = DAG(
 
 
 get_input = LocalGetInputDataOperator(dag=dag)
-extract = ExtractStudyIdOperator(dag=dag, input_operator=get_input)
+extract = ExtractStudyIdOperator(dag=dag, input_operator=get_input, dev_server='code-server')
 put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[extract])
 clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 

@@ -376,7 +376,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         self.set_context_variables(context)
         # Same expression as in on_failure method!
-        self.kube_name = cure_invalid_name(context["run_id"], r'[a-z]([-a-z0-9]*[a-z0-9])?', 63) # actually 63, but because of helm set to 53, maybe...
+        self.kube_name = cure_invalid_name(context["run_id"].replace(context["dag_run"].dag_id, context["task_instance"].task_id), r'[a-z]([-a-z0-9]*[a-z0-9])?', 63) # actually 63, but because of helm set to 53, maybe...
 
         if "NODE_GPU_" in str(context["task_instance"].pool) and str(context["task_instance"].pool).count("_") == 3:
             gpu_id = str(context["task_instance"].pool).split("_")[2]
@@ -574,7 +574,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         Use this method with caution, because it unclear at which state the context object is updated!
         """
         print("##################################################### ON FAILURE!")
-        kube_name = cure_invalid_name(context["run_id"], r'[a-z]([-a-z0-9]*[a-z0-9])?', 63)
+        # Same expression as in execute method!
+        kube_name = cure_invalid_name(context["run_id"].replace(context["dag_run"].dag_id, context["task_instance"].task_id), r'[a-z]([-a-z0-9]*[a-z0-9])?', 63) # actually 63, but because of helm set to 53, maybe...
         KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=kube_name, phases=['Pending', 'Running'])
         release_name = get_release_name(context)
         url = f'{KaapanaBaseOperator.HELM_API}/view-chart-status'

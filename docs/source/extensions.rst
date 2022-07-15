@@ -4,7 +4,7 @@ Kaapana Extensions
 ==================
 
 Introduction
-^^^^^^^^^
+^^^^^^^^^^^^
 The *Extension* functional unit can be considered as an app store.
 It allows (un-)installing components, which can either be workflows or applications.
 Workflows are algorithms which are executed via `Apache Airflow <https://airflow.apache.org/>`_.

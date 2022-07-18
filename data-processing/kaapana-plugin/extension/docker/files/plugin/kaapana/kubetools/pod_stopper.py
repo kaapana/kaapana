@@ -50,10 +50,10 @@ class PodStopper(LoggingMixin):
         found = False 
         req = client.V1DeleteOptions()
         print("")
-        self.log.info("################ Deleting Pod: {}".format(pod_id))
+        self.log.info(f"################ Deleting Pod: {pod_id}")
         try:
             while tries < max_tries:
-                self.log.info("### attempt: {}".format(tries))
+                self.log.info(f"### attempt: {tries}")
                 try:
                     resp = self._client.read_namespaced_pod(name=pod_id,namespace=namespace)
                     found = True
@@ -81,6 +81,6 @@ class PodStopper(LoggingMixin):
 
         except Exception as e:
             self.log.exception("Exception when attempting to delete namespaced Pod.")
-            self.log.exception("Could not delete pod: {}".format(pod_id))
+            self.log.exception(f"Could not delete pod: {pod_id}")
             self.log.exception(e)
 

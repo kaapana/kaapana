@@ -266,6 +266,8 @@ if __name__ == '__main__':
 
     hours, rem = divmod(time()-startTime, 3600)
     minutes, seconds = divmod(rem, 60)
+
+    c_handler.setLevel(logging.INFO)
     logger.info("")
     logger.info("")
     logger.info("")

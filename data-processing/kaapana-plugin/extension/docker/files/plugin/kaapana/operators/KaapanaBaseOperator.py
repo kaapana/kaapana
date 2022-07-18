@@ -577,6 +577,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         print("##################################################### ON FAILURE!")
         # Same expression as in execute method!
         kube_name = cure_invalid_name(context["run_id"].replace(context["dag_run"].dag_id, context["task_instance"].task_id), r'[a-z]([-a-z0-9]*[a-z0-9])?', 63) # actually 63, but because of helm set to 53, maybe...
+        time.sleep(2) # since the phase needs some time to get updated
         KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=kube_name, phases=['Pending', 'Running'])
         release_name = get_release_name(context)
         url = f'{KaapanaBaseOperator.HELM_API}/view-chart-status'

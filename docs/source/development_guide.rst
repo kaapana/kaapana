@@ -20,7 +20,7 @@ These tutorials/technologies are good references, when starting with the Kaapana
 * `Kubernetes <https://kubernetes.io/docs/tutorials/kubernetes-basics/>`_: (Advanced) On your local machine - necessary when you want to talk to the Kubernetes cluster from your local machine
 * `Helm <https://helm.sh/docs/intro/quickstart/>`_: (super advanced) - our package manager for Kubernetes.  Necessary when you want to build helm packages on your local machine
 
-All of the below examples are taken from the ``templates_and_examples`` folder of our Github repository!
+All of the examples below are taken from the ``templates_and_examples`` folder of our Github repository!
 
 Preparations for the development
 --------------------------------
@@ -34,18 +34,18 @@ Preparations for the development
 
 * You have two options to upload images to the platform
 
-   * Using that Data Upload: Create a zip file of images that end with .dcm and upload the images via drag&drop on the landing page in the section "Data upload"
+   * Using that Data Upload: Create a zip file of images that end with ``.dcm`` and upload the images via drag&drop on the landing page in the section "Data upload"
 
    * Send images with dcmtk e.g.:
 
 ::
 
-   dcmsend -v <ip-address of server> 11112  --scan-directories --call <aetitle of images, used for filtering> --scan-pattern '*'  --recurse <data-dir-of-DICOM images>
+   dcmsend -v <ip-address of server> 11112 --scan-directories --call <aetitle of images, used for filtering> --scan-pattern '*' --recurse <data-dir-of-DICOM images>
 
 * Go to Meta on the landing page to check if the images were successfully uploaded
 * In order to create a development environment to add new DAGs to the platform go to the extension section on the landing page and install the code-server-chart. Clicking on the link you will be served with a Visual Studio Code environment in the directory of Airflow, where you will find the Kaapana plugin (``workflows/plugins``), the data during processing (``workflows/data``), the models (``workflows/models``) and the directory for the DAGs definition (``workflows/dags``). 
 
-In order to get a general idea about how to use the platform checkout TODO. Furthermore, it might be helpful to check out the TODO in order to get an idea of the concepts of the Kaapana platform.
+In order to get a general idea about how to use the platform checkout :ref:`what_is_kaapana` and https://www.kaapana.ai. Furthermore, it might be helpful to check out the :ref:`user_guide`, in order to get an idea of the concepts of the Kaapana platform.
 
 .. _Write your first own DAG:
 
@@ -61,7 +61,7 @@ In order to deploy now a new DAG that convert DICOMs to nrrds, create a file cal
 That's it basically. Now we can check if the DAG is successfully added to Airflow and then we can test our workflow!
 
 * Go to Airflow and check if your newly added DAG ``example-dcm2nrrd`` appears under DAGs (it might take up to five minutes that airflow recognizes the DAG! Alternatively you could restart the Airflow Pod in Kubernetes)
-* If there is an error in the created DAG file like indexing, library imports, etc, you will see an error at the top of the Airflow page
+* If there is an error in the created DAG file like indexing, library imports, etc., you will see an error at the top of the Airflow page
 * Go to the Meta-Dashboard 
 * Filter via the name of your dataset and with ``+/-`` icons on the different charts your images to which you want to apply the algorithm 
 * From the drop-down, choose the DAG you have created i.e. ``example-dcm2nrrd`` and press the start button. In the appearing pop-up window press start again and the execution of your DAG is triggered.
@@ -75,10 +75,10 @@ Deploy an own processing algorithm to the platform
 In this chapter we will write an exemplary workflow that opens a DICOM file with Pydicom, extracts the study id, saves the study id in a json file and pushes the json file to Minio.
 
 We introduce two different workflows to realize this goal. The first workflow will be called the "integrated workflow" and, as the name says, 
-integrates the developement process into the environment of a running kaapana platform, which gives us access to the resources of running kaapana instance, especially all data.
-The second workflow is called the "local workflow" and describes how one can emulate the kaapana environment on a local machine.
+integrates the development process into the environment of a running Kaapana platform, which gives us access to the resources of running Kaapana instance, especially all data.
+The second workflow is called the "local workflow" and describes how one can emulate the Kaapana environment on a local machine.
 
-Integrated Kaapana developement workflow
+Integrated Kaapana development workflow
 ----------------------------------------
 
 .. _Provide an empty base image:
@@ -86,7 +86,7 @@ Integrated Kaapana developement workflow
 Step 1: Provide an empty base image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In Kaapana every component is provided inside a docker container. To develop an algorithm within the kaapana instance we have to provide a container, to start with. Since we 
+In Kaapana every component is provided inside a docker container. To develop an algorithm within the Kaapana instance we have to provide a container, to start with. Since we 
 provide our algorithm as a python implementation of a DAG (see: :ref:`Write your first own DAG`), we start with a minimal python image:
 
 .. code-block:: docker
@@ -103,16 +103,16 @@ To utilize our base image, we have to push it to our registry.
     sudo docker build -t <docker-registry><docker-repo>/example-extract-study-id:0.1.0
     sudo docker push
 
-Since we just used a generic python image as a template for our algorithm and made it available in the kaapana registry, we can also reuse it for any other
+Since we just used a generic python image as a template for our algorithm and made it available in the Kaapana registry, we can also reuse it for any other
 python based algorithm.
-TODO evtl image korrekt taggen
+.. TODO evtl image korrekt taggen
 
 .. _Create a developement DAG:
 
-Step 2: Create a developement DAG
+Step 2: Create a development DAG
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In the next step we want to load our python base image inside the kaapana platform and access it with the built in code server to implement our algorithm there.
+In the next step we want to load our python base image inside the Kaapana platform and access it with the built-in code server to implement our algorithm there.
 To do so, we need to create an operator that loads the image and a DAG that executes the operator.
 
 We define the operator in a file located under ``dags/example``:
@@ -123,9 +123,9 @@ The DAG can look like this:
 
 .. literalinclude:: ../../templates_and_examples/examples/proccessing-pipelines/extract-study-id/extension/docker/files/dag_example_extract_study_id.py (edited) 
 
-The DAG is just a sequence of different operaters. In our example the ``LocalGetInputDataOperator`` 
-loads the data we want to work with. The ``ExtractStudyIdOperator`` loads our empty base image and utilizes the kaapana code-server as developement server 
-to implement our algorithm inside the active container. This is is achieved by the ``dev_server="code-server"`` parameter.
+The DAG is just a sequence of different operators. In our example the ``LocalGetInputDataOperator`` 
+loads the data we want to work with. The ``ExtractStudyIdOperator`` loads our empty base image and utilizes the Kaapana code-server as development server 
+to implement our algorithm inside the active container. This is achieved by the ``dev_server="code-server"`` parameter.
 
 .. _Start the Dag and implement the algorithm:
 
@@ -133,7 +133,7 @@ Step 3: Start the Dag and implement the algorithm
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Now we want to trigger the DAG, so we go to the meta-dashboard, select the data we want to work with and run our DAG. 
-Our DAG should now be listed in the "pending applications" tab, as shown below. To access the code server we click on the blue link icon beside the nam of the DAG.
+Our DAG should now be listed in the "pending applications" tab, as shown below. To access the code server we click on the blue link icon beside the name of the DAG.
 
 We can now implement and test our algorithm. In our example the algorithm is a python script, that extracts the study IDs from the loaded data and returns it.
 
@@ -143,7 +143,7 @@ We can now implement and test our algorithm. In our example the algorithm is a p
 
 .. literalinclude:: ../../templates_and_examples/examples/proccessing-pipelines/extract-study-id/proccessing-containers/files/extract_study_id.py
 
-We just store the python file in the root direcory of the docker container, e.g. as ``/extract_study_id.py``.
+We just store the python file in the root directory of the docker container, e.g. as ``/extract_study_id.py``.
 
 .. _Push the algorithm to the repository:
 
@@ -152,7 +152,7 @@ Step 3: Push the algorithm to the repository
 
 When we are finished with the implementation, we can push the algorithm to our registry. To do so, we create a ``files`` 
 directory beside the docker file of the original container and 
-put a copy of our script inside it. Then we adjust our dockerfile such that the container executes the script.
+put a copy of our script inside it. Then we adjust our docker file such that the container executes the script.
 
 .. literalinclude:: ../../templates_and_examples/examples/proccessing-pipelines/extract-study-id/proccessing-containers 
 
@@ -163,23 +163,23 @@ Afterwards we can build and push the finished image to our registry.
     sudo docker build -t <docker-registry><docker-repo>/example-extract-study-id:0.1.0
     sudo docker push
 
-Since we finished the implementation process we also don't want the DAG to initiate a dev-server everytime, we can 
+Since we finished the implementation process we also don't want the DAG to initiate a dev-server every time, we can 
 delete the ``dev-serve="code-server"`` option from the initialization of the ``ExtractStudyIdOperator`` in 
 ``dag_example_extract_study_id.py``.
 
-.._Local developement workflow:
+_Local development workflow:
 
-Local developement workflow
+Local development workflow
 ---------------------------
 
-Alternatively we can also develop our algorithm on a local machine and then nuild and push 
-the rsulting docker container to our registry.
+Alternatively we can also develop our algorithm on a local machine and then build and push 
+the resulting docker container to our registry.
 
 To do so we need to download the data we want to work with. To access the DICOM data for our example, go to the 
 Meta-dashboard, select the data you want and trigger the ``download-selected-files`` DAG. 
 
-Additionally we need to emulate the kaapana environement on the local machine. We can achieve this by setting several environment variables, which usually would 
-be configured by kaapana automatically. In our case we can just configure the environment variables in the beginning of 
+Additionally, we need to emulate the Kaapana environment on the local machine. We can achieve this by setting several environment variables, which would usually 
+be configured by Kaapana automatically. In our case we can just configure the environment variables in the beginning of 
 our python script:
 
 .. code-block:: python
@@ -192,7 +192,7 @@ our python script:
     os.environ["OPERATOR_OUT_DIR"] = "output"
 
 Afterwards we build and push the docker container as described in :ref:`Push the algorithm to the repository`. 
-To run the algorithm in kaapana we load it with an operator and build a DAG as described in :ref:`Create a developement DAG`.  
+To run the algorithm in Kaapana we load it with an operator and build a DAG as described in :ref:`Create a developement DAG`.  
 
 
 .. _Deploy a Flask Application on the platform:

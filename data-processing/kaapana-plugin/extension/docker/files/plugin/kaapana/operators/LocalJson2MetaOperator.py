@@ -15,6 +15,23 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
+    """
+	This operater pushes JSON data to Elasticsearch.
+
+    Pushes JSON data to the specified Elasticsearch instance. If meta-data already exists, it can either be updated or replaced, depending on the no_update parameter.
+    If the operator fails, some or no data is pushed to Elasticsearch.
+	Further information about Elasticsearch can be found here: https://elasticsearch-py.readthedocs.io/en/latest/
+
+	**Inputs:**
+
+	* JSON data that should be pushed to Elasticsearch
+
+	**Outputs:**
+
+	* If successful, the given JSON data is included in Elasticsearch
+
+	"""
+
 
     def start(self, ds, **kwargs):
         global es
@@ -145,7 +162,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
 
     def produce_inserts(self, new_json):
         global es
-        
 
         if self.check_in_pacs:
             self.check_pacs_availability(self.instanceUID)
@@ -189,16 +205,32 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                  dicom_operator=None,
                  json_operator=None,
                  jsonl_operator=None,
-                 set_dag_id=False,
-                 no_update=False,
-                 avalability_check_delay = 10,
-                 avalability_check_max_tries = 15,
-                 elastic_host='elastic-meta-service.meta.svc',
-                 elastic_port=9200,
-                 elastic_index="meta-index",
-                 check_in_pacs=True,
+                 set_dag_id: bool = False,
+                 no_update: bool = False,
+                 avalability_check_delay: int = 10,
+                 avalability_check_max_tries: int = 15,
+                 elastic_host: str = 'elastic-meta-service.meta.svc',
+                 elastic_port: int = 9200,
+                 elastic_index: str = "meta-index",
+                 check_in_pacs: bool = True,
                  *args, 
                  **kwargs):
+
+        """
+		:param dicom_operator: Used to get elasticsearch document ID from dicom data. Only used with json_operator.
+		:param json_operator: Provides json data, use either this one OR jsonl_operator.
+		:param jsonl_operator: Provides json data, which is read and pushed line by line. This operator is prioritized over json_operator.
+		:param set_dag_id: Only used with json_operator. Setting this to True will use the dag run_id as the elasticsearch document ID when dicom_operator is not given.
+		:param no_update: If there is a series found with the same ID, setting this to True will replace the series with new data instead of updating it.
+		:param avalability_check_delay: When checking for series availability in PACS, this parameter determines how many seconds are waited between checks in case series is not found.
+		:param avalability_check_max_tries: When checking for series availability in PACS, this parameter determines how often to check for series in case it is not found.
+		:param elastic_host: Host adress for Elasticsearch.
+		:param elastic_port: Port for Elasticsearch.
+		:param elastic_index: Specifies the index of Elasticsearch where to put data into.
+		:param check_in_pacs: Determines whether or not to search for series in PACS. If set to True and series is not found in PACS, the data will not be put into Elasticsearch.
+		"""
+
+
 
         self.dicom_operator = dicom_operator
         self.json_operator = json_operator

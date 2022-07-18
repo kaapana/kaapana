@@ -384,7 +384,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 "CUDA_VISIBLE_DEVICES": str(gpu_id)
             })
 
-        # if context['dag_run'].conf is not None and "conf" in context['dag_run'].conf and "form_data" in context['dag_run'].conf["conf"] and context['dag_run'].conf["conf"]["form_data"] is not None:
+
         if context['dag_run'].conf is not None and "form_data" in context['dag_run'].conf and context['dag_run'].conf["form_data"] is not None:
             form_data = context['dag_run'].conf["form_data"]
             print(form_data)

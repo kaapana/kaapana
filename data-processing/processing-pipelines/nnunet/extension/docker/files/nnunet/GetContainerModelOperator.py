@@ -12,8 +12,8 @@ class GetContainerModelOperator(KaapanaBaseOperator):
 
     def pre_execute(self, context):
         print("++++++++++++++++++++++++++++ pre_execute operator")
-        if context['dag_run'].conf is not None and "conf" in context['dag_run'].conf and "form_data" in context['dag_run'].conf["conf"] and "task" in context['dag_run'].conf["conf"]["form_data"]:
-            form_data = context['dag_run'].conf["conf"]["form_data"]
+        if context['dag_run'].conf is not None and "form_data" in context['dag_run'].conf and "task" in context['dag_run'].conf["form_data"]:
+            form_data = context['dag_run'].conf["form_data"]
             self.model = form_data["model"] if "model" in form_data else "2d"
             self.task_id = form_data["task"]
         else:

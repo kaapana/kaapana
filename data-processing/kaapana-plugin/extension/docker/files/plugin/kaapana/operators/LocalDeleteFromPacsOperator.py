@@ -22,11 +22,10 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         conf = kwargs['dag_run'].conf
         print('conf', conf)
-        if 'conf' in conf \
-                and 'form_data' in conf['conf'] \
-                and conf['conf']['form_data'] is not None \
-                and 'delete_complete_study' in conf['conf']['form_data']:
-            self.delete_complete_study = conf['conf']['form_data']['delete_complete_study']
+        if 'form_data' in conf \
+                and conf['form_data'] is not None \
+                and 'delete_complete_study' in conf['form_data']:
+            self.delete_complete_study = conf['form_data']['delete_complete_study']
             print('Delete entire study set to ', self.delete_complete_study)
         run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
         batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]

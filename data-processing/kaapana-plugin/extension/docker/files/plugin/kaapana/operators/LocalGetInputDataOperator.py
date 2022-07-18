@@ -33,7 +33,6 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
     """
 
     def check_dag_modality(self, input_modality):
-        # config = self.conf["conf"] if "conf" in self.conf else None
         config = self.conf
         input_modality = input_modality.lower()
         if config is not None and "form_data" in config and config["form_data"] is not None and "input" in config[
@@ -123,7 +122,6 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         self.conf = kwargs['dag_run'].conf
 
         # if self.cohort_limit is None and self.inputs is None and self.conf is not None and "conf" in self.conf:
-        #     trigger_conf = self.conf["conf"]
         if self.cohort_limit is None and self.inputs is None and self.conf is not None:
             trigger_conf = self.conf
             self.cohort_limit = int(trigger_conf["cohort_limit"]) if "cohort_limit" in trigger_conf and trigger_conf["cohort_limit"] is not None else None

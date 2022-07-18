@@ -123,6 +123,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                  allow_federated_learning=False,
                  whitelist_federated_learning=None,
                  delete_input_on_success=False,
+                 delete_output_on_start=True,
                  # Other stuff
                  enable_proxy=False,
                  no_proxy=None,
@@ -179,7 +180,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             whitelist_federated_learning=whitelist_federated_learning,
             batch_name=batch_name,
             workflow_dir=workflow_dir,
-            delete_input_on_success=delete_input_on_success
+            delete_input_on_success=delete_input_on_success,
+            delete_output_on_start=delete_output_on_start
         )
 
         # Airflow
@@ -502,8 +504,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 r.raise_for_status()
             return 
 
-        if self.allow_federated_learning is False:
-            # Note that in FL settings we might load data into the directory via prehooks
+        if self.delete_output_on_start is True:
             KaapanaBaseOperator.delete_operator_out_dir(context['run_id'], self.operator_out_dir)
     
         try:
@@ -639,7 +640,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         whitelist_federated_learning,
         batch_name,
         workflow_dir,
-        delete_input_on_success
+        delete_input_on_success,
+        delete_output_on_start
     ):
 
         obj.name = name
@@ -661,6 +663,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         obj.allow_federated_learning = allow_federated_learning
         obj.whitelist_federated_learning = whitelist_federated_learning
         obj.delete_input_on_success = delete_input_on_success
+        obj.delete_output_on_start = delete_output_on_start
 
         obj.batch_name = batch_name if batch_name != None else BATCH_NAME
         obj.workflow_dir = workflow_dir if workflow_dir != None else WORKFLOW_DIR
@@ -683,6 +686,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             obj.operator_in_dir = input_operator.operator_out_dir
         elif operator_in_dir is not None:
             obj.operator_in_dir = operator_in_dir
+
+        if obj.allow_federated_learning is True:
+            obj.delete_output_on_start = False
 
         enable_job_scheduler = True if Variable.get("enable_job_scheduler", default_var="True").lower() == "true" else False
         if obj.pool == None:

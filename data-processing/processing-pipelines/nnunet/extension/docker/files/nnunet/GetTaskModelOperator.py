@@ -18,6 +18,7 @@ class GetTaskModelOperator(KaapanaBaseOperator):
                 operator_out_dir="/models",
                 mode="install_pretrained",
                 enable_proxy=True,
+                delete_output_on_start=False,
                 env_vars={},
                 execution_timeout=execution_timeout,
                 **kwargs
@@ -61,6 +62,7 @@ class GetTaskModelOperator(KaapanaBaseOperator):
             execution_timeout=execution_timeout,
             env_vars=env_vars,
             enable_proxy=enable_proxy,
+            delete_output_on_start=delete_output_on_start,
             ram_mem_mb=1000,
             **kwargs
         )

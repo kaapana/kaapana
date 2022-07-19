@@ -4,6 +4,8 @@ Getting Started
 ===============
 
 .. toctree::
-    :glob:
+    :maxdepth: 2
 
-    getting_started/*
+    getting_started/getting_started_intro
+    getting_started/build
+    getting_started/deployment

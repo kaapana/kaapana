@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Kaapana's documentation!
-===================================
+KAAPANA Documentation
+=====================
 
 .. toctree::
    :maxdepth: 2
@@ -16,11 +16,11 @@ Welcome to Kaapana's documentation!
    extensions
    platform_guide_root
    development_guide_root
+   api_documentation_root
    faq_root
    publication_citation
    releases
-   kaapana_license
-   oss_notices
+   license
    glossary
    contact
    

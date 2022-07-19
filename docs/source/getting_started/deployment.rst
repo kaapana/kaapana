@@ -3,27 +3,51 @@
 Server Deployment
 ==================
 
+Requirements
+------------
+
+#. **Host system**
+
+   | You will need some kind of :term:`server` to run the platform on.
+   | Minimum specs:
+
+   - OS: Ubuntu 20.04 or Ubuntu Server 20.04
+   - CPU: 4 cores 
+   - Memory: 8GB (for processing > 30GB recommended) 
+   - Storage: 100GB (deploy only) / 150GB (local build)  -> (recommended >200GB) 
+
+#. **Access to a docker registry or a tarball with built docker containers**
+   Before proceeding with further installation steps, make sure you have access to a docker registry or a tarball with built Kaapana docker containers, otherwise please visit :ref:`getting_started`.
+
+   .. hint::
+
+      | **Get access to our docker registry or a tarball with the built docker containers**
+      | In case you just want to try out the platform, you are very welcome to reach out to us (:ref:`contact`). In this case, we will provide you either with credentials to our docker registry or with a tarball that contains the docker containers from which you can directly install the platform and skip the building part!
+
+   To provide the services in Kaapana, the corresponding containers are needed.
+   These can be looked at as normal binaries of Kaapana and therefore only need to be built if you do not have access to already built containers via a container registry or a tarball.
+   This flow-chart should help you to decide if you need to build Kaapana and which mode to choose:
+
+   .. mermaid::
+
+      flowchart TB
+         a1(Do you want to use a remote container registry or a tarball for your Kaapana installation?)
+         a1-->|Yes| a2(Do you already have access to a registry or a tarball containing all needed containers?)
+         a1-->|No| b1
+         a2-->|Yes| c1
+         a2-->|No| b1
+         b1(Build Kaapana) --> c1
+         c1(Install Kaapana)
+
+
+#. **Known Server Configuration**
+   The **domain, hostname or IP-address** has to be known and correctly configured for the system. 
+   If a **proxy** is needed, it should already be configured at ``/etc/environment`` (reboot needed after configuration!). 
+
+
 Deploy a Kaapana Platform
 -------------------------
-
-.. important::
-
-   | **Access to a docker registry or a tarball with built docker containers:**
-   | Before proceeding with further installation steps, make sure you have access to a docker registry or a tarball with built Kaapana docker containers, otherwise please visit :ref:`getting_started`.
    
-
-| The **domain, hostname or IP-address** has to be known and correctly configured for the system. 
-| If a **proxy** is needed, it should already be configured at ``/etc/environment`` (reboot needed after configuration!). 
-
-
-.. hint::
-
-  | **Supported browsers**
-  | We recommend Chrome as a browser.
-  | Supported are the newest versions of Google Chrome and Firefox. 
-  | Safari has some known issues with the user-interface of Traefik, some functionalities of the OHIF viewer as well as no-vnc-based application (like MITK). 
-  | Internet Explorer and Microsoft Edge are not really tested. 
-
 Step 1: Server Installation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 This part describes the preparation of the host system for Kaapana.

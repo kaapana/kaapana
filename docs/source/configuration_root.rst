@@ -4,6 +4,8 @@ Configuration
 =============
 
 .. toctree::
-    :glob:
+    :maxdepth: 3
 
-    configuration/*
+    configuration/build_config
+    configuration/server_config
+    configuration/platform_config

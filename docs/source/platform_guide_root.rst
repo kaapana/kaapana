@@ -1,9 +1,10 @@
 .. _platform_user_guide:
 
-Pltatform User Guide
+Platform User Guide
 ====================
 
 .. toctree::
-    :glob:
+    :maxdepth: 2
 
-    platform_user_guide/*
+    platform_user_guide/platform_user_guide_intro
+    platform_user_guide/platform_user_guide_fs

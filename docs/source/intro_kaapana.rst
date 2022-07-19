@@ -1,7 +1,8 @@
-.. _what_is_kaapana:
+.. _about_kaapana:
 
-Kaapana
+KAAPANA
 =======
+
 
 .. _dcm4chee: https://www.dcm4che.org/
 .. _Elasticsearch: https://www.elastic.co/de/elasticsearch/

@@ -1,18 +1,20 @@
 .. _dev_guide_doc:
 
-Development guide
-=================
+Introduction
+------------
 
 This guide is intended to provide a quick and easy way to get started with developments on the platform.
  
-The guide currently consists of four parts. The parts :ref:`Write your first own DAG` and :ref:`Deploy an own processing algorithm to the platform` focus on the implementation of pipelines for Airflow in order to apply processing steps to images. The part :ref:`Deploy a Flask Application on the platform` explains how to develop a flask web application and integrate it as an extension into the Kaapana technology stack. The last section :ref:`Provide a workflow as an extension` gives step by step instructions for how to deploy your own DAG as an extension to the platform.
+The guide currently consists of four parts. The parts :ref:`Write your first own DAG` and :ref:`Deploy an own processing algorithm to the platform` focus on the implementation of pipelines for Airflow in order to apply processing steps to images.
+The part :ref:`Deploy a Flask Application on the platform` explains how to develop a flask web application and integrate it as an extension into the Kaapana technology stack.
+The last section :ref:`Provide a workflow as an extension` gives step by step instructions for how to deploy your own DAG as an extension to the platform.
 
 
 Getting started
-^^^^^^^^^^^^^^^
+---------------
 
 List of the technologies used within this guide
------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 These tutorials/technologies are good references, when starting with the Kaapana deployment:
 
 * `Docker <https://docs.docker.com/get-docker/>`_: Necessary when you want to build container on your local machine
@@ -23,7 +25,7 @@ These tutorials/technologies are good references, when starting with the Kaapana
 All of the below examples are taken from the ``templates_and_examples`` folder of our Github repository!
 
 Preparations for the development
---------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 **Requirements:**
 
 * Running version of the Kaapana platform and access to a terminal where the platform is running
@@ -56,7 +58,7 @@ Write your first own DAG
 
 In order to deploy now a new DAG that convert DICOMs to nrrds, create a file called ``dag_example_dcm2nrrd.py`` inside the ``dags``-folder with the following content:
 
-.. literalinclude:: ../../templates_and_examples/examples/workflows/airflow-components/dags/dag_example_dcm2nrrd.py
+.. literalinclude:: ../../../templates_and_examples/examples/workflows/airflow-components/dags/dag_example_dcm2nrrd.py
     
 That's it basically. Now we can check if the DAG is successfully added to Airflow and then we can test our workflow!
 
@@ -85,7 +87,7 @@ First of all, it is important that your script works. For this, we will simulate
 
 * Now we create the following python script ``extract_study_id.py``. Make sure that we have Pydicom installed:
 
-.. literalinclude:: ../../templates_and_examples/examples/workflows/processing-container/extract-study-id/files/extract_study_id.py
+.. literalinclude:: ../../../templates_and_examples/examples/workflows/processing-container/extract-study-id/files/extract_study_id.py
 
 .. hint::
 
@@ -98,7 +100,7 @@ Step 2: Check if our scripts runs inside a Docker container
 
 The next step is to put the algorithm into a Docker container and test if everything works as expected. For this we will put the ``extract_study_id.py`` in a folder called ``files``, comment again the os.environ section and create the following file called ``Dockerfile`` next to the files directory:
 
-.. literalinclude:: ../../templates_and_examples/examples/workflows/processing-container/extract-study-id/Dockerfile
+.. literalinclude:: ../../../templates_and_examples/examples/workflows/processing-container/extract-study-id/Dockerfile
 
 The Dockerfile basically copies the python script and executes it.
 
@@ -154,14 +156,14 @@ Now, we will embed the created Docker container into an operator that will be pa
 * Create a folder called ``example`` inside the ``dags`` directory
 * Create a file called ``ExtractStudyIdOperator.py`` with the following content inside the example folder:
 
-.. literalinclude:: ../../templates_and_examples/examples/workflows/airflow-components/dags/example/ExtractStudyIdOperator.py
+.. literalinclude:: ../../../templates_and_examples/examples/workflows/airflow-components/dags/example/ExtractStudyIdOperator.py
 
 .. hint::
    | Since the operators inherits from the ``KaapanaBaseOperator.py`` all the environment variables that we have defined earlier manually are passed now automatically to the container. Studying the ``KaapanaBaseOperator.py`` you see that you can pass e.g. also a dictionary called ``env_vars`` in order to add additional environment variables to your Docker container! 
 
 * In order to use this operator, create a file called ``dag_example_extract_study_id.py`` with the following content inside the Dag directory:
 
-.. literalinclude:: ../../templates_and_examples/examples/workflows/airflow-components/dags/dag_example_extract_study_id.py
+.. literalinclude:: ../../../templates_and_examples/examples/workflows/airflow-components/dags/dag_example_extract_study_id.py
 
 * Now you can again test the final dag by executing it via the Meta-Dashboard to some image data. If everything works fine, you will find the generated data in Minio.  
 
@@ -352,7 +354,7 @@ Add the following lines to ``files/requirements.yaml``
 
   - name: hello-world-chart
     version: 0.1.0
-    repository: file://../../../../../../services/applications/hello-world/hello-world-chart
+    repository: file://../../../../../../../../../services/applications/hello-world/hello-world-chart
 
 Run ``helm dep up`` to update helm dependencies. You should now see ``hello-world-chart-0.1.0.tgz`` file inside the ``/charts`` folder.
 Next, build and push the docker container 
@@ -404,7 +406,7 @@ Next, go back to the ``airflow-components`` folder and build the DAG
 
 ::
 
-   cd ../../airflow-components/
+   cd ../../../airflow-components/
    docker build -t <docker-registry>/<docker-repo>/dag-example:0.1.0 -f ../dag-installer/example/Dockerfile.example
    sudo docker push <docker-registry>/<docker-repo>/dag-example:0.1.0
 
@@ -412,7 +414,7 @@ Next, go back to the ``airflow-components`` folder and build the DAG
 Step 3: Helm package
 ---------------------------------------------------
 
-Similar to the application deployment, we will package a Helm chart for our workflow. First we should go to dag-installer folder via ``cd ../../workflows/dag-installer/``. 
+Similar to the application deployment, we will package a Helm chart for our workflow. First we should go to dag-installer folder via ``cd ../../../workflows/dag-installer/``. 
 
 .. hint::
 
@@ -433,13 +435,13 @@ Run ``helm ls`` and you should see ``example-workflow``
 Step 4: Restart ``kaapana-stab-extensions`` pod
 ---------------------------------------------------
 
-First move to the chart directory with ``cd ../../services/extensions-manager/kaapana-extensions/kaapana-stab-extensions/docker/`` and add the DAG path ``files/requirements.yaml`` file as follows
+First move to the chart directory with ``cd ../../../services/extensions-manager/kaapana-extensions/kaapana-stab-extensions/docker/`` and add the DAG path ``files/requirements.yaml`` file as follows
 
 ::
 
   - name: example-workflow
     version: 0.1.0
-    repository: file://../../../../../../workflows/dag-installer/example/example-workflow
+    repository: file://../../../../../../../../../workflows/dag-installer/example/example-workflow
 
 
 Create the tgz file via ``helm dep up`` and push the new docker container via

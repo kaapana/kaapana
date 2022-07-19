@@ -1,7 +1,10 @@
-.. _install_kaapana:
+.. _deplyoment:
 
-Install Kaapana
-===============
+Server Deployment
+==================
+
+Deploy a Kaapana Platform
+-------------------------
 
 .. important::
 
@@ -22,7 +25,7 @@ Install Kaapana
   | Internet Explorer and Microsoft Edge are not really tested. 
 
 Step 1: Server Installation
----------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 This part describes the preparation of the host system for Kaapana.
 Besides a few required software packages, mainly Microk8s is installed, to setup Kubernetes. 
 
@@ -62,7 +65,7 @@ To do this, you can use the :term:`server-installation-script`, located at :code
    | :code:`sudo ./server_installation.sh -gpu`
 
 Step 2: Platform Deployment
----------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. hint::
 
@@ -177,4 +180,43 @@ After a successful installation you'll get the following message:
    password: kaapana
 
 
+Undeploy a Kaapana Platform
+---------------------------
+
+Step 1: Platform Uninstallation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To uninstall Kaapana platform, kaapana-platform-chart and all related charts need to be deleted. For that, run the installation script :code:`./install_platform.sh` and choose the **3) Uninstall** option.
+
+If the **uninstallation fails**, make sure to manually check 
+
+1. All helm charts are deleted. All helm charts in Kaapana are created with the same namespace so that they are distinguished from possible other charts
+
+   :code:`helm ls -n kaapana`
+
+2. All pods are deleted. Kaapana uses multiple namespaces for managing deployment and pods, i.e. **kaapana, flow-jobs flow, monitoring, store, meta, base**
+
+   :code:`kubectl get pods -A`
+
+.. hint::
+
+   | The :code:`./install_platform.sh` script also has a purge flag.
+   | :code:`--purge-kube-and-helm` will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the uninstallation fails or runs forerver.
+
+
+.. note:: 
+   | If the Kaapana instance uses GPU, the script will not uninstall the **gpu-operator** chart. You can delete this chart by running 
+      
+   | :code:`helm uninstall gpu-operator`
+   
+
+
+Step 2: Server Uninstallation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In order to remove helm and microk8s from your system, you can use the server installation script with --uninstall flag.
+
+   | :code:`sudo ./server_installation.sh --uninstall`
+
+And reboot your system
+ 
+   :code:`sudo reboot`
 

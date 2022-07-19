@@ -24,30 +24,7 @@ this is the Kibana dashboard. Select "Management" on the left hand side and then
 is a refresh button. By clicking this button the meta-data will be updated for the view. Now your dashboard should work as expected!
 
 
-Proxy configuration
--------------------
 
-If you need to configure a proxy in your institution to access internet, you can do this as following:
-
-| Open **/etc/environment** with vi insert:
-
-| http\_proxy="your.proxy.url:port"
-| https\_proxy="your.proxy.url:port"
-
-| HTTP\_PROXY="your.proxy.url:port"
-| HTTPS\_PROXY="your.proxy.url:port"
-
-::
-
-    logout
-
-Login again
-
-::
-
-    ping www.dkfz-heidelberg.de 
-
-Should work -> network connection is working
 
 .. _faq_doc kubernetes_connection:
 
@@ -145,3 +122,4 @@ Follow these steps to fix this issue:
    to :code:`https://my-correct-domain:443/minio-console/oauth_callback/`
 7. Scroll down and save the changes
 8. Press Ctrl+F5 to refresh the page and the cache
+

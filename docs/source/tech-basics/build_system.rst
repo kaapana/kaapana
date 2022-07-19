@@ -4,7 +4,7 @@ How the build-system of Kaapana works
 =====================================
 
 This document focuses on the steps which are performed during the kaapana build process.
-For details on how the build proccess is correctly started read :ref:`build_kaapana`.
+For details on how the build proccess is correctly started read :ref:`build`.
 Assuming the kaapana repository was cloned into the :code:`kaapana/` directory the build process is usually 
 started by executing 
 

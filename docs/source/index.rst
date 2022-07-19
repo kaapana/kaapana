@@ -9,17 +9,18 @@ Welcome to Kaapana's documentation!
 .. toctree::
    :maxdepth: 2
    
-   what_is_kaapana
-   getting_started
-   build_kaapana
-   install_kaapana
-   uninstall_kaapana
+   intro_kaapana
+   getting_started_root
+   configuration_root
    tech_basics_root
-   user_guide
    extensions
-   development_guide
-   api
+   platform_guide_root
+   development_guide_root
    faq_root
-   glossary
+   publication_citation
    releases
-   main_license
+   kaapana_license
+   oss_notices
+   glossary
+   contact
+   

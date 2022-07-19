@@ -1,13 +1,10 @@
 .. _license_doc:
 
-License and contact
-===================
-
-License
-^^^^^^^
+Kaapana License
+===============
 
 This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published
+it under the terms of the **GNU Affero General Public License** as published
 by the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
@@ -34,19 +31,3 @@ Kaapana is built upon the great work of many other open source projects, see the
 since providing pre-built docker containers and licensing for highly modular container based systems is 
 `a complex task <https://www.linuxfoundation.org/blog/2020/04/docker-containers-what-are-the-open-source-licensing-considerations/>`_. 
 We have done our very best to fulfil all requirements, and the choice of AGPL was motivated mainly to make sure we can improve and advance Kaapana in the best way for the whole community. If you have thoughts about this or if you disagree with our way using a particular third-party toolkit or miss something please let us know and get in touch. We are open for any feedback and advice on this challenging topic.
-
-Contact
-^^^^^^^
-
-| Kaapana Team Heidelberg
-| kaapana@dkfz-heidelberg.de
-
-| German Cancer Research Center (DKFZ)
-| Division of Medical Image Computing (MIC)
-
-| Deutsches Krebsforschungzentrum
-| Radiologisches Forschungs- und Entwicklungszentrum
-| Im Neuenheimer Feld 280
-| 69120 Heidelberg
-
-Copyright (C) 2020  German Cancer Research Center (DKFZ)

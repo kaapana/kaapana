@@ -1,4 +1,4 @@
-.. _build_kaapana:
+.. _build:
 
 Build Kaapana
 =============
@@ -12,11 +12,11 @@ The results of this build (containers and charts) are usually pushed into a regi
   | Only build the project if you don't have access to an existing registry containing the Kaapana binaries or if you want to setup your own infrastructure. (Evaluation registry access can be requested at the DKFZ Kaaoana Team)
   | 
   | **2) You don't need to build the repository at the deployment server!**
-  | A typical misunderstanding we have often been hearing is that you need to clone the repository on the deployment server and build it there. That is not the case! The repository can be built on a completely different machine and the results then made available via a registry. Practically, it is even recommended to separate the repository and the deployment server. Of course it is possible to build the repository on the deployment server (and there is also the possibility to work completely without a registry) - but this should be done in rather rare cases. 
+  | A typical misconception we often hear is that you need to clone the repository on the deployment server and build it there. That is not the case! The repository can be built on a completely different machine and the results then made available via a registry. Practically, it is even recommended to separate the repository and the deployment server. Of course it is possible to build the repository on the deployment server (and there is also the possibility to work completely without a registry) - but this should be done in rather rare cases. 
   | 
 
-Installation Of Requirements
-----------------------------
+Build Requirements
+------------------
 Perform these steps on the build-machine! Recommended operating system is Ubuntu 20.04.
 
 .. important::
@@ -157,4 +157,4 @@ Start Build
 
 #. You can find the build-logs and results at :code:`./kaapana/build`
 
-#. If everything has worked, you can proceed with the installation of the deployment server: :ref:`install_kaapana`.
+#. If everything has worked, you can proceed with the installation of the deployment server: :ref:`deplyoment`.

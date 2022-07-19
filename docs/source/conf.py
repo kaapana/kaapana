@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath('../../data-processing/kaapana-plugin/extensi
 # -- Project information -----------------------------------------------------
 
 project = 'Kaapana'
-copyright = '2020, MIC @DKFZ'
+copyright = '2022, MIC @DKFZ'
 author = 'MIC @DKFZ'
 
 # The short X.Y version
@@ -89,7 +89,11 @@ pygments_style = None
 #
 #html_theme = 'alabaster'
 html_theme = "sphinx_rtd_theme"
-
+html_logo = "_static/img/kaapana_logo_mono.png"
+html_theme_options = {
+    'logo_only': True,
+    'display_version': True,
+}
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

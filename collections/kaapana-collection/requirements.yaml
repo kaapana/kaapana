@@ -60,6 +60,3 @@ dependencies:
   - name: openedc-chart
     version: 0.1.0
     repository: file://../../services/applications/openEDC/openedc-chart
-  - name: example-threshold-segmentation-workflow
-    version: 0.1.0
-    repository: file://../../templates_and_examples/examples/proccessing-pipelines/treshold-segmentation/extension/threshold-segmentation-workflow/

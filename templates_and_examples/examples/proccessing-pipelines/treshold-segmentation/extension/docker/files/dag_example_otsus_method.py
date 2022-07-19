@@ -48,10 +48,11 @@ dag = DAG(
 get_input = LocalGetInputDataOperator(dag=dag)
 convert = DcmConverterOperator(dag=dag, input_operator=get_input)
 otsus_method = OtsusMethodOperator(dag=dag, input_operator=convert)
-create_seg = Itk2DcmSegOperator(dag=dag, segmentation_operator=otsus_method,
+seg_to_dcm = Itk2DcmSegOperator(dag=dag, segmentation_operator=otsus_method,
                                 single_label_seg_info="abdomen",
-                                input_operator=get_input)
-dcm_send = DcmSendOperator(dag=dag, input_operator=get_input)
+                                input_operator=get_input,
+                                series_description="Otsu's method")
+dcm_send = DcmSendOperator(dag=dag, input_operator=seg_to_dcm)
 clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 
-get_input >> convert >> otsus_method >> create_seg >> dcm_send >> clean
+get_input >> convert >> otsus_method >> seg_to_dcm >> dcm_send >> clean

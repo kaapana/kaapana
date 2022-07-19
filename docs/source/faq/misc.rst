@@ -10,7 +10,7 @@ Kibana dashboard does not work
 You open Kibana/Meta and you see something like this?
 
 
-.. figure:: _static/img/kibana_bug.png
+.. figure:: ../_static/img/kibana_bug.png
    :align: center
    :scale: 25%
 

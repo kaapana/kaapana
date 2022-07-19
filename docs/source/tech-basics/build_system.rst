@@ -1,4 +1,4 @@
-.. _build_system
+.. _kaapana_build_system:
 
 How the build-system of Kaapana works
 =====================================
@@ -19,7 +19,7 @@ inside :code:`kaapana/`.
     | - Helm_
 
 Configuration steps
------------
+-------------------
 
 At first step a path to the kaapana repository is determined.
 Then a config file is searched.

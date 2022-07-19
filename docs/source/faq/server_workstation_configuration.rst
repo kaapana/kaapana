@@ -23,8 +23,6 @@ Login again
 
 Should work -> network connection is working
 
-.. _faq_doc kubernetes_connection:
-
 
 Setup a connection to the Kubernetes cluster from your local workstation
 ------------------------------------------------------------------------

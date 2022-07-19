@@ -12,7 +12,6 @@ Welcome to Kaapana's documentation!
    what_is_kaapana
    getting_started
    build_kaapana
-   build_system
    install_kaapana
    uninstall_kaapana
    tech_basics_root

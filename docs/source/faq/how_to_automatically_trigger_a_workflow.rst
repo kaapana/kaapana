@@ -8,18 +8,19 @@ And add the operator LocalAutoTriggerOperator to your workflow.
 
 Example:
 
-::
-   [
-      {
-         "search_tags": {},
-         "dag_ids": {
-               <dag id to trigger>: {
-                  "fetch_method": "copy",
-                  "single_execution" : false
-               }
+.. code-block::
+
+      [
+         {
+            "search_tags": {},
+            "dag_ids": {
+                  <dag id to trigger>: {
+                     "fetch_method": "copy",
+                     "single_execution" : false
+                  }
+            }
          }
-      }
-   ]
+      ]
 
 * Specify specifc DICOM tags as search_tags if desired
 * Define the dag id to trigger (<dag id to trigger>)

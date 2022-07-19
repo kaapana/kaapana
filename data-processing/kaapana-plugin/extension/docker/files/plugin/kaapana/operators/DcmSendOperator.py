@@ -15,11 +15,11 @@ class DcmSendOperator(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  name: str = "dcmsend",
-                 ae_title: str = 'NONE',
-                 pacs_host: str = 'ctp-dicom-service.flow.svc',
-                 pacs_port: str = '11112',
+                 ae_title: str = "NONE",
+                 pacs_host: str = "ctp-dicom-service.flow.svc",
+                 pacs_port: str = "11112",
                  env_vars=None,
-                 level: str = 'element',
+                 level: str = "element",
                  check_arrival: bool = False,
                  execution_timeout: datetime = timedelta(minutes=60),
                  **kwargs
@@ -32,16 +32,13 @@ class DcmSendOperator(KaapanaBaseOperator):
         :param env_vars: Environment variables
         :param level: "element" or "batch"
             If batch, an operator folder next to the batch folder with .dcm files is expected.
-            If element, *.dcm are expected in the corresponding operator with .dcm files is expected.'
+            If element, *.dcm are expected in the corresponding operator with .dcm files is expected.
         :param check_arrival: Verifies if data transfer was successful
         :param execution_timeout: timeout for connection requests
         """
 
-        if level not in ['element', 'batch']:
-            raise NameError('level must be either "element" or "batch". \
-                If batch, an operator folder next to the batch folder with .dcm files is expected. \
-                If element, *.dcm are expected in the corresponding operator with .dcm files is expected.'
-                            )
+        if level not in ["element", "batch"]:
+            raise NameError("level must be either 'element' or 'batch'. If batch, an operator folder next to the batch folder with .dcm files is expected. If element, *.dcm are expected in the corresponding operator with .dcm files is expected.")
 
         if env_vars is None:
             env_vars = {}

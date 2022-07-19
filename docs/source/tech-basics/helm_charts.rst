@@ -8,7 +8,7 @@ Helm is a package manager for Kubernetes, it helps to define and manage differen
 
 `Helm quickstart <https://helm.sh/docs/intro/quickstart/>`_ provides a fast introduction to main concepts in Helm. For the installation part, note that the :term:`server-installation-script` uses snap to fetch the most recent Helm version available.
 
-For a detailed explanation of how to use templates in Helm refer to `here <https://helm.sh/docs/chart_template_guide>`_ .
+For a detailed explanation of how to use templates in Helm refer to `helm docs <https://helm.sh/docs/chart_template_guide>`_ .
 
 
 
@@ -71,7 +71,7 @@ Here are some example folder structures for different types of Kaapana component
     
  - **requirements.yaml** is used for defining the required charts for the chart to work. Running :code:`helm dep up` creates a deps folder with the definition files of these charts
     
- - **values.yaml** contains the information that can be used in template files. This makes updating the details in multiple Kubernetes objects easier via using `{{ .Values.fieldName }}` placeholder. More details on how to use values files can be found `here <https://helm.sh/docs/chart_template_guide/values_files/>`_ .
+ - **values.yaml** contains the information that can be used in template files. This makes updating the details in multiple Kubernetes objects easier via using `{{ .Values.fieldName }}` placeholder. More details on how to use values files can be found at `helm.sh <https://helm.sh/docs/chart_template_guide/values_files/>`_ .
 
 
 

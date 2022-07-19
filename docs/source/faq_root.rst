@@ -3,8 +3,7 @@
 Frequently Asked Questions (FAQ)
 ================================
 
+.. toctree::
+   :glob:
 
-    faq/*
-    
-    tech-basics/*
-    
+   faq/*

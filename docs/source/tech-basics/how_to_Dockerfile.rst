@@ -10,7 +10,7 @@ In order to get an overview how to generally design Dockerfiles take a look at t
 *  ...
 
 Base images
----------------------------------
+-----------
 Common base images which are frequently used in Kaapana Dockerfiles are "ubuntu:20.04" or "python:3.9-alpine". The selection of your base image should be guided by the following points:
 
 *  Select small-sized base images to reduce the size of the images which are built from the Dockerfile
@@ -21,7 +21,7 @@ Common base images which are frequently used in Kaapana Dockerfiles are "ubuntu:
 *  Your preferences in terms of package managers (e.g. Ubuntu base images use „apt“, Alpine images use „apk“)
 
 Labels
----------------------------------
+------
 Docker images can be labeled in the Dockerfile to organize the created Docker images, to provide further (meta) information and to enable automation. The Docker instruction ``LABEL`` does not add a layer on the image such that you do not have put all ``LABEL`` instructions in one line, although this is still supported. Labels which are used to organize the Kaapana Docker images are the following:
 
 *  ``REGISTRY``: defines the registry to which the Docker image is pushed
@@ -33,7 +33,7 @@ Docker images can be labeled in the Dockerfile to organize the created Docker im
 *  ``PROJECT``: **TODO: ???**
 
 Package managers: apt, apk
----------------------------------
+--------------------------
 Based on the selection of the base image, you have to load packages with different package managers: ``apt`` package manager (ubuntu/debain based), ``apk`` package manager (alpine based). It is recommended to cover as many ``apt``/ ``apk`` package installations as possible in one ``RUN`` statement, since each ``RUN`` statement adds a layer to the image. It is always recommended to not install any packages which are not used by any executive part of the code. In order to preserve a good overview over the installed packages, it is recommended to sort them in an alphabetical order.
 In the following, best practices are given for both package manager:
 
@@ -44,7 +44,7 @@ In the following, best practices are given for both package manager:
     *  Remove apk-cache: ``&& rm -rf /var/cache/apk/*`` or add ``--no-cache`` flag
 
 Installation of python packages: ``pip install``
----------------------------------------------------
+------------------------------------------------
 Python packages are installed using pip. Thereby the following best practices are recommended:
 
 *  Outsource all requirements to an external ``requirements.txt`` file which is located in ``/files/requirements.txt``
@@ -55,12 +55,12 @@ Python packages are installed using pip. Thereby the following best practices ar
 *  Do not install python packages which are un-used in the executed code
 
 Multi-stage setups
----------------------------------
+------------------
 Use multi-stage Dockerfiles if e.g. a Dockerfile conatins the building as well as the deployment of an application in order to seperate these two processes from each other. Thereby, all build dependencies are left behind in first (build) stage and only the "things" which are really needed are kept for the second stage.
 Both stages have to be clearly marked as „build-stage“ (1st stage) and „runtime“ (2nd stage).
 
 General advices
----------------------------------
+---------------
 
 *  Avoid too many layers and try to reduce number of image layers
     *  ``RUN``, ``COPY``, ``ADD`` statements add layers to the Docker image
@@ -72,7 +72,7 @@ General advices
 *  Utilize ``WORKDIR`` to avoid specifying lengthy paths when ``COPY`` files, ...
 
 Example of a Kaapana Dockerfile for a **workflow**:
------------------------------------------------------
+---------------------------------------------------
 Write the processing algorithm of your workflow in a python file: ``example-workflow.py``.
 Write the Dockerfile for the workflow which installs requirements, copies the ``example-workflow.py`` file and executes the algorithm.
 

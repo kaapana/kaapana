@@ -1,9 +1,0 @@
----
-apiVersion: v1
-appVersion: "0.1.0"
-description: A Dag to create a treshhold segmentation
-name: treshhold-segmentation-workflow
-version: "0.1.0"
-keywords:
-- kaapanaworkflow
-- kaapanaexperimental

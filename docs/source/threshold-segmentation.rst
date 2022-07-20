@@ -6,21 +6,21 @@ We want to provide this workflow as an extension to the kaapana platform.
 
 **Requirements:** You need the image `local-image/dag-installer:0.1.0` available in order to build the image for the DAG.
 
-Step 1: Build an image for the proccessing algorithm
+Step 1: Build an image for the processing algorithm
 ---------------------------------------
 
-* Create a directory for the proccessing algorithm 
+* Create a directory for the processing algorithm 
 ::
 
-    mkdir -p threshold-segmentation/proccessing-containers/otsus-method/files/
+    mkdir -p threshold-segmentation/processing-containers/otsus-method/files/
 
 * In the :code:`files` directory create a file called `otsus_method.py` that contains the segmentation algorithm based on Otsu's method:
 
-.. literalinclude:: ../../templates_and_examples/examples/proccessing-pipelines/treshold-segmentation/processing-containers/otsus-method/files/otsus_method.py
+.. literalinclude:: ../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/processing-containers/otsus-method/files/otsus_method.py
 
 * In the :code:`otsus-method` directory create a :code:`Dockerfile` with the content:
 
-.. literalinclude:: ../../templates_and_examples/examples/proccessing-pipelines/treshold-segmentation/processing-containers/otsus-method/Dockerfile
+.. literalinclude:: ../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/processing-containers/otsus-method/Dockerfile
 
 Starting this container will execute the segmentation algorithm.
 
@@ -48,11 +48,11 @@ Step 2: Create an image for the DAG
 
 * Inside the folder :code:`extension/docker/files/otsus-method` create the :code:`OtsusMethodOperator.py` file
 
-.. literalinclude:: ../../templates_and_examples/examples/proccessing-pipelines/treshold-segmentation/extension/docker/files/otsus-method/OtsusMethodOperator.py
+.. literalinclude:: ../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/docker/files/otsus-method/OtsusMethodOperator.py
 
 * Create a python file :code:`dag_example_thresholding_segmentation.py` for the DAG in the folder :code:`extension/docker/files/`
 
-.. literalinclude:: ../../templates_and_examples/examples/proccessing-pipelines/treshold-segmentation/extension/docker/files/dag_example_otsus_method.py
+.. literalinclude:: ../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/docker/files/dag_example_otsus_method.py
 .. hint:: 
     The DAG will perform the following steps:
     Get the dicom files (LocalGetInputDataOperator) 
@@ -68,7 +68,7 @@ Step 2: Create an image for the DAG
 
 * In :code:`extension/docker/` create the :code:`Dockerfile` for the DAG
 
-.. literalinclude:: ../../templates_and_examples/examples/proccessing-pipelines/treshold-segmentation/extension/docker/Dockerfile
+.. literalinclude:: ../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/docker/Dockerfile
 
 .. hint:: 
     The base image :code:`local-only/dag-installer:0.1.0` scans all .py files in :code:`tmp` for images and pulls them via the Helm API.
@@ -92,7 +92,7 @@ Step 2: Create an image for the DAG
 Step 3: Create the helm chart
 -----------------------------
 
-* Create a folder for the chart. Inside :code:`treshold-segmentation/extension/` run 
+* Create a folder for the chart. Inside :code:`threshold-segmentation/extension/` run 
 :: 
 
     mkdir -p threshold-segmentation-workflow
@@ -100,10 +100,10 @@ Step 3: Create the helm chart
 
 * Create a file :code:`Chart.yaml`
 
-.. literalinclude:: ../../templates_and_examples/examples/proccessing-pipelines/treshold-segmentation/extension/threshold-segmentation-workflow/Chart.yaml
+.. literalinclude:: ../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/threshold-segmentation-workflow/Chart.yaml
 * Create a file :code:`requirements.yaml`
 
-.. literalinclude:: ../../templates_and_examples/examples/proccessing-pipelines/treshold-segmentation/extension/threshold-segmentation-workflow/requirements.yaml
+.. literalinclude:: ../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/threshold-segmentation-workflow/requirements.yaml
 
 .. important:: 
     The field :code:`repository` must be the relative path from the file :code:`requirements.yaml` to the directory that contains the 
@@ -112,7 +112,7 @@ Step 3: Create the helm chart
 
 * Create a file :code:`values.yaml`
 
-.. literalinclude:: ../../templates_and_examples/examples/proccessing-pipelines/treshold-segmentation/extension/threshold-segmentation-workflow/values.yaml
+.. literalinclude:: ../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/threshold-segmentation-workflow/values.yaml
 
 .. hint:: 
     These three files define the helm chart that will be installed on the platform in order to provide the algorithm as a workflow.
@@ -156,7 +156,7 @@ We will add the chart of our new DAG to this list and update the dependencies.
 
     - name: example-threshold-segmentation-workflow
       version: 0.1.0
-      repository: file://../../templates_and_examples/examples/proccessing-pipelines/treshold-segmentation/extension/threshold-segmentation-workflow/
+      repository: file://../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/threshold-segmentation-workflow/
 
 .. hint:: 
     The repository field must point from the :code:`kaapana-extension-collection` chart to the directory of the chart for the DAG.

@@ -117,11 +117,11 @@ To do so, we need to create an operator that loads the image and a DAG that exec
 
 We define the operator in a file located under ``dags/example``:
 
-.. literalinclude:: ../../templates_and_examples/examples/proccessing-pipelines/extract-study-id/extension/docker/files/extract-study-id/ExtractStudyIdOperator.py
+.. literalinclude:: ../../templates_and_examples/examples/processing-pipelines/extract-study-id/extension/docker/files/extract-study-id/ExtractStudyIdOperator.py
 
 The DAG can look like this:
 
-.. literalinclude:: ../../templates_and_examples/examples/proccessing-pipelines/extract-study-id/extension/docker/files/dag_example_extract_study_id.py (edited) 
+.. literalinclude:: ../../templates_and_examples/examples/processing-pipelines/extract-study-id/extension/docker/files/dag_example_extract_study_id.py (edited) 
 
 The DAG is just a sequence of different operators. In our example the ``LocalGetInputDataOperator`` 
 loads the data we want to work with. The ``ExtractStudyIdOperator`` loads our empty base image and utilizes the Kaapana code-server as development server 
@@ -141,7 +141,7 @@ We can now implement and test our algorithm. In our example the algorithm is a p
     The code server looks for the ``kaapanasrc`` directory by default. When we use it as dev-server inside the docker container it will prompt an error message, that ``kaapanasrc`` 
     does not exist. You can safely ignore this and go to ``/`` to implement the algorithm. 
 
-.. literalinclude:: ../../templates_and_examples/examples/proccessing-pipelines/extract-study-id/proccessing-containers/files/extract_study_id.py
+.. literalinclude:: ../../templates_and_examples/examples/processing-pipelines/extract-study-id/processing-containers/files/extract_study_id.py
 
 We just store the python file in the root directory of the docker container, e.g. as ``/extract_study_id.py``.
 
@@ -154,7 +154,7 @@ When we are finished with the implementation, we can push the algorithm to our r
 directory beside the docker file of the original container and 
 put a copy of our script inside it. Then we adjust our docker file such that the container executes the script.
 
-.. literalinclude:: ../../templates_and_examples/examples/proccessing-pipelines/extract-study-id/proccessing-containers 
+.. literalinclude:: ../../templates_and_examples/examples/processing-pipelines/extract-study-id/processing-containers 
 
 Afterwards we can build and push the finished image to our registry.
 

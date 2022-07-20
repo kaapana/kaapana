@@ -51,7 +51,7 @@ extensions = [
 
 pdf_documents = [('index', u'kaapana_docs', 'Kaapana documentation', u'MIC @DKFZ'), ]
 mermaid_params = ['--theme', 'forest', '--width', '200', '--backgroundColor', 'transparent']
-autodoc_mock_imports = ['airflow', 'flask', 'flask_admin', 'flask_appbuilder', 'sqlalchemy', 'elasticsearch', 'pydicom', 'kubernetes', 'dicomweb_client', 'minio']
+autodoc_mock_imports = ['airflow', 'cryptography', 'flask', 'flask_admin', 'flask_appbuilder', 'sqlalchemy', 'elasticsearch', 'pydicom', 'kubernetes', 'dicomweb_client', 'minio']
 autoclass_content = 'both'
 
 # Add any paths that contain templates here, relative to this directory.

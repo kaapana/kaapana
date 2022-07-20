@@ -1,1 +1,0 @@
-"treshhold-segmentation" folder with corresponding dag-files must be placed into the folder workflows/dag-installer in order to work with the CI!

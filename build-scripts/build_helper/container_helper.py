@@ -18,11 +18,7 @@ def container_registry_login(username, password):
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
 
     if output.returncode != 0:
-        BuildUtils.logger.error("Something went wrong!")
-        BuildUtils.logger.error(f"Couldn't logout from registry {BuildUtils.default_registry}")
-        BuildUtils.logger.error(f"Message: {output.stdout}")
-        BuildUtils.logger.error(f"Error:   {output.stderr}")
-        exit(1)
+        BuildUtils.logger.info(f"Docker couldn't logout from registry: {BuildUtils.default_registry} -> not logged in!")
 
     BuildUtils.logger.info(f"-> Container registry-login: {BuildUtils.default_registry}")
     command = [Container.container_engine, "login", BuildUtils.default_registry, "--username", username, "--password", password]

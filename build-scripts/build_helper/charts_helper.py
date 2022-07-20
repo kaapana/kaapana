@@ -146,14 +146,8 @@ def helm_registry_login(username, password):
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
 
     if output.returncode != 0 and "Error: not logged in" not in output.stderr:
-        BuildUtils.logger.error(f"Helm couldn't logout from registry: {BuildUtils.default_registry}")
-        BuildUtils.generate_issue(
-            component=suite_tag,
-            name="helm_registry_login",
-            msg=f"Helm couldn't logout from registry {BuildUtils.default_registry}",
-            level="FATAL",
-            output=output
-        )
+        BuildUtils.logger.info(f"Helm couldn't logout from registry: {BuildUtils.default_registry} -> not logged in!")
+
     BuildUtils.logger.info(f"-> Helm registry-login: {BuildUtils.default_registry}")
     command = ["helm", "registry", "login", BuildUtils.default_registry, "--username", username, "--password", password]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)

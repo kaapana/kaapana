@@ -252,7 +252,7 @@ export default Vue.extend({
         .helmApiGet("/update-extensions", {})
         .then((response: any) => {
           this.loading = false;
-          alert(response.data);
+          console.log(response.data);
         })
         .catch((err: any) => {
           this.loading = false;

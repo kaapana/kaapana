@@ -100,7 +100,7 @@
             @click="deleteChart(item)",
             color="primary",
             min-width = "160px",
-            v-if="item.installed === 'yes' && item.successful !== 'pending'"
+            v-if="item.installed === 'yes' && item.successful !== 'pending' && item.successful !== 'justLaunched'"
           ) 
             span(v-if="item.multiinstallable === 'yes'") Delete
             span(v-if="item.multiinstallable === 'no'") Uninstall
@@ -116,9 +116,24 @@
             color="primary",
             min-width = "160px",
             disabled=true,
-            v-if="item.successful === 'pending'"
+            v-if="item.successful === 'justLaunched'"
           ) 
-            span() Pending
+            span() Launched
+          v-menu(:close-on-content-click='false' v-if="item.successful === 'pending'")
+            template(v-slot:activator='{ on, attrs }')
+              v-btn(color="primary", min-width="160px", v-bind='attrs' v-on='on')
+                | Pending
+            v-card(max-width="300px" text-left)
+              v-card-title Pending states
+              v-card-text In case your installation gets stuck in the "pending" state there is most probably something wrong with the helm chart. In that case you can here force to delete/uninstall the extension.
+              v-card-actions
+                v-btn(
+                  @click="deleteChart(item, helmCommandAddons='--no-hooks');",
+                  color="primary",
+                  min-width="160px",
+                ) 
+                  span(v-if="item.multiinstallable === 'yes'") Delete forcefully
+                  span(v-if="item.multiinstallable === 'no'") Uninstall forcefully
 </template>
 
 <script lang="ts">
@@ -259,11 +274,11 @@ export default Vue.extend({
           console.log(err);
         });
     },
-
-    deleteChart(item: any) {
+    deleteChart(item: any, helmCommandAddons: any = '') {
       let params = {
         release_name: item.releaseName,
         release_version: item.version,
+        helm_command_addons: helmCommandAddons
       };
       this.loading = true;
       this.clearExtensionsInterval();
@@ -293,7 +308,11 @@ export default Vue.extend({
         .helmApiPost("/helm-install-chart", payload)
         .then((response: any) => {
           item.installed = "yes";
-          item.successful = "pending";
+          if (item.multiinstallable === 'yes') {
+            item.successful = "justLaunched";
+          } else {
+            item.successful = "pending";
+          }
         })
         .catch((err: any) => {
           this.loading = false;

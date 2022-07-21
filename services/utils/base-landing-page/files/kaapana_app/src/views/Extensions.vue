@@ -123,6 +123,7 @@
             template(v-slot:activator='{ on, attrs }')
               v-btn(color="primary", min-width="160px", v-bind='attrs' v-on='on')
                 | Pending
+                v-icon mdi-chevron-down
             v-card(max-width="300px" text-left)
               v-card-title Pending states
               v-card-text In case your installation gets stuck in the "pending" state there is most probably something wrong with the helm chart. In that case you can here force to delete/uninstall the extension.

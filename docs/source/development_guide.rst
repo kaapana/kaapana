@@ -56,7 +56,7 @@ Write your first own DAG
 
 In order to deploy now a new DAG that convert DICOMs to nrrds, create a file called ``dag_example_dcm2nrrd.py`` inside the ``dags``-folder with the following content:
 
-.. literalinclude:: ../../templates_and_examples/examples/workflows/airflow-components/dags/dag_example_dcm2nrrd.py
+.. literalinclude:: ../../templates_and_examples/examples/processing-pipelines/example/extension/docker/files/dag_example_dcm2nrrd.py
     
 That's it basically. Now we can check if the DAG is successfully added to Airflow and then we can test our workflow!
 
@@ -121,7 +121,7 @@ We define the operator in a file located under ``dags/example``:
 
 The DAG can look like this:
 
-.. literalinclude:: ../../templates_and_examples/examples/processing-pipelines/example/extension/docker/files/dag_example_extract_study_id.py (edited) 
+.. literalinclude:: ../../templates_and_examples/examples/processing-pipelines/example/extension/docker/files/dag_example_extract_study_id.py 
 
 The DAG is just a sequence of different operators. In our example the ``LocalGetInputDataOperator`` 
 loads the data we want to work with. The ``ExtractStudyIdOperator`` loads our empty base image and utilizes the Kaapana code-server as development server 
@@ -154,7 +154,7 @@ When we are finished with the implementation, we can push the algorithm to our r
 directory beside the docker file of the original container and 
 put a copy of our script inside it. Then we adjust our docker file such that the container executes the script.
 
-.. literalinclude:: ../../templates_and_examples/examples/processing-pipelines/example/processing-containers/extract-study-id/Docerfile
+.. literalinclude:: ../../templates_and_examples/examples/processing-pipelines/example/processing-containers/extract-study-id/Dockerfile
 
 Afterwards we can build and push the finished image to our registry.
 

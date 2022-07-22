@@ -10,8 +10,8 @@ Step 1: Build an image for the processing algorithm
 ----------------------------------------------------
 
 First you need to create a directory for the processing algorithm. To remain consistent with the structure of Kaapana 
-we recommend create the new folder in the location
-``kaapana/templates_and_examples/examples/processing-piplines/``.
+we recommend create the new folder in the location 
+``kaapana/data-processing/processing-piplines/``, but in theory it can be located anywhere.
 ::
 
     mkdir -p threshold-segmentation/processing-containers/otsus-method/files/
@@ -160,7 +160,7 @@ First adjust the file :code:`collections/kaapana-collection/requirements.yaml` i
 
     - name: example-threshold-segmentation-workflow
       version: 0.1.0
-      repository: file://../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/threshold-segmentation-workflow/
+      repository: file://../../data-processing/processing-pipelines/threshold-segmentation/extension/threshold-segmentation-workflow/
 
 .. hint:: 
     The repository field must point from the :code:`kaapana-extension-collection` chart to the directory of the chart for the DAG.

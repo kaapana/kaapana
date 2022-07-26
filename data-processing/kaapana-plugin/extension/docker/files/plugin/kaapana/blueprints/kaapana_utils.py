@@ -109,10 +109,7 @@ def requests_retry_session(
                             'federated-backend-service.base,federated-backend-service.base.svc,' \
                                 'minio-service.store,minio-service.store.svc'
         }
-        print('Setting proxies', proxies)
         session.proxies.update(proxies)
-    else:
-        print('Not using proxies!')
 
     return session 
 

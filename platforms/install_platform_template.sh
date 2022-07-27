@@ -16,7 +16,7 @@ CONTAINER_REGISTRY_USERNAME="{{ container_registry_username|default('', true) }}
 CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}"
 
 ######################################################
-# Installation configuration
+# Deployment configuration
 ######################################################
 
 DEV_MODE="{{ dev_mode|default('true', true) }}" # dev-mode -> containers will always be re-downloaded after pod-restart
@@ -156,7 +156,7 @@ function get_domain {
 }
 
 function delete_deployment {
-    echo -e "${YELLOW}Uninstalling releases${NC}"
+    echo -e "${YELLOW}Undeploy releases${NC}"
     helm -n $HELM_NAMESPACE ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $HELM_NAMESPACE uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
     echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
     WAIT_UNINSTALL_COUNT=100
@@ -175,16 +175,16 @@ function delete_deployment {
     microk8s.kubectl delete namespace kaapana --ignore-not-found=true
 
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
-        echo "${RED}Something went wrong while uninstalling please check manually if there are still namespaces or pods floating around. Everything must be delete before the installation:${NC}"
+        echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
         echo "${RED}kubectl get pods -A${NC}"
         echo "${RED}kubectl get namespaces${NC}"
-        echo "${RED}Executing './install_platform.sh --purge-kube-and-helm' is an option to force the resources to be removed.${NC}"        
-        echo "${RED}Once everything is deleted you can reinstall the platform!${NC}"
+        echo "${RED}Executing './deploy_platform.sh --purge-kube-and-helm' is an option to force the resources to be removed.${NC}"        
+        echo "${RED}Once everything is deleted you can re-deploy the platform!${NC}"
         exit 1
     fi
 
 
-    echo -e "${GREEN}####################################  UNINSTALLATION DONE  ############################################${NC}"
+    echo -e "${GREEN}####################################  UNDEPLOYMENT DONE  ############################################${NC}"
 }
 
 function clean_up_kubernetes {
@@ -204,13 +204,13 @@ function clean_up_kubernetes {
 function upload_tar {
     echo "${YELLOW}Importing the images fromt the tar, this might take up to one hour...!${NC}"
     microk8s.ctr images import $TAR_PATH
-    echo "${GREEN}Finished image uplaod! You should now be able to install the platfrom by specifying the chart path.${NC}"
+    echo "${GREEN}Finished image uplaod! You should now be able to deploy the platfrom by specifying the chart path.${NC}"
 }
 
-function install_chart {
+function deploy_chart {
 
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
-        echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the install_platform.sh script!${NC}"
+        echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the deploy_platform.sh script!${NC}"
         echo "${RED}ABORT${NC}"
         exit 1
     fi
@@ -218,7 +218,7 @@ function install_chart {
 
     if [ ! "$QUIET" = "true" ] && [ -z "$CHART_PATH" ];then
         echo -e ""
-        read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to install?: ${NC}" -i $DEFAULT_VERSION chart_version;
+        read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to deploy?: ${NC}" -i $DEFAULT_VERSION chart_version;
     else
         chart_version=$DEFAULT_VERSION
     fi
@@ -252,17 +252,17 @@ function install_chart {
     get_domain
     
     if [ ! -z "$CHART_PATH" ]; then
-        echo -e "${YELLOW}Please note, since you have specified a chart file, you install the platform in OFFLINE_MODE='true'.${NC}"
+        echo -e "${YELLOW}Please note, since you have specified a chart file, you deploy the platform in OFFLINE_MODE='true'.${NC}"
         echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
-        echo -e "${YELLOW}Images are uploaded either with a previous installation from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
+        echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
 
         if [ $(basename "$CHART_PATH") != "$PROJECT_NAME-$DEFAULT_VERSION.tgz" ]; then
-            echo "${RED} Verison of chart_path $CHART_PATH differs from PROJECT_NAME: $PROJECT_NAME and DEFAULT_VERSION: $DEFAULT_VERSION in the installer script.${NC}" 
+            echo "${RED} Verison of chart_path $CHART_PATH differs from PROJECT_NAME: $PROJECT_NAME and DEFAULT_VERSION: $DEFAULT_VERSION in the deployment script.${NC}" 
             exit 1
         fi
 
         while true; do
-        echo -e "${YELLOW}You are installing the platform in offline mode!${NC}"
+        echo -e "${YELLOW}You are deploying the platform in offline mode!${NC}"
             read -p "${YELLOW}Please confirm that you are sure that all images are present in microk8s (yes/no): ${NC}" yn
                 case $yn in
                     [Yy]* ) break;;
@@ -300,7 +300,7 @@ function install_chart {
         CHART_PATH="$SCRIPTPATH/$PROJECT_NAME-$chart_version.tgz"
     fi
 
-    echo "${GREEN}Installing $PROJECT_NAME:$chart_version${NC}"
+    echo "${GREEN}Deploying $PROJECT_NAME:$chart_version${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
     --set-string global.base_namespace="base" \
@@ -356,7 +356,7 @@ function install_chart {
         rm $CHART_PATH
     fi
 
-    print_installation_done
+    print_deployment_done
     
     CONTAINER_REGISTRY_USERNAME=""
     CONTAINER_REGISTRY_PASSWORD=""
@@ -430,8 +430,8 @@ function install_certs {
     echo -e "${GREEN}DONE${NC}"
 }
 
-function print_installation_done {
-    echo -e "${GREEN}Installation finished."
+function print_deployment_done {
+    echo -e "${GREEN}Deployment done."
     echo -e "Please wait till all components have been downloaded and started."
     echo -e "You can check the progress with:"
     echo -e "watch microk8s.kubectl get pods -A"
@@ -472,7 +472,7 @@ usage="$(basename "$0")
 _Flag: --install-certs set new HTTPS-certificates for the platform
 _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
 _Flag: --remove-all-images-docker will delete all Docker images from the system
-_Flag: --purge-kube-and-helm will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the uninstallation fails or runs forerver.
+_Flag: --purge-kube-and-helm will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forerver.
 _Flag: --quiet, meaning non-interactive operation
 
 _Argument: --version of the platform [version]
@@ -485,7 +485,7 @@ _Argument: --upload-tar [path-to-a-tarball]
 _Argument: --version [version]
 
 where version is one of the available platform releases:
-    0.1.0  --> latest Kaapana release
+    0.1.3  --> latest Kaapana release
     $DEFAULT_VERSION  --> latest development version ${NC}"
 
 QUIET=NA
@@ -558,7 +558,7 @@ do
         ;;
 
         --purge-kube-and-helm)
-            echo -e "${YELLOW}Starting Uninstallation...${NC}"
+            echo -e "${YELLOW}Starting undeployment ...${NC}"
             NO_HOOKS="--no-hooks"
             echo -e "${YELLOW}Using --no-hooks${NC}"
             delete_deployment
@@ -591,18 +591,18 @@ echo $deployments
 if [[ $deployments == *"$PROJECT_NAME"* ]] && [[ ! $QUIET = true ]];then
     echo -e "${YELLOW}$PROJECT_NAME already deployed!${NC}"
     PS3='select option: '
-    options=("Re-install" "Uninstall" "Quit")
+    options=("Un- and Re-deploy" "Undeploy" "Quit")
     select opt in "${options[@]}"
     do
         case $opt in
-            "Re-install")
-                echo -e "${YELLOW}Starting re-installation...${NC}"
+            "Un- and Re-deploy")
+                echo -e "${YELLOW}Starting Un- and Re-deployment ...${NC}"
                 delete_deployment
-                install_chart
+                deploy_chart
                 break
                 ;;
-            "Uninstall")
-                echo -e "${YELLOW}Starting Uninstallation...${NC}"
+            "Undeploy")
+                echo -e "${YELLOW}Starting undeployment ...${NC}"
                 delete_deployment
                 exit 0
                 ;;
@@ -619,6 +619,6 @@ elif [[ $deployments == *"$PROJECT_NAME"* ]] && [[ $QUIET = true ]];then
     exit 1
 
 else
-    echo -e "${GREEN}No previous deployment found -> installation${NC}"
-    install_chart
+    echo -e "${GREEN}No previous deployment found -> deploy ${NC}"
+    deploy_chart
 fi

@@ -48,8 +48,8 @@ extensions = [
     'sphinx_tabs.tabs',
     'sphinxcontrib.mermaid'
 ]
-
 pdf_documents = [('index', u'kaapana_docs', 'Kaapana documentation', u'MIC @DKFZ'), ]
+pdf_stylesheets = ['twocolumn']
 mermaid_params = ['--theme', 'forest', '--width', '200', '--backgroundColor', 'transparent']
 autodoc_mock_imports = ['airflow', 'cryptography', 'flask', 'flask_admin', 'flask_appbuilder', 'sqlalchemy', 'elasticsearch', 'pydicom', 'kubernetes', 'dicomweb_client', 'minio']
 autoclass_content = 'both'
@@ -139,7 +139,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'Kaapana.tex', 'DKTK Kaapana\\\\Technical Documentation',
+    (master_doc, 'Kaapana.tex', 'Kaapana Technical Documentation',
      'Kaapana Team Heidelberg', 'manual'),
 ]
 

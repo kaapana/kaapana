@@ -22,9 +22,8 @@ def generate_run_id(dag_id):
 
 def get_release_name(kwargs):
     run_id = kwargs['run_id']
-    release_name = f'kaapanaint-{run_id}'
-    return cure_invalid_name(release_name, r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
-                                max_length=53)
+    release_name = cure_invalid_name(run_id, r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*", max_length=42) # actually 53, but becuse of kaapana-int- 42
+    return f'kaapanaint-{release_name}'
 
 
 def generate_minio_credentials(x_auth_token):

@@ -45,13 +45,34 @@ data:
         static_configs:
         - targets: ['kube-state-metrics.kube-system.svc:8080']
 
-      - job_name: "traefik"
+      - job_name: 'Traefik'
+        scheme: http
         scrape_interval: 30s
-        dns_sd_configs:
-          - names: ['traefik-ingress-service.kube-system.svc']
-            port: 8080
-            type: A
-            refresh_interval: 30s
+        metrics_path: '/metrics'
+        static_configs:
+        - targets: ['traefik.kube-system.svc:8080']
+
+      - job_name: 'Granafa'
+        scheme: http
+        scrape_interval: 30s
+        metrics_path: '/metrics'
+        static_configs:
+        - targets: ['grafana.monitoring.svc:3000']
+
+      - job_name: 'Airflow'
+        scheme: http
+        scrape_interval: 30s
+        metrics_path: '/metrics'
+        static_configs:
+        - targets: ['airflow-service.flow.svc:9102']
+
+      - job_name: 'node-exporter'
+        kubernetes_sd_configs:
+          - role: endpoints
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_endpoints_name]
+          regex: 'node-exporter'
+          action: keep
 
       # Scrape config for nodes (kubelet).
       #

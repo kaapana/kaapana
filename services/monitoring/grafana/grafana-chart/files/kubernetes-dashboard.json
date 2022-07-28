@@ -119,7 +119,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(kube_pod_container_resource_requests{unit=\"core\"}) / sum(machine_cpu_cores)",
+          "expr": "sum(kube_pod_container_resource_requests{unit=\"core\",namespace!=\"flow-jobs\"}) / sum(machine_cpu_cores)",
           "hide": false,
           "legendFormat": "Requests",
           "range": true,
@@ -131,7 +131,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(kube_pod_container_resource_limits{unit=\"core\"}) / sum(machine_cpu_cores)",
+          "expr": "sum(kube_pod_container_resource_limits{unit=\"core\",namespace!=\"flow-jobs\"}) / sum(machine_cpu_cores)",
           "hide": false,
           "legendFormat": "Limits",
           "range": true,
@@ -661,7 +661,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(kube_pod_container_resource_requests{unit=\"core\"})",
+          "expr": "sum(kube_pod_container_resource_requests{unit=\"core\",namespace!=\"flow-jobs\"})",
           "hide": false,
           "legendFormat": "Requests",
           "range": true,
@@ -673,7 +673,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(kube_pod_container_resource_limits{unit=\"core\"})",
+          "expr": "sum(kube_pod_container_resource_limits{unit=\"core\",namespace!=\"flow-jobs\"})",
           "hide": false,
           "legendFormat": "Limits",
           "range": true,
@@ -760,7 +760,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(kube_pod_container_resource_requests{unit=\"byte\"})",
+          "expr": "sum(kube_pod_container_resource_requests{unit=\"byte\",namespace!=\"flow-jobs\"})",
           "hide": false,
           "legendFormat": "Requests",
           "range": true,
@@ -772,7 +772,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(kube_pod_container_resource_limits{unit=\"byte\"})",
+          "expr": "sum(kube_pod_container_resource_limits{unit=\"byte\",namespace!=\"flow-jobs\"})",
           "hide": false,
           "legendFormat": "Limits",
           "range": true,

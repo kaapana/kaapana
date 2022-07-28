@@ -23,7 +23,6 @@ RUN apk update && apk add --no-cache \
     # npm \
     && rm -rf /var/cache/apk/*
 
-
 COPY files/requirements.txt /root/
 RUN python -m pip install --upgrade pip && pip3 install -r /root/requirements.txt
 

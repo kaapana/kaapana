@@ -2,13 +2,16 @@ import os
 import sys
 from pathlib import Path
 import uuid
+from multiprocessing import Pool
 import torch
 import json
 import pickle
 import shutil
 import collections
+from collections import OrderedDict
 from torch.utils.tensorboard import SummaryWriter
 from nnunet.training.model_restore import restore_model
+from nnunet.experiment_planning.DatasetAnalyzer import DatasetAnalyzer
 from batchgenerators.utilities.file_and_folder_operations import join
 import os, psutil
 
@@ -24,6 +27,33 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         checkpoint = join(folder, "model_final_checkpoint.model")
         pkl_file = checkpoint + ".pkl"
         return restore_model(pkl_file, checkpoint, False)
+
+    # https://github.com/MIC-DKFZ/nnUNet/blob/a7d1d875e8fc3f4e93ca7b51b1ba206711844d92/nnunet/experiment_planning/DatasetAnalyzer.py#L181
+    @staticmethod
+    def collect_intensity_properties(v_per_mod, num_processes=8):
+        num_modalities = len(v_per_mod)
+        p = Pool(num_processes)
+
+        results = OrderedDict()
+        for mod_id in range(num_modalities):
+            results[mod_id] = OrderedDict()
+            w = []
+            for iv in v_per_mod[mod_id]:
+                w += iv
+
+            median, mean, sd, mn, mx, percentile_99_5, percentile_00_5 = DatasetAnalyzer._compute_stats(w)
+
+            results[mod_id]['median'] = median
+            results[mod_id]['mean'] = mean
+            results[mod_id]['sd'] = sd
+            results[mod_id]['mn'] = mn
+            results[mod_id]['mx'] = mx
+            results[mod_id]['percentile_99_5'] = percentile_99_5
+            results[mod_id]['percentile_00_5'] = percentile_00_5
+
+        p.close()
+        p.join()
+        return results
 
     def __init__(self, workflow_dir=None, use_minio_mount=None):
         super().__init__(workflow_dir=workflow_dir, use_minio_mount=use_minio_mount)
@@ -66,6 +96,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         if federated_round == -2:
             print('Preprocessing round!')
             preprocessing_path = Path(os.path.join(self.fl_working_dir, str(federated_round)))
+            voxels_in_foreground = {}
             dataset_properties_files = []
             for idx, fname in enumerate(preprocessing_path.rglob('dataset_properties.pkl')):
                 if 'nnUNet_cropped_data' in str(fname):
@@ -73,16 +104,35 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                     if idx == 0:
                         with open(fname, 'rb') as f:
                             concat_dataset_properties = pickle.load(f)
+                        if 'intensityproperties' in concat_dataset_properties:
+                            local_intensityproperties = collections.OrderedDict()
+                            for mod_id, _ in concat_dataset_properties['intensityproperties'].items():
+                                voxels_in_foreground[mod_id] = concat_dataset_properties['intensityproperties'][mod_id]['v']
+                                local_intensityproperties[mod_id] = collections.OrderedDict()
+                                local_intensityproperties[mod_id]['local_props'] =  concat_dataset_properties['intensityproperties'][mod_id]['local_props']
+                                print(idx, mod_id)
+                            concat_dataset_properties['intensityproperties'] = local_intensityproperties
                     else:
                         with open(fname, 'rb') as f:
                             dataset_properties = pickle.load(f)
                         for k in ['all_sizes', 'all_spacings']:
                             concat_dataset_properties[k] = concat_dataset_properties[k] + dataset_properties[k]
                         concat_dataset_properties['size_reductions'].update(dataset_properties['size_reductions'])
-                        for k in ['all_classes', 'modalities', 'intensityproperties']:       
+                        if 'intensityproperties' in concat_dataset_properties:
+                            for mod_id, intensityproperties in concat_dataset_properties['intensityproperties'].items():
+                                voxels_in_foreground[mod_id] = voxels_in_foreground[mod_id] + dataset_properties['intensityproperties'][mod_id]['v']
+                                concat_dataset_properties['intensityproperties'][mod_id]['local_props'].update(dataset_properties['intensityproperties'][mod_id]['local_props'])
+                                print(idx, mod_id)
+                        for k in ['all_classes', 'modalities']:       
                             assert json.dumps(dataset_properties[k]) == json.dumps(concat_dataset_properties[k])
                     print(fname)
-            print(concat_dataset_properties)
+            print(len(dataset_properties_files))
+            if 'intensityproperties' in concat_dataset_properties:
+                global_intensityproperties = nnUNetFederatedTraining.collect_intensity_properties(voxels_in_foreground)
+                for mod_id, _ in concat_dataset_properties['intensityproperties'].items():
+                    print(idx, mod_id)
+                    concat_dataset_properties['intensityproperties'][mod_id].update(global_intensityproperties[mod_id])
+
             for fname in dataset_properties_files:
                 with open(fname, 'wb') as f:
                     pickle.dump(concat_dataset_properties, f)

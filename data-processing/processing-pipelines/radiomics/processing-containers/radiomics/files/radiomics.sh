@@ -71,8 +71,8 @@ function radiomics {
             echo "### COMMAND: /kaapanasrc/MitkCLGlobalImageFeatures.sh -i $file -o $csv_filepath -x $xml_filepath -m $maskfile -rm 1 -sp 1 -head 1 -fl-head 1 $PARAMETERS"
             echo "###"
             chmod +x /kaapanasrc/MitkCLGlobalImageFeatures.sh
+            set -e
             /kaapanasrc/MitkCLGlobalImageFeatures.sh -i "$file" -o "$csv_filepath" -x "$xml_filepath" -m "$maskfile" -rm 1 -sp 1 -head 1 -fl-head 1 $PARAMETERS
-            # /src/MitkCLGlobalImageFeatures.sh -i "$file" -o "$csv_filepath" -x "$xml_filepath" -m "$maskfile" -rm 1 -sp 1 -head 1 -fl-head 1 -fo 1 -cooc 1
             
             retVal=$?
             if [ $retVal -ne 0 ]; then

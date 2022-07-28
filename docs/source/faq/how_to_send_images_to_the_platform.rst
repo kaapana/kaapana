@@ -9,7 +9,7 @@ DICOM storage SCU (dcmsend)
 The easiest way to send data to the platform is to use `dcmsend  <https://support.dcmtk.org/docs/dcmsend.html>`_.
 The default port is 11112. 
 This port can be changed in the during installation:
-:code:`/platforms/kaapana-platform/platform-installation` by changing the DICOM_PORT.
+:code:`/platforms/kaapana-platform/platform-deployment` by changing the DICOM_PORT.
 
 ::
 

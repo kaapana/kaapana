@@ -18,45 +18,45 @@ suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
 
 
-def generate_installation_script(platform_chart):
-    BuildUtils.logger.info(f"-> Generate platform installation script for {platform_chart.name} ...")
+def generate_deployment_script(platform_chart):
+    BuildUtils.logger.info(f"-> Generate platform deployment script for {platform_chart.name} ...")
     file_loader = FileSystemLoader(join(BuildUtils.kaapana_dir, "platforms"))  # directory of template file
     env = Environment(loader=file_loader)
 
     platform_dir = dirname(platform_chart.chart_dir)
-    install_script_config_path = list(Path(platform_dir).rglob("installer_config.yaml"))
+    deployment_script_config_path = list(Path(platform_dir).rglob("deployment_config.yaml"))
 
-    if len(install_script_config_path) != 1:
-        BuildUtils.logger.error(f"Could not find platform installation-script config for {platform_chart.name} at {dirname(platform_chart.chart_dir)}")
-        BuildUtils.logger.error(f"{install_script_config_path=}")
+    if len(deployment_script_config_path) != 1:
+        BuildUtils.logger.error(f"Could not find platform deployment-script config for {platform_chart.name} at {dirname(platform_chart.chart_dir)}")
+        BuildUtils.logger.error(f"{deployment_script_config_path=}")
         BuildUtils.generate_issue(
             component=suite_tag,
-            name="generate_installation_script",
-            msg=f"Could not find platform installation-script config for {platform_chart.name} at {dirname(platform_chart.chart_dir)}",
+            name="generate_deployment_script",
+            msg=f"Could not find platform deployment-script config for {platform_chart.name} at {dirname(platform_chart.chart_dir)}",
             level="ERROR"
         )
         return
 
-    platform_params = yaml.load(open(install_script_config_path[0]), Loader=yaml.FullLoader)
+    platform_params = yaml.load(open(deployment_script_config_path[0]), Loader=yaml.FullLoader)
     platform_params["project_name"] = platform_chart.name
     platform_params["default_version"] = platform_chart.version
     platform_params["project_abbr"] = platform_chart.project_abbr
-    template = env.get_template('install_platform_template.sh')  # load template file
+    template = env.get_template('deploy_platform_template.sh')  # load template file
 
     output = template.render(**platform_params)
 
-    platform_install_script_path = join(platform_dir,"platform-installation","install_platform.sh")
-    with open(platform_install_script_path, 'w') as rsh:
+    platform_deployment_script_path = join(platform_dir,"platform-deployment","deploy_platform.sh")
+    with open(platform_deployment_script_path, 'w') as rsh:
         rsh.write(output)
 
-    platform_install_script_path_build = join(dirname(platform_chart.build_chart_dir),"platform-installation","install_platform.sh")
-    if not os.path.exists(dirname(platform_install_script_path_build)):
-        os.makedirs(dirname(platform_install_script_path_build))
+    platform_deployment_script_path_build = join(dirname(platform_chart.build_chart_dir),"platform-deployment","deploy_platform.sh")
+    if not os.path.exists(dirname(platform_deployment_script_path_build)):
+        os.makedirs(dirname(platform_deployment_script_path_build))
     
-    with open(platform_install_script_path_build, 'w') as rsh:
+    with open(platform_deployment_script_path_build, 'w') as rsh:
         rsh.write(output)
 
-    BuildUtils.logger.debug(f"Install script generated.")
+    BuildUtils.logger.debug(f"Deployment script generated.")
 
 def generate_tree_node(chart_object, tree, parent):
     node_id = f"{parent}-{chart_object.name}"
@@ -280,11 +280,11 @@ class HelmChart:
             
             assert self.project_abbr != None
 
-            installer_config = glob(dirname(self.chart_dir)+"/**/installer_config.yaml", recursive=True)
-            assert len(installer_config) == 1
+            deployment_config = glob(dirname(self.chart_dir)+"/**/deployment_config.yaml", recursive=True)
+            assert len(deployment_config) == 1
 
-            installer_config = installer_config[0]
-            platform_params = yaml.load(open(installer_config), Loader=yaml.FullLoader)
+            deployment_config = deployment_config[0]
+            platform_params = yaml.load(open(deployment_config), Loader=yaml.FullLoader)
             if "kaapana_collections" in platform_params:
                 self.kaapana_collections = platform_params["kaapana_collections"]
 
@@ -841,7 +841,7 @@ class HelmChart:
         platform_chart.push()
         BuildUtils.logger.info(f"{platform_chart.chart_id}: DONE")
 
-        generate_installation_script(platform_chart)
+        generate_deployment_script(platform_chart)
 
         BuildUtils.logger.info("Start container build...")
         containers_built = []

@@ -7,9 +7,9 @@ export HELM_EXPERIMENTAL_OCI=1
 # Main platform configuration
 ######################################################
 
-PROJECT_NAME="starter-platform-chart" # name of the platform Helm chart
-PROJECT_ABBR="sp" # abbrevention for the platform-name
-DEFAULT_VERSION="0.1.1"    # version of the platform Helm chart
+PROJECT_NAME="kaapana-platform-chart" # name of the platform Helm chart
+PROJECT_ABBR="kp" # abbrevention for the platform-name
+DEFAULT_VERSION="0.1.3"    # version of the platform Helm chart
 
 CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 CONTAINER_REGISTRY_USERNAME=""
@@ -453,7 +453,7 @@ fi
 
 SIZE=`df -k --output=size "/var/snap" | tail -n1`
 if [[ $SIZE -lt 81920 ]]; then
-    echo -e "${RED}Your disk space is too small to install the system.${NC}";
+    echo -e "${RED}Your disk space is too small to deploy the system.${NC}";
     echo -e "${RED}There should be at least 80 GiBytes available @ /var/snap ${NC}";
 else
     SIZE=`df -h --output=size "/var/snap" | tail -n1`
@@ -610,7 +610,7 @@ if [[ $deployments == *"$PROJECT_NAME"* ]] && [[ ! $QUIET = true ]];then
         esac
     done
 elif [[ $deployments == *"$PROJECT_NAME"* ]] && [[ $QUIET = true ]];then
-    echo -e "${RED}Project already deplyed!${NC}"
+    echo -e "${RED}Project already deployed!${NC}"
     echo -e "${RED}abort.${NC}"
     exit 1
 

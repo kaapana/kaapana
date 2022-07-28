@@ -1,4 +1,4 @@
-.. _deplyoment:
+.. _deployment:
 
 Server Deployment
 ==================
@@ -22,7 +22,7 @@ Requirements
    .. hint::
 
       | **Get access to our docker registry or a tarball with the built docker containers**
-      | In case you just want to try out the platform, you are very welcome to reach out to us (:ref:`contact`). In this case, we will provide you either with credentials to our docker registry or with a tarball that contains the docker containers from which you can directly install the platform and skip the building part!
+      | In case you just want to try out the platform, you are very welcome to reach out to us (:ref:`contact`). In this case, we will provide you either with credentials to our docker registry or with a tarball that contains the docker containers from which you can directly deploy the platform and skip the building part!
 
    To provide the services in Kaapana, the corresponding containers are needed.
    These can be looked at as normal binaries of Kaapana and therefore only need to be built if you do not have access to already built containers via a container registry or a tarball.
@@ -97,15 +97,15 @@ Step 2: Platform Deployment
   | In the default configuration there are two locations on the filesystem, which will be used for stateful data on the host machine:
   | 1. ``fast_data_dir=/home/kaapana``: Location of data that do not take a lot of space and should be loaded fast. Preferably, a SSD is mounted here.
   | 2. ``slow_data_dir=/home/kaapana``:  Location of huge files, like images or our object store is located here.  Preferably, a HDD is mounted here.
-  | They can be adjusted in the :term:`platform-installation-script` and can also be identical (everything is stored at one place).
+  | They can be adjusted in the :term:`platform-deployment-script` and can also be identical (everything is stored at one place).
 
-The platform is deployed using the :term:`platform-installation-script`, which you can find at :code:`kaapana/platforms/kaapana-platform/platform-installation/install_platform.sh`.
+The platform is deployed using the :term:`platform-deployment-script`, which you can find at :code:`kaapana/platforms/kaapana-platform/platform-deployment/deploy_platform.sh`.
 
 Copy the script to your target-system (server) and **adjust it as described below**:
 
-1. Open the :code:`install_platform.sh` script on the server
+1. Open the :code:`deploy_platform.sh` script on the server
    
-   :code:`nano install_platform.sh`
+   :code:`nano deploy_platform.sh`
 
 2. Have a look at the variables on top of the script.
    
@@ -137,12 +137,12 @@ Copy the script to your target-system (server) and **adjust it as described belo
          CONTAINER_REGISTRY_URL="<registry-url-you-got-from-developer>"
          ...
 
-3. Make it executable with :code:`chmod +x install_platform.sh`
+3. Make it executable with :code:`chmod +x deploy_platform.sh`
 4. Execute the script:
 
 .. note:: 
 
-   If you are use a tarball make sure that you also make the following changes to the :code:`install_platform.sh` file:
+   If you are use a tarball make sure that you also make the following changes to the :code:`deploy_platform.sh` file:
 
    .. code-block:: python
 
@@ -156,15 +156,15 @@ Copy the script to your target-system (server) and **adjust it as described belo
 
    .. tab:: Local build
 
-      :code:`./install_platform.sh --chart-path kaapana/build/kaapana-platform-<version>.tgz`
+      :code:`./deploy_platform.sh --chart-path kaapana/build/kaapana-platform-<version>.tgz`
 
    .. tab:: Private registry
 
-      :code:`./install_platform.sh`
+      :code:`./deploy_platform.sh`
 
    .. tab:: Tarball
 
-      :code:`./install_platform.sh --tar-path <path-to-tarball-file>`
+      :code:`./deploy_platform.sh --tar-path <path-to-tarball-file>`
 
 You may be asked the following questions:
 
@@ -181,18 +181,18 @@ You may be asked the following questions:
    You should enter the **domain, hostname or IP-address** where the server is accessible from client workstations.
    **Keep in mind, that valid SSL-certificates are only working with FQDN domains.**
 
-4. *Which <platform-name> version do you want to install?:*
+4. *Which <platform-name> version do you want to deploy?:*
 
-   Specify the version you want to install.
+   Specify the version you want to deploy.
 
 The script will stop and **wait** until the platform is deployed.
 Since all Docker containers must be downloaded, this may take some time (~15 min).
 
-After a successful installation you'll get the following message:
+After a successful deployment you'll get the following message:
 
 .. code-block:: python
 
-   Installation finished.
+   Deployment done.
    Please wait till all components have been downloaded and started.
    You can check the progress with:
    watch microk8s.kubectl get pods --all-namespaces
@@ -207,11 +207,11 @@ After a successful installation you'll get the following message:
 Undeploy a Kaapana Platform
 ---------------------------
 
-Step 1: Platform Uninstallation
+Step 1: Platform Undeployment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-To uninstall Kaapana platform, kaapana-platform-chart and all related charts need to be deleted. For that, run the installation script :code:`./install_platform.sh` and choose the **3) Uninstall** option.
+To undeploy Kaapana platform, kaapana-platform-chart and all related charts need to be deleted. For that, run the deployment script :code:`./deploy_platform.sh` and choose the **3) Undeploy** option.
 
-If the **uninstallation fails**, make sure to manually check 
+If the **undeployment fails**, make sure to manually check 
 
 1. All helm charts are deleted. All helm charts in Kaapana are created with the same namespace so that they are distinguished from possible other charts
 
@@ -223,8 +223,8 @@ If the **uninstallation fails**, make sure to manually check
 
 .. hint::
 
-   | The :code:`./install_platform.sh` script also has a purge flag.
-   | :code:`--purge-kube-and-helm` will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the uninstallation fails or runs forerver.
+   | The :code:`./deploy_platform.sh` script also has a purge flag.
+   | :code:`--purge-kube-and-helm` will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forerver.
 
 
 .. note:: 

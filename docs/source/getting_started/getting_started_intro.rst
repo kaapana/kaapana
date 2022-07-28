@@ -16,4 +16,4 @@ This basic platform can be used as a starting-point to derive a customized platf
 
 #. **Installation**
 
-   :ref:`deplyoment`
+   :ref:`deployment`

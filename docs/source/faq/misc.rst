@@ -108,7 +108,7 @@ If the resource is still there delete it with the ``no-hooks`` options:
 Minio is not available because of Error 400
 -------------------------------------------
 
-This error usually occurs, when the hostname was set incorrectly in a previous installation.
+This error usually occurs, when the hostname was set incorrectly in a previous deployment.
 Follow these steps to fix this issue:
 
 1. Navigate to Systems>Keycloak in the menu bar

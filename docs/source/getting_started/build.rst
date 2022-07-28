@@ -120,7 +120,7 @@ Start Build
             enable_build_kit: false # Should be false for now: Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/ 
             log_level: "INFO" # DEBUG, INFO, WARN or ERROR
             build_only: false # charts and containers will only be build and not pushed to the registry
-            create_offline_installation: false # Advanced feature - whether to create a docker dump from which the platfrom can be installed offline (file-size ~50GB)
+            create_offline_installation: false # Advanced feature - whether to create a docker dump from which the platfrom can be deployed offline (file-size ~50GB)
             push_to_microk8s: false # Advanced feature - inject container directly into microk8s after build
             exit_on_error: true  # stop immediately if an issue occurs
             enable_linting: true # should be true - checks deployment validity
@@ -141,7 +141,7 @@ Start Build
             enable_build_kit: false # Should be false for now: Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/ 
             log_level: "INFO" # DEBUG, INFO, WARN or ERROR
             build_only: true # charts and containers will only be build and not pushed to the registry
-            create_offline_installation: true # Advanced feature - whether to create a docker dump from which the platfrom can be installed offline (file-size ~50GB)
+            create_offline_installation: true # Advanced feature - whether to create a docker dump from which the platfrom can be deployed offline (file-size ~50GB)
             push_to_microk8s: false # Advanced feature - inject container directly into microk8s after build
             exit_on_error: true  # stop immediately if an issue occurs
             enable_linting: true # should be true - checks deployment validity
@@ -157,4 +157,4 @@ Start Build
 
 #. You can find the build-logs and results at :code:`./kaapana/build`
 
-#. If everything has worked, you can proceed with the installation of the deployment server: :ref:`deplyoment`.
+#. If everything has worked, you can proceed with the installation of the deployment server: :ref:`deployment`.

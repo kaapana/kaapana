@@ -50,13 +50,13 @@ This step also checks if all required local images are present in the collection
 In a similar manner the kaapana directory and all external source directories are scanned for :code:`Chart.yaml` files.
 For each found file an instance of :code:`HelmChart` is initialized and if existing the .tgz file is removed.
 
-Generating installation scripts
+Generating deployment scripts
 -------------------------------
 
-The next step is the creation of installation scripts for each subdirectory of the :code:`kaapana/platforms/` directory.
-The installation script for the starter-platform for example can be found at :code:`kaapana/platforms/starter-platform/platform-installation/install_platform.sh`.
-It is based on :code:`kaapana/platforms/install_platform_template.sh` and configured according to a config file 
-e.g. :code:`kaapana/platforms/starter-platform/platform-installation/installer_config.yaml`.
+The next step is the creation of deployment scripts for each subdirectory of the :code:`kaapana/platforms/` directory.
+The deployment script for the starter-platform for example can be found at :code:`kaapana/platforms/starter-platform/platform-deployment/deploy_platform.sh`.
+It is based on :code:`kaapana/platforms/deploy_platform_template.sh` and configured according to a config file 
+e.g. :code:`kaapana/platforms/starter-platform/platform-deployment/deployment_config.yaml`.
 
 .. hint::
 
@@ -81,7 +81,7 @@ For each platform-chart that should be build the following steps are proccessed:
 2. All helm charts in this tree are recursively packaged and the dependencies are updated, images associated with a chart are tagged in a uniform pattern
 3. The platform-chart is packaged and pushed.
 4. A list of images is generated in an order that allows to build them successively
-5. An installation script is generated
+5. A deployment script is generated
 6. All images in the list generated in step 4 are build and all non-local images are pushed to the registry
 
 .. hint:: 

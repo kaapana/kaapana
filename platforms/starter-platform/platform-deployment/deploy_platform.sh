@@ -7,24 +7,24 @@ export HELM_EXPERIMENTAL_OCI=1
 # Main platform configuration
 ######################################################
 
-PROJECT_NAME="{{ project_name }}" # name of the platform Helm chart
-PROJECT_ABBR="{{ project_abbr }}" # abbrevention for the platform-name
-DEFAULT_VERSION="{{ default_version }}"    # version of the platform Helm chart
+PROJECT_NAME="starter-platform-chart" # name of the platform Helm chart
+PROJECT_ABBR="sp" # abbrevention for the platform-name
+DEFAULT_VERSION="0.1.1"    # version of the platform Helm chart
 
-CONTAINER_REGISTRY_URL="{{ container_registry_url|default('', true) }}" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
-CONTAINER_REGISTRY_USERNAME="{{ container_registry_username|default('', true) }}"
-CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}"
+CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
+CONTAINER_REGISTRY_USERNAME=""
+CONTAINER_REGISTRY_PASSWORD=""
 
 ######################################################
 # Deployment configuration
 ######################################################
 
-DEV_MODE="{{ dev_mode|default('true', true) }}" # dev-mode -> containers will always be re-downloaded after pod-restart
-DEV_PORTS="{{ dev_ports|default('false') }}"
-GPU_SUPPORT="{{ gpu_support|default('false') }}"
+DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart
+DEV_PORTS="false"
+GPU_SUPPORT="false"
 
 HELM_NAMESPACE="kaapana"
-PREFETCH_EXTENSIONS="{{ prefetch_extensions|default('false') }}"
+PREFETCH_EXTENSIONS="false"
 CHART_PATH=""
 NO_HOOKS=""
 
@@ -32,25 +32,24 @@ NO_HOOKS=""
 # Individual platform configuration
 ######################################################
 
-CREDENTIALS_MINIO_USERNAME="{{ credentials_minio_username|default('kaapanaminio', true) }}"
-CREDENTIALS_MINIO_PASSWORD="{{ credentials_minio_password|default('Kaapana2020', true) }}"
+CREDENTIALS_MINIO_USERNAME="kaapanaminio"
+CREDENTIALS_MINIO_PASSWORD="Kaapana2020"
 
-GRAFANA_USERNAME="{{ credentials_grafana_username|default('admin', true) }}"
-GRAFANA_PASSWORD="{{ credentials_grafana_password|default('admin', true) }}"
+GRAFANA_USERNAME="admin"
+GRAFANA_PASSWORD="admin"
 
-KEYCLOAK_ADMIN_USERNAME="{{ credentials_keycloak_admin_username|default('admin', true) }}"
-KEYCLOAK_ADMIN_PASSWORD="{{ credentials_keycloak_admin_password|default('Kaapana2020', true) }}"
+KEYCLOAK_ADMIN_USERNAME="admin"
+KEYCLOAK_ADMIN_PASSWORD="Kaapana2020"
 
-FAST_DATA_DIR="{{ fast_data_dir|default('/home/kaapana')}}" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
-SLOW_DATA_DIR="{{ slow_data_dir|default('/home/kaapana')}}" # Directory on the server, where the DICOM images will be stored (can be slower)
+FAST_DATA_DIR="/home/kaapana" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
+SLOW_DATA_DIR="/home/kaapana" # Directory on the server, where the DICOM images will be stored (can be slower)
 
-HTTP_PORT="{{ http_port|default(80)|int }}"      # -> has to be 80
-HTTPS_PORT="{{ https_port|default(443) }}"    # HTTPS port
-DICOM_PORT="{{ dicom_port|default(11112) }}"  # configure DICOM receiver port
+HTTP_PORT="80"      # -> has to be 80
+HTTPS_PORT="443"    # HTTPS port
+DICOM_PORT="11112"  # configure DICOM receiver port
 
-{% for item in additional_env %}
-{{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}
-{%- endfor %}
+
+INSTANCE_NAME="central"
 
 ######################################################
 
@@ -326,20 +325,18 @@ function deploy_chart {
     --set-string global.http_proxy="$http_proxy" \
     --set-string global.https_port="$HTTPS_PORT" \
     --set-string global.https_proxy="$https_proxy" \
-    {% for item in kaapana_collections -%}
-    --set-string global.kaapana_collections[{{loop.index0}}].name="{{ item.name }}" \
-    --set-string global.kaapana_collections[{{loop.index0}}].version="{{ item.version }}" \
-    {% endfor -%}
+    --set-string global.kaapana_collections[0].name="kaapana-extension-collection" \
+    --set-string global.kaapana_collections[0].version="0.1.0" \
     --set-string global.monitoring_namespace="monitoring" \
     --set-string global.meta_namespace="meta" \
     --set-string global.offline_mode="$OFFLINE_MODE" \
     --set-string global.platform_abbr="$PROJECT_ABBR" \
     --set-string global.platform_version="$chart_version" \
     --set-string global.prefetch_extensions="$PREFETCH_EXTENSIONS" \
-    {% for item in preinstall_extensions -%}
-    --set-string global.preinstall_extensions[{{loop.index0}}].name="{{ item.name }}" \
-    --set-string global.preinstall_extensions[{{loop.index0}}].version="{{ item.version }}" \
-    {% endfor -%}
+    --set-string global.preinstall_extensions[0].name="code-server-chart" \
+    --set-string global.preinstall_extensions[0].version="4.2.0" \
+    --set-string global.preinstall_extensions[1].name="kaapana-plugin-chart" \
+    --set-string global.preinstall_extensions[1].version="0.1.1" \
     --set-string global.pull_policy_jobs="$PULL_POLICY_JOBS" \
     --set-string global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
@@ -348,8 +345,7 @@ function deploy_chart {
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.store_namespace="store" \
     --set-string global.version="$chart_version" \
-    {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
-    {% endfor -%}
+    --set-string global.instance_name="$INSTANCE_NAME" \
     --name-template "$PROJECT_NAME"
 
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
@@ -457,7 +453,7 @@ fi
 
 SIZE=`df -k --output=size "/var/snap" | tail -n1`
 if [[ $SIZE -lt 81920 ]]; then
-    echo -e "${RED}Your disk space is too small to install the system.${NC}";
+    echo -e "${RED}Your disk space is too small to deploy the system.${NC}";
     echo -e "${RED}There should be at least 80 GiBytes available @ /var/snap ${NC}";
 else
     SIZE=`df -h --output=size "/var/snap" | tail -n1`
@@ -614,7 +610,7 @@ if [[ $deployments == *"$PROJECT_NAME"* ]] && [[ ! $QUIET = true ]];then
         esac
     done
 elif [[ $deployments == *"$PROJECT_NAME"* ]] && [[ $QUIET = true ]];then
-    echo -e "${RED}Project already deplyed!${NC}"
+    echo -e "${RED}Project already deployed!${NC}"
     echo -e "${RED}abort.${NC}"
     exit 1
 

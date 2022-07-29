@@ -1,7 +1,7 @@
 .. _kaapana_build_system:
 
 How the build-system of Kaapana works
-=====================================
+*************************************
 
 This document focuses on the steps which are performed during the kaapana build process.
 For details on how the build proccess is correctly started read :ref:`build`.

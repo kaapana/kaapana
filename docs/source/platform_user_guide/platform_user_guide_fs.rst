@@ -1,7 +1,8 @@
 .. _platform_user_guide_fs:
 
 First Steps
-===========
+***********
+
 This manual is intended to provide a quick and easy way to get started with the :term:`kaapana-platform`. In detail, after given default configurations we will introduce the storage,
 the processing and the core stack of the platform and show examples of how to use them.
 
@@ -179,7 +180,7 @@ Please check out the `documentation of Keycloak <https://www.keycloak.org/docume
 
 Depending on your needs you can add users manually or connect Keycloak instance i.e. to an Active Directory.
 
-* **Adding a user manually**: Once you are logged in you can add users in the section **Users**. By selecting a user you can change i.e. his password in the tab **Credentials** or change his role under **Role mappings**. Try i.e. to add a user who has no admin rights, only user rights. Currently there are only two user roles. The **admin** has some more privileges than a normal **user**, i.e. a **user** can not access the Kubernetes dashboard and can not see all components on the landing page.
+* **Adding a user manually**: Once you are logged in you can add users in the section **Users**. By selecting a user you can change i.e. his password in the tab **Credentials** or change his role under **Role mappings**.Try i.e. to add a user who has no admin rights, only user rights. Currently there are only two user roles. The **admin** has some more privileges than a normal **user**, i.e. a **user** can not access the Kubernetes dashboard and can not see all components on the landing page.
 * **Connecting with an Active Directory**: In order to connect to an active directory go to the tap **User Federation**. Depending on your needs select *ldap* or *kerberos*. The necessary configuration you should be able to get from your institution. If everything is configured correctly you should be able to login with your credentials from the Active Directory.
 
 Grafana and Prometheus
@@ -193,7 +194,7 @@ The graphical dashboards present states such as disk space, CPU and GPU memory u
 Kubernetes: Your first place to look if something does not work
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-As mentioned above, Kubernetes is the basis of the whole platform. You can talk to Kubernetes either via the Kubernetes Dashboard, accessible on the landing page or via the terminal directly on your server. You can even talk to the Kuberentes cluster from another machine by setting up a connection to it (see :ref:`here <faq_doc kubernetes_connection>`). In case anything on the platform is not working, Kubernetes is the first place to go. Here are two use cases, when you might need to access Kubernetes.
+As mentioned above, Kubernetes is the basis of the whole platform. You can talk to Kubernetes either via the Kubernetes Dashboard, accessible on the landing page or via the terminal directly on your server. In case anything on the platform is not working, Kubernetes is the first place to go. Here are two use cases, when you might need to access Kubernetes.
 
 **Case 1: Service is down**
 

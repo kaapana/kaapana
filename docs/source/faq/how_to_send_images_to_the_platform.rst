@@ -1,5 +1,5 @@
 How to send images to the platform
-===================================
+**********************************
 The current predominate image format of the platform is DICOM. Therefore this section describes how to get DICOM files.
 The kaapana platform has several services allowing receive and process DICOM files.
 *Different helper scripts to upload files can be found in the `kaapana/utils` folder.*

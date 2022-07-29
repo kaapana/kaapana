@@ -1,10 +1,10 @@
 .. _deployment:
 
-Server Deployment
-==================
+Platform Deployment
+*******************
 
-Requirements
-------------
+Deployment Requirements
+-----------------------
 
 #. **Host system**
 
@@ -12,9 +12,10 @@ Requirements
    | Minimum specs:
 
    - OS: Ubuntu 20.04 or Ubuntu Server 20.04
-   - CPU: 4 cores 
-   - Memory: 8GB (for processing > 30GB recommended) 
-   - Storage: 100GB (deploy only) / 150GB (local build)  -> (recommended >200GB) 
+   - CPU: 8 cores (recommended 16+)
+   - RAM: 64GB+ (recommended 128GB+) 
+   - Storage for application-data (fast-dir): 100GB -> (recommended >200GB) 
+   - Storage for imaging-data (slow-dir): depends on your needs 
 
 #. **Access to a docker registry or a tarball with built docker containers**
    Before proceeding with further installation steps, make sure you have access to a docker registry or a tarball with built Kaapana docker containers, otherwise please visit :ref:`getting_started`.
@@ -28,39 +29,33 @@ Requirements
    These can be looked at as normal binaries of Kaapana and therefore only need to be built if you do not have access to already built containers via a container registry or a tarball.
    This flow-chart should help you to decide if you need to build Kaapana and which mode to choose:
 
-   .. mermaid::
+   .. .. mermaid::
 
-      flowchart TB
-         a1(Do you want to use a remote container registry or a tarball for your Kaapana installation?)
-         a1-->|Yes| a2(Do you already have access to a registry or a tarball containing all needed containers?)
-         a1-->|No| b1
-         a2-->|Yes| c1
-         a2-->|No| b1
-         b1(Build Kaapana) --> c1
-         c1(Install Kaapana)
+   ..    flowchart TB
+   ..       a1(Do you want to use a remote container registry or a tarball for your Kaapana installation?)
+   ..       a1-->|Yes| a2(Do you already have access to a registry or a tarball containing all needed containers?)
+   ..       a1-->|No| b1
+   ..       a2-->|Yes| c1
+   ..       a2-->|No| b1
+   ..       b1(Build Kaapana) --> c1
+   ..       c1(Install Kaapana)
 
 
 #. **Known Server Configuration**
    The **domain, hostname or IP-address** has to be known and correctly configured for the system. 
-   If a **proxy** is needed, it should already be configured at ``/etc/environment`` (reboot needed after configuration!). 
+   **Proxy**, **DNS**, **TLS/SSL Certificates** etc. should be already configured (see :ref:`server_config`). 
 
-
-Deploy a Kaapana Platform
--------------------------
    
-Step 1: Server Installation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Installation of Server Dependencies 
+-----------------------------------
+
 This part describes the preparation of the host system for Kaapana.
 Besides a few required software packages, mainly Microk8s is installed, to setup Kubernetes. 
 
 .. hint::
 
-  | **GPU support -> Currently only Nvidia GPUs are supported!**
-  | GPU support requires installation of the `Nvidia drivers <https://www.nvidia.de/Download/index.aspx?lang=en>`_ .
-  | For Ubuntu Server 20.04 :code:`sudo apt install nvidia-driver-450-server`
-  | should also work **BUT** check the hibernation settings afterwards (`see <https://www.unixtutorial.org/disable-sleep-on-ubuntu-server/>`_) 
-  | -> :code:`sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target`
-  | --> reboot required!
+  | **GPU support (Nvidia GPUs)**
+  | GPU support requires the installation of Nvidia drivers.
   | Please make sure the :code:`nvidia-smi` command is working as expected!
 
 Before the example platform "Kaapana-platform" can be deployed, all dependencies must be installed on the server. 
@@ -88,8 +83,14 @@ To do this, you can use the :term:`server-installation-script`, located at :code
 
    | :code:`sudo ./server_installation.sh -gpu`
 
-Step 2: Platform Deployment
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. hint::
+
+  | **Server Dependency Uninstallation**
+  | To uninstall the server-packages, you can use :code:`sudo ./server_installation.sh --uninstall`
+
+
+Platform Deployment
+-------------------
 
 .. hint::
 
@@ -112,14 +113,6 @@ Copy the script to your target-system (server) and **adjust it as described belo
 **You need to do at least the following customizations:**
 
 .. tabs::
-
-   .. tab:: Local build
-
-      .. code-block:: python
-
-         ...
-         CONTAINER_REGISTRY_URL=""
-         ...
 
    .. tab:: Private registry
 
@@ -153,10 +146,6 @@ Copy the script to your target-system (server) and **adjust it as described belo
       ...
 
 .. tabs::
-
-   .. tab:: Local build
-
-      :code:`./deploy_platform.sh --chart-path kaapana/build/kaapana-platform-<version>.tgz`
 
    .. tab:: Private registry
 
@@ -204,12 +193,10 @@ After a successful deployment you'll get the following message:
    password: kaapana
 
 
-Undeploy a Kaapana Platform
----------------------------
+Undeploy Platform
+^^^^^^^^^^^^^^^^^
 
-Step 1: Platform Undeployment
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-To undeploy Kaapana platform, kaapana-platform-chart and all related charts need to be deleted. For that, run the deployment script :code:`./deploy_platform.sh` and choose the **3) Undeploy** option.
+To undeploy Kaapana platform, kaapana-platform-chart and all related charts need to be deleted. For that, run the deployment script :code:`./deploy_platform.sh` and choose the **2) Undeploy** option.
 
 If the **undeployment fails**, make sure to manually check 
 
@@ -225,22 +212,3 @@ If the **undeployment fails**, make sure to manually check
 
    | The :code:`./deploy_platform.sh` script also has a purge flag.
    | :code:`--purge-kube-and-helm` will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forerver.
-
-
-.. note:: 
-   | If the Kaapana instance uses GPU, the script will not uninstall the **gpu-operator** chart. You can delete this chart by running 
-      
-   | :code:`helm uninstall gpu-operator`
-   
-
-
-Step 2: Server Uninstallation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-In order to remove helm and microk8s from your system, you can use the server installation script with --uninstall flag.
-
-   | :code:`sudo ./server_installation.sh --uninstall`
-
-And reboot your system
- 
-   :code:`sudo reboot`
-

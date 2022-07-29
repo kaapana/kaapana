@@ -1,5 +1,5 @@
 How to automatically trigger a workflow
-=======================================
+***************************************
 
 LocalAutoTriggerOperator
 ---------------------------------

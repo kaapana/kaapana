@@ -1,7 +1,7 @@
 .. _extensions start:
 
 Kaapana Extensions
-==================
+##################
 
 Introduction
 ^^^^^^^^^^^^
@@ -18,6 +18,8 @@ Uninstalling an extension is as easy as installing one by clicking on *uninstall
 
 A detailed description of available workflows and applications can be found in :ref:`extensions workflows` and :ref:`extensions applications`.
 Information about how to integrate custom components into the platform via the *Extension* functional unit can be found at :ref:`service_dev_guide` and :ref:`processing_dev_guide`.
+
+.. _extensions workflows:
 
 Workflows
 ^^^^^^^^^

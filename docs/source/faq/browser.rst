@@ -1,5 +1,5 @@
 Browser Support
----------------
+***************
 
 We recommend Chrome as a browser.
 Supported are the newest versions of Google Chrome and Firefox. 

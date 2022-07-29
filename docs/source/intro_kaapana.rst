@@ -1,7 +1,7 @@
 .. _about_kaapana:
 
 KAAPANA
-=======
+#######
 
 
 .. _dcm4chee: https://www.dcm4che.org/

@@ -1,7 +1,7 @@
 .. _platform_user_guide:
 
 Platform User Guide
-====================
+###################
 
 .. toctree::
     :maxdepth: 2

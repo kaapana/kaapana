@@ -1,31 +1,5 @@
-Proxy configuration
--------------------
-
-If you need to configure a proxy in your institution to access internet, you can do this as following:
-
-| Open **/etc/environment** with vi insert:
-
-| http\_proxy="your.proxy.url:port"
-| https\_proxy="your.proxy.url:port"
-
-| HTTP\_PROXY="your.proxy.url:port"
-| HTTPS\_PROXY="your.proxy.url:port"
-
-::
-
-    logout
-
-Login again
-
-::
-
-    ping www.dkfz-heidelberg.de 
-
-Should work -> network connection is working
-
-
 Setup a connection to the Kubernetes cluster from your local workstation
-------------------------------------------------------------------------
+************************************************************************
 
 Since the whole software runs within Kubernetes you can connect your local workstation directly to the server and are able to check if the containers
 are running or not.

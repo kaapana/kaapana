@@ -1,7 +1,7 @@
 .. _tech_basics:
 
 Tech-Basics
-===========
+###########
 
 TODO
 

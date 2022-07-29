@@ -1,24 +1,24 @@
 .. _how_to_stop_and_restart_workflows:
 
 How to stop and restart workflows
-========================================
+*********************************
 
 This document explains how workflows that have been started via the Meta-Dashboard can be managed in the 
 Apache Airflow user interface.
 You can access the Apache Airflow UI via the menu bar.
 
-.. figure:: _static/img/kaapana_menubar_airflow.png
+.. figure:: ../_static/img/kaapana_menubar_airflow.png
    :align: center
    :scale: 60%
 
 DAG runs and operators
----------------------
+----------------------
 A workflow is also referred to as a DAG (Directed Acyclic Graph).
 Each DAG consists of multiple tasks, which are processed following a processing tree.
 Each task is associated with a single operator, which is executed as a kubernetes pod.
 A DAG run is an institiation of a DAG object and it can be stopped and restarted.
 
-.. figure:: _static/img/airflow_meta_new.png
+.. figure:: ../_static/img/airflow_meta_new.png
    :align: center
    :width: 100%
 
@@ -31,13 +31,13 @@ the status of recent tasks i.e. tasks of currently actice runs or, if no run is 
    You can find much more information on DAG runs at the Apache Airflow documentation_.
 
 Restart a task
--------------------
+--------------
 If a task in your DAG fails and you need to start it again you can do so by clearing it.
 Therefore go to the Tree or Graph view of your DAG run, select the task and click on :code:`Clear`.
 If the options :code:`Downstream` and :code:`Recursive` are selected, clearing a task will retrigger all tasks after 
 this one, too.
 
-.. figure:: _static/img/airflow_clear.png
+.. figure:: ../_static/img/airflow_clear.png
    :align: center
    :scale: 60%
 

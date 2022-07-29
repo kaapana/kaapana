@@ -1,5 +1,5 @@
 Kibana dashboard does not work
-------------------------------
+******************************
 
 You open Kibana/Meta and you see something like this?
 

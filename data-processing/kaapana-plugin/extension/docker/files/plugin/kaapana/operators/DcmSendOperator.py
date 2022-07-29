@@ -30,9 +30,9 @@ class DcmSendOperator(KaapanaBaseOperator):
         :param pacs_host: Host of PACS
         :param pacs_port: Port of PACS
         :param env_vars: Environment variables
-        :param level: "element" or "batch"
+        :param level: 'element' or batch'
             If batch, an operator folder next to the batch folder with .dcm files is expected.
-            If element, *.dcm are expected in the corresponding operator with .dcm files is expected.
+            If element, \*.dcm are expected in the corresponding operator with .dcm files is expected.
         :param check_arrival: Verifies if data transfer was successful
         :param execution_timeout: timeout for connection requests
         """

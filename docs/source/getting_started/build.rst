@@ -1,7 +1,8 @@
 .. _build:
 
 Build Kaapana
-=============
+*************
+
 It is important that the building of Kaapana (including the cloning of the repository etc.) is completely separated from the actual installation / deployment of the platform.
 Building the repository, which is described in this chapter, refers to the creation of the required containers and Helm Charts needed for an installation.
 The results of this build (containers and charts) are usually pushed into a registry and downloaded from there for the installation on the actual deployment server (where the platform will be running).

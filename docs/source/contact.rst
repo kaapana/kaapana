@@ -1,7 +1,7 @@
 .. _contact:
 
 Contact 
-=======
+#######
 
 | Kaapana Team Heidelberg
 | kaapana@dkfz-heidelberg.de

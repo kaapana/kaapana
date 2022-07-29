@@ -1,7 +1,7 @@
 .. _configuration:
 
 Configuration
-=============
+#############
 
 .. toctree::
     :maxdepth: 3

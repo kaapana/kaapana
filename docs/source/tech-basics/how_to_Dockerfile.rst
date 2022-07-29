@@ -1,7 +1,7 @@
 .. _how_to_dockerfile:
 
 How to write a Dockerfile for Kaapana?
-========================================
+**************************************
 
 In order to get an overview how to generally design Dockerfiles take a look at the following basic tutorials:
 

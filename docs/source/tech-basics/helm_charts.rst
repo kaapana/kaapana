@@ -1,7 +1,8 @@
 .. _helm_charts:
 
 What is Helm
--------------
+************
+
 Helm is a package manager for Kubernetes, it helps to define and manage different Kubernetes applications. It is also useful for writing and maintaining YAML configuration files via templating.
 
 `Helm <https://helm.sh/docs/>`_ has a great documentation and it is definitely a recommended read for a deeper understanding.

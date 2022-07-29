@@ -3,8 +3,8 @@
 Server Config
 =============
 
-Proxy configuration
--------------------
+Proxy
+-----
 
 If you need to configure a proxy in your institution to access internet, you can do this as following:
 
@@ -27,3 +27,9 @@ Login again
     ping www.dkfz-heidelberg.de 
 
 Should work -> network connection is working
+
+SSL/TLS Certificates
+--------------------
+
+Custom DNS Server
+-----------------

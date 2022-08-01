@@ -13,12 +13,12 @@ Write your first own DAG
 
 In order to deploy now a new DAG that convert DICOMs to nrrds, create a file called ``dag_example_dcm2nrrd.py`` inside the ``dags``-folder with the following content:
 
-.. literalinclude:: ../../../templates_and_examples/examples/workflows/airflow-components/dags/dag_example_dcm2nrrd.py
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/extension/docker/files/dag_example_dcm2nrrd.py
     
 That's it basically. Now we can check if the DAG is successfully added to Airflow and then we can test our workflow!
 
 * Go to Airflow and check if your newly added DAG ``example-dcm2nrrd`` appears under DAGs (it might take up to five minutes that airflow recognizes the DAG! Alternatively you could restart the Airflow Pod in Kubernetes)
-* If there is an error in the created DAG file like indexing, library imports, etc, you will see an error at the top of the Airflow page
+* If there is an error in the created DAG file like indexing, library imports, etc., you will see an error at the top of the Airflow page
 * Go to the Meta-Dashboard 
 * Filter via the name of your dataset and with ``+/-`` icons on the different charts your images to which you want to apply the algorithm 
 * From the drop-down, choose the DAG you have created i.e. ``example-dcm2nrrd`` and press the start button. In the appearing pop-up window press start again and the execution of your DAG is triggered.
@@ -28,100 +28,125 @@ That's it basically. Now we can check if the DAG is successfully added to Airflo
 .. _Deploy an own processing algorithm to the platform:
 
 Deploy an own processing algorithm to the platform
---------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In this chapter we will write an exemplary workflow that opens a DICOM file with Pydicom, extracts the study id, saves the study id in a json file and pushes the json file to Minio.
 
-**Aim:** We will write a workflow that opens a DICOM file with Pydicom, extracts the study id, saves the study id in a json file and pushes the json file to Minio.
+We introduce two different workflows to realize this goal. The first workflow will be called the "integrated workflow" and, as the name says, 
+integrates the development process into the environment of a running Kaapana platform, which gives us access to the resources of running Kaapana instance, especially all data.
+The second workflow is called the "local workflow" and describes how one can emulate the Kaapana environment on a local machine.
 
-Step 1: Check if our scripts works locally
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-First of all, it is important that your script works. For this, we will simulate the folder structure that we expect on the platform and apply our algorithm locally to the files. In order to simulate the folder structure. Please go back to the Meta-Dashboard, select the files you want to develop with and trigger the DAG ``download-selected-files`` with option zip files ``False``. This will download the selected images to a folder in Minio. Please go to Minio, download the folder called ``batch`` and save the extracted content to a folder called ``data``. Now the ``data`` folder corresponds to the ``data`` folder that you have seen in the workflows folder.
+Integrated Kaapana development workflow
+----------------------------------------
 
-.. hint::
+.. _Provide an empty base image:
 
-  | In case your algorithm works with ``.nrrd`` files you could simply download the batch folder that we generated in the example-dcm2nrrd folder
+Step 1: Provide an empty base image
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* Now we create the following python script ``extract_study_id.py``. Make sure that we have Pydicom installed:
+In Kaapana every component is provided inside a docker container. To develop an algorithm within the Kaapana instance we have to provide a container, to start with. Since we 
+provide our algorithm as a python implementation of a DAG (see: :ref:`Write your first own DAG`), we start with a minimal python image:
 
-.. literalinclude:: ../../../templates_and_examples/examples/workflows/processing-container/extract-study-id/files/extract_study_id.py
+.. code-block:: docker
 
-.. hint::
+    FROM local-only/base-python-alpine:0.1.0
+    LABEL IMAGE="python-template"
+    LABEL VERSION="0.1.0"
+    LABEL CI_IGNORE="True"
 
-  | When creating a new algorithm you can always take our templates (``templates_and_examples/templates/processing-container``) as a starting point and simply add your code snippet in between for the processing.
+To utilize our base image, we have to push it to our registry. 
 
-In order to test the script we uncomment the os.environ sections and adapt the ``WORKFLOW_DIR`` to the ``data`` location on our local file system. Then we execute the script. On the platform all the environment variables will be set automatically. If the algorithm runs without errors, the most difficult part is already done, we have a running workflow!
+.. code-block:: bash
 
-Step 2: Check if our scripts runs inside a Docker container
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    sudo docker build -t <docker-registry><docker-repo>/example-extract-study-id:0.1.0
+    sudo docker push
 
-The next step is to put the algorithm into a Docker container and test if everything works as expected. For this we will put the ``extract_study_id.py`` in a folder called ``files``, comment again the os.environ section and create the following file called ``Dockerfile`` next to the files directory:
+Since we just used a generic python image as a template for our algorithm and made it available in the Kaapana registry, we can also reuse it for any other
+python based algorithm.
+.. TODO evtl image korrekt taggen
 
-.. literalinclude:: ../../../templates_and_examples/examples/workflows/processing-container/extract-study-id/Dockerfile
+.. _Create a developement DAG:
 
-The Dockerfile basically copies the python script and executes it.
+Step 2: Create a development DAG
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. hint::
+In the next step we want to load our python base image inside the Kaapana platform and access it with the built-in code server to implement our algorithm there.
+To do so, we need to create an operator that loads the image and a DAG that executes the operator.
 
-  | Also here you can take our templates as a starting point.
+We define the operator in a file located under ``dags/example``:
 
-In order to build and test the Dockerfile and the resulting container proceed as follows:
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/extension/docker/files/example/ExtractStudyIdOperator.py
 
-* Build the docker container by executing:
+The DAG can look like this:
 
-::
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/extension/docker/files/dag_example_extract_study_id.py 
 
-   sudo docker build -t <docker-registry><docker-repo>/example-extract-study-id:0.1.0 .
+The DAG is just a sequence of different operators. In our example the ``LocalGetInputDataOperator`` 
+loads the data we want to work with. The ``ExtractStudyIdOperator`` loads our empty base image and utilizes the Kaapana code-server as development server 
+to implement our algorithm inside the active container. This is achieved by the ``dev_server="code-server"`` parameter.
 
-.. hint::
+.. _Start the Dag and implement the algorithm:
 
-  | Depending on your docker registry ``docker-repo`` might be not defined: ``docker-repo=''`` or the name of the docker repository!
+Step 3: Start the Dag and implement the algorithm
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* Run the docker image, however, specify the environment variable as well as mount your local file system into the Docker container to a directory called data. This mount will also be made automatically on the platform.
+Now we want to trigger the DAG, so we go to the meta-dashboard, select the data we want to work with and run our DAG. 
+Our DAG should now be listed in the "pending applications" tab, as shown below. To access the code server we click on the blue link icon beside the name of the DAG.
 
-::
+We can now implement and test our algorithm. In our example the algorithm is a python script, that extracts the study IDs from the loaded data and returns it.
 
-   sudo docker run -v <directory with the data folder>:/data -e WORKFLOW_DIR='data' -e BATCH_NAME='batch' -e OPERATOR_IN_DIR='dcm-converter' -e OPERATOR_OUT_DIR='segmented-nrrd'  <docker-registry><docker-repo>/example-extract-study-id:0.1.0
+.. note::
+    The code server looks for the ``kaapanasrc`` directory by default. When we use it as dev-server inside the docker container it will prompt an error message, that ``kaapanasrc`` 
+    does not exist. You can safely ignore this and go to ``/`` to implement the algorithm. 
 
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/processing-containers/extract-study-id/files/extract_study_id.py
 
-In order to debug directly into the container you can execute:
+We just store the python file in the root directory of the docker container, e.g. as ``/extract_study_id.py``.
 
-::
+.. _Push the algorithm to the repository:
 
-   sudo docker run -v <directory with the data folder>:/data -e WORKFLOW_DIR='data' -e BATCH_NAME='batch' -e OPERATOR_IN_DIR='dcm-converter' -e OPERATOR_OUT_DIR='segmented-nrrd'  -it <docker-registry><docker-repo>/example-extract-study-id:0.1.0 /bin/sh
+Step 3: Push the algorithm to the repository
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* Finally you need to push the docker container to make it available for the workflow
+When we are finished with the implementation, we can push the algorithm to our registry. To do so, we create a ``files`` 
+directory beside the docker file of the original container and 
+put a copy of our script inside it. Then we adjust our docker file such that the container executes the script.
 
-If not already done, log in to the docker registry:
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/processing-containers/extract-study-id/Dockerfile
 
-::
+Afterwards we can build and push the finished image to our registry.
 
-   sudo docker login <docker-registry>
+.. code-block:: bash
 
-and push the docker image with:
-::
+    sudo docker build -t <docker-registry><docker-repo>/example-extract-study-id:0.1.0
+    sudo docker push
 
-   sudo docker push <docker-registry><docker-repo>/example-extract-study-id:0.1.0
+Since we finished the implementation process we also don't want the DAG to initiate a dev-server every time, we can 
+delete the ``dev-serve="code-server"`` option from the initialization of the ``ExtractStudyIdOperator`` in 
+``dag_example_extract_study_id.py``.
 
+.. _Local development workflow:
 
-Step 3: Create a DAG and Operator for the created Docker container
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Local development workflow
+---------------------------
 
-Now, we will embed the created Docker container into an operator that will be part of an Airflow DAG.
+Alternatively we can also develop our algorithm on a local machine and then build and push 
+the resulting docker container to our registry.
 
-* Go again to the code-server ``/code``
-* Create a folder called ``example`` inside the ``dags`` directory
-* Create a file called ``ExtractStudyIdOperator.py`` with the following content inside the example folder:
+To do so we need to download the data we want to work with. To access the DICOM data for our example, go to the 
+Meta-dashboard, select the data you want and trigger the ``download-selected-files`` DAG. 
 
-.. literalinclude:: ../../../templates_and_examples/examples/workflows/airflow-components/dags/example/ExtractStudyIdOperator.py
+Additionally, we need to emulate the Kaapana environment on the local machine. We can achieve this by setting several environment variables, which would usually 
+be configured by Kaapana automatically. In our case we can just configure the environment variables in the beginning of 
+our python script:
 
-.. hint::
-   | Since the operators inherits from the ``KaapanaBaseOperator.py`` all the environment variables that we have defined earlier manually are passed now automatically to the container. Studying the ``KaapanaBaseOperator.py`` you see that you can pass e.g. also a dictionary called ``env_vars`` in order to add additional environment variables to your Docker container! 
+.. code-block:: python
 
-* In order to use this operator, create a file called ``dag_example_extract_study_id.py`` with the following content inside the Dag directory:
+    import os
 
-.. literalinclude:: ../../../templates_and_examples/examples/workflows/airflow-components/dags/dag_example_extract_study_id.py
+    os.environ["WORKFLOW_DIR"] = "<your data directory>"
+    os.environ["BATCH_NAME"] = "batch"
+    os.environ["OPERATOR_IN_DIR"] = "initial-input"
+    os.environ["OPERATOR_OUT_DIR"] = "output"
 
-* Now you can again test the final dag by executing it via the Meta-Dashboard to some image data. If everything works fine, you will find the generated data in Minio.  
-
-In the ``templates_and_examples`` folder you will find even more example for DAGs and Docker containers!
-
-
+Afterwards we build and push the docker container as described in :ref:`Push the algorithm to the repository`. 
+To run the algorithm in Kaapana we load it with an operator and build a DAG as described in :ref:`Create a developement DAG`.  

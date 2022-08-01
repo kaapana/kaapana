@@ -1,7 +1,7 @@
 .. _server_config:
 
-Server Config
-=============
+Deployment Server Config
+************************
 
 Proxy
 -----

@@ -10,7 +10,7 @@ dependencies:
     version: "8.4.4"
     repository: file://../../../../services/monitoring/grafana/grafana-chart
   - name: kube-state-metrics-chart
-    version: "v2.4.2"
+    version: "v2.5.0"
     repository: file://../../../../services/monitoring/kube_state_metrics/kube-state-metrics-chart
   - name: node-exporter-chart
     version: "v1.3.1"

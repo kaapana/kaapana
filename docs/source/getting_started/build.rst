@@ -104,51 +104,7 @@ Start Build
 
    :code:`nano kaapana/build-scripts/build-config.yaml`
 
-#. Adjust the configuration to your needs (emphasized lines need to be adjusted)
-
-   .. tabs::
-
-      .. tab:: Build With Remote Registry
-         
-         We recommend building the project using a registry. If you do not have access to an established registry, we recommend using `Gitlab <https://gitlab.com>`_, which provides a cost-free option to use a private container registry.
-         
-         .. code-block:: python
-            :emphasize-lines: 2
-
-            http_proxy: "" # put the proxy here if needed
-            default_registry: "registry.<gitlab-url>/<group/user>/<project>" # registry url incl. project Gitlab template: "registry.<gitlab-url>/<group/user>/<project>"
-            container_engine: "docker" # docker or podman
-            enable_build_kit: false # Should be false for now: Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/ 
-            log_level: "INFO" # DEBUG, INFO, WARN or ERROR
-            build_only: false # charts and containers will only be build and not pushed to the registry
-            create_offline_installation: false # Advanced feature - whether to create a docker dump from which the platfrom can be deployed offline (file-size ~50GB)
-            push_to_microk8s: false # Advanced feature - inject container directly into microk8s after build
-            exit_on_error: true  # stop immediately if an issue occurs
-            enable_linting: true # should be true - checks deployment validity
-            skip_push_no_changes: false # Advanced feature - should be false usually
-            platform_filter: "kaapana-platform-chart" # comma sperated platform-chart-names
-            external_source_dirs: "" # comma sperated paths 
-
-      .. tab:: Build Without Remote Registry (Local Only)
-
-         Not recommended!
-
-         .. code-block:: python
-            :emphasize-lines: 2,6,7
-
-            http_proxy: "" # put the proxy here if needed
-            default_registry: "registry.<gitlab-url>/<group/user>/<project>" # registry url incl. project Gitlab template: "registry.<gitlab-url>/<group/user>/<project>"
-            container_engine: "docker" # docker or podman
-            enable_build_kit: false # Should be false for now: Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/ 
-            log_level: "INFO" # DEBUG, INFO, WARN or ERROR
-            build_only: true # charts and containers will only be build and not pushed to the registry
-            create_offline_installation: true # Advanced feature - whether to create a docker dump from which the platfrom can be deployed offline (file-size ~50GB)
-            push_to_microk8s: false # Advanced feature - inject container directly into microk8s after build
-            exit_on_error: true  # stop immediately if an issue occurs
-            enable_linting: true # should be true - checks deployment validity
-            skip_push_no_changes: false # Advanced feature - should be false usually
-            platform_filter: "kaapana-platform-chart" # comma sperated platform-chart-names
-            external_source_dirs: "" # comma sperated paths 
+#. Adjust the configuration to your needs: see :ref:`build_config`
 
 #. After the configuration has been adjsuted, the build process can be started with:
 

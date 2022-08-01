@@ -92,7 +92,7 @@ Updated Components
 * Prometheus v2.34.0
 * Alertmanager v0.24.0
 * CTP v0.1.3
-* kube-state metrics v2.4.2
+* kube-state metrics v2.5.0
 
 Extensions
 ----------

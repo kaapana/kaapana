@@ -12,61 +12,56 @@ Date: July 31, 2022
 Changelog
 ---------
 
-Updated microk8s to v1.23/stable
+* Updated microk8s to v1.23/stable
+    * latest stable version
+    * API adjustments within all deployments
 
-latest stable version
-API adjustments within all deployments
-
-
-
-Extensions:
-
-simplification of extension collections
+* Extensions
+    * simplification of extension collections
 
 
-new certificate installation incl. random cert generator
-easy offline installation method (no registry needed)
-introduction of a helm namespace for separate deployment tracking
-support for custom DNS servers
-better proxy support (incl. no_proxy configuration)
-improved security by RBAC cluster support
-support for AlmaLinux as a replacement for CentOS 8
-New build-system
+* new certificate installation incl. random cert generator
+* easy offline installation method (no registry needed)
+* introduction of a helm namespace for separate deployment tracking
+* support for custom DNS servers
+* better proxy support (incl. no_proxy configuration)
+* improved security by RBAC cluster support
+* support for AlmaLinux as a replacement for CentOS 8
+* New build-system
+    * improved build-time (~1h for the kaapana-platform)
+    * improved dependency checks
+    * build-tree visualization
+    * container tarball export for offline installation
+    * platform filters (to only build specific ones)
+    * ability to include external repositories into the build-tree
+    * Podman support as Docker alternative
+    * direct microk8s injection
+    * stats on used / unused resources
+    * better logs
 
-improved build-time ~1h for the kaapana-platform
-improved dependency checks
-build-tree visualization
-container tarball export for offline installation
-platform filters (to only build specific ones)
-ability to include external repositories into the build-tree
-Podman support as Docker alternative
-direct microk8s injection
-stats on used / unused resources
-better logs
-New processing scheduling system:
+* New processing scheduling system
+    * improved robustness
+    * multi GPU support
+    * multi job per GPU support
+    * utilizes Airflow pools as a transparent and consistent solution
 
-improved robustness
-multi GPU support
-multi job per GPU support
-utilizes Airflow pools as a transparent and consistent solution
-New Auth-Proxy → now oAuth2-proxy (Louketo has been deprecated)
+* New Auth-Proxy → now OAuth2-proxy (Louketo has been deprecated)
+* No additional port for Keycloak needed anymore
+* Support for http → https redirect for arbitrary ports
+* New development method within running pipelines
+    * live container-debugging during workflow execution
+    * Front-end for build-in IDE within the platform
 
-No additional port for Keycloak needed anymore
-Support for http → https redirect for arbitrary ports
-New development method within running pipelines
+* Bug-fixes
+    * Fixed misbehaving “Delete-Series-From-Platform” workflow
+    * Re-Index workflow
 
-live container-debugging during workflow execution
-Front-end for build-in IDE within the platform
-Bug-fixes:
+* Documentation
+    * Adjusted tutorials
+    * New Operator docs
+    * FAQ extension
 
-Fixed misbehaving “Delete-Series-From-Platform” workflow
-Re-Index workflow
-Documentation:
-
-Adjusted tutorials
-New Operator docs
-FAQ extension
-many other smaller bug-fixes and adjustments
+* many other smaller bug-fixes and adjustments
 
 Incompatible Changes
 --------------------

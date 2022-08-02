@@ -37,7 +37,5 @@ We have done our very best to fulfil all requirements, and the choice of AGPL wa
 
 Open Source & Copyright Notices
 -------------------------------
-For questions please contact the DKFZ Kaapana Team.
 
-TBD
-
+For questions please contact the DKFZ Kaapana Team: -> :ref:`contact`

@@ -3,6 +3,11 @@
 Contact 
 #######
 
+|Slack|
+
+.. |Slack| image:: https://img.shields.io/badge/chat-slack-blueviolet
+   :target: https://join.slack.com/t/kaapana/shared_invite/zt-hilvek0w-ucabihas~jn9PDAM0O3gVQ/
+
 | Kaapana Team Heidelberg
 | kaapana@dkfz-heidelberg.de
 

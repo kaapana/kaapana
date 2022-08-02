@@ -1,24 +1,32 @@
 .. _processing_dev_guide:
 
+====================
 Processing Dev-Guide
 ====================
 
 Introduction
 ------------
 
-Write your first own DAG
-^^^^^^^^^^^^^^^^^^^^^^^^
+In the processing development guide we introduce exemplary projects, that show how the infrastructure of Kaapana 
+can be extended by new functionalities, which process data
+that is provided by the Kaapana :ref:`storage stack<storage-stack>` and accessible via the meta-dashboard. To process data from the 
+meta-dashboard we use the python API for Apache Airflow to create Directed Acyclic Graphs (DAGs). For more details see :ref:`processing stack<processing-stack>`.
 
-**Aim**: Create a DAG that converts DICOMs to ``.nrrd`` files
+.. _write your first own dag:
+
+Write your first own DAG
+------------------------
+
+**Aim**: In this chapter we create a DAG that converts DICOMs to ``.nrrd`` files.
 
 In order to deploy now a new DAG that convert DICOMs to nrrds, create a file called ``dag_example_dcm2nrrd.py`` inside the ``dags``-folder with the following content:
 
-.. literalinclude:: ../../../templates_and_examples/examples/workflows/airflow-components/dags/dag_example_dcm2nrrd.py
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/extension/docker/files/dag_example_dcm2nrrd.py
     
 That's it basically. Now we can check if the DAG is successfully added to Airflow and then we can test our workflow!
 
 * Go to Airflow and check if your newly added DAG ``example-dcm2nrrd`` appears under DAGs (it might take up to five minutes that airflow recognizes the DAG! Alternatively you could restart the Airflow Pod in Kubernetes)
-* If there is an error in the created DAG file like indexing, library imports, etc, you will see an error at the top of the Airflow page
+* If there is an error in the created DAG file like indexing, library imports, etc., you will see an error at the top of the Airflow page
 * Go to the Meta-Dashboard 
 * Filter via the name of your dataset and with ``+/-`` icons on the different charts your images to which you want to apply the algorithm 
 * From the drop-down, choose the DAG you have created i.e. ``example-dcm2nrrd`` and press the start button. In the appearing pop-up window press start again and the execution of your DAG is triggered.
@@ -30,98 +38,325 @@ That's it basically. Now we can check if the DAG is successfully added to Airflo
 Deploy an own processing algorithm to the platform
 --------------------------------------------------
 
-**Aim:** We will write a workflow that opens a DICOM file with Pydicom, extracts the study id, saves the study id in a json file and pushes the json file to Minio.
+As a next step we show how a developer can deploy a custom processing algorithm, provided as a python script, to the 
+Kaapana platform. In this case the algorithm is a script that extracts the study id of a DICOM study. To access the data 
+from the Kaapana storage, we embed it into an Airflow--workflow that opens a DICOM file with Pydicom, extracts the study id, saves 
+the study id in a json file and pushes the json file to Minio.
+We introduce two different developer-workflows to realize this goal. 
 
-Step 1: Check if our scripts works locally
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-First of all, it is important that your script works. For this, we will simulate the folder structure that we expect on the platform and apply our algorithm locally to the files. In order to simulate the folder structure. Please go back to the Meta-Dashboard, select the files you want to develop with and trigger the DAG ``download-selected-files`` with option zip files ``False``. This will download the selected images to a folder in Minio. Please go to Minio, download the folder called ``batch`` and save the extracted content to a folder called ``data``. Now the ``data`` folder corresponds to the ``data`` folder that you have seen in the workflows folder.
+Integrated Kaapana development workflow
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. hint::
+The first workflow will be called the "integrated workflow" and, as the name says, 
+integrates the development process into the environment of a running Kaapana platform, which gives us access to the resources of running Kaapana instance, especially all data.
+The second workflow is called the "local workflow" and describes how one can emulate the Kaapana environment on a local machine.
 
-  | In case your algorithm works with ``.nrrd`` files you could simply download the batch folder that we generated in the example-dcm2nrrd folder
+.. _Provide an empty base image:
 
-* Now we create the following python script ``extract_study_id.py``. Make sure that we have Pydicom installed:
+Step 1: Provide an empty base image
+***********************************
 
-.. literalinclude:: ../../../templates_and_examples/examples/workflows/processing-container/extract-study-id/files/extract_study_id.py
+To develop an algorithm within the Kaapana instance we have to provide a container, to start with. Since we 
+provide our algorithm as a python implementation of a DAG (see: :ref:`Write your first own DAG`), we start with a minimal python image:
 
-.. hint::
+.. code-block:: docker
 
-  | When creating a new algorithm you can always take our templates (``templates_and_examples/templates/processing-container``) as a starting point and simply add your code snippet in between for the processing.
+    FROM local-only/base-python-alpine:0.1.0
+    LABEL IMAGE="python-template"
+    LABEL VERSION="0.1.0"
+    LABEL CI_IGNORE="True"
 
-In order to test the script we uncomment the os.environ sections and adapt the ``WORKFLOW_DIR`` to the ``data`` location on our local file system. Then we execute the script. On the platform all the environment variables will be set automatically. If the algorithm runs without errors, the most difficult part is already done, we have a running workflow!
+To utilize our base image, we have to push it to our registry. 
 
-Step 2: Check if our scripts runs inside a Docker container
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. code-block:: bash
 
-The next step is to put the algorithm into a Docker container and test if everything works as expected. For this we will put the ``extract_study_id.py`` in a folder called ``files``, comment again the os.environ section and create the following file called ``Dockerfile`` next to the files directory:
+    sudo docker build -t <docker-registry><docker-repo>/example-extract-study-id:0.1.0
+    sudo docker push
 
-.. literalinclude:: ../../../templates_and_examples/examples/workflows/processing-container/extract-study-id/Dockerfile
+Since we just used a generic python image as a template for our algorithm and made it available in the Kaapana registry, we can also reuse it for any other
+python based algorithm.
 
-The Dockerfile basically copies the python script and executes it.
+.. _Create a developement DAG:
 
-.. hint::
+Step 2: Create a development DAG
+********************************
 
-  | Also here you can take our templates as a starting point.
+In the next step we want to load our python base image inside the Kaapana platform and access it with the built-in code server to implement our algorithm there.
+To do so, we need to create an operator that loads the image and a DAG that executes the operator.
 
-In order to build and test the Dockerfile and the resulting container proceed as follows:
+We define the operator in a file located under ``dags/example``:
 
-* Build the docker container by executing:
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/extension/docker/files/example/ExtractStudyIdOperator.py
+
+The DAG can look like this:
+
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/extension/docker/files/dag_example_extract_study_id.py 
+
+The DAG is just a sequence of different operators. In our example the ``LocalGetInputDataOperator`` 
+loads the data we want to work with. The ``ExtractStudyIdOperator`` loads our empty base image and utilizes the Kaapana code-server as development server 
+to implement our algorithm inside the active container. This is achieved by the ``dev_server="code-server"`` parameter.
+
+.. _Start the Dag and implement the algorithm:
+
+Step 3: Start the Dag and implement the algorithm
+*************************************************
+
+Now we want to trigger the DAG, so we go to the meta-dashboard, select the data we want to work with and run our DAG. 
+Our DAG should now be listed in the "pending applications" tab, as shown below. To access the code server we click on the blue link icon beside the name of the DAG.
+
+We can now implement and test our algorithm. In our example the algorithm is a python script, that extracts the study IDs from the loaded data and returns it.
+
+.. note::
+    The code server looks for the ``kaapanasrc`` directory by default. When we use it as dev-server inside the docker container it will prompt an error message, that ``kaapanasrc`` 
+    does not exist. You can safely ignore this and go to ``/`` to implement the algorithm. 
+
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/processing-containers/extract-study-id/files/extract_study_id.py
+
+We just store the python file in the root directory of the docker container, e.g. as ``/extract_study_id.py``.
+
+.. _push-the-algorithm-to-the-repository:
+
+Step 3: Push the algorithm to the repository
+********************************************
+
+When we are finished with the implementation, we can push the algorithm to our registry. To do so, we create a ``files`` 
+directory beside the docker file of the original container and 
+put a copy of our script inside it. Then we adjust our docker file such that the container executes the script.
+
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/processing-containers/extract-study-id/Dockerfile
+
+Afterwards we can build and push the finished image to our registry.
+
+.. code-block:: bash
+
+    sudo docker build -t <docker-registry><docker-repo>/example-extract-study-id:0.1.0
+    sudo docker push
+
+Since we finished the implementation process we also don't want the DAG to initiate a dev-server every time, we can 
+delete the ``dev-serve="code-server"`` option from the initialization of the ``ExtractStudyIdOperator`` in 
+``dag_example_extract_study_id.py``.
+
+.. _Local development workflow:
+
+Local development workflow
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Alternatively we can also develop our algorithm on a local machine and then build and push 
+the resulting docker container to our registry.
+
+To do so we need to download the data we want to work with. To access the DICOM data for our example, go to the 
+Meta-dashboard, select the data you want and trigger the ``download-selected-files`` DAG. 
+
+Additionally, we need to emulate the Kaapana environment on the local machine. We can achieve this by setting several environment variables, which would usually 
+be configured by Kaapana automatically. In our case we can just configure the environment variables in the beginning of 
+our python script:
+
+.. code-block:: python
+
+    import os
+
+    os.environ["WORKFLOW_DIR"] = "<your data directory>"
+    os.environ["BATCH_NAME"] = "batch"
+    os.environ["OPERATOR_IN_DIR"] = "initial-input"
+    os.environ["OPERATOR_OUT_DIR"] = "output"
+
+Afterwards we build and push the docker container as described in :ref:`push-the-algorithm-to-the-repository`. 
+To run the algorithm in Kaapana we load it with an operator and build a DAG as described in :ref:`Create a developement DAG`.  
+
+.. _Provide a workflow as an extension:
+
+Provide a workflow as an extension
+----------------------------------
+
+**Aim:** We will write a workflow that applies Otsu's method to create a segmentation of DICOM data.
+We want to provide this workflow as an extension to the Kaapana platform.
+
+**Requirements:** You need the image `local-image/dag-installer:0.1.0` available in order to build the image for the DAG.
+
+Step 1: Build an image for the processing algorithm
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+First you need to create a directory for the processing algorithm. To remain consistent with the structure of Kaapana 
+we recommend create the new folder in the location 
+``kaapana/data-processing/processing-piplines/``, but in theory it can be located anywhere.
+::
+
+    mkdir -p threshold-segmentation/processing-containers/otsus-method/files/
+
+In the :code:`files` directory create a file called `otsus_method.py` that contains the segmentation algorithm based on Otsu's method:
+
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/processing-containers/otsus-method/files/otsus_method.py
+
+In the :code:`otsus-method` directory create a :code:`Dockerfile` with the content:
+
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/processing-containers/otsus-method/Dockerfile
+
+Starting this container will execute the segmentation algorithm.
+
+To tag the image and push it to the registry, run the following commands inside the :code:`otsus-method` directory.
 
 ::
 
-   sudo docker build -t <docker-registry><docker-repo>/example-extract-study-id:0.1.0 .
+    docker build -t <docker-registry>/<docker-repo>/threshold-segmentation:0.1.0 .
+    docker push <docker-registry>/<docker-repo>/threshold-segmentation:0.1.0
 
 .. hint::
+     If not already done, you have to log into your Docker registry with :code:`sudo docker login <docker-registry>/<docker-repo>`
+     , before you build the container.
 
-  | Depending on your docker registry ``docker-repo`` might be not defined: ``docker-repo=''`` or the name of the docker repository!
+Step 2: Create an image for the DAG 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* Run the docker image, however, specify the environment variable as well as mount your local file system into the Docker container to a directory called data. This mount will also be made automatically on the platform.
-
-::
-
-   sudo docker run -v <directory with the data folder>:/data -e WORKFLOW_DIR='data' -e BATCH_NAME='batch' -e OPERATOR_IN_DIR='dcm-converter' -e OPERATOR_OUT_DIR='segmented-nrrd'  <docker-registry><docker-repo>/example-extract-study-id:0.1.0
-
-
-In order to debug directly into the container you can execute:
+Create the folder for the DAG image. Inside the :code:`threshold-segmentation` directory run:
 
 ::
 
-   sudo docker run -v <directory with the data folder>:/data -e WORKFLOW_DIR='data' -e BATCH_NAME='batch' -e OPERATOR_IN_DIR='dcm-converter' -e OPERATOR_OUT_DIR='segmented-nrrd'  -it <docker-registry><docker-repo>/example-extract-study-id:0.1.0 /bin/sh
+    mkdir -p extension/docker/files/otsus-method
 
-* Finally you need to push the docker container to make it available for the workflow
+Inside the folder :code:`extension/docker/files/otsus-method` create the :code:`OtsusMethodOperator.py` file
 
-If not already done, log in to the docker registry:
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/docker/files/otsus-method/OtsusMethodOperator.py
+
+Create a python file :code:`dag_example_otsus_method.py` for the DAG in the folder :code:`extension/docker/files/`
+
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/docker/files/dag_example_otsus_method.py
+.. hint :: 
+    The DAG will perform the following steps:
+        - Get the dicom files (LocalGetInputDataOperator), 
+        - convert the dicom files to .nrrd files  (DcmConverterOperator), 
+        - apply the segmentation (OtsusMethodOperator),
+        - create a dicom segmentation from the .nrrd segmentation (Itk2DcmSegOperator ), 
+        - send the data back to the PACS (DcmSendOperator),
+        - clean the workflow dir (LocalWorkflowCleanerOperator).
+
+    **Note:** If you want to use this DAG as a template for your own segmentation algorithm note that 
+    :code:`Itk2DcmSegOperator` requires the arguments :code:`segmentation_operator` and
+    :code:`single_label_seg_info`.
+
+In :code:`extension/docker/` create the :code:`Dockerfile` for the DAG
+
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/docker/Dockerfile
+
+.. hint :: 
+    The base image :code:`local-only/dag-installer:0.1.0` scans all .py files in :code:`tmp` for images and pulls them via the Helm API.
+    It also copies files into desired locations.
+
+Tag the image and push it to the registry. Next to the :code:`Dockerfile` in :code:`extension/docker/` run 
 
 ::
 
-   sudo docker login <docker-registry>
+    docker build -t <docker-registry>/<docker-repo>/dag-example-otsus-method:kp_0.1.3__0.1.0 .
+    docker push <docker-registry>/<docker-repo>/dag-example-otsus-method:kp_0.1.3__0.1.0
 
-and push the docker image with:
+.. important :: 
+    Setting the correct version tag is important, because the platform pulls the DAG with a specific version tag.
+    This tag is build as follows: :code:`<platform-abbr>_<platform-version>__<dag-version>`.
+    The :code:`platform-abbr` for the kaapana-platform is ``kp`` and for the starter-platform ``sp``.
+    The :code:`platform-version` can be found at the bottom of the user interface.
+    The :code:`dag-version` is specified in the :code:`Dockerfile` of the DAG.
+
+
+Step 3: Create the helm chart
+*****************************
+
+Create a folder for the chart. Inside :code:`threshold-segmentation/extension/` run 
+
+:: 
+
+    mkdir -p threshold-segmentation-workflow
+    cd threshold-segmentation-workflow
+
+Create a file :code:`Chart.yaml`
+
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/threshold-segmentation-workflow/Chart.yaml
+
+Create a file :code:`requirements.yaml`
+
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/threshold-segmentation-workflow/requirements.yaml
+
+.. important:: 
+    The field :code:`repository` must be the relative path from the file :code:`requirements.yaml` to the directory that contains the 
+    :code:`Chart.yaml` file for the dag-installer chart. This file is located in the subdirectory :code:`services/utils/dag-installer/dag-installer-chart/`
+    of the kaapana repository.
+
+Create a file :code:`values.yaml`
+
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/threshold-segmentation-workflow/values.yaml
+
+.. hint:: 
+    These three files define the helm chart that will be installed on the platform in order to provide the algorithm as a workflow.
+
+Update helm dependencies and package the chart.
+
 ::
 
-   sudo docker push <docker-registry><docker-repo>/example-extract-study-id:0.1.0
+    helm dep up 
+    helm package .
 
+This will create the file :code:`example-threshold-segmentation-workflow-0.1.0.tgz`
 
-Step 3: Create a DAG and Operator for the created Docker container
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. _Add Extension Manually:
 
-Now, we will embed the created Docker container into an operator that will be part of an Airflow DAG.
+Step 4.1: Add the extension manually to the platform
+****************************************************
 
-* Go again to the code-server ``/code``
-* Create a folder called ``example`` inside the ``dags`` directory
-* Create a file called ``ExtractStudyIdOperator.py`` with the following content inside the example folder:
+.. warning:: 
+    This approach requires root permissions on the host server of the platform.
 
-.. literalinclude:: ../../../templates_and_examples/examples/workflows/airflow-components/dags/example/ExtractStudyIdOperator.py
+The easiest way to get the extension into the platform is by copying the packaged helm chart to the right location.
+To do so you need access to the host machine, of the platform.
+Copy the file :code:`example-threshold-segmentation-workflow-0.1.0.tgz` to the :code:`extensions/` subdirectory
+of the :code:`FAST_DATA_DIR` directory, which is :code:`/home/kaapana/` by default. 
 
 .. hint::
-   | Since the operators inherits from the ``KaapanaBaseOperator.py`` all the environment variables that we have defined earlier manually are passed now automatically to the container. Studying the ``KaapanaBaseOperator.py`` you see that you can pass e.g. also a dictionary called ``env_vars`` in order to add additional environment variables to your Docker container! 
+    The :code:`FAST_DATA_DIR` can be configured by editing the :code:`install_platform.sh`
+    script before the installation of the platform.
 
-* In order to use this operator, create a file called ``dag_example_extract_study_id.py`` with the following content inside the Dag directory:
+.. warning:: 
+    This approach has the disadvantage that the extension only exists in the platform that is deployed on this host machine.
+    If you want to provide your algorithm on another platform instance, you have to repeat this step again.
+    Step 4.2 shows a persistent approach, where your algorithm is available for each platform that is installed from your private registry.
 
-.. literalinclude:: ../../../templates_and_examples/examples/workflows/airflow-components/dags/dag_example_extract_study_id.py
+.. _Add to Extention Collection:
 
-* Now you can again test the final dag by executing it via the Meta-Dashboard to some image data. If everything works fine, you will find the generated data in Minio.  
+Step 4.2: (Persistent alternative) Update the :code:`kaapana-extension-collection` chart
+****************************************************************************************
 
-In the ``templates_and_examples`` folder you will find even more example for DAGs and Docker containers!
+The Kaapana repository contains a special **collection** chart that depends on a list of other charts required for Kaapana.
+You will add the chart of our new DAG to this list and update the dependencies to add the new extension in a persistent way.
 
+First adjust the file :code:`collections/kaapana-collection/requirements.yaml` in your Kaapana repository.
+
+::
+
+    - name: example-threshold-segmentation-workflow
+      version: 0.1.0
+      repository: file://../../data-processing/processing-pipelines/threshold-segmentation/extension/threshold-segmentation-workflow/
+
+.. hint:: 
+    The repository field must point from the :code:`kaapana-extension-collection` chart to the directory of the chart for the DAG.
+
+Now update the dependencies, afterwards build and push the image.
+::
+
+    helm dep up 
+    docker build -t <docker-registry>/<docker-repo>/kaapana-extension-collection:kp_0.1.3__0.1.0
+    docker push <docker-registry>/<docker-repo>/kaapana-extension-collection:kp_0.1.3__0.1.0
+
+Finally restart the :code:`kaapana-extension-collection` pod. You can do this in the Kaapana gui by clicking on the cloud button next to **Applications and workflows** in the Extension page.
+
+You can also manually delete the pod on your host machine.
+First search for the name of the pod.
+
+::
+
+    kubectl get pods -n default
+
+The name of the pod you need to delete begins with :code:`copy-kube-helm-collections`
+
+::
+     
+    kubectl delete pod <pod-name>
+
+This will automatically download a new version of the chart and start a new pod.
 

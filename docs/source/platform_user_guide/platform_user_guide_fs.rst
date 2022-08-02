@@ -42,6 +42,7 @@ In the default configuration only four ports are open on the server:
 
 4. Port **6443**:  Kubernetes API port -> used for external kubectl communication and secured via the certificate
 
+.. _storage-stack:
 
 Storage stack: Kibana, Elasticsearch, OHIF and DCM4CHEE
 -------------------------------------------------------
@@ -94,6 +95,7 @@ Viewing images with OHIF
 A web-based DICOM viewer (OHIF) has been integrated to show images in the browser. The functionality of this viewer is limited at the moment, but more features will come soon. To view images, go to OHIF and click on the study.
 When e.g. a segmentation is available you can visualize the segmentation by dragging it into the main window. 
 
+.. _processing-stack:
 
 Processing stack: Airflow, Kubernetes namespace ``flow-jobs`` and the working directory
 ---------------------------------------------------------------------------------------

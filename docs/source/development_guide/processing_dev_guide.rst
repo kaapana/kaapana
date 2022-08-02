@@ -19,10 +19,13 @@ Write your first own DAG
 
 **Aim**: In this chapter we create a DAG that converts DICOMs to ``.nrrd`` files.
 
-In order to deploy now a new DAG that convert DICOMs to nrrds, create a file called ``dag_example_dcm2nrrd.py`` inside the ``dags``-folder with the following content:
+In order to deploy now a new DAG that converts DICOMs to nrrds, create a file called ``dag_example_dcm2nrrd.py`` inside the ``dags``-folder with the following content:
 
 .. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/extension/docker/files/dag_example_dcm2nrrd.py
     
+You can add this file either directly to the folder, if you have access to the host machine or use the internal code server of Kapaana.
+You can install `the code-server-chart` in the extensions tab and open it with the blue icon right next to it.
+
 That's it basically. Now we can check if the DAG is successfully added to Airflow and then we can test our workflow!
 
 * Go to Airflow and check if your newly added DAG ``example-dcm2nrrd`` appears under DAGs (it might take up to five minutes that airflow recognizes the DAG! Alternatively you could restart the Airflow Pod in Kubernetes)
@@ -44,20 +47,24 @@ from the Kaapana storage, we embed it into an Airflow--workflow that opens a DIC
 the study id in a json file and pushes the json file to Minio.
 We introduce two different developer-workflows to realize this goal. 
 
+The first workflow will be called the "integrated workflow" and, as the name says, 
+integrates the development process into the environment of a running Kaapana platform, which gives us access to the resources of the instance, especially the storage--stack.
+The second workflow is called the "local workflow" and describes how one can emulate the Kaapana environment on a local machine.
+
 Integrated Kaapana development workflow
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The first workflow will be called the "integrated workflow" and, as the name says, 
-integrates the development process into the environment of a running Kaapana platform, which gives us access to the resources of running Kaapana instance, especially all data.
-The second workflow is called the "local workflow" and describes how one can emulate the Kaapana environment on a local machine.
+The approach of the "Integrated development workflow" is to develop the algorithm within a running docker container on the platform. 
+Therefore we load an empty base image with an Airflow-DAG and use the Kaapana code server to implement the algorithm within the container.
+Finally, we will integrate the image with the algorithm as an extension into Kaapana.
 
 .. _Provide an empty base image:
 
 Step 1: Provide an empty base image
 ***********************************
 
-To develop an algorithm within the Kaapana instance we have to provide a container, to start with. Since we 
-provide our algorithm as a python implementation of a DAG (see: :ref:`Write your first own DAG`), we start with a minimal python image:
+To develop an algorithm within the Kaapana instance we have to provide a container, to start with. In this example we 
+provide the algorithm as a python implementation of a DAG (see: :ref:`Write your first own DAG`). Therefore, we start with a minimal python image:
 
 .. code-block:: docker
 
@@ -116,7 +123,7 @@ We just store the python file in the root directory of the docker container, e.g
 
 .. _push-the-algorithm-to-the-repository:
 
-Step 3: Push the algorithm to the repository
+Step 4: Push the algorithm to the repository
 ********************************************
 
 When we are finished with the implementation, we can push the algorithm to our registry. To do so, we create a ``files`` 

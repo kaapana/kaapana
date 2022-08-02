@@ -7,7 +7,7 @@ Service Dev-Guide
 Introduction
 ------------
 
-In this chapter we demonstrate how one can integrate functionalities into the Kaapana platform, that do not fit into the
+In the service dev-guide we demonstrate how one can integrate functionalities into the Kaapana platform, that do not fit into the
 structure of processing pipelines. For this purpose we show how we can host a general flask web application within Kaapana.
 
 .. _Deploy a Flask Application on the platform:

@@ -9,9 +9,10 @@ Introduction
 
 This guide is intended to provide a quick and easy way to get started with developments on the platform.
  
-The guide currently consists of four parts. The parts :ref:`processing_dev_guide` and :ref:`service_dev_guide` focus on the implementation of pipelines for Airflow in order to apply processing steps to images.
-The part :ref:`processing_dev_guide` explains how to develop a flask web application and integrate it as an extension into the Kaapana technology stack.
-The last section :ref:`service_dev_guide` gives step by step instructions for how to deploy your own DAG as an extension to the platform.
+The guide currently consists of three parts. This part gives a brief overview over the technologies and needed preparations for the rest of the guide.
+The part :ref:`processing_dev_guide` does focus on the implementation of pipelines for Airflow in order to apply processing steps to images. 
+It explains how to implement an Airflow-DAG and integrate it as an extension into the Kaapana technology stack.
+The last section :ref:`service_dev_guide` gives step by step instructions for how to deploy a general--purpose web application within Kaapana as an example how arbitrary new components can be added to the platform.
 
 
 Getting started

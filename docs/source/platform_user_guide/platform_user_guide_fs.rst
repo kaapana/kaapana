@@ -114,13 +114,13 @@ Triggering workflows with Kibana
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 As mentioned above, Kibana visualizes all the metadata of the images and is therefore a good option to also filter the images to which a workflow should be applied.
-To trigger a workflow from Kibana, a panel ``send_cohort`` was added to the Kibana dashboard which contains a dropdown to select a workflow, the option between single file and batch processing and a send button to send the request to Airflow.
+To trigger a workflow from Kibana, a panel ``trigger_workflow`` was added to the Kibana dashboard which contains a dropdown to select a workflow and a start button to trigger the configuration dialog for starting the workflow. The configuration dialog includes options specific to the chosen workflow and also some options which are available for most workflows, like choosing between single and batch execution.
 
 .. hint::
 
   | Check out the difference between :term:`single file and batch processing` 
 
-In order to trigger a workflow on images filter the images to which you want to apply the pipeline and trigger a workflow e.g. ``collect-metadata``, ``batch processing``, ``Send x results``.
+In order to trigger a workflow on images, filter the images to which you want to apply the pipeline, select the workflow (e.g. ``collect-metadata``) and press ``Start``. The workflow is then started by clicking ``Start`` again on the configuration popup dialog.
 
 Once Kibana has sent its request, the Airflow pipeline is triggered. If you navigate to Airflow, you should see that the DAG collect-meta data is running.
 By clicking on the DAG you will see different processing steps, that are called ``operators``. 
@@ -189,7 +189,7 @@ Grafana and Prometheus
 ^^^^^^^^^^^^^^^^^^^^^^
 
 As with all platforms, a system to monitor the current system status is needed.
-To provide this, the kaapana utilized a commonly used combination of `Prometheus <https://prometheus.io/>`_ and `Grafana <https://grafana.com/>`_.
+To provide this, kaapana utilizes a commonly used combination of `Prometheus <https://prometheus.io/>`_ and `Grafana <https://grafana.com/>`_.
 The graphical dashboards present states such as disk space, CPU and GPU memory usage, network pressure etc.
 
 

@@ -27,7 +27,6 @@ Deployment Requirements
 
    To provide the services in Kaapana, the corresponding containers are needed.
    These can be looked at as normal binaries of Kaapana and therefore only need to be built if you do not have access to already built containers via a container registry or a tarball.
-   This flow-chart should help you to decide if you need to build Kaapana and which mode to choose:
 
    .. .. mermaid::
 
@@ -153,13 +152,13 @@ Copy the script to your target-system (server) and **adjust it as described belo
 
    .. tab:: Tarball
 
-      :code:`./deploy_platform.sh --tar-path <path-to-tarball-file>`
+      :code:`./deploy_platform.sh --upload-tar <path-to-tarball-file>`
 
 You may be asked the following questions:
 
 1. *Please enter the credentials for the Container-Registry:*
 
-   Use the same credentials you used before with *docker login*
+   Use the credentials to your own registry or the ones provided to you by the Kaapana team.
 
 2. *Enable GPU support?*
 

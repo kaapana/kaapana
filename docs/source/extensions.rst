@@ -38,7 +38,7 @@ Collect metadata (collect-metadata)
 | DICOMs
 |
 | **Start processing:**
-| Select  *collect-metadata*  + *BATCH PROCESSING* and click *SEND x RESULTS*
+| Select  *collect-metadata* + *START*, make sure *single execution* on the configuration popup is set to False and then click *START* again.
 
 
 .. _extensions delete:
@@ -53,7 +53,7 @@ Delete series from platform (delete-series-from-platform)
 | Filter for DICOMs that you want to remove from the platform. Since in the current verison the files are copied to the local SSD drive, please, do not select too many images at once. 
 |
 | **Start processing:**
-| Select  *delete-dcm-from-platform* + *BATCH PROCESSING* and click *SEND x RESULTS*
+| Select  *delete-dcm-from-platform* + *START*, make sure *single execution* on the configuration popup is set to False and then click *START* again.
 
 .. hint::
 
@@ -70,7 +70,7 @@ Download series from platform (download-selected-files)
 | DICOMs
 |
 | **Start processing:**
-| Select  *download-selected-files* + *BATCH PROCESSING* or *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
+| Select  *download-selected-files* + *START*, *single execution* on the configuration popup can be set to True or False and then click *START* again.
 
 
 .. _extensions nnunet:
@@ -92,7 +92,7 @@ nnUNet (nnunet-predict)
 | Depending on the Task see for more information on `Github <https://github.com/MIC-DKFZ/nnUNet>`_
 |
 | **Start processing:**
-| Select  *nnunet* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
+| Select  *nnunet* + *START*, make sure *single execution* on the configuration popup is set to True and then click *START* again.
 
 
 
@@ -115,7 +115,7 @@ Automatic organ segmentation (shapemodel-organ-seg)
 | Filter for **abdominal CT** scans within the meta dashboard. 
 |
 | **Start processing:**
-| Select  *organ-segmentation* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
+| Select  *organ-segmentation* + *START*, make sure *single execution* on the configuration popup is set to True and then click *START* again.
 
 
 .. _extensions radiomics:
@@ -135,7 +135,8 @@ Radiomics (radiomics-dcmseg)
 | DICOM Segmentations 
 |
 | **Start processing:**
-| Select  *radiomics* + *BATCH PROCESSING* or *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
+| Select  *radiomics* + *START*, *single execution* on the configuration popup can be set to True or False and then click *START* again.
+
 
 .. _extensions applications:
 
@@ -147,7 +148,7 @@ Applications
 Code server
 -----------
 | **What's going on?**
-| The code server is used for developing new DAGs and operators for Airflow. It mount the workflows directory of the kaapana
+| The code server is used for developing new DAGs and operators for Airflow. It mount the workflows directory of kaapana
 
 | **Mount point:**  
 | <fast_data_dir>/workflows

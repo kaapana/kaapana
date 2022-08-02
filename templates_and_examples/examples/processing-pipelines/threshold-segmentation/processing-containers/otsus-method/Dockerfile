@@ -1,7 +1,7 @@
 FROM ubuntu:20.04
 
 LABEL IMAGE="example-otsus-method"
-LABEL VERSIOn="0.1.0"
+LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="True"
 
 RUN apt update

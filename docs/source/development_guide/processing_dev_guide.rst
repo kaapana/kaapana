@@ -33,7 +33,7 @@ That's it basically. Now we can check if the DAG is successfully added to Airflo
 * Go to the Meta-Dashboard 
 * Filter via the name of your dataset and with ``+/-`` icons on the different charts your images to which you want to apply the algorithm 
 * From the drop-down, choose the DAG you have created i.e. ``example-dcm2nrrd`` and press the start button. In the appearing pop-up window press start again and the execution of your DAG is triggered.
-* In order to check if your DAG runs successfully, you can go back to Airflow and watch how the pipeline jumps from one operator to the next. If an error occurs please check out the TODO section.
+* In order to check if your DAG runs successfully, you can go back to Airflow and watch how the pipeline jumps from one operator to the next.
 * If everything was successful you can go to Minio where you will find a bucket called ``example-dcm2nrrd``. Inside this folder you will find the ``.nrrd`` files of the selected images.
 
 .. _Deploy an own processing algorithm to the platform:
@@ -77,7 +77,7 @@ To utilize our base image, we have to push it to our registry.
 
 .. code-block:: bash
 
-    sudo docker build -t <docker-registry><docker-repo>/example-extract-study-id:0.1.0
+    sudo docker build -t <docker-registry><docker-repo>/example-extract-study-id:0.1.0 .
     sudo docker push
 
 Since we just used a generic python image as a template for our algorithm and made it available in the Kaapana registry, we can also reuse it for any other
@@ -88,8 +88,8 @@ python based algorithm.
 Step 2: Create a development DAG
 ********************************
 
-In the next step we want to load our python base image inside the Kaapana platform and access it with the built-in code server to implement our algorithm there.
-To do so, we need to create an operator that loads the image and a DAG that executes the operator.
+In the next step we want to run a container based on the python base image inside the Kaapana platform and access it with the built-in code server to implement our algorithm there.
+To do so, we need to create an operator that runs the container. Afterwards we create a DAG to execute the operator.
 
 We define the operator in a file located under ``dags/example``:
 
@@ -111,6 +111,8 @@ Step 3: Start the Dag and implement the algorithm
 Now we want to trigger the DAG, so we go to the meta-dashboard, select the data we want to work with and run our DAG. 
 Our DAG should now be listed in the "pending applications" tab, as shown below. To access the code server we click on the blue link icon beside the name of the DAG.
 
+.. image:: pending_applications_example.png
+
 We can now implement and test our algorithm. In our example the algorithm is a python script, that extracts the study IDs from the loaded data and returns it.
 
 .. note::
@@ -120,6 +122,7 @@ We can now implement and test our algorithm. In our example the algorithm is a p
 .. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/processing-containers/extract-study-id/files/extract_study_id.py
 
 We just store the python file in the root directory of the docker container, e.g. as ``/extract_study_id.py``.
+After we are finished we terminate the dev server in the "pending applications" tab of Kaapana, with the "finish manual interaction" button.
 
 .. _push-the-algorithm-to-the-repository:
 
@@ -136,11 +139,11 @@ Afterwards we can build and push the finished image to our registry.
 
 .. code-block:: bash
 
-    sudo docker build -t <docker-registry><docker-repo>/example-extract-study-id:0.1.0
+    sudo docker build -t <docker-registry><docker-repo>/example-extract-study-id:0.1.0 .
     sudo docker push
 
 Since we finished the implementation process we also don't want the DAG to initiate a dev-server every time, we can 
-delete the ``dev-serve="code-server"`` option from the initialization of the ``ExtractStudyIdOperator`` in 
+delete the ``dev-server="code-server"`` option from the initialization of the ``ExtractStudyIdOperator`` in 
 ``dag_example_extract_study_id.py``.
 
 .. _Local development workflow:
@@ -347,7 +350,7 @@ Now update the dependencies, afterwards build and push the image.
 ::
 
     helm dep up 
-    docker build -t <docker-registry>/<docker-repo>/kaapana-extension-collection:kp_0.1.3__0.1.0
+    docker build -t <docker-registry>/<docker-repo>/kaapana-extension-collection:kp_0.1.3__0.1.0 .
     docker push <docker-registry>/<docker-repo>/kaapana-extension-collection:kp_0.1.3__0.1.0
 
 Finally restart the :code:`kaapana-extension-collection` pod. You can do this in the Kaapana gui by clicking on the cloud button next to **Applications and workflows** in the Extension page.

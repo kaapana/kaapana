@@ -22,7 +22,7 @@ List of the technologies used within this guide
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 These tutorials/technologies are good references, when starting with the Kaapana deployment:
 
-* `Docker <https://docs.docker.com/get-docker/>`_: Necessary when you want to build container on your local machine
+* `Docker <https://docs.docker.com/get-docker/>`_: Necessary when you want to build containers on your local machine
 * `Airflow <https://airflow.apache.org/docs/stable/>`_: Our pipeline tool for processing algorithms
 * `Kubernetes <https://kubernetes.io/docs/tutorials/kubernetes-basics/>`_: (Advanced) On your local machine - necessary when you want to talk to the Kubernetes cluster from your local machine
 * `Helm <https://helm.sh/docs/intro/quickstart/>`_: (super advanced) - our package manager for Kubernetes.  Necessary when you want to build helm packages on your local machine
@@ -41,7 +41,7 @@ Preparations for the development
 
 * You have two options to upload images to the platform
 
-   * Using that Data Upload: Create a zip file of images that end with .dcm and upload the images via drag&drop on the landing page in the section "Data upload"
+   * Using Data Upload: Create a zip file of images that end with .dcm and upload the images via drag&drop on the landing page in the section "Data upload"
 
    * Send images with dcmtk e.g.:
 

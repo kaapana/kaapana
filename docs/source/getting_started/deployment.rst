@@ -14,10 +14,12 @@ Deployment Requirements
    - OS: Ubuntu 20.04 or Ubuntu Server 20.04
    - CPU: 8 cores (recommended 16+)
    - RAM: 64GB+ (recommended 128GB+) 
-   - Storage for application-data (fast-dir): 100GB -> (recommended >200GB) 
+   - Storage for application-data (fast-dir): 100GB (recommended >200GB) 
    - Storage for imaging-data (slow-dir): depends on your needs 
 
+
 #. **Access to a docker registry or a tarball with built docker containers**
+
    Before proceeding with further installation steps, make sure you have access to a docker registry or a tarball with built Kaapana docker containers, otherwise please visit :ref:`getting_started`.
 
    .. hint::
@@ -41,6 +43,7 @@ Deployment Requirements
 
 
 #. **Known Server Configuration**
+
    The **domain, hostname or IP-address** has to be known and correctly configured for the system. 
    **Proxy**, **DNS**, **TLS/SSL Certificates** etc. should be already configured (see :ref:`server_config`). 
 
@@ -195,9 +198,9 @@ After a successful deployment you'll get the following message:
 Undeploy Platform
 ^^^^^^^^^^^^^^^^^
 
-To undeploy Kaapana platform, kaapana-platform-chart and all related charts need to be deleted. For that, run the deployment script :code:`./deploy_platform.sh` and choose the **2) Undeploy** option.
+To undeploy the Kaapana platform, the kaapana-platform-chart and all related charts need to be deleted. For that, run the deployment script :code:`./deploy_platform.sh` and choose the **2) Undeploy** option.
 
-If the **undeployment fails**, make sure to manually check 
+If the **undeployment fails**, make sure to manually check that
 
 1. All helm charts are deleted. All helm charts in Kaapana are created with the same namespace so that they are distinguished from possible other charts
 

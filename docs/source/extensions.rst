@@ -148,7 +148,7 @@ Applications
 Code server
 -----------
 | **What's going on?**
-| The code server is used for developing new DAGs and operators for Airflow. It mount the workflows directory of kaapana
+| The code server is used for developing new DAGs and operators for Airflow. It mounts the workflows directory of kaapana
 
 | **Mount point:**  
 | <fast_data_dir>/workflows
@@ -178,7 +178,7 @@ MITK Flow
 Tensorboard
 -----------
 | **What's going on?**
-| Tensorboard can be launched to analyse generated results during an training, which will come in the future. It also mounts to the Minio directory.
+| Tensorboard can be launched to analyse generated results during a training, which will come in the future. It also mounts to the Minio directory.
 
 | **Mount point:**  
 | <slow_data_dir>/minio

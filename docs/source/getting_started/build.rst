@@ -3,16 +3,16 @@
 Build Kaapana
 *************
 
-It is important that the building of Kaapana (including the cloning of the repository etc.) is completely separated from the actual installation / deployment of the platform.
+It is important to note that the building of Kaapana (including the cloning of the repository etc.) is completely separated from the actual installation / deployment of the platform.
 Building the repository, which is described in this chapter, refers to the creation of the required containers and Helm Charts needed for an installation.
 The results of this build (containers and charts) are usually pushed into a registry and downloaded from there for the installation on the actual deployment server (where the platform will be running).
 
 .. important::
 
   | **1) Do you really need to build the project?**
-  | Only build the project if you don't have access to an existing registry containing the Kaapana binaries or if you want to setup your own infrastructure. (Evaluation registry access can be requested at the DKFZ Kaaoana Team)
+  | Only build the project if you don't have access to an existing registry containing the Kaapana binaries or if you want to setup your own infrastructure. (Evaluation registry access can be requested from the DKFZ Kaapana Team)
   | 
-  | **2) You don't need to build the repository at the deployment server!**
+  | **2) You don't need to build the repository on the deployment server!**
   | A typical misconception we often hear is that you need to clone the repository on the deployment server and build it there. That is not the case! The repository can be built on a completely different machine and the results then made available via a registry. Practically, it is even recommended to separate the repository and the deployment server. Of course it is possible to build the repository on the deployment server (and there is also the possibility to work completely without a registry) - but this should be done in rather rare cases. 
   | 
 
@@ -24,7 +24,7 @@ Perform these steps on the build-machine! Recommended operating system is Ubuntu
 
   | **Disk space needed:**
   | For the complete build of the project ~60GB of container images will be stored at :code:`/var/snap/docker/common/var-lib-docker`.
-  | 50GB additional if you enable the generation of an offline-installation-tarball (build-config: create_offline_installation).
+  | 50GB will be needed additionally if you enable the generation of an offline-installation-tarball (build-config: create_offline_installation).
   |
 
 Before you get started you should be familiar with the basic concepts and components of Kaapana see :ref:`about_kaapana`.
@@ -69,7 +69,7 @@ You should also have the following packages installed on your build-system.
 
    :code:`sudo snap install docker --classic --channel=latest/stable`
 
-#. In order to docker commands as non-root user you need to execute the following steps:
+#. In order to execute docker commands as non-root user you need to execute the following steps:
 
    | :code:`sudo groupadd docker`
    | :code:`sudo usermod -aG docker $USER`
@@ -106,7 +106,7 @@ Start Build
 
 #. Adjust the configuration to your needs: see :ref:`build_config`
 
-#. After the configuration has been adjsuted, the build process can be started with:
+#. After the configuration has been adjusted, the build process can be started with:
 
    | :code:`./kaapana/build-scripts/start_build.py -u <registry user> -p <registry password>`
 

@@ -28,7 +28,7 @@ Docker images can be labeled in the Dockerfile to organize the created Docker im
     *  ``REGISTRY`` is an optional label
 *  ``IMAGE``: defines the utilization of this image
 *  ``VERSION``: clearly specified version of the Docker image which is built from this Dockerfile
-    *  spedified versions are valuable for debugging instead of always using ``<image>:latest``
+    *  specified versions are valuable for debugging instead of always using ``<image>:latest``
 *  ``CI_IGNORE``: indicator for the CI build system of Kaapana to build certain containers if label is set to true
 *  ``PROJECT``: **TODO: ???**
 

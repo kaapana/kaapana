@@ -28,7 +28,7 @@ You can install `the code-server-chart` in the extensions tab and open it with t
 
 That's it basically. Now we can check if the DAG is successfully added to Airflow and then we can test our workflow!
 
-* Go to Airflow and check if your newly added DAG ``example-dcm2nrrd`` appears under DAGs (it might take up to five minutes that airflow recognizes the DAG! Alternatively you could restart the Airflow Pod in Kubernetes)
+* Go to Airflow and check if your newly added DAG ``example-dcm2nrrd`` appears under DAGs (it might take up to five minutes until airflow recognizes the DAG! Alternatively you could restart the Airflow Pod in Kubernetes)
 * If there is an error in the created DAG file like indexing, library imports, etc., you will see an error at the top of the Airflow page
 * Go to the Meta-Dashboard 
 * Filter via the name of your dataset and with ``+/-`` icons on the different charts your images to which you want to apply the algorithm 

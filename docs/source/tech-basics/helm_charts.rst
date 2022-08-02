@@ -16,7 +16,7 @@ For a detailed explanation of how to use templates in Helm refer to `helm docs <
 How Kaapana uses Helm charts
 ==============================
 
-Kaapana uses Helm to distribute and manage the Kubernetes objects, every service, DAG and Extension is a requirement of the main **kaapana-platform-chart**. A full dependency tree can be found below.
+Kaapana uses Helm to distribute and manage the Kubernetes objects. Every service, DAG and Extension is a requirement of the main **kaapana-platform-chart**. A full dependency tree can be found below.
 
 Every Kaapana service consists of two folders, one for the container image document (usually a Dockerfile) and related development files, the other for the Helm chart that deploys this container into the Kubernetes cluster.
 
@@ -40,12 +40,8 @@ Here are some example folder structures for different types of Kaapana component
 
 .. code-block::
 
-    bodypartregression
-    │──── bodypartregression-workflow
-    |     │──── Chart.yaml
-    |     │──── requirements.yaml
-    |     │──── values.yaml   
-    │──── Dockerfile.bodypartregression
+    dags
+    │──── dag_collect_metadata.py
 
 
 **3.** A Kaapana :term:`service` that provides main functionalities of the platform

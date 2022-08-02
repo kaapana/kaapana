@@ -101,7 +101,7 @@ New integrations:
 
 * openEDC 
 * doccano-image-tagging
-* Federated learning extension:
+* Federated learning extension
 
 Updated extensions:
 
@@ -111,8 +111,6 @@ Updated extensions:
 * Mitk-Workbench v2022.04
 * Server and platform installation improvements
 
-Extensions
-----------
 
 Fixes
 -----

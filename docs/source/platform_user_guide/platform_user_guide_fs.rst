@@ -200,7 +200,7 @@ As mentioned above, Kubernetes is the basis of the whole platform. You can talk 
 
 **Case 1: Service is down**
 
-In case you can't access a resource anymore most probably a Pod is down. In this case you first need to check why. For this you go to the Kubernetes-Dashboard. Select at the top a Namespace and then click on Pods. The pod which is down should appear in a red/orange color. Click on the pod. Add the top right, you see four buttons. First click on the left one, this will show the logs of the container. In the best case you see here, why your pod is down. To restart the pod you need to simply delete the pod. In case it was not triggered by an Airflow-Dag it should restart automatically (The same steps can be done via the console, see below). In case the component/service crashes again, there might be some deeper error.
+In case you can't access a resource anymore most probably a Pod is down. In this case you first need to check why. For this you go to the Kubernetes-Dashboard. Select at the top a Namespace and then click on Pods. The pod which is down should appear in a red/orange color. Click on the pod. At the top right, you see four buttons. First click on the left one, this will show the logs of the container. In the best case you see here, why your pod is down. To restart the pod you need to simply delete the pod. In case it was not triggered by an Airflow-Dag it should restart automatically (The same steps can be done via the console, see below). In case the component/service crashes again, there might be some deeper error.
 
 **Case 2: Platform is not responding**
 

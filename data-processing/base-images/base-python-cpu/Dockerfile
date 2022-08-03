@@ -15,11 +15,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     nano \
     dcmtk \
+    pandoc \
     texlive-xetex \
     texlive-fonts-recommended \
     texlive-plain-generic \
     && rm -rf /var/lib/apt/lists/*
-# texlive-packages only for jupyternotebook: jupyter nbconvert --to html --no-input ...
+# pandoc and texlive-packages only for jupyternotebook: jupyter nbconvert --to html --no-input ...
 
 # Common Python packages
 COPY files/requirements.txt /root/

@@ -11,16 +11,16 @@ metadata:
   namespace: kube-system
   name: traefik
   labels:
-    app: traefik
+    app-name: traefik
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: traefik
+      app-name: traefik
   template:
     metadata:
       labels:
-        app: traefik
+        app-name: traefik
     spec:
       serviceAccountName: traefik-ingress-controller
       containers:

@@ -212,7 +212,7 @@ function clean_up_kubernetes {
 function upload_tar {
     echo "${YELLOW}Importing the images fromt the tar, this might take up to one hour...!${NC}"
     microk8s.ctr images import $TAR_PATH
-    echo "${GREEN}Finished image uplaod! You should now be able to deploy the platfrom by specifying the chart path.${NC}"
+    echo "${GREEN}Finished image uplaod! You should now be able to deploy the platform by specifying the chart path.${NC}"
 }
 
 function deploy_chart {
@@ -265,7 +265,7 @@ function deploy_chart {
         echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
 
         if [ $(basename "$CHART_PATH") != "$PROJECT_NAME-$DEFAULT_VERSION.tgz" ]; then
-            echo "${RED} Verison of chart_path $CHART_PATH differs from PROJECT_NAME: $PROJECT_NAME and DEFAULT_VERSION: $DEFAULT_VERSION in the deployment script.${NC}" 
+            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PROJECT_NAME and DEFAULT_VERSION: $DEFAULT_VERSION in the deployment script.${NC}" 
             exit 1
         fi
 
@@ -477,12 +477,12 @@ usage="$(basename "$0")
 _Flag: --install-certs set new HTTPS-certificates for the platform
 _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
 _Flag: --remove-all-images-docker will delete all Docker images from the system
-_Flag: --purge-kube-and-helm will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forerver.
+_Flag: --purge-kube-and-helm will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
 _Flag: --quiet, meaning non-interactive operation
 
 _Argument: --version of the platform [version]
-_Argument: --username [Docker regsitry username]
-_Argument: --password [Docker regsitry password]
+_Argument: --username [Docker registry username]
+_Argument: --password [Docker registry password]
 _Argument: --port [Set main https-port]
 _Argument: --chart-path [path-to-chart-tgz]
 _Argument: --upload-tar [path-to-a-tarball]

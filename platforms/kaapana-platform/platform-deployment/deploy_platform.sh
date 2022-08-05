@@ -94,22 +94,13 @@ if test -t 1; then
     fi
 fi
 
-if ! command -v nvidia-smi &> /dev/null # check if command nvidia-smi is known
+if ! command -v nvidia-smi &> /dev/null
 then
     echo "${YELLOW}No GPU detected...${NC}"
     GPU_SUPPORT="false"
 else
-    set +euf +o pipefail
-    nvidia_smi_output_lines="$(nvidia-smi | wc -l)"
-    set -euf -o pipefail
-    if [ $nvidia_smi_output_lines -eq 2 ]   # check if nvidia-smi output prints GPU specs or just that GPU is not available
-    then
-        echo "${YELLOW}No GPU detected...${NC}"
-        GPU_SUPPORT="false"
-    else
-        echo "${GREEN}Nvidia GPU detected!${NC}"
-        GPU_SUPPORT="true"
-    fi
+    echo "${GREEN}Nvidia GPU detected!${NC}"
+    GPU_SUPPORT="true"
 fi
 
 function delete_all_images_docker {

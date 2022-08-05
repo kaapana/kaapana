@@ -16,16 +16,18 @@ Changelog
     * latest stable version
     * API adjustments within all deployments
 
+* Server and platform installation improvements
+    * new certificate installation incl. random cert generator
+    * easy offline installation method (no registry needed)
+    * introduction of a helm namespace for separate deployment tracking
+    * support for custom DNS servers
+    * better proxy support (incl. no_proxy configuration)
+    * improved security by RBAC cluster support
+    * support for AlmaLinux as a replacement for CentOS 8
+
 * Extensions
     * simplification of extension collections
 
-* new certificate installation incl. random cert generator
-* easy offline installation method (no registry needed)
-* introduction of a helm namespace for separate deployment tracking
-* support for custom DNS servers
-* better proxy support (incl. no_proxy configuration)
-* improved security by RBAC cluster support
-* support for AlmaLinux as a replacement for CentOS 8
 * New build-system
     * improved build-time (~1h for the kaapana-platform)
     * improved dependency checks
@@ -37,6 +39,7 @@ Changelog
     * direct microk8s injection
     * stats on used / unused resources
     * better logs
+* ability to separate platforms in a registry using prefixes
 
 * New processing scheduling system
     * improved robustness
@@ -54,12 +57,26 @@ Changelog
 * Bug-fixes
     * Fixed misbehaving “Delete-Series-From-Platform” workflow
     * Re-Index workflow
+    * Increased timeout for process incoming dcm when called from CTP
+    * Fixed bug in DICOM reindexation polluting the data directory
+    * Fixed bugs in install script to make it location agnostic
+
+* General Improvements
+    * More robust un-deployment of the platform
+    * Up to date Zenodo metadata
+    * New tagging system allowing the deletion of tags and a faster processing
+    * Adjustments of the landing page design
+    * The dcmsend processing container reties sending of images up to 5 times making it more robust
+    * Add Monitoring support for airflow
+    * New Grafana Dashboards for Airlfow, Kubernetes and Traefik
 
 * Documentation
     * Adjusted tutorials
     * New Operator docs
+    * New Guides (Write Dockerfiles for Kaapana, Automatic Triggering, Send images to platform, Building the Platform, How does the Build System Work, Provide Workflow as Extension, How Kaapana uses Helm Charts, How to stop and restart a workflow, How to remove data from the platform, How to backup a Kaapana instance, How to install TLS certificates)
     * FAQ extension
-
+    * New examples for workflows and processing containers
+    
 * many other smaller bug-fixes and adjustments
 
 Incompatible Changes
@@ -98,7 +115,6 @@ Updated extensions:
 * Code-Server v4.2.0
 * Tensorboard v2.8.0
 * Mitk-Workbench v2022.04
-* Server and platform installation improvements
 
 
 0.1.3-beta

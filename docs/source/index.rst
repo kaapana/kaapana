@@ -22,7 +22,7 @@ KAAPANA Documentation
    publication_citation
    releases
    license
-   screenshots
    glossary
+   acknowledgments
    contact
    

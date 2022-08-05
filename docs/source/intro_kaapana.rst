@@ -16,13 +16,13 @@ By adhering to established standards and by adopting widely used open technologi
 
 
 Kaapana is constantly developing and currently includes the following key-features:
-* Large-scale image processing with SOTA deep learning algorithms, such as `nnU-Net <https://github.com/MIC-DKFZ/nnunet/>`_ image segmentation.
-* Analysing, evaluation and viewing of processed images and data
-* Simple integration of new, customized algorithms and applications into the framework
-* System monitoring
-* User management
+    * Large-scale image processing with SOTA deep learning algorithms, such as `nnU-Net <https://github.com/MIC-DKFZ/nnunet/>`_ image segmentation.
+    * Analysing, evaluation and viewing of processed images and data
+    * Simple integration of new, customized algorithms and applications into the framework
+    * System monitoring
+    * User management
 
-Currently the most widely used platform realized using Kaapana is the Joint Imaging Platform (JIP) of the German Cancer Consortium (DKTK). The `JIP <https://jip.dktk.dkfz.de/jiphomepage/>`_ is currently being deployed at all 36 german university hospitals with the objective of distributed radiological image analysis and quantification.
+Currently the most widely used platform realized using Kaapana is the Joint Imaging Platform (JIP) of the German Cancer Consortium (DKTK). The JIP is currently being deployed at all 36 german university hospitals with the objective of distributed radiological image analysis and quantification.
 
 For more information, please also take a look at our recent publication of the Kaapana-based `Joint Imaging Platform in JCO Clinical Cancer Informatics <https://ascopubs.org/doi/full/10.1200/CCI.20.00045>`_.
 

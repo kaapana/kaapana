@@ -1,5 +1,5 @@
 {
-    "description": "Kaapana release v0.1.3 TBD",
+    "description": "Kaapana release v0.1.3",
     "title": "kaapana/kaapana: v0.1.3",
     "version": "0.1.3",
     "license": {
@@ -43,6 +43,18 @@
         {
             "affiliation": "German Cancer Research Center",
             "name": "Stefan Denner"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Lorenz Feineis"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Jens Beyermann"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Jonas Reinwald"
         },
         {
             "affiliation": "German Cancer Research Center",

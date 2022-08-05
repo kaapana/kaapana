@@ -12,6 +12,5 @@ Here we document the processing steps available in the repository. We have adopt
 .. toctree::
     :maxdepth: 2
 
-    api_documentation/api_dags
     api_documentation/api_operators
     

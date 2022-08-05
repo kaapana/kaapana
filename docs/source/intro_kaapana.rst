@@ -24,5 +24,5 @@ Kaapana is constantly developing and currently includes the following key-featur
 
 Currently the most widely used platform realized using Kaapana is the Joint Imaging Platform (JIP) of the German Cancer Consortium (DKTK). The JIP is currently being deployed at all 36 german university hospitals with the objective of distributed radiological image analysis and quantification.
 
-For more information, please also take a look at our recent publication of the Kaapana-based `Joint Imaging Platform in JCO Clinical Cancer Informatics <https://ascopubs.org/doi/full/10.1200/CCI.20.00045>`_.
+For more information, please also take a look at our publication of the Kaapana-based `Joint Imaging Platform in JCO Clinical Cancer Informatics <https://ascopubs.org/doi/full/10.1200/CCI.20.00045>`_.
 

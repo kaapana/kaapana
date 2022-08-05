@@ -5,6 +5,7 @@ A collection of publications related to Kaapana:
 
 Joint Imaging Platform for Federated Clinical Data Analytics
 ============================================================
+If you want to reference Kaapana, please include this publication.
 
 DOI: `10.1200/CCI.20.00045 <https://doi.org/10.1200/CCI.20.00045>`_
 

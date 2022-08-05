@@ -61,7 +61,7 @@ Besides a few required software packages, mainly Microk8s is installed, to setup
   | Please make sure the :code:`nvidia-smi` command is working as expected!
 
 Before the example platform "Kaapana-platform" can be deployed, all dependencies must be installed on the server. 
-To do this, you can use the :term:`server-installation-script`, located at :code:`kaapana/server-installation/server_installation.sh`, by following the steps listed below.
+To do this, you can use the :term:`server-deployment-script`, located at :code:`kaapana/server-installation/server_installation.sh`, by following the steps listed below.
 
 1. Copy the script to your target-system (server)
 2. Make it executable:

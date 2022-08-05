@@ -57,7 +57,7 @@ Glossary
     kubernetes
       Kubernetes is an open-source container-orchestration system that we use to manage all the Docker containers that are needed for Kaapana.
 
-    server-installation-script
+    server-deployment-script
       This script is used to install all required dependencies on the :term:`server`.
       It can be found within the Kaapana-repository: :code:`kaapana/server-installation/server_installation.sh`
 

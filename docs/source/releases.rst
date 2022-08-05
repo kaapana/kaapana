@@ -19,7 +19,6 @@ Changelog
 * Extensions
     * simplification of extension collections
 
-
 * new certificate installation incl. random cert generator
 * easy offline installation method (no registry needed)
 * introduction of a helm namespace for separate deployment tracking
@@ -68,11 +67,6 @@ Incompatible Changes
 
 * Kubernetes v1.19 is not supported anymore
 
-Deprecated
-----------
-
-* TODO
-
 Updated Components
 ------------------
 
@@ -106,20 +100,6 @@ Updated extensions:
 * Mitk-Workbench v2022.04
 * Server and platform installation improvements
 
-
-Fixes
------
-
-* Updated Google analytics integration (#1129)
-
-
-Other Changes
--------------
-
-* Update npm development dependencies (#1096)
-* Don't require npm to build from source (#1039)
-* Use regular toctree instead of toc for singlehtml builder (#507)
-* Cleanup whitespace in templates (#1060)
 
 0.1.3-beta
 ==========

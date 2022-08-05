@@ -2,9 +2,3 @@
 
 Screenshots
 ===========
-
-
-Federated backend
------------------
-
-Coming soon

@@ -10,7 +10,7 @@ Removing DICOM data
 -------------------
 
 DICOM data can be removed by triggering the :code:`delete-series-from-platform` workflow in the Meta-Dashboard.
-For information about how to use the Meta-Dashboard to select data and trigger a workflow take a look at the :ref:`Meta-Dashboard tutorial<TODO>` **TODO: Add reference link**.
+For information about how to use the Meta-Dashboard to select data and trigger a workflow take a look at the Meta-Dashboard tutorial.
 
 .. hint:: 
     The :code:`delete-series-from-platform` workflow can also be triggered in the other dashboards i.e. *Segmentations* and *Trained Models*.

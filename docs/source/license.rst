@@ -20,7 +20,7 @@ along with this program (see file LICENCE).
 If not, see `gnu.org <https://www.gnu.org/licenses/>`_.
 
 
-Considerations on our license choice
+Considerations On Our License Choice
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You can use Kaapana to build any product you like, including commercial closed source ones since it is a highly modular system. 

@@ -7,7 +7,7 @@ Helm is a package manager for Kubernetes, it helps to define and manage differen
 
 `Helm <https://helm.sh/docs/>`_ has a great documentation and it is definitely a recommended read for a deeper understanding.
 
-`Helm quickstart <https://helm.sh/docs/intro/quickstart/>`_ provides a fast introduction to main concepts in Helm. For the installation part, note that the :term:`server-installation-script` uses snap to fetch the most recent Helm version available.
+`Helm quickstart <https://helm.sh/docs/intro/quickstart/>`_ provides a fast introduction to main concepts in Helm. For the installation part, note that the :term:`server-deployment-script` uses snap to fetch the most recent Helm version available.
 
 For a detailed explanation of how to use templates in Helm refer to `helm docs <https://helm.sh/docs/chart_template_guide>`_ .
 

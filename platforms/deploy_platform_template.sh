@@ -485,7 +485,7 @@ _Argument: --upload-tar [path-to-a-tarball]
 _Argument: --version [version]
 
 where version is one of the available platform releases:
-    0.1.3  --> latest Kaapana release
+    0.1.4  --> latest Kaapana release
     $DEFAULT_VERSION  --> latest development version ${NC}"
 
 QUIET=NA

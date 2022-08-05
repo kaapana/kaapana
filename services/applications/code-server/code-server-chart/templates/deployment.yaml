@@ -40,7 +40,7 @@ spec:
           requests:
             memory: 200Mi
           limits:
-            memory: 500Gi
+            memory: 30Gi
         volumeMounts:
           {{- if not .Values.volumeMounts }}
           - name: codeserverdata

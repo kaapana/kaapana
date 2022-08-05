@@ -38,7 +38,7 @@ data:
             unchangedCounter = "2"
             limitTriggerOnRunningDagsUrl="service-extract-metadata service-process-incoming-dcm"
             dagRunUrl="/dags/%s/dagRuns/state/queued/count"
-            runningDagLimits="150"
+            runningDagLimits="500"
             whitespaceReplacement="_"/>
         </Pipeline>
         <Pipeline name="DicomSTOWRSImportService">
@@ -71,7 +71,7 @@ data:
             unchangedCounter = "2"
             limitTriggerOnRunningDagsUrl="service-extract-metadata service-process-incoming-dcm"
             dagRunUrl="/dags/%s/dagRuns/state/queued/count"
-            runningDagLimits="150"
+            runningDagLimits="500"
             fix_aetitle="DICOM_WEB"
             whitespaceReplacement="_"/>
         </Pipeline>

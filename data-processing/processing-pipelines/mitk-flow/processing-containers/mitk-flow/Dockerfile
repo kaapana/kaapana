@@ -1,4 +1,4 @@
-FROM local-only/no-vnc-base:0.1.0
+FROM local-only/no-vnc-base:0.1.1
 
 LABEL IMAGE="mitk-flow"
 LABEL VERSION="2022.04"

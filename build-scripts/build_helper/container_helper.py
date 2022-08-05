@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from glob import glob
 import os
+from posixpath import dirname
 from subprocess import PIPE, run
 from time import time, sleep
 from shutil import which
@@ -17,11 +18,7 @@ def container_registry_login(username, password):
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
 
     if output.returncode != 0:
-        BuildUtils.logger.error("Something went wrong!")
-        BuildUtils.logger.error(f"Couldn't logout from registry {BuildUtils.default_registry}")
-        BuildUtils.logger.error(f"Message: {output.stdout}")
-        BuildUtils.logger.error(f"Error:   {output.stderr}")
-        exit(1)
+        BuildUtils.logger.info(f"Docker couldn't logout from registry: {BuildUtils.default_registry} -> not logged in!")
 
     BuildUtils.logger.info(f"-> Container registry-login: {BuildUtils.default_registry}")
     command = [Container.container_engine, "login", BuildUtils.default_registry, "--username", username, "--password", password]
@@ -82,6 +79,10 @@ class BaseImage:
             self.registry = tag.split("/")[0]
             self.project = tag.split("/")[1]
             self.name = tag.split("/")[2].split(":")[0]
+        elif tag.count("/") == 3:
+            self.registry = tag.split("/")[0]
+            self.project = f"{tag.split('/')[1]}/{tag.split('/')[2]}"
+            self.name = tag.split("/")[3].split(":")[0]
         else:
             BuildUtils.logger.error("Could not extract base-image!")
             exit(1)
@@ -217,9 +218,20 @@ class Container:
     def build(self):
         if Container.enable_build:
             BuildUtils.logger.info(f"{self.build_tag}: start building ...")
-            
+
             if self.container_push_status == "pushed":
                 BuildUtils.logger.debug(f"{self.build_tag}: already build -> skip")
+                return
+
+            if self.ci_ignore:
+                BuildUtils.logger.warning(f"{self.build_tag}: {self.ci_ignore=} -> skip")
+                BuildUtils.generate_issue(
+                    component=suite_tag,
+                    name=f"{self.build_tag}",
+                    msg=f"Container build skipped: {self.ci_ignore=} !",
+                    level="WARING",
+                    path=self.container_dir
+                )
                 return
 
             startTime = time()
@@ -239,11 +251,11 @@ class Container:
                 else:
                     self.container_build_status = "nothing_changed"
                     BuildUtils.logger.info(f"{self.build_tag}: Build sucessful - no changes.")
-            
+
                 hours, rem = divmod(time()-startTime, 3600)
                 minutes, seconds = divmod(rem, 60)
                 BuildUtils.logger.info("{}: Build-time: {:0>2}:{:0>2}:{:05.2f}".format(self.build_tag, int(hours), int(minutes), seconds))
-            
+
             else:
                 self.container_build_status = "failed"
                 BuildUtils.logger.error(f"{self.build_tag}: Build failed!")
@@ -261,7 +273,17 @@ class Container:
 
     def push(self, retry=True):
         BuildUtils.logger.debug(f"{self.build_tag}: in push()")
-        
+        if self.ci_ignore:
+            BuildUtils.logger.warning(f"{self.build_tag}: {self.ci_ignore=} -> skip")
+            BuildUtils.generate_issue(
+                component=suite_tag,
+                name=f"{self.build_tag}",
+                msg=f"Container push skipped: {self.ci_ignore=} !",
+                level="WARING",
+                path=self.container_dir
+            )
+            return
+
         if BuildUtils.push_to_microk8s is True:
             if self.build_tag.startswith('local-only'):
                 BuildUtils.logger.info(f"Skipping: Pushing {self.build_tag} to microk8s, due to local-only")
@@ -278,11 +300,11 @@ class Container:
                     component="Microk8s push",
                     name="docker save",
                     msg=f"Docker save failed {output.stderr}!",
-                    level="FATAL"
+                    level="ERROR"
                 )
                 return
 
-            command = ["microk8s","ctr", "image", "import", parking_file]
+            command = ["microk8s", "ctr", "image", "import", parking_file]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
             if os.path.exists(parking_file):
                 os.remove(parking_file)
@@ -292,12 +314,12 @@ class Container:
                     component="Microk8s image push",
                     name="Microk8s image push",
                     msg=f"Microk8s image push failed {output.stderr}!",
-                    level="FATAL"
+                    level="ERROR"
                 )
                 return
 
             BuildUtils.logger.info(f"Sucessfully pushed {self.build_tag} to microk8s")
-        
+
         if Container.enable_push:
             BuildUtils.logger.debug(f"{self.build_tag}: push enabled")
 
@@ -388,7 +410,7 @@ class Container:
                         output=output,
                         path=self.container_dir
                     )
-                            
+
         else:
             BuildUtils.logger.info(f"{self.build_tag}: push disabled")
             self.container_push_status = "disabled"
@@ -443,10 +465,9 @@ class Container:
                 BuildUtils.logger.info("")
 
         if len(dockerfiles_found) != len(set(dockerfiles_found)):
-            BuildUtils.logger.warning("")
             BuildUtils.logger.warning("-> Duplicate Dockerfiles found!")
 
-        dockerfiles_found = set(dockerfiles_found)
+        dockerfiles_found = sorted(set(dockerfiles_found))
 
         for dockerfile in dockerfiles_found:
             container = Container(dockerfile)

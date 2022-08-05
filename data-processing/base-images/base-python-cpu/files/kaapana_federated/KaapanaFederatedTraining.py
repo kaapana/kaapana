@@ -8,7 +8,6 @@ import os
 import uuid
 import shutil
 import tarfile
-import threading
 import functools
 from minio import Minio
 from abc import ABC, abstractmethod
@@ -68,6 +67,7 @@ def requests_retry_session(
     backoff_factor=1,
     status_forcelist=[404, 429, 500, 502, 503, 504],
     session=None,
+    use_proxies=False
 ):
     session = session or requests.Session()
     retry = Retry(
@@ -80,7 +80,21 @@ def requests_retry_session(
     adapter = HTTPAdapter(max_retries=retry)
     session.mount('http://', adapter)
     session.mount('https://', adapter)
-    return session 
+
+    if use_proxies is True:
+        proxies = {
+            'http': os.getenv('PROXY', None),
+            'https': os.getenv('PROXY', None),
+            'no_proxy': 'airflow-service.flow,airflow-service.flow.svc,' \
+                'ctp-dicom-service.flow,ctp-dicom-service.flow.svc,'\
+                    'dcm4chee-service.store,dcm4chee-service.store.svc,'\
+                        'elastic-meta-service.meta,elastic-meta-service.meta.svc'\
+                            'federated-backend-service.base,federated-backend-service.base.svc,' \
+                                'minio-service.store,minio-service.store.svc'
+        }
+        session.proxies.update(proxies)
+    
+    return session
 
 def minio_rmtree(minioClient, bucket_name, object_name):
     delete_object_list = map(
@@ -158,14 +172,11 @@ class KaapanaFederatedTrainingBase(ABC):
                  secret_key='Kaapana2020',
                  minio_host='minio-service.store.svc',
                  minio_port='9000',
-                 use_minio_mount=None,
-                 use_threading=True,
+                 use_minio_mount=None
                 ):
         
         self.use_minio_mount = use_minio_mount
-        self.use_threading = use_threading
-        self.central_thread = None
-        self.central_thread_error = None
+        self.run_in_parallel = False
         self.federated_dir = os.getenv('RUN_ID', str(uuid.uuid4()))
         self.workflow_dir = workflow_dir or os.getenv('WORKFLOW_DIR', f'/kaapanasrc/data/federated-setup-central-test-220316153201233296')
         print('working directory', self.workflow_dir)
@@ -263,9 +274,6 @@ class KaapanaFederatedTrainingBase(ABC):
             if idx%6 == 0:
                 print(f'{10*idx} seconds')
 
-            if self.central_thread_error is not None:
-                print(f'An error occured in a thread! You need to manually kill all running processes of the clients.')
-                raise self.central_thread_error
             time.sleep(10)
 
             for instance_name, tmp_site_info in self.tmp_federated_site_info.items():
@@ -306,7 +314,7 @@ class KaapanaFederatedTrainingBase(ABC):
             objects = self.minioClient.list_objects(federated_bucket, os.path.join(current_federated_round_dir, instance_name), recursive=True)
             for obj in objects:
                 # https://github.com/minio/minio-py/blob/master/minio/datatypes.py#L103
-                if obj.is_dir or not obj.object_name.endswith('.tar'):
+                if obj.is_dir or not obj.object_name.endswith('.tar') or os.path.basename(obj.object_name).replace('.tar', '') not in self.remote_conf_data["federated_form"]["federated_operators"]:
                     continue
                 else:
                     file_path = os.path.join(self.fl_working_dir, os.path.relpath(obj.object_name, self.remote_conf_data['federated_form']['federated_dir']))
@@ -346,63 +354,64 @@ class KaapanaFederatedTrainingBase(ABC):
         print('Finished round', federated_round)
 
     @timeit
-    def on_train_step_end(self, federated_round):
+    def on_wait_for_jobs_end(self, federated_round):
         pass
     
     @timeit
     def central_steps(self, federated_round, tmp_central_site_info):
         # Working with downloaded objects
-        try:
-            self.download_minio_objects_to_workflow_dir(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
-            self.update_data(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
-            self.upload_workflow_dir_to_minio_object(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
-        except Exception as e:
-            self.central_thread_error = e
+        self.download_minio_objects_to_workflow_dir(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
+        self.update_data(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
+        self.upload_workflow_dir_to_minio_object(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
 
     @timeit
     def train_step(self, federated_round):
-        self.distribute_jobs(federated_round=federated_round)
+
+        if self.run_in_parallel is False:
+            self.distribute_jobs(federated_round=federated_round)
+        
         self.wait_for_jobs(federated_round=federated_round)
         tmp_central_site_info = { instance_name: tmp_site_info for instance_name, tmp_site_info in self.tmp_federated_site_info.items() }
-        if self.use_threading is True:
-            self.central_thread = threading.Thread(target=self.central_steps, name="central_step", kwargs={'federated_round': federated_round, 'tmp_central_site_info': tmp_central_site_info})
-            self.central_thread.start()
-        else:
-            self.central_steps(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
-        self.on_train_step_end(federated_round=federated_round)
-    
+        self.on_wait_for_jobs_end(federated_round=federated_round)
+        self.create_recovery_conf(federated_round=federated_round)
+        if self.run_in_parallel is True and (federated_round+1) < self.remote_conf_data['federated_form']['federated_total_rounds']:
+            self.distribute_jobs(federated_round=federated_round+1)
+
+        self.central_steps(federated_round=federated_round, tmp_central_site_info=tmp_central_site_info)
+
+    def create_recovery_conf(self, federated_round):
+        print('Recovery conf for round {}')
+        self.tmp_federated_site_info = {instance_name: {k: tmp_site_info[k] for k in ['from_previous_dag_run', 'before_previous_dag_run']} for instance_name, tmp_site_info in self.tmp_federated_site_info.items()}
+        recovery_conf = {
+            "remote": False,
+            "dag_id": os.getenv('DAG_ID'),
+            "instance_names": [instance_name for instance_name, _ in self.tmp_federated_site_info.items()],
+            "form_data": {
+                **self.local_conf_data,
+                **{f'external_schema_{k}' : v for k, v in self.remote_conf_data.items()},
+                'tmp_federated_site_info': self.tmp_federated_site_info
+                }
+        }
+        print('Recovery conf formatted')
+        print(json.dumps(recovery_conf, indent=2))
+        print('Recovery conf in one line')
+        print(json.dumps(recovery_conf))
+        recovery_path = os.path.join(self.fl_working_dir, str(federated_round), "recovery_conf.json")
+        os.makedirs(os.path.basename(recovery_path), exist_ok=True)
+        with open(recovery_path, "w", encoding='utf-8') as jsonData:
+            json.dump(recovery_conf, jsonData, indent=2, sort_keys=True, ensure_ascii=True)
+
+
     @timeit    
     def train(self):
         for federated_round in range(self.federated_round_start, self.remote_conf_data['federated_form']['federated_total_rounds']):
             self.train_step(federated_round=federated_round)
-            print('Recovery conf for round {}')
-            self.tmp_federated_site_info = {instance_name: {k: tmp_site_info[k] for k in ['from_previous_dag_run', 'before_previous_dag_run']} for instance_name, tmp_site_info in self.tmp_federated_site_info.items()}
-            recovery_conf = {
-                "remote": False,
-                "dag_id": os.getenv('DAG_ID'),
-                "instance_names": [instance_name for instance_name, _ in self.tmp_federated_site_info.items()],
-                "form_data": {
-                    **self.local_conf_data,
-                    **{f'external_schema_{k}' : v for k, v in self.remote_conf_data.items()},
-                    'tmp_federated_site_info': self.tmp_federated_site_info
-                    }
-            }
-            print('Recovery conf formatted')
-            print(json.dumps(recovery_conf, indent=2))
-            print('Recovery conf in one line')
-            print(json.dumps(recovery_conf))
-            recovery_path = os.path.join(self.fl_working_dir, str(federated_round), "recovery_conf.json")
-            os.makedirs(os.path.basename(recovery_path), exist_ok=True)
-            with open(recovery_path, "w", encoding='utf-8') as jsonData:
-                json.dump(recovery_conf, jsonData, indent=2, sort_keys=True, ensure_ascii=True)
             if federated_round > 0:
                 previous_fl_working_round_dir = os.path.join(self.fl_working_dir, str(federated_round-1))
                 print(f'Removing previous round files {previous_fl_working_round_dir}')
                 if os.path.isdir(previous_fl_working_round_dir):
                     shutil.rmtree(previous_fl_working_round_dir)
         print('Cleaning up minio')
-        if self.central_thread is not None:
-            self.central_thread.join()
 
         if self.use_minio_mount is not None:
             dst = os.path.join('/', self.workflow_dir, os.getenv('OPERATOR_OUT_DIR', 'federated-operator'), os.path.basename(self.json_writer.filename))

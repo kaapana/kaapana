@@ -83,7 +83,7 @@ data:
           "grafana": {
             "label": "Grafana",
             "endpoint": "/grafana",
-            "linkTo": "/grafana/d/kube/kubernetes?refresh=10s&orgId=1&var-Node=All&kiosk=tv"
+            "linkTo": "/grafana/d/k8s_views_global/kubernetes-views-global?theme=dark&kiosk&orgId=1"
           }
         }
       },

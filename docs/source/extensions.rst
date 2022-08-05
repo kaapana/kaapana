@@ -1,10 +1,10 @@
 .. _extensions start:
 
-Extensions
-==========
+Kaapana Extensions
+##################
 
 Introduction
-^^^^^^^^^
+^^^^^^^^^^^^
 The *Extension* functional unit can be considered as an app store.
 It allows (un-)installing components, which can either be workflows or applications.
 Workflows are algorithms which are executed via `Apache Airflow <https://airflow.apache.org/>`_.
@@ -17,7 +17,7 @@ For installing a specific version of an extension, the dropdown in the *version*
 Uninstalling an extension is as easy as installing one by clicking on *uninstall* for the respective extension in the extension list.
 
 A detailed description of available workflows and applications can be found in :ref:`extensions workflows` and :ref:`extensions applications`.
-Information about how to integrate custom components into the platform via the *Extension* functional unit can be found at :ref:`Deploy a Flask Application on the platform` and :ref:`Provide a workflow as an extension`.
+Information about how to integrate custom components into the platform via the *Extension* functional unit can be found at :ref:`service_dev_guide` and :ref:`processing_dev_guide`.
 
 .. _extensions workflows:
 
@@ -38,7 +38,7 @@ Collect metadata (collect-metadata)
 | DICOMs
 |
 | **Start processing:**
-| Select  *collect-metadata*  + *BATCH PROCESSING* and click *SEND x RESULTS*
+| Select  *collect-metadata* + *START*, make sure *single execution* on the configuration popup is set to False and then click *START* again.
 
 
 .. _extensions delete:
@@ -53,7 +53,7 @@ Delete series from platform (delete-series-from-platform)
 | Filter for DICOMs that you want to remove from the platform. Since in the current verison the files are copied to the local SSD drive, please, do not select too many images at once. 
 |
 | **Start processing:**
-| Select  *delete-dcm-from-platform* + *BATCH PROCESSING* and click *SEND x RESULTS*
+| Select  *delete-dcm-from-platform* + *START*, make sure *single execution* on the configuration popup is set to False and then click *START* again.
 
 .. hint::
 
@@ -70,7 +70,7 @@ Download series from platform (download-selected-files)
 | DICOMs
 |
 | **Start processing:**
-| Select  *download-selected-files* + *BATCH PROCESSING* or *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
+| Select  *download-selected-files* + *START*, *single execution* on the configuration popup can be set to True or False and then click *START* again.
 
 
 .. _extensions nnunet:
@@ -92,7 +92,7 @@ nnUNet (nnunet-predict)
 | Depending on the Task see for more information on `Github <https://github.com/MIC-DKFZ/nnUNet>`_
 |
 | **Start processing:**
-| Select  *nnunet* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
+| Select  *nnunet* + *START*, make sure *single execution* on the configuration popup is set to True and then click *START* again.
 
 
 
@@ -115,7 +115,7 @@ Automatic organ segmentation (shapemodel-organ-seg)
 | Filter for **abdominal CT** scans within the meta dashboard. 
 |
 | **Start processing:**
-| Select  *organ-segmentation* + *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
+| Select  *organ-segmentation* + *START*, make sure *single execution* on the configuration popup is set to True and then click *START* again.
 
 
 .. _extensions radiomics:
@@ -135,7 +135,8 @@ Radiomics (radiomics-dcmseg)
 | DICOM Segmentations 
 |
 | **Start processing:**
-| Select  *radiomics* + *BATCH PROCESSING* or *SINGLE FILE PROCESSING* and click *SEND x RESULTS*
+| Select  *radiomics* + *START*, *single execution* on the configuration popup can be set to True or False and then click *START* again.
+
 
 .. _extensions applications:
 
@@ -147,7 +148,7 @@ Applications
 Code server
 -----------
 | **What's going on?**
-| The code server is used for developing new DAGs and operators for Airflow. It mount the workflows directory of the kaapana
+| The code server is used for developing new DAGs and operators for Airflow. It mounts the workflows directory of kaapana
 
 | **Mount point:**  
 | <fast_data_dir>/workflows
@@ -177,7 +178,7 @@ MITK Flow
 Tensorboard
 -----------
 | **What's going on?**
-| Tensorboard can be launched to analyse generated results during an training, which will come in the future. It also mounts to the Minio directory.
+| Tensorboard can be launched to analyse generated results during a training, which will come in the future. It also mounts to the Minio directory.
 
 | **Mount point:**  
 | <slow_data_dir>/minio

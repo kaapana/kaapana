@@ -188,8 +188,8 @@ spec:
           value: "{{ .Values.global.fast_data_dir }}/workflows/models"
         - name: MINIODIR
           value: "{{ .Values.global.slow_data_dir }}/minio"
-        - name: DEVDIR
-          value: "{{ .Values.global.fast_data_dir }}/minio/data-processing-dev"
+        - name: KAAPANA_DEV_DIR
+          value: "{{ .Values.global.fast_data_dir }}/minio/kaapana-dev-data"
         - name: PROXY
           value: "{{ .Values.global.http_proxy }}"
         - name: PLATFORM_ABBR
@@ -243,6 +243,22 @@ spec:
           mountPath: /data
         - name: dicomdir
           mountPath: /pacsdata
+      - name: statsd-metrics-exporter
+        image: {{ .Values.global.registry_url }}/statsd-exporter:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__v0.22.7
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        args: 
+          - --statsd.mapping-config=/tmp/statsd_mapping.yaml
+          - --web.listen-address=:9102
+          - --statsd.listen-udp=:8125
+        resources:
+          requests:
+            memory: 50Mi
+          limits:
+            memory: 50Mi
+        volumeMounts:
+        - name: airflow-statsd-config
+          mountPath: /tmp/statsd_mapping.yaml
+          subPath: statsd_mapping.yaml
       volumes:
       - name: airflow-configmap
         configMap:
@@ -250,6 +266,9 @@ spec:
       - name: airflow-webserver-config
         configMap:
           name: airflow-webserver-config
+      - name: airflow-statsd-config
+        configMap:
+          name: airflow-statsd-config
       - name: airflow-dags
         hostPath:
           path: {{ .Values.global.fast_data_dir }}/workflows/dags

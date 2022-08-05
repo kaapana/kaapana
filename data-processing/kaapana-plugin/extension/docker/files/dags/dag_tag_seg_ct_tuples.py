@@ -3,22 +3,29 @@ from datetime import datetime, timedelta
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
-from kaapana.operators.DcmSendOperator import DcmSendOperator
+from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 
-
-ae_title = "NONE"
 
 ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            "aetitle": {
-                "title": "Receiver AE-title/Dataset name",
-                "description": "Specify the port of the DICOM receiver.",
+            "action": {
+                "title": "Action",
+                "description": "Choose if you want to add/delete tags",
+                "enum": ["add", "delete"],
                 "type": "string",
-                "default": ae_title,
+                "default": "add",
+                "required": True,
+                "readOnly": False
+            },
+            "tags": {
+                "title": "Tags",
+                "description": "Specify a , seperated list of tags to add/delete (e.g. tag1,tag2)",
+                "type": "string",
+                "default": "",
                 "required": True
             },
             "input": {
@@ -52,39 +59,40 @@ dag = DAG(
     dag_id='tag-seg-ct-tuples',
     default_args=args,
     concurrency=10,
-    max_active_runs=10,
+    max_active_runs=1,
     schedule_interval=None
 )
 
-get_input = LocalGetInputDataOperator(
+get_input_dicom = LocalGetInputDataOperator(
     dag=dag,
+    name='get-input-dicom',
     check_modality=True,
+    parallel_downloads=5
+)
+
+get_input_json = LocalGetInputDataOperator(
+    dag=dag,
+    name='get-input-json',
+    check_modality=True,
+    data_type="json",
     parallel_downloads=5
 )
 
 get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     dag=dag,
-    input_operator=get_input,
+    input_operator=get_input_dicom,
     search_policy="reference_uid",
     parallel_downloads=5,
     parallel_id="ct",
+    data_type="json",
     modality=None,
 )
 
-dcm_send_cts = DcmSendOperator(
-    name='send_cts',
-    dag=dag,
-    input_operator=get_input,
-    ae_title=ae_title
-)
-
-dcm_send_segs = DcmSendOperator(
-    dag=dag,
-    name='send_segs',
-    input_operator=get_ref_ct_series_from_seg,
-    ae_title=ae_title
-)
+tag_cts = LocalTaggingOperator(dag=dag, name="tag-cts", input_operator=get_ref_ct_series_from_seg)
+tag_segs = LocalTaggingOperator(dag=dag, name="tag-segs", input_operator=get_input_json)
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> get_ref_ct_series_from_seg >> dcm_send_cts >> dcm_send_segs >> clean
+get_input_dicom >> get_ref_ct_series_from_seg >> tag_cts
+get_input_json >> tag_segs >> clean
+tag_cts >> clean

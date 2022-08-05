@@ -7,6 +7,7 @@ import os
 
 
 from sqlalchemy.orm import Session
+from sqlalchemy import desc
 from sqlalchemy.exc import IntegrityError
 from psycopg2.errors import UniqueViolation
 from cryptography.fernet import Fernet
@@ -14,7 +15,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException, Response
 
 
 from . import models, schemas
-from app.utils import HOSTNAME, INSTANCE_NAME, get_dataset_list, update_external_job, delete_external_job, execute_job, get_utc_timestamp, HelperMinio, get_dag_list, raise_kaapana_connection_error
+from app.utils import HOSTNAME, INSTANCE_NAME, get_dataset_list, update_external_job, delete_external_job, execute_job, check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, raise_kaapana_connection_error
 from urllib.parse import urlparse
 
 
@@ -207,15 +208,15 @@ def delete_jobs(db: Session):
     db.commit()
     return {"ok": True}
 
-def get_jobs(db: Session, instance_name: str = None, status: str = None, remote: bool = True):
+def get_jobs(db: Session, instance_name: str = None, status: str = None, remote: bool = True, limit=None):
     if instance_name is not None and status is not None:
-        return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).all()
+        return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
     elif instance_name is not None:
-        return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).all()
+        return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
     elif status is not None:
-        return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(remote=remote).all()
+        return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
     else:
-        return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(remote=remote).all()
+        return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
 
 def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     utc_timestamp = get_utc_timestamp()
@@ -225,7 +226,14 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
 
     if job.status == 'scheduled' and db_job.kaapana_instance.remote == False:
         print(f'Executing  job {db_job.id}')
-        execute_job(db_job)
+        conf_data = json.loads(db_job.conf_data)
+        conf_data['client_job_id'] = db_job.id
+        dag_id_and_dataset = check_dag_id_and_dataset(db_job.kaapana_instance, conf_data, db_job.dag_id, db_job.addressed_kaapana_instance_name) 
+        if dag_id_and_dataset is not None:
+            job.status = 'failed'
+            job.description = dag_id_and_dataset
+        else:
+            execute_job(conf_data, db_job.dag_id)
 
     if (db_job.kaapana_instance.remote != remote) and db_job.status not in ["queued", "finished", "failed"]:
         raise HTTPException(status_code=401, detail="You are not allowed to update this job, since its on the client site")

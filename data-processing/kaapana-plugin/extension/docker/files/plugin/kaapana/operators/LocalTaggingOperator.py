@@ -81,6 +81,7 @@ class LocalTaggingOperator(KaapanaPythonBaseOperator):
     def __init__(self,
                  dag,
                  tag_field: str="dataset_tags_keyword",
+                 name: str="tagging",
                  add_tags_from_file: bool=False,
                  tags_to_add_from_file: List[str]=["00120020 ClinicalTrialProtocolID_keyword"],
                  elastic_host='elastic-meta-service.meta.svc',
@@ -103,7 +104,7 @@ class LocalTaggingOperator(KaapanaPythonBaseOperator):
 
         super().__init__(
                 dag=dag,
-                name="tagging",
+                name=name,
                 python_callable=self.start,
                 **kwargs
             )

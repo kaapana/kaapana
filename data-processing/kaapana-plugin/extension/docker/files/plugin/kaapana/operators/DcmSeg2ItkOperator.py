@@ -2,7 +2,19 @@ from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_r
 from datetime import timedelta
 
 class DcmSeg2ItkOperator(KaapanaBaseOperator):
+    """
+        Operator converts .dcm segmentation data into other file formats.
+        
+        This operator takes a .dcm segmentation file and creates a segmentation file in a different file format e.g. .nrrd file format.
+        The operator uses the dcmqi libary.
+        For dcmqi documentation please have a look at https://qiicr.gitbook.io/dcmqi-guide/.
+        
+        **Inputs:**
+        * .dcm segmentation file
 
+        **Outputs:**
+        * segmentation file in a file format specified by output_format
+    """
     def __init__(self,
                  dag,
                  output_format=None,
@@ -11,6 +23,13 @@ class DcmSeg2ItkOperator(KaapanaBaseOperator):
                  execution_timeout=timedelta(minutes=90),
                  **kwargs
                  ):
+        """
+        :param output_format: File format of the created segmentation file
+           If not specified "nrrd"
+        :param seg_filter: A bash list of organs, that should be filtered from the segmentation e.g. "liver,aorta"
+        :param env_vars: Environmental variables
+        :param execution_timeout: max time allowed for the execution of this task instance, if it goes beyond it will raise and fail
+        """
 
         if env_vars is None:
             env_vars = {}

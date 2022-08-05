@@ -18,45 +18,45 @@ suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
 
 
-def generate_installation_script(platform_chart):
-    BuildUtils.logger.info(f"-> Generate platform installation script for {platform_chart.name} ...")
+def generate_deployment_script(platform_chart):
+    BuildUtils.logger.info(f"-> Generate platform deployment script for {platform_chart.name} ...")
     file_loader = FileSystemLoader(join(BuildUtils.kaapana_dir, "platforms"))  # directory of template file
     env = Environment(loader=file_loader)
 
     platform_dir = dirname(platform_chart.chart_dir)
-    install_script_config_path = list(Path(platform_dir).rglob("installer_config.yaml"))
+    deployment_script_config_path = list(Path(platform_dir).rglob("deployment_config.yaml"))
 
-    if len(install_script_config_path) != 1:
-        BuildUtils.logger.error(f"Could not find platform installation-script config for {platform_chart.name} at {dirname(platform_chart.chart_dir)}")
-        BuildUtils.logger.error(f"{install_script_config_path=}")
+    if len(deployment_script_config_path) != 1:
+        BuildUtils.logger.error(f"Could not find platform deployment-script config for {platform_chart.name} at {dirname(platform_chart.chart_dir)}")
+        BuildUtils.logger.error(f"{deployment_script_config_path=}")
         BuildUtils.generate_issue(
             component=suite_tag,
-            name="generate_installation_script",
-            msg=f"Could not find platform installation-script config for {platform_chart.name} at {dirname(platform_chart.chart_dir)}",
+            name="generate_deployment_script",
+            msg=f"Could not find platform deployment-script config for {platform_chart.name} at {dirname(platform_chart.chart_dir)}",
             level="ERROR"
         )
         return
 
-    platform_params = yaml.load(open(install_script_config_path[0]), Loader=yaml.FullLoader)
+    platform_params = yaml.load(open(deployment_script_config_path[0]), Loader=yaml.FullLoader)
     platform_params["project_name"] = platform_chart.name
     platform_params["default_version"] = platform_chart.version
     platform_params["project_abbr"] = platform_chart.project_abbr
-    template = env.get_template('install_platform_template.sh')  # load template file
+    template = env.get_template('deploy_platform_template.sh')  # load template file
 
     output = template.render(**platform_params)
 
-    platform_install_script_path = join(platform_dir,"platform-installation","install_platform.sh")
-    with open(platform_install_script_path, 'w') as rsh:
+    platform_deployment_script_path = join(platform_dir,"platform-deployment","deploy_platform.sh")
+    with open(platform_deployment_script_path, 'w') as rsh:
         rsh.write(output)
 
-    platform_install_script_path_build = join(dirname(platform_chart.build_chart_dir),"platform-installation","install_platform.sh")
-    if not os.path.exists(dirname(platform_install_script_path_build)):
-        os.makedirs(dirname(platform_install_script_path_build))
+    platform_deployment_script_path_build = join(dirname(platform_chart.build_chart_dir),"platform-deployment","deploy_platform.sh")
+    if not os.path.exists(dirname(platform_deployment_script_path_build)):
+        os.makedirs(dirname(platform_deployment_script_path_build))
     
-    with open(platform_install_script_path_build, 'w') as rsh:
+    with open(platform_deployment_script_path_build, 'w') as rsh:
         rsh.write(output)
 
-    BuildUtils.logger.debug(f"Install script generated.")
+    BuildUtils.logger.debug(f"Deployment script generated.")
 
 def generate_tree_node(chart_object, tree, parent):
     node_id = f"{parent}-{chart_object.name}"
@@ -146,14 +146,8 @@ def helm_registry_login(username, password):
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
 
     if output.returncode != 0 and "Error: not logged in" not in output.stderr:
-        BuildUtils.logger.error(f"Helm couldn't logout from registry: {BuildUtils.default_registry}")
-        BuildUtils.generate_issue(
-            component=suite_tag,
-            name="helm_registry_login",
-            msg=f"Helm couldn't logout from registry {BuildUtils.default_registry}",
-            level="FATAL",
-            output=output
-        )
+        BuildUtils.logger.info(f"Helm couldn't logout from registry: {BuildUtils.default_registry} -> not logged in!")
+
     BuildUtils.logger.info(f"-> Helm registry-login: {BuildUtils.default_registry}")
     command = ["helm", "registry", "login", BuildUtils.default_registry, "--username", username, "--password", password]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
@@ -229,6 +223,8 @@ class HelmChart:
         self.chart_yaml = None
         self.version_prefix = None
         self.build_chart_dir = None
+        self.kubeval_done = False
+        self.helmlint_done = False
 
         assert isfile(chartfile)
 
@@ -284,11 +280,11 @@ class HelmChart:
             
             assert self.project_abbr != None
 
-            installer_config = glob(dirname(self.chart_dir)+"/**/installer_config.yaml", recursive=True)
-            assert len(installer_config) == 1
+            deployment_config = glob(dirname(self.chart_dir)+"/**/deployment_config.yaml", recursive=True)
+            assert len(deployment_config) == 1
 
-            installer_config = installer_config[0]
-            platform_params = yaml.load(open(installer_config), Loader=yaml.FullLoader)
+            deployment_config = deployment_config[0]
+            platform_params = yaml.load(open(deployment_config), Loader=yaml.FullLoader)
             if "kaapana_collections" in platform_params:
                 self.kaapana_collections = platform_params["kaapana_collections"]
 
@@ -613,6 +609,8 @@ class HelmChart:
                 os.remove(requirements_lock)
 
     def lint_chart(self):
+        if self.helmlint_done:
+            return
         if HelmChart.enable_lint:
             BuildUtils.logger.info(f"{self.chart_id}: lint_chart")
             os.chdir(self.build_chart_dir)
@@ -624,16 +622,20 @@ class HelmChart:
                     component=suite_tag,
                     name=f"{self.chart_id}",
                     msg="chart lint failed!",
-                    level="WARN",
+                    level="WARNING",
                     output=output,
                     path=self.build_chart_dir
                 )
             else:
                 BuildUtils.logger.debug(f"{self.chart_id}: lint_chart ok")
+                self.helmlint_done = True
         else:
             BuildUtils.logger.debug(f"{self.chart_id}: lint_chart disabled")
 
     def lint_kubeval(self):
+        if self.kubeval_done:
+            return
+        
         if HelmChart.enable_kubeval:
             BuildUtils.logger.info(f"{self.chart_id}: lint_kubeval")
             os.chdir(self.build_chart_dir)
@@ -645,12 +647,13 @@ class HelmChart:
                     component=suite_tag,
                     name=f"{self.chart_id}",
                     msg="chart kubeval failed!",
-                    level="WARN",
+                    level="WARNING",
                     output=output,
                     path=self.build_chart_dir
                 )
             else:
                 BuildUtils.logger.debug(f"{self.chart_id}: lint_kubeval ok")
+                self.kubeval_done = True
         else:
             BuildUtils.logger.debug(f"{self.chart_id}: kubeval disabled")
 
@@ -711,7 +714,10 @@ class HelmChart:
             charts_found.extend(glob(external_source_dir+"/**/Chart.yaml", recursive=True))
             BuildUtils.logger.info(f"Found {len(charts_found)} Charts")
 
-        charts_found = sorted(charts_found, key=lambda p: (-p.count(os.path.sep), p))
+        if len(charts_found) != len(set(charts_found)):
+            BuildUtils.logger.warning("-> Duplicate Charts found!")
+
+        charts_found = sorted(set(charts_found), key=lambda p: (-p.count(os.path.sep), p))
 
         BuildUtils.logger.info("")
         BuildUtils.logger.info(f"--> Found {len(charts_found)} Charts across sources")
@@ -835,7 +841,7 @@ class HelmChart:
         platform_chart.push()
         BuildUtils.logger.info(f"{platform_chart.chart_id}: DONE")
 
-        generate_installation_script(platform_chart)
+        generate_deployment_script(platform_chart)
 
         BuildUtils.logger.info("Start container build...")
         containers_built = []
@@ -868,7 +874,7 @@ class HelmChart:
             command = [
                 Container.container_engine, "save"] + [
                     container.build_tag for container in containers_built if not container.build_tag.startswith('local-only')] + [
-                        "-o", str(Path(os.path.dirname(platform_chart.build_chart_dir)) / f"{platform_chart.name}-{platform_chart.version}.tar")]
+                        "-o", str(Path(os.path.dirname(platform_chart.build_chart_dir)) / f"{platform_chart.name}-{platform_chart.version}-containers.tar")]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
             if output.returncode != 0:
                 BuildUtils.logger.error(f"Docker save failed {output.stderr}!")
@@ -876,13 +882,12 @@ class HelmChart:
                     component="docker save",
                     name="Docker save",
                     msg=f"Docker save failed {output.stderr}!",
-                    level="FATAL"
+                    level="ERROR"
                 )
             BuildUtils.logger.info("Finished: Generating platform docker dump.")
 
     @staticmethod
     def generate_platform_build_tree():
-        BuildUtils.logger.info(f"generate_platform_build_tree")
         charts_to_build = []
         for chart_object in BuildUtils.charts_available:
             if chart_object.kaapana_type != None and chart_object.kaapana_type == "platform":

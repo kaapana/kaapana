@@ -10,7 +10,7 @@ const kaapanaApiService = {
         console.log(response)
         resolve(response)
       }).catch((error: any) => {
-        alert('Failed: ' + error.response.data)
+        console.log('Failed: ' + error.response.data)
         reject(error)
       })
     })
@@ -21,7 +21,7 @@ const kaapanaApiService = {
       request.get('/kube-helm-api' + subUrl, { params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
-        alert('Failed: ' + error.response.data)
+        console.log('Failed: ' + error.response.data)
         reject(error)
       })
     })

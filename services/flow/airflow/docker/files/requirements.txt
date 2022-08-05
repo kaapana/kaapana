@@ -1,4 +1,4 @@
-apache-airflow==2.2.5
+apache-airflow[statsd]==2.2.5
 psycopg2-binary == 2.9.3
 Flask-Admin==1.6.0
 pydicom == 2.3.0

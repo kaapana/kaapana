@@ -68,10 +68,11 @@ function radiomics {
 
             install -Dv / "$xml_filepath"
             echo "###"
-            echo "### COMMAND: /src/MitkCLGlobalImageFeatures.sh -i $file -o $csv_filepath -x $xml_filepath -m $maskfile -rm 1 -sp 1 -head 1 -fl-head 1 $PARAMETERS"
+            echo "### COMMAND: /kaapanasrc/MitkCLGlobalImageFeatures.sh -i $file -o $csv_filepath -x $xml_filepath -m $maskfile -rm 1 -sp 1 -head 1 -fl-head 1 $PARAMETERS"
             echo "###"
-            /src/MitkCLGlobalImageFeatures.sh -i "$file" -o "$csv_filepath" -x "$xml_filepath" -m "$maskfile" -rm 1 -sp 1 -head 1 -fl-head 1 $PARAMETERS
-            # /src/MitkCLGlobalImageFeatures.sh -i "$file" -o "$csv_filepath" -x "$xml_filepath" -m "$maskfile" -rm 1 -sp 1 -head 1 -fl-head 1 -fo 1 -cooc 1
+            chmod +x /kaapanasrc/MitkCLGlobalImageFeatures.sh
+            set -e
+            /kaapanasrc/MitkCLGlobalImageFeatures.sh -i "$file" -o "$csv_filepath" -x "$xml_filepath" -m "$maskfile" -rm 1 -sp 1 -head 1 -fl-head 1 $PARAMETERS
             
             retVal=$?
             if [ $retVal -ne 0 ]; then

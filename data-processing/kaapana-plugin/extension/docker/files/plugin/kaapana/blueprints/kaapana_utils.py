@@ -3,6 +3,7 @@ import os
 import shutil
 import requests
 import tarfile
+import time
 import urllib3
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
@@ -18,6 +19,11 @@ def generate_run_id(dag_id):
     run_id = datetime.now().strftime('%y%m%d%H%M%S%f')
     run_id = "{}-{}".format(dag_id, run_id)
     return run_id
+
+def get_release_name(kwargs):
+    run_id = kwargs['run_id']
+    release_name = cure_invalid_name(run_id, r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*", max_length=42) # actually 53, but becuse of kaapana-int- 42
+    return f'kaapanaint-{release_name}'
 
 
 def generate_minio_credentials(x_auth_token):
@@ -44,7 +50,7 @@ def cure_invalid_name(name, regex, max_length=None):
         return name
     name = _regex_match(regex, name)
     if max_length is not None and len(name) > max_length:
-        name = name[:max_length]
+        name = name[-max_length:]
         print(f'Your name is too long, only {max_length} character are allowed, we will cut it to {name} to work with Kubernetes')
     name = _regex_match(regex, name)
     return name
@@ -92,17 +98,22 @@ def requests_retry_session(
     session.mount('https://', adapter)
 
     if use_proxies is True:
-        proxies = {'http': os.getenv('PROXY', None), 'https': os.getenv('PROXY', None)}
-        print('Setting proxies', proxies)
+        proxies = {
+            'http': os.getenv('PROXY', None),
+            'https': os.getenv('PROXY', None),
+            'no_proxy': 'airflow-service.flow,airflow-service.flow.svc,' \
+                'ctp-dicom-service.flow,ctp-dicom-service.flow.svc,'\
+                    'dcm4chee-service.store,dcm4chee-service.store.svc,'\
+                        'elastic-meta-service.meta,elastic-meta-service.meta.svc'\
+                            'federated-backend-service.base,federated-backend-service.base.svc,' \
+                                'minio-service.store,minio-service.store.svc'
+        }
         session.proxies.update(proxies)
-    else:
-        print('Not using proxies!')
 
     return session 
 
-
 def trying_request_action(func, *args, **kwargs):
-    max_retries = 5
+    max_retries = 10
     try_count = 0
     while try_count < max_retries:
         print("Try: {}".format(try_count))
@@ -112,6 +123,7 @@ def trying_request_action(func, *args, **kwargs):
         except tarfile.ReadError as e:
             print("The files was not downloaded properly...")
             print(e)
+            time.sleep(5)
             print(f"Trying again action on {func.__name__}")
         except urllib3.exceptions.ReadTimeoutError as e:
             print("Reaad timeout error")
@@ -119,6 +131,10 @@ def trying_request_action(func, *args, **kwargs):
             print(f"Trying again action on {func.__name__}")
         except requests.exceptions.ConnectionError as e:
             print("Connection Error")
+            print(e)
+            print(f"Trying again action on {func.__name__}")
+        except requests.exceptions.ChunkedEncodingError as e:
+            print("ChunkedEncodingError")
             print(e)
             print(f"Trying again action on {func.__name__}")
         except urllib3.exceptions.ProtocolError as e:

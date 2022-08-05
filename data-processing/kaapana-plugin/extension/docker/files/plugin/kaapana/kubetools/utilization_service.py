@@ -308,7 +308,7 @@ class UtilService():
                 logger.error(f"No GPU for the TI found! -> Not scheduling !")
                 if not gpu_support:
                     pool_id = "NODE_GPU_COUNT"
-                    return False, pool_id, gpu_mem_mb
+                    return False, pool_id, 1
                 else:
                     return False, task_instance.pool, task_instance.pool_slots
 

@@ -22,7 +22,7 @@ from airflow.utils.dates import days_ago
 from random import randint
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
-from kaapana.blueprints.kaapana_utils import generate_run_id, cure_invalid_name
+from kaapana.blueprints.kaapana_utils import generate_run_id, cure_invalid_name, get_release_name
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
@@ -37,7 +37,6 @@ default_platform_abbr = os.getenv("PLATFORM_ABBR", "")
 default_platform_version = os.getenv("PLATFORM_VERSION", "")
 
 
-default_proxy = os.getenv("PROXY", "")
 
 class KaapanaBaseOperator(BaseOperator, SkipMixin):
     """
@@ -124,7 +123,10 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                  allow_federated_learning=False,
                  whitelist_federated_learning=None,
                  delete_input_on_success=False,
+                 delete_output_on_start=True,
                  # Other stuff
+                 enable_proxy=False,
+                 no_proxy=None,
                  batch_name=None,
                  workflow_dir=None,
                  cmds=None,
@@ -178,7 +180,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             whitelist_federated_learning=whitelist_federated_learning,
             batch_name=batch_name,
             workflow_dir=workflow_dir,
-            delete_input_on_success=delete_input_on_success
+            delete_input_on_success=delete_input_on_success,
+            delete_output_on_start=delete_output_on_start
         )
 
         # Airflow
@@ -221,7 +224,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.kind = kind
         self.data_dir = os.getenv('DATADIR', "")
         self.model_dir = os.getenv('MODELDIR', "")
-        self.dev_dir = os.getenv('DEVDIR', "")
+        self.kaapana_dev_dir = os.getenv('KAAPANA_DEV_DIR', "")
         self.result_message = None
 
         self.volume_mounts.append(VolumeMount(
@@ -301,8 +304,17 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             "OPERATOR_OUT_DIR": str(self.operator_out_dir),
             "BATCHES_INPUT_DIR": f"/{self.workflow_dir}/{self.batch_name}",
         }
-        if default_proxy:
-            envs.update({"PROXY": default_proxy})
+
+        if enable_proxy is True and os.getenv("PROXY", None) is not None:
+            envs.update({
+                "http_proxy": os.getenv("PROXY", ""),
+                "https_proxy": os.getenv("PROXY", ""),
+            })
+
+        if no_proxy is not None:
+            envs.update({
+                "no_proxy": no_proxy
+            })
 
         if hasattr(self, 'operator_in_dir'):
             envs["OPERATOR_IN_DIR"] = str(self.operator_in_dir)
@@ -365,14 +377,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 json.dump(context['dag_run'].conf, file)
 
         self.set_context_variables(context)
-
-        if self.parallel_id is None:
-            self.kube_name = f'{self.name}'
-        else:
-            self.kube_name = f'{self.name}-{self.parallel_id}'
-
-        self.kube_name = self.kube_name.lower() + "-" + str(uuid.uuid4())[:8]
-        self.kube_name = cure_invalid_name(self.kube_name, r'[a-z]([-a-z0-9]*[a-z0-9])?', 63) # actually 63, but because of helm set to 53, maybe...
+        # Same expression as in on_failure method!
+        self.kube_name = cure_invalid_name(context["run_id"].replace(context["dag_run"].dag_id, context["task_instance"].task_id), r'[a-z]([-a-z0-9]*[a-z0-9])?', 63) # actually 63, but because of helm set to 53, maybe...
 
         if "NODE_GPU_" in str(context["task_instance"].pool) and str(context["task_instance"].pool).count("_") == 3:
             gpu_id = str(context["task_instance"].pool).split("_")[2]
@@ -380,7 +386,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 "CUDA_VISIBLE_DEVICES": str(gpu_id)
             })
 
-        # if context['dag_run'].conf is not None and "conf" in context['dag_run'].conf and "form_data" in context['dag_run'].conf["conf"] and context['dag_run'].conf["conf"]["form_data"] is not None:
+
         if context['dag_run'].conf is not None and "form_data" in context['dag_run'].conf and context['dag_run'].conf["form_data"] is not None:
             form_data = context['dag_run'].conf["form_data"]
             print(form_data)
@@ -418,15 +424,15 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 })
 
             self.volume_mounts.append(VolumeMount(
-                'devdata', mount_path='/devdata', sub_path=None, read_only=False
+                'kaapanadevdata', mount_path='/kaapanadevdata', sub_path=None, read_only=False
             ))
 
             self.volumes.append(
-                Volume(name='devdata', configs={
+                Volume(name='kaapanadevdata', configs={
                     'hostPath':
                     {
                         'type': 'DirectoryOrCreate',
-                        'path': self.dev_dir
+                        'path': self.kaapana_dev_dir
                     }
                 })
             )
@@ -464,7 +470,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 **volumes_sets}
             print(helm_sets)
             # kaapanaint is there, so that it is recognized as a pending application!
-            release_name = cure_invalid_name(f'kaapanaint-{self.kube_name}', r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*", max_length=53)
+            release_name = get_release_name(context)
             if self.dev_server == 'code-server':
                 payload = {
                     'name': 'code-server-chart',
@@ -497,7 +503,10 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     break
                 r.raise_for_status()
             return 
-                
+
+        if self.delete_output_on_start is True:
+            KaapanaBaseOperator.delete_operator_out_dir(context['run_id'], self.operator_out_dir)
+    
         try:
             print("++++++++++++++++++++++++++++++++++++++++++++++++ launch pod!")
             print(self.name)
@@ -523,73 +532,81 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             )
             launcher = pod_launcher.PodLauncher(extract_xcom=self.xcom_push)
 
-            (result, message) = launcher.run_pod(
+            launcher_return = launcher.run_pod(
                 pod=pod,
                 startup_timeout=self.startup_timeout_seconds,
                 get_logs=self.get_logs
             )
-            self.result_message = result
-            print("RESULT: {}".format(result))
-            print("MESSAGE: {}".format(message))
 
-            if result != State.SUCCESS:
-                raise AirflowException('Pod returned a failure: {state}'.format(state=message))
+            if launcher_return is None:
+                raise AirflowException('Problems launching the pod...')
+            else:
+                (result, message) = launcher_return
+                self.result_message = result
+                print("RESULT: {}".format(result))
+                print("MESSAGE: {}".format(message))
 
-            if self.xcom_push:
-                return result
+                if result != State.SUCCESS:
+                    raise AirflowException('Pod returned a failure: {state}'.format(state=message))
+                else:
+                    if self.delete_input_on_success:
+                        KaapanaBaseOperator.delete_operator_out_dir(context['run_id'], self.operator_in_dir)
+                if self.xcom_push:
+                    return result
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
     @staticmethod
-    def on_failure(info_dict):
+    def delete_operator_out_dir(run_id, operator_dir):
+        print(f"#### deleting {operator_dir} folders...!")
+        run_dir  = os.path.join("/", WORKFLOW_DIR, run_id)
+        batch_folders = sorted([f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))])
+        for batch_element_dir in batch_folders:
+            element_input_dir = os.path.join(batch_element_dir, operator_dir)
+            print(f"# Deleting: {element_input_dir} ...")
+            shutil.rmtree(element_input_dir, ignore_errors=True)
+        batch_input_dir = os.path.join(run_dir, operator_dir)
+        print(f"# Deleting: {batch_input_dir} ...")
+        shutil.rmtree(batch_input_dir, ignore_errors=True)
+
+    @staticmethod
+    def on_failure(context):
+        """
+        Use this method with caution, because it unclear at which state the context object is updated!
+        """
         print("##################################################### ON FAILURE!")
-        keep_pod_messages = [
-            State.SUCCESS,
-            State.FAILED
-        ]
-        result_message = info_dict["ti"].task.result_message
-        if result_message not in keep_pod_messages:
-            print("RESULT_MESSAGE: {}".format(result_message))
-            print("--> delete pod!")
-            if hasattr(info_dict["ti"].task, 'kube_name'):
-                pod_id = info_dict["ti"].task.kube_name
-                KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=pod_id)
+        # Same expression as in execute method!
+        kube_name = cure_invalid_name(context["run_id"].replace(context["dag_run"].dag_id, context["task_instance"].task_id), r'[a-z]([-a-z0-9]*[a-z0-9])?', 63) # actually 63, but because of helm set to 53, maybe...
+        time.sleep(2) # since the phase needs some time to get updated
+        KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=kube_name, phases=['Pending', 'Running'])
+        release_name = get_release_name(context)
+        url = f'{KaapanaBaseOperator.HELM_API}/view-chart-status'
+        r = requests.get(url, params={'release_name': release_name})
+        if r.status_code == 500 or r.status_code == 404:
+            print(f'Release {release_name} was uninstalled or never installed. My job is done here!')
+        else:
+            from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
+            KaapanaApplicationOperator.uninstall_helm_chart(context)
 
     @staticmethod
-    def on_success(info_dict):
+    def on_success(context):
+        """
+        Use this method with caution, because it unclear at which state the context object is updated!
+        """
         print("##################################################### on_success!")
-        ti = info_dict["ti"].task
-        if ti.delete_input_on_success:
-            print("#### deleting input-dirs...!")
-            data_dir  = os.path.join(WORKFLOW_DIR, info_dict['run_id'])
-            batch_folders = sorted([f for f in glob.glob(os.path.join(data_dir, 'batch', '*'))])
-            for batch_element_dir in batch_folders:
-                element_input_dir = os.path.join(batch_element_dir, ti.operator_in_dir)
-                print(f"# Deleting: {element_input_dir} ...")
-                shutil.rmtree(element_input_dir, ignore_errors=True)
-
-            batch_input_dir = os.path.join(data_dir, ti.operator_in_dir)
-            print(f"# Deleting: {batch_input_dir} ...")
-            shutil.rmtree(batch_input_dir, ignore_errors=True)
 
     @staticmethod
-    def on_retry(info_dict):
+    def on_retry(context):
+        """
+        Use this method with caution, because it unclear at which state the context object is updated!
+        """
         print("##################################################### on_retry!")
-        print("## POD: {}".format(info_dict["ti"].task.kube_name))
-        keep_pod_messages = [
-            State.SUCCESS,
-            State.FAILED
-        ]
-        result_message = info_dict["ti"].task.result_message
-        if result_message not in keep_pod_messages:
-            print("RESULT_MESSAGE: {}".format(result_message))
-            print("--> delete pod!")
-            if hasattr(info_dict["ti"].task, 'kube_name'):
-                pod_id = info_dict["ti"].task.kube_name
-                KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=pod_id)
 
     @staticmethod
-    def on_execute(info_dict):
+    def on_execute(context):
+        """
+        Use this method with caution, because it unclear at which state the context object is updated!
+        """
         pass
 
     def post_execute(self, context, result=None):
@@ -624,7 +641,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         whitelist_federated_learning,
         batch_name,
         workflow_dir,
-        delete_input_on_success
+        delete_input_on_success,
+        delete_output_on_start
     ):
 
         obj.name = name
@@ -646,6 +664,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         obj.allow_federated_learning = allow_federated_learning
         obj.whitelist_federated_learning = whitelist_federated_learning
         obj.delete_input_on_success = delete_input_on_success
+        obj.delete_output_on_start = delete_output_on_start
 
         obj.batch_name = batch_name if batch_name != None else BATCH_NAME
         obj.workflow_dir = workflow_dir if workflow_dir != None else WORKFLOW_DIR
@@ -668,6 +687,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             obj.operator_in_dir = input_operator.operator_out_dir
         elif operator_in_dir is not None:
             obj.operator_in_dir = operator_in_dir
+
+        if obj.allow_federated_learning is True:
+            obj.delete_output_on_start = False
 
         enable_job_scheduler = True if Variable.get("enable_job_scheduler", default_var="True").lower() == "true" else False
         if obj.pool == None:

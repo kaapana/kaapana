@@ -43,8 +43,12 @@ spec:
           value: {{ .Values.global.hostname | default "" }}
         - name: HTTPS_PORT
           value: "{{ .Values.global.https_port }}"
-        - name: PROXY
+        - name: http_proxy
           value: {{ .Values.global.http_proxy }}
+        - name: https_proxy
+          value: {{ .Values.global.http_proxy }}
+        - name: no_proxy
+          value: "federated-postgres-service.base,federated-postgres-service.base.svc,airflow-service.flow,airflow-service.flow.svc,minio-service.store,minio-service.store.svc,elastic-meta-service.meta,elastic-meta-service.meta.svc"
         - name: MINIOUSER
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIOPASSWORD
@@ -54,7 +58,7 @@ spec:
         - name: DATABASE_URL
           value: postgresql://federateduser:federatedpassword@federated-postgres-service.base.svc:5432
         - name: REMOTE_SYNC_INTERVAL
-          value: "2.5 "
+          value: "5"
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         resources:

@@ -13,13 +13,9 @@ AETITLE = os.getenv('AETITLE', 'NONE')
 AETITLE = None if AETITLE == "NONE" else AETITLE
 LEVEL = os.getenv('LEVEL', 'element')
 
-setting_proxies = False if (HOST.startswith(("ctp-dicom-service.flow", "dcm4chee-service.store")) or os.getenv("PROXY", None) is None) else True
-
 check_arrival = os.getenv("CHECK_ARRIVAL", "False")
 check_arrival = True if check_arrival.lower() == "true" else False
 
-print(f'Setting proxies {setting_proxies}')
-print(f"Proxy: {os.getenv('PROXY')}")
 print(f"AETITLE: {AETITLE}")
 print(f"LEVEL: {LEVEL}")
 
@@ -85,28 +81,39 @@ def send_dicom_data(send_dir, aetitle=AETITLE, check_arrival=False, timeout=60):
     print(f'Sending {send_dir} to {HOST} {PORT} with aetitle {aetitle}')
     # To process even if the input contains non-DICOM files the --no-halt option is needed (e.g. zip-upload functionality)
     env = dict(os.environ)
-    if setting_proxies is True:
-        print('Setting proxies...')
-        env["http_proxy"] = os.getenv("PROXY")
-        env["https_proxy"] = os.getenv("PROXY")
-        env["HTTP_PROXY"] = os.getenv("PROXY")
-        env["HTTPS_PROXY"] = os.getenv("PROXY")
     command = ['dcmsend', '-v', f'{HOST}', f'{PORT}', '-aet', 'kaapana', '-aec', f'{aetitle}', '--scan-directories', '--no-halt', '--recurse', f'{send_dir}']
     print(" ".join(command))
-    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=env, timeout=timeout)
-    if output.returncode != 0 or "with status SUCCESS" not in str(output):
-        print("############### Something went wrong with dcmsend!")
-        for line in str(output).split("\\n"):
-            print(line)
-        print("##################################################")
-        exit(1)
-    else:
-        print(f"Success! output: {output}")
-        print("")
+    max_retries = 5
+    try_count = 0
+    while try_count < max_retries:
+        print("Try: {}".format(try_count))
+        try_count += 1
+        try:   
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=env, timeout=timeout)
+            if output.returncode != 0 or "with status SUCCESS" not in str(output):
+                print("############### Something went wrong with dcmsend!")
+                for line in str(output).split("\\n"):
+                    print(line)
+                print("##################################################")
+                #exit(1)
+            else:
+                print(f"Success! output: {output}")
+                print("")
+                if check_arrival and not check_if_arrived(seriesUID=series_uid):
+                    print(f"Arrival check failed!")
+                    #exit(1)
+                else:
+                    break
+        except Exception as e:
+            print(f"Something went wrong: {e}, trying again!")
 
-    if check_arrival and not check_if_arrived(seriesUID=series_uid):
-        print(f"Arrival check failed!")
-        exit(1)
+    if try_count >= max_retries:
+        print("------------------------------------")
+        print("Max retries reached!")
+        print("------------------------------------")
+        raise ValueError(f"Something went wrong with dcmsend!")
+
+
 
     dicom_sent_count += 1
 

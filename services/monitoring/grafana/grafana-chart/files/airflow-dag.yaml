@@ -1,0 +1,11 @@
+---
+apiVersion: 1
+providers:
+- name: 'airflow-dag'
+  orgId: null
+  folder: ''
+  type: file
+  disableDeletion: false
+  editable: true
+  options:
+    path: /etc/grafana/dashboards/gpu/

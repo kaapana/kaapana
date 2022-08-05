@@ -32,54 +32,47 @@ data:
         - targets: ['prometheus-service.monitoring.svc:9090']
 
       - job_name: 'oAuth2-proxy'
+        scheme: https
+        metrics_path: '/oauth2/metrics'
+        static_configs:
+        - targets: ['oauth2-proxy-service.kube-system.svc:8443']
+        tls_config:
+          insecure_skip_verify: true
+      
+      - job_name: 'kube-state-metrics'
         scheme: http
         metrics_path: '/metrics'
         static_configs:
-        - targets: ['oauth2-metrics-service.kube-system.svc:8081']
+        - targets: ['kube-state-metrics.kube-system.svc:8080']
 
-      - job_name: "traefik"
+      - job_name: 'Traefik'
+        scheme: http
         scrape_interval: 30s
-        dns_sd_configs:
-          - names: ['traefik-ingress-service.kube-system.svc']
-            port: 8080
-            type: A
-            refresh_interval: 30s
+        metrics_path: '/metrics'
+        static_configs:
+        - targets: ['traefik.kube-system.svc:8080']
 
+      - job_name: 'Granafa'
+        scheme: http
+        scrape_interval: 30s
+        metrics_path: '/metrics'
+        static_configs:
+        - targets: ['grafana.monitoring.svc:3000']
 
-        ### KUBE-STATE_METRICS
-      - job_name: 'kubernetes-apiservers'
+      - job_name: 'Airflow'
+        scheme: http
+        scrape_interval: 30s
+        metrics_path: '/metrics'
+        static_configs:
+        - targets: ['airflow-service.flow.svc:9102']
 
+      - job_name: 'node-exporter'
         kubernetes_sd_configs:
-        - role: endpoints
-
-        # Default to scraping over https. If required, just disable this or change to
-        # `http`.
-        scheme: https
-
-        # This TLS & bearer token file config is used to connect to the actual scrape
-        # endpoints for cluster components. This is separate to discovery auth
-        # configuration because discovery & scraping are two separate concerns in
-        # Prometheus. The discovery auth config is automatic if Prometheus runs inside
-        # the cluster. Otherwise, more config options have to be provided within the
-        # <kubernetes_sd_config>.
-        tls_config:
-          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-          # If your node certificates are self-signed or use a different CA to the
-          # master CA, then disable certificate verification below. Note that
-          # certificate verification is an integral part of a secure infrastructure
-          # so this should only be disabled in a controlled environment. You can
-          # disable certificate verification by uncommenting the line below.
-          #
-          # insecure_skip_verify: true
-        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-
-        # Keep only the default/kubernetes service endpoints for the https port. This
-        # will add targets for each API server which Kubernetes adds an endpoint to
-        # the default/kubernetes service.
+          - role: endpoints
         relabel_configs:
-        - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        - source_labels: [__meta_kubernetes_endpoints_name]
+          regex: 'node-exporter'
           action: keep
-          regex: default;kubernetes;https
 
       # Scrape config for nodes (kubelet).
       #

@@ -29,7 +29,7 @@ ae_title = "nnUnet-results"
 remote_dag_id = "nnunet-training"
 # skip_operators = ["zip-unzip-training", "model2dicom", "dcmsend", "upload-nnunet-data", "pdf2dcm-training", "dcmsend-pdf", "generate-nnunet-report-training"]
 # federated_operators = ["nnunet-training"]
-skip_operators = ["nnunet-training", "zip-unzip-training", "model2dicom", "dcmsend", "upload-nnunet-data", "pdf2dcm-training", "dcmsend-pdf", "generate-nnunet-report-training", "workflow-cleaner"]
+skip_operators = ["nnunet-training", "zip-unzip-training", "model2dicom", "dcmsend", "generate-nnunet-report-training", "upload-nnunet-data", "upload-staticwebsiteresults", "pdf2dcm-training", "dcmsend-pdf", "workflow-cleaner"]
 federated_operators = ["nnunet-preprocess", "nnunet-training"]
 ui_forms = {
     "external_schema_federated_form": {
@@ -72,6 +72,7 @@ ui_forms = {
 
 args = {
     'ui_visible': False,
+    'ui_federated': True,
     'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),
@@ -131,6 +132,6 @@ dcm_send_int = DcmSendOperator(
 
 put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[nnunet_federated], zip_files=True, file_white_tuples=('.zip'))
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 nnunet_federated >> zip_model >> bin2dcm >> dcm_send_int >> clean
 nnunet_federated >> put_to_minio >> clean

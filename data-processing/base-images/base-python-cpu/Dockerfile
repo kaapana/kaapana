@@ -15,7 +15,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     nano \
     dcmtk \
+    pandoc \
+    texlive-xetex \
+    texlive-fonts-recommended \
+    texlive-plain-generic \
     && rm -rf /var/lib/apt/lists/*
+# pandoc and texlive-packages only for jupyternotebook: jupyter nbconvert --to html --no-input ...
 
 # Common Python packages
 COPY files/requirements.txt /root/
@@ -28,8 +33,9 @@ RUN code-server --install-extension ms-python.python
 
 # Juyterlab
 # Disable security token for Jupyter lab
-RUN jupyter notebook --generate-config \
- && sed -i "s/^.*NotebookApp.token.*$/c.NotebookApp.token = ''/g" /root/.jupyter/jupyter_notebook_config.py
+RUN jupyter-lab --generate-config \
+ && sed -i "s/^.*ServerApp.token.*$/c.ServerApp.token = ''/g" /root/.jupyter/jupyter_lab_config.py
 COPY files/jupyterlab.sh /
+COPY files/kaapana_federated /kaapana_federated
 
 WORKDIR /kaapanasrc

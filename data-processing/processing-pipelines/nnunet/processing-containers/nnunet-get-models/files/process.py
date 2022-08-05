@@ -13,17 +13,6 @@ processed_count = 0
 max_retries = 3
 max_hours_since_creation = 3
 
-proxy = os.getenv('PROXY', None)
-if proxy is not None:
-    print('Setting proxies')
-    # From: https://stackoverflow.com/questions/22967084/urllib-request-urlretrieve-with-proxy
-    #create the object, assign it to a variable
-    proxy = urllib.request.ProxyHandler({'http': proxy, 'https': proxy})
-    # construct a new opener using your proxy settings
-    opener = urllib.request.build_opener(proxy)
-    # install the openen on the module-level
-    urllib.request.install_opener(opener)
-
 workflow_dir = os.getenv('WORKFLOW_DIR', "data")
 output_dir = os.getenv('OPERATOR_OUT_DIR', "/models")
 

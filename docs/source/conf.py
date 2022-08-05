@@ -11,22 +11,23 @@
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+
+import os
+import sys
+sys.path.insert(0, os.path.abspath('../../data-processing/kaapana-plugin/extension/docker/files/plugin'))
+#sys.path.insert(1, os.path.abspath('../../workflows/airflow-components/'))
 
 
 # -- Project information -----------------------------------------------------
 
 project = 'Kaapana'
-copyright = '2020, MIC @DKFZ'
+copyright = '2022, MIC @DKFZ'
 author = 'MIC @DKFZ'
 
 # The short X.Y version
 version = '0.1.3'
 # The full version, including alpha/beta/rc tags
-release = '0.1.3-beta'
+release = '0.1.3'
 
 
 # -- General configuration ---------------------------------------------------
@@ -47,10 +48,11 @@ extensions = [
     'sphinx_tabs.tabs',
     'sphinxcontrib.mermaid'
 ]
-
 pdf_documents = [('index', u'kaapana_docs', 'Kaapana documentation', u'MIC @DKFZ'), ]
+pdf_stylesheets = ['twocolumn']
 mermaid_params = ['--theme', 'forest', '--width', '200', '--backgroundColor', 'transparent']
-
+autodoc_mock_imports = ['airflow', 'cryptography', 'flask', 'flask_admin', 'flask_appbuilder', 'sqlalchemy', 'elasticsearch', 'pydicom', 'kubernetes', 'dicomweb_client', 'minio']
+autoclass_content = 'both'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -87,7 +89,11 @@ pygments_style = None
 #
 #html_theme = 'alabaster'
 html_theme = "sphinx_rtd_theme"
-
+html_logo = "_static/img/kaapana_logo_mono.png"
+html_theme_options = {
+    'logo_only': True,
+    'display_version': True,
+}
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -133,7 +139,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'Kaapana.tex', 'DKTK Kaapana\\\\Technical Documentation',
+    (master_doc, 'Kaapana.tex', 'Kaapana Technical Documentation',
      'Kaapana Team Heidelberg', 'manual'),
 ]
 

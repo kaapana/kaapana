@@ -24,6 +24,21 @@ from kaapana.operators.HelperCaching import cache_operator_output
 
 
 class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
+    """
+    Operator to convert DICOM files to JSON.
+    The operator uses the dcmtk tool dcm2json https://support.dcmtk.org/docs/dcm2json.html
+    Additionally some keywords and values are transformed to increase the usability to find/search key-values.
+
+
+    **Inputs:**
+    * exit_on_error: exit with error, when some key/values are missing or mismatching.
+    * delete_pixel_data: uses dcmtk's dcmodify to remove some specific to be known private tags
+    * bulk: process all files of a series or only the first one (default)
+
+    **Outputs:**
+
+    * json file: output json file. DICOM tags are converted to a json file.
+    """
 
     @staticmethod
     def get_label_tags(metadata):
@@ -101,25 +116,21 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
                 json_file_path = os.path.join(target_dir, "{}.json".format(os.path.basename(batch_element_dir)))
 
-                if self.delete_private_tags:
-                    print("Deleting private tags!")
-                    command = "%s --no-backup --ignore-missing-tags --erase-all \"(0014,3080)\" --erase-all \"(7FE0,0008)\" --erase-all \"(7FE0,0009)\" --erase-all \"(7FE0,0010)\" %s;" % (
-                        self.dcmodify_path, dcm_file_path)
-                else:
-                    command = "%s --no-backup --ignore-missing-tags --erase-all \"(0014,3080)\" --erase-all \"(7FE0,0008)\" --erase-all \"(7FE0,0009)\" --erase-all \"(7FE0,0010)\" %s;" % (
-                        self.dcmodify_path, dcm_file_path)
-                # (0014,3080) Bad Pixel Image
-                # (7FE0,0008) Float Pixel Data
-                # (7FE0,0009) Double Float Pixel Data
-                # (7FE0,0010) Pixel Data
-                output = subprocess.run([command], shell=True)
-                if output.returncode != 0:
-                    print("Something went wrong with dcmodify...")
-                    print(f"Message: {output.stdout}")
-                    print(f"Error:   {output.stderr}")
-                    raise ValueError('ERROR')
+                if self.delete_pixel_data:
+                    # (0014,3080) Bad Pixel Image
+                    # (7FE0,0008) Float Pixel Data
+                    # (7FE0,0009) Double Float Pixel Data
+                    # (7FE0,0010) Pixel Data
+                    command = f"{self.dcmodify_path} --no-backup --ignore-missing-tags --erase-all \"(0014,3080)\" --erase-all \"(7FE0,0008)\" --erase-all \"(7FE0,0009)\" --erase-all \"(7FE0,0010)\" {dcm_file_path};"
+                    output = subprocess.run([command], shell=True)
+                
+                    if output.returncode != 0:
+                        print("Something went wrong with dcmodify...")
+                        print(f"Message: {output.stdout}")
+                        print(f"Error:   {output.stderr}")
+                        raise ValueError('ERROR')
+                        
                 self.executeDcm2Json(dcm_file_path, json_file_path)
-
                 json_dict = self.cleanJsonData(json_file_path)
 
                 with open(json_file_path, "w", encoding='utf-8') as jsonData:
@@ -522,7 +533,10 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                     elif vr == "OF":
                         # Other Float String
                         # A string of 32-bit IEEE 754:1985 floating point words.
-                        # OF is a VR that requires byte swapping within each 32-bit word when changing between Little Endian and Big Endian byte ordering
+                        # OF is a VR that requires byte sw14,3080) Bad Pixel Image
+                    # (7FE0,0008) Float Pixel Data
+                    # (7FE0,0009) Double Float Pixel Data
+                    # (7Fpping within each 32-bit word when changing between Little Endian and Big Endian byte ordering
 
                         new_key = new_key+"_float"
 
@@ -903,9 +917,14 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
     def __init__(self,
                  dag,
                  exit_on_error=False,
-                 delete_private_tags=True,
+                 delete_pixel_data=True,
                  bulk=False,
                  **kwargs):
+        """
+        :param exit_on_error: 'True' or 'False' (default). Exit with error, when some key/values are missing or mismatching.
+        :param delete_pixel_data:'True' (default) or 'False'. removes pixel-data from DICOM
+        :param bulk: 'True' or 'False' (default). Process all files of a series or only the first one.
+        """
 
         self.dcmodify_path = 'dcmodify'
         self.dcm2json_path = 'dcm2json'
@@ -914,7 +933,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         self.format_date_time = "%Y-%m-%d %H:%M:%S.%f"
         self.bulk = bulk
         self.exit_on_error = exit_on_error
-        self.delete_private_tags = delete_private_tags
+        self.delete_pixel_data = delete_pixel_data
 
         os.environ["PYTHONIOENCODING"] = "utf-8"
         if 'DCMDICTPATH' in os.environ and 'DICT_PATH' in os.environ:

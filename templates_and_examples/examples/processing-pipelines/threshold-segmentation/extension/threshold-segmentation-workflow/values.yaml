@@ -1,0 +1,6 @@
+---
+global:
+    pull_policy_jobs: "Always"
+    image: "dag-example-otsus-method"
+    version: "0.1.0"
+    action: "copy"

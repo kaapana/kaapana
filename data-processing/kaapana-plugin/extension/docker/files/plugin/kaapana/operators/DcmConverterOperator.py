@@ -3,6 +3,13 @@ from datetime import timedelta
 
 
 class DcmConverterOperator(KaapanaBaseOperator):
+    """
+    Operator to convert dcm files to nrrd or nii.gz files.
+
+    This operator converts incoming DICOM (dcm) files to nrrd or NIFTI (nii.gz) files.
+    By dafult, the files are converted to nrrd file format.
+    The conversion operation is executed using MITK's FileConverter.
+    """
 
     def __init__(self,
                  dag,
@@ -12,6 +19,10 @@ class DcmConverterOperator(KaapanaBaseOperator):
                  execution_timeout=timedelta(hours=10),
                  **kwargs
                  ):
+        """
+        :param output_format: File format to which the incoming DICOM files are converted to. Possible values: "nrrd" (default), nii.gz, nii
+        :parallel_processes: Defines how many processes are executed in parallel (default: 3)
+        """
 
         if env_vars is None:
             env_vars = {}

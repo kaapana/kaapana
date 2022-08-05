@@ -78,11 +78,17 @@ def requests_retry_session(
     session.mount('https://', adapter)
 
     if use_proxies is True:
-        proxies = {'http': os.getenv('PROXY', None), 'https': os.getenv('PROXY', None)}
-        print('Setting proxies', proxies)
+        proxies = {
+            'http': os.getenv('PROXY', None),
+            'https': os.getenv('PROXY', None),
+            'no_proxy': 'airflow-service.flow,airflow-service.flow.svc,' \
+                'ctp-dicom-service.flow,ctp-dicom-service.flow.svc,'\
+                    'dcm4chee-service.store,dcm4chee-service.store.svc,'\
+                        'elastic-meta-service.meta,elastic-meta-service.meta.svc'\
+                            'federated-backend-service.base,federated-backend-service.base.svc,' \
+                                'minio-service.store,minio-service.store.svc'
+        }
         session.proxies.update(proxies)
-    else:
-        print('Not using proxies!')
 
     return session 
 
@@ -96,7 +102,7 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None):
         r = requests_retry_session(session=s).get('http://airflow-service.flow.svc:8080/flow/kaapana/api/getdags')
     raise_kaapana_connection_error(r)
     dags = r.json()
-    dags = {dag: dag_data for dag, dag_data in dags.items() if 'ui_forms' in dag_data}
+    dags = {dag: dag_data for dag, dag_data in dags.items() if 'ui_federated' in dag_data}
     if only_dag_names is True:
         return sorted(list(dags.keys()))
     else:
@@ -107,16 +113,66 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None):
         else:
             return {}
 
-def get_dataset_list(queryDict=None, unique_sets=False, elastic_index='meta-index'):
+def get_dataset_list(elasticsearch_data=None, unique_sets=False, elastic_index='meta-index'):
     _elastichost = "elastic-meta-service.meta.svc:9200"
     es = Elasticsearch(hosts=_elastichost)
-    if queryDict is None:
+
+    # copied from kaapana_api.py and HelperElatissearch.py should be part of Kapaana python library!
+    if elasticsearch_data is None:
         queryDict = {
             "query": {
                 "match_all": {} 
             },
-            "_source": ['00120020 ClinicalTrialProtocolID_keyword']
+            "_source": ['dataset_tags_keyword']
         }
+    else:
+        if "query" in elasticsearch_data:
+            elastic_query = elasticsearch_data["query"]  
+        elif "dataset" in elasticsearch_data or "input_modality" in elasticsearch_data:
+            elastic_query = {
+                "bool": {
+                    "must": [
+                        {
+                            "match_all": {}
+                        },
+                        {
+                            "match_all": {}
+                        }
+                    ],
+                    "filter": [],
+                    "should": [],
+                    "must_not": []
+                }
+            }
+
+            if "dataset" in elasticsearch_data:
+                elastic_query["bool"]["must"].append({
+                    "match_phrase": {
+                        "dataset_tags_keyword.keyword": {
+                            "query": elasticsearch_data["dataset"]
+                        }
+                    }
+                })
+            if "input_modality" in elasticsearch_data:
+                elastic_query["bool"]["must"].append({
+                    "match_phrase": {
+                        "00080060 Modality_keyword.keyword": {
+                            "query": elasticsearch_data["input_modality"]
+                        }
+                    }
+                })
+
+        study_uid_tag = "0020000D StudyInstanceUID_keyword"
+        series_uid_tag = "0020000E SeriesInstanceUID_keyword"
+        SOPInstanceUID_tag = "00080018 SOPInstanceUID_keyword"
+        modality_tag = "00080060 Modality_keyword"
+        protocol_name_tag = "00181030 ProtocolName_keyword"
+        queryDict = {}
+        queryDict["query"] = elastic_query
+        queryDict["_source"] = {"includes": [study_uid_tag, series_uid_tag,
+                                             SOPInstanceUID_tag, modality_tag,
+                                             protocol_name_tag, 'dataset_tags_keyword']}
+                                             
 
     try:
         res = es.search(index=[elastic_index], body=queryDict, size=10000, from_=0)
@@ -126,7 +182,7 @@ def get_dataset_list(queryDict=None, unique_sets=False, elastic_index='meta-inde
     if 'hits' in res and 'hits' in res['hits']:
         datasets = []
         for hit in res['hits']['hits']:
-            dataset = hit['_source']['00120020 ClinicalTrialProtocolID_keyword']
+            dataset = hit['_source']['dataset_tags_keyword']
             if isinstance(dataset, str):
                 dataset = [dataset]
             datasets.append(dataset)
@@ -137,33 +193,25 @@ def get_dataset_list(queryDict=None, unique_sets=False, elastic_index='meta-inde
     else:
         raise ValueError('Invalid elasticsearch query!')
 
-def execute_workflow(db_client_kaapana, conf_data, dag_id):
-    if db_client_kaapana.instance_name != INSTANCE_NAME and db_client_kaapana.host != HOSTNAME:
-        print('Exeuting remote job')
-        if conf_data['dag'] not in json.loads(db_client_kaapana.allowed_dags):
-            raise HTTPException(status_code=403, detail=f"Dag {conf_data['dag']} is not allowed to be triggered from remote!")
-        queried_data = get_dataset_list({'query': conf_data['query']})
-        if not all([bool(set(d) & set(json.loads(db_client_kaapana.allowed_datasets))) for d in queried_data]):
-            raise HTTPException(status_code=403, detail = f"Your query outputed data with the tags: " \
-                f"{''.join(sorted(list(set([d for datasets in queried_data for d in datasets]))))}, " \
-                f"but only the following tags are allowed to be used from remote: {','.join(json.loads(db_client_kaapana.allowed_datasets))} !")
+def check_dag_id_and_dataset(db_client_kaapana, conf_data, dag_id, addressed_kaapana_instance_name):
+    if addressed_kaapana_instance_name is not None and db_client_kaapana.instance_name != addressed_kaapana_instance_name:
+        if dag_id not in json.loads(db_client_kaapana.allowed_dags):
+            return f"Dag {dag_id} is not allowed to be triggered from remote!"
+        if "elasticsearch_form" in conf_data:
+            queried_data = get_dataset_list(conf_data["elasticsearch_form"])
+            if not queried_data or (not all([bool(set(d) & set(json.loads(db_client_kaapana.allowed_datasets))) for d in queried_data])):
+                return f"Queried series with tags " \
+                    f"{', '.join(sorted(list(set([d for item in queried_data for d in item]))))} are not all part of allowed datasets:" \
+                    f"{', '.join(json.loads(db_client_kaapana.allowed_datasets))}!"
+    return None
+
+def execute_job(conf_data, dag_id):
     with requests.Session() as s:
         resp = requests_retry_session(session=s).post(f'http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/{dag_id}',  json={
             'conf': {
                 **conf_data,
             }})
-    # resp = requests.post(f'http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/{dag_id}',  json={
-    #     'conf': {
-    #         **conf_data,
-    #     }})
     raise_kaapana_connection_error(resp)
-    return resp
-
-def execute_job(db_job):
-    print('Executing', db_job.conf_data)
-    conf_data = json.loads(db_job.conf_data)
-    conf_data['client_job_id'] = db_job.id
-    resp = execute_workflow(db_job.kaapana_instance, conf_data, db_job.dag_id)
     return resp
 
 def raise_kaapana_connection_error(r):
@@ -187,7 +235,7 @@ def delete_external_job(db: Session, db_job):
         else:
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
             with requests.Session() as s:          
-                r = requests_retry_session(session=s, use_proxies=True).delete(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, params=params, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+                r = requests_retry_session(session=s).delete(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, params=params, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
             if r.status_code == 404:
                 print(f'External job {db_job.external_job_id} does not exist')
             else:
@@ -210,7 +258,7 @@ def update_external_job(db: Session, db_job):
         else:
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
             with requests.Session() as s:                            
-                r = requests_retry_session(session=s, use_proxies=True).put(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, json=payload, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+                r = requests_retry_session(session=s).put(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, json=payload, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
             if r.status_code == 404:
                 print(f'External job {db_job.external_job_id} does not exist')
             else:
@@ -219,13 +267,10 @@ def update_external_job(db: Session, db_job):
 
 
 def get_remote_updates(db: Session, periodically=False):
-    print(100*'#')
     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
     if periodically is True and db_client_kaapana.automatic_update is False:
-        print('Skipping automatic update!')
         return
     db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': True}))
-    print('remote kaapana instances', db_remote_kaapana_instances)
     for db_remote_kaapana_instance in db_remote_kaapana_instances:
         same_instance = db_remote_kaapana_instance.instance_name == INSTANCE_NAME
         update_remote_instance_payload = {
@@ -244,10 +289,8 @@ def get_remote_updates(db: Session, periodically=False):
             incoming_data = crud.sync_client_remote(db=db, remote_kaapana_instance=schemas.RemoteKaapanaInstanceUpdateExternal(**update_remote_instance_payload), **job_params)
         else:
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/federated-backend/remote'
-            print(100*'#')
-            print(remote_backend_url)
             with requests.Session() as s:     
-                r = requests_retry_session(session=s, use_proxies=True).put(f'{remote_backend_url}/sync-client-remote', params=job_params,  json=update_remote_instance_payload, verify=db_remote_kaapana_instance.ssl_check, 
+                r = requests_retry_session(session=s).put(f'{remote_backend_url}/sync-client-remote', params=job_params,  json=update_remote_instance_payload, verify=db_remote_kaapana_instance.ssl_check, 
             headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
             if r.status_code == 405:
                 print(f'Warning!!! We could not reach the following backend {db_remote_kaapana_instance.host}')
@@ -258,8 +301,6 @@ def get_remote_updates(db: Session, periodically=False):
         remote_kaapana_instance = schemas.RemoteKaapanaInstanceUpdateExternal(**incoming_data['update_remote_instance_payload'])
 
         crud.create_and_update_remote_kaapana_instance(db=db, remote_kaapana_instance=remote_kaapana_instance, action='external_update')
-
-        print('Number of incoming jobs', len(incoming_jobs))
 
         for incoming_job in incoming_jobs:
             print('Creating', incoming_job["id"])

@@ -3,20 +3,26 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Kaapana's documentation!
-===================================
+#####################
+KAAPANA Documentation
+#####################
 
 .. toctree::
    :maxdepth: 2
    
-   what_is_kaapana
-   getting_started
-   build_kaapana
-   install_kaapana
-   user_guide
+   intro_kaapana
+   getting_started_root
+   configuration_root
+   tech_basics_root
    extensions
-   development_guide
-   faq
-   glossary
+   platform_guide_root
+   development_guide_root
+   api_documentation_root
+   faq_root
+   publication_citation
    releases
-   main_license
+   license
+   glossary
+   acknowledgments
+   contact
+   

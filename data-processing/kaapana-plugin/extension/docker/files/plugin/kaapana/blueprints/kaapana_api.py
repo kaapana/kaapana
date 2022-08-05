@@ -127,7 +127,7 @@ def trigger_dag(dag_id):
             if "dataset" in elasticsearch_data:
                 query["bool"]["must"].append({
                     "match_phrase": {
-                        "00120020 ClinicalTrialProtocolID_keyword.keyword": {
+                        "dataset_tags_keyword.keyword": {
                             "query": elasticsearch_data["dataset"]
                         }
                     }

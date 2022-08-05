@@ -55,6 +55,12 @@ spec:
           - name: grafana-prometheus-dashboard
             mountPath: /etc/grafana/dashboards/prometheus/dashboards/prometheus-dashboard.json
             subPath: prometheus-dashboard.json
+          - name: grafana-airflow-cluster-dashboard
+            mountPath: /etc/grafana/dashboards/prometheus/dashboards/airflow-cluster-dashboard.json
+            subPath: airflow-cluster-dashboard.json
+          - name: grafana-airflow-dag-dashboard
+            mountPath: /etc/grafana/dashboards/prometheus/dashboards/airflow-dag-dashboard.json
+            subPath: airflow-dag-dashboard.json
           {{- if .Values.global.gpu_support }}
           - name: grafana-gpu-dashboard
             mountPath: /etc/grafana/dashboards/gpu/dashboards/gpu-dashboard.json
@@ -108,5 +114,17 @@ spec:
           items:
           - key: prometheus-dashboard.json
             path: prometheus-dashboard.json
+      - name: grafana-airflow-cluster-dashboard
+        configMap:
+          name: grafana-dashboards
+          items:
+          - key: airflow-cluster-dashboard.json
+            path: airflow-cluster-dashboard.json
+      - name: grafana-airflow-dag-dashboard
+        configMap:
+          name: grafana-dashboards
+          items:
+          - key: airflow-dag-dashboard.json
+            path: airflow-dag-dashboard.json
       imagePullSecrets:
         - name: registry-secret

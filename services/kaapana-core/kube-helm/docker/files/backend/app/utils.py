@@ -178,6 +178,8 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
         except yaml.YAMLError as exc:
             print(exc)
 
+    if "{default_platform_abbr}_{default_platform_version}" in docker_version:
+        docker_version = docker_version.replace("{default_platform_abbr}_{default_platform_version}", f"{os.getenv('PLATFORM_ABBR')}_{os.getenv('PLATFORM_VERSION')}")
     payload = {
         'name': 'pull-docker-chart',
         'version': helper_charts['entries']['pull-docker-chart'][0]['version'],
@@ -202,7 +204,7 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
     name = payload["name"]
     version = payload["version"]
 
-    release_values = helm_get_values("kaapana-platform-chart")
+    release_values = helm_get_values(os.getenv("RELEASE_NAME"))
 
     default_sets = {}
     if 'global' in release_values:
@@ -213,13 +215,6 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
 
     print('Using default sets')
     print(json.dumps(default_sets, indent=4, sort_keys=True))
-
-    # http_proxy = os.getenv('PROXY', None)
-    # if http_proxy is not None and http_proxy != "":
-    #     default_sets.update({
-    #         'global.http_proxy': http_proxy,
-    #         'global.https_proxy': http_proxy
-    #     })
 
     values = helm_show_values(name, version)
     if 'keywords' not in payload:
@@ -404,7 +399,6 @@ def get_extensions_list():
     extensions_list = []
     try:
         if update_running or (not smth_pending and last_refresh_timestamp != None and extensions_list_cached and (time.time() - last_refresh_timestamp) < refresh_delay):
-            print("Using cached extension-list...", flush=True)
             pass
         else:
             print("Generating new extension-list...", flush=True)
@@ -469,7 +463,6 @@ def get_extensions_list():
 
     except subprocess.CalledProcessError as e:
         success = False
-    print('success', success)
     return success, extensions_list_cached
 
 # Copied from kaapna_utils.py, maybe overhad...

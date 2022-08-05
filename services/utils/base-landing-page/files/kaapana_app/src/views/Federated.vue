@@ -349,8 +349,9 @@ export default Vue.extend({
     },
     getRemoteJobs() {
       kaapanaApiService
-        .federatedRemoteApiGet("/jobs")
-        .then((response) => {
+        .federatedRemoteApiGet("/jobs", {
+        limit: 100,
+        }).then((response) => {
           this.remoteJobs = response.data;
         })
         .catch((err) => {
@@ -359,8 +360,9 @@ export default Vue.extend({
     },
     getClientJobs() {
       kaapanaApiService
-        .federatedClientApiGet("/jobs")
-        .then((response) => {
+        .federatedClientApiGet("/jobs",{
+        limit: 100,
+        }).then((response) => {
           this.clientJobs = response.data;
         })
         .catch((err) => {

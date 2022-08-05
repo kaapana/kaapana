@@ -40,9 +40,9 @@ async def update_extensions():
 
 
 @router.get("/helm-delete-chart")
-async def helm_delete_chart(release_name: str, release_version: str = None):
+async def helm_delete_chart(release_name: str, release_version: str = None, helm_command_addons: str =''):
     try:
-        utils.helm_delete(release_name=release_name, release_version=release_version)
+        utils.helm_delete(release_name=release_name, release_version=release_version, helm_command_addons=helm_command_addons)
         return {"message": "Successfully uninstalled", "status": "200"}
     except subprocess.CalledProcessError as e:
         return Response(f"We could not find the release you are trying to delete!", 500)

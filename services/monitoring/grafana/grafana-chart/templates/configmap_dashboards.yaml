@@ -7,6 +7,8 @@ data:
 {{ (.Files.Glob "files/kubernetes-dashboard.json").AsConfig | indent 2 }}
 {{ (.Files.Glob "files/traefik-dashboard.json").AsConfig | indent 2 }}
 {{ (.Files.Glob "files/prometheus-dashboard.json").AsConfig | indent 2 }}
+{{ (.Files.Glob "files/airflow-cluster-dashboard.json").AsConfig | indent 2 }}
+{{ (.Files.Glob "files/airflow-dag-dashboard.json").AsConfig | indent 2 }}
 kind: ConfigMap
 metadata:
   name: grafana-dashboards

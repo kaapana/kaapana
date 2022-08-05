@@ -27,8 +27,8 @@ class LocalDeleteFromElasticOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         conf = kwargs['dag_run'].conf
-        if 'conf' in conf and 'form_data' in conf['conf'] and conf['conf']['form_data'] is not None and 'delete_complete_study' in conf['conf']['form_data']:
-                self.delete_complete_study = conf['conf']['form_data']['delete_complete_study']
+        if 'form_data' in conf and conf['form_data'] is not None and 'delete_complete_study' in conf['form_data']:
+                self.delete_complete_study = conf['form_data']['delete_complete_study']
                 print('Delete entire study set to ', self.delete_complete_study)
         self.es = Elasticsearch([{'host': self.elastic_host, 'port': self.elastic_port}])
         if self.delete_all_documents:

@@ -19,7 +19,7 @@ if __name__ == '__main__':
     parser.add_argument("-c", "--config", dest="config_filepath", default=None, help="Path the the build-config.yaml")
     parser.add_argument("-u", "--username", dest="username", default=None, help="Username")
     parser.add_argument("-p", "--password", dest="password", default=None, required=False, help="Password")
-    parser.add_argument("-bo", "--build-only", dest="build_only", default=None, action='store_true', help="Just building the containers and charts -> no pushing")
+    parser.add_argument("-bo", "--build-only", dest="build_only", default=None, action="store_true", help="Just building the containers and charts -> no pushing")
     parser.add_argument("-oi", "--create-offline-installation", dest="create_offline_installation", default=None, help="Will create a docker dump, from which the platfrom can be deployed.")
     parser.add_argument("-pm", "--push-to-microk8s", dest="push_to_microk8s", default=None, help="Will create a docker dump, from which the platfrom can be deployed.")
     parser.add_argument("-ll", "--log-level", dest="log_level", default=None, help="Set log-level.")
@@ -30,7 +30,7 @@ if __name__ == '__main__':
     parser.add_argument("-bd", "--build-dir", dest="build_dir", default=None, help="Specify the main Kaapana repo-dir to build from.")
     parser.add_argument("-kd", "--kaapana-dir", dest="kaapana_dir", default=None, help="Specify the main Kaapana repo-dir to build from.")
     parser.add_argument("-es", "--external-sources", dest="external_source_dirs", default=None, help="External dirs to search for containers and charts.")
-    parser.add_argument("-nl", "--no-login", dest="no_login", default=False, help="Skipps the logins to the container registry (expects to be already logged in).")
+    parser.add_argument("-nl", "--no-login", dest="no_login", default=False, action="store_true",help="Skipps the logins to the container registry (expects to be already logged in).")
 
     args = parser.parse_args()
 
@@ -228,7 +228,7 @@ if __name__ == '__main__':
         enable_build=container_build,
         enable_push=containers_push,
     )
-    if not build_only:
+    if not build_only and not no_login:
         container_registry_login(username=registry_user, password=registry_pwd)
         helm_registry_login(username=registry_user, password=registry_pwd)
 

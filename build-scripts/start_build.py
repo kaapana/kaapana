@@ -30,6 +30,8 @@ if __name__ == '__main__':
     parser.add_argument("-bd", "--build-dir", dest="build_dir", default=None, help="Specify the main Kaapana repo-dir to build from.")
     parser.add_argument("-kd", "--kaapana-dir", dest="kaapana_dir", default=None, help="Specify the main Kaapana repo-dir to build from.")
     parser.add_argument("-es", "--external-sources", dest="external_source_dirs", default=None, help="External dirs to search for containers and charts.")
+    parser.add_argument("-nl", "--no-login", dest="no_login", default=False, help="Skipps the logins to the container registry (expects to be already logged in).")
+
     args = parser.parse_args()
 
     kaapana_dir = args.kaapana_dir if args.kaapana_dir != None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -115,7 +117,8 @@ if __name__ == '__main__':
     exit_on_error = args.exit_on_error if args.exit_on_error != None else conf_exit_on_error
     platform_filter = args.platform_filter.split(",") if args.platform_filter != None else conf_platform_filter
     skip_push_no_changes = args.skip_push_no_changes if args.skip_push_no_changes != None else conf_skip_push_no_changes
-
+    no_login = args.no_login
+    
     for external_source_dir in external_source_dirs:
         if not os.path.isdir(external_source_dir):
             logger.error("---------------------------------------------------------------------------------------------")
@@ -162,10 +165,11 @@ if __name__ == '__main__':
     logger.info(f"{create_offline_installation=}")
     logger.info(f"{build_installer_scripts=}")
     logger.info(f"{push_to_microk8s=}")
+    logger.info(f"{no_login=}")
     logger.info("")
     logger.info("-----------------------------------------------------------")
 
-    if not build_only:
+    if not build_only and not no_login:
         if registry_user is None:
             registry_user = os.getenv("REGISTRY_USER", None)
         if registry_pwd is None:

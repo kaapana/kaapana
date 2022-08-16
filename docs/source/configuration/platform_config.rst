@@ -12,7 +12,7 @@ Main platform configuration
 | Name of the Helm chart for the platform
 |
 
-| :code:`DEFAULT_VERSION` `(default: "0.1.3", type="string")` 
+| :code:`DEFAULT_VERSION` `(default: "0.1.4", type="string")` 
 | Version for the Helm chart
 |
 

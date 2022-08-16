@@ -12,8 +12,7 @@ import time
 import copy
 from fastapi import Response
 from distutils.version import LooseVersion
-from app.repeat_timer import RepeatedTimer
-from .config import settings
+from config import settings
 
 charts_cached = None
 charts_hashes = {}
@@ -24,6 +23,17 @@ update_running = False
 
 last_refresh_timestamp = None
 extensions_list_cached = []
+
+
+def executue_shell_command(command, in_background=False, timeout=5):
+    command = command.split(" ")
+    command_result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", shell=in_background, timeout=timeout)
+    stdout = command_result.stdout.strip()
+    stderr = command_result.stderr.strip()
+    return_code = command_result.returncode
+    success = True if return_code == 0 else False
+
+    return success, stdout, stderr
 
 
 def sha256sum(filepath):
@@ -37,63 +47,59 @@ def sha256sum(filepath):
 
 
 def helm_show_values(name, version):
-    try:
-        chart = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} show values {settings.helm_extensions_cache}/{name}-{version}.tgz', stderr=subprocess.STDOUT, shell=True)
-    except subprocess.CalledProcessError as e:
-        print('Nothing found!')
+    success, stdout, stderr = executue_shell_command(f'{settings.helm_path} show values {settings.helm_extensions_cache}/{name}-{version}.tgz')
+    if success:
+        return list(yaml.load_all(stdout, yaml.FullLoader))[0]
+    else:
         return {}
-    return yaml.load(chart)
 
 
 def helm_repo_index(repo_dir):
-    helm_command = f'{os.environ["HELM_PATH"]} repo index {repo_dir}'
-    subprocess.check_output(
-        helm_command, stderr=subprocess.STDOUT, shell=True)
+    helm_command = f'{settings.helm_path} repo index {repo_dir}'
+    success, stdout, stderr = executue_shell_command(helm_command)
 
 
 def helm_show_chart(name=None, version=None, package=None):
-    helm_command = f'{os.environ["HELM_PATH"]} show chart'
+    helm_command = f'{settings.helm_path} show chart'
 
     if package is not None:
         helm_command = f'{helm_command} {package}'
     else:
         helm_command = f'{helm_command} {settings.helm_extensions_cache}/{name}-{version}.tgz'
-    try:
-        chart = subprocess.check_output(helm_command, stderr=subprocess.STDOUT, shell=True)
-    except subprocess.CalledProcessError as e:
-        print('Nothing online, nothing local!')
+
+    success, stdout, stderr = executue_shell_command(helm_command)
+
+    if success:
+        yaml_dict = list(yaml.load_all(stdout, yaml.FullLoader))[0]
+        return yaml_dict
+    else:
         return {}
-    return yaml.load(chart)
 
 
 def helm_get_manifest(release_name, helm_namespace=settings.helm_namespace):
-    try:
-        manifest = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} -n {helm_namespace} get manifest {release_name}', stderr=subprocess.STDOUT, shell=True)
-    except subprocess.CalledProcessError as e:
+
+    success, stdout, stderr = executue_shell_command(f'{settings.helm_path} -n {helm_namespace} get manifest {release_name}')
+    if success:
+        return list(yaml.load_all(stdout, yaml.FullLoader))
+    else:
         return []
-    return list(yaml.load_all(manifest))
 
 
 def helm_get_values(release_name, helm_namespace=settings.helm_namespace):
-    try:
-        values = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} -n {helm_namespace} get values -o json {release_name}', stderr=subprocess.STDOUT, shell=True)
-    except subprocess.CalledProcessError as e:
+    success, stdout, stderr = executue_shell_command(f'{settings.helm_path} -n {helm_namespace} get values -o json {release_name}')
+    if success and stdout != b'null\n':
+        return json.loads(stdout)
+    else:
         return dict()
-    if values == b'null\n':
-        return dict()
-    return json.loads(values)
 
 
 def helm_status(release_name, helm_namespace=settings.helm_namespace):
-    try:
-        status = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} -n {helm_namespace} status {release_name}', stderr=subprocess.STDOUT, shell=True)
-    except subprocess.CalledProcessError as e:
+    success, stdout, stderr = executue_shell_command(f'{settings.helm_path} -n {helm_namespace} status {release_name}')
+    if success:
+        return list(yaml.load_all(stdout, yaml.FullLoader))[0]
+    else:
         return dict()
-    return yaml.load(status)
+
 
 def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
     # regex = r'image: ([\w\-\.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)'
@@ -140,11 +146,11 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
     for name, payload in image_dict.items():
         try:
             release_name = f'pull-docker-chart-{secrets.token_hex(10)}'
-            release, helm_command, release_name  = pull_docker_image(release_name, **payload, in_background=False)
+            release, helm_command, release_name = pull_docker_image(release_name, **payload, in_background=False)
             installed_release_names.append(release_name)
         except subprocess.CalledProcessError as e:
             helm_delete(release_name=release_name, release_version=chart["version"])
-            raise ValueError(e) 
+            raise ValueError(e)
 
     for dag in dags:
         try:
@@ -155,14 +161,15 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
             if helm_status(dag["name"]):
                 print(f'Skipping {dag["name"]} since it is already installed')
                 continue
-            helm_comman_suffix = f'--wait --atomic --timeout=120m0s; sleep 10;{os.environ["HELM_PATH"]} -n {helm_namespace} delete --no-hooks {dag["release_name"]}'
+            helm_comman_suffix = f'--wait --atomic --timeout=120m0s; sleep 10;{settings.helm_path} -n {helm_namespace} delete --no-hooks {dag["release_name"]}'
             release, helm_command, release_name = helm_install(dag, helm_comman_suffix=helm_comman_suffix, in_background=False)
             installed_release_names.append(release_name)
         except subprocess.CalledProcessError as e:
             helm_delete(release_name=dag['release_name'], release_version=chart["version"], helm_command_addons='--no-hooks')
-            raise ValueError(e)  
+            raise ValueError(e)
 
     return installed_release_names
+
 
 def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, timeout='120m0s', helm_namespace=settings.helm_namespace, in_background=True):
     print(f'Pulling {docker_registry_url}/{docker_image}:{docker_version}')
@@ -174,7 +181,7 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
 
     with open(os.path.join(settings.helm_helpers_cache, 'index.yaml'), 'r') as stream:
         try:
-            helper_charts = yaml.safe_load(stream)
+            helper_charts = list(yaml.load_all(stdout, yaml.FullLoader))[0]
         except yaml.YAMLError as exc:
             print(exc)
 
@@ -191,7 +198,7 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
         'release_name': release_name
     }
 
-    helm_comman_suffix = f'--wait --atomic --timeout {timeout}; sleep 10;{os.environ["HELM_PATH"]} -n {helm_namespace} delete {release_name}'
+    helm_comman_suffix = f'--wait --atomic --timeout {timeout}; sleep 10;{settings.helm_path} -n {helm_namespace} delete {release_name}'
     return helm_install(payload, helm_comman_suffix=helm_comman_suffix, helm_cache_path=settings.helm_helpers_cache, in_background=in_background)
 
 
@@ -257,28 +264,27 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
     helm_sets = ''
     if "sets" in payload:
         for key, value in payload["sets"].items():
-            value = value.replace(",","\,").replace("'", '\'"\'').replace(" ", "")
+            value = value.replace(",", "\,").replace("'", '\'"\'').replace(" ", "")
             helm_sets = helm_sets + f" --set {key}='{value}'"
 
-    helm_command = f'{helm_delete_prefix}{os.environ["HELM_PATH"]} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_comman_suffix}'
+    helm_command = f'{helm_delete_prefix}{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_comman_suffix}'
     for item in extensions_list_cached:
         if item["releaseName"] == release_name and item["version"] == version:
             item["successful"] = 'pending'
 
     print('Executing')
     print(helm_command)
-    if in_background is False:
-        return subprocess.check_output(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command, release_name
-    else:
-        return subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True), helm_command, release_name
+    success, stdout, stderr = executue_shell_command(helm_command, in_background=in_background)
+
+    return stdout, helm_command, release_name
 
 
 def helm_delete(release_name, helm_namespace=settings.helm_namespace, release_version=None, helm_command_addons=''):
     # release version only important for extensions charts!
     global smth_pending, extensions_list_cached
     smth_pending = True
-    helm_command = f'{os.environ["HELM_PATH"]} -n {helm_namespace} uninstall {helm_command_addons} {release_name}'
-    subprocess.Popen(helm_command, stderr=subprocess.STDOUT, shell=True)
+    helm_command = f'{settings.helm_path} -n {helm_namespace} uninstall {helm_command_addons} {release_name}'
+    success, stdout, stderr = executue_shell_command(helm_command, in_background=True)
     if release_version is not None:
         for item in extensions_list_cached:
             if item["releaseName"] == release_name and item["version"] == release_version:
@@ -286,11 +292,12 @@ def helm_delete(release_name, helm_namespace=settings.helm_namespace, release_ve
 
 
 def helm_ls(helm_namespace=settings.helm_namespace, release_filter=''):
-    try:
-        resp = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} -n {helm_namespace} --filter {release_filter} ls --deployed --pending --failed --uninstalling -o json', stderr=subprocess.STDOUT, shell=True)
-        return json.loads(resp)
-    except subprocess.CalledProcessError as e:
+    command = f'{settings.helm_path} -n {helm_namespace} --filter {release_filter} ls --deployed --pending --failed --uninstalling -o json'
+    success, stdout, stderr = executue_shell_command(command=command, in_background=False)
+
+    if success:
+        return json.loads(stdout)
+    else:
         return []
 
 
@@ -334,23 +341,23 @@ def get_kube_status(kind, name, namespace):
         "age": []
     }
 
-    try:
-        # Todo might be replaced by json or yaml output in the future with the flag -o json!
-        resp = subprocess.check_output(
-            f'kubectl -n {namespace} get pod -l={kind}-name={name}',
-            stderr=subprocess.STDOUT,
-            shell=True
-        )
-        for row in re.findall(r'(.*\n)', resp.decode("utf-8"))[1:]:           
+    # Todo might be replaced by json or yaml output in the future with the flag -o json!
+    success, stdout, stderr = executue_shell_command(f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name}")
+    # success, stdout, stderr = executue_shell_command(f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name} -o json")
+    if success:
+        # kube_info = json.loads(stdout)
+        stdout = stdout.splitlines()[1:]
+        for row in stdout:
             name, ready, status, restarts, age = re.split('\s\s+', row)
             states['name'].append(name)
             states['ready'].append(ready)
             states['status'].append(status)
             states['restarts'].append(restarts)
             states['age'].append(age)
-    except subprocess.CalledProcessError as e:
+    else:
         print(f'Could not get kube status of {name}')
-        print(e)
+        print(stderr)
+
     return states
 
 
@@ -389,7 +396,7 @@ def all_successful(status):
     for i in status:
         if i not in successfull:
             return "pending"
-    
+
     return "yes"
 
 
@@ -466,6 +473,8 @@ def get_extensions_list():
     return success, extensions_list_cached
 
 # Copied from kaapna_utils.py, maybe overhad...
+
+
 def cure_invalid_name(name, regex, max_length=None):
     def _regex_match(regex, name):
         if re.fullmatch(regex, name) is None:
@@ -481,12 +490,13 @@ def cure_invalid_name(name, regex, max_length=None):
     name = _regex_match(regex, name)
     return name
 
+
 def execute_update_extensions():
 
     chart = {
         'name': 'update-collections-chart',
         'version': '0.1.0'
-    } 
+    }
     print(chart['name'], chart['version'])
     payload = {k: chart[k] for k in ('name', 'version')}
 
@@ -515,14 +525,14 @@ def execute_update_extensions():
         else:
             try:
                 print('helm deleting and reinstalling')
-                helm_delete_prefix = f'{os.environ["HELM_PATH"]} -n {settings.helm_namespace} uninstall {release_name} --wait --timeout 5m;'
+                helm_delete_prefix = f'{settings.helm_path} -n {settings.helm_namespace} uninstall {release_name} --wait --timeout 5m;'
                 helm_install(payload, helm_delete_prefix=helm_delete_prefix, helm_command_addons="--wait",
-                                    helm_cache_path=settings.helm_collections_cache, in_background=False)
+                             helm_cache_path=settings.helm_collections_cache, in_background=False)
                 message = f"Successfully updated the extensions"
             except subprocess.CalledProcessError as e:
                 install_error = True
                 helm_delete(release_name)
                 print(e)
                 message = f"We had troubles updating the extensions"
-        
+
     return install_error, message

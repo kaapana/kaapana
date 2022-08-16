@@ -1,22 +1,20 @@
 import os
 import secrets
 import subprocess
-import json
-import time
-from pathlib import Path
-
 from fastapi import APIRouter, Response, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 
-from app import utils
-from .config import settings
+import utils
+from config import settings
+from os.path import basename, dirname, join
 
 
 router = APIRouter()
-templates = Jinja2Templates(
-    directory=os.path.abspath(os.path.expanduser('app/templates'))
-)
+# templates = Jinja2Templates(
+#     directory=os.path.abspath(os.path.expanduser('app/templates'))
+# )
+templates = Jinja2Templates(directory=join(dirname(str(__file__)), "templates"))
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -40,7 +38,7 @@ async def update_extensions():
 
 
 @router.get("/helm-delete-chart")
-async def helm_delete_chart(release_name: str, release_version: str = None, helm_command_addons: str =''):
+async def helm_delete_chart(release_name: str, release_version: str = None, helm_command_addons: str = ''):
     try:
         utils.helm_delete(release_name=release_name, release_version=release_version, helm_command_addons=helm_command_addons)
         return {"message": "Successfully uninstalled", "status": "200"}

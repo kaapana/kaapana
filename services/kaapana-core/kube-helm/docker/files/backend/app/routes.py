@@ -11,6 +11,7 @@ from os.path import basename, dirname, join
 
 
 router = APIRouter()
+# router = APIRouter(prefix=settings.application_root)
 # templates = Jinja2Templates(
 #     directory=os.path.abspath(os.path.expanduser('app/templates'))
 # )
@@ -36,7 +37,6 @@ async def update_extensions():
     else:
         return Response(message, 500)
 
-
 @router.get("/helm-delete-chart")
 async def helm_delete_chart(release_name: str, release_version: str = None, helm_command_addons: str = ''):
     try:
@@ -44,7 +44,6 @@ async def helm_delete_chart(release_name: str, release_version: str = None, helm
         return {"message": "Successfully uninstalled", "status": "200"}
     except subprocess.CalledProcessError as e:
         return Response(f"We could not find the release you are trying to delete!", 500)
-
 
 @router.post("/helm-install-chart")
 async def helm_add_custom_chart(request: Request):
@@ -56,7 +55,6 @@ async def helm_add_custom_chart(request: Request):
         return Response(f"Trying to install chart with {helm_command}", 200)
     except:
         return Response(f"A helm command error occured while executing {helm_command}!", 500)
-
 
 @router.post("/pull-docker-image")
 async def pull_docker_image(request: Request):

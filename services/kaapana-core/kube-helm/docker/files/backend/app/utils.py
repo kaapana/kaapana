@@ -14,6 +14,9 @@ from fastapi import Response
 from distutils.version import LooseVersion
 from config import settings
 
+CHART_STATUS_UNDEPLOYED = "un-deployed"
+CHART_STATUS_DEPLOYED = "deployed"
+
 charts_cached = None
 charts_hashes = {}
 
@@ -32,6 +35,23 @@ def executue_shell_command(command, in_background=False, timeout=5):
     stderr = command_result.stderr.strip()
     return_code = command_result.returncode
     success = True if return_code == 0 else False
+
+    if not success:
+        print("#######################################################################################################################################################")
+        print("")
+        print("ERROR while executing command: ")
+        print("")
+        print(f"COMMAND: {command}")
+        print("")
+        print("STDOUT:")
+        for line in stdout.splitlines():
+            print(f"{line}")
+        print("")
+        print("STDERR:")
+        for line in stderr.splitlines():
+            print(f"{line}")
+        print("")
+        print("#######################################################################################################################################################")
 
     return success, stdout, stderr
 
@@ -98,7 +118,22 @@ def helm_status(release_name, helm_namespace=settings.helm_namespace):
     if success:
         return list(yaml.load_all(stdout, yaml.FullLoader))[0]
     else:
-        return dict()
+        print(f"ERROR: Could not fetch helm status for: {release_name}")
+        return None
+
+
+def collect_helm_deployments(helm_namespace=settings.helm_namespace):
+    success, stdout, stderr = executue_shell_command(f'{settings.helm_path} -n {helm_namespace} ls -o json')
+    if success:
+        namespace_deployments = json.loads(stdout)
+        deployed_charts_dict = {}
+        for chart in namespace_deployments:
+            deployed_charts_dict[chart["chart"]] = chart
+
+        return deployed_charts_dict
+
+    else:
+        return []
 
 
 def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
@@ -264,6 +299,9 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
     helm_sets = ''
     if "sets" in payload:
         for key, value in payload["sets"].items():
+            if not isinstance(value, str):
+                print(f"value of templated parameter is type(value): {type(value)} -> not a 'string' ")
+                continue
             value = value.replace(",", "\,").replace("'", '\'"\'').replace(" ", "")
             helm_sets = helm_sets + f" --set {key}='{value}'"
 
@@ -401,72 +439,70 @@ def all_successful(status):
 
 
 def get_extensions_list():
-    global refresh_delay, extensions_list_cached, last_refresh_timestamp, rt, smth_pending, update_running
+    global refresh_delay, global_extensions_dict_cached, last_refresh_timestamp, rt, smth_pending, update_running
     success = True
-    extensions_list = []
+
+    global_extensions_dict = {}
     try:
         if update_running or (not smth_pending and last_refresh_timestamp != None and extensions_list_cached and (time.time() - last_refresh_timestamp) < refresh_delay):
             pass
         else:
-            print("Generating new extension-list...", flush=True)
+            print("Generating new extension-list ...")
+
             smth_pending = False
             update_running = True
-            # replace with index yaml
-            available_charts = helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
-            chart_version_dict = {}
-            for _, chart in available_charts.items():
-                if chart['name'] not in chart_version_dict:
-                    chart_version_dict.update({chart['name']: []})
-                chart_version_dict[chart['name']].append(chart['version'])
+            available_extension_charts_tgz = helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
+            deployed_extensions_dict = collect_helm_deployments()
 
-            for name, versions in chart_version_dict.items():
-                versions.sort(key=LooseVersion, reverse=True)
-                latest_version = versions[0]
-                extension = available_charts[f'{name}-{latest_version}']
-                extension['versions'] = versions
-                extension['version'] = latest_version
-                extension['experimental'] = 'yes' if 'kaapanaexperimental' in extension['keywords'] else 'no'
-                extension['multiinstallable'] = 'yes' if 'kaapanamultiinstallable' in extension['keywords'] else 'no'
-                if 'kaapanaworkflow' in extension['keywords']:
-                    extension['kind'] = 'dag'
-                elif 'kaapanaapplication' in extension['keywords']:
-                    extension['kind'] = 'application'
-                else:
-                    continue
-                extension['releaseName'] = extension["name"]
-                extension['helmStatus'] = ''
-                extension['kubeStatus'] = ''
-                extension['successful'] = 'none'
-                # replace with helm ls outside the loop see also next
-                # add one central kubectl get pods -A from which manifest will look up its values
+            for extension_id, extension_dict in available_extension_charts_tgz.items():
+                extension_name = extension_dict["name"]
+                if extension_name not in global_extensions_dict:
+                    if 'kaapanaworkflow' in extension_dict['keywords']:
+                        extension_kind = 'dag'
+                    elif 'kaapanaapplication' in extension_dict['keywords']:
+                        extension_kind = 'application'
+                    else:
+                        print(f"ISSUE: Unknown 'extension['kind']' - {extension_id}: {extension_dict['keywords']}")
+                        continue
 
-                status = helm_status(extension["name"])
-                if 'kaapanamultiinstallable' in extension['keywords'] or not status:
-                    extension['installed'] = 'no'
-                    extensions_list.append(extension)
-                for release in helm_ls(release_filter=extension["name"]):
-                    for version in extension["versions"]:
-                        if release['chart'] == f'{extension["name"]}-{version}':
-                            manifest = helm_get_manifest(release['name'])
-                            kube_status, ingress_paths = get_manifest_infos(manifest)
+                    global_extensions_dict[extension_name] = {
+                        "releaseName": extension_name,
+                        "versions": {},
+                        "installed": "no",
+                        "experimental": 'yes' if 'kaapanaexperimental' in extension_dict['keywords'] else 'no',
+                        "multiinstallable": 'yes' if 'kaapanamultiinstallable' in extension_dict['keywords'] else 'no',
+                        "kind": extension_kind
+                    }
+                if extension_dict["version"] not in global_extensions_dict[extension_name]["versions"]:
+                    global_extensions_dict[extension_name]["versions"][extension_dict["version"]] = extension_dict
+                    if extension_id in deployed_extensions_dict:
+                        global_extensions_dict[extension_name]["versions"][extension_dict["version"]]["helm_status"] = deployed_extensions_dict[extension_id]
+                        manifest = helm_get_manifest(extension_name)
+                        kube_status, ingress_paths = get_manifest_infos(manifest)
+                        release_info = helm_ls(release_filter=extension_name)
 
-                            running_extension = copy.deepcopy(extension)
-                            running_extension['releaseName'] = release['name']
-                            running_extension['successful'] = all_successful(set(kube_status['status'] + [release['status']]))
-                            running_extension['installed'] = 'yes'
-                            running_extension['links'] = ingress_paths
-                            running_extension['helmStatus'] = release['status'].capitalize()
-                            running_extension['kubeStatus'] = ", ".join(kube_status['status'])
-                            running_extension['version'] = version
+                        global_extensions_dict[extension_name]["installed"] = "yes" if deployed_extensions_dict[extension_id]["status"] == CHART_STATUS_DEPLOYED else "no"
+                        global_extensions_dict[extension_name]['successful'] = all_successful(set(kube_status['status'] + [release_info['status']]))
+                        global_extensions_dict[extension_name]['installed'] = 'yes'
+                        global_extensions_dict[extension_name]['links'] = ingress_paths
+                        global_extensions_dict[extension_name]['helmStatus'] = release['status'].capitalize()
+                        global_extensions_dict[extension_name]['kubeStatus'] = ", ".join(kube_status['status'])
+                        global_extensions_dict[extension_name]['version'] = deployed_extensions_dict[extension_id]["app_version"]
 
-                            if running_extension['successful'] != "yes":
-                                print(f"Chart {release['name']} not ready: {running_extension['successful']} -> pending...", flush=True)
-                                smth_pending = True
-                            extensions_list.append(running_extension)
+                        if global_extensions_dict[extension_name]['successful'] != "yes":
+                            print(f"Chart {release['name']} not ready: {global_extensions_dict[extension_name]['successful']} -> pending...")
+                            smth_pending = True
+                    else:
+                        global_extensions_dict[extension_name]["versions"][extension_dict["version"]]["helm_status"] = {
+                            "status": CHART_STATUS_UNDEPLOYED
+                        }
+
+                extension_versions = sorted(list(global_extensions_dict[extension_name]["versions"].keys()), key=LooseVersion, reverse=True)
+                global_extensions_dict[extension_name]["latest_version"] = extension_versions[-1]
 
             last_refresh_timestamp = time.time()
             update_running = False
-            extensions_list_cached = extensions_list
+            global_extensions_dict_cached = global_extensions_dict
 
     except subprocess.CalledProcessError as e:
         success = False

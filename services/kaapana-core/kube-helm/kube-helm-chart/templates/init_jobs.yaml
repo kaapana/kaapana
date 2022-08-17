@@ -86,7 +86,7 @@ spec:
               mountPath: "/root/extensions"
       containers:
       - name: preinstall-extensions
-        image: {{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__0.1.3
+        image: {{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__0.1.4
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         command: ["python", "-u"]
         args: ["/app/preinstall_extensions.py"]
@@ -125,7 +125,7 @@ spec:
             memory: 500Mi
 {{- if $.Values.global.prefetch_extensions }}
       - name: prefetch-extensions
-        image: {{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__0.1.3
+        image: {{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__0.1.4
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         command: ["python", "-u"]
         args: ["/app/prefetch_extensions.py"]

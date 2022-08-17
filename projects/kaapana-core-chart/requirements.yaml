@@ -31,9 +31,8 @@ dependencies:
     version: "v2.5.1"
     repository: file://../../services/kaapana-core/kubernetes-dashboard/kube-dashboard-chart
   - name: kube-helm-chart
-    version: "0.1.3"
+    version: "0.1.4"
     repository: file://../../services/kaapana-core/kube-helm/kube-helm-chart
   - name: cert-init-chart
     version: "0.0.1"
     repository: file://../../services/kaapana-core/core-init/cert-init/cert-init-chart
-  

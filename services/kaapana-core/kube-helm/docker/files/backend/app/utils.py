@@ -16,6 +16,8 @@ from config import settings
 
 CHART_STATUS_UNDEPLOYED = "un-deployed"
 CHART_STATUS_DEPLOYED = "deployed"
+POD_STATUS_RUNNING = "Running"
+POD_STATUS_PENDING = "running"
 
 charts_cached = None
 charts_hashes = {}
@@ -25,7 +27,7 @@ smth_pending = False
 update_running = False
 
 last_refresh_timestamp = None
-extensions_list_cached = []
+global_extensions_dict_cached = []
 
 
 def executue_shell_command(command, in_background=False, timeout=5):
@@ -96,13 +98,82 @@ def helm_show_chart(name=None, version=None, package=None):
         return {}
 
 
-def helm_get_manifest(release_name, helm_namespace=settings.helm_namespace):
+def get_kube_status(kind, name, namespace):
+    states = {
+        "name": [],
+        "ready": [],
+        "status": [],
+        "restarts": [],
+        "age": []
+    }
+
+    # Todo might be replaced by json or yaml output in the future with the flag -o json!
+    success, stdout, stderr = executue_shell_command(f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name}")
+    # success, stdout, stderr = executue_shell_command(f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name} -o json")
+    if success:
+        # kube_info = json.loads(stdout)
+        stdout = stdout.splitlines()[1:]
+        for row in stdout:
+            name, ready, status, restarts, age = re.split('\s\s+', row)
+            states['name'].append(name)
+            states['ready'].append(ready)
+            states['status'].append(status)
+            states['restarts'].append(restarts)
+            states['age'].append(age)
+    else:
+        print(f'Could not get kube status of {name}')
+        print(stderr)
+
+    return states
+
+
+def helm_get_kube_objects(release_name, helm_namespace=settings.helm_namespace):
 
     success, stdout, stderr = executue_shell_command(f'{settings.helm_path} -n {helm_namespace} get manifest {release_name}')
+
+    kube_status = None
+    ingress_paths = []
+    concatenated_states = {
+        "name": [],
+        "ready": [],
+        "status": [],
+        "restarts": [],
+        "age": []
+    }
+
     if success:
-        return list(yaml.load_all(stdout, yaml.FullLoader))
-    else:
-        return []
+        manifest_dict = list(yaml.load_all(stdout, yaml.FullLoader))
+
+        for config in manifest_dict:
+            if config is None:
+                continue
+            if config['kind'] == 'Ingress':
+                ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']
+                ingress_paths.append(ingress_path)
+
+            elif config['kind'] == 'Deployment' or config['kind'] == 'Job':
+                if config['kind'] == 'Deployment':
+                    obj_kube_status = get_kube_status('app', config['spec']['selector']['matchLabels']['app-name'], config['metadata']['namespace'])
+                elif config['kind'] == 'Job':
+                    obj_kube_status = get_kube_status('job', config['metadata']['name'], config['metadata']['namespace'])
+
+                for key, value in obj_kube_status.items():
+                    concatenated_states[key] = concatenated_states[key] + value
+                    if key == "status":
+                        if kube_status == None:
+                            kube_status = value[0]
+                        elif value[0] != POD_STATUS_RUNNING and kube_status == POD_STATUS_RUNNING:
+                            kube_status = value[0]
+
+                    elif key == "ready":
+                        value = [int(x) for x in value[0].split("/")]
+                        if value[0] != value[1]:
+                            kube_status = POD_STATUS_PENDING
+            else:
+                pass
+                # print(f"Kind: {config['kind']}")
+
+    return kube_status, ingress_paths, concatenated_states
 
 
 def helm_get_values(release_name, helm_namespace=settings.helm_namespace):
@@ -121,9 +192,18 @@ def helm_status(release_name, helm_namespace=settings.helm_namespace):
         print(f"ERROR: Could not fetch helm status for: {release_name}")
         return None
 
+# def helm_ls(helm_namespace=settings.helm_namespace, release_filter=''):
+#     command = f'{settings.helm_path} -n {helm_namespace} --filter {release_filter} ls --deployed --pending --failed --uninstalling -o json'
+#     success, stdout, stderr = executue_shell_command(command=command, in_background=False)
+
+#     if success:
+#         return json.loads(stdout)
+#     else:
+#         return []
+
 
 def collect_helm_deployments(helm_namespace=settings.helm_namespace):
-    success, stdout, stderr = executue_shell_command(f'{settings.helm_path} -n {helm_namespace} ls -o json')
+    success, stdout, stderr = executue_shell_command(f'{settings.helm_path} -n {helm_namespace} ls --deployed --pending --failed --uninstalling --superseded -o json')
     if success:
         namespace_deployments = json.loads(stdout)
         deployed_charts_dict = {}
@@ -329,16 +409,6 @@ def helm_delete(release_name, helm_namespace=settings.helm_namespace, release_ve
                 item["successful"] = 'pending'
 
 
-def helm_ls(helm_namespace=settings.helm_namespace, release_filter=''):
-    command = f'{settings.helm_path} -n {helm_namespace} --filter {release_filter} ls --deployed --pending --failed --uninstalling -o json'
-    success, stdout, stderr = executue_shell_command(command=command, in_background=False)
-
-    if success:
-        return json.loads(stdout)
-    else:
-        return []
-
-
 def check_modified():
     global charts_hashes
     helm_packages = [f for f in glob.glob(os.path.join(settings.helm_extensions_cache, '*.tgz'))]
@@ -370,145 +440,64 @@ def helm_search_repo(keywords_filter):
     return charts_cached
 
 
-def get_kube_status(kind, name, namespace):
-    states = {
-        "name": [],
-        "ready": [],
-        "status": [],
-        "restarts": [],
-        "age": []
-    }
-
-    # Todo might be replaced by json or yaml output in the future with the flag -o json!
-    success, stdout, stderr = executue_shell_command(f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name}")
-    # success, stdout, stderr = executue_shell_command(f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name} -o json")
-    if success:
-        # kube_info = json.loads(stdout)
-        stdout = stdout.splitlines()[1:]
-        for row in stdout:
-            name, ready, status, restarts, age = re.split('\s\s+', row)
-            states['name'].append(name)
-            states['ready'].append(ready)
-            states['status'].append(status)
-            states['restarts'].append(restarts)
-            states['age'].append(age)
-    else:
-        print(f'Could not get kube status of {name}')
-        print(stderr)
-
-    return states
-
-
-def get_manifest_infos(manifest):
-    ingress_paths = []
-
-    concatenated_states = {
-        "name": [],
-        "ready": [],
-        "status": [],
-        "restarts": [],
-        "age": []
-    }
-
-    for config in manifest:
-        if config is None:
-            continue
-        ingress_path = ''
-        if config['kind'] == 'Ingress':
-            ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']
-            ingress_paths.append(ingress_path)
-        if config['kind'] == 'Deployment':
-            kube_status = get_kube_status('app', config['spec']['selector']['matchLabels']['app-name'], config['metadata']['namespace'])
-            for key, value in kube_status.items():
-                concatenated_states[key] = concatenated_states[key] + value
-        if config['kind'] == 'Job':
-            kube_status = get_kube_status('job', config['metadata']['name'], config['metadata']['namespace'])
-            for key, value in kube_status.items():
-                concatenated_states[key] = concatenated_states[key] + value
-
-    return concatenated_states, ingress_paths
-
-
-def all_successful(status):
-    successfull = ['Completed', 'Running', 'deployed']
-    for i in status:
-        if i not in successfull:
-            return "pending"
-
-    return "yes"
-
-
 def get_extensions_list():
-    global refresh_delay, global_extensions_dict_cached, last_refresh_timestamp, rt, smth_pending, update_running
-    success = True
+    global refresh_delay, global_extensions_dict_cached, last_refresh_timestamp, update_running
+
+    if update_running or global_extensions_dict_cached == None or (last_refresh_timestamp != None and (time.time() - last_refresh_timestamp) < refresh_delay):
+        return global_extensions_dict_cached
+
+    print("Generating new extension-list ...")
 
     global_extensions_dict = {}
-    try:
-        if update_running or (not smth_pending and last_refresh_timestamp != None and extensions_list_cached and (time.time() - last_refresh_timestamp) < refresh_delay):
-            pass
-        else:
-            print("Generating new extension-list ...")
+    update_running = True
+    available_extension_charts_tgz = helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
+    deployed_extensions_dict = collect_helm_deployments()
 
-            smth_pending = False
-            update_running = True
-            available_extension_charts_tgz = helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
-            deployed_extensions_dict = collect_helm_deployments()
+    for extension_id, extension_dict in available_extension_charts_tgz.items():
+        extension_name = extension_dict["name"]
+        if extension_name not in global_extensions_dict:
+            if 'kaapanaworkflow' in extension_dict['keywords']:
+                extension_kind = 'dag'
+            elif 'kaapanaapplication' in extension_dict['keywords']:
+                extension_kind = 'application'
+            else:
+                print(f"ISSUE: Unknown 'extension['kind']' - {extension_id}: {extension_dict['keywords']}")
+                continue
 
-            for extension_id, extension_dict in available_extension_charts_tgz.items():
-                extension_name = extension_dict["name"]
-                if extension_name not in global_extensions_dict:
-                    if 'kaapanaworkflow' in extension_dict['keywords']:
-                        extension_kind = 'dag'
-                    elif 'kaapanaapplication' in extension_dict['keywords']:
-                        extension_kind = 'application'
-                    else:
-                        print(f"ISSUE: Unknown 'extension['kind']' - {extension_id}: {extension_dict['keywords']}")
-                        continue
+            global_extensions_dict[extension_name] = {
+                "releaseName": extension_name,
+                "version": None,
+                "versions": [],
+                "installed": None,
+                "ready": None,
+                "links": None,
+                "helm_status": None,
+                "kube_status": None,
+                "experimental": 'yes' if 'kaapanaexperimental' in extension_dict['keywords'] else 'no',
+                "multiinstallable": 'yes' if 'kaapanamultiinstallable' in extension_dict['keywords'] else 'no',
+                "kind": extension_kind
+            }
 
-                    global_extensions_dict[extension_name] = {
-                        "releaseName": extension_name,
-                        "versions": {},
-                        "installed": "no",
-                        "experimental": 'yes' if 'kaapanaexperimental' in extension_dict['keywords'] else 'no',
-                        "multiinstallable": 'yes' if 'kaapanamultiinstallable' in extension_dict['keywords'] else 'no',
-                        "kind": extension_kind
-                    }
-                if extension_dict["version"] not in global_extensions_dict[extension_name]["versions"]:
-                    global_extensions_dict[extension_name]["versions"][extension_dict["version"]] = extension_dict
-                    if extension_id in deployed_extensions_dict:
-                        global_extensions_dict[extension_name]["versions"][extension_dict["version"]]["helm_status"] = deployed_extensions_dict[extension_id]
-                        manifest = helm_get_manifest(extension_name)
-                        kube_status, ingress_paths = get_manifest_infos(manifest)
-                        release_info = helm_ls(release_filter=extension_name)
+        if extension_dict["version"] not in global_extensions_dict[extension_name]["versions"]:
+            global_extensions_dict[extension_name]["versions"].append(extension_dict["version"])
+            extension_versions = sorted(global_extensions_dict[extension_name]["versions"], key=LooseVersion, reverse=True)
+            global_extensions_dict[extension_name]["latest_version"] = extension_versions[-1]
 
-                        global_extensions_dict[extension_name]["installed"] = "yes" if deployed_extensions_dict[extension_id]["status"] == CHART_STATUS_DEPLOYED else "no"
-                        global_extensions_dict[extension_name]['successful'] = all_successful(set(kube_status['status'] + [release_info['status']]))
-                        global_extensions_dict[extension_name]['installed'] = 'yes'
-                        global_extensions_dict[extension_name]['links'] = ingress_paths
-                        global_extensions_dict[extension_name]['helmStatus'] = release['status'].capitalize()
-                        global_extensions_dict[extension_name]['kubeStatus'] = ", ".join(kube_status['status'])
-                        global_extensions_dict[extension_name]['version'] = deployed_extensions_dict[extension_id]["app_version"]
+        if extension_id in deployed_extensions_dict:
+            global_extensions_dict[extension_name]["helm_status"] = deployed_extensions_dict[extension_id]["status"]
 
-                        if global_extensions_dict[extension_name]['successful'] != "yes":
-                            print(f"Chart {release['name']} not ready: {global_extensions_dict[extension_name]['successful']} -> pending...")
-                            smth_pending = True
-                    else:
-                        global_extensions_dict[extension_name]["versions"][extension_dict["version"]]["helm_status"] = {
-                            "status": CHART_STATUS_UNDEPLOYED
-                        }
+            kube_status, ingress_paths, concatenated_states = helm_get_kube_objects(extension_name)
+            global_extensions_dict[extension_name]["kube_status"] = kube_status
 
-                extension_versions = sorted(list(global_extensions_dict[extension_name]["versions"].keys()), key=LooseVersion, reverse=True)
-                global_extensions_dict[extension_name]["latest_version"] = extension_versions[-1]
+            global_extensions_dict[extension_name]["installed"] = True if global_extensions_dict[extension_name]["helm_status"] == CHART_STATUS_DEPLOYED else False
+            global_extensions_dict[extension_name]['ready'] = True if global_extensions_dict[extension_name]["kube_status"] == POD_STATUS_RUNNING else False
+            global_extensions_dict[extension_name]['links'] = ingress_paths
+            global_extensions_dict[extension_name]['version'] = deployed_extensions_dict[extension_id]["app_version"]
 
-            last_refresh_timestamp = time.time()
-            update_running = False
-            global_extensions_dict_cached = global_extensions_dict
-
-    except subprocess.CalledProcessError as e:
-        success = False
-    return success, extensions_list_cached
-
-# Copied from kaapna_utils.py, maybe overhad...
+    last_refresh_timestamp = time.time()
+    update_running = False
+    global_extensions_dict_cached = global_extensions_dict
+    return global_extensions_dict_cached
 
 
 def cure_invalid_name(name, regex, max_length=None):

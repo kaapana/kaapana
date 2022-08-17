@@ -37,6 +37,7 @@ async def update_extensions():
     else:
         return Response(message, 500)
 
+
 @router.get("/helm-delete-chart")
 async def helm_delete_chart(release_name: str, release_version: str = None, helm_command_addons: str = ''):
     try:
@@ -45,16 +46,18 @@ async def helm_delete_chart(release_name: str, release_version: str = None, helm
     except subprocess.CalledProcessError as e:
         return Response(f"We could not find the release you are trying to delete!", 500)
 
+
 @router.post("/helm-install-chart")
 async def helm_add_custom_chart(request: Request):
     # TODO check if chart already exists and return https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409
     helm_command = 'nothing to say...'
     try:
         payload = await request.json()
-        resp, helm_command, _ = utils.helm_install(payload)
+        resp, helm_command, _ = utils.helm_install(payload, in_background=False)
         return Response(f"Trying to install chart with {helm_command}", 200)
     except:
         return Response(f"A helm command error occured while executing {helm_command}!", 500)
+
 
 @router.post("/pull-docker-image")
 async def pull_docker_image(request: Request):
@@ -94,7 +97,8 @@ async def pending_applications():
 
 @router.get("/extensions")
 async def extensions():
-    return utils.extensions_list_cached
+    cached_extensions = utils.get_extensions_list()
+    return cached_extensions
 
 
 @router.get("/list-helm-charts")

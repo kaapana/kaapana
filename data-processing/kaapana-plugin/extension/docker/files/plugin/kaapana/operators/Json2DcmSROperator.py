@@ -2,7 +2,25 @@ from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_r
 from datetime import timedelta
 
 class Json2DcmSROperator(KaapanaBaseOperator):
+    """
+    Operator to generate DICOM Structured Reports.
 
+    This operator extracts information given by input json-files, dicom-files and dicom-seg-files.
+    The extracted information is collected in a tid_template downloaded from https://raw.githubusercontent.com/qiicr/dcmqi/master/doc/schemas/sr-tid1500-schema.json# .
+    The modified tid_template is then passed to DCMQI's tid1500writer which converts and saves the previously extracted and summarized information into a DICOM Structured Report following the template TID1500.
+    Furter information about DCMQI's tid1500writer: https://qiicr.gitbook.io/dcmqi-guide/opening/cmd_tools/sr/tid1500writer 
+    
+    **Inputs:**
+
+    * src_dicom_operator: Input operator which provides the processed DICOM file.
+    * seg_dicom_operator: Input operator which provides the processed DICOM_SEG file.
+    * input_file_extension: ".json" by default
+
+    ***Outputs:**
+
+    * DcmSR-file: .dcm-file which contains the DICOM Structured Report.
+
+    """
     def __init__(self,
                  dag,
                  src_dicom_operator = None, 
@@ -12,6 +30,12 @@ class Json2DcmSROperator(KaapanaBaseOperator):
                  execution_timeout=timedelta(minutes=90),
                  **kwargs
                  ):
+        """
+        :param dag: DAG in which the operator is executed.
+        :param src_dicom_operator: Input operator which provides the processed DICOM file.
+        :param seg_dicom_operator: Input operator which provides the processed DICOM_SEG file.
+        :param input_file_extension: ".json" by default
+        """
 
         if env_vars is None:
             env_vars = {}

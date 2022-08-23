@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 import utils
 from config import settings
 from os.path import basename, dirname, join
-
+import helm_helper
 
 router = APIRouter()
 # router = APIRouter(prefix=settings.application_root)
@@ -53,7 +53,7 @@ async def helm_add_custom_chart(request: Request):
     helm_command = 'nothing to say...'
     try:
         payload = await request.json()
-        resp, helm_command, _ = utils.helm_install(payload, in_background=False)
+        stdout, helm_command, release_name = utils.helm_install(payload, in_background=False)
         return Response(f"Trying to install chart with {helm_command}", 200)
     except:
         return Response(f"A helm command error occured while executing {helm_command}!", 500)
@@ -97,7 +97,8 @@ async def pending_applications():
 
 @router.get("/extensions")
 async def extensions():
-    cached_extensions = utils.get_extensions_list()
+    # cached_extensions = utils.get_extensions_list()
+    cached_extensions = helm_helper.get_extensions_list()
     return cached_extensions
 
 

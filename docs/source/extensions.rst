@@ -153,6 +153,10 @@ Code server
 | **Mount point:**  
 | <fast_data_dir>/workflows
 
+| **VSCode settings:**
+| If you want to use your costum VSCode settings inside the code-server you can save them under :code:`/kaapanasrc/.vscode/settings.json`.
+
+
 .. _extensions jupyterlab:
 
 Jupyter lab

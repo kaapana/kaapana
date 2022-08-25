@@ -153,9 +153,8 @@ Code server
 | **Mount point:**  
 | <fast_data_dir>/workflows
 
-.. note:: 
-  If you want to use your costum vscode settings or keybindings you can save them under 
-  :code:`/kaapanasrc/.vscode/settings.json` and :code:`/kaapanasrc/.vscode/settings.json`, respectively.
+| **VSCode settings:**
+| If you want to use your costum VSCode settings inside the code-server you can save them under :code:`/kaapanasrc/.vscode/settings.json`.
 
 
 .. _extensions jupyterlab:

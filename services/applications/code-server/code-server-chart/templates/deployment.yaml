@@ -21,16 +21,6 @@ spec:
     spec:
       securityContext:
         runAsUser: 0
-      initContainers:
-        - name: copy
-          image: ubuntu:20.04
-          command: ["/bin/sh", "-c", "cp /configmap/settings.json /root/.local/share/code-server/User/"]
-          volumeMounts:
-            - name: configs
-              mountPath: /configmap/settings.json
-              subPath: settings.json
-            - name: adjustable
-              mountPath: /root/.local/share/code-server/User
       containers:
       - name: code-server
         {{- if not .Values.image }}
@@ -67,14 +57,12 @@ spec:
             mountPath:  /root/.vscode/launch.json
             subPath: launch.json
           - name: configs
-            mountPath: /configmap/settings.json
+            mountPath: /root/.local/share/code-server/User/settings.json
             subPath: settings.json
           {{- range $volumeMount := .Values.volumeMounts }}
           - name: {{ $volumeMount.name }}
             mountPath: "{{ $volumeMount.mountPath }}"
           {{- end }}
-          - name: adjustable
-            mountPath: /root/.local/share/code-server/User
       volumes:
       {{- if not .Values.volumes }}
       - name: codeserverdata
@@ -102,8 +90,6 @@ spec:
           path: "{{ $volume.path }}"
           type: DirectoryOrCreate
       {{- end }}
-      - name: adjustable
-        emptyDir: {}
       imagePullSecrets:
       - name: registry-secret
 ---

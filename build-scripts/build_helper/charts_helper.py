@@ -9,7 +9,7 @@ from os.path import join, dirname, basename, exists, isfile, isdir
 from time import time
 from pathlib import Path
 from build_helper.build_utils import BuildUtils
-from build_helper.container_helper import Container
+from build_helper.container_helper import Container,pull_container_image
 from jinja2 import Environment, FileSystemLoader
 
 import networkx as nx
@@ -871,9 +871,27 @@ class HelmChart:
 
         if BuildUtils.create_offline_installation is True:
             BuildUtils.logger.info("Generating platform docker dump.")
-            command = [
-                Container.container_engine, "save"] + [
-                    container.build_tag for container in containers_built if not container.build_tag.startswith('local-only')] + [
+            image_tag_list = [
+                "nvcr.io/nvidia/gpu-operator:v1.11.0",
+                "nvcr.io/nvidia/k8s-device-plugin:v0.12.2-ubi8",
+                "nvcr.io/nvidia/cloud-native/gpu-operator-validator:v1.11.0",
+                "nvcr.io/nvidia/k8s/container-toolkit:v1.10.0-ubuntu20.04",
+                "nvcr.io/nvidia/k8s/dcgm-exporter:2.4.5-2.6.7-ubuntu20.04",
+                "nvcr.io/nvidia/gpu-feature-discovery:v0.6.1-ubi8",
+                "k8s.gcr.io/nfd/node-feature-discovery:v0.10.1",
+                "coredns/coredns:1.8.0",
+                "docker.io/calico/cni:v3.19.1",
+                "docker.io/calico/node:v3.19.1",
+                "docker.io/calico/kube-controllers:v3.17.3",
+                "docker.io/calico/pod2daemon-flexvol:v3.19.1", 
+            ]
+            for base_microk8s_image in image_tag_list:
+                pull_container_image(image_tag=base_microk8s_image)
+                container_obj = Container()
+                container_obj.build_tag = base_microk8s_image
+                containers_built.append(container_obj)
+            
+            command = [Container.container_engine, "save"] + [container.build_tag for container in containers_built if not container.build_tag.startswith('local-only')] + [
                         "-o", str(Path(os.path.dirname(platform_chart.build_chart_dir)) / f"{platform_chart.name}-{platform_chart.version}-containers.tar")]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
             if output.returncode != 0:

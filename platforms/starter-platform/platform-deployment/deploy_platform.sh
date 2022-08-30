@@ -9,7 +9,7 @@ export HELM_EXPERIMENTAL_OCI=1
 
 PROJECT_NAME="starter-platform-chart" # name of the platform Helm chart
 PROJECT_ABBR="sp" # abbrevention for the platform-name
-DEFAULT_VERSION="0.1.1"    # version of the platform Helm chart
+DEFAULT_VERSION="0.1.4"    # version of the platform Helm chart
 
 CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 CONTAINER_REGISTRY_USERNAME=""
@@ -94,13 +94,13 @@ if test -t 1; then
     fi
 fi
 
-if ! command -v nvidia-smi &> /dev/null
+if command -v nvidia-smi &> /dev/null && nvidia-smi
 then
-    echo "${YELLOW}No GPU detected...${NC}"
-    GPU_SUPPORT="false"
-else
     echo "${GREEN}Nvidia GPU detected!${NC}"
     GPU_SUPPORT="true"
+else
+    echo "${YELLOW}No GPU detected...${NC}"
+    GPU_SUPPORT="false"
 fi
 
 function delete_all_images_docker {

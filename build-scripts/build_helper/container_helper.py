@@ -31,6 +31,16 @@ def container_registry_login(username, password):
         BuildUtils.logger.error(f"Error:   {output.stderr}")
         exit(1)
 
+def pull_container_image(image_tag):
+    command = [Container.container_engine, "pull", image_tag]
+    print(f"Pulling container image: {image_tag}")
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000, env=dict(os.environ, DOCKER_BUILDKIT=f"{BuildUtils.enable_build_kit}"))
+
+    if output.returncode == 0:
+        print(f"sucess!")
+
+    else:
+        print(f"Something went wrong...")
 
 class BaseImage:
     registry = None
@@ -127,7 +137,10 @@ class Container:
 
         return repr_obj
 
-    def __init__(self, dockerfile):
+    def __init__(self, dockerfile=None):
+        if dockerfile == None:
+            return
+
         self.image_name = None
         self.image_version = None
         self.tag = None

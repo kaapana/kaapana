@@ -6,6 +6,8 @@ from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 from airflow.api.common.experimental.trigger_dag import trigger_dag as trigger
+from airflow.api.common.trigger_dag import trigger_dag as trigger
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 import os
 import time
 import errno
@@ -14,8 +16,6 @@ import glob
 import shutil
 import pydicom
 from datetime import timedelta
-from pathlib import Path
-
 
 class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
     def check_cache(self, dicom_series, cache_operator):

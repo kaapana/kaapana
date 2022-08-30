@@ -94,13 +94,13 @@ if test -t 1; then
     fi
 fi
 
-if ! command -v nvidia-smi &> /dev/null
+if command -v nvidia-smi &> /dev/null && nvidia-smi
 then
-    echo "${YELLOW}No GPU detected...${NC}"
-    GPU_SUPPORT="false"
-else
     echo "${GREEN}Nvidia GPU detected!${NC}"
     GPU_SUPPORT="true"
+else
+    echo "${YELLOW}No GPU detected...${NC}"
+    GPU_SUPPORT="false"
 fi
 
 function delete_all_images_docker {

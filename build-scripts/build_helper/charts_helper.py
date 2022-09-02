@@ -883,7 +883,8 @@ class HelmChart:
                 "docker.io/calico/cni:v3.19.1",
                 "docker.io/calico/node:v3.19.1",
                 "docker.io/calico/kube-controllers:v3.17.3",
-                "docker.io/calico/pod2daemon-flexvol:v3.19.1", 
+                "docker.io/calico/pod2daemon-flexvol:v3.19.1",
+                "k8s.gcr.io/pause:3.1"
             ]
             for base_microk8s_image in image_tag_list:
                 pull_container_image(image_tag=base_microk8s_image)

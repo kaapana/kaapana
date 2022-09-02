@@ -111,7 +111,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
 
         if self.zip_files:
             timestamp = (
-                    datetime.datetime.now() + timedelta(hours=2)
+                    datetime.datetime.now()
             ).strftime("%y-%m-%d-%H:%M:%S%f")
             target_dir = os.path.join(run_dir, self.operator_out_dir)
             if not os.path.exists(target_dir):

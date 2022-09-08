@@ -469,7 +469,7 @@ function install_certs {
 OS_PRESENT=$(awk -F= '/^NAME/{print $2}' /etc/os-release)
 OS_PRESENT="${OS_PRESENT%\"}"
 OS_PRESENT="${OS_PRESENT#\"}"
-REAL_USER=$(who am i | awk '{print $1}')
+REAL_USER=$(logname)
 if [ -v SUDO_USER ]; then
     USER_HOME=$(getent passwd $SUDO_USER | cut -d: -f6)
 else

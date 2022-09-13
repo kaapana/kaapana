@@ -30,8 +30,8 @@ global_collected_tgz_charts = {}
 logger = logging.getLogger("uvicorn")
 
 
-def executue_shell_command(command, in_background=False, timeout=5):
-    logger.debug(f"In method: executue_shell_command({command=} {in_background=} {timeout=})")
+def execute_shell_command(command, in_background=False, timeout=5):
+    logger.debug(f"In method: execute_shell_command({command=} {in_background=} {timeout=})")
     if ";" in command:
         logger.error(f"Detected ';' in {command=} -> cancel request!")
         return False, None, None
@@ -66,7 +66,7 @@ def executue_shell_command(command, in_background=False, timeout=5):
         logger.error("")
         logger.error("#######################################################################################################################################################")
 
-    logger.debug(f"End of method: executue_shell_command")
+    logger.debug(f"End of method: execute_shell_command")
     return success, stdout, stderr
 
 
@@ -183,9 +183,8 @@ def get_extensions_list():
                     extension_info["kubeStatus"] = ""
                     extension_info["successful"] = ""
             else:
-
-            extension_info["releaseName"] = extension_info["chart_name"]
-            result_list.append(extension_info)
+                extension_info["releaseName"] = extension_info["chart_name"]
+                result_list.append(extension_info)
 
     global_extensions_dict_cached = result_list
 
@@ -206,7 +205,7 @@ def collect_all_tgz_charts(keywords_filter):
 
             helm_command = f'{settings.helm_path} show chart {chart_tgz_file}'
             logger.debug(f"Executing CMD: {helm_command}")
-            success, stdout, stderr = executue_shell_command(helm_command)
+            success, stdout, stderr = execute_shell_command(helm_command)
             if success:
                 logger.debug(f"sucess!")
                 global_charts_hashes[chart_tgz_file] = chart_hash
@@ -242,7 +241,7 @@ def sha256sum(filepath):
 def collect_helm_deployments(helm_namespace=settings.helm_namespace):
     logger.debug(f"In method: collect_helm_deployments({helm_namespace=})")
     deployed_charts_dict = {}
-    success, stdout, stderr = executue_shell_command(f'{settings.helm_path} -n {helm_namespace} ls --deployed --pending --failed --uninstalling --superseded -o json')
+    success, stdout, stderr = execute_shell_command(f'{settings.helm_path} -n {helm_namespace} ls --deployed --pending --failed --uninstalling --superseded -o json')
     if success:
         logger.debug(f"Success - got deployments.")
         namespace_deployments = json.loads(stdout)
@@ -262,8 +261,8 @@ def get_kube_objects(release_name, helm_namespace=settings.helm_namespace):
     def get_kube_status(kind, name, namespace):
         states = None
         # Todo might be replaced by json or yaml output in the future with the flag -o json!
-        success, stdout, stderr = executue_shell_command(f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name}")
-        # success, stdout, stderr = executue_shell_command(f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name} -o json")
+        success, stdout, stderr = execute_shell_command(f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name}")
+        # success, stdout, stderr = execute_shell_command(f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name} -o json")
         if success:
             states = {
                 "name": [],
@@ -282,13 +281,13 @@ def get_kube_objects(release_name, helm_namespace=settings.helm_namespace):
                 states['restarts'].append(restarts)
                 states['age'].append(age)
         else:
-            print(f'Could not get kube status of {name}')
-            print(stderr)
+            logger.error(f'Could not get kube status of {name}')
+            logger.error(stderr)
 
         return states
 
     logger.debug(f"In method: get_kube_objects({release_name=}, {helm_namespace=})")
-    success, stdout, stderr = executue_shell_command(f'{settings.helm_path} -n {helm_namespace} get manifest {release_name}')
+    success, stdout, stderr = execute_shell_command(f'{settings.helm_path} -n {helm_namespace} get manifest {release_name}')
     ingress_paths = []
     concatenated_states = {
         "name": [],

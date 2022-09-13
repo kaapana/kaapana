@@ -9,6 +9,9 @@ import utils
 from config import settings
 from os.path import basename, dirname, join
 import helm_helper
+import logging
+
+logger = logging.getLogger("uvicorn")
 
 router = APIRouter()
 # router = APIRouter(prefix=settings.application_root)
@@ -64,13 +67,13 @@ async def pull_docker_image(request: Request):
 
     try:
         payload = await request.json()
-        print(payload)
+        logger.info(payload)
         release_name = f'pull-docker-chart-{secrets.token_hex(10)}'
         utils.pull_docker_image(release_name, **payload)
         return Response(f"We are trying to download the docker container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}", 202)
     except subprocess.CalledProcessError as e:
         utils.helm_delete(release_name)
-        print(e)
+        logger.error(e)
         return Response(f"We could not download your container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}", 500)
 
 
@@ -107,7 +110,7 @@ async def add_repo():
     try:
         resp = subprocess.check_output(
             f'{os.environ["HELM_PATH"]} -n {settings.helm_namespace} ls -o json', stderr=subprocess.STDOUT, shell=True)
-        print(resp)
+        logger.info(resp)
     except subprocess.CalledProcessError as e:
         return Response(f"{e.output}", 500)
     return resp
@@ -119,7 +122,7 @@ async def view_helm_env():
         resp = subprocess.check_output(
             f'{os.environ["HELM_PATH"]} env', stderr=subprocess.STDOUT, shell=True)
         # TODO parse response to json object
-        print(resp)
+        logger.info(resp)
     except subprocess.CalledProcessError as e:
         return Response(
             f"{e.output}", 500)

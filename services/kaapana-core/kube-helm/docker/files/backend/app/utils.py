@@ -13,9 +13,8 @@ import copy
 from fastapi import Response
 from distutils.version import LooseVersion
 from config import settings
-import logging
+from fastapi.logger import logger
 
-logger = logging.getLogger("uvicorn")
 
 CHART_STATUS_UNDEPLOYED = "un-deployed"
 CHART_STATUS_DEPLOYED = "deployed"

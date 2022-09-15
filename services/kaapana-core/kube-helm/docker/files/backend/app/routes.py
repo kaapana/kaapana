@@ -9,9 +9,9 @@ import utils
 from config import settings
 from os.path import basename, dirname, join
 import helm_helper
-import logging
+from fastapi.logger import logger
 
-logger = logging.getLogger("uvicorn")
+
 
 router = APIRouter()
 # router = APIRouter(prefix=settings.application_root)

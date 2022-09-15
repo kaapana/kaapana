@@ -10,7 +10,7 @@ import hashlib
 import time
 from distutils.version import LooseVersion
 from config import settings
-import logging
+from fastapi.logger import logger
 
 CHART_STATUS_UNDEPLOYED = "un-deployed"
 CHART_STATUS_DEPLOYED = "deployed"
@@ -27,7 +27,6 @@ update_running = False
 global_charts_hashes = {}
 global_extensions_dict_cached = []
 global_collected_tgz_charts = {}
-logger = logging.getLogger("uvicorn")
 
 
 def execute_shell_command(command, in_background=False, timeout=5):

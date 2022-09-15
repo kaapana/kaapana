@@ -9,6 +9,7 @@ from config import settings
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import helm_helper
+from fastapi.logger import logger
 
 app = FastAPI(title="Kube-Helm API", root_path=settings.application_root)
 origins = [
@@ -30,7 +31,6 @@ app.mount("/static", StaticFiles(directory=join(dirname(str(__file__)), "static"
 
 @app.on_event("startup")
 async def startup_event():
-    logger = logging.getLogger("uvicorn")
     if settings.log_level == "DEBUG":
         log_level = logging.DEBUG
     elif settings.log_level == "INFO":
@@ -45,7 +45,10 @@ async def startup_event():
         logging.error(f"Unknown log-level: {settings.log_level} -> Setting log-level to 'INFO'")
         log_level = logging.INFO
 
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    logger.handlers = gunicorn_logger.handlers
     logger.setLevel(log_level)
+    logger.info("FastAPI logger level set to {0}".format(logging.getLevelName(log_level)))
 
 if __name__ == "__main__":
     helm_helper.get_extensions_list()
@@ -53,5 +56,5 @@ if __name__ == "__main__":
     # if charts_cached == None:
     #     helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
     # rt = RepeatedTimer(5, get_extensions_list)
-
+    
     uvicorn.run("main:app", host="127.0.0.1", port=5000, log_level="info", reload=True)

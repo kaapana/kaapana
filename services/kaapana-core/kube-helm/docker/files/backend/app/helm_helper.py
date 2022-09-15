@@ -167,7 +167,7 @@ def get_extensions_list():
     result_list = []
     for extension_name, extension_info in global_extensions_dict.items():
         for version, version_content in extension_info["available_versions"].items():
-            if len(version_content["deployments"] > 0):
+            if len(version_content["deployments"]) > 0:
                 for deplyment in version_content["deployments"]:
                     chart_template = extension_info.copy()
                     chart_template["installed"] = "yes"

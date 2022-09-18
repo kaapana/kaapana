@@ -52,14 +52,15 @@ async def helm_delete_chart(release_name: str, release_version: str = None, helm
 
 @router.post("/helm-install-chart")
 async def helm_add_custom_chart(request: Request):
-    # TODO check if chart already exists and return https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409
-    helm_command = 'nothing to say...'
     try:
         payload = await request.json()
-        stdout, helm_command, release_name = utils.helm_install(payload, in_background=False)
-        return Response(f"Trying to install chart with {helm_command}", 200)
+        success, stdout, helm_command, release_name = utils.helm_install(payload, in_background=False)
+        if success:
+            return Response(f"Installing chart with {helm_command}", 200)
+        else:
+            return Response(f"{stdout} ", 400)
     except:
-        return Response(f"A helm command error occured while executing {helm_command}!", 500)
+        return Response(f"An internal helm command error occured!", 500)
 
 
 @router.post("/pull-docker-image")

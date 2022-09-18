@@ -1,4 +1,5 @@
 import os
+from platform import release
 import secrets
 import subprocess
 from fastapi import APIRouter, Response, Request
@@ -54,9 +55,9 @@ async def helm_delete_chart(release_name: str, release_version: str = None, helm
 async def helm_add_custom_chart(request: Request):
     try:
         payload = await request.json()
-        success, stdout, helm_command, release_name = utils.helm_install(payload, in_background=False)
+        success, stdout, helm_command, release_name = utils.helm_install(payload, shell=False)
         if success:
-            return Response(f"Installing chart with {helm_command}", 200)
+            return Response(f"Successfully ran helm install for chart '{release_name}'", 200)
         else:
             return Response(f"{stdout} ", 400)
     except:

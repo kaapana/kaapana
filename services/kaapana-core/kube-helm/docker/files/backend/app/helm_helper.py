@@ -29,16 +29,16 @@ global_extensions_dict_cached = []
 global_collected_tgz_charts = {}
 
 
-def execute_shell_command(command, in_background=False, timeout=5):
+def execute_shell_command(command, shell=False, timeout=5):
     if ";" in command:
         err = f"Detected ';' in {command=} -> cancel request!"
         logger.error(err)
         return False, err
     logger.debug("executing shell command: {0}".format(command))
-    logger.debug("in_background={0} , timeout={1}".format(in_background, timeout))
+    logger.debug("shell={0} , timeout={1}".format(shell, timeout))
     command = [x for x in command.replace("  ", " ").split(" ") if x != ""]
     command_result = subprocess.run(
-        command, capture_output=True, text=True, encoding="utf-8", shell=in_background, timeout=timeout)
+        command, capture_output=True, text=True, encoding="utf-8", shell=shell, timeout=timeout)
 
     stdout = command_result.stdout.strip()
     stderr = command_result.stderr.strip()

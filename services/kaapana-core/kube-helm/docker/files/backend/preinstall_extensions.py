@@ -28,7 +28,7 @@ for extension in preinstall_extensions:
         errors_during_preinstalling = True
         continue
     try:
-        resp, helm_command, release_name = helm_install(extension, in_background=False)
+        resp, helm_command, release_name = helm_install(extension, shell=False)
         releases_installed[release_name] = False
         print(f"Trying to install chart with {helm_command}", resp)
     except Exception as e:

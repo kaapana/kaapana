@@ -31,15 +31,16 @@ app.mount("/static", StaticFiles(directory=join(dirname(str(__file__)), "static"
 
 @app.on_event("startup")
 async def startup_event():
-    if settings.log_level == "DEBUG":
+    log_level = settings.log_level.upper()
+    if log_level == "DEBUG":
         log_level = logging.DEBUG
-    elif settings.log_level == "INFO":
+    elif log_level == "INFO":
         log_level = logging.INFO
-    elif settings.log_level == "WARNING":
+    elif log_level == "WARNING":
         log_level = logging.WARNING
-    elif settings.log_level == "ERROR":
+    elif log_level == "ERROR":
         log_level = logging.ERROR
-    elif settings.log_level == "CRITICAL":
+    elif log_level == "CRITICAL":
         log_level = logging.CRITICAL
     else:
         logging.error(f"Unknown log-level: {settings.log_level} -> Setting log-level to 'INFO'")

@@ -30,13 +30,16 @@ global_collected_tgz_charts = {}
 
 
 def execute_shell_command(command, in_background=False, timeout=5):
-    logger.debug(f"In method: execute_shell_command({command=} {in_background=} {timeout=})")
     if ";" in command:
-        logger.error(f"Detected ';' in {command=} -> cancel request!")
-        return False, None, None
-
+        err = f"Detected ';' in {command=} -> cancel request!"
+        logger.error(err)
+        return False, err
+    logger.debug("executing shell command: {0}".format(command))
+    logger.debug("in_background={0} , timeout={1}".format(in_background, timeout))
     command = [x for x in command.replace("  ", " ").split(" ") if x != ""]
-    command_result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", shell=in_background, timeout=timeout)
+    command_result = subprocess.run(
+        command, capture_output=True, text=True, encoding="utf-8", shell=in_background, timeout=timeout)
+
     stdout = command_result.stdout.strip()
     stderr = command_result.stderr.strip()
     return_code = command_result.returncode
@@ -47,6 +50,7 @@ def execute_shell_command(command, in_background=False, timeout=5):
         logger.debug(f"{return_code=}")
         logger.debug(f"{stdout=}")
         logger.debug(f"{stderr=}")
+        return success, stdout
 
     else:
         logger.error("#######################################################################################################################################################")
@@ -64,9 +68,7 @@ def execute_shell_command(command, in_background=False, timeout=5):
             logger.error(f"{line}")
         logger.error("")
         logger.error("#######################################################################################################################################################")
-
-    logger.debug(f"End of method: execute_shell_command")
-    return success, stdout, stderr
+        return success, stderr
 
 
 def get_extensions_list():
@@ -81,7 +83,8 @@ def get_extensions_list():
 
     global_extensions_dict = {}
     update_running = True
-    available_extension_charts_tgz = collect_all_tgz_charts(keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
+    available_extension_charts_tgz = collect_all_tgz_charts(
+        keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
     deployed_extensions_dict = collect_helm_deployments()
 
     for extension_id, extension_dict in available_extension_charts_tgz.items():
@@ -90,14 +93,16 @@ def get_extensions_list():
         latest_kube_status = None
         extension_name = extension_dict["name"]
         if extension_name not in global_extensions_dict:
-            logger.debug(f"Adding chart name to global_extensions_dict: {extension_name}")
+            logger.debug(
+                f"Adding chart name to global_extensions_dict: {extension_name}")
 
             if 'kaapanaworkflow' in extension_dict['keywords']:
                 extension_kind = 'dag'
             elif 'kaapanaapplication' in extension_dict['keywords']:
                 extension_kind = 'application'
             else:
-                logger.error(f"Unknown 'extension['kind']' - {extension_id}: {extension_dict['keywords']}")
+                logger.error(
+                    f"Unknown 'extension['kind']' - {extension_id}: {extension_dict['keywords']}")
                 continue
 
             global_extensions_dict[extension_name] = {
@@ -112,7 +117,8 @@ def get_extensions_list():
             }
 
         if extension_dict["version"] not in global_extensions_dict[extension_name]["available_versions"]:
-            logger.debug(f"Adding chart version {extension_name}: {extension_dict['version']}")
+            logger.debug(
+                f"Adding chart version {extension_name}: {extension_dict['version']}")
 
             deployments = []
             if extension_id in deployed_extensions_dict:
@@ -129,7 +135,8 @@ def get_extensions_list():
                     }
                     latest_helm_status = chart_deployment["status"]
                     if chart_info["helm_status"] == CHART_STATUS_DEPLOYED:
-                        success, deployment_ready, ingress_paths, concatenated_states = get_kube_objects(chart_deployment["name"])
+                        success, deployment_ready, ingress_paths, concatenated_states = get_kube_objects(
+                            chart_deployment["name"])
                         if success:
                             chart_info["kube_status"] = concatenated_states["status"]
                             chart_info["kube_info"] = concatenated_states
@@ -137,28 +144,33 @@ def get_extensions_list():
                             chart_info['ready'] = deployment_ready
                             latest_kube_status = concatenated_states["ready"]
                         else:
-                            logger.error(f"Could not request kube-state of: {chart_deployment['name']}")
+                            logger.error(
+                                f"Could not request kube-state of: {chart_deployment['name']}")
 
                     elif chart_deployment["helm_status"] == CHART_STATUS_UNINSTALLING:
                         chart_info["kube_status"] = KUBE_STATUS_UNKNOWN
                         chart_info['links'] = []
                         chart_info['ready'] = False
                     else:
-                        logger.error(f"Unkown helm_status: {chart_deployment['helm_status']}")
+                        logger.error(
+                            f"Unkown helm_status: {chart_deployment['helm_status']}")
 
                     deployments.append(chart_info)
 
             global_extensions_dict[extension_name]["available_versions"][extension_dict["version"]] = {
                 "deployments": deployments,
             }
-            global_extensions_dict[extension_name]["latest_version"] = sorted(list(global_extensions_dict[extension_name]["available_versions"].keys()), key=LooseVersion, reverse=True)[-1]
-            logger.debug(json.dumps(global_extensions_dict[extension_name], indent=4))
+            global_extensions_dict[extension_name]["latest_version"] = sorted(list(
+                global_extensions_dict[extension_name]["available_versions"].keys()), key=LooseVersion, reverse=True)[-1]
+            logger.debug(json.dumps(
+                global_extensions_dict[extension_name], indent=4))
 
         global_extensions_dict[extension_name]['installed'] = "yes" if extension_installed else "no"
         global_extensions_dict[extension_name]['helmStatus'] = latest_helm_status
         global_extensions_dict[extension_name]['kubeStatus'] = latest_kube_status
         global_extensions_dict[extension_name]['version'] = global_extensions_dict[extension_name]['latest_version']
-        global_extensions_dict[extension_name]['versions'] = list(global_extensions_dict[extension_name]['available_versions'].keys())
+        global_extensions_dict[extension_name]['versions'] = list(
+            global_extensions_dict[extension_name]['available_versions'].keys())
         # global_extensions_dict[extension_name]['name'] = global_extensions_dict[extension_name]['releaseName']
 
     last_refresh_timestamp = time.time()
@@ -196,11 +208,13 @@ def collect_all_tgz_charts(keywords_filter):
     global global_collected_tgz_charts
 
     keywords_filter = set(keywords_filter)
-    chart_tgz_files = [f for f in glob.glob(os.path.join(settings.helm_extensions_cache, '*.tgz'))]
+    chart_tgz_files = [f for f in glob.glob(
+        os.path.join(settings.helm_extensions_cache, '*.tgz'))]
     for chart_tgz_file in chart_tgz_files:
         chart_hash = sha256sum(filepath=chart_tgz_file)
         if chart_tgz_file not in global_charts_hashes or chart_hash != global_charts_hashes[chart_tgz_file]:
-            logger.info(f"Chart {basename(chart_tgz_file)} has been modified -> reading tgz!")
+            logger.info(
+                f"Chart {basename(chart_tgz_file)} has been modified -> reading tgz!")
 
             helm_command = f'{settings.helm_path} show chart {chart_tgz_file}'
             logger.debug(f"Executing CMD: {helm_command}")
@@ -215,7 +229,8 @@ def collect_all_tgz_charts(keywords_filter):
                     logger.debug(f"Valid keyword-filter!")
                     global_collected_tgz_charts[f'{chart["name"]}-{chart["version"]}'] = chart
                 else:
-                    logger.debug(f"skipping due to keyword-filter - {keywords_filter=}")
+                    logger.debug(
+                        f"skipping due to keyword-filter - {keywords_filter=}")
             else:
                 logger.error(f"execution not successful!")
         else:
@@ -240,7 +255,8 @@ def sha256sum(filepath):
 def collect_helm_deployments(helm_namespace=settings.helm_namespace):
     logger.debug(f"In method: collect_helm_deployments({helm_namespace=})")
     deployed_charts_dict = {}
-    success, stdout, stderr = execute_shell_command(f'{settings.helm_path} -n {helm_namespace} ls --deployed --pending --failed --uninstalling --superseded -o json')
+    success, stdout, stderr = execute_shell_command(
+        f'{settings.helm_path} -n {helm_namespace} ls --deployed --pending --failed --uninstalling --superseded -o json')
     if success:
         logger.debug(f"Success - got deployments.")
         namespace_deployments = json.loads(stdout)
@@ -260,7 +276,8 @@ def get_kube_objects(release_name, helm_namespace=settings.helm_namespace):
     def get_kube_status(kind, name, namespace):
         states = None
         # Todo might be replaced by json or yaml output in the future with the flag -o json!
-        success, stdout, stderr = execute_shell_command(f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name}")
+        success, stdout, stderr = execute_shell_command(
+            f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name}")
         # success, stdout, stderr = execute_shell_command(f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name} -o json")
         if success:
             states = {
@@ -285,8 +302,10 @@ def get_kube_objects(release_name, helm_namespace=settings.helm_namespace):
 
         return states
 
-    logger.debug(f"In method: get_kube_objects({release_name=}, {helm_namespace=})")
-    success, stdout, stderr = execute_shell_command(f'{settings.helm_path} -n {helm_namespace} get manifest {release_name}')
+    logger.debug(
+        f"In method: get_kube_objects({release_name=}, {helm_namespace=})")
+    success, stdout, stderr = execute_shell_command(
+        f'{settings.helm_path} -n {helm_namespace} get manifest {release_name}')
     ingress_paths = []
     concatenated_states = {
         "name": [],
@@ -309,9 +328,11 @@ def get_kube_objects(release_name, helm_namespace=settings.helm_namespace):
 
             elif config['kind'] == 'Deployment' or config['kind'] == 'Job':
                 if config['kind'] == 'Deployment':
-                    obj_kube_status = get_kube_status('app', config['spec']['selector']['matchLabels']['app-name'], config['metadata']['namespace'])
+                    obj_kube_status = get_kube_status(
+                        'app', config['spec']['selector']['matchLabels']['app-name'], config['metadata']['namespace'])
                 elif config['kind'] == 'Job':
-                    obj_kube_status = get_kube_status('job', config['metadata']['name'], config['metadata']['namespace'])
+                    obj_kube_status = get_kube_status(
+                        'job', config['metadata']['name'], config['metadata']['namespace'])
 
                 if obj_kube_status != None:
                     for key, value in obj_kube_status.items():

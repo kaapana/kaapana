@@ -113,7 +113,8 @@ def get_extensions_list():
                 "keywords": extension_dict['keywords'],
                 "experimental": 'yes' if 'kaapanaexperimental' in extension_dict['keywords'] else 'no',
                 "multiinstallable": 'yes' if 'kaapanamultiinstallable' in extension_dict['keywords'] else 'no',
-                "kind": extension_kind
+                "kind": extension_kind,
+                # "values": extension_dict["values"]
             }
 
         if extension_dict["version"] not in global_extensions_dict[extension_name]["available_versions"]:
@@ -217,16 +218,16 @@ def collect_all_tgz_charts(keywords_filter):
                 f"Chart {basename(chart_tgz_file)} has been modified -> reading tgz!")
 
             helm_command = f'{settings.helm_path} show chart {chart_tgz_file}'
-            logger.debug(f"Executing CMD: {helm_command}")
-            success, stdout, stderr = execute_shell_command(helm_command)
+            success, stdout = execute_shell_command(helm_command)
             if success:
-                logger.debug(f"sucess!")
                 global_charts_hashes[chart_tgz_file] = chart_hash
 
                 logger.debug(f"Loading chart yaml in dict ...")
                 chart = list(yaml.load_all(stdout, yaml.FullLoader))[0]
                 if 'keywords' in chart and (set(chart['keywords']) & keywords_filter):
                     logger.debug(f"Valid keyword-filter!")
+                    # vals = helm_show_values(chart["name"], chart["version"])
+                    # chart["values"] = vals
                     global_collected_tgz_charts[f'{chart["name"]}-{chart["version"]}'] = chart
                 else:
                     logger.debug(
@@ -234,7 +235,7 @@ def collect_all_tgz_charts(keywords_filter):
             else:
                 logger.error(f"execution not successful!")
         else:
-            logger.debug(f"scraping not nessesary!")
+            logger.debug(f"scraping not necessary!")
 
     return global_collected_tgz_charts
 
@@ -255,7 +256,7 @@ def sha256sum(filepath):
 def collect_helm_deployments(helm_namespace=settings.helm_namespace):
     logger.debug(f"In method: collect_helm_deployments({helm_namespace=})")
     deployed_charts_dict = {}
-    success, stdout, stderr = execute_shell_command(
+    success, stdout = execute_shell_command(
         f'{settings.helm_path} -n {helm_namespace} ls --deployed --pending --failed --uninstalling --superseded -o json')
     if success:
         logger.debug(f"Success - got deployments.")
@@ -276,7 +277,7 @@ def get_kube_objects(release_name, helm_namespace=settings.helm_namespace):
     def get_kube_status(kind, name, namespace):
         states = None
         # Todo might be replaced by json or yaml output in the future with the flag -o json!
-        success, stdout, stderr = execute_shell_command(
+        success, stdout = execute_shell_command(
             f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name}")
         # success, stdout, stderr = execute_shell_command(f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name} -o json")
         if success:
@@ -298,13 +299,13 @@ def get_kube_objects(release_name, helm_namespace=settings.helm_namespace):
                 states['age'].append(age)
         else:
             logger.error(f'Could not get kube status of {name}')
-            logger.error(stderr)
+            logger.error(stdout)
 
         return states
 
     logger.debug(
         f"In method: get_kube_objects({release_name=}, {helm_namespace=})")
-    success, stdout, stderr = execute_shell_command(
+    success, stdout = execute_shell_command(
         f'{settings.helm_path} -n {helm_namespace} get manifest {release_name}')
     ingress_paths = []
     concatenated_states = {
@@ -344,3 +345,34 @@ def get_kube_objects(release_name, helm_namespace=settings.helm_namespace):
         deployment_ready = False
 
     return success, deployment_ready, ingress_paths, concatenated_states
+
+
+def helm_show_values(name, version):
+    success, stdout = execute_shell_command(
+        f'{settings.helm_path} show values {settings.helm_extensions_cache}/{name}-{version}.tgz')
+    if success:
+        return list(yaml.load_all(stdout, yaml.FullLoader))[0]
+    else:
+        return {}
+
+
+def helm_repo_index(repo_dir):
+    helm_command = f'{settings.helm_path} repo index {repo_dir}'
+    _, _ = execute_shell_command(helm_command)
+
+
+def helm_show_chart(name=None, version=None, package=None):
+    helm_command = f'{settings.helm_path} show chart'
+
+    if package is not None:
+        helm_command = f'{helm_command} {package}'
+    else:
+        helm_command = f'{helm_command} {settings.helm_extensions_cache}/{name}-{version}.tgz'
+
+    success, stdout = execute_shell_command(helm_command)
+
+    if success:
+        yaml_dict = list(yaml.load_all(stdout, yaml.FullLoader))[0]
+        return yaml_dict
+    else:
+        return {}

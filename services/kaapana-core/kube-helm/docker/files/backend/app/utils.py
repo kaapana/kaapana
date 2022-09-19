@@ -17,7 +17,7 @@ from fastapi import Response
 from fastapi.logger import logger
 
 from config import settings
-from helm_helper import execute_shell_command
+from helm_helper import execute_shell_command, helm_repo_index, helm_show_chart, helm_show_values
 
 
 CHART_STATUS_UNDEPLOYED = "un-deployed"
@@ -49,38 +49,8 @@ def sha256sum(filepath):
     return h.hexdigest()
 
 
-def helm_show_values(name, version):
-    success, stdout = execute_shell_command(
-        f'{settings.helm_path} show values {settings.helm_extensions_cache}/{name}-{version}.tgz')
-    if success:
-        return list(yaml.load_all(stdout, yaml.FullLoader))[0]
-    else:
-        return {}
-
-
-def helm_repo_index(repo_dir):
-    helm_command = f'{settings.helm_path} repo index {repo_dir}'
-    _, _ = execute_shell_command(helm_command)
-
-
-def helm_show_chart(name=None, version=None, package=None):
-    helm_command = f'{settings.helm_path} show chart'
-
-    if package is not None:
-        helm_command = f'{helm_command} {package}'
-    else:
-        helm_command = f'{helm_command} {settings.helm_extensions_cache}/{name}-{version}.tgz'
-
-    success, stdout = execute_shell_command(helm_command)
-
-    if success:
-        yaml_dict = list(yaml.load_all(stdout, yaml.FullLoader))[0]
-        return yaml_dict
-    else:
-        return {}
-
-
 def helm_search_repo(keywords_filter):
+    logger.debug("helm search repo with filter {0}".format(keywords_filter))
     global charts_cached
     keywords_filter = set(keywords_filter)
 
@@ -355,6 +325,8 @@ def helm_install(
     default_sets.pop('global.kaapana_collections', None)
 
     if 'extension_params' in payload:
+        logger.debug("found extension_params in payload {0}".format(
+            payload['extension_params']))
         for key, value in payload['extension_params'].items():
             if (";" not in key) and (";" not in value):
                 default_sets.update({f'global.{key}': value})
@@ -425,15 +397,14 @@ def helm_install(
 
 
 def helm_delete(release_name, helm_namespace=settings.helm_namespace, release_version=None, helm_command_addons=''):
-    # release version only important for extensions charts!
+    # release version only important for extensions charts
     cached_extension = [
         x for x in global_extensions_dict_cached if x["releaseName"] == release_name]
     if len(cached_extension) == 1:
         release_name = cached_extension[0]["helm_info"]["name"]
 
     helm_command = f'{settings.helm_path} -n {helm_namespace} uninstall {helm_command_addons} {release_name}'
-    success, stdout = execute_shell_command(
-        helm_command, shell=False)
+    success, stdout = execute_shell_command(helm_command, shell=False)
     if success and release_version is not None:
         for item in global_extensions_dict_cached:
             if item["releaseName"] == release_name and item["version"] == release_version:
@@ -446,6 +417,8 @@ def helm_delete(release_name, helm_namespace=settings.helm_namespace, release_ve
             s += line + "\n"
         s = s[:-1]
         logger.warning(s)
+
+    return success, stdout
 
 
 def helm_ls(helm_namespace=settings.helm_namespace, release_filter=''):

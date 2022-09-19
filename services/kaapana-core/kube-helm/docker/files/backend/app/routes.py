@@ -13,13 +13,13 @@ import helm_helper
 from fastapi.logger import logger
 
 
-
 router = APIRouter()
 # router = APIRouter(prefix=settings.application_root)
 # templates = Jinja2Templates(
 #     directory=os.path.abspath(os.path.expanduser('app/templates'))
 # )
-templates = Jinja2Templates(directory=join(dirname(str(__file__)), "templates"))
+templates = Jinja2Templates(directory=join(
+    dirname(str(__file__)), "templates"))
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -44,24 +44,32 @@ async def update_extensions():
 
 @router.get("/helm-delete-chart")
 async def helm_delete_chart(release_name: str, release_version: str = None, helm_command_addons: str = ''):
+    # TODO: should be POST
     try:
-        utils.helm_delete(release_name=release_name, release_version=release_version, helm_command_addons=helm_command_addons)
-        return {"message": "Successfully uninstalled", "status": "200"}
+        success, stdout = utils.helm_delete(
+            release_name=release_name, release_version=release_version, helm_command_addons=helm_command_addons)
+        if success:
+            return Response("Successfully uninstalled {0}".format(release_name), 200)
+        else:
+            return Response("{0}".format(stdout), 400)
     except subprocess.CalledProcessError as e:
-        return Response(f"We could not find the release you are trying to delete!", 500)
+        logger.error("/helm-delete-chart failed: {0}".format(e))
+        return Response(f"An internal server error occured!", 500)
 
 
 @router.post("/helm-install-chart")
-async def helm_add_custom_chart(request: Request):
+async def helm_install_chart(request: Request):
     try:
         payload = await request.json()
-        success, stdout, helm_command, release_name = utils.helm_install(payload, shell=False)
+        success, stdout, helm_command, release_name = utils.helm_install(
+            payload, shell=False)
         if success:
-            return Response(f"Successfully ran helm install for chart '{release_name}'", 200)
+            return Response("Successfully ran helm install for chart '{0}'".format(release_name), 200)
         else:
-            return Response(f"{stdout} ", 400)
-    except:
-        return Response(f"An internal helm command error occured!", 500)
+            return Response("{0}".format(stdout), 400)
+    except subprocess.CalledProcessError as e:
+        logger.error("/helm-install-chart failed: {0}".format(e))
+        return Response(f"An internal server error occured!", 500)
 
 
 @router.post("/pull-docker-image")

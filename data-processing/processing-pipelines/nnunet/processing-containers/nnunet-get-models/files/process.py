@@ -177,7 +177,8 @@ elif mode == "install_pretrained":
             # "Task089_Fluo-N2DH-SIM_thickborder_time"
         ]
     else:
-        task_ids = [task_ids]
+        task_ids = task_ids.split(",")
+    print("task_ids in the end", task_ids)
 
     for task_id in task_ids:
         model_path = os.path.join(models_dir, model, task_id)

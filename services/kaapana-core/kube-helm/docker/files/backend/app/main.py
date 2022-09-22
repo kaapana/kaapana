@@ -50,6 +50,7 @@ async def startup_event():
     logger.handlers = gunicorn_logger.handlers
     logger.setLevel(log_level)
     logger.info("FastAPI logger level set to {0}".format(logging.getLevelName(log_level)))
+    logger.info("settings {0}".format(settings))
 
 if __name__ == "__main__":
     helm_helper.get_extensions_list()

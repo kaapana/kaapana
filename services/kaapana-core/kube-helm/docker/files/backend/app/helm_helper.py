@@ -108,6 +108,8 @@ def get_extensions_list():
             global_extensions_dict[extension_name] = {
                 "latest_version": None,
                 "chart_name": extension_name,
+                "name": extension_name, # TODO: for backwards compat w/ landing page, delete later
+                "links": [],
                 "available_versions": {},
                 "description": extension_dict["description"],
                 "keywords": extension_dict['keywords'],
@@ -122,6 +124,7 @@ def get_extensions_list():
                 f"Adding chart version {extension_name}: {extension_dict['version']}")
 
             deployments = []
+            all_links = []
             if extension_id in deployed_extensions_dict:
                 for chart_deployment in deployed_extensions_dict[extension_id]:
                     extension_installed = True
@@ -144,6 +147,7 @@ def get_extensions_list():
                             chart_info['links'] = ingress_paths
                             chart_info['ready'] = deployment_ready
                             latest_kube_status = concatenated_states["ready"]
+                            all_links.extend(ingress_paths)
                         else:
                             logger.error(
                                 f"Could not request kube-state of: {chart_deployment['name']}")
@@ -169,6 +173,7 @@ def get_extensions_list():
         global_extensions_dict[extension_name]['installed'] = "yes" if extension_installed else "no"
         global_extensions_dict[extension_name]['helmStatus'] = latest_helm_status
         global_extensions_dict[extension_name]['kubeStatus'] = latest_kube_status
+        global_extensions_dict[extension_name]['links'] = all_links
         global_extensions_dict[extension_name]['version'] = global_extensions_dict[extension_name]['latest_version']
         global_extensions_dict[extension_name]['versions'] = list(
             global_extensions_dict[extension_name]['available_versions'].keys())
@@ -185,8 +190,8 @@ def get_extensions_list():
                     chart_template["installed"] = "yes"
                     chart_template["releaseName"] = deplyment["deployment_id"]
                     chart_template["successful"] = "yes" if deplyment["ready"] else "pending"
-                    chart_template["helmStatus"] = deplyment["helm_status"]
-                    chart_template["kubeStatus"] = deplyment["kube_info"]["ready"]
+                    chart_template["helmStatus"] = deplyment["helm_status"].capitalize()
+                    chart_template["kubeStatus"] = [i.capitalize() for i in deplyment["kube_info"]["status"]]
                     result_list.append(chart_template)
 
                 if extension_info["multiinstallable"] == "yes":

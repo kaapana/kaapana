@@ -61,7 +61,7 @@ async def helm_delete_chart(release_name: str, release_version: str = None, helm
 async def helm_install_chart(request: Request):
     try:
         payload = await request.json()
-        success, stdout, helm_command, release_name = utils.helm_install(
+        success, stdout, _, release_name = utils.helm_install(
             payload, shell=False)
         if success:
             return Response("Successfully ran helm install for chart '{0}'".format(release_name), 200)
@@ -105,6 +105,7 @@ async def pending_applications():
 
     except subprocess.CalledProcessError as e:
         return Response(f"{e.output}", 500)
+    # TODO: return Response with status code, fix front end accordingly
     return extensions_list
 
 
@@ -112,6 +113,7 @@ async def pending_applications():
 async def extensions():
     # cached_extensions = utils.get_extensions_list()
     cached_extensions = helm_helper.get_extensions_list()
+    # TODO: return Response with status code, fix front end accordingly
     return cached_extensions
 
 
@@ -136,7 +138,7 @@ async def view_helm_env():
     except subprocess.CalledProcessError as e:
         return Response(
             f"{e.output}", 500)
-    return {"message": str(resp), "status": "200"}
+    return Response(str(resp), 200)
 
 
 @router.get("/view-chart-status")

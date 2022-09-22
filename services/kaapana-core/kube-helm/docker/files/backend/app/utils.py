@@ -207,7 +207,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
                 logger.info(
                     f'Skipping {payload["name"]} since it is already installed')
                 continue
-            success, stdout, helm_result_dict = helm_install(
+            success, stdout, helm_result_dict, _ = helm_install(
                 payload, helm_command_addons='--dry-run', shell=False)
             manifest = helm_result_dict["manifest"]
             matches = re.findall(regex, manifest)
@@ -242,7 +242,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
                 f'Skipping {dag["name"]} since it is already installed')
             continue
         helm_command_suffix = f'--wait --atomic --timeout=120m0s; sleep 10;{settings.helm_path} -n {helm_namespace} delete --no-hooks {dag["release_name"]}'
-        success, stdout, helm_result_dict = helm_install(
+        success, stdout, helm_result_dict, _ = helm_install(
             dag, helm_command_suffix=helm_command_suffix, shell=False)
         if success:
             installed_release_names.append(release_name)
@@ -284,7 +284,7 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
     }
 
     helm_command_suffix = f'--wait --atomic --timeout {timeout}; sleep 10;{settings.helm_path} -n {helm_namespace} delete {release_name}'
-    success, stdout, helm_result_dict = helm_install(
+    success, stdout, helm_result_dict, _ = helm_install(
         payload, helm_command_suffix=helm_command_suffix, helm_cache_path=settings.helm_helpers_cache, shell=shell)
     return success, helm_result_dict
 
@@ -297,10 +297,10 @@ def helm_install(
     helm_delete_prefix='',
     shell=True,
     helm_cache_path=None
-) -> Tuple[bool, str, str, str]:
+) -> Tuple[bool, str, dict, str]:
     # TODO: must be shell=False as default
     """
-        Returns success[bool], stdout[str], helm_command[str], release_name[str]
+        Returns success: bool, stdout: str, helm_result_dict: dict, release_name: str
     """
     logger.debug("installing helm chart with payload {0}".format(payload))
     global smth_pending, global_extensions_dict_cached
@@ -386,14 +386,17 @@ def helm_install(
             helm_sets = helm_sets + f" --set {key}={value}"
 
     # make the whole command
-    helm_command = f'{helm_delete_prefix}{os.environ["HELM_PATH"]} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}'
-    for item in global_extensions_dict_cached:
-        if item["releaseName"] == release_name and item["version"] == version:
-            item["successful"] = 'pending'
+    helm_command = f'{helm_delete_prefix}{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}'
+    success, stdout = execute_shell_command(helm_command, shell=shell)
 
-    success, stdout = execute_shell_command(
-        helm_command, shell)
-    return success, stdout, helm_command, release_name
+    helm_result_dict = {}
+    if success:
+        for item in global_extensions_dict_cached:
+            if item["releaseName"] == release_name and item["version"] == version:
+                item["successful"] = KUBE_STATUS_PENDING
+        helm_result_dict = json.loads(stdout)
+
+    return success, stdout, helm_result_dict, release_name
 
 
 def helm_delete(release_name, helm_namespace=settings.helm_namespace, release_version=None, helm_command_addons=''):
@@ -617,7 +620,7 @@ def execute_update_extensions():
 
         if not helm_status(release_name):
             logger.info(f'Installing {release_name}')
-            success, stdout, helm_result_dict = helm_install(
+            success, _, _, _ = helm_install(
                 payload, helm_cache_path=settings.helm_collections_cache, shell=False)
             if success:
                 message = f"Successfully updated the extensions"
@@ -630,8 +633,8 @@ def execute_update_extensions():
         else:
             logger.info('helm deleting and reinstalling')
             helm_delete_prefix = f'{settings.helm_path} -n {settings.helm_namespace} uninstall {release_name} --wait --timeout 5m;'
-            success, stdout, helm_result_dict = helm_install(payload, helm_delete_prefix=helm_delete_prefix,
-                                                             helm_command_addons="--wait", helm_cache_path=settings.helm_collections_cache, shell=False)
+            success, _, _, _ = helm_install(payload, helm_delete_prefix=helm_delete_prefix,
+                                            helm_command_addons="--wait", helm_cache_path=settings.helm_collections_cache, shell=False)
             if success:
                 message = f"Successfully updated the extensions"
             else:

@@ -1,6 +1,6 @@
 pathlib==1.0.1
 pylint==2.9.3
-elasticsearch==7.15.0
+opensearch-py==2.0.0
 pydicom==2.2.2
 dicomweb-client==0.52.0
 numpy==1.21.0

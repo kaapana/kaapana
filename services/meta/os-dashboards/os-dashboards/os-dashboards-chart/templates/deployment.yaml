@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: os-dashboards-de
+  namespace: {{ .Values.global.meta_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: os-dashboards
+  template:
+    metadata:
+      labels:
+        app-name: os-dashboards
+    spec:
+      containers:
+        - name: os-dashboards-container
+          image: {{ .Values.global.registry_url }}/os-dashboards:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__2.2.0
+          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          env:
+          - name: DISABLE_SECURITY_DASHBOARDS_PLUGIN
+            value: "true"          
+          ports:
+            - containerPort: 5601
+          resources:
+            requests:
+              memory: 150Mi
+            limits:
+              memory: 300Mi
+          volumeMounts:
+            - name: config
+              mountPath: /usr/share/opensearch-dashboards/config/opensearch_dashboards.yml
+              subPath: opensearch_dashboards.yml
+      volumes:
+      - name: config
+        configMap:
+          name: os-dash-config
+          items:
+          - key: opensearch_dashboards.yml
+            path: opensearch_dashboards.yml
+      imagePullSecrets:
+      - name: registry-secret
+---

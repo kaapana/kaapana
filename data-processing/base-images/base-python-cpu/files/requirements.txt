@@ -1,5 +1,5 @@
 # Versions should be equal to base-python-gpu container check with pip freeze
-elasticsearch==7.15.0
+opensearch-py==2.0.0
 pydicom==2.3.0
 # dicomweb-client==0.52.0
 #slackclient

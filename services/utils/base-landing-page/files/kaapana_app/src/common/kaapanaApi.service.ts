@@ -72,25 +72,25 @@ const kaapanaApiService = {
           }
         }).then(() => {
 
-          let kibanaDashboardsUrl = '/flow/kaapana/api/get-kibana-dashboards'
-          request.get(kibanaDashboardsUrl)
+          let osDashboardsUrl = '/flow/kaapana/api/get-os-dashboards'
+          request.get(osDashboardsUrl)
             .then((response: { data: any }) => {
               var dashboards = response.data['dashboards']
-              const kibanaSubsections: { [k: string]: any } = {};
-              dashboards.forEach((title: any, index: any) => {
-                kibanaSubsections['kibana' + String(index)] =
+              const osDashboardsSubsections: { [k: string]: any } = {};
+              dashboards.forEach((title: string, index: any) => {
+                osDashboardsSubsections['osdashboard' + String(index)] =
                 {
                   label: title,
-                  linkTo: location.protocol + '//' + location.host + '/meta/app/kibana#/dashboards?title=' + title + '&embed=true&_g=()',
+                  linkTo: location.protocol + '//' + location.host + '/meta/app/dashboards#?title=' + title + '&embed=true&_g=()',
                 }
               });
 
-              externalWebpages.meta.subSections = Object.assign(externalWebpages.meta.subSections, kibanaSubsections) // might not work in all browsers
+              externalWebpages.meta.subSections = Object.assign(externalWebpages.meta.subSections, osDashboardsSubsections) // might not work in all browsers
 
               resolve(externalWebpages)
 
             }).catch((err: any) => {
-              console.log('Something went wrong with kibana', err)
+              console.log('Something went wrong with OpenSearch Dashboards', err)
               resolve(externalWebpages)
             })
         }).catch((error: any) => {

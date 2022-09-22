@@ -1,11 +1,11 @@
-apache-airflow[statsd]==2.2.5
+apache-airflow==2.2.5
 psycopg2-binary == 2.9.3
 Flask-Admin==1.6.0
 pydicom == 2.3.0
 kubernetes==11.0.0
 pint == 0.16.1
 minio == 7.1.0
-elasticsearch == 7.13.4
+opensearch-py==2.0.0
 dicomweb-client == 0.56.2
 seaborn == 0.11.2
 nibabel == 3.2.2

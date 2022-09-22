@@ -101,7 +101,7 @@ get_test_images = LocalGetInputDataOperator(
     cohort_limit=test_cohort_limit,
     inputs=[
         {
-            "elastic-query": {
+            "opensearch-query": {
                 "query": {
                     "bool": {
                         "must": [

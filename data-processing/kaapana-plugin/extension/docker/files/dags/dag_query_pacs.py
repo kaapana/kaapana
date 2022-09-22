@@ -191,7 +191,7 @@ push_jsonl = LocalJson2MetaOperator(
      input_operator=dcm2meta_json,
      jsonl_operator=dcm2meta_json,
      check_in_pacs=False,
-     #elastic_index="query-metaindex"
+     #opensearch_index="query-metaindex"
 )
 
 

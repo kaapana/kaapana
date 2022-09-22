@@ -1,4 +1,0 @@
-def patient_key=doc['00100020 PatientID_keyword.keyword'].value; if (patient_key != null) { int index = patient_key.indexOf('-'); if (index > 0) { return patient_key.substring(0, index); }else{ return "DKFZ"; } } return "OTHER";
-
-def voxel_count=doc['radiomics_object.FirstOrder No. of Voxel_float'].value; def volume_voxel=doc['radiomics_object.FirstOrder Voxel Volume_float'].value; return volume_voxel * voxel_count
-Number

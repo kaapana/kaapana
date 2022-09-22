@@ -49,7 +49,7 @@ data:
         "icon": "mdi-chart-bar",
         "linkTo": "/meta",
         "roles": ["admin", "user"],
-        "description": "Meta defines the section from where data of the Store are evaluated and displayed. The central application are Elasticsearch and Kibana, from which one can query and filter the existing data as well as create dashboards with a wide variety of plots. In order to use the functionalities of Kibana, the data must be made available to Elastissearch first.",
+        "description": "Meta defines the section from where data of the Store are evaluated and displayed. The central application are OpenSearch and OpenSearch Dashboards, from which one can query and filter the existing data as well as create dashboards with a wide variety of plots. In order to use the functionalities of OpenSearch Dashboards, the data must be made available to OpenSearch first.",
         "subSections": {
     
         }

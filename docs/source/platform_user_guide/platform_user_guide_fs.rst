@@ -44,8 +44,8 @@ In the default configuration only four ports are open on the server:
 
 .. _storage-stack:
 
-Storage stack: Kibana, Elasticsearch, OHIF and DCM4CHEE
--------------------------------------------------------
+Storage stack: OpenSearch, OHIF and DCM4CHEE
+--------------------------------------------
 
 In general, the platform is a processing platform, which means that it is not a persistent data storage. Ideally, all the data on the platform should only form a copy of the original data.
 Data that are in DICOM format are stored in an internal PACS called  DCM4CHEE. For all non-dicom data, an object store called Minio is available. In Minio, data are stored in buckets and are accessible via the browser for download.
@@ -54,8 +54,8 @@ It opens the port ``11112`` on the server to accept DICOM images directly from, 
 
 If you are more interested in the technologies, you can get started here:
 
-* `Kibana <https://www.elastic.co/guide/en/kibana/current/getting-started.html>`_
-* `Elasticsearch <https://www.elastic.co/guide/en/elasticsearch/reference/current/elasticsearch-intro.html>`_
+* `OpenSearch <https://opensearch.org/>`_
+* `OpenSearch Dashboards <https://opensearch.org/docs/latest/dashboards/index/>`_
 * `Minio <https://min.io/>`_
 * `OHIF <https://ohif.org/>`_
 * `Clinical Trial Processor (CTP) <https://mircwiki.rsna.org/index.php?title=CTP-The_RSNA_Clinical_Trial_Processor#Clinical_Trial_Processor_.28CTP.29>`_
@@ -75,18 +75,18 @@ Here is an example of sending images with DCMTK:
 
    dcmsend -v <ip-address of server> 11112  --scan-directories --call <aetitle of images, used for filtering> --scan-pattern '*'  --recurse <data-dir-of-DICOM images>
 
-The AE title should represent your dataset since we use it for filtering images on our Meta-Dashboard in Kibana.
+The AE title should represent your dataset since we use it for filtering images on our Meta-Dashboard in OpenSearch Dashboards.
 
 
 When DICOMs are sent to the DICOM receiver of the platform two things happen. Firstly, the DICOMs are saved in the local PACs system called DCM4CHEE. Secondly, 
-the meta data of the DICOMs are extracted and indexed by a search engine (powered by Elasticsearch) which makes the meta data available for Kibana.
-The Kibana dashboard called "Meta dashboard" is mainly responsible for visualizing the metadata but also serves as a filtering tool in order to select images and to trigger a processing pipeline.
+the meta data of the DICOMs are extracted and indexed by a search engine (powered by OpenSearch) which makes the meta data available for OpenSearch Dashboards.
+The OpenSearch dashboard called "Meta dashboard" is mainly responsible for visualizing the metadata but also serves as a filtering tool in order to select images and to trigger a processing pipeline.
 Image cohorts on the Meta dashboard can be selected via custom filters at the top. To ease this process, it is also possible to add filters automatically by clicking on the graphs (``+/-`` pop ups).
 
 Deleting images from the platform
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Information of the images are saved in the PACS and in Elasticsearch. A workflow called ``delete-series-from-platform`` is provided to delete images from the platform. Simply go to the Meta Dashboard,
+Information of the images are saved in the PACS and in OpenSearch. A workflow called ``delete-series-from-platform`` is provided to delete images from the platform. Simply go to the Meta Dashboard,
 select the images you want to delete and start the workflow. On the Airflow dashboard you can see when the DAG ``delete-series-from-platform`` has finished, then all your selected images should be deleted from the platform. For more information check out the documentation of the workflow at :ref:`extensions delete`.
 
 Viewing images with OHIF
@@ -110,11 +110,11 @@ If you are more interested in the technologies, you can get started here:
 * `Airflow <https://airflow.apache.org/docs/stable/tutorial.html>`_
 * `Kubernetes <https://kubernetes.io/docs/concepts/>`_
 
-Triggering workflows with Kibana
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Triggering workflows with OpenSearch Dashboards
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-As mentioned above, Kibana visualizes all the metadata of the images and is therefore a good option to also filter the images to which a workflow should be applied.
-To trigger a workflow from Kibana, a panel ``trigger_workflow`` was added to the Kibana dashboard which contains a dropdown to select a workflow and a start button to trigger the configuration dialog for starting the workflow. The configuration dialog includes options specific to the chosen workflow and also some options which are available for most workflows, like choosing between single and batch execution.
+As mentioned above, OpenSearch Dashboards visualizes all the metadata of the images and is therefore a good option to also filter the images to which a workflow should be applied.
+To trigger a workflow from OpenSearch Dashboards, a panel ``trigger_workflow`` was added to the dashboard which contains a dropdown to select a workflow and a start button to trigger the configuration dialog for starting the workflow. The configuration dialog includes options specific to the chosen workflow and also some options which are available for most workflows, like choosing between single and batch execution.
 
 .. hint::
 
@@ -122,9 +122,9 @@ To trigger a workflow from Kibana, a panel ``trigger_workflow`` was added to the
 
 In order to trigger a workflow on images, filter the images to which you want to apply the pipeline, select the workflow (e.g. ``collect-metadata``) and press ``Start``. The workflow is then started by clicking ``Start`` again on the configuration popup dialog.
 
-Once Kibana has sent its request, the Airflow pipeline is triggered. If you navigate to Airflow, you should see that the DAG collect-meta data is running.
+Once OpenSearch Dashboards has sent its request, the Airflow pipeline is triggered. If you navigate to Airflow, you should see that the DAG collect-meta data is running.
 By clicking on the DAG you will see different processing steps, that are called ``operators``. 
-In the operators, first the query of Kibana is used to download the selected images from the local PACS system DCM4CHEE to a predefined directory of the server so that the images are available
+In the operators, first the query of OpenSearch Dashboards is used to download the selected images from the local PACS system DCM4CHEE to a predefined directory of the server so that the images are available
 for the upcoming operators (``get-input-data``), then the dicoms are anonymized (``dcm-anonmyizer``), the meta data are extracted and converted to jsons (``dcm2json``), the generated jsons are concatenated (``concatenated-metadata``),
 the concatenated json is send to Minio (``minio-actions-put``) and finally, the local directory is cleaned again. You can check out the :ref:`processing_dev_guide` to learn how to write your own DAGs.
 Also you can go to Minio to see if you find the collected meta data. 
@@ -145,7 +145,7 @@ On the top right there is a button to view the logs. Since Airflow starts two co
 * Via Airflow: when you click in Airflow on the DAG you are guided to the 'Graph View'. Clicking on the red, failed operator a popup opens where you can click on 'View Log' to see what happened.
 * Via Kubernetes: in the namespace ``flow-jobs``, you should find the running pod that was triggered from Airflow. Here you can click on the logs to see why the container failed. If the container is still running, you can also click on 'Exec into pod' to debug directly into the container.
 
-After you resolved the bug in the operator, you can either restart the whole workflow from Kibana or you can click on the operator in the 'Graph View', select 'Clear' in the popup and confirm the next dialog.
+After you resolved the bug in the operator, you can either restart the whole workflow from OpenSearch Dashboards or you can click on the operator in the 'Graph View', select 'Clear' in the popup and confirm the next dialog.
 This will restart the operator.
 
 Core stack: Landing Page, Traefik, Louketo, Keycloak, Grafana, Kubernetes and Helm

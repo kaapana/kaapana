@@ -8,16 +8,35 @@ import subprocess
 import json
 from zipfile import ZipFile
 from subprocess import PIPE, run
-from elasticsearch import Elasticsearch
+from opensearchpy import OpenSearch
 
 tmp_data_dir = "/slow_data_dir/TMP"
 dcm_host = "ctp-dicom-service.flow.svc"
 dcm_port = "11112"
 dcm4chee_host = os.getenv("DCM4CHEE", "http://dcm4chee-service.store.svc:8080")
 aet = os.getenv("AET", "KAAPANA")
-_elastichost = os.getenv("ELASTIC_HOST", "elastic-meta-service.meta.svc:9200")
+os_host = os.getenv("OPENSEARCH_HOST", "opensearch-service.meta.svc")
+os_port = os.getenv("OPENSEARCH_PORT", "9200")
 airflow_host = os.getenv("AIRFLOW_TRIGGER", "http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger")
 example_files = os.getenv("EXAMPLE", "/example/Winfried_phantom.zip")
+
+index = "meta-index"
+auth = None
+# auth = ('admin', 'admin') # For testing only. Don't store credentials in code.
+
+os_client = OpenSearch(
+    hosts=[{'host': os_host, 'port': os_port}],
+    http_compress=True,  # enables gzip compression for request bodies
+    http_auth=auth,
+    # client_cert = client_cert_path,
+    # client_key = client_key_path,
+    use_ssl=False,
+    verify_certs=False,
+    ssl_assert_hostname=False,
+    ssl_show_warn=False,
+    timeout=2,
+    # ca_certs = ca_certs_path
+)
 
 
 def send_file():
@@ -136,11 +155,11 @@ def check_file_on_platform(examples_send):
         meta_query_success = False
         while True:
             if counter > max_counter:
-                print("Could not find series in Elastic-search!")
-                print(f" counter {counter} > max_counter {max_counter} !")
+                print("# Could not find series in META!")
+                print(f"# counter {counter} > max_counter {max_counter} !")
                 exit(1)
 
-            es = Elasticsearch(hosts=_elastichost)
+
             queryDict = {}
             queryDict["query"] = {'bool': {
                 'must':
@@ -152,9 +171,9 @@ def check_file_on_platform(examples_send):
 
             queryDict["_source"] = {}
             try:
-                res = es.search(index=["meta-index"], body=queryDict, size=10000, from_=0)
+                res = os_client.search(index=[index], body=queryDict, size=10000, from_=0)
             except Exception as e:
-                print("Could not request Elastic-search! Error:")
+                print("Could not request Opensearch! Error:")
                 print(e)
                 counter += 1
                 time.sleep(10)

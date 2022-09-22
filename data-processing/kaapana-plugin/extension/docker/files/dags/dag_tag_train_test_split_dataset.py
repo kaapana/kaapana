@@ -10,7 +10,7 @@ from airflow.models import DAG
 
 
 ui_forms = {
-    "elasticsearch_form": {
+    "opensearch_form": {
         "type": "object",
         "properties": {
             "dataset": "$default",

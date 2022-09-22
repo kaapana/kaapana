@@ -114,11 +114,11 @@ In addition, the results can be combined with visually appealing graphs in dashb
 It is also possible to create your own visualizations and dashboards.
 For this functionality mainly two frameworks are used:
 
-- `Elasticsearch <https://medium.com/@victorsmelopoa/an-introduction-to-elasticsearch-with-kibana-78071db3704>`__ as database and search engine for metadata
-- `Kibana <https://www.elastic.co/guide/en/kibana/current/introduction.html>`__ for the visualizations and filters
+- `OpenSearch <https://opensearch.org/>`__ as database and search engine for metadata
+- `OpenSearch Dashboards <https://opensearch.org/docs/latest/dashboards/index/>`__ for the visualizations and filters
 
 In order to get a basic understanding of visualizations and dashboards,
-existing documentation from Kibana can be used.
+existing documentation from OpenSearch Dashboards can be used.
 
 .. raw:: latex
 

@@ -7,7 +7,7 @@ from shutil import copyfile
 from airflow.utils.dates import days_ago
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME
-from kaapana.operators.LocalDeleteFromElasticOperator import LocalDeleteFromElasticOperator
+from kaapana.operators.LocalDeleteFromMetaOperator import LocalDeleteFromMetaOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 
@@ -33,7 +33,8 @@ def start_reindexing(ds, **kwargs):
     import os
     import glob
     from airflow.api.common.experimental.trigger_dag import trigger_dag as trigger
-    from elasticsearch import Elasticsearch
+    from opensearchpy import OpenSearch
+
 
     pacs_data_dir = '/pacsdata'
     workflowdata_dir = "/data/"
@@ -71,7 +72,7 @@ def start_reindexing(ds, **kwargs):
         trigger(dag_id=dag_id, run_id=dag_run_id, replace_microseconds=False)
 
 
-clean_elasticsearch = LocalDeleteFromElasticOperator(dag=dag, operator_in_dir='get-input-data', delete_all_documents=True)
+clean_meta = LocalDeleteFromMetaOperator(dag=dag, operator_in_dir='get-input-data', delete_all_documents=True)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 reindex_pacs = PythonOperator(
@@ -87,4 +88,4 @@ reindex_pacs = PythonOperator(
     dag=dag)
 
 
-clean_elasticsearch >> reindex_pacs >> clean
+clean_meta >> reindex_pacs >> clean

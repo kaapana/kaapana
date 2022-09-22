@@ -78,9 +78,9 @@ Chart dependency tree
 .. code-block::
 
     kaapana-platform-chart
-    │──── kibana-kaapana-chart
+    │──── os-dashboards-chart
     │──── meta-init-chart
-    │──── elasticsearch-chart
+    │──── opensearch-chart
     │──── landing-page-kaapana-chart
     │──── kaapana-core-chart
         │──── error-pages-chart

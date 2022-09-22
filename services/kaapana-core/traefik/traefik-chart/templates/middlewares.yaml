@@ -10,13 +10,13 @@ spec:
     - /traefik
     - /error-pages
     - /kubernetes
-    - /elasticsearch
     - /meta
     - /alert
     - /grafana
     - /orthanc
     - /jena
     - /web-ide
+    - /os
     - /federated-backend
     - /kube-helm-api
     forceSlash: true

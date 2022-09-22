@@ -16,53 +16,47 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
           - name: WAIT
-            value: "kibana,kibana-meta-service.meta.svc,5601;elastic,elastic-meta-service.meta.svc,9200"
+            value: "os-dashboards,os-dashboards-service.meta.svc,5601;opensearch,opensearch-service.meta.svc,9200"
           - name: DELAY
             value: "1"
           - name: TIMEOUT
             value: "10"
       containers:
       - name: init-meta
-        image: {{ .Values.global.registry_url }}/init-meta:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__6.8.12
+        image: {{ .Values.global.registry_url }}/init-meta:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__2.2.0
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
           - name: DOMAIN
             value: "{{ required "A valid hostname (or fqdn) is required!" .Values.global.hostname }}"
           - name: HTTPS_PORT
             value: "{{ .Values.global.https_port }}"
-          - name: STACKVERSION
-            value: "6.8.12"
-          - name: OVERRIDE_OBJECTS
-            value: "true"
-          - name: INITKIBANA
+          - name: INIT_DASHBOARDS
             value: "True"
-          - name: INITELASTIC
+          - name: INIT_OPENSEARCH
             value: "True"
-          - name: ELASTICHOST
-            value: "elastic-meta-service.meta.svc"
-          - name: ELASTICPORT
+          - name: OS_HOST
+            value: "opensearch-service.meta.svc"
+          - name: OS_PORT
             value: "9200"
-          - name: ELASTICINDEX
+          - name: INDEX
             value: "meta-index"
-          - name: KIBANAHOST
-            value: "kibana-meta-service.meta.svc"
-          - name: KIBANAPORT
-            value: "5601"
-          - name: KIBANADASHBOARD
-            value: "/dashboards/kibana-dashboard.json"
+          - name: DASHBOARDS_URL
+            value: "http://os-dashboards-service.meta.svc:5601/meta"
+          - name: DASHBOARDS_JSON
+            value: "/dashboards/dashboard_import.json"
         volumeMounts:
-          - name: kibana-dashboard-file
-            mountPath: /dashboards/kibana-dashboard.json
-            subPath: kibana-dashboard.json
+          - name: dashboard-file
+            mountPath: /dashboards/dashboard_import.json
+            subPath: dashboard_import.json
       # Do not restart containers after they exit
       restartPolicy: Never
       volumes:
-      - name: kibana-dashboard-file
+      - name: dashboard-file
         configMap:
-          name: kibana-dashboard
+          name: dashboard-import
           items:
-          - key: kibana-dashboard.json
-            path: kibana-dashboard.json
+          - key: dashboard_import.json
+            path: dashboard_import.json
       imagePullSecrets:
       - name: registry-secret
   backoffLimit: 10

@@ -104,7 +104,7 @@ def requests_retry_session(
             'no_proxy': 'airflow-service.flow,airflow-service.flow.svc,' \
                 'ctp-dicom-service.flow,ctp-dicom-service.flow.svc,'\
                     'dcm4chee-service.store,dcm4chee-service.store.svc,'\
-                        'elastic-meta-service.meta,elastic-meta-service.meta.svc'\
+                        'opensearch-service.meta,opensearch-service.meta.svc'\
                             'federated-backend-service.base,federated-backend-service.base.svc,' \
                                 'minio-service.store,minio-service.store.svc'
         }

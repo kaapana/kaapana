@@ -30,7 +30,6 @@ const getters = {
 
 const actions = {
   [CHECK_AVAILABLE_WEBSITES](context: any) {
-    console.log('checking')
     return new Promise((resolve: any) => {
       kaapanaApiService.getExternalWebpages().then((externalWebpages: any) => {
         context.commit(SET_AVAILABLE_WEBISTES, externalWebpages)
@@ -59,7 +58,6 @@ const mutations = {
     state.externalWebpages = externalWebpages
   },
   [SET_COMMON_DATA](state: any, commonData: any) {
-    console.log(commonData)
     state.commonData = commonData
   }
 }

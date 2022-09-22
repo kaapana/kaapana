@@ -42,7 +42,7 @@ concurrency = max_active_runs * 2
 prep_threads = 2
 
 ui_forms = {
-    "elasticsearch_form": {
+    "opensearch_form": {
         "type": "object",
         "properties": {
             "dataset": "$default",

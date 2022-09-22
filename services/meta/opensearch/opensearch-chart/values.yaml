@@ -1,0 +1,5 @@
+---
+global:
+    pull_policy_pods: "IfNotPresent"
+    meta_namespace: "meta"
+    fast_data_dir: /home/kaapana

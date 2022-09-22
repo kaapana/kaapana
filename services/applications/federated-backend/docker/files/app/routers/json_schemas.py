@@ -48,7 +48,7 @@ def get_schema(dag_id, ui_form_key, ui_form, ui_dag_info, filter_kaapana_instanc
 
     if ui_form_key=='publication_form':
         pass
-    if ui_form_key=='elasticsearch_form':
+    if ui_form_key=='opensearch_form':
         if filter_kaapana_instances.remote is False:
             datasets = get_dataset_list(unique_sets=True)
         else:
@@ -151,9 +151,9 @@ async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstanc
     return JSONResponse(content=schema_data)
 
 
-# @router.post("/get-elasticsearch-schema")
-# async def elasticsearch_schema(filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
-#     return JSONResponse(content=get_schema('elasticsearch', filter_kaapana_instances, db))
+# @router.post("/get-opensearch-schema")
+# async def opensearch_schema(filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
+#     return JSONResponse(content=get_schema('opensearch', filter_kaapana_instances, db))
 
 # @router.post("/get-federated-schema")
 # async def federated_schema(filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):

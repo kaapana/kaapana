@@ -8,7 +8,7 @@ from pathlib import Path
 from dicomweb_client.api import DICOMwebClient
 from multiprocessing.pool import ThreadPool
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
-from kaapana.operators.HelperElasticsearch import HelperElasticsearch
+from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.HelperCaching import cache_operator_output
 
@@ -33,7 +33,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                 message = f"OK: Series {series['reference_series_uid']}"
             elif self.data_type == "json":
                 Path(series['target_dir']).mkdir(parents=True, exist_ok=True)
-                meta_data = HelperElasticsearch.get_series_metadata(series_uid=series["reference_series_uid"])
+                meta_data = HelperOpensearch.get_series_metadata(series_uid=series["reference_series_uid"])
                 json_path = join(series['target_dir'], "metadata.json")
                 with open(json_path, 'w') as fp:
                     json.dump(meta_data, fp, indent=4, sort_keys=True)

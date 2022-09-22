@@ -1,10 +1,9 @@
 import os
 import json
 import glob
-import elasticsearch
+from opensearchpy import OpenSearch
 from enum import Enum
 from typing import List
-from kaapana.operators.HelperElasticsearch import HelperElasticsearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
@@ -21,8 +20,22 @@ class LocalTaggingOperator(KaapanaPythonBaseOperator):
         print(f"Tags 2 delete: {tags2delete}")
         
         # Read Tags
-        es = elasticsearch.Elasticsearch([{'host': self.elastic_host, 'port': self.elastic_port}])
-        doc = es.get(index=self.elastic_index, id=series_instance_uid)
+        auth = None
+        os_client = OpenSearch(
+                    hosts = [{'host': self.opensearch_host, 'port': self.opensearch_port}],
+                    http_compress = True, # enables gzip compression for request bodies
+                    http_auth = auth,
+                    # client_cert = client_cert_path,
+                    # client_key = client_key_path,
+                    use_ssl = False,
+                    verify_certs = False,
+                    ssl_assert_hostname = False,
+                    ssl_show_warn = False,
+                    timeout=2,
+                    # ca_certs = ca_certs_path
+        )
+
+        doc = os_client.get(index=self.opensearch_index, id=series_instance_uid)
         print(doc)
         index_tags = doc["_source"].get(self.tag_field, [])
 
@@ -31,7 +44,7 @@ class LocalTaggingOperator(KaapanaPythonBaseOperator):
  
         # Write Tags back
         body = {"doc": {self.tag_field: final_tags}}
-        es.update(index=self.elastic_index, id=series_instance_uid, body=body, doc_type="_doc")
+        os_client.update(index=self.opensearch_index, id=series_instance_uid, body=body)
  
 
     def start(self, ds, **kwargs):
@@ -84,13 +97,13 @@ class LocalTaggingOperator(KaapanaPythonBaseOperator):
                  name: str="tagging",
                  add_tags_from_file: bool=False,
                  tags_to_add_from_file: List[str]=["00120020 ClinicalTrialProtocolID_keyword"],
-                 elastic_host='elastic-meta-service.meta.svc',
-                 elastic_port=9200,
-                 elastic_index="meta-index",
+                 opensearch_host='opensearch-service.meta.svc',
+                 opensearch_port=9200,
+                 opensearch_index="meta-index",
                  *args,
                  **kwargs):
         """
-        :param tag_field: the field of the elastic object where the tags are stored
+        :param tag_field: the field of the opensearch object where the tags are stored
         :param add_tags_from_file: determens if the content of the fileds specified by tags_to_add_from_file are added as tags
         :param tags_to_add_from_file: a list of fields form the input json where the values are added as tags if add_tags_from_file is true
         """
@@ -98,9 +111,9 @@ class LocalTaggingOperator(KaapanaPythonBaseOperator):
         self.tag_field = tag_field
         self.add_tags_from_file = add_tags_from_file
         self.tags_to_add_from_file = tags_to_add_from_file
-        self.elastic_host = elastic_host
-        self.elastic_port = elastic_port
-        self.elastic_index = elastic_index
+        self.opensearch_host = opensearch_host
+        self.opensearch_port = opensearch_port
+        self.opensearch_index = opensearch_index
 
         super().__init__(
                 dag=dag,

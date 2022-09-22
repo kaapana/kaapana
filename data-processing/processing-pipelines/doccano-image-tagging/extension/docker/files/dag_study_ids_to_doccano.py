@@ -10,7 +10,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 log = LoggingMixin().log
 
 ui_forms = {
-    "elasticsearch_form": {
+    "opensearch_form": {
         "type": "object",
         "properties": {
             "dataset": "$default",

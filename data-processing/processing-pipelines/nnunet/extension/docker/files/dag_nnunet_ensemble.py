@@ -18,7 +18,7 @@ from nnunet.LocalModelGetInputDataOperator import LocalModelGetInputDataOperator
 from nnunet.getTasks import get_tasks
 # from kaapana.operators.LocalPatchedGetInputDataOperator import LocalPatchedGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
-from kaapana.operators.HelperElasticsearch import HelperElasticsearch
+from kaapana.operators.HelperOpensearch import HelperOpensearch
 from nnunet.SegCheckOperator import SegCheckOperator
 from nnunet.NnUnetNotebookOperator import NnUnetNotebookOperator
 
@@ -28,7 +28,7 @@ default_nifti_thread_count = 1
 test_cohort_limit = None
 organ_filter = None
 
-hits = HelperElasticsearch.get_query_cohort(elastic_query={
+hits = HelperOpensearch.get_query_cohort(query={
             "bool": {
                 "must": [
                     {
@@ -43,7 +43,7 @@ hits = HelperElasticsearch.get_query_cohort(elastic_query={
                     }
                 ],
             }
-        }, elastic_index='meta-index')
+        }, index='meta-index')
 
 available_protocol_names = []
 if hits is not None:
@@ -54,11 +54,11 @@ if hits is not None:
                 available_protocol_name_hits = [available_protocol_name_hits]
             available_protocol_names = available_protocol_names + available_protocol_name_hits
 else:
-    raise ValueError('Invalid elasticsearch query!')
+    raise ValueError('Invalid opensearch query!')
 
 parallel_processes = 3
 ui_forms = {
-    "elasticsearch_form": {
+    "opensearch_form": {
         "type": "object",
         "properties": {
             "dataset": "$default",

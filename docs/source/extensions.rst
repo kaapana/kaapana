@@ -47,7 +47,7 @@ Delete series from platform (delete-series-from-platform)
 ---------------------------------------------------------
 | **What's going on?**
 | 1) DICOMs are deleted from the PACS.
-| 2) Meta data of DICOMs are deleted from the Elasticsearch database.
+| 2) Meta data of DICOMs are deleted from the OpenSearch database.
 
 | **Input data:**
 | Filter for DICOMs that you want to remove from the platform. Since in the current verison the files are copied to the local SSD drive, please, do not select too many images at once. 

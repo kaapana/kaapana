@@ -62,7 +62,7 @@ class LocalModelGetInputDataOperator(LocalGetInputDataOperator):
 
         self.inputs = [
             {
-                "elastic-query": {
+                "opensearch-query": {
                     "query": query,
                     "index": "meta-index"
                 }

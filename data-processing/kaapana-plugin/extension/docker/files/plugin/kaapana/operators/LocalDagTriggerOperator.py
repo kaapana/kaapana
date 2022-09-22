@@ -1,5 +1,5 @@
 from kaapana.operators.HelperMinio import HelperMinio
-from kaapana.operators.HelperElasticsearch import HelperElasticsearch
+from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 from kaapana.blueprints.kaapana_utils import generate_run_id
@@ -112,31 +112,30 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                 inputs = [inputs]
 
             for input in inputs:
-                if "elastic-query" in input:
-                    elastic_query = input["elastic-query"]
-                    if "query" not in elastic_query:
-                        print("'query' not found in 'elastic-query': {}".format(input))
+                if "opensearch-query" in input:
+                    opensearch_query = input["opensearch-query"]
+                    if "query" not in opensearch_query:
+                        print("'query' not found in 'opensearch-query': {}".format(input))
                         print("abort...")
                         raise ValueError('ERROR')
-                    if "index" not in elastic_query:
-                        print("'index' not found in 'elastic-query': {}".format(input))
+                    if "index" not in opensearch_query:
+                        print("'index' not found in 'opensearch-query': {}".format(input))
                         print("abort...")
                         raise ValueError('ERROR')
 
-                    query = elastic_query["query"]
-                    index = elastic_query["index"]
+                    query = opensearch_query["query"]
+                    index = opensearch_query["index"]
 
-                    cohort = HelperElasticsearch.get_query_cohort(elastic_index=index, elastic_query=query)
-                    print(f"Elastic-result: found {len(cohort)} results.")
+                    cohort = HelperOpensearch.get_query_cohort(index=index, query=query)
+                    print(f"opensearch-query: found {len(cohort)} results.")
                     if cohort_limit != None:
-                        print(f"Limiting cohort to: {cohort_limit=}")
+                        print(f"Limiting cohort to: {cohort_limit}")
                         cohort = cohort[:cohort_limit]
-                    # print(json.dumps(cohort, indent=4))
                     for series in cohort:
                         series = series["_source"]
-                        study_uid = series[HelperElasticsearch.study_uid_tag]
-                        series_uid = series[HelperElasticsearch.series_uid_tag]
-                        modality = series[HelperElasticsearch.modality_tag]
+                        study_uid = series[HelperOpensearch.study_uid_tag]
+                        series_uid = series[HelperOpensearch.series_uid_tag]
+                        modality = series[HelperOpensearch.modality_tag]
                         dicom_info_list.append(
                             {
                                 "dcm-uid": {
@@ -176,7 +175,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                 else:
                     print("Error with dag-config!")
                     print("Unknown input: {}".format(input))
-                    print("Supported 'dcm-uid' and 'elastic-query' ")
+                    print("Supported 'dcm-uid' and 'opensearch-query' ")
                     print("Dag-conf: {}".format(self.conf))
                     raise ValueError('ERROR')
 

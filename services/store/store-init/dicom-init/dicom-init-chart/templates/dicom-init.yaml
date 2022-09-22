@@ -15,7 +15,7 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
           - name: WAIT
-            value: "ctp,ctp-dicom-service.flow.svc,11112;dcm4che,dcm4chee-service.store.svc,11115;elastic,elastic-meta-service.meta.svc,9200;airflow,airflow-service.flow.svc,8080,/flow/kaapana/api/getdags"
+            value: "ctp,ctp-dicom-service.flow.svc,11112;dcm4che,dcm4chee-service.store.svc,11115;opensearch,opensearch-service.meta.svc,9200;airflow,airflow-service.flow.svc,8080,/flow/kaapana/api/getdags"
           - name: DELAY
             value: "2"
           - name: TIMEOUT
@@ -34,8 +34,10 @@ spec:
           value: "http://dcm4chee-service.store.svc:8080"
         - name: AET
           value: "KAAPANA"
-        - name: ELASTIC_HOST
-          value: "elastic-meta-service.meta.svc:9200"
+        - name: OPENSEARCH_HOST
+          value: "opensearch-service.meta.svc"
+        - name: OPENSEARCH_PORT
+          value: "9200"
         - name: AIRFLOW_TRIGGER
           value: "http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger"
         volumeMounts:

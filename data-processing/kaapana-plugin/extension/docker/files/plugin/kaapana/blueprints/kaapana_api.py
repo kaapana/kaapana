@@ -18,7 +18,7 @@ import time
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.blueprints.kaapana_utils import generate_minio_credentials
 from airflow.api.common.trigger_dag import trigger_dag as trigger
-from kaapana.operators.HelperElasticsearch import HelperElasticsearch
+from kaapana.operators.HelperOpensearch import HelperOpensearch
 from flask import current_app as app
 from multiprocessing.pool import ThreadPool
 
@@ -31,10 +31,10 @@ kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
 def async_dag_trigger(queue_entry):
     hit, dag_id, tmp_conf, username = queue_entry
     hit = hit["_source"]
-    studyUID = hit[HelperElasticsearch.study_uid_tag]
-    seriesUID = hit[HelperElasticsearch.series_uid_tag]
-    SOPInstanceUID = hit[HelperElasticsearch.SOPInstanceUID_tag]
-    modality = hit[HelperElasticsearch.modality_tag]
+    studyUID = hit[HelperOpensearch.study_uid_tag]
+    seriesUID = hit[HelperOpensearch.series_uid_tag]
+    SOPInstanceUID = hit[HelperOpensearch.SOPInstanceUID_tag]
+    modality = hit[HelperOpensearch.modality_tag]
 
     print(f"# Triggering {dag_id} - series: {seriesUID}")
 
@@ -95,7 +95,7 @@ def trigger_dag(dag_id):
         print(json.dumps(form_data))
         single_execution = True if form_data is not None and "single_execution" in form_data and form_data["single_execution"] else False
         dag_id = tmp_conf["dag"]
-        tmp_conf['elasticsearch_form'] = {
+        tmp_conf['opensearch_form'] = {
             "query": tmp_conf["query"],
             "index": tmp_conf["index"],
             "single_execution": single_execution,
@@ -103,11 +103,11 @@ def trigger_dag(dag_id):
         }
     ################################################################################################
 
-    if "elasticsearch_form" in tmp_conf:
-        elasticsearch_data = tmp_conf["elasticsearch_form"]
-        if "query" in elasticsearch_data:
-            query = elasticsearch_data["query"]
-        elif "dataset" in elasticsearch_data or "input_modality" in elasticsearch_data:
+    if "opensearch_form" in tmp_conf:
+        opensearch_data = tmp_conf["opensearch_form"]
+        if "query" in opensearch_data:
+            query = opensearch_data["query"]
+        elif "dataset" in opensearch_data or "input_modality" in opensearch_data:
             query = {
                 "bool": {
                     "must": [
@@ -124,28 +124,28 @@ def trigger_dag(dag_id):
                 }
             }
 
-            if "dataset" in elasticsearch_data:
+            if "dataset" in opensearch_data:
                 query["bool"]["must"].append({
                     "match_phrase": {
                         "dataset_tags_keyword.keyword": {
-                            "query": elasticsearch_data["dataset"]
+                            "query": opensearch_data["dataset"]
                         }
                     }
                 })
-            if "input_modality" in elasticsearch_data:
+            if "input_modality" in opensearch_data:
                 query["bool"]["must"].append({
                     "match_phrase": {
                         "00080060 Modality_keyword.keyword": {
-                            "query": elasticsearch_data["input_modality"]
+                            "query": opensearch_data["input_modality"]
                         }
                     }
                 })
         else:
             raise ValueError('query or dataset or input_modality needs to be defined!')
 
-        index = elasticsearch_data["index"]
-        cohort_limit = int(elasticsearch_data["cohort_limit"]) if ("cohort_limit" in elasticsearch_data and elasticsearch_data["cohort_limit"] is not None) else None
-        single_execution = True if "single_execution" in elasticsearch_data and elasticsearch_data["single_execution"] else False
+        index = opensearch_data["index"]
+        cohort_limit = int(opensearch_data["cohort_limit"]) if ("cohort_limit" in opensearch_data and opensearch_data["cohort_limit"] is not None) else None
+        single_execution = True if "single_execution" in opensearch_data and opensearch_data["single_execution"] else False
 
         print(f"query: {query}")
         print(f"index: {index}")
@@ -153,9 +153,9 @@ def trigger_dag(dag_id):
         print(f"single_execution: {single_execution}")
 
         if single_execution:
-            hits = HelperElasticsearch.get_query_cohort(elastic_query=query, elastic_index=index)
+            hits = HelperOpensearch.get_query_cohort(query=query, index=index)
             if hits is None:
-                message = ["Error in HelperElasticsearch: {}!".format(dag_id)]
+                message = ["Error in HelperOpensearch: {}!".format(dag_id)]
                 response = jsonify(message=message)
                 response.status_code = 500
                 return response
@@ -175,7 +175,7 @@ def trigger_dag(dag_id):
                 "user_public_id": username,
                 "inputs": [
                     {
-                        "elastic-query": {
+                        "opensearch-query": {
                             "query": query,
                             "index": index
                         }
@@ -398,11 +398,11 @@ def get_minio_credentials():
     access_key, secret_key, session_token = generate_minio_credentials(x_auth_token)
     return jsonify({'accessKey': access_key, 'secretKey': secret_key, 'sessionToken': session_token}), 200
 
-@kaapanaApi.route('/api/get-kibana-dashboards')
+@kaapanaApi.route('/api/get-os-dashboards')
 @csrf.exempt
-def get_kibana_dashboards():
+def get_os_dashboards():
     try:
-        res = HelperElasticsearch.es.search(body={
+        res = HelperOpensearch.os_client.search(body={
         "query": {
             "exists": {
             "field": "dashboard"
@@ -411,7 +411,7 @@ def get_kibana_dashboards():
         "_source": ["dashboard.title"]
         }, size=10000, from_=0)
     except Exception as e:
-        print("ERROR in elasticsearch search!")
+        print("ERROR in OpenSearch search!")
         return jsonify({'Error message': e}), 500
 
     hits = res['hits']['hits']

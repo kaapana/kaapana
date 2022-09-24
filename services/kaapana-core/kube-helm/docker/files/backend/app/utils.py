@@ -55,7 +55,7 @@ def helm_search_repo(keywords_filter):
     keywords_filter = set(keywords_filter)
 
     if check_modified() or charts_cached == None:
-        logger.info("Charts modified -> generating new list.", flush=True)
+        logger.info("Charts modified -> generating new list.")
         helm_packages = [f for f in glob.glob(
             os.path.join(settings.helm_extensions_cache, '*.tgz'))]
         charts_cached = {}
@@ -183,6 +183,7 @@ def collect_helm_deployments(helm_namespace=settings.helm_namespace):
 def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
     # regex = r'image: ([\w\-\.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)'
     regex = r'image: (.*)\/([\w\-\.]+):([\w\-\.]+)'
+    logger.debug("in helm_prefetch_extension_docker")
     extensions = helm_search_repo(
         keywords_filter=['kaapanaapplication', 'kaapanaint', 'kaapanaworkflow'])
     installed_release_names = []
@@ -265,7 +266,7 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
 
     with open(os.path.join(settings.helm_helpers_cache, 'index.yaml'), 'r') as stream:
         try:
-            helper_charts = list(yaml.load_all(stdout, yaml.FullLoader))[0]
+            helper_charts = list(yaml.load_all(stream, yaml.FullLoader))[0]
         except yaml.YAMLError as exc:
             logger.error(exc)
 
@@ -448,136 +449,11 @@ def check_modified():
         chart_hash = sha256sum(filepath=helm_package)
         if helm_package not in charts_hashes or chart_hash != charts_hashes[helm_package]:
             logger.warning(
-                f"Chart {basename(helm_package)} has been modified!", flush=True)
+                f"Chart {basename(helm_package)} has been modified!")
             modified = True
         new_charts_hashes[helm_package] = chart_hash
     charts_hashes = new_charts_hashes
     return modified
-
-
-def helm_search_repo(keywords_filter):
-    global charts_cached
-    keywords_filter = set(keywords_filter)
-
-    if check_modified() or charts_cached == None:
-        logger.info("Charts modified -> generating new list.", flush=True)
-        helm_packages = [f for f in glob.glob(
-            os.path.join(settings.helm_extensions_cache, '*.tgz'))]
-        charts_cached = {}
-        for helm_package in helm_packages:
-            chart = helm_show_chart(package=helm_package)
-            if 'keywords' in chart and (set(chart['keywords']) & keywords_filter):
-                charts_cached[f'{chart["name"]}-{chart["version"]}'] = chart
-
-    return charts_cached
-
-
-def get_extensions_list():
-    global refresh_delay, global_extensions_dict_cached, last_refresh_timestamp, update_running
-
-    if update_running or global_extensions_dict_cached == None or (last_refresh_timestamp != None and (time.time() - last_refresh_timestamp) < refresh_delay):
-        return global_extensions_dict_cached
-
-    logger.info("Generating new extension-list ...")
-
-    global_extensions_dict = {}
-    update_running = True
-    available_extension_charts_tgz = helm_search_repo(
-        keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
-    deployed_extensions_dict = collect_helm_deployments()
-
-    for extension_id, extension_dict in available_extension_charts_tgz.items():
-        extension_name = extension_dict["name"]
-        if extension_name not in global_extensions_dict:
-            if 'kaapanaworkflow' in extension_dict['keywords']:
-                extension_kind = 'dag'
-            elif 'kaapanaapplication' in extension_dict['keywords']:
-                extension_kind = 'application'
-            else:
-                logger.warning(
-                    f"ISSUE: Unknown 'extension['kind']' - {extension_id}: {extension_dict['keywords']}")
-                continue
-
-            global_extensions_dict[extension_name] = {
-                "releaseName": extension_name,
-                "version": None,
-                "versions": [],
-                "installed": None,
-                "ready": None,
-                "links": None,
-                "helm_status": None,
-                "kube_status": None,
-                "helm_info": None,
-                "kube_info": None,
-                "keywords": extension_dict['keywords'],
-                "experimental": 'yes' if 'kaapanaexperimental' in extension_dict['keywords'] else 'no',
-                "multiinstallable": 'yes' if 'kaapanamultiinstallable' in extension_dict['keywords'] else 'no',
-                "kind": extension_kind
-            }
-
-        global_extensions_dict[extension_name]['version'] = extension_dict["version"]
-        if extension_dict["version"] not in global_extensions_dict[extension_name]["versions"]:
-            global_extensions_dict[extension_name]["versions"].append(
-                extension_dict["version"])
-            extension_versions = sorted(
-                global_extensions_dict[extension_name]["versions"], key=LooseVersion, reverse=True)
-            global_extensions_dict[extension_name]["latest_version"] = extension_versions[-1]
-
-        if extension_id in deployed_extensions_dict:
-            global_extensions_dict[extension_name]["installed"] = True
-            global_extensions_dict[extension_name]["helm_status"] = deployed_extensions_dict[extension_id]["status"]
-            global_extensions_dict[extension_name]["helm_info"] = deployed_extensions_dict[extension_id]
-            if global_extensions_dict[extension_name]["helm_status"] == CHART_STATUS_DEPLOYED:
-                success, deployment_ready, ingress_paths, concatenated_states = helm_get_kube_objects(
-                    deployed_extensions_dict[extension_id]["name"])
-                if success:
-                    global_extensions_dict[extension_name]["kube_status"] = concatenated_states["status"]
-                    global_extensions_dict[extension_name]["kube_info"] = concatenated_states
-                    global_extensions_dict[extension_name]['links'] = ingress_paths
-                    global_extensions_dict[extension_name]['ready'] = deployment_ready
-                else:
-                    logger.info(
-                        f"Could not request kube-state of: {deployed_extensions_dict[extension_id]['name']}")
-                    global_extensions_dict[extension_name]["kube_status"] = KUBE_STATUS_UNKNOWN
-                    global_extensions_dict[extension_name]['links'] = []
-                    global_extensions_dict[extension_name]['ready'] = False
-
-            elif global_extensions_dict[extension_name]["helm_status"] == CHART_STATUS_UNINSTALLING:
-                global_extensions_dict[extension_name]["kube_status"] = KUBE_STATUS_UNKNOWN
-                global_extensions_dict[extension_name]['links'] = []
-                global_extensions_dict[extension_name]['ready'] = False
-
-        else:
-            global_extensions_dict[extension_name]["installed"] = False
-            global_extensions_dict[extension_name]['ready'] = False
-
-        if global_extensions_dict[extension_name]["installed"]:
-            if global_extensions_dict[extension_name]['ready']:
-                global_extensions_dict[extension_name]['successful'] = "yes"
-            else:
-                global_extensions_dict[extension_name]['successful'] = "pending"
-        else:
-            global_extensions_dict[extension_name]['successful'] = "none"
-
-        global_extensions_dict[extension_name]['installed'] = "yes" if global_extensions_dict[extension_name]['installed'] else "no"
-        global_extensions_dict[extension_name]['helm_status'] = "" if global_extensions_dict[
-            extension_name]['helm_status'] == None else global_extensions_dict[extension_name]['helm_status']
-        global_extensions_dict[extension_name]['kube_status'] = "" if global_extensions_dict[
-            extension_name]['kube_status'] == None else global_extensions_dict[extension_name]['kube_status']
-        global_extensions_dict[extension_name]['version'] = global_extensions_dict[extension_name][
-            'latest_version'] if global_extensions_dict[extension_name]['version'] == None else global_extensions_dict[extension_name]['version']
-        global_extensions_dict[extension_name]['name'] = global_extensions_dict[extension_name]['releaseName']
-        global_extensions_dict[extension_name]['helmStatus'] = global_extensions_dict[extension_name]['helm_status']
-        global_extensions_dict[extension_name]['kubeStatus'] = global_extensions_dict[extension_name]['kube_status']
-
-    last_refresh_timestamp = time.time()
-    update_running = False
-    result_list = []
-    for key, value in global_extensions_dict.items():
-        result_list.append(value)
-    global_extensions_dict_cached = result_list
-
-    return global_extensions_dict_cached
 
 
 def cure_invalid_name(name, regex, max_length=None):
@@ -603,7 +479,7 @@ def execute_update_extensions():
         'name': 'update-collections-chart',
         'version': '0.1.0'
     }
-    logger.info(chart['name'], chart['version'])
+    logger.info("{0}, {1}".format(chart['name'], chart['version']))
     payload = {k: chart[k] for k in ('name', 'version')}
 
     install_error = False

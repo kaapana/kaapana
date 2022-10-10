@@ -49,12 +49,12 @@ return class VisController {
 
     const filters = this.filter_manager.getFilters();
 
-    var query = filters && filters.length > 0? filters[0].query : {};
+    var query = filters && filters.length > 0? filters[0].query : {"match_all": {}};
     var index = filters && filters.length > 0 ? filters[0].meta.index : undefined;
     if (index) {
       var index_title = (await this.index_patterns.get(index)).title;
     } else {
-      var index_title = (await this.index_patterns.getDefault()).title
+      var index_title = (await this.index_patterns.getDefault()).title;
     }
 
     var conf = {
@@ -441,8 +441,9 @@ return class VisController {
   }
 };
 
-}
+//export { VisController };
 
+}
 document.onkeydown = function (evt) {
   if ($('#workflow_dialog').length > 0 && $('#workflow_dialog').get(0).style.display === "block") {
     evt = evt || window.event;

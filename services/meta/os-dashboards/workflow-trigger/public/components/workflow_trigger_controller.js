@@ -51,10 +51,14 @@ return class VisController {
 
     var query = filters && filters.length > 0? filters[0].query : {};
     var index = filters && filters.length > 0 ? filters[0].meta.index : undefined;
-    var index_title = index ? (await this.index_patterns.get(index)).title : undefined;
+    if (index) {
+      var index_title = (await this.index_patterns.get(index)).title;
+    } else {
+      var index_title = (await this.index_patterns.getDefault()).title
+    }
 
     var conf = {
-      "conf": { "query": query, "index": index_title, "cohort_limit": VisController.cohort_limit, "form_data": this.dag_form_data }
+      "conf": { "query": query, "index": index_title, "cohort_limit": VisController.cohort_limit, "workflow_form": this.dag_form_data }
     };
 
     var conf_json = JSON.stringify(conf)

@@ -87,6 +87,14 @@ def trigger_dag(dag_id):
     elif "form_data" in tmp_conf:
         tmp_conf["workflow_form"] = tmp_conf["form_data"]
 
+    # temporary workaround for workflow-trigger not using meta-trigger as dag_id anymore
+    tmp_conf['opensearch_form'] = {
+        "query": tmp_conf["query"],
+        "index": tmp_conf["index"],
+        "single_execution": tmp_conf["workflow_form"]["single_execution"],
+        "cohort_limit": int(tmp_conf["cohort_limit"]) if "cohort_limit" in tmp_conf and tmp_conf["cohort_limit"] is not None else None
+    }
+
     if dag_id == "meta-trigger":
         warnings.warn("meta-trigger as endpoint was depcrecated in version 0.1.3, please adjust your request accordingly")
         form_data = tmp_conf["form_data"] if "form_data" in tmp_conf else None

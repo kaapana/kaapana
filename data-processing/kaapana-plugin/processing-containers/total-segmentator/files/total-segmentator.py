@@ -29,7 +29,7 @@ for batch_element_dir in batch_folders:
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=320)
 
             if output.returncode != 0:
-                print("# Could process")
+                print("# Couldn't process")
                 print(output)
                 exit(1)
             else:

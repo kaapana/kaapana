@@ -1,10 +1,12 @@
-FROM local-only/base-python-cpu:0.1.0
+FROM local-only/base-python-gpu:0.1.0
 
 LABEL IMAGE="total-segmentator"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="True"
 
-COPY files/mint-input-validator.py /kaapanasrc/
+RUN apt-get update && apt-get install -y xvfb
+
+COPY files/total-segmentator.py /kaapanasrc/
 COPY files/requirements.txt /root/
 RUN pip3 install -r /root/requirements.txt
 

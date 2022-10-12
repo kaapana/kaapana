@@ -12,8 +12,8 @@ DOI: `10.1200/CCI.20.00045 <https://doi.org/10.1200/CCI.20.00045>`_
 Scherer, J., Nolden, M., Kleesiek, J., Metzger, J., Kades, K., Schneider, V., Bach, M., Sedlaczek, O., Bucher, A. M., Vogl, T. J., Grünwald, F., Kühn, J.-P., Hoffmann, R.-T., Kotzerke, J., Bethge, O., Schimmöller, L., Antoch, G., Müller, H.-W., Daul, A., … Maier-Hein, K. (2020). Joint Imaging Platform for Federated Clinical Data Analytics. In JCO Clinical Cancer Informatics (Issue 4, pp. 1027–1038). American Society of Clinical Oncology (ASCO).
 
 
-DICOM Whole Slide Imaging for Computational Pathology Research in Kaapana and the Joint Imaging Platform
-========================================================================================================
+Efficient DICOM Image Tagging and Cohort Curation Within Kaapana
+================================================================
 
 DOI: `10.1007/978-3-658-36932-3_59 <https://doi.org/10.1007/978-3-658-36932-3_59>`_
 

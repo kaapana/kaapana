@@ -140,7 +140,7 @@ The python file looks like this:
 .. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/processing-containers/extract-study-id/files/extract_study_id.py
 
 We just store the python file in the :code:`/kaapanadevdata` directory of the docker container as ``/extract_study_id.py``.
-To check if everything works as expected open a terminal in the code-server and run :code:`python3 extract-study-id.py`.
+To check if everything works as expected open a terminal in the code-server and run :code:`python3 extract_study_id.py`.
 After we are finished we terminate the dev server in the "Pending applications" tab of Kaapana, with the "FINISHED MANUAL INTERACTION" button.
 
 .. hint:: 
@@ -154,7 +154,7 @@ Step 4: Push the algorithm to the repository
 ********************************************
 
 When we are finished with the implementation, we push the algorithm to our registry. To do so, we create a ``files`` 
-directory beside the :code:`Dockerfile` of the original image and put the :code:`extract-study-id.py` script inside it. 
+directory beside the :code:`Dockerfile` of the original image and put the :code:`extract_study_id.py` script inside it. 
 Then we adjust the :code:`Dockerfile` such that the container executes the script.
 
 .. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/processing-containers/extract-study-id/Dockerfile

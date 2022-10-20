@@ -31,3 +31,6 @@ Your backend pod will have the code directly mounted via a volume called `fastap
 4. If you need singelton classes add a factory method in the `dependencies.py` and use FastAPIs dependency injection mechanisem (e.g. `Depends`)
 5. Encode Business logic of your endpoint into services
 6. Data Types of your enpoints should be defined as Pydantic object in the schemas object.
+
+## Best practices:
+`https://betterprogramming.pub/fastapi-best-practices-1f0deeba4fce`

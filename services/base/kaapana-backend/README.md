@@ -14,9 +14,9 @@ When the backend is running a swager frontend is accessable under `https://YOUR-
 
 ## How to develop
 
-1. Set absolute path to `docker/files` for the `dev_files` variable in  `backend-chart/values.yaml``
-2. Build the docker container (e.g.``docker build --build-arg http_proxy="http://www-int2.dkfz-heidelberg.de:80" --build-arg https_proxy="http://www-int2.dkfz-heidelberg.de:80" -t registry.hzdr.de/[YOUR-USERNAME]/kaapana/fastapi-backend:0.1.0 docker`)
-3. Install the chart into your platofrm `helm install kaapana-backend backend-chart/`
+1. Set absolute path to `docker/files` for the `dev_files` variable in  `kaapana-backend-chart/values.yaml``
+2. Build the docker container (e.g.``docker build --build-arg http_proxy="http://www-int2.dkfz-heidelberg.de:80" --build-arg https_proxy="http://www-int2.dkfz-heidelberg.de:80" -t registry.hzdr.de/[YOUR-USERNAME]/kaapana/kaapana-backend:0.1.0 docker`)
+3. Install the chart into your platofrm `helm install kaapana-backend kaapana-backend-chart/`
 
 Your backend pod will have the code directly mounted via a volume called `fastapi-dev-files`. Since fastapi is able to detect changes, it will reload every time you edit a file in the backend folder. To have continious logging use `kubectl logs POD-NAME -n base -f`.
 

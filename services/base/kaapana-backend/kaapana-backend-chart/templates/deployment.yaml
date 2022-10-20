@@ -2,19 +2,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: fastapi-backend
+  name: kaapana-backend
   namespace: {{ .Values.global.base_namespace }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: fastapi-backend
+      app-name: kaapana-backend
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app-name: fastapi-backend
+        app-name: kaapana-backend
     spec:
       initContainers:
         - name: init-wait-for-postgres
@@ -38,7 +38,7 @@ spec:
             - name: TIMEOUT
               value: "10"
         - name: init-create-backend-user
-          image: {{  .Values.global.registry_url }}/fastapi-backend:0.1.0
+          image: {{  .Values.global.registry_url }}/kaapana-backend:0.1.0
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           command: ["/app/scripts/create_backend_user.py"]
           env:
@@ -55,8 +55,8 @@ spec:
             - name: KEYCLOAK_BACKEND_ROLES
               value: "query-groups;query-users;view-users"
       containers:
-      - name: fastapi-backend
-        image: {{  .Values.global.registry_url }}/fastapi-backend:0.1.0
+      - name: kaapana-backend
+        image: {{  .Values.global.registry_url }}/kaapana-backend:0.1.0
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         # command: ["tail"]
         # args: ["-f", "/dev/null"] 
@@ -118,8 +118,8 @@ spec:
       volumes:
       - name: alembic
         hostPath:
-          # path: /home/ubuntu/dev/fastapi-backend/docker/files
-          path: /home/kaapana/alembic-fastapi-backend
+          # path: /home/ubuntu/dev/kaapana-backend/docker/files
+          path: /home/kaapana/alembic-kaapana-backend
           type: DirectoryOrCreate
 {{- if .Values.global.dev_files }}
       - name: fastapi-dev-files

@@ -3,7 +3,7 @@
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
-  name: strip-prefix-fastapi-backend
+  name: strip-prefix-kaapana-backend
   namespace: base
 spec:
   stripPrefix:
@@ -14,14 +14,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: fastapi-backend-service
+  name: kaapana-backend-service
   # namespace: base
   namespace: {{ .Values.global.base_namespace }}
   labels:
-    app-name: fastapi-backend
+    app-name: kaapana-backend
 spec:
   selector:
-    app-name: fastapi-backend
+    app-name: kaapana-backend
   ports:
 {{- if .Values.global.dev_files }}
     - name: hw-http
@@ -39,11 +39,11 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: fastapi-backend-ingress
+  name: kaapana-backend-ingress
   namespace: {{ .Values.global.base_namespace }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: base-strip-prefix-fastapi-backend@kubernetescrd #, kube-system-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: base-strip-prefix-kaapana-backend@kubernetescrd #, kube-system-errorpages@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
@@ -54,6 +54,6 @@ spec:
         pathType: ImplementationSpecific
         backend:
           service:
-            name: fastapi-backend-service
+            name: kaapana-backend-service
             port: 
               number: 5000

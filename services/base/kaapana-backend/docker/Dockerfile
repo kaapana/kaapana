@@ -1,6 +1,6 @@
 FROM python:3.9
 
-LABEL IMAGE="fastapi-backend"
+LABEL IMAGE="kaapana-backend"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 

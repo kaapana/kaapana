@@ -233,7 +233,12 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
     else:
         keywords = payload['keywords']
 
-
+    values = helm_show_values(name, version)
+    if 'global' in values:
+        for key, value in values['global'].items():
+            if value != '':
+                default_sets.update({f'global.{key}': value})
+                
     if 'sets' not in payload:
         payload['sets'] = default_sets
     else:

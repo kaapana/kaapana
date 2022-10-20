@@ -2,5 +2,5 @@
 dependencies:
 # JIP-BASE
   - name: kaapana-backend-chart
-    version: "0.1.3"
+    version: "0.1.0"
     repository: file://../../../../services/base/kaapana-backend/kaapana-backend-chart 

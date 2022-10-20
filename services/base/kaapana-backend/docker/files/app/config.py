@@ -12,16 +12,13 @@ class Settings(BaseSettings):
     prometheus_url: str
 
     minio_url: str
-    minio_access_key: str
-    minio_secret_key: str
+    minio_username: str
+    minio_password: str
 
     keycloak_url: str
-    keycloak_user: str
-    keycloak_password: str
+    keycloak_admin_username: str
+    keycloak_admin_password: str
     
     airflow_url: str = "http://airflow-service.flow.svc:8080/flow/kaapana/api"
-
-    hostname: str
-    node_id: str
 
 settings = Settings()

@@ -1,24 +1,11 @@
 ---
 global:
-    registry_url: "registry.hzdr.de/philipp.schader/kaapana"
-    pull_policy_pods: "Always"
     base_namespace: "base"
-    fast_data_dir: "/home/kaapana"
-    node_id: "dkfz"
-    hostname: "10.133.28.53"
     https_port: 443
-    path_prefix: "backend"
     prometheus_url: "http://prometheus-service.monitoring.svc:9090/prometheus"
-    keycloak:
-        url: "https://keycloak-internal-service.kube-system.svc/auth/"
-        admin_user:
-            username: "admin"
-            password: "Kaapana2020"
-        backend_user:
-            username: "backend-service"
-            password: "Kaapana2020Backend"
-    minio:
-        url: "minio-service.store.svc:9000"
-        access_key: "kaapanaminio"
-        secret_key: "Kaapana2020"
-    dev_files: /home/ubuntu/dev/kaapana/services/base/kaapana-backend/docker/files
+    keycloak_url: "https://keycloak-internal-service.kube-system.svc/auth/"
+    credentials_keycloak_backend_user: "backend-service"
+    credentials_keycloak_backend_password: "Kaapana2020Backend"
+    minio_url: "minio-service.store.svc:9000"
+    dev_files: "/home/ubuntu/dev/kaapana-backend"
+

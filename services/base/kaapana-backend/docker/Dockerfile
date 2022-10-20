@@ -1,4 +1,4 @@
-FROM python:3.9
+FROM python:3.9-alpine
 
 LABEL IMAGE="kaapana-backend"
 LABEL VERSION="0.1.0"
@@ -6,16 +6,13 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install --no-install-recommends -y python3-dev build-essential
+RUN apk update && apk add gcc musl-dev libffi-dev openssl-dev python3-dev build-base && rm -rf /var/cache/apk/*
 
 COPY files/requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
 COPY files/ ./
 RUN chmod +x boot.sh
-
-ENV FLASK_APP run.py
-
 
 EXPOSE 5000
 

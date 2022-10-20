@@ -13,3 +13,6 @@ router = APIRouter()
 async def root(request: Request):
     return {"message": "Hello World updating", "root_path": request.scope.get("root_path")}
 
+@router.get("/health-check")
+def health_check():
+    return {f"Kaapana backend is up and running!"}

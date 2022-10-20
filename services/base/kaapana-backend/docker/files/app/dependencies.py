@@ -25,10 +25,10 @@ def get_extension_service() -> ExtensionService:
     yield ExtensionService(helm_api=settings.kube_helm_url)
 
 def get_user_service() -> UserService:
-    yield UserService(settings.keycloak_url, settings.keycloak_user, settings.keycloak_password)
+    yield UserService(settings.keycloak_url, settings.keycloak_admin_username, settings.keycloak_admin_password)
 
 def get_minio() -> Minio:
-    yield  Minio(settings.minio_url, access_key=settings.minio_access_key, secret_key=settings.minio_secret_key, secure=False)
+    yield  Minio(settings.minio_url, access_key=settings.minio_username, secret_key=settings.minio_password, secure=False)
 
 def get_workflow_service() -> WorkflowService:
     yield WorkflowService(airflow_api=settings.airflow_url)

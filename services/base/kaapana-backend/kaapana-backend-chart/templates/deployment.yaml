@@ -18,17 +18,17 @@ spec:
     spec:
       initContainers:
         - name: init-wait-for-postgres
-          image: {{  .Values.global.registry_url }}/service_checker:1.1
+          image: {{ .Values.global.registry_url }}/service-checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
-              value: "fastapi-postgres,fastapi-postgres-service.base.svc,5432"
+              value: "kaapana-backend-postgres,kaapana-backend-postgres-service.base.svc,5432"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
               value: "10"
         - name: init-wait-for-keycloak
-          image: {{  .Values.global.registry_url }}/service_checker:1.1
+          image: {{ .Values.global.registry_url }}/service-checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
@@ -38,25 +38,25 @@ spec:
             - name: TIMEOUT
               value: "10"
         - name: init-create-backend-user
-          image: {{  .Values.global.registry_url }}/kaapana-backend:0.1.0
+          image: {{ .Values.global.registry_url }}/kaapana-backend:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.1.0
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           command: ["/app/scripts/create_backend_user.py"]
           env:
             - name: KEYCLOAK_URL
-              value: {{ .Values.global.keycloak.url }}
-            - name: KEYCLOAK_ADMIN_USER
-              value: {{ .Values.global.keycloak.admin_user.username }}
-            - name: KEYCLOAK_ADMIN_PASS
-              value: {{ .Values.global.keycloak.admin_user.password }}
-            - name: KEYCLOAK_BACKEND_USER
-              value: {{ .Values.global.keycloak.backend_user.username }}
-            - name: KEYCLOAK_BACKEND_PASS
-              value: {{ .Values.global.keycloak.backend_user.password }}
+              value: {{ .Values.global.keycloak_url }}
+            - name: KEYCLOAK_ADMIN_USERNAME
+              value: {{ .Values.global.credentials_keycloak_admin_username }}
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              value: {{ .Values.global.credentials_keycloak_admin_password }}
+            - name: KEYCLOAK_BACKEND_USERNAME
+              value: {{ .Values.global.credentials_keycloak_backend_user }}
+            - name: KEYCLOAK_BACKEND_PASSWORD
+              value: {{ .Values.global.credentials_keycloak_backend_password }}
             - name: KEYCLOAK_BACKEND_ROLES
               value: "query-groups;query-users;view-users"
       containers:
       - name: kaapana-backend
-        image: {{  .Values.global.registry_url }}/kaapana-backend:0.1.0
+        image: {{ .Values.global.registry_url }}/kaapana-backend:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.1.0
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         # command: ["tail"]
         # args: ["-f", "/dev/null"] 
@@ -65,50 +65,54 @@ spec:
         env: # Environment variables
         - name: SECRET_KEY
           value: kaapana-secret
-        - name: NODE_ID
-          value: {{ .Values.global.node_id }}
+        - name: INSTANCE_NAME
+          value: {{ .Values.global.instance_name | default "central" }}
         - name: HOSTNAME
-          value: {{ .Values.global.hostname }}
+          value: {{ .Values.global.hostname | default "" }}
         - name: HTTPS_PORT
-          value: {{ .Values.global.https_port | quote }}
-{{- if .Values.global.http_proxy }}
+          value: "{{ .Values.global.https_port }}"
         - name: http_proxy
           value: {{ .Values.global.http_proxy }}
-{{- end }}
-{{- if .Values.global.https_proxy }}
         - name: https_proxy
-          value: {{ .Values.global.https_proxy }}
-{{- end }}
-        - name: APPLICATION_ROOT
-          value: "/{{ .Values.global.path_prefix }}"
-        - name: DATABASE_URL
-          value: postgresql://someuser:somepassword@fastapi-postgres-service.base.svc:5432
+          value: {{ .Values.global.http_proxy }}
+        - name: no_proxy
+          value: "kaapana-backend-postgres-service.base,kaapana-backend-postgres-service.base.svc,airflow-service.flow,airflow-service.flow.svc,minio-service.store,minio-service.store.svc,opensearch-service.meta,opensearch-service.meta.svc"
         - name: KUBE_HELM_URL
           value: "http://kube-helm-service.kube-system.svc:5000/kube-helm-api"
         - name: PROMETHEUS_URL
           value: {{ .Values.global.prometheus_url }}
         - name: KEYCLOAK_URL
-          value: {{ .Values.global.keycloak.url }}
-        - name: KEYCLOAK_USER
-          value: {{ .Values.global.keycloak.backend_user.username }}
-        - name: KEYCLOAK_PASSWORD
-          value: {{ .Values.global.keycloak.backend_user.password }}
+          value: {{ .Values.global.keycloak_url }}
+        - name: MINIO_USERNAME
+          value: {{ .Values.global.credentials_minio_username  | default "" }}
+        - name: MINIO_PASSWORD
+          value: {{ .Values.global.credentials_minio_password | default ""}}
         - name: MINIO_URL
-          value: {{ .Values.global.minio.url }}
-        - name: MINIO_ACCESS_KEY
-          value: {{ .Values.global.minio.access_key }}
-        - name: MINIO_SECRET_KEY
-          value: {{ .Values.global.minio.secret_key }}
+          value: {{ .Values.global.minio_url }}
+        - name: APPLICATION_ROOT
+          value: "/kaapana-backend"
+        - name: DATABASE_URL
+          value: postgresql://kaapanauser:kaapanapassword@kaapana-backend-postgres-service.base.svc:5432
+        - name: REMOTE_SYNC_INTERVAL
+          value: "5"
+        - name: KEYCLOAK_ADMIN_USERNAME
+          value: {{ .Values.global.credentials_keycloak_admin_username }}
+        - name: KEYCLOAK_ADMIN_PASSWORD
+          value: {{ .Values.global.credentials_keycloak_admin_password }}
+        - name: KEYCLOAK_BACKEND_USERNAME
+          value: {{ .Values.global.credentials_keycloak_backend_user }}
+        - name: KEYCLOAK_BACKEND_PASSWORD
+          value: {{ .Values.global.credentials_keycloak_backend_password }}
         ports:
           - containerPort: 5000
         resources:
           limits:
-            memory: "1Gi"
+            memory: "5Gi"
           requests:
             memory: "100Mi"
         volumeMounts:
 {{- if .Values.global.dev_files }}
-        - name: fastapi-dev-files
+        - name: kaapana-dev-files
           mountPath: /app
 {{- end }}
         - name: alembic
@@ -122,7 +126,7 @@ spec:
           path: /home/kaapana/alembic-kaapana-backend
           type: DirectoryOrCreate
 {{- if .Values.global.dev_files }}
-      - name: fastapi-dev-files
+      - name: kaapana-dev-files
         hostPath:
           path: {{ .Values.global.dev_files}}
           type: DirectoryOrCreate

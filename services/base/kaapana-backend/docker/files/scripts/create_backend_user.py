@@ -64,10 +64,10 @@ log = logging.getLogger(__name__)
 
 def main():
     keycloak_url=os.getenv("KEYCLOAK_URL")
-    kaapana_admin_user=os.getenv("KEYCLOAK_ADMIN_USER")
-    kaapana_admin_password=os.getenv("KEYCLOAK_ADMIN_PASS")
-    backend_user=os.getenv("KEYCLOAK_BACKEND_USER")
-    backend_password=os.getenv("KEYCLOAK_BACKEND_PASS")
+    kaapana_admin_user=os.getenv("KEYCLOAK_ADMIN_USERNAME")
+    kaapana_admin_password=os.getenv("KEYCLOAK_ADMIN_PASSWORD")
+    backend_user=os.getenv("KEYCLOAK_BACKEND_USERNAME")
+    backend_password=os.getenv("KEYCLOAK_BACKEND_PASSWORD")
     # query-groups;query-users;view-users
     backend_roles_str=os.getenv("KEYCLOAK_BACKEND_ROLES")
 

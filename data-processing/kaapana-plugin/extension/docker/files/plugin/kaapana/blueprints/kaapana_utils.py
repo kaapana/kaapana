@@ -75,7 +75,7 @@ def get_operator_properties(*args, **kwargs):
     return run_id, dag_run_dir, dag_run, downstream_tasks
 
 
-# Same as in federated-backend/docker/files/app/utils.py
+# Same as in kaapana-backend/docker/files/app/utils.py
 #https://www.peterbe.com/plog/best-practice-with-retries-with-requests
 #https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
 def requests_retry_session(
@@ -105,7 +105,7 @@ def requests_retry_session(
                 'ctp-dicom-service.flow,ctp-dicom-service.flow.svc,'\
                     'dcm4chee-service.store,dcm4chee-service.store.svc,'\
                         'opensearch-service.meta,opensearch-service.meta.svc'\
-                            'federated-backend-service.base,federated-backend-service.base.svc,' \
+                            'kaapana-backend-service.base,kaapana-backend-service.base.svc,' \
                                 'minio-service.store,minio-service.store.svc'
         }
         session.proxies.update(proxies)

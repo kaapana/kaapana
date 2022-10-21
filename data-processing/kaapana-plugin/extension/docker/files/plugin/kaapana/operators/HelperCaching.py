@@ -17,12 +17,12 @@ from kaapana.blueprints.kaapana_utils import get_operator_properties, requests_r
 
 def update_job(client_job_id, status, run_id=None, description=None):
     with requests.Session() as s:
-        r = requests_retry_session(session=s).get('http://federated-backend-service.base.svc:5000/client/job', timeout=60, params={'job_id': client_job_id})
+        r = requests_retry_session(session=s).get('http://kaapana-backend-service.base.svc:5000/client/job', timeout=60, params={'job_id': client_job_id})
     raise_kaapana_connection_error(r)
     client_job = r.json()
 
     with requests.Session() as s:
-        r = requests_retry_session(session=s).put('http://federated-backend-service.base.svc:5000/client/job', timeout=60, verify=False, json={
+        r = requests_retry_session(session=s).put('http://kaapana-backend-service.base.svc:5000/client/job', timeout=60, verify=False, json={
             'job_id': client_job_id, 
             'status': status,
             'run_id': run_id,

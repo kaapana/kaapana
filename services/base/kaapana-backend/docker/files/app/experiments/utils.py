@@ -78,7 +78,7 @@ def requests_retry_session(
                 'ctp-dicom-service.flow,ctp-dicom-service.flow.svc,'\
                     'dcm4chee-service.store,dcm4chee-service.store.svc,'\
                         'opensearch-service.meta,opensearch-service.meta.svc'\
-                            'federated-backend-service.base,federated-backend-service.base.svc,' \
+                            'kaapana-backend-service.base,kaapana-backend-service.base.svc,' \
                                 'minio-service.store,minio-service.store.svc'
         }
         session.proxies.update(proxies)

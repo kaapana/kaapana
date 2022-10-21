@@ -89,7 +89,7 @@ def requests_retry_session(
                 'ctp-dicom-service.flow,ctp-dicom-service.flow.svc,'\
                     'dcm4chee-service.store,dcm4chee-service.store.svc,'\
                         'opensearch-service.meta,opensearch-service.meta.svc'\
-                            'federated-backend-service.base,federated-backend-service.base.svc,' \
+                            'kaapana-backend-service.base,kaapana-backend-service.base.svc,' \
                                 'minio-service.store,minio-service.store.svc'
         }
         session.proxies.update(proxies)
@@ -208,7 +208,7 @@ class KaapanaFederatedTrainingBase(ABC):
 
         self.json_writer = JsonWriter(log_dir=self.fl_working_dir)
 
-        self.client_url = 'http://federated-backend-service.base.svc:5000/client'
+        self.client_url = 'http://kaapana-backend-service.base.svc:5000/client'
         with requests.Session() as s:
             r = requests_retry_session(session=s).get(f'{self.client_url}/client-kaapana-instance')
         KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)

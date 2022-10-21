@@ -84,32 +84,10 @@ def trigger_dag(dag_id):
 
     if "workflow_form" in tmp_conf: # in the future only workflow_form should be included in the tmp_conf
         tmp_conf["form_data"] = tmp_conf["workflow_form"]
-
-        # temporary workaround for workflow-trigger not using meta-trigger as dag_id anymore
-        tmp_conf['opensearch_form'] = {
-            "query": tmp_conf["query"],
-            "index": tmp_conf["index"],
-            "single_execution": tmp_conf["workflow_form"]["single_execution"],
-            "cohort_limit": int(tmp_conf["cohort_limit"]) if "cohort_limit" in tmp_conf and tmp_conf["cohort_limit"] is not None else None
-        }
     elif "form_data" in tmp_conf:
         tmp_conf["workflow_form"] = tmp_conf["form_data"]
-
-    if dag_id == "meta-trigger":
-        warnings.warn("meta-trigger as endpoint was depcrecated in version 0.1.3, please adjust your request accordingly")
-        form_data = tmp_conf["form_data"] if "form_data" in tmp_conf else None
-        if form_data is not None:
-            warnings.warn("form_data was renamed to workflow_data, please adjust your request accordingly")
-        print(json.dumps(form_data))
-        single_execution = True if form_data is not None and "single_execution" in form_data and form_data["single_execution"] else False
-        dag_id = tmp_conf["dag"]
-        tmp_conf['opensearch_form'] = {
-            "query": tmp_conf["query"],
-            "index": tmp_conf["index"],
-            "single_execution": single_execution,
-            "cohort_limit": int(tmp_conf["cohort_limit"]) if "cohort_limit" in tmp_conf and tmp_conf["cohort_limit"] is not None else None
-        }
-    ################################################################################################
+    
+    ################################################################################################ 
 
     if "opensearch_form" in tmp_conf:
         opensearch_data = tmp_conf["opensearch_form"]

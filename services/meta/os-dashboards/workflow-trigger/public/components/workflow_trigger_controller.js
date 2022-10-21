@@ -28,10 +28,12 @@ return class VisController {
     this.dag_list = null;
     this.tmp_metric = null
     VisController.airflow_url = "https://" + window.location.href.split("//")[1].split("/")[0] + "/flow/kaapana/api";
+    VisController.kaapana_backend_url = "https://" + window.location.href.split("//")[1].split("/")[0] + "/kaapana-backend/client";
     if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
       VisController.airflow_url = "http://e230-pc15:8080/flow/kaapana/api"
     }
     console.log("airflow_url: " + VisController.airflow_url)
+    console.log("kaapana_backend_url: " + VisController.kaapana_backend_url)
   }
 
   destroy() {
@@ -45,7 +47,7 @@ return class VisController {
     }
 
     var dag_id = VisController.metricDag.options[VisController.metricDag.selectedIndex].text.toLowerCase()
-    var trigger_url = VisController.airflow_url + "/trigger/" + dag_id
+    var trigger_url = VisController.kaapana_backend_url + "/submit-workflow-schema"
 
     const filters = this.filter_manager.getFilters();
 
@@ -57,13 +59,22 @@ return class VisController {
       var index_title = (await this.index_patterns.getDefault()).title;
     }
 
-    var conf = {
-      "conf": { "query": query, "index": index_title, "cohort_limit": VisController.cohort_limit, "workflow_form": this.dag_form_data }
+    var json_schema_data = {
+      "dag_id": dag_id,
+      "remote": false,
+      "conf_data": {
+        "opensearch_form": {
+          "query": query,
+          "index": index_title,
+          "cohort_limit": VisController.cohort_limit
+        }, 
+        "workflow_form": this.dag_form_data
+      }
     };
 
-    var conf_json = JSON.stringify(conf)
+    var json_schema_data_json = JSON.stringify(json_schema_data)
     console.log('DAG CONF:')
-    console.log(conf_json)
+    console.log(json_schema_data_json)
     console.log('URL:');
     console.log(trigger_url);
 
@@ -73,7 +84,7 @@ return class VisController {
         'Accept': 'application/json',
         'Content-Type': 'application/json'
       },
-      body: conf_json
+      body: json_schema_data_json
 
     },
     ).then(response => {

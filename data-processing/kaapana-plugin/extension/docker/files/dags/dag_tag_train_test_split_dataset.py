@@ -84,7 +84,7 @@ dag = DAG(
 )
 
 get_input = LocalGetInputDataOperator(dag=dag, data_type="json")
-train_test_split = TrainTestSplitOperator(dag=dag, input_operator=get_input, dev_server="code-server")
+train_test_split = TrainTestSplitOperator(dag=dag, input_operator=get_input)
 tag_dataset = LocalTaggingOperator(dag=dag, input_operator=train_test_split, add_tags_from_file=True, tags_to_add_from_file=["train_test_split_tag"])
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 

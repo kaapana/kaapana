@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Response, HTTPException, Depends
 from datetime import datetime
 from app.dependencies import get_minio
+from app.config import settings
 import json
 import os
 import socket
@@ -17,7 +18,7 @@ def listbuckets(minio=Depends(get_minio)):
         data.append({
           'name':str(bucket.name),
           'creation_date': bucket.creation_date,
-          'webui':f'https://{os.getenv("HOSTNAME")}/minio/{bucket.name}'
+          'webui':f'https://{settings.hostname}/minio/{bucket.name}'
         })
     return data
 

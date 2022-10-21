@@ -3,7 +3,7 @@ import logging
 import json
 from typing import Any, Tuple
 from fastapi import HTTPException
-from app import utils
+from app.experiments import utils
 
 
 class WorkflowService:

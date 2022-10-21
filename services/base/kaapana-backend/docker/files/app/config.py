@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     https://fastapi.tiangolo.com/advanced/settings/#pydantic-settings
     https://pydantic-docs.helpmanual.io/usage/settings/#environment-variable-names
     """
+
+    hostname: str
+    instance_name: str
+    
     kube_helm_url: str
     prometheus_url: str
 

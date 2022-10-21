@@ -6,6 +6,7 @@ from .extensions.services import ExtensionService
 from .monitoring.services import MonitoringService
 from .users.services import UserService
 from .workflows.services import WorkflowService
+from .experiments.models import KaapanaInstance
 from .config import settings
 from .database import SessionLocal
 
@@ -34,7 +35,7 @@ def get_workflow_service() -> WorkflowService:
 
 async def get_token_header(FederatedAuthorization: str = Header(...), db: Session = Depends(get_db)):
     if FederatedAuthorization:
-        db_client_kaapana_instance = db.query(models.KaapanaInstance).filter_by(token=FederatedAuthorization).first()
+        db_client_kaapana_instance = db.query(KaapanaInstance).filter_by(token=FederatedAuthorization).first()
         if db_client_kaapana_instance:
             return db_client_kaapana_instance
         else:

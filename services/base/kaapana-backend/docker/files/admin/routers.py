@@ -4,14 +4,11 @@ from fastapi import APIRouter, Depends, Request, HTTPException, UploadFile, Resp
 from sqlalchemy.orm import Session
 
 
-
-
 router = APIRouter()
-
 
 @router.get("/")
 async def root(request: Request):
-    return {"message": "Hello World updating", "root_path": request.scope.get("root_path")}
+    return {"message": "Welcome to the backend", "root_path": request.scope.get("root_path")}
 
 @router.get("/health-check")
 def health_check():

@@ -1,14 +1,18 @@
 import requests
 from fastapi import Depends, FastAPI, Request
 
-from .internal import admin
-from .routers import remote, extensions, monitoring, users, storage, workflow
+from .admin import routers as admin
+from .extensions import routers as extensions
+from .federated import routers as federated
+from .monitoring import routers as monitoring
+from .storage import routers as storage
+from .users import routers as users
+from .workflows import routers as workflows
+
 from .dependencies import get_query_token, get_token_header
-from . import crud, models
 from .database import SessionLocal, engine
 
-models.Base.metadata.create_all(bind=engine)
-
+# models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
@@ -16,8 +20,8 @@ app.include_router(
     admin.router,
 )
 app.include_router(
-    remote.router,
-    prefix="/remote",
+    federated.router,
+    prefix="/federated",
     # tags=["admin"],
     # dependencies=[Depends(get_token_header)],
     responses={418: {"description": "I'm a teapot"}},
@@ -44,16 +48,8 @@ app.include_router(
 )
 
 app.include_router(
-    workflow.router,
-    prefix="/workflow",
-    tags=["workflow"],
-    responses={418: {"description": "worfklow"}},
+    workflows.router,
+    prefix="/workflows",
+    tags=["workflows"],
+    responses={418: {"description": "workflows"}},
 )
-
-# app.include_router(
-#     admin.router,
-#     prefix="/admin",
-#     tags=["admin"],
-#     # dependencies=[Depends(get_token_header)],
-#     responses={418: {"description": "I'm a admin"}},
-# )

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.utils import get_dataset_list
 
 
-router = APIRouter(tags=["remote"])
+router = APIRouter(tags=["federated"])
 
 
 @router.get("/health-check")

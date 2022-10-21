@@ -4,7 +4,7 @@ import logging
 from typing import List
 from datetime import datetime
 from prometheus_api_client import PrometheusConnect
-from app.schemas.monitoring import Measurement
+from .schemas import Measurement
 
 class MonitoringService:
     def __init__(self, prometheus_url: str):

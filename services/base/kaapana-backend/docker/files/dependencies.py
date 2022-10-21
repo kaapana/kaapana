@@ -2,13 +2,12 @@ import os
 from fastapi import Header, HTTPException, Depends
 from sqlalchemy.orm import Session
 from minio import Minio
-from app.services.extensions import ExtensionService
-from app.services.monitoring import MonitoringService
-from app.services.users import UserService
-from app.services.workflow import WorkflowService
+from .extensions.services import ExtensionService
+from .monitoring.services import MonitoringService
+from .users.services import UserService
+from .workflows.services import WorkflowService
 from .config import settings
 from .database import SessionLocal
-from . import models
 
 
 def get_db():

@@ -1,7 +1,7 @@
 import os
 from fastapi import APIRouter, Response, Depends
 from app.dependencies import get_monitoring_service
-from app.schemas.monitoring import Measurement
+from .schemas import Measurement
 from typing import List
 
 

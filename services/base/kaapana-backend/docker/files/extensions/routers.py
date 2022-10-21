@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
-from app.services.extensions import ExtensionService
-from app.schemas.extensions import Installation
+from .services import ExtensionService
+from .schemas import Installation
 from app.dependencies import get_extension_service
 
 router = APIRouter(tags = ["extensions"])

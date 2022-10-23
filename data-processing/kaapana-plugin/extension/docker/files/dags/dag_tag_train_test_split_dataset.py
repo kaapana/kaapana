@@ -10,29 +10,6 @@ from airflow.models import DAG
 
 
 ui_forms = {
-    "opensearch_form": {
-        "type": "object",
-        "properties": {
-            "dataset": "$default",
-            "index": "$default",
-            "cohort_limit": "$default",
-            "input_modality": {
-                "title": "Input Modality",
-                "default": "SEG",
-                "description": "Expected input modality.",
-                "type": "string",
-                "required": True
-            },
-            "single_execution": {
-                "type": "boolean",
-                "title": "Single execution",
-                "description": "Whether your report is execute in single mode or not",
-                "default": False,
-                "readOnly": True,
-                "required": True
-            }
-        }
-    },
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -60,6 +37,21 @@ ui_forms = {
                 "type": "string",
                 "default": "1" ,
                 "required": False
+            },
+            "input": {
+                "title": "Input Modality",
+                "default": "SEG",
+                "description": "Expected input modality.",
+                "type": "string",
+                "readOnly": False,
+            },
+            "single_execution": {
+                "type": "boolean",
+                "title": "Single execution",
+                "description": "Whether your report is execute in single mode or not",
+                "default": False,
+                "readOnly": True,
+                "required": True
             }
         }
     }

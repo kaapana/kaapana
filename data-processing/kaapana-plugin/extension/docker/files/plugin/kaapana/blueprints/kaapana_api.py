@@ -15,8 +15,7 @@ from airflow.www.app import csrf
 import glob
 import json
 import time
-from kaapana.blueprints.kaapana_utils import generate_run_id
-from kaapana.blueprints.kaapana_utils import generate_minio_credentials
+from kaapana.blueprints.kaapana_utils import generate_run_id, generate_minio_credentials, parse_ui_dict
 from airflow.api.common.trigger_dag import trigger_dag as trigger
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from flask import current_app as app
@@ -93,45 +92,32 @@ def trigger_dag(dag_id):
         opensearch_data = tmp_conf["opensearch_form"]
         if "query" in opensearch_data:
             query = opensearch_data["query"]
-        elif "dataset" in opensearch_data or "input_modality" in opensearch_data:
+        elif "cohort" in opensearch_data:
             query = {
                 "bool": {
                     "must": [
                         {
-                            "match_all": {}
-                        },
-                        {
-                            "match_all": {}
+                        "match_all": {}
                         }
                     ],
-                    "filter": [],
+                    "filter": [
+                        {
+                        "match_phrase": {
+                            "dataset_tags_keyword.keyword": opensearch_data["cohort"]
+                            }
+                        }
+                    ],
                     "should": [],
                     "must_not": []
                 }
             }
-
-            if "dataset" in opensearch_data:
-                query["bool"]["must"].append({
-                    "match_phrase": {
-                        "dataset_tags_keyword.keyword": {
-                            "query": opensearch_data["dataset"]
-                        }
-                    }
-                })
-            if "input_modality" in opensearch_data:
-                query["bool"]["must"].append({
-                    "match_phrase": {
-                        "00080060 Modality_keyword.keyword": {
-                            "query": opensearch_data["input_modality"]
-                        }
-                    }
-                })
         else:
-            raise ValueError('query or dataset or input_modality needs to be defined!')
+            raise ValueError('query or dataset needs to be defined!')
 
         index = opensearch_data["index"]
         cohort_limit = int(opensearch_data["cohort_limit"]) if ("cohort_limit" in opensearch_data and opensearch_data["cohort_limit"] is not None) else None
-        single_execution = True if "single_execution" in opensearch_data and opensearch_data["single_execution"] else False
+        
+        single_execution = True if "workflow_form" in tmp_conf and "single_execution" in tmp_conf["workflow_form"] and tmp_conf["workflow_form"] is True else False
 
         print(f"query: {query}")
         print(f"index: {index}")
@@ -276,7 +262,8 @@ def get_dags_endpoint():
                     dag_dict[default_arg] = default_args[default_arg]
 
         del dag_dict['_sa_instance_state']
-        dags[dag_id] = dag_dict
+
+        dags[dag_id] = parse_ui_dict(dag_dict)
 
     app.config['JSON_SORT_KEYS'] = False
     return jsonify(dags)

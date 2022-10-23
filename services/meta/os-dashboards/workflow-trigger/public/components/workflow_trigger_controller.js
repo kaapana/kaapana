@@ -22,6 +22,8 @@ return class VisController {
     this.el.appendChild(this.container);
     
     this.filter_manager = data.query.filterManager;
+    this.klaus_query = data.query;
+    this.klaus_data = data;
     getStartServices().then((start_services) => { this.index_patterns = start_services[1].data.indexPatterns});
 
     this.workflow_dialog = null;
@@ -50,7 +52,13 @@ return class VisController {
     var trigger_url = VisController.kaapana_backend_url + "/submit-workflow-schema"
 
     const filters = this.filter_manager.getFilters();
-
+    console.log('Filter');
+    console.log('Data');
+    console.log(this.klaus_data);
+    console.log('Query');
+    console.log(this.klaus_query);
+    console.log(this.klaus_query.queryString.getQuery());
+    console.log(filters);
     var query = filters && filters.length > 0? filters[0].query : {"match_all": {}};
     var index = filters && filters.length > 0 ? filters[0].meta.index : undefined;
     if (index) {
@@ -59,15 +67,20 @@ return class VisController {
       var index_title = (await this.index_patterns.getDefault()).title;
     }
 
+    var opensearch_form =  {
+      "query": query,
+      "index": index_title
+    }
+    if ("cohort_limit" in this.dag_form_data) {
+      opensearch_form["cohort_limit"] = this.dag_form_data.cohort_limit;
+      delete this.dag_form_data.cohort_limit;
+    }
+
     var json_schema_data = {
       "dag_id": dag_id,
       "remote": false,
       "conf_data": {
-        "opensearch_form": {
-          "query": query,
-          "index": index_title,
-          "cohort_limit": VisController.cohort_limit
-        }, 
+        "opensearch_form": opensearch_form,
         "workflow_form": this.dag_form_data
       }
     };
@@ -128,7 +141,7 @@ return class VisController {
       this.workflow_dialog.style.backgroundColor = "#F5F5F5";
       this.workflow_dialog.style.opacity = "1";
       this.workflow_dialog.style.position = "fixed";
-      this.workflow_dialog.style.top = "5%";
+      this.workflow_dialog.style.top = "20%";
       this.workflow_dialog.style.zIndex = "100";
       this.workflow_dialog.style.width = "50%";
       this.workflow_dialog.style.borderColor = "#FF851B";
@@ -280,8 +293,22 @@ return class VisController {
               var schema_pub = null;
               var schema_dag = null;
 
-              const workflow_form = ui_forms.hasOwnProperty("workflow_form") ? ui_forms["workflow_form"] : null;
+              const workflow_form_in = ui_forms.hasOwnProperty("workflow_form") ? ui_forms["workflow_form"] : null;
               const publication_form = ui_forms.hasOwnProperty("publication_form") ? ui_forms["publication_form"] : null;
+              const opensearch_form_in = ui_forms.hasOwnProperty("opensearch_form") ? ui_forms["opensearch_form"] : null;
+
+              if (opensearch_form_in != null) {
+                if ("cohort_limit" in opensearch_form_in.properties) {
+                  opensearch_form_in.properties.cohort_limit.default = VisController.series_count;
+                }
+                delete opensearch_form_in.properties.cohort;
+                delete opensearch_form_in.properties.index;
+              }
+
+              const workflow_form = {
+                "type": "object",
+                "properties": {...workflow_form_in.properties, ...opensearch_form_in.properties}
+              };
 
               if (publication_form != null) {
                 schema_pub = publication_form;
@@ -339,23 +366,6 @@ return class VisController {
                 this.workflow_dialog.appendChild(form_dag_div)
               }
             }
-
-            const status_form_div = document.createElement(`div`);
-            var status_schema = {
-              "type": "object",
-              "properties": {
-                "cohort_limit": {
-                  "title": "Limit cohort-size",
-                  "type": "integer",
-                  "description": "Limit Cohort to this many cases.",
-                  "default": VisController.series_count,
-                  "required": true
-                }
-              }
-            };
-            bf_status = BrutusinForms.create(status_schema);
-            bf_status.render(status_form_div);
-            this.workflow_dialog.appendChild(status_form_div)
 
             this.workflow_dialog.appendChild(button_div)
             $('#series_count_div').innerHTML = "<h3>Series-Count: " + VisController.series_count + "</h3>";

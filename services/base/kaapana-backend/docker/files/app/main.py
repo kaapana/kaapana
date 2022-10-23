@@ -5,7 +5,7 @@ from fastapi import Depends, FastAPI, Request
 
 from .admin import routers as admin
 from .extensions import routers as extensions
-from .experiments.routers import remote, client, workflow_forms
+from .experiments.routers import remote, client
 from .monitoring import routers as monitoring
 from .storage import routers as storage
 from .users import routers as users
@@ -22,7 +22,7 @@ models.Base.metadata.create_all(bind=engine)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # app = FastAPI()
-app = FastAPI(openapi_prefix=os.getenv('APPLICATION_ROOT', ''))
+app = FastAPI()
 
 @app.on_event("startup")
 @repeat_every(seconds=float(os.getenv('REMOTE_SYNC_INTERVAL', 2.5)))
@@ -49,12 +49,6 @@ app.include_router(
     client.router,
     prefix="/client",
     responses={418: {"description": "I'm the clients backend..."}},
-)
-
-app.include_router(
-    workflow_forms.router,
-    prefix="/json-schemas",
-    responses={418: {"description": "I'm the json schemes backend..."}},
 )
 
 app.include_router(

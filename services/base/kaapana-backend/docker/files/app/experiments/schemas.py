@@ -121,4 +121,4 @@ class FilterKaapanaInstances(BaseModel):
 
 
 class JsonSchemaData(FilterKaapanaInstances):
-    form_data: dict= {}
+    conf_data: dict= {}

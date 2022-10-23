@@ -1,56 +1,56 @@
 
 <template lang="pug">
-  v-dialog(v-model='dialogOpen' max-width='600px')
-    template(v-slot:activator='{ on, attrs }')
-      v-btn(color='orange' v-bind='attrs' v-on='on' rounded dark) Execute workflow
-    v-card
-      v-form(v-model="valid", ref="executeWorkflow", lazy-validation)
-        v-card-title
-          span.text-h5 Workflow Execution
-        v-card-text
-          v-container
-            //- v-row
-            //-   v-col(v-if="remote" cols='12')
-            //-     v-select(v-model='instance_names' :items='available_instance_names' label='Instance names' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
-            //-   v-col(v-if="instance_names.length" cols='12')
-            //-     v-select(v-model='dag_id' :items='available_dags' label='Dags' chips='' hint='Select a dag')
-            //-   v-col(v-for="(schema, name) in schemas" cols='12' v-if="!(remote==false && name=='federated_form')")
-            //-     p {{name}}
-            //-     v-jsf( v-model="formData[name]" :schema="schema")
-            //-   p {{formData}}
+v-dialog(v-model='dialogOpen' max-width='600px')
+  template(v-slot:activator='{ on, attrs }')
+    v-btn(color='orange' v-bind='attrs' v-on='on' rounded dark) Execute workflow
+  v-card
+    v-form(v-model="valid", ref="executeWorkflow", lazy-validation)
+      v-card-title
+        span.text-h5 Workflow Execution
+      v-card-text
+        v-container
+          //- v-row
+          //-   v-col(v-if="remote" cols='12')
+          //-     v-select(v-model='instance_names' :items='available_instance_names' label='Instance names' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
+          //-   v-col(v-if="instance_names.length" cols='12')
+          //-     v-select(v-model='dag_id' :items='available_dags' label='Dags' chips='' hint='Select a dag')
+          //-   v-col(v-for="(schema, name) in schemas" cols='12' v-if="!(remote==false && name=='federated_form')")
+          //-     p {{name}}
+          //-     v-jsf( v-model="formData[name]" :schema="schema")
+          //-   p {{formData}}
 
-            v-row
-              v-col(v-if="remote" cols='12')
-                v-select(v-model='instance_names' :items='available_instance_names' label='Instance names' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
-              v-col(v-if="instance_names.length" cols='12')
-                v-select(v-model='dag_id' :items='available_dags' label='Dags' chips='' hint='Select a dag')
-              //- v-if="!(remote==false && name=='federated_form')"
-              v-col(v-for="(schema, name) in schemas" cols='12')
-                p {{name}}
-                v-jsf(v-model="formData[name]" :schema="schema")
-            v-row(v-if="external_available_instance_names.length")
-              v-col(cols='12')
-                h3 Remote Workflow
-              v-col(cols='12')
-                v-select(v-model='external_instance_names' :items='external_available_instance_names' label='Instance names' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
-            v-row(v-if="Object.keys(external_schemas).length")
-              v-col(v-for="(schema, name) in external_schemas" cols='12')
-                p {{name}}
-                v-jsf(v-model="formData['external_schema_' + name]" :schema="schema")
-            v-row
-              v-col(cols='12')
-                v-tooltip(v-model='showConfData' top='')
-                  template(v-slot:activator='{ on, attrs }')
-                    v-btn(icon='' v-bind='attrs' v-on='on')
-                      v-icon(color='grey lighten-1')
-                        | mdi-email
-                  pre.text-left Dag id: {{dag_id}}
-                  pre.text-left Instance name: {{instance_names}}
-                  pre.text-left External instance name: {{external_instance_names}}
-                  pre.text-left {{ formData }}
-        v-card-actions
-          v-btn(color="orange", @click="submitWorkflow()" rounded dark) Submit job
-          v-btn(color="orange", @click="(instance_names=[]) && (dag_id=null)" rounded dark) Clear
+          v-row
+            v-col(v-if="remote" cols='12')
+              v-select(v-model='instance_names' :items='available_instance_names' label='Instance names' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
+            v-col(v-if="instance_names.length" cols='12')
+              v-select(v-model='dag_id' :items='available_dags' label='Dags' chips='' hint='Select a dag')
+            //- v-if="!(remote==false && name=='federated_form')"
+            v-col(v-for="(schema, name) in schemas" cols='12')
+              p {{name}}
+              v-jsf(v-model="formData[name]" :schema="schema")
+          v-row(v-if="external_available_instance_names.length")
+            v-col(cols='12')
+              h3 Remote Workflow
+            v-col(cols='12')
+              v-select(v-model='external_instance_names' :items='external_available_instance_names' label='Instance names' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
+          v-row(v-if="Object.keys(external_schemas).length")
+            v-col(v-for="(schema, name) in external_schemas" cols='12')
+              p {{name}}
+              v-jsf(v-model="formData['external_schema_' + name]" :schema="schema")
+          v-row
+            v-col(cols='12')
+              v-tooltip(v-model='showConfData' top='')
+                template(v-slot:activator='{ on, attrs }')
+                  v-btn(icon='' v-bind='attrs' v-on='on')
+                    v-icon(color='grey lighten-1')
+                      | mdi-email
+                pre.text-left Dag id: {{dag_id}}
+                pre.text-left Instance name: {{instance_names}}
+                pre.text-left External instance name: {{external_instance_names}}
+                pre.text-left {{ formData }}
+      v-card-actions
+        v-btn(color="orange", @click="submitWorkflow()" rounded dark) Submit job
+        v-btn(color="orange", @click="(instance_names=[]) && (dag_id=null)" rounded dark) Clear
 </template>
 
 <script>
@@ -146,7 +146,7 @@ export default {
     },
     getUiFormSchemas() {
       kaapanaApiService
-        .federatedSchemaApiPost("/get-ui-form-schemas", {remote: this.remote, dag_id: this.dag_id, instance_names: this.instance_names})
+        .federatedClientApiPost("/get-ui-form-schemas", {remote: this.remote, dag_id: this.dag_id, instance_names: this.instance_names})
         .then((response) => {
           let schemas = response.data
           if (this.remote==false && 'external_schemas' in schemas) {
@@ -163,7 +163,7 @@ export default {
     },
     getExternalUiFormSchemas() {
       kaapanaApiService
-        .federatedSchemaApiPost("/get-ui-form-schemas",  {remote: true, dag_id: this.external_dag_id, instance_names: this.external_instance_names})
+        .federatedClientApiPost("/get-ui-form-schemas",  {remote: true, dag_id: this.external_dag_id, instance_names: this.external_instance_names})
         .then((response) => {
           this.external_schemas = response.data
         })
@@ -199,7 +199,7 @@ export default {
         .federatedClientApiPost("/submit-workflow-schema", {
           dag_id: this.dag_id,
           instance_names: this.instance_names,          
-          form_data: this.formData,
+          conf_data: this.formData,
           remote: this.remote
         })
         .then((response) => {

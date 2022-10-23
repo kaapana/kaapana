@@ -8,6 +8,7 @@ import datetime
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, Request, Response, HTTPException
 from . import schemas
+from app.config import settings
 
 from opensearchpy import OpenSearch
 from minio import Minio
@@ -17,8 +18,8 @@ class HelperMinio():
     _minio_host='minio-service.store.svc'
     _minio_port='9000'
     minioClient = Minio(_minio_host+":"+_minio_port,
-                        access_key=os.environ.get('MINIOUSER'),
-                        secret_key=os.environ.get('MINIOPASSWORD'),
+                        access_key=settings.minio_username,
+                        secret_key=settings.minio_password,
                         secure=False)
 
     @staticmethod
@@ -95,7 +96,7 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None):
         r = requests_retry_session(session=s).get('http://airflow-service.flow.svc:8080/flow/kaapana/api/getdags')
     raise_kaapana_connection_error(r)
     dags = r.json()
-    dags = {dag: dag_data for dag, dag_data in dags.items() if 'ui_federated' in dag_data}
+    dags = {dag: dag_data for dag, dag_data in dags.items() if ('ui_federated' in dag_data and dag_data['ui_federated'] is True) or ('ui_visible' in dag_data and dag_data['ui_visible'] is True)}
     if only_dag_names is True:
         return sorted(list(dags.keys()))
     else:
@@ -106,66 +107,20 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None):
         else:
             return {}
 
-def get_dataset_list(opensearch_data=None, unique_sets=False, opensearch_index='meta-index'):
+def get_dataset_list(unique_sets=False, opensearch_index='meta-index'):
     _opensearchhost = "opensearch-service.meta.svc:9200"
     os_client = OpenSearch(hosts=_opensearchhost)
 
-    # copied from kaapana_api.py and HelperOpenSearch.py should be part of Kapaana python library!
-    if opensearch_data is None:
-        queryDict = {
-            "query": {
+    queryDict = {
+        "query": {
+            "match_all": {} 
                 "match_all": {} 
-            },
-            "_source": ['dataset_tags_keyword']
-        }
-    else:
-        if "query" in opensearch_data:
-            opensearch_query = opensearch_data["query"]  
-        elif "dataset" in opensearch_data or "input_modality" in opensearch_data:
-            opensearch_query = {
-                "bool": {
-                    "must": [
-                        {
-                            "match_all": {}
-                        },
-                        {
-                            "match_all": {}
-                        }
-                    ],
-                    "filter": [],
-                    "should": [],
-                    "must_not": []
-                }
-            }
-
-            if "dataset" in opensearch_data:
-                opensearch_query["bool"]["must"].append({
-                    "match_phrase": {
-                        "dataset_tags_keyword.keyword": {
-                            "query": opensearch_data["dataset"]
-                        }
-                    }
-                })
-            if "input_modality" in opensearch_data:
-                opensearch_query["bool"]["must"].append({
-                    "match_phrase": {
-                        "00080060 Modality_keyword.keyword": {
-                            "query": opensearch_data["input_modality"]
-                        }
-                    }
-                })
-
-        study_uid_tag = "0020000D StudyInstanceUID_keyword"
-        series_uid_tag = "0020000E SeriesInstanceUID_keyword"
-        SOPInstanceUID_tag = "00080018 SOPInstanceUID_keyword"
-        modality_tag = "00080060 Modality_keyword"
-        protocol_name_tag = "00181030 ProtocolName_keyword"
-        queryDict = {}
-        queryDict["query"] = opensearch_query
-        queryDict["_source"] = {"includes": [study_uid_tag, series_uid_tag,
-                                             SOPInstanceUID_tag, modality_tag,
-                                             protocol_name_tag, 'dataset_tags_keyword']}
-                                             
+            "match_all": {} 
+                "match_all": {} 
+            "match_all": {} 
+        },
+        "_source": ['dataset_tags_keyword']
+    }
 
     try:
         res = os_client.search(index=[opensearch_index], body=queryDict, size=10000, from_=0)
@@ -185,17 +140,27 @@ def get_dataset_list(opensearch_data=None, unique_sets=False, opensearch_index='
             return datasets
     else:
         raise ValueError('Invalid OpenSearch query!')
+    # try:
+    #     with requests.Session() as s:
+    #         resp = requests_retry_session(session=s).get('http://os-dashboards-service.meta.svc:5601/meta/api/saved_objects/_find', params={"type": "query"})
+    #         print(resp.text)
+    #         raise_kaapana_connection_error(resp)
+    #         return [c["id"] for c in resp.json()["saved_objects"]]
+    # except:
+    #     raise ValueError('Invalid OpenSearch query!')
 
 def check_dag_id_and_dataset(db_client_kaapana, conf_data, dag_id, addressed_kaapana_instance_name):
     if addressed_kaapana_instance_name is not None and db_client_kaapana.instance_name != addressed_kaapana_instance_name:
         if dag_id not in json.loads(db_client_kaapana.allowed_dags):
             return f"Dag {dag_id} is not allowed to be triggered from remote!"
         if "opensearch_form" in conf_data:
-            queried_data = get_dataset_list(conf_data["opensearch_form"])
-            if not queried_data or (not all([bool(set(d) & set(json.loads(db_client_kaapana.allowed_datasets))) for d in queried_data])):
-                return f"Queried series with tags " \
-                    f"{', '.join(sorted(list(set([d for item in queried_data for d in item]))))} are not all part of allowed datasets:" \
-                    f"{', '.join(json.loads(db_client_kaapana.allowed_datasets))}!"
+            pass
+            # ToDo adapt!
+            # queried_data = get_dataset_list(conf_data["opensearch_form"])
+            # if not queried_data or (not all([bool(set(d) & set(json.loads(db_client_kaapana.allowed_datasets))) for d in queried_data])):
+            #     return f"Queried series with tags " \
+            #         f"{', '.join(sorted(list(set([d for item in queried_data for d in item]))))} are not all part of allowed datasets:" \
+            #         f"{', '.join(json.loads(db_client_kaapana.allowed_datasets))}!"
     return None
 
 def execute_job(conf_data, dag_id):

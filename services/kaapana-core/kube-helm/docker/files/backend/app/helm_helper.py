@@ -1,7 +1,9 @@
+from ast import parse
 import os
 import glob
 from os.path import basename
-from typing import Dict, List, Union, Tuple
+from typing import Dict, List, Set, Union, Tuple
+from fastapi import UploadFile
 import yaml
 import re
 import json
@@ -12,6 +14,7 @@ from distutils.version import LooseVersion
 from config import settings
 from fastapi.logger import logger
 import schemas
+
 
 CHART_STATUS_UNDEPLOYED = "un-deployed"
 CHART_STATUS_DEPLOYED = "deployed"
@@ -28,6 +31,8 @@ update_running = False
 global_charts_hashes = {}
 global_extensions_dict_cached = []
 global_collected_tgz_charts = {}
+global_extension_states: Dict[str, schemas.ExtensionState] = {}  # keys are in form <name>__<version>
+global_recently_updated: Set[str] = set()  # list of keys for recently updated ( < refresh_delay) extensions
 
 
 def execute_shell_command(command, shell=False, timeout=5) -> Tuple[bool, str]:
@@ -78,174 +83,269 @@ def execute_shell_command(command, shell=False, timeout=5) -> Tuple[bool, str]:
         return success, stderr
 
 
+def add_extension_to_dict(
+    extension_id: str,
+    extension_dict: dict,
+    global_extensions_dict: dict,
+    deployed_extensions_dict: dict,
+) -> dict:
+    extension_installed = False
+    latest_helm_status = None
+    latest_kube_status = None
+    extension_name = extension_dict["name"]
+    if extension_name not in global_extensions_dict:
+        exists = False
+        logger.debug(
+            f"Adding chart name to global_extensions_dict: {extension_name}")
+
+        if 'kaapanaworkflow' in extension_dict['keywords']:
+            extension_kind = 'dag'
+        elif 'kaapanaapplication' in extension_dict['keywords']:
+            extension_kind = 'application'
+        else:
+            logger.error(
+                f"Unknown 'extension['kind']' - {extension_id}: {extension_dict['keywords']}")
+            return None
+
+        global_extensions_dict[extension_name] = schemas.KaapanaExtension.construct(
+            latest_version=None,
+            chart_name=extension_name,
+            name=extension_name,  # TODO: for backwards compat w/ landing page, delete later
+            links=[],
+            available_versions={},
+            description=extension_dict["description"],
+            keywords=extension_dict['keywords'],
+            experimental='yes' if 'kaapanaexperimental' in extension_dict['keywords'] else 'no',
+            multiinstallable='yes' if 'kaapanamultiinstallable' in extension_dict['keywords'] else 'no',
+            kind=extension_kind,
+            # "values": extension_dict["values"]
+        )
+
+    all_links = []
+    if extension_dict["version"] not in global_extensions_dict[extension_name].available_versions:
+        logger.debug(
+            f"Adding chart version {extension_name}: {extension_dict['version']}")
+
+        deployments = []
+        if extension_id in deployed_extensions_dict:
+            for chart_deployment in deployed_extensions_dict[extension_id]:
+                extension_installed = True
+                chart_info = {
+                    "deployment_id": chart_deployment["name"],
+                    "helm_status": chart_deployment["status"],
+                    "helm_info": chart_deployment,
+                    "kube_status": KUBE_STATUS_UNKNOWN,
+                    "kube_info": None,
+                    "ready": False,
+                    "links": []
+                }
+                latest_helm_status = chart_deployment["status"]
+                if chart_info["helm_status"] == CHART_STATUS_DEPLOYED:
+                    success, deployment_ready, ingress_paths, concatenated_states = get_kube_objects(
+                        chart_deployment["name"])
+                    if success:
+                        chart_info["kube_status"] = concatenated_states["status"]
+                        chart_info["kube_info"] = concatenated_states
+                        chart_info['links'] = ingress_paths
+                        chart_info['ready'] = deployment_ready
+                        latest_kube_status = concatenated_states["ready"]
+                        all_links.extend(ingress_paths)
+                    else:
+                        logger.error(
+                            f"Could not request kube-state of: {chart_deployment['name']}")
+
+                elif chart_info["helm_status"] == CHART_STATUS_UNINSTALLING:
+                    chart_info["kube_status"] = KUBE_STATUS_UNKNOWN
+                    chart_info["links"] = []
+                    chart_info["ready"] = False
+                else:
+                    logger.error(
+                        f"Unkown helm_status: {chart_deployment.helm_status}")
+
+                deployments.append(chart_info)
+
+        available_versions = schemas.KaapanaAvailableVersions(
+            deployments=deployments
+        )
+        global_extensions_dict[extension_name].available_versions[extension_dict["version"]] = available_versions
+        global_extensions_dict[extension_name].latest_version = sorted(list(
+            global_extensions_dict[extension_name].available_versions.keys()), key=LooseVersion, reverse=True)[-1]
+
+    global_extensions_dict[extension_name].installed = "yes" if extension_installed else "no"
+    global_extensions_dict[extension_name].helmStatus = latest_helm_status
+    global_extensions_dict[extension_name].kubeStatus = latest_kube_status
+    global_extensions_dict[extension_name].links = all_links
+    global_extensions_dict[extension_name].version = global_extensions_dict[extension_name]['latest_version']
+    global_extensions_dict[extension_name].versions = list(
+        global_extensions_dict[extension_name].available_versions.keys())
+    # global_extensions_dict[extension_name]['name'] = global_extensions_dict[extension_name]['releaseName']
+    return global_extensions_dict
+
+
+def add_info_from_deployments(
+    extension_info: schemas.KaapanaExtension,
+    result_list: List[schemas.KaapanaExtension]
+):
+    for version, version_content in extension_info.available_versions.items():
+        logger.debug("extension_info.available_versions {0}".format(extension_info.available_versions))
+        logger.debug("version_content {0}".format(version_content))
+        if len(version_content.deployments) > 0:
+            # go through deployment and pass info to extension level
+            for deployment in version_content.deployments:
+                chart_template = extension_info.copy()
+                chart_template.installed = "yes"
+                chart_template.releaseName = deployment.deployment_id
+                chart_template.successful = "yes" if deployment.ready else "pending"
+                chart_template.helmStatus = deployment.helm_status.capitalize()
+                chart_template.kubeStatus = [i.capitalize() for i in deployment.kube_info.status]
+                result_list.append(chart_template)
+
+            if extension_info.multiinstallable == "yes":
+                extension_info.installed = "no"
+                extension_info.helmStatus = ""
+                extension_info.kubeStatus = ""
+                extension_info.successful = ""
+        else:
+            # no deployments
+            extension_info.releaseName = extension_info.chart_name
+            result_list.append(extension_info)
+    return result_list
+
+
 def get_extensions_list() -> Union[List[schemas.KaapanaExtension], None]:
     """
     Fetches information about all chart tgz files under helm_extensions_cache 
     and all related kubernetes objects for deployed charts
-    
+
     Returns:
         global_extensions_dict_cached (List[schemas.KaapanaExtension])
     """
     global update_running, global_extensions_dict_cached, last_refresh_timestamp, refresh_delay
-    logger.info(msg="In method: get_extensions_list()")
+    logger.info("getting extensions...")
 
-    if update_running or global_extensions_dict_cached == None or (last_refresh_timestamp != None and (time.time() - last_refresh_timestamp) < refresh_delay):
-        logger.info("skipping scraping -> return global_extensions_dict_cached")
-        return global_extensions_dict_cached
+    logger.debug("update_running {0}, global_extensions_dict_cached == None {1}, refresh {2}".format(
+        update_running,
+        global_extensions_dict_cached == None,
+        (last_refresh_timestamp != None and (time.time() - last_refresh_timestamp) < refresh_delay)
+    ))
+    try:
+        check = update_running or global_extensions_dict_cached == None or (last_refresh_timestamp != None and (time.time() - last_refresh_timestamp) < refresh_delay)
+        global_extensions_dict: Dict[str, schemas.KaapanaExtension] = {}
+        if settings.recent_update_cache and check:
+            logger.info("using recent update cache")
+            states_w_indexes = get_recently_updated_extensions()
 
-    logger.info("Generating new extension-list ...")
+            if len(states_w_indexes) == 0:
+                # nothing updated recently, return cached
+                logger.info("nothing updated recently -> return global_extensions_dict_cached")
+                return global_extensions_dict_cached
 
-    global_extensions_dict: Dict[str, schemas.KaapanaExtension] = {}
-    update_running = True
-    available_extension_charts_tgz = collect_all_tgz_charts(
-        keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
-    deployed_extensions_dict = collect_helm_deployments()
+            elif len(states_w_indexes) > 0:
+                logger.debug("updating cache, states_w_indexes {0}".format(states_w_indexes))
+                # recent changes exist, update these in global extensions dict and return
+                for ind, ext in states_w_indexes:
+                    dep = collect_helm_deployments(chart_name=ext.chart_name)
+                    tgz = collect_all_tgz_charts(
+                        keywords_filter=['kaapanaapplication', 'kaapanaworkflow'],
+                        name_filter=ext.chart_name+"-"+ext.version
+                    )
+                    if len(dep) > 1 or len(tgz) > 1:
+                        logger.error("ERROR in recently_updated_states dep or tgz, dep: {0}, tgz: {1}".format(
+                            dep, tgz))
+                    extension_id, extension_dict = list(tgz.items())[0]
+                    global_extensions_dict = add_extension_to_dict(
+                        extension_id=extension_id,
+                        extension_dict=extension_dict,
+                        global_extensions_dict=global_extensions_dict,
+                        deployed_extensions_dict=dep
+                    )
+                    # add to cache if a new extension is uploaded
+                    if ind >= len(global_extensions_dict_cached):
+                        global_extensions_dict_cached.append(global_extensions_dict[extension_dict["name"]])
 
-    for extension_id, extension_dict in available_extension_charts_tgz.items():
-        extension_installed = False
-        latest_helm_status = None
-        latest_kube_status = None
-        extension_name = extension_dict["name"]
-        if extension_name not in global_extensions_dict:
-            logger.debug(
-                f"Adding chart name to global_extensions_dict: {extension_name}")
+                res: List[schemas.KaapanaExtension] = []
+                for _, extension_info in global_extensions_dict.items():
+                    res = add_info_from_deployments(
+                        extension_info,
+                        res
+                    )
 
-            if 'kaapanaworkflow' in extension_dict['keywords']:
-                extension_kind = 'dag'
-            elif 'kaapanaapplication' in extension_dict['keywords']:
-                extension_kind = 'application'
-            else:
-                logger.error(
-                    f"Unknown 'extension['kind']' - {extension_id}: {extension_dict['keywords']}")
-                continue
+                # TODO: pass index from above to make the search redundant
+                # TODO: make global_extensions_dict_cached actually a Dict so that double loop isn't necessary
+                for i, ext in enumerate(global_extensions_dict_cached):
+                    for j, rec_upd_ext in enumerate(res):
+                        if ext.chart_name == rec_upd_ext.chart_name:
+                            global_extensions_dict_cached[i] = rec_upd_ext
+                            logger.debug(
+                                "value updated in global_extensions_dict_cached from {0} to {1}".format(
+                                    ext, rec_upd_ext
+                                ))
+                return global_extensions_dict_cached
 
-            global_extensions_dict[extension_name] = schemas.KaapanaExtension.construct(
-                latest_version=None,
-                chart_name=extension_name,
-                name=extension_name, # TODO: for backwards compat w/ landing page, delete later
-                links=[],
-                available_versions={},
-                description=extension_dict["description"],
-                keywords=extension_dict['keywords'],
-                experimental='yes' if 'kaapanaexperimental' in extension_dict['keywords'] else 'no',
-                multiinstallable='yes' if 'kaapanamultiinstallable' in extension_dict['keywords'] else 'no',
-                kind=extension_kind,
-                # "values": extension_dict["values"]
+        if check:
+            # TODO: becomes redundant if setting.recent_update_cache option is the default
+            # nothing updated recently, return cached
+            logger.info("skipping list generation -> return global_extensions_dict_cached")
+            return global_extensions_dict_cached
+
+        # generate new list
+        logger.info("Generating new extension-list ...")
+
+        update_running = True
+        available_extension_charts_tgz = collect_all_tgz_charts(
+            keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
+        deployed_extensions_dict = collect_helm_deployments()
+
+        for extension_id, extension_dict in available_extension_charts_tgz.items():
+            global_extensions_dict = add_extension_to_dict(
+                extension_id=extension_id,
+                extension_dict=extension_dict,
+                global_extensions_dict=global_extensions_dict,
+                deployed_extensions_dict=deployed_extensions_dict
             )
 
-        if extension_dict["version"] not in global_extensions_dict[extension_name].available_versions:
-            logger.debug(
-                f"Adding chart version {extension_name}: {extension_dict['version']}")
+        last_refresh_timestamp = time.time()
+        update_running = False
+        result_list = []
 
-            deployments = []
-            all_links = []
-            if extension_id in deployed_extensions_dict:
-                for chart_deployment in deployed_extensions_dict[extension_id]:
-                    extension_installed = True
-                    chart_info = {
-                        "deployment_id": chart_deployment["name"],
-                        "helm_status": chart_deployment["status"],
-                        "helm_info": chart_deployment,
-                        "kube_status": KUBE_STATUS_UNKNOWN,
-                        "kube_info": None,
-                        "ready": False,
-                        "links": []
-                    }
-                    latest_helm_status = chart_deployment["status"]
-                    if chart_info["helm_status"] == CHART_STATUS_DEPLOYED:
-                        success, deployment_ready, ingress_paths, concatenated_states = get_kube_objects(
-                            chart_deployment["name"])
-                        if success:
-                            chart_info["kube_status"] = concatenated_states["status"]
-                            chart_info["kube_info"] = concatenated_states
-                            chart_info['links'] = ingress_paths
-                            chart_info['ready'] = deployment_ready
-                            latest_kube_status = concatenated_states["ready"]
-                            all_links.extend(ingress_paths)
-                        else:
-                            logger.error(
-                                f"Could not request kube-state of: {chart_deployment['name']}")
-
-                    elif chart_deployment["helm_status"] == CHART_STATUS_UNINSTALLING:
-                        chart_info.kube_status = KUBE_STATUS_UNKNOWN
-                        chart_info.links = []
-                        chart_info.ready = False
-                    else:
-                        logger.error(
-                            f"Unkown helm_status: {chart_deployment.helm_status}")
-
-                    deployments.append(chart_info)
-
-            available_versions = schemas.KaapanaAvailableVersions(
-                deployments=deployments
+        # set everything in KaapanaExtension object
+        for _, extension_info in global_extensions_dict.items():
+            result_list = add_info_from_deployments(
+                extension_info,
+                result_list
             )
-            global_extensions_dict[extension_name].available_versions[extension_dict["version"]] = available_versions
-            global_extensions_dict[extension_name].latest_version = sorted(list(
-                global_extensions_dict[extension_name].available_versions.keys()), key=LooseVersion, reverse=True)[-1]
-            logger.debug(global_extensions_dict[extension_name].json())
 
-        global_extensions_dict[extension_name].installed = "yes" if extension_installed else "no"
-        global_extensions_dict[extension_name].helmStatus = latest_helm_status
-        global_extensions_dict[extension_name].kubeStatus = latest_kube_status
-        global_extensions_dict[extension_name].links = all_links
-        global_extensions_dict[extension_name].version = global_extensions_dict[extension_name]['latest_version']
-        global_extensions_dict[extension_name].versions = list(
-            global_extensions_dict[extension_name].available_versions.keys())
-        # global_extensions_dict[extension_name]['name'] = global_extensions_dict[extension_name]['releaseName']
+        global_extensions_dict_cached = result_list
 
-    last_refresh_timestamp = time.time()
-    update_running = False
-    result_list = []
-    
-    # set everything in KaapanaExtension object
-    extension_name: str
-    extension_info: schemas.KaapanaExtension
-    for extension_name, extension_info in global_extensions_dict.items():
-        for version, version_content in extension_info.available_versions.items():
-            logger.debug("extension_info.available_versions {0}".format(extension_info.available_versions))
-            logger.debug("version_content {0}".format(version_content))
-            if len(version_content.deployments) > 0:
-                # go through deployment and pass info to extension level
-                for deployment in version_content.deployments:
-                    chart_template = extension_info.copy()
-                    chart_template.installed = "yes"
-                    chart_template.releaseName = deployment.deployment_id
-                    chart_template.successful = "yes" if deployment.ready else "pending"
-                    chart_template.helmStatus = deployment.helm_status.capitalize()
-                    chart_template.kubeStatus = [i.capitalize() for i in deployment.kube_info.status]
-                    result_list.append(chart_template)
-
-                if extension_info.multiinstallable == "yes":
-                    extension_info.installed = "no"
-                    extension_info.helmStatus = ""
-                    extension_info.kubeStatus = ""
-                    extension_info.successful = ""
-            else:
-                # no deployments
-                extension_info.releaseName = extension_info.chart_name
-                result_list.append(extension_info)
-
-    global_extensions_dict_cached = result_list
+    except Exception as e:
+        logger.error(e)
+        update_running = False
 
     return global_extensions_dict_cached
 
 
-def collect_all_tgz_charts(keywords_filter: List) -> Dict[str, Dict]:
+def collect_all_tgz_charts(keywords_filter: List, name_filter: str = "") -> Dict[str, Dict]:
     """
     Gets the result of "helm show chart" for all tgz files under helm_extensions_cache
-    
+
     Arguments:
         keywords_filter (List): keywords used for filtering fetched charts
-    
+        name_filter (str): the name of the chart
+
     Returns:
         global_collected_tgz_charts (Dict[str, Dict]): format for keys is `chart['name']}-{chart['version']`
     """
-    logger.debug(f"collect_all_tgz_charts with filter: ({ keywords_filter= })")
+    logger.debug("collect_all_tgz_charts with keyword filter: {0}, name filter: {1}".format(
+        keywords_filter,
+        name_filter
+    ))
     global global_collected_tgz_charts
 
     keywords_filter = set(keywords_filter)
+    name_filter = name_filter
     chart_tgz_files = [f for f in glob.glob(
-        os.path.join(settings.helm_extensions_cache, '*.tgz'))]
+        os.path.join(settings.helm_extensions_cache, '*.tgz')) if name_filter in f]
+    collected_tgz_charts: dict = {}
     for chart_tgz_file in chart_tgz_files:
         chart_hash = sha256sum(filepath=chart_tgz_file)
         if chart_tgz_file not in global_charts_hashes or chart_hash != global_charts_hashes[chart_tgz_file]:
@@ -262,6 +362,7 @@ def collect_all_tgz_charts(keywords_filter: List) -> Dict[str, Dict]:
                 if 'keywords' in chart and (set(chart['keywords']) & keywords_filter):
                     logger.debug(f"Valid keyword-filter!")
                     global_collected_tgz_charts[f'{chart["name"]}-{chart["version"]}'] = chart
+                    collected_tgz_charts[f'{chart["name"]}-{chart["version"]}'] = chart
                 else:
                     logger.debug(
                         f"skipping due to keyword-filter - {keywords_filter=}")
@@ -269,6 +370,16 @@ def collect_all_tgz_charts(keywords_filter: List) -> Dict[str, Dict]:
                 logger.error(f"execution not successful!")
         else:
             logger.debug(f"scraping not necessary!")
+
+    if name_filter != "":
+        if len(collected_tgz_charts) > 0:
+            logger.debug("returning collected_tgz_charts {0}".format(collected_tgz_charts))
+            return collected_tgz_charts
+
+        if name_filter in global_collected_tgz_charts:
+            chart_dict = {name_filter: global_collected_tgz_charts[name_filter]}
+            logger.debug("returning {0}".format(chart_dict))
+            return chart_dict
 
     return global_collected_tgz_charts
 
@@ -286,10 +397,10 @@ def sha256sum(filepath) -> str:
     return h.hexdigest()
 
 
-def collect_helm_deployments(helm_namespace: str=settings.helm_namespace) -> Dict[str, Dict]:
+def collect_helm_deployments(helm_namespace: str = settings.helm_namespace, chart_name: str = None) -> Dict[str, Dict]:
     """
     Gets all deployed helm charts independent of their status
-    
+
     Arguments:
         helm_namespace (str): Namespace for helm commands
 
@@ -297,14 +408,16 @@ def collect_helm_deployments(helm_namespace: str=settings.helm_namespace) -> Dic
         deployed_charts_dict (Dict[str, Dict]): format for keys is `chart['chart']`
 
     """
-    logger.debug(f"In method: collect_helm_deployments({helm_namespace=})")
     deployed_charts_dict = {}
-    success, stdout = execute_shell_command(
-        f'{settings.helm_path} -n {helm_namespace} ls --deployed --pending --failed --uninstalling --superseded -o json')
+    cmd = f'{settings.helm_path} -n {helm_namespace} ls --deployed --pending --failed --uninstalling --superseded -o json'
+    success, stdout = execute_shell_command(cmd)
     if success:
         logger.debug(f"Success - got deployments.")
         namespace_deployments = json.loads(stdout)
         for chart in namespace_deployments:
+            if chart_name is not None and chart_name != chart["name"]:
+                continue
+
             if chart["chart"] not in deployed_charts_dict:
                 deployed_charts_dict[chart["chart"]] = [chart]
             else:
@@ -312,7 +425,6 @@ def collect_helm_deployments(helm_namespace: str=settings.helm_namespace) -> Dic
     else:
         logger.error(f"Error - issue with get deployments.")
 
-    logger.debug(f"End method: collect_helm_deployments({helm_namespace=})")
     return deployed_charts_dict
 
 
@@ -442,3 +554,143 @@ def helm_show_chart(name=None, version=None, package=None) -> Dict:
         return yaml_dict
     else:
         return {}
+
+
+def update_extension_state(state: schemas.ExtensionStateUpdate = None):
+    """
+    writes to global_extension_states, appends to global_recently_updated if necessary
+    """
+    global global_extension_states, global_recently_updated
+    if len(global_extension_states) == 0 and state is None:
+        # initialize state dict
+        for ext in global_extensions_dict_cached:
+            for v in ext["available_versions"]:
+                state = schemas.ExtensionStateType.NOT_INSTALLED
+                if len(ext["available_versions"][v]["deployments"]) > 0:
+                    state = schemas.ExtensionStateType.INSTALLED
+
+                key = ext["chart_name"] + "__" + v
+                global_extension_states[key] = schemas.ExtensionState.construct(
+                    extension_name=ext.chart_name,
+                    extension_version=v,
+                    state=state,
+                    update_time=time.time(),
+                    last_read_time=time.time(),
+                    recently_updated=False  # since it's the initialization
+                )
+        return
+
+    if state is None:
+        logger.error("update_extension_state got an empty state object")
+        return
+
+    name = state["extension_name"]
+    version = state["extension_version"]
+    key = name + "__" + version
+    if key not in global_extension_states:
+        logger.warning("{0} is not already in global_extension_states, adding a new entry".format(key))
+        global_extension_states[key] = schemas.ExtensionState.construct(
+            extension_name=name,
+            extension_version=version,
+            state=state.state,
+            update_time=time.time(),
+            last_read_time=time.time(),
+            recently_updated=True,
+        )
+    else:
+        logger.debug("{0} is already in global_extension_states, updating".format(key))
+        ext = global_extension_states[key]
+        logger.debug("before update {0}".format(ext))
+        prev_state = ext.state
+        logger.debug("updating extension state to {0} from {1}".format(state.state, prev_state))
+        ext.update_time = time.time()
+        ext.last_read_time = time.time()
+        ext.recently_updated = True
+        logger.debug("after update {0}".format(ext))
+    global_recently_updated.add(key)
+
+
+def get_recently_updated_extensions() -> List[schemas.KaapanaExtension]:
+    """
+    get states for keys in recently_updated set  
+    """
+    global global_extension_states, global_recently_updated, global_extensions_dict_cached
+    res: List[Tuple[int, schemas.KaapanaExtension]] = []
+    to_remove = []
+    logger.debug("get_recently_updated_extensions called with global_recently_updated {0}".format(global_recently_updated))
+    for key in global_recently_updated:
+        ext_state = global_extension_states[key]
+        # TODO: instead of this, update the extension in global_extensions_dict_cached
+        for i, ext in enumerate(global_extensions_dict_cached):
+            if ext.chart_name == ext_state.extension_name:
+                res.append((i, global_extensions_dict_cached[i]))
+        if len(res) > 1:
+            logger.error("Found more than one matching charts for {0} in cached extensions dict".format(ext_state.extension_name))
+        elif len(res) == 0:
+            # found new chart
+            logger.info("New chart {0}".format(ext_state.extension_name))
+            fname, version = key.split("__")
+            name = '-'.join(fname[:-4].split("-")[0:-1])
+            res.append(
+                (
+                    len(global_extensions_dict_cached),
+                    schemas.KaapanaExtension.construct(
+                        chart_name=name,
+                        version=version)
+                )
+            )
+            to_remove.append(key)
+
+        ext_state.last_read_time = time.time()
+        # if not longer recent, update its state and remove from set
+        if ext_state["last_read_time"] - ext_state["update_time"] > refresh_delay:
+            ext_state.recently_updated = False
+            to_remove.append(key)
+
+    # remove the ones that are not recently updated anymore
+    for k in to_remove:
+        if k in global_recently_updated:
+            global_recently_updated.remove(k)
+
+    return res
+
+
+def add_tgz(file: UploadFile, content: bytes) -> Tuple[bool, str]:
+    logger.debug("filename {0}".format(file.filename))
+    logger.debug("file type {0}".format(file.content_type, file.file))
+    pre = settings.helm_extensions_cache
+    if pre[-1] != "/":
+        pre += "/"
+
+    # write file
+    logger.debug("writing file...")
+    try:
+        with open(pre + file.filename, "wb") as f:
+            f.write(content)
+    except Exception as e:
+        logger.error(e)
+        err = "There was an error adding the chart {0}".format(file.filename)
+        logger.error(err)
+        return False, err
+    finally:
+        f.close()
+        logger.debug("write successful")
+
+    # update extensions
+    # execute_update_extensions()
+
+    # parse name, version
+    fname = file.filename
+    if fname[-4:] != ".tgz":
+        err = "File extension must be '.tgz', can not parse {0}".format(fname)
+        return False, err
+
+    fversion = fname.split(".tgz")[0].split("-")[-1]
+
+    update_extension_state(schemas.ExtensionStateUpdate.construct(
+        extension_name=fname,
+        extension_version=fversion,
+        state=schemas.ExtensionStateType.NOT_INSTALLED
+    ))
+
+    return True, "Successfully added chart {0}-{1}".format(fname, fversion)

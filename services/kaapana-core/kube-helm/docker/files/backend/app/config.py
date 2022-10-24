@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     kubectl_path: str = os.getenv("KUBECTL_PATH", None)
     helm_path: str = os.getenv("HELM_PATH", None)
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
+    recent_update_cache: bool = True if os.environ.get('RECENT_UPDATE_CACHE', None) in ['true', 'True'] else False # TODO: delete
 
 
 settings = Settings()

@@ -31,9 +31,9 @@ spec:
   type: NodePort # only for development!
 {{- else }}
     - name: hw-http
-          port: 5000 
-          targetPort: 5000
-      type: ClusterIP
+      port: 5000 
+      targetPort: 5000
+  type: ClusterIP
 {{- end }}
 ---
 apiVersion: networking.k8s.io/v1

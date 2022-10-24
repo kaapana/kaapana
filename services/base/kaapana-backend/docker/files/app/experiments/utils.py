@@ -113,11 +113,7 @@ def get_dataset_list(unique_sets=False, opensearch_index='meta-index'):
 
     queryDict = {
         "query": {
-            "match_all": {} 
-                "match_all": {} 
-            "match_all": {} 
-                "match_all": {} 
-            "match_all": {} 
+            "match_all": {}
         },
         "_source": ['dataset_tags_keyword']
     }

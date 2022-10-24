@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException, Response
 
 from . import models, schemas
 from app.config import settings
-from .utils import get_dataset_list, execute_job, check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, raise_kaapana_connection_error
+from .utils import get_dataset_list, execute_job, check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, raise_kaapana_connection_error, requests_retry_session
 from urllib.parse import urlparse
 
 

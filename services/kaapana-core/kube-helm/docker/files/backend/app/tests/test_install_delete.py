@@ -18,32 +18,37 @@ def test_nnunet_pending():
 
     # delete if already installed
     if len(nnunet["available_versions"]["03-22"]["deployments"]) > 0:
-        print("nnunet already installed")
+        print("########## nnunet already installed")
         delete_nnunet()
-        print("sleeping for 30 seconds...")
-        time.sleep(30)
-        deleted = False
-        while not deleted:
-            ext_list = get_extensions()
-            for ext in ext_list:
-                if ext["name"] == "nnunet-workflow":
-                    nnunet = ext
-                    break
-            assert nnunet is not None, "could not find nnunet-workflow in extensions list {0}".format(ext_list)
-            if len(nnunet["available_versions"]["03-22"]["deployments"]) > 0:
-                print("nnunet still installed, sleeping 5 more seconds")
-                time.sleep(5)
-            else:
-                print("nnunet is uninstalled")
-                break
+        installed = check_nnunet_installed(
+            return_on_install=False,
+            interval=2,
+            iterations=15
+        )
 
     # install
     install_nnunet()
+    installed = check_nnunet_installed(
+        return_on_install=True,
+        interval=2,
+        iterations=15
+    )
+    if installed:
+        print("########## uninstalling nnunet before finish...")
+        delete_nnunet()
 
-    # get extensions list every 2 seconds
-    for i in range(0, 15):
-        time.sleep(2)
-        print("getting extensions... ", i)
+
+def check_nnunet_installed(
+    return_on_install: bool = True,
+    interval: int = 2,
+    iterations: int = 15
+):
+    print("checking if nnunet is installed every {0} seconds for {1} iterations".format(
+        interval, iterations))
+
+    for i in range(0, iterations):
+        time.sleep(interval)
+        print("getting extensions... iteration:", i)
         # get extensions list & fetch nnunet
         ext_list = get_extensions()
         nnunet = None
@@ -53,10 +58,14 @@ def test_nnunet_pending():
                 break
         assert nnunet is not None, "could not find nnunet-workflow in extensions list {0}".format(ext_list)
         if len(nnunet["available_versions"]["03-22"]["deployments"]) > 0:
-            print("nnunet installed, uninstalling before finish...")
-            delete_nnunet()
-            break
+            print("nnunet is installed")
+            print(nnunet["available_versions"]["03-22"]["deployments"])
+            if return_on_install:
+                return True
         else:
-            print("nnunet not installed")
-
-
+            print("nnunet is not installed")
+            if not return_on_install:
+                return False
+    raise AssertionError("check_nnunet_installed returned None, return_on_install={0}".format(
+        return_on_install
+    ))

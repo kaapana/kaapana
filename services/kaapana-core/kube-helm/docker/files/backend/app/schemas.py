@@ -1,8 +1,18 @@
+from enum import Enum, IntEnum
 from typing import Union, List, Dict
 from pydantic import BaseModel
 
+class BaseModelExtended(BaseModel):
+    """
+    BaseModel that is subscriptable and supports item assignment
+    """
+    def __getitem__(self, item):
+        return getattr(self, item)
 
-class HelmInfo(BaseModel):
+    def __setitem__(self, key, value):
+        return setattr(self, key, value)
+
+class HelmInfo(BaseModelExtended):
     app_version: str
     chart: str
     name: str
@@ -15,7 +25,7 @@ class HelmInfo(BaseModel):
         return getattr(self, item)
 
 
-class KubeInfo(BaseModel):
+class KubeInfo(BaseModelExtended):
     age: List[str]
     name: List[str]
     ready: List[str]
@@ -26,7 +36,7 @@ class KubeInfo(BaseModel):
         return getattr(self, item)
 
 
-class KaapanaDeployment(BaseModel):
+class KaapanaDeployment(BaseModelExtended):
     deployment_id: str
     helm_status: str
     helm_info: HelmInfo
@@ -39,31 +49,63 @@ class KaapanaDeployment(BaseModel):
         return getattr(self, item)
 
 
-class KaapanaAvailableVersions(BaseModel):
+class KaapanaAvailableVersions(BaseModelExtended):
     deployments: List[KaapanaDeployment]
 
     def __getitem__(self, item):
         return getattr(self, item)
 
 
-class KaapanaExtension(BaseModel):
+class KaapanaExtension(BaseModelExtended):
     available_versions: Union[Dict[str, KaapanaAvailableVersions], None]
     chart_name: str
     description: str
     experimental: str  # TODO: make bool
-    helmStatus: str  # TODO: name should be snake case
+    helmStatus: Union[str, None]  # TODO: name should be snake case
     installed: str  # TODO: name should be snake case
     keywords: List[str]
     kind: str
-    kubeStatus: Union[str, List[str]]  # TODO: name should be snake case
+    kubeStatus: Union[str, List[str], None]  # TODO: name should be snake case
     latest_version: Union[str, None]
     multiinstallable: str  # TODO: make bool, name should be snake case
-    links: Union[List[int], None]
+    links: Union[List[str], None]
     name: str  # TODO: same as chart_name not necessary
     releaseName: str
-    successful: str  # TODO: make bool
+    successful: Union[str, None]  # TODO: make bool
     version: str
     versions: List[str]
+
+    # TODO: not necessary if BaseModelExtended is used
+    class Config:
+        allow_mutation = True
+
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+
+class ExtensionStateType(IntEnum):
+    NOT_INSTALLED = 1
+    PENDING = 2
+    ERROR = 3
+    INSTALLED = 4
+
+
+class ExtensionStateUpdate(BaseModelExtended):
+    extension_name: str
+    extension_version: str
+    state: ExtensionStateType
+
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+
+class ExtensionState(BaseModelExtended):
+    extension_name: str
+    extension_version: str
+    state: ExtensionStateType
+    update_time: int
+    last_read_time: int
+    recently_updated: bool
 
     def __getitem__(self, item):
         return getattr(self, item)

@@ -54,14 +54,17 @@ async def update_extensions():
         return Response(message, 500)
 
 
-@router.get("/helm-delete-chart")
-async def helm_delete_chart(release_name: str, release_version: str = None, helm_command_addons: str = ''):
-    # TODO: should be POST
+@router.post("/helm-delete-chart")
+async def helm_delete_chart(request: Request):
     try:
+        payload = await request.json()
         success, stdout = utils.helm_delete(
-            release_name=release_name, release_version=release_version, helm_command_addons=helm_command_addons)
+            release_name=payload["release_name"],
+            release_version=payload["release_version"],
+            helm_command_addons=payload["helm_command_addons"]
+        )
         if success:
-            return Response("Successfully uninstalled {0}".format(release_name), 200)
+            return Response("Successfully uninstalled {0}".format(payload["release_name"]), 200)
         else:
             return Response("{0}".format(stdout), 400)
     except subprocess.CalledProcessError as e:

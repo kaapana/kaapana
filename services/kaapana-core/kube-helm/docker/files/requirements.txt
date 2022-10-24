@@ -9,3 +9,4 @@ PyYAML==5.3.1
 requests==2.27.1
 uvicorn==0.17.4
 werkzeug==2.0.2
+python-multipart==0.0.5

@@ -1,3 +1,4 @@
+from distutils.command.build_ext import extension_name_re
 import os
 import glob
 from os.path import basename
@@ -6,7 +7,6 @@ import re
 import json
 import subprocess
 import hashlib
-import time
 
 import yaml
 import secrets
@@ -16,8 +16,9 @@ from distutils.version import LooseVersion
 from fastapi import Response
 from fastapi.logger import logger
 
+import schemas
 from config import settings
-from helm_helper import execute_shell_command, helm_repo_index, helm_show_chart, helm_show_values
+import helm_helper
 
 
 CHART_STATUS_UNDEPLOYED = "un-deployed"
@@ -30,13 +31,6 @@ KUBE_STATUS_UNKNOWN = "unknown"
 
 charts_cached = None
 charts_hashes = {}
-
-refresh_delay = 30
-smth_pending = False
-update_running = False
-
-last_refresh_timestamp = None
-global_extensions_dict_cached = []
 
 
 def sha256sum(filepath):
@@ -60,7 +54,7 @@ def helm_search_repo(keywords_filter):
             os.path.join(settings.helm_extensions_cache, '*.tgz'))]
         charts_cached = {}
         for helm_package in helm_packages:
-            chart = helm_show_chart(package=helm_package)
+            chart = helm_helper.helm_show_chart(package=helm_package)
             if 'keywords' in chart and (set(chart['keywords']) & keywords_filter):
                 chart = add_extension_params(chart)
                 charts_cached[f'{chart["name"]}-{chart["version"]}'] = chart
@@ -68,82 +62,8 @@ def helm_search_repo(keywords_filter):
     return charts_cached
 
 
-def get_kube_status(kind, name, namespace):
-    states = None
-    # Todo might be replaced by json or yaml output in the future with the flag -o json!
-    success, stdout = execute_shell_command(
-        f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name}")
-    # success, stdout, stderr = execute_shell_command(f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name} -o json")
-    if success:
-        states = {
-            "name": [],
-            "ready": [],
-            "status": [],
-            "restarts": [],
-            "age": []
-        }
-        # kube_info = json.loads(stdout)
-        stdout = stdout.splitlines()[1:]
-        for row in stdout:
-            name, ready, status, restarts, age = re.split('\s\s+', row)
-            states['name'].append(name)
-            states['ready'].append(ready)
-            states['status'].append(status.lower())
-            states['restarts'].append(restarts)
-            states['age'].append(age)
-    else:
-        logger.error(f'Could not get kube status of {name}')
-        logger.error(stdout)
-
-    return states
-
-
-def helm_get_kube_objects(release_name, helm_namespace=settings.helm_namespace):
-
-    success, stdout = execute_shell_command(
-        f'{settings.helm_path} -n {helm_namespace} get manifest {release_name}')
-
-    kube_status = None
-    ingress_paths = []
-    concatenated_states = {
-        "name": [],
-        "ready": [],
-        "status": [],
-        "restarts": [],
-        "age": []
-    }
-    if success:
-        manifest_dict = list(yaml.load_all(stdout, yaml.FullLoader))
-        deployment_ready = True
-
-        for config in manifest_dict:
-            if config is None:
-                continue
-            if config['kind'] == 'Ingress':
-                ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']
-                ingress_paths.append(ingress_path)
-
-            elif config['kind'] == 'Deployment' or config['kind'] == 'Job':
-                if config['kind'] == 'Deployment':
-                    obj_kube_status = get_kube_status(
-                        'app', config['spec']['selector']['matchLabels']['app-name'], config['metadata']['namespace'])
-                elif config['kind'] == 'Job':
-                    obj_kube_status = get_kube_status(
-                        'job', config['metadata']['name'], config['metadata']['namespace'])
-
-                if obj_kube_status != None:
-                    for key, value in obj_kube_status.items():
-                        concatenated_states[key] = concatenated_states[key] + value
-                        if key == "status" and value[0] != KUBE_STATUS_COMPLETED and value[0] != KUBE_STATUS_RUNNING:
-                            deployment_ready = False
-    else:
-        deployment_ready = False
-
-    return success, deployment_ready, ingress_paths, concatenated_states
-
-
 def helm_get_values(release_name, helm_namespace=settings.helm_namespace):
-    success, stdout = execute_shell_command(
+    success, stdout = helm_helper.execute_shell_command(
         f'{settings.helm_path} -n {helm_namespace} get values -o json {release_name}')
     if success and stdout != b'null\n':
         return json.loads(stdout)
@@ -152,7 +72,7 @@ def helm_get_values(release_name, helm_namespace=settings.helm_namespace):
 
 
 def helm_status(release_name, helm_namespace=settings.helm_namespace):
-    success, stdout = execute_shell_command(
+    success, stdout = helm_helper.execute_shell_command(
         f'{settings.helm_path} -n {helm_namespace} status {release_name}')
     if success:
         return list(yaml.load_all(stdout, yaml.FullLoader))[0]
@@ -163,7 +83,7 @@ def helm_status(release_name, helm_namespace=settings.helm_namespace):
 
 
 def collect_helm_deployments(helm_namespace=settings.helm_namespace):
-    success, stdout = execute_shell_command(
+    success, stdout = helm_helper.execute_shell_command(
         f'{settings.helm_path} -n {helm_namespace} ls --deployed --pending --failed --uninstalling --superseded -o json')
     if success:
         namespace_deployments = json.loads(stdout)
@@ -260,7 +180,7 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
         f'Pulling {docker_registry_url}/{docker_image}:{docker_version}')
 
     try:
-        helm_repo_index(settings.helm_helpers_cache)
+        helm_helper.helm_repo_index(settings.helm_helpers_cache)
     except subprocess.CalledProcessError as e:
         return Response(f"Could not create index.yaml!", 500)
 
@@ -297,15 +217,14 @@ def helm_install(
     helm_command_suffix='',
     helm_delete_prefix='',
     shell=True,
-    helm_cache_path=None
+    helm_cache_path=None,
+    update_state=True
 ) -> Tuple[bool, str, dict, str]:
     # TODO: must be shell=False as default
     """
         Returns success: bool, stdout: str, helm_result_dict: dict, release_name: str
     """
     logger.debug("installing helm chart with payload {0}".format(payload))
-    global smth_pending, global_extensions_dict_cached
-    smth_pending = True
 
     helm_cache_path = helm_cache_path or settings.helm_extensions_cache
 
@@ -336,9 +255,9 @@ def helm_install(
     logger.debug(json.dumps(default_sets, indent=4, sort_keys=True))
 
     # get chart's values
-    values = helm_show_values(name, version)
+    values = helm_helper.helm_show_values(name, version)
     if 'keywords' not in payload:
-        chart = helm_show_chart(name, version)
+        chart = helm_helper.helm_show_chart(name, version)
         if 'keywords' in chart:
             keywords = chart['keywords']
         else:
@@ -387,30 +306,66 @@ def helm_install(
             helm_sets = helm_sets + f" --set {key}={value}"
 
     # make the whole command
-    helm_command = f'{helm_delete_prefix}{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}'
-    success, stdout = execute_shell_command(helm_command, shell=shell)
+    helm_command = f'{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}'
+    if helm_delete_prefix != "":
+        success, stdout = helm_helper.execute_shell_command(helm_delete_prefix, shell=shell)
+        if not success:
+            logger.error(f"helm delete prefix failed: cmd={helm_delete_prefix} success={success} stdout={stdout}")
+    success, stdout = helm_helper.execute_shell_command(helm_command, shell=shell)
 
     helm_result_dict = {}
     if success:
-        for item in global_extensions_dict_cached:
+        for item in helm_helper.global_extensions_dict_cached:
             if item["releaseName"] == release_name and item["version"] == version:
                 item["successful"] = KUBE_STATUS_PENDING
         helm_result_dict = json.loads(stdout)
 
+    if success and update_state and version is not None:
+        helm_helper.update_extension_state(
+            schemas.ExtensionStateUpdate.construct(
+                extension_name=name,
+                extension_version=version,
+                state=schemas.ExtensionStateType.INSTALLED,
+            )
+        )
+
     return success, stdout, helm_result_dict, release_name
 
 
-def helm_delete(release_name, helm_namespace=settings.helm_namespace, release_version=None, helm_command_addons=''):
+def helm_delete(
+    release_name,
+    helm_namespace=settings.helm_namespace,
+    release_version=None,
+    helm_command_addons='',
+    update_state=True
+):
+
     # release version only important for extensions charts
     cached_extension = [
-        x for x in global_extensions_dict_cached if x["releaseName"] == release_name]
-    if len(cached_extension) == 1:
-        release_name = cached_extension[0]["helm_info"]["name"]
+        x for x in helm_helper.global_extensions_dict_cached if x["releaseName"] == release_name]
+    try:
+        if len(cached_extension) == 1:
+            ext = cached_extension[0]
+            versions = ext.available_versions
+            dep = list(versions.items())[0]
+            if release_version is not None:
+                logger.debug("fetching version {0} in available versions {1}".format(
+                    release_version, versions
+                ))
+                dep = versions[release_version]
 
+            release_name = dep.deployments[0].helm_info.name
+
+            if ext.multiinstallable == "yes":
+                release_name = dep.deployments[0].helm_info.name
+    except Exception as e:
+        logger.error(f"Error in helm_delete {str(e)=} {cached_extension=}")
+
+    # delete version
     helm_command = f'{settings.helm_path} -n {helm_namespace} uninstall {helm_command_addons} {release_name}'
-    success, stdout = execute_shell_command(helm_command, shell=False)
+    success, stdout = helm_helper.execute_shell_command(helm_command, shell=False)
     if success and release_version is not None:
-        for item in global_extensions_dict_cached:
+        for item in helm_helper.global_extensions_dict_cached:
             if item["releaseName"] == release_name and item["version"] == release_version:
                 item["successful"] = 'pending'
     else:
@@ -421,6 +376,15 @@ def helm_delete(release_name, helm_namespace=settings.helm_namespace, release_ve
             s += line + "\n"
         s = s[:-1]
         logger.warning(s)
+
+    if success and update_state and release_version is not None:
+        helm_helper.update_extension_state(
+            schemas.ExtensionStateUpdate.construct(
+                extension_name=release_name,
+                extension_version=release_version,
+                state=schemas.ExtensionStateType.NOT_INSTALLED,
+            )
+        )
 
     return success, stdout
 
@@ -479,12 +443,14 @@ def execute_update_extensions():
         'name': 'update-collections-chart',
         'version': '0.1.0'
     }
-    logger.info("{0}, {1}".format(chart['name'], chart['version']))
+    logger.info("chart info for update extensions {0}, {1}".format(chart['name'], chart['version']))
     payload = {k: chart[k] for k in ('name', 'version')}
 
     install_error = False
     message = f"No kaapana_collections defined..."
+    logger.info("split kaapana collections {0}".format(settings.kaapana_collections.split(';')[:-1]))
     for idx, kube_helm_collection in enumerate(settings.kaapana_collections.split(';')[:-1]):
+        logger.debug("kube_helm_collection {0}".format(kube_helm_collection))
         release_name = cure_invalid_name("-".join(kube_helm_collection.split('/')[-1].split(
             ':')), r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*", max_length=53)
         payload.update({
@@ -497,25 +463,27 @@ def execute_update_extensions():
         if not helm_status(release_name):
             logger.info(f'Installing {release_name}')
             success, _, _, _ = helm_install(
-                payload, helm_cache_path=settings.helm_collections_cache, shell=False)
+                payload, helm_cache_path=settings.helm_collections_cache, shell=False, update_state=False)
             if success:
                 message = f"Successfully updated the extensions"
                 logger.info(message)
             else:
                 message = f"We had troubles updating the extensions"
                 install_error = True
-                helm_delete(release_name)
+                helm_delete(release_name, update_state=False)
                 logger.warning(message)
         else:
             logger.info('helm deleting and reinstalling')
-            helm_delete_prefix = f'{settings.helm_path} -n {settings.helm_namespace} uninstall {release_name} --wait --timeout 5m;'
-            success, _, _, _ = helm_install(payload, helm_delete_prefix=helm_delete_prefix,
-                                            helm_command_addons="--wait", helm_cache_path=settings.helm_collections_cache, shell=False)
+            helm_delete_prefix = f'{settings.helm_path} -n {settings.helm_namespace} uninstall {release_name} --wait --timeout 5m'
+            success, _, _, _ = helm_install(
+                payload, helm_delete_prefix=helm_delete_prefix, helm_command_addons="--wait",
+                helm_cache_path=settings.helm_collections_cache, shell=False, update_state=False)
             if success:
                 message = f"Successfully updated the extensions"
+                logger.info(message)
             else:
                 install_error = True
-                helm_delete(release_name)
+                helm_delete(release_name, update_state=False)
                 message = f"We had troubles updating the extensions"
                 logger.error(message)
 
@@ -526,7 +494,7 @@ def add_extension_params(chart):
     """
     Add 'extension_params' to chart object, if a valid field exists in chart values.
     """
-    vals = helm_show_values(chart["name"], chart["version"])
+    vals = helm_helper.helm_show_values(chart["name"], chart["version"])
     if (vals is not None) and "extension_params" in vals:
         # TODO: validate the parameter field
         if ";" not in vals["extension_params"]:

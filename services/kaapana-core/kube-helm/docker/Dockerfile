@@ -28,6 +28,8 @@ RUN /usr/local/bin/helm package /root/helpers/pull-docker-chart -d /root/helpers
 ENV HELM_PATH "/usr/local/bin/helm"
 ENV KUBECTL_PATH "kubectl"
 ENV HELM_EXTENSIONS_CACHE "/root/extensions"
+ENV LOG_LEVEL="debug"
+ENV RECENT_UPDATE_CACHE="true"
 
 EXPOSE 5000
 CMD ["gunicorn","main:app","--chdir","/app/backend/app","--workers","1","--worker-class","uvicorn.workers.UvicornWorker","--bind","0.0.0.0:5000","--access-logfile","-","--error-logfile","-"]

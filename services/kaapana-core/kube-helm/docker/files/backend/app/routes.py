@@ -2,7 +2,7 @@ import os
 from platform import release
 import secrets
 import subprocess
-from fastapi import APIRouter, Response, Request
+from fastapi import APIRouter, Response, Request, UploadFile
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 
@@ -25,6 +25,18 @@ templates = Jinja2Templates(directory=join(
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+
+@router.post("/file")
+async def upload_tgz_file(file: UploadFile):
+    logger.debug("file {0}".format(file.filename))
+    content = await file.read()
+    res, msg = helm_helper.add_tgz(file, content)
+    if not res:
+        logger.error(msg)
+        return Response(msg, 500)
+
+    return Response(msg, 200)
 
 
 @router.get("/health-check")

@@ -121,4 +121,44 @@ class FilterKaapanaInstances(BaseModel):
 
 
 class JsonSchemaData(FilterKaapanaInstances):
-    conf_data: dict= {}
+    conf_data: dict = {}
+
+class CohortBase(BaseModel):
+    name: str = None
+
+class CohortCreate(CohortBase):
+    cohort_query: dict = {}
+    cohort_identifiers: list = []
+    kaapana_instance_id: int = None
+
+class CohortUpdate(CohortBase):
+    cohort_query: dict = {}
+    cohort_identifiers: list = []
+    cohort_id: int
+
+class Cohort(CohortBase):
+    id: int
+    cohort_query: str
+    cohort_identifiers: str
+    time_created: datetime.datetime
+    time_updated: datetime.datetime
+
+    @validator('cohort_query')
+    def convert_cohort_query(cls, v):
+        return json.loads(v)
+
+    @validator('cohort_identifiers')
+    def convert_cohort_identifiers(cls, v):
+        return json.loads(v)
+
+    @validator('time_created')
+    def convert_time_created(cls, v):
+        return datetime.datetime.timestamp(v)
+
+    @validator('time_updated')
+    def convert_time_updated(cls, v):
+        return datetime.datetime.timestamp(v)
+
+    class Config:
+        orm_mode = True
+

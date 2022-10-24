@@ -218,3 +218,28 @@ async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstanc
 async def check_for_remote_updates(db: Session = Depends(get_db)):
     get_remote_updates(db, periodically=False)
     return {f"Federated backend is up and running!"}
+
+@router.post("/cohort", response_model=schemas.Cohort)
+async def create_cohort(cohort: schemas.CohortCreate, db: Session = Depends(get_db)):
+    return crud.create_cohort(db=db, cohort=cohort)
+
+@router.get("/cohort", response_model=schemas.Cohort)
+async def get_cohort(cohort_id: int, db: Session = Depends(get_db)):
+    return crud.get_cohort(db, cohort_id)
+
+@router.get("/cohorts", response_model=List[schemas.Cohort])
+async def get_cohorts(instance_name: str = None, limit: int = None, db: Session = Depends(get_db)):
+    return crud.get_cohorts(db, instance_name, limit=limit)
+
+@router.put("/cohort", response_model=schemas.Cohort)
+async def put_cohort(cohort: schemas.CohortUpdate, db: Session = Depends(get_db)):
+    return crud.update_cohort(db, cohort)
+
+@router.delete("/cohort")
+async def delete_cohort(cohort_id: int, db: Session = Depends(get_db)):
+    return crud.delete_cohort(db, cohort_id)
+
+@router.delete("/cohorts")
+async def delete_cohorts(db: Session = Depends(get_db)):
+    # Todo add remote job deletion
+    return crud.delete_cohorts(db)

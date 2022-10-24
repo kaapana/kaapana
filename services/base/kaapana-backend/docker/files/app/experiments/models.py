@@ -36,6 +36,27 @@ class Job(Base):
             postgresql_where=(external_job_id.isnot(None))),  # The condition
     )
 
+class Cohort(Base):
+    __tablename__ = "cohort"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(64), index=True)
+    cohort_query = Column(String(51200))
+    cohort_identifiers = Column(String(51200))
+    time_created = Column(DateTime(timezone=True))
+    time_updated = Column(DateTime(timezone=True))
+    kaapana_id = Column(Integer, ForeignKey('kaapana_instance.id'))
+    kaapana_instance = relationship("KaapanaInstance", back_populates="cohorts")
+
+
+    # # https://www.johbo.com/2016/creating-a-partial-unique-index-with-sqlalchemy-in-postgresql.html
+    # __table_args__ = (
+    #     Index(
+    #         'ix_kaapana_id_external_job_id',  # Index name
+    #         'kaapana_id', 'external_job_id',  # Columns which are part of the index
+    #         unique=True,
+    #         postgresql_where=(external_job_id.isnot(None))),  # The condition
+    # )
+
 class KaapanaInstance(Base):
     __tablename__ = "kaapana_instance"
     id = Column(Integer, primary_key=True)
@@ -54,6 +75,7 @@ class KaapanaInstance(Base):
     automatic_update = Column(Boolean(), default=False, index=True)
     automatic_job_execution = Column(Boolean(), default=False, index=True)
     jobs = relationship("Job", back_populates="kaapana_instance", cascade="all, delete")
+    cohorts = relationship("Cohort", back_populates="kaapana_instance", cascade="all, delete")
     # #https://stackoverflow.com/questions/5033547/sqlalchemy-cascade-delete
     # jobs = relationship("Job", back_populates="kaapana_instance", passive_deletes=True)
 

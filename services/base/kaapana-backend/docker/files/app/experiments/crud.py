@@ -362,3 +362,72 @@ def get_remote_updates(db: Session, periodically=False):
             db_job = create_job(db, job)
 
     return #schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload)
+
+
+def create_cohort(db: Session, cohort: schemas.CohortCreate):
+
+    if cohort.kaapana_instance_id is None:
+        db_kaapana_instance = db.query(models.KaapanaInstance).filter_by(remote=False).first()
+    else:
+        db_kaapana_instance = db.query(models.KaapanaInstance).filter_by(id=cohort.kaapana_instance_id).first()
+    
+    if not db_kaapana_instance:
+        raise HTTPException(status_code=404, detail="Kaapana instance not found")
+    
+    utc_timestamp = get_utc_timestamp()
+
+    db_cohort = models.Cohort(
+        name=cohort.name,
+        cohort_query=json.dumps(cohort.cohort_query),
+        cohort_identifiers=json.dumps(cohort.cohort_identifiers),
+        time_created=utc_timestamp,
+        time_updated=utc_timestamp
+    )
+
+    db_kaapana_instance.cohorts.append(db_cohort)
+    db.add(db_kaapana_instance)
+    db.commit()
+    db.refresh(db_cohort)
+    return db_cohort
+
+def get_cohort(db: Session, cohort_id: int):
+    db_cohort = db.query(models.Cohort).filter_by(id=cohort_id).first()
+    if not db_cohort:
+        raise HTTPException(status_code=404, detail="Cohort not found")
+    return db_cohort
+
+def get_cohorts(db: Session, instance_name: str = None, limit=None):
+    return db.query(models.Cohort).join(models.Cohort.kaapana_instance, aliased=True).order_by(desc(models.Cohort.time_updated)).limit(limit).all()
+
+    # if instance_name is not None and status is not None:
+    #     return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+    # elif instance_name is not None:
+    #     return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+    # elif status is not None:
+    #     return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+    # else:
+    #     return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+
+def delete_cohort(db: Session, cohort_id: int):
+    db_cohort = get_cohort(db, cohort_id)
+    db.delete(db_cohort)
+    db.commit()
+    return {"ok": True}
+
+def delete_cohorts(db: Session):
+    # Todo add remote job deletion
+    db.query(models.Cohort).delete()
+    db.commit()
+    return {"ok": True}
+
+def update_cohort(db: Session, cohort=schemas.CohortUpdate):
+    utc_timestamp = get_utc_timestamp()
+
+    print(f'Updating client cohort {cohort.cohort_id}')
+    db_cohort = get_cohort(db, cohort.cohort_id)
+
+    db_cohort.cohort_query = json.dumps(cohort.cohort_query)
+    db_cohort.cohort_identifiers = json.dumps(cohort.cohort_identifiers)
+    db.commit()
+    db.refresh(db_cohort)
+    return db_cohort

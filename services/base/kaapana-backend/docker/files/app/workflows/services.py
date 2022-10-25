@@ -36,10 +36,10 @@ class WorkflowService:
             return (
                 None,
                 HTTPException(status_code=403, detail=f"Dag {conf_data['conf']['dag']} is not allowed to be triggered from remote!"))
-
-        queried_data = utils.get_dataset_list(
-            {'query': conf_data['conf']['query']}
-        )
+        return None
+        # queried_data = utils.get_cohort_list(
+        #     {'query': conf_data['conf']['query']}
+        # )
 
         if not all([bool(set(d) & set(json.loads(db_client_kaapana.allowed_datasets))) for d in queried_data]):
             return (

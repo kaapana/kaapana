@@ -17,7 +17,7 @@ from app.experiments import models
 from app.dependencies import get_db
 from app.experiments import schemas
 from app.experiments import crud
-from app.experiments.utils import get_dag_list, get_dataset_list, raise_kaapana_connection_error
+from app.experiments.utils import get_dag_list, get_cohort_list, raise_kaapana_connection_error
 from app.experiments.crud import get_remote_updates
 
 router = APIRouter(tags=["client"])
@@ -101,17 +101,23 @@ async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstanc
     return JSONResponse(content=dags)
 
 @router.get("/datasets")
-async def datasets():
-    return get_dataset_list(unique_sets=True)
+async def datasets(db: Session = Depends(get_db)):
+    return get_cohort_list(db)
 
 @router.post("/submit-workflow-schema", response_model=List[schemas.Job])
 async def submit_workflow_json_schema(json_schema_data: schemas.JsonSchemaData, db: Session = Depends(get_db)):
     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
     print(json_schema_data)
 
-    conf_data = {
-        **json_schema_data.conf_data,
-    }
+    conf_data = json_schema_data.conf_data
+
+    print(conf_data)
+    db_cohort = crud.get_cohort(db, conf_data["data_form"]["cohort_name"])
+
+    conf_data["data_form"].update({
+        "cohort_query": db_cohort.cohort_query,
+        "cohort_identifiers": db_cohort.cohort_identifiers
+    })
 
     db_jobs = []
     if json_schema_data.remote == False:
@@ -139,41 +145,6 @@ async def submit_workflow_json_schema(json_schema_data: schemas.JsonSchemaData, 
 
     return db_jobs
 
-
-# def get_schema(dag_id, ui_form_key, ui_form, ui_dag_info, filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
-#     if ui_form_key=='workflow_form' and dag_id == 'nnunet-predict':
-#         ui_form["oneOf"] = []
-#         selection_properties = {}
-#         base_properties = {}
-#         for p_k, p_v in ui_form['properties'].items():
-#             if 'dependsOn' in p_v:
-#                 p_v.pop('dependsOn')
-#                 selection_properties[p_k] = p_v
-#             else:
-#                 base_properties[p_k] = p_v
-#         base_properties.pop('task')   
-        
-#         for task in ui_form['properties']['task']['enum']:
-#             task_selection_properties = copy.deepcopy(selection_properties)
-#             for p_k, p_v in task_selection_properties.items():
-#                 p_v['default'] = ui_dag_info[task][p_k]
-#             task_selection_properties.update({
-#                 "task":
-#                 {
-#                     "type": "string",
-#                     "const": task
-#                 }
-#             })
-#             ui_form["oneOf"].append({
-#                 "type": 'object',
-#                 "title": task,
-#                 "properties": task_selection_properties})
-#         ui_form["properties"] = base_properties
-#     print(ui_form)
-#     return ui_form
-
-   
-
 @router.post("/get-ui-form-schemas")
 async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
     dag_id = filter_kaapana_instances.dag_id
@@ -184,7 +155,7 @@ async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstanc
     # Checking for dags
     if filter_kaapana_instances.remote is False:
         dags = get_dag_list(only_dag_names=False)
-        # datasets = get_dataset_list(unique_sets=True)
+        # datasets = get_cohort_list(unique_sets=True)
     else:
         db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=filter_kaapana_instances)
         # datasets = set.intersection(*map(set,[json.loads(ki.allowed_datasets) for ki in db_remote_kaapana_instances]))
@@ -199,14 +170,14 @@ async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstanc
     schemas = dag["ui_forms"]
     print(schemas)
     # Checking for cohorts...
-    if "opensearch_form" in schemas and "properties" in schemas["opensearch_form"] and  "cohort" in schemas["opensearch_form"]["properties"]:
+    if "data_form" in schemas and "properties" in schemas["data_form"] and  "cohort_name" in schemas["data_form"]["properties"]:
         if filter_kaapana_instances.remote is False:
-            datasets = get_dataset_list(unique_sets=True)
+            datasets = get_cohort_list(db)
         else:
             db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=filter_kaapana_instances)
             datasets = set.intersection(*map(set,[json.loads(ki.allowed_datasets) for ki in db_remote_kaapana_instances]))
         print(datasets)
-        schemas["opensearch_form"]["properties"]["cohort"]["enum"] = [""] + list(datasets)
+        schemas["data_form"]["properties"]["cohort_name"]["oneOf"] = [{"const": d, "title": d} for d in datasets]
 
     # if 'ui_forms' in dag:
     #     for ui_form_key, ui_form in dag['ui_forms'].items():
@@ -224,8 +195,8 @@ async def create_cohort(cohort: schemas.CohortCreate, db: Session = Depends(get_
     return crud.create_cohort(db=db, cohort=cohort)
 
 @router.get("/cohort", response_model=schemas.Cohort)
-async def get_cohort(cohort_id: int, db: Session = Depends(get_db)):
-    return crud.get_cohort(db, cohort_id)
+async def get_cohort(cohort_name: str, db: Session = Depends(get_db)):
+    return crud.get_cohort(db, cohort_name)
 
 @router.get("/cohorts", response_model=List[schemas.Cohort])
 async def get_cohorts(instance_name: str = None, limit: int = None, db: Session = Depends(get_db)):
@@ -236,8 +207,8 @@ async def put_cohort(cohort: schemas.CohortUpdate, db: Session = Depends(get_db)
     return crud.update_cohort(db, cohort)
 
 @router.delete("/cohort")
-async def delete_cohort(cohort_id: int, db: Session = Depends(get_db)):
-    return crud.delete_cohort(db, cohort_id)
+async def delete_cohort(cohort_name: str, db: Session = Depends(get_db)):
+    return crud.delete_cohort(db, cohort_name)
 
 @router.delete("/cohorts")
 async def delete_cohorts(db: Session = Depends(get_db)):

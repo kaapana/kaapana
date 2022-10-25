@@ -28,29 +28,15 @@ Represents a blueprint kaapanaApi
 """
 kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
 def async_dag_trigger(queue_entry):
-    hit, dag_id, tmp_conf, username = queue_entry
-    hit = hit["_source"]
-    studyUID = hit[HelperOpensearch.study_uid_tag]
-    seriesUID = hit[HelperOpensearch.series_uid_tag]
-    SOPInstanceUID = hit[HelperOpensearch.SOPInstanceUID_tag]
-    modality = hit[HelperOpensearch.modality_tag]
 
-    print(f"# Triggering {dag_id} - series: {seriesUID}")
+    dag_id, cohort_identifier, tmp_conf, username = queue_entry
+    print(f"# Triggering {dag_id} - series: {cohort_identifier}")
 
     conf = {
         "user_public_id": username,
-        "inputs": [
-            {
-                "dcm-uid": {
-                    "study-uid": studyUID,
-                    "series-uid": seriesUID,
-                    "modality": modality
-                }
-            }
-        ],
         **tmp_conf
-        # "conf": tmp_conf
     }
+    conf["data_form"]["cohort_identifiers"] = [cohort_identifier]
 
     dag_run_id = generate_run_id(dag_id)
     try:
@@ -58,7 +44,7 @@ def async_dag_trigger(queue_entry):
     except Exception as e:
         pass
 
-    return seriesUID, result
+    return cohort_identifier, result
 
         
 @csrf.exempt
@@ -88,73 +74,31 @@ def trigger_dag(dag_id):
     
     ################################################################################################ 
 
-    if "opensearch_form" in tmp_conf:
-        opensearch_data = tmp_conf["opensearch_form"]
-        if "query" in opensearch_data:
-            query = opensearch_data["query"]
-        elif "cohort" in opensearch_data:
-            query = {
-                "bool": {
-                    "must": [
-                        {
-                        "match_all": {}
-                        }
-                    ],
-                    "filter": [
-                        {
-                        "match_phrase": {
-                            "dataset_tags_keyword.keyword": opensearch_data["cohort"]
-                            }
-                        }
-                    ],
-                    "should": [],
-                    "must_not": []
-                }
-            }
-        else:
-            raise ValueError('query or dataset needs to be defined!')
+    if "data_form" in tmp_conf:
+        data_form = tmp_conf["data_form"]
+        print(data_form)
 
-        index = opensearch_data["index"]
-        cohort_limit = int(opensearch_data["cohort_limit"]) if ("cohort_limit" in opensearch_data and opensearch_data["cohort_limit"] is not None) else None
+        cohort_limit = int(data_form["cohort_limit"]) if ("cohort_limit" in data_form and data_form["cohort_limit"] is not None) else None
         
         single_execution = True if "workflow_form" in tmp_conf and "single_execution" in tmp_conf["workflow_form"] and tmp_conf["workflow_form"] is True else False
 
-        print(f"query: {query}")
-        print(f"index: {index}")
         print(f"dag_id: {dag_id}")
+        print(f"cohort_query: {data_form['cohort_query']}")
+        print(f"cohort_identifiers: {data_form['cohort_identifiers']}")
+        print(f"cohort_limit: {data_form['cohort_limit']}")
         print(f"single_execution: {single_execution}")
 
         if single_execution:
-            hits = HelperOpensearch.get_query_cohort(query=query, index=index)
-            if hits is None:
-                message = ["Error in HelperOpensearch: {}!".format(dag_id)]
-                response = jsonify(message=message)
-                response.status_code = 500
-                return response
-
-            hits = hits[:cohort_limit] if cohort_limit is not None else hits
-
             queue = []
-            for hit in hits:
-                queue.append((hit, dag_id, tmp_conf,username))
-
+            for cohort_identifier in data_form['cohort_identifiers'][:cohort_limit]:
+                queue.append((dag_id, cohort_identifier, tmp_conf, username))
             trigger_results = ThreadPool(parallel_processes).imap_unordered(async_dag_trigger, queue)
-            for seriesUID, result in trigger_results:
-                print(f"#  Done: {seriesUID}:{result}")
-
+            for cohort_identifier, result in trigger_results:
+                print(f"#  Done: {cohort_identifier}:{result}")
         else:
             conf = {
                 "user_public_id": username,
-                "inputs": [
-                    {
-                        "opensearch-query": {
-                            "query": query,
-                            "index": index
-                        }
-                    }
-                ],
                 **tmp_conf
-                # "conf": tmp_conf
             }
             dag_run_id = generate_run_id(dag_id)
             trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)

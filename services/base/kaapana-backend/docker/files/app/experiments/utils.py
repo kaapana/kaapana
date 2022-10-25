@@ -107,52 +107,37 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None):
         else:
             return {}
 
-def get_dataset_list(unique_sets=False, opensearch_index='meta-index'):
+def get_uid_list_from_query(cohort_query):
     _opensearchhost = "opensearch-service.meta.svc:9200"
     os_client = OpenSearch(hosts=_opensearchhost)
 
-    queryDict = {
-        "query": {
-            "match_all": {}
-        },
-        "_source": ['dataset_tags_keyword']
-    }
-
     try:
-        res = os_client.search(index=[opensearch_index], body=queryDict, size=10000, from_=0)
+        res = os_client.search(index=cohort_query["index"], body=cohort_query["query_dict"], size=10000, from_=0)
     except Exception as e:
-        print("ERROR in OpenSearch search!")
+        raise ValueError("ERROR in OpenSearch search!")
         print(e)
+
     if 'hits' in res and 'hits' in res['hits']:
-        datasets = []
-        for hit in res['hits']['hits']:
-            dataset = hit['_source']['dataset_tags_keyword']
-            if isinstance(dataset, str):
-                dataset = [dataset]
-            datasets.append(dataset)
-        if unique_sets is True:
-            return sorted(list(set([d for item in datasets for d in item])))
-        else:
-            return datasets
+        return [
+            hit['_id']
+            for hit in res['hits']['hits']
+        ]
     else:
         raise ValueError('Invalid OpenSearch query!')
-    # try:
-    #     with requests.Session() as s:
-    #         resp = requests_retry_session(session=s).get('http://os-dashboards-service.meta.svc:5601/meta/api/saved_objects/_find', params={"type": "query"})
-    #         print(resp.text)
-    #         raise_kaapana_connection_error(resp)
-    #         return [c["id"] for c in resp.json()["saved_objects"]]
-    # except:
-    #     raise ValueError('Invalid OpenSearch query!')
+
+def get_cohort_list(db):
+    from .crud import get_cohorts
+    db_cohorts = get_cohorts(db=db)
+    return [db_cohort.cohort_name for db_cohort in db_cohorts]
 
 def check_dag_id_and_dataset(db_client_kaapana, conf_data, dag_id, addressed_kaapana_instance_name):
     if addressed_kaapana_instance_name is not None and db_client_kaapana.instance_name != addressed_kaapana_instance_name:
         if dag_id not in json.loads(db_client_kaapana.allowed_dags):
             return f"Dag {dag_id} is not allowed to be triggered from remote!"
-        if "opensearch_form" in conf_data:
+        if "data_form" in conf_data:
             pass
             # ToDo adapt!
-            # queried_data = get_dataset_list(conf_data["opensearch_form"])
+            # queried_data = get_cohort_list(conf_data["opensearch_form"])
             # if not queried_data or (not all([bool(set(d) & set(json.loads(db_client_kaapana.allowed_datasets))) for d in queried_data])):
             #     return f"Queried series with tags " \
             #         f"{', '.join(sorted(list(set([d for item in queried_data for d in item]))))} are not all part of allowed datasets:" \

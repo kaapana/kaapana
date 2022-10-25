@@ -39,7 +39,7 @@ class Job(Base):
 class Cohort(Base):
     __tablename__ = "cohort"
     id = Column(Integer, primary_key=True)
-    name = Column(String(64), index=True)
+    cohort_name = Column(String(64), index=True)
     cohort_query = Column(String(51200))
     cohort_identifiers = Column(String(51200))
     time_created = Column(DateTime(timezone=True))

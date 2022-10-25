@@ -173,13 +173,12 @@ def clean_previous_dag_run(conf, run_identifier):
 def parse_ui_dict(dag_dict):
 
     if "ui_forms" in dag_dict:
-        if "ui_visible" in dag_dict and dag_dict["ui_visible"] is True and "opensearch_form" not in dag_dict["ui_forms"]:
+        if "ui_visible" in dag_dict and dag_dict["ui_visible"] is True and "data_form" not in dag_dict["ui_forms"]:
             dag_dict["ui_forms"].update({
-                "opensearch_form": {
+                "data_form": {
                     "type": "object",
                     "properties": {
-                        "cohort": "$default",
-                        "index": "$default",
+                        "cohort_name": "$default",
                         "cohort_limit": "$default"
                     }
                 }
@@ -200,18 +199,13 @@ def parse_ui_dict(dag_dict):
                         "required": True
                     }
                 }
-            elif ui_form_key=='opensearch_form':
+            elif ui_form_key=='data_form':
                 default_properties = {
-                    "cohort": {
+                    "cohort_name": {
                         "type": "string",
-                        "title": "Dataset tag",
-                        "enum": []
-                    },
-                    "index": {
-                        "type": "string",
-                        "title": "Index",
-                        "default": "meta-index",
-                        "readOnly": True,
+                        "title": "Cohort name",
+                        "oneOf": [],
+                        "required": True
                     },
                     "cohort_limit": {
                         "type": "integer",

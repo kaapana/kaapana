@@ -124,7 +124,7 @@ class JsonSchemaData(FilterKaapanaInstances):
     conf_data: dict = {}
 
 class CohortBase(BaseModel):
-    name: str = None
+    cohort_name: str = None
 
 class CohortCreate(CohortBase):
     cohort_query: dict = {}
@@ -134,7 +134,6 @@ class CohortCreate(CohortBase):
 class CohortUpdate(CohortBase):
     cohort_query: dict = {}
     cohort_identifiers: list = []
-    cohort_id: int
 
 class Cohort(CohortBase):
     id: int

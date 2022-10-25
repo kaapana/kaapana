@@ -76,6 +76,13 @@ To develop an algorithm within the Kaapana instance we have to provide an image,
 In this example we provide the algorithm as a python implementation of a DAG (see: :ref:`Write your first own DAG`). 
 Therefore, we start with a minimal python image:
 
+.. important::
+   To access the base images for our container (like ``local-only/base-python-alpine:0.1.0``) we can either build them individualy following :ref:`faq_build_base_img` or build the whole platform :ref:`build`.
+   Building only the base images and not the whole platform is in general recommended as it is a lot faster and takes less space on your system.
+
+.. hint::
+    If docker containers should be build on a system **behind a proxy**, please make sure to `configure docker correctly <https://docs.docker.com/network/proxy/#configure-the-docker-client>`_.
+
 .. code-block:: docker
 
     FROM local-only/base-python-alpine:0.1.0

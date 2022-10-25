@@ -15,6 +15,8 @@ from config import settings
 from fastapi.logger import logger
 import schemas
 
+# TODO: get single extension
+# TODO: get single tgz file
 
 CHART_STATUS_UNDEPLOYED = "un-deployed"
 CHART_STATUS_DEPLOYED = "deployed"
@@ -237,7 +239,7 @@ def get_extensions_list() -> Union[List[schemas.KaapanaExtension], None]:
 
             if len(states_w_indexes) == 0:
                 # nothing updated recently, return cached
-                logger.info("nothing updated recently -> return global_extensions_dict_cached")
+                logger.info(f"nothing updated recently -> return global_extensions_dict_cached, len: {len(global_extensions_dict_cached)}")
                 return global_extensions_dict_cached
 
             elif len(states_w_indexes) > 0:
@@ -280,6 +282,7 @@ def get_extensions_list() -> Union[List[schemas.KaapanaExtension], None]:
                                 "value updated in global_extensions_dict_cached from {0} to {1}".format(
                                     ext, rec_upd_ext
                                 ))
+                logger.debug(f"{len(global_extensions_dict_cached)=}")
                 return global_extensions_dict_cached
 
         if check:
@@ -339,12 +342,14 @@ def collect_all_tgz_charts(keywords_filter: List, name_filter: str = "") -> Dict
         keywords_filter,
         name_filter
     ))
-    global global_collected_tgz_charts
+    global global_collected_tgz_charts, global_charts_hashes
 
     keywords_filter = set(keywords_filter)
     name_filter = name_filter
     chart_tgz_files = [f for f in glob.glob(
         os.path.join(settings.helm_extensions_cache, '*.tgz')) if name_filter in f]
+    logger.debug("found chart tgz files length: {0}".format(chart_tgz_files, ))
+    logger.debug("global_charts_hashes length: {0}".format(global_charts_hashes))
     collected_tgz_charts: dict = {}
     for chart_tgz_file in chart_tgz_files:
         chart_hash = sha256sum(filepath=chart_tgz_file)
@@ -371,6 +376,20 @@ def collect_all_tgz_charts(keywords_filter: List, name_filter: str = "") -> Dict
         else:
             logger.debug(f"scraping not necessary!")
 
+    # file is deleted, remove from hashes and global_collected_tgz_charts
+    # TODO: this is messy, handle this in an endpoint like (/file-delete)
+    set_files = set(chart_tgz_files)
+    if name_filter == "" and len(global_charts_hashes) > len(set_files):
+        hash_keys = set(global_charts_hashes.keys())
+        diff = hash_keys.difference(set_files)
+        logger.info(f"File(s) removed from the folder, {hash_keys=}, {set_files=}, {diff=}")
+        for f in diff:
+            logger.info(f"Deleting hash and chart info for file {f}")
+            global_charts_hashes.pop(f)
+            fname = ".".join(f.split("/")[-1].split(".")[:-1])
+            global_collected_tgz_charts.pop(fname)
+
+    logger.debug(f"{global_collected_tgz_charts=}")
     if name_filter != "":
         if len(collected_tgz_charts) > 0:
             logger.debug("returning collected_tgz_charts {0}".format(collected_tgz_charts))
@@ -655,12 +674,22 @@ def get_recently_updated_extensions() -> List[schemas.KaapanaExtension]:
     return res
 
 
-def add_tgz(file: UploadFile, content: bytes) -> Tuple[bool, str]:
+def add_tgz(file: UploadFile, content: bytes, overwrite: bool = True) -> Tuple[bool, str]:
     logger.debug("filename {0}".format(file.filename))
     logger.debug("file type {0}".format(file.content_type, file.file))
     pre = settings.helm_extensions_cache
     if pre[-1] != "/":
         pre += "/"
+
+    msg = ""
+    # check if file exists
+    if os.path.exists(pre + file.filename):
+        msg = "File {0} already exists".format(file.filename)
+        logger.warning(msg)
+        if not overwrite:
+            msg += ", returning without overwriting. "
+            return False, msg
+        msg += ", overwritten"
 
     # write file
     logger.debug("writing file...")
@@ -676,9 +705,6 @@ def add_tgz(file: UploadFile, content: bytes) -> Tuple[bool, str]:
         f.close()
         logger.debug("write successful")
 
-    # update extensions
-    # execute_update_extensions()
-
     # parse name, version
     fname = file.filename
     if fname[-4:] != ".tgz":
@@ -693,4 +719,7 @@ def add_tgz(file: UploadFile, content: bytes) -> Tuple[bool, str]:
         state=schemas.ExtensionStateType.NOT_INSTALLED
     ))
 
-    return True, "Successfully added chart {0}-{1}".format(fname, fversion)
+    if msg == "":
+        msg = "Successfully added chart file {0}".format(fname)
+
+    return True, msg

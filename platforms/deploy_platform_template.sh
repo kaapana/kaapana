@@ -465,6 +465,116 @@ else
     echo -e "${GREEN}SIZE: $SIZE ${NC}";
 fi;
 
+function create_report {
+    # Dont abort report generation on errror
+    set +euf +o pipefail
+    # Pipe output also to file
+    exec > >(tee -ia "kaapana-report-$(date +'%Y-%m-%d').log")
+
+    # https://stackoverflow.com/a/17366594
+    trap_fn() {
+    [[ $DEBUG && $BASH_COMMAND != "unset DEBUG" &&  $BASH_COMMAND != "--- "* ]] && \
+        printf "[%s:%s] %s\n" "$BASH_SOURCE" "$LINENO" "$BASH_COMMAND"
+    return 0 # do not block execution in extdebug mode
+    }
+
+    trap trap_fn DEBUG
+
+    function --- {
+        unset DEBUG
+        echo ""
+        echo ""
+        echo "-----------------------------------------------"
+        echo "$1"
+        echo "-----------------------------------------------"
+        DEBUG=1
+    }
+cat << "EOF"
+
+
+                           .=#%@@@%#-                                 
+                          .@@@@@@@@@@                                 
+                     .::::*@@@@@@@@+      :+##*+=.                    
+                 .+%@@@@@@#  -@@@-       *@@@@@@@@#:                  
+                -@@@@@@@@@+   #@#       -@@@@@@@@@@@=.=#%*=           
+                #@@@@@@@@#. :#@@@#=---=#@@@@@@@@@@@#+#@@@@@@*         
+           .:::=@@@@@@@%- -%@@@@@@@@@@@+.   .-===-.   #@@@@@@%        
+         +@@@@@@-:+@@@=  +@@@@@@@@@@@@=                +@@@@@@=       
+       :@@@@@@@#   %@=   @@@@@@@@@@@@@=                 .#@@@#  =##=  
+       %@@@@@@@=  =@@%.  +@@@@@@@@@@@@@+.    .:---.       +@%  :@@@@% 
+       *@@@@@@= .#@@@@@=  -%@@@@@@@@##*#@@@@@@@@@@@@*.    .@#  :@@@@@*
+ .*@@#. #@@@*. +@@@@@@@@%.  -%@@@=.      *@@@@@@@@@@@@-  .#@@+  %@@@@@
+.@@@@@#  %@=  *@@@@@@@@@@*   .@@=         +@@@@@@@@@@@@ -@@@@@#..%@@@#
+#@@@@@%  %@.  %@@@@@@@@@@*   -@@+          *@@@@@@@@@@@:@@@@@@@@  %@@.
+%@@@@@= *@@%: +@@@@@@@@@@.  =@@@@*.         -%@@@@@@@%:=@@@@@@@@= .@- 
+=@@@@=.%@@@@@+ =@@@@@@@*. -%@@@@@@@=          :=+**+-  .@@@@@@@@- :@. 
+ .-:  %@@@@@@@+  :===-   +@@@@@@@@@@#             .::.  =@@@@@@#:*@@* 
+     .@@@@@@@@%   :-:   .@@@@@@@@@@@@-         -#@@@@@@#-.-++=.*@@@@@-
+      %@@@@@@@+ =@@@@@*..@@@@@@@@@@@@:        +@@@@@@@@@@%-   +@@@@@@+
+       *@@@@@*  @@@@@@@% =@@@@@@@@@@#        .@@@@@@@@@@@@@@%@@@@@@@@=
+        .---    +@@@@@@@  :#@@@@@@@@#:----.   @@@@@@@@@@@@+:.:#@@@@@% 
+                 -#@@@*.     :---..%@@@@@@@%= :@@@@@@@@@@:     :#@%+  
+                                   @@@@@@@@@@%  =#@@@@@@:             
+                                  :@@@@@@@@@@@#   .-#@@*              
+                                   #@@@@@@@@@@@*     +@%              
+ | |/ /                                   +@@@@@@@@@@@%+--+@@@@*-           
+ | ' / __ _  __ _ _ __   __ _ _ __   __ _  -+*#*+=-::+@@@@@@@@@@#          
+ |  < / _` |/ _` | '_ \ / _` | '_ \ / _` |            :@@@@@@@@@@:         
+ | . \ (_| | (_| | |_) | (_| | | | | (_| |             +@@@@@@@@=          
+ |_|\_\__,_|\__,_| .__/ \__,_|_| |_|\__,_|              #@@@@@*. 
+                 | |
+  _   _          |_|       _____                       _
+ | \ | |         | |      |  __ \                     | |
+ |  \| | ___   __| | ___  | |__) |___ _ __   ___  _ __| |_ ___ _ __
+ | . ` |/ _ \ / _` |/ _ \ |  _  // _ \ '_ \ / _ \| '__| __/ _ \ '__|
+ | |\  | (_) | (_| |  __/ | | \ \  __/ |_) | (_) | |  | ||  __/ |
+ |_| \_|\___/ \__,_|\___| |_|  \_\___| .__/ \___/|_|   \__\___|_|
+                                     | |
+                                     |_|
+EOF
+echo "Version: 0.1.4"
+echo "Report created on $(date +'%Y-%m-%d')"
+
+--- "Basics"
+uptime
+free
+
+--- "Last Boot Log"
+journalctl -b
+
+--- "Pod Status"
+microk8s.kubectl get pods -A
+
+--- "External Internet Access"
+ping -c3 -i 0.2 www.dkfz-heidelberg.de
+
+--- "Check Registry"
+openssl s_client -connect $CONTAINER_REGISTRY_URL:443
+
+--- "Check Registry Credentials"
+helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD $CONTAINER_REGISTRY_URL
+
+--- "Systemd Status"
+systemd status
+
+--- "Storage"
+df -h
+
+--- "Snaps"
+snap list
+
+--- "k8s Pods"
+microk8s.kubectl get pods -A
+
+--- "k8s Node Status"
+microk8s.kubectl describe node
+
+--- "GPU"
+nvidia-smi
+
+--- "END"
+}
+
 
 ### Parsing command line arguments:
 usage="$(basename "$0")
@@ -563,6 +673,11 @@ do
             echo -e "${YELLOW}Using --no-hooks${NC}"
             delete_deployment
             clean_up_kubernetes
+            exit 0
+        ;;
+
+        --report)
+            create_report
             exit 0
         ;;
 

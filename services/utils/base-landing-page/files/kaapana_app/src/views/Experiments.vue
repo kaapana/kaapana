@@ -227,7 +227,7 @@ export default Vue.extend({
     },
     getDatasets() {
       kaapanaApiService
-        .federatedClientApiGet("/datasets")
+        .federatedClientApiGet("/cohort-names")
         .then((response) => {
           this.datasets = response.data;
         })

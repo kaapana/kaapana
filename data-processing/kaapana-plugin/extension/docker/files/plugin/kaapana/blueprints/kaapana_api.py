@@ -75,33 +75,13 @@ def trigger_dag(dag_id):
     ################################################################################################ 
 
     if "data_form" in tmp_conf:
-        data_form = tmp_conf["data_form"]
-        print(data_form)
-
-        cohort_limit = int(data_form["cohort_limit"]) if ("cohort_limit" in data_form and data_form["cohort_limit"] is not None) else None
-        
-        single_execution = True if "workflow_form" in tmp_conf and "single_execution" in tmp_conf["workflow_form"] and tmp_conf["workflow_form"] is True else False
-
-        print(f"dag_id: {dag_id}")
-        print(f"cohort_query: {data_form['cohort_query']}")
-        print(f"cohort_identifiers: {data_form['cohort_identifiers']}")
-        print(f"cohort_limit: {data_form['cohort_limit']}")
-        print(f"single_execution: {single_execution}")
-
-        if single_execution:
-            queue = []
-            for cohort_identifier in data_form['cohort_identifiers'][:cohort_limit]:
-                queue.append((dag_id, cohort_identifier, tmp_conf, username))
-            trigger_results = ThreadPool(parallel_processes).imap_unordered(async_dag_trigger, queue)
-            for cohort_identifier, result in trigger_results:
-                print(f"#  Done: {cohort_identifier}:{result}")
-        else:
-            conf = {
-                "user_public_id": username,
-                **tmp_conf
-            }
-            dag_run_id = generate_run_id(dag_id)
-            trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
+        print(json.dumps(tmp_conf["data_form"], indent=2))
+        conf = {
+            "user_public_id": username,
+            **tmp_conf
+        }
+        dag_run_id = generate_run_id(dag_id)
+        trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
 
         message = ["{} created!".format(dag_id)]
         response = jsonify(message=message)

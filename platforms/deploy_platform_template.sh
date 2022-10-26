@@ -393,26 +393,6 @@ function check_credentials {
 }
 
 function install_certs {
-    echo -e "Checking if Kubectl is installed..."
-    command -v microk8s.kubectl >/dev/null 2>&1 || {
-    echo -e >&2 "${RED}Kubectl has to be installed for this script - but it's not installed.  Aborting.${NC}";
-    exit 1; }
-    echo -e "${GREEN}OK!${NC}"
-
-
-    echo -e "Checking if correct Kubectl config is in place..."
-    microk8s.kubectl get pods --all-namespaces
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}Server connection - OK!${NC}"
-    else
-        echo -e "${RED}Kubectl could not communicate with the server.${NC}"
-        echo -e "${RED}Have a look at the output, ${NC}"
-        echo -e "${RED}Check if the correct server certificate file is in place @ ~/.kube/config, ${NC}"
-        echo -e "${RED}Check if the IP address in the certificate matches the IP address of the server ${NC}"
-        echo -e "${RED}and try again.${NC}"
-        exit 1
-    fi
-
     if [ ! -f ./tls.key ] || [ ! -f ./tls.crt ]; then
         echo -e "${RED}tls.key or tls.crt could not been found in this directory.${NC}"
         echo -e "${RED}Please rename and copy the files first!${NC}"
@@ -446,25 +426,212 @@ function print_deployment_done {
     fi
 }
 
+function conditional_termination {
+    if [ ! "$QUIET" = "true" ] ; then
+        read -e -p "Do you want to fix this before continuing? (Recomended)" -i " no" yn
+        case $yn in
+            [Yy]* ) echo "${RED}exiting...${NC}" && exit 1; break;;
+            [Nn]* ) echo "${YELLOW}continuing (be aware that you leaving the supported path, its dangerous here watch your step!)${NC}"; break;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    else
+        echo -e "${RED}Exiting since this is quiet mode ${NC}"
+        exit 1
+    fi
+}
+
+function preflight_checks {
+    echo -e "${GREEN}#################################  RUNNING PREFLIGHT CHECKS  #########################################${NC}"
+
+    echo -n -e "Check if user is non-root\t\t\t\t${NC}"
+    if [ "$EUID" -eq 0 ];then
+        echo -e "${RED}failed${NC}"
+        echo -e "${RED}Please run the script without root privileges!${NC}"
+        conditional_termination
+    else
+        echo -e "${GREEN}ok (user: $USER)${NC}"
+    fi
+
+    echo -n -e "Check if enought disk-space\t\t\t\t${NC}"
+    SIZE=`df -k --output=size "/var/snap" | tail -n1`
+    if [[ $SIZE -lt 81920 ]]; then
+        echo -e "${RED}failed${NC}"
+        echo -e "${RED}Your disk space is too small to deploy the system.${NC}"
+        echo -e "${RED}There should be at least 80 GiBytes available @ /var/snap ${NC}"
+        conditional_termination
+    else
+        echo -e "${GREEN}ok (size: $SIZE)${NC}"
+    fi
+
+    echo -n -e "Check that helm is available...\t\t\t\t"
+    if ! [ -x "$(command -v helm)" ]; then
+        echo -e "${RED}failed${NC}"
+        echo -e "${RED}Install server dependencies first!${NC}"
+        exit 1
+    else
+        echo -e "${GREEN}ok${NC}"
+    fi
+
+    echo -n -e "Check that kubectl is installed...\t\t\t"
+    command -v microk8s.kubectl >/dev/null 2>&1 || {
+        echo -e "${RED}failed${NC}"
+        echo -e "${RED}Install server dependencies first!${NC}"
+        exit 1
+    }
+    echo -e "${GREEN}ok${NC}"
+
+    echo -n -e "Check that \$KUBECONFIG is untouched...\t\t\t"
+    if [ -v KUBECONFIG ]; then
+        echo -e "${YELLOW}failed (KUBECONFIG=$KUBECONFIG)${NC}"
+        echo -e "${YELLOW}In your environment the \$KUBECONFIG variable is set, this is unconventional and can cause to problems${NC}"
+    else
+        echo -e "${GREEN}ok${NC}"
+    fi
+
+    echo -n -e "Check if ~/.kube/config matches micork8s config\t\t"
+    if [ "$(cat /home/$USER/.kube/config)" == "$(microk8s.kubectl config view --raw)" ]; then
+        echo -e "${GREEN}ok${NC}"
+    else
+        echo -e "${YELLOW}failed${NC}"
+        echo -e "${YELLOW}Your kubeconfig differs from the micork8s version${NC}"
+    fi
+
+    GROUPNAME="microk8s"
+    echo -n -e "Check if user is member of $GROUPNAME...\t\t\t"
+    if id -nG "$USER" | grep -qw "$GROUPNAME"; then
+        echo -e "${GREEN}ok${NC}"
+    else
+        echo -e "${YELLOW}failed${NC}"
+    fi
+
+    echo -n -e "Checking if kubectl is working...\t\t\t"
+    microk8s.kubectl get pods --all-namespaces &> /dev/null
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}ok${NC}"
+    else
+        echo -e "${GREEN}failed${NC}"
+        echo -e "${RED}Kubectl could not communicate with the server.${NC}"
+        echo -e "${RED}Have a look at the output, ${NC}"
+        echo -e "${RED}Check if the correct server certificate file is in place @ ~/.kube/config, ${NC}"
+        echo -e "${RED}Check if the IP address in the certificate matches the IP address of the server ${NC}"
+        echo -e "${RED}and try again.${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}################################  PREFLIGHT CHECKS COMPLETED  #########################################${NC}"
+}
+
+function create_report {
+    # Dont abort report generation on errror
+    set +euf +o pipefail
+    # Pipe output also to file
+    exec > >(tee -ia "kaapana-report-$(date +'%Y-%m-%d').log")
+
+    # https://stackoverflow.com/a/17366594
+    trap_fn() {
+    [[ $DEBUG && $BASH_COMMAND != "unset DEBUG" &&  $BASH_COMMAND != "--- "* ]] && \
+        printf "[%s:%s] %s\n" "$BASH_SOURCE" "$LINENO" "$BASH_COMMAND"
+    return 0 # do not block execution in extdebug mode
+    }
+
+    trap trap_fn DEBUG
+
+    function --- {
+        unset DEBUG
+        echo ""
+        echo ""
+        echo "-----------------------------------------------"
+        echo "$1"
+        echo "-----------------------------------------------"
+        DEBUG=1
+    }
+cat << "EOF"
+
+
+                           .=#%@@@%#-                                 
+                          .@@@@@@@@@@                                 
+                     .::::*@@@@@@@@+      :+##*+=.                    
+                 .+%@@@@@@#  -@@@-       *@@@@@@@@#:                  
+                -@@@@@@@@@+   #@#       -@@@@@@@@@@@=.=#%*=           
+                #@@@@@@@@#. :#@@@#=---=#@@@@@@@@@@@#+#@@@@@@*         
+           .:::=@@@@@@@%- -%@@@@@@@@@@@+.   .-===-.   #@@@@@@%        
+         +@@@@@@-:+@@@=  +@@@@@@@@@@@@=                +@@@@@@=       
+       :@@@@@@@#   %@=   @@@@@@@@@@@@@=                 .#@@@#  =##=  
+       %@@@@@@@=  =@@%.  +@@@@@@@@@@@@@+.    .:---.       +@%  :@@@@% 
+       *@@@@@@= .#@@@@@=  -%@@@@@@@@##*#@@@@@@@@@@@@*.    .@#  :@@@@@*
+ .*@@#. #@@@*. +@@@@@@@@%.  -%@@@=.      *@@@@@@@@@@@@-  .#@@+  %@@@@@
+.@@@@@#  %@=  *@@@@@@@@@@*   .@@=         +@@@@@@@@@@@@ -@@@@@#..%@@@#
+#@@@@@%  %@.  %@@@@@@@@@@*   -@@+          *@@@@@@@@@@@:@@@@@@@@  %@@.
+%@@@@@= *@@%: +@@@@@@@@@@.  =@@@@*.         -%@@@@@@@%:=@@@@@@@@= .@- 
+=@@@@=.%@@@@@+ =@@@@@@@*. -%@@@@@@@=          :=+**+-  .@@@@@@@@- :@. 
+ .-:  %@@@@@@@+  :===-   +@@@@@@@@@@#             .::.  =@@@@@@#:*@@* 
+     .@@@@@@@@%   :-:   .@@@@@@@@@@@@-         -#@@@@@@#-.-++=.*@@@@@-
+      %@@@@@@@+ =@@@@@*..@@@@@@@@@@@@:        +@@@@@@@@@@%-   +@@@@@@+
+       *@@@@@*  @@@@@@@% =@@@@@@@@@@#        .@@@@@@@@@@@@@@%@@@@@@@@=
+        .---    +@@@@@@@  :#@@@@@@@@#:----.   @@@@@@@@@@@@+:.:#@@@@@% 
+                 -#@@@*.     :---..%@@@@@@@%= :@@@@@@@@@@:     :#@%+  
+                                   @@@@@@@@@@%  =#@@@@@@:             
+                                  :@@@@@@@@@@@#   .-#@@*              
+                                   #@@@@@@@@@@@*     +@%              
+ | |/ /                                   +@@@@@@@@@@@%+--+@@@@*-           
+ | ' / __ _  __ _ _ __   __ _ _ __   __ _  -+*#*+=-::+@@@@@@@@@@#          
+ |  < / _` |/ _` | '_ \ / _` | '_ \ / _` |            :@@@@@@@@@@:         
+ | . \ (_| | (_| | |_) | (_| | | | | (_| |             +@@@@@@@@=          
+ |_|\_\__,_|\__,_| .__/ \__,_|_| |_|\__,_|              #@@@@@*. 
+                 | |
+  _   _          |_|       _____                       _
+ | \ | |         | |      |  __ \                     | |
+ |  \| | ___   __| | ___  | |__) |___ _ __   ___  _ __| |_ ___ _ __
+ | . ` |/ _ \ / _` |/ _ \ |  _  // _ \ '_ \ / _ \| '__| __/ _ \ '__|
+ | |\  | (_) | (_| |  __/ | | \ \  __/ |_) | (_) | |  | ||  __/ |
+ |_| \_|\___/ \__,_|\___| |_|  \_\___| .__/ \___/|_|   \__\___|_|
+                                     | |
+                                     |_|
+EOF
+echo "Version: 0.1.4"
+echo "Report created on $(date +'%Y-%m-%d')"
+
+--- "Basics"
+uptime
+free
+
+--- "Last Boot Log"
+journalctl -b
+
+--- "Pod Status"
+microk8s.kubectl get pods -A
+
+--- "External Internet Access"
+ping -c3 -i 0.2 www.dkfz-heidelberg.de
+
+--- "Check Registry"
+openssl s_client -connect $CONTAINER_REGISTRY_URL:443
+
+--- "Check Registry Credentials"
+helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD $CONTAINER_REGISTRY_URL
+
+--- "Systemd Status"
+systemd status
+
+--- "Storage"
+df -h
+
+--- "Snaps"
+snap list
+
+--- "k8s Pods"
+microk8s.kubectl get pods -A
+
+--- "k8s Node Status"
+microk8s.kubectl describe node
+
+--- "GPU"
+nvidia-smi
+
+--- "END"
+}
+
 ### MAIN programme body:
-
-if [ "$EUID" -eq 0 ];then
-    echo -e "${RED}Please run the script without root privileges!${NC}";
-    # exit 1
-else
-    echo -e "${YELLOW}USER: $USER ${NC}";
-fi
-
-SIZE=`df -k --output=size "/var/snap" | tail -n1`
-if [[ $SIZE -lt 81920 ]]; then
-    echo -e "${RED}Your disk space is too small to deploy the system.${NC}";
-    echo -e "${RED}There should be at least 80 GiBytes available @ /var/snap ${NC}";
-else
-    SIZE=`df -h --output=size "/var/snap" | tail -n1`
-    echo -e "${GREEN}Check disk space: ok${NC}";
-    echo -e "${GREEN}SIZE: $SIZE ${NC}";
-fi;
-
 
 ### Parsing command line arguments:
 usage="$(basename "$0")
@@ -566,6 +733,11 @@ do
             exit 0
         ;;
 
+        --report)
+            create_report
+            exit 0
+        ;;
+
         *)    # unknown option
             echo -e "${RED}unknow parameter: $key ${NC}"
             echo -e "${YELLOW}$usage${NC}"
@@ -574,14 +746,7 @@ do
     esac
 done
 
-echo -e "${YELLOW}Check if helm is available...${NC}"
-if ! [ -x "$(command -v helm)" ]; then
-    echo -e "${RED}############### Helm not available! ###############${NC}"
-    echo -e "${YELLOW}       Install server dependencies first! ${NC}"
-    exit 1
-else
-    echo -e "${GREEN}ok${NC}"
-fi
+preflight_checks
 
 echo -e "${YELLOW}Get helm deployments...${NC}"
 deployments=$(helm -n $HELM_NAMESPACE ls |cut -f1 |tail -n +2)

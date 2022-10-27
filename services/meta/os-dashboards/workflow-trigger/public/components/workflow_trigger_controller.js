@@ -18,7 +18,7 @@ export const getWorkflowTriggerVisController = (data, getStartServices, buildOpe
       getStartServices().then((start_services) => { this.index_patterns = start_services[1].data.indexPatterns});
       this.buildOpenSearchQuery = buildOpenSearchQuery;
       
-      this.getCohortList();
+      // this.getCohortList();
     }
 
     destroy() {
@@ -141,8 +141,9 @@ export const getWorkflowTriggerVisController = (data, getStartServices, buildOpe
         if (response.ok) {
           console.log("response - ok")
           response.json().then(json => {
-            alert("Your request was successful!")
+            alert("Your cohort was successfully added!")
             console.log(json);
+            document.getElementById("cohortNameForm").reset();
             this.getCohortList();
           });
         } else {
@@ -157,12 +158,15 @@ export const getWorkflowTriggerVisController = (data, getStartServices, buildOpe
 
 
     render(visData, status) {
+
+      this.getCohortList();
+
       this.container.innerHTML = '';
       VisController.div_element = document.createElement(`div`);
       VisController.div_element.innerHTML = `
-      <form>
+      <form id="cohortNameForm">
         <input id="cohortName" placeholder="Enter a cohort name" type="text" name="cohortName" required>
-        <input id="addCohort" type="button" value="Save query as cohort">
+        <input id="addCohort" type="button" value="Save cohort from query">
       </form>
       <form>
         <select id="cohortSelection" placeholder="Delete a cohort" name="cohortSelection" required></select>
@@ -180,7 +184,6 @@ export const getWorkflowTriggerVisController = (data, getStartServices, buildOpe
       const selectCohortButton = document.getElementById("selectCohort");
       selectCohortButton.addEventListener("click", () => {
         let cohortName = document.getElementById("cohortSelection").value;
-        console.log(cohortName);
         this.deleteCohort(cohortName);
       });
     }

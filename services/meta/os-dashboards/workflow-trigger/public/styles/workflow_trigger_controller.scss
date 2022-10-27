@@ -70,10 +70,12 @@
 // }
 
 .cohortManagement {
+    width: 100%;
+
     input[type=text], select {
         width: 100%;
-        padding: 10px 10px;
-        margin: 8px 0;
+        padding: 8px 8px;
+        margin: 6px 0;
         display: inline-block;
         border: 1px solid #ccc;
         border-radius: 4px;
@@ -84,8 +86,8 @@
         width: 100%;
         background-color: rgba(0, 71, 156, 0.95);
         color: white;
-        padding: 10px 10px;
-        margin: 8px 0;
+        padding: 8px 8px;
+        margin: 6px 0;
         border: none;
         border-radius: 4px;
         cursor: pointer;

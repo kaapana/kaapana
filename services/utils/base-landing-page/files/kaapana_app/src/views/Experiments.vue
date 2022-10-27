@@ -33,7 +33,7 @@
                   | submit
                 v-btn(@click='resetClientForm')
                   | clear
-        workflow-execution(v-if="clientInstance" :remote='false', :instances="[clientInstance]")
+        workflow-execution(ref="workflowexecution" v-if="clientInstance" :remote='false', :instances="[clientInstance]")
         v-btn(v-if="clientInstance" color='orange' @click.stop="checkForRemoteUpdates()" rounded dark ) Sync remote
         v-btn(v-if="!clientInstance" color='orange' @click.stop="clientDialog=true" rounded dark) Add client instance
         //- v-btn(v-if="clientInstance" color='orange' @click="submitWorkflow()" rounded dark) Execute Client Workflow
@@ -315,7 +315,10 @@ export default Vue.extend({
     },
     startExtensionsInterval() {
       this.polling = window.setInterval(() => {
-        this.refreshClient();
+        // a little bit ugly... https://stackoverflow.com/questions/40410332/vuejs-access-child-components-data-from-parent
+        if (!this.$refs.workflowexecution.dialogOpen) {
+          this.refreshClient();
+        }
       }, 15000);
     }
   },

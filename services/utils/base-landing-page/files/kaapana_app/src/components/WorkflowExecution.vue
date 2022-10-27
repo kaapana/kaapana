@@ -47,7 +47,7 @@ v-dialog(v-model='dialogOpen' max-width='600px')
                 pre.text-left Dag id: {{dag_id}}
                 pre.text-left Instance name: {{instance_names}}
                 pre.text-left External instance name: {{external_instance_names}}
-                pre.text-left {{ formData }}
+                pre.text-left {{ formDataFormatted }}
       v-card-actions
         v-btn(color="orange", @click="submitWorkflow()" rounded dark) Submit job
         v-btn(color="orange", @click="(instance_names=[]) && (dag_id=null)" rounded dark) Clear
@@ -70,6 +70,7 @@ export default {
     schemas: {},
     external_schemas: {},
     formData: {},
+    // formDataFormatted: {},
     available_dags: [],
     instance_names: [],
     external_instance_names: [],
@@ -92,6 +93,9 @@ export default {
     available_instance_names () {
       return this.instances.map(({ instance_name }) => instance_name);
     },
+    formDataFormatted () {
+      return this.formatFormData(this.formData)
+    }
   },
   mounted() {
   },
@@ -118,6 +122,21 @@ export default {
     }
   },
   methods: {
+    formatFormData (formData) {
+      // Only necessary because vjsf does not allow to have same keys in selection form with dependencies
+      let formDataFormatted = {}
+      Object.entries(formData).forEach(([form_key, form_value]) => {
+        if (form_key == "workflow_form") {
+          formDataFormatted[form_key] = {}
+          Object.entries(form_value).forEach(([key, value]) => {
+            formDataFormatted[form_key][key.split('#')[0]] = value
+          });
+        } else {
+          formDataFormatted[form_key] = form_value
+        }
+      });
+      return formDataFormatted
+    },
     resetFormData() {
       this.schemas = {}
       this.formData = {}
@@ -199,7 +218,7 @@ export default {
         .federatedClientApiPost("/submit-workflow-schema", {
           dag_id: this.dag_id,
           instance_names: this.instance_names,          
-          conf_data: this.formData,
+          conf_data: this.formatFormData(this.formData),
           remote: this.remote
         })
         .then((response) => {

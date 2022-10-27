@@ -8,7 +8,7 @@
           i(v-if="openedRemotePanel==0").v-icon.notranslate.mdi.mdi-chevron-up.theme--light(aria-hidden='true')
       v-spacer
       v-col(cols="8" align='right')
-        workflow-execution(:remote='true' :instances="remoteInstances")
+        workflow-execution(ref="workflowexecution" :remote='true' :instances="remoteInstances")
         v-dialog(v-model='remoteDialog' max-width='600px')
           //- template(v-slot:activator='{ on, attrs }')
           //-   v-btn(color='orange' v-bind='attrs' v-on='on' rounded dark) Add remote instance
@@ -324,8 +324,9 @@ export default Vue.extend({
     },
     startExtensionsInterval() {
       this.polling = window.setInterval(() => {
-        console.log('getting remote')
-        this.refreshRemote()
+        if (!this.$refs.workflowexecution.dialogOpen) {
+          this.refreshRemote();
+        }
       }, 15000);
     }
   },

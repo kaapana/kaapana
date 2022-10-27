@@ -10,8 +10,6 @@
       v-col(cols="8" align='right')
         workflow-execution(ref="workflowexecution" :remote='true' :instances="remoteInstances")
         v-dialog(v-model='remoteDialog' max-width='600px')
-          //- template(v-slot:activator='{ on, attrs }')
-          //-   v-btn(color='orange' v-bind='attrs' v-on='on' rounded dark) Add remote instance
           v-card
             v-form(v-model='remoteValid', ref="remoteForm" lazy-validation)
               v-card-title
@@ -37,7 +35,6 @@
                   | submit
                 v-btn(@click='resetRemoteForm')
                   | clear
-        //- v-btn(color='orange' @click="submitWorkflow()" rounded dark) Execute Remote Workflow
         v-btn(color='orange' @click.stop="openRemoteDialog" rounded dark) Add remote instance
     v-row
       v-col(sm="12")
@@ -67,30 +64,13 @@ export default Vue.extend({
     WorkflowExecution
   },
   data: () => ({
-    // tab: 0,
     polling: 0,
-    // clientDialog: false,
-    // clientUpdate: false,
-    // clientValid: false,
-    // openedClientPanel: null,
     openedRemotePanel: null,
     remoteValid: false,
     remoteUpdate: false,
     remoteDialog: false,
-    // dags: [],
-    // datasets: [],
     remoteJobs: [],
-    // clientJobs: [],
-    // clientInstance: {},
     remoteInstances: [],
-    // clientPost: {
-    //   ssl_check: false,
-    //   automatic_update: false,
-    //   automatic_job_execution: false,
-    //   fernet_encrypted: false,
-    //   allowed_dags: [],
-    //   allowed_datasets: []
-    // },
     remotePost: {
       ssl_check: false,
       token: '',
@@ -103,32 +83,12 @@ export default Vue.extend({
   created() {},
   mounted () {
     this.refreshRemote();
-    // this.refreshClient();
     this.startExtensionsInterval()
   },
-  // watch: {
-  //   clientDialog: function (val) {
-  //     if (val == true) {
-  //       this.getDags();
-  //       this.getDatasets();
-  //       console.log('Getting Dags and Datasets')
-  //     }
-  //   },
-  // },
   computed: {
-    // remote () {
-    //   return this.tab !== 0  
-    // },
     ...mapGetters(['currentUser', 'isAuthenticated'])
   },
   methods: {
-    // toggleClientPanel() {
-    //   if (this.openedClientPanel == 0) {
-    //     this.openedClientPanel = null
-    //   } else {
-    //     this.openedClientPanel = 0
-    //   }
-    // },
     toggleRemotePanel() {
       if (this.openedRemotePanel == 0) {
         this.openedRemotePanel = null
@@ -136,65 +96,10 @@ export default Vue.extend({
         this.openedRemotePanel = 0
       }
     },
-    // checkForRemoteUpdates() {
-    //   console.log('checking remote')
-    //   kaapanaApiService
-    //     .federatedClientApiGet("/check-for-remote-updates")
-    //     .then((response) => {
-    //       this.$emit('refreshView')
-    //     })
-    //     .catch((err) => {
-    //       console.log(err);
-    //     });
-    // },
     refreshRemote () {
       this.getRemoteInstances()
       this.getRemoteJobs()
     },
-    // refreshClient() {
-    //   this.getClientInstance()
-    //   this.getClientJobs()
-    // },
-    // changeTab(newTab) {
-    //   console.log(newTab)
-    //   if (newTab == 1) {
-    //     console.log('remote')
-    //     this.refreshRemote()
-    //   }
-    //   else {
-    //     this.refreshClient()
-    //   }
-    //   this.tab = newTab
-    // },
-    // resetClientForm () {
-    //   this.$refs.clientForm.reset()
-    // },
-    // submitClientForm () {
-    //   if (this.clientUpdate == false) {
-    //   kaapanaApiService
-    //     .federatedClientApiPost("/client-kaapana-instance", this.clientPost)
-    //     .then((response) => {
-    //       this.clientUpdate = false
-    //       this.clientDialog = false
-    //       this.refreshClient();
-    //     })
-    //     .catch((err) => {
-    //       console.log(err);
-    //     });
-    //   } else {
-    //   kaapanaApiService
-    //     .federatedClientApiPut("/client-kaapana-instance", this.clientPost)
-    //     .then((response) => {
-    //       this.clientUpdate = false
-    //       this.clientDialog = false
-    //       this.refreshClient();
-    //     })
-    //     .catch((err) => {
-    //       console.log(err);
-    //     });
-    //   }
-
-    // },
     resetRemoteForm () {
       this.$refs.remoteForm.reset()
     },
@@ -224,32 +129,6 @@ export default Vue.extend({
           });
       }
     },
-    // getDags() {
-    //   kaapanaApiService
-    //     .federatedClientApiPost("/get-dags", {remote: false})
-    //     .then((response) => {
-    //       this.dags = response.data;
-    //     })
-    //     .catch((err) => {
-    //       console.log(err);
-    //     });
-    // },
-    // getDatasets() {
-    //   kaapanaApiService
-    //     .federatedClientApiGet("/datasets")
-    //     .then((response) => {
-    //       this.datasets = response.data;
-    //     })
-    //     .catch((err) => {
-    //       console.log(err);
-    //     });
-    // },
-    // editClientInstance(instance) {
-    //   this.clientPost = instance
-    //   this.clientPost.fernet_encrypted = false
-    //   this.clientDialog = true
-    //   this.clientUpdate = true
-    // },
     editRemoteInstance(instance) {
       this.remotePost = instance
       this.remoteDialog = true
@@ -267,16 +146,6 @@ export default Vue.extend({
         fernet_key: 'deactivated',
       }
     },
-    // getClientInstance() {
-    //   kaapanaApiService
-    //     .federatedClientApiGet("/client-kaapana-instance")
-    //     .then((response) => {
-    //       this.clientInstance = response.data;
-    //     })
-    //     .catch((err) => {
-    //       this.clientInstance = {}
-    //     });
-    // },
     deleteRemoteInstances() {
       kaapanaApiService
         .federatedClientApiDelete("/remote-kaapana-instances")
@@ -308,17 +177,6 @@ export default Vue.extend({
           console.log(err);
         });
     },
-    // getClientJobs() {
-    //   kaapanaApiService
-    //     .federatedClientApiGet("/jobs",{
-    //     limit: 100,
-    //     }).then((response) => {
-    //       this.clientJobs = response.data;
-    //     })
-    //     .catch((err) => {
-    //       console.log(err);
-    //     });
-    // },
     clearExtensionsInterval() {
       window.clearInterval(this.polling);
     },

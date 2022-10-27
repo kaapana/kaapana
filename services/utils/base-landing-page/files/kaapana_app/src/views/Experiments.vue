@@ -36,7 +36,6 @@
         workflow-execution(ref="workflowexecution" v-if="clientInstance" :remote='false', :instances="[clientInstance]")
         v-btn(v-if="clientInstance" color='orange' @click.stop="checkForRemoteUpdates()" rounded dark ) Sync remote
         v-btn(v-if="!clientInstance" color='orange' @click.stop="clientDialog=true" rounded dark) Add client instance
-        //- v-btn(v-if="clientInstance" color='orange' @click="submitWorkflow()" rounded dark) Execute Client Workflow
     v-row
       v-col(sm="12")
         v-expansion-panels(v-model="openedClientPanel")
@@ -67,16 +66,10 @@ export default Vue.extend({
     clientUpdate: false,
     clientValid: false,
     openedClientPanel: null,
-    // openedRemotePanel: null,
-    // remoteValid: false,
-    // remoteUpdate: false,
-    // remoteDialog: false,
     dags: [],
     datasets: [],
-    // remoteJobs: [],
     clientJobs: [],
     clientInstance: {},
-    // remoteInstances: [],
     clientPost: {
       ssl_check: false,
       automatic_update: false,
@@ -84,19 +77,10 @@ export default Vue.extend({
       fernet_encrypted: false,
       allowed_dags: [],
       allowed_datasets: []
-    },
-    // remotePost: {
-    //   ssl_check: false,
-    //   token: '',
-    //   host: '',
-    //   instance_name: '',
-    //   port: 443,
-    //   fernet_key: 'deactivated',
-    // }
+    }
   }),
   created() {},
   mounted () {
-    // this.refreshRemote();
     this.refreshClient();
     this.startExtensionsInterval()
   },
@@ -120,13 +104,6 @@ export default Vue.extend({
         this.openedClientPanel = 0
       }
     },
-    // toggleRemotePanel() {
-    //   if (this.openedRemotePanel == 0) {
-    //     this.openedRemotePanel = null
-    //   } else {
-    //     this.openedRemotePanel = 0
-    //   }
-    // },
     checkForRemoteUpdates() {
       console.log('checking remote')
       kaapanaApiService
@@ -138,25 +115,10 @@ export default Vue.extend({
           console.log(err);
         });
     },
-    // refreshRemote () {
-    //   this.getRemoteInstances()
-    //   this.getRemoteJobs()
-    // },
     refreshClient() {
       this.getClientInstance()
       this.getClientJobs()
     },
-    // changeTab(newTab) {
-    //   console.log(newTab)
-    //   if (newTab == 1) {
-    //     console.log('remote')
-    //     this.refreshRemote()
-    //   }
-    //   else {
-    //     this.refreshClient()
-    //   }
-    //   this.tab = newTab
-    // },
     resetClientForm () {
       this.$refs.clientForm.reset()
     },
@@ -184,37 +146,7 @@ export default Vue.extend({
           console.log(err);
         });
       }
-
     },
-    // resetRemoteForm () {
-    //   this.$refs.remoteForm.reset()
-    // },
-    // submitRemoteForm () {
-    //   if (this.remoteUpdate == false) {
-    //     kaapanaApiService
-    //       .federatedClientApiPost("/remote-kaapana-instance", this.remotePost)
-    //       .then((response) => {
-    //         console.log('getting remote')
-    //         this.remoteUpdate = false
-    //         this.remoteDialog = false
-    //         this.refreshRemote()
-    //       })
-    //       .catch((err) => {
-    //         console.log(err);
-    //       });
-    //   } else {
-    //     kaapanaApiService
-    //       .federatedClientApiPut("/remote-kaapana-instance", this.remotePost)
-    //       .then((response) => {
-    //         this.remoteUpdate = false
-    //         this.remoteDialog = false
-    //         this.refreshRemote()
-    //       })
-    //       .catch((err) => {
-    //         console.log(err);
-    //       });
-    //   }
-    // },
     getDags() {
       kaapanaApiService
         .federatedClientApiPost("/get-dags", {remote: false})
@@ -241,23 +173,6 @@ export default Vue.extend({
       this.clientDialog = true
       this.clientUpdate = true
     },
-    // editRemoteInstance(instance) {
-    //   this.remotePost = instance
-    //   this.remoteDialog = true
-    //   this.remoteUpdate = true
-    // },
-    // openRemoteDialog() {
-    //   this.remoteDialog = true
-    //   this.remoteUpdate = false
-    //   this.remotePost = {
-    //     ssl_check: false,
-    //     token: '',
-    //     host: '',
-    //     instance_name: '',
-    //     port: 443,
-    //     fernet_key: 'deactivated',
-    //   }
-    // },
     getClientInstance() {
       kaapanaApiService
         .federatedClientApiGet("/client-kaapana-instance")
@@ -268,37 +183,6 @@ export default Vue.extend({
           this.clientInstance = {}
         });
     },
-    // deleteRemoteInstances() {
-    //   kaapanaApiService
-    //     .federatedClientApiDelete("/remote-kaapana-instances")
-    //     .then((response) => {
-
-    //     })
-    //     .catch((err) => {
-    //       console.log(err);
-    //     });
-    // },
-    // getRemoteInstances() {
-    //   kaapanaApiService
-    //     .federatedClientApiPost("/get-remote-kaapana-instances")
-    //     .then((response) => {
-    //       this.remoteInstances = response.data;
-    //     })
-    //     .catch((err) => {
-    //       console.log(err);
-    //     });
-    // },
-    // getRemoteJobs() {
-    //   kaapanaApiService
-    //     .federatedRemoteApiGet("/jobs", {
-    //     limit: 100,
-    //     }).then((response) => {
-    //       this.remoteJobs = response.data;
-    //     })
-    //     .catch((err) => {
-    //       console.log(err);
-    //     });
-    // },
     getClientJobs() {
       kaapanaApiService
         .federatedClientApiGet("/jobs",{

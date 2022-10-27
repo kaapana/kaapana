@@ -40,7 +40,7 @@ class KaapanaDeployment(BaseModelExtended):
     deployment_id: str
     helm_status: str
     helm_info: HelmInfo
-    kube_status: List[str]
+    kube_status: Union[List[str], None, str]
     kube_info: Union[KubeInfo, None]
     links: List[str]
     ready: bool

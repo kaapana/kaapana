@@ -96,7 +96,6 @@ def add_extension_to_dict(
     latest_kube_status = None
     extension_name = extension_dict["name"]
     if extension_name not in global_extensions_dict:
-        exists = False
         logger.debug(
             f"Adding chart name to global_extensions_dict: {extension_name}")
 
@@ -166,6 +165,7 @@ def add_extension_to_dict(
 
                 deployments.append(chart_info)
 
+        logger.debug(f"adding {deployments=} as available versions to {global_extensions_dict[extension_name]}")
         available_versions = schemas.KaapanaAvailableVersions(
             deployments=deployments
         )
@@ -199,7 +199,10 @@ def add_info_from_deployments(
                 chart_template.releaseName = deployment.deployment_id
                 chart_template.successful = "yes" if deployment.ready else "pending"
                 chart_template.helmStatus = deployment.helm_status.capitalize()
-                chart_template.kubeStatus = [i.capitalize() for i in deployment.kube_info.status]
+                chart_template.kubeStatus = None
+                if deployment.kube_info is not None:
+                    chart_template.kubeStatus = [i.capitalize() for i in deployment.kube_info.status]
+                
                 result_list.append(chart_template)
 
             if extension_info.multiinstallable == "yes":

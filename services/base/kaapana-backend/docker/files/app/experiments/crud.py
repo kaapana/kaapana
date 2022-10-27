@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException, Response
 
 from . import models, schemas
 from app.config import settings
-from .utils import get_cohort_list, execute_job, check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, raise_kaapana_connection_error, requests_retry_session, get_uid_list_from_query
+from .utils import execute_job, check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, raise_kaapana_connection_error, requests_retry_session, get_uid_list_from_query
 from urllib.parse import urlparse
 
 
@@ -54,7 +54,7 @@ def create_and_update_client_kaapana_instance(db: Session, client_kaapana_instan
             return 'deactivated'
     utc_timestamp = get_utc_timestamp()
     allowed_dags = json.dumps(get_dag_list(only_dag_names=False, filter_allowed_dags=client_kaapana_instance.allowed_dags))
-    allowed_datasets = json.dumps([dataset for dataset in client_kaapana_instance.allowed_datasets if dataset in get_cohort_list(db)])
+    allowed_datasets = json.dumps([dataset for dataset in client_kaapana_instance.allowed_datasets if dataset in get_cohorts(db)])
     db_client_kaapana_instance = get_kaapana_instance(db, remote=False)
     if action == 'create':
         if db_client_kaapana_instance:
@@ -162,6 +162,7 @@ def create_job(db: Session, job: schemas.JobCreate):
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
         external_job_id=job.external_job_id,
+        username=job.username,
         dag_id=job.dag_id,
         addressed_kaapana_instance_name=job.addressed_kaapana_instance_name, # or None,
         status=job.status
@@ -371,6 +372,9 @@ def create_cohort(db: Session, cohort: schemas.CohortCreate):
     else:
         db_kaapana_instance = db.query(models.KaapanaInstance).filter_by(id=cohort.kaapana_instance_id).first()
     
+    if db.query(models.Cohort).filter_by(cohort_name=cohort.cohort_name).first():
+        raise HTTPException(status_code=409, detail="Cohort exists already!")
+
     if not db_kaapana_instance:
         raise HTTPException(status_code=404, detail="Kaapana instance not found")
     
@@ -381,6 +385,7 @@ def create_cohort(db: Session, cohort: schemas.CohortCreate):
         cohort.cohort_identifiers = get_uid_list_from_query(cohort.cohort_query)
 
     db_cohort = models.Cohort(
+        username=cohort.username,
         cohort_name=cohort.cohort_name,
         cohort_query=json.dumps(cohort.cohort_query),
         cohort_identifiers=json.dumps(cohort.cohort_identifiers),
@@ -400,17 +405,16 @@ def get_cohort(db: Session, cohort_name: str):
         raise HTTPException(status_code=404, detail="Cohort not found")
     return db_cohort
 
-def get_cohorts(db: Session, instance_name: str = None, limit=None):
-    return db.query(models.Cohort).join(models.Cohort.kaapana_instance, aliased=True).order_by(desc(models.Cohort.time_updated)).limit(limit).all()
+def get_cohorts(db: Session, instance_name: str = None, limit = None,  as_list: bool = True, username: str = None):
 
-    # if instance_name is not None and status is not None:
-    #     return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
-    # elif instance_name is not None:
-    #     return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
-    # elif status is not None:
-    #     return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
-    # else:
-    #     return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+    print(username)
+    if username is not None:
+        db_cohorts = db.query(models.Cohort).filter_by(username=username).join(models.Cohort.kaapana_instance, aliased=True).order_by(desc(models.Cohort.time_updated)).limit(limit).all()
+    else:
+        db_cohorts = db.query(models.Cohort).join(models.Cohort.kaapana_instance, aliased=True).order_by(desc(models.Cohort.time_updated)).limit(limit).all()
+    if as_list is True:
+        return [db_cohort.cohort_name for db_cohort in db_cohorts]
+    return db_cohorts
 
 def delete_cohort(db: Session, cohort_name: str):
     db_cohort = get_cohort(db, cohort_name)
@@ -436,6 +440,7 @@ def update_cohort(db: Session, cohort=schemas.CohortUpdate):
     if cohort.cohort_query:
         cohort.cohort_identifiers = get_uid_list_from_query(cohort.cohort_query)
 
+    # db_cohort.username = username
     db_cohort.cohort_query = json.dumps(cohort.cohort_query)
     db_cohort.cohort_identifiers = json.dumps(cohort.cohort_identifiers)
     db.commit()

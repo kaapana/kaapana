@@ -17,8 +17,7 @@ from app.experiments import models
 from app.dependencies import get_db
 from app.experiments import schemas
 from app.experiments import crud
-from app.experiments.utils import get_dag_list, get_cohort_list, raise_kaapana_connection_error
-from app.experiments.crud import get_remote_updates
+from app.experiments.utils import get_dag_list, raise_kaapana_connection_error
 
 router = APIRouter(tags=["client"])
 
@@ -61,7 +60,9 @@ async def delete_kaapana_instances(db: Session = Depends(get_db)):
     return crud.delete_kaapana_instances(db)
 
 @router.post("/job", response_model=schemas.JobWithKaapanaInstance)
-async def create_job(job: schemas.JobCreate, db: Session = Depends(get_db)):
+async def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(get_db)):
+    if "x-forwarded-preferred-username" in request.headers and job.username is None:
+        job.username = request.headers["x-forwarded-preferred-username"]
     return crud.create_job(db=db, job=job)
 
 @router.get("/job", response_model=schemas.JobWithKaapanaInstance)
@@ -100,53 +101,84 @@ async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstanc
         dags = list(set.intersection(*map(set, [[k for k, v in json.loads(ki.allowed_dags).items()] for ki in db_remote_kaapana_instances ])))
     return JSONResponse(content=dags)
 
-@router.get("/datasets")
-async def datasets(db: Session = Depends(get_db)):
-    return get_cohort_list(db)
-
 @router.post("/submit-workflow-schema", response_model=List[schemas.Job])
-async def submit_workflow_json_schema(json_schema_data: schemas.JsonSchemaData, db: Session = Depends(get_db)):
+async def submit_workflow_json_schema(request: Request, json_schema_data: schemas.JsonSchemaData, db: Session = Depends(get_db)):
+
+    username = request.headers["x-forwarded-preferred-username"]
+
     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
     print(json_schema_data)
 
     conf_data = json_schema_data.conf_data
 
-    print(conf_data)
+    conf_data["user_form"] = {
+        "username": username
+    }
     db_cohort = crud.get_cohort(db, conf_data["data_form"]["cohort_name"])
 
     conf_data["data_form"].update({
-        "cohort_query": db_cohort.cohort_query,
-        "cohort_identifiers": db_cohort.cohort_identifiers
+        "cohort_query": json.loads(db_cohort.cohort_query),
+        "cohort_identifiers": json.loads(db_cohort.cohort_identifiers)
     })
 
-    db_jobs = []
-    if json_schema_data.remote == False:
-        job = schemas.JobCreate(**{
-            "conf_data": conf_data,
-            "status": "pending",
-            "dag_id": json_schema_data.dag_id,
-            "kaapana_instance_id": db_client_kaapana.id
-        })
-        db_job = crud.create_job(db, job)
-        db_jobs.append(db_job)
-    else:
-        db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': json_schema_data.remote, 'instance_names': json_schema_data.instance_names}))
-        for db_remote_kaapana_instance in db_remote_kaapana_instances:
-            job = schemas.JobCreate(**{
-                "conf_data": conf_data,
-                "status": "queued",
-                "dag_id": json_schema_data.dag_id,
-                "kaapana_instance_id": db_remote_kaapana_instance.id,
-                "addressed_kaapana_instance_name": db_client_kaapana.instance_name,
-            })
+    print(conf_data)
+    
+    data_form = conf_data["data_form"]
+    cohort_limit = int(data_form["cohort_limit"]) if ("cohort_limit" in data_form and data_form["cohort_limit"] is not None) else None
+    single_execution = "workflow_form" in conf_data and "single_execution" in conf_data["workflow_form"] and conf_data["workflow_form"]["single_execution"] is True
 
+    print(f"Single execution: {single_execution}")
+    print(f"Cohort limit: {cohort_limit}")
+
+    queued_jobs = []
+    if single_execution is True:
+        for cohort_identifier in data_form['cohort_identifiers'][:cohort_limit]:
+            # Copying due to reference?!
+            single_conf_data = copy.deepcopy(conf_data)
+            single_conf_data["data_form"]["cohort_identifiers"] = [cohort_identifier]
+            queued_jobs.append({
+                'conf_data': single_conf_data,
+                'dag_id': json_schema_data.dag_id,
+                "username": username
+            })
+    else:
+        queued_jobs = [
+            {
+                'conf_data': conf_data,
+                'dag_id': json_schema_data.dag_id,
+                "username": username
+            }
+        ]
+
+    db_jobs = []
+    for jobs_to_create in queued_jobs: 
+        if json_schema_data.remote == False:
+            job = schemas.JobCreate(**{
+                "status": "pending",
+                "kaapana_instance_id": db_client_kaapana.id,
+                **jobs_to_create
+            })
             db_job = crud.create_job(db, job)
             db_jobs.append(db_job)
+        else:
+            db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': json_schema_data.remote, 'instance_names': json_schema_data.instance_names}))
+            for db_remote_kaapana_instance in db_remote_kaapana_instances:
+                job = schemas.JobCreate(**{
+                    "status": "queued",
+                    "kaapana_instance_id": db_remote_kaapana_instance.id,
+                    "addressed_kaapana_instance_name": db_client_kaapana.instance_name,
+                    **jobs_to_create
+                })
+
+                db_job = crud.create_job(db, job)
+                db_jobs.append(db_job)
 
     return db_jobs
 
 @router.post("/get-ui-form-schemas")
-async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
+async def ui_form_schemas(request: Request, filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
+
+    username = request.headers["x-forwarded-preferred-username"]
     dag_id = filter_kaapana_instances.dag_id
     schemas = {}
     if dag_id is None: 
@@ -155,7 +187,7 @@ async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstanc
     # Checking for dags
     if filter_kaapana_instances.remote is False:
         dags = get_dag_list(only_dag_names=False)
-        # datasets = get_cohort_list(unique_sets=True)
+        # datasets = crud.get_cohorts(unique_sets=True, username=username)
     else:
         db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=filter_kaapana_instances)
         # datasets = set.intersection(*map(set,[json.loads(ki.allowed_datasets) for ki in db_remote_kaapana_instances]))
@@ -172,7 +204,7 @@ async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstanc
     # Checking for cohorts...
     if "data_form" in schemas and "properties" in schemas["data_form"] and  "cohort_name" in schemas["data_form"]["properties"]:
         if filter_kaapana_instances.remote is False:
-            datasets = get_cohort_list(db)
+            datasets = crud.get_cohorts(db, username=username)
         else:
             db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=filter_kaapana_instances)
             datasets = set.intersection(*map(set,[json.loads(ki.allowed_datasets) for ki in db_remote_kaapana_instances]))
@@ -187,11 +219,12 @@ async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstanc
 
 @router.get("/check-for-remote-updates")
 async def check_for_remote_updates(db: Session = Depends(get_db)):
-    get_remote_updates(db, periodically=False)
+    crud.get_remote_updates(db, periodically=False)
     return {f"Federated backend is up and running!"}
 
 @router.post("/cohort", response_model=schemas.Cohort)
-async def create_cohort(cohort: schemas.CohortCreate, db: Session = Depends(get_db)):
+async def create_cohort(request: Request, cohort: schemas.CohortCreate, db: Session = Depends(get_db)):
+    cohort.username = request.headers["x-forwarded-preferred-username"]
     return crud.create_cohort(db=db, cohort=cohort)
 
 @router.get("/cohort", response_model=schemas.Cohort)
@@ -199,8 +232,12 @@ async def get_cohort(cohort_name: str, db: Session = Depends(get_db)):
     return crud.get_cohort(db, cohort_name)
 
 @router.get("/cohorts", response_model=List[schemas.Cohort])
-async def get_cohorts(instance_name: str = None, limit: int = None, db: Session = Depends(get_db)):
-    return crud.get_cohorts(db, instance_name, limit=limit)
+async def get_cohorts(request: Request, instance_name: str = None, limit: int = None, db: Session = Depends(get_db)):
+    return crud.get_cohorts(db, instance_name, limit=limit, as_list=False, username=request.headers["x-forwarded-preferred-username"])
+
+@router.get("/cohort-names")
+async def get_cohort_names(request: Request, db: Session = Depends(get_db)):
+    return crud.get_cohorts(db, username=request.headers["x-forwarded-preferred-username"])
 
 @router.put("/cohort", response_model=schemas.Cohort)
 async def put_cohort(cohort: schemas.CohortUpdate, db: Session = Depends(get_db)):

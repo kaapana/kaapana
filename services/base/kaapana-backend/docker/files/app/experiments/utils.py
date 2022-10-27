@@ -125,11 +125,6 @@ def get_uid_list_from_query(cohort_query):
     else:
         raise ValueError('Invalid OpenSearch query!')
 
-def get_cohort_list(db):
-    from .crud import get_cohorts
-    db_cohorts = get_cohorts(db=db)
-    return [db_cohort.cohort_name for db_cohort in db_cohorts]
-
 def check_dag_id_and_dataset(db_client_kaapana, conf_data, dag_id, addressed_kaapana_instance_name):
     if addressed_kaapana_instance_name is not None and db_client_kaapana.instance_name != addressed_kaapana_instance_name:
         if dag_id not in json.loads(db_client_kaapana.allowed_dags):
@@ -137,7 +132,7 @@ def check_dag_id_and_dataset(db_client_kaapana, conf_data, dag_id, addressed_kaa
         if "data_form" in conf_data:
             pass
             # ToDo adapt!
-            # queried_data = get_cohort_list(conf_data["opensearch_form"])
+            # queried_data = crud.get_cohorts(conf_data["opensearch_form"])
             # if not queried_data or (not all([bool(set(d) & set(json.loads(db_client_kaapana.allowed_datasets))) for d in queried_data])):
             #     return f"Queried series with tags " \
             #         f"{', '.join(sorted(list(set([d for item in queried_data for d in item]))))} are not all part of allowed datasets:" \

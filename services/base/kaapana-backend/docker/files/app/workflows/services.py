@@ -37,7 +37,7 @@ class WorkflowService:
                 None,
                 HTTPException(status_code=403, detail=f"Dag {conf_data['conf']['dag']} is not allowed to be triggered from remote!"))
         return None
-        # queried_data = utils.get_cohort_list(
+        # queried_data = crud.get_cohorts(
         #     {'query': conf_data['conf']['query']}
         # )
 

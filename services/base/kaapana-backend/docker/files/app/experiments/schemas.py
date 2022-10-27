@@ -80,6 +80,7 @@ class JobBase(BaseModel):
 class Job(JobBase):
     id: int
     conf_data: str
+    username: str = None
     time_created: datetime.datetime
     time_updated: datetime.datetime
 
@@ -101,6 +102,7 @@ class Job(JobBase):
 class JobCreate(JobBase):
     conf_data: dict = {}
     kaapana_instance_id: int
+    username: str = None
 
 class JobUpdate(JobBase):
     job_id: int
@@ -130,17 +132,18 @@ class CohortCreate(CohortBase):
     cohort_query: dict = {}
     cohort_identifiers: list = []
     kaapana_instance_id: int = None
+    username: str = None
 
 class CohortUpdate(CohortBase):
     cohort_query: dict = {}
     cohort_identifiers: list = []
 
 class Cohort(CohortBase):
-    id: int
     cohort_query: str
     cohort_identifiers: str
     time_created: datetime.datetime
     time_updated: datetime.datetime
+    username: str = None
 
     @validator('cohort_query')
     def convert_cohort_query(cls, v):

@@ -21,6 +21,7 @@ class Job(Base):
     status = Column(String(64), index=True)
     run_id = Column(String(64), index=True)
     description = Column(String(256), index=True)
+    username = Column(String(64))
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
     kaapana_id = Column(Integer, ForeignKey('kaapana_instance.id'))
@@ -38,8 +39,9 @@ class Job(Base):
 
 class Cohort(Base):
     __tablename__ = "cohort"
-    id = Column(Integer, primary_key=True)
-    cohort_name = Column(String(64), index=True)
+    #id = Column(Integer, primary_key=True)
+    cohort_name = Column(String(64), index=True, primary_key=True)
+    username = Column(String(64))
     cohort_query = Column(String(51200))
     cohort_identifiers = Column(String(51200))
     time_created = Column(DateTime(timezone=True))

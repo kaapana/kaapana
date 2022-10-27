@@ -67,7 +67,7 @@ Then check locally if the docker container works as expected:
 
 Again you should be able to access the application via ``http://localhost:5000/hello-world``
 
-Now, we need to push the docker file to the docker registry.
+Now, we need to push the docker image to the docker registry.
 
 If not already done, log in to the docker registry:
 

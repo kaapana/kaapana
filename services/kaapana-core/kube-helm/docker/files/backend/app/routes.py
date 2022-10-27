@@ -12,6 +12,8 @@ from os.path import basename, dirname, join
 import helm_helper
 from fastapi.logger import logger
 
+# TODO: add endpoint for /helm-delete-file
+# TODO: add dependency injection
 
 router = APIRouter()
 # router = APIRouter(prefix=settings.application_root)
@@ -89,7 +91,6 @@ async def helm_install_chart(request: Request):
 
 @router.post("/pull-docker-image")
 async def pull_docker_image(request: Request):
-
     try:
         payload = await request.json()
         logger.info(payload)

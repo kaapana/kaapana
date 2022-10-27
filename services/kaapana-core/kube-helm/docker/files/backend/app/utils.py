@@ -162,10 +162,17 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
             logger.info(
                 f'Skipping {dag["name"]} since it is already installed')
             continue
-        helm_command_suffix = f'--wait --atomic --timeout=120m0s; sleep 10;{settings.helm_path} -n {helm_namespace} delete --no-hooks {dag["release_name"]}'
+        helm_command_suffix = f'--wait --atomic --timeout=120m0s'
         success, stdout, helm_result_dict, _ = helm_install(
             dag, helm_command_suffix=helm_command_suffix, shell=False)
         if success:
+            # TODO: use multiple execute commands function here
+            sleep_cmd = 'sleep 10'
+            success, stdout = helm_helper.execute_shell_command(sleep_cmd)
+            if success:
+                logger.debug("deleting with no-hooks")
+                del_nohooks = f'{settings.helm_path} -n {helm_namespace} delete --no-hooks {dag["release_name"]}'
+                success, stdout = helm_helper.execute_shell_command(del_nohooks)
             installed_release_names.append(release_name)
         else:
             helm_delete(release_name=dag['release_name'],
@@ -175,9 +182,8 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
 
 
 def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, timeout='120m0s', helm_namespace=settings.helm_namespace, shell=True):
-    # TODO: this function runs helm_install w/ shell=True, this is not safe and should not be used if it is not absolutely necessary
-    logger.info(
-        f'Pulling {docker_registry_url}/{docker_image}:{docker_version}')
+    # TODO: this function runs helm_install w/ shell=True, this should not be used if it is not absolutely necessary
+    logger.info(f'Pulling {docker_registry_url}/{docker_image}:{docker_version} , shell={shell}')
 
     try:
         helm_helper.helm_repo_index(settings.helm_helpers_cache)
@@ -204,9 +210,16 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
         'release_name': release_name
     }
 
-    helm_command_suffix = f'--wait --atomic --timeout {timeout}; sleep 10;{settings.helm_path} -n {helm_namespace} delete {release_name}'
+    helm_command_suffix = f'--wait --atomic --timeout {timeout}'
     success, stdout, helm_result_dict, _ = helm_install(
         payload, helm_command_suffix=helm_command_suffix, helm_cache_path=settings.helm_helpers_cache, shell=shell)
+    if success:
+        # TODO: use multiple execute commands function here & sleep 10 is already timed out in execute command function
+        sleep_cmd = "sleep 10"
+        success, stdout = helm_helper.execute_shell_command(sleep_cmd)
+        if success:
+            del_release = f'{settings.helm_path} -n {helm_namespace} delete {release_name}'
+            success, stdout = helm_helper.execute_shell_command(del_release)
     return success, helm_result_dict
 
 
@@ -224,7 +237,7 @@ def helm_install(
     """
         Returns success: bool, stdout: str, helm_result_dict: dict, release_name: str
     """
-    logger.debug("installing helm chart with payload {0}".format(payload))
+    logger.debug("installing helm chart with payload {0}, shell {1}".format(payload, shell))
 
     helm_cache_path = helm_cache_path or settings.helm_extensions_cache
 
@@ -364,10 +377,11 @@ def helm_delete(
     # delete version
     helm_command = f'{settings.helm_path} -n {helm_namespace} uninstall {helm_command_addons} {release_name}'
     success, stdout = helm_helper.execute_shell_command(helm_command, shell=False)
-    if success and release_version is not None:
-        for item in helm_helper.global_extensions_dict_cached:
-            if item["releaseName"] == release_name and item["version"] == release_version:
-                item["successful"] = 'pending'
+    if success:
+        if release_version is not None:
+            for item in helm_helper.global_extensions_dict_cached:
+                if item["releaseName"] == release_name and item["version"] == release_version:
+                    item["successful"] = 'pending'
     else:
         logger.warning(
             f"Something went wrong during the uninstallation of {release_name}:{release_version}")
@@ -376,6 +390,30 @@ def helm_delete(
             s += line + "\n"
         s = s[:-1]
         logger.warning(s)
+
+        # handle 'Hook post-delete <hook-yaml-path> failed, jobs.batch <remove-job> already exists scenarios'
+        if "post-delete" in stdout:
+            logger.info(f"detected post-delete error during helm uninstall stdout: {stdout}")
+            cmd = f'{settings.helm_path} -n {helm_namespace} ls --deployed --pending -o json'
+            helm_success, helm_stdout = helm_helper.execute_shell_command(cmd)
+            if not helm_success:
+                err = f"Failed to run {cmd}, uninstall error: {stdout}"
+                logger.error(err)
+                return False, err
+
+            json_out = json.loads(helm_stdout)
+            logger.debug(f"json output for helm ls {json_out=}")
+            
+            # check whether the release still exists in deployed charts 
+            found = False
+            for release in json_out:
+                if release["name"] == release_name:
+                    logger.debug("found the release in helm ls results, release: {0}".format(release))
+                    found = True
+                    break
+            if not found:
+                logger.debug(f"{release_name} is not found in deployed helm charts")
+                success = True
 
     if success and update_state and release_version is not None:
         helm_helper.update_extension_state(
@@ -391,7 +429,7 @@ def helm_delete(
 
 def helm_ls(helm_namespace=settings.helm_namespace, release_filter=''):
     """
-        Returns all charts under namespace after applying the filter
+        Returns all charts under namespace (in all states) after applying the filter
     """
     # TODO: run subprocess via execute function and with shell=False
     try:

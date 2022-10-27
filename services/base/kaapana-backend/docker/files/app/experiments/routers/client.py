@@ -61,8 +61,13 @@ async def delete_kaapana_instances(db: Session = Depends(get_db)):
 
 @router.post("/job", response_model=schemas.JobWithKaapanaInstance)
 async def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(get_db)):
-    if "x-forwarded-preferred-username" in request.headers and job.username is None:
+
+    if job.username is not None:
+        pass
+    elif "x-forwarded-preferred-username" in request.headers:
         job.username = request.headers["x-forwarded-preferred-username"]
+    else:
+        raise HTTPException(status_code=400, detail="A username has to be set when you start a job, either as parameter or in the request!")
     return crud.create_job(db=db, job=job)
 
 @router.get("/job", response_model=schemas.JobWithKaapanaInstance)
@@ -111,24 +116,25 @@ async def submit_workflow_json_schema(request: Request, json_schema_data: schema
 
     conf_data = json_schema_data.conf_data
 
-    conf_data["user_form"] = {
+    conf_data["experiment_form"] = {
         "username": username
     }
-    db_cohort = crud.get_cohort(db, conf_data["data_form"]["cohort_name"])
 
-    conf_data["data_form"].update({
-        "cohort_query": json.loads(db_cohort.cohort_query),
-        "cohort_identifiers": json.loads(db_cohort.cohort_identifiers)
-    })
+    if "data_form" in conf_data and "cohort_name" in conf_data["data_form"]:
+        db_cohort = crud.get_cohort(db, conf_data["data_form"]["cohort_name"])
+        conf_data["data_form"].update({
+            "cohort_query": json.loads(db_cohort.cohort_query),
+            "cohort_identifiers": json.loads(db_cohort.cohort_identifiers)
+        })
+        
+        data_form = conf_data["data_form"]
+        cohort_limit = int(data_form["cohort_limit"]) if ("cohort_limit" in data_form and data_form["cohort_limit"] is not None) else None
+        single_execution = "workflow_form" in conf_data and "single_execution" in conf_data["workflow_form"] and conf_data["workflow_form"]["single_execution"] is True
 
-    print(conf_data)
-    
-    data_form = conf_data["data_form"]
-    cohort_limit = int(data_form["cohort_limit"]) if ("cohort_limit" in data_form and data_form["cohort_limit"] is not None) else None
-    single_execution = "workflow_form" in conf_data and "single_execution" in conf_data["workflow_form"] and conf_data["workflow_form"]["single_execution"] is True
-
-    print(f"Single execution: {single_execution}")
-    print(f"Cohort limit: {cohort_limit}")
+        print(f"Single execution: {single_execution}")
+        print(f"Cohort limit: {cohort_limit}")
+    else:
+        single_execution = False
 
     queued_jobs = []
     if single_execution is True:

@@ -93,9 +93,8 @@ def requests_retry_session(
                                 'minio-service.store,minio-service.store.svc'
         }
         session.proxies.update(proxies)
-
-
-    return session 
+    
+    return session
 
 def minio_rmtree(minioClient, bucket_name, object_name):
     delete_object_list = map(
@@ -254,6 +253,7 @@ class KaapanaFederatedTrainingBase(ABC):
                     "dag_id": self.remote_conf_data['federated_form']["remote_dag_id"],
                     "conf_data": self.remote_conf_data,
                     "status": "queued",
+                    "username": self.local_conf_data["experiment_form"]["username"],
                     "addressed_kaapana_instance_name": self.client_network['instance_name'],
                     "kaapana_instance_id": site_info['id']}, verify=self.client_network['ssl_check'])
 

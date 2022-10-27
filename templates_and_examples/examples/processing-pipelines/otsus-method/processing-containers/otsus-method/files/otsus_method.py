@@ -23,10 +23,9 @@ for batch_element_dir in batch_folders:
     nddr_files = sorted(glob.glob(os.path.join(element_input_dir, "*.nrrd"), recursive=True))
 
     if len(nddr_files) == 0:
-        print("No nddr file found!")
+        print("No nrrd file found!")
         exit(1)
     else:
-        
         for file in nddr_files:
             print(("Applying Otsus method to: %s" % file))
 

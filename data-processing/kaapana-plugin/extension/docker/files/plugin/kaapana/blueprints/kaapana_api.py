@@ -27,32 +27,13 @@ parallel_processes = 1
 Represents a blueprint kaapanaApi
 """
 kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
-def async_dag_trigger(queue_entry):
-
-    dag_id, cohort_identifier, tmp_conf, username = queue_entry
-    print(f"# Triggering {dag_id} - series: {cohort_identifier}")
-
-    conf = {
-        "user_public_id": username,
-        **tmp_conf
-    }
-    conf["data_form"]["cohort_identifiers"] = [cohort_identifier]
-
-    dag_run_id = generate_run_id(dag_id)
-    try:
-        result = trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
-    except Exception as e:
-        pass
-
-    return cohort_identifier, result
-
         
 @csrf.exempt
 @kaapanaApi.route('/api/trigger/<string:dag_id>', methods=['POST'])
 def trigger_dag(dag_id):
-    headers = dict(request.headers)
+    #headers = dict(request.headers)
     data = request.get_json(force=True)
-    username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
+    #username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
     if 'conf' in data:
         tmp_conf = data['conf']
     else:
@@ -74,34 +55,22 @@ def trigger_dag(dag_id):
     
     ################################################################################################ 
 
-    if "data_form" in tmp_conf:
-        print(json.dumps(tmp_conf["data_form"], indent=2))
-        conf = {
-            "user_public_id": username,
-            **tmp_conf
-        }
-        dag_run_id = generate_run_id(dag_id)
-        trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
+    run_id = generate_run_id(dag_id)
 
-        message = ["{} created!".format(dag_id)]
-        response = jsonify(message=message)
+    print(json.dumps(tmp_conf, indent=2))
+    
+    execution_date = None
+    try:
+        dr = trigger(dag_id, run_id, tmp_conf, execution_date, replace_microseconds=False)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
         return response
 
-    else:
-        run_id = generate_run_id(dag_id)
-
-        execution_date = None
-        try:
-            dr = trigger(dag_id, run_id, tmp_conf, execution_date, replace_microseconds=False)
-        except AirflowException as err:
-            _log.error(err)
-            response = jsonify(error="{}".format(err))
-            response.status_code = err.status_code
-            return response
-
-        message = ["{} created!".format(dr.dag_id)]
-        response = jsonify(message=message)
-        return response
+    message = ["{} created!".format(dr.dag_id)]
+    response = jsonify(message=message)
+    return response
 
 
 @kaapanaApi.route('/api/getdagruns', methods=['GET'])

@@ -38,7 +38,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='example-otsus-method',
+    dag_id='otsus-method',
     default_args=args,
     schedule_interval=None
     )

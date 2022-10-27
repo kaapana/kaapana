@@ -1,6 +1,6 @@
 FROM ubuntu:20.04
 
-LABEL IMAGE="example-otsus-method"
+LABEL IMAGE="otsus-method"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="True"
 

@@ -146,7 +146,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
     for name, payload in image_dict.items():
         release_name = f'pull-docker-chart-{secrets.token_hex(10)}'
         success, stdout, helm_result_dict = pull_docker_image(
-            release_name, **payload, shell=False)
+            release_name, **payload)
         if success:
             installed_release_names.append(release_name)
         else:
@@ -168,7 +168,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
         if success:
             # TODO: use multiple execute commands function here
             sleep_cmd = 'sleep 10'
-            success, stdout = helm_helper.execute_shell_command(sleep_cmd)
+            success, stdout = helm_helper.execute_shell_command(sleep_cmd, timeout=15)
             if success:
                 logger.debug("deleting with no-hooks")
                 del_nohooks = f'{settings.helm_path} -n {helm_namespace} delete --no-hooks {dag["release_name"]}'
@@ -182,7 +182,6 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
 
 
 def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, timeout='120m0s', helm_namespace=settings.helm_namespace, shell=True):
-    # TODO: this function runs helm_install w/ shell=True, this should not be used if it is not absolutely necessary
     logger.info(f'Pulling {docker_registry_url}/{docker_image}:{docker_version} , shell={shell}')
 
     try:
@@ -212,11 +211,11 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
 
     helm_command_suffix = f'--wait --atomic --timeout {timeout}'
     success, stdout, helm_result_dict, _ = helm_install(
-        payload, helm_command_suffix=helm_command_suffix, helm_cache_path=settings.helm_helpers_cache, shell=shell)
+        payload, helm_command_suffix=helm_command_suffix, helm_cache_path=settings.helm_helpers_cache, shell=shell, update_state=False)
     if success:
-        # TODO: use multiple execute commands function here & sleep 10 is already timed out in execute command function
+        # TODO: use multiple execute commands function here
         sleep_cmd = "sleep 10"
-        success, stdout = helm_helper.execute_shell_command(sleep_cmd)
+        success, stdout = helm_helper.execute_shell_command(sleep_cmd, timeout=15, shell=shell)
         if success:
             del_release = f'{settings.helm_path} -n {helm_namespace} delete {release_name}'
             success, stdout = helm_helper.execute_shell_command(del_release)

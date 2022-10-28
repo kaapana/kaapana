@@ -50,7 +50,8 @@ def execute_shell_command(command, shell=False, timeout=5) -> Tuple[bool, str]:
         return False, err
     logger.debug("executing shell command: {0}".format(command))
     logger.debug("shell={0} , timeout={1}".format(shell, timeout))
-    command = [x for x in command.replace("  ", " ").split(" ") if x != ""]
+    if shell == False:
+        command = [x for x in command.replace("  ", " ").split(" ") if x != ""]
     command_result = subprocess.run(
         command, capture_output=True, text=True, encoding="utf-8", shell=shell, timeout=timeout)
 
@@ -202,7 +203,7 @@ def add_info_from_deployments(
                 chart_template.kubeStatus = None
                 if deployment.kube_info is not None:
                     chart_template.kubeStatus = [i.capitalize() for i in deployment.kube_info.status]
-                
+
                 result_list.append(chart_template)
 
             if extension_info.multiinstallable == "yes":

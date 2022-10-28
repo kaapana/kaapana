@@ -43,7 +43,24 @@
               label="Search",
               hide-details=""
             )
-
+      div(v-if='!file')
+        div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
+          .dragdrop-info(@drag='onChange')
+            span.fa.fa-cloud-upload.dragdrop-title
+            span.dragdrop-title Drop helm chart file or click to upload
+            .dragdrop-upload-limit-info
+              div file type: tgz | max size: 2GB
+          input(type='file' @change='onChange')
+      div(v-else='')
+        div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
+          .dragdrop-uploaded-info(@drag='onChange')
+            span.dragdrop-title {{fileResponse["data"]}}
+            .dragdrop-upload-limit-info
+              div Drag another chart file to upload
+          input(type='file' @change='onChange')
+        
+          
+      
       v-data-table.elevation-1(
         :headers="headers",
         :items="filteredLaunchedAppLinks",
@@ -145,6 +162,9 @@ import kaapanaApiService from "@/common/kaapanaApi.service";
 
 export default Vue.extend({
   data: () => ({
+    file: '',
+    fileResponse: '',
+    dragging: false,
     loading: true,
     polling: 0,
     launchedAppLinks: [] as any,
@@ -225,6 +245,9 @@ export default Vue.extend({
         return [];
       }
     },
+    fileExtension(): any {
+      return (this.file) ? this.file.name.split('.').pop() : '';
+    },
 
     ...mapGetters([
       "currentUser",
@@ -235,6 +258,54 @@ export default Vue.extend({
     ]),
   },
   methods: {
+    onChange(e: any) {
+      var files = e.target.files || e.dataTransfer.files;
+
+      if (!files.length) {
+        this.dragging = false;
+        return;
+      }
+
+      this.uploadFile(files[0]);
+    },
+    uploadFile(file: any) {
+      console.log("file.name", file.name)
+      console.log("file.size", file.size)
+      console.log("file.type", file.type)
+
+      if (!file.type.match('application/x-compressed')) {
+        alert('please upload a tgz file');
+        this.dragging = false;
+        return;
+      }
+
+      if (file.size > 10000000000) {
+        alert('file size should not be over 10 GB.')
+        this.dragging = false;
+        return;
+      }
+
+      this.file = file;
+      this.dragging = false;
+
+      let formData = new FormData();
+
+      formData.append("file", file);
+
+      kaapanaApiService
+        .helmApiPost(
+          "/file",
+          formData
+        )
+        .then((response: any) => {
+          console.log("upload file response", response)
+          this.fileResponse = response;
+        }).catch((err: any) => {
+          console.log("upload file error", err)
+          console.log(err);
+          this.fileResponse = err;
+        });
+    },
     getHelmCharts() {
       let params = {
         repo: "kaapana-public",
@@ -281,16 +352,19 @@ export default Vue.extend({
         release_version: item.version,
         helm_command_addons: helmCommandAddons
       };
+      console.log("params", params)
       this.loading = true;
       this.clearExtensionsInterval();
       this.startExtensionsInterval();
       kaapanaApiService
-        .helmApiGet("/helm-delete-chart", params)
+        .helmApiPost("/helm-delete-chart", params)
         .then((response: any) => {
+          console.log("helm delete response", response)
           item.installed = "no";
           item.successful = "pending";
         })
         .catch((err: any) => {
+          console.log("helm delete error")
           this.loading = false;
           console.log(err);
         });
@@ -302,12 +376,14 @@ export default Vue.extend({
         version: item.version,
         keywords: item.keywords,
       };
+      console.log("payload", payload)
       this.loading = true;
       this.clearExtensionsInterval();
       this.startExtensionsInterval();
       kaapanaApiService
         .helmApiPost("/helm-install-chart", payload)
         .then((response: any) => {
+          console.log("helm install response", response)
           item.installed = "yes";
           if (item.multiinstallable === 'yes') {
             item.successful = "justLaunched";
@@ -316,6 +392,7 @@ export default Vue.extend({
           }
         })
         .catch((err: any) => {
+          console.log("helm install error")
           this.loading = false;
           console.log(err);
         });
@@ -330,5 +407,79 @@ export default Vue.extend({
 <style lang="scss">
 a {
   text-decoration: none;
+}
+
+.dragdrop {
+  margin: auto;
+  width: 95%;
+  height: 8vh;
+  position: relative;
+  margin-bottom: 2vh;
+  border: 2px dashed #eee;
+}
+
+.dragdrop:hover {
+  border: 2px solid #2e94c4;
+}
+
+.dragdrop:hover .dragdrop-title {
+  color: #1975A0;
+}
+
+.dragdrop-info {
+  color: #A8A8A8;
+  position: absolute;
+  top: 50%;
+  width: 100%;
+  transform: translate(0, -50%);
+  text-align: center;
+}
+
+.dragdrop-title {
+  color: #787878;
+}
+
+.dragdrop input {
+  position: absolute;
+  cursor: pointer;
+  top: 0px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+}
+
+.dragdrop-upload-limit-info {
+  display: flex;
+  justify-content: flex-start;
+  flex-direction: column;
+}
+
+.dragdrop-over {
+  background: #5C5C5C;
+  opacity: 0.8;
+}
+
+.dragdrop-uploaded {
+  margin: auto;
+  width: 95%;
+  height: 8vh;
+  position: relative;
+  margin-bottom: 2vh;
+  border: 2px dashed #eee;
+}
+
+.dragdrop-uploaded-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #A8A8A8;
+  position: absolute;
+  top: 50%;
+  width: 100%;
+  transform: translate(0, -50%);
+  text-align: center;
 }
 </style>

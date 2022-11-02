@@ -1,47 +1,47 @@
 
 <template lang="pug">
-    v-card
-      v-dialog(v-model='dialogConfData' width='600px')
-        template(v-slot:activator='{ on, attrs }')
-        v-card
-          v-card-title.text-h5.lighten-2
-            | Conf object
-          v-card-text.text-left
-            pre {{ prettyConfData }}
-          v-divider
-          v-card-actions
-            v-spacer
-            v-btn(color='primary' text='' @click='dialogConfData = false')
-              | Close
-      v-card-title
-        v-row
-          v-col(cols="6")
-            span Jobs
-          v-col(cols="2")
-            v-select(
-              label="Status",
-              :items="['all', 'queued', 'pending', 'scheduled', 'running', 'finished', 'failed']",
-              v-model="jobStatus",
-              hide-details=""
-            )
-          v-col(cols="4")
-            v-text-field(
-              v-model="search",
-              append-icon="mdi-magnify",
-              label="Search",
-              hide-details=""
-            )
-      v-data-table(:headers='headers' :items='filteredJobs' :search="search" sort-by='time_updated' sort-desc=true)
-        template(v-slot:item.conf_data='{ item }')
-          v-icon(color="primary" dark=''  @click="openConfData(item.conf_data)") mdi-email
-        template(v-slot:item.status='{ item }')
-          v-chip(:color='getStatusColor(item.status)' dark='') {{ item.status }}
-        template(v-slot:item.actions='{ item }')
-          v-btn(v-if='remote==false && item.status=="pending"', @click='executeJob(item)') Set to scheduled
-          v-btn(v-if='remote==false', @click='deleteJob(item)') Delete job
-          v-btn(v-if='remote==true && (item.status=="queued")', @click='deleteJob(item)') Delete job
-          //- v-btn(v-if='remote==false && (item.status=="pending" || item.status=="finished" || item.status=="failed")', @click='deleteJob(item)') Delete job
-          //- v-btn(v-if='remote==true && (item.status=="queued")', @click='deleteJob(item)') Delete job
+  v-card
+    v-dialog(v-model='dialogConfData' width='600px')
+      template(v-slot:activator='{ on, attrs }')
+      v-card
+        v-card-title.text-h5.lighten-2
+          | Conf object
+        v-card-text.text-left
+          pre {{ prettyConfData }}
+        v-divider
+        v-card-actions
+          v-spacer
+          v-btn(color='primary' text='' @click='dialogConfData = false')
+            | Close
+    v-card-title
+      v-row
+        v-col(cols="6")
+          span Jobs
+        v-col(cols="2")
+          v-select(
+            label="Status",
+            :items="['all', 'queued', 'pending', 'scheduled', 'running', 'finished', 'failed']",
+            v-model="jobStatus",
+            hide-details=""
+          )
+        v-col(cols="4")
+          v-text-field(
+            v-model="search",
+            append-icon="mdi-magnify",
+            label="Search",
+            hide-details=""
+          )
+    v-data-table(:headers='headers' :items='filteredJobs' :search="search" sort-by='time_updated' sort-desc=true)
+      template(v-slot:item.conf_data='{ item }')
+        v-icon(color="primary" dark=''  @click="openConfData(item.conf_data)") mdi-email
+      template(v-slot:item.status='{ item }')
+        v-chip(:color='getStatusColor(item.status)' dark='') {{ item.status }}
+      template(v-slot:item.actions='{ item }')
+        v-btn(v-if='remote==false && item.status=="pending"', @click='executeJob(item)') Set to scheduled
+        v-btn(v-if='remote==false && (item.status=="pending")', @click='deleteJob(item)') Delete job
+        v-btn(v-if='remote==true && (item.status=="queued")', @click='deleteJob(item)') Delete job
+        //- v-btn(v-if='remote==false && (item.status=="pending" || item.status=="finished" || item.status=="failed")', @click='deleteJob(item)') Delete job
+        //- v-btn(v-if='remote==true && (item.status=="queued")', @click='deleteJob(item)') Delete job
 </template>
 
 <script>
@@ -99,10 +99,14 @@ export default {
         text: 'Created',
         value: 'time_created'
       })
-       headers.push({
+      headers.push({
         text: 'Updated',
         value: 'time_updated'
-      })     
+      })
+      headers.push({
+        text: 'Username',
+        value: 'username'
+      })  
       headers.push({
         text: 'Executing Instance Name',
         value: 'kaapana_instance.instance_name'

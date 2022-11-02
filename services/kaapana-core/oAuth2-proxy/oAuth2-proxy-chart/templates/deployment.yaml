@@ -61,7 +61,7 @@ spec:
           - --pass-access-token 
           - --skip-auth-regex=/metrics
           - --skip-auth-regex=/auth/*
-          - --skip-auth-regex=/federated-backend/remote/*
+          - --skip-auth-regex=/kaapana-backend/remote/*
           - --reverse-proxy
           # - --set-authorization-header
           # - --set-xauthrequest

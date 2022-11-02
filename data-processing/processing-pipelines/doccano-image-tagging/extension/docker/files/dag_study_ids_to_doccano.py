@@ -10,15 +10,6 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 log = LoggingMixin().log
 
 ui_forms = {
-    "opensearch_form": {
-        "type": "object",
-        "properties": {
-            "dataset": "$default",
-            "index": "$default",
-            "cohort_limit": "$default",
-            "single_execution": "$default"
-        }
-    },
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -43,6 +34,14 @@ ui_forms = {
                 "enum": ["DocumentClassification", "Seq2seq"],
                 "type": "string",
                 "readOnly": False,
+                "required": True
+            },
+            "single_execution": {
+                "type": "boolean",
+                "title": "Single execution",
+                "description": "Whether your report is execute in single mode or not",
+                "default": False,
+                "readOnly": True,
                 "required": True
             }
         }

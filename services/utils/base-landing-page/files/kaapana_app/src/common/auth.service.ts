@@ -25,7 +25,7 @@ const AuthService = {
   },
   getFederatedHeaders() {
     return new Promise((resolve, reject) => {
-      request.get('/federated-backend/client/client-kaapana-instance').then((response: any) =>  {
+      request.get('/kaapana-backend/client/client-kaapana-instance').then((response: any) =>  {
         resolve({
           FederatedAuthorization: response.data['token']
         })

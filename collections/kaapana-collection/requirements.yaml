@@ -12,9 +12,7 @@ dependencies:
   - name: debug-container-chart
     version: 0.1.1
     repository: file://../../services/applications/debug-container/debug-container-chart
-  - name: federated-backend-chart
-    version: 0.1.0
-    repository: file://../../services/applications/federated-backend/federated-backend-chart
+
   - name: federated-setup-central-test-workflow
     version: 0.1.0
     repository: file://../../data-processing/processing-pipelines/federated-setup-central-test/extension/federated-setup-central-test-workflow

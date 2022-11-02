@@ -207,16 +207,23 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
     release_values = helm_get_values(os.getenv("RELEASE_NAME"))
 
     default_sets = {}
+    # if 'global' in release_values:
+    #     for k, v in release_values['global'].items():
+    #         default_sets[f'global.{k}'] = v
     if 'global' in release_values:
-        for k, v in release_values['global'].items():
-            default_sets[f'global.{k}'] = v
+        def traverse_values(parent_path, obj):
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    traverse_values(f"{parent_path}.{key}", value)
+            elif obj != '':
+                default_sets.update({f'{parent_path}': obj})
+        traverse_values('global', release_values['global'])
     default_sets.pop('global.preinstall_extensions', None)
     default_sets.pop('global.kaapana_collections', None)
 
     print('Using default sets')
     print(json.dumps(default_sets, indent=4, sort_keys=True))
 
-    values = helm_show_values(name, version)
     if 'keywords' not in payload:
         chart = helm_show_chart(name, version)
         if 'keywords' in chart:
@@ -226,11 +233,12 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
     else:
         keywords = payload['keywords']
 
+    values = helm_show_values(name, version)
     if 'global' in values:
         for key, value in values['global'].items():
             if value != '':
                 default_sets.update({f'global.{key}': value})
-
+                
     if 'sets' not in payload:
         payload['sets'] = default_sets
     else:

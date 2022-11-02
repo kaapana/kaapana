@@ -12,10 +12,10 @@ spec:
     spec:
       containers:
       - name: init-collections
-        image: {{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__0.1.3
+        image: {{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__0.1.4
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         command: ["python", "-u"]
-        args: ["/app/init_collections.py"]
+        args: ["/app/backend/init_collections.py"]
         env: # Environment variables copied from deployment.yaml
         - name: SECRET_KEY
           value: kaapana-secret
@@ -89,7 +89,7 @@ spec:
         image: {{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__0.1.4
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         command: ["python", "-u"]
-        args: ["/app/preinstall_extensions.py"]
+        args: ["/app/backend/preinstall_extensions.py"]
         env: # Environment variables copied from deployment.yaml
         - name: SECRET_KEY
           value: kaapana-secret
@@ -128,7 +128,7 @@ spec:
         image: {{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__0.1.4
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         command: ["python", "-u"]
-        args: ["/app/prefetch_extensions.py"]
+        args: ["/app/backend/prefetch_extensions.py"]
         env: # Environment variables copied from deployment.yaml
         - name: SECRET_KEY
           value: kaapana-secret

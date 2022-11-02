@@ -1,6 +1,12 @@
+import os
+import sys
+import time
+
+print(os.getcwd()+"app/backend/app")
+sys.path.append(os.path.dirname(os.path.abspath(__file__))+"/app")
+
 from app.utils import helm_prefetch_extension_docker, helm_status
 from app.config import settings
-import time
 
 print('##############################################################################')
 print('Prefechting extensions on startup!')

@@ -1,9 +1,16 @@
 import json
 import os
+import sys
 import time
 from pathlib import Path
-from app.utils import get_manifest_infos, all_successful, helm_install, helm_status, helm_get_manifest
+
+print(os.getcwd()+"app/backend/app")
+sys.path.append(os.path.dirname(os.path.abspath(__file__))+"/app")
+
 from app.config import settings
+from app.utils import all_successful, helm_install, helm_status
+from app.helm_helper import get_kube_objects
+
 
 errors_during_preinstalling = False
 print('##############################################################################')
@@ -31,7 +38,7 @@ for extension in preinstall_extensions:
         errors_during_preinstalling = True
         continue
     try:
-        _, _, _, release_name = helm_install(extension, shell=False)
+        _, _, _, release_name = helm_install(extension, shell=False, update_state=False)
         releases_installed[release_name] = False
         print(f"Trying to install chart {0}".format(release_name))
     except Exception as e:
@@ -46,8 +53,7 @@ for _ in range(7200):
     time.sleep(1)
     for release_name in releases_installed.keys():
         status = helm_status(release_name)
-        manifest = helm_get_manifest(release_name)
-        kube_status, ingress_paths = get_manifest_infos(manifest)
+        _, _, ingress_paths, kube_status = get_kube_objects(release_name)
         releases_installed[release_name] = True if all_successful(
             set(kube_status['status'] + [status['STATUS']])) == 'yes' else False
     if sum(list(releases_installed.values())) == len(releases_installed):

@@ -1,14 +1,22 @@
+import os
+import sys
 import time
-from app.utils import execute_update_extensions, get_manifest_infos, all_successful, cure_invalid_name, helm_status, helm_get_manifest
+
+print(os.getcwd()+"app/backend/app")
+sys.path.append(os.path.dirname(os.path.abspath(__file__))+"/app")
+
 from app.config import settings
+from app.utils import execute_update_extensions, all_successful, cure_invalid_name, helm_status
+from app.helm_helper import get_kube_objects
 
 print('##############################################################################')
 print('Update extensions on startup!')
 print('##############################################################################')
 install_error, message = execute_update_extensions()
 if install_error is False:
-    print(message)
+    print("Update extensions successful", message)
 else:
+    print("Update extensions failed", message)
     raise NameError(message)
 
 releases_installed = {}
@@ -20,8 +28,7 @@ for _ in range(3600):
     time.sleep(1)
     for release_name in releases_installed.keys():
         status = helm_status(release_name)
-        manifest = helm_get_manifest(release_name)
-        kube_status, ingress_paths = get_manifest_infos(manifest)
+        _, _, ingress_paths, kube_status = get_kube_objects(release_name)
         releases_installed[release_name] = True if all_successful(set(kube_status['status'] + [status['STATUS']])) == 'yes' else False
     if sum(list(releases_installed.values())) == len(releases_installed):
         print(f'Sucessfully installed {" ".join(releases_installed.keys())}')

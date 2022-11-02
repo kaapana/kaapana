@@ -1,9 +1,6 @@
-from ast import parse
 import os
 import glob
 from os.path import basename
-from typing import Dict, List, Set, Union, Tuple
-from fastapi import UploadFile
 import yaml
 import re
 import json
@@ -11,8 +8,12 @@ import subprocess
 import hashlib
 import time
 from distutils.version import LooseVersion
-from config import settings
+
+from typing import Dict, List, Set, Union, Tuple
+from fastapi import UploadFile
 from fastapi.logger import logger
+
+from config import settings
 import schemas
 
 # TODO: get single extension

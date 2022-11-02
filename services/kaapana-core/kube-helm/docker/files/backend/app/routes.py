@@ -1,16 +1,16 @@
 import os
-from platform import release
+from os.path import basename, dirname, join
 import secrets
 import subprocess
+
 from fastapi import APIRouter, Response, Request, UploadFile
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
-
-import utils
-from config import settings
-from os.path import basename, dirname, join
-import helm_helper
 from fastapi.logger import logger
+
+from config import settings
+import helm_helper
+import utils
 
 # TODO: add endpoint for /helm-delete-file
 # TODO: add dependency injection

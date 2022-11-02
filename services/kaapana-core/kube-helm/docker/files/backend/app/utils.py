@@ -1,8 +1,6 @@
-from distutils.command.build_ext import extension_name_re
 import os
-import glob
 from os.path import basename
-from typing import Tuple
+import glob
 import re
 import json
 import subprocess
@@ -12,14 +10,13 @@ import yaml
 import secrets
 import json
 
-from distutils.version import LooseVersion
+from typing import Tuple
 from fastapi import Response
 from fastapi.logger import logger
 
-import schemas
 from config import settings
+import schemas
 import helm_helper
-
 
 CHART_STATUS_UNDEPLOYED = "un-deployed"
 CHART_STATUS_DEPLOYED = "deployed"
@@ -31,6 +28,15 @@ KUBE_STATUS_UNKNOWN = "unknown"
 
 charts_cached = None
 charts_hashes = {}
+
+
+def all_successful(status):
+    successfull = ['Completed', 'Running', 'deployed']
+    for i in status:
+        if i not in successfull:
+            return "pending"
+
+    return "yes"
 
 
 def sha256sum(filepath):
@@ -402,8 +408,8 @@ def helm_delete(
 
             json_out = json.loads(helm_stdout)
             logger.debug(f"json output for helm ls {json_out=}")
-            
-            # check whether the release still exists in deployed charts 
+
+            # check whether the release still exists in deployed charts
             found = False
             for release in json_out:
                 if release["name"] == release_name:
@@ -476,6 +482,12 @@ def cure_invalid_name(name, regex, max_length=None):
 
 
 def execute_update_extensions():
+    """
+
+    Returns:
+        install_error (bool): Whether there was an error during the installation
+        message (str): Describes the state of execution
+    """
     chart = {
         'name': 'update-collections-chart',
         'version': '0.1.0'

@@ -1,15 +1,17 @@
-from fastapi import APIRouter, FastAPI
-from routes import router
-from fastapi.staticfiles import StaticFiles
-from repeat_timer import RepeatedTimer
-from utils import helm_search_repo
-import uvicorn
 from os.path import basename, dirname, join
-from config import settings
-from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 import logging
-import helm_helper
+
+from fastapi import APIRouter, FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.logger import logger
+
+from utils import helm_search_repo
+from routes import router
+from repeat_timer import RepeatedTimer
+from config import settings
+from helm_helper import get_extensions_list
 
 app = FastAPI(title="Kube-Helm API", root_path=settings.application_root)
 
@@ -41,10 +43,10 @@ async def startup_event():
     logger.info("settings {0}".format(settings))
 
 if __name__ == "__main__":
-    helm_helper.get_extensions_list()
+    get_extensions_list()
 
     # if charts_cached == None:
     #     helm_search_repo(keywords_filter=['kaapanaapplication', 'kaapanaworkflow'])
     # rt = RepeatedTimer(5, get_extensions_list)
-    
+
     uvicorn.run("main:app", host="127.0.0.1", port=5000, log_level="info", reload=True)

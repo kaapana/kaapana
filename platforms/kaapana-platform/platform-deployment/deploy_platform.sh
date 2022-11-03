@@ -422,96 +422,200 @@ function print_deployment_done {
     fi
 }
 
-function conditional_termination {
-    if [ ! "$QUIET" = "true" ] ; then
-        read -e -p "Do you want to fix this before continuing? (Recomended)" -i " no" yn
-        case $yn in
-            [Yy]* ) echo "${RED}exiting...${NC}" && exit 1; break;;
-            [Nn]* ) echo "${YELLOW}continuing (be aware that you leaving the supported path, its dangerous here watch your step!)${NC}"; break;;
-            * ) echo "Please answer yes or no.";;
-        esac
-    else
-        echo -e "${RED}Exiting since this is quiet mode ${NC}"
-        exit 1
-    fi
-}
+
 
 function preflight_checks {
     echo -e "${GREEN}#################################  RUNNING PREFLIGHT CHECKS  #########################################${NC}"
 
-    echo -n -e "Check if user is non-root\t\t\t\t${NC}"
-    if [ "$EUID" -eq 0 ];then
-        echo -e "${RED}failed${NC}"
-        echo -e "${RED}Please run the script without root privileges!${NC}"
-        conditional_termination
+    # Holds the state of the setup after preflight checks:
+    # 0 = OK
+    # 100=POTENTIAL PROBLEMS - could lead to upstream problems
+    # 200=MANIFESTED PROBLEMS - very probabily lead to problems
+    # 300=CATASTROPHIC PROBLEMS - definitly leads to problems, continuation not possible
+
+    # Since bash has no support for multidimensional arrays every test needs to add exactly one element to this arrays
+    SEVERITY=()
+    TEST_FAILDS=()
+    TEST_NAMES=()
+    RESULT_MSGS=()
+
+    # ------ Tests
+    SEVERITY+=(200)
+    TEST_NAMES+=("Check if user is non-root")
+    if [ "$EUID" -eq 0 ]; then
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("Please run the script without root privileges!")
     else
-        echo -e "${GREEN}ok (user: $USER)${NC}"
+        TEST_FAILDS+=(false)
+        RESULT_MSGS+=("(user: $USER)")
     fi
 
-    echo -n -e "Check if enought disk-space\t\t\t\t${NC}"
-    SIZE=`df -k --output=size "/var/snap" | tail -n1`
-    if [[ $SIZE -lt 81920 ]]; then
-        echo -e "${RED}failed${NC}"
-        echo -e "${RED}Your disk space is too small to deploy the system.${NC}"
-        echo -e "${RED}There should be at least 80 GiBytes available @ /var/snap ${NC}"
-        conditional_termination
+    SEVERITY+=(200)
+    TEST_NAMES+=("Check if enought disk-space")
+    SIZE="$(df -k --output=size /var/snap | tail -n1)"
+    if [ "$SIZE" -lt 81920 ]; then
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("Your disk space is too small to deploy the system.\nThere should be at least 80 GiBytes available @ /var/snap")
     else
-        echo -e "${GREEN}ok (size: $SIZE)${NC}"
+        TEST_FAILDS+=(false)
+        RESULT_MSGS+=("(size: $SIZE)")
     fi
 
-    echo -n -e "Check that helm is available...\t\t\t\t"
+    SEVERITY+=(300)
+    TEST_NAMES+=("Check that helm is available")
     if ! [ -x "$(command -v helm)" ]; then
-        echo -e "${RED}failed${NC}"
-        echo -e "${RED}Install server dependencies first!${NC}"
-        exit 1
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("Install server dependencies first!")
     else
-        echo -e "${GREEN}ok${NC}"
+        TEST_FAILDS+=(false)
+        RESULT_MSGS+=("")
     fi
 
-    echo -n -e "Check that kubectl is installed...\t\t\t"
-    command -v microk8s.kubectl >/dev/null 2>&1 || {
-        echo -e "${RED}failed${NC}"
-        echo -e "${RED}Install server dependencies first!${NC}"
-        exit 1
-    }
-    echo -e "${GREEN}ok${NC}"
+    SEVERITY+=(300)
+    TEST_NAMES+=("Check that kubectl is installed")
+    if ! [ -x $(command -v microk8s.kubectl >/dev/null 2>&1) ]; then
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("Install server dependencies first!")
+    else
+        TEST_FAILDS+=(false)
+        RESULT_MSGS+=("")
+    fi
 
-    echo -n -e "Check that \$KUBECONFIG is untouched...\t\t\t"
+    SEVERITY+=(100)
+    TEST_NAMES+=("Check that \$KUBECONFIG is untouched")
     if [ -v KUBECONFIG ]; then
-        echo -e "${YELLOW}failed (KUBECONFIG=$KUBECONFIG)${NC}"
-        echo -e "${YELLOW}In your environment the \$KUBECONFIG variable is set, this is unconventional and can cause to problems${NC}"
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("In your environment the \$KUBECONFIG variable is set, this is unconventional and can cause to problems (KUBECONFIG=$KUBECONFIG)")
     else
-        echo -e "${GREEN}ok${NC}"
+        TEST_FAILDS+=(false)
+        RESULT_MSGS+=("")
     fi
 
-    echo -n -e "Check if ~/.kube/config matches micork8s config\t\t"
+    SEVERITY+=(100)
+    TEST_NAMES+=("Check if ~/.kube/config matches micork8s config")
     if [ "$(cat /home/$USER/.kube/config)" == "$(microk8s.kubectl config view --raw)" ]; then
-        echo -e "${GREEN}ok${NC}"
+        TEST_FAILDS+=(false)
+        RESULT_MSGS+=("")
     else
-        echo -e "${YELLOW}failed${NC}"
-        echo -e "${YELLOW}Your kubeconfig differs from the micork8s version${NC}"
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("Your kubeconfig differs from the micork8s version.")
     fi
 
+    SEVERITY+=(100)
     GROUPNAME="microk8s"
-    echo -n -e "Check if user is member of $GROUPNAME...\t\t\t"
+    TEST_NAMES+=("Check if user is member of $GROUPNAME...")
     if id -nG "$USER" | grep -qw "$GROUPNAME"; then
-        echo -e "${GREEN}ok${NC}"
+        TEST_FAILDS+=(false)
+        RESULT_MSGS+=("")
     else
-        echo -e "${YELLOW}failed${NC}"
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("")
     fi
 
-    echo -n -e "Checking if kubectl is working...\t\t\t"
+    SEVERITY+=(300)
+    TEST_NAMES+=("Check if kubectl is working")
     microk8s.kubectl get pods --all-namespaces &> /dev/null
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}ok${NC}"
+        TEST_FAILDS+=(false)
+        RESULT_MSGS+=("")
     else
-        echo -e "${GREEN}failed${NC}"
-        echo -e "${RED}Kubectl could not communicate with the server.${NC}"
-        echo -e "${RED}Have a look at the output, ${NC}"
-        echo -e "${RED}Check if the correct server certificate file is in place @ ~/.kube/config, ${NC}"
-        echo -e "${RED}Check if the IP address in the certificate matches the IP address of the server ${NC}"
-        echo -e "${RED}and try again.${NC}"
-        exit 1
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("Kubectl could not communicate with the server.\nHave a look at the output,\nCheck if the correct server certificate file is in place @ ~/.kube/config,\nCheck if the IP address in the certificate matches the IP address of the server\nand try again.")
+    fi
+
+
+    # Reporting Table
+    printf "%-4s %-60s %-15s\n" "Sev" "Test" "Result"
+    for i in ${!SEVERITY[@]}; do
+
+        if [ "${TEST_FAILDS[$i]}" = true ]; then
+            if [ "${SEVERITY[$i]}" -ge 200 ]; then
+                STATUS="${RED}failed${NC}"
+            else
+                STATUS="${YELLOW}failed${NC}"
+            fi
+        else
+            STATUS="${GREEN}ok${NC}"
+        fi
+
+        printf "%-4d %-60s %-15s\n" "${SEVERITY[$i]}" "${TEST_NAMES[$i]}" "$STATUS"
+
+        if [ ! -z "${RESULT_MSGS[$i]}" ]; then
+            if [ "${TEST_FAILDS[$i]}" = true ]; then
+                if [ "${SEVERITY[$i]}" -ge 200 ]; then
+                    echo -e "${RED}${RESULT_MSGS[$i]}${NC}"
+                else
+                     echo -e "${YELLOW}${RESULT_MSGS[$i]}${NC}"
+                fi
+            else
+                echo -e "${GREEN}${RESULT_MSGS[$i]}${NC}"
+            fi
+        fi
+    done
+
+    # Act on Test Results
+    MAX_SEVERITY=0
+    for i in ${!SEVERITY[@]}; do
+        # Maximum Severity of a faild test
+        if [ "${TEST_FAILDS[$i]}" = true ]; then
+            TEST_SEVERITY="${SEVERITY[$i]}"
+            MAX_SEVERITY=$((MAX_SEVERITY>TEST_SEVERITY? MAX_SEVERITY : TEST_SEVERITY))
+        fi
+    done
+
+
+    echo " "
+    if [ "$MAX_SEVERITY" -gt 0]; then
+        echo -e "${YELLOW}##################################  PREFLIGHT CHECK REPORT ##########################################${NC}"
+    else
+        echo -e "${GREEN}###################################  PREFLIGHT CHECK REPORT ###########################################${NC}"
+    fi
+    echo " "
+
+    TERMINATE=false
+    if [ "$MAX_SEVERITY" -ge 300 ]; then
+        # 300-and growing
+        echo -e "${RED}Problems with a very high severity have been found! ${NC}"
+        echo -e "${RED}A continuation of this script is not possible.${NC}"
+        echo -e "${RED}Please fix the failed tests first! ${NC}"
+        #exit 1
+        TERMINATE=true
+    elif [ "$MAX_SEVERITY" -ge 200 ]; then
+        # 200-299
+        echo -e "${RED}Problems with a high severity have been found! ${NC}"
+        echo -e "${RED}This will most probably lead to problems in the operation or even installation of the platform.${NC}"
+        echo -e "${RED}Please consider fixing this problems before continuing, it is highly recommended.${NC}"
+        TERMINATE=true
+    elif [ "$MAX_SEVERITY" -ge 100 ]; then
+        # 100-199
+        echo -e "${YELLOW}Problems with a medium severity have been found! ${NC}"
+        echo -e "${YELLOW}Since your system is out of the specified constraints for the platform, problems during operation or the installation can occure.${NC}"
+        echo -e "${YELLOW}Please consider fixing this problems before continuing, it is highly recommended.${NC}"
+        TERMINATE=true
+    elif [ "$MAX_SEVERITY" -ge 1 ]; then
+        # 1-99
+        echo -e "${YELLOW}Problems with a low severity have been found! ${NC}"
+        echo -e "${YELLOW}Please consider fixing this problems before continuing, it is highly recommended.${NC}"
+    else
+        echo -e "${GREEN}No major problems have been found! ${NC}"
+    fi
+
+    echo " "
+
+    if [ "$TERMINATE" = "true" ]; then
+        if [ ! "$QUIET" = "false" ] ; then
+            while true; do
+                read -e -p "Do you want to fix the problems before continuing? (Recomended)" -i " no" yn
+                case $yn in
+                    [Yy]* ) echo "${RED}exiting...${NC}" && exit 1; break;;
+                    [Nn]* ) echo "${YELLOW}continuing (be aware that you leaving the supported path, its dangerous here watch your step!)${NC}"; break;;
+                    * ) echo "Please answer yes or no.";;
+                esac
+            done
+        else
+            echo -e "${RED}Exiting since you run in quiet mode${NC}"
+            exit 1
+        fi
     fi
 
     echo -e "${GREEN}################################  PREFLIGHT CHECKS COMPLETED  #########################################${NC}"

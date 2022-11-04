@@ -8,7 +8,7 @@ export HELM_EXPERIMENTAL_OCI=1
 ######################################################
 
 PROJECT_NAME="kaapana-platform-chart" # name of the platform Helm chart
-PLATFORM_BUILD_VERSION="0.1.3-126-g53a518f1"    # version of the platform Helm chart -> auto-generated
+PLATFORM_BUILD_VERSION="0.1.3-114-g2bd091ca"    # version of the platform Helm chart -> auto-generated
 
 CONTAINER_REGISTRY_URL="registry.hzdr.de/jonas.scherer/kaapana" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 CONTAINER_REGISTRY_USERNAME=""
@@ -27,12 +27,12 @@ PREFETCH_EXTENSIONS="false"
 CHART_PATH=""
 NO_HOOKS=""
 
-PLATFORM_BUILD_BRANCH="new-versioning"    # branch name, which was build from -> auto-generated
+PLATFORM_BUILD_BRANCH="develop"    # branch name, which was build from -> auto-generated
 PLATFORM_LAST_COMMT_TIMESTAMP="04-11-2022" # timestamp of the last commit -> auto-generated
 
 BUILD_TIMESTAMP="04-11-2022"    # timestamp of the build-time -> auto-generated
-KAAPANA_BUILD_VERSION="0.1.3-126-g53a518f1"    # version of the platform Helm chart -> auto-generated
-KAAPANA_BUILD_BRANCH="new-versioning"    # branch name, which was build from -> auto-generated
+KAAPANA_BUILD_VERSION="0.1.3-114-g2bd091ca"    # version of the platform Helm chart -> auto-generated
+KAAPANA_BUILD_BRANCH="develop"    # branch name, which was build from -> auto-generated
 KAAPANA_LAST_COMMT_TIMESTAMP="04-11-2022" # timestamp of the last commit -> auto-generated
 
 ######################################################
@@ -336,14 +336,14 @@ function deploy_chart {
     --set-string global.https_port="$HTTPS_PORT" \
     --set-string global.https_proxy="$https_proxy" \
     --set-string global.kaapana_collections[0].name="kaapana-extension-collection" \
-    --set-string global.kaapana_collections[0].version="0.1.3-126-g53a518f1" \
+    --set-string global.kaapana_collections[0].version="0.1.3-114-g2bd091ca" \
     --set-string global.offline_mode="$OFFLINE_MODE" \
     --set-string global.platform_version="$chart_version" \
     --set-string global.prefetch_extensions="$PREFETCH_EXTENSIONS" \
     --set-string global.preinstall_extensions[0].name="code-server-chart" \
-    --set-string global.preinstall_extensions[0].version="0.1.3-126-g53a518f1" \
+    --set-string global.preinstall_extensions[0].version="0.1.3-114-g2bd091ca" \
     --set-string global.preinstall_extensions[1].name="kaapana-plugin-chart" \
-    --set-string global.preinstall_extensions[1].version="0.1.3-126-g53a518f1" \
+    --set-string global.preinstall_extensions[1].version="0.1.3-114-g2bd091ca" \
     --set-string global.pull_policy_jobs="$PULL_POLICY_JOBS" \
     --set-string global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \

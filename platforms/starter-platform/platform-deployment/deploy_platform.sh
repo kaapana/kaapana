@@ -8,12 +8,9 @@ export HELM_EXPERIMENTAL_OCI=1
 ######################################################
 
 PROJECT_NAME="starter-platform-chart" # name of the platform Helm chart
-DEFAULT_VERSION="0.1.3-116-g0a293592"    # version of the platform Helm chart -> auto-generated
-BUILD_TIMESTAMP="02-11-2022"    # timestamp of the build-time -> auto-generated
-BUILD_BRANCH="new-versioning"    # branch name, which was build from -> auto-generated
-LAST_COMMT_TIMESTAMP="02-11-2022" # timestamp of the last commit -> auto-generated
+PLATFORM_BUILD_VERSION="0.1.3-114-g2bd091ca"    # version of the platform Helm chart -> auto-generated
 
-CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
+CONTAINER_REGISTRY_URL="registry.hzdr.de/jonas.scherer/kaapana" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 CONTAINER_REGISTRY_USERNAME=""
 CONTAINER_REGISTRY_PASSWORD=""
 
@@ -29,6 +26,14 @@ HELM_NAMESPACE="kaapana"
 PREFETCH_EXTENSIONS="false"
 CHART_PATH=""
 NO_HOOKS=""
+
+PLATFORM_BUILD_BRANCH="develop"    # branch name, which was build from -> auto-generated
+PLATFORM_LAST_COMMT_TIMESTAMP="04-11-2022" # timestamp of the last commit -> auto-generated
+
+BUILD_TIMESTAMP="04-11-2022"    # timestamp of the build-time -> auto-generated
+KAAPANA_BUILD_VERSION="0.1.3-114-g2bd091ca"    # version of the platform Helm chart -> auto-generated
+KAAPANA_BUILD_BRANCH="develop"    # branch name, which was build from -> auto-generated
+KAAPANA_LAST_COMMT_TIMESTAMP="04-11-2022" # timestamp of the last commit -> auto-generated
 
 ######################################################
 # Individual platform configuration
@@ -219,9 +224,9 @@ function deploy_chart {
 
     if [ ! "$QUIET" = "true" ] && [ -z "$CHART_PATH" ];then
         echo -e ""
-        read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to deploy?: ${NC}" -i $DEFAULT_VERSION chart_version;
+        read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to deploy?: ${NC}" -i $PLATFORM_BUILD_VERSION chart_version;
     else
-        chart_version=$DEFAULT_VERSION
+        chart_version=$PLATFORM_BUILD_VERSION
     fi
 
     if [ "$GPU_SUPPORT" = "true" ];then
@@ -257,8 +262,8 @@ function deploy_chart {
         echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
         echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
 
-        if [ $(basename "$CHART_PATH") != "$PROJECT_NAME-$DEFAULT_VERSION.tgz" ]; then
-            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PROJECT_NAME and DEFAULT_VERSION: $DEFAULT_VERSION in the deployment script.${NC}" 
+        if [ $(basename "$CHART_PATH") != "$PROJECT_NAME-$PLATFORM_BUILD_VERSION.tgz" ]; then
+            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PROJECT_NAME and PLATFORM_BUILD_VERSION: $PLATFORM_BUILD_VERSION in the deployment script.${NC}" 
             exit 1
         fi
 
@@ -318,7 +323,10 @@ function deploy_chart {
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
     --set-string global.flow_namespace="flow" \
+    --set-string global.meta_namespace="meta" \
+    --set-string global.store_namespace="store" \
     --set-string global.flow_jobs_namespace="flow-jobs" \
+    --set-string global.monitoring_namespace="monitoring" \
     --set-string global.gpu_support="$GPU_SUPPORT" \
     --set-string global.helm_namespace="$HELM_NAMESPACE" \
     --set-string global.home_dir="$HOME" \
@@ -328,28 +336,26 @@ function deploy_chart {
     --set-string global.https_port="$HTTPS_PORT" \
     --set-string global.https_proxy="$https_proxy" \
     --set-string global.kaapana_collections[0].name="kaapana-extension-collection" \
-    --set-string global.kaapana_collections[0].version="0.1.0" \
-    --set-string global.monitoring_namespace="monitoring" \
-    --set-string global.meta_namespace="meta" \
+    --set-string global.kaapana_collections[0].version="0.1.3-114-g2bd091ca" \
     --set-string global.offline_mode="$OFFLINE_MODE" \
     --set-string global.platform_version="$chart_version" \
-    --set-string global.build_version="$DEFAULT_VERSION" \
     --set-string global.prefetch_extensions="$PREFETCH_EXTENSIONS" \
     --set-string global.preinstall_extensions[0].name="code-server-chart" \
-    --set-string global.preinstall_extensions[0].version="4.2.0" \
+    --set-string global.preinstall_extensions[0].version="0.1.3-114-g2bd091ca" \
     --set-string global.preinstall_extensions[1].name="kaapana-plugin-chart" \
-    --set-string global.preinstall_extensions[1].version="0.1.1" \
+    --set-string global.preinstall_extensions[1].version="0.1.3-114-g2bd091ca" \
     --set-string global.pull_policy_jobs="$PULL_POLICY_JOBS" \
     --set-string global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
     --set-string global.release_name="$PROJECT_NAME" \
-    --set-string global.version="$chart_version" \
     --set-string global.build_timestamp="$BUILD_TIMESTAMP" \
-    --set-string global.build_branch="$BUILD_BRANCH" \
-    --set-string global.last_commit_timestamp="$LAST_COMMT_TIMESTAMP" \
+    --set-string global.kaapana_build_version="$KAAPANA_BUILD_VERSION" \
+    --set-string global.kaapana_build_branch="$KAAPANA_BUILD_BRANCH" \
+    --set-string global.kaapana_last_commit_timestamp="$KAAPANA_LAST_COMMT_TIMESTAMP" \
+    --set-string global.platform_build_branch="$PLATFORM_BUILD_BRANCH" \
+    --set-string global.platform_last_commit_timestamp="$PLATFORM_LAST_COMMT_TIMESTAMP" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
-    --set-string global.store_namespace="store" \
     --set-string global.instance_name="$INSTANCE_NAME" \
     --name-template "$PROJECT_NAME"
 
@@ -570,7 +576,7 @@ function preflight_checks {
 
 
     echo " "
-    if [ "$MAX_SEVERITY" -gt 0]; then
+    if [ "$MAX_SEVERITY" -gt 0 ]; then
         echo -e "${YELLOW}##################################  PREFLIGHT CHECK REPORT ##########################################${NC}"
     else
         echo -e "${GREEN}###################################  PREFLIGHT CHECK REPORT ###########################################${NC}"
@@ -758,7 +764,7 @@ _Argument: --version [version]
 
 where version is one of the available platform releases:
     0.1.4  --> latest Kaapana release
-    $DEFAULT_VERSION  --> latest development version ${NC}"
+    $PLATFORM_BUILD_VERSION  --> latest development version ${NC}"
 
 QUIET=NA
 
@@ -769,7 +775,7 @@ do
 
     case $key in
         -v|--version)
-            DEFAULT_VERSION="$2"
+            PLATFORM_BUILD_VERSION="$2"
             shift # past argument
             shift # past value
         ;;

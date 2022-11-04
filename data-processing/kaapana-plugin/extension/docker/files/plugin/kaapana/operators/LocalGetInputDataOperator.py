@@ -171,7 +171,11 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     print("# Dag input dir correctly ajusted.")
             return
 
-
+        if (self.inputs is None and self.conf is None) or (self.conf is not None and "data_form" not in self.conf):
+            print("No config or inputs in config found! Data seems to be present already...")
+            print("Skipping...")
+            return
+    
         # if self.cohort_limit is None and self.inputs is None and self.conf is not None and "conf" in self.conf:
         if self.inputs is None and self.conf is not None:
             data_form = self.conf["data_form"]

@@ -67,11 +67,7 @@ def generate_deployment_script(platform_chart):
 
     output = template.render(**platform_params)
 
-    platform_deployment_script_path = join(platform_dir,"platform-deployment","deploy_platform.sh")
-    with open(platform_deployment_script_path, 'w') as rsh:
-        rsh.write(output)
-
-    platform_deployment_script_path_build = join(dirname(platform_chart.build_chart_dir),"platform-deployment","deploy_platform.sh")
+    platform_deployment_script_path_build = join(dirname(platform_chart.build_chart_dir),"deploy_platform.sh")
     if not os.path.exists(dirname(platform_deployment_script_path_build)):
         os.makedirs(dirname(platform_deployment_script_path_build))
     

@@ -1,4 +1,4 @@
-FROM local-only/base-mitk-phenotyping:2021-02-18 as build_container
+FROM local-only/base-mitk-phenotyping:latest
 
 LABEL IMAGE="seg-check"
 LABEL VERSION="0.1.0"

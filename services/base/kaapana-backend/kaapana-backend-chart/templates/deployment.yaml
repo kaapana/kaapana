@@ -18,7 +18,7 @@ spec:
     spec:
       initContainers:
         - name: init-wait-for-postgres
-          image: {{ .Values.global.registry_url }}/service-checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
+          image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version }}"
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
@@ -28,7 +28,7 @@ spec:
             - name: TIMEOUT
               value: "10"
         - name: init-wait-for-keycloak
-          image: {{ .Values.global.registry_url }}/service-checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
+          image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version }}"
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
@@ -38,7 +38,7 @@ spec:
             - name: TIMEOUT
               value: "10"
         - name: init-create-backend-user
-          image: {{ .Values.global.registry_url }}/kaapana-backend:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.1.0
+          image: "{{ .Values.global.registry_url }}/kaapana-backend:{{ .Values.global.kaapana_build_version }}"
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           command: ["/app/scripts/create_backend_user.py"]
           env:
@@ -56,7 +56,7 @@ spec:
               value: "query-groups;query-users;view-users"
       containers:
       - name: kaapana-backend
-        image: {{ .Values.global.registry_url }}/kaapana-backend:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.1.0
+        image: "{{ .Values.global.registry_url }}/kaapana-backend:{{ .Values.global.kaapana_build_version }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         # command: ["tail"]
         # args: ["-f", "/dev/null"] 

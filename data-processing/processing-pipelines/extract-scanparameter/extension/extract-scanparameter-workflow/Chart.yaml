@@ -3,7 +3,7 @@ apiVersion: v1
 appVersion: "0.1.0"
 description: A Dag to extract scan parameteres
 name: extract-scanparameter-workflow
-version: "0.1.0"
+version: "0.0.0"
 keywords:
 - kaapanaworkflow
 - kaapanaexperimental

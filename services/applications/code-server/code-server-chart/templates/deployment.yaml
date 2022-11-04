@@ -24,11 +24,11 @@ spec:
       containers:
       - name: code-server
         {{- if not .Values.image }}
-        image: {{ .Values.global.registry_url }}/code-server:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__4.2.0
+        image: "{{ .Values.global.registry_url }}/code-server:{{ .Values.global.kaapana_build_version  }}"
         {{- else }}
-        image: {{ .Values.image }}
+        image: "{{ .Values.image }}"
         {{- end }}
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         command: ["code-server"]
         args: ["--auth", "none", "--bind-addr", "0.0.0.0:8080", "/kaapanasrc"]
         env:

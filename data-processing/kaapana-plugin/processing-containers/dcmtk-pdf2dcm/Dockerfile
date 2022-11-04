@@ -1,4 +1,4 @@
-FROM local-only/base-dcmtk:3.6.4
+FROM local-only/base-dcmtk:latest
 
 LABEL IMAGE="pdf2dcm"
 LABEL VERSION="3.6.4"

@@ -18,7 +18,7 @@ spec:
       containers:
         # ToDo add init-container to wait for db-host
       - name: mitk
-        image: {{ .Values.global.registry_url }}/mitk-workbench:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__2022.04
+        image: "{{ .Values.global.registry_url }}/mitk-workbench:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           requests:

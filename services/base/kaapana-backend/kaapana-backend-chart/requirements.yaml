@@ -1,5 +1,5 @@
 ---
 dependencies:
   - name: kaapana-backend-postgres
-    version: "9.6.1"
+    version: 0.0.0
     repository: file://deps/kaapana-backend-postgres

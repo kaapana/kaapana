@@ -11,12 +11,9 @@ https_port: 443
 dicom_port: 11112
 kaapana_collections:
 - name: kaapana-extension-collection
-  version: 0.1.0
 preinstall_extensions:
 - name: code-server-chart
-  version: 4.2.0
 - name: kaapana-plugin-chart
-  version: 0.1.1
 additional_env:
 - name: INSTANCE_NAME
   default_value: "central"

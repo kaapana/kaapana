@@ -3,5 +3,5 @@ apiVersion: v1
 appVersion: "0.1.2"
 description: Init Job for example or existing dicom data
 name: dicom-init-chart
-version: "0.1.3"
+version: "0.0.0"
 

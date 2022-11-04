@@ -3,7 +3,7 @@ FROM nvcr.io/nvidia/pytorch:22.02-py3
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-python-gpu"
-LABEL VERSION="0.1.0"
+LABEL VERSION="latest"
 LABEL CI_IGNORE="False"
 
 ENV DEBIAN_FRONTEND=noninteractive

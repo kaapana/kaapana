@@ -60,7 +60,7 @@ spec:
     spec:
       initContainers:
       - name: service-kaapana-plugin-check
-        image: {{ .Values.global.registry_url }}/service-checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
+        image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
         env:
         - name: WAIT
@@ -73,7 +73,7 @@ spec:
         - name: airflow-plugins
           mountPath: /root/airflow/plugins
       - name: init-airflow-db
-        image: {{ .Values.global.registry_url }}/airflow:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__2.2.5
+        image: "{{ .Values.global.registry_url }}/airflow:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["init"]
         resources:
@@ -102,7 +102,7 @@ spec:
               key: sql_alchemy_conn
       containers:
       - name: webserver
-        image: {{ .Values.global.registry_url }}/airflow:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__2.2.5
+        image: "{{ .Values.global.registry_url }}/airflow:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         ports:
         - name: webserver
@@ -117,10 +117,10 @@ spec:
           value: "{{ .Values.global.fast_data_dir }}/workflows/data"
         - name: MODELDIR
           value: "{{ .Values.global.fast_data_dir }}/workflows/models"
-        - name: PLATFORM_ABBR
-          value: "{{ .Values.global.platform_abbr }}"
         - name: PLATFORM_VERSION
           value: "{{ .Values.global.platform_version }}"
+        - name: KAAPANA_BUILD_VERSION
+          value: "{{ .Values.global.kaapana_build_version }}"
         - name: HOSTDOMAIN
           value: "{{ .Values.global.hostname }}"
         - name: HTTPS_PORT
@@ -172,7 +172,7 @@ spec:
         #     path: /flow
         #     port: 8080
       - name: scheduler
-        image: {{ .Values.global.registry_url }}/airflow:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__2.2.5
+        image: "{{ .Values.global.registry_url }}/airflow:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: ["scheduler"]
         env:
@@ -192,10 +192,10 @@ spec:
           value: "{{ .Values.global.fast_data_dir }}/minio/kaapana-dev-data"
         - name: PROXY
           value: "{{ .Values.global.http_proxy }}"
-        - name: PLATFORM_ABBR
-          value: "{{ .Values.global.platform_abbr }}"
         - name: PLATFORM_VERSION
           value: "{{ .Values.global.platform_version }}"
+        - name: KAAPANA_BUILD_VERSION
+          value: "{{ .Values.global.kaapana_build_version }}"
         - name: HOSTDOMAIN
           value: "{{ .Values.global.hostname }}"
         - name: HTTPS_PORT
@@ -244,7 +244,7 @@ spec:
         - name: dicomdir
           mountPath: /pacsdata
       - name: statsd-metrics-exporter
-        image: {{ .Values.global.registry_url }}/statsd-exporter:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__v0.22.7
+        image: "{{ .Values.global.registry_url }}/statsd-exporter:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         args: 
           - --statsd.mapping-config=/tmp/statsd_mapping.yaml

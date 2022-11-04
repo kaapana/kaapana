@@ -1,4 +1,4 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
 from datetime import timedelta
 
 class RadiomicsOperator(KaapanaBaseOperator):
@@ -23,7 +23,7 @@ class RadiomicsOperator(KaapanaBaseOperator):
         env_vars.update(envs)
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/mitk-radiomics:{default_platform_abbr}_{default_platform_version}__2021-02-18",
+            image=f"{default_registry}/mitk-radiomics:{kaapana_build_version}",
             name="radiomics",
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],

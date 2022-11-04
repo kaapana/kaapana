@@ -74,7 +74,7 @@
           v-flex(text-xs-center)
             router-view
     v-footer(color="primary" app inset)
-      span.white--text &copy; DKFZ 2018 - DKFZ 2022: Version {{commonData.version}}
+      span.white--text &copy; DKFZ 2018 - DKFZ 2022 | {{commonData.version}}
 </template>
 
 

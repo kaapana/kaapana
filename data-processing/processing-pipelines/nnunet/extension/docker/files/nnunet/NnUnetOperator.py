@@ -1,7 +1,7 @@
 from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
 from kaapana.kubetools.resources import Resources as PodResources
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
 from datetime import timedelta
 
 
@@ -108,7 +108,7 @@ class NnUnetOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/nnunet-gpu:{default_platform_abbr}_{default_platform_version}__03-22",
+            image=f"{default_registry}/nnunet-gpu:{kaapana_build_version}",
             name="nnunet",
             parallel_id=parallel_id,
             image_pull_secrets=["registry-secret"],

@@ -16,7 +16,7 @@ spec:
     spec:
       initContainers:
           - name: volume-permissions
-            image: {{ .Values.global.registry_url }}/busybox:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.31
+            image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version  }}"
             imagePullPolicy:  IfNotPresent
             command: ["sh", "-c", "chown -R 1000:1000 /os_data && chown -R 1000:1000 /os_logs"]
             # command: ["sh", "-c", "chown -R 1000:1000 /os_data && chown -R 1000:1000 /os_logs && cp /os_ssl/* /os_config && chown -R 1000:1000 /os_config"]
@@ -27,7 +27,7 @@ spec:
               name: oslogs
       containers:
         - name: opensearch-container
-          image: {{ .Values.global.registry_url }}/opensearch:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__2.2.0
+          image: "{{ .Values.global.registry_url }}/opensearch:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy: {{ .Values.global.pull_policy_pods }}
           env:
           - name: plugins.security.disabled

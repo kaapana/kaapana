@@ -2,7 +2,7 @@ FROM python:3.9.12-alpine3.15
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-python-alpine"
-LABEL VERSION="0.1.0"
+LABEL VERSION="latest"
 LABEL CI_IGNORE="False"
 
 RUN apk update && apk add --no-cache \ 

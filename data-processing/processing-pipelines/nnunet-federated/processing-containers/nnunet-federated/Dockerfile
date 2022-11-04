@@ -1,4 +1,4 @@
-FROM local-only/base-nnunet:03-22
+FROM local-only/base-nnunet:latest
 
 LABEL IMAGE="nnunet-federated"
 LABEL VERSION="0.1.0"

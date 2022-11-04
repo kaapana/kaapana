@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: kube-helm
-        image: {{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__0.1.3
+        image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ $.Values.global.pull_policy_pods }}
         resources:
           limits:
@@ -36,22 +36,22 @@ spec:
           value: {{ $.Values.global.helm_namespace }}
         - name: REGISTRY_URL
           value: {{ $.Values.global.registry_url }}
-        - name: PLATFORM_ABBR
-          value: '{{ $.Values.global.platform_abbr | default "uk" }}'
         - name: PLATFORM_VERSION
-          value: '{{ $.Values.global.platform_version | default "0" }}'
+          value: '{{ $.Values.global.platform_version }}'
+        - name: KAAPANA_BUILD_VERSION
+          value: "{{ .Values.global.kaapana_build_version }}"
         - name: OFFLINE_MODE
           value: "{{ $.Values.global.offline_mode }}"
-{{- if $.Values.global.http_proxy }}
-        - name: PROXY
-          value: "{{ $.Values.global.http_proxy }}"
-{{- end }}
         - name: KAAPANA_COLLECTIONS
-          value: "{{- range $collection := $.Values.global.kaapana_collections }}{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.platform_abbr | default "uk" }}_{{ $.Values.global.platform_version | default "0" }}__{{ $collection.version }};{{- end }}"
+          value: "{{- range $collection := $.Values.global.kaapana_collections }}{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.kaapana_build_version  }};{{- end }}"
         - name: PREINSTALL_EXTENSIONS
           value: '[{{- range $extension := $.Values.global.preinstall_extensions }}{"name": "{{ $extension.name }}", "version": "{{ $extension.version }}"},{{- end }}]'
         - name: PREFETCH_EXTENSIONS
           value: "{{ $.Values.global.prefetch_extensions }}"
+{{- if $.Values.global.http_proxy }}
+        - name: PROXY
+          value: "{{ $.Values.global.http_proxy }}"
+{{- end }}
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         volumeMounts:
@@ -60,7 +60,7 @@ spec:
       volumes:
       - name: helmextensions
         hostPath:
-          path: {{ $.Values.global.fast_data_dir }}/extensions
+          path: "{{ $.Values.global.fast_data_dir }}/extensions"
           type: DirectoryOrCreate
       serviceAccountName: kubernetes-dashboard
       imagePullSecrets:

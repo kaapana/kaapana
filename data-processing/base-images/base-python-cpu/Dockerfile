@@ -3,7 +3,7 @@ FROM python:3.8.10
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-python-cpu"
-LABEL VERSION="0.1.0"
+LABEL VERSION="latest"
 LABEL CI_IGNORE="False"
 
 ENV DEBIAN_FRONTEND=noninteractive

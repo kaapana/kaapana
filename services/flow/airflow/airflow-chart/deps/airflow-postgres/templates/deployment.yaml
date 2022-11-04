@@ -33,7 +33,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: postgres
-          image: {{ .Values.global.registry_url }}/postgres:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__9.6-alpine
+          image: "{{ .Values.global.registry_url }}/postgres-9.6-alpine:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           args: ["-c", "max_connections=200"]          
           ports:

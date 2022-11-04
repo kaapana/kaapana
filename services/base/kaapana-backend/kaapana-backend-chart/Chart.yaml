@@ -3,4 +3,4 @@ apiVersion: v1
 appVersion: 0.1.0
 description: Kaapana backend chart
 name: kaapana-backend-chart
-version: "0.1.0"
+version: "0.0.0"

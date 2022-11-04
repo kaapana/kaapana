@@ -1,8 +1,8 @@
-FROM local-only/base-python-gpu:0.1.0
+FROM local-only/base-python-gpu:latest
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-nnunet"
-LABEL VERSION="03-22"
+LABEL VERSION="latest"
 LABEL CI_IGNORE="False"
 
 ENV OMP_NUM_THREADS=1

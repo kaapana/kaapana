@@ -27,7 +27,7 @@
 # #     && code-server --install-extension /tmp/python.vsix \
 # #     && rm -rf /tmp/python.vsix
 
-FROM local-only/base-python-gpu:0.1.0
+FROM local-only/base-python-gpu:latest
 
 
 LABEL IMAGE="code-server"

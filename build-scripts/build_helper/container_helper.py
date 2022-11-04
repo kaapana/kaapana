@@ -128,7 +128,6 @@ class Container:
         return repr_obj
 
     def __init__(self, dockerfile):
-        self.image_name = None
         self.image_version = None
         self.tag = None
         self.path = dockerfile
@@ -184,9 +183,13 @@ class Container:
 
         else:
             self.registry = self.registry if self.registry != None else BuildUtils.default_registry
-            self.tag = self.registry+"/"+self.image_name+":"+self.image_version
-            if "local-only" in self.tag:
+            if "local-only" in self.registry:
                 self.local_image = True
+                self.image_version = "latest"
+            else:
+                self.image_version = BuildUtils.kaapana_build_version
+            
+            self.tag = self.registry+"/"+self.image_name+":"+self.image_version
 
         self.check_if_dag()
 
@@ -425,8 +428,8 @@ class Container:
             with open(python_file, "r") as python_content:
                 for line in python_content:
                     if "image=" in line and "{default_registry}" in line:
-                        line = line.split("\"")[1].replace(" ", "")
-                        line = line.replace("{default_platform_abbr}_{default_platform_version}__", "")
+                        line = line.rstrip('\n').split("\"")[1].replace(" ", "")
+                        line = line.replace("{kaapana_build_version}", BuildUtils.kaapana_build_version)
                         container_id = line.replace("{default_registry}", BuildUtils.default_registry)
                         self.operator_containers.append(container_id)
 

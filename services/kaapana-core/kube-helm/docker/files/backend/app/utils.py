@@ -178,8 +178,8 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
         except yaml.YAMLError as exc:
             print(exc)
 
-    if "{default_platform_abbr}_{default_platform_version}" in docker_version:
-        docker_version = docker_version.replace("{default_platform_abbr}_{default_platform_version}", f"{os.getenv('PLATFORM_ABBR')}_{os.getenv('PLATFORM_VERSION')}")
+    if "{kaapana_build_version}" in docker_version:
+        docker_version = docker_version.replace("{kaapana_build_version}", f"{os.getenv('KAAPANA_BUILD_VERSION')}")
     payload = {
         'name': 'pull-docker-chart',
         'version': helper_charts['entries']['pull-docker-chart'][0]['version'],
@@ -493,7 +493,7 @@ def execute_update_extensions():
 
     chart = {
         'name': 'update-collections-chart',
-        'version': '0.1.0'
+        'version': '0.0.0'
     } 
     print(chart['name'], chart['version'])
     payload = {k: chart[k] for k in ('name', 'version')}

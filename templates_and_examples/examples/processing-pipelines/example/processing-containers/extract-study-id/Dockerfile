@@ -1,4 +1,4 @@
-FROM local-only/base-python-alpine:0.1.0
+FROM local-only/base-python-alpine:latest
 
 LABEL IMAGE="example-extract-study-id"
 LABEL VERSION="0.1.0"

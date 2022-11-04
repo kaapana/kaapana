@@ -8,8 +8,10 @@ export HELM_EXPERIMENTAL_OCI=1
 ######################################################
 
 PROJECT_NAME="starter-platform-chart" # name of the platform Helm chart
-PROJECT_ABBR="sp" # abbrevention for the platform-name
-DEFAULT_VERSION="0.1.4"    # version of the platform Helm chart
+DEFAULT_VERSION="0.1.3-116-g0a293592"    # version of the platform Helm chart -> auto-generated
+BUILD_TIMESTAMP="02-11-2022"    # timestamp of the build-time -> auto-generated
+BUILD_BRANCH="new-versioning"    # branch name, which was build from -> auto-generated
+LAST_COMMT_TIMESTAMP="02-11-2022" # timestamp of the last commit -> auto-generated
 
 CONTAINER_REGISTRY_URL="" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 CONTAINER_REGISTRY_USERNAME=""
@@ -19,7 +21,7 @@ CONTAINER_REGISTRY_PASSWORD=""
 # Deployment configuration
 ######################################################
 
-DEV_MODE="true" # dev-mode -> containers will always be re-downloaded after pod-restart
+DEV_MODE="false" # dev-mode -> containers will always be re-downloaded after pod-restart
 DEV_PORTS="false"
 GPU_SUPPORT="false"
 
@@ -330,8 +332,8 @@ function deploy_chart {
     --set-string global.monitoring_namespace="monitoring" \
     --set-string global.meta_namespace="meta" \
     --set-string global.offline_mode="$OFFLINE_MODE" \
-    --set-string global.platform_abbr="$PROJECT_ABBR" \
     --set-string global.platform_version="$chart_version" \
+    --set-string global.build_version="$DEFAULT_VERSION" \
     --set-string global.prefetch_extensions="$PREFETCH_EXTENSIONS" \
     --set-string global.preinstall_extensions[0].name="code-server-chart" \
     --set-string global.preinstall_extensions[0].version="4.2.0" \
@@ -342,9 +344,12 @@ function deploy_chart {
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
     --set-string global.release_name="$PROJECT_NAME" \
+    --set-string global.version="$chart_version" \
+    --set-string global.build_timestamp="$BUILD_TIMESTAMP" \
+    --set-string global.build_branch="$BUILD_BRANCH" \
+    --set-string global.last_commit_timestamp="$LAST_COMMT_TIMESTAMP" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.store_namespace="store" \
-    --set-string global.version="$chart_version" \
     --set-string global.instance_name="$INSTANCE_NAME" \
     --name-template "$PROJECT_NAME"
 

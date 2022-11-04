@@ -3,4 +3,4 @@ apiVersion: v1
 appVersion: "9.6.1"
 description: Kaapana backend chart
 name: kaapana-backend-postgres
-version: "9.6.1"
+version: "0.0.0"

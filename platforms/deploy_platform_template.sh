@@ -8,8 +8,7 @@ export HELM_EXPERIMENTAL_OCI=1
 ######################################################
 
 PROJECT_NAME="{{ project_name }}" # name of the platform Helm chart
-PROJECT_ABBR="{{ project_abbr }}" # abbrevention for the platform-name
-DEFAULT_VERSION="{{ default_version }}"    # version of the platform Helm chart
+PLATFORM_BUILD_VERSION="{{ platform_build_version }}"    # version of the platform Helm chart -> auto-generated
 
 CONTAINER_REGISTRY_URL="{{ container_registry_url|default('', true) }}" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 CONTAINER_REGISTRY_USERNAME="{{ container_registry_username|default('', true) }}"
@@ -27,6 +26,14 @@ HELM_NAMESPACE="kaapana"
 PREFETCH_EXTENSIONS="{{ prefetch_extensions|default('false') }}"
 CHART_PATH=""
 NO_HOOKS=""
+
+PLATFORM_BUILD_BRANCH="{{ platform_build_branch }}"    # branch name, which was build from -> auto-generated
+PLATFORM_LAST_COMMT_TIMESTAMP="{{ platform_last_commit_timestamp }}" # timestamp of the last commit -> auto-generated
+
+BUILD_TIMESTAMP="{{ build_timestamp }}"    # timestamp of the build-time -> auto-generated
+KAAPANA_BUILD_VERSION="{{ kaapana_build_version }}"    # version of the platform Helm chart -> auto-generated
+KAAPANA_BUILD_BRANCH="{{ kaapana_build_branch }}"    # branch name, which was build from -> auto-generated
+KAAPANA_LAST_COMMT_TIMESTAMP="{{ kaapana_last_commit_timestamp }}" # timestamp of the last commit -> auto-generated
 
 ######################################################
 # Individual platform configuration
@@ -218,9 +225,9 @@ function deploy_chart {
 
     if [ ! "$QUIET" = "true" ] && [ -z "$CHART_PATH" ];then
         echo -e ""
-        read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to deploy?: ${NC}" -i $DEFAULT_VERSION chart_version;
+        read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to deploy?: ${NC}" -i $PLATFORM_BUILD_VERSION chart_version;
     else
-        chart_version=$DEFAULT_VERSION
+        chart_version=$PLATFORM_BUILD_VERSION
     fi
 
     if [ "$GPU_SUPPORT" = "true" ];then
@@ -256,8 +263,8 @@ function deploy_chart {
         echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
         echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
 
-        if [ $(basename "$CHART_PATH") != "$PROJECT_NAME-$DEFAULT_VERSION.tgz" ]; then
-            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PROJECT_NAME and DEFAULT_VERSION: $DEFAULT_VERSION in the deployment script.${NC}" 
+        if [ $(basename "$CHART_PATH") != "$PROJECT_NAME-$PLATFORM_BUILD_VERSION.tgz" ]; then
+            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PROJECT_NAME and PLATFORM_BUILD_VERSION: $PLATFORM_BUILD_VERSION in the deployment script.${NC}" 
             exit 1
         fi
 
@@ -317,7 +324,10 @@ function deploy_chart {
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
     --set-string global.flow_namespace="flow" \
+    --set-string global.meta_namespace="meta" \
+    --set-string global.store_namespace="store" \
     --set-string global.flow_jobs_namespace="flow-jobs" \
+    --set-string global.monitoring_namespace="monitoring" \
     --set-string global.gpu_support="$GPU_SUPPORT" \
     --set-string global.helm_namespace="$HELM_NAMESPACE" \
     --set-string global.home_dir="$HOME" \
@@ -330,10 +340,7 @@ function deploy_chart {
     --set-string global.kaapana_collections[{{loop.index0}}].name="{{ item.name }}" \
     --set-string global.kaapana_collections[{{loop.index0}}].version="{{ item.version }}" \
     {% endfor -%}
-    --set-string global.monitoring_namespace="monitoring" \
-    --set-string global.meta_namespace="meta" \
     --set-string global.offline_mode="$OFFLINE_MODE" \
-    --set-string global.platform_abbr="$PROJECT_ABBR" \
     --set-string global.platform_version="$chart_version" \
     --set-string global.prefetch_extensions="$PREFETCH_EXTENSIONS" \
     {% for item in preinstall_extensions -%}
@@ -345,9 +352,13 @@ function deploy_chart {
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
     --set-string global.release_name="$PROJECT_NAME" \
+    --set-string global.build_timestamp="$BUILD_TIMESTAMP" \
+    --set-string global.kaapana_build_version="$KAAPANA_BUILD_VERSION" \
+    --set-string global.kaapana_build_branch="$KAAPANA_BUILD_BRANCH" \
+    --set-string global.kaapana_last_commit_timestamp="$KAAPANA_LAST_COMMT_TIMESTAMP" \
+    --set-string global.platform_build_branch="$PLATFORM_BUILD_BRANCH" \
+    --set-string global.platform_last_commit_timestamp="$PLATFORM_LAST_COMMT_TIMESTAMP" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
-    --set-string global.store_namespace="store" \
-    --set-string global.version="$chart_version" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PROJECT_NAME"
@@ -569,7 +580,7 @@ function preflight_checks {
 
 
     echo " "
-    if [ "$MAX_SEVERITY" -gt 0]; then
+    if [ "$MAX_SEVERITY" -gt 0 ]; then
         echo -e "${YELLOW}##################################  PREFLIGHT CHECK REPORT ##########################################${NC}"
     else
         echo -e "${GREEN}###################################  PREFLIGHT CHECK REPORT ###########################################${NC}"
@@ -757,7 +768,7 @@ _Argument: --version [version]
 
 where version is one of the available platform releases:
     0.1.4  --> latest Kaapana release
-    $DEFAULT_VERSION  --> latest development version ${NC}"
+    $PLATFORM_BUILD_VERSION  --> latest development version ${NC}"
 
 QUIET=NA
 
@@ -768,7 +779,7 @@ do
 
     case $key in
         -v|--version)
-            DEFAULT_VERSION="$2"
+            PLATFORM_BUILD_VERSION="$2"
             shift # past argument
             shift # past value
         ;;

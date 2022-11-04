@@ -1,4 +1,4 @@
-FROM local-only/base-python-cpu:0.1.0
+FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="train-test-split"
 LABEL VERSION="0.1.0"

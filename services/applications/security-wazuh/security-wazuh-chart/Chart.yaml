@@ -1,0 +1,8 @@
+apiVersion: v1
+version: "0.0.1"
+appVersion: "0.0.1"
+name:  security-wazuh-chart
+description: A Helm chart for deploying Wazuh as security extension
+keywords:
+- kaapanaapplication
+- kaapanaexperimental

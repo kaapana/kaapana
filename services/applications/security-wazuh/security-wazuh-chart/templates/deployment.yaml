@@ -1,0 +1,195 @@
+
+
+
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: security-wazuh
+  namespace: {{ .Values.global.security_namespace }}
+  labels:
+    k8s-app: security-wazuh
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: security-wazuh
+  template:
+    metadata:
+      labels:
+        app-name: security-wazuh
+    spec:
+      hostAliases:
+      - ip: 0.0.0.0
+        hostnames:
+        - "wazuh.manager"
+        - "wazuh.indexer"
+        - "wazuh.dashboard"
+      initContainers:
+        - name: init-security-wazuh
+          image: {{ .Values.global.registry_url }}/security-wazuh-init:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.0.1
+          imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
+          resources: {}
+          volumeMounts:
+            - mountPath: /wazuh-config
+              name: security-wazuh-volume
+        # - name: init-wazuh-certs
+        #   image: {{ .Values.global.registry_url }}/security-wazuh-certs-generator:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.0.1
+        #   imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
+        #   env:
+        #     - name: HTTP_PROXY
+        #       value: {{ .Values.global.http_proxy }}
+        #   resources: {}
+        #   volumeMounts:
+        #     - mountPath: /certificates/
+        #       name: security-wazuh-volume
+        #       subPath: config/wazuh_indexer_ssl_certs
+        #     - mountPath: /config/certs.yml
+        #       name: security-wazuh-volume
+        #       subPath: config/certs.yml
+      containers:
+      - name: security-wazuh-manager
+        image: {{ .Values.global.registry_url }}/security-wazuh-manager:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.0.1
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        ports:
+          - containerPort: 1514
+          - containerPort: 1515
+          - containerPort: 514
+            protocol: UDP
+          - containerPort: 55000
+        env:
+          - name: API_PASSWORD
+            value: MyS3cr37P450r.*-
+          - name: API_USERNAME
+            value: wazuh-wui
+          - name: FILEBEAT_SSL_VERIFICATION_MODE
+            value: full
+          - name: INDEXER_PASSWORD
+            value: SecretPassword
+          - name: INDEXER_URL
+            value: https://wazuh.indexer:9200
+          - name: INDEXER_USERNAME
+            value: admin
+          - name: SSL_CERTIFICATE
+            value: /etc/ssl/filebeat.pem
+          - name: SSL_CERTIFICATE_AUTHORITIES
+            value: /etc/ssl/root-ca.pem
+          - name: SSL_KEY
+            value: /etc/ssl/filebeat.key
+        resources:
+          limits:
+            memory: "8Gi"
+        volumeMounts:
+          - mountPath: /var/ossec/api/configuration
+            name: security-wazuh-volume
+            subPath: wazuh_api_configuration
+          - mountPath: /var/ossec/etc
+            name: security-wazuh-volume
+            subPath: wazuh_etc
+          - mountPath: /var/ossec/logs
+            name: security-wazuh-volume
+            subPath: wazuh_logs
+          - mountPath: /var/ossec/queue
+            name: security-wazuh-volume
+            subPath: wazuh_queue
+          - mountPath: /var/ossec/var/multigroups
+            name: security-wazuh-volume
+            subPath: wazuh_var_multigroups
+          - mountPath: /var/ossec/integrations
+            name: security-wazuh-volume
+            subPath: wazuh_integrations
+          - mountPath: /var/ossec/active-response/bin
+            name: security-wazuh-volume
+            subPath: wazuh_active_response
+          - mountPath: /var/ossec/agentless
+            name: security-wazuh-volume
+            subPath: wazuh_agentless
+          - mountPath: /var/ossec/wodles
+            name: security-wazuh-volume
+            subPath: wazuh_wodles
+          - mountPath: /etc/filebeat
+            name: security-wazuh-volume
+            subPath: filebeat_etc
+          - mountPath: /var/lib/filebeat
+            name: security-wazuh-volume
+            subPath: filebeat_var
+          - mountPath: /etc/ssl/root-ca.pem
+            name: security-wazuh-volume
+            subPath: config/wazuh_indexer_ssl_certs/root-ca-manager.pem
+          - mountPath: /etc/ssl/filebeat.pem
+            name: security-wazuh-volume
+            subPath: config/wazuh_indexer_ssl_certs/wazuh.manager.pem
+          - mountPath: /etc/ssl/filebeat.key
+            name: security-wazuh-volume
+            subPath: config/wazuh_indexer_ssl_certs/wazuh.manager-key.pem
+          - mountPath: /wazuh-config-mount/etc/ossec.conf
+            name: security-wazuh-volume
+            subPath: config/wazuh_cluster/wazuh_manager.conf
+
+      - name: security-wazuh-indexer
+        image: {{ .Values.global.registry_url }}/security-wazuh-indexer:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.0.1
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        env:
+          - name: OPENSEARCH_JAVA_OPTS
+            value: -Xms512m -Xmx512m
+        ports:
+          - containerPort: 9200
+        resources:
+          limits:
+            memory: "8Gi"
+        volumeMounts:
+          - mountPath: /var/lib/wazuh-indexer
+            name: security-wazuh-volume
+            subPath: wazuh-indexer-data
+          - mountPath: /usr/share/wazuh-indexer/config/certs/root-ca.pem
+            name: security-wazuh-volume
+            subPath: config/wazuh_indexer_ssl_certs/root-ca.pem
+          - mountPath: /usr/share/wazuh-indexer/config/certs/wazuh.indexer.key
+            name: security-wazuh-volume
+            subPath: config/wazuh_indexer_ssl_certs/wazuh.indexer-key.pem
+          - mountPath: /usr/share/wazuh-indexer/config/certs/wazuh.indexer.pem
+            name: security-wazuh-volume
+            subPath: config/wazuh_indexer_ssl_certs/wazuh.indexer.pem
+          - mountPath: /usr/share/wazuh-indexer/config/certs/admin.pem
+            name: security-wazuh-volume
+            subPath: config/wazuh_indexer_ssl_certs/admin.pem
+          - mountPath: /usr/share/wazuh-indexer/config/certs/admin-key.pem
+            name: security-wazuh-volume
+            subPath: config/wazuh_indexer_ssl_certs/admin-key.pem
+          - mountPath: /usr/share/wazuh-indexer/config/opensearch.yml
+            name: security-wazuh-volume
+            subPath: config/wazuh_indexer/wazuh.indexer.yml
+          - mountPath: /usr/share/wazuh-indexer/plugins/opensearch-security/securityconfig/internal_users.yml
+            name: security-wazuh-volume
+            subPath: config/wazuh_indexer/internal_users.yml
+
+      - name: security-wazuh-dashboard
+        image: {{ .Values.global.registry_url }}/security-wazuh-dashboard:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.0.1
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        ports:
+          - containerPort: 5601
+        resources:
+          limits:
+            memory: "8Gi"
+        volumeMounts:
+          - mountPath: /usr/share/wazuh-dashboard/certs/wazuh-dashboard.pem
+            name: security-wazuh-volume
+            subPath: config/wazuh_indexer_ssl_certs/wazuh.dashboard.pem
+          - mountPath: /usr/share/wazuh-dashboard/certs/wazuh-dashboard-key.pem
+            name: security-wazuh-volume
+            subPath: config/wazuh_indexer_ssl_certs/wazuh.dashboard-key.pem
+          - mountPath: /usr/share/wazuh-dashboard/certs/root-ca.pem
+            name: security-wazuh-volume
+            subPath: config/wazuh_indexer_ssl_certs/root-ca.pem
+          - mountPath: /usr/share/wazuh-dashboard/config/opensearch_dashboards.yml
+            name: security-wazuh-volume
+            subPath: config/wazuh_dashboard/opensearch_dashboards.yml
+          - mountPath: /usr/share/wazuh-dashboard/data/wazuh/config/wazuh.yml
+            name: security-wazuh-volume
+            subPath: config/wazuh_dashboard/wazuh.yml
+      imagePullSecrets:
+      - name: registry-secret
+      volumes:
+        - name: security-wazuh-volume
+          persistentVolumeClaim:
+            claimName: security-wazuh-persistent-volume-claim

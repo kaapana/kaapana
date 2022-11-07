@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: {{ .Values.global.security_namespace }}
+  name: security-stackrox-service
+spec:
+  ports:
+    - name: "80"
+      port: 80
+      targetPort: 8080
+  selector:
+    app-name: security-stackrox
+status:
+  loadBalancer: {}
+---
+apiVersion: networking.k8s.io/v1 
+kind: Ingress
+metadata:
+  name: security-stackrox-redirect
+  namespace: {{ .Values.global.security_namespace }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/preserve-host: "true"
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+      - path: /security-stackrox
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: security-stackrox-service
+            port:
+              number: 80
+---

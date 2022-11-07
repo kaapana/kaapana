@@ -1,0 +1,18 @@
+stackrox-central:
+    _rox:
+        _namespace: {{ .Values.global.security_namespace }}
+    allowNonstandardNamespace:
+        value: true
+    central:
+        allowNonstandardNamespace:
+            value: true
+        adminPassword:
+            value: {{ randAlphaNum 32 | quote }}
+
+stackrox-cluster:
+    metadata:
+        namespace: {{ .Values.global.security_namespace }}
+
+    test: {{ genPrivateKey "rsa" | quote }}
+    test2: "abc"
+    

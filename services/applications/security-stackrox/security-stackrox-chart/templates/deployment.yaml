@@ -1,0 +1,28 @@
+
+
+
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: security-stackrox
+  namespace: {{ .Values.global.security_namespace }}
+  labels:
+    k8s-app: security-stackrox
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: security-stackrox
+  template:
+    metadata:
+      labels:
+        app-name: security-stackrox
+    spec:
+      containers:
+      - name: security-stackrox
+        image: {{ .Values.global.registry_url }}/security-stackrox:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.0.1
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        resources: {}
+      imagePullSecrets:
+      - name: registry-secret

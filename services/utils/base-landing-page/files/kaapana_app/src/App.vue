@@ -38,6 +38,15 @@
           v-list-item-content
             v-list-item-title Federated
           v-list-item-icon
+
+        v-list-group(:prepend-icon="'mdi-security'" v-if="isAuthenticated && securityProviderHostAvailable" ) 
+          template(v-slot:activator)
+            v-list-item-title Security
+          v-list-item(:to="'/security/dashboard'")
+            v-list-item-title Dashboard
+          v-list-item(:to="'/security/configuration'")
+            v-list-item-title Configuration
+
         v-list-item(:to="'/extensions'", v-if="isAuthenticated")
           v-list-item-action
             v-icon mdi-apps
@@ -88,7 +97,8 @@ export default Vue.extend({
   data: () => ({
     drawer: true,
     federatedBackendAvailable: false,
-    staticWebsiteAvailable: false
+    staticWebsiteAvailable: false,
+    securityProviderHostAvailable: false
   }),
   computed: {
     ...mapGetters(['currentUser', 'isAuthenticated', 'externalWebpages', 'commonData']),
@@ -109,12 +119,9 @@ export default Vue.extend({
   },
   mounted () {
       request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
-        this.federatedBackendAvailable = kaapanaApiService.checkUrl(response.data, '/federated-backend')
-      }).catch((error: any) => {
-        console.log('Something went wrong with traefik', error)
-      })
-      request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
-        this.staticWebsiteAvailable = kaapanaApiService.checkUrl(response.data, '/static-website-browser')
+        this.federatedBackendAvailable = kaapanaApiService.checkUrl(response.data, '/federated-backend');
+        this.staticWebsiteAvailable = kaapanaApiService.checkUrl(response.data, '/static-website-browser');
+        this.securityProviderHostAvailable = true; //kaapanaApiService.checkUrl(response.data, '/security/dashboard');
       }).catch((error: any) => {
         console.log('Something went wrong with traefik', error)
       })
@@ -179,10 +186,10 @@ $kaapana-green: #ff7a20;
 }
 .kaapana-intro-header{
   position: relative;
-} 
+}
 .kaapana-intro-header .kaapana-intro-image{
   padding-top: 10px;
-  padding-bottom: 10px; 
+  padding-bottom: 10px;
   color: white;
   text-align: center;
   min-height: calc(100vh - 105px);

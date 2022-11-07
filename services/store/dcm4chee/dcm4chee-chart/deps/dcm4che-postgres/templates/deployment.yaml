@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: postgres-dcm4che-container
-          image: {{ .Values.global.registry_url }}/dcm4che-postgres:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__9.6.24-26
+          image: "{{ .Values.global.registry_url }}/dcm4che-postgres:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
             - name: STORAGE_DIR

@@ -1,4 +1,4 @@
-FROM local-only/base-mitk-phenotyping:2021-02-18
+FROM local-only/base-mitk-phenotyping:latest
 
 LABEL IMAGE="mitk-radiomics"
 LABEL VERSION="2021-02-18"

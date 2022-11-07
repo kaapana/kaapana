@@ -178,8 +178,8 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
         except yaml.YAMLError as exc:
             print(exc)
 
-    if "{default_platform_abbr}_{default_platform_version}" in docker_version:
-        docker_version = docker_version.replace("{default_platform_abbr}_{default_platform_version}", f"{os.getenv('PLATFORM_ABBR')}_{os.getenv('PLATFORM_VERSION')}")
+    if "{kaapana_build_version}" in docker_version:
+        docker_version = docker_version.replace("{kaapana_build_version}", f"{os.getenv('KAAPANA_BUILD_VERSION')}")
     payload = {
         'name': 'pull-docker-chart',
         'version': helper_charts['entries']['pull-docker-chart'][0]['version'],
@@ -207,16 +207,23 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
     release_values = helm_get_values(os.getenv("RELEASE_NAME"))
 
     default_sets = {}
+    # if 'global' in release_values:
+    #     for k, v in release_values['global'].items():
+    #         default_sets[f'global.{k}'] = v
     if 'global' in release_values:
-        for k, v in release_values['global'].items():
-            default_sets[f'global.{k}'] = v
+        def traverse_values(parent_path, obj):
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    traverse_values(f"{parent_path}.{key}", value)
+            elif obj != '':
+                default_sets.update({f'{parent_path}': obj})
+        traverse_values('global', release_values['global'])
     default_sets.pop('global.preinstall_extensions', None)
     default_sets.pop('global.kaapana_collections', None)
 
     print('Using default sets')
     print(json.dumps(default_sets, indent=4, sort_keys=True))
 
-    values = helm_show_values(name, version)
     if 'keywords' not in payload:
         chart = helm_show_chart(name, version)
         if 'keywords' in chart:
@@ -226,11 +233,12 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
     else:
         keywords = payload['keywords']
 
+    values = helm_show_values(name, version)
     if 'global' in values:
         for key, value in values['global'].items():
             if value != '':
                 default_sets.update({f'global.{key}': value})
-
+                
     if 'sets' not in payload:
         payload['sets'] = default_sets
     else:
@@ -485,7 +493,7 @@ def execute_update_extensions():
 
     chart = {
         'name': 'update-collections-chart',
-        'version': '0.1.0'
+        'version': '0.0.0'
     } 
     print(chart['name'], chart['version'])
     payload = {k: chart[k] for k in ('name', 'version')}

@@ -1,5 +1,0 @@
----
-dependencies:
-  - name: federated-postgres
-    version: "9.6.1"
-    repository: file://deps/federated-postgres

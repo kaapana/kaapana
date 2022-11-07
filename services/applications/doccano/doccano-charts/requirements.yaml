@@ -1,9 +1,9 @@
 ---
 dependencies:
   - name: doccano-postgres
-    version: "9.6"
+    version: 0.0.0
     repository: file://deps/doccano-postgres
   - name: doccano-rabbitmq
-    version: "3.8"
+    version: 0.0.0
     repository: file://deps/doccano-rabbitmq
 

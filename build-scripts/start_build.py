@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 from shutil import copyfile, rmtree
 import yaml
 import os

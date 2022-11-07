@@ -1,6 +1,6 @@
 import os
 from datetime import timedelta
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
 
 class ProcessStudyIdsOperator(KaapanaBaseOperator):
 
@@ -21,7 +21,7 @@ class ProcessStudyIdsOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name=name,
-            image=f"{default_registry}/doccano-processing:{default_platform_abbr}_{default_platform_version}__0.1.0",
+            image=f"{default_registry}/doccano-processing:{kaapana_build_version}",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             execution_timeout=execution_timeout,

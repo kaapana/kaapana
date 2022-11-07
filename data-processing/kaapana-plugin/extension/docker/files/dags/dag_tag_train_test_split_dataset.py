@@ -10,29 +10,6 @@ from airflow.models import DAG
 
 
 ui_forms = {
-    "opensearch_form": {
-        "type": "object",
-        "properties": {
-            "dataset": "$default",
-            "index": "$default",
-            "cohort_limit": "$default",
-            "input_modality": {
-                "title": "Input Modality",
-                "default": "SEG",
-                "description": "Expected input modality.",
-                "type": "string",
-                "required": True
-            },
-            "single_execution": {
-                "type": "boolean",
-                "title": "Single execution",
-                "description": "Whether your report is execute in single mode or not",
-                "default": False,
-                "readOnly": True,
-                "required": True
-            }
-        }
-    },
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -60,6 +37,21 @@ ui_forms = {
                 "type": "string",
                 "default": "1" ,
                 "required": False
+            },
+            "input": {
+                "title": "Input Modality",
+                "default": "SEG",
+                "description": "Expected input modality.",
+                "type": "string",
+                "readOnly": False,
+            },
+            "single_execution": {
+                "type": "boolean",
+                "title": "Single execution",
+                "description": "Whether your report is execute in single mode or not",
+                "default": False,
+                "readOnly": True,
+                "required": True
             }
         }
     }
@@ -84,7 +76,7 @@ dag = DAG(
 )
 
 get_input = LocalGetInputDataOperator(dag=dag, data_type="json")
-train_test_split = TrainTestSplitOperator(dag=dag, input_operator=get_input, dev_server="code-server")
+train_test_split = TrainTestSplitOperator(dag=dag, input_operator=get_input)
 tag_dataset = LocalTaggingOperator(dag=dag, input_operator=train_test_split, add_tags_from_file=True, tags_to_add_from_file=["train_test_split_tag"])
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 

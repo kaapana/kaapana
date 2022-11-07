@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, \
-    default_registry, default_platform_abbr, default_platform_version
+    default_registry, kaapana_build_version
 
 
 class OrganSegmentationOperator(KaapanaBaseOperator):
@@ -53,7 +53,7 @@ class OrganSegmentationOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/shape-organseg:{default_platform_abbr}_{default_platform_version}__0.1.1",
+            image=f"{default_registry}/shape-organseg:{kaapana_build_version}",
             name="organ-segmentation",
             parallel_id=parallel_id,
             image_pull_secrets=["registry-secret"],

@@ -1,4 +1,4 @@
-FROM local-only/no-vnc-base:0.1.1
+FROM local-only/no-vnc-base:latest
 
 LABEL IMAGE="mitk-workbench"
 LABEL VERSION="2022.04"

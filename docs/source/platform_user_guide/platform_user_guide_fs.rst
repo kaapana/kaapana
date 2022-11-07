@@ -64,10 +64,10 @@ If you are more interested in the technologies, you can get started here:
 Getting images into the platform
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-In order to get started with the platform, first you will have to send images to the platform. There are two ways of getting images into the platform.
-The preferred way is to use the provided DICOM receiver on port ``11112``. If you have images locally you can use e.g. `DCMTK <https://dicom.offis.de/dcmtk.php.en>`_.
-However, any tool that sends images to a DICOM receiver can be used. Alternatively, you can upload DICOM images via drag&drop on the landing page, however, we only recommend this for small image sizes.
-Also the upload expects a zip file of images with a ``.dcm`` ending.
+In order to get started with the platform, first you will have to send images to the platform. There are two ways of getting images into the platform:
+
+(1) The preferred way is to use the provided DICOM receiver on port ``11112``. If you have images locally you can use e.g. `DCMTK <https://dicom.offis.de/dcmtk.php.en>`_.
+However, any tool that sends images to a DICOM receiver can be used. 
 
 Here is an example of sending images with DCMTK:
 
@@ -76,6 +76,9 @@ Here is an example of sending images with DCMTK:
    dcmsend -v <ip-address of server> 11112  --scan-directories --call <aetitle of images, used for filtering> --scan-pattern '*'  --recurse <data-dir-of-DICOM images>
 
 The AE title should represent your dataset since we use it for filtering images on our Meta-Dashboard in OpenSearch Dashboards.
+
+(2) Alternatively, you can upload DICOM images via the object store Minio, however, we only recommend this for small image sizes.
+The upload in Minio expects a zip file of images with a ``.dcm`` ending. The zip file can be uploaded via drag&drop select ``Store``, select ``Minio``, select Minio Bucket ``uploads`` and drag & drop your zip file.
 
 
 When DICOMs are sent to the DICOM receiver of the platform two things happen. Firstly, the DICOMs are saved in the local PACs system called DCM4CHEE. Secondly, 

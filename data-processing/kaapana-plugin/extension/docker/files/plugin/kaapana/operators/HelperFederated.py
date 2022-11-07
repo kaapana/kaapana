@@ -65,7 +65,7 @@ def raise_kaapana_connection_error(r):
 def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_dir, client_job_id, whitelist_federated_learning=None):
     data = federated['minio_urls'][operator_out_dir][action]
     with requests.Session() as s:
-        r = requests_retry_session(session=s).get('http://federated-backend-service.base.svc:5000/client/job', timeout=60, params={'job_id': client_job_id})
+        r = requests_retry_session(session=s).get('http://kaapana-backend-service.base.svc:5000/client/job', timeout=60, params={'job_id': client_job_id})
     raise_kaapana_connection_error(r)
     client_job = r.json()
     print('Client job')
@@ -74,13 +74,13 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
     print('Client network')
     print(json.dumps(client_network, indent=2))
     with requests.Session() as s:
-        r = requests_retry_session(session=s).get('http://federated-backend-service.base.svc:5000/client/remote-kaapana-instance', timeout=60, params={'instance_name': client_job['addressed_kaapana_instance_name']})
+        r = requests_retry_session(session=s).get('http://kaapana-backend-service.base.svc:5000/client/remote-kaapana-instance', timeout=60, params={'instance_name': client_job['addressed_kaapana_instance_name']})
     raise_kaapana_connection_error(r)
     remote_network = r.json()
     print('Remote network')
     print(json.dumps(remote_network, indent=2))
 
-    minio_presigned_url = f'{remote_network["protocol"]}://{remote_network["host"]}:{remote_network["port"]}/federated-backend/remote/minio-presigned-url'
+    minio_presigned_url = f'{remote_network["protocol"]}://{remote_network["host"]}:{remote_network["port"]}/kaapana-backend/remote/minio-presigned-url'
     ssl_check = remote_network["ssl_check"]
     filename = os.path.join(root_dir, os.path.basename(data['path'].split('?')[0]))
     if action == 'put':

@@ -18,7 +18,7 @@ spec:
     spec:
       initContainers:
         - name: init
-          image: {{ .Values.global.registry_url }}/service-checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
+          image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy: {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
@@ -29,7 +29,7 @@ spec:
               value: "10"
       containers:
       - name: minio-console
-        image: {{ .Values.global.registry_url }}/minio-console:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.15.6
+        image: "{{ .Values.global.registry_url }}/minio-console:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         args: ["server", "--host", "0.0.0.0", "--port", "9001"]
         env:

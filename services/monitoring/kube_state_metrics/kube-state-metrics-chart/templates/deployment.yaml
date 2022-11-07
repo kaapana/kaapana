@@ -22,7 +22,7 @@ spec:
     spec:
       automountServiceAccountToken: true
       containers:
-      - image: {{ .Values.global.registry_url }}/kube-state-metrics:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__v2.5.0
+      - image: "{{ .Values.global.registry_url }}/kube-state-metrics:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         livenessProbe:
           httpGet:

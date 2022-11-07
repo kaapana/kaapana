@@ -2,3 +2,5 @@ pyyaml
 treelib
 networkx[default]
 jinja2
+GitPython
+semver

@@ -3,7 +3,7 @@ FROM node:lts-alpine3.10 as build-stage
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-landing-page"
-LABEL VERSION="0.1.1"
+LABEL VERSION="latest"
 LABEL CI_IGNORE="False"
 
 WORKDIR /landing/app
@@ -15,7 +15,7 @@ COPY files/kaapana_app .
 # # # ###############################
 # # # ############# Dev #############
 # # # ###############################
-# # # # In the landing-page deployment, adjust the resource limits to at least 12Gi and change the docker image to the one you are pushing 
+# # # In the landing-page deployment, adjust the resource limits to at least 12Gi and change the docker image to the one you are pushing 
 # RUN npm run build
 # WORKDIR / 
 # COPY files/dev.sh .

@@ -20,6 +20,18 @@
         //-   v-list-item-content
         //-     v-list-item-title Data upload
         //-   v-list-item-icon
+        v-list-item(:to="'/experiments'", v-if="isAuthenticated")
+          v-list-item-action
+            v-icon mdi-controller-classic
+          v-list-item-content
+            v-list-item-title Experiments
+          v-list-item-icon
+        v-list-item(:to="'/federated'", v-if="isAuthenticated && federatedBackendAvailable")
+          v-list-item-action
+            v-icon mdi-vector-triangle
+          v-list-item-content
+            v-list-item-title Federated
+          v-list-item-icon
         v-list-item(:to="'/pending-applications'" v-if="isAuthenticated")
           v-list-item-action
             v-icon mdi-gamepad-variant
@@ -32,13 +44,6 @@
           v-list-item-content
             v-list-item-title Results browser
           v-list-item-icon
-        v-list-item(:to="'/federated'", v-if="isAuthenticated && federatedBackendAvailable")
-          v-list-item-action
-            v-icon mdi-vector-triangle
-          v-list-item-content
-            v-list-item-title Federated
-          v-list-item-icon
-
         v-list-group(:prepend-icon="'mdi-security'" v-if="isAuthenticated && securityProviderHostAvailable" ) 
           template(v-slot:activator)
             v-list-item-title Security
@@ -46,7 +51,6 @@
             v-list-item-title Dashboard
           v-list-item(:to="'/security/configuration'")
             v-list-item-title Configuration
-
         v-list-item(:to="'/extensions'", v-if="isAuthenticated")
           v-list-item-action
             v-icon mdi-apps
@@ -77,7 +81,7 @@
           v-flex(text-xs-center)
             router-view
     v-footer(color="primary" app inset)
-      span.white--text &copy; DKFZ 2018 - DKFZ 2022: Version {{commonData.version}}
+      span.white--text &copy; DKFZ 2018 - DKFZ 2022 | {{commonData.version}}
 </template>
 
 
@@ -119,12 +123,12 @@ export default Vue.extend({
   },
   mounted () {
       request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
-        this.federatedBackendAvailable = kaapanaApiService.checkUrl(response.data, '/federated-backend');
+        this.federatedBackendAvailable = kaapanaApiService.checkUrl(response.data, '/kaapana-backend');
         this.staticWebsiteAvailable = kaapanaApiService.checkUrl(response.data, '/static-website-browser');
         this.securityProviderHostAvailable = true; //kaapanaApiService.checkUrl(response.data, '/security/dashboard');
       }).catch((error: any) => {
         console.log('Something went wrong with traefik', error)
-      })
+      });
   },
   onIdle() {
     console.log('checking', this.$store.getters.isAuthenticated)

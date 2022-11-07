@@ -75,7 +75,7 @@ def get_operator_properties(*args, **kwargs):
     return run_id, dag_run_dir, dag_run, downstream_tasks
 
 
-# Same as in federated-backend/docker/files/app/utils.py
+# Same as in kaapana-backend/docker/files/app/utils.py
 #https://www.peterbe.com/plog/best-practice-with-retries-with-requests
 #https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
 def requests_retry_session(
@@ -105,7 +105,7 @@ def requests_retry_session(
                 'ctp-dicom-service.flow,ctp-dicom-service.flow.svc,'\
                     'dcm4chee-service.store,dcm4chee-service.store.svc,'\
                         'opensearch-service.meta,opensearch-service.meta.svc'\
-                            'federated-backend-service.base,federated-backend-service.base.svc,' \
+                            'kaapana-backend-service.base,kaapana-backend-service.base.svc,' \
                                 'minio-service.store,minio-service.store.svc'
         }
         session.proxies.update(proxies)
@@ -168,3 +168,94 @@ def clean_previous_dag_run(conf, run_identifier):
             print(f'Removing batch files from {run_identifier}: {dag_run_dir}')
             if os.path.isdir(dag_run_dir):
                 shutil.rmtree(dag_run_dir)
+
+
+def parse_ui_dict(dag_dict):
+
+    if "ui_forms" in dag_dict:
+        if "ui_visible" in dag_dict and dag_dict["ui_visible"] is True and "data_form" not in dag_dict["ui_forms"]:
+            dag_dict["ui_forms"].update({
+                "data_form": {
+                    "type": "object",
+                    "properties": {
+                        "cohort_name": "$default",
+                        "cohort_limit": "$default"
+                    }
+                }
+            })
+
+        default_properties = {}
+        for ui_form_key, ui_form in dag_dict["ui_forms"].items():
+            if ui_form_key=='publication_form':
+                pass
+            elif ui_form_key=='workflow_form':
+                default_properties = {
+                    "single_execution": {
+                        "type": "boolean",
+                        "title": "Single execution",
+                        "description": "Whether your report is execute in single mode or not",
+                        "default": True,
+                        "readOnly": False,
+                        "required": True
+                    }
+                }
+            elif ui_form_key=='data_form':
+                default_properties = {
+                    "cohort_name": {
+                        "type": "string",
+                        "title": "Cohort name",
+                        "oneOf": [],
+                        "required": True
+                    },
+                    "cohort_limit": {
+                        "type": "integer",
+                        "title": "Limit cohort-size",
+                        "description": "Limit Cohort to this many cases.",
+                        "required": True
+                    }
+                }
+            elif ui_form_key == 'external_schema_federated_form':
+                default_properties = {
+                    "federated_bucket": {
+                        "type": "string",
+                        "title": "Federated bucket",
+                        "description": "Bucket to which the files should be saved to",
+                        "readOnly": True
+                    },
+                    "federated_dir": {
+                        "type": "string",
+                        "title": "Federated directory",
+                        "description": "Directory to which the files should be saved to",
+                        "readOnly": True
+                    },
+                    "federated_operators": {
+                        "type": "array",
+                        "title": "Operators for which the results should be saved",
+                        "items": {
+                            "type": "string"
+                        },
+                        "readOnly": True
+                    },
+                    "skip_operators": {
+                        "type": "array",
+                        "title": "Operators that should not be executed",
+                        "items": {
+                            "type": "string"
+                        },
+                        "readOnly": True
+                    },
+                    "federated_round": {
+                        "type": "integer",
+                        "title": "Federated round",
+                        "readOnly": True
+                    },
+                    "federated_total_rounds": {
+                        "type": "integer",
+                        "title": "Federated total rounds"
+                    }
+                }
+            if 'properties' in ui_form:
+                for k, v in ui_form['properties'].items():
+                    if v == "$default":
+                        ui_form['properties'][k] = default_properties[k]
+    return dag_dict

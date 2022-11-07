@@ -21,7 +21,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: dashboard-metrics-scraper
-          image: {{ .Values.global.registry_url }}/metrics-scraper:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__v1.0.7
+          image: "{{ .Values.global.registry_url }}/metrics-scraper:{{ .Values.global.kaapana_build_version  }}"
           ports:
             - containerPort: 8000
               protocol: TCP

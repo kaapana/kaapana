@@ -4,7 +4,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-mitk-phenotyping"
-LABEL VERSION="2021-02-18"
+LABEL VERSION="latest"
 LABEL CI_IGNORE="False"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

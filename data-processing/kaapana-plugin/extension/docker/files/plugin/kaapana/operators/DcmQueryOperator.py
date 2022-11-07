@@ -3,7 +3,7 @@ import glob
 from datetime import timedelta, date
 import pydicom
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
@@ -54,7 +54,7 @@ class DcmQueryOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/dcmqr:{default_platform_abbr}_{default_platform_version}__0.1.1",
+            image=f"{default_registry}/dcmqr:{kaapana_build_version}",
             name="dcmqr",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,

@@ -210,7 +210,7 @@ elif mode == "install_pretrained":
             print("Try: {} - Start download: {}".format(try_count, model_url))
             try_count += 1
             try:
-                print(f"set lock-file: {}".format(model_path_dl_running))
+                print("set lock-file: {}".format(model_path_dl_running))
                 Path(model_path_dl_running).touch()
                 urllib.request.urlretrieve(model_url, target_file)
             except Exception as e:

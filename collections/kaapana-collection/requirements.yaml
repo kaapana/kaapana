@@ -60,3 +60,9 @@ dependencies:
   - name: openedc-chart
     version: 0.1.0
     repository: file://../../services/applications/openEDC/openedc-chart
+  - name: security-wazuh-chart
+    version: 0.0.1
+    repository: file://../../services/applications/security-wazuh/security-wazuh-chart
+  - name: security-stackrox-chart
+    version: 0.0.1
+    repository: file://../../services/applications/security-stackrox/security-stackrox-chart

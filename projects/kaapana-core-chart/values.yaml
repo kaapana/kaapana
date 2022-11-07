@@ -10,6 +10,7 @@ global:
     flow_namespace: "flow"
     flow_jobs_namespace: "flow-jobs"
     monitoring_namespace: "monitoring"
+    security_namespace: "security"
     gpu_support: false
     credentials_minio_username: "admin"
     credentials_minio_password: "Kaapana2019"

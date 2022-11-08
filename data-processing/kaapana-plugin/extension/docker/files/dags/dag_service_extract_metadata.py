@@ -7,6 +7,7 @@ from airflow.models import DAG
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
+from kaapana.operators.DcmExtractorOperator import DcmExtractorOperator
 
 log = LoggingMixin().log
 
@@ -29,10 +30,9 @@ dag = DAG(
 
 get_input = LocalGetInputDataOperator(dag=dag, operator_out_dir='get-input-data')
 extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=get_input)
-push_json = LocalJson2MetaOperator(dag=dag, input_operator=get_input, json_operator=extract_metadata)
-tagging = LocalTaggingOperator(dag=dag, input_operator=extract_metadata, add_tags_from_file=True)
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+dicom_extractor = DcmExtractorOperator(dag=dag, input_operator=get_input, json_operator=extract_metadata, image_pull_policy="Always")#, dev_server="code-server")
+push_json = LocalJson2MetaOperator(dag=dag, input_operator=get_input, json_operator=dicom_extractor)
+tagging = LocalTaggingOperator(dag=dag, input_operator=dicom_extractor, add_tags_from_file=True)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
 
-get_input >> extract_metadata >> push_json >> tagging >> clean
-extract_metadata >> tagging
-
+get_input >> extract_metadata >> dicom_extractor >> push_json >> tagging >> clean

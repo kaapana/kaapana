@@ -202,6 +202,8 @@ spec:
           value: "{{ .Values.global.https_port }}"
         - name: INSTANCE_NAME
           value: "{{ .Values.global.instance_name }}"
+        - name: GPU_SUPPORT
+          value: "{{ .Values.global.gpu_support }}"
         - name: PULL_POLICY_PODS
           value: "{{ .Values.global.pull_policy_pods }}"
         - name: MINIOUSER

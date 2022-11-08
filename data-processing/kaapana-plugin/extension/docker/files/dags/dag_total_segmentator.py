@@ -21,19 +21,19 @@ ui_forms = {
         "properties": {
             "title": {
                 "title": "Title",
-                "default": "Automated Design of Deep Learning Methods\n for Biomedical Image Segmentation",
+                "default": "TotalSegmentator: robust segmentation of 104 anatomical structures in CT images",
                 "type": "string",
                 "readOnly": True,
             },
             "authors": {
                 "title": "Authors",
-                "default": "Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein",
+                "default": "Wasserthal J., Meyer M., Breit H., Cyriac J., Yang S., Segeroth M.",
                 "type": "string",
                 "readOnly": True,
             },
             "link": {
                 "title": "DOI",
-                "default": "https://arxiv.org/abs/1904.08128",
+                "default": "https://arxiv.org/abs/2208.05868",
                 "description": "DOI",
                 "type": "string",
                 "readOnly": True,
@@ -44,103 +44,6 @@ ui_forms = {
                 "type": "boolean",
                 "readOnly": True,
                 "required": True,
-            }
-        }
-    },
-    "workflow_form": {
-        "type": "object",
-        "properties": {
-            "description": {
-                "title": "Task Description",
-                "description": "Description of the task.",
-                "type": "string",
-                "readOnly": True,
-                "dependsOn": [
-                    "task"
-                ]
-            },
-            "task_url": {
-                "title": "Website",
-                "description": "Website to the task.",
-                "type": "string",
-                "readOnly": True,
-                "dependsOn": [
-                    "task"
-                ]
-            },
-            "input": {
-                "title": "Input Modalities",
-                "description": "Expected input modalities.",
-                "type": "string",
-                "readOnly": True,
-                "dependsOn": [
-                    "task"
-                ]
-            },
-            "body_part": {
-                "title": "Body Part",
-                "description": "Body part, which needs to be present in the image.",
-                "type": "string",
-                "readOnly": True,
-                "dependsOn": [
-                    "task"
-                ]
-            },
-            "targets": {
-                "title": "Segmentation Targets",
-                "type": "string",
-                "readOnly": True,
-                "dependsOn": [
-                    "task"
-                ]
-            },
-            "model": {
-                "title": "Pre-trained models",
-                "description": "Select one of the available models.",
-                "type": "string",
-                "default": "3d_lowres",
-                "required": True,
-                "enum": [],
-                "dependsOn": [
-                    "task"
-                ]
-            },
-            "inf_softmax": {
-                "title": "enable softmax",
-                "description": "Enable softmax export?",
-                "type": "boolean",
-                "default": False,
-                "readOnly": False,
-            },
-            "interpolation_order": {
-                "title": "interpolation order",
-                "default": default_interpolation_order,
-                "description": "Set interpolation_order.",
-                "enum": ["default", "0", "1", "2", "3"],
-                "type": "string",
-                "readOnly": False,
-                "required": True
-            },
-            "inf_threads_prep": {
-                "title": "Pre-processing threads",
-                "type": "integer",
-                "default": default_prep_thread_count,
-                "description": "Set pre-processing thread count.",
-                "required": True
-            },
-            "inf_threads_nifti": {
-                "title": "NIFTI threads",
-                "type": "integer",
-                "description": "Set NIFTI export thread count.",
-                "default": default_nifti_thread_count,
-                "required": True
-            },
-            "single_execution": {
-                "title": "single execution",
-                "description": "Should each series be processed separately?",
-                "type": "boolean",
-                "default": True,
-                "readOnly": False,
             }
         }
     }
@@ -167,8 +70,7 @@ get_input = LocalGetInputDataOperator(
     parallel_downloads=5,
     check_modality=True
 )
-# get_task_model = GetTaskModelOperator(dag=dag)
-# get_task_model = GetContainerModelOperator(dag=dag)
+
 dcm2nifti = DcmConverterOperator(
     dag=dag,
     input_operator=get_input,
@@ -180,7 +82,7 @@ total_segmentator = TotalSegmentatorOperator(
     input_operator=dcm2nifti,
 )
 
-alg_name = 'TotalSegmentator'# nnunet_predict.image.split("/")[-1].split(":")[0]
+alg_name = 'TotalSegmentator'
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     dag=dag,
     input_operator=get_input,

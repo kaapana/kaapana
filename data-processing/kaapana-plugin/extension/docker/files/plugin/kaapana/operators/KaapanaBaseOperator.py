@@ -34,6 +34,7 @@ from airflow.models import Variable
 
 default_registry = os.getenv("DEFAULT_REGISTRY", "")
 kaapana_build_version = os.getenv("KAAPANA_BUILD_VERSION", "")
+gpu_support = True if os.getenv('GPU_SUPPORT', "False").lower() == "true" else False
 
 class KaapanaBaseOperator(BaseOperator, SkipMixin):
     """
@@ -655,7 +656,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         obj.ram_mem_mb_lmt = ram_mem_mb_lmt
         obj.cpu_millicores = cpu_millicores
         obj.cpu_millicores_lmt = cpu_millicores_lmt
-        obj.gpu_mem_mb = gpu_mem_mb
+        obj.gpu_mem_mb = gpu_mem_mb if gpu_support else None
         obj.gpu_mem_mb_lmt = gpu_mem_mb_lmt
         obj.manage_cache = manage_cache or 'ignore'
         obj.allow_federated_learning = allow_federated_learning

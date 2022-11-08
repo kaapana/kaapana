@@ -1,5 +1,5 @@
 from datetime import timedelta
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry
 
 
 class ExtractStudyIdOperator(KaapanaBaseOperator):

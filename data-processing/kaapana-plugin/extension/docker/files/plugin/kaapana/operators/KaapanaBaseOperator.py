@@ -472,14 +472,14 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             if self.dev_server == 'code-server':
                 payload = {
                     'name': 'code-server-chart',
-                    'version': '4.2.0',
+                    'version': kaapana_build_version,
                     'release_name': release_name,
                     'sets': helm_sets
                 }
             elif self.dev_server == 'jupyterlab':
                 payload = {
                     'name': 'jupyterlab-chart',
-                    'version': '3.3.2',
+                    'version': kaapana_build_version,
                     'release_name': release_name,
                     'sets': helm_sets
                 }

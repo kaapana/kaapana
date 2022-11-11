@@ -1,7 +1,6 @@
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
-from datetime import datetime
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
@@ -9,7 +8,7 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.TotalSegmentatorOperator import TotalSegmentatorOperator
 
-max_active_runs = 10
+max_active_runs = 5
 concurrency = max_active_runs * 2
 default_interpolation_order = "default"
 default_prep_thread_count = 1
@@ -46,6 +45,18 @@ ui_forms = {
                 "required": True,
             }
         }
+    },
+    "workflow_form": {
+        "type": "object",
+        "properties": {
+            "single_execution": {
+                "title": "single execution",
+                "description": "Should each series be processed separately?",
+                "type": "boolean",
+                "default": True,
+                "readOnly": True,
+            }
+        }
     }
 }
 args = {
@@ -74,12 +85,12 @@ get_input = LocalGetInputDataOperator(
 dcm2nifti = DcmConverterOperator(
     dag=dag,
     input_operator=get_input,
-    output_format='nii.gz'
+    output_format='nii.gz',
 )
 
 total_segmentator = TotalSegmentatorOperator(
     dag=dag,
-    input_operator=dcm2nifti,
+    input_operator=dcm2nifti
 )
 
 alg_name = 'TotalSegmentator'
@@ -91,7 +102,6 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     multi_label_seg_name=alg_name,
     skip_empty_slices=True,
     alg_name=alg_name,
-   #  dev_server="code-server"
 )
 
 dcmseg_send_multi = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi)

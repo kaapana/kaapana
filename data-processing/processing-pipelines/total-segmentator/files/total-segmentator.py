@@ -1,13 +1,13 @@
-import glob
-import os
 from pathlib import Path
-
+import os
 import json
+from typing import List
+
 import torch
 from totalsegmentator.libs import setup_nnunet, download_pretrained_weights
 
 
-def total_segmentator(input_path: Path, output_path: Path, fast: bool = True):
+def total_segmentator(input_path: Path, output_path: Path, fast: bool = False):
     if not torch.cuda.is_available():
         raise ValueError(
             "TotalSegmentator only works with a NVidia CUDA GPU. CUDA not found. " +
@@ -485,27 +485,20 @@ def total_segmentator(input_path: Path, output_path: Path, fast: bool = True):
 #     if not quiet: print(f"  calculated in {time.time()-st:.2f}s")
 
 
-# From the template
-
-batch_folders = sorted(
-    [f for f in glob.glob(
-        os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'],
-                     '*'))])
+batch_folders: List[Path] = sorted([*Path('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME']).glob('*')])
 
 for batch_element_dir in batch_folders:
 
-    element_input_dir = os.path.join(batch_element_dir,
-                                     os.environ['OPERATOR_IN_DIR'])
-    element_output_dir = os.path.join(batch_element_dir,
-                                      os.environ['OPERATOR_OUT_DIR'])
-    if not os.path.exists(element_output_dir):
-        os.makedirs(element_output_dir)
+    element_input_dir = batch_element_dir / os.environ['OPERATOR_IN_DIR']
+    element_output_dir = batch_element_dir / os.environ['OPERATOR_OUT_DIR']
+
+    element_output_dir.mkdir(exist_ok=True)
 
     # The processing algorithm
     print(
-        f'Checking {element_input_dir} for nifti files and writing results to {element_output_dir}')
-    nifti_files = sorted(
-        glob.glob(os.path.join(element_input_dir, "*.nii.gz"), recursive=True))
+        f'Checking {str(element_input_dir)} for nifti files and writing results to {str(element_output_dir)}'
+    )
+    nifti_files: List[Path] = sorted([*element_input_dir.rglob("*.nii.gz")])
 
     if len(nifti_files) == 0:
         print("No nifti file found!")
@@ -515,8 +508,8 @@ for batch_element_dir in batch_folders:
             print(f"# running total segmentator")
             try:
                 total_segmentator(
-                    Path(nifti_file).absolute(),
-                    Path(element_output_dir).absolute()
+                    nifti_file.absolute(),
+                    element_output_dir.absolute()
                 )
                 print("# Successfully processed")
             except Exception as e:

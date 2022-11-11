@@ -38,19 +38,34 @@ global_extension_states: Dict[str, schemas.ExtensionState] = {}  # keys are in f
 global_recently_updated: Set[str] = set()  # list of keys for recently updated ( < refresh_delay) extensions
 
 
-def execute_shell_command(command, shell=False, timeout=5) -> Tuple[bool, str]:
-    """
-    Runs given command via subprocess.run
+def execute_shell_command(command, shell=False, blocking=True, timeout=5, skip_check=False) -> Tuple[bool, str]:
+    """Runs given command via subprocess.run or subprocess.Popen
+
+    Args:
+        command (_type_): _description_
+        shell (bool, optional): _description_. Defaults to False.
+        blocking (bool, optional): _description_. Defaults to True.
+        timeout (int, optional): _description_. Defaults to 5.
+
     Returns:
         success (bool)  : whether the command ran successfully
-        stdout  (str)   : output of the command. If success=False it is the same as stderr 
+        stdout  (str)   : output of the command. If success=False it is the same as stderr
     """
-    if ";" in command:
-        err = f"Detected ';' in {command=} -> cancel request!"
+    if blocking is False:
+        logger.info(f"running non-blocking {command=} via Popen, shell=True, timeout ignored")
+        p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        logger.debug(f"{p.pid=}")
+        # TODO: add to a process queue, run p.communicate() & fetch returncode
+        return True, ""
+
+    if (not skip_check) and ";" in command:
+        err = f"Detected ';' in blocking command {command} -> cancel request!"
         logger.error(err)
         return False, err
     logger.debug("executing shell command: {0}".format(command))
     logger.debug("shell={0} , timeout={1}".format(shell, timeout))
+    if "--timeout" in command:
+        timeout = None
     if shell == False:
         command = [x for x in command.replace("  ", " ").split(" ") if x != ""]
     command_result = subprocess.run(
@@ -534,6 +549,7 @@ def get_kube_objects(release_name: str, helm_namespace: str = settings.helm_name
                 if obj_kube_status != None:
                     for key, value in obj_kube_status.dict().items():
                         concatenated_states[key].extend(value)
+                        logger.info(f"{key=} {value=}")
                         if key == "status" and value[0] != KUBE_STATUS_COMPLETED and value[0] != KUBE_STATUS_RUNNING:
                             deployment_ready = False
     else:

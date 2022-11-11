@@ -60,6 +60,7 @@ async def update_extensions():
 async def helm_delete_chart(request: Request):
     try:
         payload = await request.json()
+        logger.debug(f"/helm-delete-chart called with {payload=}")
         success, stdout = utils.helm_delete(
             release_name=payload["release_name"],
             release_version=payload["release_version"],
@@ -78,8 +79,9 @@ async def helm_delete_chart(request: Request):
 async def helm_install_chart(request: Request):
     try:
         payload = await request.json()
+        logger.debug(f"/helm-install-chart called with {payload=}")
         success, stdout, _, release_name = utils.helm_install(
-            payload, shell=False)
+            payload, shell=True, blocking=False)
         if success:
             return Response("Successfully ran helm install for chart '{0}'".format(release_name), 200)
         else:
@@ -91,12 +93,16 @@ async def helm_install_chart(request: Request):
 
 @router.post("/pull-docker-image")
 async def pull_docker_image(request: Request):
+    """
+    Runs helm install command in the background
+    """
     try:
         payload = await request.json()
+        logger.debug(f"/pull-docker-image called {payload=}")
         logger.info(payload)
         release_name = f'pull-docker-chart-{secrets.token_hex(10)}'
         utils.pull_docker_image(release_name, **payload)
-        return Response(f"We are trying to download the docker container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}", 202)
+        return Response(f"Trying to download the docker container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}", 202)
     except subprocess.CalledProcessError as e:
         utils.helm_delete(release_name)
         logger.error(e)

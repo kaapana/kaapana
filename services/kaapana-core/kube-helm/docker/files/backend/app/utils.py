@@ -50,7 +50,7 @@ def sha256sum(filepath):
 
 
 def helm_search_repo(keywords_filter):
-    logger.debug("helm search repo with filter {0}".format(keywords_filter))
+    logger.debug("in function: helm_search_repo, with filter {0}".format(keywords_filter))
     global charts_cached
     keywords_filter = set(keywords_filter)
 
@@ -69,6 +69,7 @@ def helm_search_repo(keywords_filter):
 
 
 def helm_get_values(release_name, helm_namespace=settings.helm_namespace):
+    logger.debug("in function: helm_get_values")
     success, stdout = helm_helper.execute_shell_command(
         f'{settings.helm_path} -n {helm_namespace} get values -o json {release_name}')
     if success and stdout != b'null\n':
@@ -78,6 +79,7 @@ def helm_get_values(release_name, helm_namespace=settings.helm_namespace):
 
 
 def helm_status(release_name, helm_namespace=settings.helm_namespace):
+    logger.debug("in function: helm_status")
     success, stdout = helm_helper.execute_shell_command(
         f'{settings.helm_path} -n {helm_namespace} status {release_name}')
     if success:
@@ -109,7 +111,7 @@ def collect_helm_deployments(helm_namespace=settings.helm_namespace):
 def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
     # regex = r'image: ([\w\-\.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)'
     regex = r'image: (.*)\/([\w\-\.]+):([\w\-\.]+)'
-    logger.debug("in helm_prefetch_extension_docker")
+    logger.debug("in function: helm_prefetch_extension_docker")
     extensions = helm_search_repo(
         keywords_filter=['kaapanaapplication', 'kaapanaint', 'kaapanaworkflow'])
     installed_release_names = []
@@ -152,7 +154,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
     for name, payload in image_dict.items():
         release_name = f'pull-docker-chart-{secrets.token_hex(10)}'
         success, stdout, helm_result_dict = pull_docker_image(
-            release_name, **payload)
+            release_name, blocking=True, **payload)
         if success:
             installed_release_names.append(release_name)
         else:
@@ -168,26 +170,15 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
             logger.info(
                 f'Skipping {dag["name"]} since it is already installed')
             continue
-        helm_command_suffix = f'--wait --atomic --timeout=120m0s'
-        success, stdout, helm_result_dict, _ = helm_install(
+        helm_command_suffix = f'--wait --atomic --timeout=120m0s; sleep 10; {settings.helm_path} -n {helm_namespace} delete --no-hooks {dag["release_name"]}'
+        success, stdout, helm_result_dict, release_name = helm_install(
             dag, helm_command_suffix=helm_command_suffix, shell=False)
-        if success:
-            # TODO: use multiple execute commands function here
-            sleep_cmd = 'sleep 10'
-            success, stdout = helm_helper.execute_shell_command(sleep_cmd, timeout=15)
-            if success:
-                logger.debug("deleting with no-hooks")
-                del_nohooks = f'{settings.helm_path} -n {helm_namespace} delete --no-hooks {dag["release_name"]}'
-                success, stdout = helm_helper.execute_shell_command(del_nohooks)
-            installed_release_names.append(release_name)
-        else:
-            helm_delete(release_name=dag['release_name'],
-                        release_version=chart["version"], helm_command_addons='--no-hooks')
+        installed_release_names.append(release_name)
 
     return installed_release_names
 
 
-def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, timeout='120m0s', helm_namespace=settings.helm_namespace, shell=True):
+def pull_docker_image(release_name, docker_image, docker_version, docker_registry_url, timeout='120m0s', helm_namespace=settings.helm_namespace, shell=True,  blocking=False):
     logger.info(f'Pulling {docker_registry_url}/{docker_image}:{docker_version} , shell={shell}')
 
     try:
@@ -215,16 +206,16 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
         'release_name': release_name
     }
 
-    helm_command_suffix = f'--wait --atomic --timeout {timeout}'
+    helm_command_suffix = f'--wait --atomic --timeout {timeout}; sleep 10; {settings.helm_path} -n {helm_namespace} delete {release_name}'
     success, stdout, helm_result_dict, _ = helm_install(
-        payload, helm_command_suffix=helm_command_suffix, helm_cache_path=settings.helm_helpers_cache, shell=shell, update_state=False)
-    if success:
-        # TODO: use multiple execute commands function here
-        sleep_cmd = "sleep 10"
-        success, stdout = helm_helper.execute_shell_command(sleep_cmd, timeout=15, shell=shell)
-        if success:
-            del_release = f'{settings.helm_path} -n {helm_namespace} delete {release_name}'
-            success, stdout = helm_helper.execute_shell_command(del_release)
+        payload,
+        helm_command_suffix=helm_command_suffix,
+        helm_cache_path=settings.helm_helpers_cache,
+        shell=shell,
+        update_state=False,
+        blocking=blocking
+    )
+
     return success, helm_result_dict
 
 
@@ -236,13 +227,27 @@ def helm_install(
     helm_delete_prefix='',
     shell=True,
     helm_cache_path=None,
-    update_state=True
+    update_state=True,
+    blocking=True
 ) -> Tuple[bool, str, dict, str]:
     # TODO: must be shell=False as default
     """
-        Returns success: bool, stdout: str, helm_result_dict: dict, release_name: str
+
+    Args:
+        payload (_type_): 
+        helm_namespace (_type_, optional): . Defaults to settings.helm_namespace.
+        helm_command_addons (str, optional): . Defaults to ''.
+        helm_command_suffix (str, optional): . Defaults to ''.
+        helm_delete_prefix (str, optional): . Defaults to ''.
+        shell (bool, optional): Run command process with or without shell. Defaults to True.
+        helm_cache_path (_type_, optional): _description_. Defaults to None.
+        update_state (bool, optional): Whether to update global_extension_states. Defaults to True.
+        blocking (bool, optional): Run helm install command in a blocking or non-blocking way. Defaults to True.
+
+    Returns:
+        Tuple[bool, str, dict, str]: success, stdout, helm_result_dict, release_name
     """
-    logger.debug("installing helm chart with payload {0}, shell {1}".format(payload, shell))
+    logger.debug("in function: helm_install with payload {0}, shell {1}".format(payload, shell))
 
     helm_cache_path = helm_cache_path or settings.helm_extensions_cache
 
@@ -325,14 +330,20 @@ def helm_install(
 
     # make the whole command
     helm_command = f'{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}'
+
+    # TODO: fix the following: currently skips check for ';' if there are any suffixes in the command, not safe
+    skip_check = False
+    if helm_command_suffix != "":
+        skip_check = True
     if helm_delete_prefix != "":
-        success, stdout = helm_helper.execute_shell_command(helm_delete_prefix, shell=shell)
+        success, stdout = helm_helper.execute_shell_command(helm_delete_prefix, shell=shell, blocking=blocking, skip_check=skip_check)
         if not success:
             logger.error(f"helm delete prefix failed: cmd={helm_delete_prefix} success={success} stdout={stdout}")
-    success, stdout = helm_helper.execute_shell_command(helm_command, shell=shell)
+    success, stdout = helm_helper.execute_shell_command(helm_command, shell=shell, blocking=blocking)
 
     helm_result_dict = {}
-    if success:
+    if blocking and success:
+        logger.debug(f"making helm_result_dict after blocking execution, {stdout=}")
         for item in helm_helper.global_extensions_dict_cached:
             if item["releaseName"] == release_name and item["version"] == version:
                 item["successful"] = KUBE_STATUS_PENDING
@@ -357,7 +368,7 @@ def helm_delete(
     helm_command_addons='',
     update_state=True
 ):
-
+    logger.debug(f"in function: helm_delete with {release_name}")
     # release version only important for extensions charts
     cached_extension = [
         x for x in helm_helper.global_extensions_dict_cached if x["releaseName"] == release_name]
@@ -381,7 +392,7 @@ def helm_delete(
 
     # delete version
     helm_command = f'{settings.helm_path} -n {helm_namespace} uninstall {helm_command_addons} {release_name}'
-    success, stdout = helm_helper.execute_shell_command(helm_command, shell=False)
+    success, stdout = helm_helper.execute_shell_command(helm_command, shell=True, blocking=False)
     if success:
         if release_version is not None:
             for item in helm_helper.global_extensions_dict_cached:
@@ -488,6 +499,7 @@ def execute_update_extensions():
         install_error (bool): Whether there was an error during the installation
         message (str): Describes the state of execution
     """
+    logger.debug(f"in function: execute_update_extensions")
     chart = {
         'name': 'update-collections-chart',
         'version': '0.1.0'

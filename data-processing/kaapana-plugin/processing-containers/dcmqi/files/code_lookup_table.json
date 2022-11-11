@@ -4057,5 +4057,941 @@
     "SNOMED-RT ID (Retired)": "",
     "FMA Code Value": null,
     "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "adrenal_gland_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "adrenal_gland_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "aorta",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "autochthon_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "autochthon_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "brain",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "clavicula_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "clavicula_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "colon",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "duodenum",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "esophagus",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "face",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "femur_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "femur_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "gallbladder",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "gluteus_maximus_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "gluteus_maximus_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "gluteus_medius_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "gluteus_medius_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "gluteus_minimus_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "gluteus_minimus_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "heart_atrium_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "heart_atrium_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "heart_myocardium",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "heart_ventricle_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "heart_ventricle_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "hip_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "hip_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "humerus_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "humerus_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "iliac_artery_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "iliac_artery_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "iliac_vena_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "iliac_vena_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "iliopsoas_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "iliopsoas_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "inferior_vena_cava",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "kidney_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "kidney_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "liver",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "lung_lower_lobe_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "lung_lower_lobe_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "lung_middle_lobe_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "lung_upper_lobe_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "lung_upper_lobe_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "pancreas",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "portal_vein_and_splenic_vein",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "pulmonary_artery",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_left_1",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_left_10",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_left_11",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_left_12",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_left_2",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_left_3",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_left_4",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_left_5",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_left_6",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_left_7",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_left_8",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_left_9",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_right_1",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_right_10",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_right_11",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_right_12",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_right_2",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_right_3",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_right_4",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_right_5",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_right_6",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_right_7",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_right_8",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "rib_right_9",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "sacrum",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "scapula_left",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "scapula_right",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "small_bowel",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "spleen",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "stomach",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "trachea",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "urinary_bladder",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_C1",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_C2",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_C3",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_C4",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_C5",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_C6",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_C7",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_L1",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_L2",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_L3",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_L4",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_L5",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_T1",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_T10",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_T11",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_T12",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_T2",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_T3",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_T4",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_T5",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_T6",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_T7",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_T8",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
+  },
+  {
+    "Coding Scheme Designator": "TotalSegmentator",
+    "Code Value": "1.3.6.1.4.1.41130.1.644.9.82",
+    "Code Meaning": "vertebrae_T9",
+    "Body Part Examined": "",
+    "SNOMED-RT ID (Retired)": "",
+    "FMA Code Value": null,
+    "UMLS Concept UniqueID": ""
   }
  ]

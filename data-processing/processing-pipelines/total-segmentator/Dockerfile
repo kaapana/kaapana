@@ -7,6 +7,7 @@ LABEL CI_IGNORE="True"
 RUN apt-get update && apt-get install -y xvfb
 
 COPY files/total-segmentator.py /kaapanasrc/
+COPY files/seg_info.json /kaapanasrc/
 COPY files/requirements.txt /root/
 RUN pip3 install -r /root/requirements.txt
 

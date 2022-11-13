@@ -38,7 +38,7 @@ for extension in preinstall_extensions:
         errors_during_preinstalling = True
         continue
     try:
-        _, _, _, release_name = helm_install(extension, shell=False, update_state=False)
+        _, _, _, release_name, _ = helm_install(extension, shell=False, update_state=False)
         releases_installed[release_name] = False
         print(f"Trying to install chart {0}".format(release_name))
     except Exception as e:

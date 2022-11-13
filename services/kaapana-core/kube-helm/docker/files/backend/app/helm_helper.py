@@ -62,9 +62,10 @@ def execute_shell_command(command, shell=False, blocking=True, timeout=5, skip_c
         err = f"Detected ';' in blocking command {command} -> cancel request!"
         logger.error(err)
         return False, err
-    logger.debug("executing shell command: {0}".format(command))
+    logger.debug("executing blocking shell command: {0}".format(command))
     logger.debug("shell={0} , timeout={1}".format(shell, timeout))
     if "--timeout" in command:
+        logger.debug("--timeout found in command, not passing a separate timeout")
         timeout = None
     if shell == False:
         command = [x for x in command.replace("  ", " ").split(" ") if x != ""]
@@ -125,6 +126,10 @@ def add_extension_to_dict(
                 f"Unknown 'extension['kind']' - {extension_id}: {extension_dict['keywords']}")
             return None
 
+        ext_params = None
+        if "extension_params" in extension_dict:
+            logger.debug("add_extension_to_dict found extension_params")
+            ext_params = extension_dict["extension_params"]
         global_extensions_dict[extension_name] = schemas.KaapanaExtension.construct(
             latest_version=None,
             chart_name=extension_name,
@@ -136,6 +141,7 @@ def add_extension_to_dict(
             experimental='yes' if 'kaapanaexperimental' in extension_dict['keywords'] else 'no',
             multiinstallable='yes' if 'kaapanamultiinstallable' in extension_dict['keywords'] else 'no',
             kind=extension_kind,
+            extension_params=ext_params,
             # "values": extension_dict["values"]
         )
 
@@ -386,6 +392,7 @@ def collect_all_tgz_charts(keywords_filter: List, name_filter: str = "") -> Dict
                 chart = list(yaml.load_all(stdout, yaml.FullLoader))[0]
                 if 'keywords' in chart and (set(chart['keywords']) & keywords_filter):
                     logger.debug(f"Valid keyword-filter!")
+                    chart = add_extension_params(chart)
                     global_collected_tgz_charts[f'{chart["name"]}-{chart["version"]}'] = chart
                     collected_tgz_charts[f'{chart["name"]}-{chart["version"]}'] = chart
                 else:
@@ -744,3 +751,17 @@ def add_tgz(file: UploadFile, content: bytes, overwrite: bool = True) -> Tuple[b
         msg = "Successfully added chart file {0}".format(fname)
 
     return True, msg
+
+
+def add_extension_params(chart):
+    """
+    Add 'extension_params' to chart object, if a valid field exists in chart values.
+    """
+    logger.debug(f"in function add_extension_params {chart['name']=}")
+    vals = helm_show_values(chart["name"], chart["version"])
+    if (vals is not None) and "extension_params" in vals:
+        # TODO: validate the parameter field
+        logger.debug("in if")
+        if ";" not in vals["extension_params"]:
+            chart["extension_params"] = vals["extension_params"]
+    return chart

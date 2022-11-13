@@ -80,10 +80,10 @@ async def helm_install_chart(request: Request):
     try:
         payload = await request.json()
         logger.debug(f"/helm-install-chart called with {payload=}")
-        success, stdout, _, release_name = utils.helm_install(
+        success, stdout, _, _, cmd = utils.helm_install(
             payload, shell=True, blocking=False)
         if success:
-            return Response("Successfully ran helm install for chart '{0}'".format(release_name), 200)
+            return Response("Successfully ran helm install, command {0}".format(cmd), 200)
         else:
             return Response("{0}".format(stdout), 400)
     except subprocess.CalledProcessError as e:

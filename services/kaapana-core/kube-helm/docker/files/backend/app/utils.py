@@ -62,7 +62,7 @@ def helm_search_repo(keywords_filter):
         for helm_package in helm_packages:
             chart = helm_helper.helm_show_chart(package=helm_package)
             if 'keywords' in chart and (set(chart['keywords']) & keywords_filter):
-                chart = add_extension_params(chart)
+                chart = helm_helper.add_extension_params(chart)
                 charts_cached[f'{chart["name"]}-{chart["version"]}'] = chart
 
     return charts_cached
@@ -136,7 +136,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
                 logger.info(
                     f'Skipping {payload["name"]} since it is already installed')
                 continue
-            success, stdout, helm_result_dict, _ = helm_install(
+            success, stdout, helm_result_dict, _, _ = helm_install(
                 payload, helm_command_addons='--dry-run', shell=False)
             manifest = helm_result_dict["manifest"]
             matches = re.findall(regex, manifest)
@@ -316,7 +316,7 @@ def helm_install(
             logger.info('Deleting and then installing again!')
         else:
             logger.info("Chart is already installed")
-            return False, "Chart is already installed", "", release_name
+            return False, "Chart is already installed", "", release_name, ""
     else:
         logger.info("No previous installations were found")
 
@@ -326,7 +326,7 @@ def helm_install(
         for key, value in payload["sets"].items():
             value = value.replace(",", "\,").replace(
                 "'", '\'"\'').replace(" ", "")
-            helm_sets = helm_sets + f" --set {key}={value}"
+            helm_sets = helm_sets + f" --set {key}='{value}'"
 
     # make the whole command
     helm_command = f'{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}'
@@ -358,7 +358,7 @@ def helm_install(
             )
         )
 
-    return success, stdout, helm_result_dict, release_name
+    return success, stdout, helm_result_dict, release_name, helm_command
 
 
 def helm_delete(
@@ -549,15 +549,3 @@ def execute_update_extensions():
                 logger.error(message)
 
     return install_error, message
-
-
-def add_extension_params(chart):
-    """
-    Add 'extension_params' to chart object, if a valid field exists in chart values.
-    """
-    vals = helm_helper.helm_show_values(chart["name"], chart["version"])
-    if (vals is not None) and "extension_params" in vals:
-        # TODO: validate the parameter field
-        if ";" not in vals["extension_params"]:
-            chart["extension_params"] = vals["extension_params"]
-    return chart

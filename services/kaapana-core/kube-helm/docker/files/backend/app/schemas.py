@@ -61,6 +61,7 @@ class KaapanaExtension(BaseModelExtended):
     chart_name: str
     description: str
     experimental: str  # TODO: make bool
+    extension_params: Union[Dict, None] 
     helmStatus: Union[str, None]  # TODO: name should be snake case
     installed: str  # TODO: name should be snake case
     keywords: List[str]

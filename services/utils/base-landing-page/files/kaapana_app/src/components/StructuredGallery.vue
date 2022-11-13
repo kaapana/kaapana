@@ -1,0 +1,176 @@
+<template>
+  <LazyList
+    :data="inner_patients"
+    :itemsPerRender="5"
+    containerClasses="list"
+    defaultLoadingColor="#222"
+  >
+    <template v-slot="{item}">
+      <v-list>
+        <v-list-group v-model="item.active">
+          <template v-slot:activator>
+            <v-list-item-content>
+              <v-row no-gutters>
+                <v-col cols="4">
+                  {{ item.patient_key }}
+                </v-col>
+                <v-col cols="3" class="text--secondary">
+                  Age: {{ item['00101010 PatientAge_integer'] || 'N/A' }}
+                </v-col>
+                <v-col cols="2" class="text--secondary">
+                  Sex: {{ item['00100040 PatientSex_keyword'] || 'N/A' }}
+                </v-col>
+                <v-col cols="3">
+                  <Chip :items="[...item['modalities']]"/>
+                </v-col>
+              </v-row>
+            </v-list-item-content>
+          </template>
+          <v-list subheader>
+            <v-list-item
+              v-for="study in [...item.studies]
+              .sort((a, b) =>
+                new Date(b['00080020 StudyDate_date']) - new Date(a['00080020 StudyDate_date'])
+              )"
+              :key="JSON.stringify(study)">
+
+              <v-list-item-content>
+                <v-list-item-title>
+                  {{ study['00081030 StudyDescription_keyword'] }}
+                </v-list-item-title>
+                <v-list-item-subtitle> {{
+                    study['00080020 StudyDate_date']
+                  }}
+                </v-list-item-subtitle>
+                <v-container fluid style="padding: 10px">
+                  <v-row>
+                    <!--                    TODO Subcomponents for patient and study-->
+                    <!--                    <v-col-->
+                    <!--                      v-for="item in study.series-->
+                    <!--                      .map((_item) => {-->
+                    <!--                        return {-->
+                    <!--                          seriesInstanceUID: _item['0020000E SeriesInstanceUID_keyword'],-->
+                    <!--                          studyInstanceUID: _item['0020000D StudyInstanceUID_keyword'],-->
+                    <!--                          seriesNumber: _item['00200011 SeriesNumber_integer'],-->
+                    <!--                          seriesDescription: _item['0008103E SeriesDescription_keyword'],-->
+                    <!--                        }})-->
+                    <!--                      .sort((a, b) => a.seriesNumber - b.seriesNumber)"-->
+                    <!--                      :key="item.seriesInstanceUID"-->
+                    <!--                      :cols="cols"-->
+                    <!--                    >-->
+                    <Gallery
+                      :data="study.series"
+                      :selectedTags="inner_selectedTags"
+                      @imageId="(imageId) => propagateImageId(imageId)"
+                      @studyDeleted="() => deleteStudy(item, study)"
+                    />
+                    <!--                    </v-col>-->
+                  </v-row>
+                </v-container>
+              </v-list-item-content>
+            </v-list-item>
+          </v-list>
+        </v-list-group>
+      </v-list>
+    </template>
+  </LazyList>
+</template>
+
+<script>
+/* eslint-disable */
+import Chip from "./Chip";
+import CardSelect from "./CardSelect.vue";
+import Gallery from "./Gallery.vue";
+import LazyList from './lazy-load-list/LazyList.vue'
+
+export default {
+  emits: ['imageId'],
+  props: {
+    patients: {
+      type: Array
+    },
+    selectedTags: {
+      type: Array
+    },
+  },
+  data() {
+    return {
+      active: {},
+      image_id: null,
+      inner_patients: [],
+      inner_selectedTags: []
+    };
+  },
+  components: {
+    CardSelect,
+    Chip,
+    LazyList,
+    Gallery
+  },
+  mounted() {
+    this.inner_patients = this.patients
+    this.inner_patients.forEach(pat => pat.active = true)
+    this.inner_selectedTags = this.selectedTags
+    if (localStorage['StructuredGallery.cols'] === undefined) {
+      localStorage['StructuredGallery.cols'] = JSON.stringify("auto")
+    }
+  },
+  watch: {
+    patients() {
+      // TODO why is this needed?
+      this.inner_patients = this.patients
+      this.inner_patients.forEach(pat => pat.active = true)
+      this.inner_selectedTags = this.selectedTags
+    },
+    selectedTags() {
+      this.inner_selectedTags = this.selectedTags
+    }
+  },
+  computed: {
+    cols() {
+      if (JSON.parse(localStorage['StructuredGallery.cols']) !== 'auto') {
+        return JSON.parse(localStorage['StructuredGallery.cols'])
+      } else {
+        switch (this.$vuetify.breakpoint.name) {
+          case 'xs':
+            return 6
+          case 'sm':
+            return 4
+          case 'md':
+            return 2
+          case 'lg':
+            return 2
+          case 'xl':
+            return 1
+        }
+      }
+    },
+  },
+  methods: {
+    propagateImageId(image_id) {
+      this.$emit('imageId', image_id);
+    },
+    deleteStudy(item, study) {
+      item.studies = item.studies.filter(s => s.study_key !== study.study_key)
+      if (item.studies.length === 0){
+        this.inner_patients = this.inner_patients.filter(patient => item.patient_key !== patient.patient_key)
+      }
+    }
+  },
+};
+</script>
+<style>
+.v-list {
+  padding: 0px;
+}
+.v-list .v-list-item--active {
+  background-color: #E3ECF4; /* TODO: this should be synced with theme */
+}
+
+</style>
+
+<style scoped>
+.col {
+  padding: 5px;
+}
+</style>

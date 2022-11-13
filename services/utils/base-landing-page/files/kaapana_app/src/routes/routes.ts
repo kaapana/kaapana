@@ -18,6 +18,15 @@ const routes = [
         },
     },
     {
+        name: 'cohort',
+        path: '/cohort',
+        component: () => import('@/views/Cohort.vue'),
+        title: 'Cohort',
+        permissions: {
+            isPublic: false,
+        },
+    },
+    {
         name: 'extensions',
         path: '/extensions',
         component: () => import('@/views/Extensions.vue'),

@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import request from '@/request.ts'
+import request from '@/request'
 
 const AuthService = {
   getToken() {

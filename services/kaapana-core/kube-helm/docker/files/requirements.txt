@@ -1,4 +1,5 @@
 asyncio==3.4.3
+aiofiles==22.1.0
 connexion==2.6.0
 opensearch-py==2.0.0
 fastapi==0.73.0

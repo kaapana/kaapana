@@ -608,6 +608,9 @@ def update_extension_state(state: schemas.ExtensionStateUpdate = None):
     writes to global_extension_states, appends to global_recently_updated if necessary
     """
     global global_extension_states, global_recently_updated
+
+    logger.debug(f"in function: update_extension_state, {state}=")
+
     if len(global_extension_states) == 0 and state is None:
         # initialize state dict
         for ext in global_extensions_dict_cached:
@@ -649,7 +652,7 @@ def update_extension_state(state: schemas.ExtensionStateUpdate = None):
         ext = global_extension_states[key]
         logger.debug("before update {0}".format(ext))
         prev_state = ext.state
-        logger.debug("updating extension state to {0} from {1}".format(state.state, prev_state))
+        logger.info(f"updating extension state to {0} from {1}".format(state.state, prev_state))
         ext.update_time = time.time()
         ext.last_read_time = time.time()
         ext.recently_updated = True
@@ -700,57 +703,6 @@ def get_recently_updated_extensions() -> List[schemas.KaapanaExtension]:
             global_recently_updated.remove(k)
 
     return res
-
-
-def add_tgz(file: UploadFile, content: bytes, overwrite: bool = True) -> Tuple[bool, str]:
-    logger.debug("filename {0}".format(file.filename))
-    logger.debug("file type {0}".format(file.content_type, file.file))
-    pre = settings.helm_extensions_cache
-    if pre[-1] != "/":
-        pre += "/"
-
-    msg = ""
-    # check if file exists
-    if os.path.exists(pre + file.filename):
-        msg = "File {0} already exists".format(file.filename)
-        logger.warning(msg)
-        if not overwrite:
-            msg += ", returning without overwriting. "
-            return False, msg
-        msg += ", overwritten"
-
-    # write file
-    logger.debug("writing file...")
-    try:
-        with open(pre + file.filename, "wb") as f:
-            f.write(content)
-    except Exception as e:
-        logger.error(e)
-        err = "There was an error adding the chart {0}".format(file.filename)
-        logger.error(err)
-        return False, err
-    finally:
-        f.close()
-        logger.debug("write successful")
-
-    # parse name, version
-    fname = file.filename
-    if fname[-4:] != ".tgz":
-        err = "File extension must be '.tgz', can not parse {0}".format(fname)
-        return False, err
-
-    fversion = fname.split(".tgz")[0].split("-")[-1]
-
-    update_extension_state(schemas.ExtensionStateUpdate.construct(
-        extension_name=fname,
-        extension_version=fversion,
-        state=schemas.ExtensionStateType.NOT_INSTALLED
-    ))
-
-    if msg == "":
-        msg = "Successfully added chart file {0}".format(fname)
-
-    return True, msg
 
 
 def add_extension_params(chart):

@@ -7,10 +7,12 @@ from fastapi import APIRouter, Response, Request, UploadFile
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi.logger import logger
+import aiofiles
 
 from config import settings
 import helm_helper
 import utils
+import file_handler
 
 # TODO: add endpoint for /helm-delete-file
 # TODO: add dependency injection
@@ -30,10 +32,22 @@ async def index(request: Request):
 
 
 @router.post("/file")
-async def upload_tgz_file(file: UploadFile):
-    logger.debug("file {0}".format(file.filename))
+async def upload_file(file: UploadFile):
+    logger.info(f"chart file {file.filename}")
     content = await file.read()
-    res, msg = helm_helper.add_tgz(file, content)
+    res, msg = file_handler.add_file(file, content)
+    if not res:
+        logger.error(msg)
+        return Response(msg, 500)
+
+    return Response(msg, 200)
+
+
+@router.post("/file_chunks")
+async def upload_file_chunk(file: UploadFile):
+    logger.info(f"container file {file.filename}")
+    res, msg = await file_handler.add_file_chunks(file)
+
     if not res:
         logger.error(msg)
         return Response(msg, 500)
@@ -132,39 +146,15 @@ async def pending_applications():
 
 
 @router.get("/extensions")
-async def extensions():
+def extensions():
     # cached_extensions = utils.get_extensions_list()
     cached_extensions = helm_helper.get_extensions_list()
     # TODO: return Response with status code, fix front end accordingly
     return cached_extensions
 
 
-@router.get("/list-helm-charts")
-async def add_repo():
-    try:
-        resp = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} -n {settings.helm_namespace} ls -o json', stderr=subprocess.STDOUT, shell=True)
-        logger.info(resp)
-    except subprocess.CalledProcessError as e:
-        return Response(f"{e.output}", 500)
-    return resp
-
-
-@router.get("/view-helm-env")
-async def view_helm_env():
-    try:
-        resp = subprocess.check_output(
-            f'{os.environ["HELM_PATH"]} env', stderr=subprocess.STDOUT, shell=True)
-        # TODO parse response to json object
-        logger.info(resp)
-    except subprocess.CalledProcessError as e:
-        return Response(
-            f"{e.output}", 500)
-    return Response(str(resp), 200)
-
-
 @router.get("/view-chart-status")
-async def view_chart_status(release_name: str):
+def view_chart_status(release_name: str):
     status = utils.helm_status(release_name)
     if status:
         return status

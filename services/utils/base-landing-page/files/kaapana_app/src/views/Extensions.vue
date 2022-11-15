@@ -58,9 +58,6 @@
             .dragdrop-upload-limit-info
               div Drag another chart file to upload
           input(type='file' @change='onChange')
-        
-          
-      
       v-data-table.elevation-1(
         :headers="headers",
         :items="filteredLaunchedAppLinks",
@@ -122,13 +119,54 @@
             span(v-if="item.multiinstallable === 'yes'") Delete
             span(v-if="item.multiinstallable === 'no'") Uninstall
           v-btn(
-            @click="installChart(item)",
+            @click="getFormInfo(item)",
             color="primary",
             min-width = "160px",
             v-if="item.installed === 'no' && item.successful !== 'pending'"
           ) 
             span(v-if="item.multiinstallable === 'yes'") Launch
             span(v-if="item.multiinstallable === 'no'") Install
+
+            v-dialog(
+              v-if="item.extension_params !== undefined || item.extension_params!== 'null'"
+              v-model="popUpDialog"
+              :retain-focus="false"
+              max-width="600px"
+              @click:outside="resetFormInfo()"
+            )
+              v-card
+                v-card-title Setup Extension {{ popUpItem.name }}
+                v-card-text
+                  v-form.px-3(ref="popUpForm")
+                    template(v-for="(param, key) in popUpItem.extension_params")
+                      v-text-field(
+                        v-if="param.type == 'string'"
+                        :label="key + ':' + param.definition + ' [default: ' + param.default + ']' "
+                        v-model="popUpExtension[key]"
+                        clearable,
+                        :rules="popUpRulesStr"
+                      )
+                      v-select(
+                        v-if="param.type == 'list_single'"
+                        :items="param.value"
+                        :label="key + ':' + param.definition + ' [default: ' + param.default + ']' "
+                        v-model="popUpExtension[key]"
+                        :rules="popUpRulesSingleList"
+                        clearable
+                      )
+                      v-select(
+                        v-if="param.type == 'list_multi'"
+                        multiple
+                        :items="param.value"
+                        :item-text="param.default"
+                        :label="key + ':' + param.definition + ' [default: ' + param.default + ']' "
+                        v-model="popUpExtension[key]"
+                        :rules="popUpRulesMultiList"
+                        clearable
+                      )
+
+                  v-btn(color="primary", @click="submitForm()") Submit
+
           v-btn(
             color="primary",
             min-width = "160px",
@@ -162,7 +200,7 @@ import kaapanaApiService from "@/common/kaapanaApi.service";
 
 export default Vue.extend({
   data: () => ({
-    file: '',
+    file: '' as any,
     fileResponse: '',
     dragging: false,
     loading: true,
@@ -171,6 +209,19 @@ export default Vue.extend({
     search: "",
     extensionExperimental: "Stable",
     extensionKind: "All",
+    popUpDialog: false,
+    popUpItem: {} as any,
+    popUpChartName: "",
+    popUpExtension: {} as any,
+    popUpRulesStr: [
+      (v: any) => v && v.length > 0 || 'Empty string field'
+    ],
+    popUpRulesSingleList: [
+      (v: any) => v && v.length > 0 || "Empty single-selectable list field"
+    ],
+    popUpRulesMultiList: [
+      (v: any) => v.length > 0 || "Empty multi-selectable list field"
+    ],
     headers: [
       {
         text: "Name",
@@ -215,7 +266,7 @@ export default Vue.extend({
       { text: "Action", value: "installed" },
     ],
   }),
-  created() {},
+  created() { },
   mounted() {
     this.getHelmCharts();
     this.startExtensionsInterval()
@@ -364,10 +415,64 @@ export default Vue.extend({
           item.successful = "pending";
         })
         .catch((err: any) => {
-          console.log("helm delete error")
+          console.log("helm delete error", err)
           this.loading = false;
-          console.log(err);
         });
+    },
+
+    resetFormInfo() {
+      if (this.$refs.popUpForm !== undefined) {
+        this.popUpExtension = {} as any;
+        (this.$refs.popUpForm as Vue & { reset: () => any }).reset()
+      }
+    },
+
+    getFormInfo(item: any) {
+      this.popUpDialog = false;
+      this.popUpItem = {} as any;
+
+      if (item["extension_params"] && Object.keys(item["extension_params"]).length > 0) {
+        this.popUpDialog = true;
+        this.popUpItem = item;
+        for (let key of Object.keys(item["extension_params"])) {
+          this.popUpExtension[key] = item["extension_params"][key]["default"]
+        }
+      } else {
+        this.installChart(item);
+      }
+    },
+
+    submitForm() {
+      // this is the same as `this.$refs.popUpForm.validate()` but it raises a build error
+      if ((this.$refs.popUpForm as Vue & { validate: () => boolean }).validate()) {
+        this.popUpDialog = false
+        this.installChart(this.popUpItem)
+      }
+
+    },
+
+    addExtensionParams(payload: any) {
+      let params = JSON.parse(JSON.stringify(this.popUpExtension))
+      console.log("add parameters", params)
+
+      let res = {} as any
+      for (let key of Object.keys(params)) {
+        let v = params[key]
+        let s = "" as string
+        // TODO: if more types like Object etc will exist as well, check them here
+        if (Array.isArray(v) && v.length > 0) {
+          for (let vv of v) {
+            s += String(vv) + ","
+          }
+          s = s.slice(0, s.length - 1)
+        } else { // string or single selectable list item
+          s = v
+        }
+
+        res[key] = s
+      }
+      payload["extension_params"] = res
+      return payload
     },
 
     installChart(item: any) {
@@ -377,6 +482,10 @@ export default Vue.extend({
         keywords: item.keywords,
       };
       console.log("payload", payload)
+      if (Object.keys(this.popUpExtension).length > 0) {
+        payload = this.addExtensionParams(payload)
+      }
+
       this.loading = true;
       this.clearExtensionsInterval();
       this.startExtensionsInterval();
@@ -392,9 +501,8 @@ export default Vue.extend({
           }
         })
         .catch((err: any) => {
-          console.log("helm install error")
+          console.log("helm install error", err)
           this.loading = false;
-          console.log(err);
         });
     },
   },

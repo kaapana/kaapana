@@ -20,6 +20,7 @@ def test_file_upload():
     file = {'file': open(ext_fname, 'rb')}
     r = requests.post(url, files=file)
     assert r.status_code == 200
+    print("request returned", r.text)
 
     time.sleep(1)
 

@@ -19,7 +19,7 @@ def install_nnunet():
         "keywords": ["kaapanaworkflow"]
     })
     assert str(rinstall.status_code)[0] == "2", "/helm-install-chart did not respond with right status code, got {0} instead".format(rinstall.status_code)
-    assert rinstall.text == "Successfully ran helm install for chart 'nnunet-workflow'", "/helm-install-chart returned different response {0}".format(rinstall.text)
+    print(rinstall.text)
 
 
 def delete_nnunet():

@@ -5,7 +5,7 @@ metadata:
   labels:
     k8s-app: kubernetes-dashboard
   name: kubernetes-dashboard
-  namespace: kube-system
+  namespace: "kub-system-{{  .Values.global.instance_id  }}"
 
 ---
 
@@ -15,7 +15,7 @@ metadata:
   labels:
     k8s-app: kubernetes-dashboard
   name: kubernetes-dashboard-csrf
-  namespace: kube-system
+  namespace: "kub-system-{{  .Values.global.instance_id  }}"
 type: Opaque
 data:
   csrf: ""
@@ -34,7 +34,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: kubernetes-dashboard
-    namespace: kube-system
+    namespace: "kub-system-{{  .Values.global.instance_id  }}"
 
 ---
 
@@ -44,7 +44,7 @@ metadata:
   labels:
     k8s-app: kubernetes-dashboard
   name: kubernetes-dashboard
-  namespace: kube-system
+  namespace: "kub-system-{{  .Values.global.instance_id  }}"
 spec:
   replicas: 1
   revisionHistoryLimit: 10
@@ -64,7 +64,7 @@ spec:
             - containerPort: 9090
               protocol: TCP
           args:
-            - --namespace=kube-system
+            - --namespace=kub-system-{{  .Values.global.instance_id  }}
             - --enable-skip-login
             - --disable-settings-authorizer
             - --insecure-port=9090

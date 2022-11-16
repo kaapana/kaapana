@@ -127,6 +127,8 @@ spec:
           value: "{{ .Values.global.https_port }}"
         - name: INSTANCE_NAME
           value: "{{ .Values.global.instance_name }}"
+        - name: INSTANCE_ID
+          value: "{{ .Values.global.instance_id }}"
         - name: AIRFLOW_KUBE_NAMESPACE
           value: "{{ .Values.global.flow_namespace }}"
         - name: GPU_SUPPORT
@@ -202,8 +204,13 @@ spec:
           value: "{{ .Values.global.https_port }}"
         - name: INSTANCE_NAME
           value: "{{ .Values.global.instance_name }}"
+<<<<<<< HEAD
         - name: GPU_SUPPORT
           value: "{{ .Values.global.gpu_support }}"
+=======
+        - name: INSTANCE_ID
+          value: "{{ .Values.global.instance_id }}"
+>>>>>>> c14f337f (kube-system incl. instance id)
         - name: PULL_POLICY_PODS
           value: "{{ .Values.global.pull_policy_pods }}"
         - name: MINIOUSER

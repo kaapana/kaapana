@@ -35,6 +35,8 @@ KAAPANA_BUILD_VERSION="{{ kaapana_build_version }}"    # version of the platform
 KAAPANA_BUILD_BRANCH="{{ kaapana_build_branch }}"    # branch name, which was build from -> auto-generated
 KAAPANA_LAST_COMMT_TIMESTAMP="{{ kaapana_last_commit_timestamp }}" # timestamp of the last commit -> auto-generated
 
+INSTANCE_ID=1
+
 ######################################################
 # Individual platform configuration
 ######################################################
@@ -211,7 +213,7 @@ function clean_up_kubernetes {
     echo "${YELLOW}Deleting all jobs in namespace default ${NC}"
     microk8s.kubectl delete jobs --all
     echo "${YELLOW}Removing remove-secret job${NC}"
-    microk8s.kubectl -n kube-system delete job --ignore-not-found remove-secret
+    microk8s.kubectl -n kub-system-$INSTANCE_ID delete job --ignore-not-found remove-secret
 }
 
 function upload_tar {
@@ -317,7 +319,6 @@ function deploy_chart {
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
     --set-string global.base_namespace="base" \
-    --set-string global.core_namespace="kube-system" \
     --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
     --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
     --set-string global.credentials_minio_username="$CREDENTIALS_MINIO_USERNAME" \
@@ -342,6 +343,7 @@ function deploy_chart {
     --set-string global.http_proxy="$http_proxy" \
     --set-string global.https_port="$HTTPS_PORT" \
     --set-string global.https_proxy="$https_proxy" \
+    --set-string global.instance_id="$INSTANCE_ID" \
     {% for item in kaapana_collections -%}
     --set-string global.kaapana_collections[{{loop.index0}}].name="{{ item.name }}" \
     --set-string global.kaapana_collections[{{loop.index0}}].version="{{ item.version }}" \
@@ -417,11 +419,11 @@ function install_certs {
     else
         echo -e "files found!"
         echo -e "Creating cluster secret ..."
-        microk8s.kubectl delete secret certificate -n kube-system
-        microk8s.kubectl create secret tls certificate --namespace kube-system --key ./tls.key --cert ./tls.crt
-        auth_proxy_pod=$(microk8s.kubectl get pods -n kube-system |grep oauth2-proxy  | awk '{print $1;}')
+        microk8s.kubectl delete secret certificate -n kub-system-$INSTANCE_ID
+        microk8s.kubectl create secret tls certificate --namespace kub-system --key ./tls.key --cert ./tls.crt
+        auth_proxy_pod=$(microk8s.kubectl get pods -n kub-system-$INSTANCE_ID |grep oauth2-proxy  | awk '{print $1;}')
         echo "auth_proxy_pod pod: $auth_proxy_pod"
-        microk8s.kubectl -n kube-system delete pod $auth_proxy_pod
+        microk8s.kubectl -n kub-system-$INSTANCE_ID delete pod $auth_proxy_pod
     fi
 
     echo -e "${GREEN}DONE${NC}"

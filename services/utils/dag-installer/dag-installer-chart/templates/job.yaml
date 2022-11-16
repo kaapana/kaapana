@@ -20,7 +20,7 @@ spec:
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
-              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/health-check"
+              value: "kube-helm,kube-helm-service.kub-system-{{  .Values.global.instance_id  }}.svc,5000,/health-check"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
@@ -31,6 +31,8 @@ spec:
         env:
           - name: ACTION
             value: {{ .Values.global.action }}
+          - name: INSTANCE_ID
+            value: "{{ .Values.global.instance_id }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
       imagePullSecrets:
         - name: registry-secret
@@ -49,7 +51,7 @@ spec:
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
-              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/health-check"
+              value: "kube-helm,kube-helm-service.kub-system-{{  .Values.global.instance_id  }}.svc,5000,/health-check"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
@@ -61,6 +63,8 @@ spec:
         env:
         - name: ACTION
           value: "{{ .Values.global.action }}"
+        - name: INSTANCE_ID
+          value: "{{ .Values.global.instance_id }}"
         volumeMounts:
         - name: data
           mountPath: "/workflows"

@@ -1,7 +1,7 @@
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: kube-system
+  namespace: "kub-system-{{  .Values.global.instance_id  }}"
   name: kube-helm-role
 rules:
 - apiGroups: ["extensions", "apps"]
@@ -12,7 +12,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: example-rolebinding
-  namespace: kube-system
+  namespace: "kub-system-{{  .Values.global.instance_id  }}"
 subjects:
 - kind: User
   name: kube-helm-user

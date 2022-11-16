@@ -2,13 +2,13 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  namespace: kube-system
+  namespace: "kub-system-{{  .Values.global.instance_id  }}"
   name: traefik-ingress-controller
 ---
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  namespace: kube-system
+  namespace: "kub-system-{{  .Values.global.instance_id  }}"
   name: traefik
   labels:
     app: traefik

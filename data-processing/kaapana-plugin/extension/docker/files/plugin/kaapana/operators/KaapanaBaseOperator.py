@@ -23,7 +23,7 @@ from random import randint
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 from kaapana.blueprints.kaapana_utils import generate_run_id, cure_invalid_name, get_release_name
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INSTANCE_ID
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
 import uuid
@@ -86,7 +86,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     :type xcom_push: bool
     """
 
-    HELM_API = 'http://kube-helm-service.kube-system.svc:5000'
+    HELM_API = f"http://kube-helm-service.kub-system-{INSTANCE_ID}.svc:5000"
     TIMEOUT = 60 * 60 * 12
 
     pod_stopper = PodStopper()

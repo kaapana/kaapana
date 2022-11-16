@@ -4,7 +4,7 @@ metadata:
   labels:
     k8s-app: dashboard-metrics-scraper
   name: dashboard-metrics-scraper
-  namespace: kube-system
+  namespace: "kub-system-{{  .Values.global.instance_id  }}"
 spec:
   replicas: 1
   revisionHistoryLimit: 10

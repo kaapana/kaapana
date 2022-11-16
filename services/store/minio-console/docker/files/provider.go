@@ -372,8 +372,8 @@ func (client *Provider) GenerateLoginURL() string {
 	////////////////////////////////////////////////////////////////////////
 	// Added by kaapana
 	////////////////////////////////////////////////////////////////////////
-	fmt.Println("Kaapana path replacing, loginUrl, from, to", loginURL, "http://keycloak-external-service.kube-system.svc:80", os.Getenv("KAAPANA_ADDRESS"))
-	patchedLoginURL := strings.Replace(loginURL, "http://keycloak-external-service.kube-system.svc:80", os.Getenv("KAAPANA_ADDRESS"), -1)
+	fmt.Println("Kaapana path replacing, loginUrl, from, to", loginURL, "http://keycloak-external-service.kub-system"+os.Getenv("INSTANCE_ID")+".svc:80", os.Getenv("KAAPANA_ADDRESS"))
+	patchedLoginURL := strings.Replace(loginURL, "http://keycloak-external-service.kub-system"+os.Getenv("INSTANCE_ID")+".svc:80", os.Getenv("KAAPANA_ADDRESS"), -1)
 	////////////////////////////////////////////////////////////////////////
 	return strings.TrimSpace(patchedLoginURL)
 }

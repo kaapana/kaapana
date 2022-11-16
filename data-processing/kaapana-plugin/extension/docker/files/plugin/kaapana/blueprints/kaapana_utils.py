@@ -101,12 +101,7 @@ def requests_retry_session(
         proxies = {
             'http': os.getenv('PROXY', None),
             'https': os.getenv('PROXY', None),
-            'no_proxy': 'airflow-service.flow,airflow-service.flow.svc,' \
-                'ctp-dicom-service.flow,ctp-dicom-service.flow.svc,'\
-                    'dcm4chee-service.store,dcm4chee-service.store.svc,'\
-                        'opensearch-service.meta,opensearch-service.meta.svc'\
-                            'kaapana-backend-service.base,kaapana-backend-service.base.svc,' \
-                                'minio-service.store,minio-service.store.svc'
+            'no_proxy': 'airflow-service.flow,airflow-service.flow.svc,ctp-dicom-service.flow,ctp-dicom-service.flow.svc,dcm4chee-service.store,dcm4chee-service.store.svc,opensearch-service.meta,opensearch-service.meta.svc,kaapana-backend-service.base,kaapana-backend-service.base.svc,minio-service.store,minio-service.store.svc'
         }
         session.proxies.update(proxies)
 

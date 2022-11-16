@@ -32,7 +32,7 @@ spec:
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
-              value: "keycloak,keycloak-internal-service.kube-system.svc,443"
+              value: "keycloak,keycloak-internal-service.kub-system-{{  .Values.global.instance_id  }}.svc,443"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
@@ -67,6 +67,8 @@ spec:
           value: kaapana-secret
         - name: INSTANCE_NAME
           value: {{ .Values.global.instance_name | default "central" }}
+        - name: INSTANCE_ID
+          value: "{{ .Values.global.instance_id }}"
         - name: HOSTNAME
           value: {{ .Values.global.hostname | default "" }}
         - name: HTTPS_PORT
@@ -78,7 +80,7 @@ spec:
         - name: no_proxy
           value: "kaapana-backend-postgres-service.base,kaapana-backend-postgres-service.base.svc,airflow-service.flow,airflow-service.flow.svc,minio-service.store,minio-service.store.svc,opensearch-service.meta,opensearch-service.meta.svc"
         - name: KUBE_HELM_URL
-          value: "http://kube-helm-service.kube-system.svc:5000/kube-helm-api"
+          value: "http://kube-helm-service.kub-system-{{  .Values.global.instance_id  }}.svc:5000/kube-helm-api"
         - name: PROMETHEUS_URL
           value: {{ .Values.global.prometheus_url }}
         - name: KEYCLOAK_URL

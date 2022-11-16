@@ -48,7 +48,7 @@ metadata:
   namespace: {{ .Values.global.store_namespace }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kub-system-{{  .Values.global.instance_id  }}-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: kaapana-system-{{  .Values.global.instance_id  }}-errorpages@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
@@ -70,7 +70,7 @@ metadata:
   namespace: {{ .Values.global.store_namespace }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.store_namespace }}-rewrite-pacs@kubernetescrd,kub-system-{{  .Values.global.instance_id  }}-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.store_namespace }}-rewrite-pacs@kubernetescrd,kaapana-system-{{  .Values.global.instance_id  }}-errorpages@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 from glob import glob
 import os
-from posixpath import dirname
 from subprocess import PIPE, run
-from time import time, sleep
+from time import time
 from shutil import which
-from pathlib import Path
 from build_helper.build_utils import BuildUtils
 
 suite_tag = "Container"

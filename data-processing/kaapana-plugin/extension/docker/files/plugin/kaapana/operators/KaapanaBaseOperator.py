@@ -86,7 +86,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     :type xcom_push: bool
     """
 
-    HELM_API = f"http://kube-helm-service.kub-system-{INSTANCE_ID}.svc:5000"
+    HELM_API = f"http://kube-helm-service.kaapana-system-{INSTANCE_ID}.svc:5000"
     TIMEOUT = 60 * 60 * 12
 
     pod_stopper = PodStopper()

@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgres-keycloak
-  namespace: "kub-system-{{  .Values.global.instance_id  }}"
+  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
 spec:
   replicas: 1
   selector:

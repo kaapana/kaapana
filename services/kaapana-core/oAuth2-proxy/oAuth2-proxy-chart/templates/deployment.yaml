@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: oauth2-proxy
-  namespace: "kub-system-{{  .Values.global.instance_id  }}"
+  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
 spec:
   replicas: 1
   selector:
@@ -20,7 +20,7 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env:
           - name: WAIT
-            value: "keycloak,keycloak-internal-service.kub-system-{{  .Values.global.instance_id  }}.svc,443"
+            value: "keycloak,keycloak-internal-service.kaapana-system-{{  .Values.global.instance_id  }}.svc,443"
           - name: DELAY
             value: "3"
           - name: TIMEOUT
@@ -42,9 +42,9 @@ spec:
           - --client-id=kaapana
           - --client-secret=uQBJzc2YDzjRfj2OCT79JDShojeqAK2R
           - --cookie-secret=P7AiFgxZhLuuTZ2iuIQHSnYWrDlU_NVaA-Su1dZ9HMQ=
-          - --redeem-url=https://keycloak-internal-service.kub-system-{{  .Values.global.instance_id  }}.svc/auth/realms/kaapana/protocol/openid-connect/token
-          - --oidc-jwks-url=https://keycloak-internal-service.kub-system-{{  .Values.global.instance_id  }}.svc/auth/realms/kaapana/protocol/openid-connect/certs
-          - --profile-url=https://keycloak-internal-service.kub-system-{{  .Values.global.instance_id  }}.svc/auth/realms/kaapana/protocol/openid-connect/userinfo
+          - --redeem-url=https://keycloak-internal-service.kaapana-system-{{  .Values.global.instance_id  }}.svc/auth/realms/kaapana/protocol/openid-connect/token
+          - --oidc-jwks-url=https://keycloak-internal-service.kaapana-system-{{  .Values.global.instance_id  }}.svc/auth/realms/kaapana/protocol/openid-connect/certs
+          - --profile-url=https://keycloak-internal-service.kaapana-system-{{  .Values.global.instance_id  }}.svc/auth/realms/kaapana/protocol/openid-connect/userinfo
           - --https-address=0.0.0.0:8443
           # - --http-address=0.0.0.0:8080
           - --metrics-address=:8081

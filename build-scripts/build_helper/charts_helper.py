@@ -11,12 +11,20 @@ from pathlib import Path
 from build_helper.build_utils import BuildUtils
 from build_helper.container_helper import Container
 from jinja2 import Environment, FileSystemLoader
+from multiprocessing.pool import ThreadPool
 
 import networkx as nx
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
 
+def parallel_execute(container_object):
+    BuildUtils.logger.info(f"Build container {container_object.tag}")
+    container_object.build()
+    BuildUtils.logger.info(f"Push container {container_object.tag}")
+    container_object.push()
+
+    return container_object
 
 def generate_deployment_script(platform_chart):
     BuildUtils.logger.info(f"-> Generate platform deployment script for {platform_chart.name} ...")
@@ -815,20 +823,18 @@ class HelmChart:
         generate_deployment_script(platform_chart)
 
         BuildUtils.logger.info("Start container build...")
+        containers_to_built = []
         containers_built = []
         container_count = len(build_order)
         for i in range(0, container_count):
             container_id = build_order[i]
-            BuildUtils.logger.info("")
-            BuildUtils.logger.info(f"container {i+1}/{container_count}: {container_id}")
             container_to_build = [x for x in BuildUtils.container_images_available if x.tag == container_id]
             if len(container_to_build) == 1:
                 container_to_build = container_to_build[0]
                 if container_to_build.local_image and container_to_build.build_tag == None:
                     container_to_build.build_tag = container_to_build.tag
-                container_to_build.build()
-                containers_built.append(container_to_build)
-                container_to_build.push()
+                
+                containers_to_built.append(container_to_build)
             else:
                 BuildUtils.logger.error(f"{container_id} could not be found in available containers!")
                 BuildUtils.generate_issue(
@@ -837,6 +843,15 @@ class HelmChart:
                     msg=f"{container_id} could not be found in available containers!",
                     level="FATAL"
                 )
+
+        result_containers = ThreadPool(BuildUtils.parallel_processes).imap_unordered(parallel_execute, containers_to_built)
+        
+        i = 0
+        for result_container in result_containers:
+            containers_built.append(container_to_build)
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info(f"Done {i+1}/{container_count}: {result_container.tag}")
+            i += 1
 
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
 

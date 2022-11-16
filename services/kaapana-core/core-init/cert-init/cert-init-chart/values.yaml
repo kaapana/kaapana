@@ -3,6 +3,5 @@ global:
     pull_policy_jobs: "IfNotPresent"
     tls_secret:
         name: "certificate"
-        namespace: "kub-system-{{  .Values.global.instance_id  }}"
         common_name: "kaapana"
         expiration: 365

@@ -3,7 +3,6 @@ global:
     base_namespace: "base"
     https_port: 443
     prometheus_url: "http://prometheus-service.monitoring.svc:9090/prometheus"
-    keycloak_url: "https://keycloak-internal-service.kub-system-{{  .Values.global.instance_id  }}.svc/auth/"
     credentials_keycloak_backend_user: "backend-service"
     credentials_keycloak_backend_password: "Kaapana2020Backend"
     minio_url: "minio-service.store.svc:9000"

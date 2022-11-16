@@ -51,6 +51,7 @@ if __name__ == '__main__':
     parser.add_argument("-ee", "--exit-on-error", dest="exit_on_error", default=None, help="Stop build-process if error occurs.")
     parser.add_argument("-pf", "--plartform-filter", dest="platform_filter", default=None, help="Specify platform-chart-names to be build (comma seperated).")
     parser.add_argument("-es", "--external-sources", dest="external_source_dirs", default=None, help="External dirs to search for containers and charts.")
+    parser.add_argument("-pp", "--parallel-processes", dest="parallel_processes", default=2, help="Parallel process count for container build + push.")
     args = parser.parse_args()
 
     kaapana_dir = args.kaapaa_dir if args.kaapaa_dir != None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -98,6 +99,7 @@ if __name__ == '__main__':
     conf_enable_linting = configuration["enable_linting"]
     conf_enable_build_kit = 1 if "enable_build_kit" in configuration and configuration["enable_build_kit"] else 0
     conf_skip_push_no_changes = configuration["skip_push_no_changes"]
+    conf_container_build_processes = configuration["container_build_processes"]
 
     registry_user = args.username
     registry_pwd = args.password
@@ -111,6 +113,7 @@ if __name__ == '__main__':
     exit_on_error = args.exit_on_error if args.exit_on_error != None else conf_exit_on_error
     platform_filter = args.platform_filter.split(",") if args.platform_filter != None else conf_platform_filter
     skip_push_no_changes = args.skip_push_no_changes if args.skip_push_no_changes != None else conf_skip_push_no_changes
+    parallel_processes = int(args.parallel_processes if args.parallel_processes != 2 else conf_container_build_processes)
 
     for external_source_dir in external_source_dirs:
         if not os.path.isdir(external_source_dir):
@@ -203,6 +206,7 @@ if __name__ == '__main__':
         enable_build_kit=conf_enable_build_kit,
         create_offline_installation=create_offline_installation,
         skip_push_no_changes=skip_push_no_changes,
+        parallel_processes=parallel_processes,
         push_to_microk8s=push_to_microk8s
     )
 

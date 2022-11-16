@@ -3,7 +3,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: cert-init
-  namespace: "kub-system-{{  .Values.global.instance_id  }}"
+  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
 spec:
   template:
     metadata:
@@ -24,7 +24,7 @@ spec:
         - name: SECRET_NAME
           value: "{{ .Values.global.tls_secret.name }}"
         - name: SECRET_NAMESPACE
-          value: "{{ .Values.global.tls_secret.namespace }}"
+          value: "kaapana-system-{{  .Values.global.instance_id  }}"
         - name: COMMON_NAME
           value: "{{ .Values.global.tls_secret.common_name }}"
         - name: EXPIRATION
@@ -38,7 +38,6 @@ spec:
           path: "{{ .Values.global.fast_data_dir }}/tls"
           type: DirectoryOrCreate
       restartPolicy: Never
-      # the container needs to create secrets in .Values.global.tls_secret.namespace
       serviceAccountName: kubernetes-dashboard
       imagePullSecrets:
       - name: registry-secret

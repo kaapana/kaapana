@@ -112,8 +112,7 @@ async def pull_docker_image(request: Request):
     """
     try:
         payload = await request.json()
-        logger.debug(f"/pull-docker-image called {payload=}")
-        logger.info(payload)
+        logger.info(f"/pull-docker-image called {payload=}")
         release_name = f'pull-docker-chart-{secrets.token_hex(10)}'
         utils.pull_docker_image(release_name, **payload)
         return Response(f"Trying to download the docker container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}", 202)
@@ -128,8 +127,7 @@ async def pending_applications():
     try:
         extensions_list = []
         for chart in utils.helm_ls(release_filter='kaapanaint'):
-            manifest = utils.helm_get_manifest(chart['name'])
-            kube_status, ingress_paths = utils.get_manifest_infos(manifest)
+            _, _, ingress_paths, kube_status = helm_helper.get_kube_objects(chart["name"])
             extension = {
                 'releaseName': chart['name'],
                 'links': ingress_paths,

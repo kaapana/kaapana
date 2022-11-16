@@ -31,7 +31,7 @@ charts_hashes = {}
 
 
 def all_successful(status):
-    successfull = ['Completed', 'Running', 'deployed']
+    successfull = ['completed', 'running', 'Completed', 'Running', 'deployed', 'Deployed']
     for i in status:
         if i not in successfull:
             return "pending"
@@ -137,7 +137,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
                     f'Skipping {payload["name"]} since it is already installed')
                 continue
             success, stdout, helm_result_dict, _, _ = helm_install(
-                payload, helm_command_addons='--dry-run', shell=False)
+                payload, helm_command_addons='--dry-run', shell=True)
             manifest = helm_result_dict["manifest"]
             matches = re.findall(regex, manifest)
             if matches:
@@ -171,8 +171,8 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
                 f'Skipping {dag["name"]} since it is already installed')
             continue
         helm_command_suffix = f'--wait --atomic --timeout=120m0s; sleep 10; {settings.helm_path} -n {helm_namespace} delete --no-hooks {dag["release_name"]}'
-        success, stdout, helm_result_dict, release_name = helm_install(
-            dag, helm_command_suffix=helm_command_suffix, shell=False)
+        success, stdout, helm_result_dict, release_name, _ = helm_install(
+            dag, helm_command_suffix=helm_command_suffix, shell=True)
         installed_release_names.append(release_name)
 
     return installed_release_names
@@ -207,7 +207,7 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
     }
 
     helm_command_suffix = f'--wait --atomic --timeout {timeout}; sleep 10; {settings.helm_path} -n {helm_namespace} delete {release_name}'
-    success, stdout, helm_result_dict, _ = helm_install(
+    success, stdout, helm_result_dict, _, _ = helm_install(
         payload,
         helm_command_suffix=helm_command_suffix,
         helm_cache_path=settings.helm_helpers_cache,
@@ -245,7 +245,7 @@ def helm_install(
         blocking (bool, optional): Run helm install command in a blocking or non-blocking way. Defaults to True.
 
     Returns:
-        Tuple[bool, str, dict, str]: success, stdout, helm_result_dict, release_name
+        Tuple[bool, str, dict, str, str]: success, stdout, helm_result_dict, release_name, helm_command
     """
     logger.debug("in function: helm_install with payload {0}, shell {1}".format(payload, shell))
 
@@ -324,8 +324,7 @@ def helm_install(
     helm_sets = ''
     if "sets" in payload:
         for key, value in payload["sets"].items():
-            value = value.replace(",", "\,").replace(
-                "'", '\'"\'').replace(" ", "")
+            value = value.replace(",", "\,").replace("'", '\'"\'').replace(" ", "")
             helm_sets = helm_sets + f" --set {key}='{value}'"
 
     # make the whole command
@@ -523,8 +522,8 @@ def execute_update_extensions():
 
         if not helm_status(release_name):
             logger.info(f'Installing {release_name}')
-            success, _, _, _ = helm_install(
-                payload, helm_cache_path=settings.helm_collections_cache, shell=False, update_state=False)
+            success, _, _, _, _ = helm_install(
+                payload, helm_cache_path=settings.helm_collections_cache, shell=True, update_state=False)
             if success:
                 message = f"Successfully updated the extensions"
                 logger.info(message)
@@ -536,9 +535,9 @@ def execute_update_extensions():
         else:
             logger.info('helm deleting and reinstalling')
             helm_delete_prefix = f'{settings.helm_path} -n {settings.helm_namespace} uninstall {release_name} --wait --timeout 5m'
-            success, _, _, _ = helm_install(
+            success, _, _, _, _ = helm_install(
                 payload, helm_delete_prefix=helm_delete_prefix, helm_command_addons="--wait",
-                helm_cache_path=settings.helm_collections_cache, shell=False, update_state=False)
+                helm_cache_path=settings.helm_collections_cache, shell=True, update_state=False)
             if success:
                 message = f"Successfully updated the extensions"
                 logger.info(message)

@@ -1840,4 +1840,4 @@ data:
 kind: ConfigMap
 metadata:
   name: keycloak-config
-  namespace: "kub-system-{{  .Values.global.instance_id  }}"
+  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"

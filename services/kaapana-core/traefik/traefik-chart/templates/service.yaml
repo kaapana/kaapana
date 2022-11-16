@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: traefik
-  namespace: "kub-system-{{  .Values.global.instance_id  }}"
+  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
 spec:
   type: ClusterIP
   ports:
@@ -19,7 +19,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: traefik-http
-  namespace: "kub-system-{{  .Values.global.instance_id  }}"
+  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
 spec:
   type: NodePort
   ports:

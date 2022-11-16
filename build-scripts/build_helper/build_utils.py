@@ -28,6 +28,7 @@ class BuildUtils:
     kaapana_build_branch = None
     kaapana_last_commit_timestamp = None
     build_timestamp = None
+    parallel_processes = None
 
     @staticmethod
     def add_container_images_available(container_images_available):
@@ -50,7 +51,7 @@ class BuildUtils:
 
     @staticmethod
     def init(kaapana_dir, build_dir, external_source_dirs, platform_filter, default_registry, http_proxy, logger, exit_on_error, enable_build_kit,
-             create_offline_installation, skip_push_no_changes, push_to_microk8s):
+             create_offline_installation, skip_push_no_changes, parallel_processes,push_to_microk8s):
 
         BuildUtils.logger = logger
         BuildUtils.kaapana_dir = kaapana_dir
@@ -75,9 +76,12 @@ class BuildUtils:
         BuildUtils.kaapana_build_branch = build_branch
         BuildUtils.kaapana_build_version = build_version
 
+        BuildUtils.parallel_processes = parallel_processes
+
         BuildUtils.logger.debug(f"{BuildUtils.kaapana_dir=}")
         BuildUtils.logger.debug(f"{BuildUtils.kaapana_build_branch=}")
         BuildUtils.logger.debug(f"{BuildUtils.kaapana_build_version=}")
+        BuildUtils.logger.debug(f"{BuildUtils.parallel_processes=}")
         BuildUtils.logger.debug(f"{BuildUtils.kaapana_last_commit_timestamp=}")
         BuildUtils.logger.debug(f"{BuildUtils.build_timestamp=}")
 

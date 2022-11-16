@@ -6,7 +6,7 @@ metadata:
   labels:
     k8s-app: kubernetes-dashboard
   name: kubernetes-dashboard
-  namespace: "kub-system-{{  .Values.global.instance_id  }}"
+  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
 spec:
   selector:
     app-name: kubernetes-dashboard
@@ -18,7 +18,7 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: kube-redirect
-  namespace: "kub-system-{{  .Values.global.instance_id  }}"
+  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
 spec:
   redirectRegex:
     regex: ^.*/kubernetes([^\/]*)$
@@ -28,10 +28,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: kubedashboard-ingress-ip
-  namespace: "kub-system-{{  .Values.global.instance_id  }}"
+  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kub-system-{{  .Values.global.instance_id  }}-errorpages@kubernetescrd,kub-system-{{  .Values.global.instance_id  }}-kube-redirect@kubernetescrd,kub-system-{{  .Values.global.instance_id  }}-strip-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: kaapana-system-{{  .Values.global.instance_id  }}-errorpages@kubernetescrd,kaapana-system-{{  .Values.global.instance_id  }}-kube-redirect@kubernetescrd,kaapana-system-{{  .Values.global.instance_id  }}-strip-prefix@kubernetescrd
     ingress.kubernetes.io/auth-remove-header: 'true'
     ingress.kubernetes.io/custom-request-headers: "Authorization:||cookie:"
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"

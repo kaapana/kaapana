@@ -10,7 +10,7 @@ workflow_prefix = '/workflows/'
 INSTANCE_ID = os.getenv('INSTANCE_ID', None)
 assert INSTANCE_ID
 
-HELM_API=f"http://kube-helm-service.kub-system-{INSTANCE_ID}.svc:5000"
+HELM_API=f"http://kube-helm-service.kaapana-system-{INSTANCE_ID}.svc:5000"
 
 # regex = r'image=(\"|\'|f\"|f\')([\w\-\\{\}.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)(\"|\'|f\"|f\')'
 regex = r'image=(\"|\'|f\"|f\')([\w\-\\{\}.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\\{\}\.]+)(\"|\'|f\"|f\')'

@@ -15,6 +15,9 @@ dependencies:
   - name: store
     version: 0.0.0
     repository: file://deps/store
+  - name: system
+    version: 0.0.0
+    repository: file://deps/system
   - name: error-pages-chart
     version: 0.0.0
     repository: file://../../services/kaapana-core/error-pages/error-pages-chart

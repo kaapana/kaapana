@@ -213,7 +213,7 @@ function clean_up_kubernetes {
     echo "${YELLOW}Deleting all jobs in namespace default ${NC}"
     microk8s.kubectl delete jobs --all
     echo "${YELLOW}Removing remove-secret job${NC}"
-    microk8s.kubectl -n kub-system-$INSTANCE_ID delete job --ignore-not-found remove-secret
+    microk8s.kubectl -n kaapana-system-$INSTANCE_ID delete job --ignore-not-found remove-secret
 }
 
 function upload_tar {
@@ -419,11 +419,11 @@ function install_certs {
     else
         echo -e "files found!"
         echo -e "Creating cluster secret ..."
-        microk8s.kubectl delete secret certificate -n kub-system-$INSTANCE_ID
-        microk8s.kubectl create secret tls certificate --namespace kub-system --key ./tls.key --cert ./tls.crt
-        auth_proxy_pod=$(microk8s.kubectl get pods -n kub-system-$INSTANCE_ID |grep oauth2-proxy  | awk '{print $1;}')
+        microk8s.kubectl delete secret certificate -n kaapana-system-$INSTANCE_ID
+        microk8s.kubectl create secret tls certificate --namespace kaapana-system --key ./tls.key --cert ./tls.crt
+        auth_proxy_pod=$(microk8s.kubectl get pods -n kaapana-system-$INSTANCE_ID |grep oauth2-proxy  | awk '{print $1;}')
         echo "auth_proxy_pod pod: $auth_proxy_pod"
-        microk8s.kubectl -n kub-system-$INSTANCE_ID delete pod $auth_proxy_pod
+        microk8s.kubectl -n kaapana-system-$INSTANCE_ID delete pod $auth_proxy_pod
     fi
 
     echo -e "${GREEN}DONE${NC}"

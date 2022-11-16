@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: keycloak
-  namespace: "kub-system-{{  .Values.global.instance_id  }}"
+  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
 spec:
   replicas: 1
   selector:
@@ -20,7 +20,7 @@ spec:
         imagePullPolicy:  Always
         env:
           - name: WAIT
-            value: "postgres,postgres-keycloak-service.kub-system-{{  .Values.global.instance_id  }}.svc,5432"
+            value: "postgres,postgres-keycloak-service.kaapana-system-{{  .Values.global.instance_id  }}.svc,5432"
           - name: DELAY
             value: "2"
           - name: TIMEOUT
@@ -40,7 +40,7 @@ spec:
           - name: DB_VENDOR
             value: "postgres"
           - name: DB_ADDR
-            value: "postgres-keycloak-service.kub-system-{{  .Values.global.instance_id  }}.svc"
+            value: "postgres-keycloak-service.kaapana-system-{{  .Values.global.instance_id  }}.svc"
           - name: DB_PORT
             value: "5432"
           - name: DB_USER

@@ -43,7 +43,7 @@ metadata:
   namespace: {{ .Values.global.base_namespace }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: base-strip-prefix-kaapana-backend@kubernetescrd #, kube-system-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: base-strip-prefix-kaapana-backend@kubernetescrd #, kub-system-{{  .Values.global.instance_id  }}-errorpages@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

@@ -31,7 +31,7 @@ metadata:
   namespace: {{ .Values.global.store_namespace }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: store-rewrite-minio-console@kubernetescrd,kube-system-errorpages@kubernetescrd # uncomment later!
+    traefik.ingress.kubernetes.io/router.middlewares: store-rewrite-minio-console@kubernetescrd,kub-system-{{  .Values.global.instance_id  }}-errorpages@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

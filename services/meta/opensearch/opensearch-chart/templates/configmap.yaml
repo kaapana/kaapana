@@ -459,7 +459,7 @@ data:
                   pemtrustedcas_filepath: /usr/share/opensearch/config/certificates/ca/ca.pem
                 subject_key: preferred_username
                 roles_key: roles
-                openid_connect_url: http://keycloak-external-service.kube-system.svc:80/auth/realms/kaapana/.well-known/openid-configuration
+                openid_connect_url: http://keycloak-external-service.kub-system-{{  .Values.global.instance_id  }}.svc:80/auth/realms/kaapana/.well-known/openid-configuration
             authentication_backend:
               type: noop
               

@@ -3,7 +3,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: kube-helm-service
-  namespace: kube-system
+  namespace: "kub-system-{{  .Values.global.instance_id  }}"
   labels:
     app-name: kube-helm
 spec:
@@ -18,10 +18,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: kube-helm-ingress
-  namespace: kube-system
+  namespace: "kub-system-{{  .Values.global.instance_id  }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,kube-system-strip-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: kub-system-{{  .Values.global.instance_id  }}-errorpages@kubernetescrd,kub-system-{{  .Values.global.instance_id  }}-strip-prefix@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

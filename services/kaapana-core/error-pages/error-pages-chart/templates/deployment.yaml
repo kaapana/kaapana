@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: error-pages
-  namespace: kube-system
+  namespace: "kub-system-{{  .Values.global.instance_id  }}"
 spec:
   replicas: 1
   selector:

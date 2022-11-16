@@ -35,7 +35,7 @@ data:
         scheme: https
         metrics_path: '/oauth2/metrics'
         static_configs:
-        - targets: ['oauth2-proxy-service.kube-system.svc:8443']
+        - targets: ['oauth2-proxy-service.kub-system-{{  .Values.global.instance_id  }}.svc:8443']
         tls_config:
           insecure_skip_verify: true
       
@@ -43,14 +43,14 @@ data:
         scheme: http
         metrics_path: '/metrics'
         static_configs:
-        - targets: ['kube-state-metrics.kube-system.svc:8080']
+        - targets: ['kube-state-metrics.kub-system-{{  .Values.global.instance_id  }}.svc:8080']
 
       - job_name: 'Traefik'
         scheme: http
         scrape_interval: 30s
         metrics_path: '/metrics'
         static_configs:
-        - targets: ['traefik.kube-system.svc:8080']
+        - targets: ['traefik.kub-system-{{  .Values.global.instance_id  }}.svc:8080']
 
       - job_name: 'Granafa'
         scheme: http

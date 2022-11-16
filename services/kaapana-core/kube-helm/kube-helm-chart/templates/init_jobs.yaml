@@ -4,7 +4,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: init-collections
-  namespace: kube-system
+  namespace: "kub-system-{{  .Values.global.instance_id  }}"
 spec:
   template:
     metadata:
@@ -64,7 +64,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: init-extensions
-  namespace: kube-system
+  namespace: "kub-system-{{  .Values.global.instance_id  }}"
 spec:
   template:
     metadata:

@@ -1,14 +1,20 @@
-from airflow.utils.dates import days_ago
 from datetime import timedelta
+
 from airflow.models import DAG
+from airflow.utils.dates import days_ago
+
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.LocalGetTotalSegmentatorModelsOperator import LocalGetTotalSegmentatorModelsOperator
 from kaapana.operators.TotalSegmentatorOperator import TotalSegmentatorOperator
+from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.LocalCombineMasksOperator import LocalCombineMasksOperator
+from kaapana.operators.PyRadiomicsOperator import PyRadiomicsOperator
 
-max_active_runs = 5
+max_active_runs = 10
 concurrency = max_active_runs * 2
 default_interpolation_order = "default"
 default_prep_thread_count = 1
@@ -55,6 +61,15 @@ ui_forms = {
                 "type": "boolean",
                 "default": True,
                 "readOnly": True,
+            },
+            "task": {
+                "title": "Task",
+                "default": "total",
+                "description": "total",  # , lung_vessels, cerebral_bleed, hip_implant, coronary_arteries
+                "enum": ["total"],  # , "lung_vessels", "cerebral_bleed", "hip_implant", "coronary_arteries
+                "type": "string",
+                "readOnly": False,
+                "required": True
             }
         }
     }
@@ -76,6 +91,10 @@ dag = DAG(
     schedule_interval=None
 )
 
+get_total_segmentator_model = LocalGetTotalSegmentatorModelsOperator(
+    dag=dag
+)
+
 get_input = LocalGetInputDataOperator(
     dag=dag,
     parallel_downloads=5,
@@ -93,18 +112,34 @@ total_segmentator = TotalSegmentatorOperator(
     input_operator=dcm2nifti
 )
 
+combine_masks = LocalCombineMasksOperator(
+    dag=dag,
+    input_operator=total_segmentator
+)
+
 alg_name = 'TotalSegmentator'
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     dag=dag,
     input_operator=get_input,
-    segmentation_operator=total_segmentator,
+    segmentation_operator=combine_masks,
     input_type="multi_label_seg",
     multi_label_seg_name=alg_name,
+    multi_label_seg_info_json='seg_info.json',
     skip_empty_slices=True,
     alg_name=alg_name,
 )
 
+pyradiomics = PyRadiomicsOperator(
+    dag=dag,
+    input_operator=dcm2nifti,
+    segmentation_operator=total_segmentator,
+)
+
+put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[pyradiomics], file_white_tuples=('.json'))
 dcmseg_send_multi = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi)
+
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> dcm2nifti >> total_segmentator >> nrrd2dcmSeg_multi >> dcmseg_send_multi >> clean
+get_total_segmentator_model >> total_segmentator
+get_input >> dcm2nifti >> total_segmentator >> combine_masks >> nrrd2dcmSeg_multi >> dcmseg_send_multi >> clean
+total_segmentator >> pyradiomics >> put_to_minio >> clean

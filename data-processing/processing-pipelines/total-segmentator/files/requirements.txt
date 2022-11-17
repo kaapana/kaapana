@@ -1,1 +1,1 @@
-TotalSegmentator==1.3
+TotalSegmentator==1.4.0

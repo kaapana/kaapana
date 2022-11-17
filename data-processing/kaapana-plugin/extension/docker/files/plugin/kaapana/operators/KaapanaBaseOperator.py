@@ -250,41 +250,40 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 }
             })
         )
-        
-        if self.gpu_mem_mb != None or self.gpu_mem_mb_lmt != None:
-            self.volume_mounts.append(VolumeMount(
-                'modeldata', mount_path='/models', sub_path=None, read_only=False
-            ))
 
-            self.volumes.append(
-                Volume(name='modeldata', configs={'hostPath':
-                                                  {
-                                                      'type': 'DirectoryOrCreate',
-                                                      'path': self.model_dir
-                                                  }
-                                                  })
-            )
+        self.volume_mounts.append(VolumeMount(
+            'modeldata', mount_path='/models', sub_path=None, read_only=False
+        ))
 
-            self.volume_mounts.append(VolumeMount(
-                'tensorboard', mount_path='/tensorboard', sub_path=None, read_only=False))
-            tb_config = {
-                'hostPath':
-                {
-                    'type': 'DirectoryOrCreate',
-                    'path': os.path.join(self.data_dir, "tensorboard")
-                }
+        self.volumes.append(
+            Volume(name='modeldata', configs={'hostPath':
+                                              {
+                                                  'type': 'DirectoryOrCreate',
+                                                  'path': self.model_dir
+                                              }
+                                              })
+        )
+
+        self.volume_mounts.append(VolumeMount(
+            'tensorboard', mount_path='/tensorboard', sub_path=None, read_only=False))
+        tb_config = {
+            'hostPath':
+            {
+                'type': 'DirectoryOrCreate',
+                'path': os.path.join(self.data_dir, "tensorboard")
             }
-            self.volumes.append(Volume(name='tensorboard', configs=tb_config))
+        }
+        self.volumes.append(Volume(name='tensorboard', configs=tb_config))
 
-            self.volume_mounts.append(VolumeMount(
-                'dshm', mount_path='/dev/shm', sub_path=None, read_only=False))
-            volume_config = {
-                'emptyDir':
-                {
-                    'medium': 'Memory',
-                }
+        self.volume_mounts.append(VolumeMount(
+            'dshm', mount_path='/dev/shm', sub_path=None, read_only=False))
+        volume_config = {
+            'emptyDir':
+            {
+                'medium': 'Memory',
             }
-            self.volumes.append(Volume(name='dshm', configs=volume_config))
+        }
+        self.volumes.append(Volume(name='dshm', configs=volume_config))
 
         if self.pod_resources is None:
             pod_resources = PodResources(

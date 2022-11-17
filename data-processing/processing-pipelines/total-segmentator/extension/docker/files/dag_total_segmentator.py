@@ -8,11 +8,11 @@ from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.LocalGetTotalSegmentatorModelsOperator import LocalGetTotalSegmentatorModelsOperator
-from kaapana.operators.TotalSegmentatorOperator import TotalSegmentatorOperator
+from totalsegmentator.LocalGetTotalSegmentatorModelsOperator import LocalGetTotalSegmentatorModelsOperator
+from totalsegmentator.TotalSegmentatorOperator import TotalSegmentatorOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalCombineMasksOperator import LocalCombineMasksOperator
-from kaapana.operators.PyRadiomicsOperator import PyRadiomicsOperator
+from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator
 
 max_active_runs = 10
 concurrency = max_active_runs * 2

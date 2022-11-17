@@ -88,11 +88,10 @@ def create_index():
     index_body = {
         "settings": {
             "index": {
+                "number_of_replicas": 0,
                 "number_of_shards": 4,
-                # "index.mapper.dynamic": True,
-                # "number_of_replicas": 0,
-                # "index.mapping.total_fields.limit": 6000,
-                # "index.max_docvalue_fields_search": 150,
+                "mapping.total_fields.limit": 6000,
+                "max_docvalue_fields_search": 150,
             }
         },
         "mappings":
@@ -189,6 +188,10 @@ def create_index():
             ],
         }
     }
+    print("#")
+    print("# INDEX-BODY:")
+    print(json.dumps(index_body, indent=4))
+    print("#")
     try:
         response = os_client.indices.create(index_name, body=index_body)
         print("#")
@@ -205,6 +208,7 @@ def create_index():
             print("# Error:")
             print(str(e))
             print("#")
+            exit(1)
 
     print("#")
     print("# Success! ")

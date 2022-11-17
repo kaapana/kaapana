@@ -11,4 +11,4 @@ enable_linting: true # should be true - checks deployment validity
 skip_push_no_changes: false # Advanced feature - should be false usually
 platform_filter: "kaapana-platform-chart" # comma sperated platform-chart-names
 external_source_dirs: "" # comma sperated paths 
-container_build_processes: 2 # parallel process count for container build + push 
+parallel_processes: 2 # parallel process count for container build + push 

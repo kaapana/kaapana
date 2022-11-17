@@ -53,6 +53,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             print("#")
             print("# Error while pushing JSON ...")
             print("#")
+            print(e)
             exit(1)
 
         print("#")

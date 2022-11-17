@@ -99,7 +99,7 @@ if __name__ == '__main__':
     conf_enable_linting = configuration["enable_linting"]
     conf_enable_build_kit = 1 if "enable_build_kit" in configuration and configuration["enable_build_kit"] else 0
     conf_skip_push_no_changes = configuration["skip_push_no_changes"]
-    conf_container_build_processes = configuration["container_build_processes"]
+    conf_parallel_processes = configuration["parallel_processes"]
 
     registry_user = args.username
     registry_pwd = args.password
@@ -113,7 +113,7 @@ if __name__ == '__main__':
     exit_on_error = args.exit_on_error if args.exit_on_error != None else conf_exit_on_error
     platform_filter = args.platform_filter.split(",") if args.platform_filter != None else conf_platform_filter
     skip_push_no_changes = args.skip_push_no_changes if args.skip_push_no_changes != None else conf_skip_push_no_changes
-    parallel_processes = int(args.parallel_processes if args.parallel_processes != 2 else conf_container_build_processes)
+    parallel_processes = int(args.parallel_processes if args.parallel_processes != 2 else conf_parallel_processes)
 
     for external_source_dir in external_source_dirs:
         if not os.path.isdir(external_source_dir):

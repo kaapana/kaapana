@@ -3,15 +3,18 @@ import stat
 
 from airflow.models import BaseOperator
 from avid.actions import ActionBatchGenerator
-from avid.actions.genericCLIAction import extract_artefact_arg_urls_default
-from avid.common import osChecker
+from avid.common.cliConnector import default_artefact_url_extraction_delegate
+from avid.common import osChecker, AVIDUrlLocater
 from avid.common.artefact import ensureValidPath, generateArtefactEntry, ensureSimilarityRelevantProperty, addArtefactToWorkflowData, findSimilarArtefact
 from avid.common.artefact.defaultProps import FORMAT_VALUE_DCM, TYPE_VALUE_RESULT
 from avid.selectors import SelectorBase, ActionTagSelector, KeyValueSelector
 from avid.common.artefact.crawler import DirectoryCrawler
 from avid.common.workflow import initSession
 
+
+
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+import logging
 
 from pydicom.filereader import dcmread
 
@@ -37,15 +40,15 @@ AVID_SESSION_DEFAULT_DIR = 'avid'
 
 
 def deduce_dag_run_dir(workflow_dir, dag_run_id):
-    return os.path.join(workflow_dir, dag_run_id)
+    return os.path.join(os.path.sep, workflow_dir, dag_run_id)
 
 
 def deduce_avid_dir(workflow_dir, dag_run_id):
-    return ensureValidPath(os.path.join(workflow_dir, dag_run_id, AVID_SESSION_DEFAULT_DIR))
+    return ensureValidPath(os.path.join(os.path.sep, workflow_dir, dag_run_id, AVID_SESSION_DEFAULT_DIR))
 
 
 def deduce_session_dir(workflow_dir, dag_run_id):
-    return ensureValidPath(os.path.join(workflow_dir, dag_run_id, AVID_SESSION_DEFAULT_DIR, "session.avid"))
+    return ensureValidPath(os.path.join(os.path.sep, workflow_dir, dag_run_id, AVID_SESSION_DEFAULT_DIR, "session.avid"))
 
 
 def convert_to_selector(operator):
@@ -111,13 +114,17 @@ def _extract_task_id(path_parts, series_UID):
     """Extracts the task id given the defauls 'classical' path layout for KaapanaOperators.
        Assumes that the following classical kaapana directory layout is used:
        data/<series>/<task_id>/..."""
-    last_was_series = False
-    for part in path_parts:
-        if last_was_series:
-            return part
-        last_was_series = part == series_UID
+    if len(path_parts) == 0:
+        return None
+            # series_UID and <series> divert in case of a reference image (e.g. segmentation)
+    return path_parts[-1]
+    #last_was_series = False
+    #for part in path_parts:
+    #    if last_was_series:
+    #        return part
+    #    last_was_series = part == series_UID
 
-    return None
+    #return None
 
 
 class DefaultKaapanaDataCrawlCallable(object):
@@ -132,7 +139,6 @@ class DefaultKaapanaDataCrawlCallable(object):
 
             try:
                 ds = dcmread(full_path, stop_before_pixels=True)
-
                 relevantDCMTags = {PROP_NAME_PATIENT_ID: (0x0010,0x0020),
                                    PROP_NAME_PATIENT_NAME: (0x0010,0x0010),
                                    PROP_NAME_MODALITY:(0x0008, 0x0060),
@@ -188,6 +194,9 @@ def ensure_operator_session(avid_operator, context):
 
         avid_operator.log.debug('Initialize AVID session at: {}'.format(avid_operator.avid_session_dir))
         avid_operator.avid_session = initSession(sessionPath=avid_operator.avid_session_dir, expandPaths=True)
+        rootlogger = logging.getLogger()
+        rootlogger.setLevel("DEBUG")
+
 
     if len(avid_operator.avid_session.artefacts) == 0 or avid_operator.avid_artefact_crawl_callable is not None:
         avid_operator.log.debug('Sync AVID session with workflow data.')
@@ -281,7 +290,7 @@ class ContainerCLIConnectorBase(object):
         for mountPath in mount_map:
             try:
                 if filepath.find(mount_map[mountPath])==0:
-                    mappedPath.replace(mount_map[mountPath], mountPath)
+                    mappedPath = mappedPath.replace(mount_map[mountPath], mountPath)
                     break
             except Exception:
                 pass
@@ -293,7 +302,7 @@ class ContainerCLIConnectorBase(object):
         and will be wrapped accordingly."""
 
         if action_extraction_delegate is None:
-            action_extraction_delegate = extract_artefact_arg_urls_default
+            action_extraction_delegate = default_artefact_url_extraction_delegate
 
         def extractionWrapper(arg_name, arg_value):
             results = action_extraction_delegate(arg_name, arg_value)
@@ -336,18 +345,30 @@ class ContainerCLIConnectorBase(object):
 
 
 class KaapanaCLIConnector(ContainerCLIConnectorBase):
-    """Implementation that allows to execute a container based on a KaapanaBaseOperator.
-       It is used to connect the features of a AVID CLIBatchAction with the KaapanaBaseOperator."""
-
-    def __init__(self, mount_map, kaapana_operator, context):
+    def __init__(self, mount_map, kaapana_operator, context, executable_url=None):
         """:param mount_map: Dictionary that contains the mapping between relevant paths
-         outside of the container (those stored in the session) and the pathes that will
-         be known in the container. Needed to properly convert artefact urls.
-         Key of the map is the mount path inside of the container, the value is the respective
-         path outside."""
+        outside of the container (those stored in the session) and the pathes that will
+        be known in the container. Needed to properly convert artefact urls.
+        Key of the map is the mount path inside of the container, the value is the respective
+        path outside."""
         super().__init__(mount_map=mount_map)
         self.kaapana_operator = kaapana_operator
         self.context = context
+        self._executable_url=executable_url
+
+    def get_executable_url(self, workflow, actionID, actionConfig = None):
+        """Returns url+executable for a actionID request that should be used in the cli file. This serves as an
+        abstraction, in order to allow the connector to change the deduction strategy for the executable url.
+        Default implementation just uses the AVIDUrlLocater.
+        :param workflow: session instance that should be used for deducing the executable url
+        :param actionID: actionID of the action that requests the URL
+        :param actionConfig: actionConfig specifies if a certian configuration of an action should be used."""
+        if self._executable_url is None:
+            return AVIDUrlLocater.getExecutableURL(workflow=workflow, actionID=actionID, actionConfig=actionConfig)
+        else:
+            return self._executable_url
+        """Implementation that allows to execute a container based on a KaapanaBaseOperator.
+        It is used to connect the features of a AVID CLIBatchAction with the KaapanaBaseOperator."""
 
     def execute(self, cli_file_path, log_file_path=None, error_log_file_path=None, cwd=None):
         logfile = None
@@ -370,6 +391,8 @@ class KaapanaCLIConnector(ContainerCLIConnectorBase):
             mapped_cli_file_path = ContainerCLIConnectorBase.apply_mount_map(mount_map=self.mount_map,
                                                                              filepath=cli_file_path)
             self.kaapana_operator.cmds=[mapped_cli_file_path]
+
+            print("Spinning up container in Kaapana Base operator")
             container_return = KaapanaBaseOperator.execute(self=self.kaapana_operator, context=self.context)
 
             logfile.write(str(container_return))

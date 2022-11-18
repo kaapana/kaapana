@@ -9,7 +9,7 @@ from avid.actions import BatchActionBase
 from avid.actions.pythonAction import PythonNaryBatchActionV2
 from avid.common.artefact.fileHelper import saveArtefactList_xml
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
-from kaapana.operators.HelperAvid import ensure_operator_session, compile_operator_splitters, compile_operator_sorters, check_input_name_consistency, initialize_inputs, deduce_dag_run_dir, KaapanaCLIConnector
+from avid_operator.HelperAvid import ensure_operator_session, compile_operator_splitters, compile_operator_sorters, check_input_name_consistency, initialize_inputs, deduce_dag_run_dir, KaapanaCLIConnector
 
 class AVIDBaseOperator(KaapanaBaseOperator):
     """
@@ -21,15 +21,17 @@ class AVIDBaseOperator(KaapanaBaseOperator):
     def __init__(self,
                  dag,
                  name,
+                 executable_url: str = None,
+                 actionID: str = None,
                  image=None,
                  input_operator=None,
                  #AVID
                  image_avid_class_file=None,
                  batch_action_class=None,
                  action_class=None,
-                 action_kwargs=None,
+                 action_kwargs={},
                  action_cli_path=None,
-                 additional_inputs = None,
+                 additional_inputs: dict() = None,
                  linkers = None,
                  dependentLinkers = None,
                  input_splitter=None,
@@ -40,8 +42,13 @@ class AVIDBaseOperator(KaapanaBaseOperator):
                  avid_session=None,
                  avid_session_dir=None,
                  avid_artefact_crawl_callable=None,
-                 *args, **kwargs):
-
+                 additionalActionProps=None,
+                 additionalArgs=None,
+                 envs=None,
+                 **kwargs):
+        
+        self.actionID = actionID
+        self.executable_url = executable_url
         self.avid_session=avid_session
         self.avid_session_dir=avid_session_dir
         if avid_session is not None and avid_session_dir is not None:
@@ -80,6 +87,14 @@ class AVIDBaseOperator(KaapanaBaseOperator):
 
         self.avid_action = None
         self.cli_connector = None
+        self.additionalActionProps = additionalActionProps
+        self.additionalArgs = additionalArgs
+
+
+        env_vars = {}
+        if envs:
+            env_vars.update(envs)
+
 
         super().__init__(
             dag=dag,
@@ -88,19 +103,23 @@ class AVIDBaseOperator(KaapanaBaseOperator):
             operator_out_dir=None,
             input_operator=input_operator,
             operator_in_dir=None,
-            *args, **kwargs
+            env_vars=env_vars,
+            **kwargs
         )
 
     def pre_execute(self, context):
+
         ensure_operator_session(avid_operator=self,context=context)
 
         splitters = compile_operator_splitters(avid_operator=self)
         sorters = compile_operator_sorters(avid_operator=self)
+        
+        self.cli_connector = KaapanaCLIConnector(mount_map={'/data':deduce_dag_run_dir(workflow_dir=os.path.join(os.path.sep,self.workflow_dir), dag_run_id=context['run_id'])},
+                                                 kaapana_operator=self, context=context, executable_url=self.executable_url)
 
-        self.cli_connector = KaapanaCLIConnector(mount_map={'/data':deduce_dag_run_dir(workflow_dir=self.workflow_dir, dag_run_id=context['run_id'])},
-                                                 kaapana_operator=self, context=context)
 
-        self.avid_session.actionTools[self.action_kwargs['actionID']] = '/src/MitkFileConverter.sh'
+    
+        self.avid_session.actionTools[self.actionID] = self.executable_url
 
         all_action_kwargs = self.action_kwargs.copy()
 
@@ -116,13 +135,19 @@ class AVIDBaseOperator(KaapanaBaseOperator):
         all_action_kwargs['session'] = self.avid_session
         all_action_kwargs['cli_connector'] = self.cli_connector
         all_action_kwargs['alwaysDo'] = True
-
+        all_action_kwargs['additionalActionProps'] = self.additionalActionProps 
+        import debugpy
+        debugpy.listen(("0.0.0.0", 5678))
+        debugpy.wait_for_client()
+        debugpy.breakpoint()
+        for key in self.additionalArgs: 
+            all_action_kwargs[key] = self.additionalArgs[key]
         batch_action_class = None
         if not self.batch_action_class is None and not self.batch_action_class.__name__ == 'BatchActionBase':
             batch_action_class = self.batch_action_class
             all_action_kwargs[self.input_alias] = self.input_selector
             if self.additional_selectors is not None:
-                all_action_kwargs.update(self.additional_selectors)
+                all_action_kwargs.update(self.additional_selectors) 
         elif not self.action_class is None:
                 batch_action_class = BatchActionBase
                 all_action_kwargs['actionClass'] = self.action_class
@@ -133,8 +158,10 @@ class AVIDBaseOperator(KaapanaBaseOperator):
             raise NotImplementedError('Feature to get class from container image is not implemented yet.')
 
         self.avid_action = batch_action_class(**all_action_kwargs)
+        print("pre-execute done!")
 
     def execute(self, context):
+
         action_result = self.avid_action.do()
 
         result = State.SUCCESS

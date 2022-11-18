@@ -9,7 +9,7 @@ from avid.common.artefact.crawler import DirectoryCrawler
 from avid.common.artefact.fileHelper import saveArtefactList_xml
 from avid.common.workflow import initSession
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.HelperAvid import ensure_operator_session, compile_operator_splitters, compile_operator_sorters, check_input_name_consistency, initialize_inputs
+from .HelperAvid import ensure_operator_session, compile_operator_splitters, compile_operator_sorters, check_input_name_consistency, initialize_inputs
 
 class AVIDPythonOperator(KaapanaPythonBaseOperator):
     """

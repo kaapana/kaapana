@@ -126,7 +126,7 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     multi_label_seg_name=alg_name,
     multi_label_seg_info_json='seg_info.json',
     skip_empty_slices=True,
-    alg_name=alg_name,
+    alg_name=alg_name
 )
 
 pyradiomics = PyRadiomicsOperator(

@@ -1,6 +1,4 @@
 ---
 global:
-pull_policy_jobs: "Always"
-image: "dag-total-segmentator"
-version: "0.1.0"
-action: "copy"
+    image: "dag-total-segmentator"
+    action: "copy"

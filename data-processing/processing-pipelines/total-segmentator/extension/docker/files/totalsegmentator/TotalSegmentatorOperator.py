@@ -49,7 +49,7 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
             execution_timeout=execution_timeout,
             keep_parallel_id=False,
             env_vars=env_vars,
-            ram_mem_mb=8000,
-            gpu_mem_mb=6000,
+            ram_mem_mb=12000,
+            gpu_mem_mb=8000,
             **kwargs
         )

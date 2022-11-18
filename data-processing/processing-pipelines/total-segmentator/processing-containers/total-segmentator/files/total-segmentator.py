@@ -102,3 +102,5 @@ for batch_element_dir in batch_folders:
                 print("# Successfully processed")
             except Exception as e:
                 print("Processing failed with exception: ", e)
+                exit(0)
+                exit(0)

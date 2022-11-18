@@ -59,7 +59,7 @@ class LocalCombineMasksOperator(KaapanaPythonBaseOperator):
             else:
                 print(f"Mask {mask} is missing. Filling with zeros.")
                 img = np.zeros(ref_img.shape)
-            img_out[img > 0.5] = idx + 1
+            img_out[img > 0.5] = idx
 
         nib.save(nib.Nifti1Image(img_out, ref_img.affine), output_file)
 

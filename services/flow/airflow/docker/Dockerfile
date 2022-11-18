@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM local/avid-base:17.11.2022
 
 LABEL IMAGE="airflow"
 LABEL VERSION="2.2.5"

@@ -6,9 +6,9 @@ LABEL CI_IGNORE="False"
 
 RUN apt-get update
 
-COPY files/pyradiomics.py /kaapanasrc/
 COPY files/requirements.txt /root/
 RUN pip3 install -r /root/requirements.txt
+COPY files/pyradiomics.py /kaapanasrc/
 
 WORKDIR /kaapanasrc/
 CMD ["python3","-u","/kaapanasrc/pyradiomics.py"]

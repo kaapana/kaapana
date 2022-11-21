@@ -10,8 +10,8 @@ WORKDIR /kaapanasrc
 COPY files/requirements.txt ./
 RUN pip3 install -r ./requirements.txt
 
-#Release 1.2.4
-RUN mkdir -p /app/src && wget --no-check-certificate https://github.com/QIICR/dcmqi/releases/download/v1.2.4/dcmqi-1.2.4-linux.tar.gz -O /app/src/dcmqi.tar.gz \
+#Release 1.2.5
+RUN mkdir -p /app/src && wget --no-check-certificate https://github.com/QIICR/dcmqi/releases/download/v1.2.5/dcmqi-1.2.5-linux.tar.gz -O /app/src/dcmqi.tar.gz \
     && mkdir -p /app/dcmqi && tar -xzf /app/src/dcmqi.tar.gz --strip 1 -C /app/dcmqi && rm -rf /app/src/dcmqi.tar.gz
 
 #RUN cat /etc/os-release

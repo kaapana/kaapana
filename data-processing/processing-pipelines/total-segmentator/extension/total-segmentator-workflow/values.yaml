@@ -1,0 +1,4 @@
+---
+global:
+    image: "dag-total-segmentator"
+    action: "copy"

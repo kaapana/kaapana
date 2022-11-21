@@ -71,7 +71,16 @@ def find_code_meaning(tag):
                 break
 
     if result == None:
-        raise AssertionError(f"Could not find the tag: '{tag}' in the lookup table!")
+        print(f"Could not find the tag: '{tag}' in the lookup table, using custom entry")
+        result = {
+            "Coding Scheme Designator": "Custom",
+            "Code Value": "0.0.0.0.0.0.00000.0.000.0.00",
+            "Code Meaning": f"{tag.replace('  ', ' '). lower()}",
+            "Body Part Examined": "",
+            "SNOMED-RT ID (Retired)": "",
+            "FMA Code Value": None,
+            "UMLS Concept UniqueID": ""
+        }
 
     print("#")
     print("#####################################################")

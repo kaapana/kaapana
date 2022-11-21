@@ -100,9 +100,13 @@ if __name__ == '__main__':
     conf_enable_build_kit = 1 if "enable_build_kit" in configuration and configuration["enable_build_kit"] else 0
     conf_skip_push_no_changes = configuration["skip_push_no_changes"]
     conf_parallel_processes = configuration["parallel_processes"]
+    conf_registry_username = configuration["registry_username"]
+    conf_registry_username = conf_registry_username if conf_registry_username != "" else None
+    conf_registry_password = configuration["registry_password"]
+    conf_registry_password = conf_registry_password if conf_registry_password != "" else None
 
-    registry_user = args.username
-    registry_pwd = args.password
+    registry_user = args.username if args.username is not None else conf_registry_username
+    registry_pwd = args.password if args.password is not None else conf_registry_password
 
     build_only = args.build_only if args.build_only != None else conf_build_only
     create_offline_installation = args.create_offline_installation if args.create_offline_installation != None else conf_create_offline_installation

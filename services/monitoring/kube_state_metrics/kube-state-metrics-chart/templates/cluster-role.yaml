@@ -5,7 +5,7 @@ metadata:
     app.kubernetes.io/component: exporter
     app.kubernetes.io/name: kube-state-metrics
     app.kubernetes.io/version: 2.5.0
-  name: kube-state-metrics
+  name: "kube-state-metrics-{{  .Values.global.instance_uid  }}"
 rules:
 - apiGroups:
   - ""

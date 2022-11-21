@@ -1,0 +1,36 @@
+{{- $uuid := uuidv4 | trunc 10 }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copy-kube-helm-collections-{{ $uuid }}
+  namespace: {{ .Values.global.helm_namespace }}
+spec:
+  template:
+    spec:
+      containers:
+      - name: copy-kube-helm-collections-{{ $uuid }}
+        image: "{{ .Values.kube_helm_collection }}"
+        {{- if .Values.global.offline_mode }}
+        imagePullPolicy: IfNotPresent
+        {{- else }}
+        imagePullPolicy: Always
+        {{- end }}
+        env:
+        - name: ACTION
+          value: copy
+        - name: CHARTS_DIR
+          value: "{{ .Values.global.charts_dir }}"
+        volumeMounts:
+        - name: data
+          mountPath: /extensions
+      # securityContext:
+      #   runAsUser: 0
+      volumes:
+      - name: data
+        hostPath:
+          path: "{{ .Values.global.fast_data_dir }}/extensions"
+          type: DirectoryOrCreate
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: registry-secret
+  backoffLimit: 0

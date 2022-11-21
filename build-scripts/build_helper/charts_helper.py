@@ -31,8 +31,7 @@ def generate_deployment_script(platform_chart):
     file_loader = FileSystemLoader(join(BuildUtils.kaapana_dir, "platforms"))  # directory of template file
     env = Environment(loader=file_loader)
 
-    platform_dir = dirname(platform_chart.chart_dir)
-    deployment_script_config_path = list(Path(platform_dir).rglob("deployment_config.yaml"))
+    deployment_script_config_path = list(Path(platform_chart.chart_dir).rglob("deployment_config.yaml"))
 
     if len(deployment_script_config_path) != 1:
         BuildUtils.logger.error(f"Could not find platform deployment-script config for {platform_chart.name} at {dirname(platform_chart.chart_dir)}")
@@ -313,7 +312,7 @@ class HelmChart:
             self.kaapana_type = "kaapanaworkflow"
 
         if self.kaapana_type == "platform":
-            deployment_config = glob(dirname(self.chart_dir)+"/**/deployment_config.yaml", recursive=True)
+            deployment_config = glob(self.chart_dir+"/deployment_config.yaml", recursive=True)
             assert len(deployment_config) == 1
 
             deployment_config = deployment_config[0]

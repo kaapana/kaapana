@@ -1,0 +1,36 @@
+{{- $uuid := uuidv4 | trunc 10 }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: remove-kube-helm-collections-{{ $uuid }}
+  namespace: {{ .Values.global.helm_namespace }}
+  annotations:
+    "helm.sh/hook": post-delete
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
+spec:
+  template:
+    spec:
+      containers:
+      - name: remove-kube-helm-collections-{{ $uuid }}
+        image: "{{ .Values.kube_helm_collection }}"
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: ACTION
+          value: "remove"
+        - name: CHARTS_DIR
+          value: "{{ .Values.global.charts_dir }}"
+        volumeMounts:
+        - name: data
+          mountPath: /extensions
+      securityContext:
+        runAsUser: 0
+      volumes:
+      - name: data
+        hostPath:
+          path: "{{ .Values.global.fast_data_dir }}/extensions"
+          type: DirectoryOrCreate
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: registry-secret
+  backoffLimit: 0

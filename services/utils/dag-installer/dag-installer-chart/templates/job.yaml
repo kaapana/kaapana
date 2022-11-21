@@ -4,7 +4,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: prefetch-{{ .Values.global.image }}
-  namespace: default
+  namespace: "{{ .Values.global.helm_namespace }}"
 spec:
   selector:
     matchLabels:
@@ -20,7 +20,7 @@ spec:
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
-              value: "kube-helm,kube-helm-service.{{  .Values.global.system_namespace  }}.svc,5000,/health-check"
+              value: "kube-helm,kube-helm-service.{{  .Values.global.admin_namespace  }}.svc,5000,/health-check"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
@@ -31,8 +31,8 @@ spec:
         env:
           - name: ACTION
             value: {{ .Values.global.action }}
-          - name: SYSTEM_NAMESPACE
-            value: "{{ .Values.global.system_namespace }}"
+          - name: ADMIN_NAMESPACE
+            value: "{{ .Values.global.admin_namespace }}"
           - name: SERVICES_NAMESPACE
             value: "{{ .Values.global.services_namespace }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
@@ -43,7 +43,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ .Values.global.image }}
-  namespace: default
+  namespace: "{{ .Values.global.helm_namespace }}"
 spec:
   template:
     spec:
@@ -53,7 +53,7 @@ spec:
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
-              value: "kube-helm,kube-helm-service.{{  .Values.global.system_namespace  }}.svc,5000,/health-check"
+              value: "kube-helm,kube-helm-service.{{  .Values.global.admin_namespace  }}.svc,5000,/health-check"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
@@ -65,8 +65,8 @@ spec:
         env:
         - name: ACTION
           value: "{{ .Values.global.action }}"
-        - name: SYSTEM_NAMESPACE
-          value: "{{ .Values.global.system_namespace }}"
+        - name: ADMIN_NAMESPACE
+          value: "{{ .Values.global.admin_namespace }}"
         - name: SERVICES_NAMESPACE
           value: "{{ .Values.global.services_namespace }}"
         volumeMounts:

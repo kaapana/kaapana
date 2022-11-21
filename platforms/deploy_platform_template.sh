@@ -36,10 +36,10 @@ KAAPANA_LAST_COMMT_TIMESTAMP="{{ kaapana_last_commit_timestamp }}" # timestamp o
 
 INSTANCE_UID=""
 SERVICES_NAMESPACE="services"
-SYSTEM_NAMESPACE="admin"
+ADMIN_NAMESPACE="admin"
 JOBS_NAMESPACE="jobs"
 EXTENSIONS_NAMESPACE="extensions"
-HELM_NAMESPACE=$SYSTEM_NAMESPACE
+HELM_NAMESPACE=$ADMIN_NAMESPACE
 
 ######################################################
 # Individual platform configuration
@@ -77,17 +77,23 @@ if [ ! -z $INSTANCE_UID ]; then
     echo ""
     echo "Setting INSTANCE_UID: $INSTANCE_UID namespaces ..."
     SERVICES_NAMESPACE="$INSTANCE_UID-$SERVICES_NAMESPACE"
-    SYSTEM_NAMESPACE="$INSTANCE_UID-$SYSTEM_NAMESPACE"
+    ADMIN_NAMESPACE="$INSTANCE_UID-$ADMIN_NAMESPACE"
     JOBS_NAMESPACE="$INSTANCE_UID-$JOBS_NAMESPACE"
     EXTENSIONS_NAMESPACE="$INSTANCE_UID-$EXTENSIONS_NAMESPACE"
     HELM_NAMESPACE="$INSTANCE_UID-$HELM_NAMESPACE"
+
+    FAST_DATA_DIR="$FAST_DATA_DIR-$INSTANCE_UID"
+    SLOW_DATA_DIR="$SLOW_DATA_DIR-$INSTANCE_UID"
 fi
 echo ""
 echo "JOBS_NAMESPACE:       $JOBS_NAMESPACE "
 echo "HELM_NAMESPACE:       $HELM_NAMESPACE "
-echo "SYSTEM_NAMESPACE:     $SYSTEM_NAMESPACE "
+echo "ADMIN_NAMESPACE:     $ADMIN_NAMESPACE "
 echo "SERVICES_NAMESPACE:   $SERVICES_NAMESPACE "
 echo "EXTENSIONS_NAMESPACE: $EXTENSIONS_NAMESPACE "
+echo ""
+echo "FAST_DATA_DIR: $FAST_DATA_DIR "
+echo "SLOW_DATA_DIR: $SLOW_DATA_DIR "
 echo ""
 
 script_name=`basename "$0"`
@@ -201,8 +207,6 @@ function delete_deployment {
     do
         sleep 3
         DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered '$JOBS_NAMESPACE|$EXTENSIONS_NAMESPACE|$SERVICES_NAMESPACE' | cut -d' ' -f1")
-        echo -e "${YELLOW}DEPLOYED_NAMESPACES: $DEPLOYED_NAMESPACES ${NC}"
-
         TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E --line-buffered 'Terminating' | cut -d' ' -f1")
         UNINSTALL_TEST=$DEPLOYED_NAMESPACES$TERMINATING_PODS
         if [ -z "$UNINSTALL_TEST" ]; then
@@ -211,7 +215,7 @@ function delete_deployment {
     done
     
     echo -e "${YELLOW}Removing namespace $HELM_NAMESPACE ...${NC}"
-    microk8s.kubectl delete -n $HELM_NAMESPACE --ignore-not-found=true
+    microk8s.kubectl delete namespace $HELM_NAMESPACE --ignore-not-found=true
 
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
@@ -227,7 +231,7 @@ function delete_deployment {
 }
 
 function clean_up_kubernetes {
-    for n in $EXTENSIONS_NAMESPACE $JOBS_NAMESPACE $SERVICES_NAMESPACE $SYSTEM_NAMESPACE;
+    for n in $EXTENSIONS_NAMESPACE $JOBS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE;
     do
         echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
         microk8s.kubectl delete --ignore-not-found namespace $n
@@ -237,7 +241,7 @@ function clean_up_kubernetes {
     echo "${YELLOW}Deleting all jobs in namespace default ${NC}"
     microk8s.kubectl delete jobs --all
     echo "${YELLOW}Removing remove-secret job${NC}"
-    microk8s.kubectl -n $SYSTEM_NAMESPACE delete job --ignore-not-found remove-secret
+    microk8s.kubectl -n $ADMIN_NAMESPACE delete job --ignore-not-found remove-secret
 }
 
 function upload_tar {
@@ -357,7 +361,7 @@ function deploy_chart {
     --set-string global.services_namespace=$SERVICES_NAMESPACE \
     --set-string global.jobs_namespace=$JOBS_NAMESPACE \
     --set-string global.extensions_namespace=$EXTENSIONS_NAMESPACE \
-    --set-string global.system_namespace=$SYSTEM_NAMESPACE \
+    --set-string global.admin_namespace=$ADMIN_NAMESPACE \
     --set-string global.gpu_support="$GPU_SUPPORT" \
     --set-string global.helm_namespace="$HELM_NAMESPACE" \
     --set-string global.home_dir="$HOME" \
@@ -389,6 +393,7 @@ function deploy_chart {
     --set-string global.platform_build_branch="$PLATFORM_BUILD_BRANCH" \
     --set-string global.platform_last_commit_timestamp="$PLATFORM_LAST_COMMT_TIMESTAMP" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
+    --set-string global.instance_uid="$INSTANCE_UID" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PROJECT_NAME"
@@ -441,11 +446,11 @@ function install_certs {
     else
         echo -e "files found!"
         echo -e "Creating cluster secret ..."
-        microk8s.kubectl delete secret certificate -n $SYSTEM_NAMESPACE
-        microk8s.kubectl create secret tls certificate --namespace $SYSTEM_NAMESPACE --key ./tls.key --cert ./tls.crt
-        auth_proxy_pod=$(microk8s.kubectl get pods -n $SYSTEM_NAMESPACE |grep oauth2-proxy  | awk '{print $1;}')
+        microk8s.kubectl delete secret certificate -n $ADMIN_NAMESPACE
+        microk8s.kubectl create secret tls certificate --namespace $ADMIN_NAMESPACE --key ./tls.key --cert ./tls.crt
+        auth_proxy_pod=$(microk8s.kubectl get pods -n $ADMIN_NAMESPACE |grep oauth2-proxy  | awk '{print $1;}')
         echo "auth_proxy_pod pod: $auth_proxy_pod"
-        microk8s.kubectl -n $SYSTEM_NAMESPACE delete pod $auth_proxy_pod
+        microk8s.kubectl -n $ADMIN_NAMESPACE delete pod $auth_proxy_pod
     fi
 
     echo -e "${GREEN}DONE${NC}"

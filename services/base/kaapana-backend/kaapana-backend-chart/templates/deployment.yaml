@@ -32,7 +32,7 @@ spec:
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
-              value: "keycloak,keycloak-internal-service.{{  .Values.global.system_namespace  }}.svc,443"
+              value: "keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
@@ -43,7 +43,7 @@ spec:
           command: ["/app/scripts/create_backend_user.py"]
           env:
             - name: KEYCLOAK_URL
-              value: "https://keycloak-internal-service.{{  .Values.global.system_namespace  }}.svc/auth/"
+              value: "https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/"
             - name: KEYCLOAK_ADMIN_USERNAME
               value: {{ .Values.global.credentials_keycloak_admin_username }}
             - name: KEYCLOAK_ADMIN_PASSWORD
@@ -80,13 +80,13 @@ spec:
         - name: SERVICES_NAMESPACE
           value: "{{  .Values.global.services_namespace  }}"
         - name: KUBE_HELM_URL
-          value: "http://kube-helm-service.{{  .Values.global.system_namespace  }}.svc:5000/kube-helm-api"
+          value: "http://kube-helm-service.{{  .Values.global.admin_namespace  }}.svc:5000/kube-helm-api"
         - name: AIRFLOW_URL
           value: "http://airflow-service.{{  .Values.global.services_namespace  }}.svc:8080/flow/kaapana/api"
         - name: PROMETHEUS_URL
           value: {{ .Values.global.prometheus_url }}
         - name: KEYCLOAK_URL
-          value: "https://keycloak-internal-service.{{  .Values.global.system_namespace  }}.svc/auth/"
+          value: "https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/"
         - name: MINIO_USERNAME
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIO_PASSWORD
@@ -126,8 +126,7 @@ spec:
       volumes:
       - name: alembic
         hostPath:
-          # path: /home/ubuntu/dev/kaapana-backend/docker/files
-          path: /home/kaapana/alembic-kaapana-backend
+          path: {{ .Values.global.fast_data_dir }}/alembic-kaapana-backend
           type: DirectoryOrCreate
 {{- if .Values.global.dev_files }}
       - name: kaapana-dev-files

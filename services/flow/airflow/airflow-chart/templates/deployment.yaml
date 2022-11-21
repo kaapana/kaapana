@@ -18,26 +18,11 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: admin-rbac
-  namespace: "{{ .Values.global.services_namespace }}"
+  name: "admin-rbac-{{  .Values.global.instance_uid  }}"
 subjects:
   - kind: ServiceAccount
-    name: default
+    name: "default"
     namespace: "{{ .Values.global.services_namespace }}"
-roleRef:
-  kind: ClusterRole
-  name: cluster-admin
-  apiGroup: rbac.authorization.k8s.io
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: admin-rbac-jobs
-  namespace: "{{ .Values.global.services_namespace }}"
-subjects:
-  - kind: ServiceAccount
-    name: default
-    namespace: "{{ .Values.global.jobs_namespace }}"
 roleRef:
   kind: ClusterRole
   name: cluster-admin
@@ -99,8 +84,8 @@ spec:
           value: "{{ .Values.global.extensions_namespace }}"
         - name: JOBS_NAMESPACE
           value: "{{ .Values.global.jobs_namespace }}"
-        - name: SYSTEM_NAMESPACE
-          value: "{{ .Values.global.system_namespace }}"
+        - name: ADMIN_NAMESPACE
+          value: "{{ .Values.global.admin_namespace }}"
         - name: AIRFLOW_HOME
           value: "/root/airflow"
         - name: INSTANCE_NAME
@@ -143,8 +128,8 @@ spec:
           value: "{{ .Values.global.extensions_namespace }}"
         - name: JOBS_NAMESPACE
           value: "{{ .Values.global.jobs_namespace }}"
-        - name: SYSTEM_NAMESPACE
-          value: "{{ .Values.global.system_namespace }}"
+        - name: ADMIN_NAMESPACE
+          value: "{{ .Values.global.admin_namespace }}"
         - name: GPU_SUPPORT
           value: "{{ .Values.global.gpu_support }}"
         - name: SQL_ALCHEMY_CONN
@@ -228,8 +213,8 @@ spec:
           value: "{{ .Values.global.extensions_namespace }}"
         - name: JOBS_NAMESPACE
           value: "{{ .Values.global.jobs_namespace }}"
-        - name: SYSTEM_NAMESPACE
-          value: "{{ .Values.global.system_namespace }}"
+        - name: ADMIN_NAMESPACE
+          value: "{{ .Values.global.admin_namespace }}"
         - name: PULL_POLICY_PODS
           value: "{{ .Values.global.pull_policy_pods }}"
         - name: MINIOUSER

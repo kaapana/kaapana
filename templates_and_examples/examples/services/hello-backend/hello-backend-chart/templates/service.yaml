@@ -23,10 +23,9 @@ kind: Ingress
 metadata:
   name: hello-backend-ingress
   namespace: "{{ .Values.global.services_namespace }}"
-  #namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.system_namespace  }}-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.admin_namespace  }}-errorpages@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

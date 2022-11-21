@@ -29,13 +29,13 @@ data:
         scheme: http
         metrics_path: '/prometheus/metrics'
         static_configs:
-        - targets: ['prometheus-service.monitoring.svc:9090']
+        - targets: ['prometheus-service.{{  .Values.global.services_namespace  }}.svc:9090']
 
       - job_name: 'oAuth2-proxy'
         scheme: https
         metrics_path: '/oauth2/metrics'
         static_configs:
-        - targets: ['oauth2-proxy-service.kaapana-system-{{  .Values.global.instance_id  }}.svc:8443']
+        - targets: ['oauth2-proxy-service.{{  .Values.global.system_namespace  }}.svc:8443']
         tls_config:
           insecure_skip_verify: true
       
@@ -43,28 +43,28 @@ data:
         scheme: http
         metrics_path: '/metrics'
         static_configs:
-        - targets: ['kube-state-metrics.kaapana-system-{{  .Values.global.instance_id  }}.svc:8080']
+        - targets: ['kube-state-metrics.{{  .Values.global.system_namespace  }}.svc:8080']
 
       - job_name: 'Traefik'
         scheme: http
         scrape_interval: 30s
         metrics_path: '/metrics'
         static_configs:
-        - targets: ['traefik.kaapana-system-{{  .Values.global.instance_id  }}.svc:8080']
+        - targets: ['traefik.{{  .Values.global.system_namespace  }}.svc:8080']
 
       - job_name: 'Granafa'
         scheme: http
         scrape_interval: 30s
         metrics_path: '/metrics'
         static_configs:
-        - targets: ['grafana.monitoring.svc:3000']
+        - targets: ['grafana.{{  .Values.global.services_namespace  }}.svc:3000']
 
       - job_name: 'Airflow'
         scheme: http
         scrape_interval: 30s
         metrics_path: '/metrics'
         static_configs:
-        - targets: ['airflow-service.flow.svc:9102']
+        - targets: ['airflow-service.{{  .Values.global.services_namespace  }}.svc:9102']
 
       - job_name: 'node-exporter'
         kubernetes_sd_configs:
@@ -188,12 +188,12 @@ data:
       alertmanagers:
       - static_configs:
         - targets:
-          - alertmanager-service.monitoring.svc:9093
+          - alertmanager-service.{{  .Values.global.services_namespace  }}.svc:9093
 kind: ConfigMap
 metadata:
   name: prometheus-config
   labels:
     name: prometheus-config
-  namespace: {{ .Values.global.monitoring_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 
 ---

@@ -10,5 +10,5 @@ data:
 kind: ConfigMap
 metadata:
   name: traefik-config
-  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
+  namespace: "{{  .Values.global.system_namespace  }}"
 ---

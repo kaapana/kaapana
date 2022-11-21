@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import List
 import requests
 from fastapi import APIRouter, UploadFile, Response, File, Header, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -7,31 +7,28 @@ from app.dependencies import get_db
 from app.experiments import crud
 from app.experiments import schemas
 from app.experiments.utils import requests_retry_session
+from app.config import settings
+from urllib3.util import Timeout
 
+TIMEOUT_SEC = 5
+TIMEOUT = Timeout(TIMEOUT_SEC)
 
 router = APIRouter(tags=["remote"])
 
 
 @router.get("/minio-presigned-url")
 async def get_minio_presigned_url(presigned_url: str = Header(...)):
-    print(f'http://minio-service.store.svc:9000{presigned_url}')
+    print(f'http://minio-service.{settings.services_namespace}.svc:9000{presigned_url}')
     # # Todo add file streaming!
     with requests.Session() as s:
-        resp = requests_retry_session(session=s).get(f'http://minio-service.store.svc:9000{presigned_url}')
-    # resp = requests.get(f'http://minio-service.store.svc:9000{presigned_url}')
-    # excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-    # headers = [(name, value) for (name, value) in resp.raw.headers.items() if name.lower() not in excluded_headers]
+        resp = requests_retry_session(session=s).get(f'http://minio-service.{settings.services_namespace}.svc:9000{presigned_url}',timeout=TIMEOUT)
     return Response(resp.content, resp.status_code)
 
 @router.post("/minio-presigned-url")
 async def post_minio_presigned_url(file: UploadFile = File(...), presigned_url: str = Header(...)):
     # Todo add file streaming!
     with requests.Session() as s:
-        resp = requests_retry_session(session=s).put(f'http://minio-service.store.svc:9000{presigned_url}', data=file.file)
-    # resp = requests.put(f'http://minio-service.store.svc:9000{presigned_url}', data=file.file)
-    # excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-    # headers = [(name, value) for (name, value) in resp.raw.headers.items() if name.lower() not in excluded_headers]
-    # print(resp)
+        resp = requests_retry_session(session=s).put(f'http://minio-service.{settings.services_namespace}.svc:9000{presigned_url}', data=file.file, timeout=TIMEOUT)
     return Response(resp.content, resp.status_code)
 
 @router.get("/job", response_model=schemas.JobWithKaapanaInstance)

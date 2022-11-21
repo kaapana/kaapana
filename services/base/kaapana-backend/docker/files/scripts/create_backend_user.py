@@ -71,7 +71,7 @@ def main():
     # query-groups;query-users;view-users
     backend_roles_str=os.getenv("KEYCLOAK_BACKEND_ROLES")
 
-    utils = KeycloakHelper(keycloak_url, kaapana_admin_user=kaapana_admin_user, kaapana_admin_passsword=kaapana_admin_password)
+    utils = KeycloakHelper(server_url=keycloak_url, kaapana_admin_user=kaapana_admin_user, kaapana_admin_passsword=kaapana_admin_password)
 
 
     backend_user_id = utils.user_id(backend_user)

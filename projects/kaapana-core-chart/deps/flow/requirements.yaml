@@ -1,8 +1,0 @@
----
-dependencies:
-  - name: airflow-chart
-    version: 0.0.0
-    repository: file://../../../../services/flow/airflow/airflow-chart
-  - name: ctp-chart
-    version: 0.0.0
-    repository: file://../../../../services/flow/ctp/ctp-chart

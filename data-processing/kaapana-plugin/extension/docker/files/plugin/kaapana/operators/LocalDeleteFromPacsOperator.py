@@ -4,7 +4,7 @@ import json
 import logging
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, SERVICES_NAMESPACE
 
 
 class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
@@ -63,7 +63,7 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
 
     def __init__(self,
                  dag,
-                 pacs_host='dcm4chee-service.store.svc',
+                 pacs_host=f'dcm4chee-service.{SERVICES_NAMESPACE}.svc',
                  pacs_port=8080,
                  pacs_aet='KAAPANA',
                  delete_complete_study=False,

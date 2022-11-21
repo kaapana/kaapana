@@ -3,7 +3,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: cert-init
-  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
+  namespace: "{{  .Values.global.system_namespace  }}"
 spec:
   template:
     metadata:
@@ -24,7 +24,7 @@ spec:
         - name: SECRET_NAME
           value: "{{ .Values.global.tls_secret.name }}"
         - name: SECRET_NAMESPACE
-          value: "kaapana-system-{{  .Values.global.instance_id  }}"
+          value: "{{  .Values.global.system_namespace  }}"
         - name: COMMON_NAME
           value: "{{ .Values.global.tls_secret.common_name }}"
         - name: EXPIRATION

@@ -1,0 +1,5 @@
+---
+global:
+    services_namespace: "kaapana-services"
+    default_services_requests_mem: "50Mi"
+    default_services_limits_mem: "50Mi"

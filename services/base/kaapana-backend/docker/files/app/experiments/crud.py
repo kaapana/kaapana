@@ -5,7 +5,6 @@ import uuid
 import requests
 import os
 
-
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from sqlalchemy.exc import IntegrityError
@@ -13,12 +12,13 @@ from psycopg2.errors import UniqueViolation
 from cryptography.fernet import Fernet
 from fastapi import APIRouter, Depends, Request, HTTPException, Response
 
-
 from . import models, schemas
 from app.config import settings
 from .utils import execute_job, check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, raise_kaapana_connection_error, requests_retry_session, get_uid_list_from_query
-from urllib.parse import urlparse
+from urllib3.util import Timeout
 
+TIMEOUT_SEC = 5
+TIMEOUT = Timeout(TIMEOUT_SEC)
 
 def delete_kaapana_instance(db: Session, kaapana_instance_id: int):
     db_kaapana_instance = db.query(models.KaapanaInstance).filter_by(id=kaapana_instance_id).first()
@@ -286,7 +286,7 @@ def delete_external_job(db: Session, db_job):
         else:
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-backend/remote'
             with requests.Session() as s:          
-                r = requests_retry_session(session=s).delete(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, params=params, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+                r = requests_retry_session(session=s).delete(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, params=params, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'}, timeout=TIMEOUT)
             if r.status_code == 404:
                 print(f'External job {db_job.external_job_id} does not exist')
             else:
@@ -309,7 +309,7 @@ def update_external_job(db: Session, db_job):
         else:
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-backend/remote'
             with requests.Session() as s:                            
-                r = requests_retry_session(session=s).put(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, json=payload, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+                r = requests_retry_session(session=s).put(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, json=payload, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'},timeout=TIMEOUT)
             if r.status_code == 404:
                 print(f'External job {db_job.external_job_id} does not exist')
             else:
@@ -342,7 +342,7 @@ def get_remote_updates(db: Session, periodically=False):
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-backend/remote'
             with requests.Session() as s:     
                 r = requests_retry_session(session=s).put(f'{remote_backend_url}/sync-client-remote', params=job_params,  json=update_remote_instance_payload, verify=db_remote_kaapana_instance.ssl_check, 
-            headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+                                                          headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'}, timeout=TIMEOUT)
             if r.status_code == 405:
                 print(f'Warning!!! We could not reach the following backend {db_remote_kaapana_instance.host}')
                 continue

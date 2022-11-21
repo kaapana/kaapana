@@ -1,2 +1,3 @@
+---
 global:
-    store_namespaces: "store"
+    test: ""

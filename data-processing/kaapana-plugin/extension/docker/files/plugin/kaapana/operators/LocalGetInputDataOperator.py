@@ -119,11 +119,10 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     @cache_operator_output
     def start(self, ds, **kwargs):
-        print("# Starting moule LocalGetInputDataOperator...")
+        print("# Starting module LocalGetInputDataOperator...")
         print("#")
         self.conf = kwargs['dag_run'].conf
 
-        print(self.conf)
 
         dag_run_id = kwargs['dag_run'].run_id
         if self.conf and ("seriesInstanceUID" in self.conf):

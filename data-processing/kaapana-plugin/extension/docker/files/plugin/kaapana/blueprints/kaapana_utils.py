@@ -12,7 +12,7 @@ from datetime import datetime
 from socket import timeout
 
 
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+from kaapana.blueprints.kaapana_global_variables import WORKFLOW_DIR, SERVICES_NAMESPACE
 
 
 def generate_run_id(dag_id):
@@ -29,7 +29,7 @@ def get_release_name(kwargs):
 def generate_minio_credentials(x_auth_token):
     # Not sure if DurationSeconds has an influence, this WebIdentitytoken maybe defines the session period
     # Version is hard-coded, check https://github.com/minio/minio/blob/master/docs/sts/web-identity.md for more information!
-    r = requests.post(f'http://minio-service.store.svc:9000?Action=AssumeRoleWithWebIdentity&DurationSeconds=3600&WebIdentityToken={x_auth_token}&Version=2011-06-15')
+    r = requests.post(f'http://minio-service.{SERVICES_NAMESPACE}.svc:9000?Action=AssumeRoleWithWebIdentity&DurationSeconds=3600&WebIdentityToken={x_auth_token}&Version=2011-06-15')
     r.raise_for_status()
     tree = ElementTree.fromstring(r.content)
     assume_role_with_web_identity_result = tree.find('{https://sts.amazonaws.com/doc/2011-06-15/}AssumeRoleWithWebIdentityResult')
@@ -101,7 +101,7 @@ def requests_retry_session(
         proxies = {
             'http': os.getenv('PROXY', None),
             'https': os.getenv('PROXY', None),
-            'no_proxy': 'airflow-service.flow,airflow-service.flow.svc,ctp-dicom-service.flow,ctp-dicom-service.flow.svc,dcm4chee-service.store,dcm4chee-service.store.svc,opensearch-service.meta,opensearch-service.meta.svc,kaapana-backend-service.base,kaapana-backend-service.base.svc,minio-service.store,minio-service.store.svc'
+            'no_proxy': '.svc,.svc.cluster,.svc.cluster.local'
         }
         session.proxies.update(proxies)
 

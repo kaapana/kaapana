@@ -22,7 +22,6 @@ DEV_MODE="{{ dev_mode|default('true', true) }}" # dev-mode -> containers will al
 DEV_PORTS="{{ dev_ports|default('false') }}"
 GPU_SUPPORT="{{ gpu_support|default('false') }}"
 
-HELM_NAMESPACE="kaapana"
 PREFETCH_EXTENSIONS="{{ prefetch_extensions|default('false') }}"
 CHART_PATH=""
 NO_HOOKS=""
@@ -35,7 +34,12 @@ KAAPANA_BUILD_VERSION="{{ kaapana_build_version }}"    # version of the platform
 KAAPANA_BUILD_BRANCH="{{ kaapana_build_branch }}"    # branch name, which was build from -> auto-generated
 KAAPANA_LAST_COMMT_TIMESTAMP="{{ kaapana_last_commit_timestamp }}" # timestamp of the last commit -> auto-generated
 
-INSTANCE_ID=1
+INSTANCE_UID=""
+SERVICES_NAMESPACE="services"
+SYSTEM_NAMESPACE="admin"
+JOBS_NAMESPACE="jobs"
+EXTENSIONS_NAMESPACE="extensions"
+HELM_NAMESPACE=$SYSTEM_NAMESPACE
 
 ######################################################
 # Individual platform configuration
@@ -67,6 +71,24 @@ if [ -z ${http_proxy+x} ] || [ -z ${https_proxy+x} ]; then
     http_proxy=""
     https_proxy=""
 fi
+
+
+if [ ! -z $INSTANCE_UID ]; then
+    echo ""
+    echo "Setting INSTANCE_UID: $INSTANCE_UID namespaces ..."
+    SERVICES_NAMESPACE="$INSTANCE_UID-$SERVICES_NAMESPACE"
+    SYSTEM_NAMESPACE="$INSTANCE_UID-$SYSTEM_NAMESPACE"
+    JOBS_NAMESPACE="$INSTANCE_UID-$JOBS_NAMESPACE"
+    EXTENSIONS_NAMESPACE="$INSTANCE_UID-$EXTENSIONS_NAMESPACE"
+    HELM_NAMESPACE="$INSTANCE_UID-$HELM_NAMESPACE"
+fi
+echo ""
+echo "JOBS_NAMESPACE:       $JOBS_NAMESPACE "
+echo "HELM_NAMESPACE:       $HELM_NAMESPACE "
+echo "SYSTEM_NAMESPACE:     $SYSTEM_NAMESPACE "
+echo "SERVICES_NAMESPACE:   $SERVICES_NAMESPACE "
+echo "EXTENSIONS_NAMESPACE: $EXTENSIONS_NAMESPACE "
+echo ""
 
 script_name=`basename "$0"`
 
@@ -173,12 +195,14 @@ function get_domain {
 function delete_deployment {
     echo -e "${YELLOW}Undeploy releases${NC}"
     helm -n $HELM_NAMESPACE ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $HELM_NAMESPACE uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
-    echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
+    echo -e "${YELLOW}Waiting until everything is terminated ...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
     do
         sleep 3
-        DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered 'flow-jobs|flow|base|monitoring|store' | cut -d' ' -f1")
+        DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered '$JOBS_NAMESPACE|$EXTENSIONS_NAMESPACE|$SERVICES_NAMESPACE' | cut -d' ' -f1")
+        echo -e "${YELLOW}DEPLOYED_NAMESPACES: $DEPLOYED_NAMESPACES ${NC}"
+
         TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E --line-buffered 'Terminating' | cut -d' ' -f1")
         UNINSTALL_TEST=$DEPLOYED_NAMESPACES$TERMINATING_PODS
         if [ -z "$UNINSTALL_TEST" ]; then
@@ -186,8 +210,8 @@ function delete_deployment {
         fi
     done
     
-    echo -e "${YELLOW}Removing namespace kaapana...${NC}"
-    microk8s.kubectl delete namespace kaapana --ignore-not-found=true
+    echo -e "${YELLOW}Removing namespace $HELM_NAMESPACE ...${NC}"
+    microk8s.kubectl delete -n $HELM_NAMESPACE --ignore-not-found=true
 
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
@@ -203,7 +227,7 @@ function delete_deployment {
 }
 
 function clean_up_kubernetes {
-    for n in base meta flow flow-jobs monitoring store;
+    for n in $EXTENSIONS_NAMESPACE $JOBS_NAMESPACE $SERVICES_NAMESPACE $SYSTEM_NAMESPACE;
     do
         echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
         microk8s.kubectl delete --ignore-not-found namespace $n
@@ -213,7 +237,7 @@ function clean_up_kubernetes {
     echo "${YELLOW}Deleting all jobs in namespace default ${NC}"
     microk8s.kubectl delete jobs --all
     echo "${YELLOW}Removing remove-secret job${NC}"
-    microk8s.kubectl -n kaapana-system-$INSTANCE_ID delete job --ignore-not-found remove-secret
+    microk8s.kubectl -n $SYSTEM_NAMESPACE delete job --ignore-not-found remove-secret
 }
 
 function upload_tar {
@@ -330,11 +354,10 @@ function deploy_chart {
     --set-string global.dev_ports="$DEV_PORTS" \
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
-    --set-string global.flow_namespace="flow" \
-    --set-string global.meta_namespace="meta" \
-    --set-string global.store_namespace="store" \
-    --set-string global.flow_jobs_namespace="flow-jobs" \
-    --set-string global.monitoring_namespace="monitoring" \
+    --set-string global.services_namespace=$SERVICES_NAMESPACE \
+    --set-string global.jobs_namespace=$JOBS_NAMESPACE \
+    --set-string global.extensions_namespace=$EXTENSIONS_NAMESPACE \
+    --set-string global.system_namespace=$SYSTEM_NAMESPACE \
     --set-string global.gpu_support="$GPU_SUPPORT" \
     --set-string global.helm_namespace="$HELM_NAMESPACE" \
     --set-string global.home_dir="$HOME" \
@@ -343,7 +366,6 @@ function deploy_chart {
     --set-string global.http_proxy="$http_proxy" \
     --set-string global.https_port="$HTTPS_PORT" \
     --set-string global.https_proxy="$https_proxy" \
-    --set-string global.instance_id="$INSTANCE_ID" \
     {% for item in kaapana_collections -%}
     --set-string global.kaapana_collections[{{loop.index0}}].name="{{ item.name }}" \
     --set-string global.kaapana_collections[{{loop.index0}}].version="{{ item.version }}" \
@@ -419,11 +441,11 @@ function install_certs {
     else
         echo -e "files found!"
         echo -e "Creating cluster secret ..."
-        microk8s.kubectl delete secret certificate -n kaapana-system-$INSTANCE_ID
-        microk8s.kubectl create secret tls certificate --namespace kaapana-system --key ./tls.key --cert ./tls.crt
-        auth_proxy_pod=$(microk8s.kubectl get pods -n kaapana-system-$INSTANCE_ID |grep oauth2-proxy  | awk '{print $1;}')
+        microk8s.kubectl delete secret certificate -n $SYSTEM_NAMESPACE
+        microk8s.kubectl create secret tls certificate --namespace $SYSTEM_NAMESPACE --key ./tls.key --cert ./tls.crt
+        auth_proxy_pod=$(microk8s.kubectl get pods -n $SYSTEM_NAMESPACE |grep oauth2-proxy  | awk '{print $1;}')
         echo "auth_proxy_pod pod: $auth_proxy_pod"
-        microk8s.kubectl -n kaapana-system-$INSTANCE_ID delete pod $auth_proxy_pod
+        microk8s.kubectl -n $SYSTEM_NAMESPACE delete pod $auth_proxy_pod
     fi
 
     echo -e "${GREEN}DONE${NC}"

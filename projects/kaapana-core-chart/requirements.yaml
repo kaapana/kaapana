@@ -1,23 +1,17 @@
 ---
 dependencies:
-  - name: base
+  - name: extensions-namespace
     version: 0.0.0
-    repository: file://deps/base
-  - name: flow
+    repository: file://deps/extensions-namespace
+  - name: jobs-namespace
     version: 0.0.0
-    repository: file://deps/flow
-  - name: meta
+    repository: file://deps/jobs-namespace
+  - name: services-namespace
     version: 0.0.0
-    repository: file://deps/meta
-  - name: monitoring
+    repository: file://deps/services-namespace
+  - name: system-namespace
     version: 0.0.0
-    repository: file://deps/monitoring
-  - name: store
-    version: 0.0.0
-    repository: file://deps/store
-  - name: system
-    version: 0.0.0
-    repository: file://deps/system
+    repository: file://deps/system-namespace
   - name: error-pages-chart
     version: 0.0.0
     repository: file://../../services/kaapana-core/error-pages/error-pages-chart

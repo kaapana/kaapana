@@ -1,5 +1,5 @@
 from pydantic import BaseSettings
-
+import os
 class Settings(BaseSettings):
     """
     Configuration of the application
@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     keycloak_admin_username: str
     keycloak_admin_password: str
     
-    airflow_url: str = "http://airflow-service.flow.svc:8080/flow/kaapana/api"
+    airflow_url: str = os.getenv("AIRFLOW_URL")
+    services_namespace: str = os.getenv("SERVICES_NAMESPACE")
 
 settings = Settings()

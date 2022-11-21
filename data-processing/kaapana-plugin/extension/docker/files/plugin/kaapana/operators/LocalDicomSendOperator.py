@@ -7,7 +7,7 @@ from subprocess import PIPE, run
 
 import pydicom
 import requests
-from kaapana.blueprints.kaapana_global_variables import WORKFLOW_DIR, BATCH_NAME
+from kaapana.blueprints.kaapana_global_variables import WORKFLOW_DIR, BATCH_NAME, SERVICES_NAMESPACE
 from kaapana.operators.KaapanaPythonBaseOperator import \
     KaapanaPythonBaseOperator
 
@@ -99,7 +99,7 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
 
     def __init__(self,
                  dag,
-                 pacs_host:str='dcm4chee-service.store.svc',
+                 pacs_host:str=f'dcm4chee-service.{SERVICES_NAMESPACE}.svc',
                  pacs_port:str="11115",
                  ae_title:str="KAAPANA",
                  aetitle_send:str="kaapana",

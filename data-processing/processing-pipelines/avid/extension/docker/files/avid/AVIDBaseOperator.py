@@ -135,13 +135,10 @@ class AVIDBaseOperator(KaapanaBaseOperator):
         all_action_kwargs['session'] = self.avid_session
         all_action_kwargs['cli_connector'] = self.cli_connector
         all_action_kwargs['alwaysDo'] = True
-        all_action_kwargs['additionalActionProps'] = self.additionalActionProps 
-        import debugpy
-        debugpy.listen(("0.0.0.0", 5678))
-        debugpy.wait_for_client()
-        debugpy.breakpoint()
-        for key in self.additionalArgs: 
-            all_action_kwargs[key] = self.additionalArgs[key]
+        all_action_kwargs['additionalActionProps'] = self.additionalActionProps
+        if self.additionalArgs:
+            for key in self.additionalArgs: 
+                all_action_kwargs[key] = self.additionalArgs[key]
         batch_action_class = None
         if not self.batch_action_class is None and not self.batch_action_class.__name__ == 'BatchActionBase':
             batch_action_class = self.batch_action_class

@@ -8,12 +8,12 @@ import requests
 from airflow.exceptions import AirflowException
 from datetime import timedelta
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator, rest_self_udpate
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, SYSTEM_NAMESPACE
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, ADMIN_NAMESPACE
 from kaapana.blueprints.kaapana_utils import cure_invalid_name, get_release_name
 
 
 class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
-    HELM_API = f"http://kube-helm-service.{SYSTEM_NAMESPACE}.svc:5000"
+    HELM_API = f"http://kube-helm-service.{ADMIN_NAMESPACE}.svc:5000"
     TIMEOUT = 60 * 60 * 12
 
     def rest_sets_update(self, payload):

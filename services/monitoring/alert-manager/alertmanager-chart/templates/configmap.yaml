@@ -4,7 +4,7 @@ data:
   alertmanager.yml: |
     global:
       # The smarthost and SMTP sender used for mail notifications.
-      smtp_smarthost: 'postfix-service.{{  .Values.global.system_namespace  }}.svc:25'
+      smtp_smarthost: 'postfix-service.{{  .Values.global.admin_namespace  }}.svc:25'
       smtp_from: 'alert@jipinfo.com'
       smtp_auth_username: 'dummy'
       smtp_auth_password: 'dummy'

@@ -3,7 +3,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: debug-container
-  namespace: "{{  .Values.global.system_namespace  }}"
+  namespace: "{{  .Values.global.admin_namespace  }}"
 spec:
   replicas: 1
   selector:

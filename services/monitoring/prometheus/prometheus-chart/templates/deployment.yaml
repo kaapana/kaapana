@@ -2,7 +2,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: prometheus
+  name: "prometheus-{{  .Values.global.instance_uid  }}"
 rules:
 - apiGroups: [""]
   resources:
@@ -23,11 +23,11 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: prometheus
+  name: "prometheus-{{  .Values.global.instance_uid  }}"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: prometheus
+  name: "prometheus-{{  .Values.global.instance_uid  }}"
 subjects:
 - kind: ServiceAccount
   name: default

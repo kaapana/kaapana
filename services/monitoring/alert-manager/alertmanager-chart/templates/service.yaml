@@ -23,7 +23,7 @@ metadata:
 
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.system_namespace  }}-errorpages@kubernetescrd,{{  .Values.global.system_namespace  }}-strip-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.admin_namespace  }}-errorpages@kubernetescrd,{{  .Values.global.admin_namespace  }}-strip-prefix@kubernetescrd
 spec:
   rules:
   - host: 

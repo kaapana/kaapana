@@ -3,7 +3,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: oauth2-proxy-service
-  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
+  namespace: "{{  .Values.global.system_namespace  }}"
 spec:
   selector:
     app-name: oauth2-proxy
@@ -19,7 +19,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: oauth2-cluster-service
-  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
+  namespace: "{{  .Values.global.system_namespace  }}"
 spec:
   selector:
     app-name: oauth2-proxy
@@ -38,10 +38,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: oauth-ingress-ip
-  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
+  namespace: "{{  .Values.global.system_namespace  }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kaapana-system-{{  .Values.global.instance_id  }}-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.system_namespace  }}-errorpages@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

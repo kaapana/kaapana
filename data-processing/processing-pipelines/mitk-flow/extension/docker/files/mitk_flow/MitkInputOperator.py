@@ -1,5 +1,6 @@
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, SERVICES_NAMESPACE
+
 from xml.etree import ElementTree
 import os
 
@@ -203,7 +204,7 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
 
     def __init__(self,
                  dag,
-                 pacs_dcmweb_host='http://dcm4chee-service.store.svc',
+                 pacs_dcmweb_host=f'http://dcm4chee-service.{SERVICES_NAMESPACE}.svc',
                  pacs_dcmweb_port='8080',
                  aetitle="KAAPANA",
                  **kwargs):

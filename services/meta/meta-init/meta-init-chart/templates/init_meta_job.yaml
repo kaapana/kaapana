@@ -4,7 +4,7 @@ kind: Job
 metadata:
   # Unique key of the Job instance
   name: init-meta
-  namespace: {{ .Values.global.meta_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   template:
     metadata:
@@ -16,7 +16,7 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
           - name: WAIT
-            value: "os-dashboards,os-dashboards-service.meta.svc,5601;opensearch,opensearch-service.meta.svc,9200"
+            value: "os-dashboards,os-dashboards-service.{{  .Values.global.services_namespace  }}.svc,5601;opensearch,opensearch-service.{{  .Values.global.services_namespace  }}.svc,9200"
           - name: DELAY
             value: "1"
           - name: TIMEOUT
@@ -35,13 +35,13 @@ spec:
           - name: INIT_OPENSEARCH
             value: "True"
           - name: OS_HOST
-            value: "opensearch-service.meta.svc"
+            value: "opensearch-service.{{  .Values.global.services_namespace  }}.svc"
           - name: OS_PORT
             value: "9200"
           - name: INDEX
             value: "meta-index"
           - name: DASHBOARDS_URL
-            value: "http://os-dashboards-service.meta.svc:5601/meta"
+            value: "http://os-dashboards-service.{{  .Values.global.services_namespace  }}.svc:5601/meta"
           - name: DASHBOARDS_JSON
             value: "/dashboards/dashboard_import.json"
         volumeMounts:

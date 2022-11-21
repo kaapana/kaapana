@@ -4,7 +4,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: init-collections
-  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
+  namespace: "{{  .Values.global.system_namespace  }}"
 spec:
   template:
     metadata:
@@ -64,7 +64,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: init-extensions
-  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
+  namespace: "{{  .Values.global.system_namespace  }}"
 spec:
   template:
     metadata:

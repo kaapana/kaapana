@@ -3,7 +3,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: debug-service
-  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
+  namespace: "{{  .Values.global.system_namespace  }}"
 spec:
   selector:
     app-name: debug-container
@@ -18,7 +18,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: debug-ingress-ip
-  namespace: "kaapana-system-{{  .Values.global.instance_id  }}"
+  namespace: "{{  .Values.global.system_namespace  }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"

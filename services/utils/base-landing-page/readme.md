@@ -12,7 +12,7 @@
    apiVersion: apps/v1
    metadata:
     name: landingpage
-    namespace: base
+    namespace: "{{ .Values.global.services_namespace }}"
     labels:
      k8s-app: landingpage
    spec:

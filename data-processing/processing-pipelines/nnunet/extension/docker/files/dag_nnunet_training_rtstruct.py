@@ -17,7 +17,7 @@ from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.SegCheckOperator import SegCheckOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, INSTANCE_NAME
+from kaapana.blueprints.kaapana_global_variables import INSTANCE_NAME, SERVICES_NAMESPACE
 
 
 study_id = "Kaapana"
@@ -289,7 +289,7 @@ dcmseg_send_pdf = DcmSendOperator(
     dag=dag,
     parallel_id="pdf",
     level="batch",
-    pacs_host='ctp-dicom-service.flow.svc',
+    pacs_host=f'ctp-dicom-service.{SERVICES_NAMESPACE}.svc',
     pacs_port='11112',
     ae_title=ae_title,
     input_operator=pdf2dcm,
@@ -330,7 +330,7 @@ bin2dcm = Bin2DcmOperator(
 dcm_send_int = DcmSendOperator(
     dag=dag,
     level="batch",
-    pacs_host='ctp-dicom-service.flow.svc',
+    pacs_host=f'ctp-dicom-service.{SERVICES_NAMESPACE}.svc',
     pacs_port='11112',
     ae_title=ae_title,
     input_operator=bin2dcm,

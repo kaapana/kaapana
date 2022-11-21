@@ -3,7 +3,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: openedc-service
-  namespace: base
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   selector:
     app-name: openedc
@@ -16,10 +16,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: openedc-ingress-ip
-  namespace: base
+  namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kaapana-system-{{  .Values.global.instance_id  }}-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.system_namespace  }}-errorpages@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

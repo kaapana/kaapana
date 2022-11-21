@@ -123,7 +123,6 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         print("#")
         self.conf = kwargs['dag_run'].conf
 
-        print(self.conf)
 
         dag_run_id = kwargs['dag_run'].run_id
         if self.conf and ("seriesInstanceUID" in self.conf):

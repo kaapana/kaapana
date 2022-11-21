@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: dcm4chee
-  namespace: {{ .Values.global.store_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -20,7 +20,7 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
           - name: WAIT
-            value: "ldap,ldap-service.store.svc,389;postgres-dcm4che,postgres-dcm4che-service.store.svc,5432"
+            value: "ldap,ldap-service.{{  .Values.global.services_namespace  }}.svc,389;postgres-dcm4che,postgres-dcm4che-service.{{  .Values.global.services_namespace  }}.svc,5432"
           - name: DELAY
             value: "2"
           - name: TIMEOUT
@@ -33,11 +33,11 @@ spec:
           - name: ARCHIVE_DEVICE_NAME
             value: KAAPANA
           - name: LDAP_URL
-            value: ldap://ldap-service.store.svc:389
+            value: ldap://ldap-service.{{  .Values.global.services_namespace  }}.svc:389
           - name: LDAP_ROOTPASS
             value: secret
           - name: POSTGRES_HOST
-            value: postgres-dcm4che-service.store.svc
+            value: postgres-dcm4che-service.{{  .Values.global.services_namespace  }}.svc
           - name: POSTGRES_PORT
             value: "5432"
           - name: POSTGRES_DB
@@ -55,7 +55,7 @@ spec:
           - name: WILDFLY_CHOWN
             value: /opt/wildfly/standalone /storage
           - name: WILDFLY_WAIT_FOR
-            value: ldap-service.store.svc:389 postgres-dcm4che-service.store.svc:5432
+            value: ldap-service.{{  .Values.global.services_namespace  }}.svc:389 postgres-dcm4che-service.{{  .Values.global.services_namespace  }}.svc:5432
           - name: TZ
             value: Europe/Paris
           # - name: GELF_LEVEL

@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ohif
-  namespace: {{ .Values.global.store_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:

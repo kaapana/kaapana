@@ -1,0 +1,5 @@
+---
+global:
+    system_namespace: "kaapana-system"
+    default_system_limits_mem: "50Mi"
+    default_system_requests_mem: "50Mi"

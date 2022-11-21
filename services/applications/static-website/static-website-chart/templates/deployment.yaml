@@ -2,7 +2,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: static-website-{{ .Values.postfix }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   labels:
     k8s-app: static-website
 spec:
@@ -55,7 +55,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: static-website-{{ .Values.postfix }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   selector:
     app-name: static-website-{{ .Values.postfix }}
@@ -69,7 +69,7 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: static-website-strip-{{ .Values.postfix }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   stripPrefix:
     prefixes:
@@ -80,10 +80,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: static-website-{{ .Values.postfix }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.base_namespace }}-static-website-strip-{{ .Values.postfix }}@kubernetescrd,kaapana-system-{{  .Values.global.instance_id  }}-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-static-website-strip-{{ .Values.postfix }}@kubernetescrd,{{  .Values.global.system_namespace  }}-errorpages@kubernetescrd
     traefik.ingress.kubernetes.io/preserve-host: "true"
 spec:
   rules:

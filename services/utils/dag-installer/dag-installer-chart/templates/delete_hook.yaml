@@ -18,8 +18,10 @@ spec:
         env:
         - name: ACTION
           value: "remove"
-        - name: INSTANCE_ID
-          value: "{{ .Values.global.instance_id }}"
+        - name: SYSTEM_NAMESPACE
+          value: "{{ .Values.global.system_namespace }}"
+        - name: SERVICES_NAMESPACE
+          value: "{{ .Values.global.services_namespace }}"
         volumeMounts:
         - name: data
           mountPath: "/workflows"

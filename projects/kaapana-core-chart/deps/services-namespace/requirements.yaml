@@ -1,0 +1,50 @@
+---
+dependencies:
+# BASE
+  - name: kaapana-backend-chart
+    version: 0.0.0
+    repository: file://../../../../services/base/kaapana-backend/kaapana-backend-chart 
+# MONITORING
+  - name: prometheus-chart
+    version: 0.0.0
+    repository: file://../../../../services/monitoring/prometheus/prometheus-chart
+  - name: alertmanager-chart
+    version: 0.0.0
+    repository: file://../../../../services/monitoring/alert-manager/alertmanager-chart
+  - name: grafana-chart
+    version: 0.0.0
+    repository: file://../../../../services/monitoring/grafana/grafana-chart
+  - name: kube-state-metrics-chart
+    version: 0.0.0
+    repository: file://../../../../services/monitoring/kube_state_metrics/kube-state-metrics-chart
+  - name: node-exporter-chart
+    version: 0.0.0
+    repository: file://../../../../services/monitoring/node-exporter/node-exporter-chart
+# FLOW
+  - name: airflow-chart
+    version: 0.0.0
+    repository: file://../../../../services/flow/airflow/airflow-chart
+  - name: ctp-chart
+    version: 0.0.0
+    repository: file://../../../../services/flow/ctp/ctp-chart
+# STORE
+  - name: dcm4chee-chart
+    version: 0.0.0
+    repository: file://../../../../services/store/dcm4chee/dcm4chee-chart
+  - name: ohif-chart
+    version: 0.0.0
+    repository: file://../../../../services/store/ohif-viewer/ohif-chart
+  - name: minio-chart
+    version: 0.0.0
+    repository: file://../../../../services/store/minio/minio-chart
+  - name: minio-console-chart
+    version: 0.0.0
+    repository: file://../../../../services/store/minio-console/minio-console-chart
+  - name: minio-init-chart
+    version: 0.0.0
+    condition: Release.IsInstall
+    repository: file://../../../../services/store/store-init/minio-init/minio-init-chart
+  - name: dicom-init-chart
+    version: 0.0.0
+    condition: Release.IsInstall
+    repository: file://../../../../services/store/store-init/dicom-init/dicom-init-chart

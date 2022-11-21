@@ -8,7 +8,7 @@ import requests
 from airflow.models.dagbag import DagBag
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import WORKFLOW_DIR
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 
 
 class LocalServiceSyncDagsDbOperator(KaapanaPythonBaseOperator):
@@ -28,7 +28,7 @@ class LocalServiceSyncDagsDbOperator(KaapanaPythonBaseOperator):
         max_tries = 4
         success = False
 
-        AIRFLOW_API = 'http://airflow-service.flow.svc:8080/'
+        AIRFLOW_API = f'http://airflow-service.{SERVICES_NAMESPACE}.svc:8080/'
         url = f"{AIRFLOW_API}flow/kaapana/api/getdags"
         while not success and tries < max_tries:
             tries += 1

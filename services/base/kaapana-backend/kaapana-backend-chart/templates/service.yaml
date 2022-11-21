@@ -4,7 +4,7 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: strip-prefix-kaapana-backend
-  namespace: base
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   stripPrefix:
     prefixes:
@@ -15,8 +15,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: kaapana-backend-service
-  # namespace: base
-  namespace: {{ .Values.global.base_namespace }}
+  # namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "{{ .Values.global.services_namespace }}"
   labels:
     app-name: kaapana-backend
 spec:
@@ -40,10 +40,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: kaapana-backend-ingress
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: base-strip-prefix-kaapana-backend@kubernetescrd #, kaapana-system-{{  .Values.global.instance_id  }}-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-strip-prefix-kaapana-backend@kubernetescrd #, {{  .Values.global.system_namespace  }}-errorpages@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

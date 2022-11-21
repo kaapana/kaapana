@@ -11,7 +11,7 @@ import requests
 
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR,SERVICES_NAMESPACE
 from opensearchpy import OpenSearch
 
 
@@ -161,7 +161,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                  no_update: bool = False,
                  avalability_check_delay: int = 10,
                  avalability_check_max_tries: int = 15,
-                 opensearch_host: str = 'opensearch-service.meta.svc',
+                 opensearch_host: str = f'opensearch-service.{SERVICES_NAMESPACE}.svc',
                  opensearch_port: int = 9200,
                  opensearch_index: str = "meta-index",
                  check_in_pacs: bool = True,

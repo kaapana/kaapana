@@ -11,13 +11,18 @@ from subprocess import PIPE, run
 from opensearchpy import OpenSearch
 
 tmp_data_dir = "/slow_data_dir/TMP"
-dcm_host = "ctp-dicom-service.flow.svc"
+ctp_url = os.getenv("CTP_URL", None)
+assert ctp_url
 dcm_port = "11112"
-dcm4chee_host = os.getenv("DCM4CHEE", "http://dcm4chee-service.store.svc:8080")
+dcm4chee_host = os.getenv("DCM4CHEE", None)
+assert dcm4chee_host
 aet = os.getenv("AET", "KAAPANA")
-os_host = os.getenv("OPENSEARCH_HOST", "opensearch-service.meta.svc")
+os_host = os.getenv("OPENSEARCH_HOST", None)
+assert os_host
 os_port = os.getenv("OPENSEARCH_PORT", "9200")
-airflow_host = os.getenv("AIRFLOW_TRIGGER", "http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger")
+assert os_port
+airflow_host = os.getenv("AIRFLOW_TRIGGER", None)
+assert airflow_host
 example_files = os.getenv("EXAMPLE", "/example/Winfried_phantom.zip")
 
 index = "meta-index"
@@ -68,7 +73,7 @@ def send_file():
                     print("dcm-file: {}".format(dcm_file))
                     dataset = pydicom.dcmread(dcm_file)[0x0012, 0x0020].value
 
-                    command = ["dcmsend", "+sd", "+r", "-v", dcm_host, dcm_port, "-aet", "re-index", "-aec", dataset,
+                    command = ["dcmsend", "+sd", "+r", "-v", ctp_url, dcm_port, "-aet", "re-index", "-aec", dataset,
                                dcm_dir]
                     # output = run(command)
                     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
@@ -107,7 +112,7 @@ def send_file():
 def send_meta_init():
     print("Send Dicom init meta image....")
     print("")
-    command = ["dcmsend", "+sd", "+r", "-v", dcm_host, dcm_port, "-aet", "dicom-test", "-aec", "dicom-test", "/dicom_test_data/init_data"]
+    command = ["dcmsend", "+sd", "+r", "-v", ctp_url, dcm_port, "-aet", "dicom-test", "-aec", "dicom-test", "/dicom_test_data/init_data"]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
     if output.returncode == 0:
         print("############################ Push init meta dicom -> success")
@@ -217,8 +222,8 @@ def trigger_delete_dag(examples_send):
         print("data", conf)
         print("trigger url: ", '{}/{}'.format(airflow_host, dag_id))
         dump = json.dumps(conf)
-        response = requests.post('{}/{}'.format(airflow_host, dag_id), headers=headers,
-                                 data=dump, verify=False)
+        response = requests.post('{}/{}'.format(airflow_host, dag_id), headers=headers,data=dump, verify=False)
+        
         if response.status_code == requests.codes.ok:
             print("Delete example dicom sucessful triggered")
         else:
@@ -229,7 +234,7 @@ def trigger_delete_dag(examples_send):
 def send_example():
     print("Unzipping example files")
     example_dir = "/dicom_test_data/phantom"
-    command = ["dcmsend", "+sd", "+r", "-v", dcm_host, dcm_port, "-aet", "phantom-example", "-aec", "phantom-example", example_dir]
+    command = ["dcmsend", "+sd", "+r", "-v", ctp_url, dcm_port, "-aet", "phantom-example", "-aec", "phantom-example", example_dir]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
     if output.returncode == 0:
         print("############################ success send example")

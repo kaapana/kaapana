@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: doccano-rabbitmq
-  namespace: {{ .Values.global.store_namespace | default "store" }}
+  namespace: "{{ .Values.global.extensions_namespace }}"
 spec:
   selector:
     app-name: doccano-rabbitmq

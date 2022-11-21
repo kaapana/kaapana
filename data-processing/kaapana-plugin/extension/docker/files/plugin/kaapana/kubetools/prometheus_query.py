@@ -1,10 +1,13 @@
 from pprint import pprint
 import requests
 import time
-import json
 import logging
+import os
 
-prometheus_url = "http://prometheus-service.monitoring.svc:9090/prometheus/api/v1/query?query="
+SERVICES_NAMESPACE = os.getenv('SERVICES_NAMESPACE', None)
+assert SERVICES_NAMESPACE
+
+prometheus_url = f"http://prometheus-service.{SERVICES_NAMESPACE}.svc:9090/prometheus/api/v1/query?query="
 
 memory_query = "floor(sum(machine_memory_bytes)/1048576)"
 mem_util_per_query = "sum (container_memory_working_set_bytes{id=\"/\"}) / sum (machine_memory_bytes) * 100"

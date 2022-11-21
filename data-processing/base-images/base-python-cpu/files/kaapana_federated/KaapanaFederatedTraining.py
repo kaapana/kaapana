@@ -17,6 +17,9 @@ from minio.deleteobjects import DeleteObject
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
+SERVICES_NAMESPACE = os.getenv('SERVICES_NAMESPACE',None)
+assert SERVICES_NAMESPACE != None
+
 # Todo move in Jonas library as normal function 
 def timeit(func):
     @functools.wraps(func)
@@ -85,7 +88,7 @@ def requests_retry_session(
         proxies = {
             'http': os.getenv('PROXY', None),
             'https': os.getenv('PROXY', None),
-            'no_proxy': 'airflow-service.flow,airflow-service.flow.svc,ctp-dicom-service.flow,ctp-dicom-service.flow.svc,dcm4chee-service.store,dcm4chee-service.store.svc,opensearch-service.meta,opensearch-service.meta.svc,kaapana-backend-service.base,kaapana-backend-service.base.svc,minio-service.store,minio-service.store.svc'
+            'no_proxy': '.svc,.svc.cluster,.svc.cluster.local'
         }
         session.proxies.update(proxies)
     
@@ -165,7 +168,7 @@ class KaapanaFederatedTrainingBase(ABC):
     def __init__(self, workflow_dir=None,
                  access_key='kaapanaminio',
                  secret_key='Kaapana2020',
-                 minio_host='minio-service.store.svc',
+                 minio_host=f'minio-service.{SERVICES_NAMESPACE}.svc',
                  minio_port='9000',
                  use_minio_mount=None
                 ):
@@ -202,7 +205,7 @@ class KaapanaFederatedTrainingBase(ABC):
 
         self.json_writer = JsonWriter(log_dir=self.fl_working_dir)
 
-        self.client_url = 'http://kaapana-backend-service.base.svc:5000/client'
+        self.client_url = f'http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client'
         with requests.Session() as s:
             r = requests_retry_session(session=s).get(f'{self.client_url}/client-kaapana-instance')
         KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)

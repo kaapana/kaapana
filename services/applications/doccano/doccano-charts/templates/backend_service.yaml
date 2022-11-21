@@ -2,7 +2,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: doccano-backend-service
-  namespace: {{ .Values.global.store_namespace | default "store" }}
+  namespace: "{{ .Values.global.extensions_namespace }}"
 spec:
   selector:
     app-name: doccano-backend

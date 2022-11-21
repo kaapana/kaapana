@@ -4,7 +4,7 @@ data:
   alertmanager.yml: |
     global:
       # The smarthost and SMTP sender used for mail notifications.
-      smtp_smarthost: 'postfix-service.kaapana-system-{{  .Values.global.instance_id  }}.svc:25'
+      smtp_smarthost: 'postfix-service.{{  .Values.global.system_namespace  }}.svc:25'
       smtp_from: 'alert@jipinfo.com'
       smtp_auth_username: 'dummy'
       smtp_auth_password: 'dummy'
@@ -75,4 +75,4 @@ data:
 kind: ConfigMap
 metadata:
   name: alertmanager-config
-  namespace: {{ .Values.global.monitoring_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"

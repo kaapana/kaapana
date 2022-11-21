@@ -1,6 +1,5 @@
 ---
 global:
     pull_policy_jobs: "IfNotPresent"
-    store_namespace: "store"
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana/dcm_data

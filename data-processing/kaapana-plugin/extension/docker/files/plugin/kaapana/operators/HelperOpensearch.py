@@ -1,5 +1,6 @@
 from typing import List
 from opensearchpy import OpenSearch
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 
 
 class HelperOpensearch():
@@ -9,7 +10,7 @@ class HelperOpensearch():
     modality_tag = "00080060 Modality_keyword"
     protocol_name = "00181030 ProtocolName_keyword"
 
-    host = "opensearch-service.meta.svc"
+    host = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
     port = "9200"
     index = "meta-index"
     auth = None

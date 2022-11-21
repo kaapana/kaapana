@@ -48,6 +48,9 @@ dependencies:
   - name: shapemodel-workflow
     version: 0.0.0
     repository: file://../../data-processing/processing-pipelines/shapemodel/extension/shapemodel-workflow
+  - name: total-segmentator-workflow
+    version: 0.0.0
+    repository: file://../../data-processing/processing-pipelines/total-segmentator/extension/total-segmentator-workflow
   - name: static-website-chart
     version: 0.0.0
     repository: file://../../services/applications/static-website/static-website-chart

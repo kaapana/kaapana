@@ -193,9 +193,9 @@ def ensure_operator_session(avid_operator, context):
             avid_operator.avid_session_dir = deduce_session_dir(avid_operator.workflow_dir, context['run_id'])
 
         avid_operator.log.debug('Initialize AVID session at: {}'.format(avid_operator.avid_session_dir))
-        avid_operator.avid_session = initSession(sessionPath=avid_operator.avid_session_dir, expandPaths=True)
-        rootlogger = logging.getLogger()
-        rootlogger.setLevel("DEBUG")
+        avid_operator.avid_session = initSession(sessionPath=avid_operator.avid_session_dir, expandPaths=True, initLogging=False)
+        #rootlogger = logging.getLogger()
+        #rootlogger.setLevel("DEBUG")
 
 
     if len(avid_operator.avid_session.artefacts) == 0 or avid_operator.avid_artefact_crawl_callable is not None:

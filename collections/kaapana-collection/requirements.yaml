@@ -66,3 +66,7 @@ dependencies:
   - name: rateme-chart
     version: 0.0.0
     repository: file://../../services/applications/rateme/rateme-chart
+  - name: avid-workflow
+    version: 0.0.0
+    repository: file://../../data-processing/processing-pipelines/radiomics/extension/avid-workflow
+

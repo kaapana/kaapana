@@ -9,7 +9,6 @@ from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.LocalRenameFileOperator import LocalRenameFileOperator
 from radiomics.RadiomicsOperator import RadiomicsOperator
 
 from avid_operator.AVIDBaseOperator import AVIDBaseOperator

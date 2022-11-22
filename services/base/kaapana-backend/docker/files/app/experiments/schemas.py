@@ -10,10 +10,12 @@ class KaapanaInstanceBase(BaseModel):
     automatic_update: bool = False
     automatic_job_execution: bool = False
 
+
 class ClientKaapanaInstanceCreate(KaapanaInstanceBase):
     fernet_encrypted: bool
     allowed_dags: list
     allowed_datasets: list
+
 
 class RemoteKaapanaInstanceCreate(KaapanaInstanceBase):
     token: str
@@ -24,12 +26,14 @@ class RemoteKaapanaInstanceCreate(KaapanaInstanceBase):
     allowed_dags: list = []
     allowed_datasets: list = []
 
+
 class RemoteKaapanaInstanceUpdateExternal(BaseModel):
     instance_name: str
     allowed_dags: dict
     allowed_datasets: list
     automatic_update: bool = False
     automatic_job_execution: bool = False
+
 
 class KaapanaInstance(KaapanaInstanceBase):
     id: int
@@ -44,7 +48,7 @@ class KaapanaInstance(KaapanaInstanceBase):
     allowed_datasets: str
     time_created: datetime.datetime
     time_updated: datetime.datetime
-    
+
     @validator('allowed_dags')
     def convert_allowed_dags(cls, v):
         return sorted(json.loads(v))
@@ -63,7 +67,6 @@ class KaapanaInstance(KaapanaInstanceBase):
     def convert_time_updated(cls, v):
         return datetime.datetime.timestamp(v)
 
-
     class Config:
         orm_mode = True
 
@@ -73,8 +76,8 @@ class JobBase(BaseModel):
     dag_id: str = None
     run_id: str = None
     description: str = None
-    external_job_id: int = None # job_id on another system
-    addressed_kaapana_instance_name: str = None # Remote Kaapana instance that is addressed, not external kaapana_instance_id!
+    external_job_id: int = None  # job_id on another system
+    addressed_kaapana_instance_name: str = None  # Remote Kaapana instance that is addressed, not external kaapana_instance_id!
 
 
 class Job(JobBase):
@@ -86,7 +89,7 @@ class Job(JobBase):
 
     @validator('status')
     def check_status(cls, v):
-        allowed_states =  ['queued', 'pending', 'scheduled', 'running', 'finished', 'failed']
+        allowed_states = ['queued', 'pending', 'scheduled', 'running', 'finished', 'failed']
         if v not in allowed_states:
             raise ValueError(f'status must be on of the following values: {", ".join(allowed_states)}')
         return v
@@ -104,17 +107,21 @@ class JobCreate(JobBase):
     kaapana_instance_id: int
     username: str = None
 
+
 class JobUpdate(JobBase):
     job_id: int
     # status: str
     # run_id: str = None
     # description: str = None
 
+
 class JobWithKaapanaInstance(Job):
     kaapana_instance: KaapanaInstance = None
 
+
 class KaapanaInstanceWithJobs(KaapanaInstance):
     jobs: List[Job] = []
+
 
 class FilterKaapanaInstances(BaseModel):
     remote: bool = True
@@ -125,22 +132,34 @@ class FilterKaapanaInstances(BaseModel):
 class JsonSchemaData(FilterKaapanaInstances):
     conf_data: dict = {}
 
+
+class Identifier(BaseModel):
+    identifier: str = None
+
+    class Config:
+        orm_mode = True
+
+
 class CohortBase(BaseModel):
     cohort_name: str = None
 
+
 class CohortCreate(CohortBase):
     cohort_query: dict = {}
-    cohort_identifiers: list = []
+    cohort_identifiers: List[Identifier] = []
     kaapana_instance_id: int = None
     username: str = None
 
+
 class CohortUpdate(CohortBase):
+    action: str = ""
     cohort_query: dict = {}
-    cohort_identifiers: list = []
+    cohort_identifiers: List[Identifier] = []
+
 
 class Cohort(CohortBase):
     cohort_query: str
-    cohort_identifiers: str
+    cohort_identifiers: List[Identifier]
     time_created: datetime.datetime
     time_updated: datetime.datetime
     username: str = None
@@ -149,9 +168,9 @@ class Cohort(CohortBase):
     def convert_cohort_query(cls, v):
         return json.loads(v)
 
-    @validator('cohort_identifiers')
-    def convert_cohort_identifiers(cls, v):
-        return json.loads(v)
+    # @validator('cohort_identifiers')
+    # def convert_cohort_identifiers(cls, v):
+    #     return json.loads(v)
 
     @validator('time_created')
     def convert_time_created(cls, v):
@@ -163,4 +182,3 @@ class Cohort(CohortBase):
 
     class Config:
         orm_mode = True
-

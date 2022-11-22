@@ -1,41 +1,41 @@
 <template>
-  <v-container class="pa-0"fluid style="height: 100%">
+  <v-container class="pa-0" fluid style="height: 100%">
     <v-card
-      @click="onClick"
-      height="100%"
+        @click="onClick"
+        height="100%"
     >
       <!--      padding: 5px; background: red-->
       <v-img
-        :src="src"
-        aspect-ratio="1"
+          :src="src"
+          aspect-ratio="1"
       >
         <template v-slot:placeholder>
           <v-row
-            class="fill-height ma-0"
-            align="center"
-            justify="center"
+              class="fill-height ma-0"
+              align="center"
+              justify="center"
           >
             <v-progress-circular
-              indeterminate
-              color="#0088cc"
+                indeterminate
+                color="#0088cc"
             ></v-progress-circular>
           </v-row>
         </template>
 
         <v-app-bar
-          flat
-          dense
-          color="rgba(0, 0, 0, 0)"
+            flat
+            dense
+            color="rgba(0, 0, 0, 0)"
         >
           <Chip :items="[modality]"/>
           <v-spacer></v-spacer>
           <v-menu>
             <template v-slot:activator="{ on, attrs }">
               <v-btn
-                icon
-                v-bind="attrs"
-                v-on="on"
-                color="white"
+                  icon
+                  v-bind="attrs"
+                  v-on="on"
+                  color="white"
               >
                 <v-icon>mdi-dots-vertical</v-icon>
               </v-btn>
@@ -43,12 +43,12 @@
 
             <v-list>
               <v-list-item
-                @click="() => {this.$emit('removeFromCohort')}"
+                  @click="() => {this.$emit('removeFromCohort')}"
               >
                 <v-list-item-title>Remove from cohort</v-list-item-title>
               </v-list-item>
               <v-list-item
-                @click="() => {'TODO: Not implemented yet'}"
+                  @click="deleteSeriesFromPlatform()"
               >
                 <v-list-item-title>Delete from system</v-list-item-title>
               </v-list-item>
@@ -62,8 +62,7 @@
             {{ seriesDescription }}
           </v-col>
         </v-row>
-        <div v-if="seriesData[data['key']]" v-for="data in config.props"
-        >
+        <div v-if="seriesData[data['key']]" v-for="data in config.props">
           <v-row no-gutters style="font-size: x-small">
             <v-col style="margin-bottom: -5px">
               {{ data['name'] }}
@@ -90,6 +89,7 @@ import Chip from "./Chip.vue";
 import TagChip from "./TagChip.vue";
 
 import {loadSeriesFromMeta, updateTags} from "@/common/api.service"
+import {deleteSeriesFromPlatform} from "../common/api.service";
 
 
 export default {
@@ -157,6 +157,12 @@ export default {
         }
       }
     },
+    async deleteSeriesFromPlatform() {
+      await deleteSeriesFromPlatform(
+          this.seriesInstanceUID
+      )
+      this.$emit('deleteFromPlatform')
+    },
     async deleteTag(tag) {
       const request_body = [{
         "series_instance_uid": this.seriesInstanceUID,
@@ -165,12 +171,12 @@ export default {
         "tags2delete": [tag]
       }]
       updateTags(JSON.stringify(request_body))
-        .then(() => this.tags = this.tags.filter((_tag) => _tag !== tag))
+          .then(() => this.tags = this.tags.filter((_tag) => _tag !== tag))
     },
     modifyTags() {
       let request_body = []
       const tagsAlreadyExist = this.selected_tags.filter(
-        el => this.tags.includes(el)
+          el => this.tags.includes(el)
       ).length === this.selected_tags.length
       if (tagsAlreadyExist) {
         // the selected tags are already included in the tags => removing them
@@ -190,12 +196,12 @@ export default {
       }
 
       updateTags(JSON.stringify(request_body))
-        .then(() => {
-          this.tags =
-            tagsAlreadyExist
-              ? this.tags.filter(tag => !this.selected_tags.includes(tag))
-              : Array.from(new Set([...this.tags, ...this.selected_tags]))
-        })
+          .then(() => {
+            this.tags =
+                tagsAlreadyExist
+                    ? this.tags.filter(tag => !this.selected_tags.includes(tag))
+                    : Array.from(new Set([...this.tags, ...this.selected_tags]))
+          })
     },
     onClick() {
       // this.$emit('delete')

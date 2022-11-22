@@ -6,10 +6,14 @@ import logging
 import pydicom
 import errno
 import time
+
+import requests
+
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from opensearchpy import OpenSearch
+
 
 class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
     """
@@ -29,7 +33,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
 
 	"""
 
-
     def push_json(self, json_dict):
         print("# Pushing JSON ...")
         if "0020000E SeriesInstanceUID_keyword" in json_dict:
@@ -41,10 +44,10 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             exit(1)
         try:
             response = self.os_client.index(
-                index = self.opensearch_index,
-                body = json_dict,
-                id = id,
-                refresh = True
+                index=self.opensearch_index,
+                body=json_dict,
+                id=id,
+                refresh=True
             )
         except Exception as e:
             print("#")
@@ -74,10 +77,10 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         print(("RUN_ID: %s" % self.run_id))
 
         for batch_element_dir in batch_folder:
-
+            # Where and how to call backend to add new entry to database
             if self.jsonl_operator:
                 json_dir = os.path.join(batch_element_dir, self.jsonl_operator.operator_out_dir)
-                json_list = glob.glob(json_dir+'/**/*.jsonl', recursive=True)
+                json_list = glob.glob(json_dir + '/**/*.jsonl', recursive=True)
                 for json_file in json_list:
                     print(f"Pushing file: {json_file} to META!")
                     with open(json_file, encoding='utf-8') as f:
@@ -85,13 +88,14 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                             obj = json.loads(line)
                             self.push_json(obj)
             else:
-                # TODO: is this dcm check neccesary? InstanceID is set in upload
-                dcm_files = sorted(glob.glob(os.path.join(batch_element_dir, self.rel_dicom_dir, "*.dcm*"), recursive=True))
-                self.get_id(dcm_files[0])
+                # TODO: is this dcm check necessary? InstanceID is set in upload
+                dcm_files = sorted(
+                    glob.glob(os.path.join(batch_element_dir, self.rel_dicom_dir, "*.dcm*"), recursive=True))
+                self.set_id(dcm_files[0])
 
                 json_dir = os.path.join(batch_element_dir, self.json_operator.operator_out_dir)
                 print(("Pushing json files from: %s" % json_dir))
-                json_list = glob.glob(json_dir+'/**/*.json', recursive=True)
+                json_list = glob.glob(json_dir + '/**/*.json', recursive=True)
                 print("#")
                 print("#")
                 print("#")
@@ -104,6 +108,11 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                     with open(json_file, encoding='utf-8') as f:
                         new_json = json.load(f)
                     self.push_json(new_json)
+                # TODO: rather create separate operator to write to backend
+                requests.post(
+                    'http://kaapana-backend-service.base.svc:5000/client/identifier',
+                    json={"identifier": self.instanceUID}
+                )
 
     def mkdir_p(self, path):
         try:
@@ -114,7 +123,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             else:
                 raise
 
-    def get_id(self, dcm_file=None):
+    def set_id(self, dcm_file=None):
         if dcm_file is not None:
             self.instanceUID = pydicom.dcmread(dcm_file)[0x0020, 0x000e].value
             self.patient_id = pydicom.dcmread(dcm_file)[0x0010, 0x0020].value
@@ -124,7 +133,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             self.instanceUID = self.run_id
         else:
             print("dicom_operator and dct_to_push not specified!")
-
 
     def check_pacs_availability(self, instanceUID: str):
         print("#")
@@ -143,7 +151,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             time.sleep(self.avalability_check_delay)
             check_count += 1
 
-
     def __init__(self,
                  dag,
                  dicom_operator=None,
@@ -157,7 +164,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                  opensearch_port: int = 9200,
                  opensearch_index: str = "meta-index",
                  check_in_pacs: bool = True,
-                 *args, 
+                 *args,
                  **kwargs):
 
         """
@@ -173,8 +180,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
 		:param opensearch_index: Specifies the index of OpenSearch where to put data into.
 		:param check_in_pacs: Determines whether or not to search for series in PACS. If set to True and series is not found in PACS, the data will not be put into OpenSearch.
 		"""
-
-
 
         self.dicom_operator = dicom_operator
         self.json_operator = json_operator
@@ -192,15 +197,15 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         auth = None
         # auth = ('admin', 'admin') # For testing only. Don't store credentials in code.
         self.os_client = OpenSearch(
-            hosts = [{'host': self.opensearch_host, 'port': self.opensearch_port}],
-            http_compress = True, # enables gzip compression for request bodies
-            http_auth = auth,
+            hosts=[{'host': self.opensearch_host, 'port': self.opensearch_port}],
+            http_compress=True,  # enables gzip compression for request bodies
+            http_auth=auth,
             # client_cert = client_cert_path,
             # client_key = client_key_path,
-            use_ssl = False,
-            verify_certs = False,
-            ssl_assert_hostname = False,
-            ssl_show_warn = False,
+            use_ssl=False,
+            verify_certs=False,
+            ssl_assert_hostname=False,
+            ssl_show_warn=False,
             timeout=2,
             # ca_certs = ca_certs_path
         )

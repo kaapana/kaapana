@@ -32,12 +32,14 @@
           v-else-if="!isLoading && data.length > 0 && structuredGallery"
           :patients="data"
           :selectedTags="tags"
+          :cohort="cohort"
           @imageId="(imageId) => this.image_id = imageId"
         />
         <Gallery
           v-else-if="!isLoading && data.length > 0 && !structuredGallery"
           :data="data"
           :selectedTags="tags"
+          :cohort="cohort"
           @imageId="(imageId) => this.image_id = imageId"
         />
         <h3 v-else>

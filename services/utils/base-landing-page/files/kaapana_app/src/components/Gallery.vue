@@ -1,23 +1,24 @@
 <template>
   <LazyList
-    :data="processed_data"
-    :itemsPerRender="24"
-    containerClasses="list row"
-    defaultLoadingColor="#222"
-    style="margin: auto;"
+      :data="processed_data"
+      :itemsPerRender="24"
+      containerClasses="list row"
+      defaultLoadingColor="#222"
+      style="margin: auto;"
   >
     <template v-slot="{item}">
       <v-col :cols="cols">
         <CardSelect
-          :series-instance-u-i-d="item.seriesInstanceUID"
-          :study-instance-u-i-d="item.studyInstanceUID"
-          :selected_tags="inner_selectedTags"
-          @imageId="propagateImageId({
+            :series-instance-u-i-d="item.seriesInstanceUID"
+            :study-instance-u-i-d="item.studyInstanceUID"
+            :selected_tags="inner_selectedTags"
+            @imageId="propagateImageId({
                                     seriesInstanceUID: item.seriesInstanceUID,
                                     studyInstanceUID: item.studyInstanceUID,
                                     seriesDescription: item.seriesDescription
                                   })"
-          @removeFromCohort="removeFromCohort(item)"
+            @removeFromCohort="removeFromCohort(item)"
+            @deleteFromPlatform="deleteFromPlatform(item)"
         />
       </v-col>
     </template>
@@ -30,11 +31,13 @@
 import Chip from "./Chip.vue";
 import LazyList from './lazy-load-list/LazyList.vue'
 import CardSelect from "./CardSelect";
+import {deleteSeriesFromPlatform, updateCohort} from "../common/api.service";
 
 export default {
   name: 'Gallery',
   emits: ['imageId'],
   props: {
+    cohort: {},
     data: {
       type: Array
     },
@@ -82,24 +85,38 @@ export default {
     },
     processed_data() {
       return this.inner_data.map(i => {
-          return {
-            seriesInstanceUID: i['0020000E SeriesInstanceUID_keyword'],
-            studyInstanceUID: i['0020000D StudyInstanceUID_keyword'],
-            seriesNumber: i['00200011 SeriesNumber_integer'],
-            seriesDescription: i['0008103E SeriesDescription_keyword'],
+            return {
+              seriesInstanceUID: i['0020000E SeriesInstanceUID_keyword'],
+              studyInstanceUID: i['0020000D StudyInstanceUID_keyword'],
+              seriesNumber: i['00200011 SeriesNumber_integer'],
+              seriesDescription: i['0008103E SeriesDescription_keyword'],
+            }
           }
-        }
       )
     }
   },
   methods: {
-    removeFromCohort(item) {
-      // TODO server request missing
+    async removeFromCohort(item) {
+      if (this.cohort !== null) {
+        await updateCohort({
+          "cohort_name": this.cohort.name,
+          "action": "DELETE",
+          "cohort_query": {"index": "meta"},
+          "cohort_identifiers": [{"identifier": item.seriesInstanceUID}]
+        })
+      }
+      this.removeFromUI(item)
+    },
+    async deleteFromPlatform(item) {
+      await deleteSeriesFromPlatform(item.seriesInstanceUID)
+      this.removeFromUI(item)
+    },
+    removeFromUI(item) {
       this.inner_data = this.inner_data.filter(
-        i => item.seriesInstanceUID !== i['0020000E SeriesInstanceUID_keyword']
+          i => item.seriesInstanceUID !== i['0020000E SeriesInstanceUID_keyword']
       )
-      if (this.inner_data.length === 0){
-        this.$emit('studyDeleted')
+      if (this.inner_data.length === 0) {
+        this.$emit('emptyStudy')
       }
     },
     propagateImageId(image_id) {

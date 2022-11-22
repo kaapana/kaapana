@@ -22,6 +22,31 @@ const formatMetadata = async (data) => {
     return await httpClient.post(KAAPANA_FLOW_ENDPOINT + '/curation_tool/format_metadata', data)
 }
 
+const deleteSeriesFromPlatform = async (seriesInstanceUID, dag_id = 'delete-series-from-platform') => {
+    return await httpClient.post(KAAPANA_FLOW_ENDPOINT + '/trigger/' + dag_id,
+        {
+            "data_form": {
+                "cohort_identifiers": [
+                    seriesInstanceUID
+                ],
+                "cohort_query": {
+                    'index': 'meta-index'
+                }
+            },
+            "form_data": {
+                "delete_complete_study": false,
+                "single_execution": false
+            }
+        })
+}
+
+const updateCohort = async (body) => {
+    try {
+        return await httpClient.put(KAAPANA_BACKEND_ENDPOINT + '/cohort', body)
+    } catch (error) {
+        Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
+    }
+}
 
 const loadCohorts = async () => {
     try {
@@ -158,5 +183,7 @@ export {
     loadAvailableTags,
     loadMetaData,
     loadCohorts,
-    formatMetadata
+    formatMetadata,
+    deleteSeriesFromPlatform,
+    updateCohort
 }

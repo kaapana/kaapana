@@ -126,7 +126,7 @@ async def submit_workflow_json_schema(request: Request, json_schema_data: schema
             "cohort_query": json.loads(db_cohort.cohort_query),
             "cohort_identifiers": json.loads(db_cohort.cohort_identifiers)
         })
-        
+
         data_form = conf_data["data_form"]
         cohort_limit = int(data_form["cohort_limit"]) if ("cohort_limit" in data_form and data_form["cohort_limit"] is not None) else None
         single_execution = "workflow_form" in conf_data and "single_execution" in conf_data["workflow_form"] and conf_data["workflow_form"]["single_execution"] is True
@@ -157,7 +157,7 @@ async def submit_workflow_json_schema(request: Request, json_schema_data: schema
         ]
 
     db_jobs = []
-    for jobs_to_create in queued_jobs: 
+    for jobs_to_create in queued_jobs:
         if json_schema_data.remote == False:
             job = schemas.JobCreate(**{
                 "status": "pending",
@@ -187,9 +187,9 @@ async def ui_form_schemas(request: Request, filter_kaapana_instances: schemas.Fi
     username = request.headers["x-forwarded-preferred-username"]
     dag_id = filter_kaapana_instances.dag_id
     schemas = {}
-    if dag_id is None: 
+    if dag_id is None:
         return JSONResponse(content=schemas)
-    
+
     # Checking for dags
     if filter_kaapana_instances.remote is False:
         dags = get_dag_list(only_dag_names=False)
@@ -255,5 +255,22 @@ async def delete_cohort(cohort_name: str, db: Session = Depends(get_db)):
 
 @router.delete("/cohorts")
 async def delete_cohorts(db: Session = Depends(get_db)):
-    # Todo add remote job deletion
     return crud.delete_cohorts(db)
+
+@router.post("/identifier", response_model=schemas.Identifier)
+async def create_identifier(identifier: schemas.Identifier, db: Session= Depends(get_db)):
+    resp = crud.create_identifier(db=db, identifier=identifier)
+    print('response', resp)
+    return resp
+
+@router.delete("/identifier")
+async def delete_cohort(identifier: str, db: Session = Depends(get_db)):
+    return crud.delete_identifier(db, identifier)
+
+@router.get("/identifiers", response_model=List[schemas.Identifier])
+async def get_identifiers(db: Session = Depends(get_db)):
+    return crud.get_identifiers(db)
+
+@router.delete("/identifiers")
+async def get_identifiers(db: Session = Depends(get_db)):
+    return crud.delete_identifiers(db)

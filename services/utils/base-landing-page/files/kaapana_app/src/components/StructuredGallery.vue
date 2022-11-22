@@ -44,25 +44,12 @@
                 </v-list-item-subtitle>
                 <v-container fluid style="padding: 10px">
                   <v-row>
-                    <!--                    TODO Subcomponents for patient and study-->
-                    <!--                    <v-col-->
-                    <!--                      v-for="item in study.series-->
-                    <!--                      .map((_item) => {-->
-                    <!--                        return {-->
-                    <!--                          seriesInstanceUID: _item['0020000E SeriesInstanceUID_keyword'],-->
-                    <!--                          studyInstanceUID: _item['0020000D StudyInstanceUID_keyword'],-->
-                    <!--                          seriesNumber: _item['00200011 SeriesNumber_integer'],-->
-                    <!--                          seriesDescription: _item['0008103E SeriesDescription_keyword'],-->
-                    <!--                        }})-->
-                    <!--                      .sort((a, b) => a.seriesNumber - b.seriesNumber)"-->
-                    <!--                      :key="item.seriesInstanceUID"-->
-                    <!--                      :cols="cols"-->
-                    <!--                    >-->
                     <Gallery
                       :data="study.series"
                       :selectedTags="inner_selectedTags"
+                      :cohort="cohort"
                       @imageId="(imageId) => propagateImageId(imageId)"
-                      @studyDeleted="() => deleteStudy(item, study)"
+                      @emptyStudy="() => removeEmptyStudy(item, study)"
                     />
                     <!--                    </v-col>-->
                   </v-row>
@@ -86,6 +73,7 @@ import LazyList from './lazy-load-list/LazyList.vue'
 export default {
   emits: ['imageId'],
   props: {
+    cohort: {},
     patients: {
       type: Array
     },
@@ -150,7 +138,7 @@ export default {
     propagateImageId(image_id) {
       this.$emit('imageId', image_id);
     },
-    deleteStudy(item, study) {
+    removeEmptyStudy(item, study) {
       item.studies = item.studies.filter(s => s.study_key !== study.study_key)
       if (item.studies.length === 0){
         this.inner_patients = this.inner_patients.filter(patient => item.patient_key !== patient.patient_key)

@@ -80,7 +80,6 @@ export default {
       this.filters = this.filters.filter(filter => filter.id !== id)
     },
     composeQuery() {
-      console.log(this.cohort)
       const query = {
         "bool": {
           "must": [
@@ -89,12 +88,12 @@ export default {
                     ? this.$refs.filters.map(filter => filter.query).filter(query => query !== null)
                     : []
             ),
-            this.cohort !== null && this.cohort.identifiers !== undefined && this.cohort.identifiers.length > 0
+            this.cohort !== null && this.cohort.identifiers && this.cohort.identifiers.length > 0
                 ? {
                   "bool": {
                     "should": this.cohort.identifiers.map(item => ({
                           "match": {
-                            "0020000E SeriesInstanceUID_keyword.keyword": item
+                            "0020000E SeriesInstanceUID_keyword.keyword": item['identifier']
                           }
                         })
                     )

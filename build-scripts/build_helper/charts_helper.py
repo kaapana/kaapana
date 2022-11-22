@@ -57,18 +57,20 @@ def generate_deployment_script(platform_chart):
     
     platform_params["kaapana_collections"] = []
     
-    for collection_name,collection_chart in platform_chart.kaapana_collections.items():
-        platform_params["kaapana_collections"].append({
-         "name":  collection_chart.name,
-         "version":   collection_chart.version
-        })
+    if len(platform_chart.kaapana_collections) > 0:
+        for collection_name,collection_chart in platform_chart.kaapana_collections.items():
+            platform_params["kaapana_collections"].append({
+            "name":  collection_chart.name,
+            "version":   collection_chart.version
+            })
 
     platform_params["preinstall_extensions"] = []
-    for preinstall_extension_name,preinstall_extension_chart in platform_chart.preinstall_extensions.items():
-        platform_params["preinstall_extensions"].append({
-         "name":  preinstall_extension_chart.name, 
-         "version":   preinstall_extension_chart.version
-        })
+    if len(platform_chart.preinstall_extensions) > 0:
+        for preinstall_extension_name,preinstall_extension_chart in platform_chart.preinstall_extensions.items():
+            platform_params["preinstall_extensions"].append({
+            "name":  preinstall_extension_chart.name, 
+            "version":   preinstall_extension_chart.version
+            })
 
     template = env.get_template('deploy_platform_template.sh')  # load template file
 
@@ -740,9 +742,10 @@ class HelmChart:
         platform_build_files_target_dir = join(platform_build_files_base_target_dir, platform_chart.name)
         HelmChart.create_chart_build_version(src_chart=platform_chart,target_build_dir=platform_build_files_target_dir)
         
-        for collection_name,collections_chart in platform_chart.kaapana_collections.items():
-            BuildUtils.logger.info(f"{platform_chart.name} - {collection_name}: create create_collection_build_files")
-            HelmChart.create_collection_build_files(collections_chart=collections_chart,platform_build_files_target_dir=platform_build_files_base_target_dir)
+        if len(platform_chart.kaapana_collections) > 0:
+            for collection_name,collections_chart in platform_chart.kaapana_collections.items():
+                BuildUtils.logger.info(f"{platform_chart.name} - {collection_name}: create create_collection_build_files")
+                HelmChart.create_collection_build_files(collections_chart=collections_chart,platform_build_files_target_dir=platform_build_files_base_target_dir)
 
         platform_chart.lint_kubeval(build_version=True)
 

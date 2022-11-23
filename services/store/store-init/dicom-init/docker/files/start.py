@@ -198,19 +198,25 @@ def trigger_delete_dag(examples_send):
             'Cache-Control': 'no-cache',
             'Content-Type': 'application/json',
         }
-        dcm_uid = dict()
-        inputs = dict()
-        dcm_uid['study-uid'] = file['study_uid']
-        dcm_uid['series-uid'] = file['series_uid']
-        inputs['dcm-uid'] = dcm_uid
-        data = dict()
-        conf = dict()
-        conf['inputs'] = inputs
-        data['conf'] = conf
+
+        conf = {
+            "data_form": {
+                "cohort_identifiers": [
+                    file['series_uid']
+                ],
+                "cohort_query": {
+                    'index': 'meta-index'
+                }
+            },
+            "workflow_form": {
+                "delete_complete_study": False,
+                "single_execution": False
+            }
+        }
         dag_id = "delete-series-from-platform"
-        print("data", data)
+        print("data", conf)
         print("trigger url: ", '{}/{}'.format(airflow_host, dag_id))
-        dump = json.dumps(data)
+        dump = json.dumps(conf)
         response = requests.post('{}/{}'.format(airflow_host, dag_id), headers=headers,
                                  data=dump, verify=False)
         if response.status_code == requests.codes.ok:

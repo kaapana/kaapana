@@ -7,6 +7,7 @@ class HelperOpensearch():
     series_uid_tag = "0020000E SeriesInstanceUID_keyword"
     SOPInstanceUID_tag = "00080018 SOPInstanceUID_keyword"
     modality_tag = "00080060 Modality_keyword"
+    protocol_name = "00181030 ProtocolName_keyword"
 
     host = "opensearch-service.meta.svc"
     port = "9200"
@@ -29,7 +30,7 @@ class HelperOpensearch():
     )
 
     @staticmethod
-    def get_query_cohort(query, index=None):
+    def get_query_cohort(query, index=None, only_uids=False):
         index = index if index is not None else HelperOpensearch.index
         print("Getting cohort for query: {}".format(query))
         print("index: {}".format(index))
@@ -37,7 +38,7 @@ class HelperOpensearch():
         queryDict = {}
         queryDict["query"] = query
         queryDict["_source"] = {"includes": [HelperOpensearch.study_uid_tag, HelperOpensearch.series_uid_tag,
-                                             HelperOpensearch.SOPInstanceUID_tag, HelperOpensearch.modality_tag]}
+                                             HelperOpensearch.SOPInstanceUID_tag, HelperOpensearch.modality_tag, HelperOpensearch.protocol_name]}
 
         try:
             res = HelperOpensearch.os_client.search(index=[index], body=queryDict, size=10000, from_=0)
@@ -46,9 +47,15 @@ class HelperOpensearch():
             print(e)
             return None
 
-        hits = res['hits']['hits']
+        if 'hits' in res and 'hits' in res['hits']:
+            hits = res['hits']['hits']
+        else:
+            raise ValueError('Invalid OpenSearch query!')
 
-        return hits
+        if only_uids:
+                return [hit['_id'] for hit in hits]
+        else:
+            return hits
 
     @staticmethod
     def _get_dcm_uid_objects(series_instance_uids: List, index: List):

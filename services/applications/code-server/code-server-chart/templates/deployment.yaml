@@ -133,7 +133,7 @@ spec:
   - host: 
     http:
       paths:
-      - path: /code-{{ $uuid }}/
+      - path: /{{ .Values.global.instance_uid }}/code-{{ $uuid }}/
         pathType: ImplementationSpecific
         backend:
           service:

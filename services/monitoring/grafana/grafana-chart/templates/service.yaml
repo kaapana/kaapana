@@ -23,14 +23,14 @@ metadata:
 
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.admin_namespace  }}-errorpages@kubernetescrd,{{  .Values.global.admin_namespace  }}-strip-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.admin_namespace  }}-errorpages@kubernetescrd,{{  .Values.global.services_namespace  }}-strip-prefix@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
   - host: 
     http:
       paths:
-      - path: /grafana
+      - path: /{{ .Values.global.instance_uid }}/grafana
         pathType: ImplementationSpecific
         backend:
           service:

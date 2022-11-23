@@ -27,7 +27,7 @@ spec:
   - host: 
     http:
       paths:
-      - path: /ohif
+      - path: /{{ .Values.global.instance_uid }}/ohif
         pathType: ImplementationSpecific
         backend:
           service:

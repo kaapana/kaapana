@@ -48,3 +48,25 @@ dependencies:
     version: 0.0.0
     condition: Release.IsInstall
     repository: file://../../../../services/store/store-init/dicom-init/dicom-init-chart
+  # META
+  - name: meta-init-chart
+    condition: Release.IsInstall
+    version: 0.0.0
+    repository: file://../../../services/meta/meta-init/meta-init-chart
+  - name: opensearch-chart
+    version: 0.0.0
+    repository: file://../../../services/meta/opensearch/opensearch-chart
+  - name: os-dashboards-chart
+    version: 0.0.0
+    repository: file://../../../services/meta/os-dashboards/os-dashboards/os-dashboards-chart
+# SYSTEM
+  - name: traefik-chart
+    version: 0.0.0
+  - name: oAuth2-proxy-chart
+    version: 0.0.0
+  - name: cert-init-chart
+    version: 0.0.0
+# BASE
+  - name: landing-page-kaapana-chart
+    version: 0.0.0
+    repository: file://../../../services/base/landing-page-kaapana/landing-page-kaapana-chart

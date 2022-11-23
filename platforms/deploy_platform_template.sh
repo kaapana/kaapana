@@ -35,11 +35,12 @@ KAAPANA_BUILD_BRANCH="{{ kaapana_build_branch }}"    # branch name, which was bu
 KAAPANA_LAST_COMMT_TIMESTAMP="{{ kaapana_last_commit_timestamp }}" # timestamp of the last commit -> auto-generated
 
 INSTANCE_UID=""
-SERVICES_NAMESPACE="services"
-ADMIN_NAMESPACE="admin"
-JOBS_NAMESPACE="jobs"
-EXTENSIONS_NAMESPACE="extensions"
-HELM_NAMESPACE=$ADMIN_NAMESPACE
+
+SERVICES_NAMESPACE="{{ services_namespace }}"
+ADMIN_NAMESPACE="{{ admin_namespace }}"
+JOBS_NAMESPACE="{{ jobs_namespace }}"
+EXTENSIONS_NAMESPACE="{{ extensions_namespace }}"
+HELM_NAMESPACE="{{ helm_namespace }}"
 
 ######################################################
 # Individual platform configuration
@@ -77,7 +78,7 @@ if [ ! -z $INSTANCE_UID ]; then
     echo ""
     echo "Setting INSTANCE_UID: $INSTANCE_UID namespaces ..."
     SERVICES_NAMESPACE="$INSTANCE_UID-$SERVICES_NAMESPACE"
-    ADMIN_NAMESPACE="$INSTANCE_UID-$ADMIN_NAMESPACE"
+    # ADMIN_NAMESPACE="$INSTANCE_UID-$ADMIN_NAMESPACE"
     JOBS_NAMESPACE="$INSTANCE_UID-$JOBS_NAMESPACE"
     EXTENSIONS_NAMESPACE="$INSTANCE_UID-$EXTENSIONS_NAMESPACE"
     HELM_NAMESPACE="$INSTANCE_UID-$HELM_NAMESPACE"
@@ -88,7 +89,7 @@ fi
 echo ""
 echo "JOBS_NAMESPACE:       $JOBS_NAMESPACE "
 echo "HELM_NAMESPACE:       $HELM_NAMESPACE "
-echo "ADMIN_NAMESPACE:     $ADMIN_NAMESPACE "
+echo "ADMIN_NAMESPACE:      $ADMIN_NAMESPACE "
 echo "SERVICES_NAMESPACE:   $SERVICES_NAMESPACE "
 echo "EXTENSIONS_NAMESPACE: $EXTENSIONS_NAMESPACE "
 echo ""
@@ -208,6 +209,10 @@ function delete_deployment {
         sleep 3
         DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered '$JOBS_NAMESPACE|$EXTENSIONS_NAMESPACE|$SERVICES_NAMESPACE' | cut -d' ' -f1")
         TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E --line-buffered 'Terminating' | cut -d' ' -f1")
+        echo -e ""
+        echo -e "${YELLOW}Waiting for: ${NC}"
+        echo -e "${YELLOW}TERMINATING_PODS:    $TERMINATING_PODS {NC}"
+        echo -e "${YELLOW}DEPLOYED_NAMESPACES: $DEPLOYED_NAMESPACES ${NC}"
         UNINSTALL_TEST=$DEPLOYED_NAMESPACES$TERMINATING_PODS
         if [ -z "$UNINSTALL_TEST" ]; then
             break
@@ -231,7 +236,7 @@ function delete_deployment {
 }
 
 function clean_up_kubernetes {
-    for n in $EXTENSIONS_NAMESPACE $JOBS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE;
+    for n in $EXTENSIONS_NAMESPACE $JOBS_NAMESPACE $SERVICES_NAMESPACE $HELM_NAMESPACE;
     do
         echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
         microk8s.kubectl delete --ignore-not-found namespace $n
@@ -241,7 +246,7 @@ function clean_up_kubernetes {
     echo "${YELLOW}Deleting all jobs in namespace default ${NC}"
     microk8s.kubectl delete jobs --all
     echo "${YELLOW}Removing remove-secret job${NC}"
-    microk8s.kubectl -n $ADMIN_NAMESPACE delete job --ignore-not-found remove-secret
+    microk8s.kubectl -n $SERVICES_NAMESPACE delete job --ignore-not-found remove-secret
 }
 
 function upload_tar {
@@ -446,11 +451,11 @@ function install_certs {
     else
         echo -e "files found!"
         echo -e "Creating cluster secret ..."
-        microk8s.kubectl delete secret certificate -n $ADMIN_NAMESPACE
-        microk8s.kubectl create secret tls certificate --namespace $ADMIN_NAMESPACE --key ./tls.key --cert ./tls.crt
-        auth_proxy_pod=$(microk8s.kubectl get pods -n $ADMIN_NAMESPACE |grep oauth2-proxy  | awk '{print $1;}')
+        microk8s.kubectl delete secret certificate -n $SERVICES_NAMESPACE
+        microk8s.kubectl create secret tls certificate --namespace $SERVICES_NAMESPACE --key ./tls.key --cert ./tls.crt
+        auth_proxy_pod=$(microk8s.kubectl get pods -n $SERVICES_NAMESPACE |grep oauth2-proxy  | awk '{print $1;}')
         echo "auth_proxy_pod pod: $auth_proxy_pod"
-        microk8s.kubectl -n $ADMIN_NAMESPACE delete pod $auth_proxy_pod
+        microk8s.kubectl -n $SERVICES_NAMESPACE delete pod $auth_proxy_pod
     fi
 
     echo -e "${GREEN}DONE${NC}"

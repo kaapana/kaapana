@@ -2,13 +2,13 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  namespace: "{{  .Values.global.admin_namespace  }}"
+  namespace: "{{  .Values.global.services_namespace  }}"
   name: traefik-ingress-controller
 ---
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  namespace: "{{  .Values.global.admin_namespace  }}"
+  namespace: "{{  .Values.global.services_namespace  }}"
   name: traefik
   labels:
     app: traefik

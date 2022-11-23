@@ -26,7 +26,7 @@ spec:
   - host: 
     http:
       paths:
-      - path: /doccano/
+      - path: /{{ .Values.global.instance_uid }}/doccano/
         pathType: ImplementationSpecific
         backend:
           service:

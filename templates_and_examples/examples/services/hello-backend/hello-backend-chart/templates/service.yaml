@@ -32,7 +32,7 @@ spec:
   - host:
     http:
       paths:
-      - path: /hello-backend
+      - path: /{{ .Values.global.instance_uid }}/hello-backend
         pathType: ImplementationSpecific
         backend:
           service:

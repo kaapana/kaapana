@@ -58,5 +58,5 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: traefik-ingress-controller
-    namespace: "{{  .Values.global.admin_namespace  }}"
+    namespace: "{{  .Values.global.services_namespace  }}"
 ---

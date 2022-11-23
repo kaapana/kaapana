@@ -1,0 +1,41 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    - target: "{{ target_host }}"
+      default: "10.128.128.218"
+  tasks:
+    - add_host:
+        name: "{{ target }}"
+        groups: os_server
+
+- name: Run shell workflow on data in isolated environment
+  hosts: os_server
+  strategy: free
+  gather_facts: yes
+  remote_user: "{{ remote_username }}"
+  vars:
+    ansible_ssh_private_key_file: ~/.ssh/{{ ssh_key_name }}
+    dst_results_dir: /home/{{ remote_username }}/results
+  environment:
+    PATH: '/home/{{ remote_username }}/.local/bin:{{ ansible_env.PATH }}'
+
+  tasks:
+    - name: Check if all required variables are passed using --extra-vars
+      fail:
+        msg: "Variable {{ item }} not defined"
+      when: item is not defined
+      with_items:
+        - "{{ ssh_key_name }}"
+
+    - name: Create results directory if it doesn't exist
+      file:
+        path: "{{ dst_results_dir }}"
+        state: directory
+        recurse: yes
+
+    - name: Run user shell workflow
+      become: no
+      shell: bash /home/{{ remote_username }}/algorithm_files/{{ user_selected_algo }}/*.sh
+
+    # - debug: msg="{{ '%H:%M:%S' | strftime }}"

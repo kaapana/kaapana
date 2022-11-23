@@ -1,5 +1,8 @@
 FROM ubuntu:20.04
 
+ENV http_proxy http://www-int2.dkfz-heidelberg.de:80
+ENV https_proxy http://www-int2.dkfz-heidelberg.de:80
+
 LABEL IMAGE="airflow"
 LABEL VERSION="2.2.5"
 LABEL CI_IGNORE="False"
@@ -23,6 +26,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         nano \
         unzip \
         zip \
+        openssh-client \
+        vim \
         # libczmq-dev \
         # libcurlpp-dev \
         # libssl-dev \
@@ -38,9 +43,15 @@ RUN python3.8 -m pip install --no-cache-dir -r requirements.txt --constraint "ht
 
 COPY files/scripts/ /scripts
 
+RUN ansible-galaxy collection install openstack.cloud
+
 COPY files/bootstrap.sh /bootstrap.sh
 RUN chmod +x /bootstrap.sh
 
 COPY files/scheduler_job.py /usr/local/lib/python3.8/dist-packages/airflow/jobs/
+
+RUN mkdir -p /root/.ssh
+# COPY files/tfda_iso.pem  /root/.ssh/tfda_iso.pem
+# RUN chmod 600 /root/.ssh/tfda_iso.pem
 
 ENTRYPOINT ["./bootstrap.sh"]

@@ -1,0 +1,61 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    - target: "{{ target_host }}"
+      default: "10.128.128.218"
+
+  tasks:
+    - add_host:
+        name: "{{ target }}"
+        groups: os_server
+
+- name: Copy algorithm chart and study data to isolated environment
+  hosts: os_server
+  strategy: free
+  gather_facts: yes
+  remote_user: "{{ remote_username }}"
+  vars:
+    ansible_ssh_private_key_file: ~/.ssh/{{ ssh_key_name }}
+    src_algorithm_dir: "{{ src_algorithm_files_path }}/{{ user_selected_algo }}"
+    dst_algorithm_dir: /home/{{ remote_username }}/algorithm_files/{{ user_selected_algo }}
+    dst_data_dir: /home/{{ remote_username }}/{{ user_selected_study_data }}
+  # TODO: data could be in any or multiple instances
+  tasks:
+    - name: Check if all required variables are passed using --extra-vars
+      fail:
+        msg: "Variable {{ item }} not defined"
+      when: item is not defined
+      with_items:
+        - "{{ ssh_key_name }}"
+
+    - name: Create directory for algorithm files if it doesn't exist
+      file:
+        path: "{{ dst_algorithm_dir }}"
+        state: directory
+        recurse: yes
+    
+    - name: Create data directory if it doesn't exist
+      file:
+        path: "{{ dst_data_dir }}"
+        state: directory
+        recurse: yes
+
+    - name: Copy algorithm file/s
+      copy:
+        src: "{{ src_algorithm_dir }}/"
+        dest: "{{ dst_algorithm_dir }}"
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_id }}"
+        mode: '600'
+
+    - name: Copy user selected study-data bucket to Iso
+      become: yes
+      copy:
+        src: "{{ study_data_src_path }}/"
+        dest: "{{ dst_data_dir }}"
+        # directory_mode: yes
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_id }}"
+        mode: '400' # TODO: data permissions need to be clarified
+        

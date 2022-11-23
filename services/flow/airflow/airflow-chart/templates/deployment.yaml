@@ -156,6 +156,10 @@ spec:
           mountPath: /root/airflow/logs
         - name: modeldata
           mountPath: /models
+        - name: minio-buckets
+          mountPath: /root/airflow/miniobuckets
+        # - name: ssh-key-path
+        #   mountPath: /root/.ssh
         # readinessProbe:
         #   initialDelaySeconds: 120
         #   timeoutSeconds: 5
@@ -245,6 +249,10 @@ spec:
           mountPath: /data
         - name: dicomdir
           mountPath: /pacsdata
+        - name: minio-buckets
+          mountPath: /root/airflow/miniobuckets
+        # - name: ssh-key-path
+        #   mountPath: /root/.ssh
       - name: statsd-metrics-exporter
         image: "{{ .Values.global.registry_url }}/statsd-exporter:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
@@ -287,6 +295,10 @@ spec:
         hostPath:
           path: {{ .Values.global.fast_data_dir }}/workflows/models
           type: DirectoryOrCreate
+      - name: minio-buckets
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}/minio
+          type: DirectoryOrCreate
       - name: ctpinput
         hostPath:
           path: {{ .Values.global.fast_data_dir }}/ctp/incoming
@@ -299,6 +311,11 @@ spec:
         hostPath:
           path: {{ .Values.global.slow_data_dir }}/dcm4che/dicom_data
           type: DirectoryOrCreate
+      # - name: ssh-key-path
+      #   secret:
+      #     secretName: airflow-secrets
+      #     optional: false
+      #     defaultMode: 0600
       imagePullSecrets:
       - name: registry-secret
 ---

@@ -1,0 +1,206 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    - target: "{{ baremetal_hostname }}"
+  tasks:
+    - add_host:
+        name: "{{ target }}"
+        groups: baremetal_server
+
+- name: Create/delete a (QEMU) KVM based VM as an isolated execution environment on BareMetal host
+  hosts: baremetal_server
+  strategy: free
+  gather_facts: yes
+  remote_user: "{{ baremetal_user }}"
+  vars_files: 
+    - secret # This ansible-vault secret with "ansible_sudo_pass: <user_password>" needs to be created first into the playbooks folder
+  environment:
+    PATH: '/home/{{ baremetal_user }}/.local/bin:{{ ansible_env.PATH }}'
+  vars:
+    ansible_ssh_private_key_file: ~/.ssh/{{ ssh_key_name }}
+    # ansible_become_pass: "" # DO NOT USE!! Only meant for testing use above vars_file secrets instead
+    offline_image_source: "{{ offline_image_source }}"
+    selinux_enabled_os: "{{ selinux_enabled_os }}"
+    base_image_name: "{{ base_image_name }}"
+    base_image_path: "{{ base_image_path }}"
+    base_image_url: "{{ base_image_url }}"
+    base_image_sha: "{{ base_image_sha }}"
+    libvirt_pool_dir: "{{ libvirt_pool_dir | default('/var/lib/libvirt/images') }}"
+    vm_config_filepath: "{{ vm_config_filepath }}"
+    vm_name: "{{ instance_name | default('test-isolated-environment') }}"
+    vm_vcpus: "{{ vm_vcpus | default('2') }}"
+    vm_ram_mb: "{{ vm_ram_mb | default('8192') }}"
+    vm_net: "{{ vm_net | default('default') }}"
+    vm_root_pass: "{{ vm_root_pass }}"
+    ssh_key: "{{ ssh_key_path }}/{{ ssh_key_name }}"
+    ssh_pub_key: "{{ ssh_key }}.pub"
+    cleanup_download: "{{ cleanup_download | default('no') }}"
+    cleanup_libvirt: "{{ cleanup_libvirt | default('no') }}"
+    instance_state: "{{ instance_state | default('present') }}"
+
+  tasks:
+    - name: Ensure requirements in place
+      package:
+        name:
+          - libguestfs-tools
+          - python3-libvirt
+        state: present
+      become: yes
+
+    - name: Get VMs list
+      become: yes
+      community.libvirt.virt:
+        command: list_vms
+      register: existing_vms
+      changed_when: no
+      
+    - name: Get VM status
+      become: yes
+      community.libvirt.virt:
+        name: "{{ vm_name }}"
+        command: status
+      register: vm_status
+      when: "vm_name in existing_vms.list_vms"
+
+    - name: if instance not found
+      debug: 
+        msg: "Desired VM does NOT already exist!"
+      when: "vm_name not in existing_vms.list_vms"
+
+    - name: Set libvirt filepath for image
+      set_fact:
+        libvirt_img_filepath: "{{ libvirt_pool_dir }}/{{ base_image_name }}"
+
+    - name: Create VM if does not exist
+      block:      
+      - name: Fetch desired VM config file from host
+        become: yes
+        ## Currently Ansible doesn't directly support directory/recursive copying from remote to local
+        fetch:
+          src: "{{ vm_config_filepath }}"
+          dest: "{{ vm_config_container_filepath }}"
+          flat: yes
+      
+      - name: Modify elements/attributes of the VM XML configuration file according to input parameters
+        include_tasks: customise_kvm_cfg.yaml
+
+      - name: Download base image
+        get_url:
+          url: "{{ base_image_url }}"
+          dest: "{{ base_image_path }}/{{ base_image_name }}"
+          checksum: "sha256:{{ base_image_sha }}"
+        when: not offline_image_source
+
+      - name: Copy base image to libvirt directory
+        become: yes
+        copy:
+          dest: "{{ libvirt_img_filepath }}"
+          src: "{{ base_image_path }}/{{ base_image_name }}"
+          force: no
+          remote_src: yes
+          owner: "libvirt-qemu"
+          group: "kvm"
+          mode: 0660
+        register: copy_results
+
+      - name: Configure the "SELinux" enabled image
+        become: yes
+        command: |
+          virt-customize -a {{ libvirt_img_filepath }} \
+          --hostname {{ vm_name }} \
+          --ssh-inject 'root:file:{{ ssh_pub_key }}' \
+          --uninstall cloud-init \
+          --selinux-relabel
+        when: copy_results is changed and selinux_enabled_os
+
+      - name: Configure the image
+        become: yes
+        command: |
+          virt-customize -a {{ libvirt_img_filepath }} \
+          --hostname {{ vm_name }} \
+        when: copy_results is changed and not selinux_enabled_os
+      
+      - name: Define VM
+        become: yes
+        community.libvirt.virt:
+          command: define
+          xml: "{{ lookup('file', '{{ vm_config_container_filepath }}') }}"
+
+      - name: Ensure VM is started
+        become: yes
+        community.libvirt.virt:
+          name: "{{ vm_name }}"
+          state: running
+        register: vm_start_results
+        until: "vm_start_results is success"
+        retries: 15
+        delay: 2
+
+      - name: Waiting for VM to be ready so that IP address can be extracted
+        wait_for:
+          timeout: 10
+
+      - name: Extract VM's IP address
+        become: yes
+        shell: virsh net-dhcp-leases default
+        register: results
+      - set_fact:
+          vm_ip: "{{ results.stdout | regex_search(regexp) }}"
+        vars:
+          regexp: '(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
+      - debug:
+          msg: "isolated_env_ip: {{ vm_ip }}"
+
+      - name: Reset fingerprint
+        command: ssh-keygen -R {{ vm_ip }}
+        ignore_errors: yes
+
+      - name: Wait for SSH on the Instance
+        become: yes
+        command: "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i {{ ssh_key }} root@{{ vm_ip }} true"
+        register: result
+        until: result.rc == 0
+        retries: 6
+        delay: 10
+      
+      - name: RESULT
+        debug:
+          msg: "VM CREATED SUCCESSFULLY"
+
+      when: "vm_name not in existing_vms.list_vms and instance_state == 'present'"
+
+    - name: Delete the desired VM
+      block:        
+      - name: Shut the desired VM down before deleting
+        become: yes
+        community.libvirt.virt:
+          name: "{{ vm_name }}"
+          command: destroy
+        when: "vm_status.status != 'shutdown' and vm_status != 'crashed'"
+
+      - name: Delete the VM
+        become: yes
+        community.libvirt.virt:
+          name: "{{ vm_name }}"
+          command: undefine        
+    
+      - name: Delete (downloaded) image file
+        become: yes
+        file:
+          path: "{{ base_image_path }}/{{ base_image_name }}"
+          state: absent
+        when: cleanup_download | bool
+      
+      - name: Cleanup libvirt_pool_dir directory
+        become: yes
+        file:
+          path: "{{ libvirt_img_filepath }}"
+          state: absent
+        when: cleanup_libvirt | bool
+      
+      - name: RESULT
+        debug:
+          msg: "VM DELETED SUCCESSFULLY"
+
+      when: "vm_name in existing_vms.list_vms and instance_state == 'absent'"

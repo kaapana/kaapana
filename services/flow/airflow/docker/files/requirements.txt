@@ -10,6 +10,9 @@ dicomweb-client == 0.56.2
 seaborn == 0.11.2
 nibabel == 3.2.2
 numpy == 1.21.5
+ansible == 6.3.0
+openstacksdk == 0.61.0
+lxml
 # cryptography==3.4.8
 # python-dateutil == 2.8.2
 # pytz == 2021.3

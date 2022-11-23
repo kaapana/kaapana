@@ -50,6 +50,12 @@
           v-list-item-content
             v-list-item-title Extensions
           v-list-item-icon
+        v-list-item(:to="'/tdfadashboard'", v-if="isAuthenticated")
+          v-list-item-action
+            v-icon mdi-security
+          v-list-item-content
+            v-list-item-title TFDA
+          v-list-item-icon
     v-app-bar(color="primary" dark dense clipped-left app)
       v-app-bar-nav-icon(@click.stop="drawer = !drawer")
       v-toolbar-title {{ commonData.name }}

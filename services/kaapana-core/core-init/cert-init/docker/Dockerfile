@@ -9,4 +9,5 @@ RUN apk add --no-cache openssl bash
 
 WORKDIR /cert
 COPY handle-secret.sh .
+RUN chmod +x handle-secret.sh
 CMD ["./handle-secret.sh"]

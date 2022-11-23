@@ -60,3 +60,6 @@ dependencies:
   - name: openedc-chart
     version: 0.0.0
     repository: file://../../services/applications/openEDC/openedc-chart
+  - name: nndet-workflow
+    version: 0.0.0
+    repository: file://../../data-processing/processing-pipelines/nndet/extension/nndet-workflow

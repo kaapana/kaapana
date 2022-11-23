@@ -7,7 +7,6 @@ from datetime import datetime
 
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
-from kaapana.operators.LocalDagTriggerOperator import LocalDagTriggerOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator

@@ -3,7 +3,7 @@ from os.path import basename, dirname, join
 import secrets
 import subprocess
 
-from fastapi import APIRouter, Response, Request, UploadFile
+from fastapi import APIRouter, Response, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi.logger import logger
@@ -13,6 +13,7 @@ from config import settings
 import helm_helper
 import utils
 import file_handler
+
 
 # TODO: add endpoint for /helm-delete-file
 # TODO: add dependency injection
@@ -43,16 +44,27 @@ async def upload_file(file: UploadFile):
     return Response(msg, 200)
 
 
-@router.post("/file_chunks")
-async def upload_file_chunk(file: UploadFile):
-    logger.info(f"container file {file.filename}")
-    res, msg = await file_handler.add_file_chunks(file)
+@router.websocket("/file_chunks/{client_id}")
+async def upload_file_chunks(ws: WebSocket, client_id: int):
+    logger.info(f"in function upload_file_chunks with {client_id=}")
+    try:
+        await ws.accept()
+        file_info = await ws.receive_json()
+        logger.info(f"file info received in websocket: {file_info}")
+        fname = file_info["name"]
+        fsize = file_info["fileSize"]
+        chunk_size = file_info["chunkSize"]
 
-    if not res:
-        logger.error(msg)
-        return Response(msg, 500)
+        res, msg = await file_handler.add_file_chunks(ws, fname, fsize, chunk_size)
 
-    return Response(msg, 200)
+        if not res:
+            logger.error(msg)
+            return Response(msg, 500)
+
+    except WebSocketDisconnect:
+        logger.warning(f"WebSocket disconnected {client_id=}")
+    except Exception as e:
+        logger.error(f"upload file failed: {e}")
 
 
 @router.get("/health-check")
@@ -127,7 +139,8 @@ async def pending_applications():
     try:
         extensions_list = []
         for chart in utils.helm_ls(release_filter='kaapanaint'):
-            _, _, ingress_paths, kube_status = helm_helper.get_kube_objects(chart["name"])
+            _, _, ingress_paths, kube_status = helm_helper.get_kube_objects(
+                chart["name"])
             extension = {
                 'releaseName': chart['name'],
                 'links': ingress_paths,

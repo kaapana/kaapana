@@ -1,7 +1,8 @@
 import os
+import math
 
 from typing import Dict, List, Set, Union, Tuple
-from fastapi import UploadFile
+from fastapi import UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.logger import logger
 import aiofiles
 
@@ -11,22 +12,23 @@ import helm_helper
 
 
 def check_file_exists(filename, overwrite):
+    logger.debug(f"checking if file {filename} exists")
     pre = settings.helm_extensions_cache
     if pre[-1] != "/":
         pre += "/"
 
     msg = ""
     # check if file exists
-    fname = pre + filename
-    if os.path.exists(fname):
-        msg = "File {0} already exists".format(fname)
+    fpath = pre + filename
+    logger.debug(f"full path: {fpath=}")
+    if os.path.exists(fpath):
+        msg = "File {0} already exists".format(fpath)
         logger.warning(msg)
         if not overwrite:
             msg += ", returning without overwriting. "
             return "", msg
         msg += ", overwritten"
-
-    return fname, msg
+    return fpath, msg
 
 
 def add_file(file: UploadFile, content: bytes, overwrite: bool = True) -> Tuple[bool, str]:
@@ -75,39 +77,42 @@ def add_file(file: UploadFile, content: bytes, overwrite: bool = True) -> Tuple[
     return True, msg
 
 
-async def add_file_chunks(file: UploadFile, chunk_size=100*1024*1024, overwrite: bool = True) -> Tuple[bool, str]:
-    allowed_ext = ["tgz", "tar.gz", "tar"]
-    f_ext = file.filename.split(".")[1]
-    if f_ext not in allowed_ext:
-        err = f"Wrong file extension '{f_ext}'  allowed extensions are {allowed_ext}"
-        logger.error(err)
-        return False, err
-    logger.debug("filename {0}".format(file.filename))
+async def add_file_chunks(ws: WebSocket, fname: str, fsize: int, chunk_size: int, overwrite: bool = True):
+    max_iter = math.ceil(fsize / chunk_size)
 
-    fpath, msg = check_file_exists(file.filename, overwrite)
-    if fpath == "":
-        return False, msg
+    logger.debug(
+        f"in function: add_file_chunks with {fname=}, {fsize=}, {chunk_size=}, {max_iter}")
 
-    # write file in chunks
-    logger.info(f"async saving file to {fpath} with chunk size {chunk_size}...")
     try:
+        fpath, msg = check_file_exists(fname, overwrite)
+        if fpath == "":
+            return False, msg
+
+        await ws.send_json({"index": -1, "success": True})
+
         async with aiofiles.open(fpath, "wb") as f:
-            i = 1
-            while chunk := await file.read(chunk_size):
-                await f.write(chunk)
-                logger.debug(f"wrote chunk #{i}")
+            i = 0
+            while True:
+                if i > max_iter:
+                    logger.warning("max iterations reached, file write is completed")
+                    break
+
+                logger.debug("awaiting bytes")
+                data = await ws.receive_bytes()
+                logger.debug(
+                    f"received data from websocket, index {i}, length {len(data)}")
+                await f.write(data)
+                await ws.send_json({"index": i, "success": True})
                 i += 1
 
+        logger.debug("closing websocket")
+        await ws.close()
+
+        return True, "File successfully uploaded"
+
+    except WebSocketDisconnect:
+        logger.warning(f"received WebSocketDisconnect with index {i}")
+        raise WebSocketDisconnect
     except Exception as e:
-        logger.error(e)
-        err = "Failed to write container file {0}".format(file.filename)
-        logger.error(err)
-        return False, err
-    finally:
-        f.close()
-        logger.info("write successful")
-
-    if msg == "":
-        msg = "Successfully added chart file {0}".format(file.filename)
-
-    return True, msg
+        logger.error(f"add_file_chunks failed {e}")
+        return False, msg

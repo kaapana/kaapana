@@ -49,27 +49,42 @@ def check_port(name, host, port, delay):
         return 1
 
 
-wait_env = os.getenv('WAIT', "None")
-delay = os.getenv('DELAY', "None")
-files_and_folders_exists = os.getenv('FILES_AND_FOLDERS_EXISTS', "None")
+wait_env = os.getenv('WAIT', None)
+wait_env = wait_env if wait_env != "" else None
 
-if delay != "None":
+delay = os.getenv('DELAY', None)
+delay = delay if delay != "" else None
+
+files_and_folders_exists = os.getenv('FILES_AND_FOLDERS_EXISTS', None)
+files_and_folders_exists = files_and_folders_exists if files_and_folders_exists != "" else None
+
+print("Start service-checker ...")
+print("")
+print("")
+print(f"{wait_env=}")
+print(f"{delay=}")
+print(f"{files_and_folders_exists=}")
+print("")
+
+if delay != None:
     delay = int(delay)
 
-if files_and_folders_exists.endswith(';'):
-    files_and_folders_exists = files_and_folders_exists[:-1]
 
-if (wait_env == "None" and files_and_folders_exists == "None") or delay == "None":
+if (wait_env == None and files_and_folders_exists == None) or delay == None:
     print("WAIT, FILES_AND_FOLDERS_EXISTS or DELAY == None! Usage: WAIT='postgres,localhost,5432;...' + DELAY= int delay in sec + FILES_AND_FOLDERS_EXISTS='/home/charts/file.json'")
-    exit(1)
+    exit(0)
 
-if files_and_folders_exists != "None" and delay != "None":
+if files_and_folders_exists != None and delay != None:
+    
+    if files_and_folders_exists.endswith(';'):
+        files_and_folders_exists = files_and_folders_exists[:-1]
+    
     for file_or_folder in files_and_folders_exists.split(";"):
         while not os.path.exists(file_or_folder):
             time.sleep(delay)
             print(f'Checking for {file_or_folder}')
 
-if wait_env != "None" and delay != "None":
+if wait_env != None and delay != None:
     if wait_env[len(wait_env)-1] == ";":
         wait_env = wait_env[:len(wait_env)-1]
 

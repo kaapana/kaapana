@@ -2,12 +2,17 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: cert-init
-  namespace: "{{  .Values.global.admin_namespace  }}"
+  name: remove-secret
+  namespace: "{{ .Values.global.services_namespace }}"
+  annotations:
+    # post-delete will remove the registry-secret and therfor the job can not pull the image
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
 spec:
   template:
     metadata:
-      name: cert-init
+      name: remove-secret
     spec:
       containers:
       - name: cert-init
@@ -20,24 +25,14 @@ spec:
             memory: 200Mi
         env:
         - name: ACTION
-          value: "install"
+          value: "remove"
         - name: SECRET_NAME
           value: "{{ .Values.global.tls_secret.name }}"
         - name: SECRET_NAMESPACE
+          value: "{{  .Values.global.services_namespace  }}"
+        - name: ADMIN_NAMESPACE
           value: "{{  .Values.global.admin_namespace  }}"
-        - name: COMMON_NAME
-          value: "{{ .Values.global.tls_secret.common_name }}"
-        - name: EXPIRATION
-          value: "{{ .Values.global.tls_secret.expiration }}"
-        volumeMounts:
-        - name: tls-storage
-          mountPath: /cert/tls
-      volumes:
-      - name: tls-storage
-        hostPath:
-          path: "{{ .Values.global.fast_data_dir }}/tls"
-          type: DirectoryOrCreate
       restartPolicy: Never
-      serviceAccountName: kubernetes-dashboard
+      # serviceAccountName: kubernetes-dashboard
       imagePullSecrets:
       - name: registry-secret

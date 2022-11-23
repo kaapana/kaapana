@@ -90,7 +90,7 @@ spec:
   - host: 
     http:
       paths:
-      - path: "/static-website-{{ .Values.postfix }}"
+      - path: /{{ .Values.global.instance_uid }}/static-website-{{ .Values.postfix }}
         pathType: ImplementationSpecific
         backend:
           service:

@@ -55,7 +55,7 @@ spec:
   - host:
     http:
       paths:
-      - path: /dcm4chee-arc
+      - path: /{{ .Values.global.instance_uid }}/dcm4chee-arc
         pathType: ImplementationSpecific
         backend:
           service:
@@ -77,7 +77,7 @@ spec:
   - host:
     http:
       paths:
-      - path: /pacs
+      - path: /{{ .Values.global.instance_uid }}/pacs
         pathType: ImplementationSpecific
         backend:
           service:

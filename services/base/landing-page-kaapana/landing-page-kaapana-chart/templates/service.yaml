@@ -28,7 +28,7 @@ spec:
   - host: 
     http:
       paths:
-      - path: /
+      - path: /{{ .Values.global.instance_uid }}/
         pathType: ImplementationSpecific
         backend:
           service:

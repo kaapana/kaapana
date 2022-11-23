@@ -38,7 +38,7 @@ spec:
   - host:
     http:
       paths:
-      - path: /minio-console
+      - path: /{{ .Values.global.instance_uid }}/minio-console
         pathType: ImplementationSpecific
         backend:
           service:

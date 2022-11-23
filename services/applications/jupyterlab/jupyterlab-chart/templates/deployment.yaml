@@ -112,7 +112,7 @@ spec:
   - host: 
     http:
       paths:
-      - path: "/jupyterlab-{{ $uuid }}"
+      - path: /{{ .Values.global.instance_uid }}/jupyterlab-{{ $uuid }}
         pathType: ImplementationSpecific
         backend:
           service:

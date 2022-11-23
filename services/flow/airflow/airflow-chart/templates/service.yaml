@@ -29,7 +29,7 @@ spec:
   - host: 
     http:
       paths:
-      - path: /flow
+      - path: /{{ .Values.global.instance_uid }}/flow
         pathType: ImplementationSpecific
         backend:
           service:

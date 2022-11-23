@@ -59,7 +59,7 @@ spec:
   - host:
     http:
       paths:
-      - path: /ctp
+      - path: /{{ .Values.global.instance_uid }}/ctp
         pathType: ImplementationSpecific
         backend:
           service:

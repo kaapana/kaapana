@@ -73,7 +73,7 @@ spec:
   - host: 
     http:
       paths:
-      - path: "/tensorboard-{{ $uuid }}"
+      - path: /{{ .Values.global.instance_uid }}/tensorboard-{{ $uuid }}
         pathType: ImplementationSpecific
         backend:
           service:

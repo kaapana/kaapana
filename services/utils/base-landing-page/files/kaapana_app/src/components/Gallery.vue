@@ -9,6 +9,7 @@
     <template v-slot="{item}">
       <v-col :cols="cols">
         <CardSelect
+            :cohort="cohort"
             :series-instance-u-i-d="item.seriesInstanceUID"
             :study-instance-u-i-d="item.studyInstanceUID"
             :selected_tags="inner_selectedTags"
@@ -98,17 +99,41 @@ export default {
   methods: {
     async removeFromCohort(item) {
       if (this.cohort !== null) {
-        await updateCohort({
-          "cohort_name": this.cohort.name,
-          "action": "DELETE",
-          "cohort_query": {"index": "meta"},
-          "cohort_identifiers": [{"identifier": item.seriesInstanceUID}]
-        })
+        try {
+          await updateCohort({
+            "cohort_name": this.cohort.name,
+            "action": "DELETE",
+            "cohort_query": {"index": "meta-index"},
+            "cohort_identifiers": [{"identifier": item.seriesInstanceUID}]
+          })
+          this.$notify({
+            type: 'success',
+            text: `Removed series ${item.seriesDescription} from ${this.cohort.name}`
+          });
+        } catch (error) {
+          this.$notify({
+            type: 'error',
+            title: 'Network/Server error',
+            text: error,
+          });
+        }
       }
       this.removeFromUI(item)
     },
     async deleteFromPlatform(item) {
-      await deleteSeriesFromPlatform(item.seriesInstanceUID)
+      try {
+        await deleteSeriesFromPlatform(item.seriesInstanceUID)
+        this.$notify({
+          type: 'success',
+          text: `Started deletion of series ${item.seriesDescription}`
+        });
+      } catch (error) {
+        this.$notify({
+          type: 'error',
+          title: 'Network/Server error',
+          text: error,
+        });
+      }
       this.removeFromUI(item)
     },
     removeFromUI(item) {

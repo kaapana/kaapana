@@ -41,11 +41,7 @@ const deleteSeriesFromPlatform = async (seriesInstanceUID, dag_id = 'delete-seri
 }
 
 const updateCohort = async (body) => {
-    try {
-        return await httpClient.put(KAAPANA_BACKEND_ENDPOINT + '/cohort', body)
-    } catch (error) {
-        Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
-    }
+    return await httpClient.put(KAAPANA_BACKEND_ENDPOINT + '/cohort', body)
 }
 
 const loadCohorts = async () => {
@@ -62,6 +58,18 @@ const loadCohorts = async () => {
         Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
     }
 }
+
+const loadCohortNames = async () => {
+    try {
+        const cohorts = (
+            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + '/cohort-names')
+        )
+        return cohorts.data
+    } catch (error) {
+        Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
+    }
+}
+
 
 const loadSeriesFromMeta = async (seriesInstanceUID) => {
     try {
@@ -185,5 +193,6 @@ export {
     loadCohorts,
     formatMetadata,
     deleteSeriesFromPlatform,
-    updateCohort
+    updateCohort,
+    loadCohortNames
 }

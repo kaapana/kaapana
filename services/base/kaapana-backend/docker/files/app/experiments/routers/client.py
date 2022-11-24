@@ -124,7 +124,7 @@ async def submit_workflow_json_schema(request: Request, json_schema_data: schema
         db_cohort = crud.get_cohort(db, conf_data["data_form"]["cohort_name"])
         conf_data["data_form"].update({
             "cohort_query": json.loads(db_cohort.cohort_query),
-            "cohort_identifiers": json.loads(db_cohort.cohort_identifiers)
+            "cohort_identifiers": [identifier.identifier for identifier in db_cohort.cohort_identifiers]
         })
 
         data_form = conf_data["data_form"]

@@ -1,6 +1,7 @@
 <template>
   <div id="app">
     <v-app id="inspire">
+      <notifications position="bottom right" width="20%"/>
       <v-navigation-drawer clipped v-model="drawer" app class="ta-center">
         <v-list dense>
           <v-list-item :to="'/'">

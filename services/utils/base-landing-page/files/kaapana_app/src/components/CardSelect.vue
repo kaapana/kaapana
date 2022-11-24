@@ -29,31 +29,12 @@
         >
           <Chip :items="[modality]"/>
           <v-spacer></v-spacer>
-          <v-menu>
-            <template v-slot:activator="{ on, attrs }">
-              <v-btn
-                  icon
-                  v-bind="attrs"
-                  v-on="on"
-                  color="white"
-              >
-                <v-icon>mdi-dots-vertical</v-icon>
-              </v-btn>
-            </template>
-
-            <v-list>
-              <v-list-item
-                  @click="() => {this.$emit('removeFromCohort')}"
-              >
-                <v-list-item-title>Remove from cohort</v-list-item-title>
-              </v-list-item>
-              <v-list-item
-                  @click="deleteSeriesFromPlatform()"
-              >
-                <v-list-item-title>Delete from system</v-list-item-title>
-              </v-list-item>
-            </v-list>
-          </v-menu>
+          <CardMenu
+            @removeFromCohort="() => {this.$emit('removeFromCohort')}"
+            @deleteFromPlatform="() => {this.$emit('deleteFromPlatform')}"
+            :cohort="cohort"
+            :seriesInstanceUID="seriesInstanceUID"
+          ></CardMenu>
         </v-app-bar>
       </v-img>
       <v-card-text v-if="config.show_card_text">
@@ -87,15 +68,16 @@
 
 import Chip from "./Chip.vue";
 import TagChip from "./TagChip.vue";
+import CardMenu from "./CardMenu";
 
 import {loadSeriesFromMeta, updateTags} from "@/common/api.service"
-import {deleteSeriesFromPlatform} from "../common/api.service";
 
 
 export default {
   name: "CardSelect",
-  components: {Chip, TagChip},
+  components: {Chip, TagChip, CardMenu},
   props: {
+    cohort:{},
     seriesInstanceUID: {
       type: String,
     },
@@ -156,12 +138,6 @@ export default {
           this.tags = data.tags || []
         }
       }
-    },
-    async deleteSeriesFromPlatform() {
-      await deleteSeriesFromPlatform(
-          this.seriesInstanceUID
-      )
-      this.$emit('deleteFromPlatform')
     },
     async deleteTag(tag) {
       const request_body = [{

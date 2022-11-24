@@ -30,17 +30,41 @@
           <Chip :items="[modality]"/>
           <v-spacer></v-spacer>
           <CardMenu
-            @removeFromCohort="() => {this.$emit('removeFromCohort')}"
-            @deleteFromPlatform="() => {this.$emit('deleteFromPlatform')}"
-            :cohort="cohort"
-            :seriesInstanceUID="seriesInstanceUID"
+              @removeFromCohort="() => {this.$emit('removeFromCohort')}"
+              @deleteFromPlatform="() => {this.$emit('deleteFromPlatform')}"
+              :cohort="cohort"
+              :seriesInstanceUID="seriesInstanceUID"
           ></CardMenu>
         </v-app-bar>
       </v-img>
       <v-card-text v-if="config.show_card_text">
         <v-row no-gutters>
-          <v-col cols="12">
+          <v-col cols="11">
             {{ seriesDescription }}
+          </v-col>
+          <v-col cols="1">
+            <v-tooltip bottom>
+              <template v-slot:activator="{ on, attrs }">
+                <v-icon
+                    small
+                    v-bind="attrs"
+                    v-on="on"
+                >
+                  mdi-information
+                </v-icon>
+              </template>
+              <v-data-table
+                  :headers="[
+      {text: 'Tag', value: 'name'},
+      {text: 'Value', value: 'value'},
+    ]"
+                  :items="tagsData"
+                  fixed-header
+                  :hide-default-footer="true"
+                  :items-per-page=-1
+                  dense
+              />
+            </v-tooltip>
           </v-col>
         </v-row>
         <div v-if="seriesData[data['key']]" v-for="data in config.props">
@@ -71,13 +95,14 @@ import TagChip from "./TagChip.vue";
 import CardMenu from "./CardMenu";
 
 import {loadSeriesFromMeta, updateTags} from "@/common/api.service"
+import {getDicomTags} from "../common/api.service";
 
 
 export default {
   name: "CardSelect",
   components: {Chip, TagChip, CardMenu},
   props: {
-    cohort:{},
+    cohort: {},
     seriesInstanceUID: {
       type: String,
     },
@@ -87,7 +112,7 @@ export default {
     selected_tags: {
       type: Array,
       default: []
-    },
+    }
   },
   data() {
     return {
@@ -97,6 +122,7 @@ export default {
       modality: null,
       tags: [],
       config: {},
+      tagsData: [],
 
       // only required for double-click-event
       clicks: 0,
@@ -119,6 +145,7 @@ export default {
     }
 
     await this.get_data();
+    this.tagsData = await getDicomTags(this.studyInstanceUID, this.seriesInstanceUID)
   },
   watch: {
     // todo: why is this needed?

@@ -40,6 +40,12 @@ const deleteSeriesFromPlatform = async (seriesInstanceUID, dag_id = 'delete-seri
         })
 }
 
+const getDicomTags = async (studyInstanceUID, seriesInstanceUID) => {
+    const data = await loadMetaData(studyInstanceUID, seriesInstanceUID)
+    const formatedMetadata = await formatMetadata(JSON.stringify(data[0]))
+    return formatedMetadata.data
+}
+
 const updateCohort = async (body) => {
     return await httpClient.put(KAAPANA_BACKEND_ENDPOINT + '/cohort', body)
 }
@@ -194,5 +200,6 @@ export {
     formatMetadata,
     deleteSeriesFromPlatform,
     updateCohort,
-    loadCohortNames
+    loadCohortNames,
+    getDicomTags
 }

@@ -8,8 +8,6 @@ spec:
   stripPrefix:
     prefixes:
     - /traefik
-    - /error-pages
-    - /kubernetes
     - /meta
     - /alert
     - /grafana

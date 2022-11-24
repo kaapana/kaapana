@@ -4,7 +4,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: init-collections
-  namespace: "{{  .Values.global.admin_namespace  }}"
+  namespace: "{{  .Values.global.helm_namespace  }}"
 spec:
   template:
     metadata:
@@ -55,7 +55,7 @@ spec:
           path: {{ $.Values.global.fast_data_dir }}/extensions
           type: DirectoryOrCreate
       restartPolicy: Never
-      serviceAccountName: kubernetes-dashboard
+      serviceAccountName: kaapana-kube-admin
       imagePullSecrets:
       - name: registry-secret
   backoffLimit: 2
@@ -64,7 +64,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: init-extensions
-  namespace: "{{  .Values.global.admin_namespace  }}"
+  namespace: "{{  $.Values.global.helm_namespace  }}"
 spec:
   template:
     metadata:
@@ -169,7 +169,7 @@ spec:
         hostPath:
           path: {{ $.Values.global.fast_data_dir }}/extensions
           type: DirectoryOrCreate
-      serviceAccountName: kubernetes-dashboard
+      serviceAccountName: kaapana-kube-admin
       imagePullSecrets:
       - name: registry-secret
   backoffLimit: 2

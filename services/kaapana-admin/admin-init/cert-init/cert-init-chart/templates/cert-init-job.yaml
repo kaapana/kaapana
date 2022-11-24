@@ -2,8 +2,8 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: cert-init
-  namespace: "{{ .Values.global.services_namespace }}"
+  name: "cert-init-{{ randAlphaNum 3 | lower }}"
+  namespace: "{{ .Values.global.admin_namespace }}"
 spec:
   template:
     metadata:
@@ -40,6 +40,6 @@ spec:
           path: "{{ .Values.global.fast_data_dir }}/tls"
           type: DirectoryOrCreate
       restartPolicy: Never
-      # serviceAccountName: kubernetes-dashboard
+      serviceAccountName: kaapana-kube-admin
       imagePullSecrets:
       - name: registry-secret

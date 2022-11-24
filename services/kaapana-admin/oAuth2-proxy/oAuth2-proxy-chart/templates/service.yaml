@@ -3,7 +3,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: oauth2-proxy-service
-  namespace: "{{  .Values.global.admin_namespace  }}"
+  namespace: "{{  .Values.global.services_namespace  }}"
 spec:
   selector:
     app-name: oauth2-proxy
@@ -41,7 +41,7 @@ metadata:
   namespace: "{{  .Values.global.services_namespace  }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.admin_namespace  }}-errorpages@kubernetescrd
+    
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

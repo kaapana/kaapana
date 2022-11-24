@@ -66,14 +66,14 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.admin_namespace  }}-errorpages@kubernetescrd
+    
     traefik.ingress.kubernetes.io/preserve-host: "true"
 spec:
   rules:
   - host: 
     http:
       paths:
-      - path: /{{ .Values.global.instance_uid }}/tensorboard-{{ $uuid }}
+      - path: /tensorboard-{{ $uuid }}
         pathType: ImplementationSpecific
         backend:
           service:

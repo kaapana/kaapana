@@ -1,13 +1,4 @@
 
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  labels:
-    k8s-app: kubernetes-dashboard
-  name: kubernetes-dashboard
-  namespace: "{{  .Values.global.admin_namespace  }}"
-
----
 
 apiVersion: v1
 kind: Secret
@@ -19,21 +10,6 @@ metadata:
 type: Opaque
 data:
   csrf: ""
-
----
-
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: "kubernetes-dashboard-{{  .Values.global.instance_uid  }}"
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: "cluster-admin"
-subjects:
-  - kind: ServiceAccount
-    name: kubernetes-dashboard
-    namespace: "{{  .Values.global.admin_namespace  }}"
 
 ---
 
@@ -92,7 +68,7 @@ spec:
       volumes:
         - name: tmp-volume
           emptyDir: {}
-      serviceAccountName: kubernetes-dashboard
+      serviceAccountName: kaapana-kube-admin
       imagePullSecrets:
       - name: registry-secret
 

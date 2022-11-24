@@ -418,7 +418,6 @@ class Container:
                     }
 
                 return issue
-                return issue
 
         else:
             BuildUtils.logger.info(f"{self.build_tag}: push disabled")

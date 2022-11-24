@@ -214,13 +214,7 @@ function delete_deployment {
         if [ -z "$UNINSTALL_TEST" ]; then
             break
         else
-            echo -e "${YELLOW}Waiting for: ${NC}"
-            if [ ! -z "$DEPLOYED_NAMESPACES" ]; then
-                echo -e "${YELLOW}DEPLOYED_NAMESPACES: $DEPLOYED_NAMESPACES ${NC}"
-            fi
-            if [ ! -z "$TERMINATING_PODS" ]; then
-                echo -e "${YELLOW}TERMINATING_PODS:    $TERMINATING_PODS ${NC}"
-            fi
+            echo -e "${YELLOW}Waiting for $TERMINATING_PODS $DEPLOYED_NAMESPACES ${NC}"
         fi
     done
     

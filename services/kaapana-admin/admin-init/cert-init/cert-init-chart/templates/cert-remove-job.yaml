@@ -2,8 +2,8 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: remove-secret
-  namespace: "{{ .Values.global.services_namespace }}"
+  name: "remove-secret-{{ randAlphaNum 3 | lower }}"
+  namespace: "{{ .Values.global.admin_namespace }}"
   annotations:
     # post-delete will remove the registry-secret and therfor the job can not pull the image
     "helm.sh/hook": pre-delete
@@ -12,7 +12,7 @@ metadata:
 spec:
   template:
     metadata:
-      name: remove-secret
+      name: "remove-secret"
     spec:
       containers:
       - name: cert-init
@@ -33,6 +33,6 @@ spec:
         - name: ADMIN_NAMESPACE
           value: "{{  .Values.global.admin_namespace  }}"
       restartPolicy: Never
-      # serviceAccountName: kubernetes-dashboard
+      serviceAccountName: kaapana-kube-admin
       imagePullSecrets:
       - name: registry-secret

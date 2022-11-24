@@ -12,7 +12,7 @@ assert ADMIN_NAMESPACE
 SERVICES_NAMESPACE = os.getenv('SERVICES_NAMESPACE', None)
 assert SERVICES_NAMESPACE
 
-HELM_API=f"http://kube-helm-service.{ADMIN_NAMESPACE}.svc:5000"
+HELM_API=f"http://kube-helm-service.{SERVICES_NAMESPACE}.svc:5000"
 AIRFLOW_API = f"http://airflow-service.{SERVICES_NAMESPACE}.svc:8080/flow/kaapana/api/trigger/service-daily-cleanup-jobs"
 
 regex = r'image=(\"|\'|f\"|f\')([\w\-\\{\}.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\\{\}\.]+)(\"|\'|f\"|f\')'

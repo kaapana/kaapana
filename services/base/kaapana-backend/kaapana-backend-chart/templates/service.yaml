@@ -42,14 +42,14 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-strip-prefix-kaapana-backend@kubernetescrd #, {{  .Values.global.admin_namespace  }}-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-strip-prefix-kaapana-backend@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
   - host:
     http:
       paths:
-      - path: /{{ .Values.global.instance_uid }}/kaapana-backend
+      - path: /kaapana-backend
         pathType: ImplementationSpecific
         backend:
           service:

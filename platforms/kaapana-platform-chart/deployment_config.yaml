@@ -13,13 +13,13 @@ services_namespace: "services"
 admin_namespace: "admin"
 jobs_namespace: "jobs"
 extensions_namespace: "extensions"
-helm_namespace: "helm-platform"
-# kaapana_collections:
-# - name: kaapana-extension-collection
-# preinstall_extensions:
-# - name: code-server-chart
-# - name: kaapana-plugin-chart
-# additional_env:
-# - name: INSTANCE_NAME
-#   default_value: "central"
-#   helm_path: global.instance_name
+helm_namespace: "services"
+kaapana_collections:
+- name: kaapana-extension-collection
+preinstall_extensions:
+- name: code-server-chart
+- name: kaapana-plugin-chart
+additional_env:
+- name: INSTANCE_NAME
+  default_value: "central"
+  helm_path: global.instance_name

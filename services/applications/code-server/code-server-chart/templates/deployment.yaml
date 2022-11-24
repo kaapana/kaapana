@@ -125,7 +125,7 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.admin_namespace  }}-errorpages@kubernetescrd,{{ .Values.global.services_namespace }}-cs-strip-prefix-{{ $uuid }}@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-cs-strip-prefix-{{ $uuid }}@kubernetescrd
     traefik.ingress.kubernetes.io/preserve-host: "true"
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
@@ -133,7 +133,7 @@ spec:
   - host: 
     http:
       paths:
-      - path: /{{ .Values.global.instance_uid }}/code-{{ $uuid }}/
+      - path: /code-{{ $uuid }}/
         pathType: ImplementationSpecific
         backend:
           service:

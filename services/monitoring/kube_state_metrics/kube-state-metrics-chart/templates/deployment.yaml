@@ -51,6 +51,6 @@ spec:
           runAsUser: 65534
       nodeSelector:
         kubernetes.io/os: linux
-      serviceAccountName: kube-state-metrics
+      serviceAccountName: kaapana-kube-admin
       imagePullSecrets:
       - name: registry-secret

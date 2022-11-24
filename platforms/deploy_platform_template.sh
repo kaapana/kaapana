@@ -207,15 +207,20 @@ function delete_deployment {
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
     do
         sleep 3
-        DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered '$JOBS_NAMESPACE|$EXTENSIONS_NAMESPACE|$SERVICES_NAMESPACE' | cut -d' ' -f1")
+        DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered '$JOBS_NAMESPACE|$EXTENSIONS_NAMESPACE' | cut -d' ' -f1")
         TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E --line-buffered 'Terminating' | cut -d' ' -f1")
         echo -e ""
-        echo -e "${YELLOW}Waiting for: ${NC}"
-        echo -e "${YELLOW}TERMINATING_PODS:    $TERMINATING_PODS {NC}"
-        echo -e "${YELLOW}DEPLOYED_NAMESPACES: $DEPLOYED_NAMESPACES ${NC}"
         UNINSTALL_TEST=$DEPLOYED_NAMESPACES$TERMINATING_PODS
         if [ -z "$UNINSTALL_TEST" ]; then
             break
+        else
+            echo -e "${YELLOW}Waiting for: ${NC}"
+            if [ ! -z "$DEPLOYED_NAMESPACES" ]; then
+                echo -e "${YELLOW}DEPLOYED_NAMESPACES: $DEPLOYED_NAMESPACES ${NC}"
+            fi
+            if [ ! -z "$TERMINATING_PODS" ]; then
+                echo -e "${YELLOW}TERMINATING_PODS:    $TERMINATING_PODS ${NC}"
+            fi
         fi
     done
     
@@ -236,7 +241,7 @@ function delete_deployment {
 }
 
 function clean_up_kubernetes {
-    for n in $EXTENSIONS_NAMESPACE $JOBS_NAMESPACE $SERVICES_NAMESPACE $HELM_NAMESPACE;
+    for n in $EXTENSIONS_NAMESPACE $JOBS_NAMESPACE $HELM_NAMESPACE;
     do
         echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
         microk8s.kubectl delete --ignore-not-found namespace $n

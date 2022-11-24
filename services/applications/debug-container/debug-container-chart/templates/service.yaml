@@ -27,7 +27,7 @@ spec:
   - host:
     http:
       paths:
-      - path: /{{ .Values.global.instance_uid }}/debug
+      - path: /debug
         pathType: ImplementationSpecific
         backend:
           service:

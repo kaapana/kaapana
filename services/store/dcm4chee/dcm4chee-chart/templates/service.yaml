@@ -48,14 +48,14 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.admin_namespace  }}-errorpages@kubernetescrd
+    
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
   - host:
     http:
       paths:
-      - path: /{{ .Values.global.instance_uid }}/dcm4chee-arc
+      - path: /dcm4chee-arc
         pathType: ImplementationSpecific
         backend:
           service:
@@ -70,14 +70,14 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-rewrite-pacs@kubernetescrd,{{  .Values.global.admin_namespace  }}-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-rewrite-pacs@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
   - host:
     http:
       paths:
-      - path: /{{ .Values.global.instance_uid }}/pacs
+      - path: /pacs
         pathType: ImplementationSpecific
         backend:
           service:

@@ -178,6 +178,16 @@ export default {
     },
     modifyTags() {
       let request_body = []
+
+      if (this.selected_tags.length === 0) {
+        this.$notify({
+          type: 'hint',
+          title: 'No label selected',
+          text: 'There was no label selected. First select a label and then click on the respective Item to assign it.',
+        })
+        return
+      }
+
       const tagsAlreadyExist = this.selected_tags.filter(
           el => this.tags.includes(el)
       ).length === this.selected_tags.length

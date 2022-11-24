@@ -4,18 +4,27 @@
       <v-container class="pa-0" fluid>
         <v-card class="rounded-0">
           <div style="padding: 0 10px 10px 10px">
-            <v-select
-              v-model="cohort"
-              hint="Cohort"
-              :items="cohorts"
-              item-text="name"
-              item-value="identifiers"
-              label="Select"
-              persistent-hint
-              return-object
-              single-line
-            ></v-select>
             <TagBar @selectedTags="(_tags) => this.tags = _tags"/>
+            <v-row dense align="center" style="padding-bottom: 5px">
+              <v-col cols="1" align="center">
+                <v-icon>mdi-folder</v-icon>
+              </v-col>
+              <v-col>
+                <v-select
+                    v-model="cohort"
+                    :items="cohorts"
+                    item-text="name"
+                    item-value="identifiers"
+                    label="Select Dataset"
+                    clearable
+                    hide-details
+                    return-object
+                    single-line
+                    dense
+                    @click:clear="() => this.cohort=null"
+                ></v-select>
+              </v-col>
+            </v-row>
             <Search ref="search" :cohort=cohort @search="(query) => updatePatients(query)"/>
           </div>
           <v-divider/>
@@ -24,23 +33,23 @@
       <v-container fluid class="gallery overflow-auto rounded-0 v-card v-sheet pa-0">
         <!--        <ErrorBoundary>-->
         <v-skeleton-loader
-          v-if="isLoading"
-          class="mx-auto"
-          type="list-item@20"
+            v-if="isLoading"
+            class="mx-auto"
+            type="list-item@20"
         ></v-skeleton-loader>
         <StructuredGallery
-          v-else-if="!isLoading && data.length > 0 && structuredGallery"
-          :patients="data"
-          :selectedTags="tags"
-          :cohort="cohort"
-          @imageId="(imageId) => this.image_id = imageId"
+            v-else-if="!isLoading && data.length > 0 && structuredGallery"
+            :patients="data"
+            :selectedTags="tags"
+            :cohort="cohort"
+            @imageId="(imageId) => this.image_id = imageId"
         />
         <Gallery
-          v-else-if="!isLoading && data.length > 0 && !structuredGallery"
-          :data="data"
-          :selectedTags="tags"
-          :cohort="cohort"
-          @imageId="(imageId) => this.image_id = imageId"
+            v-else-if="!isLoading && data.length > 0 && !structuredGallery"
+            :data="data"
+            :selectedTags="tags"
+            :cohort="cohort"
+            @imageId="(imageId) => this.image_id = imageId"
         />
         <h3 v-else>
           {{ message }}
@@ -49,14 +58,14 @@
       </v-container>
     </v-container>
     <v-container fluid v-if="this.image_id" class="detailView--fixed rounded-0 v-card v-sheet pa-0">
-      <ErrorBoundary>
-        <DetailView
+      <!--      <ErrorBoundary>-->
+      <DetailView
           :series-instance-u-i-d="this.image_id['seriesInstanceUID']"
           :study-instance-u-i-d="this.image_id['studyInstanceUID']"
           :seriesDescription="this.image_id['seriesDescription']"
           @close="() => this.image_id = null"
-        />
-      </ErrorBoundary>
+      />
+      <!--      </ErrorBoundary>-->
     </v-container>
   </v-container>
 </template>
@@ -123,20 +132,20 @@ export default {
 </script>
 <style scoped>
 .detailView--fixed {
-  width: 30vw;
+  width: 30%;
   height: calc(100vh + 127px);
   float: left;
   overflow-y: auto;
 }
 
 .overview-shared {
-  width: 70vw;
+  width: 70%;
   height: inherit;
   float: left;
 }
 
 .overview-full {
-  width: 100vw;
+  width: 100%;
   height: inherit;
   float: left;
 }
@@ -150,6 +159,7 @@ export default {
   top: 48px;
   overflow: hidden;
 }
+
 .container {
   padding: 0;
 }

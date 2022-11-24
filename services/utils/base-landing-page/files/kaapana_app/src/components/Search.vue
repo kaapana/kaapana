@@ -8,7 +8,6 @@
         <v-text-field
             label="Search"
             v-model="query_string"
-            hide-details
             dense
             single-line
         />

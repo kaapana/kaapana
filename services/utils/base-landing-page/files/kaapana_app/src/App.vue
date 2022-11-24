@@ -33,12 +33,12 @@
             </v-list-item-content>
             <v-list-item-icon></v-list-item-icon>
           </v-list-item>
-          <v-list-item :to="'/cohort'" v-if="isAuthenticated">
+          <v-list-item :to="'/Datasets'" v-if="isAuthenticated">
             <v-list-item-action>
-              <v-icon>mdi-controller-classic</v-icon>
+              <v-icon>mdi-view-gallery-outline</v-icon>
             </v-list-item-action>
             <v-list-item-content>
-              <v-list-item-title>Cohort</v-list-item-title>
+              <v-list-item-title>Datasets</v-list-item-title>
             </v-list-item-content>
             <v-list-item-icon></v-list-item-icon>
           </v-list-item>

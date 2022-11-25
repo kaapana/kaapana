@@ -20,6 +20,7 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env:
           - name: WAIT
+
             value: "keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
           - name: DELAY
             value: "3"
@@ -37,7 +38,7 @@ spec:
           - --login-url=https://{{ required "A valid hostname (or fqdn) is required!" $.Values.global.hostname }}/auth/realms/kaapana/protocol/openid-connect/auth
           - --oidc-issuer-url=https://{{ required "A valid hostname (or fqdn) is required!" $.Values.global.hostname }}/auth/realms/kaapana
         {{- end }}
-          - --upstream=https://traefik:{{ .Values.global.https_port }}
+          - --upstream=https://traefik.{{ .Values.global.services_namespace }}:{{ .Values.global.https_port }}
           - --provider=keycloak-oidc
           - --client-id=kaapana
           - --client-secret=uQBJzc2YDzjRfj2OCT79JDShojeqAK2R

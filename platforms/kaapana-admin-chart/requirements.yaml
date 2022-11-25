@@ -8,3 +8,8 @@ dependencies:
     version: 0.0.0
   - name: cert-init-chart
     version: 0.0.0
+  - name: traefik-chart
+    version: 0.0.0
+  - name: oAuth2-proxy-chart
+    version: 0.0.0
+  

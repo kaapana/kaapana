@@ -60,8 +60,10 @@ dependencies:
   - name: kube-helm-chart
     version: 0.0.0
   - name: traefik-chart
+    condition: global.include_reverse_proxy
     version: 0.0.0
   - name: oAuth2-proxy-chart
+    condition: global.include_reverse_proxy
     version: 0.0.0
   - name: cert-init-chart
     version: 0.0.0

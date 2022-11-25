@@ -133,14 +133,14 @@ def get_publication_dict():
 
 def get_workflow_dict():
     
-    task_params = TaskParams(name="Task000D3_Example",
+    task_params_list = [TaskParams(name="Task000D3_Example",
                              description="nndet example",
                              url="https://github.com/MIC-DKFZ/nnDetection",
                              input_modalities="toy_data",
                              body_part="None",
                              det_targets="noisy rectangles",
                              pretrained_model_list=["RetinaUNetV001_D3V001_3d", "placeholder"],
-                             fold_list=["1", "2"])
+                             fold_list=["1", "2"])]
     
     
     return {
@@ -150,11 +150,7 @@ def get_workflow_dict():
             "oneOf": [{
                         "title": task_params.name,
                         "properties": get_properties_dict(task_params)
-                    }#,
-                    #{
-                    #    "title": "task_place_holder",
-                    #    "properties": property_dict_template
-                    #}
+                    } for task_params in task_params_list
                     ]
             }
 

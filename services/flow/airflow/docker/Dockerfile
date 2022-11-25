@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python3.8 -m pip install --upgrade pip && python3.8 -m pip install -U setuptools
 
 COPY files/requirements.txt ./
-RUN python3.8 -m pip install --no-cache-dir -r requirements.txt --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.4.2/constraints-3.7.txt"
+RUN python3.8 -m pip install --no-cache-dir -r requirements.txt --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.8.txt"
 
 COPY files/scripts/ /scripts
 

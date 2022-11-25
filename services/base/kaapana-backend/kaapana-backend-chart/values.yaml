@@ -8,4 +8,4 @@ global:
     credentials_keycloak_backend_password: "Kaapana2020Backend"
     minio_url: "minio-service.store.svc:9000"
     # dev_files: "/home/ubuntu/dev/kaapana-backend"
-    dev_files: "/home/itcf/dev/kaapana-backend"
+

@@ -2,20 +2,12 @@
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
-  name: strip-prefix
+  name: traefik-strip-prefix
   namespace: "{{  .Values.global.services_namespace  }}"
 spec:
   stripPrefix:
     prefixes:
     - /traefik
-    - /meta
-    - /alert
-    - /grafana
-    - /orthanc
-    - /jena
-    - /web-ide
-    - /os
-    - /kube-helm-api
     forceSlash: true
 ---
 apiVersion: traefik.containo.us/v1alpha1

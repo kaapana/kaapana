@@ -14,6 +14,17 @@ spec:
   selector:
     app-name: kube-helm
 ---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: kh-strip-prefix
+  namespace: "{{  .Values.global.services_namespace  }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - /kube-helm-api
+    forceSlash: true
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -21,7 +32,7 @@ metadata:
   namespace: "{{  .Values.global.services_namespace  }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-strip-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-kh-strip-prefix@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

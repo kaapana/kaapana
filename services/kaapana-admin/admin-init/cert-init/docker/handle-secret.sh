@@ -24,16 +24,22 @@ function install_cert_files {
     else
         echo "Secret $SECRET_NAME already found in namespace $ADMIN_NAMESPACE"
     fi
-    if kubectl get namespace $SECRET_NAMESPACE; then
-        echo "Copy secret $SECRET_NAME from namespace $ADMIN_NAMESPACE -> $SECRET_NAMESPACE ..."
-        if ! kubectl get secret $SECRET_NAME --namespace=$ADMIN_NAMESPACE -oyaml | grep -v '^\s*namespace:\s' | kubectl apply --namespace=$SECRET_NAMESPACE -f -; then
-            echo "ERROR copying secret $SECRET_NAME in namespace $SECRET_NAMESPACE" 
-            exit 1
-        fi
-        echo "Secret $SECRET_NAME created in namespace $SECRET_NAMESPACE"
+
+    if [ "$SECRET_NAMESPACE" == "$ADMIN_NAMESPACE" ]; then
+        echo "SERVICES_NAMESPACE == ADMIN_NAMESPACE -> skip copy of secret."
     else
-        echo "SECRET_NAMESPACE: $SECRET_NAMESPACE not present -> skipping copy of secret ..."
+        if kubectl get namespace $SECRET_NAMESPACE; then
+            echo "Copy secret $SECRET_NAME from namespace $ADMIN_NAMESPACE -> $SECRET_NAMESPACE ..."
+            if ! kubectl get secret $SECRET_NAME --namespace=$ADMIN_NAMESPACE -oyaml | grep -v '^\s*namespace:\s' | kubectl apply --namespace=$SECRET_NAMESPACE -f -; then
+                echo "ERROR copying secret $SECRET_NAME in namespace $SECRET_NAMESPACE" 
+                exit 1
+            fi
+            echo "Secret $SECRET_NAME created in namespace $SECRET_NAMESPACE"
+        else
+            echo "SECRET_NAMESPACE: $SECRET_NAMESPACE not present -> skipping copy of secret ..."
+        fi
     fi
+    
 }
 
 function install_cert {

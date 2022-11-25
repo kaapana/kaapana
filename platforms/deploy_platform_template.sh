@@ -42,6 +42,7 @@ JOBS_NAMESPACE="{{ jobs_namespace }}"
 EXTENSIONS_NAMESPACE="{{ extensions_namespace }}"
 HELM_NAMESPACE="{{ helm_namespace }}"
 
+INCLUDE_REVERSE_PROXY=false
 ######################################################
 # Individual platform configuration
 ######################################################
@@ -85,6 +86,8 @@ if [ ! -z $INSTANCE_UID ]; then
 
     FAST_DATA_DIR="$FAST_DATA_DIR-$INSTANCE_UID"
     SLOW_DATA_DIR="$SLOW_DATA_DIR-$INSTANCE_UID"
+    
+    INCLUDE_REVERSE_PROXY=true
 fi
 echo ""
 echo "JOBS_NAMESPACE:       $JOBS_NAMESPACE "
@@ -368,6 +371,7 @@ function deploy_chart {
     --set-string global.admin_namespace=$ADMIN_NAMESPACE \
     --set-string global.gpu_support="$GPU_SUPPORT" \
     --set-string global.helm_namespace="$HELM_NAMESPACE" \
+    --set global.include_reverse_proxy=$INCLUDE_REVERSE_PROXY \
     --set-string global.home_dir="$HOME" \
     --set-string global.hostname="$DOMAIN" \
     --set-string global.http_port="$HTTP_PORT" \

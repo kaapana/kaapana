@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: traefik-web-api-ip
-  namespace: "{{  .Values.global.services_namespace  }}"
+  namespace: "{{  .Values.global.helm_namespace  }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     
@@ -31,10 +31,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: traefik-ingress
-  namespace: "{{  .Values.global.services_namespace  }}"
+  namespace: "{{  .Values.global.helm_namespace  }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-traefik-redirect@kubernetescrd,{{  .Values.global.services_namespace  }}-traefik-strip-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.helm_namespace  }}-traefik-redirect@kubernetescrd,{{  .Values.global.helm_namespace  }}-traefik-strip-prefix@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

@@ -10,5 +10,5 @@ data:
 kind: ConfigMap
 metadata:
   name: traefik-config
-  namespace: "{{  .Values.global.services_namespace  }}"
+  namespace: "{{  .Values.global.helm_namespace  }}"
 ---

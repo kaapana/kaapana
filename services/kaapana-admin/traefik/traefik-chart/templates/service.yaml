@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: traefik
-  namespace: "{{  .Values.global.services_namespace  }}"
+  namespace: "{{  .Values.global.helm_namespace  }}"
 spec:
   type: ClusterIP
   ports:
@@ -19,7 +19,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: traefik-http
-  namespace: "{{  .Values.global.services_namespace  }}"
+  namespace: "{{  .Values.global.helm_namespace  }}"
 spec:
   type: NodePort
   ports:

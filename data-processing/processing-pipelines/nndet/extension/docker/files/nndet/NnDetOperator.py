@@ -20,7 +20,7 @@ class NnDetParams:
 
 class NnDetOperator(KaapanaBaseOperator):
     """
-    nnDetection operator
+    nnDetection operator: simultaneous localization and categorization of objects in medical images (medical object detection)
     
     Code: https://github.com/MIC-DKFZ/nnDetection
     Paper: https://doi.org/10.1007/978-3-030-87240-3_51
@@ -28,6 +28,11 @@ class NnDetOperator(KaapanaBaseOperator):
     **Inputs:**
 
     * Data in nifti format
+    
+    **Outputs:**
+    
+    * pkl file "<case>_boxes.pkl": contains a dictonary with keys: 'pred_boxes', 'pred_scores', 'pred_labels', 'restore', 'original_size_of_raw_data', 'itk_origin', 'itk_spacing'
+    * mask "<case>_boxes.nii.gz: nii.gz with overlapping bounding boxes
     """
     
     execution_timeout = timedelta(days=5)

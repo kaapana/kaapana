@@ -4,6 +4,7 @@ from airflow.models import DAG
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 
 from nndet.NnDetOperator import NnDetOperator, Mode
 
@@ -159,7 +160,17 @@ nndet_inference = NnDetOperator(
     input_operator=dcm2nifti
 )
 
+put_to_minio = LocalMinioOperator(
+    dag=dag,
+    name='upload-nndet-inference',
+    zip_files=True,
+    action='put',
+    action_operators=[nndet_inference],
+    file_white_tuples=('.zip')
+)
+
+
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> dcm2nifti >> nndet_inference >> clean
+get_input >> dcm2nifti >> nndet_inference >> put_to_minio >> clean

@@ -34,6 +34,8 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         print("# Pushing JSON ...")
         if "0020000E SeriesInstanceUID_keyword" in json_dict:
             id= json_dict["0020000E SeriesInstanceUID_keyword"]
+        elif self.instanceUID is not None:
+            id = self.instanceUID
         else:
             print("# No ID found! - exit")
             exit(1)

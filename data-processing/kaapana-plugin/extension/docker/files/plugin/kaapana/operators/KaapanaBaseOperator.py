@@ -34,6 +34,7 @@ from airflow.models import Variable
 
 default_registry = os.getenv("DEFAULT_REGISTRY", "")
 kaapana_build_version = os.getenv("KAAPANA_BUILD_VERSION", "")
+gpu_support = True if os.getenv('GPU_SUPPORT', "False").lower() == "true" else False
 
 class KaapanaBaseOperator(BaseOperator, SkipMixin):
     """
@@ -249,41 +250,40 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 }
             })
         )
-        
-        if self.gpu_mem_mb != None or self.gpu_mem_mb_lmt != None:
-            self.volume_mounts.append(VolumeMount(
-                'modeldata', mount_path='/models', sub_path=None, read_only=False
-            ))
 
-            self.volumes.append(
-                Volume(name='modeldata', configs={'hostPath':
-                                                  {
-                                                      'type': 'DirectoryOrCreate',
-                                                      'path': self.model_dir
-                                                  }
-                                                  })
-            )
+        self.volume_mounts.append(VolumeMount(
+            'modeldata', mount_path='/models', sub_path=None, read_only=False
+        ))
 
-            self.volume_mounts.append(VolumeMount(
-                'tensorboard', mount_path='/tensorboard', sub_path=None, read_only=False))
-            tb_config = {
-                'hostPath':
-                {
-                    'type': 'DirectoryOrCreate',
-                    'path': os.path.join(self.data_dir, "tensorboard")
-                }
+        self.volumes.append(
+            Volume(name='modeldata', configs={'hostPath':
+                                              {
+                                                  'type': 'DirectoryOrCreate',
+                                                  'path': self.model_dir
+                                              }
+                                              })
+        )
+
+        self.volume_mounts.append(VolumeMount(
+            'tensorboard', mount_path='/tensorboard', sub_path=None, read_only=False))
+        tb_config = {
+            'hostPath':
+            {
+                'type': 'DirectoryOrCreate',
+                'path': os.path.join(self.data_dir, "tensorboard")
             }
-            self.volumes.append(Volume(name='tensorboard', configs=tb_config))
+        }
+        self.volumes.append(Volume(name='tensorboard', configs=tb_config))
 
-            self.volume_mounts.append(VolumeMount(
-                'dshm', mount_path='/dev/shm', sub_path=None, read_only=False))
-            volume_config = {
-                'emptyDir':
-                {
-                    'medium': 'Memory',
-                }
+        self.volume_mounts.append(VolumeMount(
+            'dshm', mount_path='/dev/shm', sub_path=None, read_only=False))
+        volume_config = {
+            'emptyDir':
+            {
+                'medium': 'Memory',
             }
-            self.volumes.append(Volume(name='dshm', configs=volume_config))
+        }
+        self.volumes.append(Volume(name='dshm', configs=volume_config))
 
         if self.pod_resources is None:
             pod_resources = PodResources(
@@ -471,14 +471,14 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             if self.dev_server == 'code-server':
                 payload = {
                     'name': 'code-server-chart',
-                    'version': '4.2.0',
+                    'version': kaapana_build_version,
                     'release_name': release_name,
                     'sets': helm_sets
                 }
             elif self.dev_server == 'jupyterlab':
                 payload = {
                     'name': 'jupyterlab-chart',
-                    'version': '3.3.2',
+                    'version': kaapana_build_version,
                     'release_name': release_name,
                     'sets': helm_sets
                 }
@@ -655,7 +655,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         obj.ram_mem_mb_lmt = ram_mem_mb_lmt
         obj.cpu_millicores = cpu_millicores
         obj.cpu_millicores_lmt = cpu_millicores_lmt
-        obj.gpu_mem_mb = gpu_mem_mb
+        obj.gpu_mem_mb = gpu_mem_mb if gpu_support else None
         obj.gpu_mem_mb_lmt = gpu_mem_mb_lmt
         obj.manage_cache = manage_cache or 'ignore'
         obj.allow_federated_learning = allow_federated_learning

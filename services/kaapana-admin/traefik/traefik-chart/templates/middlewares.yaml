@@ -3,7 +3,7 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: traefik-strip-prefix
-  namespace: "{{  .Values.global.services_namespace  }}"
+  namespace: "{{  .Values.global.helm_namespace  }}"
 spec:
   stripPrefix:
     prefixes:
@@ -14,7 +14,7 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: errorpages
-  namespace: "{{  .Values.global.services_namespace  }}"
+  namespace: "{{  .Values.global.helm_namespace  }}"
 spec:
   errors:
     status:
@@ -29,7 +29,7 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: traefik-redirect
-  namespace: "{{  .Values.global.services_namespace  }}"
+  namespace: "{{  .Values.global.helm_namespace  }}"
 spec:
   redirectRegex:
     regex: ^.*/traefik$
@@ -39,7 +39,7 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: remove-auth-headers
-  namespace: "{{  .Values.global.services_namespace  }}"
+  namespace: "{{  .Values.global.helm_namespace  }}"
 spec:
   headers:
     customRequestHeaders:

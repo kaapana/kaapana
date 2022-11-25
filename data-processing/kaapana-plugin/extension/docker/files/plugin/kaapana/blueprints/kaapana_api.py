@@ -11,6 +11,10 @@ from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.app import csrf
 import json
+import time
+from kaapana.blueprints.kaapana_utils import generate_run_id, generate_minio_credentials, parse_ui_dict
+from airflow.api.common.trigger_dag import trigger_dag as trigger
+from airflow.api.common.experimental.mark_tasks import set_dag_run_state_to_failed as set_dag_run_failed
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.blueprints.kaapana_utils import generate_run_id, generate_minio_credentials, parse_ui_dict
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
@@ -29,6 +33,7 @@ kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
 def trigger_dag(dag_id):
     #headers = dict(request.headers)
     data = request.get_json(force=True)
+    print(f"data: {data}")
     #username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
     if 'conf' in data:
         tmp_conf = data['conf']
@@ -68,6 +73,58 @@ def trigger_dag(dag_id):
     response = jsonify(message=message)
     return response
 
+@csrf.exempt
+@kaapanaApi.route('/api/abort/<dag_id>/<run_id>', methods=['POST'])
+def abort_dag_run(dag_id, run_id):
+    #headers = dict(request.headers)
+    data = request.get_json(force=True)
+    print(f"data: {data}")
+
+    #username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
+    if 'conf' in data:
+        tmp_conf = data['conf']
+    else:
+        tmp_conf = data
+
+    # For authentication
+    if "x_auth_token" in data:
+        tmp_conf["x_auth_token"] = data["x_auth_token"]
+    else:
+        tmp_conf["x_auth_token"] = request.headers.get('X-Auth-Token')
+
+    ################################################################################################ 
+    #### Deprecated! Will be removed with the next version 0.1.3
+
+    if "workflow_form" in tmp_conf: # in the future only workflow_form should be included in the tmp_conf
+        tmp_conf["form_data"] = tmp_conf["workflow_form"]
+    elif "form_data" in tmp_conf:
+        tmp_conf["workflow_form"] = tmp_conf["form_data"]
+    
+    ################################################################################################ 
+
+    # abort dag_run by executing set_dag_run_state_to_failed() (source: https://github.com/apache/airflow/blob/main/airflow/api/common/mark_tasks.py#L421)
+    dag_objects = DagBag().dags                 # returns all DAGs available on platform
+    desired_dag = dag_objects[dag_id]           # filter desired_dag from all available dags via dag_id
+    # message = ["DAGs: {}".format(desired_dag)]
+    # response = jsonify(message=message)
+    # return response
+
+    # dag_id = data['dag_id']
+    # temp_dag = DAG(dag_id=dag_id)    # intermediate DAG which just contains dag_id, since it's needed in this form for set_dag_rum_state_to_failed()
+    execution_date = None
+    session = settings.Session()
+    try:
+        dr = set_dag_run_failed(dag=desired_dag, execution_date=execution_date, run_id=run_id, session=session)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+
+    # message = ["{} aborted!".format(dr.dag_id)]
+    message = ["Job aborted!"]
+    response = jsonify(message=message)
+    return response
 
 @kaapanaApi.route('/api/getdagruns', methods=['GET'])
 @csrf.exempt

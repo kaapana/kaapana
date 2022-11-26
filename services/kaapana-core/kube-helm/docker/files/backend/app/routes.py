@@ -55,9 +55,9 @@ async def upload_file_chunks(ws: WebSocket, client_id: int):
         fsize = file_info["fileSize"]
         chunk_size = file_info["chunkSize"]
 
-        res, msg = await file_handler.add_file_chunks(ws, fname, fsize, chunk_size)
+        fpath, msg = await file_handler.add_file_chunks(ws, fname, fsize, chunk_size)
 
-        if not res:
+        if fpath == "":
             logger.error(msg)
             return Response(msg, 500)
 
@@ -65,6 +65,15 @@ async def upload_file_chunks(ws: WebSocket, client_id: int):
         logger.warning(f"WebSocket disconnected {client_id=}")
     except Exception as e:
         logger.error(f"upload file failed: {e}")
+
+
+@router.get("/import-container")
+def import_container(filename: str):
+    logger.info(f"/import-container called with {filename}")
+    res, msg = file_handler.run_microk8s_import(filename)
+    if not res:
+        return Response(msg, 500)
+    return Response(msg, 200)
 
 
 @router.get("/health-check")

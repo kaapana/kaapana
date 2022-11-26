@@ -418,9 +418,22 @@ export default Vue.extend({
           console.log("connection closed", closeEvent)
           this.conn = null;
           this.loadingFile = false
-          this.fileResponse = "Successfully uploaded " + this.file.name
-          if (this.uploadPerc != 100) { this.fileResponse = "Upload Failed: connection closed" }
+          this.fileResponse = "Upload Failed: connection closed"
+          let fname = this.file.name
           this.file = ''
+          if (this.uploadPerc == 100) {
+            this.fileResponse = "Importing container " + fname
+            console.log("importing container...")
+            kaapanaApiService
+              .helmApiGet("/import-container", { filename: fname })
+              .then((response: any) => {
+                this.fileResponse = "Successfully imported container " + fname
+              })
+              .catch((err: any) => {
+                console.log(err);
+                this.fileResponse = "Failed to import container " + fname
+              });
+          }
         }
         conn.onerror = (errorEvent) => {
           this.conn = null;

@@ -11,15 +11,22 @@ import schemas
 import helm_helper
 
 
-def check_file_exists(filename, overwrite):
-    logger.debug(f"checking if file {filename} exists")
+def make_fpath(fname: str):
     pre = settings.helm_extensions_cache
     if pre[-1] != "/":
         pre += "/"
 
+    fpath = pre + fname
+
+    return fpath
+
+
+def check_file_exists(filename, overwrite):
+    logger.debug(f"checking if file {filename} exists")
+    fpath = make_fpath(filename)
+
     msg = ""
     # check if file exists
-    fpath = pre + filename
     logger.debug(f"full path: {fpath=}")
     if os.path.exists(fpath):
         msg = "File {0} already exists".format(fpath)
@@ -27,7 +34,7 @@ def check_file_exists(filename, overwrite):
         if not overwrite:
             msg += ", returning without overwriting. "
             return "", msg
-        msg += ", overwritten"
+        msg += ", overwrite enabled"
     return fpath, msg
 
 
@@ -90,8 +97,8 @@ async def add_file_chunks(ws: WebSocket, fname: str, fsize: int, chunk_size: int
 
         await ws.send_json({"index": -1, "success": True})
 
+        i = 0
         async with aiofiles.open(fpath, "wb") as f:
-            i = 0
             while True:
                 if i > max_iter:
                     logger.warning("max iterations reached, file write is completed")
@@ -108,11 +115,33 @@ async def add_file_chunks(ws: WebSocket, fname: str, fsize: int, chunk_size: int
         logger.debug("closing websocket")
         await ws.close()
 
-        return True, "File successfully uploaded"
-
     except WebSocketDisconnect:
         logger.warning(f"received WebSocketDisconnect with index {i}")
+        if i < max_iter:
+            logger.debug(f"file write failed, removing {fpath}")
+            os.remove(fpath)
         raise WebSocketDisconnect
     except Exception as e:
         logger.error(f"add_file_chunks failed {e}")
-        return False, msg
+        if i < max_iter:
+            logger.debug(f"file write failed, removing {fpath}")
+            os.remove(fpath)
+        return "", msg
+
+    return fpath, "File successfully uploaded"
+
+
+def run_microk8s_import(fname: str) -> Tuple[bool, str]:
+    fpath = make_fpath(fname)
+    # check if file exists
+    if not os.path.exists(fpath):
+        logger.error(f"file can not be found in path {fpath}")
+        return False,  f"file {fname} can not be found"
+    cmd = f"microk8s.ctr image import {fpath}"
+    res, stdout = helm_helper.execute_shell_command(cmd, shell=True, blocking=True, timeout=30)
+
+    if not res:
+        logger.error(f"microk8s import failed: {stdout}")
+        return res, f"Failed to import container {fname}"
+
+    return res, f"Successfully imported container {fname}"

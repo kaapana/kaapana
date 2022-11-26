@@ -114,8 +114,8 @@ def add_extension_to_dict(
     latest_kube_status = None
     extension_name = extension_dict["name"]
     if extension_name not in global_extensions_dict:
-        logger.debug(
-            f"Adding chart name to global_extensions_dict: {extension_name}")
+        # logger.debug(
+        #     f"Adding chart name to global_extensions_dict: {extension_name}")
 
         if 'kaapanaworkflow' in extension_dict['keywords']:
             extension_kind = 'dag'
@@ -212,8 +212,8 @@ def add_info_from_deployments(
     result_list: List[schemas.KaapanaExtension]
 ):
     for version, version_content in extension_info.available_versions.items():
-        logger.debug("extension_info.available_versions {0}".format(extension_info.available_versions))
-        logger.debug("version_content {0}".format(version_content))
+        # logger.debug("extension_info.available_versions {0}".format(extension_info.available_versions))
+        # logger.debug("version_content {0}".format(version_content))
         if len(version_content.deployments) > 0:
             # go through deployment and pass info to extension level
             for deployment in version_content.deployments:
@@ -431,7 +431,7 @@ def collect_all_tgz_charts(keywords_filter: List, name_filter: str = "") -> Dict
 
 
 def sha256sum(filepath) -> str:
-    logger.debug(f"In method: sha256sum({filepath=})")
+    # logger.debug(f"In method: sha256sum({filepath=})")
     h = hashlib.sha256()
     b = bytearray(128*1024)
     mv = memoryview(b)
@@ -439,7 +439,7 @@ def sha256sum(filepath) -> str:
         for n in iter(lambda: f.readinto(mv), 0):
             h.update(mv[:n])
 
-    logger.debug(f"End method: sha256sum({filepath=})")
+    # logger.debug(f"End method: sha256sum({filepath=})")
     return h.hexdigest()
 
 

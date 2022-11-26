@@ -43,21 +43,48 @@
               label="Search",
               hide-details=""
             )
-      div(v-if='!file')
+      div(v-if='uploadPerc != 100 && file && loadingFile')
+        div(:class="['dragdrop']")
+          .dragdrop-info()
+            span.fa.fa-cloud-upload.dragdrop-title
+            v-tooltip(bottom="")
+              template(v-slot:activator="{on}")
+                v-icon(
+                  @click="cancelUploadFile()",
+                  color="primary",
+                  dark="",
+                  v-on="on"
+                    )
+                      | mdi-close-circle
+              span Cancel the upload
+            span.dragdrop-title    Uploading file... {{uploadPerc}} % 
+            .dragdrop-upload-limit-info
+              div filename: {{file.name}} | file size: {{(file.size / 1000000).toFixed(2)}} MB
+      div(v-else-if='uploadPerc == 100 && !file && !loadingFile')
+        div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
+          .dragdrop-uploaded-info(@drag='onChange')
+            span.dragdrop-title {{fileResponse}}
+            .dragdrop-upload-limit-info
+              div Upload completed. Select another chart(.tgz) or container(.tar) file
+          input(type='file' @change='onChange')
+      div(v-else-if='file && !loadingFile')
         div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
           .dragdrop-info(@drag='onChange')
             span.fa.fa-cloud-upload.dragdrop-title
-            span.dragdrop-title Drop helm chart file or click to upload
+            span.dragdrop-title {{fileResponse}}
             .dragdrop-upload-limit-info
-              div file type: tgz | max size: 2GB
+              div Please try again
           input(type='file' @change='onChange')
       div(v-else='')
         div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
-          .dragdrop-uploaded-info(@drag='onChange')
-            span.dragdrop-title {{fileResponse["data"]}}
+          .dragdrop-info(@drag='onChange')
+            span.fa.fa-cloud-upload.dragdrop-title
+            span.dragdrop-title Drag/select chart(.tgz) or container(.tar) file for upload
             .dragdrop-upload-limit-info
-              div Drag another chart file to upload
+              div file types: tgz,tar  |  max size: 20 GB
           input(type='file' @change='onChange')
+
+
       v-data-table.elevation-1(
         :headers="headers",
         :items="filteredLaunchedAppLinks",
@@ -203,6 +230,9 @@ export default Vue.extend({
     file: '' as any,
     fileResponse: '',
     dragging: false,
+    loadingFile: false,
+    conn: null as WebSocket | null,
+    uploadPerc: 0,
     loading: true,
     polling: 0,
     launchedAppLinks: [] as any,
@@ -319,43 +349,147 @@ export default Vue.extend({
 
       this.uploadFile(files[0]);
     },
+    cancelUploadFile() {
+      if (this.conn) this.conn.close()
+    },
     uploadFile(file: any) {
+      let uploadChunks = false;
+
       console.log("file.name", file.name)
       console.log("file.size", file.size)
       console.log("file.type", file.type)
 
-      if (!file.type.match('application/x-compressed')) {
-        alert('please upload a tgz file');
+      if (!file.type.match('application/x-compressed') && !file.type.match('application/x-tar')) {
+        alert('please upload a tgz or tar file');
         this.dragging = false;
         return;
       }
 
-      if (file.size > 10000000000) {
+      if (file.size > 20000000000) {
         alert('file size should not be over 10 GB.')
         this.dragging = false;
         return;
+      } else if (file.size > 50000000) {
+        console.log("file size greater than 50MB, using async upload")
+        uploadChunks = true;
       }
 
       this.file = file;
       this.dragging = false;
+      this.loadingFile = true;
 
-      let formData = new FormData();
+      if (!uploadChunks) {
+        this.uploadPerc = 0;
+        let formData = new FormData();
 
-      formData.append("file", file);
+        formData.append("file", file);
+        kaapanaApiService
+          .helmApiPost(
+            "/file",
+            formData
+          )
+          .then((response: any) => {
+            this.uploadPerc = 100
+            console.log("upload file response", response)
+            this.fileResponse = "Successfully uploaded " + this.file.name;
+            this.file = ''
+            this.loadingFile = false;
+          }).catch((err: any) => {
+            console.log("upload file error", err)
+            this.fileResponse = "Upload Failed: " + err.data;
+          });
+      } else {
+        let chunkSize = 10 * 1024 * 1024
+        let iters = Math.ceil(file.size / chunkSize)
+        this.uploadPerc = 0;
 
-      kaapanaApiService
-        .helmApiPost(
-          "/file",
-          formData
-        )
-        .then((response: any) => {
-          console.log("upload file response", response)
-          this.fileResponse = response;
-        }).catch((err: any) => {
-          console.log("upload file error", err)
-          console.log(err);
-          this.fileResponse = err;
-        });
+        let clientID = Date.now();
+        // console.log("clientID", clientID)
+
+        let baseURL: any = request.defaults.baseURL
+        if (baseURL.includes("//")) {
+          let sp = baseURL.split("//")
+          baseURL = sp[1]
+        }
+        // console.log("connecting websocket BaseURL", baseURL)        
+        let conn = new WebSocket("ws://" + baseURL + "/file_chunks/" + String(clientID));
+        // console.log("connected", conn)
+        conn.onclose = (closeEvent) => {
+          console.log("connection closed", closeEvent)
+          this.conn = null;
+          this.loadingFile = false
+          this.fileResponse = "Successfully uploaded " + this.file.name
+          if (this.uploadPerc != 100) { this.fileResponse = "Upload Failed: connection closed" }
+          this.file = ''
+        }
+        conn.onerror = (errorEvent) => {
+          this.conn = null;
+          console.log("connection error", errorEvent)
+          conn.close()
+        }
+        conn.onopen = (openEvent) => {
+          this.conn = conn;
+          console.log("Successfully connected", openEvent)
+        }
+
+        let i = -1
+
+        conn.onmessage = (msg) => {
+          if (!this.conn) {
+            console.log("connection not established, returning")
+            return
+          }
+          // console.log("msg", msg)
+          var jmsg
+          try {
+            jmsg = JSON.parse(msg.data)
+          }
+          catch (err) {
+            console.log("JSON parse failed", err)
+            if (this.conn) { this.conn.close() }
+            this.loadingFile = false
+            return
+          }
+
+          if (jmsg["success"] == true && jmsg["index"] == i) {
+            // console.log("previous send for index", i, "was successful, proceeding...")
+            if (i != -1) { this.uploadPerc = Math.floor((i / iters) * 100) }
+            i++;
+
+            if (i > iters) {
+              this.uploadPerc = 100;
+              console.log("upload completed, closing connection")
+              if (this.conn) { this.conn.close() }
+              return
+            }
+
+            const chunk = file.slice(i * chunkSize, (i + 1) * chunkSize);
+            if (this.conn) {
+              // console.log("sending ws msg chunk index", i)
+              this.conn.send(chunk)
+            } else {
+              // console.log("websocket connection lost");
+              this.loadingFile = false;
+            }
+          }
+          else {
+            // console.log("success", jmsg["success"], "expected index", i, "got", jmsg["index"])
+            console.log("something went wrong, closing the connection")
+            if (this.conn) {
+              this.conn.close()
+              this.loadingFile = false
+            }
+          }
+        }
+
+        // send file info first
+        setTimeout(() => {
+          if (this.conn) {
+            // console.log("sending ws msg", { name: file.name, fileSize: file.size, chunkSize: chunkSize })
+            this.conn.send(JSON.stringify({ name: file.name, fileSize: file.size, chunkSize: chunkSize }))
+          }
+        }, 1500);
+      }
     },
     getHelmCharts() {
       let params = {

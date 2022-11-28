@@ -19,8 +19,8 @@ cpu_util_cores_used_query = "sum(rate (container_cpu_usage_seconds_total{id=\"/\
 gpu_count_query = "count(DCGM_FI_DEV_POWER_USAGE{kubernetes_name='nvidia-dcgm-exporter'})"
 gpu_mem_used_device_query = "DCGM_FI_DEV_FB_USED{kubernetes_name='nvidia-dcgm-exporter',instance=~'.+',gpu=~'<replace>'}"
 gpu_mem_available_device_query = "DCGM_FI_DEV_FB_FREE{kubernetes_name='nvidia-dcgm-exporter',instance=~'.+',gpu=~'<replace>'}"
-gpu_infos_query_free = "DCGM_FI_DEV_FB_FREE{app='nvidia-dcgm-exporter'}"
-gpu_infos_query_used = "DCGM_FI_DEV_FB_USED{app='nvidia-dcgm-exporter'}"
+gpu_infos_query_free = "DCGM_FI_DEV_FB_FREE"
+gpu_infos_query_used = "DCGM_FI_DEV_FB_USED"
 
 
 def get_node_info(query, logger=logging):

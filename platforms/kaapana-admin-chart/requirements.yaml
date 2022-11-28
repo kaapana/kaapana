@@ -12,4 +12,6 @@ dependencies:
     version: 0.0.0
   - name: oAuth2-proxy-chart
     version: 0.0.0
+  - name: kaapana-platform-chart
+    version: 0.0.0
   

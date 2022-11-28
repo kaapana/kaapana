@@ -1,6 +1,7 @@
-# ---
-# apiVersion: v1
-# kind: Namespace
-# metadata:
-#   name: {{ .Values.global.services_namespace }}
-# ---
+# Has to be removed for separate platofrm deployment
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.global.services_namespace }}
+---

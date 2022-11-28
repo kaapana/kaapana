@@ -50,7 +50,11 @@ data:
         scrape_interval: 30s
         metrics_path: '/metrics'
         static_configs:
-        - targets: ['traefik.{{  .Values.global.services_namespace  }}.svc:8080']
+      {{- if .Values.global.instance_uid }}
+        - targets: ['traefik-{{  .Values.global.instance_uid | default 0 }}.{{  .Values.global.helm_namespace  }}.svc:8080']
+      {{- else }}
+        - targets: ['traefik-{{  .Values.global.instance_uid | default 0 }}.{{  .Values.global.admin_namespace  }}.svc:8080']
+      {{- end }}
 
       - job_name: 'Granafa'
         scheme: http

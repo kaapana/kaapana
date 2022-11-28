@@ -3,7 +3,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: copy-kube-helm-collections-{{ $uuid }}
-  namespace: {{ .Values.global.helm_namespace }}
+  namespace: "{{ .Values.global.helm_namespace }}"
 spec:
   template:
     spec:

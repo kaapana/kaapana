@@ -8,7 +8,6 @@ import requests
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
-
 class LocalGetTotalSegmentatorModelsOperator(KaapanaPythonBaseOperator):
     """
     This operator downloads all the models available for the total segmentator workflow.
@@ -25,10 +24,18 @@ class LocalGetTotalSegmentatorModelsOperator(KaapanaPythonBaseOperator):
         tempfile = config_dir / f"{task_id}.zip"
 
         try:
+            proxies = os.getenv("PROXY", None)
+            if proxies is not None:
+                proxies = {
+                    'http': proxies,
+                    'https': proxies,
+                    'no_proxy': '.svc,.svc.cluster,.svc.cluster.local'
+                }
+
             st = time.time()
             with open(tempfile, 'wb') as f:
                 # session = requests.Session()  # making it slower
-                with requests.get(url, stream=True) as r:
+                with requests.get(url, proxies=proxies, stream=True) as r:
                     r.raise_for_status()
                     for chunk in r.iter_content(chunk_size=8192 * 16):
                         # If you have chunk encoded response uncomment if

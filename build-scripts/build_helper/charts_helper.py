@@ -611,7 +611,7 @@ class HelmChart:
                 cwd = self.chart_dir
 
             command = ["helm", "lint"]
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=20,cwd=cwd)
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=20, cwd=cwd)
             if output.returncode != 0:
                 BuildUtils.logger.error(f"{self.chart_id}: lint_chart failed!")
                 BuildUtils.generate_issue(
@@ -680,10 +680,10 @@ class HelmChart:
             BuildUtils.logger.info(f"{self.chart_id}: push")
             try_count = 0
             command = ["helm", "push", f"{self.name}-{self.version}.tgz", f"oci://{BuildUtils.default_registry}"]
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True,cwd=dirname(self.build_chart_dir), timeout=60)
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, cwd=dirname(self.build_chart_dir), timeout=60)
             while output.returncode != 0 and try_count < HelmChart.max_tries:
                 BuildUtils.logger.warning(f"chart push failed -> try: {try_count}")
-                output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+                output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, cwd=dirname(self.build_chart_dir), timeout=60)
                 try_count += 1
 
             if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:

@@ -79,6 +79,9 @@ export default {
     },
     _key_select() {
       this.key_select = this._key_select
+    },
+    key_select() {
+      this.item_select = []
     }
   },
   computed: {

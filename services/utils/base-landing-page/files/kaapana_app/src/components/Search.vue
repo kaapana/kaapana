@@ -113,13 +113,16 @@ export default {
       this.display_filters = false
       this.$emit("search", this.composeQuery())
       localStorage['search.filters'] = JSON.stringify(
-          (this.$refs.filters !== undefined ?
-              this.$refs.filters.map(filter => ({
-                'id': filter.id,
-                '_key_select': filter.key_select,
-                '_item_select': filter.item_select
-              })) :
-              [])
+          (this.$refs.filters !== undefined
+                  ? this.$refs.filters.map(filter => (
+                      {
+                        'id': filter.id,
+                        '_key_select': filter.key_select,
+                        '_item_select': filter.item_select
+                      })
+                  )
+                  : []
+          )
       )
     },
   },

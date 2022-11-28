@@ -1,6 +1,6 @@
 <!-- HTML -->
 <template>
-  <div id="container" ref="container" :class="`${containerClasses}`">
+  <div id="container" :class="`${containerClasses}`">
     <!-- items rendering -->
     <template
         v-for="(item) in itemsToDisplay"
@@ -64,11 +64,11 @@ export default {
     }, {deep: true})
   },
   mounted() {
-    this.$refs['container'].addEventListener('scroll', this.loadItems)
+    window.addEventListener('scroll', this.loadItems)
     this.loadItems()
   },
   beforeUnmount() {
-    this.$refs['container'].removeEventListener('scroll', this.loadItems)
+    window.removeEventListener('scroll', this.loadItems)
   },
   data() {
     return {
@@ -84,6 +84,7 @@ export default {
       const chunckedArray = chunkArray(this.data, this.itemsPerRender) // chunkArray(data,itemsPerRender) to get array of small arrays
       this.items = chunckedArray
       this.itemsToDisplay = chunckedArray[0]
+      this.loadItems()
     },
 
     // load more items when scrolling to the end of the list
@@ -96,7 +97,8 @@ export default {
       const position = element.getBoundingClientRect();
       // checking whether fully visible
       if (
-          (position.top >= 0 && position.bottom <= window.innerHeight)
+          position.top >= 0
+          && position.bottom <= 2. * window.innerHeight
           && !this.loading
           && this.items.length > this.page
       ) {

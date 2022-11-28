@@ -34,10 +34,11 @@
               @deleteFromPlatform="() => {this.$emit('deleteFromPlatform')}"
               :cohort="cohort"
               :seriesInstanceUID="seriesInstanceUID"
+              :studyInstanceUID="studyInstanceUID"
           ></CardMenu>
         </v-app-bar>
       </v-img>
-      <v-card-text v-if="config.show_card_text">
+      <v-card-text v-if="config.display_card_text">
         <v-row no-gutters>
           <v-col cols="11">
             {{ seriesDescription }}
@@ -55,9 +56,9 @@
               </template>
               <v-data-table
                   :headers="[
-      {text: 'Tag', value: 'name'},
-      {text: 'Value', value: 'value'},
-    ]"
+                    {text: 'Tag', value: 'name'},
+                    {text: 'Value', value: 'value'},
+                  ]"
                   :items="tagsData"
                   fixed-header
                   :hide-default-footer="true"
@@ -68,18 +69,20 @@
           </v-col>
         </v-row>
         <div v-if="seriesData[data['key']]" v-for="data in config.props">
-          <v-row no-gutters style="font-size: x-small">
-            <v-col style="margin-bottom: -5px">
-              {{ data['name'] }}
-            </v-col>
-          </v-row>
-          <v-row no-gutters style="font-size: small; padding-top: 0" align="start">
-            <v-col>
-              {{ seriesData[data['key']] }}
-            </v-col>
-          </v-row>
+          <div v-if="data['display']">
+            <v-row no-gutters style="font-size: x-small">
+              <v-col style="margin-bottom: -5px">
+                {{ data['name'] }}
+              </v-col>
+            </v-row>
+            <v-row no-gutters style="font-size: small; padding-top: 0" align="start">
+              <v-col>
+                {{ seriesData[data['key']] }}
+              </v-col>
+            </v-row>
+          </div>
         </div>
-        <v-row v-if="tags" no-gutters>
+        <v-row v-if="tags && config.display_tags" no-gutters>
           <TagChip :items="tags" @deleteTag="(tag) => deleteTag(tag)"/>
         </v-row>
       </v-card-text>
@@ -131,17 +134,31 @@ export default {
   },
   computed: {},
   async mounted() {
-    if (localStorage['CardSelect.config']) {
-      this.config = JSON.parse(localStorage['CardSelect.config'])
+    const type = JSON.parse(localStorage.getItem("Cohort.structuredGallery")) ? 'structured' : 'unstructured'
+    const key = `CardSelect.config.${type}`
+    if (localStorage.getItem(key)) {
+      this.config = JSON.parse(localStorage.getItem(key))
     } else {
-      this.config = {
-        show_card_text: true,
-        props: [
-          {name: 'Study Date', key: '00080020 StudyDate_date'},
-          {name: 'Manufacturer', key: '00080070 Manufacturer_keyword'}
-        ]
+      if (type === 'unstructured') {
+        this.config = {
+          display_card_text: true,
+          display_tags: true,
+          props: [
+            {name: "Patient ID", key: '00100020 PatientID_keyword', display: true},
+            {name: 'Study Description', key: '00081030 StudyDescription_keyword', display: true},
+            {name: 'Study Date', key: '00080020 StudyDate_date', display: true},
+          ]
+        }
+      } else {
+        this.config = {
+          display_card_text: true,
+          display_tags: true,
+          props: [
+            {name: "Slice thickness", key: '00180050 SliceThickness_float', display: true}
+          ]
+        }
       }
-      localStorage['CardSelect.config'] = JSON.stringify(this.config)
+      localStorage[key] = JSON.stringify(this.config)
     }
 
     await this.get_data();

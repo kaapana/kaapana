@@ -861,7 +861,7 @@ def format_metadata():
     parsed_and_filtered_data = [
         get_data_element_class(dataElement)(dataElement)
         for _, dataElement in dataset.items()
-        if dataElement.VR != 'SQ' and dataElement.VR != 'OW' and  dataElement.keyword != ''
+        if dataElement.VR != 'SQ' and dataElement.VR != 'OW' and dataElement.keyword != ''
     ]
 
     res = []
@@ -980,10 +980,9 @@ def get_query_values():
         print("ERROR in elasticsearch search!")
         return jsonify({'Error message': e}), 500
 
-
     result = {
         k: {
-            'items': [i['key'] for i in item['buckets']],
+            'items': sorted([(i['key_as_string'] if 'key_as_string' in i else i['key']) for i in item['buckets']]),
             'key': name_field_map[k]
         }
         for k, item in res['aggregations'].items()

@@ -16,6 +16,11 @@
     </template>
     <v-list>
       <v-list-item
+          @click="openInOHIF"
+      >
+        <v-list-item-title>Open in OHIF Viewer</v-list-item-title>
+      </v-list-item>
+      <v-list-item
           v-if="cohort"
           @click="() => {this.$emit('removeFromCohort')}"
       >
@@ -58,6 +63,7 @@ export default {
   name: "CardMenu",
   props: {
     cohort: {},
+    studyInstanceUID: "",
     seriesInstanceUID: "",
   },
   data() {
@@ -70,6 +76,9 @@ export default {
     this.cohortNames = await loadCohortNames()
   },
   methods: {
+    openInOHIF() {
+      window.open(`/ohif/viewer/${this.studyInstanceUID}`)
+    },
     async addToCohort(cohortName) {
       // this only works for depth max 1
       this.openMenu = false

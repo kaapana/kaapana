@@ -51,7 +51,6 @@
                       @imageId="(imageId) => propagateImageId(imageId)"
                       @emptyStudy="() => removeEmptyStudy(item, study)"
                     />
-                    <!--                    </v-col>-->
                   </v-row>
                 </v-container>
               </v-list-item-content>
@@ -99,8 +98,8 @@ export default {
     this.inner_patients = this.patients
     this.inner_patients.forEach(pat => pat.active = true)
     this.inner_selectedTags = this.selectedTags
-    if (localStorage['StructuredGallery.cols'] === undefined) {
-      localStorage['StructuredGallery.cols'] = JSON.stringify("auto")
+    if (localStorage['Gallery.cols'] === undefined) {
+      localStorage['Gallery.cols'] = JSON.stringify("auto")
     }
   },
   watch: {
@@ -113,26 +112,6 @@ export default {
     selectedTags() {
       this.inner_selectedTags = this.selectedTags
     }
-  },
-  computed: {
-    cols() {
-      if (JSON.parse(localStorage['StructuredGallery.cols']) !== 'auto') {
-        return JSON.parse(localStorage['StructuredGallery.cols'])
-      } else {
-        switch (this.$vuetify.breakpoint.name) {
-          case 'xs':
-            return 6
-          case 'sm':
-            return 4
-          case 'md':
-            return 2
-          case 'lg':
-            return 2
-          case 'xl':
-            return 1
-        }
-      }
-    },
   },
   methods: {
     propagateImageId(image_id) {

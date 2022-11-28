@@ -99,6 +99,17 @@
                   </v-list-item-title>
                 </v-list-item-content>
               </v-list-item>
+              <v-list-item>
+                <Settings></Settings>
+              </v-list-item>
+              <v-list-item>
+                <v-switch
+                    label="Dark mode"
+                    hide-details
+                    v-model="darkMode"
+                    @change="(v) => changeMode(v)"
+                ></v-switch>
+              </v-list-item>
             </v-list>
             <v-card-actions>
               <v-spacer></v-spacer>
@@ -109,7 +120,7 @@
           </v-card>
         </v-menu>
       </v-app-bar>
-      <v-content id="v-main-content">
+      <v-main id="v-main-content">
         <v-container class="router-container pa-0" fluid fill-height>
           <v-layout align-start="align-start">
             <v-flex text-xs="text-xs">
@@ -117,7 +128,7 @@
             </v-flex>
           </v-layout>
         </v-container>
-      </v-content>
+      </v-main>
       <v-footer color="primary" app inset>
         <span class="white--text">
           &copy; DKFZ 2018 - DKFZ 2022 | {{ commonData.version }}
@@ -130,19 +141,21 @@
 
 <script lang="ts">
 import Vue from 'vue';
-import storage from 'local-storage-fallback'
 import request from '@/request';
 import kaapanaApiService from '@/common/kaapanaApi.service'
 
 import {mapGetters} from 'vuex';
 import {LOGIN, LOGOUT, CHECK_AUTH} from '@/store/actions.type';
 import {CHECK_AVAILABLE_WEBSITES, LOAD_COMMON_DATA} from '@/store/actions.type';
+import Settings from "@/components/Settings.vue";
 
 
 export default Vue.extend({
   name: 'App',
+  components: {Settings},
   data: () => ({
     drawer: true,
+    darkMode: 'darkMode' in localStorage ? localStorage['darkMode'] : false,
     federatedBackendAvailable: false,
     staticWebsiteAvailable: false
   }),
@@ -150,6 +163,11 @@ export default Vue.extend({
     ...mapGetters(['currentUser', 'isAuthenticated', 'externalWebpages', 'commonData']),
   },
   methods: {
+    changeMode(v: boolean) {
+      this.darkMode = v
+      localStorage['darkMode'] = v
+      this.$vuetify.theme.dark = v
+    },
     login() {
       this.$store
           .dispatch(LOGIN)
@@ -164,6 +182,7 @@ export default Vue.extend({
     this.$store.dispatch(LOAD_COMMON_DATA)
   },
   mounted() {
+    this.$vuetify.theme.dark = this.darkMode
     request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
       this.federatedBackendAvailable = kaapanaApiService.checkUrl(response.data, '/kaapana-backend')
     }).catch((error: any) => {

@@ -4,7 +4,7 @@
       :itemsPerRender="24"
       containerClasses="list row"
       defaultLoadingColor="#222"
-      style="margin: auto;"
+      style="margin: auto; height:auto"
   >
     <template v-slot="{item}">
       <v-col :cols="cols">
@@ -61,14 +61,14 @@ export default {
   mounted() {
     this.inner_data = this.data
     this.inner_selectedTags = this.selectedTags
-    if (localStorage['StructuredGallery.cols'] === undefined) {
-      localStorage['StructuredGallery.cols'] = JSON.stringify("auto")
+    if (localStorage['Gallery.cols'] === undefined) {
+      localStorage['Gallery.cols'] = JSON.stringify("auto")
     }
   },
   computed: {
     cols() {
-      if (JSON.parse(localStorage['StructuredGallery.cols']) !== 'auto') {
-        return JSON.parse(localStorage['StructuredGallery.cols'])
+      if (JSON.parse(localStorage['Gallery.cols']) !== 'auto') {
+        return JSON.parse(localStorage['Gallery.cols'])
       } else {
         switch (this.$vuetify.breakpoint.name) {
           case 'xs':
@@ -80,7 +80,7 @@ export default {
           case 'lg':
             return 2
           case 'xl':
-            return 1
+            return 2
         }
       }
     },

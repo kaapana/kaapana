@@ -16,14 +16,14 @@ spec:
         pathType: ImplementationSpecific
         backend:
           service:
-            name: traefik
+            name: "traefik-{{  .Values.global.instance_uid | default 0 }}"
             port:
               name: admin
       - path: /health
         pathType: ImplementationSpecific
         backend:
           service:
-            name: traefik
+            name: "traefik-{{  .Values.global.instance_uid | default 0 }}"
             port:
               name: admin
 ---
@@ -45,7 +45,7 @@ spec:
         pathType: ImplementationSpecific
         backend:
           service:
-            name: traefik
+            name: "traefik-{{  .Values.global.instance_uid | default 0 }}"
             port:
               name: admin
 ---

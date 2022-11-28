@@ -47,7 +47,6 @@ def generate_deployment_script(platform_chart):
 
     platform_params = yaml.load(open(deployment_script_config_path[0]), Loader=yaml.FullLoader)
     platform_params["project_name"] = platform_chart.name
-    platform_params["container_registry_url"] = BuildUtils.default_registry
     platform_params["build_timestamp"] = BuildUtils.build_timestamp
     platform_params["platform_build_version"] = platform_chart.version
     platform_params["platform_build_branch"] = platform_chart.build_branch
@@ -56,6 +55,11 @@ def generate_deployment_script(platform_chart):
     platform_params["kaapana_build_branch"] = BuildUtils.kaapana_build_branch
     platform_params["kaapana_last_commit_timestamp"] = BuildUtils.kaapana_last_commit_timestamp
     
+    platform_params["container_registry_url"] = BuildUtils.default_registry
+    if BuildUtils.include_credentials:
+        platform_params["container_registry_username"] = BuildUtils.registry_user
+        platform_params["container_registry_password"] = BuildUtils.registry_pwd
+
     platform_params["kaapana_collections"] = []
     
     if len(platform_chart.kaapana_collections) > 0:

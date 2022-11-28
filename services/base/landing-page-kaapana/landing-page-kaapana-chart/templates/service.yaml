@@ -3,7 +3,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: landingpage-service
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   selector:
     app-name: landingpage
@@ -18,10 +18,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: landingp-ing-ip-redirect
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    
     traefik.ingress.kubernetes.io/preserve-host: "true"
 spec:
   rules:

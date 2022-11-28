@@ -3,7 +3,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: ohif-service
-  namespace: {{ .Values.global.store_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   selector:
     app-name: ohif
@@ -17,10 +17,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ohif-ingress-ip
-  namespace: {{ .Values.global.store_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

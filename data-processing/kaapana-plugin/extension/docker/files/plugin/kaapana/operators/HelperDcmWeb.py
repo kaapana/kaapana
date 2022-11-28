@@ -9,15 +9,14 @@ from typing import List
 from os.path import join
 from pathlib import Path
 from glob import glob
-from urllib3.filepost import encode_multipart_formdata, choose_boundary
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 
 
 class DcmWebException(Exception):
     pass
 
 class HelperDcmWeb():
-    pacs_dcmweb_endpoint = "http://dcm4chee-service.store.svc:8080/dcm4chee-arc/aets/"
-    #pacs_dcmweb_endpoint = "http://10.128.128.212:8080/dcm4chee-arc/aets/"
+    pacs_dcmweb_endpoint = f"http://dcm4chee-service.{SERVICES_NAMESPACE}.svc:8080/dcm4chee-arc/aets/"
     pacs_dcmweb = pacs_dcmweb_endpoint + "KAAPANA"
     client = DICOMwebClient(url=f"{pacs_dcmweb}/rs")
     wait_time=5

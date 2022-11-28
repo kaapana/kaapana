@@ -3,7 +3,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: os-dash-config
-  namespace: {{ .Values.global.meta_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 data:
   opensearch_dashboards.yml: |+
     #OpenSearch Dashboards is served by a back end server. This setting specifies the port to use.
@@ -31,7 +31,7 @@ data:
     server.name: "Meta"
 
     # The URLs of the OpenSearch instances to use for all your queries.
-    opensearch.hosts: ["http://opensearch-service.meta.svc:9200"]
+    opensearch.hosts: ["http://opensearch-service.{{  .Values.global.services_namespace  }}.svc:9200"]
 
     # OpenSearch Dashboards uses an index in OpenSearch to store saved searches, visualizations and
     # dashboards. OpenSearch Dashboards creates a new index if the index doesn't already exist.

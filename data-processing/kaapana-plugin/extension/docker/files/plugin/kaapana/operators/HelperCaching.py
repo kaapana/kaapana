@@ -3,26 +3,25 @@ import os
 import glob
 import functools
 import shutil
-import json
 import requests
-import tarfile
-import gzip
-
-from minio import Minio
-
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, SERVICES_NAMESPACE
 from kaapana.operators.HelperMinio import HelperMinio
 from kaapana.operators.HelperFederated import raise_kaapana_connection_error
 from kaapana.blueprints.kaapana_utils import get_operator_properties, requests_retry_session, clean_previous_dag_run, trying_request_action
+from urllib3.util import Timeout
+
+JOB_API_URL = f'http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client/job'
+TIMEOUT_SEC = 5
+TIMEOUT = Timeout(TIMEOUT_SEC)
 
 def update_job(client_job_id, status, run_id=None, description=None):
     with requests.Session() as s:
-        r = requests_retry_session(session=s).get('http://kaapana-backend-service.base.svc:5000/client/job', timeout=60, params={'job_id': client_job_id})
+        r = requests_retry_session(session=s).get(JOB_API_URL, timeout=TIMEOUT, params={'job_id': client_job_id})
     raise_kaapana_connection_error(r)
     client_job = r.json()
 
     with requests.Session() as s:
-        r = requests_retry_session(session=s).put('http://kaapana-backend-service.base.svc:5000/client/job', timeout=60, verify=False, json={
+        r = requests_retry_session(session=s).put(JOB_API_URL, timeout=TIMEOUT, verify=False, json={
             'job_id': client_job_id, 
             'status': status,
             'run_id': run_id,

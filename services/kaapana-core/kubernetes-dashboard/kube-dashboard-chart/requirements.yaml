@@ -1,6 +1,0 @@
----
-# dependencies:
-#   - name: metrics-scraper-chart
-#     version: 0.0.0
-#     repository: file://../../metrics-scraper/metrics-scraper-chart
-    

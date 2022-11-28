@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: minio-deployment
-  namespace: {{ .Values.global.store_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -22,7 +22,7 @@ spec:
           imagePullPolicy: {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
-              value: "keycloak,keycloak-internal-service.kube-system.svc,443"
+              value: "keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
             - name: DELAY
               value: "3"
             - name: TIMEOUT
@@ -41,7 +41,7 @@ spec:
         - name: MINIO_ROOT_PASSWORD
           value: "{{ .Values.global.credentials_minio_password }}"
         - name: MINIO_IDENTITY_OPENID_CONFIG_URL
-          value: "http://keycloak-external-service.kube-system.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
+          value: "http://keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
         - name: MINIO_IDENTITY_OPENID_CLIENT_ID
           value: "kaapana"
         - name: MINIO_IDENTITY_OPENID_CLIENT_SECRET

@@ -21,20 +21,3 @@ def airflow_backend():
     ))
     print(r)
     print(r.json())
-
-# def download_object_from_minio():
-#     access_key='kaapanaminio'
-#     secret_key='Kaapana2020'
-#     minio_host='minio-service.store.svc'
-#     minio_port='9000'
-#     minioClient = Minio(minio_host+":"+minio_port,
-#                         access_key=access_key,
-#                         secret_key=secret_key,
-#                         secure=False)
-
-#     p_presigend_url = minioClient.get_presigned_url('PUT', 'january', 'aaa.txt')
-#     r = requests.put(p_presigend_url, data=open('aaa.txt', 'rb'))
-#     r
-#     g_presigend_url = minioClient.get_presigned_url('GET', 'january', 'aaa.txt')
-#     r = requests.get(g_presigend_url)
-#     r.text

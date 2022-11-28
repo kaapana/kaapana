@@ -1,9 +1,7 @@
-import warnings
 from flask import g, Blueprint, request, jsonify, Response, url_for
 from sqlalchemy import and_
 from sqlalchemy.orm.exc import NoResultFound
 from datetime import datetime
-import requests
 import airflow.api
 from http import HTTPStatus
 from airflow.exceptions import AirflowException
@@ -12,14 +10,12 @@ from airflow import settings
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.app import csrf
-import glob
 import json
-import time
-from kaapana.blueprints.kaapana_utils import generate_run_id, generate_minio_credentials, parse_ui_dict
-from airflow.api.common.trigger_dag import trigger_dag as trigger
 from kaapana.operators.HelperOpensearch import HelperOpensearch
+from kaapana.blueprints.kaapana_utils import generate_run_id, generate_minio_credentials, parse_ui_dict
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from airflow.api.common.trigger_dag import trigger_dag as trigger
 from flask import current_app as app
-from multiprocessing.pool import ThreadPool
 
 _log = LoggingMixin().log
 parallel_processes = 1
@@ -328,7 +324,7 @@ def get_static_website_results():
                 })
         return subtree
 
-    _minio_host='minio-service.store.svc'
+    _minio_host=f'minio-service.{SERVICES_NAMESPACE}.svc'
     _minio_port='9000'
     minioClient = Minio(_minio_host+":"+_minio_port,
                         access_key='kaapanaminio',

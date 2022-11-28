@@ -7,9 +7,14 @@ import warnings
 
 tmp_prefix = '/tmp/'
 workflow_prefix = '/workflows/'
-HELM_API='http://kube-helm-service.kube-system.svc:5000'
+ADMIN_NAMESPACE = os.getenv('ADMIN_NAMESPACE', None)
+assert ADMIN_NAMESPACE
+SERVICES_NAMESPACE = os.getenv('SERVICES_NAMESPACE', None)
+assert SERVICES_NAMESPACE
 
-# regex = r'image=(\"|\'|f\"|f\')([\w\-\\{\}.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)(\"|\'|f\"|f\')'
+HELM_API=f"http://kube-helm-service.{SERVICES_NAMESPACE}.svc:5000"
+AIRFLOW_API = f"http://airflow-service.{SERVICES_NAMESPACE}.svc:8080/flow/kaapana/api/trigger/service-daily-cleanup-jobs"
+
 regex = r'image=(\"|\'|f\"|f\')([\w\-\\{\}.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\\{\}\.]+)(\"|\'|f\"|f\')'
 
 def listdir_nohidden(path):
@@ -90,7 +95,7 @@ if action == 'remove':
     print('################################################################################')
     print(f'Updating dags in airflow database!')
     print('################################################################################')
-    r = requests.post('http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/service-daily-cleanup-jobs', json={})
+    r = requests.post(AIRFLOW_API, json={})
     print(r.status_code)
     print(r.text)
 

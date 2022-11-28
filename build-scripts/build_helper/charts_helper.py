@@ -11,20 +11,28 @@ from pathlib import Path
 from build_helper.build_utils import BuildUtils
 from build_helper.container_helper import Container
 from jinja2 import Environment, FileSystemLoader
+from multiprocessing.pool import ThreadPool
 
 import networkx as nx
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
 
+def parallel_execute(container_object):
+    queue_id,container_object = container_object
+    issue = None
+    issue = container_object.build()
+    if issue == None:
+        issue = container_object.push()
+
+    return queue_id, container_object, issue
 
 def generate_deployment_script(platform_chart):
     BuildUtils.logger.info(f"-> Generate platform deployment script for {platform_chart.name} ...")
     file_loader = FileSystemLoader(join(BuildUtils.kaapana_dir, "platforms"))  # directory of template file
     env = Environment(loader=file_loader)
 
-    platform_dir = dirname(platform_chart.chart_dir)
-    deployment_script_config_path = list(Path(platform_dir).rglob("deployment_config.yaml"))
+    deployment_script_config_path = list(Path(platform_chart.chart_dir).rglob("deployment_config.yaml"))
 
     if len(deployment_script_config_path) != 1:
         BuildUtils.logger.error(f"Could not find platform deployment-script config for {platform_chart.name} at {dirname(platform_chart.chart_dir)}")
@@ -39,7 +47,6 @@ def generate_deployment_script(platform_chart):
 
     platform_params = yaml.load(open(deployment_script_config_path[0]), Loader=yaml.FullLoader)
     platform_params["project_name"] = platform_chart.name
-    platform_params["container_registry_url"] = BuildUtils.default_registry
     platform_params["build_timestamp"] = BuildUtils.build_timestamp
     platform_params["platform_build_version"] = platform_chart.version
     platform_params["platform_build_branch"] = platform_chart.build_branch
@@ -48,20 +55,27 @@ def generate_deployment_script(platform_chart):
     platform_params["kaapana_build_branch"] = BuildUtils.kaapana_build_branch
     platform_params["kaapana_last_commit_timestamp"] = BuildUtils.kaapana_last_commit_timestamp
     
+    platform_params["container_registry_url"] = BuildUtils.default_registry
+    if BuildUtils.include_credentials:
+        platform_params["container_registry_username"] = BuildUtils.registry_user
+        platform_params["container_registry_password"] = BuildUtils.registry_pwd
+
     platform_params["kaapana_collections"] = []
     
-    for collection_name,collection_chart in platform_chart.kaapana_collections.items():
-        platform_params["kaapana_collections"].append({
-         "name":  collection_chart.name,
-         "version":   collection_chart.version
-        })
+    if len(platform_chart.kaapana_collections) > 0:
+        for collection_name,collection_chart in platform_chart.kaapana_collections.items():
+            platform_params["kaapana_collections"].append({
+            "name":  collection_chart.name,
+            "version":   collection_chart.version
+            })
 
     platform_params["preinstall_extensions"] = []
-    for preinstall_extension_name,preinstall_extension_chart in platform_chart.preinstall_extensions.items():
-        platform_params["preinstall_extensions"].append({
-         "name":  preinstall_extension_chart.name, 
-         "version":   preinstall_extension_chart.version
-        })
+    if len(platform_chart.preinstall_extensions) > 0:
+        for preinstall_extension_name,preinstall_extension_chart in platform_chart.preinstall_extensions.items():
+            platform_params["preinstall_extensions"].append({
+            "name":  preinstall_extension_chart.name, 
+            "version":   preinstall_extension_chart.version
+            })
 
     template = env.get_template('deploy_platform_template.sh')  # load template file
 
@@ -305,7 +319,7 @@ class HelmChart:
             self.kaapana_type = "kaapanaworkflow"
 
         if self.kaapana_type == "platform":
-            deployment_config = glob(dirname(self.chart_dir)+"/**/deployment_config.yaml", recursive=True)
+            deployment_config = glob(self.chart_dir+"/deployment_config.yaml", recursive=True)
             assert len(deployment_config) == 1
 
             deployment_config = deployment_config[0]
@@ -592,12 +606,12 @@ class HelmChart:
         if HelmChart.enable_lint:
             BuildUtils.logger.info(f"{self.chart_id}: lint_chart")
             if build_version:
-                os.chdir(self.build_chart_dir)
+                cwd = self.build_chart_dir
             else:
-                os.chdir(self.chart_dir)
+                cwd = self.chart_dir
 
             command = ["helm", "lint"]
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=20)
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=20,cwd=cwd)
             if output.returncode != 0:
                 BuildUtils.logger.error(f"{self.chart_id}: lint_chart failed!")
                 BuildUtils.generate_issue(
@@ -622,12 +636,12 @@ class HelmChart:
         if HelmChart.enable_kubeval:
             BuildUtils.logger.info(f"{self.chart_id}: lint_kubeval")
             if build_version:
-                os.chdir(self.build_chart_dir)
+                cwd = self.build_chart_dir
             else:
-                os.chdir(self.chart_dir)
+                cwd =self.chart_dir
 
             command = ["helm", "kubeval", "--ignore-missing-schemas", "."]
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=20)
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=20, cwd=cwd)
             if output.returncode != 0 and "A valid hostname" not in output.stderr:
                 BuildUtils.logger.error(f"{self.chart_id}: lint_kubeval failed")
                 BuildUtils.generate_issue(
@@ -646,9 +660,8 @@ class HelmChart:
 
     def make_package(self):
         BuildUtils.logger.info(f"{self.chart_id}: make_package")
-        os.chdir(dirname(self.build_chart_dir))
         command = ["helm", "package", self.name]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60,cwd=dirname(self.build_chart_dir))
         if output.returncode == 0 and "Successfully" in output.stdout:
             BuildUtils.logger.debug(f"{self.chart_id}: package ok")
         else:
@@ -665,10 +678,9 @@ class HelmChart:
     def push(self):
         if HelmChart.enable_push:
             BuildUtils.logger.info(f"{self.chart_id}: push")
-            os.chdir(dirname(self.build_chart_dir))
             try_count = 0
             command = ["helm", "push", f"{self.name}-{self.version}.tgz", f"oci://{BuildUtils.default_registry}"]
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True,cwd=dirname(self.build_chart_dir), timeout=60)
             while output.returncode != 0 and try_count < HelmChart.max_tries:
                 BuildUtils.logger.warning(f"chart push failed -> try: {try_count}")
                 output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
@@ -733,9 +745,10 @@ class HelmChart:
         platform_build_files_target_dir = join(platform_build_files_base_target_dir, platform_chart.name)
         HelmChart.create_chart_build_version(src_chart=platform_chart,target_build_dir=platform_build_files_target_dir)
         
-        for collection_name,collections_chart in platform_chart.kaapana_collections.items():
-            BuildUtils.logger.info(f"{platform_chart.name} - {collection_name}: create create_collection_build_files")
-            HelmChart.create_collection_build_files(collections_chart=collections_chart,platform_build_files_target_dir=platform_build_files_base_target_dir)
+        if len(platform_chart.kaapana_collections) > 0:
+            for collection_name,collections_chart in platform_chart.kaapana_collections.items():
+                BuildUtils.logger.info(f"{platform_chart.name} - {collection_name}: create create_collection_build_files")
+                HelmChart.create_collection_build_files(collections_chart=collections_chart,platform_build_files_target_dir=platform_build_files_base_target_dir)
 
         platform_chart.lint_kubeval(build_version=True)
 
@@ -814,21 +827,20 @@ class HelmChart:
 
         generate_deployment_script(platform_chart)
 
+        BuildUtils.logger.info("")
         BuildUtils.logger.info("Start container build...")
+        containers_to_built = []
         containers_built = []
         container_count = len(build_order)
         for i in range(0, container_count):
             container_id = build_order[i]
-            BuildUtils.logger.info("")
-            BuildUtils.logger.info(f"container {i+1}/{container_count}: {container_id}")
             container_to_build = [x for x in BuildUtils.container_images_available if x.tag == container_id]
             if len(container_to_build) == 1:
                 container_to_build = container_to_build[0]
                 if container_to_build.local_image and container_to_build.build_tag == None:
                     container_to_build.build_tag = container_to_build.tag
-                container_to_build.build()
-                containers_built.append(container_to_build)
-                container_to_build.push()
+                
+                containers_to_built.append(container_to_build)
             else:
                 BuildUtils.logger.error(f"{container_id} could not be found in available containers!")
                 BuildUtils.generate_issue(
@@ -837,7 +849,31 @@ class HelmChart:
                     msg=f"{container_id} could not be found in available containers!",
                     level="FATAL"
                 )
+        containers_to_built = [ (x,containers_to_built[x]) for x in range(0,len(containers_to_built)) ]
+        result_containers = ThreadPool(BuildUtils.parallel_processes).imap_unordered(parallel_execute, containers_to_built)
+        
+        i = 0
+        BuildUtils.logger.info("")
+        BuildUtils.logger.info("")
+        for queue_id, result_container, issue in result_containers:
+            i += 1
+            containers_built.append(container_to_build)
+            BuildUtils.logger.debug(f"{i+1}/{container_count} Done: {queue_id} - {result_container.tag}")
+            BuildUtils.printProgressBar(i, container_count, prefix = 'Progress:', suffix = result_container, length = 50)
+            
+            if issue != None:
+                BuildUtils.logger.info("")
+                BuildUtils.generate_issue(
+                    component= issue["component"], 
+                    name= issue["name"],
+                    level= issue["level"],
+                    msg= issue["msg"],
+                    output=issue["output"] if "output" in issue else None,
+                    path= issue["path"] if "path" in issue else "",
+                    )
 
+        BuildUtils.logger.info("")
+        BuildUtils.logger.info("")
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
 
         if BuildUtils.create_offline_installation is True:

@@ -1,0 +1,51 @@
+apiVersion: networking.k8s.io/v1 
+kind: Ingress
+metadata:
+  name: traefik-web-api-ip
+  namespace: "{{  .Values.global.helm_namespace  }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /api
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: "traefik-{{  .Values.global.instance_uid | default 0 }}"
+            port:
+              name: admin
+      - path: /health
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: "traefik-{{  .Values.global.instance_uid | default 0 }}"
+            port:
+              name: admin
+---
+apiVersion: networking.k8s.io/v1 
+kind: Ingress
+metadata:
+  name: traefik-ingress
+  namespace: "{{  .Values.global.helm_namespace  }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.helm_namespace  }}-traefik-redirect@kubernetescrd,{{  .Values.global.helm_namespace  }}-traefik-strip-prefix@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+      - path: /traefik
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: "traefik-{{  .Values.global.instance_uid | default 0 }}"
+            port:
+              name: admin
+---

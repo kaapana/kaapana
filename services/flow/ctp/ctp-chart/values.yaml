@@ -1,6 +1,5 @@
 ---
 global:
     pull_policy_pods: "IfNotPresent"
-    flow_namespace: "flow"
     fast_data_dir: /home/kaapana
     

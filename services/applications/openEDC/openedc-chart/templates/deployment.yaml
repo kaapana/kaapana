@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: openedc
-  namespace: base
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:

@@ -9,7 +9,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
 
-from kaapana.blueprints.kaapana_global_variables import INSTANCE_NAME
+from kaapana.blueprints.kaapana_global_variables import INSTANCE_NAME, SERVICES_NAMESPACE
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
@@ -124,7 +124,7 @@ bin2dcm = Bin2DcmOperator(
 dcm_send_int = DcmSendOperator(
     dag=dag,
     level="batch",
-    pacs_host='ctp-dicom-service.flow.svc',
+    pacs_host=f'ctp-dicom-service.{SERVICES_NAMESPACE}.svc',
     pacs_port='11112',
     ae_title=ae_title,
     input_operator=bin2dcm

@@ -23,7 +23,7 @@ from random import randint
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 from kaapana.blueprints.kaapana_utils import generate_run_id, cure_invalid_name, get_release_name
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, ADMIN_NAMESPACE, JOBS_NAMESPACE, SERVICES_NAMESPACE
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
 import uuid
@@ -86,7 +86,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     :type xcom_push: bool
     """
 
-    HELM_API = 'http://kube-helm-service.kube-system.svc:5000'
+    HELM_API = f"http://kube-helm-service.{SERVICES_NAMESPACE}.svc:5000"
     TIMEOUT = 60 * 60 * 12
 
     pod_stopper = PodStopper()
@@ -132,7 +132,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                  env_vars=None,
                  image_pull_secrets=None,
                  startup_timeout_seconds=120,
-                 namespace='flow-jobs',
+                 namespace=JOBS_NAMESPACE,
                  image_pull_policy= env_pull_policy if env_pull_policy == env_pull_policy.lower() == "never" else 'IfNotPresent',
                  volume_mounts=None,
                  volumes=None,

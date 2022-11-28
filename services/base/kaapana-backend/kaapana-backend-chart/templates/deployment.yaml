@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kaapana-backend
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -22,7 +22,7 @@ spec:
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
-              value: "kaapana-backend-postgres,kaapana-backend-postgres-service.base.svc,5432"
+              value: "kaapana-backend-postgres,kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,5432"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
@@ -32,7 +32,7 @@ spec:
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
-              value: "keycloak,keycloak-internal-service.kube-system.svc,443"
+              value: "keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
@@ -43,7 +43,7 @@ spec:
           command: ["/app/scripts/create_backend_user.py"]
           env:
             - name: KEYCLOAK_URL
-              value: {{ .Values.global.keycloak_url }}
+              value: "https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/"
             - name: KEYCLOAK_ADMIN_USERNAME
               value: {{ .Values.global.credentials_keycloak_admin_username }}
             - name: KEYCLOAK_ADMIN_PASSWORD
@@ -76,13 +76,17 @@ spec:
         - name: https_proxy
           value: {{ .Values.global.http_proxy }}
         - name: no_proxy
-          value: "kaapana-backend-postgres-service.base,kaapana-backend-postgres-service.base.svc,airflow-service.flow,airflow-service.flow.svc,minio-service.store,minio-service.store.svc,opensearch-service.meta,opensearch-service.meta.svc"
+          value: "kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,airflow-service.{{  .Values.global.services_namespace  }},airflow-service.{{  .Values.global.services_namespace  }}.svc,minio-service.{{  .Values.global.services_namespace  }},minio-service.{{  .Values.global.services_namespace  }}.svc,opensearch-service.{{  .Values.global.services_namespace  }},opensearch-service.{{  .Values.global.services_namespace  }}.svc"
+        - name: SERVICES_NAMESPACE
+          value: "{{  .Values.global.services_namespace  }}"
         - name: KUBE_HELM_URL
-          value: "http://kube-helm-service.kube-system.svc:5000/kube-helm-api"
+          value: "http://kube-helm-service.{{  .Values.global.services_namespace  }}.svc:5000/kube-helm-api"
+        - name: AIRFLOW_URL
+          value: "http://airflow-service.{{  .Values.global.services_namespace  }}.svc:8080/flow/kaapana/api"
         - name: PROMETHEUS_URL
           value: {{ .Values.global.prometheus_url }}
         - name: KEYCLOAK_URL
-          value: {{ .Values.global.keycloak_url }}
+          value: "https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/"
         - name: MINIO_USERNAME
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIO_PASSWORD
@@ -92,7 +96,7 @@ spec:
         - name: APPLICATION_ROOT
           value: "/kaapana-backend"
         - name: DATABASE_URL
-          value: postgresql://kaapanauser:kaapanapassword@kaapana-backend-postgres-service.base.svc:5432
+          value: postgresql://kaapanauser:kaapanapassword@kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc:5432
         - name: REMOTE_SYNC_INTERVAL
           value: "5"
         - name: KEYCLOAK_ADMIN_USERNAME
@@ -122,8 +126,7 @@ spec:
       volumes:
       - name: alembic
         hostPath:
-          # path: /home/ubuntu/dev/kaapana-backend/docker/files
-          path: /home/kaapana/alembic-kaapana-backend
+          path: {{ .Values.global.fast_data_dir }}/alembic-kaapana-backend
           type: DirectoryOrCreate
 {{- if .Values.global.dev_files }}
       - name: kaapana-dev-files

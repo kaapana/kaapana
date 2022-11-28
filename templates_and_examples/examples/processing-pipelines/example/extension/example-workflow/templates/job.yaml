@@ -4,7 +4,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: prefetch-{{ .Values.image }}
-  namespace: default
+  namespace: "{{ .Values.global.helm_namespace }}"
 spec:
   selector:
     matchLabels:
@@ -20,7 +20,7 @@ spec:
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
-              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/health-check"
+              value: "kube-helm,kube-helm-service.{{  .Values.global.services_namespace  }}.svc,5000,/health-check"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
@@ -39,7 +39,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ .Values.image }}
-  namespace: default
+  namespace: "{{ .Values.global.helm_namespace }}"
 spec:
   template:
     spec:
@@ -49,7 +49,7 @@ spec:
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
-              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/health-check"
+              value: "kube-helm,kube-helm-service.{{  .Values.global.services_namespace  }}.svc,5000,/health-check"
             - name: DELAY
               value: "2"
             - name: TIMEOUT

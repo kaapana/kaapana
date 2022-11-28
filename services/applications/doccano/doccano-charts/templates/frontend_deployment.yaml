@@ -2,7 +2,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: doccano-frontend
-  namespace: {{ .Values.global.store_namespace | default "store" }}
+  namespace: "{{ .Values.global.extensions_namespace }}"
   labels:
     k8s-app: doccano-frontend
 spec:

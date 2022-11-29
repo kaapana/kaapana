@@ -16,7 +16,7 @@
   remote_user: "{{ remote_username }}"
   vars:
     ansible_ssh_private_key_file: ~/.ssh/{{ ssh_key_name }}
-    dst_results_dir: /home/{{ remote_username }}/results
+    vm_results_dir: /home/{{ remote_username }}/results
   environment:
     PATH: '/home/{{ remote_username }}/.local/bin:{{ ansible_env.PATH }}'
 
@@ -30,7 +30,7 @@
     
     - name: Check if actually result files exist
       find:
-        path: "{{ dst_results_dir }}"
+        path: "{{ vm_results_dir }}"
         #patterns: 'result.yaml'
         file_type: file
         recurse: yes
@@ -40,8 +40,8 @@
     - name: Create an archive of results into a zip file
       archive: 
         path: 
-        - "{{ dst_results_dir }}"
-        dest: "{{ dst_results_dir }}_{{ '%Y-%m-%d' | strftime }}.zip"
+        - "{{ vm_results_dir }}"
+        dest: "{{ vm_results_dir }}_{{ '%Y-%m-%d' | strftime }}.zip"
         format: zip
 
 
@@ -49,6 +49,6 @@
       become: yes
       ## Currently Ansible doesn't directly support directory/recursive copying from remote to local
       fetch:
-        src: "{{ dst_results_dir }}_{{ '%Y-%m-%d' | strftime }}.zip"
+        src: "{{ vm_results_dir }}_{{ '%Y-%m-%d' | strftime }}.zip"
         dest: "{{ results_path }}/"
         flat: yes

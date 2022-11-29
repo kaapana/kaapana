@@ -117,97 +117,17 @@ def abort_dag_run(dag_id, run_id):
             break
         else:
             desired_execution_date = None
-    # 
-        # # Own solution: 2.2.5
-        # commit = True
-        # message = []
-        # if not desired_dag or not desired_execution_date:
-        #     message.append("DAG {}".format(desired_dag))
-        #     message.append("or Execution Date {} not defined!".format(desired_execution_date))
-        #     return []
-        # # Mark the dag run to failed.
-        # if commit:
-        #     # _set_dag_run_state(dag.dag_id, execution_date, TaskInstanceState.FAILED, session)
-        #     state = TaskInstanceState.FAILED
-        #     desired_dag_run = (session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.execution_date == desired_execution_date).one())
-        #     desired_dag_run.state = state
-        #     if state == TaskInstanceState.RUNNING:
-        #         desired_dag_run.start_date = timezone.utcnow()
-        #         desired_dag_run.end_date = None
-        #     else:
-        #         desired_dag_run.end_date = timezone.utcnow()
-        #     session.merge(desired_dag_run)
-        # # Mark only running task instances.
-        # task_ids = [task.task_id for task in desired_dag.tasks]
-        # tis = session.query(TaskInstance).filter(
-        #     TaskInstance.dag_id == desired_dag.dag_id,
-        #     TaskInstance.execution_date == desired_execution_date,
-        #     TaskInstance.task_id.in_(task_ids),
-        #     # TaskInstance.state.in_(State.running),
-        # )
-        # task_ids_of_running_tis = [task_instance.task_id for task_instance in tis]
-        # tasks = []
-        # for task in desired_dag.tasks:
-        #     if task.task_id not in task_ids_of_running_tis:
-        #         continue
-        #     task.dag = desired_dag
-        #     tasks.append(task)
-        # # return set_state(tasks=tasks, execution_date=execution_date, state=TaskInstanceState.FAILED, commit=commit, session=session,)
-        # upstream = False
-        # downstream = True
-        # future = False
-        # past = False
-        # # state = TaskInstanceState.FAILED , commit = True , session = session => already defined!
-        # message.append(f"Queryied tasks: {tasks}")
-        # if not tasks:
-        #     message.append("No tasks given to set state!")
-        #     return []
-        # if not timezone.is_localized(desired_execution_date):
-        #     message.append(f"Received non-localized date {desired_execution_date}")
-        #     return []
-        # task_dags = {task.dag for task in tasks}
-        # if len(task_dags) > 1:
-        #     message.append(f"Received tasks from multiple DAGs: {task_dags}")
-        #     return []
-        # dag = next(iter(task_dags))
-        # if dag is None:
-        #     message.append("Received tasks with no DAG")
-        #     return []
-        # dates = get_execution_dates(dag, desired_execution_date, future, past)
-        # task_ids = list(find_task_relatives(tasks, downstream, upstream))
-        # confirmed_dates = verify_dag_run_integrity(dag, dates)
-        # sub_dag_run_ids = get_subdag_runs(dag, session, state, task_ids, commit, confirmed_dates)
-        # # now look for the task instances that are affected
-        # qry_dag = get_all_dag_task_query(dag, session, state, task_ids, confirmed_dates)
-        # if commit:
-        #     tis_altered = qry_dag.with_for_update().all()
-        #     if sub_dag_run_ids:
-        #         qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
-        #         tis_altered += qry_sub_dag.with_for_update().all()
-        #     for task_instance in tis_altered:
-        #         task_instance.state = state
-        #         if state in State.finished:
-        #             task_instance.end_date = timezone.utcnow()
-        #             task_instance.set_duration()
-        #         session.merge(task_instance)
-        # else:
-        #     tis_altered = qry_dag.all()
-        #     if sub_dag_run_ids:
-        #         qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
-        #         tis_altered += qry_sub_dag.all()
-        # message.append(f"Result of Job abortion: {tis_altered}")
-        # response = jsonify(message=message)
-        # return response
 
-    # Own solution: latest -> def set_dag_run_state_to_failed(*, dag: DAG, execution_date: datetime | None = None, run_id: str | None = None, commit: bool = False, session: SASession = NEW_SESSION,)
+    message = []
+
+    # Own solution highly inspred by airflow latest (2.4.3) -> def set_dag_run_state_to_failed(*, dag: DAG, execution_date: datetime | None = None, run_id: str | None = None, commit: bool = False, session: SASession = NEW_SESSION,)
     dag = desired_dag
     execution_date = desired_execution_date
     run_id = run_id
     commit = True
     session = session
     state = TaskInstanceState.FAILED
-    # if not exactly_one(execution_date, run_id):
-    #     return []
+    
     if not dag:
         return []
     if execution_date:
@@ -219,190 +139,88 @@ def abort_dag_run(dag_id, run_id):
         run_id = dag_run.run_id
     if not run_id:
         raise ValueError(f"Invalid dag_run_id: {run_id}")
+
     # Mark the dag run to failed.
     if commit:
         # _set_dag_run_state(dag.dag_id, run_id, DagRunState.FAILED, session)
         # definition: def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SASession = NEW_SESSION)
-        dag_state = DagRunState.FAILED
+        dag_run_state = DagRunState.FAILED
         dag_run = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one()
-        dag_run.state = state
-        if state == State.RUNNING:
+        dag_run.state = dag_run_state
+        if dag_run_state == State.RUNNING:
             dag_run.start_date = timezone.utcnow()
             dag_run.end_date = None
         else:
             dag_run.end_date = timezone.utcnow()
         session.merge(dag_run)
+    
     # Mark only RUNNING task instances.
     task_ids = [task.task_id for task in dag.tasks]
-    tis = session.query(TaskInstance).filter(
+    tis_r = session.query(TaskInstance).filter(
         TaskInstance.dag_id == dag.dag_id,
         TaskInstance.run_id == run_id,
         TaskInstance.task_id.in_(task_ids),
-        TaskInstance.state.in_(State.running),
+        TaskInstance.state == (TaskInstanceState.RUNNING),
     )
-    task_ids_of_running_tis = [task_instance.task_id for task_instance in tis]
-    tasks = []
-    for task in dag.tasks:
-        if task.task_id not in task_ids_of_running_tis:
-            continue
-        task.dag = dag
-        tasks.append(task)
-    # Mark non-finished tasks as SKIPPED.
+    tis_r = [ti for ti in tis_r]
+    if commit:
+        for ti in tis_r:
+            message.append(f"Running Task {ti} and its state {ti.state}")
+            ti.set_state(State.FAILED) # set non-running and not finished tasks to skipped
+
+    # Mark non-finished and not running tasks as SKIPPED.
     tis = session.query(TaskInstance).filter(
         TaskInstance.dag_id == dag.dag_id,
         TaskInstance.run_id == run_id,
-        # TaskInstance.state.not_in(State.finished),
-        # TaskInstance.state.not_in(State.running),
-        TaskInstance.state not in (State.finished),
-        TaskInstance.state not in (State.running),
+        TaskInstance.state != (TaskInstanceState.SUCCESS),
+        TaskInstance.state != (TaskInstanceState.RUNNING),
+        TaskInstance.state != (TaskInstanceState.FAILED),
     )
     tis = [ti for ti in tis]
     if commit:
         for ti in tis:
-            ti.set_state(State.SKIPPED)
+            message.append(f"Non-finished Task {ti} and its state {ti.state}")
+            ti.set_state(State.SKIPPED) # set non-running and not finished tasks to skipped
     
-    all_tis = []
-    all_tis.append(tis)
-    all_tis.append(set_state(tasks=tasks, run_id=run_id, state=State.FAILED, commit=commit, session=session))
+    # Mark tasks in state None as SKIPPED
+    tis_n = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag.dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.state == None,
+    )
+    tis_n = [ti for ti in tis_n]
+    if commit:
+        for ti in tis_n:
+            message.append(f"None-state Task {ti} and its state {ti.state}")
+            ti.set_state(State.SKIPPED) # set None-state tasks to skipped
 
-    message = []
+    # if no task is marked as FAILED so far, take last task marked as SUCCESS and set it to FAILED --> such that whole dag_run is also marked as failed!
+    # query tasks for failed
+    tis_f = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag.dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.state == (TaskInstanceState.FAILED),
+    )
+    tis_f = [ti for ti in tis_f]
+    message.append(f"So far FAILED tasks: {tis_f}")
+    if len(tis_f) == 0:    
+        # if no failed task found -> query tasks for succes; select last succeeded task and set is to failed
+        tis_s = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == dag.dag_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.state == (TaskInstanceState.SUCCESS),
+        )
+        message.append(f"tis_s: {tis_s}")
+        latest_ti_s = tis_s.order_by(TaskInstance.start_date.desc()).first()
+        message.append(f"So far SUCCESS task, to.be changed to FAILED: {latest_ti_s}")
+        latest_ti_s.set_state(State.FAILED)
+    
+    all_tis = [tis_r, tis, tis_n]
+
     message.append(f"Result of Job abortion: {all_tis}")
     response = jsonify(message=message)
     return response
 
-
-    # # desired_dag_run = session.query(DagRun).filter(DagRun.dag_id == desired_dag.dag_id).filter(DagRun.run_id == run_id)
-    # # desired_execution_date = desired_dag_run.execution_date
-    # 
-    # # message = ["DAGs: {}".format(desired_dag), "DAG's execution_date: {}".format(desired_execution_date)]
-    # # response = jsonify(message=message)
-    # # return response
-    # 
-    # # dag_id = data['dag_id']
-    # # temp_dag = DAG(dag_id=dag_id)    # intermediate DAG which just contains dag_id, since it's needed in this form for set_dag_rum_state_to_failed()
-    # # execution_date = None   # dag_run has an attribute execution_date
-    # # session = settings.Session()
-    # try:
-    #     dr = set_dag_run_failed(dag=desired_dag, execution_date=desired_execution_date, commit=True, session=session)
-    #     # airflow 2.2.5: def set_dag_run_state_to_failed(dag: Optional[DAG], execution_date: Optional[datetime], commit: bool = False, session: SASession = NEW_SESSION,)
-    # except AirflowException as err:
-    #     _log.error(err)
-    #     response = jsonify(error="{}".format(err))
-    #     response.status_code = err.status_code
-    #     return response
-    # 
-    # # message = ["{} aborted!".format(dr.dag_id)]
-    # message = ["Job aborted!"]
-    # response = jsonify(message=message)
-    # return response
-
-def set_state(
-    *,
-    session,
-    tasks,
-    run_id: str = None,
-    execution_date: datetime = None,
-    upstream: bool = False,
-    downstream: bool = False,
-    future: bool = False,
-    past: bool = False,
-    state: TaskInstanceState = TaskInstanceState.SUCCESS,
-    commit: bool = False,
-):
-    """
-    Set the state of a task instance and if needed its relatives.
-    Can set state for future tasks (calculated from run_id) and retroactively
-    for past tasks. Will verify integrity of past dag runs in order to create
-    tasks that did not exist. It will not create dag runs that are missing
-    on the schedule (but it will, as for subdag, dag runs if needed).
-    :param tasks: the iterable of tasks or (task, map_index) tuples from which to work.
-        ``task.dag`` needs to be set
-    :param run_id: the run_id of the dagrun to start looking from
-    :param execution_date: the execution date from which to start looking (deprecated)
-    :param upstream: Mark all parents (upstream tasks)
-    :param downstream: Mark all siblings (downstream tasks) of task_id, including SubDags
-    :param future: Mark all future tasks on the interval of the dag up until
-        last execution date.
-    :param past: Retroactively mark all tasks starting from start_date of the DAG
-    :param state: State to which the tasks need to be set
-    :param commit: Commit tasks to be altered to the database
-    :param session: database session
-    :return: list of tasks that have been created and updated
-    """
-    if not tasks:
-        return []
-
-    # if not exactly_one(execution_date, run_id):
-    #     raise ValueError("Exactly one of dag_run_id and execution_date must be set")
-
-    if execution_date and not timezone.is_localized(execution_date):
-        raise ValueError(f"Received non-localized date {execution_date}")
-
-    task_dags = {task[0].dag if isinstance(task, tuple) else task.dag for task in tasks}
-    if len(task_dags) > 1:
-        raise ValueError(f"Received tasks from multiple DAGs: {task_dags}")
-    dag = next(iter(task_dags))
-    if dag is None:
-        raise ValueError("Received tasks with no DAG")
-
-    if execution_date:
-        run_id = dag.get_dagrun(execution_date=execution_date, session=session).run_id
-    if not run_id:
-        raise ValueError("Received tasks with no run_id")
-
-    # dag_run_ids = get_run_ids(dag, run_id, future, past, session=session)
-    # definition: def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASession = NEW_SESSION) - up to next #
-    last_dagrun = dag.get_last_dagrun(include_externally_triggered=True, session=session)
-    current_dagrun = dag.get_dagrun(run_id=run_id, session=session)
-    first_dagrun = (
-        session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).order_by(DagRun.execution_date.asc()).first()
-    )
-    if last_dagrun is None:
-        raise ValueError(f"DagRun for {dag.dag_id} not found")
-    # determine run_id range of dag runs and tasks to consider
-    end_date = last_dagrun.logical_date if future else current_dagrun.logical_date
-    start_date = current_dagrun.logical_date if not past else first_dagrun.logical_date
-    if not dag.timetable.can_run:
-        # If the DAG never schedules, need to look at existing DagRun if the user wants future or
-        # past runs.
-        dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date, session=session)
-        run_ids = sorted({d.run_id for d in dag_runs})
-    elif not dag.timetable.periodic:
-        run_ids = [run_id]
-    else:
-        dates = [info.logical_date for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)]
-        run_ids = [dr.run_id for dr in DagRun.find(dag_id=dag.dag_id, execution_date=dates, session=session)]
-    return run_ids
-    # 
-
-    task_id_map_index_list = list(find_task_relatives(tasks, downstream, upstream))
-    task_ids = [task_id if isinstance(task_id, str) else task_id[0] for task_id in task_id_map_index_list]
-
-    confirmed_infos = list(_iter_existing_dag_run_infos(dag, dag_run_ids, session=session))
-    confirmed_dates = [info.logical_date for info in confirmed_infos]
-
-    sub_dag_run_ids = list(
-        _iter_subdag_run_ids(dag, session, DagRunState(state), task_ids, commit, confirmed_infos),
-    )
-
-    # now look for the task instances that are affected
-
-    qry_dag = get_all_dag_task_query(dag, session, state, task_id_map_index_list, dag_run_ids)
-
-    if commit:
-        tis_altered = qry_dag.with_for_update().all()
-        if sub_dag_run_ids:
-            qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
-            tis_altered += qry_sub_dag.with_for_update().all()
-        for task_instance in tis_altered:
-            task_instance.set_state(state, session=session)
-        session.flush()
-    else:
-        tis_altered = qry_dag.all()
-        if sub_dag_run_ids:
-            qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
-            tis_altered += qry_sub_dag.all()
-    return tis_altered
 
 @kaapanaApi.route('/api/getdagruns', methods=['GET'])
 @csrf.exempt

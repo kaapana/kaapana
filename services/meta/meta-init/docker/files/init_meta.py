@@ -7,14 +7,16 @@ import requests
 import traceback
 import json
 import logging
+import time
 
+tries = 0
 # TODO https://discuss.elastic.co/t/reloading-the-index-field-list-automatically/116687
 # https://<domain>/meta/api/index_patterns/_fields_for_wildcard?pattern=meta-index&meta_fields=%5B%22_source%22%2C%22_id%22%2C%22_type%22%2C%22_index%22%2C%22_score%22%5D
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO )
 
 def import_dashboards():
-    global dashboards_url, dashboards_json_file, osd_xsrf
+    global dashboards_url, dashboards_json_file, osd_xsrf, tries
     print("#")
     print(f"# -> Importing dashboards from {dashboards_json_file} ...")
     print("#")
@@ -22,6 +24,11 @@ def import_dashboards():
         all_dashboards = json.load(f)
 
     for dashboard in all_dashboards:
+        if tries > 5:
+            print("# ")
+            print(f"# Too many tries: {tries} -> abort.")
+            exit(1)
+
         try:
             dashboard_source = dashboard['_source']
             response = requests.post(f"{dashboards_url}/api/saved_objects/{dashboard['_type']}/{dashboard['_id']}?overwrite=true",
@@ -31,11 +38,20 @@ def import_dashboards():
                 print(f"# {dashboard_source['title']}: OK!")
                 print("#")
 
+            elif response.text == "OpenSearch Dashboards server is not ready yet":
+                print("#")
+                print("# -> OpenSearch Dashboards server is not ready yet")
+                print("# waiting ...")
+                tries += 1
+                time.sleep(10)
+                print("# restart import_dashboards() ...")
+                import_dashboards()
+                return
+
             else:
                 print("#")
                 print(f"# Could not import dashboard: {dashboard_source['title']}")
                 print(response.text)
-                print(response.content)
                 print("#")
                 exit(1)
         except Exception as e:
@@ -43,7 +59,11 @@ def import_dashboards():
             print("#")
             print(f"# Could not import dashboard: {dashboard_source['title']} -> Exception")
             print("#")
-            exit(1)
+            tries += 1
+            print("# waiting ...")
+            time.sleep(10)
+            print("# restart import_dashboards() ...")
+            import_dashboards()
 
     print("#")
     print("#")
@@ -88,11 +108,10 @@ def create_index():
     index_body = {
         "settings": {
             "index": {
+                "number_of_replicas": 0,
                 "number_of_shards": 4,
-                # "index.mapper.dynamic": True,
-                # "number_of_replicas": 0,
-                # "index.mapping.total_fields.limit": 6000,
-                # "index.max_docvalue_fields_search": 150,
+                "mapping.total_fields.limit": 6000,
+                "max_docvalue_fields_search": 150,
             }
         },
         "mappings":
@@ -189,6 +208,10 @@ def create_index():
             ],
         }
     }
+    print("#")
+    # print("# INDEX-BODY:")
+    # print(json.dumps(index_body, indent=4))
+    # print("#")
     try:
         response = os_client.indices.create(index_name, body=index_body)
         print("#")
@@ -205,6 +228,7 @@ def create_index():
             print("# Error:")
             print(str(e))
             print("#")
+            exit(1)
 
     print("#")
     print("# Success! ")

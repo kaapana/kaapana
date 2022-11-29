@@ -3,7 +3,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: remove-kube-helm-collections-{{ $uuid }}
-  namespace: default
+  namespace: "{{ .Values.global.helm_namespace }}"
   annotations:
     "helm.sh/hook": post-delete
     "helm.sh/hook-weight": "-5"

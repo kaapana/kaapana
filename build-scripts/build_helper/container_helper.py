@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 from glob import glob
 import os
-from posixpath import dirname
 from subprocess import PIPE, run
-from time import time, sleep
+from time import time
 from shutil import which
-from pathlib import Path
 from build_helper.build_utils import BuildUtils
 
 suite_tag = "Container"
@@ -128,7 +126,6 @@ class Container:
         return repr_obj
 
     def __init__(self, dockerfile):
-        self.image_name = None
         self.image_version = None
         self.tag = None
         self.path = dockerfile
@@ -184,19 +181,22 @@ class Container:
 
         else:
             self.registry = self.registry if self.registry != None else BuildUtils.default_registry
-            self.tag = self.registry+"/"+self.image_name+":"+self.image_version
-            if "local-only" in self.tag:
+            if "local-only" in self.registry:
                 self.local_image = True
+                self.image_version = "latest"
+            else:
+                self.image_version = BuildUtils.kaapana_build_version
+
+            self.tag = self.registry+"/"+self.image_name+":"+self.image_version
 
         self.check_if_dag()
 
     def check_prebuild(self):
         BuildUtils.logger.debug(f"{self.build_tag}: check_prebuild")
-        os.chdir(self.container_dir)
         pre_build_script = os.path.dirname(self.path)+"/pre_build.sh"
         if os.path.isfile(pre_build_script):
             command = [pre_build_script]
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3600)
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3600, cwd=self.container_dir)
 
             if output.returncode == 0:
                 BuildUtils.logger.debug(f"{self.build_tag}: pre-build ok.")
@@ -216,78 +216,82 @@ class Container:
             BuildUtils.logger.debug(f"{self.build_tag}: no pre-build script!")
 
     def build(self):
+        issue = None
         if Container.enable_build:
-            BuildUtils.logger.info(f"{self.build_tag}: start building ...")
+            BuildUtils.logger.debug(f"{self.build_tag}: start building ...")
 
             if self.container_push_status == "pushed":
                 BuildUtils.logger.debug(f"{self.build_tag}: already build -> skip")
-                return
+                return issue
 
             if self.ci_ignore:
                 BuildUtils.logger.warning(f"{self.build_tag}: {self.ci_ignore=} -> skip")
-                BuildUtils.generate_issue(
-                    component=suite_tag,
-                    name=f"{self.build_tag}",
-                    msg=f"Container build skipped: {self.ci_ignore=} !",
-                    level="WARING",
-                    path=self.container_dir
-                )
-                return
+                issue = {
+                    "component": suite_tag,
+                    "name": f"{self.build_tag}",
+                    "msg": f"Container build skipped: {self.ci_ignore=} !",
+                    "level": "WARING",
+                    "path": self.container_dir
+                }
+                return issue
 
             startTime = time()
-            os.chdir(self.container_dir)
             if BuildUtils.http_proxy is not None:
                 command = [Container.container_engine, "build", "--build-arg", f"http_proxy={BuildUtils.http_proxy}",
                            "--build-arg", f"https_proxy={BuildUtils.http_proxy}", "-t", self.build_tag, "-f", self.path, "."]
             else:
                 command = [Container.container_engine, "build", "-t", self.build_tag, "-f", self.path, "."]
 
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000, env=dict(os.environ, DOCKER_BUILDKIT=f"{BuildUtils.enable_build_kit}"))
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000, cwd=self.container_dir, env=dict(os.environ, DOCKER_BUILDKIT=f"{BuildUtils.enable_build_kit}"))
 
             if output.returncode == 0:
                 if "---> Running in" in output.stdout:
                     self.container_build_status = "built"
-                    BuildUtils.logger.info(f"{self.build_tag}: Build sucessful.")
+                    BuildUtils.logger.debug(f"{self.build_tag}: Build sucessful.")
                 else:
                     self.container_build_status = "nothing_changed"
-                    BuildUtils.logger.info(f"{self.build_tag}: Build sucessful - no changes.")
+                    BuildUtils.logger.debug(f"{self.build_tag}: Build sucessful - no changes.")
 
                 hours, rem = divmod(time()-startTime, 3600)
                 minutes, seconds = divmod(rem, 60)
-                BuildUtils.logger.info("{}: Build-time: {:0>2}:{:0>2}:{:05.2f}".format(self.build_tag, int(hours), int(minutes), seconds))
+                BuildUtils.logger.debug("{}: Build-time: {:0>2}:{:0>2}:{:05.2f}".format(self.build_tag, int(hours), int(minutes), seconds))
+                return issue
 
             else:
                 self.container_build_status = "failed"
                 BuildUtils.logger.error(f"{self.build_tag}: Build failed!")
-                BuildUtils.generate_issue(
-                    component=suite_tag,
-                    name=f"{self.build_tag}",
-                    msg="container build failed!",
-                    level="ERROR",
-                    output=output,
-                    path=self.container_dir
-                )
+                issue = {
+                    "component": suite_tag,
+                    "name": f"{self.build_tag}",
+                    "msg": "container build failed!",
+                    "level": "ERROR",
+                    "output": output,
+                    "path": self.container_dir
+                }
+                return issue
         else:
             BuildUtils.logger.debug(f"{self.build_tag}: build disabled")
             self.container_build_status = "disabled"
+            return issue
 
     def push(self, retry=True):
+        issue = None
         BuildUtils.logger.debug(f"{self.build_tag}: in push()")
         if self.ci_ignore:
             BuildUtils.logger.warning(f"{self.build_tag}: {self.ci_ignore=} -> skip")
-            BuildUtils.generate_issue(
-                component=suite_tag,
-                name=f"{self.build_tag}",
-                msg=f"Container push skipped: {self.ci_ignore=} !",
-                level="WARING",
-                path=self.container_dir
-            )
-            return
+            issue = {
+                "component": suite_tag,
+                "name": f"{self.build_tag}",
+                "msg": f"Container push skipped: {self.ci_ignore=} !",
+                "level": "WARING",
+                "path": self.container_dir
+            }
+            return issue
 
         if BuildUtils.push_to_microk8s is True:
             if self.build_tag.startswith('local-only'):
                 BuildUtils.logger.info(f"Skipping: Pushing {self.build_tag} to microk8s, due to local-only")
-                return
+                return issue
             BuildUtils.logger.debug(f"{self.build_tag}: push_to_microk8s")
 
             BuildUtils.logger.info(f"Pushing {self.build_tag} to microk8s")
@@ -296,13 +300,13 @@ class Container:
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
             if output.returncode != 0:
                 BuildUtils.logger.error(f"Docker save failed {output.stderr}!")
-                BuildUtils.generate_issue(
-                    component="Microk8s push",
-                    name="docker save",
-                    msg=f"Docker save failed {output.stderr}!",
-                    level="ERROR"
-                )
-                return
+                issue = {
+                    "component": "Microk8s push",
+                    "name": "docker save",
+                    "msg": f"Docker save failed {output.stderr}!",
+                    "level": "ERROR"
+                }
+                return issue
 
             command = ["microk8s", "ctr", "image", "import", parking_file]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
@@ -310,15 +314,15 @@ class Container:
                 os.remove(parking_file)
             if output.returncode != 0:
                 BuildUtils.logger.error(f"Microk8s image push failed {output.stderr}!")
-                BuildUtils.generate_issue(
-                    component="Microk8s image push",
-                    name="Microk8s image push",
-                    msg=f"Microk8s image push failed {output.stderr}!",
-                    level="ERROR"
-                )
-                return
+                issue = {
+                    "component": "Microk8s image push",
+                    "name": "Microk8s image push",
+                    "msg": f"Microk8s image push failed {output.stderr}!",
+                    "level": "ERROR"
+                }
+                return issue
 
-            BuildUtils.logger.info(f"Sucessfully pushed {self.build_tag} to microk8s")
+            BuildUtils.logger.debug(f"Sucessfully pushed {self.build_tag} to microk8s")
 
         if Container.enable_push:
             BuildUtils.logger.debug(f"{self.build_tag}: push enabled")
@@ -337,20 +341,20 @@ class Container:
             elif self.container_build_status != "built":
                 BuildUtils.logger.warning("{self.build_tag}: Skipping push since image has not been built successfully!")
                 BuildUtils.logger.warning(f"{self.build_tag}: container_build_status: {self.container_build_status}")
-                BuildUtils.generate_issue(
-                    component=suite_tag,
-                    name=f"{self.build_tag}",
-                    msg=f"Push skipped -> image has not been built successfully! container_build_status: {self.container_build_status}",
-                    level="WARNING",
-                    path=self.container_dir
-                )
-                return
+                issue = {
+                    "component": suite_tag,
+                    "name": f"{self.build_tag}",
+                    "msg": f"Push skipped -> image has not been built successfully! container_build_status: {self.container_build_status}",
+                    "level": "WARNING",
+                    "path": self.container_dir
+                }
+                return issue
 
             elif self.local_image:
-                BuildUtils.logger.info(f"{self.build_tag}: Skipping push: local image! ")
+                BuildUtils.logger.debug(f"{self.build_tag}: Skipping push: local image! ")
                 return
 
-            BuildUtils.logger.info(f"{self.build_tag}: start pushing! ")
+            BuildUtils.logger.debug(f"{self.build_tag}: start pushing! ")
             retries = 0
             command = [Container.container_engine, "push", self.build_tag]
             while retries < max_retries:
@@ -363,57 +367,62 @@ class Container:
                 self.container_push_status = "pushed"
 
                 if "Pushed" in output.stdout or "podman" in Container.container_engine:
-                    BuildUtils.logger.info(f"{self.build_tag}: pushed -> success")
+                    BuildUtils.logger.debug(f"{self.build_tag}: pushed -> success")
                 else:
-                    BuildUtils.logger.info(f"{self.build_tag}: pushed -> success but nothing was changed!")
+                    BuildUtils.logger.debug(f"{self.build_tag}: pushed -> success but nothing was changed!")
+
+                return issue
 
             else:
                 self.container_push_status = "not_pushed"
 
                 if "configured as immutable" in output.stderr:
                     BuildUtils.logger.warning(f"{self.build_tag}: not pushed -> immutable!")
-                    BuildUtils.generate_issue(
-                        component=suite_tag,
-                        name=f"{self.build_tag}",
-                        msg=f"Container not pushed -> immutable!",
-                        level="WARNING",
-                        path=self.container_dir
-                    )
+                    issue = {
+                        "component": suite_tag,
+                        "name": f"{self.build_tag}",
+                        "msg": f"Container not pushed -> immutable!",
+                        "level": "WARNING",
+                        "path": self.container_dir
+                    }
 
                 elif "read only mode" in output.stderr and retry:
                     BuildUtils.logger.warning(f"{self.build_tag}: not pushed -> read only mode!")
-                    BuildUtils.generate_issue(
-                        component=suite_tag,
-                        name=f"{self.build_tag}",
-                        msg=f"Container not pushed -> read only mode!",
-                        level="WARNING",
-                        path=self.container_dir
-                    )
+                    issue = {
+                        "component": suite_tag,
+                        "name": f"{self.build_tag}",
+                        "msg": f"Container not pushed -> read only mode!",
+                        "level": "WARNING",
+                        "path": self.container_dir
+                    }
 
                 elif "denied" in output.stderr and retry:
                     BuildUtils.logger.error(f"{self.build_tag}: not pushed -> access denied!")
-                    BuildUtils.generate_issue(
-                        component=suite_tag,
-                        name=f"{self.build_tag}",
-                        msg="container not pushed -> access denied!",
-                        level="ERROR",
-                        output=output,
-                        path=self.container_dir
-                    )
+                    issue = {
+                        "component": suite_tag,
+                        "name": f"{self.build_tag}",
+                        "msg": "container not pushed -> access denied!",
+                        "level": "ERROR",
+                        "output": output,
+                        "path": self.container_dir
+                    }
                 else:
                     BuildUtils.logger.error(f"{self.build_tag}: not pushed -> unknown reason!")
-                    BuildUtils.generate_issue(
-                        component=suite_tag,
-                        name=f"{self.build_tag}",
-                        msg="container not pushed -> unknown reason!",
-                        level="ERROR",
-                        output=output,
-                        path=self.container_dir
-                    )
+                    issue = {
+                        "component": suite_tag,
+                        "name": f"{self.build_tag}",
+                        "msg": "container not pushed -> unknown reason!",
+                        "level": "ERROR",
+                        "output": output,
+                        "path": self.container_dir
+                    }
+
+                return issue
 
         else:
             BuildUtils.logger.info(f"{self.build_tag}: push disabled")
             self.container_push_status = "disabled"
+            return issue
 
     def check_if_dag(self):
         self.operator_containers = []
@@ -425,8 +434,8 @@ class Container:
             with open(python_file, "r") as python_content:
                 for line in python_content:
                     if "image=" in line and "{default_registry}" in line:
-                        line = line.split("\"")[1].replace(" ", "")
-                        line = line.replace("{default_platform_abbr}_{default_platform_version}__", "")
+                        line = line.rstrip('\n').split("\"")[1].replace(" ", "")
+                        line = line.replace("{kaapana_build_version}", BuildUtils.kaapana_build_version)
                         container_id = line.replace("{default_registry}", BuildUtils.default_registry)
                         self.operator_containers.append(container_id)
 

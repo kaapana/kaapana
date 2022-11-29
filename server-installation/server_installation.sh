@@ -427,45 +427,6 @@ function uninstall {
 
 }
 
-function install_certs {
-    echo -e "Checking if Kubectl is installed..."
-    command -v microk8s.kubectl >/dev/null 2>&1 || {
-    echo -e >&2 "${RED}Kubectl has to be installed for this script - but it's not installed.  Aborting.${NC}";
-    exit 1; }
-    echo -e "${GREEN}OK!${NC}"
-
-
-    echo -e "Checking if correct Kubectl config is in place..."
-    microk8s.kubectl get pods --all-namespaces
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}Server connection - OK!${NC}"
-    else
-        echo -e "${RED}Kubectl could not communicate with the server.${NC}"
-        echo -e "${RED}Have a look at the output, ${NC}"
-        echo -e "${RED}Check if the correct server certificate file is in place @ ~/.kube/config, ${NC}"
-        echo -e "${RED}Check if the IP address in the certificate matches the IP address of the server ${NC}"
-        echo -e "${RED}and try again.${NC}"
-        exit 1
-    fi
-
-    if [ ! -f ./tls.key ] || [ ! -f ./tls.crt ]; then
-        echo -e "${RED}tls.key or tls.crt could not been found in this directory.${NC}"
-        echo -e "${RED}Please rename and copy the files first!${NC}"
-        exit 1
-    else
-        echo -e "files found!"
-        echo -e "Creating cluster secret ..."
-        microk8s.kubectl delete secret certificate -n kube-system || true
-        microk8s.kubectl create secret tls certificate --namespace kube-system --key ./tls.key --cert ./tls.crt
-        auth_proxy_pod=$(microk8s.kubectl get pods -n kube-system |grep oauth2-proxy  | awk '{print $1;}')
-        echo "auth_proxy_pod: $auth_proxy_pod"
-        microk8s.kubectl -n kube-system delete pod $auth_proxy_pod
-    fi
-
-    echo -e "${GREEN}DONE${NC}"
-}
-
-
 OS_PRESENT=$(awk -F= '/^NAME/{print $2}' /etc/os-release)
 OS_PRESENT="${OS_PRESENT%\"}"
 OS_PRESENT="${OS_PRESENT#\"}"
@@ -491,7 +452,6 @@ usage="$(basename "$0")
 
 _Flag: -gpu --enable-gpu     will activate gpu support for kubernetes (default: false)
 _Flag: -q   --quiet          will activate quiet mode (default: false)
-_Flag:      --install-certs  set new HTTPS-certificates for the platform
 _Flag: -sv  --switch-version will switch the Kubernetes version to [-v version]
 _Flag:      --uninstall      removes microk8s and helm from the system
 
@@ -582,12 +542,6 @@ do
         
         --uninstall)
             uninstall
-            exit 0
-        ;;
-
-
-        --install-certs)
-            install_certs
             exit 0
         ;;
 

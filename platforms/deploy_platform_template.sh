@@ -8,8 +8,7 @@ export HELM_EXPERIMENTAL_OCI=1
 ######################################################
 
 PROJECT_NAME="{{ project_name }}" # name of the platform Helm chart
-PROJECT_ABBR="{{ project_abbr }}" # abbrevention for the platform-name
-DEFAULT_VERSION="{{ default_version }}"    # version of the platform Helm chart
+PLATFORM_BUILD_VERSION="{{ platform_build_version }}"    # version of the platform Helm chart -> auto-generated
 
 CONTAINER_REGISTRY_URL="{{ container_registry_url|default('', true) }}" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 CONTAINER_REGISTRY_USERNAME="{{ container_registry_username|default('', true) }}"
@@ -23,11 +22,27 @@ DEV_MODE="{{ dev_mode|default('true', true) }}" # dev-mode -> containers will al
 DEV_PORTS="{{ dev_ports|default('false') }}"
 GPU_SUPPORT="{{ gpu_support|default('false') }}"
 
-HELM_NAMESPACE="kaapana"
 PREFETCH_EXTENSIONS="{{ prefetch_extensions|default('false') }}"
 CHART_PATH=""
 NO_HOOKS=""
 
+PLATFORM_BUILD_BRANCH="{{ platform_build_branch }}"    # branch name, which was build from -> auto-generated
+PLATFORM_LAST_COMMT_TIMESTAMP="{{ platform_last_commit_timestamp }}" # timestamp of the last commit -> auto-generated
+
+BUILD_TIMESTAMP="{{ build_timestamp }}"    # timestamp of the build-time -> auto-generated
+KAAPANA_BUILD_VERSION="{{ kaapana_build_version }}"    # version of the platform Helm chart -> auto-generated
+KAAPANA_BUILD_BRANCH="{{ kaapana_build_branch }}"    # branch name, which was build from -> auto-generated
+KAAPANA_LAST_COMMT_TIMESTAMP="{{ kaapana_last_commit_timestamp }}" # timestamp of the last commit -> auto-generated
+
+INSTANCE_UID=""
+
+SERVICES_NAMESPACE="{{ services_namespace }}"
+ADMIN_NAMESPACE="{{ admin_namespace }}"
+JOBS_NAMESPACE="{{ jobs_namespace }}"
+EXTENSIONS_NAMESPACE="{{ extensions_namespace }}"
+HELM_NAMESPACE="{{ helm_namespace }}"
+
+INCLUDE_REVERSE_PROXY=false
 ######################################################
 # Individual platform configuration
 ######################################################
@@ -58,6 +73,32 @@ if [ -z ${http_proxy+x} ] || [ -z ${https_proxy+x} ]; then
     http_proxy=""
     https_proxy=""
 fi
+
+
+if [ ! -z $INSTANCE_UID ]; then
+    echo ""
+    echo "Setting INSTANCE_UID: $INSTANCE_UID namespaces ..."
+    SERVICES_NAMESPACE="$INSTANCE_UID-$SERVICES_NAMESPACE"
+    # ADMIN_NAMESPACE="$INSTANCE_UID-$ADMIN_NAMESPACE"
+    JOBS_NAMESPACE="$INSTANCE_UID-$JOBS_NAMESPACE"
+    EXTENSIONS_NAMESPACE="$INSTANCE_UID-$EXTENSIONS_NAMESPACE"
+    HELM_NAMESPACE="$INSTANCE_UID-$HELM_NAMESPACE"
+
+    FAST_DATA_DIR="$FAST_DATA_DIR-$INSTANCE_UID"
+    SLOW_DATA_DIR="$SLOW_DATA_DIR-$INSTANCE_UID"
+    
+    INCLUDE_REVERSE_PROXY=true
+fi
+echo ""
+echo "JOBS_NAMESPACE:       $JOBS_NAMESPACE "
+echo "HELM_NAMESPACE:       $HELM_NAMESPACE "
+echo "ADMIN_NAMESPACE:      $ADMIN_NAMESPACE "
+echo "SERVICES_NAMESPACE:   $SERVICES_NAMESPACE "
+echo "EXTENSIONS_NAMESPACE: $EXTENSIONS_NAMESPACE "
+echo ""
+echo "FAST_DATA_DIR: $FAST_DATA_DIR "
+echo "SLOW_DATA_DIR: $SLOW_DATA_DIR "
+echo ""
 
 script_name=`basename "$0"`
 
@@ -127,7 +168,13 @@ function delete_all_images_microk8s {
 }
 
 function get_domain {
-    DOMAIN=$(hostname -f)
+
+    if [ -z ${DOMAIN+x} ]; then
+        echo -e ""
+        DOMAIN=$(hostname -f)
+    else
+        echo -e "${GREEN}Server domain (FQDN): $DOMAIN ${NC}" > /dev/stderr;
+    fi
 
     if [ ! "$QUIET" = "true" ];then
         echo -e ""
@@ -158,21 +205,24 @@ function get_domain {
 function delete_deployment {
     echo -e "${YELLOW}Undeploy releases${NC}"
     helm -n $HELM_NAMESPACE ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $HELM_NAMESPACE uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
-    echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
+    echo -e "${YELLOW}Waiting until everything is terminated ...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
     do
         sleep 3
-        DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered 'flow-jobs|flow|base|monitoring|store' | cut -d' ' -f1")
+        DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered '$JOBS_NAMESPACE|$EXTENSIONS_NAMESPACE' | cut -d' ' -f1")
         TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E --line-buffered 'Terminating' | cut -d' ' -f1")
+        echo -e ""
         UNINSTALL_TEST=$DEPLOYED_NAMESPACES$TERMINATING_PODS
         if [ -z "$UNINSTALL_TEST" ]; then
             break
+        else
+            echo -e "${YELLOW}Waiting for $TERMINATING_PODS $DEPLOYED_NAMESPACES ${NC}"
         fi
     done
     
-    echo -e "${YELLOW}Removing namespace kaapana...${NC}"
-    microk8s.kubectl delete namespace kaapana --ignore-not-found=true
+    echo -e "${YELLOW}Removing namespace $HELM_NAMESPACE ...${NC}"
+    microk8s.kubectl delete namespace $HELM_NAMESPACE --ignore-not-found=true
 
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
@@ -188,7 +238,7 @@ function delete_deployment {
 }
 
 function clean_up_kubernetes {
-    for n in base meta flow flow-jobs monitoring store;
+    for n in $EXTENSIONS_NAMESPACE $JOBS_NAMESPACE $HELM_NAMESPACE;
     do
         echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
         microk8s.kubectl delete --ignore-not-found namespace $n
@@ -198,7 +248,7 @@ function clean_up_kubernetes {
     echo "${YELLOW}Deleting all jobs in namespace default ${NC}"
     microk8s.kubectl delete jobs --all
     echo "${YELLOW}Removing remove-secret job${NC}"
-    microk8s.kubectl -n kube-system delete job --ignore-not-found remove-secret
+    microk8s.kubectl -n $SERVICES_NAMESPACE delete job --ignore-not-found remove-secret
 }
 
 function upload_tar {
@@ -218,9 +268,9 @@ function deploy_chart {
 
     if [ ! "$QUIET" = "true" ] && [ -z "$CHART_PATH" ];then
         echo -e ""
-        read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to deploy?: ${NC}" -i $DEFAULT_VERSION chart_version;
+        read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to deploy?: ${NC}" -i $PLATFORM_BUILD_VERSION chart_version;
     else
-        chart_version=$DEFAULT_VERSION
+        chart_version=$PLATFORM_BUILD_VERSION
     fi
 
     if [ "$GPU_SUPPORT" = "true" ];then
@@ -256,8 +306,8 @@ function deploy_chart {
         echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
         echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
 
-        if [ $(basename "$CHART_PATH") != "$PROJECT_NAME-$DEFAULT_VERSION.tgz" ]; then
-            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PROJECT_NAME and DEFAULT_VERSION: $DEFAULT_VERSION in the deployment script.${NC}" 
+        if [ $(basename "$CHART_PATH") != "$PROJECT_NAME-$PLATFORM_BUILD_VERSION.tgz" ]; then
+            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PROJECT_NAME and PLATFORM_BUILD_VERSION: $PLATFORM_BUILD_VERSION in the deployment script.${NC}" 
             exit 1
         fi
 
@@ -304,7 +354,6 @@ function deploy_chart {
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
     --set-string global.base_namespace="base" \
-    --set-string global.core_namespace="kube-system" \
     --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
     --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
     --set-string global.credentials_minio_username="$CREDENTIALS_MINIO_USERNAME" \
@@ -316,10 +365,13 @@ function deploy_chart {
     --set-string global.dev_ports="$DEV_PORTS" \
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
-    --set-string global.flow_namespace="flow" \
-    --set-string global.flow_jobs_namespace="flow-jobs" \
+    --set-string global.services_namespace=$SERVICES_NAMESPACE \
+    --set-string global.jobs_namespace=$JOBS_NAMESPACE \
+    --set-string global.extensions_namespace=$EXTENSIONS_NAMESPACE \
+    --set-string global.admin_namespace=$ADMIN_NAMESPACE \
     --set-string global.gpu_support="$GPU_SUPPORT" \
     --set-string global.helm_namespace="$HELM_NAMESPACE" \
+    --set global.include_reverse_proxy=$INCLUDE_REVERSE_PROXY \
     --set-string global.home_dir="$HOME" \
     --set-string global.hostname="$DOMAIN" \
     --set-string global.http_port="$HTTP_PORT" \
@@ -330,10 +382,7 @@ function deploy_chart {
     --set-string global.kaapana_collections[{{loop.index0}}].name="{{ item.name }}" \
     --set-string global.kaapana_collections[{{loop.index0}}].version="{{ item.version }}" \
     {% endfor -%}
-    --set-string global.monitoring_namespace="monitoring" \
-    --set-string global.meta_namespace="meta" \
     --set-string global.offline_mode="$OFFLINE_MODE" \
-    --set-string global.platform_abbr="$PROJECT_ABBR" \
     --set-string global.platform_version="$chart_version" \
     --set-string global.prefetch_extensions="$PREFETCH_EXTENSIONS" \
     {% for item in preinstall_extensions -%}
@@ -345,9 +394,14 @@ function deploy_chart {
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
     --set-string global.release_name="$PROJECT_NAME" \
+    --set-string global.build_timestamp="$BUILD_TIMESTAMP" \
+    --set-string global.kaapana_build_version="$KAAPANA_BUILD_VERSION" \
+    --set-string global.kaapana_build_branch="$KAAPANA_BUILD_BRANCH" \
+    --set-string global.kaapana_last_commit_timestamp="$KAAPANA_LAST_COMMT_TIMESTAMP" \
+    --set-string global.platform_build_branch="$PLATFORM_BUILD_BRANCH" \
+    --set-string global.platform_last_commit_timestamp="$PLATFORM_LAST_COMMT_TIMESTAMP" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
-    --set-string global.store_namespace="store" \
-    --set-string global.version="$chart_version" \
+    --set-string global.instance_uid="$INSTANCE_UID" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PROJECT_NAME"
@@ -400,11 +454,11 @@ function install_certs {
     else
         echo -e "files found!"
         echo -e "Creating cluster secret ..."
-        microk8s.kubectl delete secret certificate -n kube-system
-        microk8s.kubectl create secret tls certificate --namespace kube-system --key ./tls.key --cert ./tls.crt
-        auth_proxy_pod=$(microk8s.kubectl get pods -n kube-system |grep oauth2-proxy  | awk '{print $1;}')
+        microk8s.kubectl delete secret certificate -n $SERVICES_NAMESPACE
+        microk8s.kubectl create secret tls certificate --namespace $SERVICES_NAMESPACE --key ./tls.key --cert ./tls.crt
+        auth_proxy_pod=$(microk8s.kubectl get pods -n $SERVICES_NAMESPACE |grep oauth2-proxy  | awk '{print $1;}')
         echo "auth_proxy_pod pod: $auth_proxy_pod"
-        microk8s.kubectl -n kube-system delete pod $auth_proxy_pod
+        microk8s.kubectl -n $SERVICES_NAMESPACE delete pod $auth_proxy_pod
     fi
 
     echo -e "${GREEN}DONE${NC}"
@@ -426,96 +480,200 @@ function print_deployment_done {
     fi
 }
 
-function conditional_termination {
-    if [ ! "$QUIET" = "true" ] ; then
-        read -e -p "Do you want to fix this before continuing? (Recomended)" -i " no" yn
-        case $yn in
-            [Yy]* ) echo "${RED}exiting...${NC}" && exit 1; break;;
-            [Nn]* ) echo "${YELLOW}continuing (be aware that you leaving the supported path, its dangerous here watch your step!)${NC}"; break;;
-            * ) echo "Please answer yes or no.";;
-        esac
-    else
-        echo -e "${RED}Exiting since this is quiet mode ${NC}"
-        exit 1
-    fi
-}
+
 
 function preflight_checks {
     echo -e "${GREEN}#################################  RUNNING PREFLIGHT CHECKS  #########################################${NC}"
 
-    echo -n -e "Check if user is non-root\t\t\t\t${NC}"
-    if [ "$EUID" -eq 0 ];then
-        echo -e "${RED}failed${NC}"
-        echo -e "${RED}Please run the script without root privileges!${NC}"
-        conditional_termination
+    # Holds the state of the setup after preflight checks:
+    # 0 = OK
+    # 100=POTENTIAL PROBLEMS - could lead to upstream problems
+    # 200=MANIFESTED PROBLEMS - very probabily lead to problems
+    # 300=CATASTROPHIC PROBLEMS - definitly leads to problems, continuation not possible
+
+    # Since bash has no support for multidimensional arrays every test needs to add exactly one element to this arrays
+    SEVERITY=()
+    TEST_FAILDS=()
+    TEST_NAMES=()
+    RESULT_MSGS=()
+
+    # ------ Tests
+    SEVERITY+=(200)
+    TEST_NAMES+=("Check if user is non-root")
+    if [ "$EUID" -eq 0 ]; then
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("Please run the script without root privileges!")
     else
-        echo -e "${GREEN}ok (user: $USER)${NC}"
+        TEST_FAILDS+=(false)
+        RESULT_MSGS+=("(user: $USER)")
     fi
 
-    echo -n -e "Check if enought disk-space\t\t\t\t${NC}"
-    SIZE=`df -k --output=size "/var/snap" | tail -n1`
-    if [[ $SIZE -lt 81920 ]]; then
-        echo -e "${RED}failed${NC}"
-        echo -e "${RED}Your disk space is too small to deploy the system.${NC}"
-        echo -e "${RED}There should be at least 80 GiBytes available @ /var/snap ${NC}"
-        conditional_termination
+    SEVERITY+=(200)
+    TEST_NAMES+=("Check if enought disk-space")
+    SIZE="$(df -k --output=size /var/snap | tail -n1)"
+    if [ "$SIZE" -lt 81920 ]; then
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("Your disk space is too small to deploy the system.\nThere should be at least 80 GiBytes available @ /var/snap")
     else
-        echo -e "${GREEN}ok (size: $SIZE)${NC}"
+        TEST_FAILDS+=(false)
+        RESULT_MSGS+=("(size: $SIZE)")
     fi
 
-    echo -n -e "Check that helm is available...\t\t\t\t"
+    SEVERITY+=(300)
+    TEST_NAMES+=("Check that helm is available")
     if ! [ -x "$(command -v helm)" ]; then
-        echo -e "${RED}failed${NC}"
-        echo -e "${RED}Install server dependencies first!${NC}"
-        exit 1
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("Install server dependencies first!")
     else
-        echo -e "${GREEN}ok${NC}"
+        TEST_FAILDS+=(false)
+        RESULT_MSGS+=("")
     fi
 
-    echo -n -e "Check that kubectl is installed...\t\t\t"
-    command -v microk8s.kubectl >/dev/null 2>&1 || {
-        echo -e "${RED}failed${NC}"
-        echo -e "${RED}Install server dependencies first!${NC}"
-        exit 1
-    }
-    echo -e "${GREEN}ok${NC}"
+    SEVERITY+=(300)
+    TEST_NAMES+=("Check that kubectl is installed")
+    if ! [ -x $(command -v microk8s.kubectl >/dev/null 2>&1) ]; then
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("Install server dependencies first!")
+    else
+        TEST_FAILDS+=(false)
+        RESULT_MSGS+=("")
+    fi
 
-    echo -n -e "Check that \$KUBECONFIG is untouched...\t\t\t"
+    SEVERITY+=(100)
+    TEST_NAMES+=("Check that \$KUBECONFIG is untouched")
     if [ -v KUBECONFIG ]; then
-        echo -e "${YELLOW}failed (KUBECONFIG=$KUBECONFIG)${NC}"
-        echo -e "${YELLOW}In your environment the \$KUBECONFIG variable is set, this is unconventional and can cause to problems${NC}"
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("In your environment the \$KUBECONFIG variable is set, this is unconventional and can cause to problems (KUBECONFIG=$KUBECONFIG)")
     else
-        echo -e "${GREEN}ok${NC}"
+        TEST_FAILDS+=(false)
+        RESULT_MSGS+=("")
     fi
 
-    echo -n -e "Check if ~/.kube/config matches micork8s config\t\t"
+    SEVERITY+=(100)
+    TEST_NAMES+=("Check if ~/.kube/config matches micork8s config")
     if [ "$(cat /home/$USER/.kube/config)" == "$(microk8s.kubectl config view --raw)" ]; then
-        echo -e "${GREEN}ok${NC}"
+        TEST_FAILDS+=(false)
+        RESULT_MSGS+=("")
     else
-        echo -e "${YELLOW}failed${NC}"
-        echo -e "${YELLOW}Your kubeconfig differs from the micork8s version${NC}"
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("Your kubeconfig differs from the micork8s version.")
     fi
 
+    SEVERITY+=(100)
     GROUPNAME="microk8s"
-    echo -n -e "Check if user is member of $GROUPNAME...\t\t\t"
+    TEST_NAMES+=("Check if user is member of $GROUPNAME...")
     if id -nG "$USER" | grep -qw "$GROUPNAME"; then
-        echo -e "${GREEN}ok${NC}"
+        TEST_FAILDS+=(false)
+        RESULT_MSGS+=("")
     else
-        echo -e "${YELLOW}failed${NC}"
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("")
     fi
 
-    echo -n -e "Checking if kubectl is working...\t\t\t"
+    SEVERITY+=(300)
+    TEST_NAMES+=("Check if kubectl is working")
     microk8s.kubectl get pods --all-namespaces &> /dev/null
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}ok${NC}"
+        TEST_FAILDS+=(false)
+        RESULT_MSGS+=("")
     else
-        echo -e "${GREEN}failed${NC}"
-        echo -e "${RED}Kubectl could not communicate with the server.${NC}"
-        echo -e "${RED}Have a look at the output, ${NC}"
-        echo -e "${RED}Check if the correct server certificate file is in place @ ~/.kube/config, ${NC}"
-        echo -e "${RED}Check if the IP address in the certificate matches the IP address of the server ${NC}"
-        echo -e "${RED}and try again.${NC}"
-        exit 1
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("Kubectl could not communicate with the server.\nHave a look at the output,\nCheck if the correct server certificate file is in place @ ~/.kube/config,\nCheck if the IP address in the certificate matches the IP address of the server\nand try again.")
+    fi
+
+
+    # Reporting Table
+    printf "%-4s %-60s %-15s\n" "Sev" "Test" "Result"
+    for i in ${!SEVERITY[@]}; do
+
+        if [ "${TEST_FAILDS[$i]}" = true ]; then
+            if [ "${SEVERITY[$i]}" -ge 200 ]; then
+                STATUS="${RED}failed${NC}"
+            else
+                STATUS="${YELLOW}failed${NC}"
+            fi
+        else
+            STATUS="${GREEN}ok${NC}"
+        fi
+
+        printf "%-4d %-60s %-15s\n" "${SEVERITY[$i]}" "${TEST_NAMES[$i]}" "$STATUS"
+
+        if [ ! -z "${RESULT_MSGS[$i]}" ]; then
+            if [ "${TEST_FAILDS[$i]}" = true ]; then
+                if [ "${SEVERITY[$i]}" -ge 200 ]; then
+                    echo -e "${RED}${RESULT_MSGS[$i]}${NC}"
+                else
+                     echo -e "${YELLOW}${RESULT_MSGS[$i]}${NC}"
+                fi
+            else
+                echo -e "${GREEN}${RESULT_MSGS[$i]}${NC}"
+            fi
+        fi
+    done
+
+    # Act on Test Results
+    MAX_SEVERITY=0
+    for i in ${!SEVERITY[@]}; do
+        # Maximum Severity of a faild test
+        if [ "${TEST_FAILDS[$i]}" = true ]; then
+            TEST_SEVERITY="${SEVERITY[$i]}"
+            MAX_SEVERITY=$((MAX_SEVERITY>TEST_SEVERITY? MAX_SEVERITY : TEST_SEVERITY))
+        fi
+    done
+
+
+    echo " "
+    if [ "$MAX_SEVERITY" -gt 0 ]; then
+        echo -e "${YELLOW}##################################  PREFLIGHT CHECK REPORT ##########################################${NC}"
+    else
+        echo -e "${GREEN}###################################  PREFLIGHT CHECK REPORT ###########################################${NC}"
+    fi
+    echo " "
+
+    TERMINATE=false
+    if [ "$MAX_SEVERITY" -ge 300 ]; then
+        # 300-and growing
+        echo -e "${RED}Problems with a very high severity have been found! ${NC}"
+        echo -e "${RED}A continuation of this script is not possible.${NC}"
+        echo -e "${RED}Please fix the failed tests first! ${NC}"
+        #exit 1
+        TERMINATE=true
+    elif [ "$MAX_SEVERITY" -ge 200 ]; then
+        # 200-299
+        echo -e "${RED}Problems with a high severity have been found! ${NC}"
+        echo -e "${RED}This will most probably lead to problems in the operation or even installation of the platform.${NC}"
+        echo -e "${RED}Please consider fixing this problems before continuing, it is highly recommended.${NC}"
+        TERMINATE=true
+    elif [ "$MAX_SEVERITY" -ge 100 ]; then
+        # 100-199
+        echo -e "${YELLOW}Problems with a medium severity have been found! ${NC}"
+        echo -e "${YELLOW}Since your system is out of the specified constraints for the platform, problems during operation or the installation can occure.${NC}"
+        echo -e "${YELLOW}Please consider fixing this problems before continuing, it is highly recommended.${NC}"
+        TERMINATE=true
+    elif [ "$MAX_SEVERITY" -ge 1 ]; then
+        # 1-99
+        echo -e "${YELLOW}Problems with a low severity have been found! ${NC}"
+        echo -e "${YELLOW}Please consider fixing this problems before continuing, it is highly recommended.${NC}"
+    else
+        echo -e "${GREEN}No major problems have been found! ${NC}"
+    fi
+
+    echo " "
+
+    if [ "$TERMINATE" = "true" ]; then
+        if [ ! "$QUIET" = "false" ] ; then
+            while true; do
+                read -e -p "Do you want to fix the problems before continuing? (Recomended)" -i " no" yn
+                case $yn in
+                    [Yy]* ) echo "${RED}exiting...${NC}" && exit 1; break;;
+                    [Nn]* ) echo "${YELLOW}continuing (be aware that you leaving the supported path, its dangerous here watch your step!)${NC}"; break;;
+                    * ) echo "Please answer yes or no.";;
+                esac
+            done
+        else
+            echo -e "${RED}Exiting since you run in quiet mode${NC}"
+            exit 1
+        fi
     fi
 
     echo -e "${GREEN}################################  PREFLIGHT CHECKS COMPLETED  #########################################${NC}"
@@ -653,7 +811,7 @@ _Argument: --version [version]
 
 where version is one of the available platform releases:
     0.1.4  --> latest Kaapana release
-    $DEFAULT_VERSION  --> latest development version ${NC}"
+    $PLATFORM_BUILD_VERSION  --> latest development version ${NC}"
 
 QUIET=NA
 
@@ -664,7 +822,7 @@ do
 
     case $key in
         -v|--version)
-            DEFAULT_VERSION="$2"
+            PLATFORM_BUILD_VERSION="$2"
             shift # past argument
             shift # past value
         ;;
@@ -679,6 +837,13 @@ do
         -p|--password)
             CONTAINER_REGISTRY_PASSWORD="$2"
             echo -e "${GREEN}SET CONTAINER_REGISTRY_PASSWORD!${NC}";
+            shift # past argument
+            shift # past value
+        ;;
+
+        -d|--domain)
+            DOMAIN="$2"
+            echo -e "${GREEN}SET DOMAIN!${NC}";
             shift # past argument
             shift # past value
         ;;
@@ -733,6 +898,17 @@ do
             exit 0
         ;;
 
+        --undeploy)
+            delete_deployment
+            exit 0
+        ;;
+
+        --re-deploy)
+            delete_deployment
+            deploy_chart
+            exit 0
+        ;;
+
         --report)
             create_report
             exit 0
@@ -749,7 +925,7 @@ done
 preflight_checks
 
 echo -e "${YELLOW}Get helm deployments...${NC}"
-deployments=$(helm -n $HELM_NAMESPACE ls |cut -f1 |tail -n +2)
+deployments=$(helm -n $HELM_NAMESPACE ls -a |cut -f1 |tail -n +2)
 echo "Current deployments: " 
 echo $deployments
 

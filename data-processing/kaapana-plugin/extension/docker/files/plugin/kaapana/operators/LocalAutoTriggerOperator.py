@@ -71,14 +71,15 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                     break
         else:
             print(f"# Using PACS fetch-method !")
-            if "inputs" not in conf:
-                conf["inputs"] = []
-            conf["inputs"].append({
-                "dcm-uid": {
-                    "study-uid": None,
-                    "series-uid": series_uid,
+
+            if "data_form" not in conf or "cohort_identifiers" not in conf["data_form"]:
+                conf["data_form"] =  {
+                    "cohort_identifiers": [],
+                    "cohort_query": {
+                        'index': 'meta-index'
+                    }
                 }
-            })
+            conf["data_form"]["cohort_identifiers"].append(series_uid)
 
         return conf
 

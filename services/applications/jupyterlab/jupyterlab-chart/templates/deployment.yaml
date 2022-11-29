@@ -3,7 +3,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: jupyterlab-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   labels:
     k8s-app: jupyterlab
 spec:
@@ -21,9 +21,9 @@ spec:
       containers:
       - name: jupyterlab
         {{- if not .Values.image }}
-        image: {{ .Values.global.registry_url }}/jupyterlab:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__3.3.2
+        image: "{{ .Values.global.registry_url }}/jupyterlab:{{ .Values.global.kaapana_build_version  }}"
         {{- else }}
-        image: {{ .Values.image }}
+        image: "{{ .Values.image }}"
         {{- end }}
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         command: ["/bin/bash"]
@@ -87,7 +87,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: "jupyterlab-{{ $uuid }}"
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   selector:
     app-name: "jupyterlab-{{ $uuid }}"
@@ -102,18 +102,17 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: "jupyterlab-{{ $uuid }}"
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    
     traefik.ingress.kubernetes.io/preserve-host: "true"
-    #traefik.frontend.rule.type: PathPrefixStrip
 spec:
   rules:
   - host: 
     http:
       paths:
-      - path: "/jupyterlab-{{ $uuid }}"
+      - path: /jupyterlab-{{ $uuid }}
         pathType: ImplementationSpecific
         backend:
           service:

@@ -3,7 +3,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: pull-{{ $uuid }}
-  namespace: default
+  namespace: "{{ .Values.global.helm_namespace }}"
 spec:
   selector:
     matchLabels:

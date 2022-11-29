@@ -1,9 +1,7 @@
-import warnings
 from flask import g, Blueprint, request, jsonify, Response, url_for
 from sqlalchemy import and_
 from sqlalchemy.orm.exc import NoResultFound
 from datetime import datetime
-import requests
 import airflow.api
 from http import HTTPStatus
 from airflow.exceptions import AirflowException
@@ -12,15 +10,12 @@ from airflow import settings
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.app import csrf
-import glob
 import json
-import time
-from kaapana.blueprints.kaapana_utils import generate_run_id
-from kaapana.blueprints.kaapana_utils import generate_minio_credentials
-from airflow.api.common.trigger_dag import trigger_dag as trigger
 from kaapana.operators.HelperOpensearch import HelperOpensearch
+from kaapana.blueprints.kaapana_utils import generate_run_id, generate_minio_credentials, parse_ui_dict
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from airflow.api.common.trigger_dag import trigger_dag as trigger
 from flask import current_app as app
-from multiprocessing.pool import ThreadPool
 
 _log = LoggingMixin().log
 parallel_processes = 1
@@ -28,46 +23,13 @@ parallel_processes = 1
 Represents a blueprint kaapanaApi
 """
 kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
-def async_dag_trigger(queue_entry):
-    hit, dag_id, tmp_conf, username = queue_entry
-    hit = hit["_source"]
-    studyUID = hit[HelperOpensearch.study_uid_tag]
-    seriesUID = hit[HelperOpensearch.series_uid_tag]
-    SOPInstanceUID = hit[HelperOpensearch.SOPInstanceUID_tag]
-    modality = hit[HelperOpensearch.modality_tag]
-
-    print(f"# Triggering {dag_id} - series: {seriesUID}")
-
-    conf = {
-        "user_public_id": username,
-        "inputs": [
-            {
-                "dcm-uid": {
-                    "study-uid": studyUID,
-                    "series-uid": seriesUID,
-                    "modality": modality
-                }
-            }
-        ],
-        **tmp_conf
-        # "conf": tmp_conf
-    }
-
-    dag_run_id = generate_run_id(dag_id)
-    try:
-        result = trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
-    except Exception as e:
-        pass
-
-    return seriesUID, result
-
         
 @csrf.exempt
 @kaapanaApi.route('/api/trigger/<string:dag_id>', methods=['POST'])
 def trigger_dag(dag_id):
-    headers = dict(request.headers)
+    #headers = dict(request.headers)
     data = request.get_json(force=True)
-    username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
+    #username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
     if 'conf' in data:
         tmp_conf = data['conf']
     else:
@@ -84,136 +46,27 @@ def trigger_dag(dag_id):
 
     if "workflow_form" in tmp_conf: # in the future only workflow_form should be included in the tmp_conf
         tmp_conf["form_data"] = tmp_conf["workflow_form"]
-
-        # temporary workaround for workflow-trigger not using meta-trigger as dag_id anymore
-        tmp_conf['opensearch_form'] = {
-            "query": tmp_conf["query"],
-            "index": tmp_conf["index"],
-            "single_execution": tmp_conf["workflow_form"]["single_execution"],
-            "cohort_limit": int(tmp_conf["cohort_limit"]) if "cohort_limit" in tmp_conf and tmp_conf["cohort_limit"] is not None else None
-        }
     elif "form_data" in tmp_conf:
         tmp_conf["workflow_form"] = tmp_conf["form_data"]
+    
+    ################################################################################################ 
 
-    if dag_id == "meta-trigger":
-        warnings.warn("meta-trigger as endpoint was depcrecated in version 0.1.3, please adjust your request accordingly")
-        form_data = tmp_conf["form_data"] if "form_data" in tmp_conf else None
-        if form_data is not None:
-            warnings.warn("form_data was renamed to workflow_data, please adjust your request accordingly")
-        print(json.dumps(form_data))
-        single_execution = True if form_data is not None and "single_execution" in form_data and form_data["single_execution"] else False
-        dag_id = tmp_conf["dag"]
-        tmp_conf['opensearch_form'] = {
-            "query": tmp_conf["query"],
-            "index": tmp_conf["index"],
-            "single_execution": single_execution,
-            "cohort_limit": int(tmp_conf["cohort_limit"]) if "cohort_limit" in tmp_conf and tmp_conf["cohort_limit"] is not None else None
-        }
-    ################################################################################################
+    run_id = generate_run_id(dag_id)
 
-    if "opensearch_form" in tmp_conf:
-        opensearch_data = tmp_conf["opensearch_form"]
-        if "query" in opensearch_data:
-            query = opensearch_data["query"]
-        elif "dataset" in opensearch_data or "input_modality" in opensearch_data:
-            query = {
-                "bool": {
-                    "must": [
-                        {
-                            "match_all": {}
-                        },
-                        {
-                            "match_all": {}
-                        }
-                    ],
-                    "filter": [],
-                    "should": [],
-                    "must_not": []
-                }
-            }
-
-            if "dataset" in opensearch_data:
-                query["bool"]["must"].append({
-                    "match_phrase": {
-                        "dataset_tags_keyword.keyword": {
-                            "query": opensearch_data["dataset"]
-                        }
-                    }
-                })
-            if "input_modality" in opensearch_data:
-                query["bool"]["must"].append({
-                    "match_phrase": {
-                        "00080060 Modality_keyword.keyword": {
-                            "query": opensearch_data["input_modality"]
-                        }
-                    }
-                })
-        else:
-            raise ValueError('query or dataset or input_modality needs to be defined!')
-
-        index = opensearch_data["index"]
-        cohort_limit = int(opensearch_data["cohort_limit"]) if ("cohort_limit" in opensearch_data and opensearch_data["cohort_limit"] is not None) else None
-        single_execution = True if "single_execution" in opensearch_data and opensearch_data["single_execution"] else False
-
-        print(f"query: {query}")
-        print(f"index: {index}")
-        print(f"dag_id: {dag_id}")
-        print(f"single_execution: {single_execution}")
-
-        if single_execution:
-            hits = HelperOpensearch.get_query_cohort(query=query, index=index)
-            if hits is None:
-                message = ["Error in HelperOpensearch: {}!".format(dag_id)]
-                response = jsonify(message=message)
-                response.status_code = 500
-                return response
-
-            hits = hits[:cohort_limit] if cohort_limit is not None else hits
-
-            queue = []
-            for hit in hits:
-                queue.append((hit, dag_id, tmp_conf,username))
-
-            trigger_results = ThreadPool(parallel_processes).imap_unordered(async_dag_trigger, queue)
-            for seriesUID, result in trigger_results:
-                print(f"#  Done: {seriesUID}:{result}")
-
-        else:
-            conf = {
-                "user_public_id": username,
-                "inputs": [
-                    {
-                        "opensearch-query": {
-                            "query": query,
-                            "index": index
-                        }
-                    }
-                ],
-                **tmp_conf
-                # "conf": tmp_conf
-            }
-            dag_run_id = generate_run_id(dag_id)
-            trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
-
-        message = ["{} created!".format(dag_id)]
-        response = jsonify(message=message)
+    print(json.dumps(tmp_conf, indent=2))
+    
+    execution_date = None
+    try:
+        dr = trigger(dag_id, run_id, tmp_conf, execution_date, replace_microseconds=False)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
         return response
 
-    else:
-        run_id = generate_run_id(dag_id)
-
-        execution_date = None
-        try:
-            dr = trigger(dag_id, run_id, tmp_conf, execution_date, replace_microseconds=False)
-        except AirflowException as err:
-            _log.error(err)
-            response = jsonify(error="{}".format(err))
-            response.status_code = err.status_code
-            return response
-
-        message = ["{} created!".format(dr.dag_id)]
-        response = jsonify(message=message)
-        return response
+    message = ["{} created!".format(dr.dag_id)]
+    response = jsonify(message=message)
+    return response
 
 
 @kaapanaApi.route('/api/getdagruns', methods=['GET'])
@@ -298,7 +151,8 @@ def get_dags_endpoint():
                     dag_dict[default_arg] = default_args[default_arg]
 
         del dag_dict['_sa_instance_state']
-        dags[dag_id] = dag_dict
+
+        dags[dag_id] = parse_ui_dict(dag_dict)
 
     app.config['JSON_SORT_KEYS'] = False
     return jsonify(dags)
@@ -311,7 +165,7 @@ def check_dag_exists(session, dag_id):
     dag_exists = session.query(DagModel).filter(
         DagModel.dag_id == dag_id).count()
     if not dag_exists:
-        return Response('Dag {} does not exist'.format(dag_id), http.client.BAD_REQUEST)
+        return Response('Dag {} does not exist'.format(dag_id), HTTPStatus.BAD_REQUEST)
 
     return None
 
@@ -470,7 +324,7 @@ def get_static_website_results():
                 })
         return subtree
 
-    _minio_host='minio-service.store.svc'
+    _minio_host=f'minio-service.{SERVICES_NAMESPACE}.svc'
     _minio_port='9000'
     minioClient = Minio(_minio_host+":"+_minio_port,
                         access_key='kaapanaminio',

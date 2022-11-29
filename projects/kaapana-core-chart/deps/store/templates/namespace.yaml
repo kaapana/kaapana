@@ -1,6 +1,0 @@
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: {{ .Values.global.store_namespace }}
-  # name: {{ .Values.namespace  }}

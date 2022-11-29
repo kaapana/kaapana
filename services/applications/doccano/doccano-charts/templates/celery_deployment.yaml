@@ -3,7 +3,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: doccano-celery
-  namespace: {{ .Values.global.store_namespace | default "store" }}
+  namespace: "{{ .Values.global.extensions_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -17,7 +17,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: doccano-celery
-          image: {{ .Values.global.registry_url }}/doccano-backend:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__sha-0489118
+          image: "{{ .Values.global.registry_url }}/doccano-backend:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy: {{ .Values.global.pull_policy_pods | default "IfNotPresent" }}
           command: ["/opt/bin/prod-celery.sh"]
           resources:

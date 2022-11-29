@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: os-dashboards-de
-  namespace: {{ .Values.global.meta_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: os-dashboards-container
-          image: {{ .Values.global.registry_url }}/os-dashboards:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__2.2.0
+          image: "{{ .Values.global.registry_url }}/os-dashboards:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
           - name: DISABLE_SECURITY_DASHBOARDS_PLUGIN

@@ -1,4 +1,4 @@
-FROM local-only/dag-installer:0.1.0
+FROM local-only/dag-installer:latest
 
 LABEL IMAGE="dag-federated-setup-central-test"
 LABEL VERSION="0.1.0"

@@ -20,6 +20,18 @@
         //-   v-list-item-content
         //-     v-list-item-title Data upload
         //-   v-list-item-icon
+        v-list-item(:to="'/experiments'", v-if="isAuthenticated")
+          v-list-item-action
+            v-icon mdi-controller-classic
+          v-list-item-content
+            v-list-item-title Experiments
+          v-list-item-icon
+        v-list-item(:to="'/federated'", v-if="isAuthenticated && federatedBackendAvailable")
+          v-list-item-action
+            v-icon mdi-vector-triangle
+          v-list-item-content
+            v-list-item-title Federated
+          v-list-item-icon
         v-list-item(:to="'/pending-applications'" v-if="isAuthenticated")
           v-list-item-action
             v-icon mdi-gamepad-variant
@@ -31,12 +43,6 @@
             v-icon mdi-file-tree
           v-list-item-content
             v-list-item-title Results browser
-          v-list-item-icon
-        v-list-item(:to="'/federated'", v-if="isAuthenticated && federatedBackendAvailable")
-          v-list-item-action
-            v-icon mdi-vector-triangle
-          v-list-item-content
-            v-list-item-title Federated
           v-list-item-icon
         v-list-item(:to="'/extensions'", v-if="isAuthenticated")
           v-list-item-action
@@ -68,7 +74,7 @@
           v-flex(text-xs-center)
             router-view
     v-footer(color="primary" app inset)
-      span.white--text &copy; DKFZ 2018 - DKFZ 2022: Version {{commonData.version}}
+      span.white--text &copy; DKFZ 2018 - DKFZ 2022 | {{commonData.version}}
 </template>
 
 
@@ -109,7 +115,7 @@ export default Vue.extend({
   },
   mounted () {
       request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
-        this.federatedBackendAvailable = kaapanaApiService.checkUrl(response.data, '/federated-backend')
+        this.federatedBackendAvailable = kaapanaApiService.checkUrl(response.data, '/kaapana-backend')
       }).catch((error: any) => {
         console.log('Something went wrong with traefik', error)
       })

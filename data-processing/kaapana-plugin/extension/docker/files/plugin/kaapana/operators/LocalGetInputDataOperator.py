@@ -23,7 +23,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     **Inputs:**
 
-    * inputs: 'dcm-uid' or 'opensearch-query'
+    * data_form: 'json'
     * data_type: 'dicom' or 'json'
     * cohort_limit: limit the download series list number
 
@@ -31,6 +31,8 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     * Stores downloaded 'dicoms' or 'json' files in the 'operator_out_dir'
     """
+
+
 
     def check_dag_modality(self, input_modality):
         config = self.conf
@@ -117,20 +119,10 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     @cache_operator_output
     def start(self, ds, **kwargs):
-        print("# Starting moule LocalGetInputDataOperator...")
+        print("# Starting module LocalGetInputDataOperator...")
         print("#")
         self.conf = kwargs['dag_run'].conf
 
-        # if self.cohort_limit is None and self.inputs is None and self.conf is not None and "conf" in self.conf:
-        if self.cohort_limit is None and self.inputs is None and self.conf is not None:
-            trigger_conf = self.conf
-            self.cohort_limit = int(trigger_conf["cohort_limit"]) if "cohort_limit" in trigger_conf and trigger_conf["cohort_limit"] is not None else None
-            if "opensearch_form" in trigger_conf:
-                opensearch_data = trigger_conf["opensearch_form"]
-                self.cohort_limit = int(opensearch_data["cohort_limit"]) if ("cohort_limit" in opensearch_data and opensearch_data["cohort_limit"] is not None) else None
-
-        print(f"# Cohort-limit: {self.cohort_limit}")
-        print("#")
 
         dag_run_id = kwargs['dag_run'].run_id
         if self.conf and ("seriesInstanceUID" in self.conf):
@@ -177,72 +169,43 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     shutil.move(src=src, dst=target)
                     print("# Dag input dir correctly ajusted.")
             return
+    
+        if self.conf is not None and "data_form" in self.conf:
+            self.data_form = self.conf["data_form"]
 
-        if self.inputs is None and self.conf == None or not "inputs" in self.conf:
-            print("No config or inputs in config found!")
+        if self.data_form is None:
+            print("No data_form in config or object found! Data seems to be present already...")
             print("Skipping...")
             return
 
-        if self.inputs is None:
-            self.inputs = self.conf["inputs"]
+        print("# Dicom data information:")
+        print("#")
+        print(json.dumps(self.data_form, indent=4, sort_keys=True))
+        print("#")
+        print("#")
 
-        if not isinstance(self.inputs, list):
-            self.inputs = [self.inputs]
+        self.cohort_limit = int(self.data_form["cohort_limit"]) if "cohort_limit" in self.data_form and self.data_form["cohort_limit"] is not None else None
+        self.dicom_data_infos = HelperOpensearch.get_dcm_uid_objects(self.data_form["cohort_identifiers"], self.data_form["cohort_query"]["index"])
 
+        print(f"# Cohort-limit: {self.cohort_limit}")
         print("#")
         print("#")
-        print("# Inputs:")
+        print("# Dicom data information:")
         print("#")
-        print(json.dumps(self.inputs, indent=4, sort_keys=True))
+        print(json.dumps(self.dicom_data_infos, indent=4, sort_keys=True))
         print("#")
         print("#")
         download_list = []
-        for input in self.inputs:
-            if "opensearch-query" in input:
-                opensearch_query = input["opensearch-query"]
-                if "query" not in opensearch_query:
-                    print("'query' not found in 'opensearch-query': {}".format(input))
-                    print("abort...")
-                    raise ValueError('ERROR')
-                if "index" not in opensearch_query:
-                    print("'index' not found in 'opensearch-query': {}".format(input))
-                    print("abort...")
-                    raise ValueError('ERROR')
-
-                query = opensearch_query["query"]
-                index = opensearch_query["index"]
-
-                cohort = HelperOpensearch.get_query_cohort(index=index, query=query)
-
-                for series in cohort:
-                    series = series["_source"]
-
-                    study_uid = series[HelperOpensearch.study_uid_tag]
-                    series_uid = series[HelperOpensearch.series_uid_tag]
-                    modality = series[HelperOpensearch.modality_tag]
-
-                    print(f"# Found opensearch result: {modality}: {series_uid}")
-                    if self.check_modality:
-                        print("# checking modality...")
-                        self.check_dag_modality(input_modality=modality)
-
-                    download_list.append(
-                        {
-                            "studyUID": study_uid,
-                            "seriesUID": series_uid,
-                            "dag_run_id": dag_run_id
-                        }
-                    )
-
-            elif "dcm-uid" in input:
-                dcm_uid = input["dcm-uid"]
+        for dicom_data_info in self.dicom_data_infos:
+            if "dcm-uid" in dicom_data_info:
+                dcm_uid = dicom_data_info["dcm-uid"]
 
                 if "study-uid" not in dcm_uid:
-                    print("'study-uid' not found in 'dcm-uid': {}".format(input))
+                    print("'study-uid' not found in 'dcm-uid': {}".format(dicom_data_info))
                     print("abort...")
                     raise ValueError('ERROR')
                 if "series-uid" not in dcm_uid:
-                    print("'series-uid' not found in 'dcm-uid': {}".format(input))
+                    print("'series-uid' not found in 'dcm-uid': {}".format(dicom_data_info))
                     print("abort...")
                     raise ValueError('ERROR')
 
@@ -263,8 +226,8 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
             else:
                 print("Error with dag-config!")
-                print("Unknown input: {}".format(input))
-                print("Supported 'dcm-uid' and 'opensearch-query' ")
+                print("Unknown input: {}".format(dicom_data_info))
+                print("Supported 'dcm-uid' ")
                 print("Dag-conf: {}".format(self.conf))
                 raise ValueError('ERROR')
 
@@ -303,25 +266,24 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     def __init__(self,
                  dag,
-                 inputs=None,
                  name="get-input-data",
                  data_type="dicom",
+                 data_form=None,
                  check_modality=False,
                  cohort_limit=None,
                  parallel_downloads=3,
                  batch_name=None,
                  **kwargs):
         """
-        :param inputs: 'dcm-uid' or 'opensearch-query'.
         :param data_type: 'dicom' or 'json'
+        :param data_form: 'json'
         :param check_modality: 'True' or 'False'
         :param cohort_limit: limits the download list
         :param parallel_downloads: default 3, number of parallel downloads
         """
 
-
-        self.inputs = inputs
         self.data_type = data_type
+        self.data_form = data_form
         self.cohort_limit = cohort_limit
         self.check_modality = check_modality
         self.parallel_downloads = parallel_downloads

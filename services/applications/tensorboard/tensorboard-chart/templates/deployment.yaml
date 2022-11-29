@@ -3,7 +3,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: tensorboard-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   labels:
     k8s-app: tensorboard
 spec:
@@ -20,7 +20,7 @@ spec:
         runAsUser: 1000
       containers:
       - name: tensorboard
-        image: {{ .Values.global.registry_url }}/tensorboard:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__2.8.0
+        image: "{{ .Values.global.registry_url }}/tensorboard:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           requests:
@@ -49,7 +49,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: tensorboard-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   selector:
     app-name: tensorboard-{{ $uuid }}
@@ -63,23 +63,17 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: tensorboard-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    
     traefik.ingress.kubernetes.io/preserve-host: "true"
-    # ingress.kubernetes.io/custom-request-headers: "Authorization:||cookie:"
-    # nginx.ingress.kubernetes.io/enable-cors: "true"
-    # nginx.ingress.kubernetes.io/cors-allow-methods: "PUT, GET, POST, OPTIONS"
-    # nginx.ingress.kubernetes.io/cors-allow-origin: "https://vm-129-41.cloud.dkfz-heidelberg.de/oauth/"
-    # nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
-    #traefik.frontend.rule.type: PathPrefixStrip
 spec:
   rules:
   - host: 
     http:
       paths:
-      - path: "/tensorboard-{{ $uuid }}"
+      - path: /tensorboard-{{ $uuid }}
         pathType: ImplementationSpecific
         backend:
           service:

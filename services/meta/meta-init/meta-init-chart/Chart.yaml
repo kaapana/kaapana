@@ -3,4 +3,4 @@ apiVersion: v1
 appVersion: "2.2.0"
 description: A Helm chart for Kubernetes
 name: meta-init-chart
-version: "2.2.0"
+version: "0.0.0"

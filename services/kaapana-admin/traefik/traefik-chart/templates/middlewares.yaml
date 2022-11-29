@@ -2,30 +2,19 @@
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
-  name: strip-prefix
-  namespace: kube-system
+  name: traefik-strip-prefix
+  namespace: "{{  .Values.global.helm_namespace  }}"
 spec:
   stripPrefix:
     prefixes:
     - /traefik
-    - /error-pages
-    - /kubernetes
-    - /meta
-    - /alert
-    - /grafana
-    - /orthanc
-    - /jena
-    - /web-ide
-    - /os
-    - /federated-backend
-    - /kube-helm-api
     forceSlash: true
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: errorpages
-  namespace: kube-system
+  namespace: "{{  .Values.global.helm_namespace  }}"
 spec:
   errors:
     status:
@@ -33,14 +22,14 @@ spec:
     query: /{status}
     service:
       name: error-pages-service
-      namespace: kube-system
+      namespace: "{{  .Values.global.admin_namespace  }}"
       port: 5000
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: traefik-redirect
-  namespace: kube-system
+  namespace: "{{  .Values.global.helm_namespace  }}"
 spec:
   redirectRegex:
     regex: ^.*/traefik$
@@ -50,7 +39,7 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: remove-auth-headers
-  namespace: kube-system
+  namespace: "{{  .Values.global.helm_namespace  }}"
 spec:
   headers:
     customRequestHeaders:

@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/name: kube-state-metrics
     app.kubernetes.io/version: 2.5.0
   name: kube-state-metrics
-  namespace: kube-system
+  namespace: "{{  .Values.global.admin_namespace  }}"
 spec:
   replicas: 1
   selector:
@@ -22,7 +22,7 @@ spec:
     spec:
       automountServiceAccountToken: true
       containers:
-      - image: {{ .Values.global.registry_url }}/kube-state-metrics:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__v2.5.0
+      - image: "{{ .Values.global.registry_url }}/kube-state-metrics:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         livenessProbe:
           httpGet:
@@ -51,6 +51,6 @@ spec:
           runAsUser: 65534
       nodeSelector:
         kubernetes.io/os: linux
-      serviceAccountName: kube-state-metrics
+      serviceAccountName: kaapana-kube-admin
       imagePullSecrets:
       - name: registry-secret

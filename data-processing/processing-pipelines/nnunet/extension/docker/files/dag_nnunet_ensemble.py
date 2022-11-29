@@ -58,22 +58,6 @@ else:
 
 parallel_processes = 3
 ui_forms = {
-    "opensearch_form": {
-        "type": "object",
-        "properties": {
-            "dataset": "$default",
-            "index": "$default",
-            "cohort_limit": "$default",
-            "single_execution": "$default",
-            "input_modality": {
-                "title": "Input Modality",
-                "default": "SEG",
-                "description": "Expected input modality.",
-                "type": "string",
-                "readOnly": True,
-            },
-        }
-    },
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -137,12 +121,20 @@ ui_forms = {
                 "default": default_nifti_thread_count,
                 "required": True
             },
+            "input": {
+                "title": "Input Modality",
+                "default": "SEG",
+                "description": "Expected input modality.",
+                "type": "string",
+                "readOnly": True,
+            },
             "single_execution": {
-                "title": "single execution",
-                "description": "Should each series be processed separately?",
                 "type": "boolean",
+                "title": "Single execution",
+                "description": "Whether your report is execute in single mode or not",
                 "default": False,
-                "readOnly": False,
+                "readOnly": True,
+                "required": True
             }
         }
     }

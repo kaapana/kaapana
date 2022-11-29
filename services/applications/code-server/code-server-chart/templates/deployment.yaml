@@ -6,7 +6,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: code-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   labels:
     k8s-app: code-server
 spec:
@@ -24,11 +24,11 @@ spec:
       containers:
       - name: code-server
         {{- if not .Values.image }}
-        image: {{ .Values.global.registry_url }}/code-server:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__4.2.0
+        image: "{{ .Values.global.registry_url }}/code-server:{{ .Values.global.kaapana_build_version  }}"
         {{- else }}
-        image: {{ .Values.image }}
+        image: "{{ .Values.image }}"
         {{- end }}
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         command: ["code-server"]
         args: ["--auth", "none", "--bind-addr", "0.0.0.0:8080", "/kaapanasrc"]
         env:
@@ -97,7 +97,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: code-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   selector:
     app-name: code-{{ $uuid }}
@@ -111,7 +111,7 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: cs-strip-prefix-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   stripPrefix:
     prefixes:
@@ -122,10 +122,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: code-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,{{ .Values.global.base_namespace }}-cs-strip-prefix-{{ $uuid }}@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-cs-strip-prefix-{{ $uuid }}@kubernetescrd
     traefik.ingress.kubernetes.io/preserve-host: "true"
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
@@ -200,7 +200,7 @@ data:
                 "type": "python",
                 "request": "attach",
                 "connect": {
-                    "host": "airflow-service.flow.svc",
+                    "host": "airflow-service.{{  .Values.global.services_namespace  }}.svc",
                     "port": 5678
                 },
                 "justMyCode": false,
@@ -216,5 +216,5 @@ data:
 kind: ConfigMap
 metadata:
   name: code-config-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 ---

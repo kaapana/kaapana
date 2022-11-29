@@ -1840,4 +1840,4 @@ data:
 kind: ConfigMap
 metadata:
   name: keycloak-config
-  namespace: kube-system
+  namespace: "{{  .Values.global.admin_namespace  }}"

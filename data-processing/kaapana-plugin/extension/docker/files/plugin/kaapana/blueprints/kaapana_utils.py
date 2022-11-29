@@ -12,7 +12,7 @@ from datetime import datetime
 from socket import timeout
 
 
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+from kaapana.blueprints.kaapana_global_variables import WORKFLOW_DIR, SERVICES_NAMESPACE
 
 
 def generate_run_id(dag_id):
@@ -29,7 +29,7 @@ def get_release_name(kwargs):
 def generate_minio_credentials(x_auth_token):
     # Not sure if DurationSeconds has an influence, this WebIdentitytoken maybe defines the session period
     # Version is hard-coded, check https://github.com/minio/minio/blob/master/docs/sts/web-identity.md for more information!
-    r = requests.post(f'http://minio-service.store.svc:9000?Action=AssumeRoleWithWebIdentity&DurationSeconds=3600&WebIdentityToken={x_auth_token}&Version=2011-06-15')
+    r = requests.post(f'http://minio-service.{SERVICES_NAMESPACE}.svc:9000?Action=AssumeRoleWithWebIdentity&DurationSeconds=3600&WebIdentityToken={x_auth_token}&Version=2011-06-15')
     r.raise_for_status()
     tree = ElementTree.fromstring(r.content)
     assume_role_with_web_identity_result = tree.find('{https://sts.amazonaws.com/doc/2011-06-15/}AssumeRoleWithWebIdentityResult')
@@ -75,7 +75,7 @@ def get_operator_properties(*args, **kwargs):
     return run_id, dag_run_dir, dag_run, downstream_tasks
 
 
-# Same as in federated-backend/docker/files/app/utils.py
+# Same as in kaapana-backend/docker/files/app/utils.py
 #https://www.peterbe.com/plog/best-practice-with-retries-with-requests
 #https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
 def requests_retry_session(
@@ -101,12 +101,7 @@ def requests_retry_session(
         proxies = {
             'http': os.getenv('PROXY', None),
             'https': os.getenv('PROXY', None),
-            'no_proxy': 'airflow-service.flow,airflow-service.flow.svc,' \
-                'ctp-dicom-service.flow,ctp-dicom-service.flow.svc,'\
-                    'dcm4chee-service.store,dcm4chee-service.store.svc,'\
-                        'opensearch-service.meta,opensearch-service.meta.svc'\
-                            'federated-backend-service.base,federated-backend-service.base.svc,' \
-                                'minio-service.store,minio-service.store.svc'
+            'no_proxy': '.svc,.svc.cluster,.svc.cluster.local'
         }
         session.proxies.update(proxies)
 
@@ -168,3 +163,94 @@ def clean_previous_dag_run(conf, run_identifier):
             print(f'Removing batch files from {run_identifier}: {dag_run_dir}')
             if os.path.isdir(dag_run_dir):
                 shutil.rmtree(dag_run_dir)
+
+
+def parse_ui_dict(dag_dict):
+
+    if "ui_forms" in dag_dict:
+        if "ui_visible" in dag_dict and dag_dict["ui_visible"] is True and "data_form" not in dag_dict["ui_forms"]:
+            dag_dict["ui_forms"].update({
+                "data_form": {
+                    "type": "object",
+                    "properties": {
+                        "cohort_name": "$default",
+                        "cohort_limit": "$default"
+                    }
+                }
+            })
+
+        default_properties = {}
+        for ui_form_key, ui_form in dag_dict["ui_forms"].items():
+            if ui_form_key=='publication_form':
+                pass
+            elif ui_form_key=='workflow_form':
+                default_properties = {
+                    "single_execution": {
+                        "type": "boolean",
+                        "title": "Single execution",
+                        "description": "Whether your report is execute in single mode or not",
+                        "default": True,
+                        "readOnly": False,
+                        "required": True
+                    }
+                }
+            elif ui_form_key=='data_form':
+                default_properties = {
+                    "cohort_name": {
+                        "type": "string",
+                        "title": "Cohort name",
+                        "oneOf": [],
+                        "required": True
+                    },
+                    "cohort_limit": {
+                        "type": "integer",
+                        "title": "Limit cohort-size",
+                        "description": "Limit Cohort to this many cases.",
+                        "required": True
+                    }
+                }
+            elif ui_form_key == 'external_schema_federated_form':
+                default_properties = {
+                    "federated_bucket": {
+                        "type": "string",
+                        "title": "Federated bucket",
+                        "description": "Bucket to which the files should be saved to",
+                        "readOnly": True
+                    },
+                    "federated_dir": {
+                        "type": "string",
+                        "title": "Federated directory",
+                        "description": "Directory to which the files should be saved to",
+                        "readOnly": True
+                    },
+                    "federated_operators": {
+                        "type": "array",
+                        "title": "Operators for which the results should be saved",
+                        "items": {
+                            "type": "string"
+                        },
+                        "readOnly": True
+                    },
+                    "skip_operators": {
+                        "type": "array",
+                        "title": "Operators that should not be executed",
+                        "items": {
+                            "type": "string"
+                        },
+                        "readOnly": True
+                    },
+                    "federated_round": {
+                        "type": "integer",
+                        "title": "Federated round",
+                        "readOnly": True
+                    },
+                    "federated_total_rounds": {
+                        "type": "integer",
+                        "title": "Federated total rounds"
+                    }
+                }
+            if 'properties' in ui_form:
+                for k, v in ui_form['properties'].items():
+                    if v == "$default":
+                        ui_form['properties'][k] = default_properties[k]
+    return dag_dict

@@ -2,8 +2,8 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: cert-init
-  namespace: kube-system
+  name: "cert-init-{{ randAlphaNum 3 | lower }}"
+  namespace: "{{ .Values.global.admin_namespace }}"
 spec:
   template:
     metadata:
@@ -11,7 +11,7 @@ spec:
     spec:
       containers:
       - name: cert-init
-        image: {{ .Values.global.registry_url }}/cert-init:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.0.1
+        image: "{{ .Values.global.registry_url }}/cert-init:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         resources:
           requests:
@@ -24,7 +24,9 @@ spec:
         - name: SECRET_NAME
           value: "{{ .Values.global.tls_secret.name }}"
         - name: SECRET_NAMESPACE
-          value: "{{ .Values.global.tls_secret.namespace }}"
+          value: "{{  .Values.global.services_namespace  }}"
+        - name: ADMIN_NAMESPACE
+          value: "{{  .Values.global.admin_namespace  }}"
         - name: COMMON_NAME
           value: "{{ .Values.global.tls_secret.common_name }}"
         - name: EXPIRATION
@@ -38,7 +40,6 @@ spec:
           path: "{{ .Values.global.fast_data_dir }}/tls"
           type: DirectoryOrCreate
       restartPolicy: Never
-      # the container needs to create secrets in .Values.global.tls_secret.namespace
-      serviceAccountName: kubernetes-dashboard
+      serviceAccountName: kaapana-kube-admin
       imagePullSecrets:
       - name: registry-secret

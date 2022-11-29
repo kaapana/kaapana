@@ -6,7 +6,7 @@ metadata:
   labels:
     k8s-app: kubernetes-dashboard
   name: kubernetes-dashboard
-  namespace: kube-system
+  namespace: "{{  .Values.global.admin_namespace  }}"
 spec:
   selector:
     app-name: kubernetes-dashboard
@@ -18,20 +18,31 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: kube-redirect
-  namespace: kube-system
+  namespace: "{{  .Values.global.admin_namespace  }}"
 spec:
   redirectRegex:
     regex: ^.*/kubernetes([^\/]*)$
-    replacement: /kubernetes/#/overview?namespace=base
+    replacement: /kubernetes/#/overview?namespace={{  .Values.global.admin_namespace  }}
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: kube-strip-prefix
+  namespace: "{{  .Values.global.admin_namespace  }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - /kubernetes
+    forceSlash: true
 ---
 apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
   name: kubedashboard-ingress-ip
-  namespace: kube-system
+  namespace: "{{  .Values.global.admin_namespace  }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,kube-system-kube-redirect@kubernetescrd,kube-system-strip-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.admin_namespace  }}-kube-redirect@kubernetescrd,{{  .Values.global.admin_namespace  }}-kube-strip-prefix@kubernetescrd
     ingress.kubernetes.io/auth-remove-header: 'true'
     ingress.kubernetes.io/custom-request-headers: "Authorization:||cookie:"
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"

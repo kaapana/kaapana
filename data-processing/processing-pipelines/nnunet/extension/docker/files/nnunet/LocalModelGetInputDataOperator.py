@@ -12,6 +12,7 @@ from shutil import copy2, move, rmtree
 
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.blueprints.kaapana_global_variables import WORKFLOW_DIR
+from kaapana.operators.HelperOpensearch import HelperOpensearch
 
 class LocalModelGetInputDataOperator(LocalGetInputDataOperator):
 
@@ -59,16 +60,15 @@ class LocalModelGetInputDataOperator(LocalGetInputDataOperator):
                 }
             }
         })
-
-        self.inputs = [
-            {
-                "opensearch-query": {
-                    "query": query,
-                    "index": "meta-index"
-                }
+        index = "meta-index"
+        self.data_form = {
+            "cohort_identifiers": HelperOpensearch.get_query_cohort(index=index, query=query, only_uids=True),
+            "cohort_query": {
+                "index": index
             }
-        ]
-
+        }
+        self.check_modality = False # might be replaced later by an actual check...
+            
         super().start(ds, **kwargs)
 
     def __init__(self,
@@ -79,6 +79,5 @@ class LocalModelGetInputDataOperator(LocalGetInputDataOperator):
         super().__init__(
             dag=dag,
             name=name,
-            # python_callable=self.start,
             **kwargs
         )

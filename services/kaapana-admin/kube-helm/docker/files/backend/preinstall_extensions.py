@@ -72,3 +72,4 @@ for _ in range(7200):
 if sum(list(releases_installed.values())) != len(releases_installed):
     raise NameError(
         f'Not all releases were installed successfully {" ".join(releases_installed.keys())}')
+        

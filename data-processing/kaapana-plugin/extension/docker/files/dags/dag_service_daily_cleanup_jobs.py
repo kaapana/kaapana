@@ -19,7 +19,7 @@ from airflow.utils.dates import days_ago
 log = LoggingMixin().log
 
 
-START_DATE = days_ago(1)
+START_DATE = days_ago(0)
 
 args = {
     'ui_visible': False,

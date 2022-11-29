@@ -581,4 +581,4 @@ data:
 kind: ConfigMap
 metadata:
   name: grafana-config
-  namespace: {{ .Values.global.monitoring_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"

@@ -3,4 +3,4 @@ apiVersion: v1
 appVersion: "0.1.0"
 description: Copying and removing core extensions
 name: update-collections-chart
-version: "0.1.0"
+version: "0.0.0"

@@ -1,7 +1,7 @@
 
 from datetime import datetime
 from datetime import timedelta
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
 
 class Itk2DcmSegOperator(KaapanaBaseOperator):
     """
@@ -77,12 +77,12 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/dcmqi:{default_platform_abbr}_{default_platform_version}__v1.2.4",
+            image=f"{default_registry}/dcmqi:{kaapana_build_version}",
             name="nrrd2dcmseg",
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
-            ram_mem_mb=3000,
-            ram_mem_mb_lmt=6000,
+            ram_mem_mb=6000,
+            ram_mem_mb_lmt=12000,
             **kwargs
             )

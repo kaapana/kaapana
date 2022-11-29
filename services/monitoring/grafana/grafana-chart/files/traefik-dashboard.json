@@ -1206,8 +1206,8 @@
         {
           "current": {
             "selected": false,
-            "text": "traefik.kube-system.svc:8080",
-            "value": "traefik.kube-system.svc:8080"
+            "text": "traefik:8080",
+            "value": "traefik.svc:8080"
           },
           "datasource": {
             "type": "prometheus",

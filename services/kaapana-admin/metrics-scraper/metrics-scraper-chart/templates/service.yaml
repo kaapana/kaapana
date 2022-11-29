@@ -6,7 +6,7 @@ metadata:
   labels:
     k8s-app: dashboard-metrics-scraper
   name: dashboard-metrics-scraper
-  namespace: kube-system
+  namespace: "{{  .Values.global.admin_namespace  }}"
 spec:
   ports:
     - port: 8000

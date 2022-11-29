@@ -4,7 +4,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: prefetch-{{ .Values.image }}
-  namespace: default
+  namespace: "{{ .Values.global.helm_namespace }}"
 spec:
   selector:
     matchLabels:
@@ -16,18 +16,18 @@ spec:
     spec:
       initContainers:
         - name: init
-          image: {{ .Values.global.registry_url }}/service-checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
+          image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
-              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/health-check"
+              value: "kube-helm,kube-helm-service.{{  .Values.global.services_namespace  }}.svc,5000,/health-check"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
               value: "10"
       containers:
       - name: prefetch-{{ .Values.image }}
-        image: "{{ .Values.global.registry_url }}/{{ .Values.image }}:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__{{ .Values.version }}"
+        image: "{{ .Values.global.registry_url }}/{{ .Values.image }}:{{ .Values.global.kaapana_build_version  }}"
         env:
           - name: ACTION
             value: {{ .Values.action }}
@@ -39,24 +39,24 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ .Values.image }}
-  namespace: default
+  namespace: "{{ .Values.global.helm_namespace }}"
 spec:
   template:
     spec:
       initContainers:
         - name: init
-          image: {{ .Values.global.registry_url }}/service-checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
+          image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: WAIT
-              value: "kube-helm,kube-helm-service.kube-system.svc,5000,/health-check"
+              value: "kube-helm,kube-helm-service.{{  .Values.global.services_namespace  }}.svc,5000,/health-check"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
               value: "10"
       containers:
       - name: copy-{{ .Values.image }}
-        image: "{{ .Values.global.registry_url }}/{{ .Values.image }}:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__{{ .Values.version }}"
+        image: "{{ .Values.global.registry_url }}/{{ .Values.image }}:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
         - name: ACTION

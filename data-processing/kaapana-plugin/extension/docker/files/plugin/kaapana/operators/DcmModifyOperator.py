@@ -3,7 +3,7 @@ from datetime import timedelta
 from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
 from kaapana.kubetools.resources import Resources as PodResources
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
 
 
 class DcmModifyOperator(KaapanaBaseOperator):
@@ -44,7 +44,7 @@ class DcmModifyOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/dcmodify:{default_platform_abbr}_{default_platform_version}__3.6.4",
+            image=f"{default_registry}/dcmodify:{kaapana_build_version}",
             name=name,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,

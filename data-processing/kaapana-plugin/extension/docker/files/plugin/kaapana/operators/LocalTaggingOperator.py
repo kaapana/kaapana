@@ -5,7 +5,7 @@ from opensearchpy import OpenSearch
 from enum import Enum
 from typing import List
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, SERVICES_NAMESPACE
 
 class LocalTaggingOperator(KaapanaPythonBaseOperator):
 
@@ -97,7 +97,7 @@ class LocalTaggingOperator(KaapanaPythonBaseOperator):
                  name: str="tagging",
                  add_tags_from_file: bool=False,
                  tags_to_add_from_file: List[str]=["00120020 ClinicalTrialProtocolID_keyword"],
-                 opensearch_host='opensearch-service.meta.svc',
+                 opensearch_host=f'opensearch-service.{SERVICES_NAMESPACE}.svc',
                  opensearch_port=9200,
                  opensearch_index="meta-index",
                  *args,

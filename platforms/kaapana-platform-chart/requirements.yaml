@@ -1,0 +1,9 @@
+---
+dependencies:
+# Namespaces
+  - name: extensions-namespace
+    version: 0.0.0
+  - name: jobs-namespace
+    version: 0.0.0
+  - name: services-namespace
+    version: 0.0.0

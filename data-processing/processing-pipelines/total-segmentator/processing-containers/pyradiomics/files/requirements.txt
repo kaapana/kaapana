@@ -1,0 +1,3 @@
+pyradiomics==3.0.1
+nibabel==4.0.2
+p_tqdm==1.4.0

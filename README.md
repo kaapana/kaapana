@@ -35,6 +35,10 @@ For more information, please also take a look at our recent publication of the K
 
 Check out our [documentation](https://kaapana.readthedocs.io/en/latest/) for further information about Kaapana and how to use it!
 
+## Versioning
+
+As of Kaapana 0.2.0 we follow strict [SemVer](https://semver.org/) approach to versioning.
+
 ## Licence
 
 This program is free software: you can redistribute it and/or modify

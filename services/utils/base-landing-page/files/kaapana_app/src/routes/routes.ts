@@ -27,6 +27,15 @@ const routes = [
         },
     },
     {
+        name: 'experiments',
+        path: '/experiments',
+        component: () => import('@/views/Experiments.vue'),
+        title: 'Experiment',
+        permissions: {
+            isPublic: false,
+        },
+    },
+    {
         name: 'federated',
         path: '/federated',
         component: () => import('@/views/Federated.vue'),

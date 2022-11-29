@@ -3,4 +3,4 @@ apiVersion: v1
 appVersion: "2.4.58-26.0"
 description: Chart for dcm4che-ldap
 name: dcm4che-ldap
-version: "2.4.58-26.0"
+version: "0.0.0"

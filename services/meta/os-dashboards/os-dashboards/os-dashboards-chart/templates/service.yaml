@@ -4,28 +4,26 @@ apiVersion: v1
 kind: Service
 metadata:
   name: os-dashboards-service
-  namespace: {{ .Values.global.meta_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   labels:
     app-name: os-dashboards
 spec:
   selector:
     app-name: os-dashboards
-  type: NodePort
+  type: ClusterIP
   ports:
   - name: osd-port
     port: 5601
     targetPort: 5601
-    nodePort: 5601
     protocol: TCP
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: osd-ingress-ip
-  namespace: {{ .Values.global.meta_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    # traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,kube-system-strip-prefix@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

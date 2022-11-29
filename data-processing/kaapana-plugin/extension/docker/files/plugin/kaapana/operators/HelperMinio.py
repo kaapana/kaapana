@@ -4,11 +4,11 @@ from datetime import timedelta
 
 from minio import Minio
 from minio.error import (InvalidResponseError, S3Error)
-
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 
 class HelperMinio():
 
-    _minio_host='minio-service.store.svc'
+    _minio_host=f'minio-service.{SERVICES_NAMESPACE}.svc'
     _minio_port='9000'
     minioClient = Minio(_minio_host+":"+_minio_port,
                         access_key=os.environ.get('MINIOUSER'),

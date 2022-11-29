@@ -3,7 +3,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: airflow-service
-  namespace: {{ .Values.global.flow_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   selector:
     app-name: airflow
@@ -19,10 +19,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: airflow-ingress-ip
-  namespace: {{ .Values.global.flow_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
@@ -37,34 +37,3 @@ spec:
             port:
               name: airflow-http
 ---
-# apiVersion: traefik.containo.us/v1alpha1
-# kind: Middleware
-# metadata:
-#   name: rewrite-flow
-#   namespace: {{ .Values.global.flow_namespace }}
-# spec:
-#   replacePath:
-#     path: /flow/home
-# ---
-# apiVersion: networking.k8s.io/v1 
-# kind: Ingress
-# metadata:
-#   name: flow-rewrite
-#   namespace: {{ .Values.global.flow_namespace }}
-#   annotations:
-#     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-#     traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.flow_namespace }}-rewrite-flow@kubernetescrd,kube-system-errorpages@kubernetescrd
-#     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
-# spec:
-#   rules:
-#   - host:
-#     http:
-#       paths:
-#       - path: /flow
-#         pathType: ImplementationSpecific
-#         backend:
-#           service:
-#             name: airflow-service
-#             port:
-#               name: airflow-http
-# ---

@@ -8,7 +8,7 @@ import pandas as pd
 from io import StringIO
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, EXTENSIONS_NAMESPACE
 from kaapana.operators.HelperCaching import cache_operator_output
 
 class LocalDoccanoDownloadDatasetOperator(KaapanaPythonBaseOperator):
@@ -24,7 +24,7 @@ class LocalDoccanoDownloadDatasetOperator(KaapanaPythonBaseOperator):
         project_number = conf['project_id']
         print(project_number)
 
-        DOCCANO_API = 'http://doccano-backend-service.store:8000/v1/'
+        DOCCANO_API = f"http://doccano-backend-service.{EXTENSIONS_NAMESPACE}:8000/v1/"
 
         # Login
         url = DOCCANO_API + 'auth/login/'

@@ -77,7 +77,7 @@ In this example we provide the algorithm as a python implementation of a DAG (se
 Therefore, we start with a minimal python image:
 
 .. important::
-   To access the base images for our container (like ``local-only/base-python-alpine:0.1.0``) we can either build them individualy following :ref:`faq_build_base_img` or build the whole platform :ref:`build`.
+   To access the base images for our container (like ``local-only/base-python-cpu:latest``) we can either build them individualy following :ref:`faq_build_base_img` or build the whole platform :ref:`build`.
    Building only the base images and not the whole platform is in general recommended as it is a lot faster and takes less space on your system.
 
 .. hint::
@@ -85,7 +85,7 @@ Therefore, we start with a minimal python image:
 
 .. code-block:: docker
 
-    FROM local-only/base-python-alpine:0.1.0
+    FROM local-only/base-python-cpu:latest
     LABEL IMAGE="python-template"
     LABEL VERSION="0.1.0"
     LABEL CI_IGNORE="True"

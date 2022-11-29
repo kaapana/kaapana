@@ -3,7 +3,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: error-pages-service
-  namespace: kube-system
+  namespace: "{{  .Values.global.admin_namespace  }}"
 spec:
   selector:
     app-name: error-pages
@@ -11,14 +11,25 @@ spec:
     - port: 5000
       name: error-http
 ---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: ep-strip-prefix
+  namespace: "{{  .Values.global.admin_namespace  }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - /error-pages
+    forceSlash: true
+---
 apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
   name: error-pages-ingress-ip
-  namespace: kube-system
+  namespace: "{{  .Values.global.admin_namespace  }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,kube-system-strip-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.admin_namespace  }}-ep-strip-prefix@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

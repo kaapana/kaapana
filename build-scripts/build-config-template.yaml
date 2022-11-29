@@ -1,5 +1,7 @@
 http_proxy: "" # put the proxy here if needed
 default_registry: "registry.<gitlab-url>/<group/user>/<project>" # registry url incl. project Gitlab template: "registry.<gitlab-url>/<group/user>/<project>"
+registry_username: "" # container registry username
+registry_password: "" # container registry passwarod
 container_engine: "docker" # docker or podman
 enable_build_kit: false # Should be false for now: Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/ 
 log_level: "INFO" # DEBUG, INFO, WARNING or ERROR
@@ -9,5 +11,7 @@ push_to_microk8s: false # Advanced feature - inject container directly into micr
 exit_on_error: true  # stop immediately if an issue occurs
 enable_linting: true # should be true - checks deployment validity
 skip_push_no_changes: false # Advanced feature - should be false usually
-platform_filter: "kaapana-platform-chart" # comma sperated platform-chart-names
+platform_filter: "kaapana-admin-chart" # comma sperated platform-chart-names
 external_source_dirs: "" # comma sperated paths 
+parallel_processes: 2 # parallel process count for container build + push 
+include_credentials: false # Whether to inlude the used registry credentials into the deploy-platform script.

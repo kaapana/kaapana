@@ -8,6 +8,7 @@ from tfda_execution_orchestrator.LocalDeployPlatformOnIsoEnvOperator import Loca
 from tfda_execution_orchestrator.LocalTrustedPreETLOperator import LocalTrustedPreETLOperator
 from tfda_execution_orchestrator.LocalCopyDataAndAlgoOperator import LocalCopyDataAndAlgoOperator
 from tfda_execution_orchestrator.LocalRunAlgoOperator import LocalRunAlgoOperator
+from tfda_execution_orchestrator.LocalTFDAPrepareEnvOperator import LocalTFDAPrepareEnvOperator
 from tfda_execution_orchestrator.LocalFetchResultsOperator import LocalFetchResultsOperator
 from tfda_execution_orchestrator.LocalTrustedPostETLOperator import LocalTrustedPostETLOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
@@ -37,6 +38,7 @@ dag = DAG(
 )
 
 create_iso_env = LocalManageIsoInstanceOperator(dag=dag, instanceState="present", taskName="create-iso-inst")
+prepare_env = LocalTFDAPrepareEnvOperator(dag=dag)
 trusted_pre_etl = LocalTrustedPreETLOperator(dag=dag)
 copy_data_algo = LocalCopyDataAndAlgoOperator(dag=dag)
 run_isolated_workflow = LocalRunAlgoOperator(dag=dag)
@@ -59,4 +61,4 @@ final_status = PythonOperator(
     dag=dag,
 )
 
-create_iso_env >> trusted_pre_etl >> copy_data_algo >> run_isolated_workflow >> fetch_results >> trusted_post_etl >> delete_iso_inst >> clean >> final_status
+create_iso_env >> prepare_env >> trusted_pre_etl >> copy_data_algo >> run_isolated_workflow >> fetch_results >> trusted_post_etl >> delete_iso_inst >> clean >> final_status

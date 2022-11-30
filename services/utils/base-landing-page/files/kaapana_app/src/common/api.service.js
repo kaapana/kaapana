@@ -3,7 +3,7 @@
 
 import Vue from "vue";
 import dicomWebClient from "./dicomWebClient";
-import {httpClient} from "./httpClient";
+import httpClient from "./httpClient";
 
 const WADO_ENDPOINT = process.env.VUE_APP_WADO_ENDPOINT
 const RS_ENDPOINT = process.env.VUE_APP_RS_ENDPOINT
@@ -67,6 +67,20 @@ const loadCohorts = async () => {
             name: cohort.cohort_name,
             identifiers: cohort.cohort_identifiers
         }))
+    } catch (error) {
+        Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
+    }
+}
+
+const loadCohortByName = async (cohort_name) => {
+    try {
+        const cohort = (
+            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + `/cohort?cohort_name=${cohort_name}`)
+        ).data
+        return {
+            name: cohort.cohort_name,
+            identifiers: cohort.cohort_identifiers
+        }
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
     }
@@ -178,9 +192,12 @@ const loadSeriesMetaData = async (studyInstanceUID, seriesInstanceUID) => {
 }
 
 const loadPatients = async (url, data) => {
-    return (
-        await httpClient.post(KAAPANA_FLOW_ENDPOINT + '/curation_tool/' + url, data)
-    ).data
+    try {
+        const res = await httpClient.post(KAAPANA_FLOW_ENDPOINT + '/curation_tool/' + url, data)
+        return res.data
+    } catch (error) {
+        Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
+    }
 }
 
 const loadAvailableTags = async () => {
@@ -208,5 +225,6 @@ export {
     deleteSeriesFromPlatform,
     updateCohort,
     loadCohortNames,
-    getDicomTags
+    getDicomTags,
+    loadCohortByName
 }

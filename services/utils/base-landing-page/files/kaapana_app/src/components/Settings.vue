@@ -2,7 +2,7 @@
   <div>
     <v-dialog
         v-model="dialog"
-        width="500"
+        width="100vh"
     >
       <template v-slot:activator="{ on, attrs }">
         <v-list-item-title
@@ -45,20 +45,26 @@ export default {
     vueJsonEditor
   },
   mounted() {
-    this.json = Object.entries(localStorage)
-        .filter(([k, _]) => (k.startsWith('Dataset.')))
-        .map(([k, v]) => ({[k]: JSON.parse(v)}))
+
   },
   methods: {
+    updateJSON() {
+      this.json = Object.entries(localStorage)
+          .filter(([k, v]) => (k.startsWith('Dataset.') && v))
+          .map(([k, v]) => ({[k]: JSON.parse(v)}))
+    },
     onSave(value) {
-      this.json.forEach(item => Object.entries(item).forEach(([key, value]) => localStorage[key] = JSON.stringify(value)))
+      this.json
+          .forEach(item => Object.entries(item)
+              .forEach(([key, value]) => localStorage[key] = JSON.stringify(value))
+          )
       this.dialog = false
       window.location.reload();
     }
   },
   watch: {
     dialog() {
-      this.json = Object.entries(localStorage).map(([k, v]) => ({[k]: JSON.parse(v)}))
+      this.updateJSON()
     }
   }
 };

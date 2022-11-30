@@ -18,7 +18,7 @@
             :items="tagsData"
             :search="search"
             :hide-default-footer=true
-            height="calc(100vh - 417px)"
+            height="calc(100vh - 562px)"
             :items-per-page=-1
             dense
         />

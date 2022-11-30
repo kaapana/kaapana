@@ -9,7 +9,7 @@ white-space: nowrap; width: 25vw">
           </div>
         </v-col>
         <v-col cols="1" align="center">
-          <v-btn icon @click="close">
+          <v-btn icon @click="() => this.$emit('close')">
             <v-icon>
               mdi-close
             </v-icon>
@@ -52,12 +52,7 @@ export default {
   data() {
     return {};
   },
-  methods: {
-    close() {
-      controller.abort()
-      this.$emit('close')
-    }
-  },
+  methods: {},
 };
 </script>
 <style scoped>

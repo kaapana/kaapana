@@ -21,7 +21,7 @@
         <v-list-item-title>Open in OHIF Viewer</v-list-item-title>
       </v-list-item>
       <v-list-item
-          v-if="cohort"
+          v-if="cohort_name"
           @click="() => {this.$emit('removeFromCohort')}"
       >
         <v-list-item-title>Remove from cohort</v-list-item-title>
@@ -62,7 +62,10 @@ import {loadCohortNames, updateCohort} from "../common/api.service";
 export default {
   name: "CardMenu",
   props: {
-    cohort: {},
+    cohort_name: {
+      type: String,
+      default: null
+    },
     studyInstanceUID: "",
     seriesInstanceUID: "",
   },

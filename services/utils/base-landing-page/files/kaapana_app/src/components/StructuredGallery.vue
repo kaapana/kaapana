@@ -47,7 +47,7 @@
                     <Gallery
                       :data="study.series"
                       :selectedTags="inner_selectedTags"
-                      :cohort="cohort"
+                      :cohort_name="cohort_name"
                       @imageId="(imageId) => propagateImageId(imageId)"
                       @emptyStudy="() => removeEmptyStudy(item, study)"
                     />
@@ -72,7 +72,10 @@ import LazyList from './lazy-load-list/LazyList.vue'
 export default {
   emits: ['imageId'],
   props: {
-    cohort: {},
+    cohort_name: {
+      type: String,
+      default: null
+    },
     patients: {
       type: Array
     },

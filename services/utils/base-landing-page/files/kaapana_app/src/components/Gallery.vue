@@ -8,8 +8,9 @@
   >
     <template v-slot="{item}">
       <v-col :cols="cols">
+<!--        TODO: maybe provide cohortNames or cache it-->
         <CardSelect
-            :cohort="cohort"
+            :cohort_name="cohort_name"
             :series-instance-u-i-d="item.seriesInstanceUID"
             :study-instance-u-i-d="item.studyInstanceUID"
             :selected_tags="inner_selectedTags"
@@ -38,7 +39,10 @@ export default {
   name: 'Gallery',
   emits: ['imageId'],
   props: {
-    cohort: {},
+    cohort_name: {
+      type: String,
+      default: null
+    },
     data: {
       type: Array
     },
@@ -98,17 +102,17 @@ export default {
   },
   methods: {
     async removeFromCohort(item) {
-      if (this.cohort !== null) {
+      if (this.cohort_name !== null) {
         try {
           await updateCohort({
-            "cohort_name": this.cohort.name,
+            "cohort_name": this.cohort_name,
             "action": "DELETE",
             "cohort_query": {"index": "meta-index"},
             "cohort_identifiers": [{"identifier": item.seriesInstanceUID}]
           })
           this.$notify({
             type: 'success',
-            text: `Removed series ${item.seriesDescription} from ${this.cohort.name}`
+            text: `Removed series ${item.seriesDescription} from ${this.cohort_name}`
           });
         } catch (error) {
           this.$notify({
@@ -162,5 +166,8 @@ export default {
 <style scoped>
 .col {
   padding: 5px;
+}
+.inner-gallery-height {
+  height: calc(100vh - 78px)
 }
 </style>

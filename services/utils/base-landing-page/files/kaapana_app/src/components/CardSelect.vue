@@ -32,7 +32,7 @@
           <CardMenu
               @removeFromCohort="() => {this.$emit('removeFromCohort')}"
               @deleteFromPlatform="() => {this.$emit('deleteFromPlatform')}"
-              :cohort="cohort"
+              :cohort_name="cohort_name"
               :seriesInstanceUID="seriesInstanceUID"
               :studyInstanceUID="studyInstanceUID"
           ></CardMenu>
@@ -105,7 +105,10 @@ export default {
   name: "CardSelect",
   components: {Chip, TagChip, CardMenu},
   props: {
-    cohort: {},
+    cohort_name: {
+      type: String,
+      default: null
+    },
     seriesInstanceUID: {
       type: String,
     },

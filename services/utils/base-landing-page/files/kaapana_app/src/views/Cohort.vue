@@ -11,21 +11,19 @@
               </v-col>
               <v-col>
                 <v-select
-                    v-model="cohort"
-                    :items="cohorts"
-                    item-text="name"
-                    item-value="identifiers"
+                    v-model="cohort_name"
+                    :items="cohort_names"
                     label="Select Dataset"
                     clearable
                     hide-details
                     return-object
                     single-line
                     dense
-                    @click:clear="() => this.cohort=null"
+                    @click:clear="cohort_name=null"
                 ></v-select>
               </v-col>
             </v-row>
-            <Search ref="search" :cohort=cohort @search="(query) => updatePatients(query)"/>
+            <Search :cohort_name=cohort_name @search="(query) => updatePatients(query)"/>
           </div>
           <v-divider/>
         </v-card>
@@ -41,14 +39,14 @@
             v-else-if="!isLoading && data.length > 0 && structuredGallery"
             :patients="data"
             :selectedTags="tags"
-            :cohort="cohort"
+            :cohort_name="cohort_name"
             @imageId="(imageId) => this.image_id = imageId"
         />
         <Gallery
             v-else-if="!isLoading && data.length > 0 && !structuredGallery"
             :data="data"
             :selectedTags="tags"
-            :cohort="cohort"
+            :cohort_name="cohort_name"
             @imageId="(imageId) => this.image_id = imageId"
         />
         <h3 v-else>
@@ -77,7 +75,7 @@ import StructuredGallery from "@/components/StructuredGallery.vue";
 import Gallery from "@/components/Gallery.vue";
 import Search from "@/components/Search.vue";
 import TagBar from "@/components/TagBar.vue";
-import {loadCohorts, loadPatients} from "@/common/api.service";
+import {loadCohortNames, loadPatients} from "@/common/api.service";
 
 
 export default {
@@ -89,8 +87,8 @@ export default {
       isLoading: false,
       message: 'No data found.',
       structuredGallery: null,
-      cohorts: [],
-      cohort: null
+      cohort_names: [],
+      cohort_name: null
     };
   },
   components: {
@@ -117,31 +115,35 @@ export default {
     },
   },
   async created() {
-    if (localStorage['Dataset.Cohort.structuredGallery']) {
-      this.structuredGallery = JSON.parse(localStorage['Dataset.Cohort.structuredGallery'])
+    if (localStorage['Dataset.structuredGallery']) {
+      this.structuredGallery = JSON.parse(localStorage['Dataset.structuredGallery'])
     } else {
       this.structuredGallery = true
-      localStorage['Dataset.Cohort.structuredGallery'] = JSON.stringify(this.structuredGallery)
+      localStorage['Dataset.structuredGallery'] = JSON.stringify(this.structuredGallery)
     }
-    this.cohorts = await loadCohorts()
-  },
-  async mounted() {
-    this.updatePatients();
+    this.cohort_names = await loadCohortNames()
+    if (
+        localStorage['Dataset.search.cohort_name']
+        && this.cohort_names.includes(JSON.parse(localStorage['Dataset.search.cohort_name']))
+    ) {
+      this.cohort_name = JSON.parse(localStorage['Dataset.search.cohort_name'])
+    }
   }
 };
 </script>
 <style scoped>
 .detailView--fixed {
   width: 30%;
-  height: calc(100vh + 65px);
+  /*height: calc(100vh + 65px);*/
   float: left;
   overflow-y: auto;
 }
 
 .overview-shared {
   width: 70%;
-  height: inherit;
   float: left;
+  height: calc(100vh - 81px);
+  overflow-y: auto;
 }
 
 .overview-full {
@@ -151,7 +153,7 @@ export default {
 }
 
 .gallery {
-  height: calc(100vh - 82px);
+  height: calc(100vh - 81px);
 }
 
 .content {

@@ -109,7 +109,13 @@ async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstanc
 @router.post("/submit-workflow-schema", response_model=List[schemas.Job])
 async def submit_workflow_json_schema(request: Request, json_schema_data: schemas.JsonSchemaData, db: Session = Depends(get_db)):
 
-    username = request.headers["x-forwarded-preferred-username"]
+
+    if json_schema_data.username is not None:
+        username = json_schema_data.username
+    elif "x-forwarded-preferred-username" in request.headers:
+        username = request.headers["x-forwarded-preferred-username"]
+    else:
+        raise HTTPException(status_code=400, detail="A username has to be set when you submit a workflow schema, either as parameter or in the request!")
 
     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
     print(json_schema_data)

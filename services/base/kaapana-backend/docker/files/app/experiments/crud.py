@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException, Response
 from . import models, schemas
 from app.config import settings
 from .schemas import Identifier
-from .utils import execute_job, check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, \
+from .utils import execute_job_airflow, abort_job_airflow, check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, \
     raise_kaapana_connection_error, requests_retry_session, get_uid_list_from_query
 from urllib3.util import Timeout
 
@@ -111,6 +111,8 @@ def create_and_update_client_kaapana_instance(db: Session, client_kaapana_instan
     else:
         raise NameError('action must be one of create, update')
 
+    print("Updating Kaapana Instance successful!")
+
     db.add(db_client_kaapana_instance)
     db.commit()
     db.refresh(db_client_kaapana_instance)
@@ -187,7 +189,7 @@ def create_job(db: Session, job: schemas.JobCreate):
         external_job_id=job.external_job_id,
         username=job.username,
         dag_id=job.dag_id,
-        addressed_kaapana_instance_name=job.addressed_kaapana_instance_name,  # or None,
+        # TODO addressed_kaapana_instance_name=job.addressed_kaapana_instance_name, # or None,
         status=job.status
     )
 
@@ -223,9 +225,8 @@ def get_job(db: Session, job_id: int):
 
 def delete_job(db: Session, job_id: int, remote: bool = True):
     db_job = get_job(db, job_id)
-    if (db_job.kaapana_instance.remote != remote) and db_job.status not in ["queued", "finished", "failed"]:
-        raise HTTPException(status_code=401,
-                            detail="You are not allowed to delete this job, since its on the client site")
+    if (db_job.experiment.kaapana_instance.remote != remote) and db_job.status not in ["queued", "finished", "failed"]:
+        raise HTTPException(status_code=401, detail="You are not allowed to delete this job, since its on the client site")
     delete_external_job(db, db_job)
     db.delete(db_job)
     db.commit()
@@ -241,36 +242,40 @@ def delete_jobs(db: Session):
 
 def get_jobs(db: Session, instance_name: str = None, status: str = None, remote: bool = True, limit=None):
     if instance_name is not None and status is not None:
-        return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(
-            instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+        # org: return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+        return db.query(models.Job).filter_by(status=status).join(models.Job.experiment, aliased=True).join(models.Experiment.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
     elif instance_name is not None:
-        return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(
-            instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+        # org: return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+        return db.query(models.Job).join(models.Job.experiment, aliased=True).join(models.Experiment.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
     elif status is not None:
-        return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(
-            remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+        # org: return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+        return db.query(models.Job).filter_by(status=status).join(models.Job.experiment, aliased=True).join(models.Experiment.kaapana_instance, aliased=True).filter_by(remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
     else:
-        return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(remote=remote).order_by(
-            desc(models.Job.time_updated)).limit(limit).all()
-
+        # org: return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+        return db.query(models.Job).join(models.Job.experiment, aliased=True).join(models.Experiment.kaapana_instance, aliased=True).filter_by(remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+        # explanation: db.query(models.Job) returns a Query object; .join() creates more narrow Query objects ; filter_by() applies the filter criterion to the remaining Query (source: https://docs.sqlalchemy.org/en/14/orm/query.html#sqlalchemy.orm.Query)
 
 def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     utc_timestamp = get_utc_timestamp()
 
-    print(f'Updating client job {job.job_id}')
+    print(f'Updating client job {job.job_id} with job.status: {job.status}')
     db_job = get_job(db, job.job_id)
 
-    if job.status == 'scheduled' and db_job.kaapana_instance.remote == False:
+    if (job.status == 'scheduled' and db_job.kaapana_instance.remote == False): #  or (job.status == 'failed'); status='scheduled' for restarting, status='failed' for aborting
         print(f'Executing  job {db_job.id}')
         conf_data = json.loads(db_job.conf_data)
         conf_data['client_job_id'] = db_job.id
+        print("db_job.kaapana_instance:", db_job.kaapana_instance, "db_job.dag_id", db_job.dag_id, 
+              "db_job.addressed_kaapana_instance_name", db_job.addressed_kaapana_instance_name)
         dag_id_and_dataset = check_dag_id_and_dataset(db_job.kaapana_instance, conf_data, db_job.dag_id,
                                                       db_job.addressed_kaapana_instance_name)
+        print("dag_id_and_dataset:", dag_id_and_dataset)
         if dag_id_and_dataset is not None:
             job.status = 'failed'
             job.description = dag_id_and_dataset
         else:
-            execute_job(conf_data, db_job.dag_id)
+            print("update_job() right before execute_job()")
+            execute_job_airflow(conf_data, db_job)
 
     if (db_job.kaapana_instance.remote != remote) and db_job.status not in ["queued", "finished", "failed"]:
         raise HTTPException(status_code=401,
@@ -286,6 +291,16 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     db.refresh(db_job)
 
     return db_job
+
+def abort_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
+    utc_timestamp = get_utc_timestamp()
+    print(f"Aborting job {job}")
+    # print(f'Aborting client job {job.job_id} with job.status: {job.status}')
+    db_job = get_job(db, job.job_id)    # should actually be job.job_id instead of just job but somehow (unfortunately) works ...
+    conf_data = json.loads(db_job.conf_data)
+    conf_data['client_job_id'] = db_job.id
+
+    abort_job_airflow(db_job.dag_id, db_job.run_id, db_job.status, conf_data)
 
 
 def sync_client_remote(db: Session, remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal,
@@ -568,3 +583,115 @@ def update_cohort(db: Session, cohort=schemas.CohortUpdate):
     db.commit()
     db.refresh(db_cohort)
     return db_cohort
+
+def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
+    
+    if experiment.kaapana_instance_id is None:  # experiment has a kaapana_instance_id?
+        db_kaapana_instance = db.query(models.KaapanaInstance).filter_by(remote=False).first()  # no: take first element on non-remote Kaapana instances in db
+    else:
+        db_kaapana_instance = db.query(models.KaapanaInstance).filter_by(id=experiment.kaapana_instance_id).first() # yes: search Kaapana instance in db according to given kaapana_instance_id
+    
+    print("We're right before models.Experiment querying!")
+    if db.query(models.Experiment).filter_by(experiment_name=experiment.experiment_name).first():   # experiment already exists?
+        raise HTTPException(status_code=409, detail="Experiment exists already!")                   # ... raise http exception!
+    if not db_kaapana_instance:                                                                     # no kaapana_instance found in db in previous "search"?
+        raise HTTPException(status_code=404, detail="Kaapana instance not found")                   # ... raise http exception!
+    
+    utc_timestamp = get_utc_timestamp()
+
+    print(f"We're right before creation of models.Experiment!")
+    print(f"kaapana_id={experiment.kaapana_instance_id} ; username={experiment.username} ; experiment_name={experiment.experiment_name} ; experiment_jobs={experiment.experiment_jobs}")
+    db_experiment = models.Experiment(
+        kaapana_id=experiment.kaapana_instance_id,
+        username=experiment.username,
+        experiment_name=experiment.experiment_name,
+        experiment_jobs=experiment.experiment_jobs,                   # list experiment_jobs already added to experiment in client.py's def create_experiment()
+        # involved_kaapana_instances = experiment.involved_kaapana_instances,
+        cohort_name=experiment.cohort_name,
+        time_created=utc_timestamp,
+        time_updated=utc_timestamp
+    )
+    print(f"models.Experiment.time_created: {db_experiment.time_created}")  # still working
+    print("db_experiment successfully created!")    # still working
+
+    # TODO: also update all involved_kaapana_instances with the experiment_id in which they are involved
+
+    db_kaapana_instance.experiments.append(db_experiment)
+    db.add(db_kaapana_instance)
+    db.commit()
+    db.refresh(db_experiment)
+    return db_experiment
+
+def get_experiment(db: Session, experiment_id: int):
+    db_experiment = db.query(models.Experiment).filter_by(id=experiment_id).first()
+    if not db_experiment:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+    return db_experiment
+
+def get_experiments(db: Session, instance_name: str = None, limit=None):
+    if instance_name is not None:
+        return db.query(models.Experiment).join(models.Experiment.kaapana_instance, aliased=True).filter_by(instance_name=instance_name).order_by(desc(models.Experiment.time_updated)).limit(limit).all()
+    else:
+        return db.query(models.Experiment).join(models.Experiment.kaapana_instance, aliased=True).order_by(desc(models.Experiment.time_updated)).limit(limit).all()
+
+def get_experiment_jobs(db: Session, experiment_name: str = None, status: str = None, limit=None):
+    # print("Job's status: ", status)
+    if experiment_name is not None and status is not None:
+        return db.query(models.Job).filter_by(status=status).join(models.Job.experiment, aliased=True).filter_by(experiment_name=experiment_name).order_by(desc(models.Job.time_updated)).limit(limit).all()
+    elif experiment_name is not None:
+        return db.query(models.Job).join(models.Job.experiment, aliased=True).filter_by(experiment_name=experiment_name).order_by(desc(models.Job.time_updated)).limit(limit).all()
+        # from get_jobs: org: return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+        # from get_jobs: return db.query(models.Job).join(models.Job.experiment, aliased=True).join(models.Experiment.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+    # third case not necessary since experiment has no remote argument so far
+    elif status is not None:
+        return db.query(models.Job).filter_by(status=status).join(models.Job.experiment, aliased=True).order_by(desc(models.Job.time_updated)).limit(limit).all()
+    else:
+        return db.query(models.Job).join(models.Job.experiment, aliased=True).order_by(desc(models.Job.time_updated)).limit(limit).all()
+
+def update_experiment(db: Session, experiment=schemas.ExperimentUpdate):
+    utc_timestamp = get_utc_timestamp()
+
+    print(f'Updating client experiment {experiment.experiment_id} in status: {experiment.experiment_status}')
+    db_experiment = get_experiment(db, experiment.experiment_id)
+
+    if experiment.experiment_status != "abort":
+        for db_experiment_current_job in db_experiment.experiment_jobs:    # iterate over db_jobs in db_experiment ...
+            # either update db_jobs on own kaapana_instance
+            if db_experiment.kaapana_instance.remote is False and db_experiment.kaapana_instance.automatic_job_execution is True:
+                job = schemas.JobUpdate(**{
+                    'job_id': db_experiment_current_job.id,
+                    'status': 'scheduled',
+                    'description':'The worklow was triggered!'
+                    })
+                update_job(db, job, remote=False)   # def update_job() expects job of class schemas.JobUpdate
+                print('scheduled')
+        
+            # or update db_jobs on remote kaapana_instance
+            elif db_experiment.kaapana_instance.remote is True and db_experiment.kaapana_instance.automatic_job_execution is True:    
+                update_external_job(db, db_experiment_current_job)  # def update_external_job expects db_experiment_current_job of class models.Job
+        
+            else:
+                raise HTTPException(status_code=404, detail="Job updating while updating the experiment failed!")
+
+    db_experiment.time_updated = utc_timestamp
+    db.commit()
+    db.refresh(db_experiment)
+
+    return db_experiment
+
+def delete_experiment(db: Session, experiment_id: int):
+    db_experiment = get_experiment(db, experiment_id)   # get db's db_experiment object
+
+    # iterate over jobs of to-be-deleted experiment
+    for db_experiment_current_job in db_experiment.experiment_jobs:
+        delete_job(db, job_id=db_experiment_current_job.id, remote=False)   # deletes local and remote jobs
+
+    db.delete(db_experiment)
+    db.commit()
+    return {"ok": True}
+
+def delete_experiments(db: Session):
+    # TODO: add remote experiment deletion
+    db.query(models.Experiment).delete()
+    db.commit()
+    return {"ok": True}

@@ -23,7 +23,7 @@ v-dialog(v-model='dialogOpen' max-width='600px')
             v-col(v-if="remote" cols='12')
               v-select(v-model='instance_names' :items='available_instance_names' label='Instance names' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
             v-col(v-if="instance_names.length" cols='12')
-              v-text-field(v-model='experiment_name' label='Experiment name' required='')
+              v-text-field(v-model='experiment_name' label='ExpERiMeNT naMe, dumb asshole!' required='')
             v-col(v-if="instance_names.length" cols='12')
               v-select(v-model='dag_id' :items='available_dags' label='Dags' chips='' hint='Select a dag')
             //- v-if="!(remote==false && name=='federated_form')"

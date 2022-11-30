@@ -7,7 +7,7 @@
           v-list-item-action
             v-icon mdi-home
           v-list-item-content
-            v-list-item-title Home
+            v-list-item-title Kaapana's House 
           v-list-item-icon
         v-list-group(:prepend-icon="section.icon" v-if="isAuthenticated && section.roles.indexOf(currentUser.role) > -1" v-for="(section, sectionKey) in externalWebpages" :key="section.id")
           template(v-slot:activator)
@@ -24,7 +24,7 @@
           v-list-item-action
             v-icon mdi-controller-classic
           v-list-item-content
-            v-list-item-title Experiments
+            v-list-item-title Experiment Management
           v-list-item-icon
         v-list-item(:to="'/federated'", v-if="isAuthenticated && federatedBackendAvailable")
           v-list-item-action
@@ -74,7 +74,7 @@
           v-flex(text-xs-center)
             router-view
     v-footer(color="primary" app inset)
-      span.white--text &copy; DKFZ 2018 - DKFZ 2022 | {{commonData.version}}
+      span.white--text &copy; DKFZ 2018 - DKFZ 2022: Version {{commonData.version}}
 </template>
 
 

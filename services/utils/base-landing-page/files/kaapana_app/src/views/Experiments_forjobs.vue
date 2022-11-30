@@ -4,7 +4,7 @@
     h1 Experiment Management System
     v-row(@click="toggleClientPanel()").toggleMouseHand
       v-col(cols="4")
-        h2 Local Instance Profile
+        h1 Profil
           i(v-if="openedClientPanel==null").v-icon.notranslate.mdi.mdi-chevron-down.theme--light(aria-hidden='true')
           i(v-if="openedClientPanel==0").v-icon.notranslate.mdi.mdi-chevron-up.theme--light(aria-hidden='true')
       v-col(cols="8" align='right')
@@ -43,8 +43,7 @@
           v-expansion-panel(key='instance')
             v-expansion-panel-content
               KaapanaInstance(v-if="clientInstance" :instance="clientInstance" :remote="clientInstance.remote"  @refreshView="refreshClient()" @ei="editClientInstance")
-    //- job-table(v-if="clientInstance" :experiments="clientExperiments" :jobs="clientJobs" :remote="clientInstance.remote"  @refreshView="refreshClient()")
-    experiment-table(v-if="clientInstance" :instance="clientInstance" :experiments="clientExperiments" :remote="clientInstance.remote" @refreshView="refreshClient()")
+    job-table(v-if="clientInstance" :experiments="clientExperiments" :jobs="clientJobs" :remote="clientInstance.remote"  @refreshView="refreshClient()")
 </template>
 
 <script>
@@ -52,15 +51,13 @@ import Vue from "vue";
 import { mapGetters } from "vuex";
 import kaapanaApiService from "@/common/kaapanaApi.service";
 
-// import JobTable from "@/components/JobTable.vue";
-import ExperimentTable from "@/components/ExperimentTable.vue"
+import JobTable from "@/components/JobTable.vue";
 import KaapanaInstance  from "@/components/KaapanaInstance.vue";
 import WorkflowExecution  from "@/components/WorkflowExecution.vue";
 
 export default Vue.extend({
   components: {
-    // JobTable,
-    ExperimentTable,
+    JobTable,
     KaapanaInstance,
     WorkflowExecution
   },
@@ -121,7 +118,6 @@ export default Vue.extend({
         });
     },
     refreshClient() {
-      // console.log("refreshClient() in Experiment.vue")
       this.getClientInstance()
       this.getClientExperiments()
       this.getClientJobs()
@@ -147,7 +143,7 @@ export default Vue.extend({
         .then((response) => {
           this.clientUpdate = false
           this.clientDialog = false
-          get_remote_updates
+          this.refreshClient();
         })
         .catch((err) => {
           console.log(err);
@@ -208,7 +204,6 @@ export default Vue.extend({
         limit: 100,
         }).then((response) => {
           this.clientJobs = response.data;
-          // console.log(this.clientJobs)
         })
         .catch((err) => {
           console.log(err);

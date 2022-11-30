@@ -131,6 +131,7 @@ class FilterKaapanaInstances(BaseModel):
 
 class JsonSchemaData(FilterKaapanaInstances):
     conf_data: dict = {}
+    username: str = None
 
 
 class Identifier(BaseModel):

@@ -61,14 +61,14 @@ export default {
   mounted() {
     this.inner_data = this.data
     this.inner_selectedTags = this.selectedTags
-    if (localStorage['Gallery.cols'] === undefined) {
-      localStorage['Gallery.cols'] = JSON.stringify("auto")
+    if (localStorage['Dataset.Gallery.cols'] === undefined) {
+      localStorage['Dataset.Gallery.cols'] = JSON.stringify("auto")
     }
   },
   computed: {
     cols() {
-      if (JSON.parse(localStorage['Gallery.cols']) !== 'auto') {
-        return JSON.parse(localStorage['Gallery.cols'])
+      if (JSON.parse(localStorage['Dataset.Gallery.cols']) !== 'auto') {
+        return JSON.parse(localStorage['Dataset.Gallery.cols'])
       } else {
         switch (this.$vuetify.breakpoint.name) {
           case 'xs':

@@ -134,8 +134,8 @@ export default {
   },
   computed: {},
   async mounted() {
-    const type = JSON.parse(localStorage.getItem("Cohort.structuredGallery")) ? 'structured' : 'unstructured'
-    const key = `CardSelect.config.${type}`
+    const type = JSON.parse(localStorage.getItem("Dataset.structuredGallery")) ? 'structured' : 'unstructured'
+    const key = `Dataset.CardSelect.config.${type}`
     if (localStorage.getItem(key)) {
       this.config = JSON.parse(localStorage.getItem(key))
     } else {

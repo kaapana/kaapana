@@ -2,16 +2,14 @@
   <v-card>
     <v-card-title>
       <v-row no-gutters align="center" justify="center">
-
         <v-col cols="11">
-
           <div class="text-no-wrap" style="overflow: scroll;
 white-space: nowrap; width: 25vw">
             {{ seriesDescription }}
           </div>
         </v-col>
         <v-col cols="1" align="center">
-          <v-btn icon @click="$emit('close')">
+          <v-btn icon @click="close">
             <v-icon>
               mdi-close
             </v-icon>
@@ -22,12 +20,12 @@ white-space: nowrap; width: 25vw">
     <v-divider/>
     <v-card-text>
       <CornerStone
-        :series-instance-u-i-d="seriesInstanceUID"
-        :study-instance-u-i-d="studyInstanceUID"
+          :series-instance-u-i-d="seriesInstanceUID"
+          :study-instance-u-i-d="studyInstanceUID"
       />
       <TagsTable
-        :series-instance-u-i-d="seriesInstanceUID"
-        :study-instance-u-i-d="studyInstanceUID"
+          :series-instance-u-i-d="seriesInstanceUID"
+          :study-instance-u-i-d="studyInstanceUID"
       />
     </v-card-text>
   </v-card>
@@ -38,6 +36,7 @@ white-space: nowrap; width: 25vw">
 
 import TagsTable from './TagsTable.vue';
 import CornerStone from "./CornerStone.vue";
+import {controller} from '../common/httpClient'
 
 export default {
   name: 'DetailView',
@@ -53,7 +52,12 @@ export default {
   data() {
     return {};
   },
-  methods: {},
+  methods: {
+    close() {
+      controller.abort()
+      this.$emit('close')
+    }
+  },
 };
 </script>
 <style scoped>

@@ -112,7 +112,7 @@ export default {
     search() {
       this.display_filters = false
       this.$emit("search", this.composeQuery())
-      localStorage['search.filters'] = JSON.stringify(
+      localStorage['Dataset.search.filters'] = JSON.stringify(
           (this.$refs.filters !== undefined
                   ? this.$refs.filters.map(filter => (
                       {
@@ -127,16 +127,20 @@ export default {
     },
   },
   mounted() {
-    if (localStorage['search.filters']) {
-      this.filters = JSON.parse(localStorage['search.filters'])
+    if (localStorage['Dataset.search.filters']) {
+      this.filters = JSON.parse(localStorage['Dataset.search.filters'])
+      this.counter = this.filters.length
     }
-    if (localStorage['search.query_string']) {
-      this.query_string = localStorage['search.query_string']
+    if (localStorage['Dataset.search.query_string']) {
+      this.query_string = localStorage['Dataset.search.query_string']
     }
+    console.log(this.filters)
+    this.search()
+    // TODO: this.search()
   },
   watch: {
     query_string() {
-      localStorage['search.query_string'] = this.query_string
+      localStorage['Dataset.search.query_string'] = this.query_string
     },
     cohort() {
       this.search()

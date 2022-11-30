@@ -1,4 +1,3 @@
-<!-- HTML -->
 <template>
   <div id="container" :class="`${containerClasses}`">
     <!-- items rendering -->
@@ -26,7 +25,6 @@
   </div>
 </template>
 
-<!-- JAVASCRIPT -->
 <script>
 import './lib/index.css'
 import chunkArray from "./lib/chunkArray.js";
@@ -54,6 +52,7 @@ export default {
     },
     defaultLoadingColor: {
       type: String,
+      // TODO: align with theme
       default: '#18191A',
     },
   },

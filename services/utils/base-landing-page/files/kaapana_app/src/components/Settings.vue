@@ -45,7 +45,9 @@ export default {
     vueJsonEditor
   },
   mounted() {
-    this.json = Object.entries(localStorage).map(([k, v]) => ({[k]: JSON.parse(v)}))
+    this.json = Object.entries(localStorage)
+        .filter(([k, _]) => (k.startsWith('Dataset.')))
+        .map(([k, v]) => ({[k]: JSON.parse(v)}))
   },
   methods: {
     onSave(value) {

@@ -98,9 +98,6 @@ export default {
     this.inner_patients = this.patients
     this.inner_patients.forEach(pat => pat.active = true)
     this.inner_selectedTags = this.selectedTags
-    if (localStorage['Gallery.cols'] === undefined) {
-      localStorage['Gallery.cols'] = JSON.stringify("auto")
-    }
   },
   watch: {
     patients() {

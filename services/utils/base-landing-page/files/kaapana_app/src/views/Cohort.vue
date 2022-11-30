@@ -117,11 +117,11 @@ export default {
     },
   },
   async created() {
-    if (localStorage['Cohort.structuredGallery']) {
-      this.structuredGallery = JSON.parse(localStorage['Cohort.structuredGallery'])
+    if (localStorage['Dataset.Cohort.structuredGallery']) {
+      this.structuredGallery = JSON.parse(localStorage['Dataset.Cohort.structuredGallery'])
     } else {
       this.structuredGallery = true
-      localStorage['Cohort.structuredGallery'] = JSON.stringify(this.structuredGallery)
+      localStorage['Dataset.Cohort.structuredGallery'] = JSON.stringify(this.structuredGallery)
     }
     this.cohorts = await loadCohorts()
   },
@@ -133,7 +133,7 @@ export default {
 <style scoped>
 .detailView--fixed {
   width: 30%;
-  height: calc(100vh + 127px);
+  height: calc(100vh + 65px);
   float: left;
   overflow-y: auto;
 }

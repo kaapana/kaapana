@@ -81,12 +81,12 @@ export default {
   },
   emits: ['selectedTags'],
   mounted() {
-    if (localStorage['tagbar.multiple']) {
-      this.multiple = JSON.parse(localStorage['tagbar.multiple'])
+    if (localStorage['Dataset.tagbar.multiple']) {
+      this.multiple = JSON.parse(localStorage['Dataset.tagbar.multiple'])
     }
 
-    if (localStorage['tagbar.tags']) {
-      this.tags = JSON.parse(localStorage['tagbar.tags'])
+    if (localStorage['Dataset.tagbar.tags']) {
+      this.tags = JSON.parse(localStorage['Dataset.tagbar.tags'])
       this.editMode = false
     }
 
@@ -136,10 +136,10 @@ export default {
       } else {
         this.selection = null
       }
-      localStorage['tagbar.multiple'] = this.multiple
+      localStorage['Dataset.tagbar.multiple'] = this.multiple
     },
     tags() {
-      localStorage['tagbar.tags'] = JSON.stringify(this.tags)
+      localStorage['Dataset.tagbar.tags'] = JSON.stringify(this.tags)
     }
   }
 };

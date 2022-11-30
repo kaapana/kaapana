@@ -163,7 +163,7 @@ export default {
       cornerstoneTools.addToolState(this.canvas, 'stack', stack)
 
       const imagePromises = imageIds.map(imageId => {
-        cornerstone.loadAndCacheImage(imageId);
+        return cornerstone.loadAndCacheImage(imageId);
       });
 
       Promise.all(imagePromises).then(() => {
@@ -192,7 +192,6 @@ export default {
 
   },
   async mounted() {
-    // TODO: somehow loading is set to false although not everything was loaded yet
     if (!this.loading)
       this.loading = true
     console.log('cornerstone mounted')

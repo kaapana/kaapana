@@ -1,10 +1,9 @@
 /* eslint-disable */
 
 
-import httpClient from './httpClient';
 import Vue from "vue";
 import dicomWebClient from "./dicomWebClient";
-import axios from "axios";
+import {httpClient} from "./httpClient";
 
 const WADO_ENDPOINT = process.env.VUE_APP_WADO_ENDPOINT
 const RS_ENDPOINT = process.env.VUE_APP_RS_ENDPOINT
@@ -41,9 +40,17 @@ const deleteSeriesFromPlatform = async (seriesInstanceUID, dag_id = 'delete-seri
 }
 
 const getDicomTags = async (studyInstanceUID, seriesInstanceUID) => {
-    const data = await loadMetaData(studyInstanceUID, seriesInstanceUID)
-    const formatedMetadata = await formatMetadata(JSON.stringify(data[0]))
-    return formatedMetadata.data
+    try {
+        const data = await loadMetaData(studyInstanceUID, seriesInstanceUID)
+        const formatedMetadata = await formatMetadata(JSON.stringify(data[0]))
+        return formatedMetadata.data
+    } catch (e) {
+        Vue.notify({
+            title: "Network/Server error",
+            text: e
+        })
+        return {}
+    }
 }
 
 const updateCohort = async (body) => {

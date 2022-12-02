@@ -69,7 +69,7 @@ def helm_search_repo(keywords_filter):
 
 
 def helm_get_values(release_name, helm_namespace=settings.helm_namespace):
-    logger.debug("in function: helm_get_values")
+    logger.debug(f"in function: helm_get_values {release_name=}, {helm_namespace=}")
     success, stdout = helm_helper.execute_shell_command(
         f'{settings.helm_path} -n {helm_namespace} get values -o json {release_name}')
     if success and stdout != b'null\n':
@@ -254,11 +254,7 @@ def helm_install(
     name = payload["name"]
     version = payload["version"]
 
-    # TODO
-    # Instead of assuming there is only one platform running with a name like
-    # '*-platform-chart', pass it as env var into kaapana-extensions-collection chart
-    platform_name: str = helm_ls(release_filter="platform-chart")[0]["name"]
-    release_values = helm_get_values(platform_name)
+    release_values = helm_get_values(settings.release_name)
 
     default_sets = {}
     if 'global' in release_values:
@@ -324,7 +320,7 @@ def helm_install(
     helm_sets = ''
     if "sets" in payload:
         for key, value in payload["sets"].items():
-            value = value.replace(",", "\,").replace("'", '\'"\'').replace(" ", "")
+            value = str(value).replace(",", "\,").replace("'", '\'"\'').replace(" ", "")
             helm_sets = helm_sets + f" --set {key}='{value}'"
 
     # make the whole command
@@ -501,7 +497,7 @@ def execute_update_extensions():
     logger.debug(f"in function: execute_update_extensions")
     chart = {
         'name': 'update-collections-chart',
-        'version': '0.1.0'
+        'version': '0.0.0'
     }
     logger.info("chart info for update extensions {0}, {1}".format(chart['name'], chart['version']))
     payload = {k: chart[k] for k in ('name', 'version')}

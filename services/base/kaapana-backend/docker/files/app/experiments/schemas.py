@@ -124,6 +124,7 @@ class FilterKaapanaInstances(BaseModel):
 
 class JsonSchemaData(FilterKaapanaInstances):
     conf_data: dict = {}
+    username: str = None
 
 class CohortBase(BaseModel):
     cohort_name: str = None

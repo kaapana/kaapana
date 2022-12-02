@@ -354,13 +354,13 @@ function install_microk8s {
         mkdir -p $USER_HOME/.kube
 
         echo "${YELLOW}Export Kube-Config to $USER_HOME/.kube/config ...${NC}"
-        microk8s.kubectl config view --raw | tee $USER_HOME/.kube/config
+        microk8s.kubectl config view --raw > $USER_HOME/.kube/config
         chmod 600 $USER_HOME/.kube/config
 
         if [ "$REAL_USER" != "root" ]; then
             echo "${YELLOW} Setting non-root permissions ...${NC}"
             sudo usermod -a -G microk8s $REAL_USER
-            sudo chown -f -R $REAL_USER:$REAL_USER $USER_HOME/.kube
+            sudo chown -f -R $REAL_USER $USER_HOME/.kube
         fi
 
         # TODO Offline Installation

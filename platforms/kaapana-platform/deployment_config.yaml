@@ -14,6 +14,7 @@ kaapana_collections:
 preinstall_extensions:
 - name: code-server-chart
 - name: kaapana-plugin-chart
+- name: tfda-execution-orchestrator-workflow
 additional_env:
 - name: INSTANCE_NAME
   default_value: "central"

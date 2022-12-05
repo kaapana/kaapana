@@ -18,6 +18,15 @@ const routes = [
         },
     },
     {
+        name: 'datasets',
+        path: '/datasets',
+        component: () => import('@/views/Cohort.vue'),
+        title: 'Datasets',
+        permissions: {
+            isPublic: false,
+        },
+    },
+    {
         name: 'extensions',
         path: '/extensions',
         component: () => import('@/views/Extensions.vue'),

@@ -24,21 +24,21 @@
               <v-list-item-title v-text="subSection.label"></v-list-item-title>
             </v-list-item>
           </v-list-group>
+          <v-list-item :to="'/datasets'" v-if="isAuthenticated">
+            <v-list-item-action>
+              <v-icon>mdi-view-gallery-outline</v-icon>
+            </v-list-item-action>
+            <v-list-item-content>
+              <v-list-item-title>Datasets</v-list-item-title>
+            </v-list-item-content>
+            <v-list-item-icon></v-list-item-icon>
+          </v-list-item>
           <v-list-item :to="'/experiments'" v-if="isAuthenticated">
             <v-list-item-action>
               <v-icon>mdi-controller-classic</v-icon>
             </v-list-item-action>
             <v-list-item-content>
               <v-list-item-title>Experiments</v-list-item-title>
-            </v-list-item-content>
-            <v-list-item-icon></v-list-item-icon>
-          </v-list-item>
-          <v-list-item :to="'/Datasets'" v-if="isAuthenticated">
-            <v-list-item-action>
-              <v-icon>mdi-view-gallery-outline</v-icon>
-            </v-list-item-action>
-            <v-list-item-content>
-              <v-list-item-title>Datasets</v-list-item-title>
             </v-list-item-content>
             <v-list-item-icon></v-list-item-icon>
           </v-list-item>
@@ -265,15 +265,15 @@ $kaapana-green: #ff7a20;
 .kaapana-intro-header .kaapana-intro-image {
   padding-top: 10px;
   padding-bottom: 10px;
-  color: white;
+  //color: white;
   text-align: center;
   min-height: calc(100vh - 105px);
-  background: DeepSkyBlue;
+  //background: DeepSkyBlue;
   background-size: cover;
 }
 
 .kaapana-opacity-card {
-  background: rgba(255, 255, 255, 0.87) !important
+  //background: rgba(255, 255, 255, 0.87) !important
 }
 
 .pa-0 {

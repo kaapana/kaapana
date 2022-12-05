@@ -20,7 +20,7 @@ const routes = [
     {
         name: 'datasets',
         path: '/datasets',
-        component: () => import('@/views/Cohort.vue'),
+        component: () => import('@/views/Datasets.vue'),
         title: 'Datasets',
         permissions: {
             isPublic: false,

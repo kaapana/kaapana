@@ -24,21 +24,21 @@
           v-if="cohort_name"
           @click="() => {this.$emit('removeFromCohort')}"
       >
-        <v-list-item-title>Remove from cohort</v-list-item-title>
+        <v-list-item-title>Remove from Dataset</v-list-item-title>
       </v-list-item>
       <v-list-item
           @click="() => {this.$emit('deleteFromPlatform')}"
       >
         <v-list-item-title>Delete from system</v-list-item-title>
       </v-list-item>
-      <template>
+      <template v-if="cohortNames.length > 0">
         <v-menu :offset-x=true :offset-y=false
                 transition='scale-transition'
                 :close-on-click=true
         >
           <template v-slot:activator="{ on, attrs }">
             <v-list-item v-on="on" @click="openMenu = true">
-              Add to Cohort
+              Add to Dataset
               <v-spacer></v-spacer>
               <v-icon>mdi-chevron-right</v-icon>
             </v-list-item>

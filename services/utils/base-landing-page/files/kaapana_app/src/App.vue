@@ -155,7 +155,7 @@ export default Vue.extend({
   components: {Settings},
   data: () => ({
     drawer: true,
-    darkMode: 'darkMode' in localStorage ? localStorage['darkMode'] : false,
+    darkMode: 'darkMode' in localStorage ? JSON.parse(localStorage['darkMode']) : false,
     federatedBackendAvailable: false,
     staticWebsiteAvailable: false
   }),
@@ -165,7 +165,7 @@ export default Vue.extend({
   methods: {
     changeMode(v: boolean) {
       this.darkMode = v
-      localStorage['darkMode'] = v
+      localStorage['darkMode'] = JSON.stringify(v)
       this.$vuetify.theme.dark = v
     },
     login() {

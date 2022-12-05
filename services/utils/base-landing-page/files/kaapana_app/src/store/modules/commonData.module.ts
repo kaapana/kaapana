@@ -1,5 +1,5 @@
-import kaapanaApiService from '@/common/kaapanaApi.service.ts'
-import CommonDataService from '@/common/commonData.service.ts'
+import kaapanaApiService from '@/common/kaapanaApi.service'
+import CommonDataService from '@/common/commonData.service'
 
 import {
   CHECK_AVAILABLE_WEBSITES,

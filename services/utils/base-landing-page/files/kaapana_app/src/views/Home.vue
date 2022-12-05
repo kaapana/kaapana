@@ -48,7 +48,7 @@ import KaapanaWelcome from "@/components/WelcomeViews/KaapanaWelcome.vue";
   },
   methods: {
     reloadPage() {
-      window.location.reload(true)
+      window.location.reload()
     }
   }
 })

@@ -7,6 +7,7 @@ from datetime import datetime
 from kaapana.operators.LocalDeleteFromMetaOperator import LocalDeleteFromMetaOperator
 from kaapana.operators.LocalDeleteFromPacsOperator import LocalDeleteFromPacsOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.LocalDeleteFromBackendOperator import LocalDeleteFromBackendOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
@@ -52,6 +53,7 @@ dag = DAG(
 get_input = LocalGetInputDataOperator(dag=dag, data_type="json")
 delete_dcm_pacs = LocalDeleteFromPacsOperator(dag=dag, input_operator=get_input, delete_complete_study=False, retries=1)
 delete_dcm_meta = LocalDeleteFromMetaOperator(dag=dag, input_operator=get_input, delete_complete_study=False, retries=1)
+delete_from_backend = LocalDeleteFromBackendOperator(dag=dag, input_operator=get_input, retries=1)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> delete_dcm_pacs >> delete_dcm_meta >> clean
+get_input >> delete_dcm_pacs >> delete_dcm_meta >> delete_from_backend >> clean

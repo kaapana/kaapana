@@ -1,5 +1,5 @@
 # build stage
-FROM node:lts-alpine3.10 as build-stage
+FROM node:lts-alpine3.16 as build-stage
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-landing-page"

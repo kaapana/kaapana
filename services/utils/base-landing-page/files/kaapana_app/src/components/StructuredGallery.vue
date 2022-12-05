@@ -1,13 +1,14 @@
 <template>
   <LazyList
-    :data="inner_patients"
-    :itemsPerRender="5"
-    containerClasses="list"
-    defaultLoadingColor="#222"
+      :data="inner_patients"
+      :itemsPerRender="5"
+      containerClasses="list"
+      defaultLoadingColor="#222"
   >
     <template v-slot="{item}">
       <v-list>
-        <v-list-group v-model="item.active">
+        <v-list-group v-model="item.active"
+                      :active-class="activeClass">
           <template v-slot:activator>
             <v-list-item-content>
               <v-row no-gutters>
@@ -28,11 +29,11 @@
           </template>
           <v-list subheader>
             <v-list-item
-              v-for="study in [...item.studies]
+                v-for="study in [...item.studies]
               .sort((a, b) =>
                 new Date(b['00080020 StudyDate_date']) - new Date(a['00080020 StudyDate_date'])
               )"
-              :key="JSON.stringify(study)">
+                :key="JSON.stringify(study)">
 
               <v-list-item-content>
                 <v-list-item-title>
@@ -45,11 +46,11 @@
                 <v-container fluid style="padding: 10px">
                   <v-row>
                     <Gallery
-                      :data="study.series"
-                      :selectedTags="inner_selectedTags"
-                      :cohort_name="cohort_name"
-                      @imageId="(imageId) => propagateImageId(imageId)"
-                      @emptyStudy="() => removeEmptyStudy(item, study)"
+                        :data="study.series"
+                        :selectedTags="inner_selectedTags"
+                        :cohort_name="cohort_name"
+                        @imageId="(imageId) => propagateImageId(imageId)"
+                        @emptyStudy="() => removeEmptyStudy(item, study)"
                     />
                   </v-row>
                 </v-container>
@@ -119,19 +120,32 @@ export default {
     },
     removeEmptyStudy(item, study) {
       item.studies = item.studies.filter(s => s.study_key !== study.study_key)
-      if (item.studies.length === 0){
+      if (item.studies.length === 0) {
         this.inner_patients = this.inner_patients.filter(patient => item.patient_key !== patient.patient_key)
       }
+    },
+  },
+  computed: {
+    activeClass() {
+      return localStorage.getItem('darkMode') && JSON.parse(localStorage.getItem('darkMode')) === true
+          ? 'gray-dark'
+          : 'gray-light'
     }
   },
 };
 </script>
 <style>
 .v-list {
-  padding: 0px;
+  padding: 0;
 }
-.v-list .v-list-item--active {
-  background-color: #E3ECF4; /* TODO: this should be synced with theme */
+
+/*TODO: this is not ideal -> should be matched with theme*/
+.gray-light {
+  background-color: #E7E7E7;
+}
+
+.gray-dark {
+  background-color: #666666;
 }
 
 </style>

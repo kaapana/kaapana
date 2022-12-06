@@ -31,6 +31,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
         print(kwargs)
         release_name = get_release_name(kwargs) if self.release_name is None else self.release_name
 
+
         payload = {
             'name': f'{self.chart_name}',
             'version': self.version,
@@ -44,6 +45,14 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
                 "batches_input_dir": "/{}/{}".format(WORKFLOW_DIR, BATCH_NAME)
             }
         }
+
+        conf = kwargs['dag_run'].conf
+
+        if 'form_data' in conf:
+            form_data = conf['form_data']
+            if 'annotator' in form_data:
+                payload["sets"]["annotator"] = form_data["annotator"]
+
 
         if kwargs["dag_run"] is not None and 'rest_call' in kwargs["dag_run"].conf and kwargs["dag_run"].conf['rest_call'] is not None:
             self.rest_sets_update(kwargs["dag_run"].conf['rest_call']) 
@@ -107,6 +116,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
 
         self.chart_name = chart_name
         self.version = version
+
         self.sets = sets or dict()
         self.data_dir = data_dir or os.getenv('DATADIR', "")
         self.release_name=release_name

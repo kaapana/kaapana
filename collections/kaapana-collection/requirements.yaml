@@ -60,3 +60,9 @@ dependencies:
   - name: openedc-chart
     version: 0.0.0
     repository: file://../../services/applications/openEDC/openedc-chart
+  - name: rateme-workflow
+    version: 0.0.0
+    repository: file://../../data-processing/processing-pipelines/rateme/extension/rateme-workflow
+  - name: rateme-chart
+    version: 0.0.0
+    repository: file://../../services/applications/rateme/rateme-chart

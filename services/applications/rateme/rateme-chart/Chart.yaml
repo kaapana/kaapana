@@ -1,0 +1,10 @@
+apiVersion: v1
+appVersion: "0.1.0"
+description: Rateme Chart
+name: rateme-chart
+version: "0.1.0"
+keywords:
+- kaapanaapplication
+- kaapanaexperimental
+- kaapanamultiinstallable
+- kaapanaint    

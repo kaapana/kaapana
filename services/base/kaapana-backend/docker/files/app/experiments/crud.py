@@ -15,11 +15,14 @@ from fastapi import APIRouter, Depends, Request, HTTPException, Response
 
 from . import models, schemas
 from app.config import settings
-from .utils import execute_job, check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, raise_kaapana_connection_error, requests_retry_session, get_uid_list_from_query
+from .schemas import Identifier
+from .utils import execute_job, check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, \
+    raise_kaapana_connection_error, requests_retry_session, get_uid_list_from_query
 from urllib3.util import Timeout
 
 TIMEOUT_SEC = 5
 TIMEOUT = Timeout(TIMEOUT_SEC)
+
 
 def delete_kaapana_instance(db: Session, kaapana_instance_id: int):
     db_kaapana_instance = db.query(models.KaapanaInstance).filter_by(id=kaapana_instance_id).first()
@@ -320,8 +323,12 @@ def delete_external_job(db: Session, db_job):
             delete_job(db, **params)
         else:
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-backend/remote'
-            with requests.Session() as s:          
-                r = requests_retry_session(session=s).delete(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, params=params, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'}, timeout=TIMEOUT)
+            with requests.Session() as s:
+                r = requests_retry_session(session=s).delete(f'{remote_backend_url}/job',
+                                                             verify=db_remote_kaapana_instance.ssl_check, params=params,
+                                                             headers={
+                                                                 'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'},
+                                                             timeout=TIMEOUT)
             if r.status_code == 404:
                 print(f'External job {db_job.external_job_id} does not exist')
             else:
@@ -345,8 +352,12 @@ def update_external_job(db: Session, db_job):
             update_job(db, schemas.JobUpdate(**payload))
         else:
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-backend/remote'
-            with requests.Session() as s:                            
-                r = requests_retry_session(session=s).put(f'{remote_backend_url}/job', verify=db_remote_kaapana_instance.ssl_check, json=payload, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'},timeout=TIMEOUT)
+            with requests.Session() as s:
+                r = requests_retry_session(session=s).put(f'{remote_backend_url}/job',
+                                                          verify=db_remote_kaapana_instance.ssl_check, json=payload,
+                                                          headers={
+                                                              'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'},
+                                                          timeout=TIMEOUT)
             if r.status_code == 404:
                 print(f'External job {db_job.external_job_id} does not exist')
             else:
@@ -380,9 +391,13 @@ def get_remote_updates(db: Session, periodically=False):
                                                    **update_remote_instance_payload), **job_params)
         else:
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-backend/remote'
-            with requests.Session() as s:     
-                r = requests_retry_session(session=s).put(f'{remote_backend_url}/sync-client-remote', params=job_params,  json=update_remote_instance_payload, verify=db_remote_kaapana_instance.ssl_check, 
-                                                          headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'}, timeout=TIMEOUT)
+            with requests.Session() as s:
+                r = requests_retry_session(session=s).put(f'{remote_backend_url}/sync-client-remote', params=job_params,
+                                                          json=update_remote_instance_payload,
+                                                          verify=db_remote_kaapana_instance.ssl_check,
+                                                          headers={
+                                                              'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'},
+                                                          timeout=TIMEOUT)
             if r.status_code == 405:
                 print(f'Warning!!! We could not reach the following backend {db_remote_kaapana_instance.host}')
                 continue
@@ -454,12 +469,17 @@ def create_cohort(db: Session, cohort: schemas.CohortCreate):
     utc_timestamp = get_utc_timestamp()
 
     if cohort.cohort_query and not cohort.cohort_identifiers:
-        cohort.cohort_identifiers = get_uid_list_from_query(cohort.cohort_query)
+        db_cohort_identifiers: List[models.Identifier] = [
+            get_identifier(db, identifier)
+            for identifier in get_uid_list_from_query(cohort.cohort_query)
+        ]
+    else:
+        db_cohort_identifiers: List[models.Identifier] = [
+            get_identifier(db, identifier.identifier)
+            for identifier in cohort.cohort_identifiers
+        ]
 
-    db_cohort_identifiers: List[models.Identifier] = [
-        get_identifier(db, identifier)
-        for identifier in cohort.cohort_identifiers
-    ]
+    print('identifiers: ', db_cohort_identifiers)
 
     db_cohort = models.Cohort(
         username=cohort.username,

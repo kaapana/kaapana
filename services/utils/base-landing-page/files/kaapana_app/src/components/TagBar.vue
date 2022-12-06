@@ -6,28 +6,28 @@
     </v-col>
     <v-col cols="9">
       <v-combobox
-        label="Tags"
-        v-model="tags"
-        :items="availableTags"
-        chips
-        clearable
-        multiple
-        single-line
-        append-icon=""
-        deletable-chips
-        flat
-        small-chips
-        hide-details
-        dense
+          label="Tags"
+          v-model="tags"
+          :items="availableTags"
+          chips
+          clearable
+          multiple
+          single-line
+          append-icon=""
+          deletable-chips
+          flat
+          small-chips
+          hide-details
+          dense
       >
       </v-combobox>
     </v-col>
     <v-col cols="1" align="center">
       <v-checkbox
-        v-model="multiple"
-        label="Multiple"
-        dense
-        hide-details
+          v-model="multiple"
+          label="Multiple"
+          dense
+          hide-details
       ></v-checkbox>
     </v-col>
     <v-col cols="1" align="center">
@@ -43,11 +43,11 @@
     </v-col>
     <v-col cols="10" align="center">
       <v-chip-group
-        v-model="selection"
-        active-class="deep-purple--text text--accent-4"
-        :multiple="this.multiple"
-        @change="onChangeSelection"
-        dense
+          v-model="selection"
+          active-class="deep-purple--text text--accent-4"
+          :multiple="this.multiple"
+          @change="onChangeSelection"
+          dense
       >
         <v-chip v-for="tag in tags" :key="tag" small>
           {{ tag }}
@@ -91,7 +91,7 @@ export default {
     }
 
     loadAvailableTags()
-      .then(res => this.availableTags = res.data['dataset tags']['items'])
+        .then(res => this.availableTags = 'dataset tags' in res.data ? res.data['dataset tags']['items'] : [])
 
     window.addEventListener("keypress", event => this.keypressListener(event));
   },
@@ -99,7 +99,7 @@ export default {
     window.removeEventListener('keypress', event => this.keypressListener(event))
   },
   methods: {
-    onChangeSelection(e){
+    onChangeSelection(e) {
       if (this.multiple) {
         this.$emit('selectedTags', this.selection.map(i => this.tags[i]))
       } else {

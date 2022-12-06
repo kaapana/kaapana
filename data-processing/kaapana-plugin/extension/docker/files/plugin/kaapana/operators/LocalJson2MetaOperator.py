@@ -78,7 +78,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         print(("RUN_ID: %s" % self.run_id))
 
         for batch_element_dir in batch_folder:
-            # Where and how to call backend to add new entry to database
             if self.jsonl_operator:
                 json_dir = os.path.join(batch_element_dir, self.jsonl_operator.operator_out_dir)
                 json_list = glob.glob(json_dir + '/**/*.jsonl', recursive=True)
@@ -109,11 +108,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                     with open(json_file, encoding='utf-8') as f:
                         new_json = json.load(f)
                     self.push_json(new_json)
-                # TODO: rather create separate operator to write to backend
-                requests.post(
-                    'http://kaapana-backend-service.base.svc:5000/client/identifier',
-                    json={"identifier": self.instanceUID}
-                )
 
     def mkdir_p(self, path):
         try:

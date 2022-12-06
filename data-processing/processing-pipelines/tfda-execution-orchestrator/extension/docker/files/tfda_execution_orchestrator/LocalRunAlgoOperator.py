@@ -22,7 +22,7 @@ class LocalRunAlgoOperator(KaapanaPythonBaseOperator):
         
         request_type = request_config["request_type"]
         platform_name = platform_config["default_platform"][request_type]
-        flavor_name = platform_config["platform_config"][platform_name]["default_flavor"][request_type]
+        flavor_name = platform_config["platforms"][platform_name]["default_flavor"][request_type]
         
         run_workflow_playbook_path = os.path.join(playbooks_dir, f"run_{request_type}.yaml")
         if not os.path.isfile(run_workflow_playbook_path):
@@ -47,7 +47,7 @@ class LocalRunAlgoOperator(KaapanaPythonBaseOperator):
                 print(output.strip())
         rc = process.poll()
         if rc == 0:
-            logging.info(f"Algorithm ran successfully and results were fetched!!")
+            logging.info(f"Algorithm ran successfully!!")
         else:
             raise AirflowFailException("Running workflow FAILED! Cannot proceed further...")
 

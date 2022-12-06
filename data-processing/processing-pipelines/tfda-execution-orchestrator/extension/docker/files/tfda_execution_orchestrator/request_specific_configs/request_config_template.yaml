@@ -1,0 +1,26 @@
+request_type: "shell_execute" # "container_workflow" or "kaapana_workflow"
+user_selected_algorithm: "test_shell_workflow"
+user_selected_study_data: "test-site-data" # name of minio bucket
+python_packages:
+    - pandas==1.5.2
+    - numpy
+    - scikit-learn
+container:
+    - username: "ad"
+    - password: "asa"
+    - registry_url: ""
+bash_string:
+    - |
+      #!/bin/bash
+      echo "Hello World"
+      results_folder='/home/ubuntu/results'
+      dir='/home/ubuntu/test-site-data'
+      
+      if [ -z "$(ls -A $dir)" ]; then
+        echo "Data bucket is empty" >> "$results_folder"/out.txt
+      else
+        for entry in $dir/*
+        do
+         echo "$entry" >> "$results_folder"/out.txt
+        done
+      fi

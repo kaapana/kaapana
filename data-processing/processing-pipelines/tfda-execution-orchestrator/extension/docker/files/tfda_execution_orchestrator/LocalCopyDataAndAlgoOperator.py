@@ -28,13 +28,12 @@ class LocalCopyDataAndAlgoOperator(KaapanaPythonBaseOperator):
         request_type = request_config["request_type"]
         platform_name = platform_config["default_platform"][request_type]
         flavor_name = platform_config["platforms"][platform_name]["default_flavor"][request_type]
-        # ssh_key_path = platform_config["platform_config"][platform_name]["platform_flavors"][flavor_name]["ssh_key_path"]
+        # ssh_key_path = platform_config["platforms"][platform_name]["platform_flavors"][flavor_name]["ssh_key_path"]
         ssh_key_name = platform_config["platforms"][platform_name]["platform_flavors"][flavor_name]["ssh_key_name"]
         remote_username = platform_config["platforms"][platform_name]["platform_flavors"][flavor_name]["remote_username"]
         user_selected_algo = request_config["user_selected_algorithm"]
         user_selected_study_data = request_config["user_selected_study_data"]
         
-        user_selected_algo_path = os.path.join(src_algorithm_files_path, user_selected_algo)
         study_data_src_path = os.path.join(minio_path, user_selected_study_data)
 
         iso_env_ip = ti.xcom_pull(key="iso_env_ip", task_ids="create-iso-inst")

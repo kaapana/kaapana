@@ -1,7 +1,9 @@
+from asyncore import write
 import os
 import json
 import logging
 from datetime import datetime
+import yaml
 from airflow.exceptions import AirflowFailException
 from airflow.models import DagRun
 from airflow.api.common.trigger_dag import trigger_dag as trigger
@@ -9,14 +11,26 @@ from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
-class LocalTFDATestingOperator(KaapanaPythonBaseOperator):
-    def extract_config(self, config_filepath):
+class LocalTFDATestingOperator(KaapanaPythonBaseOperator):    
+    def extract_config(self, config_filepath, format):
         with open(config_filepath, "r") as stream:
             try:
-                config_dict = json.load(stream)
+                if format == "json":
+                    config_dict = json.load(stream)
+                elif format == "yaml":
+                    config_dict = yaml.safe_load(stream)
                 return config_dict
             except Exception as exc:
                 raise AirflowFailException(f"Could not extract configuration due to error: {exc}!!")
+    
+    def extract_request_info(self, request_config):
+        operator_dir = os.path.dirname(os.path.abspath(__file__))
+        bash_script_path = os.path.join(operator_dir, "algorithm_files", request_config["user_selected_algorithm"], "user_input_commands.sh")
+        if request_config["request_type"] == "shell_execute":            
+            # os.path.exists(bash_script_path)
+            with open(bash_script_path, "w") as stream:
+                stream.write(request_config["bash_string"][0])
+
     
     def get_most_recent_dag_run(self, dag_id):
         dag_runs = DagRun.find(dag_id=dag_id)
@@ -26,11 +40,12 @@ class LocalTFDATestingOperator(KaapanaPythonBaseOperator):
     def start(self, ds, ti, **kwargs):
         operator_dir = os.path.dirname(os.path.abspath(__file__))
         platform_config_path = os.path.join(operator_dir, "platform_specific_configs", "platform_config.json")
-        request_config_path = os.path.join(operator_dir, "request_specific_configs", "request_config.json")
+        request_config_path = os.path.join(operator_dir, "request_specific_configs", "request_config.yaml")
         
         logging.info("Loading platform and request specific configurations...")
-        platform_config = self.extract_config(platform_config_path)
-        request_config = self.extract_config(request_config_path)
+        platform_config = self.extract_config(platform_config_path, "json")
+        request_config = self.extract_config(request_config_path, "yaml")
+        self.extract_request_info(request_config)
         
         self.trigger_dag_id = "dag-tfda-execution-orchestrator"
         # self.dag_run_id = kwargs['dag_run'].run_id

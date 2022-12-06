@@ -89,7 +89,7 @@ for batch_element_dir in batch_folders:
 
     if len(nifti_files) == 0:
         print("No nifti file found!")
-        exit(0)
+        exit(1)
     else:
         for nifti_file in nifti_files:
             print(f"# running total segmentator")
@@ -102,5 +102,4 @@ for batch_element_dir in batch_folders:
                 print("# Successfully processed")
             except Exception as e:
                 print("Processing failed with exception: ", e)
-                exit(0)
-                exit(0)
+                exit(1)

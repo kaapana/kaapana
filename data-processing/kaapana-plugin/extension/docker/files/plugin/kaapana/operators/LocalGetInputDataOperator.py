@@ -19,7 +19,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     This operator pulls all defined files from it's defined source and stores the files in the workflow directory.
     All subsequent operators can get and process the files from within the workflow directory.
-    Typacally this operator can be used as the first operator in a workflow.
+    Typically, this operator can be used as the first operator in a workflow.
 
     **Inputs:**
 
@@ -167,7 +167,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     print(f"# Moving data from {src} -> {target}")
                     print("#")
                     shutil.move(src=src, dst=target)
-                    print("# Dag input dir correctly ajusted.")
+                    print("# Dag input dir correctly adjusted.")
             return
     
         if self.conf is not None and "data_form" in self.conf:

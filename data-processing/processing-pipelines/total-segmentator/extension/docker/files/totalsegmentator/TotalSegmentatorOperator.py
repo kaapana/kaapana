@@ -18,7 +18,7 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
 
     - Code: https://github.com/wasserth/TotalSegmentator
 
-    :param task: Task you would like to execute. Currently, on 'total' is supported.
+    :param task: Task to execute. Currently, on 'total' is supported.
     :type task: str
     """
 

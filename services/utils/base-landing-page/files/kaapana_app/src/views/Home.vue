@@ -16,7 +16,7 @@
                       v-icon(size='35px') {{section.icon}}
                     v-card-text.kaapana-card-prop
                       p {{section.description}}
-                      v-chip.kaapana-chips(v-for='(subSection, subSectionKey) in section.subSections', :key='subSection.id' color="jipgreen")
+                      v-chip.kaapana-chips(v-for='(subSection, subSectionKey) in section.subSections', :key='subSection.id' color="jipgreen" small, style="margin: 5px")
                         router-link.kaapana-page-link(:to="{ name: 'ew-section-view', params: { ewSection: sectionKey, ewSubSection: subSectionKey }}") {{subSection.label}}
         div(v-else)
           v-layout(align-center justify-center row fill-height)
@@ -48,7 +48,7 @@ import KaapanaWelcome from "@/components/WelcomeViews/KaapanaWelcome.vue";
   },
   methods: {
     reloadPage() {
-      window.location.reload(true)
+      window.location.reload()
     }
   }
 })

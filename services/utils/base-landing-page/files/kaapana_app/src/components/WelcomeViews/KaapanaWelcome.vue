@@ -6,8 +6,8 @@
         v-card-text.text-xs-left
           v-layout(row='', wrap='')
             v-flex(xs12, py-1)
-              div(style={'margin': '9px', 'margin-top': '50px'})
-                img(src='../../assets/img/kaapana.png', alt='Vuetify', width='100%')
+              div(style={'margin': '9px', 'margin-top': '10px'})
+                img(src='../../assets/img/kaapana.png', alt='Vuetify', width='35%')
     v-flex.text-xs-left(sm4 d-flex)
       v-card.kaapana-opacity-card(width='100%')
         v-card-text.text-xs-left

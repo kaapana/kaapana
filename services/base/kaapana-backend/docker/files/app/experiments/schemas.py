@@ -44,7 +44,7 @@ class KaapanaInstance(KaapanaInstanceBase):
     allowed_datasets: str
     time_created: datetime.datetime
     time_updated: datetime.datetime
-    # involved_experiment_ids: List[int]
+    experiment_in_which_involved: Optional[str]
     
     @validator('allowed_dags')
     def convert_allowed_dags(cls, v):
@@ -76,7 +76,7 @@ class JobBase(BaseModel):
     run_id: str = None
     description: str = None
     external_job_id: int = None # job_id on another system
-    addressed_kaapana_instance_name: str = None # Remote Kaapana instance that is addressed, not external kaapana_instance_id!
+    owner_kaapana_instance_name: str = None # Remote Kaapana instance that is addressed, not external kaapana_instance_id!
 
 class Job(JobBase):
     id: int
@@ -119,6 +119,7 @@ class KaapanaInstanceWithJobs(KaapanaInstance):
 
 class FilterKaapanaInstances(BaseModel):
     remote: bool = True
+    federated: bool = False
     dag_id: str = None
     instance_names: List = []
     experiment_name: str = None
@@ -178,7 +179,7 @@ class Experiment(ExperimentBase):
     time_created: datetime.datetime
     time_updated: datetime.datetime
     # experiment_jobs: List = []     # List[Job] = [], do NOT include or get recursion error when querying jobs from experiment via 
-    # involved_kaapana_instances: List[KaapanaInstance] = []
+    involved_kaapana_instances: Optional[List]
     cohort_name: str = None
 
     # comment or you will get "pydantic.error_wrappers.ValidationError: 1 validation error for Experiment; response -> experiment_jobs; the JSON object must be str, bytes or bytearray, not list (type=type_error)"

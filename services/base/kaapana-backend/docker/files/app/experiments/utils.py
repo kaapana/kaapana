@@ -125,8 +125,8 @@ def get_uid_list_from_query(cohort_query):
     else:
         raise ValueError('Invalid OpenSearch query!')
 
-def check_dag_id_and_dataset(db_client_kaapana, conf_data, dag_id, addressed_kaapana_instance_name):
-    if addressed_kaapana_instance_name is not None and db_client_kaapana.instance_name != addressed_kaapana_instance_name:
+def check_dag_id_and_dataset(db_client_kaapana, conf_data, dag_id, owner_kaapana_instance_name):
+    if owner_kaapana_instance_name is not None and db_client_kaapana.instance_name != owner_kaapana_instance_name:
         if dag_id not in json.loads(db_client_kaapana.allowed_dags):
             return f"Dag {dag_id} is not allowed to be triggered from remote!"
         if "data_form" in conf_data:

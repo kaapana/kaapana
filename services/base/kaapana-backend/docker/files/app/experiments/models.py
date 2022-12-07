@@ -33,10 +33,12 @@ class Cohort(Base):
     cohort_query = Column(String(51200))
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
+
+    # many-to-one relationship
     kaapana_id = Column(Integer, ForeignKey('kaapana_instance.id'))
     kaapana_instance = relationship("KaapanaInstance", back_populates="cohorts")
     cohort_identifiers = relationship("Identifier", secondary='cohort_identifier', back_populates="cohorts")
-    experiments = relationship("Cohort", back_populates="cohort")
+    experiments = relationship("Experiment", back_populates="cohort", cascade="all, delete")
 
 
 
@@ -60,14 +62,14 @@ class KaapanaInstance(Base):
     automatic_update = Column(Boolean(), default=False, index=True)
     automatic_job_execution = Column(Boolean(), default=False, index=True)
 
-    # many-to-one relationships
-    # involved_experiment_id = Column(Integer, ForeignKey('experiment.id'))   # experiment.id of experiment which involves this kaapana_instance
-    # involved_experiment = relationship("Experiment", back_populates="involved_kaapana_instances")
     # one-to-many relationships
     experiments = relationship("Experiment", back_populates="kaapana_instance", cascade="all, delete")
     jobs = relationship("Job", back_populates="kaapana_instance", cascade="all, delete")
-    # TODO execute_jobs = relationship("Job", back_populatess="kaapana_instance", cascade="all, delete")
     cohorts = relationship("Cohort", back_populates="kaapana_instance", cascade="all, delete")
+    # many-to-one relationships
+    # experiment_in_which_involved_id = Column(Integer, ForeignKey('experiment.id'))
+    # experiment_in_which_involved = relationship("Experiment", foreign_keys=[experiment_in_which_involved_id], back_populates="involved_kaapana_instances")
+    experiment_in_which_involved = Column(String(64), index=True)   # save information in string instead of sqlalchemy relationship - not ideal --> change it in future!
 
     # #https://stackoverflow.com/questions/5033547/sqlalchemy-cascade-delete
     # jobs = relationship("Job", back_populates="kaapana_instance", passive_deletes=True)
@@ -83,20 +85,19 @@ class Experiment(Base):
     id = Column(Integer, primary_key=True)
     experiment_name = Column(String(64))
     username = Column(String(64))
-    cohort_name = Column(String(64), index=True)
+    # cohort_name = Column(String(64), index=True)  # now in a relationship
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
 
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey('kaapana_instance.id'))
     kaapana_instance = relationship("KaapanaInstance", back_populates="experiments")
+    cohort_name = Column(String(64), ForeignKey('cohort.cohort_name'))
+    cohort = relationship("Cohort", back_populates="experiments")
     # one-to-many relationships
-    # involved_kaapana_instances = relationship("Experiment", back_populates="involved_experiment")
+    # involved_kaapana_instances = relationship("Experiment", back_populates="experiment_in_which_involved")
+    involved_kaapana_instances = Column(String(51200))  # save information in string instead of sqlalchemy relationship - not ideal --> change it in future!
     experiment_jobs = relationship("Job", back_populates="experiment") #, cascade="all, delete")
-
-    # unidirectional relationship
-    # cohort_id = Column(Integer, ForeignKey('cohort.id'))
-    # cohort = relationship("Cohort", back_populates="experiments")
 
 
 class Job(Base):
@@ -104,7 +105,7 @@ class Job(Base):
     id = Column(Integer, primary_key=True)
     dag_id = Column(String(64))
     external_job_id = Column(Integer)
-    addressed_kaapana_instance_name = Column(String(64))    # rather class KaapanaInstance w/ relationship
+    owner_kaapana_instance_name = Column(String(64))    # rather class KaapanaInstance w/ relationship
     conf_data = Column(String(102400))
     status = Column(String(64), index=True)
     run_id = Column(String(64), index=True)
@@ -116,8 +117,6 @@ class Job(Base):
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey('kaapana_instance.id'))
     kaapana_instance = relationship("KaapanaInstance", back_populates="jobs")
-    # TODO addressed_kaapana_id = Column(Integer, ForeignKey('kaapana_instance.id'))
-    # TODO addressed_kaapana_instance = relationship("KaapanaInstance", back_populates="jobs")
     exp_id = Column(Integer, ForeignKey('experiment.id'))
     experiment = relationship("Experiment", back_populates="experiment_jobs")
 

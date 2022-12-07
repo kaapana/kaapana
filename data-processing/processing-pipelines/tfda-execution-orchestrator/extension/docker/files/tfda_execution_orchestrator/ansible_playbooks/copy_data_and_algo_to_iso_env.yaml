@@ -52,7 +52,7 @@
     - name: Copy user selected study-data bucket to Iso
       become: yes
       copy:
-        src: "{{ study_data_src_path }}/"
+        src: "{{ src_study_data_path }}/"
         dest: "{{ dst_data_dir }}"
         # directory_mode: yes
         owner: "{{ ansible_user_id }}"

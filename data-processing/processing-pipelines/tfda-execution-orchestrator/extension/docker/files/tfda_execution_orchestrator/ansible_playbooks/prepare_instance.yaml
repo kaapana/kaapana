@@ -36,22 +36,15 @@
         owner: "{{ ansible_user_id }}"
         group: "{{ ansible_user_id }}"
 
-    - name: Copy user selected study-data bucket to Iso
+    - name: Copy downloaded packages into isolated environment
       become: yes
       copy:
         src: "{{ src_download_pkg_path }}/"
         dest: "{{ dst_download_pkg_path }}"
-        # directory_mode: yes
         owner: "{{ ansible_user_id }}"
         group: "{{ ansible_user_id }}"
 
     - name: Install requested Python packages
-      # ansible.builtin.pip:
-      #   name: "{{ item }}"
-      # with_items: "{{ python_packages }}"
-      # # loop:
-      # #   - pandas==1.5.2
-      # #   - numpy
       become: yes
       command: "python3 -m pip install --no-index --find-links {{ dst_download_pkg_path }} -r {{ dst_requirements_path }}"
       register: install_deps

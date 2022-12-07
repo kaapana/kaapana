@@ -42,7 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         zip \
         openssh-client \
         vim \
-        #skopeo \
+        skopeo \
         # libczmq-dev \
         # libcurlpp-dev \
         # libssl-dev \
@@ -63,6 +63,7 @@ RUN python3.8 -m pip install --no-cache-dir -r requirements.txt --constraint "ht
 COPY files/scripts/ /scripts
 
 RUN ansible-galaxy collection install openstack.cloud
+RUN ansible-galaxy collection install community.docker
 
 COPY files/bootstrap.sh /bootstrap.sh
 RUN chmod +x /bootstrap.sh

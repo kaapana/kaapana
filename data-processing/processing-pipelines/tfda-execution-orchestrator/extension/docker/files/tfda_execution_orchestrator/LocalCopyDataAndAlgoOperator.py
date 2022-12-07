@@ -15,7 +15,6 @@ class LocalCopyDataAndAlgoOperator(KaapanaPythonBaseOperator):
         airflow_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         minio_path = os.path.join(airflow_dir, "miniobuckets")
         operator_dir = os.path.dirname(os.path.abspath(__file__))
-        src_algorithm_files_path = os.path.join(operator_dir, "algorithm_files")
         playbooks_dir = os.path.join(operator_dir, "ansible_playbooks")
         playbook_path = os.path.join(playbooks_dir, "copy_data_and_algo_to_iso_env.yaml")
         
@@ -34,11 +33,12 @@ class LocalCopyDataAndAlgoOperator(KaapanaPythonBaseOperator):
         user_selected_algo = request_config["user_selected_algorithm"]
         user_selected_study_data = request_config["user_selected_study_data"]
         
-        study_data_src_path = os.path.join(minio_path, user_selected_study_data)
+        src_study_data_path = os.path.join(minio_path, user_selected_study_data)
+        src_algorithm_files_path = os.path.join(operator_dir, "algorithm_files", request_type)
 
         iso_env_ip = ti.xcom_pull(key="iso_env_ip", task_ids="create-iso-inst")
 
-        playbook_args = f"target_host={iso_env_ip} ssh_key_name={ssh_key_name} remote_username={remote_username} src_algorithm_files_path={src_algorithm_files_path} user_selected_algo={user_selected_algo} study_data_src_path={study_data_src_path} user_selected_study_data={user_selected_study_data}"        
+        playbook_args = f"target_host={iso_env_ip} ssh_key_name={ssh_key_name} remote_username={remote_username} request_type={request_type} src_algorithm_files_path={src_algorithm_files_path} user_selected_algo={user_selected_algo} src_study_data_path={src_study_data_path} user_selected_study_data={user_selected_study_data}"        
         command = ["ansible-playbook", playbook_path, "--extra-vars", playbook_args]
         process = subprocess.Popen(command, stdout=PIPE, stderr=PIPE, encoding="Utf-8")
         while True:

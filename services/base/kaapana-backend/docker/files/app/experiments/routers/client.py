@@ -47,6 +47,7 @@ async def get_client_kaapana_instance(db: Session = Depends(get_db)):
 
 @router.post("/get-remote-kaapana-instances", response_model=List[schemas.KaapanaInstance])
 async def get_remote_kaapana_instances(filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
+    print(f"filter_kaapana_instances: {filter_kaapana_instances}")
     if filter_kaapana_instances is None:
         filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': True})
     return crud.get_kaapana_instances(db, filter_kaapana_instances=filter_kaapana_instances)
@@ -107,12 +108,48 @@ async def delete_jobs(db: Session = Depends(get_db)):
 # @router.post("/get-instances-dags")
 @router.post("/get-dags")
 async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
-    if filter_kaapana_instances.remote is False:
+    print(f"GET DAGS filter_kaapana_instances.instance_names: {filter_kaapana_instances.instance_names}")
+
+    if len(filter_kaapana_instances.instance_names)==0 and filter_kaapana_instances.remote is False:    # necessary from old implementation to get dags in client instance view
         dags = get_dag_list(only_dag_names=True)
-    else:
-        db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=filter_kaapana_instances)
-        dags = list(set.intersection(*map(set, [[k for k, v in json.loads(ki.allowed_dags).items()] for ki in db_remote_kaapana_instances ])))
-    return JSONResponse(content=dags)
+        return JSONResponse(content=dags)
+
+    db_client_kaapana = crud.get_kaapana_instance(db, remote=False)    # get client_instance
+    dags = {}
+    for instance_name in filter_kaapana_instances.instance_names:
+        # check if whether instance_name is client_instance --> dags = get_dag_list(only_dag_names=True)
+        if db_client_kaapana.instance_name == instance_name:
+            client_dags = get_dag_list(only_dag_names=True)    # or rather get allowed_dags of db_client_kaapana, but also a little bit unnecessary to restrict local dags
+            print(f"client_dags: {client_dags}")
+            dags[db_client_kaapana.instance_name] = client_dags
+        else:
+            db_remote_kaapana_instance = crud.get_kaapana_instance(db, instance_name, remote=True)
+            print(f"db_remote_kaapana_instance: {db_remote_kaapana_instance}")
+            remote_allowed_dags = list(json.loads(db_remote_kaapana_instance.allowed_dags).keys())
+            dags[db_remote_kaapana_instance.instance_name] = remote_allowed_dags
+    # print(f"Dags: {dags}")
+    if len(dags) > 1:   # if multiple instances are selected -> find intersection of their allowed dags
+        overall_allowed_dags = []
+        for i in range(len(dags)-1):
+            if len(overall_allowed_dags) == 0:
+                list1 = list(dags.values())[i]
+                list2 = list(dags.values())[i+1]
+                overall_allowed_dags = list(set(list1) & set(list2))
+            else:
+                list1 = list(dags.values())[i]
+                overall_allowed_dags = list(set(overall_allowed_dags) & set(list1))
+        print(f"Overall_allowed_dags: {overall_allowed_dags}")
+        return JSONResponse(content=overall_allowed_dags)
+    elif len(dags) == 1:    # if just one instance is selected -> return (allowed) dags of this instance
+        return JSONResponse(content=list(dags.values())[0])
+
+    # old code of function def ui_form_schemas(...)
+    # if filter_kaapana_instances.remote is False:
+    #     dags = get_dag_list(only_dag_names=True)
+    # else:
+    #     db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=filter_kaapana_instances)
+    #     dags = list(set.intersection(*map(set, [[k for k, v in json.loads(ki.allowed_dags).items()] for ki in db_remote_kaapana_instances ])))
+    # return JSONResponse(content=dags)
 
 # @router.post("/submit-workflow-schema", response_model=List[schemas.Job])
 # async def submit_workflow_json_schema(request: Request, json_schema_data: schemas.JsonSchemaData, db: Session = Depends(get_db)):
@@ -197,38 +234,92 @@ async def ui_form_schemas(request: Request, filter_kaapana_instances: schemas.Fi
     schemas = {}
     if dag_id is None:
         return JSONResponse(content=schemas)
-
-    # Checking for dags
-    if filter_kaapana_instances.remote is False:
-        dags = get_dag_list(only_dag_names=False)
-        # datasets = crud.get_cohorts(unique_sets=True, username=username)
-    else:
-        db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=filter_kaapana_instances)
-        # datasets = set.intersection(*map(set,[json.loads(ki.allowed_datasets) for ki in db_remote_kaapana_instances]))
-        in_common_dags_set = set.intersection(*map(set, [[k for k, v in json.loads(ki.allowed_dags).items()] for ki in db_remote_kaapana_instances ]))
-        dags = {}
-        for el in in_common_dags_set:
-            dags.update({el: json.loads(db_remote_kaapana_instances[0].allowed_dags)[el]})
+    
+    # DAGs: Checking for dags -> replace with new implementation!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    db_client_kaapana = crud.get_kaapana_instance(db, remote=False)    # get client_instance
+    dags = {}
+    just_all_dags = {}
+    for instance_name in filter_kaapana_instances.instance_names:
+        # check if whether instance_name is client_instance --> dags = get_dag_list(only_dag_names=True)
+        if db_client_kaapana.instance_name == instance_name:
+            client_dags = get_dag_list(only_dag_names=False)    # get dags incl. its meta information (not only dag_name)
+            # print(f"client_dags: {client_dags}\n\n client_dags.values(): {client_dags.values()}")
+            dags[db_client_kaapana.instance_name] = client_dags
+            just_all_dags = {**just_all_dags, **client_dags}
+            # not all runner instances are remote instances --> set remote to False
+            schemas["remote"] = False
+        else:
+            db_remote_kaapana_instance = crud.get_kaapana_instance(db, instance_name, remote=True)
+            remote_allowed_dags = json.loads(db_remote_kaapana_instance.allowed_dags)   # w/o .keys() --> get dags incl. its meta information (not only dag_name)
+            # print(f"remote_allowed_dags: {remote_allowed_dags}\n\n remote_allowed_dags.values(): {remote_allowed_dags.values()}")
+            dags[db_remote_kaapana_instance.instance_name] = remote_allowed_dags
+            just_all_dags = {**just_all_dags, **remote_allowed_dags}
+    if len(dags) > 1:   # if multiple instances are selected -> find intersection of their allowed dags
+        overall_allowed_dags = []
+        for i in range(len(dags)-1):
+            if len(overall_allowed_dags) == 0:
+                list1 = list(dags.values())[i]
+                print(f"list1: {list1}")
+                list2 = list(dags.values())[i+1]
+                overall_allowed_dags = list(set(list1) & set(list2))
+            else:
+                list1 = list(dags.values())[i]
+                overall_allowed_dags = list(set(overall_allowed_dags) & set(list1))
+        # get details of overall_allowed_dags
+        overall_allowed_dags_datailed = {}
+        for overall_allowed_dag in overall_allowed_dags:
+            overall_allowed_dags_datailed[overall_allowed_dag] = just_all_dags[overall_allowed_dag]
+        dags = overall_allowed_dags_datailed
+    elif len(dags) == 1:    # if just one instance is selected -> return (allowed) dags of this instance
+        dags = list(dags.values())[0]
 
     if dag_id not in dags:
         raise HTTPException(status_code=404, detail=f"Dag {dag_id} is not part of the allowed dags, please add it!")
     dag = dags[dag_id]
     schemas = dag["ui_forms"]
-    print(schemas)
-    # Checking for cohorts...
-    if "data_form" in schemas and "properties" in schemas["data_form"] and  "cohort_name" in schemas["data_form"]["properties"]:
-        if filter_kaapana_instances.remote is False:
-            datasets = crud.get_cohorts(db, username=username)
-        else:
-            db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=filter_kaapana_instances)
-            datasets = set.intersection(*map(set,[json.loads(ki.allowed_datasets) for ki in db_remote_kaapana_instances]))
-        print(datasets)
-        schemas["data_form"]["properties"]["cohort_name"]["oneOf"] = [{"const": d, "title": d} for d in datasets]
+    print(f"schemas: {schemas}")
 
-    # if 'ui_forms' in dag:
-    #     for ui_form_key, ui_form in dag['ui_forms'].items():
-    #         ui_dag_info = dag['ui_dag_info'] if 'ui_dag_info' in dag else None
-    #         #schema_data[ui_form_key] = get_schema(dag_id, ui_form_key, ui_form, ui_dag_info, filter_kaapana_instances, db)
+    # Cohorts: Checking for cohorts
+    if "data_form" in schemas and "properties" in schemas["data_form"] and  "cohort_name" in schemas["data_form"]["properties"]:
+        db_client_kaapana = crud.get_kaapana_instance(db, remote=False)    # get client_instance
+        datasets = {}
+        for instance_name in filter_kaapana_instances.instance_names:
+            # check if whether instance_name is client_instance --> datasets = crud.get_cohorts(db, username=username)
+            if db_client_kaapana.instance_name == instance_name:
+                client_datasets = crud.get_cohorts(db, username=username)    # or rather get allowed_datasets of db_client_kaapana, but also a little bit unnecessary to restrict local datasets
+                # print(f"client_datasets: {client_datasets}")
+                datasets[db_client_kaapana.instance_name] = client_datasets
+            else:
+                db_remote_kaapana_instance = crud.get_kaapana_instance(db, instance_name, remote=True)
+                # print(f"db_remote_kaapana_instance: {db_remote_kaapana_instance}")
+                remote_allowed_datasets = list(json.loads(db_remote_kaapana_instance.allowed_datasets))
+                datasets[db_remote_kaapana_instance.instance_name] = remote_allowed_datasets
+        # print(f"datasets: {datasets}")
+        if len(datasets) > 1:   # if multiple instances are selected -> find intersection of their allowed datasets
+            overall_allowed_datasets = []
+            for i in range(len(datasets)-1):
+                if len(overall_allowed_datasets) == 0:
+                    list1 = list(datasets.values())[i]
+                    list2 = list(datasets.values())[i+1]
+                    overall_allowed_datasets = list(set(list1) & set(list2))
+                else:
+                    list1 = list(datasets.values())[i]
+                    overall_allowed_datasets = list(set(overall_allowed_datasets) & set(list1))
+            print(f"Overall_allowed_datasets: {overall_allowed_datasets}")
+            schemas["data_form"]["properties"]["cohort_name"]["oneOf"] = [{"const": d, "title": d} for d in overall_allowed_datasets]
+        elif len(datasets) == 1:    # if just one instance is selected -> return (allowed) datasets of this instance
+            schemas["data_form"]["properties"]["cohort_name"]["oneOf"] = [{"const": d, "title": d} for d in list(datasets.values())[0]]
+
+        # old cohort code
+        # if filter_kaapana_instances.remote is False:
+        #     datasets = crud.get_cohorts(db, username=username)
+        # else:
+        #     db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=filter_kaapana_instances)
+        #     datasets = set.intersection(*map(set,[json.loads(ki.allowed_datasets) for ki in db_remote_kaapana_instances]))
+        # print(datasets)
+        # schemas["data_form"]["properties"]["cohort_name"]["oneOf"] = [{"const": d, "title": d} for d in datasets]
+    
+    print(f"\n\nFinal Schema: \n{schemas}")
     return JSONResponse(content=schemas)
 
 @router.get("/check-for-remote-updates")
@@ -274,7 +365,8 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
     username = request.headers["x-forwarded-preferred-username"]
 
     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
-    print(json_schema_data)
+    # if db_client_kaapana.instance_name in json_schema_data.instance_names:  # check or correct: if client_kaapana_instance in experiment's runner instances ...
+    #     json_schema_data.remote = False                                     # ... set json_schema_data.remote to False
 
     conf_data = json_schema_data.conf_data
     print(f"Here comes the one and only conf_data: {conf_data}")
@@ -299,6 +391,7 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
     else:
         single_execution = False
 
+    print(f"Conf data: {conf_data}")
     queued_jobs = []
     if single_execution is True:
         for cohort_identifier in data_form['cohort_identifiers'][:cohort_limit]:
@@ -323,24 +416,32 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
     db_jobs = []
     db_kaapana_instances = []
     for jobs_to_create in queued_jobs: 
-        if json_schema_data.remote == False:
+        if json_schema_data.remote == False and json_schema_data.federated == False:    # experiment is completely local --> all jobs are local jobs!
+            print(f"jobs_to_create: {jobs_to_create}")
             job = schemas.JobCreate(**{
                 "status": "pending",
                 "kaapana_instance_id": db_client_kaapana.id,
+                "owner_kaapana_instance_name": db_client_kaapana.instance_name,
                 **jobs_to_create
             })
-            print("schemas.JobCreate was successful!")   # still works
+            print("schemas.JobCreate was successful!")
             db_job = crud.create_job(db, job)
             print("crud.create_job() was successful!")
             db_jobs.append(db_job)
             db_kaapana_instances.append(db_client_kaapana)
         else:
-            db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': json_schema_data.remote, 'instance_names': json_schema_data.instance_names}))
+            db_remote_kaapana_instances = crud.get_kaapana_instances(
+                db, 
+                filter_kaapana_instances=schemas.FilterKaapanaInstances(**{
+                    'remote': json_schema_data.remote, 
+                    'instance_names': json_schema_data.instance_names
+                    })
+            )
             for db_remote_kaapana_instance in db_remote_kaapana_instances:
                 job = schemas.JobCreate(**{
                     "status": "queued",
                     "kaapana_instance_id": db_remote_kaapana_instance.id,
-                    "addressed_kaapana_instance_name": db_client_kaapana.instance_name,
+                    "owner_kaapana_instance_name": db_client_kaapana.instance_name,
                     **jobs_to_create
                 })
 

@@ -77,7 +77,7 @@ export default {
         { text: 'Created', value: 'time_created' },
         { text: 'Updated', value: 'time_updated' },
         { text: 'Username', value: 'username' },
-        { text: 'Executing Instance Name', value: 'kaapana_instance.instance_name' },
+        { text: 'Owner Instance', value: 'kaapana_instance.instance_name' },
         { text: 'Actions', value: 'actions', sortable: false, filterable: false},
       ],
       clientInstance: {},

@@ -2,28 +2,18 @@
 <template lang="pug">
 v-dialog(v-model='dialogOpen' max-width='600px')
   template(v-slot:activator='{ on, attrs }')
-    v-btn(color='orange' v-bind='attrs' v-on='on' rounded dark) Experiment Execution
+    v-btn(color="primary" v-bind='attrs' v-on='on' dark) Experiment Execution
   v-card
     v-form(v-model="valid", ref="executeWorkflow", lazy-validation)
       v-card-title
         span.text-h5 Experiment Execution
       v-card-text
         v-container
-          //- v-row
-          //-   v-col(v-if="remote" cols='12')
-          //-     v-select(v-model='instance_names' :items='available_instance_names' label='Instance names' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
-          //-   v-col(v-if="instance_names.length" cols='12')
-          //-     v-select(v-model='dag_id' :items='available_dags' label='Dags' chips='' hint='Select a dag')
-          //-   v-col(v-for="(schema, name) in schemas" cols='12' v-if="!(remote==false && name=='federated_form')")
-          //-     p {{name}}
-          //-     v-jsf( v-model="formData[name]" :schema="schema")
-          //-   p {{formData}}
-
           v-row
+            v-col(cols='12')
+              v-text-field(v-model='experiment_name' label='Experiment name' required='')
             v-col(v-if="remote" cols='12')
               v-select(v-model='instance_names' :items='available_instance_names' label='Instance names' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
-            v-col(v-if="instance_names.length" cols='12')
-              v-text-field(v-model='experiment_name' label='Experiment name' required='')
             v-col(v-if="instance_names.length" cols='12')
               v-select(v-model='dag_id' :items='available_dags' label='Dags' chips='' hint='Select a dag')
             //- v-if="!(remote==false && name=='federated_form')"
@@ -34,7 +24,7 @@ v-dialog(v-model='dialogOpen' max-width='600px')
             v-col(cols='12')
               h3 Remote Workflow
             v-col(cols='12')
-              v-select(v-model='external_instance_names' :items='external_available_instance_names' label='Instance names' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
+              v-select(v-model='external_instance_names' :items='external_available_instance_names' label='External Instance names' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
           v-row(v-if="Object.keys(external_schemas).length")
             v-col(v-for="(schema, name) in external_schemas" cols='12')
               p {{name}}
@@ -52,8 +42,8 @@ v-dialog(v-model='dialogOpen' max-width='600px')
                 pre.text-left External instance name: {{external_instance_names}}
                 pre.text-left {{ formDataFormatted }}
       v-card-actions
-        v-btn(color="orange", @click="submitWorkflow()" rounded dark) Start Experiment
-        v-btn(color="orange", @click="(instance_names=[]) && (dag_id=null)" rounded dark) Clear
+        v-btn(color="primary", @click="submitWorkflow()"  dark) Start Experiment
+        v-btn(color="primary", @click="(instance_names=[]) && (dag_id=null)"  dark) Clear
 </template>
 
 <script>
@@ -82,6 +72,7 @@ export default {
     experiment_name: null,
     dag_id: null,
     showConfData: false,
+    federated: false,
   }),
   props: {
     remote: {
@@ -91,10 +82,15 @@ export default {
     instances: {
       type: Array,
       required: true
+    },
+    clientinstance: {
+      type: Object,
+      required: true,
     }
   },
   computed: {
     available_instance_names () {
+      console.log("instances: ", this.instances)
       return this.instances.map(({ instance_name }) => instance_name);
     },
     formDataFormatted () {
@@ -108,6 +104,7 @@ export default {
       this.instance_names = []
       this.experiment_name = null
       this.dag_id = null
+      this.external_instance_names = []
     },
     instance_names() {
       this.getDags()
@@ -158,6 +155,7 @@ export default {
     resetExternalFormData() {
       this.external_schemas = {}
       this.external_available_instance_names = []
+      // console.log(this.external_dag_id)
       if (this.external_dag_id != null) {
         console.log('getting')
         this.getAvailableExternalNodeIds()
@@ -176,6 +174,9 @@ export default {
         .federatedClientApiPost("/get-ui-form-schemas", {remote: this.remote, experiment_name: this.experiment_name, dag_id: this.dag_id, instance_names: this.instance_names})
         .then((response) => {
           let schemas = response.data
+          // console.log("remote: ", this.remote)
+          // this.remote = schemas["remote"]
+          // console.log("remote: ", this.remote)
           if (this.remote==false && 'external_schemas' in schemas) {
             this.external_dag_id = schemas["external_schemas"]
             delete schemas.external_schemas
@@ -183,6 +184,7 @@ export default {
             this.external_dag_id = null
           }
           this.schemas = schemas
+          console.log("schemas: ", schemas)
         })
         .catch((err) => {
           console.log(err);
@@ -203,6 +205,7 @@ export default {
         .federatedClientApiPost("/get-dags", {remote: this.remote, instance_names: this.instance_names})
         .then((response) => {
           this.available_dags = response.data;
+          console.log("Available DAGs: ", this.available_dags)
         })
         .catch((err) => {
           console.log(err);
@@ -222,6 +225,26 @@ export default {
       if (this.external_instance_names.length) {
         this.formData['external_schema_instance_names'] = this.external_instance_names
       }
+      // modify attributes remote and federated depending on instances 
+      console.log("instance_names: ", this.instance_names)
+      if (this.instance_names.length > 1) {                             // len(instance_names) > 1 ==> federated experiment
+        this.federated = true;
+        this.remote = true;
+        console.log("Federated Experiment -> federated:", this.federated, ", remote: ,", this.remote)
+      }
+      else {                                                            // len(instance_names) = 1 ==> local or remote experiment
+        this.federated = false;
+        console.log("clientinstance.instance_name: ", this.clientinstance.instance_name)
+        console.log("client in instances: ", this.instance_names.indexOf(this.clientinstance.instance_name))
+        if (this.instance_names.indexOf(this.clientinstance.instance_name) !== -1) {  // clientinstance is in instance_names ==> local experiment
+          this.remote = false;
+          console.log("Local Experiment -> federated:", this.federated, ", remote: ,", this.remote)
+        }
+        else {                                                          // clientinstance is not in instance_names ==> remote experiment
+          this.remote = true;
+          console.log("Remote Experiment -> federated:", this.federated, ", remote: ,", this.remote)
+        }
+      }
       kaapanaApiService
         // .federatedClientApiPost("/submit-workflow-schema", {
         .federatedClientApiPost("/experiment", {
@@ -229,7 +252,8 @@ export default {
           dag_id: this.dag_id,
           instance_names: this.instance_names,          
           conf_data: this.formatFormData(this.formData),
-          remote: this.remote
+          remote: this.remote,
+          federated: this.federated,
         })
         .then((response) => {
           this.dialogOpen = false

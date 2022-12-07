@@ -121,12 +121,12 @@
               value: 'time_updated'
             })
             headers.push({
-              text: 'Executing Instance Name',
+              text: 'Runner Instance',
               value: 'kaapana_instance.instance_name'
             })
             headers.push({
-              text: 'Sender Instance Name',
-              value: 'addressed_kaapana_instance_name'
+              text: 'Owner Instance',
+              value: 'owner_kaapana_instance_name'
             })
             headers.push({
               text: 'Conf',

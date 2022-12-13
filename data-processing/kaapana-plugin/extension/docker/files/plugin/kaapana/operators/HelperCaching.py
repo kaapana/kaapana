@@ -27,7 +27,7 @@ def update_job(client_job_id, status, run_id=None, description=None):
             'status': status,
             'run_id': run_id,
             'description': description,
-            'addressed_kaapana_instance_name': client_job['addressed_kaapana_instance_name'],
+            'owner_kaapana_instance_name': client_job['owner_kaapana_instance_name'],
             'external_job_id': client_job['external_job_id']
         })
     raise_kaapana_connection_error(r)

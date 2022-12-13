@@ -417,7 +417,7 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
     db_jobs = []
     db_kaapana_instances = []
     for jobs_to_create in queued_jobs: 
-        if json_schema_data.remote == False and json_schema_data.federated == False:    # experiment is completely local --> all jobs are local jobs!
+        if json_schema_data.remote == False: # and json_schema_data.federated == False:    # experiment is completely local --> all jobs are local jobs!
             print(f"jobs_to_create: {jobs_to_create}")
             job = schemas.JobCreate(**{
                 "status": "pending",
@@ -431,20 +431,20 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
             db_jobs.append(db_job)
             db_kaapana_instances.append(db_client_kaapana)
         else:
-            db_remote_kaapana_instances = crud.get_kaapana_instances(
-                db, 
-                filter_kaapana_instances=schemas.FilterKaapanaInstances(**{
-                    'remote': json_schema_data.remote, 
+            print(f"jobs_to_create: {jobs_to_create}")
+            db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': json_schema_data.remote, 
                     'instance_names': json_schema_data.instance_names
                     })
             )
             for db_remote_kaapana_instance in db_remote_kaapana_instances:
+                print(f"db_remote_kaapana_instance.id: {db_remote_kaapana_instance.id} ; db_client_kaapana.instance_name: {db_client_kaapana.instance_name}")
                 job = schemas.JobCreate(**{
                     "status": "queued",
                     "kaapana_instance_id": db_remote_kaapana_instance.id,
                     "owner_kaapana_instance_name": db_client_kaapana.instance_name,
                     **jobs_to_create
                 })
+                print(f"JobCreate in client: {job}")
 
                 db_job = crud.create_job(db, job)
                 db_jobs.append(db_job)

@@ -160,6 +160,7 @@ def create_job(db: Session, job: schemas.JobCreate):
     
     utc_timestamp = get_utc_timestamp()
 
+    print(f"JobCreate: {job}")
     db_job = models.Job(
         conf_data=json.dumps(job.conf_data),
         time_created=utc_timestamp,
@@ -218,13 +219,16 @@ def delete_jobs(db: Session):
 def get_jobs(db: Session, instance_name: str = None, status: str = None, remote: bool = True, limit=None):
     if instance_name is not None and status is not None:
         # org: return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
-        return db.query(models.Job).filter_by(status=status).join(models.Job.experiment, aliased=True).join(models.Experiment.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+        # w/ experiment: return db.query(models.Job).filter_by(status=status).join(models.Job.experiment, aliased=True).join(models.Experiment.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all() # doesn't work for job querying in remote/federated job execution
+        return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name).order_by(desc(models.Job.time_updated)).limit(limit).all()  # same as org but w/o filtering by remote
     elif instance_name is not None:
         # org: return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
-        return db.query(models.Job).join(models.Job.experiment, aliased=True).join(models.Experiment.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+        # w/ experiment: return db.query(models.Job).join(models.Job.experiment, aliased=True).join(models.Experiment.kaapana_instance, aliased=True).filter_by(instance_name=instance_name, remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+        return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name).order_by(desc(models.Job.time_updated)).limit(limit).all()  # same as org but w/o filtering by remote
     elif status is not None:
         # org: return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
-        return db.query(models.Job).filter_by(status=status).join(models.Job.experiment, aliased=True).join(models.Experiment.kaapana_instance, aliased=True).filter_by(remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+        # w/ experiment: return db.query(models.Job).filter_by(status=status).join(models.Job.experiment, aliased=True).join(models.Experiment.kaapana_instance, aliased=True).filter_by(remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
+        return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).order_by(desc(models.Job.time_updated)).limit(limit).all()  # same as org but w/o filtering by remote
     else:
         # org: return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
         return db.query(models.Job).join(models.Job.experiment, aliased=True).join(models.Experiment.kaapana_instance, aliased=True).filter_by(remote=remote).order_by(desc(models.Job.time_updated)).limit(limit).all()
@@ -279,8 +283,10 @@ def sync_client_remote(db: Session,  remote_kaapana_instance: schemas.RemoteKaap
 
     create_and_update_remote_kaapana_instance(
         db=db, remote_kaapana_instance=remote_kaapana_instance, action='external_update')
+    print(f"SYNC_CLIENT_REMOTE for instance_name: {instance_name} ; status: {status}")
     db_incoming_jobs = get_jobs(db, instance_name=instance_name, status=status, remote=True)
     incoming_jobs = [schemas.Job(**job.__dict__).dict() for job in db_incoming_jobs]
+    print(f"SYNC_CLIENT_REMOTE imcoming_jobs: {incoming_jobs}")
 
     update_remote_instance_payload = {
         "instance_name":  db_client_kaapana.instance_name,
@@ -319,7 +325,7 @@ def delete_external_job(db: Session, db_job):
 def update_external_job(db: Session, db_job):
     if db_job.external_job_id is not None:
         print(f'Updating remote job {db_job.external_job_id}, {db_job.owner_kaapana_instance_name}')
-        same_instance = db_job.owner_kaapana_instance_name == settings.instance_name
+        same_instance = db_job.owner_kaapana_instance_name == settings.instance_name    # will be the same !
         db_remote_kaapana_instance = get_kaapana_instance(db, instance_name=db_job.owner_kaapana_instance_name, remote=True)
         payload = {
                 "job_id": db_job.external_job_id,
@@ -370,15 +376,14 @@ def get_remote_updates(db: Session, periodically=False):
             # print(f"job_params in params: {job_params}")
             # print(f"update_remote_instance_payload in json: {update_remote_instance_payload}")
             with requests.Session() as s:     
-                r = requests_retry_session(session=s).put(f'{remote_backend_url}/sync-client-remote', params=job_params,  json=update_remote_instance_payload, verify=db_remote_kaapana_instance.ssl_check, 
-            headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
+                r = requests_retry_session(session=s).put(f'{remote_backend_url}/sync-client-remote', params=job_params,  json=update_remote_instance_payload, verify=db_remote_kaapana_instance.ssl_check, headers={'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'})
             if r.status_code == 405:
                 print(f'Warning!!! We could not reach the following backend {db_remote_kaapana_instance.host}')
                 continue
             raise_kaapana_connection_error(r)
             incoming_data =  r.json()
         incoming_jobs = incoming_data['incoming_jobs']
-        print(f"incoming_jobs: {incoming_jobs}")
+        print(f"incoming_jobs: {incoming_jobs}") # \n incoming_data: {incoming_data}")
         remote_kaapana_instance = schemas.RemoteKaapanaInstanceUpdateExternal(**incoming_data['update_remote_instance_payload'])
 
         create_and_update_remote_kaapana_instance(db=db, remote_kaapana_instance=remote_kaapana_instance, action='external_update')

@@ -143,8 +143,6 @@ class Identifier(BaseModel):
         orm_mode = True
 
 
-
-
 class CohortBase(BaseModel):
     cohort_name: str = None
 

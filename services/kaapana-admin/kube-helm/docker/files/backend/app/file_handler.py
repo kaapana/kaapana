@@ -84,11 +84,43 @@ def add_file(file: UploadFile, content: bytes, overwrite: bool = True) -> Tuple[
     return True, msg
 
 
-async def add_file_chunks(ws: WebSocket, fname: str, fsize: int, chunk_size: int, overwrite: bool = True):
+async def add_file_chunks(fname: str, fsize: int, chunk_size: int, index: int, endindex: int, chunk: str, overwrite: bool = True):
+    # sanity checks
+    max_iter = math.ceil(fsize / chunk_size)
+    if endindex != max_iter:
+        raise AssertionError(f"chunk size calculated differently: {endindex} != {max_iter}")
+    if index > max_iter:
+        raise AssertionError(f"max iterations already reached: {index} > {max_iter}")
+
+    logger.debug(
+        f"in function: add_file_chunks with {fname=}, {fsize=}, {chunk_size=}, {index=}, {endindex}, {max_iter}")
+
+    fpath, msg = check_file_exists(fname, overwrite)
+    if index == -1:
+        logger.debug(f"add_file_chunks first call, creating file {fpath}")
+        if fpath == "":
+            return False, msg
+        f = open(fpath, "w")
+        f.close()
+
+    else:
+        logger.debug(f"adding chunk index {index} to file {fpath}")
+        if fpath == "":
+            return False, msg
+
+        logger.debug(f"writing {index} / {max_iter} to file {fpath}")
+        with open(fpath, "a") as f:
+            f.write(chunk)
+        logger.debug("write completed")
+
+    return fpath, str(index)
+
+
+async def ws_add_file_chunks(ws: WebSocket, fname: str, fsize: int, chunk_size: int, overwrite: bool = True):
     max_iter = math.ceil(fsize / chunk_size)
 
     logger.debug(
-        f"in function: add_file_chunks with {fname=}, {fsize=}, {chunk_size=}, {max_iter}")
+        f"in function: ws_add_file_chunks with {fname=}, {fsize=}, {chunk_size=}, {max_iter}")
 
     try:
         fpath, msg = check_file_exists(fname, overwrite)
@@ -145,3 +177,15 @@ def run_microk8s_import(fname: str) -> Tuple[bool, str]:
         return res, f"Failed to import container {fname}"
 
     return res, f"Successfully imported container {fname}"
+
+
+async def delete_file(fname: str) -> bool:
+    fpath = make_fpath(fname)
+    if not os.path.exists(fpath):
+        return True
+    try:
+        os.remove(fpath)
+        return True
+    except Exception as e:
+        logger.error(f"Error when deleting file {fname}: {e}")
+        return False

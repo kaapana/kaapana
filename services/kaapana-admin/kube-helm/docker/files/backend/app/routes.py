@@ -44,8 +44,42 @@ async def upload_file(file: UploadFile):
     return Response(msg, 200)
 
 
+@router.post("/file_chunks")
+async def upload_file_chunks(request: Request):
+    logger.debug("in upload_file_chunks")
+    try:
+        payload = await request.json()
+        logger.info(f"upload file chunks HTTP was called")
+        if "index" not in payload:
+            raise AssertionError("ERROR: can not find key 'index' in request payload, ")
+
+        chunk = payload["chunk"]
+        fpath, msg = await file_handler.add_file_chunks(
+            fname=payload["name"],
+            fsize=payload["fileSize"],
+            chunk_size=payload["chunkSize"],
+            index=payload["index"],
+            endindex=payload["endIndex"],
+            chunk=chunk
+        )
+
+        if fpath == "":
+            logger.error(msg)
+            return Response(msg, 500)
+
+        return Response(msg, 200)
+    
+    except Exception as e:
+        logger.error(f"exception: {e}")
+        msg = str(e)
+        if 'payload' in locals() and await file_handler.delete_file(payload["name"]):
+            msg += "file deleted"
+        else:
+            msg += "failed to delete file"
+        return Response(msg, 400)
+
 @router.websocket("/file_chunks/{client_id}")
-async def upload_file_chunks(ws: WebSocket, client_id: int):
+async def ws_upload_file_chunks(ws: WebSocket, client_id: int):
     logger.info(f"in function upload_file_chunks with {client_id=}")
     try:
         await ws.accept()
@@ -55,7 +89,7 @@ async def upload_file_chunks(ws: WebSocket, client_id: int):
         fsize = file_info["fileSize"]
         chunk_size = file_info["chunkSize"]
 
-        fpath, msg = await file_handler.add_file_chunks(ws, fname, fsize, chunk_size)
+        fpath, msg = await file_handler.ws_add_file_chunks(ws, fname, fsize, chunk_size)
 
         if fpath == "":
             logger.error(msg)

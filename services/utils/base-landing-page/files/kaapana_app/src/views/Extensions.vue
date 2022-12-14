@@ -224,6 +224,7 @@ import Vue from "vue";
 import request from "@/request";
 import { mapGetters } from "vuex";
 import kaapanaApiService from "@/common/kaapanaApi.service";
+import { CHECK_AUTH } from '@/store/actions.type';
 
 export default Vue.extend({
   data: () => ({
@@ -232,6 +233,8 @@ export default Vue.extend({
     dragging: false,
     loadingFile: false,
     conn: null as WebSocket | null,
+    uploadChunksMethod: 'http' as string, // set 'ws' for websocket otherwise 'http'
+    cancelUpload: false,
     uploadPerc: 0,
     loading: true,
     polling: 0,
@@ -350,7 +353,110 @@ export default Vue.extend({
       this.uploadFile(files[0]);
     },
     cancelUploadFile() {
+      console.log("cancel upload called")
       if (this.conn) this.conn.close()
+      this.cancelUpload = true
+    },
+    uploadChunksWS() {
+      // websocket version
+      let chunkSize = 10 * 1024 * 1024
+      let iters = Math.ceil(this.file.size / chunkSize)
+      let clientID = Date.now();
+      // console.log("clientID", clientID)
+      let baseURL: any = request.defaults.baseURL
+      if (baseURL.includes("//")) {
+        let sp = baseURL.split("//")
+        baseURL = sp[1]
+      }
+      let conn = new WebSocket("ws://" + baseURL + "/file_chunks/" + String(clientID));
+      conn.onclose = (closeEvent) => {
+        console.log("connection closed", closeEvent)
+        this.conn = null;
+        this.loadingFile = false
+        this.fileResponse = "Upload Failed: connection closed"
+        let fname = this.file.name
+        this.file = ''
+        if (this.uploadPerc == 100) {
+          this.fileResponse = "Importing container " + fname
+          console.log("importing container...")
+          kaapanaApiService
+            .helmApiGet("/import-container", { filename: fname })
+            .then((response: any) => {
+              this.fileResponse = "Successfully imported container " + fname
+            })
+            .catch((err: any) => {
+              console.log(err);
+              this.fileResponse = "Failed to import container " + fname
+            });
+        }
+      }
+      conn.onerror = (errorEvent) => {
+        this.conn = null;
+        console.log("connection error", errorEvent)
+        conn.close()
+      }
+      conn.onopen = (openEvent) => {
+        this.conn = conn;
+        console.log("Successfully connected", openEvent)
+      }
+
+      let i = -1
+
+      conn.onmessage = (msg) => {
+        if (!this.conn) {
+          console.log("connection not established, returning")
+          return
+        }
+        // console.log("msg", msg)
+        var jmsg
+        try {
+          jmsg = JSON.parse(msg.data)
+        }
+        catch (err) {
+          console.log("JSON parse failed", err)
+          if (this.conn) { this.conn.close() }
+          this.loadingFile = false
+          return
+        }
+
+        if (jmsg["success"] == true && jmsg["index"] == i) {
+          // console.log("previous send for index", i, "was successful, proceeding...")
+          if (i != -1) { this.uploadPerc = Math.floor((i / iters) * 100) }
+          i++;
+
+          if (i > iters) {
+            this.uploadPerc = 100;
+            console.log("upload completed, closing connection")
+            if (this.conn) { this.conn.close() }
+            return
+          }
+
+          const chunk = this.file.slice(i * chunkSize, (i + 1) * chunkSize);
+          if (this.conn) {
+            // console.log("sending ws msg chunk index", i)
+            this.conn.send(chunk)
+          } else {
+            // console.log("websocket connection lost");
+            this.loadingFile = false;
+          }
+        }
+        else {
+          // console.log("success", jmsg["success"], "expected index", i, "got", jmsg["index"])
+          console.log("something went wrong, closing the connection")
+          if (this.conn) {
+            this.conn.close()
+            this.loadingFile = false
+          }
+        }
+      }
+
+      // send file info first
+      setTimeout(() => {
+        if (this.conn) {
+          // console.log("sending ws msg", { name: file.name, fileSize: file.size, chunkSize: chunkSize })
+          this.conn.send(JSON.stringify({ name: this.file.name, fileSize: this.file.size, chunkSize: chunkSize }))
+        }
+      }, 1500);
     },
     uploadFile(file: any) {
       let uploadChunks = false;
@@ -366,7 +472,7 @@ export default Vue.extend({
       }
 
       if (file.size > 20000000000) {
-        alert('file size should not be over 10 GB.')
+        alert('file size should not be over 20 GB.')
         this.dragging = false;
         return;
       } else if (file.size > 50000000) {
@@ -374,12 +480,13 @@ export default Vue.extend({
         uploadChunks = true;
       }
 
+      this.cancelUpload = false;
       this.file = file;
       this.dragging = false;
       this.loadingFile = true;
+      this.uploadPerc = 0;
 
       if (!uploadChunks) {
-        this.uploadPerc = 0;
         let formData = new FormData();
 
         formData.append("file", file);
@@ -399,110 +506,99 @@ export default Vue.extend({
             this.fileResponse = "Upload Failed: " + err.data;
           });
       } else {
-        let chunkSize = 10 * 1024 * 1024
-        let iters = Math.ceil(file.size / chunkSize)
         this.uploadPerc = 0;
 
-        let clientID = Date.now();
-        // console.log("clientID", clientID)
+        if (this.uploadChunksMethod == "ws") {
+          this.uploadChunksWS()
+        } else {
+          // http version
+          let chunkSize = 5 * 1024 * 1024
+          let iters = Math.ceil(this.file.size / chunkSize)
 
-        let baseURL: any = request.defaults.baseURL
-        if (baseURL.includes("//")) {
-          let sp = baseURL.split("//")
-          baseURL = sp[1]
+          // init
+          let params = {
+            name: this.file.name,
+            fileSize: this.file.size,
+            chunkSize: chunkSize,
+            index: -1,
+            endIndex: iters,
+            chunk: "",
+          }
+          console.time("uploadFileChunks")
+          this.uploadChunkHTTP(params, -1, iters)
         }
-        // console.log("connecting websocket BaseURL", baseURL)        
-        let conn = new WebSocket("ws://" + baseURL + "/file_chunks/" + String(clientID));
-        // console.log("connected", conn)
-        conn.onclose = (closeEvent) => {
-          console.log("connection closed", closeEvent)
-          this.conn = null;
-          this.loadingFile = false
-          this.fileResponse = "Upload Failed: connection closed"
-          let fname = this.file.name
-          this.file = ''
-          if (this.uploadPerc == 100) {
-            this.fileResponse = "Importing container " + fname
+
+      }
+    },
+    uploadChunkHTTP(params: any, i: number, iters: number) {
+      console.log("uploading chunk", i, "/", iters)
+      kaapanaApiService
+        .helmApiPost("/file_chunks", params)
+        .then(async (resp: any) => {
+          console.log("file chunks resp", resp)
+          if (String(resp.data) != String(i) || resp.status != 200) {
+            console.log("error in response", resp)
+            this.loadingFile = false
+            this.fileResponse = "Upload Failed"
+            this.file = ''
+            return
+          }
+          if (i >= iters) {
+            console.log("upload completed")
+            console.timeEnd("uploadFileChunks")
+            //end
+            this.uploadPerc = 100;
+            this.loadingFile = false
+            this.fileResponse = "Importing container " + this.file.name
             console.log("importing container...")
             kaapanaApiService
-              .helmApiGet("/import-container", { filename: fname })
+              .helmApiGet("/import-container", { filename: this.file.name })
               .then((response: any) => {
-                this.fileResponse = "Successfully imported container " + fname
+                this.fileResponse = "Successfully imported container " + this.file.name
               })
               .catch((err: any) => {
                 console.log(err);
-                this.fileResponse = "Failed to import container " + fname
+                this.fileResponse = "Failed to import container " + this.file.name
               });
-          }
-        }
-        conn.onerror = (errorEvent) => {
-          this.conn = null;
-          console.log("connection error", errorEvent)
-          conn.close()
-        }
-        conn.onopen = (openEvent) => {
-          this.conn = conn;
-          console.log("Successfully connected", openEvent)
-        }
-
-        let i = -1
-
-        conn.onmessage = (msg) => {
-          if (!this.conn) {
-            console.log("connection not established, returning")
+            this.file = ''
+            console.log("import completed")
             return
-          }
-          // console.log("msg", msg)
-          var jmsg
-          try {
-            jmsg = JSON.parse(msg.data)
-          }
-          catch (err) {
-            console.log("JSON parse failed", err)
-            if (this.conn) { this.conn.close() }
-            this.loadingFile = false
-            return
-          }
-
-          if (jmsg["success"] == true && jmsg["index"] == i) {
-            // console.log("previous send for index", i, "was successful, proceeding...")
-            if (i != -1) { this.uploadPerc = Math.floor((i / iters) * 100) }
-            i++;
-
-            if (i > iters) {
-              this.uploadPerc = 100;
-              console.log("upload completed, closing connection")
-              if (this.conn) { this.conn.close() }
-              return
-            }
-
-            const chunk = file.slice(i * chunkSize, (i + 1) * chunkSize);
-            if (this.conn) {
-              // console.log("sending ws msg chunk index", i)
-              this.conn.send(chunk)
-            } else {
-              // console.log("websocket connection lost");
-              this.loadingFile = false;
-            }
-          }
-          else {
-            // console.log("success", jmsg["success"], "expected index", i, "got", jmsg["index"])
-            console.log("something went wrong, closing the connection")
-            if (this.conn) {
-              this.conn.close()
+          } else {
+            // loop
+            if (this.cancelUpload) {
+              console.log("cancelling upload")
               this.loadingFile = false
+              this.file = ''
             }
+            console.log(String(i) + "/" + String(iters), "was successful, proceeding...")
+            if (i > 0) this.uploadPerc = Math.floor((i / iters) * 100)
+            i++;
+            if (i % 50 == 0) {
+              this.$store
+                .dispatch(CHECK_AUTH).then(() => {
+                  console.log('still online')
+                }).catch((err: any) => {
+                  console.log('reloading')
+                  location.reload()
+                })
+            }
+            let chunkBlob = this.file.slice(i * params.chunkSize, (i + 1) * params.chunkSize);
+            const chunk = await chunkBlob.text();
+            params.chunk = chunk
+            params.index = i
+            this.uploadChunkHTTP(params, i, iters)
           }
-        }
-
-        // send file info first
-        setTimeout(() => {
-          if (this.conn) {
-            // console.log("sending ws msg", { name: file.name, fileSize: file.size, chunkSize: chunkSize })
-            this.conn.send(JSON.stringify({ name: file.name, fileSize: file.size, chunkSize: chunkSize }))
-          }
-        }, 1500);
-      }
+        })
+        .catch((err: any) => {
+          // error
+          console.log("error, index", i, ":", err)
+          console.timeEnd("uploadFileChunks")
+          this.loadingFile = false
+          this.fileResponse = "Upload Failed: " + String(err)
+          this.file = ''
+          this.cancelUpload = true
+          return
+        });
     },
     getHelmCharts() {
       let params = {
@@ -522,12 +618,12 @@ export default Vue.extend({
         });
     },
     startExtensionsInterval() {
-      this.polling = window.setInterval(() => {
-        this.getHelmCharts();
-      }, 5000);
+      // this.polling = window.setInterval(() => {
+      //   this.getHelmCharts();
+      // }, 5000);
     },
     clearExtensionsInterval() {
-      window.clearInterval(this.polling);
+      // window.clearInterval(this.polling);
     },
     updateExtensions() {
       this.loading = true;

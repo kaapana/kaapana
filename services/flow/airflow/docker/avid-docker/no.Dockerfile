@@ -7,16 +7,17 @@ RUN apt-get update && apt-get install -q -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 
-LABEL VERSION="21.11.2022"
+LABEL VERSION="14.12.2022"
 WORKDIR /
 ARG username
 ARG password
 ## ssl error due to certificate problems with our git
 RUN git config --global http.sslVerify false
-#build container with: docker build --build-arg username=Username --build-arg password=password -t local/avid-base:21.11.2022 -f ./no.Dockerfile .
+#build container with: docker build --build-arg username=Username --build-arg password=password -t local/avid-base:14.12.2022 -f ./no.Dockerfile .
 RUN git clone https://"$username":"$password"@phabricator.mitk.org/diffusion/AVID/avid.git ./avid-src  && \
     cd avid-src  &&\
-	git checkout master # origin/T22565-GeneralizeBatchActions
+	#git checkout master # origin/T22565-GeneralizeBatchActions &&\
+	git checkout 'c05b341bcea1'
 ################################################################################################################################
 ###################################################### Second Stage #########################################################
 ################################################################################################################################

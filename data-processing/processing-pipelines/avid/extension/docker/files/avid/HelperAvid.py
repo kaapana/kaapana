@@ -6,11 +6,11 @@ from avid.actions import ActionBatchGenerator
 from avid.common.cliConnector import default_artefact_url_extraction_delegate
 from avid.common import osChecker, AVIDUrlLocater
 from avid.common.artefact import ensureValidPath, generateArtefactEntry, ensureSimilarityRelevantProperty, addArtefactToWorkflowData, findSimilarArtefact
-from avid.common.artefact.defaultProps import FORMAT_VALUE_DCM, TYPE_VALUE_RESULT
+from avid.common.artefact.defaultProps import FORMAT_VALUE_DCM, TYPE_VALUE_RESULT, FORMAT_VALUE_ITK
 from avid.selectors import SelectorBase, ActionTagSelector, KeyValueSelector
 from avid.common.artefact.crawler import DirectoryCrawler
 from avid.common.workflow import initSession
-
+from airflow.utils.log.logging_mixin import LoggingMixin, RedirectStdHandler
 
 
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
@@ -22,8 +22,9 @@ PROP_NAME_PATIENT_ID = 'patientID'
 PROP_NAME_PATIENT_NAME = 'patientName'
 PROP_NAME_MODALITY = 'modality'
 PROP_NAME_SERIES_UID = 'seriesUID'
-PROP_NAME_STUDY_UD = 'studyUID'
+PROP_NAME_STUDY_UID = 'studyUID'
 PROP_NAME_DATE_TIME = 'dcmDateTime'
+PROP_BATCH_ID = 'batchID'
 
 ensureSimilarityRelevantProperty(PROP_NAME_MODALITY)
 ensureSimilarityRelevantProperty(PROP_NAME_SERIES_UID)
@@ -126,6 +127,16 @@ def _extract_task_id(path_parts, series_UID):
 
     #return None
 
+def _extract_batch_id(path_parts):
+    """Extracts the task id given the defauls 'classical' path layout for KaapanaOperators.
+       Assumes that the following classical kaapana directory layout is used:
+       data/<series>/<task_id>/..."""
+    if len(path_parts) < 2:
+        return None
+
+    print("path_parts: ", path_parts)
+    return path_parts[-2]
+
 
 class DefaultKaapanaDataCrawlCallable(object):
     """Assumes that the following classical kaapana directory layout is used:
@@ -136,37 +147,46 @@ class DefaultKaapanaDataCrawlCallable(object):
     def __call__(self, path_parts, file_name, full_path):
         if AVID_SESSION_DEFAULT_DIR not in path_parts:
             name, ext = os.path.splitext(file_name)
+            batchID = _extract_batch_id(path_parts=path_parts)
+            batchProps = {PROP_BATCH_ID: batchID}
+            if ext ==".nrrd":
+                splitname = name.split("--")
+                taskID = _extract_task_id(path_parts=path_parts, series_UID=splitname[0])
 
-            try:
-                ds = dcmread(full_path, stop_before_pixels=True)
-                relevantDCMTags = {PROP_NAME_PATIENT_ID: (0x0010,0x0020),
-                                   PROP_NAME_PATIENT_NAME: (0x0010,0x0010),
-                                   PROP_NAME_MODALITY:(0x0008, 0x0060),
-                                   PROP_NAME_SERIES_UID:(0x0020, 0x000e),
-                                   PROP_NAME_STUDY_UD:(0x0020,0x000d)}
-                dcmProps = _extract_dicom_tags(data_set=ds,tags=relevantDCMTags)
+                return generateArtefactEntry(case="unkonwn", caseInstance=None, timePoint=0,
+                            actionTag=taskID, artefactType=TYPE_VALUE_RESULT,
+                            artefactFormat=FORMAT_VALUE_ITK, url = full_path, objective = splitname[2], **batchProps)
+            else:    
+                try:
+                    ds = dcmread(full_path, stop_before_pixels=True)
+                    relevantDCMTags = {PROP_NAME_PATIENT_ID: (0x0010,0x0020),
+                                    PROP_NAME_PATIENT_NAME: (0x0010,0x0010),
+                                    PROP_NAME_MODALITY:(0x0008, 0x0060),
+                                    PROP_NAME_SERIES_UID:(0x0020, 0x000e),
+                                    PROP_NAME_STUDY_UID:(0x0020,0x000d)}
+                    dcmProps = _extract_dicom_tags(data_set=ds,tags=relevantDCMTags)
 
-                datetime = _extract_relevant_date_time_string(ds)
+                    datetime = _extract_relevant_date_time_string(ds)
 
-                dcmProps[PROP_NAME_DATE_TIME] = datetime
+                    dcmProps[PROP_NAME_DATE_TIME] = datetime
 
-                taskID = _extract_task_id(path_parts=path_parts, series_UID=dcmProps[PROP_NAME_SERIES_UID])
+                    taskID = _extract_task_id(path_parts=path_parts, series_UID=dcmProps[PROP_NAME_SERIES_UID])
 
-                if taskID is None:
-                    raise RuntimeError('Cannot deduce task id from file path: {}'.format(full_path))
+                    if taskID is None:
+                        raise RuntimeError('Cannot deduce task id from file path: {}'.format(full_path))
 
-                caseID = 'unkown'
-                if dcmProps[PROP_NAME_PATIENT_NAME] is not None:
-                    caseID = dcmProps[PROP_NAME_PATIENT_NAME]
-                elif dcmProps[PROP_NAME_PATIENT_ID] is not None:
-                    caseID = dcmProps[PROP_NAME_PATIENT_ID]
+                    caseID = 'unkown'
+                    if dcmProps[PROP_NAME_PATIENT_NAME] is not None:
+                        caseID = dcmProps[PROP_NAME_PATIENT_NAME]
+                    elif dcmProps[PROP_NAME_PATIENT_ID] is not None:
+                        caseID = dcmProps[PROP_NAME_PATIENT_ID]
 
-                return generateArtefactEntry(case=caseID, caseInstance=None, timePoint=0,
-                                             actionTag=taskID, artefactType=TYPE_VALUE_RESULT,
-                                             artefactFormat=FORMAT_VALUE_DCM, url = full_path,
-                                             **dcmProps)
-            except Exception:
-                pass
+                    return generateArtefactEntry(case=caseID, caseInstance=None, timePoint=0,
+                                                actionTag=taskID, artefactType=TYPE_VALUE_RESULT,
+                                                artefactFormat=FORMAT_VALUE_DCM, url = full_path,
+                                                **dcmProps, **batchProps)
+                except Exception:
+                    pass
 
         return None
 
@@ -194,8 +214,8 @@ def ensure_operator_session(avid_operator, context):
 
         avid_operator.log.debug('Initialize AVID session at: {}'.format(avid_operator.avid_session_dir))
         avid_operator.avid_session = initSession(sessionPath=avid_operator.avid_session_dir, expandPaths=True, initLogging=False)
-        #rootlogger = logging.getLogger()
-        #rootlogger.setLevel("DEBUG")
+        rootlogger = logging.getLogger()
+        rootlogger.setLevel("DEBUG")
 
 
     if len(avid_operator.avid_session.artefacts) == 0 or avid_operator.avid_artefact_crawl_callable is not None:
@@ -239,7 +259,7 @@ def compile_operator_sorters(avid_operator):
 def check_input_name_consistency(components, avid_operator, component_name, include_primary=True):
     if components is not None:
         for input_name in components:
-            if not input_name in avid_operator.additional_inputs or (include_primary and (not input_name==ActionBatchGenerator.PRIMARY_INPUT_KEY or not input_name==self.input_alias)):
+            if not input_name in avid_operator.additional_inputs or (include_primary and (input_name==ActionBatchGenerator.PRIMARY_INPUT_KEY or input_name==avid_operator.input_alias)):
                 raise ValueError('Additional {} uses a invalid/nonexistent additional input name. Invalid name: {}.'.format(component_name, input_name))
 
 
@@ -324,6 +344,7 @@ class ContainerCLIConnectorBase(object):
         path = os.path.split(file_name)[0]
 
         try:
+            content = 'Xvfb :99 -screen 0 1024x768x24 &\n export DISPLAY=:99\n exec "$@"' + '\n' + content
             osChecker.checkAndCreateDir(path)
             with open(file_name, "w") as outputFile:
                 if not osChecker.isWindows():
@@ -344,7 +365,7 @@ class ContainerCLIConnectorBase(object):
         raise NotImplementedError
 
 
-class KaapanaCLIConnector(ContainerCLIConnectorBase):
+class KaapanaCLIConnector(ContainerCLIConnectorBase, LoggingMixin):
     def __init__(self, mount_map, kaapana_operator, context, executable_url=None):
         """:param mount_map: Dictionary that contains the mapping between relevant paths
         outside of the container (those stored in the session) and the pathes that will
@@ -381,6 +402,7 @@ class KaapanaCLIConnector(ContainerCLIConnectorBase):
 
         errlogfile = None
 
+
         if error_log_file_path is not None:
             try:
                 errlogfile = open(error_log_file_path, "w")
@@ -391,11 +413,14 @@ class KaapanaCLIConnector(ContainerCLIConnectorBase):
             mapped_cli_file_path = ContainerCLIConnectorBase.apply_mount_map(mount_map=self.mount_map,
                                                                              filepath=cli_file_path)
             self.kaapana_operator.cmds=[mapped_cli_file_path]
-
             print("Spinning up container in Kaapana Base operator")
+            fileHandler = logging.FileHandler(log_file_path)
+            fileHandler.setLevel(logging.DEBUG)
+            #self.log.addHandler(redirectStd)
+            self.log.addHandler(fileHandler)
+            self.log.info("Calling executable in KaapanaBaseOperator.")
             container_return = KaapanaBaseOperator.execute(self=self.kaapana_operator, context=self.context)
-
-            logfile.write(str(container_return))
+            self.log.info(str(container_return))
 
         finally:
             if logfile is not None:

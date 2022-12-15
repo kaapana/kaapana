@@ -11,6 +11,14 @@ import schemas
 import helm_helper
 
 
+chunks_fname: str = ""
+chunks_fsize: int = 0
+chunks_chunk_size: int = 0
+chunks_endindex: int = 0
+chunks_fpath: str = 0
+chunks_index: int = -1
+
+
 def make_fpath(fname: str):
     pre = settings.helm_extensions_cache
     if pre[-1] != "/":
@@ -30,7 +38,7 @@ def check_file_exists(filename, overwrite):
     logger.debug(f"full path: {fpath=}")
     if os.path.exists(fpath):
         msg = "File {0} already exists".format(fpath)
-        logger.warning(msg)
+        logger.warning(msg + "overwrite:" + str(overwrite))
         if not overwrite:
             msg += ", returning without overwriting. "
             return "", msg
@@ -84,7 +92,9 @@ def add_file(file: UploadFile, content: bytes, overwrite: bool = True) -> Tuple[
     return True, msg
 
 
-async def add_file_chunks(fname: str, fsize: int, chunk_size: int, index: int, endindex: int, chunk: str, overwrite: bool = True):
+def init_file_chunks(fname: str, fsize: int, chunk_size: int, index: int, endindex: int, overwrite: bool = True):
+    global chunks_fname, chunks_fsize, chunks_chunk_size, chunks_endindex, chunks_fpath, chunks_index
+
     # sanity checks
     max_iter = math.ceil(fsize / chunk_size)
     if endindex != max_iter:
@@ -93,27 +103,56 @@ async def add_file_chunks(fname: str, fsize: int, chunk_size: int, index: int, e
         raise AssertionError(f"max iterations already reached: {index} > {max_iter}")
 
     logger.debug(
-        f"in function: add_file_chunks with {fname=}, {fsize=}, {chunk_size=}, {index=}, {endindex}, {max_iter}")
+        f"in function: init_file_chunks with {fname=}, {fsize=}, {chunk_size=}, {index=}, {endindex=}, {max_iter=}")
 
     fpath, msg = check_file_exists(fname, overwrite)
-    if index == -1:
-        logger.debug(f"add_file_chunks first call, creating file {fpath}")
-        if fpath == "":
-            return False, msg
-        f = open(fpath, "w")
-        f.close()
+    logger.debug(f"add_file_chunks first call, creating file {fpath}")
+    if fpath == "":
+        return False, msg
 
-    else:
-        logger.debug(f"adding chunk index {index} to file {fpath}")
-        if fpath == "":
-            return False, msg
+    f = open(fpath, "wb")
+    f.close()
 
-        logger.debug(f"writing {index} / {max_iter} to file {fpath}")
-        with open(fpath, "a") as f:
-            f.write(chunk)
-        logger.debug("write completed")
+    chunks_fname = fname
+    chunks_fsize = fsize
+    chunks_chunk_size = chunk_size
+    chunks_endindex = endindex
+    chunks_fpath = fpath
+    chunks_index = 0
 
-    return fpath, str(index)
+    return fpath, "Successfully initialized file"
+
+
+def add_file_chunks(chunk: bytes):
+    """
+
+    Args:
+        chunk (bytes): 
+
+    Raises:
+        AssertionError: 
+        AssertionError: 
+
+    Returns:
+        int: next expected index from front end
+    """
+    global chunks_fpath, chunks_index
+    # sanity check
+    if chunks_fpath == "":
+        raise AssertionError(f"file path not available when trying to write chunks")
+
+    if chunks_index > chunks_endindex:
+        raise AssertionError(f"max iterations already reached: {chunks_index} > {chunks_endindex}")
+
+    logger.debug(f"writing to file {chunks_fpath} , {chunks_index} / {chunks_endindex}")
+    # write bytes
+    with open(chunks_fpath, "ab") as f:
+        f.write(chunk)
+    logger.debug("write completed")
+
+    chunks_index += 1
+
+    return chunks_index
 
 
 async def ws_add_file_chunks(ws: WebSocket, fname: str, fsize: int, chunk_size: int, overwrite: bool = True):
@@ -179,13 +218,13 @@ def run_microk8s_import(fname: str) -> Tuple[bool, str]:
     return res, f"Successfully imported container {fname}"
 
 
-async def delete_file(fname: str) -> bool:
-    fpath = make_fpath(fname)
-    if not os.path.exists(fpath):
+async def delete_file() -> bool:
+    if not os.path.exists(chunks_fpath):
         return True
     try:
-        os.remove(fpath)
+        os.remove(chunks_fpath)
+        chunks_fpath = ""
         return True
     except Exception as e:
-        logger.error(f"Error when deleting file {fname}: {e}")
+        logger.error(f"Error when deleting file {chunks_fname}: {e}")
         return False

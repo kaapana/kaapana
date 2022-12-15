@@ -44,39 +44,43 @@ async def upload_file(file: UploadFile):
     return Response(msg, 200)
 
 
-@router.post("/file_chunks")
-async def upload_file_chunks(request: Request):
-    logger.debug("in upload_file_chunks")
+@router.post("/file_chunks_init")
+async def file_chunks_init(request: Request):
     try:
         payload = await request.json()
-        logger.info(f"upload file chunks HTTP was called")
-        if "index" not in payload:
-            raise AssertionError("ERROR: can not find key 'index' in request payload, ")
-
-        chunk = payload["chunk"]
-        fpath, msg = await file_handler.add_file_chunks(
+        logger.debug(f"in file_chunks_init, {payload=}")
+        fpath, msg = file_handler.init_file_chunks(
             fname=payload["name"],
             fsize=payload["fileSize"],
             chunk_size=payload["chunkSize"],
             index=payload["index"],
-            endindex=payload["endIndex"],
-            chunk=chunk
+            endindex=payload["endIndex"]
         )
-
-        if fpath == "":
+        if not fpath:
             logger.error(msg)
             return Response(msg, 500)
-
         return Response(msg, 200)
-    
+    except Exception as e:
+        logger.error(f"file chunks init failed {str(e)}")
+        return Response(str(e), 500)
+
+
+@router.post("/file_chunks")
+async def upload_file_chunks(file: UploadFile):
+    try:
+        logger.debug(f"in upload_file_chunks {file.filename}, {file.content_type}")
+        content = await file.read()
+        next_index = file_handler.add_file_chunks(content)
+        return Response(str(next_index), 200)
     except Exception as e:
         logger.error(f"exception: {e}")
         msg = str(e)
-        if 'payload' in locals() and await file_handler.delete_file(payload["name"]):
+        if await file_handler.delete_file():
             msg += "file deleted"
         else:
             msg += "failed to delete file"
-        return Response(msg, 400)
+        return Response(msg, 500)
+
 
 @router.websocket("/file_chunks/{client_id}")
 async def ws_upload_file_chunks(ws: WebSocket, client_id: int):

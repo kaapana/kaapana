@@ -235,6 +235,7 @@ export default Vue.extend({
     conn: null as WebSocket | null,
     uploadChunksMethod: 'http' as string, // set 'ws' for websocket otherwise 'http'
     cancelUpload: false,
+    chunkSize: 10 * 1024 * 1024,
     uploadPerc: 0,
     loading: true,
     polling: 0,
@@ -359,8 +360,7 @@ export default Vue.extend({
     },
     uploadChunksWS() {
       // websocket version
-      let chunkSize = 10 * 1024 * 1024
-      let iters = Math.ceil(this.file.size / chunkSize)
+      let iters = Math.ceil(this.file.size / this.chunkSize)
       let clientID = Date.now();
       // console.log("clientID", clientID)
       let baseURL: any = request.defaults.baseURL
@@ -431,7 +431,7 @@ export default Vue.extend({
             return
           }
 
-          const chunk = this.file.slice(i * chunkSize, (i + 1) * chunkSize);
+          const chunk = this.file.slice(i * this.chunkSize, (i + 1) * this.chunkSize);
           if (this.conn) {
             // console.log("sending ws msg chunk index", i)
             this.conn.send(chunk)
@@ -454,7 +454,7 @@ export default Vue.extend({
       setTimeout(() => {
         if (this.conn) {
           // console.log("sending ws msg", { name: file.name, fileSize: file.size, chunkSize: chunkSize })
-          this.conn.send(JSON.stringify({ name: this.file.name, fileSize: this.file.size, chunkSize: chunkSize }))
+          this.conn.send(JSON.stringify({ name: this.file.name, fileSize: this.file.size, chunkSize: this.chunkSize }))
         }
       }, 1500);
     },
@@ -512,31 +512,55 @@ export default Vue.extend({
           this.uploadChunksWS()
         } else {
           // http version
-          let chunkSize = 5 * 1024 * 1024
-          let iters = Math.ceil(this.file.size / chunkSize)
+          let iters = Math.ceil(this.file.size / this.chunkSize)
 
           // init
-          let params = {
-            name: this.file.name,
-            fileSize: this.file.size,
-            chunkSize: chunkSize,
-            index: -1,
-            endIndex: iters,
-            chunk: "",
-          }
           console.time("uploadFileChunks")
-          this.uploadChunkHTTP(params, -1, iters)
+
+          let payload = {
+            'name': this.file.name,
+            'fileSize': this.file.size,
+            'chunkSize': this.chunkSize,
+            'index': 0,
+            'endIndex': iters,
+          }
+          kaapanaApiService.helmApiPost("/file_chunks_init", payload)
+            .then((resp: any) => {
+              console.log("init file chunks resp", resp)
+              if (resp.status != 200) {
+                console.log("init failed with err", resp.data)
+                this.loadingFile = false
+                this.fileResponse = "Upload Failed: " + String(resp.data)
+                this.file = ''
+                this.cancelUpload = true
+                return
+              } else {
+                let chunk = this.file.slice(0 * this.chunkSize, 1 * this.chunkSize);
+                let formData = new FormData();
+                formData.append('file', chunk);
+
+                this.uploadChunkHTTP(formData, 0, iters)
+              }
+            })
+            .catch((err: any) => {
+              console.log("init failed with err", err)
+              this.loadingFile = false
+              this.fileResponse = "Upload Failed: " + String(err)
+              this.file = ''
+              this.cancelUpload = true
+              return
+            })
         }
 
       }
     },
-    uploadChunkHTTP(params: any, i: number, iters: number) {
+    uploadChunkHTTP(formData: any, i: number, iters: number) {
       console.log("uploading chunk", i, "/", iters)
       kaapanaApiService
-        .helmApiPost("/file_chunks", params)
+        .helmApiPost("/file_chunks", formData)
         .then(async (resp: any) => {
-          console.log("file chunks resp", resp)
-          if (String(resp.data) != String(i) || resp.status != 200) {
+          console.log("i=", i, "file chunks resp", resp)
+          if (String(resp.data) != String(i+1) || resp.status != 200) {
             console.log("error in response", resp)
             this.loadingFile = false
             this.fileResponse = "Upload Failed"
@@ -555,14 +579,15 @@ export default Vue.extend({
               .helmApiGet("/import-container", { filename: this.file.name })
               .then((response: any) => {
                 this.fileResponse = "Successfully imported container " + this.file.name
+                this.file = ''
+                console.log("import failed")
               })
               .catch((err: any) => {
                 console.log(err);
                 this.fileResponse = "Failed to import container " + this.file.name
+                this.file = ''
+                console.log("import failed")
               });
-            this.file = ''
-            console.log("import completed")
-            return
           } else {
             // loop
             if (this.cancelUpload) {
@@ -573,7 +598,7 @@ export default Vue.extend({
             console.log(String(i) + "/" + String(iters), "was successful, proceeding...")
             if (i > 0) this.uploadPerc = Math.floor((i / iters) * 100)
             i++;
-            if (i % 50 == 0) {
+            if (i % 30 == 0) {
               this.$store
                 .dispatch(CHECK_AUTH).then(() => {
                   console.log('still online')
@@ -582,11 +607,10 @@ export default Vue.extend({
                   location.reload()
                 })
             }
-            let chunkBlob = this.file.slice(i * params.chunkSize, (i + 1) * params.chunkSize);
-            const chunk = await chunkBlob.text();
-            params.chunk = chunk
-            params.index = i
-            this.uploadChunkHTTP(params, i, iters)
+            let chunk = this.file.slice(i * this.chunkSize, (i + 1) * this.chunkSize);
+            let formData = new FormData();
+            formData.append('file', chunk);
+            this.uploadChunkHTTP(formData, i, iters)
           }
         })
         .catch((err: any) => {
@@ -618,12 +642,12 @@ export default Vue.extend({
         });
     },
     startExtensionsInterval() {
-      // this.polling = window.setInterval(() => {
-      //   this.getHelmCharts();
-      // }, 5000);
+      this.polling = window.setInterval(() => {
+        this.getHelmCharts();
+      }, 5000);
     },
     clearExtensionsInterval() {
-      // window.clearInterval(this.polling);
+      window.clearInterval(this.polling);
     },
     updateExtensions() {
       this.loading = true;

@@ -43,6 +43,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             print("# No ID found! - exit")
             exit(1)
         try:
+            json_dict = self.produce_inserts(json_dict)
             response = self.os_client.index(
                 index=self.opensearch_index,
                 body=json_dict,
@@ -59,6 +60,28 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         print("#")
         print("# Success")
         print("#")
+
+    def produce_inserts(self, new_json):
+        print("INFO: get old json from index.")
+        try:
+            old_json = self.os_client.get(index=self.opensearch_index, id=self.instanceUID)["_source"]
+            print("Series already found in OS")
+            if self.no_update:
+                raise ValueError('ERROR')
+        except Exception as e:
+            print("doc is not updated! -> not found in os")
+            print(e)
+            old_json = {}
+
+        bpr_key = "predicted_bodypart_string"
+        for new_key in new_json:
+            if new_key == bpr_key and bpr_key in old_json and old_json[bpr_key].lower() != "n/a":
+                continue
+            new_value = new_json[new_key]
+            old_json[new_key] = new_value
+
+        return old_json
+
 
     def start(self, ds, **kwargs):
         global es

@@ -19,7 +19,7 @@ ui_forms = {
                 "description": "Should all nested elements be strigified?",
                 "type": "boolean",
                 "default": True,
-                "readOnly": False,
+                "readOnly": True,
             },
             "single_execution": {
                 "title": "single execution",

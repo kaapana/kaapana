@@ -79,6 +79,7 @@ class Experiment(Base):
     __tablename__ = "experiment"
     id = Column(Integer, primary_key=True)
     experiment_name = Column(String(64))
+    external_experiment_id = Column(Integer)
     username = Column(String(64))
     # cohort_name = Column(String(64), index=True)  # now in a relationship
     time_created = Column(DateTime(timezone=True))
@@ -91,7 +92,8 @@ class Experiment(Base):
     cohort = relationship("Cohort", back_populates="experiments")
     # one-to-many relationships
     # involved_kaapana_instances = relationship("Experiment", back_populates="experiment_in_which_involved")
-    involved_kaapana_instances = Column(String(51200))  # save information in string instead of sqlalchemy relationship - not ideal --> change it in future!
+    # involved_kaapana_instances = Column(String(51200))  # save information in string instead of sqlalchemy relationship - not ideal --> change it in future!
+    involved_kaapana_instances = Column(String(51200), default='[]', index=True)
     experiment_jobs = relationship("Job", back_populates="experiment") #, cascade="all, delete")
 
 

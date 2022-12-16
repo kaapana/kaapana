@@ -76,6 +76,7 @@ class JobBase(BaseModel):
     run_id: str = None
     description: str = None
     external_job_id: int = None # job_id on another system
+    # kaapana_instance_id: int
     owner_kaapana_instance_name: str = None # Remote Kaapana instance that is addressed, not external kaapana_instance_id!
 
 class Job(JobBase):
@@ -171,6 +172,8 @@ class Cohort(CohortBase):
 class ExperimentBase(BaseModel):
     experiment_name: str = None
     experiment_status: str = None
+    external_experiment_id: int = None # experiment_id on another system
+    
 
 class Experiment(ExperimentBase):
     id: int
@@ -179,7 +182,7 @@ class Experiment(ExperimentBase):
     time_created: datetime.datetime
     time_updated: datetime.datetime
     # experiment_jobs: List = []     # List[Job] = [], do NOT include or get recursion error when querying jobs from experiment via 
-    involved_kaapana_instances: Optional[List]
+    involved_kaapana_instances: str # List = []
     cohort_name: str = None
 
     # comment or you will get "pydantic.error_wrappers.ValidationError: 1 validation error for Experiment; response -> experiment_jobs; the JSON object must be str, bytes or bytearray, not list (type=type_error)"
@@ -202,7 +205,7 @@ class ExperimentCreate(ExperimentBase):
     username: str = None
     kaapana_instance_id: int
     experiment_jobs: List = []     # List[Job] = []
-    # involved_kaapana_instances: List[KaapanaInstance] = []
+    involved_kaapana_instances: list = []    
     cohort_name: str = None
 
 class ExperimentUpdate(ExperimentBase):
@@ -210,12 +213,14 @@ class ExperimentUpdate(ExperimentBase):
 
 class ExperimentWithKaapanaInstance(Experiment):
     kaapana_instance: KaapanaInstance = None
+    # involved_kaapana_instances: list = [] 
 
 class KaapanaInstanceWithExperiments(KaapanaInstance):
     experiments: List[Experiment] = []
 
 class JobWithExperiment(Job):
     experiment: Experiment = None
+    # involved_kaapana_instances: Optional[list]  # idk y?
 
 class ExperimentWithJobs(Experiment):
     jobs: List[Job] = []

@@ -23,7 +23,7 @@
         @click:row="expandRow"
       >
         <template v-slot:item.actions="{ item }">
-          <v-menu transition="scale-transition">
+          <v-menu transition="scale-transition"  v-if="item.kaapana_instance.instance_name == clientInstance.instance_name">
             <template v-slot:activator="{ on, attrs }">
               <v-btn color="primary" dark v-bind="attrs" v-on="on" >
                 Action
@@ -41,6 +41,16 @@
               </v-list-item>
             </v-list>
           </v-menu>
+          <div v-else>
+            <v-tooltip bottom>
+              <template v-slot:activator="{ on, attrs }">
+                <v-icon color="primary" dark v-bind="attrs" v-on="on">
+                  mdi-cloud-braces
+                </v-icon>
+              </template>
+              <span>No actions for REMOTE experiments!</span>
+            </v-tooltip>
+          </div>
         </template>
         <template #expanded-item="{headers,item}">
           <td :colspan="headers.length">
@@ -78,7 +88,7 @@ export default {
         { text: 'Updated', value: 'time_updated' },
         { text: 'Username', value: 'username' },
         { text: 'Owner Instance', value: 'kaapana_instance.instance_name' },
-        { text: 'Actions', value: 'actions', sortable: false, filterable: false},
+        { text: 'Actions', value: 'actions', sortable: false, filterable: false, align: 'center'},
       ],
       clientInstance: {},
       clientExperiments: {},
@@ -88,6 +98,7 @@ export default {
       abortID: '',
       restartID: '',
       deleteID: '',
+      hover: false,
     }
   },
 

@@ -245,6 +245,7 @@ export default {
           console.log("Remote Experiment -> federated:", this.federated, ", remote: ,", this.remote)
         }
       }
+      console.log("Experiment executed on: ", this.instance_names)
       kaapanaApiService
         // .federatedClientApiPost("/submit-workflow-schema", {
         .federatedClientApiPost("/experiment", {

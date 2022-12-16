@@ -15,7 +15,7 @@ spec:
         image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         command: ["python", "-u"]
-        args: ["/app/init_collections.py"]
+        args: ["/app/backend/init_collections.py"]
         env: # Environment variables copied from deployment.yaml
         - name: SECRET_KEY
           value: kaapana-secret
@@ -89,7 +89,7 @@ spec:
         image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         command: ["python", "-u"]
-        args: ["/app/preinstall_extensions.py"]
+        args: ["/app/backend/preinstall_extensions.py"]
         env: # Environment variables copied from deployment.yaml
         - name: SECRET_KEY
           value: kaapana-secret
@@ -128,7 +128,7 @@ spec:
         image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         command: ["python", "-u"]
-        args: ["/app/prefetch_extensions.py"]
+        args: ["/app/backend/prefetch_extensions.py"]
         env: # Environment variables copied from deployment.yaml
         - name: SECRET_KEY
           value: kaapana-secret

@@ -271,14 +271,14 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
         print(f'Executing  job {db_job.id}')
         conf_data = json.loads(db_job.conf_data)
         conf_data['client_job_id'] = db_job.id
-        print("db_job.kaapana_instance:", db_job.kaapana_instance, "db_job.dag_id", db_job.dag_id, "db_job.owner_kaapana_instance_name", db_job.owner_kaapana_instance_name)
+        # print("db_job.kaapana_instance:", db_job.kaapana_instance, "db_job.dag_id", db_job.dag_id, "db_job.owner_kaapana_instance_name", db_job.owner_kaapana_instance_name)
         dag_id_and_dataset = check_dag_id_and_dataset(db_job.kaapana_instance, conf_data, db_job.dag_id, db_job.owner_kaapana_instance_name) 
         print("dag_id_and_dataset:", dag_id_and_dataset)
         if dag_id_and_dataset is not None:
             job.status = 'failed'
             job.description = dag_id_and_dataset
         else:
-            print("update_job() right before execute_job()")
+            # print("update_job() right before execute_job()")
             execute_job_airflow(conf_data, db_job)
 
     if (db_job.kaapana_instance.remote != remote) and db_job.status not in ["queued", "finished", "failed"]:
@@ -311,10 +311,21 @@ def sync_client_remote(db: Session,  remote_kaapana_instance: schemas.RemoteKaap
 
     create_and_update_remote_kaapana_instance(
         db=db, remote_kaapana_instance=remote_kaapana_instance, action='external_update')
-    print(f"SYNC_CLIENT_REMOTE for instance_name: {instance_name} ; status: {status}")
+
+    # get jobs on client_kaapana_instance with instance="instance_name" and status="status"
+    print(f"SYNC_CLIENT_REMOTE for instance_name: {instance_name} ; job status: {status}")
     db_incoming_jobs = get_jobs(db, instance_name=instance_name, status=status, remote=True)
     incoming_jobs = [schemas.Job(**job.__dict__).dict() for job in db_incoming_jobs]
-    print(f"SYNC_CLIENT_REMOTE imcoming_jobs: {incoming_jobs}")
+    print(f"SYNC_CLIENT_REMOTE incoming_jobs: {incoming_jobs}")
+
+    # get experiments on client_kaapana_instance which contain incoming_jobs
+    incoming_experiments = []
+    for db_incoming_job in db_incoming_jobs:
+        db_incoming_experiment = get_experiments(db, experiment_job_id=db_incoming_job.id)
+        incoming_experiment = [schemas.Experiment(**experiment.__dict__).dict() for experiment in db_incoming_experiment][0]
+        incoming_experiments.append(incoming_experiment)
+    print(f"SYNC_CLIENT_REMOTE incoming_experiments: {incoming_experiments}")
+
 
     update_remote_instance_payload = {
         "instance_name": db_client_kaapana.instance_name,
@@ -325,6 +336,7 @@ def sync_client_remote(db: Session,  remote_kaapana_instance: schemas.RemoteKaap
     }
     return {
         'incoming_jobs': incoming_jobs,
+        'incoming_experiments': incoming_experiments,
         'update_remote_instance_payload': update_remote_instance_payload
     }
 
@@ -383,13 +395,13 @@ def update_external_job(db: Session, db_job):
 
 
 def get_remote_updates(db: Session, periodically=False):
-    print("WE'RE GETTING REMOTE UPDATES!!!")
+    # print("WE'RE GETTING REMOTE UPDATES!!!")
     db_client_kaapana = get_kaapana_instance(db, remote=False)
-    print(f"db_client_kaapana: {db_client_kaapana}")
+    # print(f"db_client_kaapana: {db_client_kaapana}")
     if periodically is True and db_client_kaapana.automatic_update is False:
         return
     db_remote_kaapana_instances = get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': True}))
-    print(f"db_remote_kaapana_instances: {db_remote_kaapana_instances}")
+    print(f"GET REMOTE UPDATES FROM db_remote_kaapana_instances: {db_remote_kaapana_instances}")
     for db_remote_kaapana_instance in db_remote_kaapana_instances:
         same_instance = db_remote_kaapana_instance.instance_name == settings.instance_name
         update_remote_instance_payload = {
@@ -426,20 +438,36 @@ def get_remote_updates(db: Session, periodically=False):
             raise_kaapana_connection_error(r)
             incoming_data = r.json()
         incoming_jobs = incoming_data['incoming_jobs']
-        print(f"incoming_jobs: {incoming_jobs}") # \n incoming_data: {incoming_data}")
+        incoming_experiments = incoming_data['incoming_experiments']
+        print(f"incoming_jobs: {incoming_jobs}")
+        print(f"incoming_experiments: {incoming_experiments}")
         remote_kaapana_instance = schemas.RemoteKaapanaInstanceUpdateExternal(**incoming_data['update_remote_instance_payload'])
 
         create_and_update_remote_kaapana_instance(db=db, remote_kaapana_instance=remote_kaapana_instance,
                                                   action='external_update')
 
+        # create incoming jobs
+        db_jobs = []
         for incoming_job in incoming_jobs:
-            print('Creating', incoming_job["id"])
+            print('Creating incoming job ', incoming_job["id"])
             incoming_job['kaapana_instance_id'] = db_client_kaapana.id
             incoming_job['owner_kaapana_instance_name'] = db_remote_kaapana_instance.instance_name
             incoming_job['external_job_id'] = incoming_job["id"]
             incoming_job['status'] = "pending"
             job = schemas.JobCreate(**incoming_job)
             db_job = create_job(db, job)
+            db_jobs.append(db_job)
+
+        # create incoming experiments
+        for incoming_experiment in incoming_experiments:
+            print('Creating incoming experiment ', incoming_experiment["experiment_name"])
+            incoming_experiment['kaapana_instance_id'] = db_remote_kaapana_instance.id
+            incoming_experiment['experiment_jobs'] = db_jobs
+            incoming_experiment['external_exp_id'] = incoming_experiment["id"]
+            incoming_experiment['involved_kaapana_instances'] = incoming_experiment["involved_kaapana_instances"][1:-1].split(',')  # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
+            experiment = schemas.ExperimentCreate(**incoming_experiment)
+            db_experiment = create_experiment(db, experiment)
+
 
     return  # schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload)
 
@@ -592,13 +620,13 @@ def update_cohort(db: Session, cohort=schemas.CohortUpdate):
     return db_cohort
 
 def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
-    
+    print("We're in crud.create_experiment()!")
     if experiment.kaapana_instance_id is None:  # experiment has a kaapana_instance_id?
         db_kaapana_instance = db.query(models.KaapanaInstance).filter_by(remote=False).first()  # no: take first element on non-remote Kaapana instances in db
     else:
         db_kaapana_instance = db.query(models.KaapanaInstance).filter_by(id=experiment.kaapana_instance_id).first() # yes: search Kaapana instance in db according to given kaapana_instance_id
     
-    print("We're right before models.Experiment querying!")
+    # print("We're right before models.Experiment querying!")
     if db.query(models.Experiment).filter_by(experiment_name=experiment.experiment_name).first():   # experiment already exists?
         raise HTTPException(status_code=409, detail="Experiment exists already!")                   # ... raise http exception!
     if not db_kaapana_instance:                                                                     # no kaapana_instance found in db in previous "search"?
@@ -607,18 +635,18 @@ def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
     utc_timestamp = get_utc_timestamp()
 
     print(f"We're right before creation of models.Experiment!")
-    print(f"kaapana_id={experiment.kaapana_instance_id} ; username={experiment.username} ; experiment_name={experiment.experiment_name} ; experiment_jobs={experiment.experiment_jobs}")
+    # print(f"kaapana_id={experiment.kaapana_instance_id} ; username={experiment.username} ; experiment_name={experiment.experiment_name} ; experiment_jobs={experiment.experiment_jobs}")
     db_experiment = models.Experiment(
         kaapana_id=experiment.kaapana_instance_id,
         username=experiment.username,
         experiment_name=experiment.experiment_name,
         experiment_jobs=experiment.experiment_jobs,                   # list experiment_jobs already added to experiment in client.py's def create_experiment()
-        # involved_kaapana_instances = experiment.involved_kaapana_instances,
+        involved_kaapana_instances = experiment.involved_kaapana_instances,
         cohort_name=experiment.cohort_name,
         time_created=utc_timestamp,
         time_updated=utc_timestamp
     )
-    print(f"models.Experiment.time_created: {db_experiment.time_created}")  # still working
+    # print(f"models.Experiment.time_created: {db_experiment.time_created}")  # still working
     print("db_experiment successfully created!")    # still working
 
     # TODO: also update all involved_kaapana_instances with the experiment_id in which they are involved
@@ -635,9 +663,13 @@ def get_experiment(db: Session, experiment_id: int):
         raise HTTPException(status_code=404, detail="Experiment not found")
     return db_experiment
 
-def get_experiments(db: Session, instance_name: str = None, limit=None):
+def get_experiments(db: Session, instance_name: str = None, involved_instance_name: str = None, experiment_job_id: int = None, limit=None):
     if instance_name is not None:
         return db.query(models.Experiment).join(models.Experiment.kaapana_instance, aliased=True).filter_by(instance_name=instance_name).order_by(desc(models.Experiment.time_updated)).limit(limit).all()
+    elif involved_instance_name is not None:
+        return db.query(models.Experiment).filter(models.Experiment.involved_kaapana_instances.contains(involved_instance_name)).all()
+    elif experiment_job_id is not None:
+        return db.query(models.Experiment).join(models.Experiment.experiment_jobs, aliased=True).filter_by(id=experiment_job_id).all()
     else:
         return db.query(models.Experiment).join(models.Experiment.kaapana_instance).order_by(desc(models.Experiment.time_updated)).limit(limit).all()   # , aliased=True
 

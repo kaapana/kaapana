@@ -79,9 +79,9 @@
         div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
           .dragdrop-info(@drag='onChange')
             span.fa.fa-cloud-upload.dragdrop-title
-            span.dragdrop-title Drag/select chart(.tgz) or container(.tar) file for upload
+            span.dragdrop-title Drag/select chart(.tgz) file for upload
             .dragdrop-upload-limit-info
-              div file types: tgz,tar  |  max size: 20 GB
+              div file types: tgz  |  max size: 10MB
           input(type='file' @change='onChange')
 
 
@@ -471,11 +471,12 @@ export default Vue.extend({
         return;
       }
 
-      if (file.size > 20000000000) {
-        alert('file size should not be over 20 GB.')
+      let limit = 10000000
+      if (file.size > limit) {
+        alert('file size should not be over 10 MB.')
         this.dragging = false;
         return;
-      } else if (file.size > 50000000) {
+      } else if (file.size > 10000000) {
         console.log("file size greater than 50MB, using async upload")
         uploadChunks = true;
       }
@@ -506,51 +507,51 @@ export default Vue.extend({
             this.fileResponse = "Upload Failed: " + err.data;
           });
       } else {
-        this.uploadPerc = 0;
+        // this.uploadPerc = 0;
 
-        if (this.uploadChunksMethod == "ws") {
-          this.uploadChunksWS()
-        } else {
-          // http version
-          let iters = Math.ceil(this.file.size / this.chunkSize)
+        // if (this.uploadChunksMethod == "ws") {
+        //   this.uploadChunksWS()
+        // } else {
+        //   // http version
+        //   let iters = Math.ceil(this.file.size / this.chunkSize)
 
-          // init
-          console.time("uploadFileChunks")
+        //   // init
+        //   console.time("uploadFileChunks")
 
-          let payload = {
-            'name': this.file.name,
-            'fileSize': this.file.size,
-            'chunkSize': this.chunkSize,
-            'index': 0,
-            'endIndex': iters,
-          }
-          kaapanaApiService.helmApiPost("/file_chunks_init", payload)
-            .then((resp: any) => {
-              console.log("init file chunks resp", resp)
-              if (resp.status != 200) {
-                console.log("init failed with err", resp.data)
-                this.loadingFile = false
-                this.fileResponse = "Upload Failed: " + String(resp.data)
-                this.file = ''
-                this.cancelUpload = true
-                return
-              } else {
-                let chunk = this.file.slice(0 * this.chunkSize, 1 * this.chunkSize);
-                let formData = new FormData();
-                formData.append('file', chunk);
+        //   let payload = {
+        //     'name': this.file.name,
+        //     'fileSize': this.file.size,
+        //     'chunkSize': this.chunkSize,
+        //     'index': 0,
+        //     'endIndex': iters,
+        //   }
+        //   kaapanaApiService.helmApiPost("/file_chunks_init", payload)
+        //     .then((resp: any) => {
+        //       console.log("init file chunks resp", resp)
+        //       if (resp.status != 200) {
+        //         console.log("init failed with err", resp.data)
+        //         this.loadingFile = false
+        //         this.fileResponse = "Upload Failed: " + String(resp.data)
+        //         this.file = ''
+        //         this.cancelUpload = true
+        //         return
+        //       } else {
+        //         let chunk = this.file.slice(0 * this.chunkSize, 1 * this.chunkSize);
+        //         let formData = new FormData();
+        //         formData.append('file', chunk);
 
-                this.uploadChunkHTTP(formData, 0, iters)
-              }
-            })
-            .catch((err: any) => {
-              console.log("init failed with err", err)
-              this.loadingFile = false
-              this.fileResponse = "Upload Failed: " + String(err)
-              this.file = ''
-              this.cancelUpload = true
-              return
-            })
-        }
+        //         this.uploadChunkHTTP(formData, 0, iters)
+        //       }
+        //     })
+        //     .catch((err: any) => {
+        //       console.log("init failed with err", err)
+        //       this.loadingFile = false
+        //       this.fileResponse = "Upload Failed: " + String(err)
+        //       this.file = ''
+        //       this.cancelUpload = true
+        //       return
+        //     })
+        // }
 
       }
     },

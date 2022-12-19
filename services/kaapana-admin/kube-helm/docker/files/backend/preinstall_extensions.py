@@ -1,15 +1,33 @@
 import json
 import os
+import sys
 import time
 from pathlib import Path
-from app.utils import execute_update_extensions, get_manifest_infos, all_successful, cure_invalid_name, helm_install, helm_status, helm_get_manifest
+import logging
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__))+"/app")
+
 from app.config import settings
+from app.utils import all_successful, helm_install, helm_status
+from app.helm_helper import get_kube_objects
+
+
+# create a logger called fastapi so that logs in helm_helper and utils are also visible
+logger = logging.getLogger('fastapi')
+logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+logger.addHandler(ch)
+logger.debug("set fastapi logger level to debug")
 
 errors_during_preinstalling = False
-print('##############################################################################')
-print('Preinstalling extensions on startup!')
-print('##############################################################################')
-preinstall_extensions = json.loads(os.environ.get('PREINSTALL_EXTENSIONS', '[]').replace(',]', ']'))
+logger.info('##############################################################################')
+logger.info('Preinstalling extensions')
+logger.info('##############################################################################')
+preinstall_extensions = json.loads(os.environ.get(
+    'PREINSTALL_EXTENSIONS', '[]').replace(',]', ']'))
 
 releases_installed = {}
 for extension in preinstall_extensions:
@@ -17,23 +35,25 @@ for extension in preinstall_extensions:
     extension_found = False
     for _ in range(10):
         time.sleep(1)
-        extension_path = Path(settings.helm_extensions_cache) / f'{extension["name"]}-{extension["version"]}.tgz'
+        extension_path = Path(settings.helm_extensions_cache) / \
+            f'{extension["name"]}-{extension["version"]}.tgz'
         if extension_path.is_file():
             extension_found = True
             continue
         else:
-            print('Extension not there yet')
+            logger.info('Extension not there yet')
     if extension_found is False:
-        print(f'Skipping {extension_path}, since we could find the extension in the file system')
+        logger.warning(
+            f'Skipping {extension_path}, since we could find the extension in the file system')
         errors_during_preinstalling = True
         continue
     try:
-        resp, helm_command, release_name = helm_install(extension, in_background=False)
+        _, _, _, release_name, _ = helm_install(extension, shell=True, update_state=False)
         releases_installed[release_name] = False
-        print(f"Trying to install chart with {helm_command}", resp)
+        logger.info(f"Trying to install chart {release_name}")
     except Exception as e:
-        print(f'Skipping {extension_path}, since we had problems installing the extension')
-        print(e)
+        logger.error(
+            f'Skipping {extension_path}, since we had problems installing the extension {e}')
         errors_during_preinstalling = True
 if errors_during_preinstalling is True:
     raise NameError('Problems while preinstallting the extensions!')
@@ -42,13 +62,14 @@ for _ in range(7200):
     time.sleep(1)
     for release_name in releases_installed.keys():
         status = helm_status(release_name)
-        manifest = helm_get_manifest(release_name)
-        kube_status, ingress_paths = get_manifest_infos(manifest)
-        releases_installed[release_name] = True if all_successful(set(kube_status['status'] + [status['STATUS']])) == 'yes' else False
+        _, _, ingress_paths, kube_status = get_kube_objects(release_name)
+        releases_installed[release_name] = True if all_successful(
+            set(kube_status['status'] + [status['STATUS']])) == 'yes' else False
     if sum(list(releases_installed.values())) == len(releases_installed):
-        print(f'Sucessfully installed {" ".join(releases_installed.keys())}')
+        logger.info(f'Sucessfully installed {" ".join(releases_installed.keys())}')
         break
 
 if sum(list(releases_installed.values())) != len(releases_installed):
-    raise NameError(f'Not all releases were installed successfully {" ".join(releases_installed.keys())}')
+    raise NameError(
+        f'Not all releases were installed successfully {" ".join(releases_installed.keys())}')
         

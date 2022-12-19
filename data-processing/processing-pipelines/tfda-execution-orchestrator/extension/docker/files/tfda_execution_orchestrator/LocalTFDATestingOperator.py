@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-import yaml
+#import yaml
 import subprocess
 from subprocess import PIPE
 from datetime import datetime
@@ -32,8 +32,9 @@ class LocalTFDATestingOperator(KaapanaPythonBaseOperator):
             try:
                 if format == "json":
                     config_dict = json.load(stream)
-                elif format == "yaml":
-                    config_dict = yaml.safe_load(stream)
+                ## TODO: yaml is out of request now, so commenting out,, can be removed later
+                #elif format == "yaml":
+                    #config_dict = yaml.safe_load(stream)
                 return config_dict
             except Exception as exc:
                 raise AirflowFailException(f"Could not extract configuration due to error: {exc}!!")
@@ -79,11 +80,11 @@ class LocalTFDATestingOperator(KaapanaPythonBaseOperator):
     def start(self, ds, ti, **kwargs):
         operator_dir = os.path.dirname(os.path.abspath(__file__))
         platform_config_path = os.path.join(operator_dir, "platform_specific_configs", "platform_config.json")
-        request_config_path = os.path.join(operator_dir, "request_specific_configs", "request_config.yaml")
+        #request_config_path = os.path.join(operator_dir, "request_specific_configs", "request_config.yaml")
         
         logging.info("Loading platform and request specific configurations...")
         platform_config = self.load_config(platform_config_path, "json")
-        request_config = self.load_config(request_config_path, "yaml")
+        #request_config = self.load_config(request_config_path, "yaml")
         self.extract_info_from_request(request_config)
         
         self.trigger_dag_id = "dag-tfda-execution-orchestrator"

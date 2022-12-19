@@ -83,7 +83,7 @@ put_to_minio = LocalMinioOperator(
     action='put',
     action_operators=[rateme],
     bucket_name="rateme",
-    zip_files=False)
+    zip_files=True)
 
 
 get_input >> rateme >> put_to_minio >> clean

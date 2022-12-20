@@ -21,7 +21,7 @@ spec:
       containers:
       - name: rateme
         image: "{{ .Values.global.registry_url }}/rateme:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy: {{ "Always" }}
         resources:
           requests:
             memory: "10Mi"
@@ -33,14 +33,12 @@ spec:
         env:
         - name: INGRESS_PATH
           value: "/rateme-{{ $uuid }}"
-        - name: MOUNT_PATH
-          value: "{{ .Values.mount_path | default ""}}"
         - name: BATCH_NAME
           value: "{{ .Values.batch_name | default ""}}"
         - name: OPERATOR_OUT_DIR
           value: "{{ .Values.operator_out_dir | default ""}}"
         - name: ANNOTATOR
-          value: "{{ .Values.annotator | default ""}}"
+          value: "{{ .Values.username | default "annotator"}}"
         volumeMounts:
           - name: ratemedata
             mountPath: /data

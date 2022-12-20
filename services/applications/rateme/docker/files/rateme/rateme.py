@@ -66,6 +66,7 @@ class Annotations:
 EXTERNAL_STYLES = [dbc.themes.JOURNAL]
 URL_BASE_PATH = os.getenv('INGRESS_PATH', None)
 OPERATOR_OUT_DIR = os.getenv('OPERATOR_OUT_DIR',"")
+flag_disabled = True if OPERATOR_OUT_DIR else False
 
 if URL_BASE_PATH is not None:
     USER_ID = os.getenv("ANNOTATOR", "annotator")
@@ -548,9 +549,11 @@ def enable_buttons(_, __, data_path: str, user_id: str):
 def update_user(_, user_id: str):
     valid = True if isinstance(user_id, str) else False
     DATA.user = user_id
-    if valid:
+    disabled = valid
+    if disabled:
         TMP_DATA["user"] = user_id
-    return 1 - valid, valid, valid
+        disabled = flag_disabled
+    return 1 - valid, valid, disabled
 
 
 @app.callback(Output('data_path', 'invalid'),
@@ -562,9 +565,11 @@ def update_user(_, user_id: str):
               )
 def update_path(_, data_path: str):
     valid = True if os.path.isdir(data_path) else False
-    if valid:
+    disabled = valid
+    if disabled:
         TMP_DATA["path"] = data_path
-    return bool(1 - valid), valid, valid
+        disabled = flag_disabled
+    return bool(1 - valid), valid, disabled
 
 
 @app.callback(Output('file_badge', 'style'),

@@ -24,7 +24,7 @@ v-dialog(v-model='dialogOpen' max-width='600px')
             v-col(cols='12')
               h3 Remote Workflow
             v-col(cols='12')
-              v-select(v-model='external_instance_names' :items='external_available_instance_names' label='External Instance names' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
+              v-select(v-model='external_instance_names' :items='external_available_instance_names' label='External Instance names' multiple='' chips='' hint='On which (remote) nodes do you want to execute the workflow')
           v-row(v-if="Object.keys(external_schemas).length")
             v-col(v-for="(schema, name) in external_schemas" cols='12')
               p {{name}}
@@ -60,8 +60,8 @@ export default {
   data: () => ({
     valid: false,
     dialogOpen: false,
-    schemas: {},
-    external_schemas: {},
+    schemas: {},   // changed from {} to [] since we're getting a string and no object
+    external_schemas: {}, // changed from {} to [] since we're getting a string and no object
     formData: {},
     // formDataFormatted: {},
     available_dags: [],
@@ -72,7 +72,8 @@ export default {
     experiment_name: null,
     dag_id: null,
     showConfData: false,
-    federated: false,
+    federated_data: false,
+    remote_data:false,
   }),
   props: {
     remote: {
@@ -170,6 +171,12 @@ export default {
 
     },
     getUiFormSchemas() {
+      // console.log("instance_names:", this.instance_names)
+      // this.remote_data = this.remote
+      // if (this.instance_names.indexOf(this.clientinstance.instance_name) !== -1) {  // clientinstance is in instance_names ==> local experiment
+      //     this.remote_data = false;
+      //     console.log("Local Experiment -> remote: ,", this.remote)
+      //   }
       kaapanaApiService
         .federatedClientApiPost("/get-ui-form-schemas", {remote: this.remote, experiment_name: this.experiment_name, dag_id: this.dag_id, instance_names: this.instance_names})
         .then((response) => {
@@ -177,14 +184,16 @@ export default {
           // console.log("remote: ", this.remote)
           // this.remote = schemas["remote"]
           // console.log("remote: ", this.remote)
-          if (this.remote==false && 'external_schemas' in schemas) {
+          // if (this.remote==false && 'external_schemas' in schemas) {
+          if ('external_schemas' in schemas) {
             this.external_dag_id = schemas["external_schemas"]
             delete schemas.external_schemas
           } else {
             this.external_dag_id = null
           }
+          // console.log("before schemas: ", schemas)
           this.schemas = schemas
-          console.log("schemas: ", schemas)
+          console.log("after schemas: ", schemas)
         })
         .catch((err) => {
           console.log(err);
@@ -194,7 +203,9 @@ export default {
       kaapanaApiService
         .federatedClientApiPost("/get-ui-form-schemas",  {remote: true, experiment_name: this.experiment_name, dag_id: this.external_dag_id, instance_names: this.external_instance_names})
         .then((response) => {
+          // console.log("before external_schemas: ", response.data)
           this.external_schemas = response.data
+          console.log("after external_schemas: ", this.external_schemas)
         })
         .catch((err) => {
           console.log(err);
@@ -222,28 +233,29 @@ export default {
         });
     },
     submitWorkflow() {
-      if (this.external_instance_names.length) {
-        this.formData['external_schema_instance_names'] = this.external_instance_names
-      }
-      // modify attributes remote and federated depending on instances 
+      // modify attributes remote_data and federated_data depending on instances 
       console.log("instance_names: ", this.instance_names)
       if (this.instance_names.length > 1) {                             // len(instance_names) > 1 ==> federated experiment
-        this.federated = true;
-        this.remote = true;
-        console.log("Federated Experiment -> federated:", this.federated, ", remote: ,", this.remote)
+        this.federated_data = true;
+        this.remote_data = true;
+        console.log("Federated Experiment -> federated_data:", this.federated_data, ", remote_data: ,", this.remote_data)
       }
       else {                                                            // len(instance_names) = 1 ==> local or remote experiment
         this.federated = false;
         console.log("clientinstance.instance_name: ", this.clientinstance.instance_name)
         console.log("client in instances: ", this.instance_names.indexOf(this.clientinstance.instance_name))
         if (this.instance_names.indexOf(this.clientinstance.instance_name) !== -1) {  // clientinstance is in instance_names ==> local experiment
-          this.remote = false;
-          console.log("Local Experiment -> federated:", this.federated, ", remote: ,", this.remote)
+          this.remote_data = false;
+          console.log("Local Experiment -> federated_data:", this.federated_data, ", remote_data: ,", this.remote_data)
         }
         else {                                                          // clientinstance is not in instance_names ==> remote experiment
-          this.remote = true;
-          console.log("Remote Experiment -> federated:", this.federated, ", remote: ,", this.remote)
+          this.remote_data = true;
+          console.log("Remote Experiment -> federated_data:", this.federated_data, ", remote_data: ,", this.remote_data)
         }
+      }
+      if (this.external_instance_names.length) {
+        this.formData['external_schema_instance_names'] = this.external_instance_names
+        this.federated_data = true
       }
       console.log("Experiment executed on: ", this.instance_names)
       kaapanaApiService
@@ -253,8 +265,8 @@ export default {
           dag_id: this.dag_id,
           instance_names: this.instance_names,          
           conf_data: this.formatFormData(this.formData),
-          remote: this.remote,
-          federated: this.federated,
+          remote: this.remote_data,
+          federated: this.federated_data,
         })
         .then((response) => {
           this.dialogOpen = false

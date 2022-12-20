@@ -276,6 +276,7 @@ async def ui_form_schemas(request: Request, filter_kaapana_instances: schemas.Fi
     if dag_id not in dags:
         raise HTTPException(status_code=404, detail=f"Dag {dag_id} is not part of the allowed dags, please add it!")
     dag = dags[dag_id]
+    print(f"dags: {dags}")
     schemas = dag["ui_forms"]
     # print(f"schemas: {schemas}")
 
@@ -373,7 +374,8 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
 
     conf_data["experiment_form"] = {
         "username": username,
-        "involved_insatances": json_schema_data.instance_names
+        "involved_instances": json_schema_data.instance_names,
+        # "involved_instances": json_schema_data.instance_names if json_schema_data.federated == False else conf_data['external_schema_instance_names']   # changes for federated
     }
 
     if "data_form" in conf_data and "cohort_name" in conf_data["data_form"]:
@@ -391,6 +393,7 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
         print(f"Cohort limit: {cohort_limit}")
     else:
         single_execution = False
+        db_cohort = None
 
     print(f"Conf data: {conf_data}")
     queued_jobs = []
@@ -409,10 +412,12 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
             {
                 'conf_data': conf_data,
                 'dag_id': json_schema_data.dag_id,
+                # 'dag_id': json_schema_data.dag_id if json_schema_data.federated == False else conf_data['external_schema_federated_form']['remote_dag_id'],
                 "username": username
             }
         ]
-    print(f"Queued jobs: {queued_jobs}")    # still works
+
+    print(f"Queued jobs: {queued_jobs}")
     
     db_jobs = []
     db_kaapana_instances = []
@@ -433,14 +438,17 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
         #     db_kaapana_instances.append(db_client_kaapana)
         # else:
         print(f"jobs_to_create: {jobs_to_create}")
+
         db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': json_schema_data.remote, 
                 'instance_names': json_schema_data.instance_names
                 }))
-        db_kaapana_instances.append(db_client_kaapana)
+        if db_client_kaapana.instance_name in conf_data['experiment_form']['involved_instances']:  # add client instance to instance list only if it is marked as an involved_instance of current experiment
+            db_kaapana_instances.append(db_client_kaapana)
         db_kaapana_instances.extend(db_remote_kaapana_instances)
-        db_kaapana_instances = set(db_kaapana_instances)
-        print(f"Experiment-executing Instances: {db_kaapana_instances}")
-        for db_kaapana_instance in db_kaapana_instances:
+        db_kaapana_instances_set = set(db_kaapana_instances)
+        print(f"Experiment-executing Instances: {db_kaapana_instances_set} from db_kaapana_instances: {db_kaapana_instances}")
+
+        for db_kaapana_instance in db_kaapana_instances_set:
             print(f"db_kaapana_instance.id: {db_kaapana_instance.id} ; db_client_kaapana.instance_name: {db_client_kaapana.instance_name}")
             job = schemas.JobCreate(**{
                 "status": "queued",
@@ -453,12 +461,12 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
             db_job = crud.create_job(db, job)
             db_jobs.append(db_job)
             kaapana_instances_names.append(str(json.dumps(db_kaapana_instance.instance_name)))
-    print(f"Jobs successfully created: {db_jobs}")  # still works
+    print(f"Jobs successfully created: {db_jobs}")
 
     # print(f"db_cohort.cohort_name: {db_cohort.cohort_name}")
     # create an experiment and add jobs to it
     print(f"kaapana_instances_names: {kaapana_instances_names}; type-of: {type(kaapana_instances_names)}")
-    kaapana_instances_names = [db_kaapana_instance.instance_name for db_kaapana_instance in db_kaapana_instances]
+    kaapana_instances_names = [db_kaapana_instance.instance_name for db_kaapana_instance in db_kaapana_instances_set]
     print(f"kaapana_instances_names: {kaapana_instances_names}; type-of: {type(kaapana_instances_names)}")
     experiment = schemas.ExperimentCreate(**{
         "experiment_name": json_schema_data.experiment_name,
@@ -466,7 +474,7 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
         "kaapana_instance_id": db_client_kaapana.id,
         "experiment_jobs": db_jobs,
         "involved_kaapana_instances": kaapana_instances_names,
-        "cohort_name": db_cohort.cohort_name,
+        "cohort_name": db_cohort.cohort_name if db_cohort is not None else None,
     })
     print(f"schemas.ExperimentCreate was successful: {experiment}")
     db_experiment = crud.create_experiment(db=db, experiment=experiment)

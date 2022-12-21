@@ -235,24 +235,24 @@ export default {
     submitWorkflow() {
       // modify attributes remote_data and federated_data depending on instances 
       console.log("instance_names: ", this.instance_names)
-      if (this.instance_names.length > 1) {                             // len(instance_names) > 1 ==> federated experiment
-        this.federated_data = true;
+      // if (this.instance_names.length > 1) {                             // len(instance_names) > 1 ==> federated experiment
+      //   this.federated_data = true;
+      //   this.remote_data = true;
+      //   console.log("Federated Experiment -> federated_data:", this.federated_data, ", remote_data: ,", this.remote_data)
+      // }
+      // else {                                                            // len(instance_names) = 1 ==> local or remote experiment
+      this.federated_data = false;
+      console.log("clientinstance.instance_name: ", this.clientinstance.instance_name)
+      console.log("client in instances: ", this.instance_names.indexOf(this.clientinstance.instance_name))
+      if ((this.instance_names.indexOf(this.clientinstance.instance_name) != -1) && (this.instance_names.length == 1)) {  // clientinstance is in instance_names ==> local experiment
+        this.remote_data = false;
+        console.log("Local Experiment -> federated_data:", this.federated_data, ", remote_data: ,", this.remote_data)
+      }
+      else {                                                          // clientinstance is not in instance_names ==> remote experiment
         this.remote_data = true;
-        console.log("Federated Experiment -> federated_data:", this.federated_data, ", remote_data: ,", this.remote_data)
+        console.log("Remote Experiment -> federated_data:", this.federated_data, ", remote_data: ,", this.remote_data)
       }
-      else {                                                            // len(instance_names) = 1 ==> local or remote experiment
-        this.federated = false;
-        console.log("clientinstance.instance_name: ", this.clientinstance.instance_name)
-        console.log("client in instances: ", this.instance_names.indexOf(this.clientinstance.instance_name))
-        if (this.instance_names.indexOf(this.clientinstance.instance_name) !== -1) {  // clientinstance is in instance_names ==> local experiment
-          this.remote_data = false;
-          console.log("Local Experiment -> federated_data:", this.federated_data, ", remote_data: ,", this.remote_data)
-        }
-        else {                                                          // clientinstance is not in instance_names ==> remote experiment
-          this.remote_data = true;
-          console.log("Remote Experiment -> federated_data:", this.federated_data, ", remote_data: ,", this.remote_data)
-        }
-      }
+      // }
       if (this.external_instance_names.length) {
         this.formData['external_schema_instance_names'] = this.external_instance_names
         this.federated_data = true

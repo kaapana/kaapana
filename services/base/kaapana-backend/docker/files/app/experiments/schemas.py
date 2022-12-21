@@ -199,10 +199,10 @@ class Experiment(ExperimentBase):
     id: int
     username: str = None
     status: str = None
-    time_created: datetime.datetime
-    time_updated: datetime.datetime
+    time_created: datetime.datetime = None
+    time_updated: datetime.datetime = None
     # experiment_jobs: List = []     # List[Job] = [], do NOT include or get recursion error when querying jobs from experiment via 
-    involved_kaapana_instances: str # List = []
+    involved_kaapana_instances: str = None  # List = []
     cohort_name: str = None
 
     # comment or you will get "pydantic.error_wrappers.ValidationError: 1 validation error for Experiment; response -> experiment_jobs; the JSON object must be str, bytes or bytearray, not list (type=type_error)"
@@ -229,7 +229,9 @@ class ExperimentCreate(ExperimentBase):
     cohort_name: str = None
 
 class ExperimentUpdate(ExperimentBase):
-    experiment_id: int
+    experiment_id: Optional[int]            # either experiment_id ...
+    experiment_name: Optional[str] = None   # ... or experiment_name
+    experiment_jobs: List = []
 
 class ExperimentWithKaapanaInstance(Experiment):
     kaapana_instance: KaapanaInstance = None

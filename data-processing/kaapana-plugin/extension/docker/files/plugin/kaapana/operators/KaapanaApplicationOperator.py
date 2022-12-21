@@ -85,7 +85,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
     def uninstall_helm_chart(kwargs):
         release_name = get_release_name(kwargs)
         url = f'{KaapanaApplicationOperator.HELM_API}/helm-delete-chart'
-        r = requests.get(url, params={'release_name': release_name})
+        r = requests.post(url, params={'release_name': release_name})
         r.raise_for_status()
         print(r)
         print(r.text)

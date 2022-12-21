@@ -32,7 +32,10 @@ class ExtensionService:
         return self.get_helm_api_json('/extensions')
 
     def delete(self, name: str, version: str):
-        return self.get_helm_api_json('/helm-delete-chart', params={'release_name': name,'release_version': version})
+        r = requests.post(self.helm_api + '/helm-delete-chart', params={'release_name': name,'release_version': version})
+        if not r.ok:
+            raise Exception(f"Return status: {r.status_code}: {r.text}")
+        return { "message": r.text, "status_code": r.status_code }
 
     def health(self):
         return self.get_helm_api_json('/health-check', text_response=True)

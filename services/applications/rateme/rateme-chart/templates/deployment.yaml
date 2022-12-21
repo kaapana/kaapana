@@ -21,7 +21,7 @@ spec:
       containers:
       - name: rateme
         image: "{{ .Values.global.registry_url }}/rateme:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy: {{ "Always" }}
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           requests:
             memory: "10Mi"

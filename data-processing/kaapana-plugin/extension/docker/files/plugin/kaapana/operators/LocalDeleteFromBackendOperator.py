@@ -6,7 +6,7 @@ from pathlib import Path
 import pydicom
 import requests
 
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, SERVICES_NAMESPACE
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -29,7 +29,7 @@ class LocalDeleteFromBackendOperator(KaapanaPythonBaseOperator):
                 incoming_dcm = pydicom.dcmread(dcm_files[0])
                 series_uid = incoming_dcm.SeriesInstanceUID
                 resp = requests.delete(
-                    f'http://kaapana-backend-service.base.svc:5000/client/identifier?identifier={series_uid}'
+                    f'http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client/identifier?identifier={series_uid}'
                 )
                 if resp.status_code != 200:
                     print(f'Failed to delete {series_uid} from backend with: [{resp.status_code}] {resp.text}')
@@ -41,7 +41,7 @@ class LocalDeleteFromBackendOperator(KaapanaPythonBaseOperator):
                         metadata = json.load(fs)
                         series_uid = metadata['0020000E SeriesInstanceUID_keyword']
                         resp = requests.delete(
-                            f'http://kaapana-backend-service.base.svc:5000/client/identifier?identifier={series_uid}'
+                            f'http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client/identifier?identifier={series_uid}'
                         )
                         if resp.status_code != 200:
                             print(f'Failed to delete {series_uid} from backend with: [{resp.status_code}] {resp.text}')

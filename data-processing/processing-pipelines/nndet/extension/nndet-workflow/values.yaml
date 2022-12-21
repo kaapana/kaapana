@@ -1,0 +1,4 @@
+---
+global:
+    image: "dag-nndet"
+    action: "copy"

@@ -1,0 +1,8 @@
+---
+apiVersion: v1
+appVersion: "11-22"
+description: nnDet workflow for inference
+name: nndet-workflow
+version: "0.0.0"
+keywords:
+- kaapanaworkflow

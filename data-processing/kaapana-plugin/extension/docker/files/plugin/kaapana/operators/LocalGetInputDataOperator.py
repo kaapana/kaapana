@@ -40,7 +40,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         if config is not None and "form_data" in config and config["form_data"] is not None and "input" in config[
             "form_data"]:
             dag_modality = config["form_data"]["input"].lower()
-            if dag_modality == "ct" or dag_modality == "mri" or dag_modality == "mrt" or dag_modality == "seg" or dag_modality == "ot":
+            if dag_modality == "ct" or dag_modality == "mri" or dag_modality == "mrt" or dag_modality == "seg" or dag_modality == "ot" or dag_modality == "xr":
                 if input_modality != dag_modality:
                     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -210,7 +210,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     raise ValueError('ERROR')
 
                 if "modality" in dcm_uid and self.check_modality:
-                    modality = dcm_uid["modality"]
+                    modality = dcm_uid["curated_modality"]
                     self.check_dag_modality(input_modality=modality)
 
                 study_uid = dcm_uid["study-uid"]

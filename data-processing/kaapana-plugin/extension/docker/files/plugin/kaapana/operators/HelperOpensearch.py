@@ -9,6 +9,7 @@ class HelperOpensearch():
     SOPInstanceUID_tag = "00080018 SOPInstanceUID_keyword"
     modality_tag = "00080060 Modality_keyword"
     protocol_name = "00181030 ProtocolName_keyword"
+    curated_modality_tag = "curated_modality"
 
     host = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
     port = "9200"
@@ -39,7 +40,8 @@ class HelperOpensearch():
         queryDict = {}
         queryDict["query"] = query
         queryDict["_source"] = {"includes": [HelperOpensearch.study_uid_tag, HelperOpensearch.series_uid_tag,
-                                             HelperOpensearch.SOPInstanceUID_tag, HelperOpensearch.modality_tag, HelperOpensearch.protocol_name]}
+                                             HelperOpensearch.SOPInstanceUID_tag, HelperOpensearch.modality_tag, HelperOpensearch.protocol_name,
+                                             HelperOpensearch.curated_modality_tag]}
 
         try:
             res = HelperOpensearch.os_client.search(index=[index], body=queryDict, size=10000, from_=0)
@@ -83,7 +85,8 @@ class HelperOpensearch():
                     HelperOpensearch.study_uid_tag,
                     HelperOpensearch.series_uid_tag,
                     HelperOpensearch.SOPInstanceUID_tag,
-                    HelperOpensearch.modality_tag
+                    HelperOpensearch.modality_tag,
+                    HelperOpensearch.curated_modality_tag
                 ]
             }
         }
@@ -101,7 +104,8 @@ class HelperOpensearch():
                     'dcm-uid': {
                         'study-uid': hit['_source']['0020000D StudyInstanceUID_keyword'],
                         'series-uid': hit['_source']['0020000E SeriesInstanceUID_keyword'],
-                        'modality': hit['_source']['00080060 Modality_keyword']
+                        'modality': hit['_source']['00080060 Modality_keyword'],
+                        'curated_modality': hit['_source']['curated_modality']
                     }
                 })
             return dcm_uids

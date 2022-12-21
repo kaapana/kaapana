@@ -294,7 +294,7 @@ def sync_client_remote(db: Session,  remote_kaapana_instance: schemas.RemoteKaap
     incoming_experiments = []
     for db_incoming_job in db_incoming_jobs:
         db_incoming_experiment = get_experiments(db, experiment_job_id=db_incoming_job.id)
-        incoming_experiment = [schemas.Experiment(**experiment.__dict__).dict() for experiment in db_incoming_experiment][0]
+        incoming_experiment = [schemas.Experiment(**experiment.__dict__).dict() for experiment in db_incoming_experiment][0] if len(db_incoming_experiment) > 0 else None
         incoming_experiments.append(incoming_experiment)
     print(f"SYNC_CLIENT_REMOTE incoming_experiments: {incoming_experiments}")
 
@@ -548,8 +548,11 @@ def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
     db.refresh(db_experiment)
     return db_experiment
 
-def get_experiment(db: Session, experiment_id: int):
-    db_experiment = db.query(models.Experiment).filter_by(id=experiment_id).first()
+def get_experiment(db: Session, experiment_id: int = None, experiment_name: str = None):
+    if experiment_id is not None:
+        db_experiment = db.query(models.Experiment).filter_by(id=experiment_id).first()
+    elif experiment_name is not None:
+        db_experiment = db.query(models.Experiment).filter_by(experiment_name=experiment_name).first()
     if not db_experiment:
         raise HTTPException(status_code=404, detail="Experiment not found")
     return db_experiment
@@ -608,6 +611,32 @@ def update_experiment(db: Session, experiment=schemas.ExperimentUpdate):
     db.refresh(db_experiment)
 
     return db_experiment
+
+def put_experiment_jobs(db: Session, experiment=schemas.ExperimentUpdate):
+    utc_timestamp = get_utc_timestamp()
+
+    print(f'Updating client experiment {experiment.experiment_name} with new experiment_jobs!')
+    print(f"ExperimentUpdate: {experiment}")
+    db_experiment = get_experiment(db, experiment_name=experiment.experiment_name)
+
+    # get db_jobs via job_id which should be added to db_experiment
+    db_jobs = []
+    for experiment_job in experiment.experiment_jobs:
+        db_job = get_job(db, experiment_job["id"])
+        db_jobs.append(db_job)
+    print(f"db_jobs: {db_jobs}")
+
+    # add dat shit to dat experiment
+    print(f"db_experiment.experiment_jobs before adding additional experiment_jobs: {db_experiment.experiment_jobs}")
+    db_experiment.experiment_jobs.extend(db_jobs)
+    print(f"db_experiment.experiment_jobs after adding additional experiment_jobs: {db_experiment.experiment_jobs}")
+
+    db_experiment.time_updated = utc_timestamp
+    db.commit()
+    db.refresh(db_experiment)
+
+    return db_experiment
+
 
 def delete_experiment(db: Session, experiment_id: int):
     db_experiment = get_experiment(db, experiment_id)   # get db's db_experiment object

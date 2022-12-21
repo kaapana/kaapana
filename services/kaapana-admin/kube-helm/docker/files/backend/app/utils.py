@@ -347,7 +347,7 @@ def helm_install(
     if success and update_state and version is not None:
         helm_helper.update_extension_state(
             schemas.ExtensionStateUpdate.construct(
-                extension_name=name,
+                extension_name=release_name,
                 extension_version=version,
                 state=schemas.ExtensionStateType.INSTALLED,
             )

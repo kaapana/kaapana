@@ -28,10 +28,16 @@ class HelperDcmWeb():
             'SeriesInstanceUID': seriesUID
         }
         url = HelperDcmWeb.pacs_dcmweb + "/rs/instances"
-        httpResponse = requests.get(url, params=payload)
-        if httpResponse.status_code == 200:
-            return True
-        else:
+        try:
+            httpResponse = requests.get(url, params=payload)
+            if httpResponse.status_code == 200:
+                return True
+            else:
+                return False
+        except Exception as e: 
+            print("Something went wrong during the request.")
+            print(e)
+            print("Retry.")
             return False
     
     @staticmethod

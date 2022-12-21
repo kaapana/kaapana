@@ -375,10 +375,16 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
     conf_data = json_schema_data.conf_data
     # print(f"Here comes the one and only conf_data: {conf_data}")
 
+    print(f"json_schema_data.instance_names: {json_schema_data.instance_names}")
+    if json_schema_data.federated:  # == True ;-)
+        involved_instance_names = copy.deepcopy(json_schema_data.instance_names)
+        involved_instance_names.extend(conf_data['external_schema_instance_names'])
+    print(f"json_schema_data.instance_names: {json_schema_data.instance_names}")
     conf_data["experiment_form"] = {
         "username": username,
-        "involved_instances": json_schema_data.instance_names,
-        # "involved_instances": json_schema_data.instance_names if json_schema_data.federated == False else conf_data['external_schema_instance_names']   # changes for federated
+        "experiment_name": json_schema_data.experiment_name,
+        "involved_instances": json_schema_data.instance_names if json_schema_data.federated == False else involved_instance_names, # instances on which experiment is created!
+        "runner_instances": json_schema_data.instance_names    # instances on which jobs of experiment are created!
     }
 
     if "data_form" in conf_data and "cohort_name" in conf_data["data_form"]:
@@ -422,30 +428,22 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
 
     print(f"Queued jobs: {queued_jobs}")
     
+    # create jobs on conf_data["experiment_form"]["runner_instances"]
     db_jobs = []
     db_kaapana_instances = []
     kaapana_instances_names = []
     for jobs_to_create in queued_jobs: 
-        # if json_schema_data.remote == False: # and json_schema_data.federated == False:    # experiment is completely local --> all jobs are local jobs!
-        #     print(f"jobs_to_create: {jobs_to_create}")
-        #     job = schemas.JobCreate(**{
-        #         "status": "pending",
-        #         "kaapana_instance_id": db_client_kaapana.id,
-        #         "owner_kaapana_instance_name": db_client_kaapana.instance_name,
-        #         **jobs_to_create
-        #     })
-        #     # print("schemas.JobCreate was successful!")
-        #     db_job = crud.create_job(db, job)
-        #     # print("crud.create_job() was successful!")
-        #     db_jobs.append(db_job)
-        #     db_kaapana_instances.append(db_client_kaapana)
-        # else:
         print(f"jobs_to_create: {jobs_to_create}")
 
+        # db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': json_schema_data.remote, 
+        #         'instance_names': json_schema_data.instance_names
+        #         }))
         db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': json_schema_data.remote, 
-                'instance_names': json_schema_data.instance_names
+                'instance_names': conf_data["experiment_form"]["runner_instances"]
                 }))
-        if db_client_kaapana.instance_name in conf_data['experiment_form']['involved_instances']:  # add client instance to instance list only if it is marked as an involved_instance of current experiment
+        # if db_client_kaapana.instance_name in conf_data['experiment_form']['involved_instances']:  # add client instance to instance list only if it is marked as an involved_instance of current experiment
+        #     db_kaapana_instances.append(db_client_kaapana)
+        if db_client_kaapana.instance_name in conf_data['experiment_form']['runner_instances']:  # add client instance to instance list only if it is marked as an involved_instance of current experiment
             db_kaapana_instances.append(db_client_kaapana)
         db_kaapana_instances.extend(db_remote_kaapana_instances)
         db_kaapana_instances_set = set(db_kaapana_instances)
@@ -466,8 +464,7 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
             kaapana_instances_names.append(str(json.dumps(db_kaapana_instance.instance_name)))
     print(f"Jobs successfully created: {db_jobs}")
 
-    # print(f"db_cohort.cohort_name: {db_cohort.cohort_name}")
-    # create an experiment and add jobs to it
+    # create an experiment with involved_instances=conf_data["experiment_form"]["involved_instances"] and add jobs to it
     print(f"kaapana_instances_names: {kaapana_instances_names}; type-of: {type(kaapana_instances_names)}")
     kaapana_instances_names = [db_kaapana_instance.instance_name for db_kaapana_instance in db_kaapana_instances_set]
     print(f"kaapana_instances_names: {kaapana_instances_names}; type-of: {type(kaapana_instances_names)}")
@@ -476,20 +473,21 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
         "username": username,
         "kaapana_instance_id": db_client_kaapana.id,
         "experiment_jobs": db_jobs,
-        "involved_kaapana_instances": kaapana_instances_names,
+        # "involved_kaapana_instances": kaapana_instances_names,
+        "involved_kaapana_instances": conf_data["experiment_form"]["involved_instances"],
         "cohort_name": db_cohort.cohort_name if db_cohort is not None else None,
     })
     print(f"schemas.ExperimentCreate was successful: {experiment}")
     db_experiment = crud.create_experiment(db=db, experiment=experiment)
     print("crud.create_experiment() was successful")
-    print(f"Experiment's involved instances: {db_experiment.involved_kaapana_instances}")   # works
+    print(f"Experiment's involved instances: {db_experiment.involved_kaapana_instances}")
 
     return db_experiment
 
 # get_experiment
-@router.get("/experiment", response_model=schemas.Experiment) # response_model=schemas.ExperimentWithKaapanaInstance
-async def get_experiment(experiment_id: int, db: Session = Depends(get_db)):
-    return crud.get_experiment(db, experiment_id)
+@router.get("/experiment", response_model=schemas.ExperimentWithKaapanaInstance) # response_model=schemas.ExperimentWithKaapanaInstance
+async def get_experiment(experiment_id: int = None, experiment_name: str = None, db: Session = Depends(get_db)):
+    return crud.get_experiment(db, experiment_id, experiment_name)
 
 # get_experiments
 @router.get("/experiments", response_model=List[schemas.ExperimentWithKaapanaInstance]) # also okay: response_model=List[schemas.Experiment]
@@ -534,6 +532,11 @@ async def put_experiment(experiment: schemas.ExperimentUpdate, db: Session = Dep
         pass
     else:
         return crud.update_experiment(db, experiment)
+
+# endpoint to update an experiment with additional experiment_jobs
+@router.put("/experiment_jobs", response_model=schemas.Experiment)
+async def put_experiment_jobs(experiment: schemas.ExperimentUpdate, db: Session = Depends(get_db)):
+    return crud.put_experiment_jobs(db, experiment)
 
 # delete_experiment
 @router.delete("/experiment")

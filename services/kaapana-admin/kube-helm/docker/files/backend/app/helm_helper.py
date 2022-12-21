@@ -173,7 +173,7 @@ def add_extension_to_dict(
                         chart_info['links'] = ingress_paths
                         chart_info['ready'] = deployment_ready
                         latest_kube_status = concatenated_states["ready"]
-                        all_links.extend(ingress_paths)
+                        # all_links.extend(ingress_paths)
                     else:
                         logger.error(
                             f"Could not request kube-state of: {chart_deployment['name']}")
@@ -196,7 +196,7 @@ def add_extension_to_dict(
         global_extensions_dict[extension_name].latest_version = sorted(list(
             global_extensions_dict[extension_name].available_versions.keys()), key=LooseVersion, reverse=True)[-1]
 
-    global_extensions_dict[extension_name].installed = "yes" if extension_installed else "no"
+    global_extensions_dict[extension_name].installed = "yes" if (extension_installed and global_extensions_dict[extension_name].multiinstallable == "no") else "no"
     global_extensions_dict[extension_name].helmStatus = latest_helm_status
     global_extensions_dict[extension_name].kubeStatus = latest_kube_status
     global_extensions_dict[extension_name].links = all_links
@@ -211,10 +211,13 @@ def add_info_from_deployments(
     extension_info: schemas.KaapanaExtension,
     result_list: List[schemas.KaapanaExtension]
 ):
+    dep_exists = False
+
     for version, version_content in extension_info.available_versions.items():
         # logger.debug("extension_info.available_versions {0}".format(extension_info.available_versions))
         # logger.debug("version_content {0}".format(version_content))
         if len(version_content.deployments) > 0:
+            dep_exists = True
             # go through deployment and pass info to extension level
             for deployment in version_content.deployments:
                 chart_template = extension_info.copy()
@@ -223,6 +226,7 @@ def add_info_from_deployments(
                 chart_template.successful = "yes" if deployment.ready else "pending"
                 chart_template.helmStatus = deployment.helm_status.capitalize()
                 chart_template.kubeStatus = None
+                chart_template.links = deployment.links
                 if deployment.kube_info is not None:
                     chart_template.kubeStatus = [i.capitalize() for i in deployment.kube_info.status]
 
@@ -236,7 +240,14 @@ def add_info_from_deployments(
         else:
             # no deployments
             extension_info.releaseName = extension_info.chart_name
+            # extension_info.installed = "no" # TODO: might be necessary
             result_list.append(extension_info)
+
+    if dep_exists and extension_info.multiinstallable == "yes":
+        extension_info.releaseName = extension_info.chart_name
+        extension_info.installed = "no"
+        result_list.append(extension_info)
+
     return result_list
 
 
@@ -302,7 +313,7 @@ def get_extensions_list() -> Union[List[schemas.KaapanaExtension], None]:
                 # TODO: make global_extensions_dict_cached actually a Dict so that double loop isn't necessary
                 for i, ext in enumerate(global_extensions_dict_cached):
                     for j, rec_upd_ext in enumerate(res):
-                        if ext.chart_name == rec_upd_ext.chart_name:
+                        if ext.release_name == rec_upd_ext.release_name:
                             global_extensions_dict_cached[i] = rec_upd_ext
                             logger.debug(
                                 "value updated in global_extensions_dict_cached from {0} to {1}".format(
@@ -672,7 +683,7 @@ def get_recently_updated_extensions() -> List[schemas.KaapanaExtension]:
         ext_state = global_extension_states[key]
         # TODO: instead of this, update the extension in global_extensions_dict_cached
         for i, ext in enumerate(global_extensions_dict_cached):
-            if ext.chart_name == ext_state.extension_name:
+            if ext.release_name == ext_state.extension_name:
                 res.append((i, global_extensions_dict_cached[i]))
         if len(res) > 1:
             logger.error("Found more than one matching charts for {0} in cached extensions dict".format(ext_state.extension_name))

@@ -1,0 +1,54 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    - target: "{{ target_host }}"
+      default: "10.128.128.218"
+  tasks:
+    - add_host:
+        name: "{{ target }}"
+        groups: os_server
+
+- name: Run container workflow on data in isolated environment
+  hosts: os_server
+  strategy: free
+  gather_facts: yes
+  remote_user: "{{ remote_username }}"
+  vars:
+    ansible_ssh_private_key_file: ~/.ssh/{{ ssh_key_name }}
+    dst_results_dir: /home/{{ remote_username }}/results
+  environment:
+    PATH: '/home/{{ remote_username }}/.local/bin:{{ ansible_env.PATH }}'
+
+  tasks:
+    - name: Check if all required variables are passed using --extra-vars
+      fail:
+        msg: "Variable {{ item }} not defined"
+      when: item is not defined
+      with_items:
+        - "{{ ssh_key_name }}"
+
+    - name: Create results directory if it doesn't exist
+      file:
+        path: "{{ dst_results_dir }}"
+        state: directory
+        recurse: yes
+
+    - name: Load container via Docker
+      community.docker.docker_image_load:
+        path: /home/{{ remote_username }}/algorithm_files/{{ user_selected_algo }}/{{ user_selected_algo }}.tar
+      register: result
+
+    - name: Print the loaded image names
+      ansible.builtin.debug:
+        msg: "Loaded the following images: {{ result.image_names | join(', ') }}"
+    
+    - name: Run the loaded docker container
+      command: docker run "{{ user_selected_algo }}"
+      register: docker_run
+
+    - debug:
+        var: docker_run
+        verbosity: 2
+
+

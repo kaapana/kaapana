@@ -1,0 +1,54 @@
+---
+- hosts: localhost
+  gather_facts: yes
+  vars:
+    - target: "{{ target_host }}"
+      default: "10.128.128.218"
+  tasks:
+    - add_host:
+        name: "{{ target }}"
+        groups: os_server
+    
+    - name: Download requested packages for offline installation later
+      become: yes
+      command: "python3 -m pip download -d {{ download_pkg_path }} -r {{ requirements_filepath }}"
+
+- name: Prepare isolated environment with additional dependencies
+  hosts: os_server
+  strategy: free
+  gather_facts: yes
+  remote_user: "{{ remote_username }}"
+  vars:
+    ansible_ssh_private_key_file: ~/.ssh/{{ ssh_key_name }}
+    src_download_pkg_path: "{{ download_pkg_path }}"
+    dst_download_pkg_path: /home/{{ remote_username }}/downloaded_packages
+    dst_requirements_path: /home/{{ remote_username }}/requirements.txt
+  environment:
+    PATH: '/home/{{ remote_username }}/.local/bin:{{ ansible_env.PATH }}'
+
+  tasks:
+    - name: Copy requirements file to isolated environment
+      become: yes
+      copy: 
+        src: "{{ requirements_filepath }}"
+        dest: "{{ dst_requirements_path }}"
+        # directory_mode: yes
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_id }}"
+
+    - name: Copy downloaded packages into isolated environment
+      become: yes
+      copy:
+        src: "{{ src_download_pkg_path }}/"
+        dest: "{{ dst_download_pkg_path }}"
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_id }}"
+
+    - name: Install requested Python packages
+      become: yes
+      command: "python3 -m pip install --no-index --find-links {{ dst_download_pkg_path }} -r {{ dst_requirements_path }}"
+      register: install_deps
+
+    - debug:
+        var: install_deps
+        verbosity: 2

@@ -1,0 +1,44 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    - target: "{{ target_host }}"
+      default: 10.133.26.2"
+  fail:
+    msg: 'variable {{item}} not defined'
+  when: item is not defined
+  with_items:
+      - "{{ fast_data_dir }}"
+      - "{{ slow_data_dir }}"
+
+  tasks:
+    - add_host:
+        name: "{{ target }}"
+        groups: os_server
+
+- name: Purge filesystem 
+  hosts: os_server
+  strategy: free
+  remote_user: root
+  vars:
+    #TODO: change hardcoded
+    ansible_ssh_private_key_file: ~/.ssh/tfda_iso.pem
+
+  tasks:
+  - name: Delete service files
+    file:
+      path: "{{ fast_data_dir }}"
+      state: absent
+
+  - name: Delete dicom files
+    file:
+      path: "{{ slow_data_dir }}"
+      state: absent
+
+  - name: RESULT
+    debug:
+      msg: "PURGED FILESYSTEM SUCCESSFULLY"
+  
+  - name: RETURN
+    debug:
+      msg: "OK"

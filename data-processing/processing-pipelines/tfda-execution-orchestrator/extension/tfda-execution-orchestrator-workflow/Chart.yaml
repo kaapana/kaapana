@@ -1,0 +1,8 @@
+---
+apiVersion: v1
+appVersion: "0.0.1"
+description: TFDA execution orchestrator for secure and trusted algorithm execution
+name: tfda-execution-orchestrator-workflow
+version: "0.0.0"
+keywords:
+- kaapanaworkflow

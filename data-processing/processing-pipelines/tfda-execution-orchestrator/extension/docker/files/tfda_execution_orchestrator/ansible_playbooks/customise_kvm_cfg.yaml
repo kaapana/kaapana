@@ -1,0 +1,36 @@
+- name: Modify domain name
+  xml:
+    path: "{{ vm_config_container_filepath }}"
+    xpath: /domain/name
+    value: "{{ vm_name }}"
+  delegate_to: 127.0.0.1
+
+- name: Customise number of VCPUs
+  xml:
+    path: "{{ vm_config_container_filepath }}"
+    xpath: /domain/vcpu
+    value: "{{ vm_vcpus }}"
+  delegate_to: 127.0.0.1
+
+- name: Modify base image filepath
+  xml:
+    path: "{{ vm_config_container_filepath }}"
+    xpath: /domain/devices/disk/source
+    attribute: file
+    value: "{{ libvirt_img_filepath }}"
+  delegate_to: 127.0.0.1
+
+- name: RAM in MegaBytes
+  xml:
+    path: "{{ vm_config_container_filepath }}"
+    xpath: /domain/memory
+    attribute: unit
+    value: "MiB"
+  delegate_to: 127.0.0.1
+
+- name: Customise RAM memory
+  xml:
+    path: "{{ vm_config_container_filepath }}"
+    xpath: /domain/memory
+    value: "{{ vm_ram_mb }}"
+  delegate_to: 127.0.0.1

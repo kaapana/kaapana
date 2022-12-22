@@ -1,0 +1,54 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    - target: "{{ target_host }}"
+      default: "10.128.128.218"
+  tasks:
+    - add_host:
+        name: "{{ target }}"
+        groups: os_server
+
+- name: Fetch results from isolated execution environment
+  hosts: os_server
+  strategy: free
+  gather_facts: yes
+  remote_user: "{{ remote_username }}"
+  vars:
+    ansible_ssh_private_key_file: ~/.ssh/{{ ssh_key_name }}
+    vm_results_dir: /home/{{ remote_username }}/results
+  environment:
+    PATH: '/home/{{ remote_username }}/.local/bin:{{ ansible_env.PATH }}'
+
+  tasks:
+    - name: Check if all required variables are passed using --extra-vars
+      fail:
+        msg: "Variable {{ item }} not defined"
+      when: item is not defined
+      with_items:
+        - "{{ ssh_key_name }}"
+    
+    - name: Check if actually result files exist
+      find:
+        path: "{{ vm_results_dir }}"
+        #patterns: 'result.yaml'
+        file_type: file
+        recurse: yes
+      register: result_files
+      failed_when: result_files.matched == 0
+
+    - name: Create an archive of results into a zip file
+      archive: 
+        path: 
+        - "{{ vm_results_dir }}"
+        dest: "{{ vm_results_dir }}_{{ '%Y-%m-%d' | strftime }}.zip"
+        format: zip
+
+
+    - name: Fetch results from isolated environment
+      become: yes
+      ## Currently Ansible doesn't directly support directory/recursive copying from remote to local
+      fetch:
+        src: "{{ vm_results_dir }}_{{ '%Y-%m-%d' | strftime }}.zip"
+        dest: "{{ results_path }}/"
+        flat: yes

@@ -57,6 +57,9 @@ dependencies:
   - name: tensorboard-chart
     version: 0.0.0
     repository: file://../../services/applications/tensorboard/tensorboard-chart 
+  - name: tfda-execution-orchestrator-workflow
+    version: 0.0.0
+    repository: file://../../data-processing/processing-pipelines/tfda-execution-orchestrator/extension/tfda-execution-orchestrator-workflow
   - name: openedc-chart
     version: 0.0.0
     repository: file://../../services/applications/openEDC/openedc-chart

@@ -1,0 +1,80 @@
+{
+  "default_platform": {
+    "shell_execute": "qemu_kvm",
+    "kaapana_workflow": "openstack"
+  },
+  "platform_config": {
+    "openstack": {
+      "default_flavor": {
+        "shell_execute": "flavor_1",
+        "kaapana_workflow": "flavor_2"
+      },
+      "platform_flavors": {
+        "flavor_1": {
+          "username": "",
+          "password": "",
+          "os_user_domain": "",
+          "os_project_name": "",
+          "os_project_id": "",
+          "os_auth_url": "",
+          "ssh_key_path": "",
+          "ssh_key_name": "",
+          "os_image": "",
+          "os_volume_size": "",
+          "os_instance_flavor": "",
+          "remote_username": "",
+          "os_security_groups": ""
+        },
+        "flavor_2": {
+          "username": "",
+          "password": "",
+          "os_user_domain": "",
+          "os_project_name": "",
+          "os_project_id": "",
+          "os_auth_url": "",
+          "ssh_key_path": "",
+          "ssh_key_name": "",
+          "os_image": "",
+          "os_volume_size": "",
+          "os_instance_flavor": "",
+          "remote_username": "",
+          "os_security_groups": ""
+        }
+      }
+    },
+    "qemu_kvm": {
+      "default_flavor": {
+        "shell_execute": "flavor_1",
+        "kaapana_workflow": "flavor_1"
+      },
+      "platform_flavors": {
+        "flavor_1": {
+          "baremetal_hostname": "",
+          "baremetal_user": "",
+          "offline_image_source": "",
+          "selinux_enabled_os": "",
+          "base_image_name": "",
+          "base_image_path": "",
+          "base_image_url": "",
+          "base_image_sha": "",
+          "libvirt_pool_dir": "",
+          "vm_config_filepath": "",
+          "vm_vcpus": "",
+          "vm_ram_mb": "",
+          "vm_net": "default",
+          "remote_username": "",
+          "vm_root_pass": "",
+          "ssh_key_path": "",
+          "ssh_key_name": "",
+          "vault_text_file": "",
+          "cleanup_download": "",
+          "cleanup_libvirt": ""
+        }
+      }
+    },
+    "vmware": {
+      "default_flavor": {},
+      "platform_flavors": {}
+    }
+  }
+}

@@ -1,0 +1,78 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    - target: "{{ target_host }}"
+      default: 10.133.26.2"
+  tasks:
+    - add_host:
+        name: "{{ target }}"
+        groups: os_server
+
+- name: Install Kaapana platform on server
+  hosts: os_server
+  strategy: free
+  remote_user: "{{ remote_username }}"
+  vars:
+    #TODO: change hardcoded
+    ansible_ssh_private_key_file: ~/.ssh/tfda_iso.pem
+  tasks:
+    - name: Set platform installation script path
+      set_fact: 
+        script_path: "{{ lookup('env','HOME') }}/{{ install_script_path }}"
+    
+    - name: Boolean which describes if script is locally available or not
+      set_fact:
+        is_script_local: "{{ local_script }}"
+
+    - name: Download install_platform.sh file if not locally available
+      block:
+
+      - name: Check directory locally
+        stat:
+          path: "{{ script_path }}"
+        register: script_folder
+        delegate_to: 127.0.0.1
+
+      - name: Create directory if it doesn't exist
+        file:
+          path: "{{ script_path }}"
+          state: directory
+        when: script_folder.stat.exists == false
+        delegate_to: 127.0.0.1
+
+      - name: Download install_platform.sh file
+        get_url: 
+          url: https://raw.githubusercontent.com/kaapana/kaapana/develop/platforms/kaapana-platform/platform-installation/install_platform.sh
+          dest: "{{ script_path }}/install_platform.sh"
+        delegate_to: 127.0.0.1
+      
+      when: not is_script_local
+
+    - set_fact:
+        install_script: "{{ script_path }}/install_platform.sh"
+
+    - name: Add container registry URL to install script
+      replace:
+        path: "{{ install_script }}"
+        regexp: '^CONTAINER_REGISTRY_URL="[a-zA-Z./\-_]*"'
+        replace: 'CONTAINER_REGISTRY_URL="{{ registry_url }}"'
+      delegate_to: 127.0.0.1
+    
+    - name: Run platform install script
+      become: no
+      environment:
+        TERM: xterm
+      script: "{{ install_script }} --quiet --username {{ registry_user }} --password {{ registry_pwd }}"
+      register: deploy_result
+
+    - name: stdout by running platform deployment script
+      debug: var=deploy_result.stdout_lines
+
+    - name: RESULT
+      debug:
+        msg: "PLATFORM DEPLOYED SUCCESSFULLY"
+
+    - name: RETURN
+      debug:
+        msg: "OK"

@@ -417,7 +417,8 @@ class KaapanaFederatedTrainingBase(ABC):
         print('Recovery conf in one line')
         print(json.dumps(recovery_conf))
         recovery_path = os.path.join(self.fl_working_dir, str(federated_round), "recovery_conf.json")
-        os.makedirs(os.path.basename(recovery_path), exist_ok=True)
+        # os.makedirs(os.path.basename(recovery_path), exist_ok=True)
+        os.makedirs(os.path.dirname(recovery_path), exist_ok=True)
         with open(recovery_path, "w", encoding='utf-8') as jsonData:
             json.dump(recovery_conf, jsonData, indent=2, sort_keys=True, ensure_ascii=True)
 

@@ -185,6 +185,7 @@ def create_job(db: Session, job: schemas.JobCreate):
 
     print(f"JobCreate: {job}")
     db_job = models.Job(
+        # id = job.id,    # not sure if this shouldn't be set automatically
         conf_data=json.dumps(job.conf_data),
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
@@ -466,15 +467,30 @@ def get_remote_updates(db: Session, periodically=False):
             db_job = create_job(db, job)
             db_jobs.append(db_job)
 
-        # create incoming experiments
         for incoming_experiment in incoming_experiments:
-            print('Creating incoming experiment ', incoming_experiment["experiment_name"])
-            incoming_experiment['kaapana_instance_id'] = db_remote_kaapana_instance.id
-            incoming_experiment['experiment_jobs'] = db_jobs
-            incoming_experiment['external_exp_id'] = incoming_experiment["id"]
-            incoming_experiment['involved_kaapana_instances'] = incoming_experiment["involved_kaapana_instances"][1:-1].split(',')  # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
-            experiment = schemas.ExperimentCreate(**incoming_experiment)
-            db_experiment = create_experiment(db, experiment)
+            # check if incoming_experiment already exists
+            print('Creating or Updating incoming experiment ', incoming_experiment["id"])
+            db_incoming_experiment = get_experiment(db, experiment_id=incoming_experiment["id"])
+            print(f"Do we already have this experiment locally? {db_incoming_experiment}")
+            
+            if db_incoming_experiment is None:
+                # if not: create incoming experiments
+                print('Creating incoming experiment ', incoming_experiment["experiment_name"])
+                incoming_experiment['kaapana_instance_id'] = db_remote_kaapana_instance.id
+                incoming_experiment['experiment_jobs'] = db_jobs
+                incoming_experiment['external_exp_id'] = incoming_experiment["id"]
+                incoming_experiment['involved_kaapana_instances'] = incoming_experiment["involved_kaapana_instances"][1:-1].split(',')  # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
+                experiment = schemas.ExperimentCreate(**incoming_experiment)
+                db_experiment = create_experiment(db, experiment)
+
+            else:
+                # if yes: update experiment w/ incoming_job
+                print('Updating incoming experiment ', incoming_experiment["experiment_name"])
+                exp_update = schemas.ExperimentUpdate(**{
+                    "experiment_name": incoming_experiment["experiment_name"],  # instead of db_incoming_experiment.experiment_name
+                    "experiment_jobs": db_jobs, #  instead of incoming_jobs
+                })
+                db_experiment = put_experiment_jobs(db, exp_update)
 
 
     return  # schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload)
@@ -670,8 +686,8 @@ def get_experiment(db: Session, experiment_id: int = None, experiment_name: str 
         db_experiment = db.query(models.Experiment).filter_by(id=experiment_id).first()
     elif experiment_name is not None:
         db_experiment = db.query(models.Experiment).filter_by(experiment_name=experiment_name).first()
-    if not db_experiment:
-        raise HTTPException(status_code=404, detail="Experiment not found")
+    # if not db_experiment:
+    #     raise HTTPException(status_code=404, detail="Experiment not found")
     return db_experiment
 
 def get_experiments(db: Session, instance_name: str = None, involved_instance_name: str = None, experiment_job_id: int = None, limit=None):
@@ -735,17 +751,22 @@ def put_experiment_jobs(db: Session, experiment=schemas.ExperimentUpdate):
     print(f'Updating client experiment {experiment.experiment_name} with new experiment_jobs!')
     print(f"ExperimentUpdate: {experiment}")
     db_experiment = get_experiment(db, experiment_name=experiment.experiment_name)
+    print(f"db_experiment: {db_experiment}")
 
     # get db_jobs via job_id which should be added to db_experiment
     db_jobs = []
     for experiment_job in experiment.experiment_jobs:
-        db_job = get_job(db, experiment_job["id"])
+        print(f"experiment_job: {experiment_job}")
+        # db_job = get_job(db, experiment_job["id"])
+        db_job = get_job(db, experiment_job.id) # do this since experiment_job is no dict
+        print(f"db_job: {db_job}")
         db_jobs.append(db_job)
     print(f"db_jobs: {db_jobs}")
 
     # add dat shit to dat experiment
     print(f"db_experiment.experiment_jobs before adding additional experiment_jobs: {db_experiment.experiment_jobs}")
     db_experiment.experiment_jobs.extend(db_jobs)
+    # TODO: create set of db_experiment.experiment_jobs to avoid double listed jobs
     print(f"db_experiment.experiment_jobs after adding additional experiment_jobs: {db_experiment.experiment_jobs}")
 
     db_experiment.time_updated = utc_timestamp

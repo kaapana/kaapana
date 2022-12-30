@@ -75,7 +75,7 @@ def apply_minio_presigned_url_action(action, federated, operator_out_dir, root_d
     print('Client network')
     print(json.dumps(client_network, indent=2))
     with requests.Session() as s:
-        r = requests_retry_session(session=s).get(f"{MINIO_CLIENT_URL}/remote-kaapana-instance", timeout=60, params={'instance_name': client_job['addressed_kaapana_instance_name']})
+        r = requests_retry_session(session=s).get(f"{MINIO_CLIENT_URL}/remote-kaapana-instance", timeout=60, params={'instance_name': client_job['owner_kaapana_instance_name']})
     raise_kaapana_connection_error(r)
     remote_network = r.json()
     print('Remote network')

@@ -1,0 +1,45 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: maintenancepage
+  namespace: "{{ .Values.global.admin_namespace }}"
+  labels:
+    k8s-app: maintenancepage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: maintenancepage
+  template:
+    metadata:
+      labels:
+        app-name: maintenancepage
+    spec:
+      containers:
+      - name: maintenancepage
+        image: {{ .Values.global.registry_url }}/maintenance-page-kaapana:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        ports:
+        - name: maintn-http
+          containerPort: 5000
+        livenessProbe:
+          httpGet:
+            path: /
+            port: maintn-http
+          initialDelaySeconds: 10
+          periodSeconds: 20
+        resources:
+          requests:
+            memory: 10Mi
+          limits:
+            memory: 10Mi
+        volumeMounts:
+          - name: common-data-file
+            mountPath: /app/jsons
+      volumes:
+      - name: common-data-file
+        configMap:
+          name: maintenance-page-config
+      imagePullSecrets:
+      - name: registry-secret

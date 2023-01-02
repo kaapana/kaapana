@@ -23,15 +23,17 @@ function install_cert_files {
         fi
     else
         echo "Secret $SECRET_NAME already found in namespace $ADMIN_NAMESPACE"
-    fi
+    fi    
+}
 
+function copy_cert {
     if [ "$SECRET_NAMESPACE" == "$ADMIN_NAMESPACE" ]; then
         echo "SERVICES_NAMESPACE == ADMIN_NAMESPACE -> skip copy of secret."
     else
         if kubectl get namespace $SECRET_NAMESPACE; then
             if ! kubectl get secret --namespace=$SECRET_NAMESPACE $SECRET_NAME; then
                 echo "Copy secret $SECRET_NAME from namespace $ADMIN_NAMESPACE -> $SECRET_NAMESPACE ..."
-                if ! kubectl get secret $SECRET_NAME --namespace=$ADMIN_NAMESPACE -oyaml | grep -v '^\s*namespace:\s' | kubectl apply --namespace=$SECRET_NAMESPACE -f -; then
+                if ! kubectl get secret $SECRET_NAME --namespace=$ADMIN_NAMESPACE -ojson | jq 'del(.metadata["namespace","creationTimestamp","resourceVersion","selfLink","uid"])' | kubectl apply --namespace=$SECRET_NAMESPACE -f -; then
                     echo "ERROR copying secret $SECRET_NAME in namespace $SECRET_NAMESPACE" 
                     exit 1
                 fi
@@ -43,7 +45,6 @@ function install_cert_files {
             echo "SECRET_NAMESPACE: $SECRET_NAMESPACE not present -> skipping copy of secret ..."
         fi
     fi
-    
 }
 
 function install_cert {
@@ -61,7 +62,6 @@ function install_cert {
         if ! kubectl -n $ADMIN_NAMESPACE delete secret $SECRET_NAME; then
             echo "Could not delete secret $SECRET_NAME from namespace $ADMIN_NAMESPACE -> maybe not present yet."
         fi
-        install_cert_files $TLS_CERT_FILE $TLS_KEY_FILE
     else
         echo "No tls certificates found, creating self-signed ones..."
 
@@ -69,8 +69,12 @@ function install_cert {
         openssl genrsa 4096 > tls.key
         openssl req -new -x509 -nodes -sha256 -days $EXPIRATION -key tls.key -out tls.crt -subj "/CN=$COMMON_NAME" -addext "extendedKeyUsage = serverAuth"
 
-        install_cert_files "tls.crt" "tls.key"
+        TLS_CERT_FILE="tls.crt"
+        TLS_KEY_FILE="tls.key"
     fi
+
+    install_cert_files $TLS_CERT_FILE $TLS_KEY_FILE
+    copy_cert
 }
 
 function remove_cert {

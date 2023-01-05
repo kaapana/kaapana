@@ -23,24 +23,32 @@
         @click:row="expandRow"
       >
         <template v-slot:item.actions="{ item }">
-          <v-menu transition="scale-transition"  v-if="item.kaapana_instance.instance_name == clientInstance.instance_name">
-            <template v-slot:activator="{ on, attrs }">
-              <v-btn color="primary" dark v-bind="attrs" v-on="on" >
-                Action
-              </v-btn>
-            </template>
-            <v-list>
-              <v-list-item @click='abortExperiment(item)' >
-                <v-list-item-title>Abort</v-list-item-title>
-              </v-list-item>
-              <v-list-item @click='restartExperiment(item)' >
-                <v-list-item-title>Restart</v-list-item-title>
-              </v-list-item>
-              <v-list-item @click='deleteExperiment(item)'>
-                <v-list-item-title>Delete</v-list-item-title>
-              </v-list-item>
-            </v-list>
-          </v-menu>
+          <v-col v-if="item.kaapana_instance.instance_name == clientInstance.instance_name" >
+            <v-tooltip bottom>
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn v-bind="attrs" v-on="on" @click='abortExperiment(item)' small icon>
+                  <v-icon color="primary" dark>mdi-stop-circle-outline</v-icon>
+                </v-btn>
+              </template>
+              <span>abort experiment including all it's jobs</span>
+            </v-tooltip>
+            <v-tooltip bottom>
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn v-bind="attrs" v-on="on" @click='restartExperiment(item)' small icon>
+                  <v-icon color="primary" dark>mdi-rotate-left</v-icon>
+                </v-btn>
+              </template>
+              <span>restart experiment including all it's jobs</span>
+            </v-tooltip>
+            <v-tooltip bottom>
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn v-bind="attrs" v-on="on" @click='deleteExperiment(item)' small icon>
+                  <v-icon color="primary" dark>mdi-trash-can-outline</v-icon>
+                </v-btn>
+              </template>
+              <span>delete experiment including all it's jobs</span>
+            </v-tooltip>
+          </v-col>
           <div v-else>
             <v-tooltip bottom>
               <template v-slot:activator="{ on, attrs }">

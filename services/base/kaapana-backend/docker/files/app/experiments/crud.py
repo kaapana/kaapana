@@ -99,6 +99,7 @@ def create_and_update_client_kaapana_instance(db: Session, client_kaapana_instan
             automatic_job_execution=client_kaapana_instance.automatic_job_execution or False
         )
     elif action == 'update':
+        db_client_kaapana_instance.time_updated = utc_timestamp
         if db_client_kaapana_instance.fernet_key == 'deactivated' and client_kaapana_instance.fernet_encrypted is True:
             db_client_kaapana_instance.fernet_key = _get_fernet_key(client_kaapana_instance.fernet_encrypted)
         elif db_client_kaapana_instance.fernet_key != 'deactivated' and client_kaapana_instance.fernet_encrypted is False:
@@ -457,6 +458,33 @@ def get_remote_updates(db: Session, periodically=False):
             incoming_job['status'] = "pending"
             job = schemas.JobCreate(**incoming_job)
             db_job = create_job(db, job)
+            db_jobs.append(db_job)
+
+        for incoming_experiment in incoming_experiments:
+            # check if incoming_experiment already exists
+            print('Creating or Updating incoming experiment ', incoming_experiment["id"])
+            db_incoming_experiment = get_experiment(db, experiment_id=incoming_experiment["id"])
+            print(f"Do we already have this experiment locally? {db_incoming_experiment}")
+            
+            if db_incoming_experiment is None:
+                # if not: create incoming experiments
+                print('Creating incoming experiment ', incoming_experiment["experiment_name"])
+                incoming_experiment['kaapana_instance_id'] = db_remote_kaapana_instance.id
+                incoming_experiment['experiment_jobs'] = db_jobs
+                incoming_experiment['external_exp_id'] = incoming_experiment["id"]
+                incoming_experiment['involved_kaapana_instances'] = incoming_experiment["involved_kaapana_instances"][1:-1].split(',')  # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
+                experiment = schemas.ExperimentCreate(**incoming_experiment)
+                db_experiment = create_experiment(db, experiment)
+
+            else:
+                # if yes: update experiment w/ incoming_job
+                print('Updating incoming experiment ', incoming_experiment["experiment_name"])
+                exp_update = schemas.ExperimentUpdate(**{
+                    "experiment_name": incoming_experiment["experiment_name"],  # instead of db_incoming_experiment.experiment_name
+                    "experiment_jobs": db_jobs, #  instead of incoming_jobs
+                })
+                db_experiment = put_experiment_jobs(db, exp_update)
+
             db_jobs.append(db_job)
 
         for incoming_experiment in incoming_experiments:

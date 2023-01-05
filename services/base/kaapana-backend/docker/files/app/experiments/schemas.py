@@ -44,8 +44,8 @@ class KaapanaInstance(KaapanaInstanceBase):
     port: int
     fernet_key: str
     remote: bool
-    allowed_dags: str
-    allowed_datasets: str
+    allowed_dags: Optional[str]
+    allowed_datasets: Optional[str]
     time_created: datetime.datetime
     time_updated: datetime.datetime
     experiment_in_which_involved: Optional[str]

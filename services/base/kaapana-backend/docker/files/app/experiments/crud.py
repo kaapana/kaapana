@@ -758,8 +758,12 @@ def put_experiment_jobs(db: Session, experiment=schemas.ExperimentUpdate):
     db_jobs = []
     for experiment_job in experiment.experiment_jobs:
         print(f"experiment_job: {experiment_job}")
-        # db_job = get_job(db, experiment_job["id"])
-        db_job = get_job(db, experiment_job.id) # do this since experiment_job is no dict
+        if type(experiment_job) is dict:
+            # experiment_job is a dict when call of def put_experiment_jobs() comes from backend
+            db_job = get_job(db, experiment_job["id"]) 
+        else:
+            # experiment_job is no dict when call of def put_experiment_jobs() comes from KaapanaFederatedTraining
+            db_job = get_job(db, experiment_job.id)      
         print(f"db_job: {db_job}")
         db_jobs.append(db_job)
     print(f"db_jobs: {db_jobs}")

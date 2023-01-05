@@ -99,6 +99,7 @@ def create_and_update_client_kaapana_instance(db: Session, client_kaapana_instan
             automatic_job_execution=client_kaapana_instance.automatic_job_execution or False
         )
     elif action == 'update':
+        db_client_kaapana_instance.time_updated = utc_timestamp
         if db_client_kaapana_instance.fernet_key == 'deactivated' and client_kaapana_instance.fernet_encrypted is True:
             db_client_kaapana_instance.fernet_key = _get_fernet_key(client_kaapana_instance.fernet_encrypted)
         elif db_client_kaapana_instance.fernet_key != 'deactivated' and client_kaapana_instance.fernet_encrypted is False:

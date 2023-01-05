@@ -35,24 +35,42 @@
             </v-chip>
           </template>
           <template v-slot:item.actions="{ item }">
-            <v-menu>
-              <template v-slot:activator="{ on, attrs }">
-                <v-btn color="secondary" dark v-bind="attrs" v-on="on" >
-                  Action
-                </v-btn>
-              </template>
-              <v-list>
-                <v-list-item @click='abortJob(item)' >
-                  <v-list-item-title>Abort</v-list-item-title>
-                </v-list-item>
-                <v-list-item @click='restartJob(item)' >
-                  <v-list-item-title>Restart</v-list-item-title>
-                </v-list-item>
-                <v-list-item @click='deleteJob(item)'>
-                  <v-list-item-title>Delete</v-list-item-title>
-                </v-list-item>
-              </v-list>
-            </v-menu>
+            <v-col v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name" >
+              <v-tooltip bottom>
+                <template v-slot:activator="{ on, attrs }">
+                  <v-btn v-bind="attrs" v-on="on" @click='abortJob(item)' small icon>
+                    <v-icon color="secondary" dark>mdi-stop-circle-outline</v-icon>
+                  </v-btn>
+                </template>
+                <span>abort single job</span>
+              </v-tooltip>
+              <v-tooltip bottom>
+                <template v-slot:activator="{ on, attrs }">
+                  <v-btn v-bind="attrs" v-on="on" @click='restartJob(item)' small icon>
+                    <v-icon color="secondary" dark>mdi-rotate-left</v-icon>
+                  </v-btn>
+                </template>
+                <span>restart single job</span>
+              </v-tooltip>
+              <v-tooltip bottom>
+                <template v-slot:activator="{ on, attrs }">
+                  <v-btn v-bind="attrs" v-on="on" @click='deleteJob(item)' small icon>
+                    <v-icon color="secondary" dark>mdi-trash-can-outline</v-icon>
+                  </v-btn>
+                </template>
+                <span>delete single job</span>
+              </v-tooltip>
+            </v-col>
+            <div v-else>
+              <v-tooltip bottom>
+                <template v-slot:activator="{ on, attrs }">
+                  <v-icon color="secondary" dark v-bind="attrs" v-on="on">
+                    mdi-cloud-braces
+                  </v-icon>
+                </template>
+                <span>No actions for REMOTE job!</span>
+              </v-tooltip>
+            </div>
           </template>
         </v-data-table>
 
@@ -130,11 +148,11 @@
             })
             headers.push({
               text: 'Conf',
-              value: 'conf_data'
+              value: 'conf_data',
             })
             headers.push(
-              { text: 'Status', value: 'status' },
-              { text: 'Actions', value: 'actions', sortable: false },
+              { text: 'Status', value: 'status', align: 'center'},
+              { text: 'Actions', value: 'actions', sortable: false , align: 'center'},
             ) 
             return headers
           }

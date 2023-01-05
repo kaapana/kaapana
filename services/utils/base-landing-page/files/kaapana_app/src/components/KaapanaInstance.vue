@@ -6,7 +6,7 @@
       v-tooltip(v-if="remote" bottom='')
         template(v-slot:activator='{ on, attrs }')
           v-icon(:color="diff_updated" small dark='' v-bind='attrs' v-on='on')
-            | mdi-circle
+             | mdi-circle
         span Time since last update: green: 5 min, yellow: 1 hour, orange: 5 hours, else red)
     v-card-text
       div Network: {{ instance.protocol }}://{{ instance.host }}:{{ instance.port }}
@@ -21,17 +21,24 @@
       div Autmoatically execute pending jobs: {{ instance.automatic_job_execution }}
         v-icon(v-if="instance.automatic_job_execution" small color="green") mdi-check-circle
         v-icon(v-if="!instance.automatic_job_execution" small) mdi-close-circle
-      div Created: {{ instance_time_created }}
-      div Updated: {{ instance_time_updated }}
+      div Created: {{ instance.time_created }}
+      div Updated: {{ instance.time_updated }}
       div Allowed dags: 
         v-chip(v-for='dag in instance.allowed_dags' small) {{dag}}
         //- span( v-for='dag in instance.allowed_dags') {{dag}} 
       div Allowed datasets: 
         v-chip(v-for='dataset in instance.allowed_datasets' small) {{dataset}}
     v-card-actions
-      v-btn(color='orange' @click="editInstance()" rounded dark) Edit Instance
-      v-btn(color='orange' @click="deleteInstance()" rounded dark) Delete instance    
-
+      v-tooltip(bottom)
+        template(v-slot:activator="{ on, attrs }")
+          v-btn(v-bind="attrs" v-on="on" @click='editInstance()' small icon)
+           v-icon(color="secondary" dark) mdi-pencil
+        span edit instance
+      v-tooltip(bottom)
+        template(v-slot:activator="{ on, attrs }")
+          v-btn(v-bind="attrs" v-on="on" @click='deleteInstance()' small icon)
+           v-icon(color="secondary" dark) mdi-trash-can-outline
+        span delete instance
     v-dialog(v-model='dialogDelete' max-width='500px')
       v-card
         v-card-title.text-h5 Are you sure you want to delete this instance. With it all corresponding jobs are deleted?
@@ -79,22 +86,28 @@ export default {
       return Date.parse(new Date().toUTCString());
     },
     diff_updated() {
-      var datetime = Date.parse(new Date(this.instance.time_updated * 1000).toUTCString());
+      var datetime = Date.parse(new Date(this.instance.time_updated).toUTCString()); // results in datetime=NaN: Date.parse(new Date(this.instance.time_updated * 1000).toUTCString());
       var now = Date.parse(new Date().toUTCString());
+      console.log("datetime: ", datetime, "; now: ", now)
 
       if( isNaN(datetime) )
       {
           return "";
       }
       var diff_in_seconds = (now - datetime) / 1000
+      console.log("diff_in_seconds")
 
       if (diff_in_seconds < (60*5)) {
+        console.log("green")
         return 'green'
       } else if (diff_in_seconds < (60*60)) {
+        console.log("yellow")
         return 'yellow'
       } else if (diff_in_seconds < (60*60*5)) {
+        console.log("orange")
         return 'orange'
       } else {
+        console.log("red")
         return 'red'
       }
     }

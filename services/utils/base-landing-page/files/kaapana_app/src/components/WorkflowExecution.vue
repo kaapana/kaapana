@@ -2,7 +2,7 @@
 <template lang="pug">
 v-dialog(v-model='dialogOpen' max-width='600px')
   template(v-slot:activator='{ on, attrs }')
-    v-btn(color="primary" v-bind='attrs' v-on='on' dark) Experiment Execution
+    v-btn(x-large color="primary" v-bind='attrs' v-on='on' dark) Experiment Execution
   v-card
     v-form(v-model="valid", ref="executeWorkflow", lazy-validation)
       v-card-title

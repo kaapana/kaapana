@@ -3,11 +3,11 @@
     v-container(text-left)
       h1 Experiment Management System
       v-row(@click="toggleClientPanel()").toggleMouseHand
-        v-col
+        //- v-col
           h2 Local Instance Profile
             i(v-if="openedClientPanel==null").v-icon.notranslate.mdi.mdi-chevron-down.theme--light(aria-hidden='true')
             i(v-if="openedClientPanel==0").v-icon.notranslate.mdi.mdi-chevron-up.theme--light(aria-hidden='true')
-        v-col
+        //- v-col
           v-dialog(v-model='clientDialog' max-width='600px')
             v-card
               v-form(v-model='clientValid' ref="clientForm" lazy-validation)
@@ -34,14 +34,24 @@
                     | submit
                   v-btn(@click='resetClientForm')
                     | clear
-        v-col
+        v-col(align="left")
+          //- former LocalKaapanaInstance
+          LocalKaapanaInstance(v-if="clientInstance" :instance="clientInstance" :remote="false"  @refreshView="refreshClient()" @ei="editClientInstance")
+        v-col(align="center")
           workflow-execution(ref="workflowexecution" v-if="clientInstance" :remote='true' :instances="allInstances" :clientinstance="clientInstance" @refreshView="refreshClient()")
-        v-col
-          add-remote-instance(ref="addremoteinstance" :remote='true')
-          view-remote-instances(ref="viewremoteinstances" :clientinstance="clientInstance" :remote='true')
-          v-btn(v-if="clientInstance" color='primary' @click.stop="checkForRemoteUpdates()" dark ) Sync remote
-          v-btn(v-if="!clientInstance" color='primary' @click.stop="clientDialog=true" dark) Add client instance
-      v-row
+        v-col(align="reight")
+          v-row(align="center")
+            h2 Remote Instances
+            v-spacer
+            add-remote-instance(ref="addremoteinstance" :remote='true')
+            v-spacer
+            view-remote-instances(ref="viewremoteinstances" :clientinstance="clientInstance" :remote='true')
+            v-spacer
+            v-btn(v-if="clientInstance" @click.stop="checkForRemoteUpdates()" small icon)
+              v-icon(color='primary' dark) mdi-sync-circle
+            v-spacer
+            v-btn(v-if="!clientInstance" color='primary' @click.stop="clientDialog=true" dark) Add client instance
+      //- v-row
         v-col(sm="12")
           v-expansion-panels(v-model="openedClientPanel")
             v-expansion-panel(key='instance')
@@ -59,6 +69,7 @@ import kaapanaApiService from "@/common/kaapanaApi.service";
 // import JobTable from "@/components/JobTable.vue";
 import ExperimentTable from "@/components/ExperimentTable.vue"
 import KaapanaInstance  from "@/components/KaapanaInstance.vue";
+import LocalKaapanaInstance from "@/components/LocalKaapanaInstance.vue";
 import WorkflowExecution  from "@/components/WorkflowExecution.vue";
 import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
 import ViewRemoteInstances from "@/components/ViewRemoteInstances.vue";
@@ -68,6 +79,7 @@ export default Vue.extend({
     // JobTable,
     ExperimentTable,
     KaapanaInstance,
+    LocalKaapanaInstance,
     WorkflowExecution,
     AddRemoteInstance,
     ViewRemoteInstances
@@ -171,6 +183,7 @@ export default Vue.extend({
         .federatedClientApiPost("/get-dags", {remote: false})
         .then((response) => {
           this.dags = response.data;
+          console.log("Fetched DAGs: ", this.dags);
         })
         .catch((err) => {
           console.log(err);

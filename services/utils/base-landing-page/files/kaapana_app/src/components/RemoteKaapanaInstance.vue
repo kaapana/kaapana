@@ -196,9 +196,10 @@
         return Date.parse(new Date().toUTCString());
       },
       diff_updated() {
-        var datetime = Date.parse(new Date(this.instance.time_updated * 1000).toUTCString());
+        var datetime = Date.parse(new Date(this.instance.time_updated).toUTCString()); // var datetime = Date.parse(new Date(this.instance.time_updated * 1000).toUTCString());
         var now = Date.parse(new Date().toUTCString());
-  
+        console.log("datetime: ", datetime, ", now: ", now)
+
         if( isNaN(datetime) )
         {
             return "";

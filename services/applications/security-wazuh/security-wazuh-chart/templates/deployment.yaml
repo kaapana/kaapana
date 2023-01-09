@@ -27,29 +27,15 @@ spec:
         - "wazuh.dashboard"
       initContainers:
         - name: init-security-wazuh
-          image: {{ .Values.global.registry_url }}/security-wazuh-init:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.0.1
+          image: "{{ .Values.global.registry_url }}/security-wazuh-init:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           resources: {}
           volumeMounts:
             - mountPath: /wazuh-config
               name: security-wazuh-volume
-        # - name: init-wazuh-certs
-        #   image: {{ .Values.global.registry_url }}/security-wazuh-certs-generator:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.0.1
-        #   imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
-        #   env:
-        #     - name: HTTP_PROXY
-        #       value: {{ .Values.global.http_proxy }}
-        #   resources: {}
-        #   volumeMounts:
-        #     - mountPath: /certificates/
-        #       name: security-wazuh-volume
-        #       subPath: config/wazuh_indexer_ssl_certs
-        #     - mountPath: /config/certs.yml
-        #       name: security-wazuh-volume
-        #       subPath: config/certs.yml
       containers:
       - name: security-wazuh-manager
-        image: {{ .Values.global.registry_url }}/security-wazuh-manager:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.0.1
+        image: "{{ .Values.global.registry_url }}/security-wazuh-manager:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         ports:
           - containerPort: 1514
@@ -127,7 +113,7 @@ spec:
             subPath: config/wazuh_cluster/wazuh_manager.conf
 
       - name: security-wazuh-indexer
-        image: {{ .Values.global.registry_url }}/security-wazuh-indexer:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.0.1
+        image: "{{ .Values.global.registry_url }}/security-wazuh-indexer:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env:
           - name: OPENSEARCH_JAVA_OPTS
@@ -164,7 +150,7 @@ spec:
             subPath: config/wazuh_indexer/internal_users.yml
 
       - name: security-wazuh-dashboard
-        image: {{ .Values.global.registry_url }}/security-wazuh-dashboard:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.0.1
+        image: "{{ .Values.global.registry_url }}/security-wazuh-dashboard:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         ports:
           - containerPort: 5601

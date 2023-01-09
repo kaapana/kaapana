@@ -1,7 +1,7 @@
-FROM local-only/security-pages-frontend:0.0.1 as build-frontend
+FROM local-only/security-pages-frontend:latest as build-frontend
 
 LABEL IMAGE="security-pages"
-LABEL VERSION="0.0.1"
+LABEL VERSION="0.0.0"
 LABEL CI_IGNORE="False"
 
 FROM python:3.10-slim

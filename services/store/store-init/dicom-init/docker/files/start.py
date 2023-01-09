@@ -256,6 +256,9 @@ if __name__ == "__main__":
     trigger_delete_dag(examples_send=init_meta_file)
     send_file() ### This function does nothing, if tmp_data_dir is not an existing path
     send_example()
-    example_phantom_send = [{"series_uid": "1.3.12.2.1107.5.1.4.73104.30000020081307472119600000009"}]
+    example_phantom_send = [
+        {"study_uid": "1.3.12.2.1107.5.1.4.73104.30000020081307472119600000009",
+        "series_uid":"1.3.12.2.1107.5.1.4.73104.30000020081307523376400012735"}
+        ]
     check_file_on_platform(examples_send=example_phantom_send)
 

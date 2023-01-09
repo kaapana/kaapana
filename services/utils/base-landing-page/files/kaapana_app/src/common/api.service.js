@@ -46,6 +46,7 @@ const getDicomTags = async (studyInstanceUID, seriesInstanceUID) => {
         return formatedMetadata.data
     } catch (e) {
         Vue.notify({
+            type: "error",
             title: "Network/Server error",
             text: e
         })

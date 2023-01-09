@@ -41,7 +41,9 @@
       <v-card-text v-if="config.display_card_text">
         <v-row no-gutters>
           <v-col cols="11">
-            {{ seriesDescription }}
+              <div class="text-truncate">
+                {{ seriesDescription }}
+              </div>
           </v-col>
           <v-col cols="1">
             <v-tooltip bottom>
@@ -68,7 +70,7 @@
             </v-tooltip>
           </v-col>
         </v-row>
-        <div v-if="seriesData[data['key']]" v-for="data in config.props">
+        <div v-for="data in config.props">
           <div v-if="data['display']">
             <v-row no-gutters style="font-size: x-small">
               <v-col style="margin-bottom: -5px">
@@ -77,7 +79,9 @@
             </v-row>
             <v-row no-gutters style="font-size: small; padding-top: 0" align="start">
               <v-col>
-                {{ seriesData[data['key']] }}
+                <div :class="data['truncate'] ? 'text-truncate' : ''">
+                  {{ seriesData[data['key']] || 'N/A' }}
+                </div>
               </v-col>
             </v-row>
           </div>
@@ -147,9 +151,9 @@ export default {
           display_card_text: true,
           display_tags: true,
           props: [
-            {name: "Patient ID", key: '00100020 PatientID_keyword', display: true},
-            {name: 'Study Description', key: '00081030 StudyDescription_keyword', display: true},
-            {name: 'Study Date', key: '00080020 StudyDate_date', display: true},
+            {name: "Patient ID", key: '00100020 PatientID_keyword', display: true, truncate: true},
+            {name: 'Study Description', key: '00081030 StudyDescription_keyword', display: true, truncate: true},
+            {name: 'Study Date', key: '00080020 StudyDate_date', display: true, truncate: true},
           ]
         }
       } else {
@@ -157,7 +161,7 @@ export default {
           display_card_text: true,
           display_tags: true,
           props: [
-            {name: "Slice thickness", key: '00180050 SliceThickness_float', display: true}
+            {name: "Slice thickness", key: '00180050 SliceThickness_float', display: true, truncate: true}
           ]
         }
       }

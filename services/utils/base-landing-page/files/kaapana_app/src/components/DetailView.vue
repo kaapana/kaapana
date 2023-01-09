@@ -3,8 +3,7 @@
     <v-card-title>
       <v-row no-gutters align="center" justify="center">
         <v-col cols="11">
-          <div class="text-no-wrap" style="overflow: scroll;
-white-space: nowrap; width: 25vw">
+          <div class="text-truncate">
             {{ seriesDescription }}
           </div>
         </v-col>

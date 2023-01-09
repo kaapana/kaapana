@@ -118,7 +118,7 @@ export default {
     if (localStorage['Dataset.structuredGallery']) {
       this.structuredGallery = JSON.parse(localStorage['Dataset.structuredGallery'])
     } else {
-      this.structuredGallery = true
+      this.structuredGallery = false
       localStorage['Dataset.structuredGallery'] = JSON.stringify(this.structuredGallery)
     }
     this.cohort_names = await loadCohortNames()

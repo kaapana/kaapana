@@ -6,10 +6,11 @@ import secrets
 import re
 import json
 import subprocess
-import json
 import hashlib
 import time
 import copy
+import tarfile
+import shutil
 from fastapi import Response
 from distutils.version import LooseVersion
 from app.repeat_timer import RepeatedTimer
@@ -155,8 +156,8 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
             if helm_status(dag["name"]):
                 print(f'Skipping {dag["name"]} since it is already installed')
                 continue
-            helm_comman_suffix = f'--wait --atomic --timeout=120m0s; sleep 10;{os.environ["HELM_PATH"]} -n {helm_namespace} delete --no-hooks {dag["release_name"]}'
-            release, helm_command, release_name = helm_install(dag, helm_comman_suffix=helm_comman_suffix, in_background=False)
+            helm_command_suffix = f'--wait --atomic --timeout=120m0s; sleep 10;{os.environ["HELM_PATH"]} -n {helm_namespace} delete --no-hooks {dag["release_name"]}'
+            release, helm_command, release_name = helm_install(dag, helm_command_suffix=helm_command_suffix, in_background=False)
             installed_release_names.append(release_name)
         except subprocess.CalledProcessError as e:
             helm_delete(release_name=dag['release_name'], release_version=chart["version"], helm_command_addons='--no-hooks')
@@ -191,11 +192,111 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
         'release_name': release_name
     }
 
-    helm_comman_suffix = f'--wait --atomic --timeout {timeout}; sleep 10;{os.environ["HELM_PATH"]} -n {helm_namespace} delete {release_name}'
-    return helm_install(payload, helm_comman_suffix=helm_comman_suffix, helm_cache_path=settings.helm_helpers_cache, in_background=in_background)
+    helm_command_suffix = f'--wait --atomic --timeout {timeout}; sleep 10;{os.environ["HELM_PATH"]} -n {helm_namespace} delete {release_name}'
+    return helm_install(payload, helm_command_suffix=helm_command_suffix, helm_cache_path=settings.helm_helpers_cache, in_background=in_background)
 
+# todo jr: this whole method could maybe be done inside extension container?
+# the commented out code would work like it is, but it triggers a fastapi worker timeout because of stackrox deployment duration
+# the commented in code is for triggering a job that does the commented out code inside a job
+def install_stackrox(payload):
+    helm_command = '<stackrox install not yet executed>'
+    print(f"trying to install stackrox...")
+    try:
+        name = payload["name"]
+        version = payload["version"]
+        STACKROX_ADMIN_PASSWORD = "admin"
+        STACKROX_CLUSTER_NAME = "kaapana-stackrox-cluster"
 
-def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_addons='', helm_comman_suffix='', helm_delete_prefix='', in_background=True, helm_cache_path=None):
+        release_values = helm_get_values(os.getenv("RELEASE_NAME"))
+        slow_data_dir = release_values["global"]["slow_data_dir"]
+
+        extension_path = f"{settings.helm_extensions_cache}/{name}-{version}.tgz"
+
+        central_services_subpath = "security-stackrox-chart/charts/stackrox-central-services/"
+        cluster_services_subpath = "security-stackrox-chart/charts/stackrox-secured-cluster-services/"
+        # with tarfile.open(extension_path, "r") as tar:
+        #     subdir_and_files = [
+        #         tarinfo for tarinfo in tar.getmembers()
+        #         if tarinfo.name.startswith(central_services_subpath)
+        #     ]
+        #     tar.extractall(members=subdir_and_files)
+
+        #     subdir_and_files = [
+        #         tarinfo for tarinfo in tar.getmembers()
+        #         if tarinfo.name.startswith(cluster_services_subpath)
+        #     ]
+        #     tar.extractall(members=subdir_and_files)
+
+        # #  we don't care if delete fails, it can happen if namespace does not exist
+        # print(f"deleting stackrox namespace...")
+        # delete_stackrox_namespace = f'kubectl delete namespace stackrox'
+        # process_result = subprocess.run(delete_stackrox_namespace, capture_output=True, shell=True, check=False)
+        # print(f"result stdout: {process_result.stdout}, stderr: {process_result.stderr}")
+
+        # print(f"installing stackrox central...")
+        # install_central_cmd = f'{os.environ["HELM_PATH"]} -n stackrox install stackrox-central-services ./{central_services_subpath} -o json --set central.adminPassword.value="{STACKROX_ADMIN_PASSWORD}" --set central.persistence.hostPath="/home/kaapana/security/stackrox" --create-namespace'
+        # process_result = subprocess.run(install_central_cmd, capture_output=True, shell=True, check=True)
+        # print(f"result stdout: {process_result.stdout}, stderr: {process_result.stderr}")
+        # --set global.https_proxy='http://www-int2.dkfz-heidelberg.de:80'
+
+        # print(f"wait for deployment...")
+        # wait_for_central_cmd = f"kubectl wait deployment -n stackrox central --for condition=Available=True --timeout=90s"
+        # process_result = subprocess.run(wait_for_central_cmd, capture_output=True, shell=True, check=False)
+        # print(f"result stdout: {process_result.stdout}, stderr: {process_result.stderr}")
+
+        # print(f"generating cluster init bundle...")
+        # generate_bundle_cmd = f'kubectl -n stackrox exec deploy/central -- roxctl --insecure-skip-tls-verify --password "{STACKROX_ADMIN_PASSWORD}" central init-bundles generate stackrox-init-bundle --output - > stackrox-init-bundle.yaml'
+        # process_result = subprocess.run(generate_bundle_cmd, capture_output=True, shell=True, check=True)
+        # print(f"result stdout: {process_result.stdout}, stderr: {process_result.stderr}")
+
+        # print(f"installing stackrox cluster...")
+        # install_cluster_cmd = f'helm install -n stackrox stackrox-secured-cluster-services ./{cluster_services_subpath} -f stackrox-init-bundle.yaml --set clusterName="{STACKROX_CLUSTER_NAME}"'
+        # process_result = subprocess.run(install_cluster_cmd, capture_output=True, shell=True, check=True)
+        # print(f"result stdout: {process_result.stdout}, stderr: {process_result.stderr}")
+
+        with tarfile.open(extension_path, "r") as tar:
+            tar.extractall()
+
+        shutil.copytree("security-stackrox-chart", "security-stackrox-chart-temp")
+        shutil.rmtree("security-stackrox-chart/charts")
+        os.remove("security-stackrox-chart/requirements.yaml")
+        os.remove(extension_path)
+
+        with tarfile.open(extension_path, "w:gz") as tar:
+            tar.add("security-stackrox-chart")
+
+        print("tgz before install")
+        with tarfile.open(extension_path, "r") as tar:
+            for item in tar:
+                print(item)
+
+        shutil.rmtree("security-stackrox-chart")
+
+        print(f"installing extension chart...")
+        output, helm_command, _ = helm_install(payload)
+        print(output)
+
+        shutil.move("security-stackrox-chart-temp", "security-stackrox-chart")
+        os.remove(extension_path)
+
+        with tarfile.open(extension_path, "w:gz") as tar:
+            tar.add("security-stackrox-chart")
+
+        print("tgz after install")
+        with tarfile.open(extension_path, "r") as tar:
+            for item in tar:
+                print(item)
+    except Exception as e:
+        print(e)
+    finally:
+        try:
+            shutil.rmtree("security-stackrox-chart")
+            os.remove("stackrox-init-bundle.yaml")
+        except:
+            pass
+        return helm_command
+
+def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_addons='', helm_command_suffix='', helm_delete_prefix='', in_background=True, helm_cache_path=None):
     global smth_pending, extensions_list_cached
     smth_pending = True
 
@@ -268,7 +369,7 @@ def helm_install(payload, helm_namespace=settings.helm_namespace, helm_command_a
             value = value.replace(",","\,").replace("'", '\'"\'').replace(" ", "")
             helm_sets = helm_sets + f" --set {key}='{value}'"
 
-    helm_command = f'{helm_delete_prefix}{os.environ["HELM_PATH"]} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_comman_suffix}'
+    helm_command = f'{helm_delete_prefix}{os.environ["HELM_PATH"]} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}'
     for item in extensions_list_cached:
         if item["releaseName"] == release_name and item["version"] == version:
             item["successful"] = 'pending'

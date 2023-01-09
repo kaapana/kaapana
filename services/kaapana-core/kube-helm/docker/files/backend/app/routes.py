@@ -54,7 +54,14 @@ async def helm_add_custom_chart(request: Request):
     helm_command = 'nothing to say...'
     try:
         payload = await request.json()
-        resp, helm_command, _ = utils.helm_install(payload)
+        print("paylod name: ", payload["name"])
+        if payload["name"] == "security-stackrox-chart":
+            helm_command = utils.install_stackrox(payload)
+        elif payload["name"] == "security-wazuh-chart":
+            resp, helm_command, _ = utils.helm_install(payload)
+            # todo jr: install wazuh agent locally?
+        else:
+            resp, helm_command, _ = utils.helm_install(payload)
         return Response(f"Trying to install chart with {helm_command}", 200)
     except:
         return Response(f"A helm command error occured while executing {helm_command}!", 500)

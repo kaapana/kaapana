@@ -3,6 +3,7 @@ from glob import glob
 import shutil
 import yaml
 import os
+import re
 from treelib import Tree
 from subprocess import PIPE, run
 from os.path import join, dirname, basename, exists, isfile, isdir
@@ -235,6 +236,7 @@ class HelmChart:
         self.log_list = []
         self.chartfile = chartfile
         self.dependencies = {}
+        self.external_dependencies = {}
         self.kaapana_collections = []
         self.preinstall_extensions = []
         self.dependencies_count_all = None
@@ -293,7 +295,7 @@ class HelmChart:
         self.ignore_linting = False
         if "ignore_linting" in self.chart_yaml:
             self.ignore_linting = self.chart_yaml["ignore_linting"]
-
+    
         self.chart_id = f"{self.name}"
         # self.chart_id = f"{self.name}:{self.app_version}"
         BuildUtils.logger.debug(f"{self.chart_id}: chart init")
@@ -398,11 +400,15 @@ class HelmChart:
                 #     return
                 dependency_id = f"{dependency['name']}"
                 # dependency_id = f"{dependency['name']}:{dependency['version']}"
-                self.add_dependency_by_id(dependency_id=dependency_id)
+                dependency_repository = f"{dependency['repository']}"
+                if dependency_repository.startswith("https"): # support for external dependencies
+                    self.external_dependencies[dependency_id] = dependency
+                else:
+                    self.add_dependency_by_id(dependency_id=dependency_id)
 
             BuildUtils.logger.debug(f"{self.chart_id}: found {len(self.dependencies)}/{self.dependencies_count_all} dependencies.")
 
-            if len(self.dependencies) != self.dependencies_count_all:
+            if len(self.dependencies) + len(self.external_dependencies) != self.dependencies_count_all:
                 BuildUtils.logger.error(f"{self.chart_id}: check_dependencies failed! -> size self.dependencies vs dependencies_count_all")
                 BuildUtils.generate_issue(
                     component=suite_tag,
@@ -559,6 +565,10 @@ class HelmChart:
                 for line in yaml_content:
                     line = line.rstrip()
                     if "image:" in line:
+                        if re.match(r"\s*#", line) is not None:
+                            BuildUtils.logger.debug(f"Commented: {line} -> skip")
+                            continue
+
                         line = line.split("image:")[1].replace("\"", "").replace("'", "").replace("`", "").replace("$", "").replace(" ", "")
                         if "#" in line.split("image:")[0]:
                             BuildUtils.logger.debug(f"Commented: {line} -> skip")
@@ -586,6 +596,10 @@ class HelmChart:
                             self.add_container_by_tag(container_tag=container_tag)
 
     def lint_chart(self,build_version=False):
+        if self.ignore_linting:
+            BuildUtils.logger.debug(f"{self.chart_id}: ignore_linting is true, lint_chart skipped")
+            return
+
         if self.helmlint_done:
             BuildUtils.logger.debug(f"{self.chart_id}: lint_chart already done - skip")
             return
@@ -644,8 +658,31 @@ class HelmChart:
         else:
             BuildUtils.logger.debug(f"{self.chart_id}: kubeval disabled")
 
+    def get_external_dependencies(self, chart_dir):
+        BuildUtils.logger.info(f"{self.chart_id}: get_external_dependencies")
+        os.chdir(chart_dir)
+
+        command = ["helm", "dep", "up"]
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+        if output.returncode == 0 and "Successfully" in output.stdout:
+            BuildUtils.logger.debug(f"{self.chart_id}: successfully retrieved external dependencies")
+        else:
+            BuildUtils.logger.error(f"{self.chart_id}: get_external_dependencies failed!")
+            BuildUtils.generate_issue(
+                component=suite_tag,
+                name=f"{self.chart_id}",
+                msg="chart get_external_dependencies failed!",
+                level="ERROR",
+                output=output,
+                path=chart_dir
+            )
+
     def make_package(self):
         BuildUtils.logger.info(f"{self.chart_id}: make_package")
+
+        if len(self.external_dependencies)> 0:
+            self.get_external_dependencies(chart_dir=self.build_chart_dir)
+
         os.chdir(dirname(self.build_chart_dir))
         command = ["helm", "package", self.name]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
@@ -769,7 +806,8 @@ class HelmChart:
                 build_requirements_lines = f.readlines()
             with open(build_requirements, "w") as f:
                 for build_requirements_line in build_requirements_lines:
-                    if "repository:" not in build_requirements_line.strip("\n"):
+                    stripped_line = build_requirements_line.strip("\n")
+                    if "repository:" not in stripped_line or re.match(r"\s*repository:\s*https", stripped_line) is not None:
                         f.write(build_requirements_line)
 
         src_chart.build_chart_dir = target_build_dir

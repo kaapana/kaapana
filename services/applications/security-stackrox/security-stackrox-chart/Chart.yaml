@@ -3,6 +3,7 @@ version: "0.0.0"
 appVersion: "0.0.1"
 name:  security-stackrox-chart
 description: A Helm chart for deploying StackRox as security extension
+ignore_linting: true
 keywords:
 - kaapanaapplication
 - kaapanaexperimental

@@ -1,0 +1,21 @@
+
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: security-stackrox
+  namespace: {{ .Values.global.security_namespace }}
+  labels:
+    k8s-app: security-stackrox
+spec:
+  template:
+    metadata:
+      name: security-stackrox
+    spec:
+      containers:
+      - name: security-stackrox
+        image: "{{ .Values.global.registry_url }}/security-stackrox:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        resources: {}
+      imagePullSecrets:
+      - name: registry-secret
+      restartPolicy: Never

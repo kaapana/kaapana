@@ -3,3 +3,11 @@ global:
     pull_policy_pods: "IfNotPresent"
     base_namespace: "default"
     security_namespace: "security"
+
+# stackrox-cluster:
+#     allowNonstandardNamespace: true
+#     allowNonstandardReleaseName: true
+
+# stackrox-central:
+#     allowNonstandardNamespace: true
+#     allowNonstandardReleaseName: true

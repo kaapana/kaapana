@@ -2,7 +2,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: doccano-frontend-service
-  namespace: {{ .Values.global.store_namespace | default "store" }}
+  namespace: "{{ .Values.global.extensions_namespace }}"
 spec:
   selector:
     app-name: doccano-frontend
@@ -16,17 +16,11 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: doccano-frontend-ing
-  namespace: {{ .Values.global.store_namespace | default "store" }}
+  namespace: "{{ .Values.global.extensions_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    
     traefik.ingress.kubernetes.io/preserve-host: "true"
-    # ingress.kubernetes.io/custom-request-headers: "Authorization:||cookie:"
-    # nginx.ingress.kubernetes.io/enable-cors: "true"
-    # nginx.ingress.kubernetes.io/cors-allow-methods: "PUT, GET, POST, OPTIONS"
-    # nginx.ingress.kubernetes.io/cors-allow-origin: "https://vm-129-41.cloud.dkfz-heidelberg.de/oauth/"
-    # nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
-    #traefik.frontend.rule.type: PathPrefixStrip
 spec:
   rules:
   - host: 

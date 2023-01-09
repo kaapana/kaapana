@@ -1,4 +1,4 @@
-import AuthService from '@/common/auth.service.ts'
+import AuthService from '@/common/auth.service'
 
 import {
   LOGOUT,

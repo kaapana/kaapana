@@ -1,5 +1,3 @@
 ---
 global:
     pull_policy_pods: "IfNotPresent"
-    base_namespace: "default"
-    security_namespace: "security"

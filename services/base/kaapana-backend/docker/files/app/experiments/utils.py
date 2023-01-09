@@ -5,17 +5,19 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from datetime import timezone, timedelta
 import datetime
-from sqlalchemy.orm import Session
-from fastapi import APIRouter, Depends, Request, Response, HTTPException
-from . import schemas
+from fastapi import HTTPException
 from app.config import settings
 
 from opensearchpy import OpenSearch
 from minio import Minio
+from urllib3.util import Timeout
+
+TIMEOUT_SEC = 5
+TIMEOUT = Timeout(TIMEOUT_SEC)
 
 class HelperMinio():
 
-    _minio_host='minio-service.store.svc'
+    _minio_host=f'minio-service.{settings.services_namespace}.svc'
     _minio_port='9000'
     minioClient = Minio(_minio_host+":"+_minio_port,
                         access_key=settings.minio_username,
@@ -75,12 +77,7 @@ def requests_retry_session(
         proxies = {
             'http': os.getenv('PROXY', None),
             'https': os.getenv('PROXY', None),
-            'no_proxy': 'airflow-service.flow,airflow-service.flow.svc,' \
-                'ctp-dicom-service.flow,ctp-dicom-service.flow.svc,'\
-                    'dcm4chee-service.store,dcm4chee-service.store.svc,'\
-                        'opensearch-service.meta,opensearch-service.meta.svc'\
-                            'kaapana-backend-service.base,kaapana-backend-service.base.svc,' \
-                                'minio-service.store,minio-service.store.svc'
+            'no_proxy': '.svc,.svc.cluster,.svc.cluster.local'
         }
         session.proxies.update(proxies)
 
@@ -93,7 +90,7 @@ def get_utc_timestamp():
 
 def get_dag_list(only_dag_names=True, filter_allowed_dags=None):
     with requests.Session() as s:
-        r = requests_retry_session(session=s).get('http://airflow-service.flow.svc:8080/flow/kaapana/api/getdags')
+        r = requests_retry_session(session=s).get(f'http://airflow-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/getdags',timeout=TIMEOUT)
     raise_kaapana_connection_error(r)
     dags = r.json()
     dags = {dag: dag_data for dag, dag_data in dags.items() if ('ui_federated' in dag_data and dag_data['ui_federated'] is True) or ('ui_visible' in dag_data and dag_data['ui_visible'] is True)}
@@ -108,7 +105,7 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None):
             return {}
 
 def get_uid_list_from_query(cohort_query):
-    _opensearchhost = "opensearch-service.meta.svc:9200"
+    _opensearchhost = f"opensearch-service.{settings.services_namespace}.svc:9200"
     os_client = OpenSearch(hosts=_opensearchhost)
 
     try:
@@ -141,7 +138,7 @@ def check_dag_id_and_dataset(db_client_kaapana, conf_data, dag_id, addressed_kaa
 
 def execute_job(conf_data, dag_id):
     with requests.Session() as s:
-        resp = requests_retry_session(session=s).post(f'http://airflow-service.flow.svc:8080/flow/kaapana/api/trigger/{dag_id}',  json={
+        resp = requests_retry_session(session=s).post(f'http://airflow-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/trigger/{dag_id}', timeout=TIMEOUT, json={
             'conf': {
                 **conf_data,
             }})

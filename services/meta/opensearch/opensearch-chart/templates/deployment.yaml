@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: opensearch-de
-  namespace: {{ .Values.global.meta_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -37,11 +37,11 @@ spec:
           - name: cluster.name
             value: "opensearch-cluster"
           - name: node.name
-            value: "os-node1"
+            value: "{{ .Values.global.hostname }}"
           - name: discovery.seed_hosts
-            value: "os-node1"
+            value: "{{ .Values.global.hostname }}"
           - name: cluster.initial_cluster_manager_nodes
-            value: "os-node1"
+            value: "{{ .Values.global.hostname }}"
           - name: OPENSEARCH_JAVA_OPTS
             value: '-Xms512m -Xmx512m'
           resources:

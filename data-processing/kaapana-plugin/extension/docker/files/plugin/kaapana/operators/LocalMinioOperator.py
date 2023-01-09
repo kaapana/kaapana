@@ -4,7 +4,7 @@ import os
 from datetime import timedelta
 from zipfile import ZipFile
 
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, SERVICES_NAMESPACE
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperMinio import HelperMinio
 from kaapana.operators.KaapanaPythonBaseOperator import \
@@ -184,7 +184,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                  action_operators=None,
                  action_operator_dirs=None,
                  action_files=None,
-                 minio_host: str = 'minio-service.store.svc',
+                 minio_host: str = f'minio-service.{SERVICES_NAMESPACE}.svc',
                  minio_port: str = '9000',
                  file_white_tuples=None,
                  zip_files: bool = False,

@@ -3,7 +3,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: opensearch-service
-  namespace: {{ .Values.global.meta_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   labels:
     app-name: opensearch
 spec:
@@ -20,14 +20,25 @@ spec:
     targetPort: 9600
     protocol: TCP
 ---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: os-strip-prefix
+  namespace: "{{  .Values.global.services_namespace  }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - /os
+    forceSlash: true
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: os-ip
-  namespace: {{ .Values.global.meta_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,kube-system-strip-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-os-strip-prefix@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

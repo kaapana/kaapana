@@ -1,0 +1,11 @@
+numpy
+pandas
+dash==2.6.2
+dash-bootstrap-components==1.0.0
+dash-uploader==0.6.0
+dash_extensions==0.0.71
+packaging
+imageio
+mypy_extensions
+pydicom==2.3.1
+plotly==5.11.0

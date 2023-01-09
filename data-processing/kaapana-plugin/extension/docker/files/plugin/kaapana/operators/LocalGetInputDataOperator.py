@@ -19,11 +19,11 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     This operator pulls all defined files from it's defined source and stores the files in the workflow directory.
     All subsequent operators can get and process the files from within the workflow directory.
-    Typacally this operator can be used as the first operator in a workflow.
+    Typically, this operator can be used as the first operator in a workflow.
 
     **Inputs:**
 
-    * inputs: 'dcm-uid'
+    * data_form: 'json'
     * data_type: 'dicom' or 'json'
     * cohort_limit: limit the download series list number
 
@@ -40,7 +40,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         if config is not None and "form_data" in config and config["form_data"] is not None and "input" in config[
             "form_data"]:
             dag_modality = config["form_data"]["input"].lower()
-            if dag_modality == "ct" or dag_modality == "mri" or dag_modality == "mrt" or dag_modality == "seg" or dag_modality == "ot":
+            if dag_modality == "ct" or dag_modality == "mri" or dag_modality == "mrt" or dag_modality == "seg" or dag_modality == "ot" or dag_modality == "xr":
                 if input_modality != dag_modality:
                     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -119,11 +119,10 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     @cache_operator_output
     def start(self, ds, **kwargs):
-        print("# Starting moule LocalGetInputDataOperator...")
+        print("# Starting module LocalGetInputDataOperator...")
         print("#")
         self.conf = kwargs['dag_run'].conf
 
-        print(self.conf)
 
         dag_run_id = kwargs['dag_run'].run_id
         if self.conf and ("seriesInstanceUID" in self.conf):
@@ -168,56 +167,50 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     print(f"# Moving data from {src} -> {target}")
                     print("#")
                     shutil.move(src=src, dst=target)
-                    print("# Dag input dir correctly ajusted.")
-            return
-
-        if (self.inputs is None and self.conf is None) or (self.conf is not None and "data_form" not in self.conf):
-            print("No config or inputs in config found! Data seems to be present already...")
-            print("Skipping...")
+                    print("# Dag input dir correctly adjusted.")
             return
     
-        # if self.cohort_limit is None and self.inputs is None and self.conf is not None and "conf" in self.conf:
-        if self.inputs is None and self.conf is not None:
-            data_form = self.conf["data_form"]
-            self.cohort_limit = int(data_form["cohort_limit"]) if "cohort_limit" in data_form and data_form["cohort_limit"] is not None else None
-            self.inputs = HelperOpensearch.get_dcm_uid_objects(data_form["cohort_identifiers"], data_form["cohort_query"]["index"])
+        if self.conf is not None and "data_form" in self.conf:
+            self.data_form = self.conf["data_form"]
+
+        if self.data_form is None:
+            print("No data_form in config or object found! Data seems to be present already...")
+            print("Skipping...")
+            return
+
+        print("# Dicom data information:")
+        print("#")
+        print(json.dumps(self.data_form, indent=4, sort_keys=True))
+        print("#")
+        print("#")
+
+        self.cohort_limit = int(self.data_form["cohort_limit"]) if "cohort_limit" in self.data_form and self.data_form["cohort_limit"] is not None else None
+        self.dicom_data_infos = HelperOpensearch.get_dcm_uid_objects(self.data_form["cohort_identifiers"], self.data_form["cohort_query"]["index"])
+
         print(f"# Cohort-limit: {self.cohort_limit}")
         print("#")
-
-        if self.inputs is None and self.conf is not None and "inputs" in self.conf:
-            self.inputs = self.conf["inputs"]
-
-        if not isinstance(self.inputs, list):
-            self.inputs = [self.inputs]
-
-        if self.inputs is None:
-            print("No config or inputs in config found!")
-            print("Skipping...")
-            raise ValueError(("No inputs!!"))
-
         print("#")
+        print("# Dicom data information:")
         print("#")
-        print("# Inputs:")
-        print("#")
-        print(json.dumps(self.inputs, indent=4, sort_keys=True))
+        print(json.dumps(self.dicom_data_infos, indent=4, sort_keys=True))
         print("#")
         print("#")
         download_list = []
-        for input_data in self.inputs:
-            if "dcm-uid" in input_data:
-                dcm_uid = input_data["dcm-uid"]
+        for dicom_data_info in self.dicom_data_infos:
+            if "dcm-uid" in dicom_data_info:
+                dcm_uid = dicom_data_info["dcm-uid"]
 
                 if "study-uid" not in dcm_uid:
-                    print("'study-uid' not found in 'dcm-uid': {}".format(input_data))
+                    print("'study-uid' not found in 'dcm-uid': {}".format(dicom_data_info))
                     print("abort...")
                     raise ValueError('ERROR')
                 if "series-uid" not in dcm_uid:
-                    print("'series-uid' not found in 'dcm-uid': {}".format(input_data))
+                    print("'series-uid' not found in 'dcm-uid': {}".format(dicom_data_info))
                     print("abort...")
                     raise ValueError('ERROR')
 
                 if "modality" in dcm_uid and self.check_modality:
-                    modality = dcm_uid["modality"]
+                    modality = dcm_uid["curated_modality"]
                     self.check_dag_modality(input_modality=modality)
 
                 study_uid = dcm_uid["study-uid"]
@@ -233,7 +226,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
             else:
                 print("Error with dag-config!")
-                print("Unknown input: {}".format(input_data))
+                print("Unknown input: {}".format(dicom_data_info))
                 print("Supported 'dcm-uid' ")
                 print("Dag-conf: {}".format(self.conf))
                 raise ValueError('ERROR')
@@ -273,25 +266,24 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     def __init__(self,
                  dag,
-                 inputs=None,
                  name="get-input-data",
                  data_type="dicom",
+                 data_form=None,
                  check_modality=False,
                  cohort_limit=None,
                  parallel_downloads=3,
                  batch_name=None,
                  **kwargs):
         """
-        :param inputs: 'dcm-uid'.
         :param data_type: 'dicom' or 'json'
+        :param data_form: 'json'
         :param check_modality: 'True' or 'False'
         :param cohort_limit: limits the download list
         :param parallel_downloads: default 3, number of parallel downloads
         """
 
-
-        self.inputs = inputs
         self.data_type = data_type
+        self.data_form = data_form
         self.cohort_limit = cohort_limit
         self.check_modality = check_modality
         self.parallel_downloads = parallel_downloads

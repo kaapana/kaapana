@@ -4,8 +4,8 @@ kind: Deployment
 metadata:
   # This name uniquely identifies the Deployment
   name: hello-backend
-  namespace: base
-  #namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
+  #namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -34,7 +34,7 @@ spec:
         - name: APPLICATION_ROOT
           value: "/hello-backend"
         - name: DATABASE_URL
-          value: postgresql://someuser:somepassword@hello-postgres-service.base.svc:5432
+          value: postgresql://someuser:somepassword@hello-postgres-service.{{  .Values.global.services_namespace  }}.svc:5432
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         resources:

@@ -8,6 +8,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
+from kaapana.operators.KaapanaBaseOperator import kaapana_build_version
 
 
 from datetime import datetime
@@ -59,7 +60,7 @@ launch_app = KaapanaApplicationOperator(dag=dag,
                                         name="application-mitk-flow",
                                         input_operator=mitk_input,
                                         chart_name='mitk-flow-chart',
-                                        version='2022.04')
+                                        version=kaapana_build_version)
 send_dicom = DcmSendOperator(dag=dag, input_operator=launch_app, ae_title="MITK-flow")
 clean = LocalWorkflowCleanerOperator(dag=dag)
 

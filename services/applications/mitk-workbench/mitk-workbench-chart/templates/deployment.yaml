@@ -3,7 +3,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: mitk-vol-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -47,7 +47,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: mitk-vol-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   labels:
     app: mitk-vol-{{ $uuid }}
 spec:
@@ -64,7 +64,7 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: mitk-vol-{{ $uuid }}-redirect
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   redirectRegex:
     regex: ^.*/mitk-vol-{{ $uuid }}([^\/]*)$
@@ -74,10 +74,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: mitk-vol-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,{{ .Values.global.base_namespace }}-mitk-vol-{{ $uuid }}-redirect@kubernetescrd,kube-system-strip-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-mitk-vol-{{ $uuid }}-redirect@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

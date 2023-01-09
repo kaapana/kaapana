@@ -22,7 +22,6 @@ DEV_MODE="{{ dev_mode|default('true', true) }}" # dev-mode -> containers will al
 DEV_PORTS="{{ dev_ports|default('false') }}"
 GPU_SUPPORT="{{ gpu_support|default('false') }}"
 
-HELM_NAMESPACE="kaapana"
 PREFETCH_EXTENSIONS="{{ prefetch_extensions|default('false') }}"
 CHART_PATH=""
 NO_HOOKS=""
@@ -35,6 +34,16 @@ KAAPANA_BUILD_VERSION="{{ kaapana_build_version }}"    # version of the platform
 KAAPANA_BUILD_BRANCH="{{ kaapana_build_branch }}"    # branch name, which was build from -> auto-generated
 KAAPANA_LAST_COMMT_TIMESTAMP="{{ kaapana_last_commit_timestamp }}" # timestamp of the last commit -> auto-generated
 
+INSTANCE_UID=""
+
+SERVICES_NAMESPACE="{{ services_namespace }}"
+ADMIN_NAMESPACE="{{ admin_namespace }}"
+JOBS_NAMESPACE="{{ jobs_namespace }}"
+EXTENSIONS_NAMESPACE="{{ extensions_namespace }}"
+HELM_NAMESPACE="{{ helm_namespace }}"
+SECURITY_NAMESPACE="{{ security_namespace }}"
+
+INCLUDE_REVERSE_PROXY=false
 ######################################################
 # Individual platform configuration
 ######################################################
@@ -65,6 +74,34 @@ if [ -z ${http_proxy+x} ] || [ -z ${https_proxy+x} ]; then
     http_proxy=""
     https_proxy=""
 fi
+
+
+if [ ! -z $INSTANCE_UID ]; then
+    echo ""
+    echo "Setting INSTANCE_UID: $INSTANCE_UID namespaces ..."
+    SERVICES_NAMESPACE="$INSTANCE_UID-$SERVICES_NAMESPACE"
+    # ADMIN_NAMESPACE="$INSTANCE_UID-$ADMIN_NAMESPACE"
+    JOBS_NAMESPACE="$INSTANCE_UID-$JOBS_NAMESPACE"
+    EXTENSIONS_NAMESPACE="$INSTANCE_UID-$EXTENSIONS_NAMESPACE"
+    HELM_NAMESPACE="$INSTANCE_UID-$HELM_NAMESPACE"
+    SECURITY_NAMESPACE="$INSTANCE_UID-$SECURITY_NAMESPACE"
+
+    FAST_DATA_DIR="$FAST_DATA_DIR-$INSTANCE_UID"
+    SLOW_DATA_DIR="$SLOW_DATA_DIR-$INSTANCE_UID"
+    
+    INCLUDE_REVERSE_PROXY=true
+fi
+echo ""
+echo "JOBS_NAMESPACE:       $JOBS_NAMESPACE "
+echo "HELM_NAMESPACE:       $HELM_NAMESPACE "
+echo "ADMIN_NAMESPACE:      $ADMIN_NAMESPACE "
+echo "SERVICES_NAMESPACE:   $SERVICES_NAMESPACE "
+echo "EXTENSIONS_NAMESPACE: $EXTENSIONS_NAMESPACE "
+echo "SECURITY_NAMESPACE:   $SECURITY_NAMESPACE "
+echo ""
+echo "FAST_DATA_DIR: $FAST_DATA_DIR "
+echo "SLOW_DATA_DIR: $SLOW_DATA_DIR "
+echo ""
 
 script_name=`basename "$0"`
 
@@ -134,7 +171,13 @@ function delete_all_images_microk8s {
 }
 
 function get_domain {
-    DOMAIN=$(hostname -f)
+
+    if [ -z ${DOMAIN+x} ]; then
+        echo -e ""
+        DOMAIN=$(hostname -f)
+    else
+        echo -e "${GREEN}Server domain (FQDN): $DOMAIN ${NC}" > /dev/stderr;
+    fi
 
     if [ ! "$QUIET" = "true" ];then
         echo -e ""
@@ -165,21 +208,24 @@ function get_domain {
 function delete_deployment {
     echo -e "${YELLOW}Undeploy releases${NC}"
     helm -n $HELM_NAMESPACE ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $HELM_NAMESPACE uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
-    echo -e "${YELLOW}Waiting until everything is terminated...${NC}"
+    echo -e "${YELLOW}Waiting until everything is terminated ...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
     do
         sleep 3
-        DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered 'flow-jobs|flow|base|monitoring|store' | cut -d' ' -f1")
+        DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered '$JOBS_NAMESPACE|$EXTENSIONS_NAMESPACE' | cut -d' ' -f1")
         TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E --line-buffered 'Terminating' | cut -d' ' -f1")
+        echo -e ""
         UNINSTALL_TEST=$DEPLOYED_NAMESPACES$TERMINATING_PODS
         if [ -z "$UNINSTALL_TEST" ]; then
             break
+        else
+            echo -e "${YELLOW}Waiting for $TERMINATING_PODS $DEPLOYED_NAMESPACES ${NC}"
         fi
     done
     
-    echo -e "${YELLOW}Removing namespace kaapana...${NC}"
-    microk8s.kubectl delete namespace kaapana --ignore-not-found=true
+    echo -e "${YELLOW}Removing namespace $HELM_NAMESPACE ...${NC}"
+    microk8s.kubectl delete namespace $HELM_NAMESPACE --ignore-not-found=true
 
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
@@ -195,7 +241,7 @@ function delete_deployment {
 }
 
 function clean_up_kubernetes {
-    for n in base meta flow flow-jobs monitoring store;
+    for n in $EXTENSIONS_NAMESPACE $JOBS_NAMESPACE $HELM_NAMESPACE;
     do
         echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
         microk8s.kubectl delete --ignore-not-found namespace $n
@@ -205,7 +251,7 @@ function clean_up_kubernetes {
     echo "${YELLOW}Deleting all jobs in namespace default ${NC}"
     microk8s.kubectl delete jobs --all
     echo "${YELLOW}Removing remove-secret job${NC}"
-    microk8s.kubectl -n kube-system delete job --ignore-not-found remove-secret
+    microk8s.kubectl -n $SERVICES_NAMESPACE delete job --ignore-not-found remove-secret
 }
 
 function upload_tar {
@@ -311,7 +357,6 @@ function deploy_chart {
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
     --set-string global.base_namespace="base" \
-    --set-string global.core_namespace="kube-system" \
     --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
     --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
     --set-string global.credentials_minio_username="$CREDENTIALS_MINIO_USERNAME" \
@@ -323,13 +368,14 @@ function deploy_chart {
     --set-string global.dev_ports="$DEV_PORTS" \
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
-    --set-string global.flow_namespace="flow" \
-    --set-string global.meta_namespace="meta" \
-    --set-string global.store_namespace="store" \
-    --set-string global.flow_jobs_namespace="flow-jobs" \
-    --set-string global.monitoring_namespace="monitoring" \
+    --set-string global.services_namespace=$SERVICES_NAMESPACE \
+    --set-string global.jobs_namespace=$JOBS_NAMESPACE \
+    --set-string global.extensions_namespace=$EXTENSIONS_NAMESPACE \
+    --set-string global.security_namespace=$SECURITY_NAMESPACE \
+    --set-string global.admin_namespace=$ADMIN_NAMESPACE \
     --set-string global.gpu_support="$GPU_SUPPORT" \
     --set-string global.helm_namespace="$HELM_NAMESPACE" \
+    --set global.include_reverse_proxy=$INCLUDE_REVERSE_PROXY \
     --set-string global.home_dir="$HOME" \
     --set-string global.hostname="$DOMAIN" \
     --set-string global.http_port="$HTTP_PORT" \
@@ -359,6 +405,7 @@ function deploy_chart {
     --set-string global.platform_build_branch="$PLATFORM_BUILD_BRANCH" \
     --set-string global.platform_last_commit_timestamp="$PLATFORM_LAST_COMMT_TIMESTAMP" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
+    --set-string global.instance_uid="$INSTANCE_UID" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PROJECT_NAME"
@@ -411,11 +458,11 @@ function install_certs {
     else
         echo -e "files found!"
         echo -e "Creating cluster secret ..."
-        microk8s.kubectl delete secret certificate -n kube-system
-        microk8s.kubectl create secret tls certificate --namespace kube-system --key ./tls.key --cert ./tls.crt
-        auth_proxy_pod=$(microk8s.kubectl get pods -n kube-system |grep oauth2-proxy  | awk '{print $1;}')
+        microk8s.kubectl delete secret certificate -n $SERVICES_NAMESPACE
+        microk8s.kubectl create secret tls certificate --namespace $SERVICES_NAMESPACE --key ./tls.key --cert ./tls.crt
+        auth_proxy_pod=$(microk8s.kubectl get pods -n $SERVICES_NAMESPACE |grep oauth2-proxy  | awk '{print $1;}')
         echo "auth_proxy_pod pod: $auth_proxy_pod"
-        microk8s.kubectl -n kube-system delete pod $auth_proxy_pod
+        microk8s.kubectl -n $SERVICES_NAMESPACE delete pod $auth_proxy_pod
     fi
 
     echo -e "${GREEN}DONE${NC}"
@@ -798,6 +845,13 @@ do
             shift # past value
         ;;
 
+        -d|--domain)
+            DOMAIN="$2"
+            echo -e "${GREEN}SET DOMAIN!${NC}";
+            shift # past argument
+            shift # past value
+        ;;
+
         --port)
             HTTPS_PORT="$2"
             echo -e "${GREEN}SET PORT!${NC}";
@@ -848,6 +902,17 @@ do
             exit 0
         ;;
 
+        --undeploy)
+            delete_deployment
+            exit 0
+        ;;
+
+        --re-deploy)
+            delete_deployment
+            deploy_chart
+            exit 0
+        ;;
+
         --report)
             create_report
             exit 0
@@ -864,7 +929,7 @@ done
 preflight_checks
 
 echo -e "${YELLOW}Get helm deployments...${NC}"
-deployments=$(helm -n $HELM_NAMESPACE ls |cut -f1 |tail -n +2)
+deployments=$(helm -n $HELM_NAMESPACE ls -a |cut -f1 |tail -n +2)
 echo "Current deployments: " 
 echo $deployments
 

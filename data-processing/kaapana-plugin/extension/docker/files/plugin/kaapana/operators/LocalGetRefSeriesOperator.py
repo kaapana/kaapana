@@ -11,6 +11,7 @@ from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 
 class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     """
@@ -278,7 +279,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                  expected_file_count=1,  # int or 'all'
                  limit_file_count=None,
                  parallel_downloads=3,
-                 pacs_dcmweb_host='http://dcm4chee-service.store.svc',
+                 pacs_dcmweb_host=f'http://dcm4chee-service.{SERVICES_NAMESPACE}.svc',
                  pacs_dcmweb_port='8080',
                  aetitle="KAAPANA",
                  batch_name=None,
@@ -294,7 +295,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         :param expected_file_count: either number of files (type: int) or "all"
         :param limit_file_count: to limit number of files
         :param parallel_downloads: number of files to download in parallel (default: 3)
-        :param pacs_dcmweb_host: "http://dcm4chee-service.store.svc" (default)
+        :param pacs_dcmweb_host: "http://dcm4chee-service.{SERVICES_NAMESPACE}.svc" (default)
         :param pacs_dcmweb_port: 8080 (default)
         :param aetitle: "KAAPANA" (default)
         :param batch_name: None (default)

@@ -4,7 +4,7 @@ from datetime import timedelta, date
 import pydicom
 
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 
 
 class DcmQueryOperator(KaapanaBaseOperator):
@@ -13,7 +13,7 @@ class DcmQueryOperator(KaapanaBaseOperator):
                  dag,
                  ae_title='NONE',
                  local_ae_title="KAAPANAQR",
-                 pacs_host='ctp-dicom-service.flow.svc',
+                 pacs_host=f'ctp-dicom-service.{SERVICES_NAMESPACE}.svc',
                  pacs_port='11112',
                  start_date: date=None,
                  end_date: date=None,

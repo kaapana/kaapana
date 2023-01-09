@@ -2,7 +2,7 @@ from datetime import timedelta, datetime
 
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, \
     default_registry, kaapana_build_version
-
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 
 class DcmSendOperator(KaapanaBaseOperator):
     """
@@ -16,7 +16,7 @@ class DcmSendOperator(KaapanaBaseOperator):
                  dag,
                  name: str = "dcmsend",
                  ae_title: str = "NONE",
-                 pacs_host: str = "ctp-dicom-service.flow.svc",
+                 pacs_host: str = f"ctp-dicom-service.{SERVICES_NAMESPACE}.svc",
                  pacs_port: str = "11112",
                  env_vars=None,
                  level: str = "element",

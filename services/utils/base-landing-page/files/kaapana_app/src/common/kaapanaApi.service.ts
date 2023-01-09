@@ -1,6 +1,6 @@
 import Vue from 'vue'
-import request from '@/request.ts'
-import AuthService from '@/common/auth.service.ts'
+import request from '@/request'
+import AuthService from '@/common/auth.service'
 
 const kaapanaApiService = {
 

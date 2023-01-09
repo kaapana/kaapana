@@ -1,4 +1,3 @@
 ---
 global:
     pull_policy_pods: "IfNotPresent"
-    monitoring_namespace: "monitoring"

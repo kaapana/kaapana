@@ -8,12 +8,12 @@ import requests
 from airflow.exceptions import AirflowException
 from datetime import timedelta
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator, rest_self_udpate
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, ADMIN_NAMESPACE, SERVICES_NAMESPACE
 from kaapana.blueprints.kaapana_utils import cure_invalid_name, get_release_name
 
 
 class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
-    HELM_API = 'http://kube-helm-service.kube-system.svc:5000'
+    HELM_API = f"http://kube-helm-service.{SERVICES_NAMESPACE}.svc:5000"
     TIMEOUT = 60 * 60 * 12
 
     def rest_sets_update(self, payload):
@@ -31,6 +31,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
         print(kwargs)
         release_name = get_release_name(kwargs) if self.release_name is None else self.release_name
 
+
         payload = {
             'name': f'{self.chart_name}',
             'version': self.version,
@@ -44,6 +45,14 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
                 "batches_input_dir": "/{}/{}".format(WORKFLOW_DIR, BATCH_NAME)
             }
         }
+
+        conf = kwargs['dag_run'].conf
+
+        if 'form_data' in conf:
+            form_data = conf['form_data']
+            if 'annotator' in form_data:
+                payload["sets"]["annotator"] = form_data["annotator"]
+
 
         if kwargs["dag_run"] is not None and 'rest_call' in kwargs["dag_run"].conf and kwargs["dag_run"].conf['rest_call'] is not None:
             self.rest_sets_update(kwargs["dag_run"].conf['rest_call']) 
@@ -76,7 +85,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
     def uninstall_helm_chart(kwargs):
         release_name = get_release_name(kwargs)
         url = f'{KaapanaApplicationOperator.HELM_API}/helm-delete-chart'
-        r = requests.get(url, params={'release_name': release_name})
+        r = requests.post(url, params={'release_name': release_name})
         r.raise_for_status()
         print(r)
         print(r.text)
@@ -107,6 +116,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
 
         self.chart_name = chart_name
         self.version = version
+
         self.sets = sets or dict()
         self.data_dir = data_dir or os.getenv('DATADIR', "")
         self.release_name=release_name

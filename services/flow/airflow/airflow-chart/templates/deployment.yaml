@@ -15,39 +15,12 @@
 #  KIND, either express or implied.  See the License for the    *
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: admin-rbac
-  namespace: {{ .Values.global.flow_namespace }}
-subjects:
-  - kind: ServiceAccount
-    name: default
-    namespace: {{ .Values.global.flow_namespace }}
-roleRef:
-  kind: ClusterRole
-  name: cluster-admin
-  apiGroup: rbac.authorization.k8s.io
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: admin-rbac-jobs
-  namespace: {{ .Values.global.flow_namespace }}
-subjects:
-  - kind: ServiceAccount
-    name: default
-    namespace: {{ .Values.global.flow_namespace }}-jobs
-roleRef:
-  kind: ClusterRole
-  name: cluster-admin
-  apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: airflow
-  namespace: {{ .Values.global.flow_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -64,7 +37,7 @@ spec:
         imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
         env:
         - name: WAIT
-          value: "postgres,postgres-airflow,5432;prometheus,prometheus-service.monitoring.svc,9090"
+          value: "postgres,postgres-airflow,5432;prometheus,prometheus-service.{{  .Values.global.services_namespace  }}.svc,9090"
         - name: DELAY
           value: "5"
         - name: FILES_AND_FOLDERS_EXISTS
@@ -93,8 +66,20 @@ spec:
         - name: airflow-plugins
           mountPath: /root/airflow/plugins
         env:
+        - name: SERVICES_NAMESPACE
+          value: "{{ .Values.global.services_namespace }}"
+        - name: EXTENSIONS_NAMESPACE
+          value: "{{ .Values.global.extensions_namespace }}"
+        - name: JOBS_NAMESPACE
+          value: "{{ .Values.global.jobs_namespace }}"
+        - name: ADMIN_NAMESPACE
+          value: "{{ .Values.global.admin_namespace }}"
+        - name: SECURITY_NAMESPACE
+          value: "{{ .Values.global.security_namespace }}"
         - name: AIRFLOW_HOME
           value: "/root/airflow"
+        - name: INSTANCE_NAME
+          value: "{{ .Values.global.instance_name }}"
         - name: SQL_ALCHEMY_CONN
           valueFrom:
             secretKeyRef:
@@ -127,8 +112,16 @@ spec:
           value: "{{ .Values.global.https_port }}"
         - name: INSTANCE_NAME
           value: "{{ .Values.global.instance_name }}"
-        - name: AIRFLOW_KUBE_NAMESPACE
-          value: "{{ .Values.global.flow_namespace }}"
+        - name: SERVICES_NAMESPACE
+          value: "{{ .Values.global.services_namespace }}"
+        - name: EXTENSIONS_NAMESPACE
+          value: "{{ .Values.global.extensions_namespace }}"
+        - name: JOBS_NAMESPACE
+          value: "{{ .Values.global.jobs_namespace }}"
+        - name: ADMIN_NAMESPACE
+          value: "{{ .Values.global.admin_namespace }}"
+        - name: SECURITY_NAMESPACE
+          value: "{{ .Values.global.security_namespace }}"
         - name: GPU_SUPPORT
           value: "{{ .Values.global.gpu_support }}"
         - name: SQL_ALCHEMY_CONN
@@ -202,16 +195,26 @@ spec:
           value: "{{ .Values.global.https_port }}"
         - name: INSTANCE_NAME
           value: "{{ .Values.global.instance_name }}"
+        - name: GPU_SUPPORT
+          value: "{{ .Values.global.gpu_support }}"
+        - name: INSTANCE_ID
+          value: "{{ .Values.global.instance_id }}"
+        - name: SERVICES_NAMESPACE
+          value: "{{ .Values.global.services_namespace }}"
+        - name: EXTENSIONS_NAMESPACE
+          value: "{{ .Values.global.extensions_namespace }}"
+        - name: JOBS_NAMESPACE
+          value: "{{ .Values.global.jobs_namespace }}"
+        - name: ADMIN_NAMESPACE
+          value: "{{ .Values.global.admin_namespace }}"
+        - name: SECURITY_NAMESPACE
+          value: "{{ .Values.global.security_namespace }}"
         - name: PULL_POLICY_PODS
           value: "{{ .Values.global.pull_policy_pods }}"
         - name: MINIOUSER
           value: "{{ .Values.global.credentials_minio_username }}"
         - name: MINIOPASSWORD
           value: "{{ .Values.global.credentials_minio_password }}"
-        - name: AIRFLOW_KUBE_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
         - name: SQL_ALCHEMY_CONN
           valueFrom:
             secretKeyRef:
@@ -297,6 +300,7 @@ spec:
         hostPath:
           path: {{ .Values.global.slow_data_dir }}/dcm4che/dicom_data
           type: DirectoryOrCreate
+      serviceAccountName: kaapana-kube-admin
       imagePullSecrets:
       - name: registry-secret
 ---

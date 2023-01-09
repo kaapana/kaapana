@@ -177,7 +177,8 @@ elif mode == "install_pretrained":
             # "Task089_Fluo-N2DH-SIM_thickborder_time"
         ]
     else:
-        task_ids = [task_ids]
+        task_ids = task_ids.split(",")
+    print("task_ids in the end", task_ids)
 
     for task_id in task_ids:
         model_path = os.path.join(models_dir, model, task_id)
@@ -210,7 +211,7 @@ elif mode == "install_pretrained":
             print("Try: {} - Start download: {}".format(try_count, model_url))
             try_count += 1
             try:
-                print(f"set lock-file: {}".format(model_path_dl_running))
+                print("set lock-file: {}".format(model_path_dl_running))
                 Path(model_path_dl_running).touch()
                 urllib.request.urlretrieve(model_url, target_file)
             except Exception as e:

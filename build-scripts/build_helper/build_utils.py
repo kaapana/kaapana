@@ -28,6 +28,7 @@ class BuildUtils:
     kaapana_build_branch = None
     kaapana_last_commit_timestamp = None
     build_timestamp = None
+    parallel_processes = None
 
     @staticmethod
     def add_container_images_available(container_images_available):
@@ -50,7 +51,7 @@ class BuildUtils:
 
     @staticmethod
     def init(kaapana_dir, build_dir, external_source_dirs, platform_filter, default_registry, http_proxy, logger, exit_on_error, enable_build_kit,
-             create_offline_installation, skip_push_no_changes, push_to_microk8s):
+             create_offline_installation, skip_push_no_changes, parallel_processes, include_credentials, registry_user, registry_pwd, push_to_microk8s):
 
         BuildUtils.logger = logger
         BuildUtils.kaapana_dir = kaapana_dir
@@ -74,10 +75,17 @@ class BuildUtils:
         BuildUtils.kaapana_last_commit_timestamp = last_commit_timestamp
         BuildUtils.kaapana_build_branch = build_branch
         BuildUtils.kaapana_build_version = build_version
+        BuildUtils.registry_user = registry_user
+        BuildUtils.registry_pwd = registry_pwd
+        BuildUtils.include_credentials = include_credentials
+
+        BuildUtils.parallel_processes = parallel_processes
+        BuildUtils.parallel_processes = parallel_processes
 
         BuildUtils.logger.debug(f"{BuildUtils.kaapana_dir=}")
         BuildUtils.logger.debug(f"{BuildUtils.kaapana_build_branch=}")
         BuildUtils.logger.debug(f"{BuildUtils.kaapana_build_version=}")
+        BuildUtils.logger.debug(f"{BuildUtils.parallel_processes=}")
         BuildUtils.logger.debug(f"{BuildUtils.kaapana_last_commit_timestamp=}")
         BuildUtils.logger.debug(f"{BuildUtils.build_timestamp=}")
 
@@ -242,6 +250,27 @@ class BuildUtils:
         with open(unused_charts_json_path, 'w') as fp:
             json.dump(unused_charts, fp, indent=4)
 
+    @staticmethod
+    def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+        """
+        Call in a loop to create terminal progress bar
+        @params:
+            iteration   - Required  : current iteration (Int)
+            total       - Required  : total iterations (Int)
+            prefix      - Optional  : prefix string (Str)
+            suffix      - Optional  : suffix string (Str)
+            decimals    - Optional  : positive number of decimals in percent complete (Int)
+            length      - Optional  : character length of bar (Int)
+            fill        - Optional  : bar fill character (Str)
+            printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+        """
+        percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+        filledLength = int(length * iteration // total)
+        bar = fill * filledLength + '-' * (length - filledLength)
+        print(f'\r{prefix} |{bar}| {percent}% {suffix.tag.ljust(100)}', end = printEnd)
+        # Print New Line on Complete
+        if iteration == total: 
+            print()
 
 if __name__ == '__main__':
     print("Please use the 'start_build.py' script to launch the build-process.")

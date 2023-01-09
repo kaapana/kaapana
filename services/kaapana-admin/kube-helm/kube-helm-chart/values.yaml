@@ -1,0 +1,8 @@
+---
+global:
+    pull_policy_pods: "IfNotPresent"
+    offline_mode: "false"
+    fast_data_dir: ""
+    slow_data_dir: ""
+    home_dir: /root
+    hostname: ""

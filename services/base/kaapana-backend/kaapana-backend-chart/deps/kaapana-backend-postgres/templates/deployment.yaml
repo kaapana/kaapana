@@ -4,7 +4,7 @@ kind: Deployment
 metadata:
   # This name uniquely identifies the Deployment
   name: kaapana-backend-postgres-deployment
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -49,8 +49,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: kaapana-backend-postgres-service
-  # namespace: base
-  namespace: {{ .Values.global.base_namespace }}
+  # namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "{{ .Values.global.services_namespace }}"
   labels:
     app-name: kaapana-backend-postgres
 spec:

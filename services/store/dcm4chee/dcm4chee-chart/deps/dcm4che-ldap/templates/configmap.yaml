@@ -5,4 +5,4 @@ data:
 kind: ConfigMap
 metadata:
   name: dcm4che-iid-config
-  namespace: {{ .Values.global.store_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"

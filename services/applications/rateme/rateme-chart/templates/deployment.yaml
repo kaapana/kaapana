@@ -1,0 +1,94 @@
+{{- $uuid := uuidv4 | trunc 10 }}
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: rateme-{{ $uuid }}
+  namespace: {{ .Values.global.services_namespace }}
+  labels:
+    k8s-app: rateme
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: "rateme-{{ $uuid }}"
+  template:
+    metadata:
+      labels:
+        app-name: "rateme-{{ $uuid }}"
+    spec:
+      # securityContext:
+      #   runAsUser: 1000
+      containers:
+      - name: rateme
+        image: "{{ .Values.global.registry_url }}/rateme:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        resources:
+          requests:
+            memory: "10Mi"
+          limits:
+            memory: "200Mi"
+        ports:
+        - name: rateme-http
+          containerPort: 8050
+        env:
+        - name: INGRESS_PATH
+          value: "/rateme-{{ $uuid }}"
+        - name: BATCH_NAME
+          value: "{{ .Values.batch_name | default ""}}"
+        - name: OPERATOR_OUT_DIR
+          value: "{{ .Values.operator_out_dir | default ""}}"
+        - name: ANNOTATOR
+          value: "{{ .Values.username | default "annotator"}}"
+        volumeMounts:
+          - name: ratemedata
+            mountPath: /data
+      volumes:
+      - name: ratemedata
+        hostPath:
+          {{- if .Values.mount_path }}
+          path: {{ .Values.mount_path }}
+          {{- else }}
+          path: {{ .Values.global.fast_data_dir }}/minio
+          {{- end }}
+          type: DirectoryOrCreate
+      imagePullSecrets:
+      - name: registry-secret
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: "rateme-{{ $uuid }}"
+  namespace: {{ .Values.global.services_namespace }}
+spec:
+  selector:
+    app-name: "rateme-{{ $uuid }}"
+  ports:
+    - protocol: TCP
+      port: 8050
+      targetPort: rateme-http
+      name: log-http-port
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1 
+kind: Ingress
+metadata:
+  name: "rateme-{{ $uuid }}"
+  namespace: {{ .Values.global.services_namespace }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    #traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/preserve-host: "true"
+    #traefik.frontend.rule.type: PathPrefixStrip
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+      - path: "/rateme-{{ $uuid }}"
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: "rateme-{{ $uuid }}"
+            port:
+              name: log-http-port
+---    #traefik.frontend.rule.type: PathPrefixStrip

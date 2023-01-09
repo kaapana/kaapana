@@ -6,13 +6,13 @@
 3. Build the Dockerfile and push it to the registry. Don't forget to tag it.
    `docker build -t <registry>/base-landing-page:0.1.3-dev .`
    `docker push <registry>/base-landing-page:0.1.3-dev`
-4. Replace `services/base/landing-page-kaapana/landing-page-kaapana-chart/templates/deployments.yaml` by the following:
+4. Replace `services/base/landing-page-kaapana/landing-page-kaapana-chart/templates/deployment.yaml` by the following:
    ```
    kind: Deployment
    apiVersion: apps/v1
    metadata:
     name: landingpage
-    namespace: base
+    namespace: "{{ .Values.global.services_namespace }}"
     labels:
      k8s-app: landingpage
    spec:

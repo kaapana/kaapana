@@ -51,6 +51,8 @@ if __name__ == '__main__':
     parser.add_argument("-ee", "--exit-on-error", dest="exit_on_error", default=None, help="Stop build-process if error occurs.")
     parser.add_argument("-pf", "--plartform-filter", dest="platform_filter", default=None, help="Specify platform-chart-names to be build (comma seperated).")
     parser.add_argument("-es", "--external-sources", dest="external_source_dirs", default=None, help="External dirs to search for containers and charts.")
+    parser.add_argument("-pp", "--parallel-processes", dest="parallel_processes", default=2, help="Parallel process count for container build + push.")
+    parser.add_argument("-ic", "--include-credentials", dest="include_credentials", default=None, action='store_true', help="Whether to inlude the used registry credentials into the deploy-platform script.")
     args = parser.parse_args()
 
     kaapana_dir = args.kaapaa_dir if args.kaapaa_dir != None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -98,9 +100,15 @@ if __name__ == '__main__':
     conf_enable_linting = configuration["enable_linting"]
     conf_enable_build_kit = 1 if "enable_build_kit" in configuration and configuration["enable_build_kit"] else 0
     conf_skip_push_no_changes = configuration["skip_push_no_changes"]
+    conf_parallel_processes = configuration["parallel_processes"]
+    conf_registry_username = configuration["registry_username"]
+    conf_registry_username = conf_registry_username if conf_registry_username != "" else None
+    conf_registry_password = configuration["registry_password"]
+    conf_registry_password = conf_registry_password if conf_registry_password != "" else None
+    conf_include_credentials = configuration["include_credentials"]
 
-    registry_user = args.username
-    registry_pwd = args.password
+    registry_user = args.username if args.username is not None else conf_registry_username
+    registry_pwd = args.password if args.password is not None else conf_registry_password
 
     build_only = args.build_only if args.build_only != None else conf_build_only
     create_offline_installation = args.create_offline_installation if args.create_offline_installation != None else conf_create_offline_installation
@@ -111,6 +119,8 @@ if __name__ == '__main__':
     exit_on_error = args.exit_on_error if args.exit_on_error != None else conf_exit_on_error
     platform_filter = args.platform_filter.split(",") if args.platform_filter != None else conf_platform_filter
     skip_push_no_changes = args.skip_push_no_changes if args.skip_push_no_changes != None else conf_skip_push_no_changes
+    parallel_processes = int(args.parallel_processes if args.parallel_processes != 2 else conf_parallel_processes)
+    include_credentials = args.include_credentials if args.include_credentials != None else conf_include_credentials
 
     for external_source_dir in external_source_dirs:
         if not os.path.isdir(external_source_dir):
@@ -203,6 +213,10 @@ if __name__ == '__main__':
         enable_build_kit=conf_enable_build_kit,
         create_offline_installation=create_offline_installation,
         skip_push_no_changes=skip_push_no_changes,
+        parallel_processes=parallel_processes,
+        include_credentials=include_credentials,
+        registry_user = registry_user,
+        registry_pwd = registry_pwd,
         push_to_microk8s=push_to_microk8s
     )
 

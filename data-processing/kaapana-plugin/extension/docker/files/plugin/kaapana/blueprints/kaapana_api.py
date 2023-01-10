@@ -682,6 +682,7 @@ def get_static_website_results():
 
 
 
+# TODO: Use tagging operator
 @csrf.exempt
 @kaapanaApi.route('/api/tag', methods=['POST'])
 def tag_data():
@@ -924,10 +925,14 @@ def get_data_for_series_instance_UID(seriesInstanceUID):
     return jsonify(res['hits']['hits'][0]['_source']), 200
 
 
-@kaapanaApi.route('/api/curation_tool/query_values')
+@kaapanaApi.route('/api/curation_tool/query_values', methods=['POST'])
 @csrf.exempt
 def get_query_values():
     import re
+
+    query = request.get_json(force=True)
+    if not query:
+        query = {"query_string": {"query": "*"}}
 
     def camel_case_to_space(s):
         return " ".join(re.sub(
@@ -958,6 +963,7 @@ def get_query_values():
 
         res = HelperOpensearch.os_client.search(body={
             "size": 0,
+            "query": query,
             "aggs": {
                 name: {
                     "terms": {

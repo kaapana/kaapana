@@ -23,7 +23,12 @@
                 ></v-select>
               </v-col>
             </v-row>
-            <Search :cohort_name=cohort_name @search="(query) => updatePatients(query)"/>
+            <Search
+                :cohort_name=cohort_name
+                @search="(query) => updatePatients(query)"
+                @saveCohort="(dict) => saveCohort(dict.name, dict.query)"
+                @updateCohort="(dict) => updateCohort(dict.name, dict.query)"
+            />
           </div>
           <v-divider/>
         </v-card>
@@ -76,6 +81,7 @@ import Gallery from "@/components/Gallery.vue";
 import Search from "@/components/Search.vue";
 import TagBar from "@/components/TagBar.vue";
 import {loadCohortNames, loadPatients} from "@/common/api.service";
+import {createCohort, updateCohort} from "../common/api.service";
 
 
 export default {
@@ -110,9 +116,43 @@ export default {
         })
       } catch (e) {
         this.message = e
+      } finally {
+        this.isLoading = false
       }
-      this.isLoading = false
     },
+    async updateCohort(name, query) {
+      console.log(name)
+      console.log(query)
+      try {
+        const items = await loadPatients('unstructured', query)
+        const body = {
+          action: 'UPDATE',
+          cohort_name: name,
+          cohort_identifiers: items.map(item => ({'identifier': item['0020000E SeriesInstanceUID_keyword']}))
+        }
+        await updateCohort(body)
+        this.$notify({title: 'Dataset updated', text: `Successfully updated dataset ${name}.`, type: 'success'})
+        await this.updatePatients(query)
+      } catch (error) {
+        this.$notify({title: 'Network/Server error', text: error, type: 'error'});
+      }
+    },
+    async saveCohort(name, query) {
+      try {
+        const items = await loadPatients('unstructured', query)
+        const body = {
+          cohort_name: name,
+          cohort_identifiers: items.map(item => ({'identifier': item['0020000E SeriesInstanceUID_keyword']}))
+        }
+        await createCohort(body)
+        this.$notify({title: 'Dataset created', text: `Successfully new dataset ${name}.`, type: 'success'});
+        this.cohort_names = await loadCohortNames()
+        this.cohort_name = name
+        await this.updatePatients(query)
+      } catch (error) {
+        this.$notify({title: 'Network/Server error', text: error, type: 'error'});
+      }
+    }
   },
   async created() {
     if (localStorage['Dataset.structuredGallery']) {
@@ -122,12 +162,12 @@ export default {
       localStorage['Dataset.structuredGallery'] = JSON.stringify(this.structuredGallery)
     }
     this.cohort_names = await loadCohortNames()
-    if (
-        localStorage['Dataset.search.cohort_name']
-        && this.cohort_names.includes(JSON.parse(localStorage['Dataset.search.cohort_name']))
-    ) {
-      this.cohort_name = JSON.parse(localStorage['Dataset.search.cohort_name'])
-    }
+    // if (
+    //     localStorage['Dataset.search.cohort_name']
+    //     && this.cohort_names.includes(JSON.parse(localStorage['Dataset.search.cohort_name']))
+    // ) {
+    //   this.cohort_name = JSON.parse(localStorage['Dataset.search.cohort_name'])
+    // }
   }
 };
 </script>

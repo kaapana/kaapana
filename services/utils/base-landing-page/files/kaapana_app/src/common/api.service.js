@@ -55,9 +55,12 @@ const getDicomTags = async (studyInstanceUID, seriesInstanceUID) => {
 }
 
 const updateCohort = async (body) => {
-    return await httpClient.put(KAAPANA_BACKEND_ENDPOINT + '/cohort', body)
+    return await httpClient.put(KAAPANA_BACKEND_ENDPOINT + 'cohort', body)
 }
 
+const createCohort = async (body) => {
+    return await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'cohort', body)
+}
 const loadCohorts = async () => {
     try {
         // TODO
@@ -201,10 +204,10 @@ const loadPatients = async (url, data) => {
     }
 }
 
-const loadAvailableTags = async () => {
+const loadAvailableTags = async (body = {}) => {
     try {
         return (
-            await httpClient.get(KAAPANA_FLOW_ENDPOINT + '/curation_tool/query_values')
+            await httpClient.post(KAAPANA_FLOW_ENDPOINT + '/curation_tool/query_values', body)
         )
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
@@ -221,6 +224,7 @@ export {
     loadPatients,
     loadAvailableTags,
     loadMetaData,
+    createCohort,
     loadCohorts,
     formatMetadata,
     deleteSeriesFromPlatform,

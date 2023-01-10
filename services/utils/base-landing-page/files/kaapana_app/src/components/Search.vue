@@ -38,7 +38,37 @@
       </v-col>
 
       <v-col cols="2" align="center">
-        <v-btn color="primary" @click="() => search()" style="width: 100%;">Search</v-btn>
+        <v-menu
+            open-on-hover
+            bottom
+            offset-y
+            :close-on-click=false
+        >
+          <template v-slot:activator="{ on, attrs }">
+            <v-btn
+                color="primary"
+                v-bind="attrs"
+                v-on="on"
+                style="width: 100%;"
+                @click="() => search()"
+            >
+              Search
+            </v-btn>
+          </template>
+          <v-list>
+            <v-list-item @click.stop="dialog=true">
+              Save as Dataset
+            </v-list-item>
+            <v-list-item v-if="cohort_name !== null" @click="() => updateCohort()">
+              Update Dataset
+            </v-list-item>
+          </v-list>
+        </v-menu>
+        <SaveDatasetDialog
+            v-model="dialog"
+            @save="(name) => createCohort(name)"
+            @cancel="() => this.dialog=false"
+        />
       </v-col>
     </v-row>
     <div
@@ -81,8 +111,8 @@
 
 <script>
 /* eslint-disable */
-import SearchItem from "./SearchItem.vue";
 import {loadAvailableTags, loadCohortByName} from "../common/api.service";
+import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
 
 export default {
   name: "Search",
@@ -96,12 +126,11 @@ export default {
       filters: [],
       counter: 0,
       item_values: {},
-      mapping: {}
+      mapping: {},
+      dialog: false
     }
   },
-  components: {
-    SearchItem
-  },
+  components: {SaveDatasetDialog},
   methods: {
     addFilter() {
       this.display_filters = true
@@ -113,39 +142,53 @@ export default {
     deleteFilter(id) {
       this.filters = this.filters.filter(filter => filter.id !== id)
     },
+    async createCohort(name) {
+      this.dialog = false
+
+      this.$emit('saveCohort', {
+        name: name,
+        query: await this.composeQuery()
+      })
+    },
+    async updateCohort() {
+      this.$emit('updateCohort', {
+        name: this.cohort_name,
+        query: await this.composeQuery()
+      })
+    },
     async composeQuery() {
       const query = {
         "bool": {
           "must": [
+            await this.constructCohortQuery(this.cohort_name),
             ...(
                 this.filters.map(filter => this.queryFromFilter(filter)).filter(query => query !== null)
             ),
-            await this.constructCohortQuery(this.cohort_name),
             {
               "query_string": {
                 "query": this.query_string || '*'
               }
             }
           ]
-        }
+        },
       }
       console.log(JSON.stringify(query))
       return JSON.stringify(query)
     },
-    async search(onMount=false) {
+    async search(onMount = false) {
       this.display_filters = onMount
       this.$emit("search", await this.composeQuery())
-      localStorage['Dataset.search.filters'] = JSON.stringify(
-          this.filters.map(filter => (
-              {
-                'id': filter.id,
-                'key_select': filter.key_select,
-                'item_select': filter.item_select
-              })
-          )
-      )
-      localStorage['Dataset.search.query_string'] = JSON.stringify(this.query_string)
-      localStorage['Dataset.search.cohort_name'] = JSON.stringify(this.cohort_name)
+      // localStorage['Dataset.search.filters'] = JSON.stringify(
+      //     this.filters.map(filter => (
+      //         {
+      //           'id': filter.id,
+      //           'key_select': filter.key_select,
+      //           'item_select': filter.item_select
+      //         })
+      //     )
+      // )
+      // localStorage['Dataset.search.query_string'] = JSON.stringify(this.query_string)
+      // localStorage['Dataset.search.cohort_name'] = JSON.stringify(this.cohort_name)
     },
     queryFromFilter(filter) {
       if (filter.item_select.length > 0) {
@@ -163,36 +206,46 @@ export default {
         return null
       }
     },
-    async constructCohortQuery(cohort_name) {
+    async constructCohortQuery(cohort_name = null) {
       if (cohort_name === null)
         return ''
       const cohort = await loadCohortByName(cohort_name)
-      if (cohort.identifiers && cohort.identifiers.length > 0)
+      if (cohort.identifiers && cohort.identifiers.length > 0) {
         return {
-          "bool": {
-            "should": cohort.identifiers.map(item => ({
-                  "match": {
-                    "0020000E SeriesInstanceUID_keyword.keyword": item['identifier']
-                  }
-                })
-            )
+          "ids": {
+            "values": cohort.identifiers.map(item => item['identifier'])
           }
         }
-      else {
+      } else {
         return ''
       }
     }
   },
   async mounted() {
-    this.mapping = (await loadAvailableTags()).data
-    if (localStorage['Dataset.search.filters']) {
-      this.filters = JSON.parse(localStorage['Dataset.search.filters'])
-      this.counter = this.filters.length
-    }
-    if (localStorage['Dataset.search.query_string']) {
-      this.query_string = JSON.parse(localStorage['Dataset.search.query_string'])
-    }
+    // console.log(await this.constructCohortQuery(this.cohort_name))
+    this.mapping = (await loadAvailableTags(
+        (await this.constructCohortQuery(this.cohort_name)) || {}
+    )).data
+    // if (localStorage['Dataset.search.filters']) {
+    //   this.filters = JSON.parse(localStorage['Dataset.search.filters'])
+    //   this.counter = this.filters.length
+    // }
+    // if (localStorage['Dataset.search.query_string']) {
+    //   this.query_string = JSON.parse(localStorage['Dataset.search.query_string'])
+    // }
     await this.search(true)
+  },
+  watch: {
+    async cohort_name() {
+
+      this.filters = []
+
+      this.mapping = (await loadAvailableTags(
+          (await this.constructCohortQuery(this.cohort_name)) || {}
+      )).data
+      console.log('watch: ' + this.cohort_name)
+      await this.search()
+    }
   }
 }
 </script>

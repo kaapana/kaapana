@@ -981,7 +981,15 @@ def get_query_values():
 
     result = {
         k: {
-            'items': sorted([(i['key_as_string'] if 'key_as_string' in i else i['key']) for i in item['buckets']]),
+            'items': (
+                [
+                    dict(
+                        text=f"{(i['key_as_string'] if 'key_as_string' in i else i['key'])}  ({i['doc_count']})",
+                        value=(i['key_as_string'] if 'key_as_string' in i else i['key'])
+                    )
+                    for i in item['buckets']
+                ]
+            ),
             'key': name_field_map[k]
         }
         for k, item in res['aggregations'].items()

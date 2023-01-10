@@ -13,7 +13,7 @@ def predict_modality(dcm_file: str, modality: str):
     if modality=="CT":
         # check if projection is localizer
         dcm_slice = pydicom.dcmread(dcm_file)
-        if len(dcm_slice.ImageType)>=3:
+        if hasattr(dcm_slice, 'ImageType') and len(dcm_slice.ImageType)>=3:
             img_type = dcm_slice.ImageType[2]
             return "XR" if img_type=='LOCALIZER' else "CT"
         else:

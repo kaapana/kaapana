@@ -191,7 +191,7 @@ export default {
       // localStorage['Dataset.search.cohort_name'] = JSON.stringify(this.cohort_name)
     },
     queryFromFilter(filter) {
-      if (filter.item_select.length > 0) {
+      if (filter.item_select && filter.item_select.length > 0) {
         return {
           "bool": {
             "should": filter.item_select.map(item => ({

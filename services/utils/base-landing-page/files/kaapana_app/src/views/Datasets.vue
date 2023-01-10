@@ -90,8 +90,8 @@ export default {
       data: [],
       tags: [],
       image_id: null,
-      isLoading: false,
-      message: 'No data found.',
+      isLoading: true,
+      message: 'Loading...',
       structuredGallery: null,
       cohort_names: [],
       cohort_name: null
@@ -121,8 +121,6 @@ export default {
       }
     },
     async updateCohort(name, query) {
-      console.log(name)
-      console.log(query)
       try {
         const items = await loadPatients('unstructured', query)
         const body = {

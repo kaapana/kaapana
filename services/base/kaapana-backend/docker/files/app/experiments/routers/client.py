@@ -124,9 +124,10 @@ async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstanc
             dags[db_client_kaapana.instance_name] = client_dags
         else:
             db_remote_kaapana_instance = crud.get_kaapana_instance(db, instance_name, remote=True)
-            # print(f"db_remote_kaapana_instance: {db_remote_kaapana_instance}")
-            remote_allowed_dags = list(json.loads(db_remote_kaapana_instance.allowed_dags).keys())
-            dags[db_remote_kaapana_instance.instance_name] = remote_allowed_dags
+            if db_remote_kaapana_instance:
+                # print(f"db_remote_kaapana_instance: {db_remote_kaapana_instance}")
+                remote_allowed_dags = list(json.loads(db_remote_kaapana_instance.allowed_dags).keys())
+                dags[db_remote_kaapana_instance.instance_name] = remote_allowed_dags
     # print(f"Dags: {dags}")
     if len(dags) > 1:   # if multiple instances are selected -> find intersection of their allowed dags
         overall_allowed_dags = []

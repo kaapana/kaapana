@@ -849,6 +849,24 @@ class HelmChart:
                     msg=f"{container_id} could not be found in available containers!",
                     level="FATAL"
                 )
+        containers_to_built_tmp = containers_to_built.copy()
+        list_mid_index = len(containers_to_built) // 2
+        for idx, container in enumerate(containers_to_built_tmp):
+            org_list_idx = containers_to_built.index(container)
+            local_base_image = False
+            for base_image in container.base_images:
+                if base_image.local_image:
+                    local_base_image = True
+            
+            if container.local_image and not local_base_image:
+                containers_to_built.insert(0,containers_to_built.pop(org_list_idx))
+            
+            elif container.local_image and local_base_image:
+                containers_to_built.insert(list_mid_index,containers_to_built.pop(org_list_idx))
+            
+            elif not container.local_image and local_base_image:
+                containers_to_built += [containers_to_built.pop(org_list_idx)]
+        
         containers_to_built = [ (x,containers_to_built[x]) for x in range(0,len(containers_to_built)) ]
         result_containers = ThreadPool(BuildUtils.parallel_processes).imap_unordered(parallel_execute, containers_to_built)
         

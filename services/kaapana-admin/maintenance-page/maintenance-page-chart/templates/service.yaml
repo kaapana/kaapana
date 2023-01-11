@@ -3,7 +3,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: maintenancepage-service
-  namespace: {{ .Values.global.admin_namespace }}
+  namespace: "{{ .Values.global.admin_namespace }}"
 spec:
   selector:
     app-name: maintenancepage
@@ -18,17 +18,17 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: maintenancep-ing-ip-redirect
-  namespace: {{ .Values.global.admin_namespace }}
+  namespace: "{{ .Values.global.admin_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.core_namespace }}-errorpages@kubernetescrd
+
     traefik.ingress.kubernetes.io/preserve-host: "true"
 spec:
   rules:
   - host: 
     http:
       paths:
-      - path: /
+      - path: /maintenance
         pathType: ImplementationSpecific
         backend:
           service:

@@ -1,0 +1,42 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-check
+  namespace: "{{  .Values.global.admin_namespace  }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: auth-check
+  template:
+    metadata:
+      labels:
+        app-name: auth-check
+    spec:
+      containers:
+      - name: auth-check-container
+        image: "{{ .Values.global.registry_url }}/auth-check:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        resources:
+          requests:
+            memory: 20Mi
+          limits:
+            memory: 30Mi
+        ports:
+        - name: http-port
+          containerPort: 8000
+        volumeMounts:
+          - name: config
+            mountPath: /app/auth_role_mapping.json
+            subPath: auth_role_mapping.json
+      volumes:
+      - name: config
+        configMap:
+          name: auth-check-config
+          items:
+          - key: auth_role_mapping.json
+            path: auth_role_mapping.json
+      imagePullSecrets:
+      - name: registry-secret
+---

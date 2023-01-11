@@ -21,7 +21,6 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    
     traefik.ingress.kubernetes.io/preserve-host: "true"
 spec:
   rules:

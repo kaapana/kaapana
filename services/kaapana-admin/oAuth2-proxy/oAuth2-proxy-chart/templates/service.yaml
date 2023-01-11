@@ -41,7 +41,6 @@ metadata:
   namespace: "{{  .Values.global.helm_namespace  }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

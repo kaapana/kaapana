@@ -2,7 +2,12 @@
 <template lang="pug">
 v-dialog(v-model='dialogOpen' max-width='600px')
   template(v-slot:activator='{ on, attrs }')
-    v-btn(x-large color="primary" v-bind='attrs' v-on='on' dark) Experiment Execution
+    v-btn(x-large color="primary" v-bind='attrs' v-on='on' dark)
+      v-icon(class="mx-2" x-large) mdi-play-circle
+      v-spacer
+      div
+        strong 
+          h3 Start Experiment
   v-card
     v-form(v-model="valid", ref="executeWorkflow", lazy-validation)
       v-card-title
@@ -12,8 +17,12 @@ v-dialog(v-model='dialogOpen' max-width='600px')
           v-row
             v-col(cols='12')
               v-text-field(v-model='experiment_name' label='Experiment name' required='')
-            v-col(v-if="remote" cols='12')
-              v-select(v-model='instance_names' :items='available_instance_names' label='Instance names' multiple='' chips='' hint='On which nodes do you want to execute the workflow')
+            //- switch whether local experiment or not --> default: local => instance = local instance; NOT local => dropdown for remte instances
+            v-row
+              v-col(align="center")
+                v-switch(v-model="local_remote_switch" :label="switch_label()")
+            v-col(v-if="remote, !local_remote_switch" cols='12')
+              v-select(v-model='instance_names' :items='remote_instance_names' label='Remote instances' multiple='' chips='' hint='On which instances do you want to execute the workflow')
             v-col(v-if="instance_names.length" cols='12')
               v-select(v-model='dag_id' :items='available_dags' label='Dags' chips='' hint='Select a dag')
             //- v-if="!(remote==false && name=='federated_form')"
@@ -69,11 +78,13 @@ export default {
     external_instance_names: [],
     external_dag_id: null,
     external_available_instance_names: [],
+    remote_instance_names: [],
     experiment_name: null,
     dag_id: null,
     showConfData: false,
     federated_data: false,
-    remote_data:false,
+    remote_data: false,
+    local_remote_switch: true,
   }),
   props: {
     remote: {
@@ -102,7 +113,8 @@ export default {
   },
   watch: {
     dialogOpen () {
-      this.instance_names = []
+      this.instance_names = [];
+      console.log("DialogOpen instance_names: ", this.instance_names)
       this.experiment_name = null
       this.dag_id = null
       this.external_instance_names = []
@@ -110,6 +122,7 @@ export default {
     instance_names() {
       this.getDags()
       this.resetFormData()
+      this.getRemoteInstanceNames()
     },
     experiment_name() {
       this.resetFormData()
@@ -128,6 +141,29 @@ export default {
     }
   },
   methods: {
+    switch_label() {
+      if (this.local_remote_switch == true) {
+        if (this.instance_names.indexOf(this.clientinstance.instance_name) === -1) {
+          console.log("Add clientInstance to instance_names!")
+          this.instance_names.push(this.clientinstance.instance_name)
+        }
+        else {
+          console.log("This item already exists")
+        } 
+        return `Local experiment on instance: ${this.clientinstance.instance_name}`
+      }
+      // elif (this.local_remote_switch == false) { 
+      else {
+        console.log("Switch is turned off!")
+        // this.instance_names = []
+        // if (this.instance_names.length !== 0 ) {
+        if (this.instance_names.indexOf(this.clientinstance.instance_name) !== -1) {
+          console.log("Clear instance_names list!")
+          this.instance_names = []
+        }
+        return `Remote Experiment on available remote instances` 
+      }
+    },
     formatFormData (formData) {
       // Only necessary because vjsf does not allow to have same keys in selection form with dependencies
       let formDataFormatted = {}
@@ -156,6 +192,7 @@ export default {
     resetExternalFormData() {
       this.external_schemas = {}
       this.external_available_instance_names = []
+      this.remote_instance_names = []
       // console.log(this.external_dag_id)
       if (this.external_dag_id != null) {
         console.log('getting')
@@ -212,21 +249,34 @@ export default {
         });
     },
     getDags() {
-      kaapanaApiService
-        .federatedClientApiPost("/get-dags", {remote: this.remote, instance_names: this.instance_names})
-        .then((response) => {
-          this.available_dags = response.data;
-          console.log("Available DAGs: ", this.available_dags)
-        })
-        .catch((err) => {
-          console.log(err);
-        });
+      console.log("GET DAGs instance_names: ", this.instance_names)
+      if (this.instance_names !== 0) {
+        kaapanaApiService
+          .federatedClientApiPost("/get-dags", {remote: this.remote, instance_names: this.instance_names})
+          .then((response) => {
+            this.available_dags = response.data;
+            console.log("Available DAGs: ", this.available_dags)
+          })
+          .catch((err) => {
+            console.log(err);
+          });
+      }
     },
     getAvailableExternalNodeIds() {
       kaapanaApiService
         .federatedClientApiPost("/get-remote-kaapana-instances", {dag_id: this.external_dag_id})
         .then((response) => {
           this.external_available_instance_names = response.data.map(({ instance_name }) => instance_name);
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    },
+    getRemoteInstanceNames() {
+      kaapanaApiService
+        .federatedClientApiPost("/get-remote-kaapana-instances")
+        .then((response) => {
+          this.remote_instance_names = response.data.map(({ instance_name }) => instance_name);
         })
         .catch((err) => {
           console.log(err);

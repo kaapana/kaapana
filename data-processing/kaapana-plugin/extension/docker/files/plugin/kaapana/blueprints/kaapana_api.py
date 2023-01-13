@@ -985,8 +985,9 @@ def get_query_values():
                 [
                     dict(
                         text=f"{(i['key_as_string'] if 'key_as_string' in i else i['key'])}  ({i['doc_count']})",
-                        value=(i['key_as_string'] if 'key_as_string' in i else i['key'])
-                    )
+                        value=(i['key_as_string'] if 'key_as_string' in i else i['key']),
+                        count=i['doc_count']
+                     )
                     for i in item['buckets']
                 ]
             ),

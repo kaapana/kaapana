@@ -1,6 +1,6 @@
 <template>
   <v-container fluid class="content pa-0">
-    <v-container fluid :class="[this.image_id ? 'overview-shared pa-0' : 'overview-full pa-0' ]">
+    <v-container fluid class="overview-shared pa-0">
       <v-container class="pa-0" fluid>
         <v-card class="rounded-0">
           <div style="padding: 0 10px 10px 10px">
@@ -34,7 +34,6 @@
         </v-card>
       </v-container>
       <v-container fluid class="gallery overflow-auto rounded-0 v-card v-sheet pa-0">
-        <!--        <ErrorBoundary>-->
         <v-skeleton-loader
             v-if="isLoading"
             class="mx-auto"
@@ -57,16 +56,22 @@
         <h3 v-else>
           {{ message }}
         </h3>
-        <!--        </ErrorBoundary>-->
       </v-container>
     </v-container>
-    <v-container fluid v-if="this.image_id" class="detailView--fixed rounded-0 v-card v-sheet pa-0">
-      <!--      <ErrorBoundary>-->
+    <v-container
+        fluid class="sidebar rounded-0 v-card v-sheet pa-0"
+        :style="this.image_id ? '' : 'height: calc(100vh - 60px);'"
+    >
       <DetailView
+          v-if="this.image_id"
           :series-instance-u-i-d="this.image_id['seriesInstanceUID']"
           :study-instance-u-i-d="this.image_id['studyInstanceUID']"
           :seriesDescription="this.image_id['seriesDescription']"
           @close="() => this.image_id = null"
+      />
+      <MetaData
+          v-else
+          :metaData="this.metadata"
       />
       <!--      </ErrorBoundary>-->
     </v-container>
@@ -80,8 +85,8 @@ import StructuredGallery from "@/components/StructuredGallery.vue";
 import Gallery from "@/components/Gallery.vue";
 import Search from "@/components/Search.vue";
 import TagBar from "@/components/TagBar.vue";
-import {loadCohortNames, loadPatients} from "@/common/api.service";
-import {createCohort, updateCohort} from "../common/api.service";
+import {createCohort, updateCohort, loadCohortNames, loadPatients, loadAvailableTags} from "../common/api.service";
+import MetaData from "@/components/MetaData.vue";
 
 
 export default {
@@ -94,7 +99,8 @@ export default {
       message: 'Loading...',
       structuredGallery: null,
       cohort_names: [],
-      cohort_name: null
+      cohort_name: null,
+      metadata: {}
     };
   },
   components: {
@@ -103,6 +109,7 @@ export default {
     Search,
     TagBar,
     Gallery,
+    MetaData
   },
   methods: {
     async updatePatients(query = "{}") {
@@ -114,6 +121,9 @@ export default {
           if (this.data.length === 0)
             this.message = 'No data found.'
         })
+
+        // update metadata
+        this.metadata = (await loadAvailableTags(query)).data
       } catch (e) {
         this.message = e
       } finally {
@@ -170,7 +180,7 @@ export default {
 };
 </script>
 <style scoped>
-.detailView--fixed {
+.sidebar {
   width: 30%;
   /*height: calc(100vh + 65px);*/
   float: left;

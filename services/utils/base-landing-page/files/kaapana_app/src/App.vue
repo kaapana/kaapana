@@ -131,7 +131,7 @@
       </v-main>
       <v-footer color="primary" app inset>
         <span class="white--text">
-          &copy; DKFZ 2018 - DKFZ 2022 | {{ commonData.version }}
+          &copy; DKFZ 2018 - DKFZ 2023 | {{ commonData.version }}
         </span>
       </v-footer>
     </v-app>

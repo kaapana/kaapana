@@ -13,6 +13,16 @@ RUN curl https://storage.googleapis.com/kubernetes-release/release/${KUBE_LATEST
 RUN curl https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -xzO linux-amd64/helm > /usr/local/bin/helm && chmod +x /usr/local/bin/helm
 RUN chmod g+rwx /root && mkdir /config && chmod g+rwx /config    
 
+# Install containerd
+RUN apk update && apk add --no-cache \
+    containerd
+
+# Install ctr
+RUN curl -L https://github.com/containerd/containerd/releases/download/v1.5.13/containerd-1.5.13-linux-amd64.tar.gz -o containerd.tar.gz
+RUN tar -xf containerd.tar.gz
+RUN cp bin/ctr /usr/local/bin/ctr && chmod +x /usr/local/bin/ctr
+RUN rm -rf containerd* bin/
+
 COPY files/requirements.txt /kaapana/app/
 RUN python -m pip install --upgrade setuptools pip && pip3 install -r /kaapana/app/requirements.txt
 
@@ -28,6 +38,7 @@ ENV KUBECTL_PATH "kubectl"
 ENV HELM_EXTENSIONS_CACHE "/kaapana/mounted/extensions"
 ENV LOG_LEVEL="debug"
 ENV RECENT_UPDATE_CACHE="true"
+ENV CONTAINERD_SOCK="/root/containerd.sock"
 
 EXPOSE 5000
 CMD ["gunicorn","main:app","--chdir","/kaapana/app/backend/app","--workers","1","--worker-class","uvicorn.workers.UvicornWorker","--bind","0.0.0.0:5000","--access-logfile","-","--error-logfile","-"]

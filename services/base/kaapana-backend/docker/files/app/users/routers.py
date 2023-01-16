@@ -3,7 +3,7 @@ from typing import List, Optional
 from .schemas import KaapanaRole, KaapanaGroup, KaapanaUser
 from app.dependencies import get_user_service
 
-router = APIRouter(tags = ["user"])
+router = APIRouter(tags = ["users"])
 
 @router.get('/roles', response_model=List[KaapanaRole])
 async def get_roles(us=Depends(get_user_service)):

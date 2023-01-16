@@ -136,7 +136,8 @@ export default {
         const body = {
           action: 'UPDATE',
           cohort_name: name,
-          cohort_identifiers: items.map(item => ({'identifier': item['0020000E SeriesInstanceUID_keyword']}))
+          cohort_identifiers: items.map(item => ({'identifier': item['0020000E SeriesInstanceUID_keyword']})),
+          cohort_query: {index: 'meta-index'}
         }
         await updateCohort(body)
         this.$notify({title: 'Dataset updated', text: `Successfully updated dataset ${name}.`, type: 'success'})
@@ -150,7 +151,8 @@ export default {
         const items = await loadPatients('unstructured', query)
         const body = {
           cohort_name: name,
-          cohort_identifiers: items.map(item => ({'identifier': item['0020000E SeriesInstanceUID_keyword']}))
+          cohort_identifiers: items.map(item => ({'identifier': item['0020000E SeriesInstanceUID_keyword']})),
+          cohort_query: {index: 'meta-index'}
         }
         await createCohort(body)
         this.$notify({title: 'Dataset created', text: `Successfully new dataset ${name}.`, type: 'success'});

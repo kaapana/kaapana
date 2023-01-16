@@ -20,7 +20,7 @@ metadata:
   namespace: {{ .Values.global.security_namespace }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    #traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
     traefik.ingress.kubernetes.io/preserve-host: "true"
 spec:
   rules:

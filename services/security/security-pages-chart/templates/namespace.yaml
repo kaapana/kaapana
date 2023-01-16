@@ -1,5 +1,6 @@
 ---
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: {{ .Values.global.security_namespace }}
+# todo: only needed if security_namespace != services, if so: create it like the other namespaces in central chart, not here
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   name: {{ .Values.global.security_namespace }}

@@ -3,44 +3,34 @@ kind: Service
 metadata:
   namespace: {{ .Values.global.security_namespace }}
   name: security-wazuh-service
+  annotations:
+    traefik.ingress.kubernetes.io/service.passhostheader: "false" #todo: only needed while we cannot automatically login with kaapana user
 spec:
   ports:
     - name: "80"
       port: 80
       targetPort: 5601
-    - name: "9200"
-      port: 9200
-      targetPort: 9200
-    - name: "1514"
-      port: 1514
-      targetPort: 1514
-    - name: "1515"
-      port: 1515
-      targetPort: 1515
-    - name: "514"
-      port: 514
-      protocol: UDP
-      targetPort: 514
-    - name: "55000"
-      port: 55000
-      targetPort: 55000
+      nodePort: 9000 # todo: dev only
+    # - name: "55000"
+    #   port: 55000
+    #   targetPort: 55000
   selector:
     app-name: security-wazuh
 status:
   loadBalancer: {}
 ---
-apiVersion: networking.k8s.io/v1 
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: security-wazuh-redirect
   namespace: {{ .Values.global.security_namespace }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    #traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
     traefik.ingress.kubernetes.io/preserve-host: "true"
 spec:
   rules:
-  - host: 
+  - host:
     http:
       paths:
       - path: /security-wazuh
@@ -51,3 +41,68 @@ spec:
             port:
               number: 80
 ---
+
+# kind: Ingress
+# apiVersion: networking.k8s.io/v1
+# metadata:
+#   name: security-wazuh-redirect
+#   namespace: services
+#   selfLink: >-
+#     /apis/networking.k8s.io/v1/namespaces/services/ingresses/security-wazuh-redirect
+#   uid: 5bb98dc4-55b5-42f2-a1e6-f6481f3a219b
+#   resourceVersion: '9560642'
+#   generation: 1
+#   creationTimestamp: '2023-01-12T14:52:39Z'
+#   labels:
+#     app.kubernetes.io/managed-by: Helm
+#   annotations:
+#     ingress.kubernetes.io/auth-remove-header: 'true'
+#     ingress.kubernetes.io/custom-request-headers: Authorization:||cookie:||session:||www-authenticate:||x-forwarded-user
+#     meta.helm.sh/release-name: security-wazuh-chart
+#     meta.helm.sh/release-namespace: admin
+#     traefik.ingress.kubernetes.io/preserve-host: 'true'
+#     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+#     traefik.ingress.kubernetes.io/router.middlewares: admin-remove-auth-headers@kubernetescrd
+#   managedFields:
+#     - manager: helm
+#       operation: Update
+#       apiVersion: networking.k8s.io/v1
+#       time: '2023-01-12T14:52:39Z'
+#       fieldsType: FieldsV1
+#       fieldsV1:
+#         f:metadata:
+#           f:annotations:
+#             .: {}
+#             f:meta.helm.sh/release-name: {}
+#             f:meta.helm.sh/release-namespace: {}
+#             f:traefik.ingress.kubernetes.io/preserve-host: {}
+#             f:traefik.ingress.kubernetes.io/router.entrypoints: {}
+#           f:labels:
+#             .: {}
+#             f:app.kubernetes.io/managed-by: {}
+#         f:spec:
+#           f:rules: {}
+#     - manager: dashboard
+#       operation: Update
+#       apiVersion: networking.k8s.io/v1
+#       time: '2023-01-13T09:14:52Z'
+#       fieldsType: FieldsV1
+#       fieldsV1:
+#         f:metadata:
+#           f:annotations:
+#             f:ingress.kubernetes.io/auth-remove-header: {}
+#             f:ingress.kubernetes.io/custom-request-headers: {}
+#             f:traefik.ingress.kubernetes.io/router.middlewares: {}
+# spec:
+#   rules:
+#     - http:
+#         paths:
+#           - path: /security-wazuh
+#             pathType: ImplementationSpecific
+#             backend:
+#               service:
+#                 name: security-wazuh-service
+#                 port:
+#                   number: 80
+# status:
+#   loadBalancer: {}

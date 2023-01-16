@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     helm_path: str = os.getenv("HELM_PATH", None)
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     recent_update_cache: bool = True if os.environ.get('RECENT_UPDATE_CACHE', None) in ['true', 'True'] else False # TODO: delete
+    containerd_sock: str = os.getenv("CONTAINERD_SOCK", None)
 
 
 settings = Settings()

@@ -202,18 +202,23 @@ async def ws_add_file_chunks(ws: WebSocket, fname: str, fsize: int, chunk_size: 
     return fpath, "File successfully uploaded"
 
 
-def run_microk8s_import(fname: str) -> Tuple[bool, str]:
+def run_containerd_import(fname: str) -> Tuple[bool, str]:
+    logger.debug(f"in function: run_containerd_import, {fname=}")
     fpath = make_fpath(fname)
     # check if file exists
     if not os.path.exists(fpath):
         logger.error(f"file can not be found in path {fpath}")
         return False,  f"file {fname} can not be found"
-    cmd = f"microk8s.ctr image import {fpath}"
+    
+    cmd = f"ctr --namespace k8s.io -address='{settings.containerd_sock}' image import {fpath}"
+    logger.debug(f"{cmd=}")
     res, stdout = helm_helper.execute_shell_command(cmd, shell=True, blocking=True, timeout=30)
 
     if not res:
         logger.error(f"microk8s import failed: {stdout}")
         return res, f"Failed to import container {fname}"
+
+    logger.info("Successfully imported container")
 
     return res, f"Successfully imported container {fname}"
 

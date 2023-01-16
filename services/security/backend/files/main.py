@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI, APIRouter, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
-#from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.routing import Mount as Mount 
 from pydantic import BaseModel
@@ -40,11 +40,19 @@ def put_register_extension(extension: ExtensionRegistration):
 
 # todo: delete / unregister extension method
 
+@api_router.get("/{full_path:path}")
+def catch_all_api(request: Request, full_path:str):
+    raise HTTPException(status_code=404, detail="API route not available")
+
 security_app = FastAPI()
 security_app.include_router(api_router)
 security_app.mount("/assets", StaticFiles(directory="./static/assets", html=True), name="vue-frontend")
 
 templates = Jinja2Templates(directory="./static")
+
+@security_app.get("/api")
+def redirect_api_to_api_slash(request: Request):
+    return RedirectResponse(f"{request.url}/")
 
 @security_app.get("/{full_path:path}")
 async def catch_all(request: Request, full_path: str):

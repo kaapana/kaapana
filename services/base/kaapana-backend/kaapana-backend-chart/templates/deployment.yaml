@@ -115,6 +115,9 @@ spec:
           requests:
             memory: "100Mi"
         volumeMounts:
+        - name: auth-config
+          mountPath: /app/auth_role_mapping.json
+          subPath: auth_role_mapping.json
 {{- if .Values.global.dev_files }}
         - name: kaapana-dev-files
           mountPath: /app
@@ -124,6 +127,12 @@ spec:
       imagePullSecrets:
         - name: registry-secret
       volumes:
+      - name: auth-config
+        configMap:
+          name: auth-check-config
+          items:
+          - key: auth_role_mapping.json
+            path: auth_role_mapping.json
       - name: alembic
         hostPath:
           path: {{ .Values.global.fast_data_dir }}/alembic-kaapana-backend

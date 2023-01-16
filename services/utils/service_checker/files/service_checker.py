@@ -3,7 +3,6 @@ import time
 import os
 import requests
 
-
 def check_url(url):
     print("")
     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -49,6 +48,9 @@ def check_port(name, host, port, delay):
         return 1
 
 
+print("Start service-checker ...")
+print("")
+print("")
 wait_env = os.getenv('WAIT', None)
 wait_env = wait_env if wait_env != "" else None
 
@@ -58,9 +60,6 @@ delay = delay if delay != "" else None
 files_and_folders_exists = os.getenv('FILES_AND_FOLDERS_EXISTS', None)
 files_and_folders_exists = files_and_folders_exists if files_and_folders_exists != "" else None
 
-print("Start service-checker ...")
-print("")
-print("")
 print(f"{wait_env=}")
 print(f"{delay=}")
 print(f"{files_and_folders_exists=}")
@@ -104,5 +103,6 @@ if wait_env != None and delay != None:
                 time.sleep(delay)
         else:
             while check_port(name, host, port, delay) != 0:
-                # print("Service not known... try again")
                 time.sleep(delay)
+
+                

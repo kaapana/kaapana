@@ -14,6 +14,4 @@ dependencies:
     version: 0.0.0
   - name: kaapana-platform-chart
     version: 0.0.0
-  - name: auth-check-chart
-    version: 0.0.0
   

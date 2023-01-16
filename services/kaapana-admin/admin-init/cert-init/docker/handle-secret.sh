@@ -19,7 +19,6 @@ function install_cert_files {
         echo "Secret $SECRET_NAME not found in namespace $ADMIN_NAMESPACE -> creating new secret ..."
         if ! kubectl --insecure-skip-tls-verify=true -n $ADMIN_NAMESPACE create secret tls $SECRET_NAME --key $KEY_FILE --cert $CERT_FILE; then
             echo "ERROR creating secret $SECRET_NAME in namespace $ADMIN_NAMESPACE -> maybe already existing?"
-            exit 1 
         fi
     else
         echo "Secret $SECRET_NAME already found in namespace $ADMIN_NAMESPACE"

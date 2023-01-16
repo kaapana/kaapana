@@ -414,7 +414,7 @@ class HelmChart:
                 #     return
                 dependency_id = f"{dependency['name']}"
                 # dependency_id = f"{dependency['name']}:{dependency['version']}"
-                dependency_repository = f"{dependency['repository']}"
+                dependency_repository = f"{dependency['repository']}" if "repository" in dependency else ""
                 if dependency_repository.startswith("https"): # support for external dependencies
                     self.external_dependencies[dependency_id] = dependency
                 else:

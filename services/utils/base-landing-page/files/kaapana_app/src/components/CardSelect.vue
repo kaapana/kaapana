@@ -32,6 +32,7 @@
           <CardMenu
               @removeFromCohort="() => {this.$emit('removeFromCohort')}"
               @deleteFromPlatform="() => {this.$emit('deleteFromPlatform')}"
+              :cohort_names="cohort_names"
               :cohort_name="cohort_name"
               :seriesInstanceUID="seriesInstanceUID"
               :studyInstanceUID="studyInstanceUID"
@@ -122,6 +123,10 @@ export default {
     selected_tags: {
       type: Array,
       default: []
+    },
+    cohort_names: {
+      type: Array,
+      default: []
     }
   },
   data() {
@@ -139,7 +144,6 @@ export default {
       timer: null,
     };
   },
-  computed: {},
   async mounted() {
     const type = JSON.parse(localStorage.getItem("Dataset.structuredGallery")) ? 'structured' : 'unstructured'
     const key = `Dataset.CardSelect.config.${type}`

@@ -11,6 +11,7 @@
 <!--        TODO: maybe provide cohortNames or cache it-->
         <CardSelect
             :cohort_name="cohort_name"
+            :cohort_names="cohort_names"
             :series-instance-u-i-d="item.seriesInstanceUID"
             :study-instance-u-i-d="item.studyInstanceUID"
             :selected_tags="inner_selectedTags"
@@ -33,7 +34,7 @@
 import Chip from "./Chip.vue";
 import LazyList from './lazy-load-list/LazyList.vue'
 import CardSelect from "./CardSelect";
-import {deleteSeriesFromPlatform, updateCohort} from "../common/api.service";
+import {deleteSeriesFromPlatform, loadCohortNames, updateCohort} from "../common/api.service";
 
 export default {
   name: 'Gallery',
@@ -57,12 +58,15 @@ export default {
   },
   data() {
     return {
+      cohort_names: [],
       image_id: null,
       inner_data: [],
       inner_selectedTags: []
     };
   },
   mounted() {
+    loadCohortNames().then(cohort_names => this.cohort_names = cohort_names)
+
     this.inner_data = this.data
     this.inner_selectedTags = this.selectedTags
     if (localStorage['Dataset.Gallery.cols'] === undefined) {

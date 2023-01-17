@@ -66,6 +66,10 @@ export default {
       type: String,
       default: null
     },
+    cohort_names: {
+      type: Array,
+      default: [],
+    },
     studyInstanceUID: "",
     seriesInstanceUID: "",
   },
@@ -74,9 +78,6 @@ export default {
       cohortNames: [],
       openMenu: false
     }
-  },
-  async mounted() {
-    this.cohortNames = await loadCohortNames()
   },
   methods: {
     openInOHIF() {

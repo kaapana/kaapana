@@ -24,6 +24,7 @@
               </v-col>
             </v-row>
             <Search
+                ref="search"
                 :cohort_name=cohort_name
                 @search="(query) => updatePatients(query)"
                 @saveCohort="(dict) => saveCohort(dict.name, dict.query)"
@@ -72,6 +73,7 @@
       <MetaData
           v-else
           :metaData="this.metadata"
+          @dataPointSelection="d => addFilterToSearch(d)"
       />
       <!--      </ErrorBoundary>-->
     </v-container>
@@ -112,6 +114,9 @@ export default {
     MetaData
   },
   methods: {
+    addFilterToSearch(selectedItem) {
+      this.$refs.search.addFilterItem(selectedItem['key'], selectedItem['value'])
+    },
     async updatePatients(query = "{}") {
       this.isLoading = true
       let url = (this.structuredGallery ? 'structured' : 'unstructured')

@@ -8,7 +8,7 @@
               Patients
             </v-row>
             <v-row align="center" justify="center">
-              {{ this.metaData && this.metaData['Patient Name keyword']['items'].length || 'N/A' }}
+              {{ this.metaData['Patient ID'] && this.metaData['Patient ID']['items'].length || 'N/A' }}
             </v-row>
           </v-col>
           <v-col>
@@ -16,7 +16,7 @@
               Studies
             </v-row>
             <v-row align="center" justify="center">
-              {{ this.metaData && this.metaData['Study Instance UID']['items'].length || 'N/A' }}
+              {{ this.metaData['Study Instance UID'] && this.metaData['Study Instance UID']['items'].length || 'N/A' }}
             </v-row>
           </v-col>
           <v-col>
@@ -24,7 +24,9 @@
               Series
             </v-row>
             <v-row align="center" justify="center">
-              {{ this.metaData && this.metaData['Series Instance UID']['items'].length || 'N/A' }}
+              {{
+                this.metaData['Series Instance UID'] && this.metaData['Series Instance UID']['items'].length || 'N/A'
+              }}
             </v-row>
           </v-col>
         </v-row>
@@ -40,9 +42,11 @@
           :options="{
             chart: {
               id: key,
-              // selection: {
-              //   enabled: true
-              // },
+              events: {
+                dataPointSelection: (event, chartContext, config) => {
+                  return dataPointSelection(event, chartContext, config, key, value)
+                },
+              },
               toolbar: {
                 show: true,
                 offsetX: 0,
@@ -54,7 +58,7 @@
                   zoomin: true,
                   zoomout: true,
                   pan: true,
-                  reset: true ,
+                  reset: true,
                   //customIcons: []
                 },
                 export: {
@@ -77,29 +81,8 @@
                 autoSelected: 'zoom'
               },
             },
-            // theme: {
-            //       mode: 'dark',
-            //       // palette: 'palette1',
-            //       // monochrome: {
-            //       //     enabled: false,
-            //       //     color: '#255aee',
-            //       //     shadeTo: 'light',
-            //       //     shadeIntensity: 0.65
-            //       // },
-            //   },
             title: {
-                text: key,
-                // align: 'left',
-                // margin: 10,
-                // offsetX: 0,
-                // offsetY: 0,
-                // floating: false,
-                // style: {
-                //   fontSize:  '14px',
-                //   fontWeight:  'bold',
-                //   fontFamily:  undefined,
-                //   color:  '#263238'
-                // },
+              text: key,
             },
             xaxis: {
               categories: value['items'].map(item => item['value']),
@@ -134,32 +117,19 @@ export default {
     }
   },
   data() {
-    return {
-      // chartOptions: {
-      //   chart: {
-      //     id: "basic-bar",
-      //     events: {
-      //       dataPointSelection: (event, chartContext, config) => {
-      //         console.log("event triggered");
-      //         console.log(
-      //             "index selected: ",
-      //             config["seriesIndex"],
-      //             config["dataPointIndex"]
-      //         );
-      //         console.log(
-      //             config["w"]["config"]["xaxis"]["categories"][
-      //                 config["dataPointIndex"]
-      //                 ]
-      //         );
-      //         console.log(event, chartContext, config);
-      //       },
-      //     },
-      //   },
-      //   xaxis: {},
-      // },
-      // series: [],
-    };
+    return {};
   },
+  methods: {
+    dataPointSelection(event, chartContext, config, key, value) {
+      this.$emit(
+          'dataPointSelection',
+          {
+            key: key,
+            value: value['items'].map(item => item['value'])[config['dataPointIndex']]
+          }
+      )
+    }
+  }
 };
 </script>
 <style scoped>

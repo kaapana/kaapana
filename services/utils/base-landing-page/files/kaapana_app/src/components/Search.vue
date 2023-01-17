@@ -14,7 +14,7 @@
         />
       </v-col>
       <v-col cols="1" align="center">
-        <v-btn @click="addFilter" icon>
+        <v-btn @click="addEmptyFilter" icon>
           <v-icon>
             mdi-filter-plus-outline
           </v-icon>
@@ -132,12 +132,28 @@ export default {
   },
   components: {SaveDatasetDialog},
   methods: {
-    addFilter() {
+    addFilterItem(key, value) {
+      const filters = this.filters.filter(filter => filter.key_select === key)
+      if (
+          filters.length > 0 &&
+          filters[0].item_select.filter(item => item === value).length === 0
+      ) {
+        filters[0].item_select.push(value)
+        this.display_filters = true
+      } else if (filters.length === 0) {
+        this.filters.push({
+          id: this.counter++,
+          key_select: key,
+          item_select: [value]
+        })
+        this.display_filters = true
+      }
+    },
+    addEmptyFilter() {
       this.display_filters = true
       this.filters.push({
-        id: this.counter
+        id: this.counter++
       })
-      this.counter++
     },
     deleteFilter(id) {
       this.filters = this.filters.filter(filter => filter.id !== id)

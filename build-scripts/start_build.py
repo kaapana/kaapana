@@ -10,30 +10,6 @@ from build_helper.charts_helper import HelmChart, init_helm_charts, helm_registr
 from build_helper.container_helper import Container, container_registry_login
 from build_helper.build_utils import BuildUtils
 
-build_dir = join(dirname(dirname(os.path.realpath(__file__))), "build")
-if exists(build_dir):
-    rmtree(build_dir)
-os.makedirs(build_dir, exist_ok=True)
-
-# Create a custom logger
-logging.getLogger().setLevel(logging.DEBUG)
-logger = logging.getLogger(__name__)
-
-c_handler = logging.StreamHandler()
-c_handler.setLevel(logging.DEBUG)
-
-f_handler = logging.FileHandler(join(build_dir, "build.log"))
-f_handler.setLevel(logging.DEBUG)
-
-c_format = logging.Formatter('%(levelname)s - %(message)s')
-f_format = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-c_handler.setFormatter(c_format)
-f_handler.setFormatter(f_format)
-
-# Add handlers to the logger
-logger.addHandler(c_handler)
-logger.addHandler(f_handler)
-
 supported_log_levels = ["DEBUG", "INFO", "WARN", "ERROR"]
 
 if __name__ == '__main__':
@@ -53,9 +29,36 @@ if __name__ == '__main__':
     parser.add_argument("-es", "--external-sources", dest="external_source_dirs", default=None, help="External dirs to search for containers and charts.")
     parser.add_argument("-pp", "--parallel-processes", dest="parallel_processes", default=2, help="Parallel process count for container build + push.")
     parser.add_argument("-ic", "--include-credentials", dest="include_credentials", default=None, action='store_true', help="Whether to inlude the used registry credentials into the deploy-platform script.")
+    parser.add_argument("-bd", "--build-dir", dest="build_dir", default=None, help="Specify the main Kaapana repo-dir to build from.")
+    parser.add_argument("-nl", "--no-login", dest="no_login", default=False, action="store_true",help="Skipps the logins to the container registry (expects to be already logged in).")
     args = parser.parse_args()
 
     kaapana_dir = args.kaapaa_dir if args.kaapaa_dir != None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    build_dir = args.build_dir if args.build_dir != None else  join(dirname(dirname(os.path.realpath(__file__))), "build")
+
+    if exists(build_dir):
+        rmtree(build_dir)
+    os.makedirs(build_dir, exist_ok=True)
+
+    # Create a custom logger
+    logging.getLogger().setLevel(logging.DEBUG)
+    logger = logging.getLogger(__name__)
+
+    c_handler = logging.StreamHandler()
+    c_handler.setLevel(logging.DEBUG)
+
+    f_handler = logging.FileHandler(join(build_dir, "build.log"))
+    f_handler.setLevel(logging.DEBUG)
+
+    c_format = logging.Formatter('%(levelname)s - %(message)s')
+    f_format = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    c_handler.setFormatter(c_format)
+    f_handler.setFormatter(f_format)
+
+    # Add handlers to the logger
+    logger.addHandler(c_handler)
+    logger.addHandler(f_handler)
+
     if not os.path.isdir(os.path.join(kaapana_dir, "platforms")):
         logger.error("----------------------------------------------------------------------")
         logger.error("The dir 'platforms' was not found! -> wrong kaapana_dir? -> exit!")
@@ -121,6 +124,7 @@ if __name__ == '__main__':
     skip_push_no_changes = args.skip_push_no_changes if args.skip_push_no_changes != None else conf_skip_push_no_changes
     parallel_processes = int(args.parallel_processes if args.parallel_processes != 2 else conf_parallel_processes)
     include_credentials = args.include_credentials if args.include_credentials != None else conf_include_credentials
+    no_login = args.no_login
 
     for external_source_dir in external_source_dirs:
         if not os.path.isdir(external_source_dir):
@@ -167,10 +171,13 @@ if __name__ == '__main__':
     logger.info(f"{create_offline_installation=}")
     logger.info(f"{build_installer_scripts=}")
     logger.info(f"{push_to_microk8s=}")
+    logger.info(f"{build_dir=}")
+    logger.info(f"{kaapana_dir=}")
+    logger.info(f"{no_login=}")
     logger.info("")
     logger.info("-----------------------------------------------------------")
 
-    if not build_only:
+    if not build_only and not no_login:
         if registry_user is None:
             registry_user = os.getenv("REGISTRY_USER", None)
         if registry_pwd is None:
@@ -225,7 +232,7 @@ if __name__ == '__main__':
         enable_build=container_build,
         enable_push=containers_push,
     )
-    if not build_only:
+    if not build_only and not no_login:
         container_registry_login(username=registry_user, password=registry_pwd)
         helm_registry_login(username=registry_user, password=registry_pwd)
 

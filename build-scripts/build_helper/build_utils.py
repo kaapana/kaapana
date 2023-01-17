@@ -72,13 +72,20 @@ class BuildUtils:
 
         BuildUtils.build_timestamp = datetime.now().strftime("%d-%m-%Y")
 
+        kaapana_build_version,kaapana_build_branch,kaapana_last_commit,kaapana_last_commit_timestamp = BuildUtils.get_repo_info(BuildUtils.kaapana_dir)
+        BuildUtils.kaapana_last_commit_timestamp = kaapana_last_commit_timestamp
+        BuildUtils.kaapana_build_branch = kaapana_build_branch
+        BuildUtils.kaapana_build_version = kaapana_build_version
+        
         build_version,build_branch,last_commit,last_commit_timestamp = BuildUtils.get_repo_info(BuildUtils.main_git_dir)
-        BuildUtils.kaapana_last_commit_timestamp = last_commit_timestamp
-        BuildUtils.kaapana_build_branch = build_branch
-        BuildUtils.kaapana_build_version = build_version
+        BuildUtils.main_git_repo_last_commit_timestamp = last_commit_timestamp
+        BuildUtils.main_git_repo_build_branch = build_branch
+        BuildUtils.main_git_repo_build_version = build_version
+        
         BuildUtils.registry_user = registry_user
         BuildUtils.registry_pwd = registry_pwd
         BuildUtils.include_credentials = include_credentials
+        
 
         BuildUtils.parallel_processes = parallel_processes
         BuildUtils.parallel_processes = parallel_processes

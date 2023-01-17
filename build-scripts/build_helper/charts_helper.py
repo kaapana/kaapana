@@ -332,18 +332,18 @@ class HelmChart:
         
         self.check_container_use()
 
-    def add_dependency_by_id(self, dependency_id):
-        if dependency_id in self.dependencies:
-            BuildUtils.logger.info(f"{self.chart_id}: check_dependencies {dependency_id} already present.")
+    def add_dependency_by_id(self, dependency_name,dependency_version):
+        if dependency_name in self.dependencies:
+            BuildUtils.logger.info(f"{self.chart_id}: check_dependencies {dependency_name} already present.")
 
-        chart_available = [x for x in BuildUtils.charts_available if x.name == dependency_id]
+        chart_available = [x for x in BuildUtils.charts_available if f"{x.name}-{x.version}" == f"{dependency_name}-{dependency_version}"]
 
         if len(chart_available) == 1:
             dep_chart = chart_available[0]
             self.dependencies[dep_chart.chart_id] = dep_chart
             BuildUtils.logger.debug(f"{self.chart_id}: dependency found: {dep_chart.chart_id}")
         else:
-            BuildUtils.logger.warning(f"{self.chart_id}: check_dependencies failed! {dependency_id}")
+            BuildUtils.logger.warning(f"{self.chart_id}: check_dependencies failed! {dependency_name}")
             if len(chart_available) > 1:
                 chart_identified = None
                 BuildUtils.logger.warning(f"{self.chart_id}: Multiple dependency-charts found!")
@@ -371,17 +371,24 @@ class HelmChart:
                     BuildUtils.generate_issue(
                         component=suite_tag,
                         name=f"{self.chart_id}",
-                        msg=f"check_dependencies failed! {dependency_id}: multiple charts found!",
+                        msg=f"check_dependencies failed! {dependency_name}: multiple charts found!",
                         level="ERROR"
                     )
             elif len(chart_available) == 0:
-                BuildUtils.logger.error(f"{self.chart_id}: check_dependencies failed! {dependency_id} -> not found!")
-                BuildUtils.generate_issue(
-                    component=suite_tag,
-                    name=f"{self.chart_id}",
-                    msg=f"check_dependencies failed! Dependency {dependency_id} not found!",
-                    level="ERROR"
-                )
+                BuildUtils.logger.error(f"{self.chart_id}: check_dependencies failed! {dependency_name} -> not found!")
+                chart_available = [x for x in BuildUtils.charts_available if f"{x.name}-{x.version}" == f"{dependency_name}-{BuildUtils.kaapana_build_version}"]
+                if len(chart_available) == 1:
+                    dep_chart = chart_available[0]
+                    self.dependencies[dep_chart.chart_id] = dep_chart
+                    BuildUtils.logger.debug(f"{self.chart_id}: dependency found: {dep_chart.chart_id}")
+
+                else:
+                    BuildUtils.generate_issue(
+                        component=suite_tag,
+                        name=f"{self.chart_id}",
+                        msg=f"check_dependencies failed! Dependency {dependency_name} not found!",
+                        level="ERROR"
+                    )
 
     def check_dependencies(self):
         if self.kaapana_type == "platform":
@@ -402,17 +409,12 @@ class HelmChart:
 
             self.dependencies_count_all = len(requirements_yaml["dependencies"])
             for dependency in requirements_yaml["dependencies"]:
-                # if "name" not in dependency or "version" not in dependency:
-                #     BuildUtils.generate_issue(
-                #         component=suite_tag,
-                #         name=f"{self.chart_id}",
-                #         msg="check_dependencies failed! -> name or version missing!",
-                #         level="ERROR"
-                #     )
-                #     return
-                dependency_id = f"{dependency['name']}"
-                # dependency_id = f"{dependency['name']}:{dependency['version']}"
-                self.add_dependency_by_id(dependency_id=dependency_id)
+                dependency_version = f"{dependency['version']}"
+                if dependency_version == "0.0.0":
+                    dependency_version = self.version
+
+                dependency_name = f"{dependency['name']}"
+                self.add_dependency_by_id(dependency_name=dependency_name, dependency_version=dependency_version)
 
             BuildUtils.logger.debug(f"{self.chart_id}: found {len(self.dependencies)}/{self.dependencies_count_all} dependencies.")
 

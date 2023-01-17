@@ -1,6 +1,6 @@
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
-from airflow.api.common.experimental.trigger_dag import trigger_dag as trigger
+from airflow.api.common.trigger_dag import trigger_dag as trigger
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from airflow.models import DagBag
 from glob import glob
@@ -83,7 +83,6 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
 
         return conf
 
-
     def start(self, ds, **kwargs):
         print("# ")
         print("# Starting LocalAutoTriggerOperator...")
@@ -98,7 +97,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
         print("# ")
         print(f"# Found {len(trigger_rule_list)} auto-trigger configurations -> start processing ...")
         print("# ")
-        
+
         batch_folders = sorted([f for f in glob(join(WORKFLOW_DIR, kwargs['dag_run'].run_id, "batch", '*'))])
         triggering_list = []
         for batch_element_dir in batch_folders:
@@ -143,7 +142,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                             single_execution = False
                             if "single_execution" in conf and conf["single_execution"]:
                                 # if it is a batch, still process triggered dag witout batch-processing
-                                print("Single execution enabled for dag!") 
+                                print("Single execution enabled for dag!")
                                 single_execution = True
                             if single_execution:
                                 dag_run_id = generate_run_id(dag_id)
@@ -175,7 +174,6 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
 
         for triggering in triggering_list:
             self.trigger_it(triggering)
-
 
     def __init__(self,
                  dag,

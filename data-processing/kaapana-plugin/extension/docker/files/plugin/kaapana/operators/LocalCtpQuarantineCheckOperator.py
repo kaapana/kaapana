@@ -1,9 +1,11 @@
-import glob, os, shutil
+import glob
+import os
+import shutil
 from pathlib import Path
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
-from airflow.api.common.experimental.trigger_dag import trigger_dag as trigger
+from airflow.api.common.trigger_dag import trigger_dag as trigger
 import pydicom
 from datetime import timedelta
 
@@ -17,6 +19,7 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
         **Outputs:**
         Found quarantine files are processed as incoming files and added to the PACs and meta.
     """
+
     def check(self, **kwargs):
         conf = kwargs['dag_run'].conf
         if conf and "dataInputDirs" in conf:
@@ -69,7 +72,6 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
         :param max_number_of_batch_files: default 2000, defines the maximum of files handled in a single dag trigger.
         :param target_dir: The input dir of the trigger_dag_id. Has to be set, for a different incoming process.
         """
-
 
         name = "ctp-quarantine-check"
         self.trigger_dag_id = trigger_dag_id

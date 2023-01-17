@@ -51,10 +51,11 @@ class BuildUtils:
 
     @staticmethod
     def init(kaapana_dir, build_dir, external_source_dirs, platform_filter, default_registry, http_proxy, logger, exit_on_error, enable_build_kit,
-             create_offline_installation, skip_push_no_changes, parallel_processes, include_credentials, registry_user, registry_pwd, push_to_microk8s):
+             create_offline_installation, skip_push_no_changes, parallel_processes, include_credentials, registry_user, registry_pwd, push_to_microk8s, main_git_dir):
 
         BuildUtils.logger = logger
         BuildUtils.kaapana_dir = kaapana_dir
+        BuildUtils.main_git_dir = main_git_dir
         BuildUtils.build_dir = build_dir
         BuildUtils.platform_filter = platform_filter
         BuildUtils.default_registry = default_registry
@@ -71,7 +72,7 @@ class BuildUtils:
 
         BuildUtils.build_timestamp = datetime.now().strftime("%d-%m-%Y")
 
-        build_version,build_branch,last_commit,last_commit_timestamp = BuildUtils.get_repo_info(BuildUtils.kaapana_dir)
+        build_version,build_branch,last_commit,last_commit_timestamp = BuildUtils.get_repo_info(BuildUtils.main_git_dir)
         BuildUtils.kaapana_last_commit_timestamp = last_commit_timestamp
         BuildUtils.kaapana_build_branch = build_branch
         BuildUtils.kaapana_build_version = build_version

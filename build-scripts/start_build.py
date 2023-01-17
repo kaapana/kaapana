@@ -28,13 +28,19 @@ if __name__ == '__main__':
     parser.add_argument("-pf", "--plartform-filter", dest="platform_filter", default=None, help="Specify platform-chart-names to be build (comma seperated).")
     parser.add_argument("-es", "--external-sources", dest="external_source_dirs", default=None, help="External dirs to search for containers and charts.")
     parser.add_argument("-pp", "--parallel-processes", dest="parallel_processes", default=2, help="Parallel process count for container build + push.")
-    parser.add_argument("-ic", "--include-credentials", dest="include_credentials", default=None, action='store_true', help="Whether to inlude the used registry credentials into the deploy-platform script.")
+    parser.add_argument("-ic", "--include-credentials", dest="include_credentials", default=None, action='store_true',
+                        help="Whether to inlude the used registry credentials into the deploy-platform script.")
     parser.add_argument("-bd", "--build-dir", dest="build_dir", default=None, help="Specify the main Kaapana repo-dir to build from.")
-    parser.add_argument("-nl", "--no-login", dest="no_login", default=False, action="store_true",help="Skipps the logins to the container registry (expects to be already logged in).")
+    parser.add_argument("-nl", "--no-login", dest="no_login", default=False, action="store_true", help="Skipps the logins to the container registry (expects to be already logged in).")
     args = parser.parse_args()
 
     kaapana_dir = args.kaapaa_dir if args.kaapaa_dir != None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    build_dir = args.build_dir if args.build_dir != None else  join(dirname(dirname(os.path.realpath(__file__))), "build")
+    build_dir = args.build_dir if args.build_dir != None else join(dirname(dirname(os.path.realpath(__file__))), "build")
+
+    if args.build_dir != None:
+        main_git_dir = build_dir
+    else:
+        main_git_dir = kaapana_dir
 
     if exists(build_dir):
         rmtree(build_dir)
@@ -222,9 +228,10 @@ if __name__ == '__main__':
         skip_push_no_changes=skip_push_no_changes,
         parallel_processes=parallel_processes,
         include_credentials=include_credentials,
-        registry_user = registry_user,
-        registry_pwd = registry_pwd,
-        push_to_microk8s=push_to_microk8s
+        registry_user=registry_user,
+        registry_pwd=registry_pwd,
+        push_to_microk8s=push_to_microk8s,
+        main_git_dir=main_git_dir
     )
 
     Container.init_containers(

@@ -299,7 +299,7 @@ class HelmChart:
         if "version" in self.chart_yaml and self.chart_yaml["version"] != "0.0.0":
             self.version = self.chart_yaml["version"]
         else:
-            chart_build_version,chart_build_branch,chart_last_commit,chart_last_commit_timestamp = BuildUtils.get_repo_info(self.chart_dir)
+            chart_build_version,chart_build_branch,chart_last_commit,chart_last_commit_timestamp, parent_repo_version = BuildUtils.get_repo_info(self.chart_dir)
             self.version = chart_build_version
             self.build_branch = chart_build_branch
             self.last_commit_timestamp = chart_last_commit_timestamp
@@ -376,12 +376,15 @@ class HelmChart:
                     )
             elif len(chart_available) == 0:
                 BuildUtils.logger.error(f"{self.chart_id}: check_dependencies failed! {dependency_name} -> not found!")
+                for test in BuildUtils.charts_available:
+                    print(f"{test.name}-{test.version}")
+
                 chart_available = [x for x in BuildUtils.charts_available if f"{x.name}-{x.version}" == f"{dependency_name}-{BuildUtils.kaapana_build_version}"]
                 if len(chart_available) == 1:
+                    found_in_submodule = True
                     dep_chart = chart_available[0]
                     self.dependencies[dep_chart.chart_id] = dep_chart
                     BuildUtils.logger.debug(f"{self.chart_id}: dependency found: {dep_chart.chart_id}")
-
                 else:
                     BuildUtils.generate_issue(
                         component=suite_tag,
@@ -521,7 +524,7 @@ class HelmChart:
         BuildUtils.logger.debug(f"{self.chart_id}: check_container_use")
 
         if self.kaapana_type == "extenstion-collection":
-            self.add_container_by_tag(container_tag=f"{BuildUtils.default_registry}/{self.name}:{BuildUtils.kaapana_build_version}")
+            self.add_container_by_tag(container_tag=f"{BuildUtils.default_registry}/{self.name}:{BuildUtils.main_build_version}")
         
         elif self.values_yaml != None: # if self.kaapana_type == "kaapanaworkflow":
             if "global" in self.values_yaml and self.values_yaml["global"] is not None and "image" in self.values_yaml["global"] and self.values_yaml["global"]["image"] != None:
@@ -531,7 +534,7 @@ class HelmChart:
                 if "version" in self.values_yaml["global"]:
                     version = self.values_yaml["global"]["version"]
                 else:
-                    version = BuildUtils.kaapana_build_version
+                    version = BuildUtils.main_build_version
                 
                 assert version != None
                 assert image != None
@@ -589,7 +592,7 @@ class HelmChart:
                         else:
                             container_tag = line.replace("}", "").replace("{", "").replace(" ", "").replace("$", "")
                             container_tag = container_tag.replace(".Values.global.registry_url", BuildUtils.default_registry)
-                            container_tag = container_tag.replace(".Values.global.kaapana_build_version", BuildUtils.kaapana_build_version)
+                            container_tag = container_tag.replace(".Values.global.kaapana_build_version", BuildUtils.main_build_version)
                             if "global" in container_tag.lower():
                                 BuildUtils.logger.error(f"Templating could not be resolved for container-ID: {container_tag} ")
                                 BuildUtils.generate_issue(
@@ -808,7 +811,7 @@ class HelmChart:
             assert exists(dep_chart.build_chartfile)
 
         for chart_container_id, chart_container in src_chart.chart_containers.items():
-            chart_container.build_tag = f"{BuildUtils.default_registry}/{chart_container.image_name}:{BuildUtils.kaapana_build_version}"
+            chart_container.build_tag = f"{BuildUtils.default_registry}/{chart_container.image_name}:{BuildUtils.main_build_version}"
             chart_container.container_build_status = "None"
             chart_container.container_push_status = "None"
 

@@ -37,11 +37,6 @@ if __name__ == '__main__':
     kaapana_dir = args.kaapaa_dir if args.kaapaa_dir != None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     build_dir = args.build_dir if args.build_dir != None else join(dirname(dirname(os.path.realpath(__file__))), "build")
 
-    if args.build_dir != None:
-        main_git_dir = build_dir
-    else:
-        main_git_dir = kaapana_dir
-
     if exists(build_dir):
         rmtree(build_dir)
     os.makedirs(build_dir, exist_ok=True)
@@ -230,8 +225,7 @@ if __name__ == '__main__':
         include_credentials=include_credentials,
         registry_user=registry_user,
         registry_pwd=registry_pwd,
-        push_to_microk8s=push_to_microk8s,
-        main_git_dir=main_git_dir
+        push_to_microk8s=push_to_microk8s
     )
 
     Container.init_containers(

@@ -29,6 +29,7 @@ class BuildUtils:
     kaapana_last_commit_timestamp = None
     build_timestamp = None
     parallel_processes = None
+    parent_repo_version = None
 
     @staticmethod
     def add_container_images_available(container_images_available):
@@ -51,11 +52,10 @@ class BuildUtils:
 
     @staticmethod
     def init(kaapana_dir, build_dir, external_source_dirs, platform_filter, default_registry, http_proxy, logger, exit_on_error, enable_build_kit,
-             create_offline_installation, skip_push_no_changes, parallel_processes, include_credentials, registry_user, registry_pwd, push_to_microk8s, main_git_dir):
+             create_offline_installation, skip_push_no_changes, parallel_processes, include_credentials, registry_user, registry_pwd, push_to_microk8s):
 
         BuildUtils.logger = logger
         BuildUtils.kaapana_dir = kaapana_dir
-        BuildUtils.main_git_dir = main_git_dir
         BuildUtils.build_dir = build_dir
         BuildUtils.platform_filter = platform_filter
         BuildUtils.default_registry = default_registry
@@ -72,25 +72,23 @@ class BuildUtils:
 
         BuildUtils.build_timestamp = datetime.now().strftime("%d-%m-%Y")
 
-        kaapana_build_version,kaapana_build_branch,kaapana_last_commit,kaapana_last_commit_timestamp = BuildUtils.get_repo_info(BuildUtils.kaapana_dir)
+        kaapana_build_version, kaapana_build_branch, kaapana_last_commit, kaapana_last_commit_timestamp, parent_repo_version = BuildUtils.get_repo_info(BuildUtils.kaapana_dir)
         BuildUtils.kaapana_last_commit_timestamp = kaapana_last_commit_timestamp
         BuildUtils.kaapana_build_branch = kaapana_build_branch
         BuildUtils.kaapana_build_version = kaapana_build_version
         
-        build_version,build_branch,last_commit,last_commit_timestamp = BuildUtils.get_repo_info(BuildUtils.main_git_dir)
-        BuildUtils.main_git_repo_last_commit_timestamp = last_commit_timestamp
-        BuildUtils.main_git_repo_build_branch = build_branch
-        BuildUtils.main_git_repo_build_version = build_version
-        
+        BuildUtils.main_build_version = kaapana_build_version
+        if parent_repo_version is not None:
+            BuildUtils.main_build_version = parent_repo_version
+
         BuildUtils.registry_user = registry_user
         BuildUtils.registry_pwd = registry_pwd
         BuildUtils.include_credentials = include_credentials
-        
 
-        BuildUtils.parallel_processes = parallel_processes
         BuildUtils.parallel_processes = parallel_processes
 
         BuildUtils.logger.debug(f"{BuildUtils.kaapana_dir=}")
+        BuildUtils.logger.debug(f"{BuildUtils.main_build_version=}")
         BuildUtils.logger.debug(f"{BuildUtils.kaapana_build_branch=}")
         BuildUtils.logger.debug(f"{BuildUtils.kaapana_build_version=}")
         BuildUtils.logger.debug(f"{BuildUtils.parallel_processes=}")
@@ -100,22 +98,40 @@ class BuildUtils:
     @staticmethod
     def get_timestamp():
         return str(int(time() * 1000))
-    
+
     @staticmethod
     def get_repo_info(repo_dir):
-        while not exists(join(repo_dir,".git")) and repo_dir != "/":
+        while not exists(join(repo_dir, ".git")) and repo_dir != "/":
             repo_dir = dirname(repo_dir)
         assert repo_dir != "/"
-        repo = Repo(repo_dir)
-        assert not repo.bare
-        
-        last_commit = repo.head.commit
-        last_commit_timestamp = last_commit.committed_datetime.strftime("%d-%m-%Y")
-        build_version = repo.git.describe()
-        build_branch = repo.active_branch.name.split("/")[-1]
-        version_check = semver.VersionInfo.parse(build_version)
-        
-        return build_version,build_branch,last_commit,last_commit_timestamp
+
+        requested_repo = Repo(repo_dir)
+        assert not requested_repo.bare
+
+        parent_repo_version = None
+        if "module" in requested_repo.common_dir:
+            submodule_name = basename(repo_dir)
+            parent_repo = Repo(dirname(repo_dir))
+            assert not parent_repo.bare
+            assert len(parent_repo.submodules) > 0
+            parent_repo_version = parent_repo.git.describe()
+
+            for submodule in parent_repo.submodules:
+                if submodule_name == basename(requested_repo.git_dir):
+                    submodule_repo = Repo(submodule)
+                    last_commit = submodule_repo.head.commit
+                    last_commit_timestamp = last_commit.committed_datetime.strftime("%d-%m-%Y")
+                    build_version = submodule_repo.git.describe()
+                    build_branch = submodule_repo.git.branch().split("\n")[1].strip()
+                    version_check = semver.VersionInfo.parse(build_version)
+        else:
+            last_commit = requested_repo.head.commit
+            last_commit_timestamp = last_commit.committed_datetime.strftime("%d-%m-%Y")
+            build_version = requested_repo.git.describe()
+            build_branch = requested_repo.active_branch.name.split("/")[-1]
+            version_check = semver.VersionInfo.parse(build_version)
+
+        return build_version, build_branch, last_commit, last_commit_timestamp, parent_repo_version
 
     @staticmethod
     def get_build_order(build_graph):
@@ -131,7 +147,7 @@ class BuildUtils:
             entry_id = f"{name}:{version}"
 
             if "chart:" in entry:
-                unused_chart = [x_chart for x_key,x_chart in BuildUtils.charts_unused.items() if f"{x_chart.name}:{x_chart.version}" == entry_id ]
+                unused_chart = [x_chart for x_key, x_chart in BuildUtils.charts_unused.items() if f"{x_chart.name}:{x_chart.version}" == entry_id]
                 if len(unused_chart) == 1:
                     del BuildUtils.charts_unused[unused_chart[0].name]
                     BuildUtils.logger.debug(f"{entry_id} removed from charts_unused!")
@@ -259,7 +275,7 @@ class BuildUtils:
             json.dump(unused_charts, fp, indent=4)
 
     @staticmethod
-    def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+    def printProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█', printEnd="\r"):
         """
         Call in a loop to create terminal progress bar
         @params:
@@ -275,10 +291,11 @@ class BuildUtils:
         percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
         filledLength = int(length * iteration // total)
         bar = fill * filledLength + '-' * (length - filledLength)
-        print(f'\r{prefix} |{bar}| {percent}% {suffix.tag.ljust(100)}', end = printEnd)
+        print(f'\r{prefix} |{bar}| {percent}% {suffix.tag.ljust(100)}', end=printEnd)
         # Print New Line on Complete
-        if iteration == total: 
+        if iteration == total:
             print()
+
 
 if __name__ == '__main__':
     print("Please use the 'start_build.py' script to launch the build-process.")

@@ -550,13 +550,13 @@ function preflight_checks {
     fi
 
     SEVERITY+=(100)
-    TEST_NAMES+=("Check if ~/.kube/config matches micork8s config")
+    TEST_NAMES+=("Check if ~/.kube/config matches microk8s config")
     if [ "$(cat /home/$USER/.kube/config)" == "$(microk8s.kubectl config view --raw)" ]; then
         TEST_FAILDS+=(false)
         RESULT_MSGS+=("")
     else
         TEST_FAILDS+=(true)
-        RESULT_MSGS+=("Your kubeconfig differs from the micork8s version.")
+        RESULT_MSGS+=("Your kubeconfig differs from the microk8s version.")
     fi
 
     SEVERITY+=(100)

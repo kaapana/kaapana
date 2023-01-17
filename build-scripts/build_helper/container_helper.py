@@ -198,6 +198,13 @@ class Container:
             if "local-only" in self.registry:
                 self.local_image = True
                 self.image_version = "latest"
+
+            elif "extension-collection" in self.image_name:
+                self.image_version = BuildUtils.kaapana_build_version
+            
+            elif "dag-installer" in self.base_images[0].name:
+                self.image_version = BuildUtils.kaapana_build_version
+
             else:
                 build_version,build_branch,last_commit,last_commit_timestamp, parent_repo_version = BuildUtils.get_repo_info(self.container_dir)
                 self.image_version = build_version

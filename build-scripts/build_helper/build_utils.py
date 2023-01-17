@@ -26,10 +26,10 @@ class BuildUtils:
     push_to_microk8s = None
     kaapana_build_version = None
     kaapana_build_branch = None
+    main_build_version = None
     kaapana_last_commit_timestamp = None
     build_timestamp = None
     parallel_processes = None
-    parent_repo_version = None
 
     @staticmethod
     def add_container_images_available(container_images_available):

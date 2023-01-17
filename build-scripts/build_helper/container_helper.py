@@ -199,7 +199,8 @@ class Container:
                 self.local_image = True
                 self.image_version = "latest"
             else:
-                self.image_version = BuildUtils.main_build_version
+                build_version,build_branch,last_commit,last_commit_timestamp, parent_repo_version = BuildUtils.get_repo_info(self.container_dir)
+                self.image_version = build_version
 
             self.tag = self.registry+"/"+self.image_name+":"+self.image_version
 
@@ -449,7 +450,8 @@ class Container:
                 for line in python_content:
                     if "image=" in line and "{default_registry}" in line:
                         line = line.rstrip('\n').split("\"")[1].replace(" ", "")
-                        line = line.replace("{kaapana_build_version}", BuildUtils.main_build_version)
+                        line = line.replace("{kaapana_build_version}", BuildUtils.kaapana_build_version)
+                        line = line.replace("{platform_version}", BuildUtils.main_build_version)
                         container_id = line.replace("{default_registry}", BuildUtils.default_registry)
                         self.operator_containers.append(container_id)
 

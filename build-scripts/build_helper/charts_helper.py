@@ -522,9 +522,10 @@ class HelmChart:
 
     def check_container_use(self):
         BuildUtils.logger.debug(f"{self.chart_id}: check_container_use")
+        build_version,build_branch,last_commit,last_commit_timestamp, parent_repo_version = BuildUtils.get_repo_info(self.chart_dir)
 
         if self.kaapana_type == "extenstion-collection":
-            self.add_container_by_tag(container_tag=f"{BuildUtils.default_registry}/{self.name}:{BuildUtils.main_build_version}")
+            self.add_container_by_tag(container_tag=f"{BuildUtils.default_registry}/{self.name}:{build_version}")
         
         elif self.values_yaml != None: # if self.kaapana_type == "kaapanaworkflow":
             if "global" in self.values_yaml and self.values_yaml["global"] is not None and "image" in self.values_yaml["global"] and self.values_yaml["global"]["image"] != None:
@@ -534,7 +535,7 @@ class HelmChart:
                 if "version" in self.values_yaml["global"]:
                     version = self.values_yaml["global"]["version"]
                 else:
-                    version = BuildUtils.main_build_version
+                    version = build_version
                 
                 assert version != None
                 assert image != None
@@ -592,7 +593,8 @@ class HelmChart:
                         else:
                             container_tag = line.replace("}", "").replace("{", "").replace(" ", "").replace("$", "")
                             container_tag = container_tag.replace(".Values.global.registry_url", BuildUtils.default_registry)
-                            container_tag = container_tag.replace(".Values.global.kaapana_build_version", BuildUtils.main_build_version)
+                            container_tag = container_tag.replace(".Values.global.kaapana_build_version", BuildUtils.kaapana_build_version)
+                            container_tag = container_tag.replace(".Values.global.platform_version", BuildUtils.main_build_version)
                             if "global" in container_tag.lower():
                                 BuildUtils.logger.error(f"Templating could not be resolved for container-ID: {container_tag} ")
                                 BuildUtils.generate_issue(

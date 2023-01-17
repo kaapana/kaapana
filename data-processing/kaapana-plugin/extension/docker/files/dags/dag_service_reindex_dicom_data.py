@@ -32,7 +32,7 @@ dag = DAG(
 def start_reindexing(ds, **kwargs):
     import os
     import glob
-    from airflow.api.common.experimental.trigger_dag import trigger_dag as trigger
+    from airflow.api.common.trigger_dag import trigger_dag as trigger
 
     pacs_data_dir = '/pacsdata'
     workflowdata_dir = "/data/"

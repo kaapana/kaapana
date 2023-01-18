@@ -184,7 +184,7 @@ def generate_xml(binary_path, target_dir, template_path="/kaapanasrc/template.xm
     if not exists(target_dir):
         os.makedirs(target_dir)
 
-    dataset_info = join('/', os.environ["WORKFLOW_DIR"], os.environ['DATASET_INFO_OPERATOR_DIR'], 'dataset.json') # TODO has do be changed with Jonas new version!!!
+    dataset_info = join('/', os.getenv("WORKFLOW_DIR", ""), os.getenv("DATASET_INFO_OPERATOR_DIR", ""), 'dataset.json') # TODO has do be changed with Jonas new version!!!
     print(dataset_info)
     if exists(dataset_info):
         print(f"# dataset_info found!")
@@ -330,7 +330,7 @@ def generate_xml(binary_path, target_dir, template_path="/kaapanasrc/template.xm
             elif el_name == "file":
                 element.firstChild.data = binary_path
 
-            if el_name != "file" and 'len' in element.attributes and len(element.childNodes) > 0:
+            if el_name != "file" and 'len' in element.attributes and len(element.childNodes) > 0 and element.firstChild.data != None:
                 element.attributes['len'].value = str(len(element.firstChild.data))
                 element.attributes['vm'].value = "1"
                 print(f"# {el_name}: {element.firstChild.data} : {element.attributes['len'].value}")

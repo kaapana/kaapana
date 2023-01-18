@@ -76,7 +76,7 @@ def execute_shell_command(command, shell=False, blocking=True, timeout=5, skip_c
     stdout = command_result.stdout.strip()
     stderr = command_result.stderr.strip()
     return_code = command_result.returncode
-    success = True if return_code == 0 else False
+    success = True if return_code == 0 and stderr == "" else False
 
     if success:
         logger.debug("Command successful executed.")
@@ -508,8 +508,7 @@ def get_kube_objects(release_name: str, helm_namespace: str = settings.helm_name
         """
         states = None
         # TODO: might be replaced by json or yaml output in the future with the flag -o json!
-        success, stdout = execute_shell_command(
-            f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name}")
+        success, stdout = execute_shell_command(f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name}")
         if success:
             states = schemas.KubeInfo(
                 name=[],
@@ -561,11 +560,9 @@ def get_kube_objects(release_name: str, helm_namespace: str = settings.helm_name
             elif config['kind'] == 'Deployment' or config['kind'] == 'Job':
                 obj_kube_status = None
                 if config['kind'] == 'Deployment':
-                    obj_kube_status = get_kube_status(
-                        'app', config['spec']['selector']['matchLabels']['app-name'], config['metadata']['namespace'])
+                    obj_kube_status = get_kube_status('app', config['spec']['selector']['matchLabels']['app-name'], config['metadata']['namespace'])
                 elif config['kind'] == 'Job':
-                    obj_kube_status = get_kube_status(
-                        'job', config['metadata']['name'], config['metadata']['namespace'])
+                    obj_kube_status = get_kube_status('job', config['metadata']['name'], config['metadata']['namespace'])
 
                 if obj_kube_status != None:
                     for key, value in obj_kube_status.dict().items():

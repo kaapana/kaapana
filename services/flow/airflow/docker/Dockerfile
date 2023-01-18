@@ -1,4 +1,4 @@
-FROM local/avid-base:14.12.2022
+FROM local/avid-base:18.01.2023
 
 LABEL IMAGE="airflow"
 LABEL VERSION="2.2.5"

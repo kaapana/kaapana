@@ -21,6 +21,7 @@ import schemas
 
 CHART_STATUS_UNDEPLOYED = "un-deployed"
 CHART_STATUS_DEPLOYED = "deployed"
+CHART_STATUS_FAILED = "failed"
 CHART_STATUS_UNINSTALLING = "uninstalling"
 KUBE_STATUS_RUNNING = "running"
 KUBE_STATUS_COMPLETED = "completed"
@@ -165,8 +166,7 @@ def add_extension_to_dict(
                 }
                 latest_helm_status = chart_deployment["status"]
                 if chart_info["helm_status"] == CHART_STATUS_DEPLOYED:
-                    success, deployment_ready, ingress_paths, concatenated_states = get_kube_objects(
-                        chart_deployment["name"])
+                    success, deployment_ready, ingress_paths, concatenated_states = get_kube_objects(chart_deployment["name"])
                     if success:
                         chart_info["kube_status"] = concatenated_states["status"]
                         chart_info["kube_info"] = concatenated_states
@@ -175,16 +175,19 @@ def add_extension_to_dict(
                         latest_kube_status = concatenated_states["ready"]
                         # all_links.extend(ingress_paths)
                     else:
-                        logger.error(
-                            f"Could not request kube-state of: {chart_deployment['name']}")
+                        logger.error(f"Could not request kube-state of: {chart_deployment['name']}")
+
+                elif chart_info["helm_status"] == CHART_STATUS_FAILED:
+                    chart_info["kube_status"] = KUBE_STATUS_UNKNOWN
+                    chart_info["links"] = []
+                    chart_info["ready"] = False
 
                 elif chart_info["helm_status"] == CHART_STATUS_UNINSTALLING:
                     chart_info["kube_status"] = KUBE_STATUS_UNKNOWN
                     chart_info["links"] = []
                     chart_info["ready"] = False
                 else:
-                    logger.error(
-                        f"Unkown helm_status: {chart_deployment.helm_status}")
+                    logger.error(f"Unkown helm_status: {chart_info['helm_status']}") # failed is unknown?
 
                 deployments.append(chart_info)
 
@@ -313,7 +316,7 @@ def get_extensions_list() -> Union[List[schemas.KaapanaExtension], None]:
                 # TODO: make global_extensions_dict_cached actually a Dict so that double loop isn't necessary
                 for i, ext in enumerate(global_extensions_dict_cached):
                     for j, rec_upd_ext in enumerate(res):
-                        if ext.release_name == rec_upd_ext.release_name:
+                        if ext.releaseName == rec_upd_ext.releaseName:
                             global_extensions_dict_cached[i] = rec_upd_ext
                             logger.debug(
                                 "value updated in global_extensions_dict_cached from {0} to {1}".format(
@@ -683,7 +686,7 @@ def get_recently_updated_extensions() -> List[schemas.KaapanaExtension]:
         ext_state = global_extension_states[key]
         # TODO: instead of this, update the extension in global_extensions_dict_cached
         for i, ext in enumerate(global_extensions_dict_cached):
-            if ext.release_name == ext_state.extension_name:
+            if ext.releaseName == ext_state.extension_name:
                 res.append((i, global_extensions_dict_cached[i]))
         if len(res) > 1:
             logger.error("Found more than one matching charts for {0} in cached extensions dict".format(ext_state.extension_name))

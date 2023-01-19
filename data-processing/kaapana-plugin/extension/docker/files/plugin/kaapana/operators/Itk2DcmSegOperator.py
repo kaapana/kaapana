@@ -20,7 +20,9 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
     """
     def __init__(self,
                  dag,
-                 segmentation_operator,
+                 name="nrrd2dcmseg",
+                 segmentation_in_dir=None,
+                 segmentation_operator=None,
                  input_type='single_label_segs',
                  alg_name= None,
                  creator_name="kaapana",
@@ -76,10 +78,20 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
         }
         env_vars.update(envs)
 
+        if segmentation_operator is None and segmentation_in_dir is not None:
+            env_vars['OPERATOR_IMAGE_LIST_INPUT_DIR'] = str(segmentation_in_dir)
+        else:
+            if segmentation_operator is not None and segmentation_in_dir is None:
+                env_vars['OPERATOR_IMAGE_LIST_INPUT_DIR'] = str(segmentation_operator.operator_out_dir)
+            else:
+                raise NameError('Either segmentation_operator or operator_in_dir has to be set.')
+        if config_file:
+            env_vars['config_file'] = config_file
+
         super().__init__(
             dag=dag,
             image=f"{DEFAULT_REGISTRY}/dcmqi:{KAAPANA_BUILD_VERSION}",
-            name="nrrd2dcmseg",
+            name=name,
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,

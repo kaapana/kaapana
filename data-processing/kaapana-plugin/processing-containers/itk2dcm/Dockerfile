@@ -2,7 +2,7 @@ FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="itk2dcm"
 LABEL VERSION="v1.2.4"
-LABEL CI_IGNORE="True"
+LABEL CI_IGNORE="False"
 
 COPY files/requirements.txt /src/
 RUN pip3 install -r /src/requirements.txt

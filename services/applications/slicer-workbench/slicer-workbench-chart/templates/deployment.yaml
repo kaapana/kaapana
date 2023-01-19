@@ -1,0 +1,90 @@
+{{- $uuid := uuidv4 | trunc 10 }}
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: slicer-vol-{{ $uuid }}
+  namespace: {{ .Values.global.base_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: slicer-vol-{{ $uuid }}
+  template:
+    metadata:
+      labels:
+        app-name: slicer-vol-{{ $uuid }}
+    spec:
+      restartPolicy: Always
+      containers:
+        # ToDo add init-container to wait for db-host
+      - name: slicer
+        image: {{  .Values.global.registry_url }}/slicer:0.1.0
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        resources:
+          requests:
+            memory: "5Gi"
+          limits:
+            memory: "8Gi"
+        env:
+        - name: INGRESS_PATH
+          value: slicer-vol-{{ $uuid }}
+        volumeMounts:
+        - name: slicer-data
+          mountPath: /data
+      volumes:
+      - name: slicer-data
+        hostPath:
+          {{- if .Values.mount_path }}
+          path: {{ .Values.mount_path }}
+          {{- else }}
+          path: {{ .Values.global.slow_data_dir }}/minio
+          {{- end }}
+          type: DirectoryOrCreate
+      imagePullSecrets:
+      - name: registry-secret
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: slicer-vol-{{ $uuid }}
+  namespace: {{ .Values.global.base_namespace }}
+  labels:
+    app: slicer-vol-{{ $uuid }}
+spec:
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      name: pt-slicer-http
+  type: ClusterIP
+  selector:
+    app-name: slicer-vol-{{ $uuid }}
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: slicer-vol-{{ $uuid }}-redirect
+  namespace: {{ .Values.global.base_namespace }}
+spec:
+  redirectRegex:
+    regex: ^.*/slicer-vol-{{ $uuid }}([^\/]*)$
+    replacement: /slicer-vol-{{ $uuid }}/
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: slicer-vol-{{ $uuid }}
+  namespace: {{ .Values.global.base_namespace }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,{{ .Values.global.base_namespace }}-slicer-vol-{{ $uuid }}-redirect@kubernetescrd,kube-system-strip-prefix@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /slicer-vol-{{ $uuid }}
+        backend:
+          serviceName: slicer-vol-{{ $uuid }}
+          servicePort: pt-slicer-http

@@ -1,6 +1,6 @@
 FROM local-only/base-python-cpu:latest
 
-LABEL IMAGE="itk2dcm-converter"
+LABEL IMAGE="itk2dcm"
 LABEL VERSION="v1.2.4"
 LABEL CI_IGNORE="True"
 

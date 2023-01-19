@@ -15,7 +15,7 @@ class Itk2DcmOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name=name,
-            image=f"{default_registry}/itk2dcm-dev:{kaapana_build_version}",
+            image=f"{default_registry}/itk2dcm:{kaapana_build_version}",
             image_pull_policy="Always",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,

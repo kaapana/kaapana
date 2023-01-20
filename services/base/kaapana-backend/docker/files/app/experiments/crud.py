@@ -16,7 +16,8 @@ from fastapi import APIRouter, Depends, Request, HTTPException, Response
 from . import models, schemas
 from app.config import settings
 from .schemas import Identifier
-from .utils import execute_job_airflow, abort_job_airflow, check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, \
+from .utils import execute_job_airflow, abort_job_airflow, get_dagrun_tasks_airflow, \
+     check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, \
     raise_kaapana_connection_error, requests_retry_session, get_uid_list_from_query
 from urllib3.util import Timeout
 
@@ -309,6 +310,13 @@ def abort_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     conf_data['client_job_id'] = db_job.id
 
     abort_job_airflow(db_job.dag_id, db_job.run_id, db_job.status, conf_data)
+
+def get_job_taskinstances(db: Session, job_id: int = None):
+    print(f"We made it to crud.py's def get_job_taskinstances()!")
+    db_job = get_job(db, job_id)        # query job by job_id
+    response = get_dagrun_tasks_airflow(db_job.dag_id, db_job.run_id)
+    print(f"response of get_job_taskinstances: {response}")
+    return response 
 
 
 def sync_client_remote(db: Session, remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal,
@@ -683,6 +691,7 @@ def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
     return db_experiment
 
 def get_experiment(db: Session, experiment_id: int = None, experiment_name: str = None):
+    print(f"get_experiment() experiment_id: {experiment_id} ; experiment_name: {experiment_name}")
     if experiment_id is not None:
         db_experiment = db.query(models.Experiment).filter_by(id=experiment_id).first()
     elif experiment_name is not None:

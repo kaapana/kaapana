@@ -113,10 +113,6 @@ class KeycloakHelper():
 
 
 if __name__=='__main__':
-    os.environ["KEYCLOAK_PASSWORD"] ="Kaapana2020"
-    os.environ["KEYCLOAK_HOST"] = "10.128.129.153"
-    os.environ["KEYCLOAK_USER"] = "admin"
-
     keycloak = KeycloakHelper()
     
     ### Add realm

@@ -69,8 +69,6 @@ spec:
             limits:
               memory: 700Mi
           volumeMounts:
-            - name: keycloak-realm
-              mountPath: /import
             - name: ssl-config-files
               mountPath: /etc/x509/https
               readOnly: true
@@ -81,9 +79,6 @@ spec:
           #   initialDelaySeconds: 30
           #   periodSeconds: 20
       volumes:
-      - name: keycloak-realm
-        configMap:
-          name: keycloak-config
       - name: ssl-config-files
         secret:
           secretName: certificate

@@ -9,6 +9,8 @@ import subprocess
 import numpy as np
 import pydicom
 
+from pathlib import Path
+
 processed_count = 0
 
 
@@ -174,6 +176,38 @@ def adding_aetitle(element_input_dir, output_dcm_file, body_part):
 # Only a single Item shall be included in this Sequence.
 # http://dicom.nema.org/medical/dicom/current/output/chtml/part16/chapter_L.html#chapter_L
 
+def set_args_file(batch_element_dir):
+
+    config_file = Path(batch_element_dir)/ os.environ.get("OPERATOR_IMAGE_LIST_INPUT_DIR")/'seg_args.json'
+    try:
+        with open(config_file, 'r') as f:
+            config = json.load(f)
+
+        valid_keys = [
+            "INPUT_TYPE", 
+            "SINGLE_LABEL_SEG_INFO",
+            "CREATE_MULIT_LABEL_DCM_FROM_SINGLE_LABEL_SEGS",
+            "MULTI_LABEL_SEG_INFO_JSON",
+            "MULTI_LABEL_SEG_NAME",
+            "SERIES_DISCRIPTION",
+            "ALGORITHM_NAME",
+            "CREATOR_NAME",
+            "ALGORITHM_TYPE",
+            "SERIES_NUMBER",
+            "INSTANCE_NUMBER",
+            "SKIP_EMPTY_SLICES",
+            "DCMQI_COMMAND",
+            "OPERATOR_IMAGE_LIST_INPUT_DIR"]
+
+        for k,v in config.items():
+            key = k.upper()
+            if key not in valid_keys:
+                raise NameError(f"Arguments in 'seg_args.json' is invalid. Valid keys are {valid_keys}")
+            os.environ[key] = v
+        print("Found args.json in segmentation folder. parameters given by dag will be overwritten.")
+    except FileNotFoundError:
+        print("No args.json found. Continuing with parameters from dag definition.")
+
 
 print("Started: 'itkimage2segimage' ")
 DCMQI = '/kaapana/app/dcmqi/bin'
@@ -211,6 +245,10 @@ DCMQI = '/kaapana/app/dcmqi/bin'
 
 # If input type is set to "multi_label_seg" you must create a json inside the OPERATOR_IMAGE_LIST_INPUT_DIR that contains the parts as follows: {"seg_info": ["spleen", "right@kidney"]}
 
+batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
+
+set_args_file(batch_folders[0])
+
 input_type = os.environ.get('INPUT_TYPE')  # multi_label_seg or single_label_segs
 multi_label_seg_name = os.environ.get('MULTI_LABEL_SEG_NAME', 'multi-label')  # Name used for multi-label segmentation object, if it will be created
 segment_algorithm_name = os.environ.get('ALGORITHM_NAME', 'kaapana')
@@ -246,7 +284,6 @@ code_lookup_table_path = "code_lookup_table.json"
 with open(code_lookup_table_path) as f:
     code_lookup_table = json.load(f)
 
-batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 
 print("Found {} batches".format(len(batch_folders)))
 

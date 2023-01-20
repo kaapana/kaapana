@@ -1,7 +1,7 @@
 apiVersion: v1
 appVersion: "2021.02"
 description: Launches a Slicer instance to explore files in Minio
-name: slicer-chart
+name: slicer-workbench-chart
 version: "0.0.0"
 keywords:
 - kaapanaapplication

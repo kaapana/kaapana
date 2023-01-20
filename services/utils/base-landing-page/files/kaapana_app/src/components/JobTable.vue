@@ -34,6 +34,25 @@
               :color="getStatusColor(item.status)" dark="">{{ item.status }}
             </v-chip>
           </template>
+          <template v-slot:item.airflow="{ item }">
+            <v-tooltip bottom>
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn v-bind="attrs" v-on="on" @click='direct_airflow_graph(item)' small icon>
+                  <v-icon color="secondary" dark>mdi-chart-timeline-variant</v-icon>
+                </v-btn>
+              </template>
+              <span>job's airflow dag_run graph view</span>
+            </v-tooltip>
+            <v-tooltip bottom>
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn v-if="item.status == 'failed'" v-bind="attrs" v-on="on" @click='direct_airflow_operator_logs(item)' small icon>
+                  <v-icon color="secondary" dark>mdi-alert-decagram-outline</v-icon>
+                </v-btn>
+              </template>
+              <span>airflow logs of failed operator</span>
+            </v-tooltip>
+          </template>
+          <template>hallo</template>
           <template v-slot:item.actions="{ item }">
             <v-col v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name" >
               <v-tooltip bottom>
@@ -92,6 +111,9 @@
         abortID: '',
         restartID: '',
         deleteID: '',
+        airflow_url: '',
+        dag_run_datetime: '',
+        dag_run_ms: '',
       }),
 
       props: {
@@ -152,6 +174,7 @@
             })
             headers.push(
               { text: 'Status', value: 'status', align: 'center'},
+              { text: 'Logs', value: 'airflow', sortable: false , align: 'center'},
               { text: 'Actions', value: 'actions', sortable: false , align: 'center'},
             ) 
             return headers
@@ -204,6 +227,21 @@
             console.log("Delete Job:", this.deleteID, "Item:", item)
             this.deleteJobAPI(this.deleteID)
         },
+        direct_airflow_graph(item) {
+          this.dag_run_datetime = item.run_id.split("-").at(-1)
+          this.dag_run_datetime = this.dag_run_datetime.slice(-6).slice(0, 2) + "." + this.dag_run_datetime.slice(-4)
+          this.dag_run_ms = item.run_id.split("-").at(-1).slice(-6).slice(0, 2) + this.dag_run_datetime.slice(-4)
+          this.dag_run_datetime = item.time_updated.slice(0, 19) + "." + this.dag_run_ms + "+00:00"
+          this.airflow_url = item.kaapana_instance.protocol + "://" + item.kaapana_instance.host + "/flow/graph?dag_id=" + item.dag_id + "&execution_date=" + encodeURIComponent(this.dag_run_datetime)
+          // console.log("airflow_url: ", this.airflow_url)
+          window.open(this.airflow_url, "_blank", "noreferrer")
+        },
+        direct_airflow_operator_logs(item) {
+          // console.log("item: ", item)
+          this.getJobTaskinstancesAPI(item.id)
+          // window.location.href="https://10.135.76.130/flow/log?dag_id=nnunet-predict&task_id=dcm-converter&execution_date=2023-01-19T16%3A12%3A22.651127%2B00%3A00"
+          // window.open("https://10.135.76.130/flow/log?dag_id=nnunet-predict&task_id=dcm-converter&execution_date=2023-01-19T16%3A12%3A22.651127%2B00%3A00", "_blank", "noreferrer")
+        },
 
         // API Calls
         abortJobAPI(job_id, status, description) {
@@ -242,6 +280,20 @@
             .then((response) => {
               this.$emit('refreshView')
               console.log("Job deleted")
+            })
+            .catch((err) => {
+              console.log(err);
+            });
+        },
+        getJobTaskinstancesAPI(job_id) {
+          console.log("Trying to catch task_instances of job: ", job_id),
+          kaapanaApiService
+            .federatedClientApiGet("/get_job_taskinstances", {
+              job_id,
+            })
+            .then((response) => {
+              // this.$emit('refreshView')
+              console.log("response in getJobTaskinstancesAPI: ", response)
             })
             .catch((err) => {
               console.log(err);

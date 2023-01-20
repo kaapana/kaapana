@@ -16,7 +16,8 @@ from fastapi import APIRouter, Depends, Request, HTTPException, Response
 from . import models, schemas
 from app.config import settings
 from .schemas import Identifier
-from .utils import execute_job_airflow, abort_job_airflow, check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, \
+from .utils import execute_job_airflow, abort_job_airflow, get_dagrun_tasks_airflow, \
+     check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, \
     raise_kaapana_connection_error, requests_retry_session, get_uid_list_from_query
 from urllib3.util import Timeout
 
@@ -308,6 +309,13 @@ def abort_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
 
     abort_job_airflow(db_job.dag_id, db_job.run_id, db_job.status, conf_data)
 
+def get_job_taskinstances(db: Session, job_id: int = None):
+    print(f"We made it to crud.py's def get_job_taskinstances()!")
+    db_job = get_job(db, job_id)        # query job by job_id
+    response = get_dagrun_tasks_airflow(db_job.dag_id, db_job.run_id)
+    print(f"response of get_job_taskinstances: {response}")
+    return response 
+
 def sync_client_remote(db: Session,  remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal, instance_name: str = None, status: str = None):
     db_client_kaapana = get_kaapana_instance(db, remote=False)
 
@@ -458,6 +466,33 @@ def get_remote_updates(db: Session, periodically=False):
             incoming_job['status'] = "pending"
             job = schemas.JobCreate(**incoming_job)
             db_job = create_job(db, job)
+            db_jobs.append(db_job)
+
+        for incoming_experiment in incoming_experiments:
+            # check if incoming_experiment already exists
+            print('Creating or Updating incoming experiment ', incoming_experiment["id"])
+            db_incoming_experiment = get_experiment(db, experiment_id=incoming_experiment["id"])
+            print(f"Do we already have this experiment locally? {db_incoming_experiment}")
+            
+            if db_incoming_experiment is None:
+                # if not: create incoming experiments
+                print('Creating incoming experiment ', incoming_experiment["experiment_name"])
+                incoming_experiment['kaapana_instance_id'] = db_remote_kaapana_instance.id
+                incoming_experiment['experiment_jobs'] = db_jobs
+                incoming_experiment['external_exp_id'] = incoming_experiment["id"]
+                incoming_experiment['involved_kaapana_instances'] = incoming_experiment["involved_kaapana_instances"][1:-1].split(',')  # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
+                experiment = schemas.ExperimentCreate(**incoming_experiment)
+                db_experiment = create_experiment(db, experiment)
+
+            else:
+                # if yes: update experiment w/ incoming_job
+                print('Updating incoming experiment ', incoming_experiment["experiment_name"])
+                exp_update = schemas.ExperimentUpdate(**{
+                    "experiment_name": incoming_experiment["experiment_name"],  # instead of db_incoming_experiment.experiment_name
+                    "experiment_jobs": db_jobs, #  instead of incoming_jobs
+                })
+                db_experiment = put_experiment_jobs(db, exp_update)
+
             db_jobs.append(db_job)
 
         for incoming_experiment in incoming_experiments:
@@ -702,6 +737,7 @@ def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
     return db_experiment
 
 def get_experiment(db: Session, experiment_id: int = None, experiment_name: str = None):
+    print(f"get_experiment() experiment_id: {experiment_id} ; experiment_name: {experiment_name}")
     if experiment_id is not None:
         db_experiment = db.query(models.Experiment).filter_by(id=experiment_id).first()
     elif experiment_name is not None:

@@ -100,6 +100,11 @@ async def delete_jobs(db: Session = Depends(get_db)):
     # Todo add remote job deletion
     return crud.delete_jobs(db)
 
+@router.get("/get_job_taskinstances")
+async def get_job_taskinstances(job_id: int, db: Session = Depends(get_db)):
+    print("We made it to client.py's def get_job_taskinstances()!")
+    return crud.get_job_taskinstances(db, job_id)
+
 # @router.get("/dags")
 # async def dags(only_dag_names: bool = True):
 #     return get_dag_list(only_dag_names=only_dag_names)
@@ -277,7 +282,7 @@ async def ui_form_schemas(request: Request, filter_kaapana_instances: schemas.Fi
     if dag_id not in dags:
         raise HTTPException(status_code=404, detail=f"Dag {dag_id} is not part of the allowed dags, please add it!")
     dag = dags[dag_id]
-    print(f"dags: {dags}")
+    # print(f"dags: {dags}")
     schemas = dag["ui_forms"]
     # print(f"schemas: {schemas}")
 
@@ -493,7 +498,10 @@ async def get_experiments(request: Request, instance_name: str = None, involved_
 
 @router.get("/experiment_jobs", response_model=List[schemas.JobWithKaapanaInstance])  # changed JobWithKaapanaInstance to JobWithExperiment
 async def get_experiment_jobs(experiment_name: str = None, status: str = None, limit: int = None, db: Session = Depends(get_db)):
-    return crud.get_experiment_jobs(db, experiment_name, status, limit=limit)
+    exp_jobs = crud.get_experiment_jobs(db, experiment_name, status, limit=limit)
+    # print(f"in get_experiment_jobs(): {exp_jobs}")
+    return exp_jobs
+    # return crud.get_experiment_jobs(db, experiment_name, status, limit=limit)
 
 # put/update_experiment
 @router.put("/experiment", response_model=schemas.Experiment)
@@ -501,7 +509,7 @@ async def put_experiment(experiment: schemas.ExperimentUpdate, db: Session = Dep
     print(f"Experiment Status in put_experiment: {experiment.experiment_status}")
     if experiment.experiment_status == "abort":
         # iterate over experiment's jobs and execute crud.abort_job() and crud.update_job() and at the end also crud.update_experiment()
-        db_experiment = await get_experiment(experiment.experiment_id, db)
+        db_experiment = crud.get_experiment(db, experiment.experiment_id)   # better call crud method directly instead of calling client.py's def get_experiment()
         print(f"experiment: {experiment} ; db_experiment: {db_experiment}")
         for db_job in db_experiment.experiment_jobs:
             print(f"To-be-aborted Job: {db_job} with id: {db_job.id}")
@@ -521,12 +529,6 @@ async def put_experiment(experiment: schemas.ExperimentUpdate, db: Session = Dep
             
         # update aborted experiment
         return crud.update_experiment(db, experiment)
-
-        # print(f"We're in put_job() with job.status={job.status}")
-        # crud.abort_job(db, job, remote=False)
-        # job.status = "failed"
-        # return crud.update_job(db, job, remote=False)  # update db_job to failed
-        pass
     else:
         return crud.update_experiment(db, experiment)
 

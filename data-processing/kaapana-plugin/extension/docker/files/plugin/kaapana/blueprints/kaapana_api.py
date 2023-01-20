@@ -77,6 +77,54 @@ def trigger_dag(dag_id):
     return response
 
 @csrf.exempt
+@kaapanaApi.route('/api/get_dagrun_tasks/<dag_id>/<run_id>', methods=['GET'])
+def get_dagrun_tasks(dag_id, run_id):
+    '''
+    This Airflow API does the following:
+    - query from airflow a dag_run by dag_id and run_id
+    - get all tasks including their states of queried dag_run
+    - return tasks
+    '''
+    #headers = dict(request.headers)
+    data = request.get_json(force=True)
+    print(f"data: {data}")
+    #username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
+    if 'conf' in data:
+        tmp_conf = data['conf']
+    else:
+        tmp_conf = data
+    # For authentication
+    if "x_auth_token" in data:
+        tmp_conf["x_auth_token"] = data["x_auth_token"]
+    else:
+        tmp_conf["x_auth_token"] = request.headers.get('X-Auth-Token')
+    ################################################################################################ 
+    #### Deprecated! Will be removed with the next version 0.1.3
+    if "workflow_form" in tmp_conf: # in the future only workflow_form should be included in the tmp_conf
+        tmp_conf["form_data"] = tmp_conf["workflow_form"]
+    elif "form_data" in tmp_conf:
+        tmp_conf["workflow_form"] = tmp_conf["form_data"]
+    ################################################################################################
+
+    ### actual start of function ###
+    dag_objects = DagBag().dags                 # returns all DAGs available on platform
+    desired_dag = dag_objects[dag_id]           # filter desired_dag from all available dags via dag_id
+
+    task_ids = [task.task_id for task in desired_dag.tasks]  # get task_ids of desired_dag
+    tis = session.query(TaskInstance).filter(                # query TaskInstances which are part of desired_dag wit run_id=run_id and task_ids
+        TaskInstance.dag_id == desired_dag.dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.task_id.in_(task_ids),
+    )
+    tis = [ti for ti in tis]
+
+    message.append(f"Result of task querying: {tis}")
+    response = jsonify(message=message)
+    return response
+
+
+
+@csrf.exempt
 @kaapanaApi.route('/api/abort/<dag_id>/<run_id>', methods=['POST'])
 def abort_dag_run(dag_id, run_id):
     #headers = dict(request.headers)

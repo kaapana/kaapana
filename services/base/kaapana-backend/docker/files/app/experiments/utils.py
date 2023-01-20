@@ -160,6 +160,16 @@ def abort_job_airflow(dag_id, dag_run_id, conf_data, status="failed"):
     print("Response in kaapana-backend:", resp.text)
     return resp
 
+def get_dagrun_tasks_airflow(dag_id, dag_run_id):
+    with requests.Session() as s:
+        resp = requests_retry_session(session=s).get(f'http://airflow-service.flow.svc:8080/flow/kaapana/api/get_dagrun_tasks/{dag_id}/{dag_run_id}',
+                json={
+                    'dag_id': dag_id,
+                })
+    raise_kaapana_connection_error(resp)
+    print("Response in kaapana-backend:", resp.text)
+    return resp
+
 def raise_kaapana_connection_error(r):
     if r.history:
         raise HTTPException('You were redirect to the auth page. Your token is not valid!')

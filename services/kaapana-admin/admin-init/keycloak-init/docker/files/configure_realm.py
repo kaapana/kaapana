@@ -34,7 +34,6 @@ class KeycloakHelper():
             payload['client_secret']= client_secret
         
         url = f'{protocol}://{host}:{port}/auth/realms/{realm}/protocol/openid-connect/token'
-        print("asdawsd", url)
         r = requests.post(url, verify=ssl_check, data=payload)
         r.raise_for_status()
         access_token = r.json()['access_token']
@@ -55,8 +54,6 @@ class KeycloakHelper():
         print(r.status_code, r.text)
         print("payload:", payload)
         print("request", request, r.request)
-        print(20*"##")
-        print(20*"##")
         try: 
             assert r.status_code < 400
         except AssertionError:

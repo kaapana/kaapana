@@ -10,7 +10,6 @@ import numpy as np
 import pydicom
 
 from pathlib import Path
-
 processed_count = 0
 
 
@@ -208,6 +207,10 @@ def set_args_file(batch_element_dir):
     except FileNotFoundError:
         print("No args.json found. Continuing with parameters from dag definition.")
 
+batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
+
+set_args_file(batch_folders[0])
+
 
 print("Started: 'itkimage2segimage' ")
 DCMQI = '/kaapana/app/dcmqi/bin'
@@ -245,12 +248,8 @@ DCMQI = '/kaapana/app/dcmqi/bin'
 
 # If input type is set to "multi_label_seg" you must create a json inside the OPERATOR_IMAGE_LIST_INPUT_DIR that contains the parts as follows: {"seg_info": ["spleen", "right@kidney"]}
 
-batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
-
-set_args_file(batch_folders[0])
-
 input_type = os.environ.get('INPUT_TYPE')  # multi_label_seg or single_label_segs
-multi_label_seg_name = os.environ.get('MULTI_LABEL_SEG_NAME', 'multi-label')  # Name used for multi-label segmentation object, if it will be created
+multi_label_seg_name = os.environ.get('MULTI_LABEL_SEG_NAME') if os.environ.get('MULTI_LABEL_SEG_NAME') not in [None, "None", ''] else 'multi-label'  # Name used for multi-label segmentation object, if it will be created
 segment_algorithm_name = os.environ.get('ALGORITHM_NAME', 'kaapana')
 segment_algorithm_type = os.environ.get('ALGORITHM_TYPE', 'AUTOMATIC')
 content_creator_name = os.environ.get('CREATOR_NAME', 'kaapana')
@@ -284,6 +283,7 @@ code_lookup_table_path = "code_lookup_table.json"
 with open(code_lookup_table_path) as f:
     code_lookup_table = json.load(f)
 
+# batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 
 print("Found {} batches".format(len(batch_folders)))
 
@@ -304,8 +304,9 @@ for batch_element_dir in batch_folders:
     if len(segmentation_paths) == 0:
         print("Could not find valid segmentation file in {}".format(input_image_list_input_dir))
         print("Supported: '*.nii', '*.nii.gz', '*.nrrd'")
-        print("abort!")
-        exit(1)
+        print("skipping!")
+        # exit(1)
+        continue
 
     segmentation_information = {
         "@schema": "https://raw.githubusercontent.com/qiicr/dcmqi/master/doc/schemas/seg-schema.json#"

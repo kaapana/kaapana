@@ -237,6 +237,7 @@ if __name__ == '__main__':
         helm_registry_login(username=registry_user, password=registry_pwd)
 
     container_images_available = Container.collect_containers()
+    print([x.tag for x in container_images_available])
     BuildUtils.add_container_images_available(container_images_available=container_images_available)
     charts_available = HelmChart.collect_charts()
 

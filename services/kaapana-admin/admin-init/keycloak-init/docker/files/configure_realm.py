@@ -134,7 +134,7 @@ if __name__=='__main__':
 
     ### Add client 
     file = "realm_objects/kaapana-client.json"
-    host = os.environ["KEYCLOAK_HOST"]
-    keycloak.post_client(file, redirectUris= [ "/oauth2/callback", f"https://{host}:443/minio-console/oauth_callback/" ])
+    host = os.environ["HOSTNAME"]
+    keycloak.post_client(file, redirectUris=[ "/oauth2/callback", f"https://{host}:443/minio-console/oauth_callback/" ])
 
 

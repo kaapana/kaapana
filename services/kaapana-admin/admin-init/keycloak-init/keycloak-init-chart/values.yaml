@@ -1,0 +1,6 @@
+---
+global:
+    pull_policy_jobs: "IfNotPresent"
+    credentials:
+        keycloak_admin_username: "admin"
+        keycloak_admin_password: "admin"

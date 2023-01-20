@@ -1,0 +1,42 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "keycloak-init"
+  namespace: "{{ .Values.global.admin_namespace }}"
+spec:
+  template:
+    metadata:
+      name: keycloak-init
+    spec:
+        initContainers:
+        - name: init
+          image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy: "{{ .Values.global.pull_policy_pods }}"
+          env:
+            - name: WAIT
+              value: "keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
+            - name: DELAY
+              value: "3"
+            - name: TIMEOUT
+              value: "10"
+        containers:
+        - name: keycloak-init
+          image: "{{ .Values.global.registry_url }}/keycloak-init:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy:  "{{ .Values.global.pull_policy_jobs }}"
+          resources:
+            requests:
+              memory: 200Mi
+            limits:
+              memory: 200Mi
+          env:
+            - name: KEYCLOAK_USER
+              value: "{{ .Values.global.credentials_keycloak_admin_username }}"
+            - name: KEYCLOAK_PASSWORD
+              value: "{{ .Values.global.credentials_keycloak_admin_password }}"
+            - name: KEYCLOAK_HOST
+              value: "keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc"
+        restartPolicy: Never
+        serviceAccountName: kaapana-kube-admin
+        imagePullSecrets:
+        - name: registry-secret

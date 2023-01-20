@@ -48,12 +48,7 @@ class KeycloakHelper():
             json = payload,
             headers= {"Authorization": f"Bearer {self.master_access_token}"}
             )
-        print(20*"##")
-        print(20*"##")
-        print(url)
-        print(r.status_code, r.text)
-        print("payload:", payload)
-        print("request", request, r.request)
+            
         try: 
             assert r.status_code < 400
         except AssertionError:

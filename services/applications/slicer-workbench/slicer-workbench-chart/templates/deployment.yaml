@@ -18,7 +18,7 @@ spec:
       containers:
         # ToDo add init-container to wait for db-host
       - name: slicer
-        image: {{  .Values.global.registry_url  }}/slicer-workbench:{{  .Values.global.kaapana_build_version  }}
+        image: "{{ .Values.global.registry_url }}/slicer-workbench:{{ .Values.global.kaapana_build_version }}"
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           requests:

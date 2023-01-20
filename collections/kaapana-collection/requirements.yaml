@@ -30,6 +30,9 @@ dependencies:
   - name: mitk-workbench-chart
     version: 0.0.0
     repository: file://../../services/applications/mitk-workbench/mitk-workbench-chart
+  - name: slicer-workbench-chart
+    version: 0.0.0
+    repository: file://../../services/applications/slicer-workbench/slicer-workbench-chart
   - name: mitk-flow-chart
     version: 0.0.0
     repository: file://../../services/applications/mitk-workbench/mitk-workbench-chart

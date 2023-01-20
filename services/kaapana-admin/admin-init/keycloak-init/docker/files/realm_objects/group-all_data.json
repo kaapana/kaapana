@@ -1,0 +1,5 @@
+{
+    "name" : "all_data",
+    "path" : "/all_data",
+    "realmRoles" : [ "admin", "user" ]
+}

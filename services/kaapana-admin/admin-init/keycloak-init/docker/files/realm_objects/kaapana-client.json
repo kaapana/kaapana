@@ -1,0 +1,93 @@
+{
+  "id" : "94500bda-b819-435b-b1bf-8483698cb0ca",
+  "clientId" : "kaapana",
+  "surrogateAuthRequired" : false,
+  "enabled" : true,
+  "alwaysDisplayInConsole" : false,
+  "clientAuthenticatorType" : "client-secret",
+  "secret" : "uQBJzc2YDzjRfj2OCT79JDShojeqAK2R",
+  "redirectUris" : [],
+  "webOrigins" : [ "*" ],
+  "notBefore" : 0,
+  "bearerOnly" : false,
+  "consentRequired" : false,
+  "standardFlowEnabled" : true,
+  "implicitFlowEnabled" : true,
+  "directAccessGrantsEnabled" : true,
+  "serviceAccountsEnabled" : false,
+  "publicClient" : false,
+  "frontchannelLogout" : false,
+  "protocol" : "openid-connect",
+  "attributes" : {
+    "access.token.lifespan" : "3600",
+    "saml.force.post.binding" : "false",
+    "saml.multivalued.roles" : "false",
+    "oauth2.device.authorization.grant.enabled" : "false",
+    "backchannel.logout.revoke.offline.tokens" : "false",
+    "saml.server.signature.keyinfo.ext" : "false",
+    "use.refresh.tokens" : "true",
+    "oidc.ciba.grant.enabled" : "false",
+    "backchannel.logout.session.required" : "true",
+    "client_credentials.use_refresh_token" : "false",
+    "require.pushed.authorization.requests" : "false",
+    "saml.client.signature" : "false",
+    "id.token.as.detached.signature" : "false",
+    "saml.assertion.signature" : "false",
+    "saml.encrypt" : "false",
+    "login_theme" : "keycloak",
+    "saml.server.signature" : "false",
+    "exclude.session.state.from.auth.response" : "false",
+    "saml.artifact.binding" : "false",
+    "saml_force_name_id_format" : "false",
+    "tls.client.certificate.bound.access.tokens" : "false",
+    "saml.authnstatement" : "false",
+    "display.on.consent.screen" : "false",
+    "saml.onetimeuse.condition" : "false"
+  },
+  "authenticationFlowBindingOverrides" : { },
+  "fullScopeAllowed" : true,
+  "nodeReRegistrationTimeout" : -1,
+  "protocolMappers" : [ {
+    "id" : "f67f85e3-88ca-4167-8f1d-8b46180cd925",
+    "name" : "GroupMapper",
+    "protocol" : "openid-connect",
+    "protocolMapper" : "oidc-group-membership-mapper",
+    "consentRequired" : false,
+    "config" : {
+      "full.path" : "true",
+      "id.token.claim" : "true",
+      "access.token.claim" : "true",
+      "claim.name" : "groups",
+      "userinfo.token.claim" : "true"
+    }
+  }, {
+    "id" : "3079b173-4dbc-4a39-ade1-969ac2be81f5",
+    "name" : "KaapanaMinioAudience",
+    "protocol" : "openid-connect",
+    "protocolMapper" : "oidc-usermodel-attribute-mapper",
+    "consentRequired" : false,
+    "config" : {
+      "userinfo.token.claim" : "true",
+      "user.attribute" : "policy",
+      "id.token.claim" : "true",
+      "access.token.claim" : "true",
+      "claim.name" : "policy",
+      "jsonType.label" : "String"
+    }
+  }, {
+    "id" : "b765b146-4142-4cdd-a473-89a6ce338035",
+    "name" : "kaapana-audience",
+    "protocol" : "openid-connect",
+    "protocolMapper" : "oidc-audience-mapper",
+    "consentRequired" : false,
+    "config" : {
+      "included.client.audience" : "kaapana",
+      "id.token.claim" : "true",
+      "access.token.claim" : "true",
+      "included.custom.audience" : "kaapana",
+      "userinfo.token.claim" : "true"
+    }
+  } ],
+  "defaultClientScopes" : [ "web-origins", "profile", "roles", "email" ],
+  "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ]
+  }

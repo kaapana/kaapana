@@ -11,7 +11,7 @@ from kaapana.operators.Itk2DcmOperator import Itk2DcmOperator
 from kaapana.operators.LocalDicomSendOperator import LocalDicomSendOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 
-from example.ExtractStudyIdOperator import ExtractStudyIdOperator
+# from example.ExtractStudyIdOperator import ExtractStudyIdOperator
 # from example.ConversionOperator import ConvertItk2DcmOperator
 
 from pathlib import Path

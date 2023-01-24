@@ -54,14 +54,13 @@ dag = DAG(
 )
 
 get_input = LocalGetInputDataOperator(dag=dag)
-mitk_input = MitkInputOperator(dag=dag, input_operator=get_input)
-
+mitk_input = MitkInputOperator(dag=dag, input_operator=get_input, operator_out_dir="mitk-results")
 launch_app = KaapanaApplicationOperator(dag=dag,
                                         name="application-mitk-flow",
-                                        input_operator=mitk_input,
+                                        input_operator=get_input,
                                         chart_name='mitk-flow-chart',
                                         version=kaapana_build_version)
-send_dicom = DcmSendOperator(dag=dag, input_operator=launch_app, ae_title="MITK-flow")
+send_dicom = DcmSendOperator(dag=dag, operator_in_dir="mitk-results", ae_title="MITK-flow")
 clean = LocalWorkflowCleanerOperator(dag=dag)
 
 

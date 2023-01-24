@@ -3,7 +3,9 @@
 v-dialog(v-model='dialogOpen' max-width='600px')
   //-  :persistent=dialogPersistence ;  :persistent='isPersistent' ; @close="dialogClose()" 
   template(v-if="!remote" v-slot:activator='{on, attrs}')
-    v-btn(x-large color="primary" v-bind='attrs' v-on='on' dark) Local Instance Profile: {{ instance.instance_name }}
+    v-btn(x-large color="primary" v-bind='attrs' v-on='on' dark) 
+      strong
+        h3 Local Instance: {{ instance.instance_name }}
   v-card
     v-card-title Instance name: {{ instance.instance_name }}
       //- v-spacer

@@ -1,4 +1,5 @@
 from ast import alias
+import ast
 import json
 from typing import List
 from urllib import request
@@ -312,11 +313,45 @@ def abort_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     abort_job_airflow(db_job.dag_id, db_job.run_id, db_job.status, conf_data)
 
 def get_job_taskinstances(db: Session, job_id: int = None):
-    print(f"We made it to crud.py's def get_job_taskinstances()!")
-    db_job = get_job(db, job_id)        # query job by job_id
-    response = get_dagrun_tasks_airflow(db_job.dag_id, db_job.run_id)
-    print(f"response of get_job_taskinstances: {response}")
-    return response 
+    db_job = get_job(db, job_id)                                        # query job by job_id
+    response = get_dagrun_tasks_airflow(db_job.dag_id, db_job.run_id)   # get task_instances w/ states via dag_id and run_id
+
+    # parse received response
+    response_text = json.loads(response.text)
+
+    ti_state_dict = json.loads(response_text["message"][0].replace("\'", "\""))
+    ti_exdate_dict = json.loads(response_text["message"][1].replace("\'", "\""))
+    print(f"task_dict: {ti_state_dict}; type: {type(ti_state_dict)}")
+    print(f"task_dict: {ti_exdate_dict}; type: {type(ti_exdate_dict)}")
+
+    # ti_state_dict = ti_state_dict.replace("\'", "\"")
+    # print(f"task_dict: {ti_state_dict}; type: {type(ti_state_dict)}")
+    # ti_state_dict = json.loads(ti_state_dict)
+    # print(f"task_dict: {ti_state_dict}; type: {type(ti_state_dict)}")
+
+    # task_instances = response_text["message"][0][1:-1].split(",")
+    # print(f"execution_times: \n {response_text['message'][1]} \n type: {type(response_text['message'][1])}")
+    # # execution_times = ast.literal_eval(response_text["message"][1])
+    # execution_times = json.loads(response_text["message"][1])
+    # print(f"task_instances: {task_instances}")
+    # print(f"execution_times: {execution_times}")
+
+    # compose dict in style {"task_instance": ["execution_time", "state"]}
+    tis_n_state = {}
+    for key in ti_state_dict:
+        time_n_state = [ti_exdate_dict[key], ti_state_dict[key]]
+        tis_n_state[key] = time_n_state
+
+    # for i in range(len(task_instances)):
+    #     time_n_state = []
+    #     task_instance = task_instances[i][1:-1].split(" ")
+    #     time_n_state.append(execution_times[i])
+    #     time_n_state.append(task_instance[-1][1:-1])
+    #     tis_n_state[task_instance[1]] = time_n_state
+
+    print(f"Final task_instances w/ state : {tis_n_state}")
+
+    return tis_n_state 
 
 
 def sync_client_remote(db: Session, remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal,

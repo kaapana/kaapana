@@ -114,6 +114,7 @@
         airflow_url: '',
         dag_run_datetime: '',
         dag_run_ms: '',
+        dag_run_tasks_n_states: {},
       }),
 
       props: {
@@ -236,13 +237,38 @@
           // console.log("airflow_url: ", this.airflow_url)
           window.open(this.airflow_url, "_blank", "noreferrer")
         },
-        direct_airflow_operator_logs(item) {
-          // console.log("item: ", item)
-          this.getJobTaskinstancesAPI(item.id)
+        async direct_airflow_operator_logs(item) {     // async to make await work properly
+          await this.getJobTaskinstancesAPI(item.id);  // task_instances and states are written to -> this.dag_run_tasks_n_states ; needs to be await to asve API result to variable
+
+          console.log("this.dag_run_tasks_n_states: ", this.dag_run_tasks_n_states)
+          console.log("typeof: ", typeof this.dag_run_tasks_n_states)
+          // iterate over this.dag_run_tasks_n_states and search for operator with state 'failed'
+          for (let key in this.dag_run_tasks_n_states) {
+            console.log(key, this.dag_run_tasks_n_states[key])
+            if (this.dag_run_tasks_n_states[key].at(-1) == "failed") {
+              this.failed_operator = key // .split(".")[-1]
+              console.log("failed_operator: ", this.failed_operator)
+              // this.failed_operator = this.failed_operator.split(".").at("-1")
+              // console.log("failed_operator: ", this.failed_operator)
+            }
+          }
+          // compose airflow log link:
+          // this.dag_run_datetime = item.run_id.split("-").at(-1)
+          // this.dag_run_datetime = this.dag_run_datetime.slice(-6).slice(0, 2) + "." + this.dag_run_datetime.slice(-4)
+          // this.dag_run_ms = item.run_id.split("-").at(-1).slice(-6).slice(0, 2) + this.dag_run_datetime.slice(-4)
+          // this.dag_run_datetime = item.time_updated.slice(0, 19) + "." + this.dag_run_ms + "+00:00"
+          this.dag_run_datetime = this.dag_run_tasks_n_states[this.failed_operator].at(0)
+          this.airflow_url = item.kaapana_instance.protocol + "://" + item.kaapana_instance.host + "/flow/log?dag_id=" + item.dag_id + "&task_id=" + this.failed_operator + "&execution_date=" + encodeURIComponent(this.dag_run_datetime)
+          window.open(this.airflow_url, "_blank", "noreferrer")
+          // soll: https://10.135.76.130/flow/log?dag_id=nnunet-predict&task_id=dcm-converter&execution_date=2023-01-23T09%3A42%3A49.920889%2B00%3A00
+          // ist:  https://10.135.76.130/flow/log?dag_id=nnunet-predict&task_id=dcm-converter&execution_date=2023-01-23T09%3A43%3A08.911417%2B00%3A00
+          // time provided by airflow api:                                                                   2023-01-23T10%3A4253A49.911417
+          //       https://10.135.76.130/flow/log?dag_id=nnunet-predict&task_id=dcm-converter&execution_date=2023-01-23T10%3A42%3A49.920889%2B00%3A00
+
           // window.location.href="https://10.135.76.130/flow/log?dag_id=nnunet-predict&task_id=dcm-converter&execution_date=2023-01-19T16%3A12%3A22.651127%2B00%3A00"
           // window.open("https://10.135.76.130/flow/log?dag_id=nnunet-predict&task_id=dcm-converter&execution_date=2023-01-19T16%3A12%3A22.651127%2B00%3A00", "_blank", "noreferrer")
         },
-
+        
         // API Calls
         abortJobAPI(job_id, status, description) {
           kaapanaApiService
@@ -285,20 +311,24 @@
               console.log(err);
             });
         },
-        getJobTaskinstancesAPI(job_id) {
+        async getJobTaskinstancesAPI(job_id) {
           console.log("Trying to catch task_instances of job: ", job_id),
-          kaapanaApiService
+          await kaapanaApiService
             .federatedClientApiGet("/get_job_taskinstances", {
               job_id,
             })
             .then((response) => {
+              this.dag_run_tasks_n_states = response.data
+              console.log("response in getJobTaskinstancesAPI: ", this.dag_run_tasks_n_states)
               // this.$emit('refreshView')
-              console.log("response in getJobTaskinstancesAPI: ", response)
+              // return this.dag_run_tasks_n_states
             })
             .catch((err) => {
               console.log(err);
             });
         },
+        
+
       }
     }
 </script>

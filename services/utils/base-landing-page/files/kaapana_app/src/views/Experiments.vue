@@ -48,7 +48,7 @@
             view-remote-instances(ref="viewremoteinstances" :clientinstance="clientInstance" :remote='true')
             v-spacer
             v-btn(v-if="clientInstance" @click.stop="checkForRemoteUpdates()" small icon)
-              v-icon(color='primary' dark) mdi-sync-circle
+              v-icon(color='primary' dark x-large) mdi-sync-circle
             v-spacer
             v-btn(v-if="!clientInstance" color='primary' @click.stop="clientDialog=true" dark) Add client instance
       //- v-row

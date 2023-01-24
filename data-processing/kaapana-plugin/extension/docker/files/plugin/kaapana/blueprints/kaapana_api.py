@@ -77,7 +77,7 @@ def trigger_dag(dag_id):
     return response
 
 @csrf.exempt
-@kaapanaApi.route('/api/get_dagrun_tasks/<dag_id>/<run_id>', methods=['GET'])
+@kaapanaApi.route('/api/get_dagrun_tasks/<dag_id>/<run_id>', methods=['POST'])
 def get_dagrun_tasks(dag_id, run_id):
     '''
     This Airflow API does the following:
@@ -109,6 +109,8 @@ def get_dagrun_tasks(dag_id, run_id):
     ### actual start of function ###
     dag_objects = DagBag().dags                 # returns all DAGs available on platform
     desired_dag = dag_objects[dag_id]           # filter desired_dag from all available dags via dag_id
+    session = settings.Session()
+    message = []
 
     task_ids = [task.task_id for task in desired_dag.tasks]  # get task_ids of desired_dag
     tis = session.query(TaskInstance).filter(                # query TaskInstances which are part of desired_dag wit run_id=run_id and task_ids
@@ -118,7 +120,16 @@ def get_dagrun_tasks(dag_id, run_id):
     )
     tis = [ti for ti in tis]
 
-    message.append(f"Result of task querying: {tis}")
+    # compose 2 response dict in style: {"task_instance": "state"/"execution_date"}
+    state_dict = {}
+    exdate_dict = {}
+    for ti in tis:
+        state_dict[ti.task_id] = ti.state
+        exdate_dict[ti.task_id] = str(ti.execution_date)
+
+    # message.append(f"Result of task querying: {tis}")
+    message.append(f'{state_dict}')
+    message.append(f'{exdate_dict}')
     response = jsonify(message=message)
     return response
 

@@ -161,8 +161,9 @@ def abort_job_airflow(dag_id, dag_run_id, conf_data, status="failed"):
     return resp
 
 def get_dagrun_tasks_airflow(dag_id, dag_run_id):
+    print(f"We made it to utils.py's get_dagrun_tasks_airflow() w/ dag_id {dag_id} and dag_run_id {dag_run_id}")
     with requests.Session() as s:
-        resp = requests_retry_session(session=s).get(f'http://airflow-service.flow.svc:8080/flow/kaapana/api/get_dagrun_tasks/{dag_id}/{dag_run_id}',
+        resp = requests_retry_session(session=s).post(f'http://airflow-service.flow.svc:8080/flow/kaapana/api/get_dagrun_tasks/{dag_id}/{dag_run_id}',
                 json={
                     'dag_id': dag_id,
                 })

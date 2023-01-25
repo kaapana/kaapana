@@ -4,8 +4,6 @@ import semver
 import networkx as nx
 from os.path import join, dirname, basename, exists, isfile, isdir
 from git import Repo
-from datetime import datetime
-
 
 class BuildUtils:
     container_images_available = None
@@ -26,10 +24,14 @@ class BuildUtils:
     push_to_microk8s = None
     kaapana_build_version = None
     kaapana_build_branch = None
-    main_build_version = None
     kaapana_last_commit_timestamp = None
     build_timestamp = None
     parallel_processes = None
+    
+    platform_name = None
+    platform_build_version = None
+    platform_build_branch = None
+    platform_last_commit_timestamp = None
 
     @staticmethod
     def add_container_images_available(container_images_available):
@@ -70,30 +72,11 @@ class BuildUtils:
         BuildUtils.skip_push_no_changes = skip_push_no_changes
         BuildUtils.push_to_microk8s = push_to_microk8s
 
-        BuildUtils.build_timestamp = datetime.now().strftime("%d-%m-%Y")
-
-        kaapana_build_version, kaapana_build_branch, kaapana_last_commit, kaapana_last_commit_timestamp, parent_repo_version = BuildUtils.get_repo_info(BuildUtils.kaapana_dir)
-        BuildUtils.kaapana_last_commit_timestamp = kaapana_last_commit_timestamp
-        BuildUtils.kaapana_build_branch = kaapana_build_branch
-        BuildUtils.kaapana_build_version = kaapana_build_version
-        
-        BuildUtils.main_build_version = kaapana_build_version
-        if parent_repo_version is not None:
-            BuildUtils.main_build_version = parent_repo_version
-
         BuildUtils.registry_user = registry_user
         BuildUtils.registry_pwd = registry_pwd
         BuildUtils.include_credentials = include_credentials
 
         BuildUtils.parallel_processes = parallel_processes
-
-        BuildUtils.logger.debug(f"{BuildUtils.kaapana_dir=}")
-        BuildUtils.logger.debug(f"{BuildUtils.main_build_version=}")
-        BuildUtils.logger.debug(f"{BuildUtils.kaapana_build_branch=}")
-        BuildUtils.logger.debug(f"{BuildUtils.kaapana_build_version=}")
-        BuildUtils.logger.debug(f"{BuildUtils.parallel_processes=}")
-        BuildUtils.logger.debug(f"{BuildUtils.kaapana_last_commit_timestamp=}")
-        BuildUtils.logger.debug(f"{BuildUtils.build_timestamp=}")
 
     @staticmethod
     def get_timestamp():
@@ -108,30 +91,13 @@ class BuildUtils:
         requested_repo = Repo(repo_dir)
         assert not requested_repo.bare
 
-        parent_repo_version = None
-        if "module" in requested_repo.common_dir:
-            submodule_name = basename(repo_dir)
-            parent_repo = Repo(dirname(repo_dir))
-            assert not parent_repo.bare
-            assert len(parent_repo.submodules) > 0
-            parent_repo_version = parent_repo.git.describe()
+        last_commit = requested_repo.head.commit
+        last_commit_timestamp = last_commit.committed_datetime.strftime("%d-%m-%Y")
+        build_version = requested_repo.git.describe()
+        build_branch = requested_repo.active_branch.name.split("/")[-1]
+        version_check = semver.VersionInfo.parse(build_version)
 
-            for submodule in parent_repo.submodules:
-                if submodule_name == basename(requested_repo.git_dir):
-                    submodule_repo = Repo(submodule)
-                    last_commit = submodule_repo.head.commit
-                    last_commit_timestamp = last_commit.committed_datetime.strftime("%d-%m-%Y")
-                    build_version = submodule_repo.git.describe()
-                    build_branch = submodule_repo.git.branch().split("\n")[1].strip()
-                    version_check = semver.VersionInfo.parse(build_version)
-        else:
-            last_commit = requested_repo.head.commit
-            last_commit_timestamp = last_commit.committed_datetime.strftime("%d-%m-%Y")
-            build_version = requested_repo.git.describe()
-            build_branch = requested_repo.active_branch.name.split("/")[-1]
-            version_check = semver.VersionInfo.parse(build_version)
-
-        return build_version, build_branch, last_commit, last_commit_timestamp, parent_repo_version
+        return build_version, build_branch, last_commit, last_commit_timestamp
 
     @staticmethod
     def get_build_order(build_graph):
@@ -147,7 +113,7 @@ class BuildUtils:
             entry_id = f"{name}:{version}"
 
             if "chart:" in entry:
-                unused_chart = [x_chart for x_key, x_chart in BuildUtils.charts_unused.items() if f"{x_chart.name}:{x_chart.version}" == entry_id]
+                unused_chart = [x_chart for x_key, x_chart in BuildUtils.charts_unused.items() if f"{x_chart.name}:{x_chart.repo_version}" == entry_id]
                 if len(unused_chart) == 1:
                     del BuildUtils.charts_unused[unused_chart[0].name]
                     BuildUtils.logger.debug(f"{entry_id} removed from charts_unused!")

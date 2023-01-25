@@ -192,9 +192,6 @@ def pull_docker_image(release_name, docker_image, docker_version, docker_registr
         except yaml.YAMLError as exc:
             logger.error(exc)
 
-    if "{default_platform_abbr}_{default_platform_version}" in docker_version:
-        docker_version = docker_version.replace(
-            "{default_platform_abbr}_{default_platform_version}", f"{os.getenv('PLATFORM_ABBR')}_{os.getenv('PLATFORM_VERSION')}")
     payload = {
         'name': 'pull-docker-chart',
         'version': helper_charts['entries']['pull-docker-chart'][0]['version'],

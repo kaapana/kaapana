@@ -34,7 +34,6 @@ from airflow.models import Variable
 
 default_registry = os.getenv("DEFAULT_REGISTRY", "")
 kaapana_build_version = os.getenv("KAAPANA_BUILD_VERSION", "")
-platform_version = os.getenv("PLATFORM_VERSION", "")
 gpu_support = True if os.getenv('GPU_SUPPORT', "False").lower() == "true" else False
 
 class KaapanaBaseOperator(BaseOperator, SkipMixin):

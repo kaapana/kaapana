@@ -36,8 +36,6 @@ spec:
           value: {{ $.Values.global.helm_namespace }}
         - name: REGISTRY_URL
           value: {{ $.Values.global.registry_url }}
-        - name: PLATFORM_VERSION
-          value: '{{ $.Values.global.platform_version }}'
         - name: KAAPANA_BUILD_VERSION
           value: "{{ .Values.global.kaapana_build_version }}"
         - name: OFFLINE_MODE

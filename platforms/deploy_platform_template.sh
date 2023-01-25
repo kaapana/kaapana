@@ -7,8 +7,11 @@ export HELM_EXPERIMENTAL_OCI=1
 # Main platform configuration
 ######################################################
 
-PROJECT_NAME="{{ project_name }}" # name of the platform Helm chart
+PLATFORM_NAME="{{ platform_name }}" # name of the platform Helm chart
 PLATFORM_BUILD_VERSION="{{ platform_build_version }}"    # version of the platform Helm chart -> auto-generated
+PLATFORM_BUILD_BRANCH="{{ platform_build_branch }}"    # branch name, which was build from -> auto-generated
+PLATFORM_LAST_COMMT_TIMESTAMP="{{ platform_last_commit_timestamp }}" # timestamp of the last commit -> auto-generated
+PLATFORM_BUILD_TIMESTAMP="{{ platform_build_timestamp }}"    # timestamp of the build-time -> auto-generated
 
 CONTAINER_REGISTRY_URL="{{ container_registry_url|default('', true) }}" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 CONTAINER_REGISTRY_USERNAME="{{ container_registry_username|default('', true) }}"
@@ -26,16 +29,7 @@ PREFETCH_EXTENSIONS="{{ prefetch_extensions|default('false') }}"
 CHART_PATH=""
 NO_HOOKS=""
 
-PLATFORM_BUILD_BRANCH="{{ platform_build_branch }}"    # branch name, which was build from -> auto-generated
-PLATFORM_LAST_COMMT_TIMESTAMP="{{ platform_last_commit_timestamp }}" # timestamp of the last commit -> auto-generated
-
-BUILD_TIMESTAMP="{{ build_timestamp }}"    # timestamp of the build-time -> auto-generated
-KAAPANA_BUILD_VERSION="{{ kaapana_build_version }}"    # version of the platform Helm chart -> auto-generated
-KAAPANA_BUILD_BRANCH="{{ kaapana_build_branch }}"    # branch name, which was build from -> auto-generated
-KAAPANA_LAST_COMMT_TIMESTAMP="{{ kaapana_last_commit_timestamp }}" # timestamp of the last commit -> auto-generated
-
 INSTANCE_UID=""
-
 SERVICES_NAMESPACE="{{ services_namespace }}"
 ADMIN_NAMESPACE="{{ admin_namespace }}"
 JOBS_NAMESPACE="{{ jobs_namespace }}"
@@ -268,7 +262,7 @@ function deploy_chart {
 
     if [ ! "$QUIET" = "true" ] && [ -z "$CHART_PATH" ];then
         echo -e ""
-        read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to deploy?: ${NC}" -i $PLATFORM_BUILD_VERSION chart_version;
+        read -e -p "${YELLOW}Which $PLATFORM_NAME version do you want to deploy?: ${NC}" -i $PLATFORM_BUILD_VERSION chart_version;
     else
         chart_version=$PLATFORM_BUILD_VERSION
     fi
@@ -306,8 +300,8 @@ function deploy_chart {
         echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
         echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
 
-        if [ $(basename "$CHART_PATH") != "$PROJECT_NAME-$PLATFORM_BUILD_VERSION.tgz" ]; then
-            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PROJECT_NAME and PLATFORM_BUILD_VERSION: $PLATFORM_BUILD_VERSION in the deployment script.${NC}" 
+        if [ $(basename "$CHART_PATH") != "$PLATFORM_NAME-$PLATFORM_BUILD_VERSION.tgz" ]; then
+            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PLATFORM_NAME and PLATFORM_BUILD_VERSION: $PLATFORM_BUILD_VERSION in the deployment script.${NC}" 
             exit 1
         fi
 
@@ -347,10 +341,10 @@ function deploy_chart {
         echo "${GREEN}Pulling platform chart from registry...${NC}"
         SCRIPTPATH=$(dirname "$(realpath $0)")
         pull_chart $SCRIPTPATH
-        CHART_PATH="$SCRIPTPATH/$PROJECT_NAME-$chart_version.tgz"
+        CHART_PATH="$SCRIPTPATH/$PLATFORM_NAME-$chart_version.tgz"
     fi
 
-    echo "${GREEN}Deploying $PROJECT_NAME:$chart_version${NC}"
+    echo "${GREEN}Deploying $PLATFORM_NAME:$chart_version${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
     --set-string global.base_namespace="base" \
@@ -383,7 +377,6 @@ function deploy_chart {
     --set-string global.kaapana_collections[{{loop.index0}}].version="{{ item.version }}" \
     {% endfor -%}
     --set-string global.offline_mode="$OFFLINE_MODE" \
-    --set-string global.platform_version="$chart_version" \
     --set-string global.prefetch_extensions="$PREFETCH_EXTENSIONS" \
     {% for item in preinstall_extensions -%}
     --set-string global.preinstall_extensions[{{loop.index0}}].name="{{ item.name }}" \
@@ -393,18 +386,16 @@ function deploy_chart {
     --set-string global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
-    --set-string global.release_name="$PROJECT_NAME" \
-    --set-string global.build_timestamp="$BUILD_TIMESTAMP" \
-    --set-string global.kaapana_build_version="$KAAPANA_BUILD_VERSION" \
-    --set-string global.kaapana_build_branch="$KAAPANA_BUILD_BRANCH" \
-    --set-string global.kaapana_last_commit_timestamp="$KAAPANA_LAST_COMMT_TIMESTAMP" \
+    --set-string global.release_name="$PLATFORM_NAME" \
+    --set-string global.build_timestamp="$PLATFORM_BUILD_TIMESTAMP" \
+    --set-string global.kaapana_build_version="$PLATFORM_BUILD_VERSION" \
     --set-string global.platform_build_branch="$PLATFORM_BUILD_BRANCH" \
     --set-string global.platform_last_commit_timestamp="$PLATFORM_LAST_COMMT_TIMESTAMP" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
-    --name-template "$PROJECT_NAME"
+    --name-template "$PLATFORM_NAME"
 
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm $CHART_PATH
@@ -420,8 +411,8 @@ function deploy_chart {
 function pull_chart {
     for i in 1 2 3 4 5;
     do
-        echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME with version $chart_version ${NC}"
-        helm pull oci://${CONTAINER_REGISTRY_URL}/$PROJECT_NAME --version $chart_version -d $1 \
+        echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/$PLATFORM_NAME with version $chart_version ${NC}"
+        helm pull oci://${CONTAINER_REGISTRY_URL}/$PLATFORM_NAME --version $chart_version -d $1 \
             && break \
             || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 );
         
@@ -929,8 +920,8 @@ deployments=$(helm -n $HELM_NAMESPACE ls -a |cut -f1 |tail -n +2)
 echo "Current deployments: " 
 echo $deployments
 
-if [[ $deployments == *"$PROJECT_NAME"* ]] && [[ ! $QUIET = true ]];then
-    echo -e "${YELLOW}$PROJECT_NAME already deployed!${NC}"
+if [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ ! $QUIET = true ]];then
+    echo -e "${YELLOW}$PLATFORM_NAME already deployed!${NC}"
     PS3='select option: '
     options=("Un- and Re-deploy" "Undeploy" "Quit")
     select opt in "${options[@]}"
@@ -954,7 +945,7 @@ if [[ $deployments == *"$PROJECT_NAME"* ]] && [[ ! $QUIET = true ]];then
             *) echo "invalid option $REPLY";;
         esac
     done
-elif [[ $deployments == *"$PROJECT_NAME"* ]] && [[ $QUIET = true ]];then
+elif [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ $QUIET = true ]];then
     echo -e "${RED}Project already deployed!${NC}"
     echo -e "${RED}abort.${NC}"
     exit 1

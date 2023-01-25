@@ -6,11 +6,18 @@ import airflow.api
 from http import HTTPStatus
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun, DagModel, DAG, DagBag
+from airflow.models.taskinstance import TaskInstance
 from airflow import settings
 from airflow.utils import timezone
+from airflow.utils.state import State, TaskInstanceState, DagRunState
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.app import csrf
 import json
+import time
+from kaapana.blueprints.kaapana_utils import generate_run_id, generate_minio_credentials, parse_ui_dict
+from airflow.api.common.trigger_dag import trigger_dag as trigger
+from airflow.api.common.experimental.mark_tasks import set_dag_run_state_to_failed as set_dag_run_failed
+from airflow.api.common.experimental.mark_tasks import get_execution_dates, find_task_relatives, verify_dag_run_integrity, get_subdag_runs, get_all_dag_task_query, all_subdag_tasks_query
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.blueprints.kaapana_utils import generate_run_id, generate_minio_credentials, parse_ui_dict
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
@@ -29,6 +36,7 @@ kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
 def trigger_dag(dag_id):
     #headers = dict(request.headers)
     data = request.get_json(force=True)
+    print(f"data: {data}")
     #username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
     if 'conf' in data:
         tmp_conf = data['conf']
@@ -65,6 +73,210 @@ def trigger_dag(dag_id):
         return response
 
     message = ["{} created!".format(dr.dag_id)]
+    response = jsonify(message=message)
+    return response
+
+@csrf.exempt
+@kaapanaApi.route('/api/get_dagrun_tasks/<dag_id>/<run_id>', methods=['POST'])
+def get_dagrun_tasks(dag_id, run_id):
+    '''
+    This Airflow API does the following:
+    - query from airflow a dag_run by dag_id and run_id
+    - get all tasks including their states of queried dag_run
+    - return tasks
+    '''
+    #headers = dict(request.headers)
+    data = request.get_json(force=True)
+    print(f"data: {data}")
+    #username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
+    if 'conf' in data:
+        tmp_conf = data['conf']
+    else:
+        tmp_conf = data
+    # For authentication
+    if "x_auth_token" in data:
+        tmp_conf["x_auth_token"] = data["x_auth_token"]
+    else:
+        tmp_conf["x_auth_token"] = request.headers.get('X-Auth-Token')
+    ################################################################################################ 
+    #### Deprecated! Will be removed with the next version 0.1.3
+    if "workflow_form" in tmp_conf: # in the future only workflow_form should be included in the tmp_conf
+        tmp_conf["form_data"] = tmp_conf["workflow_form"]
+    elif "form_data" in tmp_conf:
+        tmp_conf["workflow_form"] = tmp_conf["form_data"]
+    ################################################################################################
+
+    ### actual start of function ###
+    dag_objects = DagBag().dags                 # returns all DAGs available on platform
+    desired_dag = dag_objects[dag_id]           # filter desired_dag from all available dags via dag_id
+    session = settings.Session()
+    message = []
+
+    task_ids = [task.task_id for task in desired_dag.tasks]  # get task_ids of desired_dag
+    tis = session.query(TaskInstance).filter(                # query TaskInstances which are part of desired_dag wit run_id=run_id and task_ids
+        TaskInstance.dag_id == desired_dag.dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.task_id.in_(task_ids),
+    )
+    tis = [ti for ti in tis]
+
+    # compose 2 response dict in style: {"task_instance": "state"/"execution_date"}
+    state_dict = {}
+    exdate_dict = {}
+    for ti in tis:
+        state_dict[ti.task_id] = ti.state
+        exdate_dict[ti.task_id] = str(ti.execution_date)
+
+    # message.append(f"Result of task querying: {tis}")
+    message.append(f'{state_dict}')
+    message.append(f'{exdate_dict}')
+    response = jsonify(message=message)
+    return response
+
+
+
+@csrf.exempt
+@kaapanaApi.route('/api/abort/<dag_id>/<run_id>', methods=['POST'])
+def abort_dag_run(dag_id, run_id):
+    #headers = dict(request.headers)
+    data = request.get_json(force=True)
+    print(f"data: {data}")
+
+    #username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
+    if 'conf' in data:
+        tmp_conf = data['conf']
+    else:
+        tmp_conf = data
+
+    # For authentication
+    if "x_auth_token" in data:
+        tmp_conf["x_auth_token"] = data["x_auth_token"]
+    else:
+        tmp_conf["x_auth_token"] = request.headers.get('X-Auth-Token')
+
+    ################################################################################################ 
+    #### Deprecated! Will be removed with the next version 0.1.3
+
+    if "workflow_form" in tmp_conf: # in the future only workflow_form should be included in the tmp_conf
+        tmp_conf["form_data"] = tmp_conf["workflow_form"]
+    elif "form_data" in tmp_conf:
+        tmp_conf["workflow_form"] = tmp_conf["form_data"]
+    
+    ################################################################################################ 
+
+    # abort dag_run by executing set_dag_run_state_to_failed() (source: https://github.com/apache/airflow/blob/main/airflow/api/common/mark_tasks.py#L421)
+    dag_objects = DagBag().dags                 # returns all DAGs available on platform
+    desired_dag = dag_objects[dag_id]           # filter desired_dag from all available dags via dag_id
+
+    session = settings.Session()
+    dag_runs_of_desired_dag = session.query(DagRun).filter(DagRun.dag_id == desired_dag.dag_id)
+    for dag_run_of_desired_dag in dag_runs_of_desired_dag:
+        if dag_run_of_desired_dag.run_id == run_id:
+            desired_execution_date = dag_run_of_desired_dag.execution_date
+            break
+        else:
+            desired_execution_date = None
+
+    message = []
+
+    # Own solution highly inspred by airflow latest (2.4.3) -> def set_dag_run_state_to_failed(*, dag: DAG, execution_date: datetime | None = None, run_id: str | None = None, commit: bool = False, session: SASession = NEW_SESSION,)
+    dag = desired_dag
+    execution_date = desired_execution_date
+    run_id = run_id
+    commit = True
+    session = session
+    state = TaskInstanceState.FAILED
+    
+    if not dag:
+        return []
+    if execution_date:
+        if not timezone.is_localized(execution_date):
+            raise ValueError(f"Received non-localized date {execution_date}")
+        dag_run = dag.get_dagrun(execution_date=execution_date)
+        if not dag_run:
+            raise ValueError(f"DagRun with execution_date: {execution_date} not found")
+        run_id = dag_run.run_id
+    if not run_id:
+        raise ValueError(f"Invalid dag_run_id: {run_id}")
+
+    # Mark the dag run to failed.
+    if commit:
+        # _set_dag_run_state(dag.dag_id, run_id, DagRunState.FAILED, session)
+        # definition: def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SASession = NEW_SESSION)
+        dag_run_state = DagRunState.FAILED
+        dag_run = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one()
+        dag_run.state = dag_run_state
+        if dag_run_state == State.RUNNING:
+            dag_run.start_date = timezone.utcnow()
+            dag_run.end_date = None
+        else:
+            dag_run.end_date = timezone.utcnow()
+        session.merge(dag_run)
+    
+    # Mark only RUNNING task instances.
+    task_ids = [task.task_id for task in dag.tasks]
+    tis_r = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag.dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.task_id.in_(task_ids),
+        TaskInstance.state == (TaskInstanceState.RUNNING),
+    )
+    tis_r = [ti for ti in tis_r]
+    if commit:
+        for ti in tis_r:
+            message.append(f"Running Task {ti} and its state {ti.state}")
+            ti.set_state(State.FAILED) # set non-running and not finished tasks to skipped
+
+    # Mark non-finished and not running tasks as SKIPPED.
+    tis = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag.dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.state != (TaskInstanceState.SUCCESS),
+        TaskInstance.state != (TaskInstanceState.RUNNING),
+        TaskInstance.state != (TaskInstanceState.FAILED),
+    )
+    tis = [ti for ti in tis]
+    if commit:
+        for ti in tis:
+            message.append(f"Non-finished Task {ti} and its state {ti.state}")
+            ti.set_state(State.SKIPPED) # set non-running and not finished tasks to skipped
+    
+    # Mark tasks in state None as SKIPPED
+    tis_n = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag.dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.state == None,
+    )
+    tis_n = [ti for ti in tis_n]
+    if commit:
+        for ti in tis_n:
+            message.append(f"None-state Task {ti} and its state {ti.state}")
+            ti.set_state(State.SKIPPED) # set None-state tasks to skipped
+
+    # if no task is marked as FAILED so far, take last task marked as SUCCESS and set it to FAILED --> such that whole dag_run is also marked as failed!
+    # query tasks for failed
+    tis_f = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag.dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.state == (TaskInstanceState.FAILED),
+    )
+    tis_f = [ti for ti in tis_f]
+    message.append(f"So far FAILED tasks: {tis_f}")
+    if len(tis_f) == 0:    
+        # if no failed task found -> query tasks for succes; select last succeeded task and set is to failed
+        tis_s = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == dag.dag_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.state == (TaskInstanceState.SUCCESS),
+        )
+        message.append(f"tis_s: {tis_s}")
+        latest_ti_s = tis_s.order_by(TaskInstance.start_date.desc()).first()
+        message.append(f"So far SUCCESS task, to.be changed to FAILED: {latest_ti_s}")
+        latest_ti_s.set_state(State.FAILED)
+    
+    all_tis = [tis_r, tis, tis_n]
+
+    message.append(f"Result of Job abortion: {all_tis}")
     response = jsonify(message=message)
     return response
 

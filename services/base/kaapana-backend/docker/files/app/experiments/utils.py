@@ -84,7 +84,7 @@ def requests_retry_session(
     return session 
 
 def get_utc_timestamp():
-    dt = datetime.datetime.now(timezone.utc)
+    dt = datetime.datetime.now(timezone.utc).replace(microsecond=0)
     utc_time = dt.replace(tzinfo=timezone.utc)
     return utc_time
 
@@ -122,8 +122,8 @@ def get_uid_list_from_query(cohort_query):
     else:
         raise ValueError('Invalid OpenSearch query!')
 
-def check_dag_id_and_dataset(db_client_kaapana, conf_data, dag_id, addressed_kaapana_instance_name):
-    if addressed_kaapana_instance_name is not None and db_client_kaapana.instance_name != addressed_kaapana_instance_name:
+def check_dag_id_and_dataset(db_client_kaapana, conf_data, dag_id, owner_kaapana_instance_name):
+    if owner_kaapana_instance_name is not None and db_client_kaapana.instance_name != owner_kaapana_instance_name:
         if dag_id not in json.loads(db_client_kaapana.allowed_dags):
             return f"Dag {dag_id} is not allowed to be triggered from remote!"
         if "data_form" in conf_data:
@@ -136,13 +136,39 @@ def check_dag_id_and_dataset(db_client_kaapana, conf_data, dag_id, addressed_kaa
             #         f"{', '.join(json.loads(db_client_kaapana.allowed_datasets))}!"
     return None
 
-def execute_job(conf_data, dag_id):
+def execute_job_airflow(conf_data, db_job):
+    print("db_job:", db_job, "conf_data:", conf_data)
     with requests.Session() as s:
-        resp = requests_retry_session(session=s).post(f'http://airflow-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/trigger/{dag_id}', timeout=TIMEOUT, json={
+        resp = requests_retry_session(session=s).post(f'http://airflow-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/trigger/{db_job.dag_id}',  json={
             'conf': {
                 **conf_data,
             }})
     raise_kaapana_connection_error(resp)
+    return resp
+
+def abort_job_airflow(dag_id, dag_run_id, conf_data, status="failed"):
+    print("dag_id:", dag_id, "dag_run_id:", dag_run_id, "status", status, "conf_data", conf_data)
+    with requests.Session() as s:
+        resp = requests_retry_session(session=s).post(f'http://airflow-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/abort/{dag_id}/{dag_run_id}',  json={
+            'dag_id': dag_id,
+            'state': {**status,},
+            # 'conf': {
+            #     **conf_data,
+            # }
+            })
+    raise_kaapana_connection_error(resp)
+    print("Response in kaapana-backend:", resp.text)
+    return resp
+
+def get_dagrun_tasks_airflow(dag_id, dag_run_id):
+    print(f"We made it to utils.py's get_dagrun_tasks_airflow() w/ dag_id {dag_id} and dag_run_id {dag_run_id}")
+    with requests.Session() as s:
+        resp = requests_retry_session(session=s).post(f'http://airflow-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/get_dagrun_tasks/{dag_id}/{dag_run_id}',
+                json={
+                    'dag_id': dag_id,
+                })
+    raise_kaapana_connection_error(resp)
+    print("Response in kaapana-backend:", resp.text)
     return resp
 
 def raise_kaapana_connection_error(r):

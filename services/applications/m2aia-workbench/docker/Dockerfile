@@ -23,7 +23,7 @@ RUN mkdir -p /src /m2aia
 RUN wget https://github.com/SuperElastix/elastix/releases/download/${ELASTIX_VERSION}/elastix-${ELASTIX_VERSION}-linux.tar.bz2 -O /src/elastix.tar.bz2
 RUN tar -xvjf /src/elastix.tar.bz2 -C /usr/ && rm -rf /src/elastix.tar.bz2
 
-RUN wget http://data.jtfc.de/latest/ubuntu20_04/M2aia-2022.01.00-linux-x86_64.tar.gz -O /src/m2aia.tar.gz
+RUN wget https://data.jtfc.de/latest/ubuntu20_04/M2aia-latest.tar.gz -O /src/m2aia.tar.gz
 RUN tar -xzf /src/m2aia.tar.gz --strip 1 -C /m2aia/ && rm -rf /src/m2aia.tar.gz
 
 # Application start definition, here a shell script is used to start the application

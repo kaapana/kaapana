@@ -58,6 +58,7 @@ dependencies:
     version: 0.0.0
   - name: slim-chart
     version: 0.0.0
+<<<<<<< HEAD
   # - name: openedc-chart
   #   version: 0.0.0
   # - name: doccano
@@ -93,4 +94,8 @@ dependencies:
   # - name: hello-world-chart
   #   version: 0.0.0
   - name: body-and-organ-analysis-workflow
+    version: 0.0.0
+  - name: m2olie-workbench-chart
+    version: 0.0.0
+  - name: m2olie-backend-chart
     version: 0.0.0

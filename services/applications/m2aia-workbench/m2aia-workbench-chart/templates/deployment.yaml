@@ -2,23 +2,23 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: m2aia-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  name: m2aia-vol-{{ $uuid }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: m2aia-{{ $uuid }}
+      app-name: m2aia-vol-{{ $uuid }}
   template:
     metadata:
       labels:
-        app-name: m2aia-{{ $uuid }}
+        app-name: m2aia-vol-{{ $uuid }}
     spec:
       restartPolicy: Always
       containers:
         # ToDo add init-container to wait for db-host
       - name: m2aia
-        image: {{  .Values.global.registry_url }}/m2aia-workbench:{{ .Values.global.kaapana_build_version  }}"
+        image: "{{ .Values.global.registry_url }}/m2aia-workbench:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           requests:
@@ -27,7 +27,7 @@ spec:
             memory: "8Gi"
         env:
         - name: INGRESS_PATH
-          value: m2aia-{{ $uuid }}
+          value: "m2aia-vol-{{ $uuid }}"
         volumeMounts:
         - name: m2aia-data
           mountPath: /data
@@ -46,10 +46,10 @@ spec:
 kind: Service
 apiVersion: v1
 metadata:
-  name: m2aia-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  name: m2aia-vol-{{ $uuid }}
+  namespace: "{{ .Values.global.services_namespace }}"
   labels:
-    app: m2aia-{{ $uuid }}
+    app: m2aia-vol-{{ $uuid }}
 spec:
   ports:
     - protocol: TCP
@@ -58,36 +58,39 @@ spec:
       name: pt-m2aia-http
   type: ClusterIP
   selector:
-    app-name: m2aia-{{ $uuid }}
+    app-name: m2aia-vol-{{ $uuid }}
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
-  name: m2aia-{{ $uuid }}-redirect
-  namespace: {{ .Values.global.base_namespace }}
+  name: m2aia-vol-{{ $uuid }}-redirect
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   redirectRegex:
-    regex: ^.*/m2aia-{{ $uuid }}([^\/]*)$
-    replacement: /m2aia-{{ $uuid }}/
+    regex: ^.*/m2aia-vol-{{ $uuid }}([^\/]*)$
+    replacement: /m2aia-vol-{{ $uuid }}/
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
-  name: m2aia-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  name: m2aia-vol-{{ $uuid }}
+  namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,{{ .Values.global.base_namespace }}-m2aia-{{ $uuid }}-redirect@kubernetescrd,kube-system-strip-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-auth-check@kubernetescrd,{{ .Values.global.services_namespace }}-m2aia-vol-{{ $uuid }}-redirect@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
   - host:
     http:
       paths:
-      - path: /m2aia-{{ $uuid }}
+      - path: /m2aia-vol-{{ $uuid }}
+        pathType: ImplementationSpecific
         backend:
-          serviceName: m2aia-{{ $uuid }}
-          servicePort: pt-m2aia-http
+          service:
+            name: m2aia-vol-{{ $uuid }}
+            port:
+              name: pt-m2aia-http
 ---
 
           

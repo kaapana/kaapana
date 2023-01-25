@@ -1,4 +1,4 @@
-FROM local-only/no-vnc-base:0.1.0
+FROM local-only/no-vnc-base:latest
 
 LABEL IMAGE="m2aia-workbench"
 LABEL VERSION="2021.07-vdev"

@@ -18,7 +18,7 @@ spec:
       containers:
         # ToDo add init-container to wait for db-host
       - name: m2aia
-        image: {{  .Values.global.registry_url }}/m2aia-workbench:2021.07-vdev
+        image: {{  .Values.global.registry_url }}/m2aia-workbench:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           requests:

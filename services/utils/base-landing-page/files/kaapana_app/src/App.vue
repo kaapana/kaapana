@@ -42,7 +42,7 @@
             </v-list-item-content>
             <v-list-item-icon></v-list-item-icon>
           </v-list-item>
-          <v-list-item :to="'/federated'" v-if="isAuthenticated && federatedBackendAvailable">
+          <!-- v-list-item :to="'/federated'" v-if="isAuthenticated && federatedBackendAvailable">
             <v-list-item-action>
               <v-icon>mdi-vector-triangle</v-icon>
             </v-list-item-action>
@@ -50,7 +50,7 @@
               <v-list-item-title>Federated</v-list-item-title>
             </v-list-item-content>
             <v-list-item-icon></v-list-item-icon>
-          </v-list-item>
+          </v-list-item -->
           <v-list-item :to="'/pending-applications'" v-if="isAuthenticated">
             <v-list-item-action>
               <v-icon>mdi-gamepad-variant</v-icon>

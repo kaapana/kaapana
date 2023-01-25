@@ -23,7 +23,7 @@ from random import randint
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 from kaapana.blueprints.kaapana_utils import generate_run_id, cure_invalid_name, get_release_name
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, ADMIN_NAMESPACE, JOBS_NAMESPACE, SERVICES_NAMESPACE
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, ADMIN_NAMESPACE, JOBS_NAMESPACE, SERVICES_NAMESPACE, EXTENSIONS_NAMESPACE
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
 import uuid
@@ -34,6 +34,7 @@ from airflow.models import Variable
 
 default_registry = os.getenv("DEFAULT_REGISTRY", "")
 kaapana_build_version = os.getenv("KAAPANA_BUILD_VERSION", "")
+platform_version = os.getenv("PLATFORM_VERSION", "")
 gpu_support = True if os.getenv('GPU_SUPPORT', "False").lower() == "true" else False
 
 class KaapanaBaseOperator(BaseOperator, SkipMixin):
@@ -225,6 +226,13 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.kaapana_dev_dir = os.getenv('KAAPANA_DEV_DIR', "")
         self.result_message = None
 
+        # Namespaces
+        self.services_namespace = os.getenv("SERVICES_NAMESPACE", "")
+        self.admin_namespace = os.getenv("ADMIN_NAMESPACE", "")
+        self.jobs_namespace = os.getenv("JOBS_NAMESPACE", "")
+        self.extensions_namespace = os.getenv("EXTENSIONS_NAMESPACE", "")
+        # self.helm_namespace = os.getenv("HELM_NAMESPACE", "")
+
         self.volume_mounts.append(VolumeMount(
             'workflowdata', mount_path='/data', sub_path=None, read_only=False
         ))
@@ -300,6 +308,11 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             "BATCH_NAME": str(self.batch_name),
             "OPERATOR_OUT_DIR": str(self.operator_out_dir),
             "BATCHES_INPUT_DIR": f"/{self.workflow_dir}/{self.batch_name}",
+            "SERVICES_NAMESPACE": str(self.services_namespace),
+            "ADMIN_NAMESPACE": str(self.admin_namespace),
+            "JOBS_NAMESPACE": str(self.jobs_namespace),
+            "EXTENSIONS_NAMESPACE": str(self.extensions_namespace),
+            # "HELM_NAMESPACE": str(self.helm_namespace),
         }
 
         if enable_proxy is True and os.getenv("PROXY", None) is not None:

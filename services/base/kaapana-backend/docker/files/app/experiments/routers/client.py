@@ -393,7 +393,8 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
         db_cohort = crud.get_cohort(db, conf_data["data_form"]["cohort_name"])
         conf_data["data_form"].update({
             "cohort_query": json.loads(db_cohort.cohort_query),
-            "cohort_identifiers": json.loads(db_cohort.cohort_identifiers)
+            # "cohort_identifiers": json.loads(db_cohort.cohort_identifiers)    # merge fail
+            "cohort_identifiers": [identifier.identifier for identifier in db_cohort.cohort_identifiers]
         })
         
         data_form = conf_data["data_form"]

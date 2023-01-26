@@ -1,33 +1,24 @@
+from flask import Blueprint, request, jsonify, Response
 import json
 from http import HTTPStatus
-from datetime import datetime
-from http import HTTPStatus
-import warnings
 
+from airflow import settings
+from airflow.api.common.trigger_dag import trigger_dag as trigger
+from airflow.api.common.experimental.mark_tasks import set_dag_run_state_to_failed as set_dag_run_failed
+from airflow.exceptions import AirflowException
+from airflow.models import DagRun, DagModel, DagBag, DAG
+from airflow.models.taskinstance import TaskInstance
+from airflow.utils.state import State, TaskInstanceState, DagRunState
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.www.app import csrf
 from flask import Blueprint, request, jsonify, Response
 from flask import current_app as app
 from sqlalchemy import and_
 from sqlalchemy.orm.exc import NoResultFound
 
-import airflow.api
-from airflow.exceptions import AirflowException
-from airflow.models import DagRun, DagModel, DAG, DagBag
-from airflow.models.taskinstance import TaskInstance
-from airflow import settings
-from airflow.api.common.trigger_dag import trigger_dag as trigger
-from airflow.api.common.experimental.mark_tasks import set_dag_run_state_to_failed as set_dag_run_failed
-from airflow.exceptions import AirflowException
-from airflow.models import DagRun, DagModel, DagBag
-from airflow.utils.state import State, TaskInstanceState, DagRunState
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.www.app import csrf
-
-from kaapana.operators.HelperOpensearch import HelperOpensearch
-from kaapana.blueprints.kaapana_utils import generate_run_id, generate_minio_credentials, parse_ui_dict
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.blueprints.kaapana_utils import generate_run_id, generate_minio_credentials, parse_ui_dict
 from kaapana.operators.HelperOpensearch import HelperOpensearch
-
 
 _log = LoggingMixin().log
 parallel_processes = 1
@@ -42,9 +33,7 @@ kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
 def trigger_dag(dag_id):
     # headers = dict(request.headers)
     data = request.get_json(force=True)
-    print(f"data: {data}")
-
-    #username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
+    # username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
     if 'conf' in data:
         tmp_conf = data['conf']
     else:
@@ -56,37 +45,30 @@ def trigger_dag(dag_id):
     else:
         tmp_conf["x_auth_token"] = request.headers.get('X-Auth-Token')
 
-    ################################################################################################ 
+    ################################################################################################
     #### Deprecated! Will be removed with the next version 0.1.3
 
     if "workflow_form" in tmp_conf:  # in the future only workflow_form should be included in the tmp_conf
         tmp_conf["form_data"] = tmp_conf["workflow_form"]
     elif "form_data" in tmp_conf:
         tmp_conf["workflow_form"] = tmp_conf["form_data"]
-    
-    ################################################################################################ 
 
-    # abort dag_run by executing set_dag_run_state_to_failed() (source: https://github.com/apache/airflow/blob/main/airflow/api/common/mark_tasks.py#L421)
-    dag_objects = DagBag().dags                 # returns all DAGs available on platform
-    desired_dag = dag_objects[dag_id]           # filter desired_dag from all available dags via dag_id
-    # message = ["DAGs: {}".format(desired_dag)]
-    # response = jsonify(message=message)
-    # return response
+    ################################################################################################
 
-    # dag_id = data['dag_id']
-    # temp_dag = DAG(dag_id=dag_id)    # intermediate DAG which just contains dag_id, since it's needed in this form for set_dag_rum_state_to_failed()
+    run_id = generate_run_id(dag_id)
+
+    print(json.dumps(tmp_conf, indent=2))
+
     execution_date = None
-    session = settings.Session()
     try:
-        dr = set_dag_run_failed(dag=desired_dag, execution_date=execution_date, run_id=run_id, session=session)
+        dr = trigger(dag_id, run_id, tmp_conf, execution_date, replace_microseconds=False)
     except AirflowException as err:
         _log.error(err)
         response = jsonify(error="{}".format(err))
         response.status_code = err.status_code
         return response
 
-    # message = ["{} aborted!".format(dr.dag_id)]
-    message = ["Job aborted!"]
+    message = ["{} created!".format(dr.dag_id)]
     response = jsonify(message=message)
     return response
 
@@ -293,7 +275,6 @@ def abort_dag_run(dag_id, run_id):
     message.append(f"Result of Job abortion: {all_tis}")
     response = jsonify(message=message)
     return response
-
 
 @kaapanaApi.route('/api/getdagruns', methods=['GET'])
 @csrf.exempt

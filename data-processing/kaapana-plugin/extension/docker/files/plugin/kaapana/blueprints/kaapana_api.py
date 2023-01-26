@@ -11,6 +11,8 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import State, TaskInstanceState, DagRunState
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.app import csrf
+from airflow.utils import timezone
+
 from flask import Blueprint, request, jsonify, Response
 from flask import current_app as app
 from sqlalchemy import and_

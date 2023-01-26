@@ -58,7 +58,7 @@ spec:
           name: landing-page-config
       - name: landing-dev-files
         hostPath:
-          path: /path/to/Documents/kaapana/services/utils/base-landing-page/files/kaapana_app/src
+          path: /path/to/kaapana/services/utils/base-landing-page/files/kaapana_app/src
           type: DirectoryOrCreate
       imagePullSecrets:
       - name: registry-secret

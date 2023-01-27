@@ -167,7 +167,7 @@ def clean_previous_dag_run(conf, run_identifier):
 
 def parse_ui_dict(dag_dict):
 
-    if "ui_forms" in dag_dict:
+    if "ui_forms" in dag_dict and dag_dict["ui_forms"] is not None:
         if "ui_visible" in dag_dict and dag_dict["ui_visible"] is True and "data_form" not in dag_dict["ui_forms"]:
             dag_dict["ui_forms"].update({
                 "data_form": {

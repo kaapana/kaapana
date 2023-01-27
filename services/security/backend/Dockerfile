@@ -8,7 +8,7 @@ FROM python:3.10-slim
 
 WORKDIR /security-pages
 
-# RUN apk update && apk add ... && rm -rf /var/cache/apk/*
+RUN apt update && apt install -y curl
 
 COPY files/ ./
 RUN chmod +x boot.sh
@@ -20,4 +20,3 @@ EXPOSE 5000
 
 #CMD tail -f /dev/null
 ENTRYPOINT ["./boot.sh"]
-#CMD ["uvicorn", "main:app", "--proxy-headers", "--host", "0.0.0.0", "--port", "5000"]

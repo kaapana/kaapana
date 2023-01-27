@@ -1,6 +1,6 @@
 import os
+from sys import stdout
 import time
-import glob
 from datetime import datetime
 from pathlib import Path
 from shutil import rmtree
@@ -8,44 +8,58 @@ from os.path import join, basename, normpath
 import logging
 from monai.bundle import download
 
+
+#logging.basicConfig(format='%(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
+logger.propagate = False
+formatter = logging.Formatter('%(levelname)s - %(message)s')
+console_handler = logging.StreamHandler(stdout)
+console_handler.setFormatter(formatter)
+logger.handlers.clear()
+logger.addHandler(console_handler)
+
+
 processed_count = 0
 max_retries = 3
 max_hours_since_creation = 3
 
 workflow_dir = os.getenv('WORKFLOW_DIR', "data")
-output_dir = os.getenv('OPERATOR_OUT_DIR', "/models")
-
-target_level = os.getenv('TARGET_LEVEL', "default")
-
+operator_dir = os.getenv("OPERATOR_OUT_DIR", "models")
 models = os.getenv('MODELS', "NONE") ### "model1:vers1,model2:vers_model2"
 models = None if models == "NONE" else models
 mode = os.getenv('MODE', "install_pretrained")
 
-logging.info("# Starting GetModelOperator ...")
-logging.info("#")
-logging.info(f"# mode: {mode}")
-logging.info(f"# model: {models}")
-logging.info(f"# output_dir: {output_dir}")
-logging.info(f"# workflow_dir: {workflow_dir}")
-logging.info(f"# target_level: {target_level}")
-logging.info("#")
-logging.info("#")
+output_dir = os.path.join('/', workflow_dir, operator_dir, "monai") ### https://docs.monai.io/en/latest/mb_specification.html
+
+ALL_MODELS = [
+            "spleen_ct_segmentation:0.3.1",
+            ]
+
+logger.info("# Starting GetModelOperator ...")
+logger.info("#")
+logger.info(f"# mode: {mode}")
+logger.info(f"# model: {models}")
+logger.info(f"# output_dir: {output_dir}")
+logger.info(f"# workflow_dir: {workflow_dir}")
+logger.info("#")
+logger.info("#")
 
 def check_dl_running(model_path_dl_running, model_path, wait=True):
     if os.path.isfile(model_path_dl_running):
         hours_since_creation = int((datetime.now() - datetime.fromtimestamp(os.path.getmtime(model_path_dl_running))).total_seconds()/3600)
         if hours_since_creation > max_hours_since_creation:
-            logging.info("Download lock-file present! -> waiting until it is finished!")
-            logging.info("File older than {} hours! -> removing and triggering download!".format(max_hours_since_creation))
+            logger.info("Download lock-file present! -> waiting until it is finished!")
+            logger.info("File older than {} hours! -> removing and triggering download!".format(max_hours_since_creation))
             delete_file(model_path_dl_running)
             return False
 
-        logging.info("Download already running -> waiting until it is finished!")
+        logger.info("Download already running -> waiting until it is finished!")
         while not os.path.isdir(model_path) and wait:
             time.sleep(15)
         return True
     else:
-        logging.info("Download not running -> download!")
+        logger.info("Download not running -> download!")
         return False
 
 
@@ -53,140 +67,110 @@ def delete_file(target_file):
     try:
         os.remove(target_file)
     except Exception as e:
-        logging.info(e)
+        logger.info(e)
         pass
 
 
-logging.info("------------------------------------")
-logging.info(f"--     MODE: {mode}")
-logging.info("------------------------------------")
-if mode == "install_pretrained":
-    models_dir = os.path.join(os.getenv("OPERATOR_OUT_DIR", "models"),"monai") ### https://docs.monai.io/en/latest/mb_specification.html
-    Path(models_dir).mkdir(parents=True, exist_ok=True)
-    
-    if models is None:
-        logging.info("No ENV 'MODELS' found!")
-        logging.info("Abort.")
-        exit(1)
+logger.info(f"-----     MODE: {mode}      -------")
+if models is None:
+    logger.info("No ENV 'MODELS' found!")
+    logger.info("Abort.")
+    exit(1)
+elif models == "all":
+    logger.info("Downloading all monai-models...")
+    models_list = ALL_MODELS
+    models = ",".join(models_list)
+else:
+    models_list = models.split(",")
+logger.info("Models in the end: {}".format(models))
 
-    if models == "all":
-        logging.info("Downloading all monai-models...")
-        models = [
-            "spleen_ct_segmentation:0.3.1"
-        ]
-    else:
-        models = models.split(",")
-    logging.info("models in the end: {}".format(models))
-
-    for model in models:
+if mode == "install":
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    for model in models_list:
         try:
             model_name, version = model.split(":")
-        except IndexError as e:
-            logging.error("No version specified!")
+        except ValueError as e:
+            logger.error("-----  No version specified!  ------")
             raise e
-            
 
-        model_path = os.path.join(models_dir, model_name +"_v" + version)
-        logging.info("Check if version already present: {}".format(model_path))
-        logging.info("MODEL: {}".format(model_name))
-        logging.info("VERSION: {}".format(version))
+        model_subdir = model_name +"_v" + version
+        model_path = os.path.join(output_dir, model_subdir)
+        logger.info("Check if version already present: {}".format(model_subdir))
+        logger.info("MODEL: {}".format(model_name))
+        logger.info("VERSION: {}".format(version))
 
-        models_found = glob.glob(join(models_dir,"**",model_name),recursive=True)
-        if len(models_found) > 0:
-            logging.info("Model {} found!".format(model_name))
+        if os.path.isdir(model_path):
+            logger.info("Model {} found!".format(model_subdir))
             continue
 
-        logging.info("Model not present: {}".format(model_path))
+        logger.info("Model not present: {}".format(model_subdir))
 
-        model_path_dl_running = os.path.join(models_dir, "dl_{}.txt".format(model_name))
-        wait = True if len(models) == 1 else False
+        model_path_dl_running = os.path.join(output_dir, "dl_{}.txt".format(model_subdir))
+        wait = True if len(models_list) == 1 else False
         if check_dl_running(model_path_dl_running=model_path_dl_running, model_path=model_path, wait=wait):
             continue
 
-        output_dir = os.path.join('/', os.getenv("WORKFLOW_DIR", "tmp"), model_path)
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
         try_count = 0
-        file_name = f"{model_name}_v{version}.zip"
-        target_file = os.path.join(output_dir, file_name)
-        while not os.path.isfile(target_file) and try_count < max_retries:
+        archive_name = f"{model_subdir}.zip"
+        model_archive = os.path.join(output_dir, archive_name)
+        while not os.path.isfile(model_archive) and try_count < max_retries:
             try_count += 1
             try:
-                logging.info("set lock-file: {}".format(model_path_dl_running))
+                logger.info("set lock-file: {}".format(model_path_dl_running))
                 Path(model_path_dl_running).touch()
-                model_version = None if version=="latest" else version
-                download(name=model_name, version=model_version, bundle_dir=output_dir)
+                download(name=model_name, version=version, bundle_dir=model_path, progress=False)
+            
             except Exception as e:
-                logging.info("Could not download model: {}".format(model_name))
-                logging.info("Abort.")
-                logging.info('MSG: ' + str(e))
-                delete_file(target_file)
+                logger.error("Could not download model: {}:{}".format(model_name,version))
+                logger.error("Abort.")
+                logger.error('MSG: ' + str(e))
 
         if try_count >= max_retries:
-            logging.info("------------------------------------")
-            logging.info("Max retries reached!")
-            logging.info("Skipping...")
-            logging.info("------------------------------------")
+            logger.info("Max retries reached!")
+            logger.info("Skipping...")
             delete_file(model_path_dl_running)
             continue
 
         delete_file(model_path_dl_running)
 
-    logging.info("------------------------------------")
-    logging.info("------------------------------------")
-    logging.info("Check if all models are now present: {}".format(model_path))
-    logging.info("------------------------------------")
-    for model in models:
+
+    logger.info("Check if all models are now present: {}".format(output_dir))
+    success = True
+    for model in models_list:
         try:
             model_name, version = model.split(":")
         except IndexError as e:
-            logging.error("No version specified!")
+            logger.error("No version specified!")
             raise e
-        model_path = os.path.join(models_dir, model_name, version)
+        model_path = os.path.join(output_dir, model_name +"_v" + version)
+
         if os.path.isdir(model_path):
-            logging.info("Model {} found!".format(model_name))
-            logging.info("------------------------------------")
+            logger.info("Model {}:{} found!".format(model_name,version))
             continue
         else:
-            logging.info("------------------------------------")
-            logging.info("------------------------------------")
-            logging.info("------------   ERROR!  -------------")
-            logging.info("------------------------------------")
-            logging.info("Model NOT found: {}".format(model_path))
-            logging.info("------------------------------------")
-            logging.info("------------------------------------")
-            exit(1)
+            success = False
+            logger.error("Model NOT found: {}:{}".format(model_name, version))
 
-    logging.info("# ✓ All models successfully downloaded and extracted!")
-
-elif mode == "uninstall":
-    if models is None:
-        logging.info("No ENV 'MODEL' found!")
-        logging.info("Abort.")
+    if not success:
         exit(1)
 
-    models_dir = "/models/monai"
+    logger.info("# ✓ All models successfully downloaded and extracted!")
 
-    logging.info(f"Un-installing TASK: {models}")
-    installed_models = [basename(normpath(f.path)) for f in os.scandir(models_dir) if f.is_dir()]
+elif mode == "uninstall":
+    logger.info(f"Un-installing TASK: {models}")
+    installed_models = [basename(normpath(f.path)) for f in os.scandir(output_dir) if f.is_dir()]
 
     for installed_model in installed_models:
-        model_path = join(models_dir, installed_model)
-        installed_tasks_dirs = [basename(normpath(f.path)) for f in os.scandir(model_path) if f.is_dir()]
-        for installed_task in installed_tasks_dirs:
-            if installed_task.lower() in models.lower():
-                task_path = join(models_dir, installed_model, installed_task)
-                logging.info(f"Removing: {task_path}")
-                rmtree(task_path)
+        model_name, version = installed_model.split("_v")
+        model = ":".join([model_name,version])
+
+        if model.lower() in models.lower():
+            monai_model_path = join(output_dir, installed_model)
+            logger.info(f"Removing: {monai_model_path}")
+            rmtree(monai_model_path)
 else:
-    logging.info("------------------------------------")
-    logging.info("------------   ERROR!  -------------")
-    logging.info("------------------------------------")
-    logging.info(f"---- Mode not supported: {mode} ---- ")
-    logging.info("------------------------------------")
-    logging.info("------------------------------------")
+    logger.error(f"---- Mode not supported: {mode} ---- ")
     exit(1)
 
-logging.info("DONE")
+logger.info("DONE")
 exit(0)

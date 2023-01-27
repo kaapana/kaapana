@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { defineComponent } from 'vue'
 import { RouterLink, RouterView } from "vue-router";
-import HelloWorld from "./components/HelloWorld.vue";
+import HelloWorld from './components/HelloWorld.vue';
+import { DARK_MODE_ACTIVE, DARK_MODE_NOT_ACTIVE, QUERY_DARK_MODE } from './stores/messages.types';
 </script>
 
 <template>
@@ -20,11 +22,58 @@ import HelloWorld from "./components/HelloWorld.vue";
         <RouterLink to="/">Home</RouterLink>
         <RouterLink to="/configuration">Configuration</RouterLink>
       </nav> -->
+      <p>Darkmode activated: {{ darkMode }}</p>
+      <p v-if="wazuhAgentAvailable===null">Loading Wazuh agents</p>
+      <pre v-else>Wazuh agent available: {{ wazuhAgentAvailable }}</pre>
     </div>
   </header>
 
   <RouterView />
 </template>
+
+<script lang="ts">
+export default defineComponent({
+  data() {
+    return {
+      darkMode: false,
+      wazuhAgentAvailable: null
+    };
+  },
+  methods: {
+    async checkWazuhAgents() {
+      const response = await fetch(window.location.origin + "/security/api/extension/wazuh/agent-installed");
+      const json = await response.json();
+      this.wazuhAgentAvailable = json["agent_installed"];
+    },
+    receiveMessage(event: MessageEvent) {
+      console.log(event);
+
+      // only process our own messages
+      if (event.origin !== window.location.origin || !("message" in event.data)) {
+        return;
+      }
+      if (event.data.message === DARK_MODE_ACTIVE) {
+        this.darkMode = true;
+      } else if (event.data.message === DARK_MODE_NOT_ACTIVE) {
+        this.darkMode = false;
+      }
+    }
+  },
+  created() {
+    window.addEventListener("message", this.receiveMessage);
+
+    if (window.parent) {
+      window.parent.postMessage({message: QUERY_DARK_MODE}, "*");
+    }
+  },
+  beforeDestroy() {
+    window.removeEventListener("message", this.receiveMessage);
+  },
+  mounted() {
+    this.checkWazuhAgents();
+  }
+});
+</script>
 
 <style scoped>
 header {

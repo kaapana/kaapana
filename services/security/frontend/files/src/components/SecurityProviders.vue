@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { defineComponent } from 'vue'
 </script>
 
 <template>
@@ -7,7 +8,7 @@
 </template>
 
 <script lang="ts">
-export default {
+export default defineComponent({
   name: "SecurityProviders",
   data() {
     return {
@@ -20,6 +21,6 @@ export default {
     const data = await response.json();
     this.securityProviders = data.args.providers;
   }
-};
+});
 </script>
 

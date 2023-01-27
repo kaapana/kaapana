@@ -75,7 +75,7 @@ const routes = [
         name: 'security-iframe-view',
         path: '/security/:subsection',
         component: () => import('@/views/Iframe.vue'),
-        title: 'None',
+        title: 'Security',
         permissions: {
             isPublic: false,
         },

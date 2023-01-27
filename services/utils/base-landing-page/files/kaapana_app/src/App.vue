@@ -159,7 +159,7 @@ import {mapGetters} from 'vuex';
 import {LOGIN, LOGOUT, CHECK_AUTH} from '@/store/actions.type';
 import {CHECK_AVAILABLE_WEBSITES, LOAD_COMMON_DATA} from '@/store/actions.type';
 import Settings from "@/components/Settings.vue";
-
+import { DARK_MODE_ACTIVE, DARK_MODE_NOT_ACTIVE, QUERY_DARK_MODE } from './store/messages.type';
 
 export default Vue.extend({
   name: 'App',
@@ -179,6 +179,7 @@ export default Vue.extend({
       this.darkMode = v
       localStorage['darkMode'] = JSON.stringify(v)
       this.$vuetify.theme.dark = v
+      sendModeToIFrame(this.darkMode);
     },
     login() {
       this.$store
@@ -187,7 +188,18 @@ export default Vue.extend({
     },
     logout() {
       this.$store.dispatch(LOGOUT)
-    }
+    },
+    receiveMessage (event: MessageEvent) {
+      console.log(event);
+
+      // only process our own messages
+      if (event.origin !== window.location.origin || !("message" in event.data)) {
+        return;
+      }
+      if (event.data.message === QUERY_DARK_MODE) {
+        sendModeToIFrame(this.darkMode);
+      }
+    },
   },
   beforeCreate() {
     this.$store.dispatch(CHECK_AVAILABLE_WEBSITES)
@@ -198,10 +210,16 @@ export default Vue.extend({
     request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
         this.federatedBackendAvailable = kaapanaApiService.checkUrl(response.data, '/kaapana-backend');
         this.staticWebsiteAvailable = kaapanaApiService.checkUrl(response.data, '/static-website-browser');
-        this.securityProviderHostAvailable = true; //kaapanaApiService.checkUrl(response.data, '/security/dashboard');
+        this.securityProviderHostAvailable = true; //kaapanaApiService.checkUrl(response.data, '/security/api/provider-count');
       }).catch((error: any) => {
         console.log('Something went wrong with traefik', error)
       });
+  },
+  created() {
+    window.addEventListener("message", this.receiveMessage);
+  },
+  beforeDestroy() {
+    window.removeEventListener("message", this.receiveMessage);
   },
   onIdle() {
     console.log('checking', this.$store.getters.isAuthenticated)
@@ -218,6 +236,18 @@ export default Vue.extend({
     })
   }
 });
+
+const sendModeToIFrame = (darkMode: boolean) => {
+  const iframe_element = window.document.querySelector("iframe");
+  if (!iframe_element) {
+    return;
+  }
+  if (darkMode) {
+    iframe_element.contentWindow?.postMessage({message: DARK_MODE_ACTIVE}, "*");
+  } else {
+    iframe_element.contentWindow?.postMessage({message: DARK_MODE_NOT_ACTIVE}, "*");
+  }
+};
 </script>
 
 <style lang='scss'>

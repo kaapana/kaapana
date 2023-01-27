@@ -42,7 +42,7 @@ export default {
         // console.log('external', this.externalWebpages)
         finalUrl = this.externalWebpages[this.$route.params.ewSection].subSections[this.$route.params.ewSubSection].linkTo
       } else if (this.$route.name == 'security-iframe-view') {
-        finalUrl = window.location.toString().replace('#/', '')
+        finalUrl = window.location.origin + window.location.href.substring(window.location.href.lastIndexOf('/security'));
       }
       return finalUrl
     }

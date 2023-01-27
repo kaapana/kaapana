@@ -4,7 +4,6 @@ import os
 from fastapi import Depends, FastAPI, Request
 
 from .admin import routers as admin
-from .auth import routers as auth
 from .extensions import routers as extensions
 from .experiments.routers import remote, client
 from .monitoring import routers as monitoring
@@ -45,11 +44,6 @@ app.include_router(
     prefix="/remote",
     dependencies=[Depends(get_token_header)],
     responses={418: {"description": "I'm the remote backend..."}},
-)
-app.include_router(
-    auth.router,
-    prefix="/auth",
-    responses={418: {"description": "I'm the auth backend..."}},
 )
 app.include_router(
     client.router,

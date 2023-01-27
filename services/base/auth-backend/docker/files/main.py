@@ -1,9 +1,11 @@
-from fastapi import APIRouter
+from fastapi import FastAPI
 from fastapi import Response,Request,status
-from .services import auth_role_mapping_dict, logger
+from init import auth_role_mapping_dict, logger
+import uvicorn
 
-router = APIRouter(tags = ["auth"])
-@router.get("/auth-check",status_code=status.HTTP_200_OK)
+app = FastAPI()
+
+@app.get("/auth-check",status_code=status.HTTP_200_OK)
 async def auth_check(request: Request,response: Response):
     requested_prefix = request.headers.get('x-forwarded-prefix')
     if requested_prefix is None:
@@ -43,3 +45,8 @@ async def auth_check(request: Request,response: Response):
         
         response.status_code = status.HTTP_403_FORBIDDEN
         return f"User ({user_roles=}) has not one of the allowed roles: {prefix_roles_allowed} -> access denied"
+
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

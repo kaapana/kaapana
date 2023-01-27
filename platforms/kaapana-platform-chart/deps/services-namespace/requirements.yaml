@@ -1,6 +1,8 @@
 ---
 dependencies:
 # BASE
+  - name: auth-backend-chart
+    version: 0.0.0
   - name: kaapana-backend-chart
     version: 0.0.0
     repository: file://../../../../services/base/kaapana-backend/kaapana-backend-chart 

@@ -37,6 +37,10 @@ spec:
       - name: security-wazuh-manager
         image: "{{ .Values.global.registry_url }}/security-wazuh-manager:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh", "-c", "curl -H 'Content-Type: application/json' -d '{\"name\": \"Wazuh\", \"api_endpoints\": [{\"identifier\": \"wazuh_manager_api\", \"endpoint\":\"https://security-wazuh-service.services.svc:55000/\"}]}' -X PUT http://security-pages-service.services.svc:5000/security/api/register-extension --insecure"]
         ports:
           - containerPort: 1514
           - containerPort: 1515

@@ -1696,11 +1696,7 @@
     "clientOfflineSessionIdleTimeout" : "0",
     "cibaInterval" : "5"
   },
-<<<<<<< HEAD
   "keycloakVersion" : "19.0.3",
-=======
-  "keycloakVersion" : "16.1.1",
->>>>>>> First version of keycloak-init-job + Remove KEACLOAK_IMPORT and configmap.yaml + Set dev_files in kaapan-backend to false.
   "userManagedAccessAllowed" : false,
   "clientProfiles" : {
     "profiles" : [ ]

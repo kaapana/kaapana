@@ -6,6 +6,7 @@ from os.path import join, dirname, basename, exists, isfile, isdir
 from git import Repo
 
 class BuildUtils:
+    max_build_rounds = 4
     container_images_available = None
     container_images_unused = None
     charts_available = None
@@ -216,7 +217,7 @@ class BuildUtils:
         BuildUtils.logger.debug("")
         for base_image_tag, child_containers in BuildUtils.base_images_used.items():
             if base_image_tag not in base_images:
-                base_images[base_image_tag] = []
+                base_images[base_image_tag] = {}
             BuildUtils.logger.debug(f"{base_image_tag}")
             for child_container in child_containers:
                 if child_container.build_tag is not None:
@@ -225,10 +226,10 @@ class BuildUtils:
                     child_tag = f"Not build: {child_container.tag}"
                     
                 if child_tag not in base_images[base_image_tag]:
-                    base_images[base_image_tag].append(child_tag)
-
+                    base_images[base_image_tag][child_tag] = {}
+        
         with open(base_images_json_path, 'w') as fp:
-            json.dump(base_images, fp, indent=4)
+            json.dump(dict(sorted(base_images.items(),reverse=True, key=lambda item: len(item[1]))), fp, indent=4)
 
         all_containers_json_path = join(BuildUtils.build_dir, "build_containers_all.json")
         BuildUtils.logger.debug("")

@@ -17,16 +17,24 @@ import networkx as nx
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
-
+successful_built_containers = []
 
 def parallel_execute(container_object):
     queue_id, container_object = container_object
+    done = False
     issue = None
+
+    for base_container in container_object.base_images:
+        if base_container.local_image and base_container.tag not in successful_built_containers:
+            return queue_id, container_object, issue, done
+
     issue = container_object.build()
     if issue == None:
+        successful_built_containers.append(container_object.build_tag)
         issue = container_object.push()
+        done = True
 
-    return queue_id, container_object, issue
+    return queue_id, container_object, issue, done
 
 
 def generate_deployment_script(platform_chart):
@@ -754,7 +762,7 @@ class HelmChart:
         collection_build_target_dir = join(platform_build_files_target_dir, collections_chart.name)
         HelmChart.create_chart_build_version(src_chart=collections_chart, target_build_dir=collection_build_target_dir)
         for collection_chart_index, (collection_chart_name, collection_chart) in enumerate(collections_chart.dependencies.items()):
-            BuildUtils.logger.info(f"Collection chart {collection_chart_index+1}/{collection_chart.dependencies_count_all}: {collection_chart_name}:")
+            BuildUtils.logger.info(f"Collection chart {collection_chart_index+1}/{collections_chart.dependencies_count_all}: {collection_chart_name}:")
             collection_chart_target_dir = join(collection_build_target_dir, "charts", collection_chart.name)
             collection_chart.make_package()
         collection_container = [x for x in BuildUtils.container_images_available if collections_chart.name in x.tag]
@@ -874,27 +882,48 @@ class HelmChart:
                 containers_to_built += [containers_to_built.pop(org_list_idx)]
 
         containers_to_built = [(x, containers_to_built[x]) for x in range(0, len(containers_to_built))]
-        result_containers = ThreadPool(BuildUtils.parallel_processes).imap_unordered(parallel_execute, containers_to_built)
 
+        BuildUtils.logger.info("")
+        BuildUtils.logger.info("")
+        build_rounds = 0
+
+        waiting_containers_to_built = containers_to_built.copy()
         i = 0
-        BuildUtils.logger.info("")
-        BuildUtils.logger.info("")
-        for queue_id, result_container, issue in result_containers:
-            i += 1
-            containers_built.append(container_to_build)
-            BuildUtils.logger.debug(f"{i+1}/{container_count} Done: {queue_id} - {result_container.tag}")
-            BuildUtils.printProgressBar(i, container_count, prefix='Progress:', suffix=result_container, length=50)
+        while len(waiting_containers_to_built) != 0 and build_rounds <= BuildUtils.max_build_rounds:
+            build_rounds += 1
+            tmp_waiting_containers_to_built = []
+            result_containers = ThreadPool(BuildUtils.parallel_processes).imap_unordered(parallel_execute, containers_to_built)
 
-            if issue != None:
-                BuildUtils.logger.info("")
-                BuildUtils.generate_issue(
-                    component=issue["component"],
-                    name=issue["name"],
-                    level=issue["level"],
-                    msg=issue["msg"],
-                    output=issue["output"] if "output" in issue else None,
-                    path=issue["path"] if "path" in issue else "",
-                )
+            for queue_id, result_container, issue, done in result_containers:
+                if not done:
+                    BuildUtils.logger.info(f"{result_container.build_tag}: Base image not ready yet -> waining list")
+                    tmp_waiting_containers_to_built.append(result_container)
+                else:
+                    i += 1
+                    containers_built.append(container_to_build)
+                    BuildUtils.logger.debug(f"{i+1}/{container_count} Done: {queue_id} - {result_container.tag}")
+                    BuildUtils.printProgressBar(i, container_count, prefix='Progress:', suffix=result_container, length=50)
+
+                    if issue != None:
+                        BuildUtils.logger.info("")
+                        BuildUtils.generate_issue(
+                            component=issue["component"],
+                            name=issue["name"],
+                            level=issue["level"],
+                            msg=issue["msg"],
+                            output=issue["output"] if "output" in issue else None,
+                            path=issue["path"] if "path" in issue else "",
+                        )
+
+            waiting_containers_to_built = tmp_waiting_containers_to_built
+        
+        if build_rounds == BuildUtils.max_build_rounds:
+            BuildUtils.generate_issue(
+                component=suite_tag,
+                name="container_build",
+                msg=f"There were too many build-rounds! Still missing: {waiting_containers_to_built}",
+                level="FATAL"
+            )
 
         BuildUtils.logger.info("")
         BuildUtils.logger.info("")

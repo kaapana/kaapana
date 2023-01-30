@@ -12,3 +12,4 @@ ca-certificates
 build-essential
 wget
 curl
+procps 

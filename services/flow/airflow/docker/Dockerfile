@@ -16,9 +16,9 @@ RUN python -m pip install --no-cache-dir -r /app/requirements.txt --constraint "
 
 COPY files/scripts/ /scripts
 
-COPY files/bootstrap.sh /bootstrap.sh
-RUN chmod +x /bootstrap.sh
+COPY files/bootstrap.sh /app/bootstrap.sh
+RUN chmod +x /app/bootstrap.sh
 
 COPY files/scheduler_job.py /usr/local/lib/python3.9/dist-packages/airflow/jobs/
 
-ENTRYPOINT ["./bootstrap.sh"]
+ENTRYPOINT ["/app/bootstrap.sh"]

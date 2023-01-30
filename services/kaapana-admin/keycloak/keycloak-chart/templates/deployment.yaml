@@ -34,15 +34,15 @@ spec:
             value: {{ .Values.global.credentials_keycloak_admin_username }}
           - name: KEYCLOAK_PASSWORD
             value: {{ .Values.global.credentials_keycloak_admin_password }}
-          - name: DB_VENDOR
+          - name: KC_DB #DB_VENDOR
             value: "postgres"
-          - name: DB_ADDR
-            value: "postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc"
+          - name: KC_DB_URL #DB_ADDR
+            value: "jdbc:postgresql://postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc:5432/keycloak" #"http://postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc:5432"
           - name: DB_PORT
             value: "5432"
-          - name: DB_USER
+          - name: KC_DB_USERNAME #DB_USER
             value: "keycloak"
-          - name: DB_PASSWORD
+          - name: KC_DB_PASSWORD #DB_PASSWORD
             value: "keycloak"
           - name: DB_DATABASE
             value: "keycloak"
@@ -56,6 +56,8 @@ spec:
             value: "WARN"
           - name: PROXY_ADDRESS_FORWARDING
             value: "true"
+          - name: KC_HOSTNAME
+            value: "localhost" ##"localhost" #"keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc"
           ports:
           - name: http
             containerPort: 8080
@@ -72,6 +74,15 @@ spec:
             - name: ssl-config-files
               mountPath: /etc/x509/https
               readOnly: true
+          command: 
+          - "/opt/keycloak/bin/kc.sh"
+          - "--verbose"
+          - "start"
+          #- --optimized
+          #- --https-certificate-key-file=/etc/x509/https/tls.key
+          #- --https-certificate-file=/etc/x509/https/tls.crt
+          #- --proxy=passthrough
+          #- --hostname-strict=false
           # livenessProbe:
           #   httpGet:
           #     path: /

@@ -84,8 +84,7 @@ convert_seg = Itk2DcmSegOperator(
     name="convert-segmentation", 
     segmentation_in_dir=Path(convert.operator_out_dir)/'segmentations', 
     dev_server='code-server',
-    operator_in_dir=Path(convert.operator_out_dir)/'dicoms',
-    single_label_seg_info='prostate')
+    operator_in_dir=Path(convert.operator_out_dir)/'dicoms')
 
 dcm_send_seg = DcmSendOperator(
     name="dcm-send-seg",

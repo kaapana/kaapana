@@ -16,7 +16,6 @@ class Itk2DcmOperator(KaapanaBaseOperator):
             dag=dag,
             name=name,
             image=f"{default_registry}/itk2dcm:{kaapana_build_version}",
-            image_pull_policy="Always",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             *args,

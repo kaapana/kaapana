@@ -4,8 +4,9 @@ sleep 30s
 mc config host add kaapana http://minio-service.$SERVICES_NAMESPACE.svc:9000/ $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
 mc admin user add kaapana landing landingminio
 mc mb kaapana/uploads
-mc mb kaapana/itk
 mc cp readme.txt kaapana/uploads/dicoms/
+mc mb kaapana/itk
+mc cp 
 EVENT_LIST=$(mc event list kaapana/uploads | grep arn:minio:sqs::dicomsupload:webhook)
 if [ "${EVENT_LIST%webhook*}" = "arn:minio:sqs::dicomsupload:" ]; then
     echo 'Event already set!'

@@ -19,6 +19,7 @@ COPY files/dags/dag_service_extract_metadata_trigger_rule.json /kaapana/tmp/dags
 COPY files/dags/dag_service_daily_cleanup_jobs.py /kaapana/tmp/dags/
 COPY files/dags/dag_service_segmentation_thumbnail_trigger_rule.json /kaapana/tmp/dags/
 COPY files/dags/dag_service_segmentation_thumbnail.py /kaapana/tmp/dags/
+COPY files/dags/dag_convert_itk_to_dcm.py /tmp/dags/
 
 COPY files/mounted_scripts/ /kaapana/tmp/mounted_scripts
 

@@ -118,28 +118,10 @@ class Nifti2DcmConverter:
         """
         # TODO: In theory it would be possible to derive a minimal set of segmentation args from the given files. Probably nice to have in the future.
 
-        
-
-        
-        # code for running multiple datasets
-        # unfotunately this is impossible due to the structure of the dcmSeg operator
-
-        # datasets = next(os.walk(path))[1]
-        # for dataset in datasets:
-            # if dataset != "BMC":
-            #     continue
-            # try:
-            #     with open(os.path.join(f"/{path}", dataset,"meta_data.json"), "r") as meta_file:
-            #         meta_data = json.load(meta_file)
-            # except FileNotFoundError:
-            #     meta_data = {}
-            # self.convert_dataset(Path(path) / dataset, meta_data)
-
-        # code for running on a single datset
         with open("/data/conf/conf.json", 'r') as conf_file:
             workflow_conf = json.load(conf_file)
 
-        dataset = workflow_conf.get("workflow_form").get("data_dir")
+        dataset = workflow_conf.get("experiment_form").get("data_dir")
         try:
             with open(os.path.join(f"/{path}",dataset, "meta_data.json"), "r") as meta_file:
                 meta_data = json.load(meta_file)
@@ -190,13 +172,6 @@ class Nifti2DcmConverter:
                 seg_path = path/seg_args['multi_label_seg_info_json'] if seg_args['multi_label_seg_info_json'] else None
             except KeyError:
                 print("No arguments for Itk2DcmSegOperator found. Please provide 'seg_args' in the 'meta_data.json'.")
-            
-            # check if there is an seg_info file
-            # if not os.path.isfile(path/'seg_info.json'):
-            #     raise FileNotFoundError("The study contains segmentation files, but no 'seg_info.json' file was found. Please add a 'seg_info.json' to each study directory.")
-            else:
-                pass
-
 
         for i, case in enumerate(cases):
             series_tag_values = {}
@@ -379,7 +354,6 @@ class Parser:
 
 
 if __name__ == "__main__":
-    # path = '/data/prostate_mri/'
     path = os.path.join("/" + os.environ.get("WORKFLOW_DIR"),os.environ.get("OPERATOR_IN_DIR"))
     converter = Nifti2DcmConverter()
     converter(path)

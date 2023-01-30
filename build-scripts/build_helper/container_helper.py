@@ -183,8 +183,11 @@ class Container:
                     base_img_obj = BaseImage(tag=base_img_tag)
                     if base_img_obj not in self.base_images:
                         self.base_images.append(base_img_obj)
-                        if base_img_obj not in BuildUtils.base_images_used:
-                            BuildUtils.base_images_used.append(base_img_obj)
+                        if base_img_obj.tag not in BuildUtils.base_images_used:
+                            BuildUtils.base_images_used[base_img_obj.tag] = []
+                        
+                        BuildUtils.base_images_used[base_img_obj.tag].append(self)
+                        
                 elif line.__contains__('LABEL CI_IGNORE='):
                     self.ci_ignore = True if line.split("#")[0].split("=")[1].rstrip().lower().replace("\"", "").replace("'", "") == "true" else False
 

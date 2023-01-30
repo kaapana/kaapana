@@ -1,4 +1,4 @@
-FROM local-only/base-python-alpine:latest
+FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="scanparam2json"
 LABEL VERSION="0.1.0"

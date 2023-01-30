@@ -1,5 +1,6 @@
-FROM nvcr.io/nvidia/pytorch:22.02-py3
-# FROM pytorchlightning/pytorch_lightning:base-cuda-py3.9-torch1.11
+FROM nvcr.io/nvidia/pytorch:22.12-py3
+
+# https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes/rel-22-12.html#rel-22-12
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-python-gpu"
@@ -8,23 +9,16 @@ LABEL CI_IGNORE="False"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    htop \
-    zip \
-    unzip \
-    nano \
-    pandoc \
-    texlive-xetex \
-    texlive-fonts-recommended \
-    texlive-plain-generic \
-    && rm -rf /var/lib/apt/lists/*
-# pandoc and texlive-packages only for jupyternotebook: jupyter nbconvert --to html --no-input ...
+WORKDIR /kaapana
+
+COPY files/requirements.system /kaapana/
+RUN apt-get update -q -y && apt-get install -y --no-install-recommends apt-utils && \
+    cat /kaapana/requirements.system | xargs apt-get install -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 
 # Common Python packages
-RUN python -m pip install --upgrade pip
-COPY files/requirements.txt /root/
-RUN pip3 install -r /root/requirements.txt
+COPY files/requirements.txt /kaapana/
+RUN python -m pip install --upgrade setuptools pip && pip3 install -r /kaapana/requirements.txt
 
 # Code server
 RUN wget https://code-server.dev/install.sh

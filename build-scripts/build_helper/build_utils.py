@@ -68,7 +68,7 @@ class BuildUtils:
         BuildUtils.exit_on_error = exit_on_error
         BuildUtils.issues_list = []
 
-        BuildUtils.base_images_used = []
+        BuildUtils.base_images_used = {}
         BuildUtils.enable_build_kit = enable_build_kit
         BuildUtils.create_offline_installation = create_offline_installation
         BuildUtils.skip_push_no_changes = skip_push_no_changes
@@ -210,13 +210,23 @@ class BuildUtils:
             json.dump(unused_container, fp, indent=4)
 
         base_images_json_path = join(BuildUtils.build_dir, "build_base_images.json")
-        base_images = []
+        base_images = {}
         BuildUtils.logger.debug("")
         BuildUtils.logger.debug("Collect base-images:")
         BuildUtils.logger.debug("")
-        for base_image in BuildUtils.base_images_used:
-            BuildUtils.logger.debug(f"{base_image.tag}")
-            base_images.append(base_image.get_dict())
+        for base_image_tag, child_containers in BuildUtils.base_images_used.items():
+            if base_image_tag not in base_images:
+                base_images[base_image_tag] = []
+            BuildUtils.logger.debug(f"{base_image_tag}")
+            for child_container in child_containers:
+                if child_container.build_tag is not None:
+                    child_tag = child_container.build_tag
+                else:
+                    child_tag = f"Not build: {child_container.tag}"
+                    
+                if child_tag not in base_images[base_image_tag]:
+                    base_images[base_image_tag].append(child_tag)
+
         with open(base_images_json_path, 'w') as fp:
             json.dump(base_images, fp, indent=4)
 

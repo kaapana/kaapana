@@ -10,11 +10,13 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Turns off buffering for easier container logging
 ENV PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends python3-opencv \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+
+COPY files/requirements.system /app/
+RUN apt-get update -y && cat /app/requirements.system | xargs apt-get install -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN apt-get purge -y libhwloc-dev libhwloc-plugins
-WORKDIR /kaapanasrc
 # Clone directory from git
 RUN git clone  --single-branch --branch master https://github.com/MIC-DKFZ/BodyPartRegression.git && cd BodyPartRegression && git checkout v1.1 
 

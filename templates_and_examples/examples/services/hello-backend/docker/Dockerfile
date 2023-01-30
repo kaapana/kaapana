@@ -1,11 +1,11 @@
-FROM local-only/base-python-alpine:latest
+FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="hello-backend"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-RUN apk update && apk add postgresql-dev \
-    && rm -rf /var/cache/apk/*
+# RUN apk update && apk add postgresql-dev \
+#     && rm -rf /var/cache/apk/*
 
 WORKDIR /app
 

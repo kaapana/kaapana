@@ -1,4 +1,4 @@
-FROM local-only/base-dcmtk:latest
+FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="pdf2dcm"
 LABEL VERSION="3.6.4"

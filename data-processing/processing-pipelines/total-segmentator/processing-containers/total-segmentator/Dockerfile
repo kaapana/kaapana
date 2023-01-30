@@ -4,12 +4,16 @@ LABEL IMAGE="total-segmentator"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-RUN apt-get update && apt-get install -y xvfb
+WORKDIR /app
 
-COPY files/requirements.txt /root/
-RUN pip3 install -r /root/requirements.txt
-COPY files/total-segmentator.py /kaapanasrc/
-COPY files/seg_info.json /kaapanasrc/
+COPY files/requirements.system /app/
+RUN apt-get update -y && cat /app/requirements.system | xargs apt-get install -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 
-WORKDIR /kaapanasrc/
-CMD ["python3","-u","/kaapanasrc/total-segmentator.py"]
+
+COPY files/requirements.txt /app/
+RUN python -m pip install --no-cache-dir -r /app/requirements.txt
+
+COPY files/* /app/
+
+CMD ["python3","-u","/app/total-segmentator.py"]

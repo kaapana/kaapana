@@ -1,13 +1,13 @@
-FROM python:3.9-slim
+FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="dcmstruct2nifti"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-WORKDIR /
+WORKDIR /app
 
-COPY files/requirements.txt /
-RUN pip3 install --no-cache-dir -r requirements.txt
+COPY files/requirements.txt /app/
+RUN python -m pip install --no-cache-dir -r /app/requirements.txt
 
-COPY files/start.py /kaapanasrc/
-CMD ["python3","-u","/kaapanasrc/start.py"]
+COPY files/start.py /app/
+CMD ["python3","-u","/app/start.py"]

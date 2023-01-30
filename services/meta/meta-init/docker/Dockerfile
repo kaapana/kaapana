@@ -1,4 +1,4 @@
-FROM python:3.9-alpine3.12
+FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="init-meta"
 LABEL VERSION="2.2.0"

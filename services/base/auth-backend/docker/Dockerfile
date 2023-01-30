@@ -1,4 +1,4 @@
-FROM python:3.9
+FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="auth-backend"
 LABEL VERSION="0.0.0"

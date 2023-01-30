@@ -1,8 +1,8 @@
 # # With cuda
-# FROM nvcr.io/nvidia/pytorch:20.09-py3
+FROM local-only/base-python-gpu:latest
 
 # Without cuda
-FROM local-only/base-python-alpine:latest
+FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="python-template"
 LABEL VERSION="0.1.0"

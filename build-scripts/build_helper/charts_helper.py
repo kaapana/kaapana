@@ -492,7 +492,7 @@ class HelmChart:
                         )
 
         else:
-            BuildUtils.logger.error(f"Chart container needed {container_tag}")
+            BuildUtils.logger.error(f"Chart container needed {container_name}")
             BuildUtils.logger.error(f"Chart container issue - found: {len(containers_found)}")
             if len(containers_found) > 1:
                 for container_found in containers_found:
@@ -500,7 +500,7 @@ class HelmChart:
             BuildUtils.generate_issue(
                 component=suite_tag,
                 name=f"{self.chart_id}",
-                msg=f"Chart container not found in available images: {container_tag}",
+                msg=f"Chart container not found in available images: {container_name}",
                 level="ERROR",
                 path=self.chart_dir
             )

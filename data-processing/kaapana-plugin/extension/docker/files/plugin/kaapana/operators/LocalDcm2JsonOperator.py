@@ -196,11 +196,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         return "\"" + content + "\""
 
     def get_new_key(self, key):
-        new_key = ""
+        new_key = self.dictionary.get(key)
 
-        if key in self.dictionary:
-            new_key = self.dictionary[key]
-        else:
+        if new_key is None:
             print("{}: Could not identify DICOM tag -> using plain tag instead...".format(key))
             new_key = key
 

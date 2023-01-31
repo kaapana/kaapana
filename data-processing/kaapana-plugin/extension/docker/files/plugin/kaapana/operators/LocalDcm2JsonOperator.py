@@ -89,7 +89,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
     @cache_operator_output
     def start(self, ds, **kwargs):
-        print("Starting moule dcm2json...")
+        print("Starting module dcm2json...")
         print(kwargs)
 
         run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)

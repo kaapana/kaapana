@@ -12,7 +12,7 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
-        print("Starting moule LocalDcmAnonymizerOperator...")
+        print("Starting module LocalDcmAnonymizerOperator...")
         print(kwargs)
 
         if os.environ.get('DCMDICTPATH') is None:

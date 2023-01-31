@@ -9,7 +9,7 @@ from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 class LocalConcatJsonOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
-        print("Starting moule LocalConcatJsonOperator...")
+        print("Starting module LocalConcatJsonOperator...")
         print(kwargs)
 
         run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)

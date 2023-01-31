@@ -3,7 +3,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: slicer-vol-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -18,7 +18,7 @@ spec:
       containers:
         # ToDo add init-container to wait for db-host
       - name: slicer
-        image: "{{ .Values.global.registry_url }}/slicer-workbench:{{ .Values.global.kaapana_build_version }}"
+        image: "{{ .Values.global.registry_url }}/slicer-workbench:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         resources:
           requests:
@@ -27,7 +27,7 @@ spec:
             memory: "8Gi"
         env:
         - name: INGRESS_PATH
-          value: slicer-vol-{{ $uuid }}
+          value: "slicer-vol-{{ $uuid }}"
         volumeMounts:
         - name: slicer-data
           mountPath: /data
@@ -47,7 +47,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: slicer-vol-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   labels:
     app: slicer-vol-{{ $uuid }}
 spec:
@@ -64,20 +64,20 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: slicer-vol-{{ $uuid }}-redirect
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   redirectRegex:
     regex: ^.*/slicer-vol-{{ $uuid }}([^\/]*)$
     replacement: /slicer-vol-{{ $uuid }}/
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
   name: slicer-vol-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,{{ .Values.global.base_namespace }}-slicer-vol-{{ $uuid }}-redirect@kubernetescrd,kube-system-strip-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-auth-check@kubernetescrd,{{ .Values.global.services_namespace }}-slicer-vol-{{ $uuid }}-redirect@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
@@ -85,6 +85,12 @@ spec:
     http:
       paths:
       - path: /slicer-vol-{{ $uuid }}
+        pathType: ImplementationSpecific
         backend:
-          serviceName: slicer-vol-{{ $uuid }}
-          servicePort: pt-slicer-http
+          service:
+            name: slicer-vol-{{ $uuid }}
+            port:
+              name: pt-slicer-http
+---
+
+          

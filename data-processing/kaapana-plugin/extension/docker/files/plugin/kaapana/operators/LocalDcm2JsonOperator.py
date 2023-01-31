@@ -307,12 +307,11 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
     def replace_tags(self, dicom_meta):
         new_meta_data = {}
-        for key, value in list(dicom_meta.items()):
-            new_key = ""
+        for key, value in dicom_meta.items():
             new_key = self.get_new_key(key)
             if 'vr' in value and 'Value' in value:
-                value_str = dicom_meta[key]['Value']
-                vr = str(dicom_meta[key]['vr'])
+                value_str = value['Value']
+                vr = str(value['vr'])
 
                 if "nan" in value_str:
                     print("Found NAN! -> skipping")
@@ -751,7 +750,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
                     else:
                         print(f"################ VR in ELSE!: {vr}")
-                        print(f"DICOM META: {dicom_meta[key]}")
+                        print(f"DICOM META: {value}")
                         new_key = new_key+"_keyword"
                         new_meta_data[new_key] = (value_str)
 
@@ -761,7 +760,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                     logging.error("#")
                     logging.error("################################### EXCEPTION #######################################")
                     logging.error("#")
-                    logging.error(f"DICOM META: {dicom_meta[key]}")
+                    logging.error(f"DICOM META: {value}")
                     logging.error(traceback.format_exc())
                     logging.error(value_str)
                     logging.error(e)

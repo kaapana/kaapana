@@ -4,6 +4,6 @@ LABEL IMAGE="scanparam2json"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-COPY files/scanparam2json.py /kaapanasrc/
+COPY files/scanparam2json.py /app/
 
-CMD ["python3","-u","/kaapanasrc/scanparam2json.py"]
+CMD ["python3","-u","/app/scanparam2json.py"]

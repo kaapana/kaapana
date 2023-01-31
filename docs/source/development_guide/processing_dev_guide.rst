@@ -138,8 +138,8 @@ We can now implement and test our algorithm.
 In this example the algorithm is a python script, that extracts the study IDs from the loaded data and returns it.
 
 .. note::
-    The code server looks for the ``kaapanasrc`` directory by default. 
-    When we use it as dev-server inside the docker container it will prompt an error message, that ``kaapanasrc`` does not exist.
+    The code server looks for the ``app`` directory by default. 
+    When we use it as dev-server inside the docker container it will prompt an error message, that ``app`` does not exist.
     You can safely ignore this message and open the root directory of the container.
 
 The python file looks like this:

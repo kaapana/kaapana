@@ -32,4 +32,4 @@ RUN code-server --install-extension ms-python.python
 # COPY files/jupyterlab.sh /
 # COPY files/kaapana_federated /kaapana_federated
 
-WORKDIR /kaapanasrc
+WORKDIR /app

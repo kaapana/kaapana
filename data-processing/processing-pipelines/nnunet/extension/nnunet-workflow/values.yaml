@@ -32,6 +32,7 @@ extension_params:
             # "Task089_Fluo-N2DH-SIM_thickborder_time"
         ]
         default: [
-            "Task002_Heart",
-            "Task003_Liver"
+            "Task017_AbdominalOrganSegmentation",
+            "Task003_Liver",
+            "Task007_Pancreas"
         ]

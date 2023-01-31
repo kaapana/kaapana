@@ -32,4 +32,4 @@ RUN jupyter-lab --generate-config \
 COPY files/jupyterlab.sh /
 COPY files/kaapana_federated /kaapana_federated
 
-WORKDIR /kaapanasrc
+WORKDIR /app

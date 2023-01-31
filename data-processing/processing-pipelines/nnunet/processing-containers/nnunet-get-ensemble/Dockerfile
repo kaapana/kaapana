@@ -7,6 +7,6 @@ LABEL CI_IGNORE="False"
 ENV MODELDIR "/models"
 
 COPY files/ensemble_models /tmp/ensemble_models
-COPY files/start.py /kaapanasrc/
+COPY files/start.py /app/
 
-CMD ["python3","-u","/kaapanasrc/start.py"]
+CMD ["python3","-u","/app/start.py"]

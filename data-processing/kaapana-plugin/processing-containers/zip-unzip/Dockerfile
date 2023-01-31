@@ -4,8 +4,6 @@ LABEL IMAGE="zip-unzip"
 LABEL VERSION="3.0.0"
 LABEL CI_IGNORE="False"
 
-# RUN apk --no-cache add zip
-# RUN mkdir -p /kaapanasrc
-COPY files/ /kaapanasrc/
+COPY files/ /app/
 
-CMD ["python3","-u","/kaapanasrc/process.py"]
+CMD ["python3","-u","/app/process.py"]

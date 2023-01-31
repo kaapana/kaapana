@@ -22,12 +22,13 @@ RUN git clone  --single-branch --branch master https://github.com/MIC-DKFZ/BodyP
 
 # Download public model from zenodo 
 RUN touch BodyPartRegression/src/models/public_bpr_model.zip
-RUN curl https://zenodo.org/record/5113483/files/public_bpr_model.zip?download=1 -o BodyPartRegression/src/models/public_bpr_model.zip 
+RUN curl https://zenodo.org/record/5113483/files/public_bpr_model.zip?download=1 -o /app/BodyPartRegression/src/models/public_bpr_model.zip 
 
-RUN unzip BodyPartRegression/src/models/public_bpr_model.zip -d BodyPartRegression/src/models/
+RUN unzip BodyPartRegression/src/models/public_bpr_model.zip -d /app/BodyPartRegression/src/models/
 
-WORKDIR /kaapanasrc/BodyPartRegression
-COPY files/requirements.txt /requirements.txt
-RUN pip3 uninstall -y torch torchtext &&  pip3 install -r /requirements.txt
+COPY files/requirements.txt /app/requirements.txt
+RUN pip3 uninstall -y torch torchtext &&  pip3 install -r /app/requirements.txt
+
+WORKDIR /app/BodyPartRegression
 
 CMD ["python3", "-u", "starter.py"]

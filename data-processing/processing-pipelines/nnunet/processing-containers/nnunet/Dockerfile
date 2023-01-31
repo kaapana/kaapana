@@ -4,6 +4,6 @@ LABEL IMAGE="nnunet-gpu"
 LABEL VERSION="03-22"
 LABEL CI_IGNORE="False"
 
-COPY files/ /kaapanasrc/
-WORKDIR /kaapanasrc/
-CMD ["bash","/kaapanasrc/start_nnunet.sh"]
+COPY files/ /app/
+WORKDIR /app/
+CMD ["bash","/app/start_nnunet.sh"]

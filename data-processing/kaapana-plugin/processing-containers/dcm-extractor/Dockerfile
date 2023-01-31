@@ -4,6 +4,6 @@ LABEL IMAGE="dcm-extractor"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-COPY files/dcm_extractor.py /kaapanasrc/
+COPY files/dcm_extractor.py /app/
 
-CMD ["python3", "-u", "/kaapanasrc/dcm_extractor.py"]
+CMD ["python3", "-u", "/app/dcm_extractor.py"]

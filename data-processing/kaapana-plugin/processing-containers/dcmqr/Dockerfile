@@ -6,7 +6,7 @@ LABEL CI_IGNORE="False"
 
 COPY files/requirements.txt /
 RUN pip3 install --no-cache-dir -r /requirements.txt
-COPY files/query.py /kaapanasrc/
-COPY files/run-query.sh /kaapanasrc/
+COPY files/query.py /app/
+COPY files/run-query.sh /app/
 
-CMD /kaapanasrc/run-query.sh
+CMD /app/run-query.sh

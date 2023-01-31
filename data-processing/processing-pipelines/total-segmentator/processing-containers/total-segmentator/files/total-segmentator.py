@@ -1,4 +1,5 @@
 import os
+from os.path import exists
 import shutil
 from pathlib import Path
 from typing import List
@@ -93,6 +94,10 @@ for batch_element_dir in batch_folders:
     else:
         for nifti_file in nifti_files:
             print(f"# running total segmentator")
+            
+            assert exists(nifti_file.absolute())
+            assert exists(element_output_dir.absolute())
+            
             try:
                 total_segmentator(
                     nifti_file.absolute(),

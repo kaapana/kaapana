@@ -1,4 +1,6 @@
-FROM local-only/base-python-gpu:latest
+# FROM local-only/base-python-gpu:latest
+FROM nvcr.io/nvidia/pytorch:22.04-py3
+
 
 LABEL IMAGE="total-segmentator"
 LABEL VERSION="0.1.0"

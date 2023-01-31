@@ -680,7 +680,7 @@ class HelmChart:
 
     def push(self):
         if HelmChart.enable_push:
-            BuildUtils.logger.info(f"{self.chart_id}: push")
+            BuildUtils.logger.debug(f"{self.chart_id}: push")
             try_count = 0
             command = ["helm", "push", f"{self.name}-{self.build_version}.tgz", f"oci://{BuildUtils.default_registry}"]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, cwd=dirname(self.build_chart_dir), timeout=60)
@@ -703,7 +703,7 @@ class HelmChart:
                 BuildUtils.logger.debug(f"{self.chart_id}: push ok")
 
         else:
-            BuildUtils.logger.info(f"{self.chart_id}: push disabled")
+            BuildUtils.logger.debug(f"{self.chart_id}: push disabled")
 
     @staticmethod
     def collect_charts():

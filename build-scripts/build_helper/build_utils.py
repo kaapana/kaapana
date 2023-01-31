@@ -216,6 +216,8 @@ class BuildUtils:
         BuildUtils.logger.debug("Collect base-images:")
         BuildUtils.logger.debug("")
         for base_image_tag, child_containers in BuildUtils.base_images_used.items():
+            if "python" in base_image_tag:
+                pass
             if base_image_tag not in base_images:
                 base_images[base_image_tag] = {}
             BuildUtils.logger.debug(f"{base_image_tag}")
@@ -228,8 +230,30 @@ class BuildUtils:
                 if child_tag not in base_images[base_image_tag]:
                     base_images[base_image_tag][child_tag] = {}
         
+        
+        changed = True
+        runs = 0
+        base_images = dict(sorted(base_images.items(),reverse=True, key=lambda item: len(item[1])))
+        while changed and runs <= BuildUtils.max_build_rounds:
+            runs +=1 
+            del_tags = [] 
+            changed = False
+            for base_image_tag, child_images in base_images.items():
+                if base_image_tag == "python:3.9.16-slim":
+                    pass
+                for child_image_tag, child_image in child_images.items():
+                    if child_image_tag in base_images:
+                        base_images[base_image_tag][child_image_tag] = base_images[child_image_tag]
+                        del_tags.append(child_image_tag)
+            
+            for del_tag in del_tags:
+                del base_images[del_tag]
+                changed = True
+        
+
+        base_images = dict(sorted(base_images.items(),reverse=True, key=lambda item: sum(len(v) for v in item[1].values())))
         with open(base_images_json_path, 'w') as fp:
-            json.dump(dict(sorted(base_images.items(),reverse=True, key=lambda item: len(item[1]))), fp, indent=4)
+            json.dump(base_images, fp, indent=4)
 
         all_containers_json_path = join(BuildUtils.build_dir, "build_containers_all.json")
         BuildUtils.logger.debug("")

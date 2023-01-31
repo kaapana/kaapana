@@ -482,7 +482,7 @@ class HelmChart:
                         else:
                             BuildUtils.logger.debug(f"{self.chart_id}: operator container already present: {oparator_container_found.tag}")
                     else:
-                        BuildUtils.logger.error(f"Chart oeprator container needed {operator_container}")
+                        BuildUtils.logger.error(f"Chart operator container needed {operator_container}")
                         BuildUtils.generate_issue(
                             component=suite_tag,
                             name=f"{self.chart_id}",
@@ -721,8 +721,9 @@ class HelmChart:
 
         charts_objects = []
         for chartfile in charts_found:
-            if "templates_and_examples" in chartfile:
-                BuildUtils.logger.debug(f"Skipping tutorial chart: {chartfile}")
+            if BuildUtils.build_ignore_patterns != None and len(BuildUtils.build_ignore_patterns) > 0 and sum([ignore_pattern in chartfile for ignore_pattern in  BuildUtils.build_ignore_patterns]) != 0:
+                BuildUtils.logger.debug(f"Ignoring chart {chartfile}")
+                # BuildUtils.logger.debug(f"Skipping tutorial chart: {chartfile}")
                 continue
             chart_obj = HelmChart(chartfile)
             charts_objects.append(chart_obj)

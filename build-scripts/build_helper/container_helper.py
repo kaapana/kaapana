@@ -501,6 +501,9 @@ class Container:
         dockerfiles_found = sorted(set(dockerfiles_found))
 
         for dockerfile in dockerfiles_found:
+            if BuildUtils.build_ignore_patterns != None and len(BuildUtils.build_ignore_patterns) > 0 and sum([ignore_pattern in dockerfile for ignore_pattern in  BuildUtils.build_ignore_patterns]) != 0:
+                BuildUtils.logger.debug(f"Ignoring Dockerfile {dockerfile}")
+                continue            
             container = Container(dockerfile)
             Container.container_object_list.append(container)
 

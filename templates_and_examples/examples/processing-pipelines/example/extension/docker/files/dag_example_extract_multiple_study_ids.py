@@ -12,7 +12,17 @@ from example.PoolJsonsOperator import PoolJsonsOperator
 
 log = LoggingMixin().log
 
+ui_forms = {
+    "workflow_form": {
+        "type": "object",
+        "properties": {
+            "single_execution": "$default"
+        }
+    }
+}
+
 args = {
+    'ui_forms': ui_forms,
     'ui_visible': True,
     'owner': 'kaapana',
     'start_date': days_ago(0),
@@ -28,8 +38,8 @@ dag = DAG(
 
 
 get_input = LocalGetInputDataOperator(dag=dag)
-extract_one = ExtractStudyIdOperator(dag=dag, parallel_id='one')
-extract_two = ExtractStudyIdOperator(dag=dag, parallel_id='two')
+extract_one = ExtractStudyIdOperator(dag=dag, input_operator=get_input, parallel_id='one')
+extract_two = ExtractStudyIdOperator(dag=dag, input_operator=get_input, parallel_id='two')
 pool_jsons_one = PoolJsonsOperator(dag=dag, input_operator=extract_one)
 pool_jsons_two = PoolJsonsOperator(dag=dag, input_operator=extract_two)
 put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[pool_jsons_one, pool_jsons_two])

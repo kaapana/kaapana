@@ -2,7 +2,7 @@ FROM local-only/base-python-alpine:latest
 
 LABEL IMAGE="hello-world"
 LABEL VERSION="0.1.0"
-LABEL CI_IGNORE="True"
+LABEL CI_IGNORE="False"
 
 WORKDIR /app
 

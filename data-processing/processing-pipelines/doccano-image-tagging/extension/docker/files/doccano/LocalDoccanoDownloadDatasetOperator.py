@@ -15,7 +15,7 @@ class LocalDoccanoDownloadDatasetOperator(KaapanaPythonBaseOperator):
 
     @cache_operator_output
     def start(self, ds, **kwargs):
-        print("Starting moule LocalNLPDownloadProjectOperator...")
+        print("Starting module LocalNLPDownloadProjectOperator...")
         print(kwargs)
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)

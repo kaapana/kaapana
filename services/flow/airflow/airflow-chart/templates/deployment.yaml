@@ -173,10 +173,10 @@ spec:
           value: "{{ .Values.global.fast_data_dir }}/workflows/data"
         - name: MODELDIR
           value: "{{ .Values.global.fast_data_dir }}/workflows/models"
+        - name: KAAPANA_DEV_DIR
+          value: "{{ .Values.global.fast_data_dir }}/workflows/kaapana-dev-data"
         - name: MINIODIR
           value: "{{ .Values.global.slow_data_dir }}/minio"
-        - name: KAAPANA_DEV_DIR
-          value: "{{ .Values.global.fast_data_dir }}/minio/kaapana-dev-data"
         - name: PROXY
           value: "{{ .Values.global.http_proxy }}"
         - name: KAAPANA_BUILD_VERSION

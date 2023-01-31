@@ -201,8 +201,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.image = image
         self.env_vars = env_vars or {}
         self.namespace = namespace
-        self.cmds = cmds or []
-        self.arguments = arguments or []
+        self.cmds = [cmds] if isinstance(cmds, str) else (cmds  or [])
+        self.arguments = [arguments] if isinstance(arguments, str) else (arguments  or [])
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
         self.volume_mounts = volume_mounts or []
@@ -423,15 +423,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             if "hostPath" in volume.configs and self.data_dir == volume.configs["hostPath"]["path"]:
                 volume.configs["hostPath"]["path"] = os.path.join(volume.configs["hostPath"]["path"], context["run_id"])
 
-        if self.dev_server is not None:
-
-            url = f'{KaapanaBaseOperator.HELM_API}/helm-install-chart'
-            env_vars_sets = {}
-            for idx, (k, v) in enumerate(self.env_vars.items()):
-                env_vars_sets.update({
-                    f'envVars[{idx}].name': f"{k}",
-                    f'envVars[{idx}].value': f"{v}"
-                })
+        if self.dev_server is not None or 'kaapanadevdata' in " ".join(self.cmds) or 'kaaanadevdata' in " ".join(self.arguments):
 
             self.volume_mounts.append(VolumeMount(
                 'kaapanadevdata', mount_path='/kaapanadevdata', sub_path=None, read_only=False
@@ -447,6 +439,14 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 })
             )
 
+        if self.dev_server is not None:
+            url = f'{KaapanaBaseOperator.HELM_API}/helm-install-chart'
+            env_vars_sets = {}
+            for idx, (k, v) in enumerate(self.env_vars.items()):
+                env_vars_sets.update({
+                    f'envVars[{idx}].name': f"{k}",
+                    f'envVars[{idx}].value': f"{v}"
+                })
             volume_mounts_sets = {}
             idx = 0
             for volume_mount in self.volume_mounts:

@@ -189,7 +189,7 @@ def parse_ui_dict(dag_dict):
                         "type": "boolean",
                         "title": "Single execution",
                         "description": "Whether your report is execute in single mode or not",
-                        "default": True,
+                        "default": False,
                         "readOnly": False,
                         "required": True
                     }

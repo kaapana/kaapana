@@ -937,7 +937,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
         os.environ["PYTHONIOENCODING"] = "utf-8"
         if 'DCMDICTPATH' in os.environ and 'DICT_PATH' in os.environ:
-            self.dcmdictpath = os.getenv('DCMDICTPATH')
+            # DCMDICTPATH is used by dcmtk / dcm2json
             self.dict_path = os.getenv('DICT_PATH')
         else:
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++")

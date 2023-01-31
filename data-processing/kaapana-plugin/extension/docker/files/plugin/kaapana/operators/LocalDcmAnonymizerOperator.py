@@ -71,7 +71,7 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
         self.single_slice = single_slice
 
         if 'DCMDICTPATH' in os.environ and 'DICT_PATH' in os.environ:
-            self.dcmdictpath = os.getenv('DCMDICTPATH')
+            # DCMDICTPATH is used by dcmtk / dcmodify
             self.dict_path = os.getenv('DICT_PATH')
         else:
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++")

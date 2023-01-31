@@ -290,6 +290,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 vr = str(value['vr'])
 
                 if "nan" in value_str:
+                    # FIXME: doesn't this cause false positives, e.g. if "nanotech" appears in some string tag?
                     print("Found NAN! -> skipping")
                     continue
 
@@ -788,9 +789,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             with open(path, "wt", encoding="utf-8") as fout:
                 for line in fin:
                     line = line.replace(" .", " 0.")
+                    # FIXME: doesn't this match + before digits within the whole JSON document?
+                    # e.g. if a tag contains "10+15ml contrast agent"?
                     m = re.search(r"[\+][\d]", line)
                     if m is not None:
                         group = m.group()
+                        # FIXME: and this seems to disregard the match position and simply removes any + symbol:
                         fout.write(line.replace('+', ''))
                     else:
                         fout.write(line)

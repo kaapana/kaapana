@@ -765,7 +765,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
         return new_meta_data
 
-    def correct_json(self, file_path):
+    def tryConvertingYamlToJson(self, file_path):
         print("ERROR IN JSON FILE -> Try to correct")
         try:
             with open(file_path, "r", encoding='utf-8') as f:
@@ -804,7 +804,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ERROR WHILE LOADING JSON!!")
             print(e)
             print("Try to correct...")
-            self.correct_json(path)
+            self.tryConvertingYamlToJson(path)
             print("Try again...")
             with open(path, encoding='utf-8') as dicom_meta:
                 dicom_metadata = json.load(dicom_meta)

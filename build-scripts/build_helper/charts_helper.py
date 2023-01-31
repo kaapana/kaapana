@@ -3,11 +3,11 @@ from glob import glob
 import shutil
 import yaml
 import os
+import json
 from datetime import datetime
 from treelib import Tree
 from subprocess import PIPE, run
 from os.path import join, dirname, basename, exists, isfile, isdir
-from time import time
 from pathlib import Path
 from build_helper.build_utils import BuildUtils
 from build_helper.container_helper import Container, pull_container_image
@@ -680,7 +680,7 @@ class HelmChart:
 
     def push(self):
         if HelmChart.enable_push:
-            BuildUtils.logger.debug(f"{self.chart_id}: push")
+            BuildUtils.logger.info(f"{self.chart_id}: push")
             try_count = 0
             command = ["helm", "push", f"{self.name}-{self.build_version}.tgz", f"oci://{BuildUtils.default_registry}"]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, cwd=dirname(self.build_chart_dir), timeout=60)
@@ -703,7 +703,7 @@ class HelmChart:
                 BuildUtils.logger.debug(f"{self.chart_id}: push ok")
 
         else:
-            BuildUtils.logger.debug(f"{self.chart_id}: push disabled")
+            BuildUtils.logger.info(f"{self.chart_id}: push disabled")
 
     @staticmethod
     def collect_charts():
@@ -844,7 +844,6 @@ class HelmChart:
         BuildUtils.logger.info("")
         BuildUtils.logger.info("Start container build...")
         containers_to_built = []
-        containers_built = []
         container_count = len(build_order)
         for i in range(0, container_count):
             container_id = build_order[i]
@@ -900,7 +899,6 @@ class HelmChart:
                     tmp_waiting_containers_to_built.append(result_container)
                 else:
                     i += 1
-                    containers_built.append(container_to_build)
                     BuildUtils.logger.debug(f"{i+1}/{container_count} Done: {queue_id} - {result_container.tag}")
                     BuildUtils.printProgressBar(i, container_count, prefix='Progress:', suffix=result_container, length=50)
 
@@ -931,31 +929,16 @@ class HelmChart:
 
         if BuildUtils.create_offline_installation is True:
             BuildUtils.logger.info("Generating platform docker dump.")
-            image_tag_list = [
-                "nvcr.io/nvidia/gpu-operator:v1.11.0",
-                "nvcr.io/nvidia/k8s-device-plugin:v0.12.2-ubi8",
-                "nvcr.io/nvidia/cloud-native/gpu-operator-validator:v1.11.0",
-                "nvcr.io/nvidia/k8s/container-toolkit:v1.10.0-ubuntu20.04",
-                "nvcr.io/nvidia/k8s/dcgm-exporter:2.4.5-2.6.7-ubuntu20.04",
-                "nvcr.io/nvidia/gpu-feature-discovery:v0.6.1-ubi8",
-                "k8s.gcr.io/nfd/node-feature-discovery:v0.10.1",
-                "coredns/coredns:1.8.0",
-                "docker.io/calico/cni:v3.19.1",
-                "docker.io/calico/node:v3.19.1",
-                "docker.io/calico/kube-controllers:v3.17.3",
-                "docker.io/calico/pod2daemon-flexvol:v3.19.1",
-                "k8s.gcr.io/pause:3.1",
-                "nvcr.io/nvidia/cloud-native/k8s-driver-manager:v0.4.0",
-                "nvcr.io/nvidia/driver:515.48.07-ubuntu20.04"
-            ]
+            micok8s_base_img_json_path = join(BuildUtils.kaapana_dir,"build-scripts","build_helper","microk8s_images.json")
+            assert exists(micok8s_base_img_json_path)
+            with open(micok8s_base_img_json_path, encoding='utf-8') as f:
+                image_tag_list = json.load(f)["microk8s_base_images"]
+
             for base_microk8s_image in image_tag_list:
                 pull_container_image(image_tag=base_microk8s_image)
-                container_obj = Container()
-                container_obj.build_tag = base_microk8s_image
-                containers_built.append(container_obj)
+                successful_built_containers.append(base_microk8s_image)
 
-            command = [Container.container_engine, "save"] + [container.build_tag for container in containers_built if not container.build_tag.startswith('local-only')] + [
-                "-o", str(Path(os.path.dirname(platform_chart.build_chart_dir)) / f"{platform_chart.name}-{platform_chart.build_version}-containers.tar")]
+            command = [Container.container_engine, "save"] + [build_tag for build_tag in successful_built_containers if not build_tag.startswith('local-only')] + ["-o", str(Path(os.path.dirname(platform_chart.build_chart_dir)) / f"{platform_chart.name}-{platform_chart.build_version}-containers.tar")]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
             if output.returncode != 0:
                 BuildUtils.logger.error(f"Docker save failed {output.stderr}!")

@@ -40,9 +40,8 @@ spec:
               subPath: Launcher.properties
       volumes:
       - name: ctp-data
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/ctp
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: fast-pv-claim
       - name: ctp-logs
         hostPath:
           path: {{ .Values.global.fast_data_dir }}/ctp/logs
@@ -62,4 +61,3 @@ spec:
       imagePullSecrets:
       - name: registry-secret
 ---
-

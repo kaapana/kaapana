@@ -405,8 +405,8 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                             if self.exit_on_error:
                                 raise ValueError('ERROR')
 
-                    elif vr in ("DS", "FL", "FD", "OD"):
-                        # Decimal String / Floating Point Single / Floating Point Double / Other Double String
+                    elif vr in ("DS", "FL", "FD", "OD", "OF"):
+                        # Decimal String / Floating Point Single / Floating Point Double / Other Double String / Other Float String
 
                         new_key += "_float"
 
@@ -430,25 +430,13 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                             if self.exit_on_error:
                                 raise ValueError('ERROR')
 
-                    elif vr == "OF":
-                        # Other Float String
-                        # A string of 32-bit IEEE 754:1985 floating point words.
-                        # OF is a VR that requires byte sw14,3080) Bad Pixel Image
-                    # (7FE0,0008) Float Pixel Data
-                    # (7FE0,0009) Double Float Pixel Data
-                    # (7Fpping within each 32-bit word when changing between Little Endian and Big Endian byte ordering
-
-                        new_key = new_key+"_float"
-
-                        new_meta_data[new_key] = value_str
-
                     elif vr == "PN":
                         # Person Name
                         # A character string encoded using a 5 component convention. The character code 5CH (the BACKSLASH "\"
                         # in ISO-IR 6) shall not be present, as it is used as the delimiter between values in multiple valued data
                         # elements. The string may be padded with trailing spaces. For human use, the five components in their order
                         # of occurrence are: family name complex, given name complex, middle name, name prefix, name suffix.
-                        new_key = new_key+"_keyword"
+                        new_key += "_keyword"
                         subcategories = ['Alphabetic',
                                          'Ideographic', 'Phonetic']
                         for cat in subcategories:

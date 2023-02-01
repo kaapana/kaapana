@@ -30,34 +30,44 @@ spec:
           image: "{{ .Values.global.registry_url }}/keycloak:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
-          - name: KEYCLOAK_USER
+          # - name: KEYCLOAK_IMPORT
+          #   value: /import/kaapana-realm.json
+          - name: KEYCLOAK_ADMIN ### KEYCLOAK_USER
             value: {{ .Values.global.credentials_keycloak_admin_username }}
-          - name: KEYCLOAK_PASSWORD
+          - name: KEYCLOAK_ADMIN_PASSWORD
             value: {{ .Values.global.credentials_keycloak_admin_password }}
           - name: KC_DB #DB_VENDOR
             value: "postgres"
           - name: KC_DB_URL #DB_ADDR
             value: "jdbc:postgresql://postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc:5432/keycloak" #"http://postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc:5432"
-          - name: DB_PORT
+          - name: KC_DB_URL_PORT ##DB_PORT
             value: "5432"
           - name: KC_DB_USERNAME #DB_USER
             value: "keycloak"
           - name: KC_DB_PASSWORD #DB_PASSWORD
             value: "keycloak"
-          - name: DB_DATABASE
-            value: "keycloak"
-          - name: KEYCLOAK_HTTP_PORT
-            value: "8080"
-          - name: KEYCLOAK_HTTPS_PORT
-            value: "8443"
-          - name: ROOT_LOGLEVEL
-            value: "WARN"
-          - name: KEYCLOAK_LOGLEVEL
-            value: "WARN"
-          - name: PROXY_ADDRESS_FORWARDING
-            value: "true"
-          - name: KC_HOSTNAME
-            value: "localhost" ##"localhost" #"keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc"
+#          - name: DB_DATABASE
+#            value: "keycloak"
+          # - name: KEYCLOAK_HTTP_PORT
+          #   value: "8080"
+          # - name: KEYCLOAK_HTTPS_PORT
+          #   value: "8443"
+          # - name: ROOT_LOGLEVEL
+          #   value: "WARN"
+          - name: KC_LOG_LEVEL
+            value: "INFO"
+          # - name: PROXY_ADDRESS_FORWARDING
+          #   value: "true"
+          - name: KC_HOSTNAME_ADMIN_URL
+            value: "https://{{ .Values.global.hostname }}/auth" ##"https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc:8443/" ## "localhost"
+          - name: KC_HOSTNAME_URL
+            value: "https://{{ .Values.global.hostname }}/auth"  ###"https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc:8443/" ## "localhost"
+          - name: KC_PROXY
+            value: edge
+          - name: KC_HTTP_RELATIVE_PATH
+            value: "/auth/"
+          #- name: KC_HOSTNAME_STRICT_HTTPS
+          #  value: "true"
           ports:
           - name: http
             containerPort: 8080
@@ -74,15 +84,18 @@ spec:
             - name: ssl-config-files
               mountPath: /etc/x509/https
               readOnly: true
+            # - name: keycloak-realm
+            #   mountPath: /opt/keycloak/data/import
           command: 
           - "/opt/keycloak/bin/kc.sh"
           - "--verbose"
           - "start"
+          #- --hostname-path=/auth
+          # - --import-realm
           #- --optimized
           #- --https-certificate-key-file=/etc/x509/https/tls.key
           #- --https-certificate-file=/etc/x509/https/tls.crt
           #- --proxy=passthrough
-          #- --hostname-strict=false
           # livenessProbe:
           #   httpGet:
           #     path: /
@@ -90,6 +103,9 @@ spec:
           #   initialDelaySeconds: 30
           #   periodSeconds: 20
       volumes:
+      # - name: keycloak-realm
+      #   configMap:
+      #     name: keycloak-config
       - name: ssl-config-files
         secret:
           secretName: certificate

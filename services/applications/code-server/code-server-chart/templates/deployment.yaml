@@ -43,8 +43,16 @@ spec:
             memory: 30Gi
         volumeMounts:
           {{- if not .Values.volumeMounts }}
-          - name: codeserverdata
-            mountPath: /app
+          - name: airflow-log
+            mountPath: /app/logs
+          - name: models
+            mountPath: /app/models
+          - name: airflow-dags
+            mountPath: /app/dags
+          - name: airflow-data
+            mountPath: /app/data
+          - name: airflow-plugins
+            mountPath: /app/plugins
           {{- else }}
           - name: dshm
             mountPath: /dev/shm
@@ -65,10 +73,21 @@ spec:
           {{- end }}
       volumes:
       {{- if not .Values.volumes }}
-      - name: codeserverdata
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/workflows/
-          type: DirectoryOrCreate
+      - name: airflow-logs
+        persistentVolumeClaim:
+          claimName: af-logs-pv-claim
+      - name: models
+        persistentVolumeClaim:
+          claimName: models-pv-claim
+      - name: airflow-dags
+        persistentVolumeClaim:
+          claimName: dags-pv-claim
+      - name: airflow-plugins
+        persistentVolumeClaim:
+          claimName: af-plugins-pv-claim
+      - name: airflow-data
+        persistentVolumeClaim:
+          claimName: af-data-pv-claim
       {{- else }}
       - name: dshm
         emptyDir:

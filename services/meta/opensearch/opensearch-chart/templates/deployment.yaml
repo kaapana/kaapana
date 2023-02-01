@@ -59,13 +59,11 @@ spec:
               subPath: config.yml
       volumes:
       - name: osdata
-        hostPath:
-          path: {{ .Values.global.fast_data_dir | default "/home/kaapana" }}/opensearch-data
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: os-data-pv-claim
       - name: oslogs
-        hostPath:
-          path: {{ .Values.global.fast_data_dir | default "/home/kaapana" }}/opensearch-logs
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: os-logs-pv-claim
       - name: sec-config
         configMap:
           name: os-config

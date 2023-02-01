@@ -263,33 +263,26 @@ spec:
         configMap:
           name: airflow-statsd-config
       - name: airflow-dags
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/workflows/dags
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: dags-pv-claim
       - name: airflow-logs
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/airflow/logs
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: af-logs-pv-claim
       - name: airflow-plugins
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/workflows/plugins
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: af-plugins-pv-claim
       - name: modeldata
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/workflows/models
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: models-pv-claim
       - name: ctpinput
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/ctp/incoming
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: ctp-data-pv-claim
       - name: workflowdata
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/workflows/data
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: af-data-pv-claim
       - name: dicomdir
-        hostPath:
-          path: {{ .Values.global.slow_data_dir }}/dcm4che/dicom_data
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: dcm4chee-dicom-pv-claim
       serviceAccountName: kaapana-kube-admin
       imagePullSecrets:
       - name: registry-secret

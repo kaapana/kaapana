@@ -1,0 +1,69 @@
+# dcm4chee-standalone
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: dcm4chee-standalone-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: "500Mi"
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.fast_data_dir }}/dcm4che/server_data"
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{ .Values.global.services_namespace }}"
+    name: dcm4chee-standalone-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dcm4chee-standalone-pv-claim
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "500Mi"
+  volumeName: "dcm4chee-standalone-pv-volume"
+---
+# dcm4chee-dicom
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: dcm4chee-dicom-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: "100Gi"
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.slow_data_dir }}/dcm4che/dicom_data"
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{ .Values.global.services_namespace }}"
+    name: dcm4chee-dicom-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dcm4chee-dicom-pv-claim
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "100Gi"
+  volumeName: "dcm4chee-dicom-pv-volume"
+---

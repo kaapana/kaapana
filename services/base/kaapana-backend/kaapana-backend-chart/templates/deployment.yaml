@@ -125,13 +125,11 @@ spec:
         - name: registry-secret
       volumes:
       - name: alembic
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/alembic-kaapana-backend
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: alembic-pv-claim
 {{- if .Values.global.dev_files }}
       - name: kaapana-dev-files
-        hostPath:
-          path: {{ .Values.global.dev_files}}
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: backen-dev-pv-claim
 {{- end }}
 ---

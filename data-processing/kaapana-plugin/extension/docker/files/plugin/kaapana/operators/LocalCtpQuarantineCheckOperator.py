@@ -25,7 +25,7 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
         if conf and "dataInputDirs" in conf:
             print("This is already a Dag triggered by this operator")
             return
-        quarantine_path = os.path.join("/ctpinput", ".quarantines")
+        quarantine_path = os.path.join("/ctpinput","incoming", ".quarantines")
         path_list = [p for p in Path(quarantine_path).rglob("*.dcm") if p.is_file()]
         if path_list:
             print("Files found in quarantine!")

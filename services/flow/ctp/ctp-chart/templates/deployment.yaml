@@ -41,11 +41,10 @@ spec:
       volumes:
       - name: ctp-data
         persistentVolumeClaim:
-          claimName: fast-pv-claim
+          claimName: ctp-data-pv-claim
       - name: ctp-logs
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/ctp/logs
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: ctp-log-pv-claim
       - name: config-file
         configMap:
           name: ctp-config

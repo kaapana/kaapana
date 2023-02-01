@@ -233,55 +233,37 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.extensions_namespace = os.getenv("EXTENSIONS_NAMESPACE", "")
         # self.helm_namespace = os.getenv("HELM_NAMESPACE", "")
 
-        self.volume_mounts.append(VolumeMount(
-            'workflowdata', mount_path='/data', sub_path=None, read_only=False
-        ))
-
-        self.volumes.append(
-            Volume(name='workflowdata', configs={'hostPath':
-                                                 {
-                                                     'type': 'DirectoryOrCreate',
-                                                     'path': self.data_dir
-                                                 }
-                                                 })
-        )
-        self.volume_mounts.append(VolumeMount(
-            'miniodata', mount_path='/minio', sub_path=None, read_only=False
-        ))
-
-        self.volumes.append(
-            Volume(name='miniodata', configs={
-                'hostPath':
-                {
-                    'type': 'DirectoryOrCreate',
-                    'path': os.getenv('MINIODIR', "/home/kaapana/minio")
-                }
-            })
-        )
-
-        self.volume_mounts.append(VolumeMount(
-            'modeldata', mount_path='/models', sub_path=None, read_only=False
-        ))
-
-        self.volumes.append(
-            Volume(name='modeldata', configs={'hostPath':
-                                              {
-                                                  'type': 'DirectoryOrCreate',
-                                                  'path': self.model_dir
-                                              }
-                                              })
-        )
-
-        self.volume_mounts.append(VolumeMount(
-            'tensorboard', mount_path='/tensorboard', sub_path=None, read_only=False))
-        tb_config = {
-            'hostPath':
-            {
-                'type': 'DirectoryOrCreate',
-                'path': os.path.join(self.data_dir, "tensorboard")
+        self.volume_mounts.append(VolumeMount('workflowdata', mount_path='/data', sub_path=None, read_only=False))
+        wd_volume_config = {
+            "persistentVolumeClaim": {
+                "claimName": "af-data-pv-claim"
             }
         }
-        self.volumes.append(Volume(name='tensorboard', configs=tb_config))
+        self.volumes.append(Volume(name='workflowdata', configs=wd_volume_config))
+
+        self.volume_mounts.append(VolumeMount('miniodata', mount_path='/minio', sub_path=None, read_only=False))
+        minio_volume_config = {
+            "persistentVolumeClaim": {
+                "claimName": "minio-pv-claim"
+            }
+        }
+        self.volumes.append(Volume(name='miniodata', configs=minio_volume_config))
+
+        volume_mounts.append(VolumeMount('models', mount_path='/models', sub_path=None, read_only=False))
+        models_volume_config = {
+            "persistentVolumeClaim": {
+                "claimName": "models-pv-claim"
+            }
+        }
+        self.volumes.append(Volume(name='models', configs=models_volume_config))
+
+        self.volume_mounts.append(VolumeMount('tensorboard', mount_path='/tensorboard', sub_path=None, read_only=False))
+        tb_volume_config = {
+            "persistentVolumeClaim": {
+                "claimName": "tb-pv-claim"
+            }
+        }
+        self.volumes.append(Volume(name='tensorboard', configs=tb_volume_config))
 
         self.volume_mounts.append(VolumeMount(
             'dshm', mount_path='/dev/shm', sub_path=None, read_only=False))

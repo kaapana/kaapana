@@ -1,0 +1,71 @@
+# dev-files
+{{- if .Values.global.dev_files }}
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: backen-dev-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: "10Mi"
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{ .Values.global.dev_files}}"
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{ .Values.global.services_namespace }}"
+    name: backen-dev-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backen-dev-pv-claim
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "10Mi"
+  volumeName: "backen-dev-pv-volume"
+{{- end }}
+---
+# logs
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: alembic-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: "10Mi"
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.fast_data_dir }}/alembic-kaapana-backend"
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{ .Values.global.services_namespace }}"
+    name: alembic-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: alembic-pv-claim
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "10Mi"
+  volumeName: "alembic-pv-volume"
+---

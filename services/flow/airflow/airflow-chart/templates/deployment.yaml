@@ -174,7 +174,7 @@ spec:
         - name: MODELDIR
           value: "{{ .Values.global.fast_data_dir }}/workflows/models"
         - name: KAAPANA_DEV_DIR
-          value: "{{ .Values.global.fast_data_dir }}/workflows/kaapana-dev-data"
+          value: "{{ .Values.global.fast_data_dir }}/workflows/kaapanadevdata"
         - name: MINIODIR
           value: "{{ .Values.global.slow_data_dir }}/minio"
         - name: PROXY

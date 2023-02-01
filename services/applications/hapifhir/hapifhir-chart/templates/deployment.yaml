@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hapifhir-deployment
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: hapifhir
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: hapifhir
+    spec:
+      initContainers:
+      - name: init-wait-for-postgres
+        image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        env:
+          - name: WAIT
+            value: "hapifhir-postgres,hapifhir-postgres-service.{{  .Values.global.services_namespace  }}.svc,5432"
+          - name: DELAY
+            value: "2"
+          - name: TIMEOUT
+            value: "10"
+      containers:
+      - name: hapifhir
+        image: "{{ .Values.global.registry_url }}/hapi:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        ports:
+          - name: http
+            containerPort: 8080
+          - name: http-metrics
+            containerPort: 8081
+        # startupProbe:
+        #   httpGet:
+        #     path: /readyz
+        #     port: http
+        # readinessProbe:
+        #   httpGet:
+        #     path: /readyz
+        #     port: http
+        # livenessProbe:
+        #   httpGet:
+        #     path: /livez
+        #     port: http
+        resources:
+          requests:
+            memory: 800Mi
+          limits:
+            memory: 1500Mi
+        env:
+          - name: SPRING_DATASOURCE_URL
+            value: "jdbc:postgresql://hapifhir-postgres-service.{{  .Values.global.services_namespace  }}.svc:5432/hapifhir"
+          - name: SPRING_DATASOURCE_USERNAME
+            value: kaapanauser
+          - name: SPRING_DATASOURCE_PASSWORD
+            value: kaapanapassword
+          - name: SPRING_DATASOURCE_DRIVERCLASSNAME
+            value: org.postgresql.Driver
+          - name: spring.jpa.properties.hibernate.dialect
+            value: ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgres94Dialect
+          - name: SERVER_SERVLET_CONTEXT_PATH
+            value: /fhir
+          - name: HAPI_FHIR_USE_APACHE_ADDRESS_STRATEGY
+            value: "true"
+          - name: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ADD_ADDITIONAL_PATHS
+            value: "true"
+          - name: MANAGEMENT_SERVER_PORT
+            value: "8081"
+      imagePullSecrets:
+        - name: registry-secret

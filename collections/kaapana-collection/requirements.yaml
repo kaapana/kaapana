@@ -66,3 +66,6 @@ dependencies:
   - name: rateme-chart
     version: 0.0.0
     repository: file://../../services/applications/rateme/rateme-chart
+  - name: hapifhir-chart
+    version: 0.0.0
+    repository: file://../../services/applications/hapifhir/hapifhir-chart

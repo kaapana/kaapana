@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+name: hapifhir-chart
+version: "0.0.0"
+appVersion: "6.2.2"
+description: Chart for HAPI FHIR Server
+keywords:
+- kaapanaapplication
+- kaapanaexperimental

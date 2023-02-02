@@ -165,15 +165,6 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 if self.bulk == False:
                     break
 
-    def mkdir_p(self, path):
-        try:
-            os.makedirs(path)
-        except OSError as exc:  # Python >2.5
-            if exc.errno == errno.EEXIST and os.path.isdir(path):
-                pass
-            else:
-                raise
-
     def executeDcm2Json(self, inputDcm, outputJson):
         """
         Executes a conversion service

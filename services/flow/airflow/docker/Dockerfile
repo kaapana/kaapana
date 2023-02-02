@@ -11,8 +11,8 @@ ENV DICT_PATH /scripts/dicom_tag_dict.json
 
 WORKDIR /app
 
-COPY files/requirements.txt /app/
-RUN python -m pip install --no-cache-dir -r /app/requirements.txt --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.8.txt"
+COPY files/requirements.txt ./
+RUN python3.8 -m pip install --no-cache-dir -r requirements.txt --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.5.1/constraints-3.8.txt"
 
 COPY files/scripts/ /scripts
 

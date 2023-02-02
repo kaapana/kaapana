@@ -47,9 +47,8 @@ spec:
           mountPath: /slow_data_dir
       volumes:
       - name: slowdir
-        hostPath:
-          path: {{ .Values.global.slow_data_dir }}
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: dicom-pv-claim
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret

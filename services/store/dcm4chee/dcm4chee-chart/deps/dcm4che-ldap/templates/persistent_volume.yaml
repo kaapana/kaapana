@@ -1,0 +1,68 @@
+# ldap
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ldap-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: "10Mi"
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.fast_data_dir }}/ldap"
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{ .Values.global.services_namespace }}"
+    name: ldap-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ldap-pv-claim
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "10Mi"
+  volumeName: "ldap-pv-volume"
+---
+#slapd
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: slapd-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: "10Mi"
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.fast_data_dir }}/slapd.d"
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{ .Values.global.services_namespace }}"
+    name: slapd-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: slapd-pv-claim
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "10Mi"
+  volumeName: "slapd-pv-volume"
+---

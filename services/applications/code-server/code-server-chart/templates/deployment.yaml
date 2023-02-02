@@ -43,8 +43,6 @@ spec:
             memory: 30Gi
         volumeMounts:
           {{- if not .Values.volumeMounts }}
-          - name: airflow-log
-            mountPath: /app/logs
           - name: models
             mountPath: /app/models
           - name: airflow-dags
@@ -58,7 +56,6 @@ spec:
             mountPath: /dev/shm
           {{- end }}
           - name: configs
-            # mountPath: /root/keybindings.json
             mountPath: /root/.local/share/code-server/User/keybindings.json
             subPath: keybindings.json
           - name: configs
@@ -73,9 +70,6 @@ spec:
           {{- end }}
       volumes:
       {{- if not .Values.volumes }}
-      - name: airflow-logs
-        persistentVolumeClaim:
-          claimName: af-logs-pv-claim
       - name: models
         persistentVolumeClaim:
           claimName: models-pv-claim

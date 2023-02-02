@@ -1,0 +1,20 @@
+# Dags
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: extensions-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: "10Mi"
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.fast_data_dir }}/extensions"
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{ .Values.global.services_namespace }}"
+    name: extensions-pv-claim
+---

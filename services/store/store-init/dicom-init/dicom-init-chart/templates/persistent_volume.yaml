@@ -1,0 +1,34 @@
+# Dags
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: dicom-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: "10Mi"
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.slow_data_dir }}"
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{ .Values.global.services_namespace }}"
+    name: keycloak-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dicom-pv-claim
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "10Mi"
+  volumeName: "dicom-pv-volume"
+---

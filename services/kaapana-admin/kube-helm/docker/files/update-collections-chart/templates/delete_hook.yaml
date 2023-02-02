@@ -27,9 +27,8 @@ spec:
         runAsUser: 0
       volumes:
       - name: data
-        hostPath:
-          path: "{{ .Values.global.fast_data_dir }}/extensions"
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: extensions-pv-claim
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret

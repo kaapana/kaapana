@@ -23,9 +23,12 @@ def predict_modality(dcm_file: str, modality: str):
 
 
 if __name__ == "__main__":
-    batch_folders = Path(os.environ["WORKFLOW_DIR"]).joinpath(os.environ["BATCH_NAME"]).glob('*')
-
+    batch_dir =Path(os.environ["WORKFLOW_DIR"]).joinpath(os.environ["BATCH_NAME"])
+    batch_folders = batch_dir.glob('*')
+    print("staring DcmExtractorOperator ...")
+    
     for batch_element_dir in batch_folders:
+        print(f"{batch_element_dir=}")
         
         element_input_dir = batch_element_dir.joinpath(os.environ['OPERATOR_IN_DIR'])
         json_input_dir = batch_element_dir.joinpath(os.environ['OPERATOR_IN_JSON']) #metadata json dict

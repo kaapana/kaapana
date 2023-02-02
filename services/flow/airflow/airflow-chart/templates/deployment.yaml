@@ -79,10 +79,11 @@ spec:
         - name: INSTANCE_NAME
           value: "{{ .Values.global.instance_name }}"
         - name: SQL_ALCHEMY_CONN
-          valueFrom:
-            secretKeyRef:
-              name: airflow-secrets
-              key: sql_alchemy_conn
+          value: postgresql+psycopg2://root:root@postgres-airflow:5432/airflow
+          # valueFrom:
+          #   secretKeyRef:
+          #     name: airflow-secrets
+          #     key: sql_alchemy_conn
       containers:
       - name: webserver
         image: "{{ .Values.global.registry_url }}/airflow:{{ .Values.global.kaapana_build_version  }}"
@@ -119,10 +120,11 @@ spec:
         - name: GPU_SUPPORT
           value: "{{ .Values.global.gpu_support }}"
         - name: SQL_ALCHEMY_CONN
-          valueFrom:
-            secretKeyRef:
-              name: airflow-secrets
-              key: sql_alchemy_conn
+          value: postgresql+psycopg2://root:root@postgres-airflow:5432/airflow
+          # valueFrom:
+          #   secretKeyRef:
+          #     name: airflow-secrets
+          #     key: sql_alchemy_conn
         resources:
           requests:
             memory: 600Mi
@@ -206,10 +208,11 @@ spec:
         - name: MINIOPASSWORD
           value: "{{ .Values.global.credentials_minio_password }}"
         - name: SQL_ALCHEMY_CONN
-          valueFrom:
-            secretKeyRef:
-              name: airflow-secrets
-              key: sql_alchemy_conn
+          value: postgresql+psycopg2://root:root@postgres-airflow:5432/airflow
+          # valueFrom:
+          #   secretKeyRef:
+          #     name: airflow-secrets
+          #     key: sql_alchemy_conn
         resources:
           requests:
             memory: 2500Mi

@@ -135,7 +135,7 @@ spec:
       storage: "100Gi"
   volumeName: "models-pv-volume"
 ---
-# data
+# data-services
 apiVersion: v1
 kind: PersistentVolume
 metadata:

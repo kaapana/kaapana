@@ -44,7 +44,7 @@ class Volume:
             kube_volume_pvc = kubernetes.client.V1PersistentVolumeClaimVolumeSource(claim_name=config["claim_name"])
             kube_volume_pvc.claim_name = config["claim_name"]
             kube_volume_pvc.read_only = config["read_only"]
-            kube_volume.persistent_volume_claim = kube_volume
+            kube_volume.persistent_volume_claim = kube_volume_pvc
 
         elif "GitRepo" in self.configs:
             config = self.configs["GitRepo"]

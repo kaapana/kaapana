@@ -4,7 +4,6 @@ opensearch-py==2.0.0
 pydicom==2.2.2
 dicomweb-client==0.52.0
 numpy==1.21.0
-kubernetes==11.0.0
 minio==7.1.0
 pint==0.17
 timeloop==1.0.2

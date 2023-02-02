@@ -132,15 +132,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                         new_json = json.load(f)
                     self.push_json(new_json)
 
-    def mkdir_p(self, path):
-        try:
-            os.makedirs(path)
-        except OSError as exc:  # Python >2.5
-            if exc.errno == errno.EEXIST and os.path.isdir(path):
-                pass
-            else:
-                raise
-
     def set_id(self, dcm_file=None):
         if dcm_file is not None:
             self.instanceUID = pydicom.dcmread(dcm_file)[0x0020, 0x000e].value

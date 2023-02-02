@@ -151,7 +151,7 @@ To check if everything works as expected open a terminal in the code-server and 
 After we are finished we terminate the dev server in the "Pending applications" tab of Kaapana, with the "FINISHED MANUAL INTERACTION" button.
 
 .. hint:: 
-    The :code:`/kaapanadevdata` directory in the container of any operator initialized with the parameter ``dev_server="code-server"`` is mounted to the Minio bucket "kaapana-dev-data".
+    The :code:`/kaapanadevdata` directory in the container of any operator initialized with the parameter ``dev_server="code-server"`` is mounted to the Minio bucket "kaapanadevdata".
     Hence, you don't have to worry that your files in this directory are lost after the container is killed.
     You can also use the Minio bucket to download your files, e.g., in order to build an image in the next step.
 

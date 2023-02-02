@@ -1,13 +1,15 @@
+import os
+import glob
 from datetime import timedelta
+
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
 
-
-class OtsusMethodOperator(KaapanaBaseOperator):
+class OtsusNotebookOperator(KaapanaBaseOperator):
 
     def __init__(self,
                  dag,
-                 name='otsus-method',
-                 execution_timeout=timedelta(seconds=120),
+                 name='otsus-notebook-operator',
+                 execution_timeout=timedelta(minutes=20),
                  *args, **kwargs
                  ):
 
@@ -17,7 +19,7 @@ class OtsusMethodOperator(KaapanaBaseOperator):
             image=f"{default_registry}/otsus-method:{kaapana_build_version}",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
-            #operator_out_dir="otsus-method/",
-            *args,
-            **kwargs
+            ram_mem_mb=1000,
+            ram_mem_mb_lmt=3000,
+            *args, **kwargs
         )

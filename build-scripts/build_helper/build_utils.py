@@ -16,6 +16,7 @@ class BuildUtils:
     default_registry = None
     platform_filter = None
     external_source_dirs = None
+    build_ignore_patterns = None
     issues_list = None
     exit_on_error = True
     enable_build_kit = None
@@ -53,7 +54,7 @@ class BuildUtils:
             chart_object.check_dependencies()
 
     @staticmethod
-    def init(kaapana_dir, build_dir, external_source_dirs, platform_filter, default_registry, http_proxy, logger, exit_on_error, enable_build_kit,
+    def init(kaapana_dir, build_dir, external_source_dirs, build_ignore_patterns, platform_filter, default_registry, http_proxy, logger, exit_on_error, enable_build_kit,
              create_offline_installation, skip_push_no_changes, parallel_processes, include_credentials, registry_user, registry_pwd, push_to_microk8s):
 
         BuildUtils.logger = logger
@@ -63,6 +64,7 @@ class BuildUtils:
         BuildUtils.default_registry = default_registry
         BuildUtils.http_proxy = http_proxy
         BuildUtils.external_source_dirs = external_source_dirs
+        BuildUtils.build_ignore_patterns = build_ignore_patterns        
         BuildUtils.exit_on_error = exit_on_error
         BuildUtils.issues_list = []
 

@@ -13,13 +13,7 @@ ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            "single_execution": {
-                "title": "single execution",
-                "description": "Should each series be processed separately?",
-                "type": "boolean",
-                "default": False,
-                "readOnly": False,
-            }
+            "single_execution": "$default"
         }
     }
 }
@@ -43,7 +37,7 @@ dag = DAG(
 
 
 get_input = LocalGetInputDataOperator(dag=dag)
-extract = ExtractStudyIdOperator(dag=dag, input_operator=get_input, dev_server='code-server')
+extract = ExtractStudyIdOperator(dag=dag, input_operator=get_input)
 put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[extract])
 clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
 

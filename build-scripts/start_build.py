@@ -30,6 +30,7 @@ if __name__ == '__main__':
     parser.add_argument("-pp", "--parallel-processes", dest="parallel_processes", default=2, help="Parallel process count for container build + push.")
     parser.add_argument("-ic", "--include-credentials", dest="include_credentials", default=None, action='store_true', help="Whether to inlude the used registry credentials into the deploy-platform script.")
     parser.add_argument("-bd", "--build-dir", dest="build_dir", default=None, help="Specify the main Kaapana repo-dir to build from.")
+    parser.add_argument("-bip", "--build-ignore-patterns", dest="build_ignore_patterns", default=None, help="Comma seperated list of directory paths or files that should be ignored.")
     parser.add_argument("-nl", "--no-login", dest="no_login", default=False, action="store_true", help="Skipps the logins to the container registry (expects to be already logged in).")
     args = parser.parse_args()
 
@@ -99,6 +100,7 @@ if __name__ == '__main__':
     conf_push_to_microk8s = configuration["push_to_microk8s"]
     conf_platform_filter = configuration["platform_filter"].split(",") if configuration["platform_filter"].replace(" ", "") != "" else []
     conf_external_source_dirs = configuration["external_source_dirs"].split(",") if configuration["external_source_dirs"].replace(" ", "") != "" else []
+    conf_build_ignore_patterns = configuration["build_ignore_patterns"].split(",") if configuration["build_ignore_patterns"].replace(" ", "") != "" else []
     conf_exit_on_error = configuration["exit_on_error"]
     conf_enable_linting = configuration["enable_linting"]
     conf_enable_build_kit = 1 if "enable_build_kit" in configuration and configuration["enable_build_kit"] else 0
@@ -117,6 +119,7 @@ if __name__ == '__main__':
     create_offline_installation = args.create_offline_installation if args.create_offline_installation != None else conf_create_offline_installation
     push_to_microk8s = args.push_to_microk8s if args.push_to_microk8s != None else conf_push_to_microk8s
     external_source_dirs = args.external_source_dirs.split(",") if args.external_source_dirs != None else conf_external_source_dirs
+    build_ignore_patterns = args.build_ignore_patterns.split(",") if args.build_ignore_patterns != None else conf_build_ignore_patterns
     log_level = args.log_level if args.log_level != None else conf_log_level
     enable_linting = args.enable_linting if args.enable_linting != None else conf_enable_linting
     exit_on_error = args.exit_on_error if args.exit_on_error != None else conf_exit_on_error
@@ -140,6 +143,7 @@ if __name__ == '__main__':
     container_build = True
     build_installer_scripts = True
 
+    build_ignore_patterns = build_ignore_patterns + ["templates_and_examples/templates"]
     container_engine = "docker" if "container_engine" not in configuration else configuration["container_engine"]
     default_registry = configuration["default_registry"] if "default_registry" in configuration else ""
 
@@ -156,6 +160,7 @@ if __name__ == '__main__':
     logger.info(f"{http_proxy=}")
     logger.info(f"{platform_filter=}")
     logger.info(f"{external_source_dirs=}")
+    logger.info(f"{build_ignore_patterns=}")
     logger.info(f"{default_registry=}")
     logger.info(f"{log_level=}")
     logger.info(f"{exit_on_error=}")
@@ -212,6 +217,7 @@ if __name__ == '__main__':
         kaapana_dir=kaapana_dir,
         build_dir=build_dir,
         external_source_dirs=external_source_dirs,
+        build_ignore_patterns=build_ignore_patterns,
         platform_filter=platform_filter,
         default_registry=default_registry,
         http_proxy=http_proxy,

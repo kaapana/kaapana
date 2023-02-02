@@ -34,7 +34,7 @@
     "id.token.as.detached.signature" : "false",
     "saml.assertion.signature" : "false",
     "saml.encrypt" : "false",
-    "login_theme" : "keycloak",
+    "login_theme" : "kaapana",
     "saml.server.signature" : "false",
     "exclude.session.state.from.auth.response" : "false",
     "saml.artifact.binding" : "false",

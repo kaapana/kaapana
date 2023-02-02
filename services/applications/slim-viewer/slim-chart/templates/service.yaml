@@ -4,7 +4,9 @@ apiVersion: v1
 kind: Service
 metadata:
   name: slim-service
-  namespace: {{ .Values.global.store_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app-name: slim
 spec:
   selector:
     app-name: slim
@@ -14,14 +16,14 @@ spec:
       protocol: TCP
   type: ClusterIP
 ---
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: slim-ingress
-  namespace: {{ .Values.global.store_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-auth-check@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
@@ -29,6 +31,9 @@ spec:
     http:
       paths:
       - path: /slim
+        pathType: ImplementationSpecific
         backend:
-          serviceName: slim-service
-          servicePort: 80
+          service:
+            name: slim-service
+            port:
+              name: slim-http

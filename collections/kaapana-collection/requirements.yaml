@@ -50,6 +50,8 @@ dependencies:
     version: 0.0.0
   - name: advanced-collect-metadata-federated-workflow
     version: 0.0.0
+  - name: slim-chart
+    version: 0.0.0
   # - name: openedc-chart
   #   version: 0.0.0
   # - name: hello-backend-chart
@@ -66,4 +68,3 @@ dependencies:
   #   version: 0.0.0
   # - name: podman-chart # lives here before build script can handle the code-server as dependency
   #   version: 0.0.0
-  

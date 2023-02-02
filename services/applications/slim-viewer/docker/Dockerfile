@@ -1,11 +1,11 @@
 FROM node:lts-alpine as build
 
 LABEL IMAGE="slim"
-LABEL VERSION="0.4.2"
+LABEL VERSION="0.12.0"
 LABEL CI_IGNORE="False"
 
 RUN apk add --no-cache ca-certificates git build-base
-RUN git clone -c advice.detachedHead=False --depth 1 --branch v0.4.2 https://github.com/MGHComputationalPathology/slim.git /src
+RUN git clone -c advice.detachedHead=False --depth 1 --branch v0.12.0 https://github.com/MGHComputationalPathology/slim.git /src
 WORKDIR /src
 
 COPY local.js public/config/

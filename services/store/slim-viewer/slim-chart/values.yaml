@@ -1,4 +1,0 @@
----
-global:
-    pull_policy_pods: "IfNotPresent"
-    store_namespace: "store"

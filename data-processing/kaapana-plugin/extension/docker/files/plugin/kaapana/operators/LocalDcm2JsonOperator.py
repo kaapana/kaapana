@@ -606,7 +606,8 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 dicom_metadata = json.load(dicom_meta)
 
         label_results = {}
-        if "00080060" in dicom_metadata and (dicom_metadata["00080060"]["Value"][0] == "RTSTRUCT" or dicom_metadata["00080060"]["Value"][0] == "SEG"):
+        modality_tag = dicom_metadata.get("00080060")
+        if modality_tag and modality_tag["Value"] in ("RTSTRUCT", "SEG"):
             label_results = LocalDcm2JsonOperator.get_label_tags(dicom_metadata)
         new_meta_data = self.replace_tags(dicom_metadata)
         new_meta_data.update(label_results)

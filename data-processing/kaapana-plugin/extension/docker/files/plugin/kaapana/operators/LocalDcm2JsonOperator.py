@@ -314,28 +314,10 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
                 try:  # vr list: http://dicom.nema.org/dicom/2013/output/chtml/part05/sect_6.2.html
 
-                    if vr in ("AE", "AT", "CS", "LO", "LT", "OB", "OW", "SH", "ST", "UC", "UI", "UN", "UT"):
+                    if vr in ("AE", "AS", "AT", "CS", "LO", "LT", "OB", "OW", "SH", "ST", "UC", "UI", "UN", "UT"):
                         new_key += "_keyword"
                         new_meta_data[new_key] = value_str
 
-                    elif vr == "AS":
-                        # Age String
-                        # A string of characters with one of the following formats -- nnnD, nnnW, nnnM, nnnY;
-                        # where nnn shall contain the number of days for D, weeks for W, months for M, or years for Y.
-
-                        # Example: "018M" would represent an age of 18 months.
-                        try:
-                            age_count = int(value_str[:3])
-                            identifier = value_str[3:]
-
-                            new_key += "_keyword"
-                            new_meta_data[new_key] = value_str
-                        except Exception as e:
-                            print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
-                            print("Could not extract age from: {}".format(value_str))
-                            print(e)
-                            if self.exit_on_error:
-                                raise ValueError('ERROR')
 
                     elif vr == "DA":
                         # date

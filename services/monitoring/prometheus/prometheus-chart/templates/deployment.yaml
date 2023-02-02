@@ -69,7 +69,7 @@ spec:
             defaultMode: 420
             name: prometheus-alerts-config
         - name: prometheus-storage-volume
-          persistentVolumeReclaimPolicy:
+          persistentVolumeClaim:
             claimName: prometheus-pv-claim
       imagePullSecrets:
       - name: registry-secret

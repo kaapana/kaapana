@@ -244,6 +244,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             if "." in time_str:
                 time_str = time_str.split(".")
                 if time_str[1] != "":
+                    # FIXME: unsafe with leading zeros (160504.0123, but ok if exactly 6 digits)
                     fsec = int(time_str[1])
                 time_str = time_str[0]
             if len(time_str) == 6:
@@ -303,7 +304,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 vr = str(value['vr'])
 
                 if "nan" in value_str:
-                    # FIXME: doesn't this cause false positives, e.g. if "nanotech" appears in some string tag?
+                    # it would probably be cleaner to check for float VRs (note that value_str is still a list here)
                     print("Found NAN! -> skipping")
                     continue
 
@@ -703,6 +704,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
         return new_meta_data
 
+    # FIXME: hard-coded timezone used for DICOM tag values
     def convert_time_to_utc(self, time_berlin, date_format):
         local = pytz.timezone("Europe/Berlin")
         naive = datetime.strptime(time_berlin, date_format)

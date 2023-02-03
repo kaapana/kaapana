@@ -12,7 +12,6 @@ class Settings(BaseSettings):
     hostname: str
     instance_name: str
     
-    kube_helm_url: str
     prometheus_url: str
 
     minio_url: str

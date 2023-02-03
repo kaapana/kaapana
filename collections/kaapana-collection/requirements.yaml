@@ -24,6 +24,8 @@ dependencies:
   - name: jupyterlab-chart
     version: 0.0.0
     repository: file://../../services/applications/jupyterlab/jupyterlab-chart
+  - name: mhub-models-workflow
+    version: 0.0.0 
   - name: mitk-flow-workflow
     version: 0.0.0
     repository: file://../../data-processing/processing-pipelines/mitk-flow/extension/mitk-flow-workflow

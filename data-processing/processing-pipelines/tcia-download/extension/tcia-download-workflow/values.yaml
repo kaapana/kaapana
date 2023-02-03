@@ -1,0 +1,4 @@
+---
+global:
+    image: "dag-download-tcia-data"
+    action: "copy"

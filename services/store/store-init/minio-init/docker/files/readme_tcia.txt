@@ -1,0 +1,1 @@
+I am a tcia upload folder. You can drop here a .tcia file. Once uploaded the Airflow pipeline service-tcia-download will be triggered and download the data from TCIA via the REST-API.

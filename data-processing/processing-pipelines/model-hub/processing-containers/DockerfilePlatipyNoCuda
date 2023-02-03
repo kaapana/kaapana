@@ -1,0 +1,6 @@
+FROM mhubai/platipy:nocuda
+
+LABEL IMAGE="mhubai-platipy-nocuda"
+
+LABEL VERSION="0.0.0"
+LABEL CI_IGNORE="False"

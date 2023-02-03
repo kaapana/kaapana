@@ -126,7 +126,7 @@ if LEVEL == 'element':
         element_input_dir = os.path.join(batch_element_dir, os.environ['OPERATOR_IN_DIR'])
         print(element_input_dir)
 
-        dcm_files = sorted(glob.glob(os.path.join(element_input_dir, "*.dcm*"), recursive=True))
+        dcm_files = sorted(glob.glob(os.path.join(element_input_dir, "**/*.dcm*"), recursive=True))
 
         if len(dcm_files) == 0:
             continue

@@ -25,7 +25,7 @@ class TciaDownloadOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name='tcia-download',
-            image=f"{default_registry}/tcia-download:0.1.0",
+            image=f"{default_registry}/tcia-download:{kaapana_build_version}",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             execution_timeout=execution_timeout,

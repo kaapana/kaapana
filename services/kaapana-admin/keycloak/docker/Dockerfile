@@ -1,4 +1,4 @@
-FROM local-only/base-python-cpu as downloader
+FROM local-only/base-python-cpu:latest as downloader
 
 WORKDIR /
 

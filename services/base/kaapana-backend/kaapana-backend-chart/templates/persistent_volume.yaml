@@ -8,14 +8,14 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   capacity:
-    storage: "10Mi"
+    storage: "50Mi"
   accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: "{ .Values.global.dev_files}}"
-  persistentVolumeReclaimPolicy: Retain
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/postgres-backend"
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"
     name: backen-dev-pv-claim
@@ -26,12 +26,12 @@ metadata:
   name: backen-dev-pv-claim
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: "10Mi"
+      storage: "50Mi"
   volumeName: "backen-dev-pv-volume"
 {{- end }}
 ---
@@ -43,13 +43,15 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   capacity:
-    storage: "10Mi"
+    storage: "50Mi"
   accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: "{{ .Values.global.fast_data_dir }}/alembic-kaapana-backend"
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/alembic"
+
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"
@@ -61,11 +63,11 @@ metadata:
   name: alembic-pv-claim
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: "10Mi"
+      storage: "50Mi"
   volumeName: "alembic-pv-volume"
 ---

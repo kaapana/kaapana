@@ -267,6 +267,8 @@ function deploy_chart {
         chart_version=$PLATFORM_BUILD_VERSION
     fi
 
+    get_domain
+    
     if [ "$GPU_SUPPORT" = "true" ];then
         echo -e "${GREEN} -> GPU found ...${NC}"
     else
@@ -290,10 +292,10 @@ function deploy_chart {
         if [[ $deployments == *"gpu-operator"* ]];then
             echo -e "-> gpu-operator chart already exists"
         else
-            microk8s.enable gpu
+            #microk8s.enable gpu
+            echo "Skipped GPU enable"
         fi
     fi
-    get_domain
     
     if [ ! -z "$CHART_PATH" ]; then
         echo -e "${YELLOW}Please note, since you have specified a chart file, you deploy the platform in OFFLINE_MODE='true'.${NC}"

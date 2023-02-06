@@ -1,0 +1,28 @@
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: nfs-fast-pv-claim
+#   namespace: "{{  .Values.global.services_namespace  }}"
+# spec:
+#   storageClassName: manual
+#   accessModes:
+#     - ReadWriteOnce
+#   resources:
+#     requests:
+#       storage: "200Gi"
+#   volumeName: "nfs-fast-pv-volume"
+# ---
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: nfs-slow-pv-claim
+#   namespace: "{{  .Values.global.services_namespace  }}"
+# spec:
+#   storageClassName: manual
+#   accessModes:
+#     - ReadWriteOnce
+#   resources:
+#     requests:
+#       storage: "200Gi"
+#   volumeName: "nfs-slow-pv-volume"
+# ---

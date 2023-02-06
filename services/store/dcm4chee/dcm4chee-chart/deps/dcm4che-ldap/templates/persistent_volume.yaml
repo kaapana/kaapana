@@ -6,13 +6,15 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   capacity:
-    storage: "10Mi"
+    storage: "50Mi"
   accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: "{{ .Values.global.fast_data_dir }}/ldap"
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/ldap"
+
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"
@@ -24,12 +26,12 @@ metadata:
   name: ldap-pv-claim
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: "10Mi"
+      storage: "50Mi"
   volumeName: "ldap-pv-volume"
 ---
 #slapd
@@ -40,13 +42,15 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   capacity:
-    storage: "10Mi"
+    storage: "50Mi"
   accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: "{{ .Values.global.fast_data_dir }}/slapd.d"
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/slapd.d"
+
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"
@@ -58,11 +62,11 @@ metadata:
   name: slapd-pv-claim
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: "10Mi"
+      storage: "50Mi"
   volumeName: "slapd-pv-volume"
 ---

@@ -6,29 +6,31 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   capacity:
-    storage: "10Mi"
+    storage: "200Mi"
   accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: "{{ .Values.global.fast_data_dir }}/postgres-keycloak"
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/keycloak"
+
   persistentVolumeReclaimPolicy: Retain
   claimRef:
-    namespace: "{{ .Values.global.services_namespace }}"
+    namespace: "{{ .Values.global.admin_namespace }}"
     name: keycloak-pv-claim
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: keycloak-pv-claim
-  namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "{{ .Values.global.admin_namespace }}"
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: "10Mi"
+      storage: "200Mi"
   volumeName: "keycloak-pv-volume"
 ---

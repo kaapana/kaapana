@@ -4,7 +4,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: init-collections
-  namespace: "{{  .Values.global.helm_namespace  }}"
+  namespace: "{{  .Values.global.admin_namespace  }}"
 spec:
   template:
     metadata:
@@ -63,7 +63,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: init-extensions
-  namespace: "{{  $.Values.global.helm_namespace  }}"
+  namespace: "{{  $.Values.global.admin_namespace  }}"
 spec:
   template:
     metadata:

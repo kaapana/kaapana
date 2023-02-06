@@ -1,34 +1,34 @@
-# Dags
+# tls
+---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: mfs-pv-volume
+  name: tls-pv-volume
   labels:
     type: local
 spec:
-  storageClassName: manual
   capacity:
-    storage: "200Gi"
+    storage: "50Mi"
   accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: "{{ .Values.global.fast_data_dir }}"
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/tls"
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.admin_namespace }}"
-    name: mfs-pv-claim
+    name: tls-pv-claim
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: mfs-pv-claim
+  name: tls-pv-claim
   namespace: "{{ .Values.global.admin_namespace }}"
 spec:
-  storageClassName: manual
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: "200Gi"
-  volumeName: "mfs-pv-volume"
+      storage: "50Mi"
+  volumeName: "tls-pv-volume"
 ---

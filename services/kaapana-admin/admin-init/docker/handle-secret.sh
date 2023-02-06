@@ -73,7 +73,6 @@ function install_cert {
     fi
 
     install_cert_files $TLS_CERT_FILE $TLS_KEY_FILE
-    copy_cert
 }
 
 function remove_cert {
@@ -92,6 +91,9 @@ function remove_cert {
 case $ACTION in
 install)
     install_cert
+    ;;
+copy)
+    copy_cert
     ;;
 remove)
     remove_cert

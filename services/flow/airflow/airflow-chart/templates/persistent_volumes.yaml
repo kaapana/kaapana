@@ -7,13 +7,15 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   capacity:
-    storage: "10Mi"
+    storage: "50Mi"
   accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: "{{ .Values.global.fast_data_dir }}/workflows/dags"
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/workflows/dags"
+
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"
@@ -25,12 +27,12 @@ metadata:
   name: dags-pv-claim
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: "10Mi"
+      storage: "50Mi"
   volumeName: "dags-pv-volume"
 ---
 # logs
@@ -41,13 +43,15 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   capacity:
-    storage: "10Mi"
+    storage: "50Mi"
   accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: "{{ .Values.global.fast_data_dir }}/airflow/logs"
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/airflow/logs"
+
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"
@@ -59,12 +63,12 @@ metadata:
   name: af-logs-pv-claim
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: "10Mi"
+      storage: "50Mi"
   volumeName: "af-logs-pv-volume"
 ---
 # plugins
@@ -75,13 +79,15 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   capacity:
-    storage: "10Mi"
+    storage: "50Mi"
   accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: "{{ .Values.global.fast_data_dir }}/workflows/plugins"
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/workflows/plugins"
+
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"
@@ -93,12 +99,12 @@ metadata:
   name: af-plugins-pv-claim
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: "10Mi"
+      storage: "50Mi"
   volumeName: "af-plugins-pv-volume"
 ---
 # models
@@ -109,13 +115,15 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   capacity:
-    storage: "100Gi"
+    storage: "50Mi"
   accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: "{{ .Values.global.fast_data_dir }}/workflows/models"
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/workflows/models"
+
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"
@@ -127,12 +135,12 @@ metadata:
   name: models-pv-claim
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: "100Gi"
+      storage: "50Mi"
   volumeName: "models-pv-volume"
 ---
 # data-services
@@ -143,17 +151,18 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   capacity:
-    storage: "10Mi"
+    storage: "50Mi"
   accessModes:
-    - ReadWriteOnce
-  hostPath:
-    path: "{{ .Values.global.fast_data_dir }}/workflows/data"
-  persistentVolumeReclaimPolicy: Retain
-  claimRef:
-    namespace: "{{ .Values.global.services_namespace }}"
-    name: af-data-pv-claim
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/workflows/data"
+  # persistentVolumeReclaimPolicy: Retain
+  # claimRef:
+  #   namespace: "{{ .Values.global.services_namespace }}"
+  #   name: af-data-pv-claim
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -161,11 +170,25 @@ metadata:
   name: af-data-pv-claim
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
-  storageClassName: manual
+  storageClassName: nfs
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: "10Mi"
+      storage: "50Mi"
+  volumeName: "af-data-pv-volume"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: af-data-pv-claim
+  namespace: "{{ .Values.global.jobs_namespace }}"
+spec:
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: "50Mi"
   volumeName: "af-data-pv-volume"
 ---

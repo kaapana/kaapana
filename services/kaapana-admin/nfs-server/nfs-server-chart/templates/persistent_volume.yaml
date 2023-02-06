@@ -1,0 +1,68 @@
+# Dags
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-fast-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: "100Gi"
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.fast_data_dir }}"
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{  .Values.global.admin_namespace  }}"
+    name: nfs-fast-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-fast-pv-claim
+  namespace: "{{  .Values.global.admin_namespace  }}"
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "100Gi"
+  volumeName: "nfs-fast-pv-volume"
+---
+# apiVersion: v1
+# kind: PersistentVolume
+# metadata:
+#   name: nfs-slow-pv-volume
+#   labels:
+#     type: local
+# spec:
+#   storageClassName: manual
+#   capacity:
+#     storage: "50Gi"
+#   accessModes:
+#     - ReadWriteOnce
+#   hostPath:
+#     path: "{{ .Values.global.slow_data_dir }}"
+#   persistentVolumeReclaimPolicy: Retain
+#   claimRef:
+#     namespace: "{{  .Values.global.admin_namespace  }}"
+#     name: nfs-slow-pv-claim
+# ---
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: nfs-slow-pv-claim
+#   namespace: "{{  .Values.global.admin_namespace  }}"
+# spec:
+#   storageClassName: manual
+#   accessModes:
+#     - ReadWriteOnce
+#   resources:
+#     requests:
+#       storage: "200Gi"
+#   volumeName: "nfs-slow-pv-volume"
+# ---

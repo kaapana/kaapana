@@ -1,4 +1,0 @@
----
-component_id: "test"
-mount_dir: "/"
-component_fast_storage: "50Mi"

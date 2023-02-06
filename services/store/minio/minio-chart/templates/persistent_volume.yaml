@@ -1,4 +1,4 @@
-# Dags
+# Minio Services
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -9,13 +9,12 @@ metadata:
 spec:
   storageClassName: nfs
   capacity:
-    storage: "50Mi"
+    storage: "500Mi"
   accessModes:
     - ReadWriteMany
   nfs:
     server: "10.152.183.15"
     path: "/minio"
-
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"

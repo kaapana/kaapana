@@ -9,13 +9,12 @@ metadata:
 spec:
   storageClassName: nfs
   capacity:
-    storage: "50Mi"
+    storage: "200Mi"
   accessModes:
     - ReadWriteMany
   nfs:
     server: "10.152.183.15"
     path: "/tensorboard"
-
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"

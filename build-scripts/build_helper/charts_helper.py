@@ -14,6 +14,7 @@ from build_helper.container_helper import Container, pull_container_image
 from jinja2 import Environment, FileSystemLoader
 from multiprocessing.pool import ThreadPool
 import networkx as nx
+from alive_progress import alive_bar
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
@@ -728,13 +729,15 @@ class HelmChart:
         BuildUtils.logger.info("")
 
         charts_objects = []
-        for chartfile in charts_found:
-            if BuildUtils.build_ignore_patterns != None and len(BuildUtils.build_ignore_patterns) > 0 and sum([ignore_pattern in chartfile for ignore_pattern in  BuildUtils.build_ignore_patterns]) != 0:
-                BuildUtils.logger.debug(f"Ignoring chart {chartfile}")
-                # BuildUtils.logger.debug(f"Skipping tutorial chart: {chartfile}")
-                continue
-            chart_obj = HelmChart(chartfile)
-            charts_objects.append(chart_obj)
+        with alive_bar(len(charts_found),title='Collect-Charts') as bar:
+            for chartfile in charts_found:
+                bar()
+                if BuildUtils.build_ignore_patterns != None and len(BuildUtils.build_ignore_patterns) > 0 and sum([ignore_pattern in chartfile for ignore_pattern in  BuildUtils.build_ignore_patterns]) != 0:
+                    BuildUtils.logger.debug(f"Ignoring chart {chartfile}")
+                    continue
+                chart_obj = HelmChart(chartfile)
+                bar.text(chart_obj.name)
+                charts_objects.append(chart_obj)
 
         BuildUtils.add_charts_available(charts_available=charts_objects)
 
@@ -888,32 +891,35 @@ class HelmChart:
 
         waiting_containers_to_built = containers_to_built.copy()
         i = 0
-        while len(waiting_containers_to_built) != 0 and build_rounds <= BuildUtils.max_build_rounds:
-            build_rounds += 1
-            tmp_waiting_containers_to_built = []
-            result_containers = ThreadPool(BuildUtils.parallel_processes).imap_unordered(parallel_execute, containers_to_built)
+        with alive_bar(container_count,title='Container-Build') as bar:
+            while len(waiting_containers_to_built) != 0 and build_rounds <= BuildUtils.max_build_rounds:
+                build_rounds += 1
+                tmp_waiting_containers_to_built = []
+                result_containers = ThreadPool(BuildUtils.parallel_processes).imap_unordered(parallel_execute, containers_to_built)
 
-            for queue_id, result_container, issue, done in result_containers:
-                if not done:
-                    BuildUtils.logger.info(f"{result_container.build_tag}: Base image not ready yet -> waiting list")
-                    tmp_waiting_containers_to_built.append(result_container)
-                else:
-                    i += 1
-                    BuildUtils.logger.debug(f"{i+1}/{container_count} Done: {queue_id} - {result_container.tag}")
-                    BuildUtils.printProgressBar(i, container_count, prefix='Progress:', suffix=result_container, length=50)
+                for queue_id, result_container, issue, done in result_containers:
+                    if not done:
+                        BuildUtils.logger.info(f"{result_container.build_tag}: Base image not ready yet -> waiting list")
+                        tmp_waiting_containers_to_built.append(result_container)
+                    else:
+                        i += 1
+                        BuildUtils.logger.debug(f"{i+1}/{container_count} Done: {queue_id} - {result_container.tag}")
+                        BuildUtils.printProgressBar(i, container_count, prefix='Progress:', suffix=result_container, length=50)
+                        bar.text(f"{result_container.tag}")
+                        bar()
 
-                    if issue != None:
-                        BuildUtils.logger.info("")
-                        BuildUtils.generate_issue(
-                            component=issue["component"],
-                            name=issue["name"],
-                            level=issue["level"],
-                            msg=issue["msg"],
-                            output=issue["output"] if "output" in issue else None,
-                            path=issue["path"] if "path" in issue else "",
-                        )
+                        if issue != None:
+                            BuildUtils.logger.info("")
+                            BuildUtils.generate_issue(
+                                component=issue["component"],
+                                name=issue["name"],
+                                level=issue["level"],
+                                msg=issue["msg"],
+                                output=issue["output"] if "output" in issue else None,
+                                path=issue["path"] if "path" in issue else "",
+                            )
 
-            waiting_containers_to_built = tmp_waiting_containers_to_built
+                waiting_containers_to_built = tmp_waiting_containers_to_built
         
         if build_rounds == BuildUtils.max_build_rounds:
             BuildUtils.generate_issue(

@@ -76,7 +76,7 @@ class GetContainerModelOperator(KaapanaBaseOperator):
             'models', mount_path='/models_mount', sub_path=None, read_only=False))
         volume_config = {
             "persistentVolumeClaim": {
-                "claimName": "models-pv-claim"
+                "claimName": "models-jobs-pv-claim"
             }
         }
         volumes.append(Volume(name='models', configs=volume_config))

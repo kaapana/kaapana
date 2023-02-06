@@ -238,7 +238,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.volumes.append(Volume(name='workflowdata', configs={
             'PersistentVolumeClaim':
             {
-                'claim_name': 'af-data-pv-claim',
+                'claim_name': 'af-data-jobs-pv-claim',
                 'read_only': False
             }
         }))
@@ -248,7 +248,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.volumes.append(Volume(name='miniodata', configs={
             'PersistentVolumeClaim':
             {
-                'claim_name': 'minio-pv-claim',
+                'claim_name': 'minio-jobs-pv-claim',
                 'read_only': False
             
             }
@@ -259,7 +259,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.volumes.append(Volume(name='models', configs={
             'PersistentVolumeClaim':
             {
-                'claim_name': 'models-pv-claim',
+                'claim_name': 'models-jobs-pv-claim',
                 'read_only': False
             
             }
@@ -270,7 +270,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.volumes.append(Volume(name='tensorboard', configs={
             'PersistentVolumeClaim':
             {
-                'claim_name': 'tb-pv-claim',
+                'claim_name': 'tb-jobs-pv-claim',
                 'read_only': False
             
             }

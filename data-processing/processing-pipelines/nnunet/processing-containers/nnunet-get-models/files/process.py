@@ -34,6 +34,14 @@ print(f"# target_level: {target_level}")
 print("#")
 print("#")
 
+# test internet connection:
+def connect(host='http://google.com'):
+    try:
+        urllib.request.urlopen(host) #Python 3.x
+        return True
+    except:
+        return False
+
 def check_dl_running(model_path_dl_running, model_path, wait=True):
     if os.path.isfile(model_path_dl_running):
         hours_since_creation = int((datetime.now() - datetime.fromtimestamp(os.path.getmtime(model_path_dl_running))).total_seconds()/3600)
@@ -213,6 +221,9 @@ elif mode == "install_pretrained":
             try:
                 print("set lock-file: {}".format(model_path_dl_running))
                 Path(model_path_dl_running).touch()
+                # test internet connection:
+                print( "connected" if connect() else "no internet!" )
+
                 urllib.request.urlretrieve(model_url, target_file)
             except Exception as e:
                 print("Could not download model: {}".format(model_url))

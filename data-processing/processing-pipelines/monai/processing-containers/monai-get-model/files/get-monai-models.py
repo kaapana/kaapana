@@ -3,9 +3,12 @@ from sys import stdout
 import time
 from datetime import datetime
 from pathlib import Path
+import shutil
 from shutil import rmtree
 from os.path import join, basename, normpath
 import logging
+import urllib.request
+
 from monai.bundle import download
 
 
@@ -26,14 +29,15 @@ max_hours_since_creation = 3
 
 workflow_dir = os.getenv('WORKFLOW_DIR', "data")
 operator_dir = os.getenv("OPERATOR_OUT_DIR", "models")
-models = os.getenv('MODELS', "NONE") ### "model1:vers1,model2:vers_model2"
+models = os.getenv('MODELS', "NONE") ### "model1:vers1,model2:vers_model2" or "all"
 models = None if models == "NONE" else models
 mode = os.getenv('MODE', "install_pretrained")
 
 output_dir = os.path.join('/', workflow_dir, operator_dir, "monai") ### https://docs.monai.io/en/latest/mb_specification.html
+# models_outdir =  os.path.join('/models/MONAI', model_name +"_v" + version)
 
 ALL_MODELS = [
-            "spleen_ct_segmentation:0.3.1",
+            "spleen_ct_segmentation:0.3.7",
             ]
 
 logger.info("# Starting GetModelOperator ...")
@@ -44,6 +48,13 @@ logger.info(f"# output_dir: {output_dir}")
 logger.info(f"# workflow_dir: {workflow_dir}")
 logger.info("#")
 logger.info("#")
+
+def connect(host='http://google.com'):
+    try:
+        urllib.request.urlopen(host) #Python 3.x
+        return True
+    except:
+        return False
 
 def check_dl_running(model_path_dl_running, model_path, wait=True):
     if os.path.isfile(model_path_dl_running):
@@ -84,7 +95,7 @@ else:
     models_list = models.split(",")
 logger.info("Models in the end: {}".format(models))
 
-if mode == "install":
+if mode == "install_pretrained":
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     for model in models_list:
         try:
@@ -93,8 +104,15 @@ if mode == "install":
             logger.error("-----  No version specified!  ------")
             raise e
 
+        models_outdir = models_outdir =  os.path.join('/models/MONAI', model_name +"_v" + version)
         model_subdir = model_name +"_v" + version
         model_path = os.path.join(output_dir, model_subdir)
+        already_downloaded = False
+        if os.path.exists(models_outdir) and len(os.listdir(models_outdir)) >= 0:
+            logger.info("Selected model already present in path: {}".format(models_outdir))
+            already_downloaded = True
+            continue
+
         logger.info("Check if version already present: {}".format(model_subdir))
         logger.info("MODEL: {}".format(model_name))
         logger.info("VERSION: {}".format(version))
@@ -113,12 +131,15 @@ if mode == "install":
         try_count = 0
         archive_name = f"{model_subdir}.zip"
         model_archive = os.path.join(output_dir, archive_name)
+        Path(model_path).mkdir(parents=True, exist_ok=True)
         while not os.path.isfile(model_archive) and try_count < max_retries:
             try_count += 1
             try:
                 logger.info("set lock-file: {}".format(model_path_dl_running))
+                print( "connected" if connect() else "no internet!" )
+                
                 Path(model_path_dl_running).touch()
-                download(name=model_name, version=version, bundle_dir=model_path, progress=False)
+                download(name=model_name, version=version, bundle_dir=model_path, progress=True)
             
             except Exception as e:
                 logger.error("Could not download model: {}:{}".format(model_name,version))
@@ -133,18 +154,22 @@ if mode == "install":
 
         delete_file(model_path_dl_running)
 
+    if not already_downloaded:
+        # copy downloaded models to /model dir
+        dest = os.path.join('/models/MONAI', model_name +"_v" + version)
+        shutil.copytree(model_path, dest)
 
     logger.info("Check if all models are now present: {}".format(output_dir))
     success = True
     for model in models_list:
-        try:
-            model_name, version = model.split(":")
-        except IndexError as e:
-            logger.error("No version specified!")
-            raise e
-        model_path = os.path.join(output_dir, model_name +"_v" + version)
+        # try:
+        #     model_name, version = model.split(":")
+        # except IndexError as e:
+        #     logger.error("No version specified!")
+        #     raise e
+        # model_path = os.path.join(output_dir, model_name +"_v" + version)
 
-        if os.path.isdir(model_path):
+        if os.path.isdir(models_outdir):
             logger.info("Model {}:{} found!".format(model_name,version))
             continue
         else:

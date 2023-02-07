@@ -30,7 +30,7 @@ spec:
         {{- end }}
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         command: ["code-server"]
-        args: ["--auth", "none", "--bind-addr", "0.0.0.0:8080"]
+        args: ["--auth", "none", "--bind-addr", "0.0.0.0:8080","/app"]
         env:
         {{- range $envVar := .Values.envVars }}
         - name: {{ $envVar.name }}

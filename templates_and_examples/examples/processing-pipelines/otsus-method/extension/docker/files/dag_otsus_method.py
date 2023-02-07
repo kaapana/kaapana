@@ -71,7 +71,7 @@ generate_report = OtsusNotebookOperator(
     input_operator=otsus_method,
     # dev_server='jupyterlab',
     cmds=["/bin/bash"],
-    arguments=["/kaapanasrc/otsus_notebooks/run_otsus_report_notebook.sh"]
+    arguments=["/app/otsus_notebooks/run_otsus_report_notebook.sh"]
 )
 
 put_report_to_minio = LocalMinioOperator(dag=dag,

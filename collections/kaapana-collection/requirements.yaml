@@ -71,11 +71,11 @@ dependencies:
   - name: rateme-chart
     version: 0.0.0
     repository: file://../../services/applications/rateme/rateme-chart
-  # - name: hello-backend-chart
-  #   version: 0.0.0
-  # - name: hello-world-chart
-  #   version: 0.0.0
-  # - name: example-workflow
-  #   version: 0.0.0
-  # - name: otsus-method-workflow
-  #   version: 0.0.0
+  - name: hello-backend-chart
+    version: 0.0.0
+  - name: hello-world-chart
+    version: 0.0.0
+  - name: example-workflow
+    version: 0.0.0
+  - name: otsus-method-workflow
+    version: 0.0.0

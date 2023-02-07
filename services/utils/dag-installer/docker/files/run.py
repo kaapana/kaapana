@@ -5,7 +5,7 @@ import re
 import requests
 import warnings
 
-tmp_prefix = '/tmp/'
+tmp_prefix = '/temp/'
 workflow_prefix = '/workflows/'
 ADMIN_NAMESPACE = os.getenv('ADMIN_NAMESPACE', None)
 assert ADMIN_NAMESPACE

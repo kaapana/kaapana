@@ -154,7 +154,7 @@ def check_file_on_platform(examples_send):
                 break
         if not quido_success:
             print("File not found in PACs!")
-            exit(0)
+            exit(1)
         max_counter = 20
         counter = 0
         meta_query_success = False

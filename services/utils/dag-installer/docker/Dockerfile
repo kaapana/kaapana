@@ -1,11 +1,15 @@
-FROM python:3.9-alpine3.12
+FROM local-only/base-python-cpu:latest
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="dag-installer"
 LABEL VERSION="latest"
 LABEL CI_IGNORE="False"
 
-RUN rm /tmp/tmpwgocbik2cacert.pem
-RUN pip install requests==2.27.1
-COPY files/run.py /run.py
-CMD ["python3","-u","/run.py"]
+WORKDIR /app
+
+COPY files/requirements.txt /app/
+RUN python -m pip install --no-cache-dir -r /app/requirements.txt
+
+COPY files/run.py /app/run.py
+
+CMD ["python3","-u","/app/run.py"]

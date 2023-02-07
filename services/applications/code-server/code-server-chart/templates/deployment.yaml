@@ -30,7 +30,7 @@ spec:
         {{- end }}
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         command: ["code-server"]
-        args: ["--auth", "none", "--bind-addr", "0.0.0.0:8080"] #, "/kaapanasrc"]
+        args: ["--auth", "none", "--bind-addr", "0.0.0.0:8080","/app"]
         env:
         {{- range $envVar := .Values.envVars }}
         - name: {{ $envVar.name }}
@@ -44,7 +44,7 @@ spec:
         volumeMounts:
           {{- if not .Values.volumeMounts }}
           - name: codeserverdata
-            mountPath: /kaapanasrc
+            mountPath: /app
           {{- else }}
           - name: dshm
             mountPath: /dev/shm

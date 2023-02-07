@@ -4,11 +4,8 @@ LABEL IMAGE="shape-organseg"
 LABEL VERSION="0.1.1"
 LABEL CI_IGNORE="False"
 
-WORKDIR /
-RUN apt install nano
+WORKDIR /app
 
-COPY organ_segmentation.sh /organ_segmentation.sh
+COPY organ_segmentation.sh /app/organ_segmentation.sh
 
-ENTRYPOINT ["/bin/bash", "/organ_segmentation.sh"]
-
-
+ENTRYPOINT ["/bin/bash", "/app/organ_segmentation.sh"]

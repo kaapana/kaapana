@@ -1,6 +1,6 @@
 import os
 BATCH_NAME = 'batch'
-WORKFLOW_DIR = 'data'
+WORKFLOW_DIR = '/data'
 INSTANCE_NAME = os.getenv('INSTANCE_NAME', None)
 assert INSTANCE_NAME
 ADMIN_NAMESPACE = os.getenv('ADMIN_NAMESPACE', None)

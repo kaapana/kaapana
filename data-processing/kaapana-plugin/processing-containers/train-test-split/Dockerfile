@@ -4,6 +4,7 @@ LABEL IMAGE="train-test-split"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-COPY files/ /kaapanasrc/
+WORKDIR /app
+COPY files/* /app/
 
-CMD ["python3","-u","/kaapanasrc/run_train_test_split.py"]
+CMD ["python3","-u","/app/run_train_test_split.py"]

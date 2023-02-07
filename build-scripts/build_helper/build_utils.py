@@ -6,6 +6,7 @@ from os.path import join, dirname, basename, exists, isfile, isdir
 from git import Repo
 
 class BuildUtils:
+    max_build_rounds = 4
     container_images_available = None
     container_images_unused = None
     charts_available = None
@@ -68,7 +69,7 @@ class BuildUtils:
         BuildUtils.exit_on_error = exit_on_error
         BuildUtils.issues_list = []
 
-        BuildUtils.base_images_used = []
+        BuildUtils.base_images_used = {}
         BuildUtils.enable_build_kit = enable_build_kit
         BuildUtils.create_offline_installation = create_offline_installation
         BuildUtils.skip_push_no_changes = skip_push_no_changes
@@ -210,13 +211,47 @@ class BuildUtils:
             json.dump(unused_container, fp, indent=4)
 
         base_images_json_path = join(BuildUtils.build_dir, "build_base_images.json")
-        base_images = []
+        base_images = {}
         BuildUtils.logger.debug("")
         BuildUtils.logger.debug("Collect base-images:")
         BuildUtils.logger.debug("")
-        for base_image in BuildUtils.base_images_used:
-            BuildUtils.logger.debug(f"{base_image.tag}")
-            base_images.append(base_image.get_dict())
+        for base_image_tag, child_containers in BuildUtils.base_images_used.items():
+            if "python" in base_image_tag:
+                pass
+            if base_image_tag not in base_images:
+                base_images[base_image_tag] = {}
+            BuildUtils.logger.debug(f"{base_image_tag}")
+            for child_container in child_containers:
+                if child_container.build_tag is not None:
+                    child_tag = child_container.build_tag
+                else:
+                    child_tag = f"Not build: {child_container.tag}"
+                    
+                if child_tag not in base_images[base_image_tag]:
+                    base_images[base_image_tag][child_tag] = {}
+        
+        
+        changed = True
+        runs = 0
+        base_images = dict(sorted(base_images.items(),reverse=True, key=lambda item: len(item[1])))
+        while changed and runs <= BuildUtils.max_build_rounds:
+            runs +=1 
+            del_tags = [] 
+            changed = False
+            for base_image_tag, child_images in base_images.items():
+                if base_image_tag == "python:3.9.16-slim":
+                    pass
+                for child_image_tag, child_image in child_images.items():
+                    if child_image_tag in base_images:
+                        base_images[base_image_tag][child_image_tag] = base_images[child_image_tag]
+                        del_tags.append(child_image_tag)
+            
+            for del_tag in del_tags:
+                del base_images[del_tag]
+                changed = True
+        
+
+        base_images = dict(sorted(base_images.items(),reverse=True, key=lambda item: sum(len(v) for v in item[1].values())))
         with open(base_images_json_path, 'w') as fp:
             json.dump(base_images, fp, indent=4)
 

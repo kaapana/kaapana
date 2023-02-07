@@ -1,6 +1,6 @@
 FROM nginx:1.19.3-alpine
 
-COPY files/ /kaapanasrc/
+COPY files/ /app/
 
 LABEL IMAGE="static-website"
 LABEL VERSION="0.1.0"

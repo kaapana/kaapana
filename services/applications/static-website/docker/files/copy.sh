@@ -1,3 +1,3 @@
 #!/bin/sh
 
-cp /kaapanasrc/index.html /usr/share/nginx/html/
+cp /app/index.html /usr/share/nginx/html/

@@ -19,12 +19,12 @@ RUN cd /nnunet-pip-package && pip3 install ./
 
 RUN pip install tensorboard==2.8.0
 
-COPY files/patched/DatasetAnalyzer.py /opt/conda/lib/python3.8/site-packages/nnunet/experiment_planning/DatasetAnalyzer.py
-COPY files/patched/network_trainer.py /opt/conda/lib/python3.8/site-packages/nnunet/training/network_training/network_trainer.py
-COPY files/patched/nnUNet_plan_and_preprocess.py /opt/conda/lib/python3.8/site-packages/nnunet/experiment_planning/nnUNet_plan_and_preprocess.py
-COPY files/patched/nnUNetTrainer.py /opt/conda/lib/python3.8/site-packages/nnunet/training/network_training/nnUNetTrainer.py
-COPY files/patched/nnUNetTrainerV2.py /opt/conda/lib/python3.8/site-packages/nnunet/training/network_training/nnUNetTrainerV2.py
-COPY files/patched/predict.py /opt/conda/lib/python3.8/site-packages/nnunet/inference/predict.py
-COPY files/patched/run_training.py /opt/conda/lib/python3.8/site-packages/nnunet/run/run_training.py
+COPY files/patched/DatasetAnalyzer.py /opt/conda/lib/python3.9/site-packages/nnunet/experiment_planning/DatasetAnalyzer.py
+COPY files/patched/network_trainer.py /opt/conda/lib/python3.9/site-packages/nnunet/training/network_training/network_trainer.py
+COPY files/patched/nnUNet_plan_and_preprocess.py /opt/conda/lib/python3.9/site-packages/nnunet/experiment_planning/nnUNet_plan_and_preprocess.py
+COPY files/patched/nnUNetTrainer.py /opt/conda/lib/python3.9/site-packages/nnunet/training/network_training/nnUNetTrainer.py
+COPY files/patched/nnUNetTrainerV2.py /opt/conda/lib/python3.9/site-packages/nnunet/training/network_training/nnUNetTrainerV2.py
+COPY files/patched/predict.py /opt/conda/lib/python3.9/site-packages/nnunet/inference/predict.py
+COPY files/patched/run_training.py /opt/conda/lib/python3.9/site-packages/nnunet/run/run_training.py
 
-WORKDIR /kaapanasrc/
+WORKDIR /app/

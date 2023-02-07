@@ -502,7 +502,7 @@ class Container:
             BuildUtils.logger.warning("-> Duplicate Dockerfiles found!")
 
         dockerfiles_found = sorted(set(dockerfiles_found))
-        with alive_bar(len(dockerfiles_found),title='Collect-Container') as bar:
+        with alive_bar(len(dockerfiles_found), dual_line=True, title='Collect-Container') as bar:
             for dockerfile in dockerfiles_found:
                 bar()
                 if BuildUtils.build_ignore_patterns != None and len(BuildUtils.build_ignore_patterns) > 0 and sum([ignore_pattern in dockerfile for ignore_pattern in  BuildUtils.build_ignore_patterns]) != 0:

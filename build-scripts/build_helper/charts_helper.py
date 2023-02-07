@@ -729,7 +729,7 @@ class HelmChart:
         BuildUtils.logger.info("")
 
         charts_objects = []
-        with alive_bar(len(charts_found),title='Collect-Charts') as bar:
+        with alive_bar(len(charts_found), dual_line=True,title='Collect-Charts') as bar:
             for chartfile in charts_found:
                 bar()
                 if BuildUtils.build_ignore_patterns != None and len(BuildUtils.build_ignore_patterns) > 0 and sum([ignore_pattern in chartfile for ignore_pattern in  BuildUtils.build_ignore_patterns]) != 0:
@@ -750,7 +750,8 @@ class HelmChart:
         platform_build_files_base_target_dir = join(BuildUtils.build_dir, platform_chart.name)
 
         platform_build_files_target_dir = join(platform_build_files_base_target_dir, platform_chart.name)
-        HelmChart.create_chart_build_version(src_chart=platform_chart, target_build_dir=platform_build_files_target_dir)
+        with alive_bar(bar='classic',spinner='crab',  dual_line=False,title='Generate Build-Version') as bar:
+            HelmChart.create_chart_build_version(src_chart=platform_chart, target_build_dir=platform_build_files_target_dir,bar=bar)
 
         if len(platform_chart.kaapana_collections) > 0:
             for collection_name, collections_chart in platform_chart.kaapana_collections.items():
@@ -763,17 +764,20 @@ class HelmChart:
     def create_collection_build_files(collections_chart, platform_build_files_target_dir):
         # iterate over all collection_charts
         collection_build_target_dir = join(platform_build_files_target_dir, collections_chart.name)
-        HelmChart.create_chart_build_version(src_chart=collections_chart, target_build_dir=collection_build_target_dir)
-        for collection_chart_index, (collection_chart_name, collection_chart) in enumerate(collections_chart.dependencies.items()):
-            BuildUtils.logger.info(f"Collection chart {collection_chart_index+1}/{collections_chart.dependencies_count_all}: {collection_chart_name}:")
-            collection_chart_target_dir = join(collection_build_target_dir, "charts", collection_chart.name)
-            collection_chart.make_package()
+        with alive_bar(bar='classic',spinner='crab',  dual_line=False,title='Generate Build-Version') as bar:
+            HelmChart.create_chart_build_version(src_chart=collections_chart, target_build_dir=collection_build_target_dir,bar=bar)
+        with alive_bar(collections_chart.dependencies_count_all,  dual_line=True, title='Generate Build-Version') as bar:
+            for collection_chart_index, (collection_chart_name, collection_chart) in enumerate(collections_chart.dependencies.items()):
+                BuildUtils.logger.info(f"Collection chart {collection_chart_index+1}/{collections_chart.dependencies_count_all}: {collection_chart_name}:")
+                collection_chart_target_dir = join(collection_build_target_dir, "charts", collection_chart.name)
+                collection_chart.make_package()
+                bar()
         collection_container = [x for x in BuildUtils.container_images_available if collections_chart.name in x.tag]
         assert len(collection_container) == 1
         collection_container[0].container_dir = collection_build_target_dir
 
     @staticmethod
-    def create_chart_build_version(src_chart, target_build_dir):
+    def create_chart_build_version(src_chart, target_build_dir, bar=None):
         BuildUtils.logger.info(f"{src_chart.chart_id}: create_chart_build_version")
 
         src_chart.lint_chart(build_version=False)
@@ -808,7 +812,7 @@ class HelmChart:
 
         for dep_chart_index, (dep_chart_key, dep_chart) in enumerate(src_chart.dependencies.items()):
             dep_chart_build_target_dir = join(target_build_dir, "charts", dep_chart.name)
-            HelmChart.create_chart_build_version(src_chart=dep_chart, target_build_dir=dep_chart_build_target_dir)
+            HelmChart.create_chart_build_version(src_chart=dep_chart, target_build_dir=dep_chart_build_target_dir,bar=bar)
 
             assert exists(dep_chart.build_chartfile)
 
@@ -817,6 +821,10 @@ class HelmChart:
             chart_container.image_version = BuildUtils.platform_build_version
             chart_container.container_build_status = "None"
             chart_container.container_push_status = "None"
+        
+        if bar is not None:
+            bar()
+            bar.text=f"{src_chart.name}"
 
     @staticmethod
     def build_platform(platform_chart):
@@ -883,15 +891,14 @@ class HelmChart:
             elif not container.local_image and local_base_image:
                 containers_to_built += [containers_to_built.pop(org_list_idx)]
 
-        containers_to_built = [(x, containers_to_built[x]) for x in range(0, len(containers_to_built))]
 
         BuildUtils.logger.info("")
         BuildUtils.logger.info("")
         build_rounds = 0
 
+        containers_to_built = [(x, containers_to_built[x]) for x in range(0, len(containers_to_built))]
         waiting_containers_to_built = containers_to_built.copy()
-        i = 0
-        with alive_bar(container_count,title='Container-Build') as bar:
+        with alive_bar(container_count, dual_line=True, title='Container-Build') as bar:
             while len(waiting_containers_to_built) != 0 and build_rounds <= BuildUtils.max_build_rounds:
                 build_rounds += 1
                 tmp_waiting_containers_to_built = []
@@ -902,13 +909,9 @@ class HelmChart:
                         BuildUtils.logger.info(f"{result_container.build_tag}: Base image not ready yet -> waiting list")
                         tmp_waiting_containers_to_built.append(result_container)
                     else:
-                        i += 1
-                        BuildUtils.logger.debug(f"{i+1}/{container_count} Done: {queue_id} - {result_container.tag}")
-                        BuildUtils.printProgressBar(i, container_count, prefix='Progress:', suffix=result_container, length=50)
-                        bar.text(f"{result_container.tag}")
                         bar()
-
                         if issue != None:
+                            bar.text(f"{result_container.tag}: ERROR")
                             BuildUtils.logger.info("")
                             BuildUtils.generate_issue(
                                 component=issue["component"],
@@ -918,6 +921,8 @@ class HelmChart:
                                 output=issue["output"] if "output" in issue else None,
                                 path=issue["path"] if "path" in issue else "",
                             )
+                        else:
+                            bar.text(f"{result_container.tag}: ok")
 
                 waiting_containers_to_built = tmp_waiting_containers_to_built
         

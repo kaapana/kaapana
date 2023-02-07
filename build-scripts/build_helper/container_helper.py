@@ -31,14 +31,13 @@ def container_registry_login(username, password):
 
 def pull_container_image(image_tag):
     command = [Container.container_engine, "pull", image_tag]
-    print(f"Pulling container image: {image_tag}")
+    BuildUtils.logger.info(f"{image_tag}: Start pulling container image")
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000, env=dict(os.environ, DOCKER_BUILDKIT=f"{BuildUtils.enable_build_kit}"))
 
     if output.returncode == 0:
-        print(f"sucess!")
-
+        BuildUtils.logger.info(f"{image_tag}: Success")
     else:
-        print(f"Something went wrong...")
+        BuildUtils.logger.error(f"{image_tag}: Something went wrong...")
 
 class BaseImage:
     registry = None
@@ -518,8 +517,6 @@ class Container:
         BuildUtils.logger.debug("")
         BuildUtils.logger.debug(" check_base_containers")
         BuildUtils.logger.debug("")
-        for container in container_object_list:
-            print(container)
         for container in container_object_list:
             container.missing_base_images = []
             for base_image in container.base_images:

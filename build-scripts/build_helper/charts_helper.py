@@ -21,18 +21,18 @@ successful_built_containers = []
 
 def parallel_execute(container_object):
     queue_id, container_object = container_object
-    done = False
+    done = True
     issue = None
 
     for base_container in container_object.base_images:
         if base_container.local_image and base_container.tag not in successful_built_containers:
+            done = False
             return queue_id, container_object, issue, done
 
     issue = container_object.build()
     if issue == None:
         successful_built_containers.append(container_object.build_tag)
         issue = container_object.push()
-        done = True
 
     return queue_id, container_object, issue, done
 
@@ -895,7 +895,7 @@ class HelmChart:
 
             for queue_id, result_container, issue, done in result_containers:
                 if not done:
-                    BuildUtils.logger.info(f"{result_container.build_tag}: Base image not ready yet -> waining list")
+                    BuildUtils.logger.info(f"{result_container.build_tag}: Base image not ready yet -> waiting list")
                     tmp_waiting_containers_to_built.append(result_container)
                 else:
                     i += 1

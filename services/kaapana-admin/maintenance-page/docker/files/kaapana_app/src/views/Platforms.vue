@@ -152,7 +152,7 @@
             @click="getFormInfo(item)",
             color="primary",
             min-width = "160px",
-            v-if="checkInstalled(item) === 'no' && item.successful !== 'pending' && item.successful !== 'justLaunched'"
+            v-if="checkInstalled(item) === 'no' && item.successful !== 'pending'"
           ) 
             span(v-if="item.multiinstallable === 'yes'") Launch
             span(v-if="item.multiinstallable === 'no'") Install
@@ -671,7 +671,7 @@ export default Vue.extend({
         repo: "kaapana-public",
       };
       kaapanaApiService
-        .helmApiGet("/extensions", params)
+        .helmApiGet("/platforms", params)
         .then((response: any) => {
           this.launchedAppLinks = response.data;
           if (this.launchedAppLinks !== null) {

@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     application_root: str = os.getenv("APPLICATION_ROOT", None)
 
     helm_extensions_cache: str = os.getenv("HELM_EXTENSIONS_CACHE", None)
+    helm_platforms_cache: str = os.getenv("HELM_PLATFORMS_CACHE", None)
     helm_collections_cache: str = "/root/collections"
     kaapana_collections: str = os.getenv("KAAPANA_COLLECTIONS", None)
     prefetch_extensions: bool = True if os.environ.get('PREFETCH_EXTENSIONS', None) in ['true', 'True'] else False

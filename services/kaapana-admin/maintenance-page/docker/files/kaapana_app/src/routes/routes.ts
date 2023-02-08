@@ -2,15 +2,15 @@ const routes = [
     {
         name: 'home',
         path: '/',
-        component: () => import('@/views/Extensions.vue'),
-        title: 'Extensions',
+        component: () => import('@/views/Platforms.vue'),
+        title: 'Platforms',
         permissions: {
             isPublic: false,
         },
     },
     {
-        name: 'home',
-        path: '/maintenance',
+        name: 'Extensions',
+        path: '/extensions',
         component: () => import('@/views/Extensions.vue'),
         title: 'Extensions',
         permissions: {

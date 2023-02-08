@@ -15,6 +15,10 @@ dependencies:
     condition: global.enable_nfs
   - name: kaapana-platform-chart
     version: 0.0.0
+  - name: maintenance-page-chart
+    version: 0.0.0
+  - name: kube-helm-chart
+    version: 0.0.0
   - name: keycloak-init-chart
     version: 0.0.0
   - name: kaapana-library-chart

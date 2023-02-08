@@ -33,35 +33,15 @@ class Cohort(Base):
     cohort_query = Column(String(51200))
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
+
+    # many-to-one relationship
     kaapana_id = Column(Integer, ForeignKey('kaapana_instance.id'))
     kaapana_instance = relationship("KaapanaInstance", back_populates="cohorts")
     cohort_identifiers = relationship("Identifier", secondary='cohort_identifier', back_populates="cohorts")
+    experiments = relationship("Experiment", back_populates="cohort", cascade="all, delete")
 
 
-class Job(Base):
-    __tablename__ = "job"
-    id = Column(Integer, primary_key=True)
-    dag_id = Column(String(64))
-    external_job_id = Column(Integer)
-    addressed_kaapana_instance_name = Column(String(64))
-    conf_data = Column(String(51200))
-    status = Column(String(64), index=True)
-    run_id = Column(String(64), index=True)
-    description = Column(String(1024), index=True)
-    username = Column(String(64))
-    time_created = Column(DateTime(timezone=True))
-    time_updated = Column(DateTime(timezone=True))
-    kaapana_id = Column(Integer, ForeignKey('kaapana_instance.id'))
-    kaapana_instance = relationship("KaapanaInstance", back_populates="jobs")
 
-    # https://www.johbo.com/2016/creating-a-partial-unique-index-with-sqlalchemy-in-postgresql.html
-    __table_args__ = (
-        Index(
-            'ix_kaapana_id_external_job_id',  # Index name
-            'kaapana_id', 'external_job_id',  # Columns which are part of the index
-            unique=True,
-            postgresql_where=(external_job_id.isnot(None))),  # The condition
-    )
 
 
 class KaapanaInstance(Base):
@@ -75,14 +55,22 @@ class KaapanaInstance(Base):
     port = Column(Integer(), index=True)
     ssl_check = Column(Boolean(), index=True)
     fernet_key = Column(String(100))
-    allowed_dags = Column(String(51200), default='[]')
-    allowed_datasets = Column(String(2048), default='[]', index=True)
+    allowed_dags = Column(String(102400), default='[]')
+    allowed_datasets = Column(String(2048),  default='[]', index=True)
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
     automatic_update = Column(Boolean(), default=False, index=True)
     automatic_job_execution = Column(Boolean(), default=False, index=True)
+
+    # one-to-many relationships
+    experiments = relationship("Experiment", back_populates="kaapana_instance", cascade="all, delete")
     jobs = relationship("Job", back_populates="kaapana_instance", cascade="all, delete")
     cohorts = relationship("Cohort", back_populates="kaapana_instance", cascade="all, delete")
+    # many-to-one relationships
+    # experiment_in_which_involved_id = Column(Integer, ForeignKey('experiment.id'))
+    # experiment_in_which_involved = relationship("Experiment", foreign_keys=[experiment_in_which_involved_id], back_populates="involved_kaapana_instances")
+    experiment_in_which_involved = Column(String(64), index=True)   # save information in string instead of sqlalchemy relationship - not ideal --> change it in future!
+
     # #https://stackoverflow.com/questions/5033547/sqlalchemy-cascade-delete
     # jobs = relationship("Job", back_populates="kaapana_instance", passive_deletes=True)
 
@@ -90,3 +78,56 @@ class KaapanaInstance(Base):
 
     def __repr__(self):
         return '<KaapanaInstance {}://{}:{}>'.format(self.protocol, self.host, self.port)
+
+
+class Experiment(Base):
+    __tablename__ = "experiment"
+    id = Column(Integer, primary_key=True)
+    experiment_name = Column(String(64))
+    external_experiment_id = Column(Integer)
+    username = Column(String(64))
+    # cohort_name = Column(String(64), index=True)  # now in a relationship
+    time_created = Column(DateTime(timezone=True))
+    time_updated = Column(DateTime(timezone=True))
+
+    # many-to-one relationships
+    kaapana_id = Column(Integer, ForeignKey('kaapana_instance.id'))
+    kaapana_instance = relationship("KaapanaInstance", back_populates="experiments")
+    cohort_name = Column(String(64), ForeignKey('cohort.cohort_name'))
+    cohort = relationship("Cohort", back_populates="experiments")
+    # one-to-many relationships
+    # involved_kaapana_instances = relationship("Experiment", back_populates="experiment_in_which_involved")
+    # involved_kaapana_instances = Column(String(51200))  # save information in string instead of sqlalchemy relationship - not ideal --> change it in future!
+    involved_kaapana_instances = Column(String(51200), default='[]', index=True)
+    experiment_jobs = relationship("Job", back_populates="experiment") #, cascade="all, delete")
+
+
+class Job(Base):
+    __tablename__ = "job"
+    id = Column(Integer, primary_key=True)
+    dag_id = Column(String(64))
+    external_job_id = Column(Integer)
+    owner_kaapana_instance_name = Column(String(64))    # rather class KaapanaInstance w/ relationship
+    conf_data = Column(String(102400))
+    status = Column(String(64), index=True)
+    run_id = Column(String(64), index=True)
+    description = Column(String(1024), index=True)
+    username = Column(String(64))
+    time_created = Column(DateTime(timezone=True))
+    time_updated = Column(DateTime(timezone=True))
+
+    # many-to-one relationships
+    kaapana_id = Column(Integer, ForeignKey('kaapana_instance.id'))
+    kaapana_instance = relationship("KaapanaInstance", back_populates="jobs")
+    exp_id = Column(Integer, ForeignKey('experiment.id'))
+    experiment = relationship("Experiment", back_populates="experiment_jobs")
+
+
+    # https://www.johbo.com/2016/creating-a-partial-unique-index-with-sqlalchemy-in-postgresql.html
+    __table_args__ = (
+        Index(
+            'ix_kaapana_id_exp_id_external_job_id',         # Index name
+            'kaapana_id', 'exp_id', 'external_job_id',      # Columns which are part of the index; extended with 'exp_id'
+            unique=True,
+            postgresql_where=(external_job_id.isnot(None))),  # The condition
+    )

@@ -105,19 +105,18 @@
               v-icon(color="primary") mdi-open-in-new
         template(v-slot:item.versions="{ item }") 
           v-select(
-            v-if="item.installed === 'no'",
             :items="item.versions",
             v-model="item.version",
             hide-details=""
           )
-          span(v-if="item.installed === 'yes'") {{ item.version }}
+          //- span(v-if="item.installed === 'yes'") {{ item.version }}
         template(v-slot:item.successful="{ item }")
           v-progress-circular(
             v-if="item.successful === 'pending'",
             indeterminate,
             color="primary"
           )
-          v-icon(v-if="item.successful === 'yes'", color="green") mdi-check-circle
+          v-icon(v-if="checkDeploymentReady(item) === true && item.successful !== 'pending'", color="green") mdi-check-circle
           v-icon(v-if="item.successful === 'no'", color="red") mdi-alert-circle
         template(v-slot:item.kind="{ item }")
           v-tooltip(bottom="", v-if="item.kind === 'dag'")
@@ -130,6 +129,10 @@
               v-icon(color="primary", dark="", v-bind="attrs", v-on="on")
                 | mdi-laptop
             span An application to work with
+        template(v-slot:item.helmStatus="{ item }")
+          span {{ getHelmStatus(item) }}
+        template(v-slot:item.kubeStatus="{ item }")
+          span {{ getKubeStatus(item) }}
         template(v-slot:item.experimental="{ item }")
           v-tooltip(bottom="", v-if="item.experimental === 'yes'")
             template(v-slot:activator="{ on, attrs }")
@@ -141,7 +144,7 @@
             @click="deleteChart(item)",
             color="primary",
             min-width = "160px",
-            v-if="item.installed === 'yes' && item.successful !== 'pending' && item.successful !== 'justLaunched'"
+            v-if="checkInstalled(item) === 'yes' && item.successful !== 'pending' && item.successful !== 'justLaunched'"
           ) 
             span(v-if="item.multiinstallable === 'yes'") Delete
             span(v-if="item.multiinstallable === 'no'") Uninstall
@@ -149,7 +152,7 @@
             @click="getFormInfo(item)",
             color="primary",
             min-width = "160px",
-            v-if="item.installed === 'no' && item.successful !== 'pending'"
+            v-if="checkInstalled(item) === 'no' && item.successful !== 'pending' && item.successful !== 'justLaunched'"
           ) 
             span(v-if="item.multiinstallable === 'yes'") Launch
             span(v-if="item.multiinstallable === 'no'") Install
@@ -157,7 +160,7 @@
             v-dialog(
               v-if="item.extension_params !== undefined || item.extension_params!== 'null'"
               v-model="popUpDialog"
-              :retain-focus="false"
+              :retain-focus="true"
               max-width="600px"
               @click:outside="resetFormInfo()"
             )
@@ -229,6 +232,7 @@ import { CHECK_AUTH } from '@/store/actions.type';
 export default Vue.extend({
   data: () => ({
     file: '' as any,
+    md5: '' as any,
     fileResponse: '',
     dragging: false,
     loadingFile: false,
@@ -303,7 +307,7 @@ export default Vue.extend({
   created() { },
   mounted() {
     this.getHelmCharts();
-    this.startExtensionsInterval()
+    this.startExtensionsInterval();
   },
   computed: {
     filteredLaunchedAppLinks(): any {
@@ -343,6 +347,44 @@ export default Vue.extend({
     ]),
   },
   methods: {
+    checkDeploymentReady(item: any) {
+      if (item["multiinstallable"] == "yes" && item["chart_name"] == item["releaseName"]) {
+        return false
+      }
+      if (item["available_versions"][item.version]["deployments"].length > 0) {
+        return item["available_versions"][item.version]["deployments"][0].ready
+      }
+      return false
+    },
+    getKubeStatus(item: any) {
+      if (item["multiinstallable"] == "yes" && item["chart_name"] == item["releaseName"]) {
+        return ""
+      }
+      if (item["available_versions"][item.version]["deployments"].length > 0) {
+        let s = item["available_versions"][item.version]["deployments"][0]["kube_status"][0]
+        return s.charAt(0).toUpperCase() + s.slice(1);
+      }
+      return ""
+    },
+    getHelmStatus(item: any) {
+      if (item["multiinstallable"] == "yes" && item["chart_name"] == item["releaseName"]) {
+        return ""
+      }
+      if (item["available_versions"][item.version]["deployments"].length > 0) {
+        let s = item["available_versions"][item.version]["deployments"][0]["helm_status"]
+        return s.charAt(0).toUpperCase() + s.slice(1);
+      }
+      return ""
+    },
+    checkInstalled(item: any) {
+      if (item["multiinstallable"] == "yes" && item["chart_name"] == item["releaseName"]) {
+        return "no"
+      }
+      if (item["available_versions"][item.version]["deployments"].length > 0) {
+        return "yes" 
+      }
+      return "no"
+    },
     onChange(e: any) {
       var files = e.target.files || e.dataTransfer.files;
 
@@ -517,9 +559,14 @@ export default Vue.extend({
           let iters = Math.ceil(this.file.size / this.chunkSize)
 
           // init
-          console.time("uploadFileChunks")
-
+          // TODO remove this and use first chunk
+          console.log("calculating md5sum for", this.file.name)
+          // this.md5 = CryptoJS.MD5(this.file.slice(0,iters)).toString()
+          // this.md5 = crypto.createHash('md5').update(this.file).digest('hex')
+          this.md5 = "md6"
+          console.log("md5 all slice", this.md5)
           let payload = {
+            'md5': this.md5,
             'name': this.file.name,
             'fileSize': this.file.size,
             'chunkSize': this.chunkSize,
@@ -562,7 +609,7 @@ export default Vue.extend({
         .helmApiPost("/file_chunks", formData)
         .then(async (resp: any) => {
           console.log("i=", i, "file chunks resp", resp)
-          if (String(resp.data) != String(i+1) || resp.status != 200) {
+          if (String(resp.data) != String(i + 1) || resp.status != 200) {
             console.log("error in response", resp)
             this.loadingFile = false
             this.fileResponse = "Upload Failed"
@@ -571,7 +618,6 @@ export default Vue.extend({
           }
           if (i >= iters) {
             console.log("upload completed")
-            console.timeEnd("uploadFileChunks")
             //end
             this.uploadPerc = 100;
             this.loadingFile = false
@@ -597,6 +643,7 @@ export default Vue.extend({
               console.log("cancelling upload")
               this.loadingFile = false
               this.file = ''
+              return
             }
             console.log(String(i) + "/" + String(iters), "was successful, proceeding...")
             if (i > 0) this.uploadPerc = Math.floor((i / iters) * 100)
@@ -613,13 +660,13 @@ export default Vue.extend({
             let chunk = this.file.slice(i * this.chunkSize, (i + 1) * this.chunkSize);
             let formData = new FormData();
             formData.append('file', chunk);
+            formData.append('md5', this.md5);
             this.uploadChunkHTTP(formData, i, iters)
           }
         })
         .catch((err: any) => {
           // error
           console.log("error, index", i, ":", err)
-          console.timeEnd("uploadFileChunks")
           this.loadingFile = false
           this.fileResponse = "Upload Failed: " + String(err)
           this.file = ''

@@ -14,4 +14,6 @@ dependencies:
     version: 0.0.0
   - name: kaapana-platform-chart
     version: 0.0.0
+  - name: keycloak-init-chart
+    version: 0.0.0
   

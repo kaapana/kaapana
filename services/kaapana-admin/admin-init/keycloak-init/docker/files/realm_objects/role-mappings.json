@@ -1,0 +1,12 @@
+{
+    "realmMappings": [
+        {
+            "id": "50264ade-1749-4deb-86d1-90aab2c61b93",
+            "name": "admin"
+        },
+        {   
+            "id": "f7c29b7a-7c6a-4879-a1fd-6df9f26e5670",
+            "name": "user"
+        }
+    ]
+}

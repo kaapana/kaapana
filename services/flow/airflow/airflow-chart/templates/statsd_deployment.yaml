@@ -15,13 +15,43 @@
 #  KIND, either express or implied.  See the License for the    *
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
-apiVersion: v1
-kind: Secret
+---
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: airflow-secrets
+  name: airflow-statsd
   namespace: "{{ .Values.global.services_namespace }}"
-type: Opaque
-data:
-  # The sql_alchemy_conn value is a base64 encoded represenation of this connection string:
-  # postgresql+psycopg2://root:root@postgres-airflow:5432/airflow
-  sql_alchemy_conn: cG9zdGdyZXNxbCtwc3ljb3BnMjovL3Jvb3Q6cm9vdEBwb3N0Z3Jlcy1haXJmbG93OjU0MzIvYWlyZmxvdwo=
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: airflow-statsd
+  template:
+    metadata:
+      labels:
+        app-name: airflow-statsd
+    spec:
+      containers:
+      - name: statsd-metrics-exporter
+        image: "{{ .Values.global.registry_url }}/statsd-exporter:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        args: 
+          - --statsd.mapping-config=/tmp/statsd_mapping.yaml
+          - --web.listen-address=:9102
+          - --statsd.listen-udp=:8125
+        resources:
+          requests:
+            memory: 50Mi
+          limits:
+            memory: 50Mi
+        volumeMounts:
+        - name: airflow-statsd-config
+          mountPath: /tmp/statsd_mapping.yaml
+          subPath: statsd_mapping.yaml
+      volumes:
+      - name: airflow-statsd-config
+        configMap:
+          name: airflow-statsd-config
+      imagePullSecrets:
+      - name: registry-secret
+---

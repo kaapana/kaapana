@@ -15,7 +15,7 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
           - name: WAIT
-            value: "ctp,ctp-dicom-service.{{  .Values.global.services_namespace  }}.svc,11112;dcm4che,dcm4chee-service.{{  .Values.global.services_namespace  }}.svc,11115;opensearch,opensearch-service.{{  .Values.global.services_namespace  }}.svc,9200;airflow,airflow-service.{{  .Values.global.services_namespace  }}.svc,8080,/flow/kaapana/api/getdags"
+            value: "ctp,ctp-dicom-service.{{  .Values.global.services_namespace  }}.svc,11112;dcm4che,dcm4chee-service.{{  .Values.global.services_namespace  }}.svc,11115;opensearch,opensearch-service.{{  .Values.global.services_namespace  }}.svc,9200;airflow,airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc,8080,/flow/kaapana/api/getdags"
           - name: DELAY
             value: "2"
           - name: TIMEOUT
@@ -41,7 +41,7 @@ spec:
         - name: OPENSEARCH_PORT
           value: "9200"
         - name: AIRFLOW_TRIGGER
-          value: "http://airflow-service.{{  .Values.global.services_namespace  }}.svc:8080/flow/kaapana/api/trigger"
+          value: "http://airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc:8080/flow/kaapana/api/trigger"
         volumeMounts:
         - name: slowdir
           mountPath: /slow_data_dir

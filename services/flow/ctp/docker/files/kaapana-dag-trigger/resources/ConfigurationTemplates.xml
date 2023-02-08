@@ -9,8 +9,8 @@
 			<attr name="enableExport" required="no" default="yes" options="yes|no"/>
 			<attr name="airflow_username" required="no" default=""/>
 			<attr name="airflow_password" required="no" default=""/>
-			<attr name="triggerurl" required="yes" default="http://airflow-service.<SERVICES_NAMESPACE>.svc.cluster.local:8080/flow/kaapana/api/trigger">
-				<helptext>URL of the destination airflow service (http://airflow-service.SERVICES_NAMESPACE.svc.cluster.local:8080/flow/kaapana/api/trigger)</helptext>
+			<attr name="triggerurl" required="yes" default="http://airflow-webserver-service.<SERVICES_NAMESPACE>.svc.cluster.local:8080/flow/kaapana/api/trigger">
+				<helptext>URL of the destination airflow service (http://airflow-webserver-service.SERVICES_NAMESPACE.svc.cluster.local:8080/flow/kaapana/api/trigger)</helptext>
 			</attr>
 			<attr name="dagnames" required="yes" default="dagname">
 				<helptext>Dag_id(s) of the workflows that should be triggered (comma separated)</helptext>
@@ -22,7 +22,7 @@
 			<attr name="unchangedCounter" requiered="no" default="2"/>
 				<helptext>The airflow dag is triggered after about 2sec*unchangeCount</helptext>
 			<attr name="limitTriggerOnRunningDagsUrl" required="no" default="">
-				<helptext>URL to get running dag rund of dagName (http://airflow-service.SERVICES_NAMESPACE.svc.cluster.local:8080/flow/api/experimental/dags/dagName/dag_runs?state=running)</helptext>
+				<helptext>URL to get running dag rund of dagName (http://airflow-webserver-service.SERVICES_NAMESPACE.svc.cluster.local:8080/flow/api/experimental/dags/dagName/dag_runs?state=running)</helptext>
 			<attr name="runningDagLimits" required="no" default=""/>
 				<helptext>Trigger airflow only below limit</helptext>
 		</ExportService>		

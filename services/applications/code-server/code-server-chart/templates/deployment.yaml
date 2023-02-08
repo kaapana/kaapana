@@ -213,7 +213,7 @@ data:
                 "type": "python",
                 "request": "attach",
                 "connect": {
-                    "host": "airflow-service.{{  .Values.global.services_namespace  }}.svc",
+                    "host": "airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc",
                     "port": 5678
                 },
                 "justMyCode": false,

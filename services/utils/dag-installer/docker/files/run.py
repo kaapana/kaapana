@@ -21,7 +21,7 @@ print(f'{KAAPANA_DEFAULT_REGISTRY=}')
 assert KAAPANA_DEFAULT_REGISTRY
 
 HELM_API=f"http://kube-helm-service.{ADMIN_NAMESPACE}.svc:5000"
-AIRFLOW_API = f"http://airflow-service.{SERVICES_NAMESPACE}.svc:8080/flow/kaapana/api/trigger/service-daily-cleanup-jobs"
+AIRFLOW_API = f"http://airflow-webserver-service.{SERVICES_NAMESPACE}.svc:8080/flow/kaapana/api/trigger/service-daily-cleanup-jobs"
 
 regex = r'image=(\"|\'|f\"|f\')([\w\-\\{\}.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\\{\}\.]+)(\"|\'|f\"|f\')'
 
@@ -76,7 +76,7 @@ for file_path in files_to_copy:
         continue
 
     dest_path = os.path.join("/",rel_dest_path)
-    if not dest_path.startswith("/plugins") and not dest_path.startswith("/dags"):
+    if not dest_path.startswith("/plugins") and not dest_path.startswith("/dags") and not dest_path.startswith("/kaapanadevdata"):
         print(f"Unknown prefix for {dest_path=} -> issue")
         exit(1)
     

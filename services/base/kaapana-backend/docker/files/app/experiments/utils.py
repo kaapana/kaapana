@@ -90,7 +90,7 @@ def get_utc_timestamp():
 
 def get_dag_list(only_dag_names=True, filter_allowed_dags=None):
     with requests.Session() as s:
-        r = requests_retry_session(session=s).get(f'http://airflow-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/getdags',timeout=TIMEOUT)
+        r = requests_retry_session(session=s).get(f'http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/getdags',timeout=TIMEOUT)
     raise_kaapana_connection_error(r)
     dags = r.json()
     dags = {dag: dag_data for dag, dag_data in dags.items() if ('ui_federated' in dag_data and dag_data['ui_federated'] is True) or ('ui_visible' in dag_data and dag_data['ui_visible'] is True)}
@@ -138,7 +138,7 @@ def check_dag_id_and_dataset(db_client_kaapana, conf_data, dag_id, addressed_kaa
 
 def execute_job(conf_data, dag_id):
     with requests.Session() as s:
-        resp = requests_retry_session(session=s).post(f'http://airflow-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/trigger/{dag_id}', timeout=TIMEOUT, json={
+        resp = requests_retry_session(session=s).post(f'http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/trigger/{dag_id}', timeout=TIMEOUT, json={
             'conf': {
                 **conf_data,
             }})

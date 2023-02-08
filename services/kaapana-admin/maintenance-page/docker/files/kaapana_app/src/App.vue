@@ -7,6 +7,12 @@
           v-list-item-action
             v-icon mdi-apps
           v-list-item-content
+            v-list-item-title Platforms
+          v-list-item-icon
+        v-list-item(:to="'/extensions'")
+          v-list-item-action
+            v-icon mdi-apps
+          v-list-item-content
             v-list-item-title Extensions
           v-list-item-icon
     v-app-bar(color="primary", dark, dense, clipped-left, app)

@@ -36,6 +36,7 @@ RUN /usr/local/bin/helm package /root/helpers/pull-docker-chart -d /root/helpers
 ENV HELM_PATH "/usr/local/bin/helm"
 ENV KUBECTL_PATH "kubectl"
 ENV HELM_EXTENSIONS_CACHE "/kaapana/mounted/extensions"
+ENV HELM_PLATFORMS_CACHE "/kaapana/mounted/platforms"
 ENV LOG_LEVEL="debug"
 ENV RECENT_UPDATE_CACHE="true"
 ENV CONTAINERD_SOCK="/root/containerd.sock"

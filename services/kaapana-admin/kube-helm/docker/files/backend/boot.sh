@@ -13,9 +13,10 @@ SCRIPT_NAME=$APPLICATION_ROOT gunicorn app.main:app --workers 1 --worker-class u
 # export REGISTRY_URL=""
 # export OFFLINE_MODE="false"
 # export LOG_LEVEL="debug"
-# export HELM_EXTENSIONS_CACHE="/home/kaapana/extensions"
+# export HELM_EXTENSIONS_CACHE="/home/kaapana-admin/extensions"
+# export HELM_PLATFORMS_CACHE="/home/kaapana-admin/platforms"
 # export HELM_PATH="/snap/bin/helm"
-# export HELM_NAMESPACE="kaapana"
+# export HELM_NAMESPACE="admin"
 # export KUBECTL_PATH="/snap/bin/microk8s.kubectl"
 
 # # run with custom path

@@ -49,7 +49,13 @@ async def file_chunks_init(request: Request):
     try:
         payload = await request.json()
         logger.debug(f"in file_chunks_init, {payload=}")
+        req_keys = ("md5", "name", "fileSize",
+                    "chunkSize", "index", "endIndex")
+        if not all(k in req_keys for k in payload.keys()):
+            raise AssertionError(
+                f"All following keys are required: {req_keys}")
         fpath, msg = file_handler.init_file_chunks(
+            md5=payload["md5"],
             fname=payload["name"],
             fsize=payload["fileSize"],
             chunk_size=payload["chunkSize"],
@@ -68,17 +74,14 @@ async def file_chunks_init(request: Request):
 @router.post("/file_chunks")
 async def upload_file_chunks(file: UploadFile):
     try:
-        logger.debug(f"in upload_file_chunks {file.filename}, {file.content_type}")
+        logger.debug(
+            f"in upload_file_chunks {file.filename}, {file.content_type}")
         content = await file.read()
         next_index = file_handler.add_file_chunks(content)
         return Response(str(next_index), 200)
     except Exception as e:
         logger.error(f"exception: {e}")
         msg = str(e)
-        if await file_handler.delete_file():
-            msg += "file deleted"
-        else:
-            msg += "failed to delete file"
         return Response(msg, 500)
 
 
@@ -235,6 +238,17 @@ def extensions():
     cached_extensions = helm_helper.get_extensions_list()
     return cached_extensions
 
+@router.get("/platforms")
+def get_platforms():
+    try:
+        platforms = helm_helper.get_extensions_list(platforms=True)
+
+        return platforms
+    
+    except AssertionError as e:
+        return Response(f"{e}", 400)
+    except Exception as e:
+        return Response(f"{e}", 500)
 
 @router.get("/view-chart-status")
 def view_chart_status(release_name: str):

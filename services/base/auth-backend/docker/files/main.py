@@ -2,11 +2,15 @@ from fastapi import FastAPI
 from fastapi import Response,Request,status
 from init import auth_role_mapping_dict, logger
 import uvicorn
+import jwt
 
 app = FastAPI()
 
 @app.get("/auth-check",status_code=status.HTTP_200_OK)
 async def auth_check(request: Request,response: Response):
+    """
+    Check if the user who made the request is mapped to the required roles in order to be authorized to access the requested resource.
+    """
     # for header, value in request.headers.items():
     #     logger.warn(f"{header}:{value}")
     requested_prefix = request.headers.get('x-forwarded-prefix')
@@ -19,27 +23,23 @@ async def auth_check(request: Request,response: Response):
         logger.warn(message)
         return message
 
-    user_requesting = request.headers.get('x-forwarded-preferred-username')
-    if user_requesting is None:
-        user_requesting = request.headers.get('x-forwarded-preferred-username')
-        
-    if user_requesting is None:
+    access_token = request.headers.get('x-forwarded-access-token')
+    if access_token is None:
         response.status_code = status.HTTP_403_FORBIDDEN
-        message = "'x-forwarded-preferred-username' could be identified within the request -> restricting access."
+        message = "No x-forwarded-access-token could be identified within the request -> restricting access."
         logger.warn(message)
         return message
 
-    auth_groups = request.headers.get('x-forwarded-groups').split(",")
-    if auth_groups is None:
+    decoded_access_token = jwt.decode(access_token, options={"verify_signature": False})
+    realm_access = decoded_access_token.get("realm_access", {"roles": []})
+    user_roles = realm_access["roles"]
+
+    user_requesting = decoded_access_token.get("preferred_username", None)
+    if user_requesting is None:
         response.status_code = status.HTTP_403_FORBIDDEN
-        message = "No x-forwarded-groups could be identified within the request -> restricting access."
-        logger.warn("No x-forwarded-groups could be identified within the request -> restricting access.")
+        message = "No 'preferred_username' could be identified within the access token -> restricting access."
+        logger.warn(message)
         return message
-    
-    user_roles = []
-    for group in auth_groups:
-        if "role:" in group:
-            user_roles.append(group.split(":")[-1])
 
     prefix_roles_allowed = None
     for restricted_access_prefix in auth_role_mapping_dict.keys():

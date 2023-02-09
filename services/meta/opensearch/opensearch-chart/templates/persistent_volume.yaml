@@ -9,7 +9,7 @@ metadata:
 spec:
   storageClassName: nfs
   capacity:
-    storage: "50Mi"
+    storage: "1Mi"
   accessModes:
     - ReadWriteMany
   nfs:
@@ -32,7 +32,7 @@ spec:
     - ReadWriteMany
   resources:
     requests:
-      storage: "50Mi"
+      storage: "1Mi"
   volumeName: "os-logs-pv-volume"
 ---
 # OS-Data
@@ -45,7 +45,7 @@ metadata:
 spec:
   storageClassName: nfs
   capacity:
-    storage: "50Mi"
+    storage: "1Mi"
   accessModes:
     - ReadWriteMany
   nfs:
@@ -68,6 +68,6 @@ spec:
     - ReadWriteMany
   resources:
     requests:
-      storage: "50Mi"
+      storage: "1Mi"
   volumeName: "os-data-pv-volume"
 ---

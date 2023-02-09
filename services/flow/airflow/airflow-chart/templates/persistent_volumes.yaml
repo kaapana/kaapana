@@ -9,7 +9,7 @@ metadata:
 spec:
   storageClassName: nfs
   capacity:
-    storage: "50Mi"
+    storage: "1Mi"
   accessModes:
     - ReadWriteMany
   nfs:
@@ -32,7 +32,7 @@ spec:
     - ReadWriteMany
   resources:
     requests:
-      storage: "50Mi"
+      storage: "1Mi"
   volumeName: "dags-pv-volume"
 ---
 # logs
@@ -45,7 +45,7 @@ metadata:
 spec:
   storageClassName: nfs
   capacity:
-    storage: "50Mi"
+    storage: "1Mi"
   accessModes:
     - ReadWriteMany
   nfs:
@@ -68,7 +68,7 @@ spec:
     - ReadWriteMany
   resources:
     requests:
-      storage: "50Mi"
+      storage: "1Mi"
   volumeName: "af-logs-pv-volume"
 ---
 # plugins
@@ -81,7 +81,7 @@ metadata:
 spec:
   storageClassName: nfs
   capacity:
-    storage: "50Mi"
+    storage: "1Mi"
   accessModes:
     - ReadWriteMany
   nfs:
@@ -104,7 +104,7 @@ spec:
     - ReadWriteMany
   resources:
     requests:
-      storage: "50Mi"
+      storage: "1Mi"
   volumeName: "af-plugins-pv-volume"
 ---
 # models
@@ -117,7 +117,7 @@ metadata:
 spec:
   storageClassName: nfs
   capacity:
-    storage: "500Mi"
+    storage: "1Mi"
   accessModes:
     - ReadWriteMany
   nfs:
@@ -139,7 +139,7 @@ spec:
     - ReadWriteMany
   resources:
     requests:
-      storage: "50Mi"
+      storage: "1Mi"
   volumeName: "models-pv-volume"
 ---
 # data-services
@@ -152,7 +152,7 @@ metadata:
 spec:
   storageClassName: nfs
   capacity:
-    storage: "500Mi"
+    storage: "1Mi"
   accessModes:
     - ReadWriteMany
   nfs:
@@ -174,6 +174,41 @@ spec:
     - ReadWriteMany
   resources:
     requests:
-      storage: "50Mi"
+      storage: "1Mi"
   volumeName: "af-data-pv-volume"
+---
+# kaapanadevdata-services
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: kaapanadevdata-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: nfs
+  capacity:
+    storage: "1Mi"
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/workflows/kaapanadevdata"
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{ .Values.global.services_namespace }}"
+    name: kaapanadevdata-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kaapanadevdata-pv-claim
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: "1Mi"
+  volumeName: "kaapanadevdata-pv-volume"
 ---

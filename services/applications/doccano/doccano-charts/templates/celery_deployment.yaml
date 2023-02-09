@@ -38,7 +38,7 @@ spec:
       volumes:
       - name:  media
         hostPath:
-          path: {{ .Values.global.fast_data_dir | default "/home/kaapana" }}/doccano/media
+          path: {{ .Values.global.fast_data_dir }}/doccano/media
           type: DirectoryOrCreate
       imagePullSecrets:
       - name: registry-secret

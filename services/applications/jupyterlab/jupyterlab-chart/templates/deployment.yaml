@@ -16,8 +16,6 @@ spec:
       labels:
         app-name: "jupyterlab-{{ $uuid }}"
     spec:
-      # securityContext:
-      #   runAsUser: 1000
       containers:
       - name: jupyterlab
         {{- if not .Values.image }}

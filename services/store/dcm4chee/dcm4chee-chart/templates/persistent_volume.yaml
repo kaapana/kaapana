@@ -9,7 +9,7 @@ metadata:
 spec:
   storageClassName: nfs
   capacity:
-    storage: "50Mi"
+    storage: "1Mi"
   accessModes:
     - ReadWriteMany
   nfs:
@@ -31,7 +31,7 @@ spec:
     - ReadWriteMany
   resources:
     requests:
-      storage: "50Mi"
+      storage: "1Mi"
   volumeName: "dcm4chee-standalone-pv-volume"
 ---
 # dcm4chee-dicom
@@ -44,7 +44,7 @@ metadata:
 spec:
   storageClassName: nfs
   capacity:
-    storage: "50Mi"
+    storage: "1Mi"
   accessModes:
     - ReadWriteMany
   nfs:
@@ -67,6 +67,6 @@ spec:
     - ReadWriteMany
   resources:
     requests:
-      storage: "50Mi"
+      storage: "1Mi"
   volumeName: "dcm4chee-dicom-pv-volume"
 ---

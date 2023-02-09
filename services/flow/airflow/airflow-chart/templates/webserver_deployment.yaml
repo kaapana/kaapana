@@ -52,16 +52,16 @@ spec:
           containerPort: 8080
         args: ["webserver"]
         env:
-        - name: AIRFLOW_HOME
-          value: "/root/airflow"
+        # - name: AIRFLOW_HOME
+        #   value: "/root/airflow"
         - name: AIRFLOW__LOGGING__LOGGING_LEVEL
-          value: "INFO"
-        - name: DATADIR
-          value: "{{ .Values.global.fast_data_dir }}/workflows/data"
-        - name: MODELDIR
-          value: "{{ .Values.global.fast_data_dir }}/workflows/models"
-        - name: KAAPANA_BUILD_VERSION
-          value: "{{ .Values.global.kaapana_build_version }}"
+          value: "WARNING"
+        # - name: DATADIR
+        #   value: "{{ .Values.global.fast_data_dir }}/workflows/data"
+        # - name: MODELDIR
+        #   value: "{{ .Values.global.fast_data_dir }}/workflows/models"
+        # - name: KAAPANA_BUILD_VERSION
+        #   value: "{{ .Values.global.kaapana_build_version }}"
         - name: HOSTDOMAIN
           value: "{{ .Values.global.hostname }}"
         - name: HTTPS_PORT
@@ -76,8 +76,8 @@ spec:
           value: "{{ .Values.global.jobs_namespace }}"
         - name: ADMIN_NAMESPACE
           value: "{{ .Values.global.admin_namespace }}"
-        - name: GPU_SUPPORT
-          value: "{{ .Values.global.gpu_support }}"
+        # - name: GPU_SUPPORT
+        #   value: "{{ .Values.global.gpu_support }}"
         - name: SQL_ALCHEMY_CONN
           value: postgresql+psycopg2://root:root@postgres-airflow:5432/airflow
         resources:
@@ -92,14 +92,14 @@ spec:
         - name: airflow-webserver-config
           mountPath: /root/airflow/webserver_config.py
           subPath: webserver_config.py
-        - name: airflow-dags
-          mountPath: /root/airflow/dags
         - name: airflow-plugins
           mountPath: /root/airflow/plugins
-        - name: airflow-logs
-          mountPath: /root/airflow/logs
-        - name: modeldata
-          mountPath: /models
+        # - name: airflow-dags
+        #   mountPath: /root/airflow/dags
+        # - name: airflow-logs
+        #   mountPath: /root/airflow/logs
+        # - name: modeldata
+        #   mountPath: /models
         # readinessProbe:
         #   initialDelaySeconds: 120
         #   timeoutSeconds: 5
@@ -122,30 +122,30 @@ spec:
       - name: airflow-webserver-config
         configMap:
           name: airflow-webserver-config
-      - name: airflow-statsd-config
-        configMap:
-          name: airflow-statsd-config
       - name: airflow-dags
         persistentVolumeClaim:
           claimName: dags-pv-claim
-      - name: airflow-logs
-        persistentVolumeClaim:
-          claimName: af-logs-pv-claim
       - name: airflow-plugins
         persistentVolumeClaim:
           claimName: af-plugins-pv-claim
-      - name: modeldata
-        persistentVolumeClaim:
-          claimName: models-pv-claim
-      - name: ctpinput
-        persistentVolumeClaim:
-          claimName: ctp-data-pv-claim
-      - name: workflowdata
-        persistentVolumeClaim:
-          claimName: af-data-pv-claim
-      - name: dicomdir
-        persistentVolumeClaim:
-          claimName: dcm4chee-dicom-pv-claim
+      # - name: airflow-statsd-config
+      #   configMap:
+      #     name: airflow-statsd-config
+      # - name: airflow-logs
+      #   persistentVolumeClaim:
+      #     claimName: af-logs-pv-claim
+      # - name: modeldata
+      #   persistentVolumeClaim:
+      #     claimName: models-pv-claim
+      # - name: ctpinput
+      #   persistentVolumeClaim:
+      #     claimName: ctp-data-pv-claim
+      # - name: workflowdata
+      #   persistentVolumeClaim:
+      #     claimName: af-data-pv-claim
+      # - name: dicomdir
+      #   persistentVolumeClaim:
+      #     claimName: dcm4chee-dicom-pv-claim
       imagePullSecrets:
       - name: registry-secret
 ---

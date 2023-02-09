@@ -89,15 +89,15 @@ spec:
         - name: DEFAULT_REGISTRY
           value: "{{ .Values.global.registry_url }}"
         - name: AIRFLOW__LOGGING__LOGGING_LEVEL
-          value: "INFO"
+          value: "WARNING"
         - name: AIRFLOW_HOME
           value: "/root/airflow"
+        - name: SQLALCHEMY_WARN_20
+          value: "1"
         - name: DATADIR
           value: "{{ .Values.global.fast_data_dir }}/workflows/data"
         - name: MODELDIR
           value: "{{ .Values.global.fast_data_dir }}/workflows/models"
-        - name: KAAPANA_DEV_DIR
-          value: "{{ .Values.global.fast_data_dir }}/workflows/kaapanadevdata"
         - name: MINIODIR
           value: "{{ .Values.global.slow_data_dir }}/minio"
         - name: PROXY
@@ -132,9 +132,9 @@ spec:
           value: postgresql+psycopg2://root:root@postgres-airflow:5432/airflow
         resources:
           requests:
-            memory: 4000Mi
+            memory: 1000Mi
           limits:
-            memory: 20000Mi
+            memory: 2000Mi
         volumeMounts:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg

@@ -8,7 +8,7 @@ metadata:
 spec:
   storageClassName: nfs
   capacity:
-    storage: "200Mi"
+    storage: "1Mi"
   accessModes:
     - ReadWriteMany
   nfs:
@@ -30,7 +30,7 @@ spec:
     - ReadWriteMany
   resources:
     requests:
-      storage: "50Mi"
+      storage: "1Mi"
   volumeName: "tb-jobs-pv-volume"
 ---
 # models jobs
@@ -43,7 +43,7 @@ metadata:
 spec:
   storageClassName: nfs
   capacity:
-    storage: "500Mi"
+    storage: "1Mi"
   accessModes:
     - ReadWriteMany
   nfs:
@@ -65,7 +65,7 @@ spec:
     - ReadWriteMany
   resources:
     requests:
-      storage: "50Mi"
+      storage: "1Mi"
   volumeName: "models-jobs-pv-volume"
 ---
 # Minio Jobs
@@ -78,7 +78,7 @@ metadata:
 spec:
   storageClassName: nfs
   capacity:
-    storage: "500Mi"
+    storage: "1Mi"
   accessModes:
     - ReadWriteMany
   nfs:
@@ -100,7 +100,7 @@ spec:
     - ReadWriteMany
   resources:
     requests:
-      storage: "50Mi"
+      storage: "1Mi"
   volumeName: "minio-jobs-pv-volume"
 ---
 # af-data jobs
@@ -113,7 +113,7 @@ metadata:
 spec:
   storageClassName: nfs
   capacity:
-    storage: "500Mi"
+    storage: "1Mi"
   accessModes:
     - ReadWriteMany
   nfs:
@@ -135,6 +135,6 @@ spec:
     - ReadWriteMany
   resources:
     requests:
-      storage: "50Mi"
+      storage: "1Mi"
   volumeName: "af-data-jobs-pv-volume"
 ---

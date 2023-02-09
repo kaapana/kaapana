@@ -7,7 +7,6 @@ import time
 from datetime import datetime
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.state import State
 from kaapana.kubetools import kube_client, pod_launcher
 from kaapana.kubetools.volume_mount import VolumeMount
@@ -93,7 +92,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     pod_stopper = PodStopper()
     env_pull_policy = os.getenv('PULL_POLICY_PODS',"None")
 
-    @apply_defaults
     def __init__(self,
                  dag,
                  name,
@@ -223,7 +221,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.kind = kind
         self.data_dir = os.getenv('DATADIR', "")
         self.model_dir = os.getenv('MODELDIR', "")
-        self.kaapana_dev_dir = os.getenv('KAAPANA_DEV_DIR', "")
         self.result_message = None
 
         # Namespaces
@@ -413,25 +410,18 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         print("CONTAINER ENVS:")
         print(json.dumps(self.env_vars, indent=4, sort_keys=True))
 
-        for volume in self.volumes:
-            if "hostPath" in volume.configs and self.data_dir == volume.configs["hostPath"]["path"]:
-                volume.configs["hostPath"]["path"] = os.path.join(volume.configs["hostPath"]["path"], context["run_id"])
-
         if self.dev_server is not None or 'kaapanadevdata' in " ".join(self.cmds) or 'kaaanadevdata' in " ".join(self.arguments):
+           
+            self.volume_mounts.append(VolumeMount('kaapanadevdata', mount_path='/kaapanadevdata', sub_path=None, read_only=False))
 
-            self.volume_mounts.append(VolumeMount(
-                'kaapanadevdata', mount_path='/kaapanadevdata', sub_path=None, read_only=False
-            ))
+            self.volumes.append(Volume(name='workflowdata', configs={
+                'PersistentVolumeClaim':
+                {
+                    'claim_name': 'kaapanadevdata',
+                    'read_only': False
+                }
+            }))
 
-            self.volumes.append(
-                Volume(name='kaapanadevdata', configs={
-                    'hostPath':
-                    {
-                        'type': 'DirectoryOrCreate',
-                        'path': self.kaapana_dev_dir
-                    }
-                })
-            )
 
         # if self.dev_server is not None:
         #     url = f'{KaapanaBaseOperator.HELM_API}/helm-install-chart'

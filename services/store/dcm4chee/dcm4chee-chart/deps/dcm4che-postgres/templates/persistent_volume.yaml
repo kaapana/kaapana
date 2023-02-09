@@ -8,7 +8,7 @@ metadata:
 spec:
   storageClassName: nfs
   capacity:
-    storage: "200Mi"
+    storage: "1Mi"
   accessModes:
     - ReadWriteMany
   nfs:
@@ -31,6 +31,6 @@ spec:
     - ReadWriteMany
   resources:
     requests:
-      storage: "200Mi"
+      storage: "1Mi"
   volumeName: "dcm4chee-postgres-pv-volume"
 ---

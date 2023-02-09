@@ -8,3 +8,4 @@ nibabel == 3.2.2
 numpy == 1.22.4
 kubernetes==23.6.0
 dicom_parser==1.2.3
+statsd==4.0.1

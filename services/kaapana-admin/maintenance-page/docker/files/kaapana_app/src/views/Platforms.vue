@@ -545,7 +545,8 @@ export default Vue.extend({
             this.loadingFile = false;
           }).catch((err: any) => {
             console.log("upload file error", err)
-            this.fileResponse = "Upload Failed: " + err.data;
+            this.fileResponse = "File upload failed!";
+            this.loadingFile = false
           });
       } else {
         // this.uploadPerc = 0;

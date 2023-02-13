@@ -12,7 +12,13 @@ RUN apt update && apt install -y curl
 
 COPY files/ ./
 RUN chmod +x boot.sh
-RUN pip install --no-cache-dir -r requirements.txt
+
+#activate virtual env
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+RUN pip install --no-cache-dir -r requirements.txt --disable-pip-version-check
 
 COPY --from=build-frontend /dist/ ./static
 

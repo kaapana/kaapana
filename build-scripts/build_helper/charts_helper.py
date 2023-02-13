@@ -12,8 +12,8 @@ from pathlib import Path
 from build_helper.build_utils import BuildUtils
 from build_helper.container_helper import Container, pull_container_image
 from jinja2 import Environment, FileSystemLoader
-from multiprocessing.pool import ThreadPool
 import networkx as nx
+import concurrent.futures
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
@@ -30,12 +30,16 @@ def parallel_execute(container_object):
             return queue_id, container_object, issue, done
 
     issue = container_object.build()
+
+    # Scan for vulnerabilities if enabled and no issue was found
+    if BuildUtils.vulnerability_scan and issue == None:
+        issue = container_object.scan_image_for_vulnerabilities()
+
     if issue == None:
         successful_built_containers.append(container_object.build_tag)
         issue = container_object.push()
 
     return queue_id, container_object, issue, done
-
 
 def generate_deployment_script(platform_chart):
     BuildUtils.logger.info(f"-> Generate platform deployment script for {platform_chart.name} ...")
@@ -891,7 +895,7 @@ class HelmChart:
         while len(waiting_containers_to_built) != 0 and build_rounds <= BuildUtils.max_build_rounds:
             build_rounds += 1
             tmp_waiting_containers_to_built = []
-            result_containers = ThreadPool(BuildUtils.parallel_processes).imap_unordered(parallel_execute, containers_to_built)
+            result_containers = BuildUtils.thread_pool.imap_unordered(parallel_execute, containers_to_built)
 
             for queue_id, result_container, issue, done in result_containers:
                 if not done:
@@ -914,7 +918,11 @@ class HelmChart:
                         )
 
             waiting_containers_to_built = tmp_waiting_containers_to_built
-        
+    
+        # Shutdown the thread pool
+        BuildUtils.thread_pool.close()
+        BuildUtils.thread_pool.join()
+
         if build_rounds == BuildUtils.max_build_rounds:
             BuildUtils.generate_issue(
                 component=suite_tag,

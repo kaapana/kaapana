@@ -6,16 +6,23 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: nfs
   capacity:
     storage: "1Mi"
+{{- if .Values.global.enable_nfs }}
+  storageClassName: nfs
   accessModes:
     - ReadWriteMany
   nfs:
     server: "10.152.183.15"
     path: "/postgres-airflow"
-
-  persistentVolumeReclaimPolicy: Retain
+{{- else }}
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.fast_data_dir }}/postgres-airflow"
+{{- end }}
+yy  persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"
     name: af-postgres-pv-claim

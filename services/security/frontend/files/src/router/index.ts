@@ -1,21 +1,29 @@
 import { createRouter, createWebHistory } from "vue-router";
-import Dashboard from "../views/DashboardView.vue";
+import HomeView from "../views/HomeView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: "/dashboard",
-      name: "dashboard",
-      component: Dashboard,
+      path: "/",
+      name: "Home",
+      component: HomeView,
     },
     {
-      path: "/configuration",
-      name: "configuration",
+      path: "/wazuh",
+      name: "Wazuh",
       // route level code-splitting
       // this generates a separate chunk (About.[hash].js) for this route
       // which is lazy-loaded when the route is visited.
-      component: () => import("../views/ConfigurationView.vue"),
+      component: () => import("../views/WazuhView.vue"),
+    },
+    {
+      path: "/stackrox",
+      name: "StackRox",
+      // route level code-splitting
+      // this generates a separate chunk (About.[hash].js) for this route
+      // which is lazy-loaded when the route is visited.
+      component: () => import("../views/StackRoxView.vue"),
     },
   ],
 });

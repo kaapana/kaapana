@@ -146,16 +146,12 @@ export default {
   methods: {
     // General Methods
     refreshClient() {
-      // console.log("refreshClient() in ExpeimentTable.vue")
-      // this.getExpandedExperiment()
       this.getClientInstance()
       this.getClientExperiments()
       this.getClientJobs()
-      // this.getJobsOfExpandedExperiment()
     },
     expandRow(item) {
         this.expanded = item === this.expanded[0] ? [] : [item]
-        // console.log("In method expandRow: item", item, "this.expanded", this.expanded)
         this.expandedExperiment = item
         this.getJobsOfExperiment(this.expandedExperiment.experiment_name)
     },
@@ -181,7 +177,6 @@ export default {
         .federatedClientApiGet("/client-kaapana-instance")
         .then((response) => {
           this.clientInstance = response.data;
-          // console.log("Client Instance in ExperimentTable", this.clientInstance)
         })
         .catch((err) => {
           this.clientInstance = {}
@@ -193,7 +188,6 @@ export default {
         limit: 100,
         }).then((response) => {
           this.clientExperiments = response.data;
-          // console.log(this.clientExperiments)
         })
         .catch((err) => {
           console.log(err);
@@ -205,7 +199,6 @@ export default {
           limit: 100,
         }).then((response) => {
           this.clientJobs = response.data;
-          // console.log("Client Jobs in ExperimentTable", this.clientJobs)
         })
         .catch((err) => {
           console.log(err);

@@ -234,7 +234,6 @@
           this.dag_run_ms = item.run_id.split("-").at(-1).slice(-6).slice(0, 2) + this.dag_run_datetime.slice(-4)
           this.dag_run_datetime = item.time_updated.slice(0, 19) + "." + this.dag_run_ms + "+00:00"
           this.airflow_url = item.kaapana_instance.protocol + "://" + item.kaapana_instance.host + "/flow/graph?dag_id=" + item.dag_id + "&execution_date=" + encodeURIComponent(this.dag_run_datetime)
-          // console.log("airflow_url: ", this.airflow_url)
           window.open(this.airflow_url, "_blank", "noreferrer")
         },
         async direct_airflow_operator_logs(item) {     // async to make await work properly
@@ -248,25 +247,12 @@
             if (this.dag_run_tasks_n_states[key].at(-1) == "failed") {
               this.failed_operator = key // .split(".")[-1]
               console.log("failed_operator: ", this.failed_operator)
-              // this.failed_operator = this.failed_operator.split(".").at("-1")
-              // console.log("failed_operator: ", this.failed_operator)
             }
           }
           // compose airflow log link:
-          // this.dag_run_datetime = item.run_id.split("-").at(-1)
-          // this.dag_run_datetime = this.dag_run_datetime.slice(-6).slice(0, 2) + "." + this.dag_run_datetime.slice(-4)
-          // this.dag_run_ms = item.run_id.split("-").at(-1).slice(-6).slice(0, 2) + this.dag_run_datetime.slice(-4)
-          // this.dag_run_datetime = item.time_updated.slice(0, 19) + "." + this.dag_run_ms + "+00:00"
           this.dag_run_datetime = this.dag_run_tasks_n_states[this.failed_operator].at(0)
           this.airflow_url = item.kaapana_instance.protocol + "://" + item.kaapana_instance.host + "/flow/log?dag_id=" + item.dag_id + "&task_id=" + this.failed_operator + "&execution_date=" + encodeURIComponent(this.dag_run_datetime)
           window.open(this.airflow_url, "_blank", "noreferrer")
-          // soll: https://10.135.76.130/flow/log?dag_id=nnunet-predict&task_id=dcm-converter&execution_date=2023-01-23T09%3A42%3A49.920889%2B00%3A00
-          // ist:  https://10.135.76.130/flow/log?dag_id=nnunet-predict&task_id=dcm-converter&execution_date=2023-01-23T09%3A43%3A08.911417%2B00%3A00
-          // time provided by airflow api:                                                                   2023-01-23T10%3A4253A49.911417
-          //       https://10.135.76.130/flow/log?dag_id=nnunet-predict&task_id=dcm-converter&execution_date=2023-01-23T10%3A42%3A49.920889%2B00%3A00
-
-          // window.location.href="https://10.135.76.130/flow/log?dag_id=nnunet-predict&task_id=dcm-converter&execution_date=2023-01-19T16%3A12%3A22.651127%2B00%3A00"
-          // window.open("https://10.135.76.130/flow/log?dag_id=nnunet-predict&task_id=dcm-converter&execution_date=2023-01-19T16%3A12%3A22.651127%2B00%3A00", "_blank", "noreferrer")
         },
         
         // API Calls
@@ -321,7 +307,6 @@
               this.dag_run_tasks_n_states = response.data
               console.log("response in getJobTaskinstancesAPI: ", this.dag_run_tasks_n_states)
               // this.$emit('refreshView')
-              // return this.dag_run_tasks_n_states
             })
             .catch((err) => {
               console.log(err);

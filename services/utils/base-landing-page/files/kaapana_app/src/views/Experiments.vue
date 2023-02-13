@@ -3,37 +3,6 @@
     v-container(text-left)
       h1 Experiment Management System
       v-row(@click="toggleClientPanel()").toggleMouseHand
-        //- v-col
-          h2 Local Instance Profile
-            i(v-if="openedClientPanel==null").v-icon.notranslate.mdi.mdi-chevron-down.theme--light(aria-hidden='true')
-            i(v-if="openedClientPanel==0").v-icon.notranslate.mdi.mdi-chevron-up.theme--light(aria-hidden='true')
-        //- v-col
-          v-dialog(v-model='clientDialog' max-width='600px')
-            v-card
-              v-form(v-model='clientValid' ref="clientForm" lazy-validation)
-                v-card-title
-                  span.text-h5 Client Instance
-                v-card-text
-                  v-container
-                    v-row
-                      v-col(cols='12')
-                        v-select(v-model='clientPost.allowed_dags' :items='dags' label='Allowed dags' multiple='' chips='' hint='Which dags are allowed to be triggered' persistent-hint='')
-                      v-col(cols='12')
-                        v-select(v-model='clientPost.allowed_datasets' :items='datasets' label='Allowed datasets' multiple='' chips='' hint='Which datasets are allowed to be triggered' persistent-hint='')
-                      v-col(cols='8')
-                        v-checkbox(v-model="clientPost.automatic_update" label="Check automatically for remote updates")
-                      v-col(cols='4')
-                        v-checkbox(v-model="clientPost.ssl_check" label="SSL"  required='')
-                      v-col(cols='8')
-                        v-checkbox(v-model="clientPost.automatic_job_execution" label="Execute automatically jobs")
-                      v-col(cols='4')
-                        v-checkbox(v-model="clientPost.fernet_encrypted" label="Fernet encrypted"  required='')
-                v-card-actions
-                  v-spacer
-                  v-btn.mr-4(@click='submitClientForm')
-                    | submit
-                  v-btn(@click='resetClientForm')
-                    | clear
         v-col(align="left")
           //- former LocalKaapanaInstance
           LocalKaapanaInstance(v-if="clientInstance" :instance="clientInstance" :remote="false"  @refreshView="refreshClient()" @ei="editClientInstance")
@@ -51,13 +20,6 @@
               v-icon(color='primary' dark x-large) mdi-sync-circle
             v-spacer
             v-btn(v-if="!clientInstance" color='primary' @click.stop="clientDialog=true" dark) Add client instance
-      //- v-row
-        v-col(sm="12")
-          v-expansion-panels(v-model="openedClientPanel")
-            v-expansion-panel(key='instance')
-              v-expansion-panel-content
-                KaapanaInstance(v-if="clientInstance" :instance="clientInstance" :remote="clientInstance.remote"  @refreshView="refreshClient()" @ei="editClientInstance")
-      //- job-table(v-if="clientInstance" :experiments="clientExperiments" :jobs="clientJobs" :remote="clientInstance.remote"  @refreshView="refreshClient()")
       experiment-table(v-if="clientInstance" :instance="clientInstance" :experiments="clientExperiments" :remote="clientInstance.remote" @refreshView="refreshClient()")
   </template>
 
@@ -66,7 +28,6 @@ import Vue from "vue";
 import { mapGetters } from "vuex";
 import kaapanaApiService from "@/common/kaapanaApi.service";
 
-// import JobTable from "@/components/JobTable.vue";
 import ExperimentTable from "@/components/ExperimentTable.vue"
 import KaapanaInstance  from "@/components/KaapanaInstance.vue";
 import LocalKaapanaInstance from "@/components/LocalKaapanaInstance.vue";
@@ -76,7 +37,6 @@ import ViewRemoteInstances from "@/components/ViewRemoteInstances.vue";
 
 export default Vue.extend({
   components: {
-    // JobTable,
     ExperimentTable,
     KaapanaInstance,
     LocalKaapanaInstance,
@@ -144,7 +104,6 @@ export default Vue.extend({
         });
     },
     refreshClient() {
-      // console.log("refreshClient() in Experiment.vue")
       this.getClientInstance()
       this.getClientExperiments()
       this.getClientJobs()
@@ -227,7 +186,6 @@ export default Vue.extend({
         limit: 100,
         }).then((response) => {
           this.clientExperiments = response.data;
-          // console.log(this.clientExperiments)
         })
         .catch((err) => {
           console.log(err);
@@ -239,7 +197,6 @@ export default Vue.extend({
         limit: 100,
         }).then((response) => {
           this.clientJobs = response.data;
-          // console.log(this.clientJobs)
         })
         .catch((err) => {
           console.log(err);

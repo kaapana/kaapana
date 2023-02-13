@@ -283,9 +283,6 @@ v-dialog(v-model='dialogOpen' max-width='600px')
           .federatedClientApiPut("/client-kaapana-instance", this.clientPost)
           .then((response) => {
             console.log("ClientForm updated")
-            // this.clientUpdate = false
-            // this.clientDialog = false
-            // get_remote_updates
           })
           .catch((err) => {
             console.log(err);

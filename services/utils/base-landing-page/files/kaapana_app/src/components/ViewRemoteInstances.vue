@@ -28,7 +28,6 @@
   <script>
   import kaapanaApiService from "@/common/kaapanaApi.service";
   
-  // import KaapanaInstance  from "@/components/KaapanaInstance.vue";
   import RemoteKaapanaInstance  from "@/components/RemoteKaapanaInstance.vue";
   import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
     
@@ -36,7 +35,6 @@
     name: "ViewRemoteInstances",
 
     components: {
-      // KaapanaInstance,
       RemoteKaapanaInstance,
       AddRemoteInstance
     },

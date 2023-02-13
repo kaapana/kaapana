@@ -107,11 +107,6 @@
           v-chip(v-for='dataset in instancePost.allowed_datasets' small) {{dataset}}
         v-col(cols="1" align="center")
     v-card-actions
-      //- v-tooltip(bottom)
-      //-   template(v-slot:activator="{ on, attrs }")
-      //-     v-btn(v-bind="attrs" v-on="on" @click='editInstance()' small icon)
-      //-      v-icon(color="secondary" dark) mdi-pencil
-      //-   span edit instance
       v-tooltip(bottom)
         template(v-slot:activator="{ on, attrs }")
           v-btn(v-bind="attrs" v-on="on" @click='deleteInstance()' small icon)
@@ -168,18 +163,6 @@
       this.lets_init()
     },
     watch: {
-      // dialogOpen () {
-      //   this.instance_names = []
-      //   this.experiment_name = null
-      //   this.dag_id = null
-      //   this.external_instance_names = []
-      //   this.instancePost = this.instance
-      //   this.instancePost.fernet_encrypted = false
-      //   console.log("instancePost: ", this.instancePost)
-      //   console.log('Getting Dags and Datasets')
-      //   this.getDags();
-      //   this.getDatasets();
-      // },
       dialogDelete (val) {
         console.log("dialogDelete")
         val || this.closeDelete()
@@ -280,9 +263,6 @@
           .federatedClientApiPut("/client-kaapana-instance", this.instancePost)
           .then((response) => {
             console.log("ClientForm updated")
-            // this.clientUpdate = false
-            // this.clientDialog = false
-            // get_remote_updates
           })
           .catch((err) => {
             console.log(err);

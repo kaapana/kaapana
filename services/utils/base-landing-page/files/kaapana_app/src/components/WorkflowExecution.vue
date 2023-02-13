@@ -69,10 +69,9 @@ export default {
   data: () => ({
     valid: false,
     dialogOpen: false,
-    schemas: {},   // changed from {} to [] since we're getting a string and no object
+    schemas: {},          // changed from {} to [] since we're getting a string and no object
     external_schemas: {}, // changed from {} to [] since we're getting a string and no object
     formData: {},
-    // formDataFormatted: {},
     available_dags: [],
     instance_names: [],
     external_instance_names: [],
@@ -152,11 +151,8 @@ export default {
         } 
         return `Local experiment on instance: ${this.clientinstance.instance_name}`
       }
-      // elif (this.local_remote_switch == false) { 
       else {
         console.log("Switch is turned off!")
-        // this.instance_names = []
-        // if (this.instance_names.length !== 0 ) {
         if (this.instance_names.indexOf(this.clientinstance.instance_name) !== -1) {
           console.log("Clear instance_names list!")
           this.instance_names = []
@@ -193,7 +189,6 @@ export default {
       this.external_schemas = {}
       this.external_available_instance_names = []
       this.remote_instance_names = []
-      // console.log(this.external_dag_id)
       if (this.external_dag_id != null) {
         console.log('getting')
         this.getAvailableExternalNodeIds()
@@ -208,27 +203,16 @@ export default {
 
     },
     getUiFormSchemas() {
-      // console.log("instance_names:", this.instance_names)
-      // this.remote_data = this.remote
-      // if (this.instance_names.indexOf(this.clientinstance.instance_name) !== -1) {  // clientinstance is in instance_names ==> local experiment
-      //     this.remote_data = false;
-      //     console.log("Local Experiment -> remote: ,", this.remote)
-      //   }
       kaapanaApiService
         .federatedClientApiPost("/get-ui-form-schemas", {remote: this.remote, experiment_name: this.experiment_name, dag_id: this.dag_id, instance_names: this.instance_names})
         .then((response) => {
           let schemas = response.data
-          // console.log("remote: ", this.remote)
-          // this.remote = schemas["remote"]
-          // console.log("remote: ", this.remote)
-          // if (this.remote==false && 'external_schemas' in schemas) {
           if ('external_schemas' in schemas) {
             this.external_dag_id = schemas["external_schemas"]
             delete schemas.external_schemas
           } else {
             this.external_dag_id = null
           }
-          // console.log("before schemas: ", schemas)
           this.schemas = schemas
           console.log("after schemas: ", schemas)
         })
@@ -240,7 +224,6 @@ export default {
       kaapanaApiService
         .federatedClientApiPost("/get-ui-form-schemas",  {remote: true, experiment_name: this.experiment_name, dag_id: this.external_dag_id, instance_names: this.external_instance_names})
         .then((response) => {
-          // console.log("before external_schemas: ", response.data)
           this.external_schemas = response.data
           console.log("after external_schemas: ", this.external_schemas)
         })
@@ -285,12 +268,7 @@ export default {
     submitWorkflow() {
       // modify attributes remote_data and federated_data depending on instances 
       console.log("instance_names: ", this.instance_names)
-      // if (this.instance_names.length > 1) {                             // len(instance_names) > 1 ==> federated experiment
-      //   this.federated_data = true;
-      //   this.remote_data = true;
-      //   console.log("Federated Experiment -> federated_data:", this.federated_data, ", remote_data: ,", this.remote_data)
-      // }
-      // else {                                                            // len(instance_names) = 1 ==> local or remote experiment
+      
       this.federated_data = false;
       console.log("clientinstance.instance_name: ", this.clientinstance.instance_name)
       console.log("client in instances: ", this.instance_names.indexOf(this.clientinstance.instance_name))

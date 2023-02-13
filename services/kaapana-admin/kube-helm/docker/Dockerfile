@@ -14,8 +14,7 @@ RUN curl https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -xzO 
 RUN chmod g+rwx /root && mkdir /config && chmod g+rwx /config    
 
 # Install containerd
-RUN apk update && apk add --no-cache \
-    containerd
+RUN apt-get update
 
 # Install ctr
 RUN curl -L https://github.com/containerd/containerd/releases/download/v1.5.13/containerd-1.5.13-linux-amd64.tar.gz -o containerd.tar.gz

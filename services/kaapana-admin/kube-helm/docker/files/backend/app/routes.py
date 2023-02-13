@@ -38,8 +38,8 @@ async def upload_file(file: UploadFile):
     content = await file.read()
     res, msg = file_handler.add_file(file, content)
     if not res:
-        logger.error(msg)
-        return Response(msg, 500)
+        logger.error(f"/file upload failed {msg}")
+        return Response(f"File upload failed {msg}", 500)
 
     return Response(msg, 200)
 
@@ -64,11 +64,11 @@ async def file_chunks_init(request: Request):
         )
         if not fpath:
             logger.error(msg)
-            return Response(msg, 500)
+            return Response(f"file upload init failed {msg}", 500)
         return Response(msg, 200)
     except Exception as e:
-        logger.error(f"file chunks init failed {str(e)}")
-        return Response(str(e), 500)
+        logger.error(f"/file_chunks_init failed {str(e)}")
+        return Response(f"File upload init failed {str(e)}", 500)
 
 
 @router.post("/file_chunks")
@@ -80,9 +80,9 @@ async def upload_file_chunks(file: UploadFile):
         next_index = file_handler.add_file_chunks(content)
         return Response(str(next_index), 200)
     except Exception as e:
-        logger.error(f"exception: {e}")
         msg = str(e)
-        return Response(msg, 500)
+        logger.error(f"/file_chunks failed: {msg}")
+        return Response(f"File upload failed {msg}", 500)
 
 
 # @router.websocket("/file_chunks/{client_id}")
@@ -110,36 +110,43 @@ async def upload_file_chunks(file: UploadFile):
 
 @router.get("/import-container")
 def import_container(filename: str):
-    logger.info(f"/import-container called with {filename}")
-    res, msg = file_handler.run_containerd_import(filename)
-    logger.debug(f"returned {res=}, {msg=}")
-    if not res:
-        return Response(msg, 500)
-    return Response(msg, 200)
-
+    try:
+        logger.info(f"/import-container called with {filename}")
+        assert filename != "", "Required key 'filename' can not be empty"
+        res, msg = file_handler.run_containerd_import(filename)
+        logger.debug(f"returned {res=}, {msg=}")
+        if not res:
+            logger.error(f"/import-container failed {msg}")
+            return Response(f"Container import failed {msg}", 500)
+        return Response(msg, 200)
+    except AssertionError as e:
+        logger.error(f"/import-container failed: {str(e)}")
+        return Response(f"Container import failed, bad request {str(e)}", 400)
+    except Exception as e:
+        logger.error(f"/import-container failed: {str(e)}")
+        return Response(f"Container import failed, bad request {str(e)}", 500)
 
 @router.get("/health-check")
 async def health_check():
-    # TODO return JSON object
     return Response(f"Kube-Helm api is up and running!", 200)
 
 
 @router.get("/update-extensions")
 async def update_extensions():
-    install_error, message = utils.execute_update_extensions()
+    install_error, msg = utils.execute_update_extensions()
     if install_error is False:
-        return Response(message, 202)
+        return Response(msg, 202)
     else:
-        return Response(message, 500)
+        logger.error(f"/update-extensions failed {msg}")
+        return Response(f"Extesions update failed {msg}", 500)
 
 
 @router.post("/helm-delete-chart")
 async def helm_delete_chart(request: Request):
     try:
         payload = await request.json()
-        logger.debug(f"/helm-delete-chart called with {payload=}")
-        if "release_name" not in payload:
-            raise AssertionError("Required key 'release_name' not found in payload")
+        logger.info(f"/helm-delete-chart called with {payload=}")
+        assert "release_name" in payload, "Required key 'release_name' not found in payload"
         release_version = None
         helm_command_addons = ''
         if "release_version" in payload:
@@ -152,15 +159,15 @@ async def helm_delete_chart(request: Request):
             helm_command_addons=helm_command_addons
         )
         if success:
-            return Response("Successfully uninstalled {0}".format(payload["release_name"]), 200)
+            return Response(f"Successfully uninstalled {payload['release_name']}", 200)
         else:
-            return Response("{0}".format(stdout), 400)
-    except subprocess.CalledProcessError as e:
-        logger.error("/helm-delete-chart failed: {0}".format(e))
-        return Response("Internal server error!", 500)
+            return Response(f"{stdout}", 400)
+    except AssertionError as e:
+        logger.error(f"/helm-delete-chart failed: {str(e)}")
+        return Response(f"Chart uninstall failed, bad request {str(e)}", 400)
     except Exception as e:
         logger.error("/helm-delete-chart failed: {0}".format(e))
-        return Response("Helm delete failed {0}".format(e), 400)
+        return Response(f"Chart uninstall failed {str(e)}", 500)
 
 
 @router.post("/helm-install-chart")
@@ -168,22 +175,20 @@ async def helm_install_chart(request: Request):
     try:
         payload = await request.json()
         logger.debug(f"/helm-install-chart called with {payload=}")
-        if "name" not in payload:
-            raise AssertionError("Required key 'name' not found in payload")
-        if "version" not in payload:
-            raise AssertionError("Required key 'version' not found in payload")
+        assert "name" in payload, "Required key 'name' not found in payload"
+        assert "version" in payload, "Required key 'version' not found in payload"
         success, stdout, _, _, cmd = utils.helm_install(
             payload, shell=True, blocking=False)
         if success:
-            return Response("Successfully ran helm install, command {0}".format(cmd), 200)
+            return Response(f"Successfully ran helm install, command {cmd}", 200)
         else:
-            return Response("{0}".format(stdout), 500)
-    except subprocess.CalledProcessError as e:
-        logger.error("/helm-install-chart failed: {0}".format(e))
-        return Response(f"Internal server error!", 500)
+            return Response(f"Chart install command failed {stdout}", 500)
+    except AssertionError as e:
+        logger.error(f"/helm-install-chart failed: {str(e)}")
+        return Response(f"Chart install failed, bad request {str(e)}", 400)
     except Exception as e:
         logger.error("/helm-install-chart failed: {0}".format(e))
-        return Response("Helm install failed {0}".format(e), 400)
+        return Response(f"Chart install failed {str(e)}", 500)
 
 
 @router.post("/pull-docker-image")
@@ -228,15 +233,22 @@ async def pending_applications():
         logger.error("/pending-applications failed {0}".format(e))
         return Response("Internal server error!", 500)
     except Exception as e:
-        logger.error("/pending-applications failed: {0}".format(e))
-        return Response("Pending applications failed {0}".format(e), 400)
+        logger.error(f"/pending-applications failed: {e}".format(e))
+        return Response(f"Pending applications failed {e}".format(e), 400)
 
 
 @router.get("/extensions")
 def extensions():
     # TODO: return Response with status code, fix front end accordingly
-    cached_extensions = helm_helper.get_extensions_list()
-    return cached_extensions
+    try:
+        cached_extensions = helm_helper.get_extensions_list()
+        
+        return cached_extensions
+    
+    except Exception as e:
+        logger.error(f"/extensions FAILED {e}")
+        return Response(f"Failed to get extensions", 500)
+    
 
 @router.get("/platforms")
 def get_platforms():
@@ -245,10 +257,9 @@ def get_platforms():
 
         return platforms
     
-    except AssertionError as e:
-        return Response(f"{e}", 400)
     except Exception as e:
-        return Response(f"{e}", 500)
+        logger.error(f"/platforms FAILED {e}")
+        return Response(f"Failed to get platforms", 500)
 
 @router.get("/view-chart-status")
 def view_chart_status(release_name: str):

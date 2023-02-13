@@ -1,6 +1,3 @@
-
-
-
 ---
 kind: Deployment
 apiVersion: apps/v1
@@ -33,6 +30,10 @@ spec:
           volumeMounts:
             - mountPath: /wazuh-config
               name: security-wazuh-volume
+            - mountPath: /api_credentials
+              name: security-wazuh-api-volume
+            - mountPath: /wazuh_api_secret
+              name: api-credentials-secret
       containers:
       - name: security-wazuh-manager
         image: "{{ .Values.global.registry_url }}/security-wazuh-manager:{{ .Values.global.kaapana_build_version  }}"
@@ -40,7 +41,7 @@ spec:
         lifecycle:
           postStart:
             exec:
-              command: ["/bin/sh", "-c", "curl -H 'Content-Type: application/json' -d '{\"name\": \"Wazuh\", \"api_endpoints\": [{\"identifier\": \"wazuh_manager_api\", \"endpoint\":\"https://security-wazuh-service.services.svc:55000/\"}]}' -X PUT http://security-pages-service.services.svc:5000/security/api/register-extension --insecure"]
+              command: ["/bin/sh", "-c", "curl -H 'Content-Type: application/json' -d '{\"name\": \"Wazuh\", \"url\": \"{{ .Values.global.hostname }}/security-wazuh\" \"api_endpoints\": [{\"identifier\": \"wazuh_manager_api\", \"endpoint\":\"https://security-wazuh-service.services.svc:55000/\"}]}' -X PUT http://security-pages-service.services.svc:5000/security/api/provider --insecure"]
         ports:
           - containerPort: 1514
           - containerPort: 1515
@@ -49,9 +50,15 @@ spec:
           - containerPort: 55000
         env:
           - name: API_PASSWORD
-            value: MyS3cr37P450r.*-
+            valueFrom:
+              secretKeyRef:
+                name: wazuh-api-credentials
+                key: password
           - name: API_USERNAME
-            value: wazuh-wui
+            valueFrom:
+              secretKeyRef:
+                name: wazuh-api-credentials
+                key: username
           - name: FILEBEAT_SSL_VERIFICATION_MODE
             value: full
           - name: INDEXER_PASSWORD
@@ -183,3 +190,9 @@ spec:
         - name: security-wazuh-volume
           persistentVolumeClaim:
             claimName: security-wazuh-persistent-volume-claim
+        - name: security-wazuh-api-volume
+          persistentVolumeClaim:
+            claimName: security-wazuh-api-persistent-volume-claim
+        - name: api-credentials-secret
+          secret:
+            secretName: wazuh-api-credentials

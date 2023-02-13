@@ -30,6 +30,16 @@ function copy_cert {
         echo "SERVICES_NAMESPACE == ADMIN_NAMESPACE -> skip copy of secret."
     else
         if kubectl get namespace $SECRET_NAMESPACE; then
+            max_retry=10
+            counter=0
+            until kubectl get secret --namespace=$ADMIN_NAMESPACE $SECRET_NAME;
+                do
+                    [[ counter -eq $max_retry ]] && echo "Failed!" && exit 1
+                    ((counter++))
+                    echo "Cert secret not found at $ADMIN_NAMESPACE -> waiting #$counter ..."
+                    sleep 5
+                done
+
             if ! kubectl get secret --namespace=$SECRET_NAMESPACE $SECRET_NAME; then
                 echo "Copy secret $SECRET_NAME from namespace $ADMIN_NAMESPACE -> $SECRET_NAMESPACE ..."
                 if ! kubectl get secret $SECRET_NAME --namespace=$ADMIN_NAMESPACE -ojson | jq 'del(.metadata["namespace","creationTimestamp","resourceVersion","selfLink","uid"])' | kubectl apply --namespace=$SECRET_NAMESPACE -f -; then

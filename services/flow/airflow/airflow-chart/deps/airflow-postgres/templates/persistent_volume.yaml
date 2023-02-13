@@ -22,7 +22,7 @@ spec:
   hostPath:
     path: "{{ .Values.global.fast_data_dir }}/postgres-airflow"
 {{- end }}
-yy  persistentVolumeReclaimPolicy: Retain
+  persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"
     name: af-postgres-pv-claim

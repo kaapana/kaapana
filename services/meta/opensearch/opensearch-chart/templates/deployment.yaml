@@ -14,6 +14,20 @@ spec:
       labels:
         app-name: opensearch
     spec:
+      initContainers:
+      - name: volume-permissions
+        image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        command: ["sh", "-c", "chown -R 1000:1000 /os"]
+        volumeMounts:
+        - name: osdata
+          mountPath: /os/data
+        - name: oslogs
+          mountPath: /os/logs
+        securityContext:
+          runAsUser: 0
+      securityContext:
+        runAsUser: 1000
       containers:
         - name: opensearch-container
           image: "{{ .Values.global.registry_url }}/opensearch:{{ .Values.global.kaapana_build_version  }}"

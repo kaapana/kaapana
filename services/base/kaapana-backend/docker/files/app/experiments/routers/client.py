@@ -138,89 +138,6 @@ async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstanc
     elif len(dags) == 1:    # if just one instance is selected -> return (allowed) dags of this instance
         return JSONResponse(content=list(dags.values())[0])
 
-    # old code of function def ui_form_schemas(...)
-    # if filter_kaapana_instances.remote is False:
-    #     dags = get_dag_list(only_dag_names=True)
-    # else:
-    #     db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=filter_kaapana_instances)
-    #     dags = list(set.intersection(*map(set, [[k for k, v in json.loads(ki.allowed_dags).items()] for ki in db_remote_kaapana_instances ])))
-    # return JSONResponse(content=dags)
-
-# @router.post("/submit-workflow-schema", response_model=List[schemas.Job])
-# async def submit_workflow_json_schema(request: Request, json_schema_data: schemas.JsonSchemaData, db: Session = Depends(get_db)):
-# 
-#     username = request.headers["x-forwarded-preferred-username"]
-# 
-#     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
-#     print(json_schema_data)
-# 
-#     conf_data = json_schema_data.conf_data
-# 
-#     conf_data["experiment_form"] = {
-#         "username": username
-#     }
-# 
-#     if "data_form" in conf_data and "cohort_name" in conf_data["data_form"]:
-#         db_cohort = crud.get_cohort(db, conf_data["data_form"]["cohort_name"])
-#         conf_data["data_form"].update({
-#             "cohort_query": json.loads(db_cohort.cohort_query),
-#             "cohort_identifiers": json.loads(db_cohort.cohort_identifiers)
-#         })
-#         
-#         data_form = conf_data["data_form"]
-#         cohort_limit = int(data_form["cohort_limit"]) if ("cohort_limit" in data_form and data_form["cohort_limit"] is not None) else None
-#         single_execution = "workflow_form" in conf_data and "single_execution" in conf_data["workflow_form"] and conf_data["workflow_form"]["single_execution"] is True
-# 
-#         print(f"Single execution: {single_execution}")
-#         print(f"Cohort limit: {cohort_limit}")
-#     else:
-#         single_execution = False
-# 
-#     queued_jobs = []
-#     if single_execution is True:
-#         for cohort_identifier in data_form['cohort_identifiers'][:cohort_limit]:
-#             # Copying due to reference?!
-#             single_conf_data = copy.deepcopy(conf_data)
-#             single_conf_data["data_form"]["cohort_identifiers"] = [cohort_identifier]
-#             queued_jobs.append({
-#                 'conf_data': single_conf_data,
-#                 'dag_id': json_schema_data.dag_id,
-#                 "username": username
-#             })
-#     else:
-#         queued_jobs = [
-#             {
-#                 'conf_data': conf_data,
-#                 'dag_id': json_schema_data.dag_id,
-#                 "username": username
-#             }
-#         ]
-# 
-#     db_jobs = []
-#     for jobs_to_create in queued_jobs: 
-#         if json_schema_data.remote == False:
-#             job = schemas.JobCreate(**{
-#                 "status": "pending",
-#                 "kaapana_instance_id": db_client_kaapana.id,
-#                 **jobs_to_create
-#             })
-#             db_job = crud.create_job(db, job)
-#             db_jobs.append(db_job)
-#         else:
-#             db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': json_schema_data.remote, 'instance_names': json_schema_data.instance_names}))
-#             for db_remote_kaapana_instance in db_remote_kaapana_instances:
-#                 job = schemas.JobCreate(**{
-#                     "status": "queued",
-#                     "kaapana_instance_id": db_remote_kaapana_instance.id,
-#                     "addressed_kaapana_instance_name": db_client_kaapana.instance_name,
-#                     **jobs_to_create
-#                 })
-# 
-#                 db_job = crud.create_job(db, job)
-#                 db_jobs.append(db_job)
-# 
-#     return db_jobs
-
 @router.post("/get-ui-form-schemas")
 async def ui_form_schemas(request: Request, filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
 
@@ -230,7 +147,7 @@ async def ui_form_schemas(request: Request, filter_kaapana_instances: schemas.Fi
     if dag_id is None:
         return JSONResponse(content=schemas)
     
-    # DAGs: Checking for dags -> replace with new implementation!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # DAGs: Checking for dags -> replace with new implementation!
     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)    # get client_instance
     dags = {}
     just_all_dags = {}
@@ -296,15 +213,6 @@ async def ui_form_schemas(request: Request, filter_kaapana_instances: schemas.Fi
             schemas["data_form"]["properties"]["cohort_name"]["oneOf"] = [{"const": d, "title": d} for d in overall_allowed_datasets]
         elif len(datasets) == 1:    # if just one instance is selected -> return (allowed) datasets of this instance
             schemas["data_form"]["properties"]["cohort_name"]["oneOf"] = [{"const": d, "title": d} for d in list(datasets.values())[0]]
-
-        # old cohort code
-        # if filter_kaapana_instances.remote is False:
-        #     datasets = crud.get_cohorts(db, username=username)
-        # else:
-        #     db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=filter_kaapana_instances)
-        #     datasets = set.intersection(*map(set,[json.loads(ki.allowed_datasets) for ki in db_remote_kaapana_instances]))
-        # print(datasets)
-        # schemas["data_form"]["properties"]["cohort_name"]["oneOf"] = [{"const": d, "title": d} for d in datasets]
     
     # print(f"\n\nFinal Schema: \n{schemas}")
     return JSONResponse(content=schemas)
@@ -413,15 +321,10 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
     db_kaapana_instances = []
     kaapana_instances_names = []
     for jobs_to_create in queued_jobs: 
-
-        # db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': json_schema_data.remote, 
-        #         'instance_names': json_schema_data.instance_names
-        #         }))
         db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': json_schema_data.remote, 
                 'instance_names': conf_data["experiment_form"]["runner_instances"]
                 }))
-        # if db_client_kaapana.instance_name in conf_data['experiment_form']['involved_instances']:  # add client instance to instance list only if it is marked as an involved_instance of current experiment
-        #     db_kaapana_instances.append(db_client_kaapana)
+        # add client instance to instance list only if it is marked as an involved_instance of current experiment
         if db_client_kaapana.instance_name in conf_data['experiment_form']['runner_instances']:  # add client instance to instance list only if it is marked as an involved_instance of current experiment
             db_kaapana_instances.append(db_client_kaapana)
         db_kaapana_instances.extend(db_remote_kaapana_instances)
@@ -468,7 +371,6 @@ async def get_experiments(request: Request, instance_name: str = None, involved_
 async def get_experiment_jobs(experiment_name: str = None, status: str = None, limit: int = None, db: Session = Depends(get_db)):
     exp_jobs = crud.get_experiment_jobs(db, experiment_name, status, limit=limit)
     return exp_jobs
-    # return crud.get_experiment_jobs(db, experiment_name, status, limit=limit)
 
 # put/update_experiment
 @router.put("/experiment", response_model=schemas.Experiment)
@@ -485,7 +387,7 @@ async def put_experiment(experiment: schemas.ExperimentUpdate, db: Session = Dep
                 'description':'The job was aborted by the user!'
                 })
 
-            # put_job(job, db)  # would be easier but doesb't work, so let's do it manually
+            # put_job(job, db)  # would be easier but doesn't work, so let's do it manually
             crud.abort_job(db, job, remote=False)
             job.status = "failed"
             crud.update_job(db, job, remote=False)  # update db_job to failed

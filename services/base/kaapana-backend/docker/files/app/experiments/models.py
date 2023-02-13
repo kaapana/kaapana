@@ -67,8 +67,6 @@ class KaapanaInstance(Base):
     jobs = relationship("Job", back_populates="kaapana_instance", cascade="all, delete")
     cohorts = relationship("Cohort", back_populates="kaapana_instance", cascade="all, delete")
     # many-to-one relationships
-    # experiment_in_which_involved_id = Column(Integer, ForeignKey('experiment.id'))
-    # experiment_in_which_involved = relationship("Experiment", foreign_keys=[experiment_in_which_involved_id], back_populates="involved_kaapana_instances")
     experiment_in_which_involved = Column(String(64), index=True)   # save information in string instead of sqlalchemy relationship - not ideal --> change it in future!
 
     # #https://stackoverflow.com/questions/5033547/sqlalchemy-cascade-delete
@@ -96,8 +94,6 @@ class Experiment(Base):
     cohort_name = Column(String(64), ForeignKey('cohort.cohort_name'))
     cohort = relationship("Cohort", back_populates="experiments")
     # one-to-many relationships
-    # involved_kaapana_instances = relationship("Experiment", back_populates="experiment_in_which_involved")
-    # involved_kaapana_instances = Column(String(51200))  # save information in string instead of sqlalchemy relationship - not ideal --> change it in future!
     involved_kaapana_instances = Column(String(51200), default='[]', index=True)
     experiment_jobs = relationship("Job", back_populates="experiment") #, cascade="all, delete")
 

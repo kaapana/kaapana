@@ -418,16 +418,19 @@ def collect_all_tgz_charts(keywords_filter: List, name_filter: str = "") -> Dict
 
     keywords_filter = set(keywords_filter)
     name_filter = name_filter
+    platforms = False
     assert settings.helm_extensions_cache is not None, f"HELM_EXTENSIONS_CACHE is not defined"
     chart_tgz_files = [f for f in glob.glob(
         os.path.join(settings.helm_extensions_cache, '*.tgz')) if name_filter in f]
     if "kaapanaplatform" in keywords_filter:
         assert settings.helm_platforms_cache is not None, f"HELM_PLATFORMS_CACHE is not defined"
+        platforms = True
         current_hash = global_charts_hashes_platforms
         current_tgz_charts = global_collected_tgz_charts_platforms
         chart_tgz_files = [f for f in glob.glob(
             os.path.join(settings.helm_platforms_cache, '*.tgz')) if name_filter in f]
-    logger.debug(f"found chart tgz files length: {len(chart_tgz_files)}")
+    logger.info(f"found chart tgz files length: {len(chart_tgz_files)}")
+    logger.debug(f"found chart tgz files: {chart_tgz_files}")
     collected_tgz_charts: dict = {}
     for chart_tgz_file in chart_tgz_files:
         chart_hash = sha256sum(filepath=chart_tgz_file)
@@ -444,7 +447,7 @@ def collect_all_tgz_charts(keywords_filter: List, name_filter: str = "") -> Dict
                 chart = list(yaml.load_all(stdout, yaml.FullLoader))[0]
                 if 'keywords' in chart and (set(chart['keywords']) & keywords_filter):
                     logger.debug(f"Valid keyword-filter!")
-                    chart = add_extension_params(chart)
+                    chart = add_extension_params(chart, platforms=platforms)
                     current_tgz_charts[f'{chart["name"]}-{chart["version"]}'] = chart
                     collected_tgz_charts[f'{chart["name"]}-{chart["version"]}'] = chart
                 else:
@@ -622,12 +625,16 @@ def get_kube_objects(release_name: str, helm_namespace: str = settings.helm_name
     return success, deployment_ready, ingress_paths, concatenated_states
 
 
-def helm_show_values(name, version) -> Dict:
+def helm_show_values(name, version, platforms=False) -> Dict:
     """
     Returns result of 'helm show values' for tgz file
     """
+    helm_cache_dir = settings.helm_extensions_cache
+    if platforms:
+        assert settings.helm_platforms_cache is not None, f"HELM_PLATFORMS_CACHE is not defined"
+        helm_cache_dir = settings.helm_platforms_cache
     success, stdout = execute_shell_command(
-        f'{settings.helm_path} show values {settings.helm_extensions_cache}/{name}-{version}.tgz')
+        f'{settings.helm_path} show values {helm_cache_dir}/{name}-{version}.tgz')
     if success:
         return list(yaml.load_all(stdout, yaml.FullLoader))[0]
     else:
@@ -639,7 +646,7 @@ def helm_repo_index(repo_dir):
     _, _ = execute_shell_command(helm_command)
 
 
-def helm_show_chart(name=None, version=None, package=None) -> Dict:
+def helm_show_chart(name=None, version=None, package=None, platforms=False) -> Dict:
     """
     Returns result of 'helm show chart' for package, if it is availabe. Otherwise runs for the tgz file
     """
@@ -648,7 +655,11 @@ def helm_show_chart(name=None, version=None, package=None) -> Dict:
     if package is not None:
         helm_command = f'{helm_command} {package}'
     else:
-        helm_command = f'{helm_command} {settings.helm_extensions_cache}/{name}-{version}.tgz'
+        helm_cache_dir = settings.helm_extensions_cache
+        if platforms:
+            assert settings.helm_platforms_cache is not None, f"HELM_PLATFORMS_CACHE is not defined"
+            helm_cache_dir = settings.helm_platforms_cache
+        helm_command = f'{helm_command} {helm_cache_dir}/{name}-{version}.tgz'
 
     success, stdout = execute_shell_command(helm_command)
 
@@ -761,15 +772,14 @@ def get_recently_updated_extensions() -> List[schemas.KaapanaExtension]:
     return res
 
 
-def add_extension_params(chart):
+def add_extension_params(chart, platforms=False):
     """
     Add 'extension_params' to chart object, if a valid field exists in chart values.
     """
     logger.debug(f"in function add_extension_params {chart['name']=}")
-    vals = helm_show_values(chart["name"], chart["version"])
+    vals = helm_show_values(chart["name"], chart["version"], platforms=platforms)
     if (vals is not None) and "extension_params" in vals:
-        # TODO: validate the parameter field
-        logger.debug("in if")
+        # TODO: validate the parameter fields
         if ";" not in vals["extension_params"]:
             chart["extension_params"] = vals["extension_params"]
     return chart

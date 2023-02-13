@@ -69,15 +69,18 @@
             </v-list-item-content>
             <v-list-item-icon></v-list-item-icon>
           </v-list-item>
-          <v-list-group :prepend-icon="'mdi-security'" v-if="isAuthenticated && securityProviderHostAvailable">
+          <v-list-group :prepend-icon="'mdi-security'" v-if="isAuthenticated">
             <template v-slot:activator>
               <v-list-item-title>Security</v-list-item-title>
             </template>
-            <v-list-item :to="'/security/dashboard'">
-              <v-list-item-title>Dashboard</v-list-item-title>
+            <v-list-item v-for="provider of securityProviders" :key="provider.id" :to="'/security/' + provider.id)">
+              <v-list-item-title v-text="provider.name"></v-list-item-title>
             </v-list-item>
-            <v-list-item :to="'/security/configuration'">
-              <v-list-item-title>Configuration</v-list-item-title>
+            <v-list-item :to="'/security/wazuh'">
+              <v-list-item-title>Wazuh</v-list-item-title>
+            </v-list-item>
+            <v-list-item :to="'/security/stackrox'">
+              <v-list-item-title>StackRox</v-list-item-title>
             </v-list-item>
           </v-list-group>
           <v-list-item :to="'/extensions'" v-if="isAuthenticated">
@@ -157,7 +160,7 @@ import kaapanaApiService from '@/common/kaapanaApi.service'
 
 import {mapGetters} from 'vuex';
 import {LOGIN, LOGOUT, CHECK_AUTH} from '@/store/actions.type';
-import {CHECK_AVAILABLE_WEBSITES, LOAD_COMMON_DATA} from '@/store/actions.type';
+import {CHECK_AVAILABLE_WEBSITES, LOAD_COMMON_DATA, CHECK_SECURITY_PROVIDERS} from '@/store/actions.type';
 import Settings from "@/components/Settings.vue";
 import { DARK_MODE_ACTIVE, DARK_MODE_NOT_ACTIVE, QUERY_DARK_MODE } from './store/messages.type';
 
@@ -168,11 +171,10 @@ export default Vue.extend({
     drawer: true,
     darkMode: 'darkMode' in localStorage ? JSON.parse(localStorage['darkMode']) : false,
     federatedBackendAvailable: false,
-    staticWebsiteAvailable: false,
-    securityProviderHostAvailable: false
+    staticWebsiteAvailable: false
   }),
   computed: {
-    ...mapGetters(['currentUser', 'isAuthenticated', 'externalWebpages', 'commonData']),
+    ...mapGetters(['currentUser', 'isAuthenticated', 'externalWebpages', 'commonData', 'securityProviders']),
   },
   methods: {
     changeMode(v: boolean) {
@@ -204,13 +206,18 @@ export default Vue.extend({
   beforeCreate() {
     this.$store.dispatch(CHECK_AVAILABLE_WEBSITES)
     this.$store.dispatch(LOAD_COMMON_DATA)
+    this.$store.dispatch(CHECK_SECURITY_PROVIDERS)
+    console.log(this);
   },
   mounted() {
     this.$vuetify.theme.dark = this.darkMode
     request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
         this.federatedBackendAvailable = kaapanaApiService.checkUrl(response.data, '/kaapana-backend');
+      }).catch((error: any) => {
+        console.log('Something went wrong with traefik', error)
+      });
+    request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
         this.staticWebsiteAvailable = kaapanaApiService.checkUrl(response.data, '/static-website-browser');
-        this.securityProviderHostAvailable = true; //kaapanaApiService.checkUrl(response.data, '/security/api/provider-count');
       }).catch((error: any) => {
         console.log('Something went wrong with traefik', error)
       });

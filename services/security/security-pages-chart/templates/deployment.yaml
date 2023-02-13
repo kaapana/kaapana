@@ -39,12 +39,17 @@ spec:
             memory: 100Mi
           limits:
             memory: 500Mi
-        # volumeMounts:
-        #   - name: common-data-file
-        #     mountPath: /app/jsons
-      # volumes:
-      # - name: common-data-file
-      #   configMap:
-      #     name: security-pages-config
+        volumeMounts:
+        - mountPath: /data
+          name: security-pages-persistence
+        - mountPath: /api_credentials
+          name: security-pages-api-credentials
+      volumes:
+      - name: security-pages-persistence
+        persistentVolumeClaim:
+          claimName: security-pages-persistence-volume-claim
+      - name: security-pages-api-credentials
+        persistentVolumeClaim:
+          claimName: security-pages-api-persistent-volume-claim
       imagePullSecrets:
       - name: registry-secret

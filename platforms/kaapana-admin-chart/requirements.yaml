@@ -21,4 +21,5 @@ dependencies:
     version: 0.0.0
   - name: keycloak-init-chart
     version: 0.0.0
-  
+  - name: auth-backend-chart
+    version: 0.0.0

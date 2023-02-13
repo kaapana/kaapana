@@ -116,7 +116,7 @@ def check_file_namespace(fpath):
 def add_file(file: UploadFile, content: bytes, overwrite: bool = True) -> Tuple[bool, str]:
     """writes tgz file into fast_data_dir/extensions
     """
-    allowed_types = ["application/x-compressed"]
+    allowed_types = ["application/x-compressed", "application/x-compressed-tar"]
     if file.content_type not in allowed_types:
         err = f"Wrong content type '{file.content_type}'  allowed types are {allowed_types}"
         logger.error(err)

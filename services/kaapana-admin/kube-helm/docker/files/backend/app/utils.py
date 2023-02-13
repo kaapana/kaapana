@@ -226,7 +226,8 @@ def helm_install(
     shell=True,
     helm_cache_path=None,
     update_state=True,
-    blocking=True
+    blocking=True,
+    platforms=False
 ) -> Tuple[bool, str, dict, str]:
     # TODO: must be shell=False as default
     """
@@ -272,9 +273,9 @@ def helm_install(
     logger.debug(json.dumps(default_sets, indent=4, sort_keys=True))
 
     # get chart's values
-    values = helm_helper.helm_show_values(name, version)
+    values = helm_helper.helm_show_values(name, version, platforms)
     if 'keywords' not in payload:
-        chart = helm_helper.helm_show_chart(name, version)
+        chart = helm_helper.helm_show_chart(name, version, platforms)
         if 'keywords' in chart:
             keywords = chart['keywords']
         else:

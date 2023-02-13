@@ -1,35 +1,52 @@
-from fastapi import APIRouter, HTTPException, Request
-from helpers.extension_availability import registered_extensions
-from models.extension import ExtensionRegistration
-from helpers.wazuh import WazuhAPIAuthenication
-import httpx
+from fastapi import APIRouter, HTTPException, Request, Response
+from helpers.provider_availability import registered_providers
+from models.provider import ProviderRegistration
+from helpers.wazuh import WazuhAPIAuthentication, WazuhAPIWrapper
+import logging
+from helpers.resources import API_ROUTE_PREFIX, LOGGER_NAME
+from helpers.logger import get_logger
+from starlette.status import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
 
-api_prefix = "api"
-router = APIRouter(prefix=f"/{api_prefix}")
-wazuh_authentication = WazuhAPIAuthenication()
+logger = get_logger(f"{LOGGER_NAME}.api", logging.INFO)
 
-@router.get("/available-extensions")
-def get_available_extensions():
-    return {"extensions": registered_extensions.get_names()}
+router = APIRouter(prefix=f"/{API_ROUTE_PREFIX}")
+wazuh_authentication = WazuhAPIAuthentication()
 
-@router.put("/register-extension")
-def put_register_extension(extension: ExtensionRegistration):
-    registered_extensions.add(extension)
+# export interface SecurityProvider {
+#   id: string;
+#   name: string;
+#   url: string;
+#   api_endpoints: string[];
+# }
 
+@router.get("/provider")
+def get_provider():
+    return {"provider": registered_providers.get_overview()}
+
+@router.put("/provider")
+def put_provider(provider: ProviderRegistration):
+    registered_providers.add(provider)  
+
+# todo change route
 @router.get("/extension/wazuh/agent-installed")
-def wazuh_agent_installed():
-    wazuh_authentication.retrieve_token()
-    bearer_token = wazuh_authentication.get_bearer_token()
-    if bearer_token is None:
-        raise HTTPException(status_code=401, detail="No authentication token for Wazuh available")
+def get_wazuh_agent_installed():
+    try:
+        wazuh_api = WazuhAPIWrapper(wazuh_authentication)
+        return {"agent_installed": wazuh_api.is_agent_installed()}
+    except:
+        raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not retrieve information about installed Wazuh agents")
 
-    result = httpx.get("https://security-wazuh-service.services.svc:55000/agents", verify=False, headers={"Authorization": bearer_token})
-    print(result)
-    data = result.json()["data"]
-    total_agents = int(data["total_affected_items"])
-    print(data)
-    print(total_agents)
-    return {"agent_installed": total_agents > 1} # API lists manager instance as agent, but we need an additional agent running on host machine
+@router.get("/enable-debug")
+def get_enable_debug():
+    for name in logging.root.manager.loggerDict:
+        logging.getLogger(name).setLevel(logging.DEBUG)
+    return Response(status_code=HTTP_200_OK)
+
+@router.get("/disable-debug")
+def get_disable_debug():
+    for name in logging.root.manager.loggerDict:
+        logging.getLogger(name).setLevel(logging.INFO)
+    return Response(status_code=HTTP_200_OK)
 
 # get data dump from specific extension
 #@router.get("/extension/{extension-name}")
@@ -39,5 +56,5 @@ def wazuh_agent_installed():
 
 @router.get("/{full_path:path}")
 def catch_all_api(request: Request, full_path:str):
-    raise HTTPException(status_code=404, detail="API route not available")
+    raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="API route not available")
 

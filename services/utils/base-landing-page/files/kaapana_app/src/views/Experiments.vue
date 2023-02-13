@@ -170,7 +170,6 @@ export default Vue.extend({
         .then((response) => {
           this.clientInstance = response.data;
           if (this.all_instance_names.indexOf(this.clientInstance.instance_name) === -1) {
-            console.log("all_instance_names: ", this.all_instance_names, "clientInstance.instance_name: ", this.clientInstance.instance_name)
             this.allInstances.push(this.clientInstance)
             this.all_instance_names.push(this.clientInstance.instance_name)
           }
@@ -207,15 +206,12 @@ export default Vue.extend({
         .federatedClientApiPost("/get-remote-kaapana-instances")
         .then((response) => {
           this.remoteInstances = response.data;
-          console.log("remoteInstances: ", this.remoteInstances)
           this.remoteInstances.forEach(remote_instance => {
             if (this.all_instance_names.indexOf(remote_instance.instance_name) === -1) {
-              console.log("all_instance_names: ", this.all_instance_names, "remote_instance.instance_name: ", remote_instance.instance_name)
               this.allInstances.push(remote_instance)
               this.all_instance_names.push(remote_instance.instance_name)
             }
           })
-          console.log("allInstances: ", this.allInstances)
         })
         .catch((err) => {
           console.log(err);

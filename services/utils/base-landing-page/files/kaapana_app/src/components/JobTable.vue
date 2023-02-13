@@ -131,7 +131,6 @@
       computed: {
         filteredJobs() {
           if (this.jobs !== null) {
-            console.log("filteredJobs", this.jobs)
             return this.jobs.filter((i) => {
               let statusFilter = false;
               if (i.status == this.jobStatus) {
@@ -143,7 +142,6 @@
               return statusFilter
             });
           } else {
-            console.log("No jobs")
             return [];
           }
         },
@@ -198,7 +196,6 @@
           this.dialogConfData = false
         },
         getStatusColor(status) {
-          console.log("Status:", status)
           if (status == 'queued') {
             return 'grey'
           } else if (status == 'pending') {
@@ -239,14 +236,10 @@
         async direct_airflow_operator_logs(item) {     // async to make await work properly
           await this.getJobTaskinstancesAPI(item.id);  // task_instances and states are written to -> this.dag_run_tasks_n_states ; needs to be await to asve API result to variable
 
-          console.log("this.dag_run_tasks_n_states: ", this.dag_run_tasks_n_states)
-          console.log("typeof: ", typeof this.dag_run_tasks_n_states)
           // iterate over this.dag_run_tasks_n_states and search for operator with state 'failed'
           for (let key in this.dag_run_tasks_n_states) {
-            console.log(key, this.dag_run_tasks_n_states[key])
             if (this.dag_run_tasks_n_states[key].at(-1) == "failed") {
               this.failed_operator = key // .split(".")[-1]
-              console.log("failed_operator: ", this.failed_operator)
             }
           }
           // compose airflow log link:
@@ -298,14 +291,12 @@
             });
         },
         async getJobTaskinstancesAPI(job_id) {
-          console.log("Trying to catch task_instances of job: ", job_id),
           await kaapanaApiService
             .federatedClientApiGet("/get_job_taskinstances", {
               job_id,
             })
             .then((response) => {
               this.dag_run_tasks_n_states = response.data
-              console.log("response in getJobTaskinstancesAPI: ", this.dag_run_tasks_n_states)
               // this.$emit('refreshView')
             })
             .catch((err) => {

@@ -192,13 +192,11 @@ v-dialog(v-model='dialogOpen' max-width='600px')
         this.external_instance_names = []
         this.clientPost = this.instance
         this.clientPost.fernet_encrypted = false
-        console.log("clientPost: ", this.clientPost)
         console.log('Getting Dags and Datasets')
         this.getDags();
         this.getDatasets();
       },
       dialogDelete (val) {
-        console.log("dialogDelete")
         val || this.closeDelete()
       },
     },
@@ -278,7 +276,6 @@ v-dialog(v-model='dialogOpen' max-width='600px')
           });
       },
       updateClientForm() {
-        console.log("clientPost: ", this.clientPost)
         kaapanaApiService
           .federatedClientApiPut("/client-kaapana-instance", this.clientPost)
           .then((response) => {

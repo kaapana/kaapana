@@ -63,10 +63,7 @@
     watch: {
       viewremoteList (visible) {
         if (visible) {
-          console.log("Dialog was opened!");
           this.refreshRemote();
-        } else {
-          console.log("Dialog was closed!")
         }
       }
     },
@@ -77,7 +74,6 @@
         this.getRemoteJobs()
       },
       editRemoteInstance(instance) {
-        console.log("editRemoteInstance w/ instance: ", instance)
         this.remotePost = instance
         this.remoteDialog = true
         this.remoteUpdate = true

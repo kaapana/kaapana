@@ -101,7 +101,6 @@ export default {
   },
   computed: {
     available_instance_names () {
-      console.log("instances: ", this.instances)
       return this.instances.map(({ instance_name }) => instance_name);
     },
     formDataFormatted () {
@@ -113,7 +112,6 @@ export default {
   watch: {
     dialogOpen () {
       this.instance_names = [];
-      console.log("DialogOpen instance_names: ", this.instance_names)
       this.experiment_name = null
       this.dag_id = null
       this.external_instance_names = []
@@ -143,7 +141,6 @@ export default {
     switch_label() {
       if (this.local_remote_switch == true) {
         if (this.instance_names.indexOf(this.clientinstance.instance_name) === -1) {
-          console.log("Add clientInstance to instance_names!")
           this.instance_names.push(this.clientinstance.instance_name)
         }
         else {
@@ -152,9 +149,7 @@ export default {
         return `Local experiment on instance: ${this.clientinstance.instance_name}`
       }
       else {
-        console.log("Switch is turned off!")
         if (this.instance_names.indexOf(this.clientinstance.instance_name) !== -1) {
-          console.log("Clear instance_names list!")
           this.instance_names = []
         }
         return `Remote Experiment on available remote instances` 
@@ -214,7 +209,6 @@ export default {
             this.external_dag_id = null
           }
           this.schemas = schemas
-          console.log("after schemas: ", schemas)
         })
         .catch((err) => {
           console.log(err);
@@ -225,20 +219,17 @@ export default {
         .federatedClientApiPost("/get-ui-form-schemas",  {remote: true, experiment_name: this.experiment_name, dag_id: this.external_dag_id, instance_names: this.external_instance_names})
         .then((response) => {
           this.external_schemas = response.data
-          console.log("after external_schemas: ", this.external_schemas)
         })
         .catch((err) => {
           console.log(err);
         });
     },
     getDags() {
-      console.log("GET DAGs instance_names: ", this.instance_names)
       if (this.instance_names !== 0) {
         kaapanaApiService
           .federatedClientApiPost("/get-dags", {remote: this.remote, instance_names: this.instance_names})
           .then((response) => {
             this.available_dags = response.data;
-            console.log("Available DAGs: ", this.available_dags)
           })
           .catch((err) => {
             console.log(err);
@@ -267,25 +258,21 @@ export default {
     },
     submitWorkflow() {
       // modify attributes remote_data and federated_data depending on instances 
-      console.log("instance_names: ", this.instance_names)
-      
+
       this.federated_data = false;
-      console.log("clientinstance.instance_name: ", this.clientinstance.instance_name)
-      console.log("client in instances: ", this.instance_names.indexOf(this.clientinstance.instance_name))
       if ((this.instance_names.indexOf(this.clientinstance.instance_name) != -1) && (this.instance_names.length == 1)) {  // clientinstance is in instance_names ==> local experiment
         this.remote_data = false;
-        console.log("Local Experiment -> federated_data:", this.federated_data, ", remote_data: ,", this.remote_data)
+        // console.log("Local Experiment -> federated_data:", this.federated_data, ", remote_data: ,", this.remote_data)
       }
       else {                                                          // clientinstance is not in instance_names ==> remote experiment
         this.remote_data = true;
-        console.log("Remote Experiment -> federated_data:", this.federated_data, ", remote_data: ,", this.remote_data)
+        // console.log("Remote Experiment -> federated_data:", this.federated_data, ", remote_data: ,", this.remote_data)
       }
       // }
       if (this.external_instance_names.length) {
         this.formData['external_schema_instance_names'] = this.external_instance_names
         this.federated_data = true
       }
-      console.log("Experiment executed on: ", this.instance_names)
       kaapanaApiService
         // .federatedClientApiPost("/submit-workflow-schema", {
         .federatedClientApiPost("/experiment", {

@@ -132,7 +132,6 @@ export default {
   computed: {
     filteredExperiments() {
       if (this.experiments !== null) {
-        console.log("filteredExperiments: ", this.experiments, "expandedExperiment", this.expandedExperiment)
         if (this.expandedExperiment !== null) {
           this.getJobsOfExperiment(this.expandedExperiment.experiment_name)
         }
@@ -222,7 +221,6 @@ export default {
         .federatedClientApiDelete("/experiment",{
             experiment_id,
         }).then((response) => {
-            console.log("Experiment deleted")
         })
         .catch((err) => {
             console.log(err);
@@ -234,7 +232,6 @@ export default {
             experiment_id,
             experiment_status,
         }).then((response) => {
-            console.log("Experiment restarted")
         })
         .catch((err) => {
             console.log(err);
@@ -246,7 +243,6 @@ export default {
             experiment_id,
             experiment_status,
         }).then((response) => {
-            console.log("Experiment restarted")
         })
         .catch((err) => {
             console.log(err);

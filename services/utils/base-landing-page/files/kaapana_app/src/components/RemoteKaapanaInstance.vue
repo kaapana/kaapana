@@ -164,7 +164,6 @@
     },
     watch: {
       dialogDelete (val) {
-        console.log("dialogDelete")
         val || this.closeDelete()
       },
     },
@@ -181,7 +180,6 @@
       diff_updated() {
         var datetime = Date.parse(new Date(this.instance.time_updated).toUTCString()); // var datetime = Date.parse(new Date(this.instance.time_updated * 1000).toUTCString());
         var now = Date.parse(new Date().toUTCString());
-        console.log("datetime: ", datetime, ", now: ", now)
 
         if( isNaN(datetime) )
         {
@@ -202,14 +200,12 @@
     },
     methods:{
       lets_init () {
-        console.log("Initialize whole component!")
         this.instance_names = []
         this.experiment_name = null
         this.dag_id = null
         this.external_instance_names = []
         this.instancePost = this.instance
         this.instancePost.fernet_encrypted = false
-        console.log("instancePost: ", this.instancePost)
         console.log('Getting Dags and Datasets')
         this.getDags();
         this.getDatasets();
@@ -258,7 +254,6 @@
           });
       },
       updateInstancForm() {
-        console.log("instancePost: ", this.instancePost)
         kaapanaApiService
           .federatedClientApiPut("/client-kaapana-instance", this.instancePost)
           .then((response) => {

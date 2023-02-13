@@ -28,6 +28,7 @@ GPU_SUPPORT="{{ gpu_support|default('false') }}"
 PREFETCH_EXTENSIONS="{{ prefetch_extensions|default('false') }}"
 CHART_PATH=""
 NO_HOOKS=""
+ENABLE_NFS="false"
 
 INSTANCE_UID=""
 SERVICES_NAMESPACE="{{ services_namespace }}"
@@ -366,6 +367,7 @@ function deploy_chart {
     --set-string global.extensions_namespace=$EXTENSIONS_NAMESPACE \
     --set-string global.admin_namespace=$ADMIN_NAMESPACE \
     --set-string global.gpu_support="$GPU_SUPPORT" \
+    --set-string global.enable_nfs="$ENABLE_NFS" \
     --set-string global.helm_namespace="$HELM_NAMESPACE" \
     --set global.include_reverse_proxy=$INCLUDE_REVERSE_PROXY \
     --set-string global.home_dir="$HOME" \

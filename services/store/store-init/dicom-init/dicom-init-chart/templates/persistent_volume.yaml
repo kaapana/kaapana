@@ -8,11 +8,20 @@ metadata:
 spec:
   capacity:
     storage: "1Mi"
+{{- if .Values.global.enable_nfs }}
+  storageClassName: nfs
   accessModes:
     - ReadWriteMany
   nfs:
     server: "10.152.183.15"
     path: "/"
+{{- else }}
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.fast_data_dir }}/"
+{{- end }}
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"

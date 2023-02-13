@@ -6,14 +6,22 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: nfs
   capacity:
     storage: "1Mi"
+{{- if .Values.global.enable_nfs }}
+  storageClassName: nfs
   accessModes:
     - ReadWriteMany
   nfs:
     server: "10.152.183.15"
     path: "/tensorboard"
+{{- else }}
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.fast_data_dir }}/tensorboard"
+{{- end }}
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.jobs_namespace }}"
@@ -41,14 +49,22 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: nfs
   capacity:
     storage: "1Mi"
+{{- if .Values.global.enable_nfs }}
+  storageClassName: nfs
   accessModes:
     - ReadWriteMany
   nfs:
     server: "10.152.183.15"
     path: "/workflows/models"
+{{- else }}
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.fast_data_dir }}/workflows/models"
+{{- end }}
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.jobs_namespace }}"
@@ -76,14 +92,22 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: nfs
   capacity:
     storage: "1Mi"
+{{- if .Values.global.enable_nfs }}
+  storageClassName: nfs
   accessModes:
     - ReadWriteMany
   nfs:
     server: "10.152.183.15"
     path: "/minio"
+{{- else }}
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.fast_data_dir }}/minio"
+{{- end }}
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.jobs_namespace }}"
@@ -111,14 +135,22 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: nfs
   capacity:
     storage: "1Mi"
+{{- if .Values.global.enable_nfs }}
+  storageClassName: nfs
   accessModes:
     - ReadWriteMany
   nfs:
     server: "10.152.183.15"
     path: "/workflows/data"
+{{- else }}
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.fast_data_dir }}/workflows/data"
+{{- end }}
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.jobs_namespace }}"

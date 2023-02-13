@@ -207,10 +207,19 @@ def helm_registry_login(username, password):
 
 
 def check_helm_installed():
+    command = ["which", "helm"]
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
+    if output.returncode != 0:
+        BuildUtils.logger.error("Helm is not installed!")
+        BuildUtils.logger.error("-> install curl 'sudo apt install curl'")
+        BuildUtils.logger.error("-> install helm 'sudo snap install helm --classic'!")
+        BuildUtils.logger.error("-> install the kubeval 'helm plugin install https://github.com/instrumenta/helm-kubeval'")
+        exit(1)
+
     command = ["helm", "kubeval", "--help"]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
     if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
-        BuildUtils.logger.error("Helm kubeval ist not installed correctly!")
+        BuildUtils.logger.error("Helm kubeval is not installed correctly!")
         BuildUtils.logger.error("Make sure Helm kubeval-plugin is installed!")
         BuildUtils.logger.error("hint: helm plugin install https://github.com/instrumenta/helm-kubeval")
         exit(1)

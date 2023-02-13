@@ -6,9 +6,9 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: nfs
   capacity:
     storage: "1Mi"
+  storageClassName: nfs
   accessModes:
     - ReadWriteMany
   nfs:
@@ -42,9 +42,9 @@ metadata:
   labels:
     type: local
 spec:
-  storageClassName: nfs
   capacity:
     storage: "1Mi"
+  storageClassName: nfs
   accessModes:
     - ReadWriteMany
   nfs:

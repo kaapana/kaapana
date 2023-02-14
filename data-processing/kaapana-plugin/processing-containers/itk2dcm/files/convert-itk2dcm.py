@@ -6,23 +6,10 @@ import shutil
 import glob 
 import warnings
 
-# import numpy as np
-# import nibabel as nib
-# import pynrrd
-# import matplotlib.pyplot as plt
-
-# import pydicom
-# import pydicom_seg
-
 import SimpleITK as sitk
 
 from pathlib import Path
 from pydicom.uid import generate_uid
-
-# from kaapana.workflows.dags.example.files.segmentation_processing import find_code_meaning
-
-# def get_tags_from_meta(meta_path):
-#     meta = json.load(meta_path)
 
 
 def make_out_dir(series_uid, dataset, case, segmentation=False, human_readable=False):
@@ -47,9 +34,6 @@ def make_out_dir(series_uid, dataset, case, segmentation=False, human_readable=F
     
     return case_dir
 
-# def get_seg_info():
-#     # case 1 seg info is dict in meta_data
-
 
 class Nifti2DcmConverter:
     """ Converter for itk compatible file formats as nifti and nrrd to dicom. Since these formats do 
@@ -68,21 +52,15 @@ class Nifti2DcmConverter:
         """ Run the converter on a path with the following directory structure:
 
         path
-        |----dataset1
+        |----dataset
         |    | meta_data.json
+        |    | seg_info.json
         |    | series1.nii.gz
         |    | series1_seg.nii.gz
         |    | series2.nii.gz
         |    | series2_seg.nii.gz
         |    | ...
-        |
-        |----dataset2
-        |    | meta_data.json
-        |    | series1.nii.gz
-        |    | series1_seg.nii.gz
-        |    | series2.nii.gz
-        |    | series2_seg.nii.gz
-        |    | ...
+
 
         The meta_data.json can be used to set values for patient ids, study uids, series ids and also arbitrary dicom tags. The expected structure is as follows:
 
@@ -196,7 +174,7 @@ class Nifti2DcmConverter:
             )
         
 
-    def convert_series(self, case_path, patient_id, series_tag_values, seed='4242', segmentation=None, seg_args=None, seg_info_path=None, *args, **kwds):
+    def convert_series(self, case_path, patient_id, series_tag_values, segmentation=None, seg_args=None, seg_info_path=None, *args, **kwds):
         """
         :param data: data to process given as list of paths of the ".nii.gz" files to process.
         
@@ -234,7 +212,6 @@ class Nifti2DcmConverter:
         series_tag_values["0008|103e"] = series_description # Series Description
         series_tag_values["0020|000e"] = series_instance_UID
         series_tag_values["0008|0060"] = modality
-        # series_tag_values["0020|0010"] = study_id
         series_tag_values["0010|0020"] = patient_id
         
         
@@ -245,7 +222,6 @@ class Nifti2DcmConverter:
         for i in range(imgFiltered.GetDepth()):
             self.write_slices(imgFiltered, series_tag_values, i, out_dir/'dicoms')
         print("***", out_dir, "written.")
-        
         
 
         if segmentation:
@@ -261,8 +237,6 @@ class Nifti2DcmConverter:
                 shutil.copy2(seg_info_path, out_dir/'segmentations/')
             print("### Processing segmentation parameters finished.")
             
-
-    
 
     def write_slices(self, new_img, series_tag_values, i, out_dir):
         image_slice = new_img[:,:,i]
@@ -297,21 +271,6 @@ class Nifti2DcmConverter:
         writer.Execute(image_slice)
 
 
-    # def convert_segmentation(self, path, meta_json_path, *args, **kwds):
-    #     meta = json.load(meta_json_path)
-    #     template = pydicom_seg.template.from_dcmqi_metainfo('metainfo.json')
-    #     nib.load(path)  
-
-
-    # def validate_dicom(self, tags, valid_tags_csv):
-    #     with open("/kaapanadevdata/dicom_tags_current.csv", 'r') as tagfile:
-    #         reader = csv.reader(tagfile, delimiter='\t')
-    #         valid_tags = {k: (v,d) for k,v,d,_ in reader }
-
-    #     for tag, value in tags:
-    #         if tag not in valid_tags.keys():
-    #             raise AttributeError(f"Invalid dicom tag found in {meta_file}")
-
 
 class Parser:
     """Parser for nifti or nrrd files. Lists all cases to process within a certain directory, along with the respective segmentation files. 
@@ -343,7 +302,6 @@ class Parser:
                     print(c)
                 print("----")
         
-        # for c in cases_with_segs: print(c)
         cases_with_segs.sort()
         segs.sort()
 
@@ -351,6 +309,12 @@ class Parser:
         res.extend([(c, None) for c in cases_without_segs])
 
         return res
+
+        def parse_by_structure(img_dir, seg_dirs):
+            cases = glob.glob(os.path.join(img_dir, "*.nii*"))  # TODO: use a proper regez to specifically filter for .nii, .nii.gz and .nrrd
+            segs_list = [glob.glob(os.path.join(seg_dir, "*.nii*"))  for seg_dir in segs_dirs]
+
+
 
 
 if __name__ == "__main__":

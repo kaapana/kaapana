@@ -13,7 +13,7 @@ from build_helper.build_utils import BuildUtils
 from build_helper.container_helper import Container, pull_container_image
 from jinja2 import Environment, FileSystemLoader
 import networkx as nx
-import concurrent.futures
+from build_helper.security_utils import TrivyUtils
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
@@ -30,10 +30,6 @@ def parallel_execute(container_object):
             return queue_id, container_object, issue, done
 
     issue = container_object.build()
-
-    # Scan for vulnerabilities if enabled and no issue was found
-    if BuildUtils.vulnerability_scan and issue == None:
-        issue = container_object.scan_image_for_vulnerabilities()
 
     if issue == None:
         successful_built_containers.append(container_object.build_tag)
@@ -904,7 +900,7 @@ class HelmChart:
                 else:
                     i += 1
                     BuildUtils.logger.debug(f"{i+1}/{container_count} Done: {queue_id} - {result_container.tag}")
-                    BuildUtils.printProgressBar(i, container_count, prefix='Progress:', suffix=result_container, length=50)
+                    BuildUtils.printProgressBar(i, container_count, prefix='Progress:', suffix=result_container.tag, length=50)
 
                     if issue != None:
                         BuildUtils.logger.info("")
@@ -934,6 +930,36 @@ class HelmChart:
         BuildUtils.logger.info("")
         BuildUtils.logger.info("")
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
+
+        # Scan for vulnerabilities if enabled
+        if BuildUtils.vulnerability_scan is True:
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("Starting vulnerability scan...")
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("")
+
+            # Init trivy utils
+            trivy_utils = TrivyUtils()
+
+            # Loop through all built containers and scan them
+            for key, image_build_tag in enumerate(sorted(successful_built_containers)):
+                # BuildUtils.logger.info(f"Vulnerability scan for {image_build_tag}")
+
+                # Create SBOM
+                trivy_utils.create_sbom(image_build_tag)
+
+                # Scan for vulnerabilities
+                trivy_utils.create_vulnerability_report(image_build_tag)
+
+                # Print progress bar
+                BuildUtils.printProgressBar(key + 1, len(successful_built_containers), prefix='Progress:', suffix=image_build_tag, length=50)
+
+            # Save SBOMs
+            trivy_utils.save_sboms()
+
+            # Save vulnerability reports
+            trivy_utils.save_vulnerability_reports()
 
         if BuildUtils.create_offline_installation is True:
             BuildUtils.logger.info("Generating platform docker dump.")

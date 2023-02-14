@@ -272,7 +272,7 @@ class Container:
             severity_filter = BuildUtils.vulnerability_severity_level
 
         # Build trivy command
-        command = ['docker', 'run', '-v', '/var/run/docker.sock:/var/run/docker.sock', 'aquasec/trivy', 'image', '--ignore-unfixed', '--severity', '-q', "aquasec/trivy:latest"]
+        command = ['docker', 'run', '-v', '/var/run/docker.sock:/var/run/docker.sock', 'aquasec/trivy', 'image', '--ignore-unfixed', '--severity', '-q', f"{self.build_tag}"]
         command.insert(8, severity_filter)
 
         # Run trivy scan

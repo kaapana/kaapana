@@ -955,12 +955,6 @@ class HelmChart:
                 # Print progress bar
                 BuildUtils.printProgressBar(key + 1, len(successful_built_containers), prefix='Progress:', suffix=image_build_tag, length=50)
 
-            # Save SBOMs
-            trivy_utils.save_sboms()
-
-            # Save vulnerability reports
-            trivy_utils.save_vulnerability_reports()
-
         if BuildUtils.create_offline_installation is True:
             BuildUtils.logger.info("Generating platform docker dump.")
             micok8s_base_img_json_path = join(BuildUtils.kaapana_dir,"build-scripts","build_helper","microk8s_images.json")

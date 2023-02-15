@@ -12,7 +12,7 @@ extension_params:
         definition: ""
         type: "string"
         value: ""
-        default: "u851l"
+        default: ""
     credentials_registry_password:
         definition: ""
         type: "string"
@@ -107,7 +107,7 @@ extension_params:
         definition: ""
         type: "string"
         value: ""
-        default: "10.128.130.133"
+        default: ""
     http_port:
         definition: ""
         type: "string"
@@ -157,7 +157,7 @@ extension_params:
         definition: ""
         type: "string"
         value: ""
-        default: "registry.hzdr.de/uenal.akuenal/kaapana-beta"
+        default: ""
     release_name:
         definition: ""
         type: "string"

@@ -249,6 +249,9 @@ def helm_install(
     logger.debug("in function: helm_install with payload {0}, shell {1}".format(payload, shell))
 
     helm_cache_path = helm_cache_path or settings.helm_extensions_cache
+    if platforms:
+        assert settings.helm_platforms_cache is not None, f"HELM_PLATFORMS_CACHE is not defined"
+        helm_cache_path = settings.helm_platforms_cache
 
     name = payload["name"]
     version = payload["version"]
@@ -263,10 +266,9 @@ def helm_install(
     default_sets.pop('global.kaapana_collections', None)
 
     if 'extension_params' in payload:
-        logger.debug("found extension_params in payload {0}".format(
-            payload['extension_params']))
+        logger.debug(f"found extension_params in payload {payload['extension_params']}")
         for key, value in payload['extension_params'].items():
-            if (";" not in key) and (";" not in value):
+            if (";" not in key) and (";" not in str(value)):
                 default_sets.update({f'global.{key}': value})
 
     logger.debug('Using default sets')
@@ -327,8 +329,14 @@ def helm_install(
     helm_sets = ''
     if "sets" in payload:
         for key, value in payload["sets"].items():
-            value = str(value).replace(",", "\,").replace("'", '\'"\'').replace(" ", "")
-            helm_sets = helm_sets + f" --set {key}='{value}'"
+            if type(value) == str:
+                value = str(value).replace(",", "\,").replace("'", '\'"\'').replace(" ", "")
+                helm_sets = helm_sets + f" --set-string {key}='{value}'"
+            else:
+                helm_sets = helm_sets + f" --set {key}='{value}'"
+
+    if "global.helm_namespace" in payload["sets"]:
+        helm_namespace = payload["sets"]["global.helm_namespace"]
 
     # make the whole command
     helm_command = f'{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}'

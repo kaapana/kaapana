@@ -1,3 +1,201 @@
 ---
 global:
     test: ""
+
+extension_params:
+    base_namespace:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "base"
+    credentials_registry_username:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "u851l"
+    credentials_registry_password:
+        definition: ""
+        type: "string"
+        value: ""
+        default: ""
+    credentials_minio_username:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "kaapanaminio"
+    credentials_minio_password:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "Kaapana2020"
+    credentials_grafana_username:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "admin"
+    credentials_grafana_password:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "admin"
+    credentials_keycloak_admin_username:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "admin"
+    credentials_keycloak_admin_password:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "Kaapana2020"
+    dev_ports:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "false"
+    dicom_port:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "11112"
+    fast_data_dir:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "/home/kaapana-data"
+    services_namespace:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "services"
+    jobs_namespace:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "jobs"
+    extensions_namespace:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "extensions"
+    admin_namespace:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "services"
+    gpu_support:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "false"
+    helm_namespace:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "services"
+    include_reverse_proxy=false: # TODO: make bool
+        definition: ""
+        type: "string"
+        value: ""
+        default: "false"
+    home_dir:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "/home/ubuntu"
+    hostname:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "10.128.130.133"
+    http_port:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "80"
+    http_proxy:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "http://www-int2.dkfz-heidelberg.de:80"
+    https_port:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "443"
+    https_proxy:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "http://www-int2.dkfz-heidelberg.de:80"
+    offline_mode:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "false"
+    prefetch_extensions:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "false"
+    pull_policy_jobs:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "Always"
+    pull_policy_operators:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "Always"
+    pull_policy_pods:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "Always"
+    registry_url:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "registry.hzdr.de/uenal.akuenal/kaapana-beta"
+    release_name:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "kaapana-platform-chart"
+    build_timestamp:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "13-02-2023"
+    kaapana_build_version:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "0.1.3-488-g45b8aca2"
+    platform_build_branch:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "maintenance-page"
+    platform_last_commit_timestamp:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "10-02-2023"
+    slow_data_dir:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "/home/kaapana-data"
+    instance_uid:
+        definition: ""
+        type: "string"
+        value: ""
+        default: ""
+    instance_name:
+        definition: ""
+        type: "string"
+        value: ""
+        default: "central"
+        

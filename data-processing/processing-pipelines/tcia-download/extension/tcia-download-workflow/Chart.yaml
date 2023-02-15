@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+appVersion: "0.1.0"
+description: download data from tcia trough dropping a .tcia file into minio
+name: tcia-download-workflow
+version: "0.0.0"
+keywords:
+- kaapanaworkflow
+- kaapanaexperimental

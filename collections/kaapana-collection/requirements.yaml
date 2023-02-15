@@ -79,3 +79,6 @@ dependencies:
     version: 0.0.0
   - name: otsus-method-workflow
     version: 0.0.0
+  - name: tcia-download-workflow
+    version: 0.0.0
+    repository: file://../../data-processing/processing-pipelines/tcia-download/extension/tcia-download-workflow

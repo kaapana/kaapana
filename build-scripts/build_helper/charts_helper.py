@@ -12,8 +12,8 @@ from pathlib import Path
 from build_helper.build_utils import BuildUtils
 from build_helper.container_helper import Container, pull_container_image
 from jinja2 import Environment, FileSystemLoader
-from multiprocessing.pool import ThreadPool
 import networkx as nx
+from build_helper.security_utils import TrivyUtils
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
@@ -30,12 +30,12 @@ def parallel_execute(container_object):
             return queue_id, container_object, issue, done
 
     issue = container_object.build()
+
     if issue == None:
         successful_built_containers.append(container_object.build_tag)
         issue = container_object.push()
 
     return queue_id, container_object, issue, done
-
 
 def generate_deployment_script(platform_chart):
     BuildUtils.logger.info(f"-> Generate platform deployment script for {platform_chart.name} ...")
@@ -891,7 +891,7 @@ class HelmChart:
         while len(waiting_containers_to_built) != 0 and build_rounds <= BuildUtils.max_build_rounds:
             build_rounds += 1
             tmp_waiting_containers_to_built = []
-            result_containers = ThreadPool(BuildUtils.parallel_processes).imap_unordered(parallel_execute, containers_to_built)
+            result_containers = BuildUtils.thread_pool.imap_unordered(parallel_execute, containers_to_built)
 
             for queue_id, result_container, issue, done in result_containers:
                 if not done:
@@ -900,7 +900,7 @@ class HelmChart:
                 else:
                     i += 1
                     BuildUtils.logger.debug(f"{i+1}/{container_count} Done: {queue_id} - {result_container.tag}")
-                    BuildUtils.printProgressBar(i, container_count, prefix='Progress:', suffix=result_container, length=50)
+                    BuildUtils.printProgressBar(i, container_count, prefix='Progress:', suffix=result_container.tag, length=50)
 
                     if issue != None:
                         BuildUtils.logger.info("")
@@ -914,7 +914,11 @@ class HelmChart:
                         )
 
             waiting_containers_to_built = tmp_waiting_containers_to_built
-        
+    
+        # Shutdown the thread pool
+        BuildUtils.thread_pool.close()
+        BuildUtils.thread_pool.join()
+
         if build_rounds == BuildUtils.max_build_rounds:
             BuildUtils.generate_issue(
                 component=suite_tag,
@@ -926,6 +930,30 @@ class HelmChart:
         BuildUtils.logger.info("")
         BuildUtils.logger.info("")
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
+
+        # Scan for vulnerabilities if enabled
+        if BuildUtils.vulnerability_scan is True:
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("Starting vulnerability scan...")
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("")
+
+            # Init trivy utils
+            trivy_utils = TrivyUtils()
+
+            # Loop through all built containers and scan them
+            for key, image_build_tag in enumerate(sorted(successful_built_containers)):
+                # BuildUtils.logger.info(f"Vulnerability scan for {image_build_tag}")
+
+                # Create SBOM
+                trivy_utils.create_sbom(image_build_tag)
+
+                # Scan for vulnerabilities
+                trivy_utils.create_vulnerability_report(image_build_tag)
+
+                # Print progress bar
+                BuildUtils.printProgressBar(key + 1, len(successful_built_containers), prefix='Progress:', suffix=image_build_tag, length=50)
 
         if BuildUtils.create_offline_installation is True:
             BuildUtils.logger.info("Generating platform docker dump.")

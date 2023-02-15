@@ -9,6 +9,7 @@ from argparse import ArgumentParser
 from build_helper.charts_helper import HelmChart, init_helm_charts, helm_registry_login
 from build_helper.container_helper import Container, container_registry_login
 from build_helper.build_utils import BuildUtils
+from build_helper.security_utils import TrivyUtils
 
 supported_log_levels = ["DEBUG", "INFO", "WARN", "ERROR"]
 
@@ -32,6 +33,10 @@ if __name__ == '__main__':
     parser.add_argument("-bd", "--build-dir", dest="build_dir", default=None, help="Specify the main Kaapana repo-dir to build from.")
     parser.add_argument("-bip", "--build-ignore-patterns", dest="build_ignore_patterns", default=None, help="Comma seperated list of directory paths or files that should be ignored.")
     parser.add_argument("-nl", "--no-login", dest="no_login", default=False, action="store_true", help="Skipps the logins to the container registry (expects to be already logged in).")
+    parser.add_argument("-vs", "--vulnerability-scan", dest="vulnerability_scan", default=None, action="store_true", help="Scan the built containers with trivy for vulnerabilities.")
+    parser.add_argument("-vsl", "--vulnerability-severity-level", dest="vulnerability_severity_level", default=None, action="store_true", help="Filter by severity of findings. CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN.")
+    parser.add_argument("-cc", "--chart-check", dest="chart_check", default=None, action="store_true", help="Scan the platform charts with trivy for configuration issues.")
+    parser.add_argument("-ccl", "--chart-check-severity-level", dest="chart_check_severity_level", default=None, action="store_true", help="Filter by severity of findings. CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN.")
     args = parser.parse_args()
 
     kaapana_dir = args.kaapaa_dir if args.kaapaa_dir != None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -111,6 +116,10 @@ if __name__ == '__main__':
     conf_registry_password = configuration["registry_password"]
     conf_registry_password = conf_registry_password if conf_registry_password != "" else None
     conf_include_credentials = configuration["include_credentials"]
+    conf_vulnerability_scan = configuration["vulnerability_scan"]
+    conf_vulnerability_severity_level = configuration["vulnerability_severity_level"]
+    conf_chart_check = configuration["chart_check"]
+    conf_chart_check_severity_level = configuration["chart_check_severity_level"]
 
     registry_user = args.username if args.username is not None else conf_registry_username
     registry_pwd = args.password if args.password is not None else conf_registry_password
@@ -127,6 +136,10 @@ if __name__ == '__main__':
     skip_push_no_changes = args.skip_push_no_changes if args.skip_push_no_changes != None else conf_skip_push_no_changes
     parallel_processes = int(args.parallel_processes if args.parallel_processes != 2 else conf_parallel_processes)
     include_credentials = args.include_credentials if args.include_credentials != None else conf_include_credentials
+    vulnerability_scan = args.vulnerability_scan if args.vulnerability_scan != None else conf_vulnerability_scan
+    vulnerability_severity_level = args.vulnerability_severity_level if args.vulnerability_severity_level != None else conf_vulnerability_severity_level
+    chart_check = args.chart_check if args.chart_check != None else conf_chart_check
+    chart_check_severity_level = args.chart_check_severity_level if args.chart_check_severity_level != None else conf_chart_check_severity_level
     no_login = args.no_login
 
     for external_source_dir in external_source_dirs:
@@ -179,6 +192,10 @@ if __name__ == '__main__':
     logger.info(f"{build_dir=}")
     logger.info(f"{kaapana_dir=}")
     logger.info(f"{no_login=}")
+    logger.info(f"{vulnerability_scan=}")
+    logger.info(f"{vulnerability_severity_level=}")
+    logger.info(f"{chart_check=}")
+    logger.info(f"{chart_check_severity_level=}")
     logger.info("")
     logger.info("-----------------------------------------------------------")
 
@@ -230,7 +247,11 @@ if __name__ == '__main__':
         include_credentials=include_credentials,
         registry_user=registry_user,
         registry_pwd=registry_pwd,
-        push_to_microk8s=push_to_microk8s
+        push_to_microk8s=push_to_microk8s,
+        vulnerability_scan=vulnerability_scan,
+        vulnerability_severity_level=vulnerability_severity_level,
+        chart_check=chart_check,
+        chart_check_severity_level=chart_check_severity_level,
     )
 
     Container.init_containers(
@@ -261,6 +282,16 @@ if __name__ == '__main__':
     logger.info("")
 
     HelmChart.generate_platform_build_tree()
+
+    # Check charts for configuation errors
+    if BuildUtils.chart_check:
+        logger.info("")
+        logger.info("-----------------------------------------------------------")
+        logger.info("------------------ CHECK PLATFORM CHARTS ------------------")
+        logger.info("-----------------------------------------------------------")
+        logger.info("")
+        for chart_object in BuildUtils.platform_filter:
+            TrivyUtils.check_chart(path_to_chart=os.path.join(BuildUtils.build_dir, chart_object))
 
     if len(BuildUtils.issues_list) > 0:
         logger.info("")

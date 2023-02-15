@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from glob import glob
 import os
+import re
 from subprocess import PIPE, run
 from time import time
 from shutil import which
@@ -238,7 +239,7 @@ class Container:
 
         else:
             BuildUtils.logger.debug(f"{self.build_tag}: no pre-build script!")
-
+    
     def build(self):
         issue = None
         if Container.enable_build:

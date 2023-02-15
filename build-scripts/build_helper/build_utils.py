@@ -4,6 +4,7 @@ import semver
 import networkx as nx
 from os.path import join, dirname, basename, exists, isfile, isdir
 from git import Repo
+from multiprocessing.pool import ThreadPool
 
 class BuildUtils:
     max_build_rounds = 4
@@ -29,11 +30,16 @@ class BuildUtils:
     kaapana_last_commit_timestamp = None
     build_timestamp = None
     parallel_processes = None
+    vulnerability_scan = None
+    vulnerability_severity_level = None
+    chart_check = None
+    chart_check_severity_level = None
     
     platform_name = None
     platform_build_version = None
     platform_build_branch = None
     platform_last_commit_timestamp = None
+    thread_pool = None
 
     @staticmethod
     def add_container_images_available(container_images_available):
@@ -56,7 +62,8 @@ class BuildUtils:
 
     @staticmethod
     def init(kaapana_dir, build_dir, external_source_dirs, build_ignore_patterns, platform_filter, default_registry, http_proxy, logger, exit_on_error, enable_build_kit,
-             create_offline_installation, skip_push_no_changes, parallel_processes, include_credentials, registry_user, registry_pwd, push_to_microk8s):
+             create_offline_installation, skip_push_no_changes, parallel_processes, include_credentials, registry_user, registry_pwd, push_to_microk8s, vulnerability_scan,
+             vulnerability_severity_level, chart_check, chart_check_severity_level):
 
         BuildUtils.logger = logger
         BuildUtils.kaapana_dir = kaapana_dir
@@ -80,6 +87,11 @@ class BuildUtils:
         BuildUtils.include_credentials = include_credentials
 
         BuildUtils.parallel_processes = parallel_processes
+        BuildUtils.vulnerability_scan = vulnerability_scan
+        BuildUtils.vulnerability_severity_level = vulnerability_severity_level
+        BuildUtils.chart_check = chart_check
+        BuildUtils.chart_check_severity_level = chart_check_severity_level
+        BuildUtils.thread_pool = ThreadPool(BuildUtils.parallel_processes)
 
     @staticmethod
     def get_timestamp():
@@ -308,7 +320,7 @@ class BuildUtils:
         percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
         filledLength = int(length * iteration // total)
         bar = fill * filledLength + '-' * (length - filledLength)
-        print(f'\r{prefix} |{bar}| {percent}% {suffix.tag.ljust(100)}', end=printEnd)
+        print(f'\r{prefix} |{bar}| {percent}% {suffix.ljust(100)}', end=printEnd)
         # Print New Line on Complete
         if iteration == total:
             print()

@@ -15,4 +15,8 @@ platform_filter: "kaapana-admin-chart" # comma seperated platform-chart-names
 external_source_dirs: "" # comma seperated paths
 build_ignore_patterns: "" # comma seperated list of directory paths or files that should be ignored
 parallel_processes: 2 # parallel process count for container build + push 
-include_credentials: false # Whether to include the used registry credentials into the deploy-platform script.
+include_credentials: false # Whether to include the used registry credentials into the deploy-platform script
+vulnerability_scan: false # Whether containers should be checked for vulnerabilities during build. (Takes long time)
+vulnerability_severity_level: "CRITICAL,HIGH" # Filter by severity of findings. CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN. All -> ""
+chart_check: false # Wheter the kaapana-admin-chart should be checked for configuration issues. (Takes not too much time)
+chart_check_severity_level: "CRITICAL,HIGH" # Filter by severity of findings. CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN. All -> ""

@@ -177,8 +177,11 @@ async def helm_install_chart(request: Request):
         logger.debug(f"/helm-install-chart called with {payload=}")
         assert "name" in payload, "Required key 'name' not found in payload"
         assert "version" in payload, "Required key 'version' not found in payload"
+        platforms = False
+        if ("platforms" in payload) and (str(payload["platforms"]).lower() == "true"):
+            platforms = True
         success, stdout, _, _, cmd = utils.helm_install(
-            payload, shell=True, blocking=False)
+            payload, shell=True, blocking=True, platforms=platforms)
         if success:
             return Response(f"Successfully ran helm install, command {cmd}", 200)
         else:

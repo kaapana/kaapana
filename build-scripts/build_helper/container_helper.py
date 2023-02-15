@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from glob import glob
 import os
+import re
 from subprocess import PIPE, run
 from time import time
 from shutil import which
@@ -238,6 +239,57 @@ class Container:
 
         else:
             BuildUtils.logger.debug(f"{self.build_tag}: no pre-build script!")
+
+    # Get the Number of vulnerabilities from the trivy output
+    # Find the Number after the string "Total: " using regex
+    def get_number_of_vulnerabilities(self, trivy_output):
+        regex = r"Total: (\d+)"
+        matches = re.finditer(regex, trivy_output.stdout, re.MULTILINE)
+        
+        for _, match in enumerate(matches, start=1):
+            number_of_vulnerabilities = match.group(1)
+
+        return int(number_of_vulnerabilities)
+
+    def scan_image_for_vulnerabilities(self):
+
+        # Check if severity level is set (enable all vulnerabily severity levels if not set)
+        if BuildUtils.vulnerability_severity_level == '' or BuildUtils.vulnerability_severity_level == None:
+            severity_filter = 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+        # Check if vulnerability_severity_levels are in the allowed values
+        elif not all(x in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'] for x in BuildUtils.vulnerability_severity_level.split(",")):
+            BuildUtils.logger.warning(f"Invalid severity level set in vulnerability_severity_level: {BuildUtils.vulnerability_severity_level}. Allowed values are: CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN")
+            issue = {
+                        "component": suite_tag,
+                        "name": f"{self.build_tag}",
+                        "msg": f"Invalid severity level set in vulnerability_severity_level: {BuildUtils.vulnerability_severity_level}. Allowed values are: CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN",
+                        "level": "ERROR",
+                        "path": self.container_dir
+                    }
+            return issue
+
+        else:
+            severity_filter = BuildUtils.vulnerability_severity_level
+
+        # Build trivy command
+        command = ['docker', 'run', '-v', '/var/run/docker.sock:/var/run/docker.sock', 'aquasec/trivy', 'image', '--ignore-unfixed', '--severity', '-q', f"{self.build_tag}"]
+        command.insert(8, severity_filter)
+
+        # Run trivy scan
+        trivy_output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
+
+        # Check if vulnerability was found
+        if self.get_number_of_vulnerabilities(trivy_output) > 0:
+            if BuildUtils.exit_on_error:
+                BuildUtils.logger.warning(f"\nImage {self.build_tag} has following vulnerabilities:\n" + trivy_output.stdout)
+                issue = {
+                    "component": suite_tag,
+                    "name": f"{self.build_tag}",
+                    "msg": "Vulnerability found in container image!",
+                    "level": "ERROR",
+                    "path": self.container_dir
+                }
+                return issue
 
     def build(self):
         issue = None

@@ -70,13 +70,12 @@ data:
         static_configs:
         - targets: ['airflow-statsd-service.{{  .Values.global.services_namespace  }}.svc:9102']
 
-      - job_name: 'node-exporter'
-        kubernetes_sd_configs:
-          - role: endpoints
-        relabel_configs:
-        - source_labels: [__meta_kubernetes_endpoints_name]
-          regex: 'node-exporter'
-          action: keep
+      - job_name: 'Node-Exporter'
+        scheme: http
+        scrape_interval: 15s
+        metrics_path: '/metrics'
+        static_configs:
+        - targets: ['node-exporter.{{  .Values.global.services_namespace  }}.svc:9100']
 
       # Scrape config for nodes (kubelet).
       #

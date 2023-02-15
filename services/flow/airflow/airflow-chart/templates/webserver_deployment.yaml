@@ -52,16 +52,8 @@ spec:
           containerPort: 8080
         args: ["webserver"]
         env:
-        # - name: AIRFLOW_HOME
-        #   value: "/root/airflow"
         - name: AIRFLOW__LOGGING__LOGGING_LEVEL
           value: "WARNING"
-        # - name: DATADIR
-        #   value: "{{ .Values.global.fast_data_dir }}/workflows/data"
-        # - name: MODELDIR
-        #   value: "{{ .Values.global.fast_data_dir }}/workflows/models"
-        # - name: KAAPANA_BUILD_VERSION
-        #   value: "{{ .Values.global.kaapana_build_version }}"
         - name: HOSTDOMAIN
           value: "{{ .Values.global.hostname }}"
         - name: HTTPS_PORT
@@ -76,8 +68,6 @@ spec:
           value: "{{ .Values.global.jobs_namespace }}"
         - name: ADMIN_NAMESPACE
           value: "{{ .Values.global.admin_namespace }}"
-        # - name: GPU_SUPPORT
-        #   value: "{{ .Values.global.gpu_support }}"
         - name: SQL_ALCHEMY_CONN
           value: postgresql+psycopg2://root:root@postgres-airflow:5432/airflow
         resources:
@@ -94,12 +84,8 @@ spec:
           subPath: webserver_config.py
         - name: airflow-plugins
           mountPath: /root/airflow/plugins
-        # - name: airflow-dags
-        #   mountPath: /root/airflow/dags
-        # - name: airflow-logs
-        #   mountPath: /root/airflow/logs
-        # - name: modeldata
-        #   mountPath: /models
+        - name: airflow-dags
+          mountPath: /root/airflow/dags
         # readinessProbe:
         #   initialDelaySeconds: 120
         #   timeoutSeconds: 5

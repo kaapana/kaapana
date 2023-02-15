@@ -23,7 +23,7 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 
 from kaapana.blueprints.kaapana_utils import generate_run_id, cure_invalid_name, get_release_name
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, ADMIN_NAMESPACE, JOBS_NAMESPACE, SERVICES_NAMESPACE, EXTENSIONS_NAMESPACE
-from kaapana.operators.HelperCaching import cache_operator_output
+# from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
 import uuid
 import json
@@ -366,7 +366,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             self.env_vars[k] = str(v)
 
     # The order of this decorators matters because of the whitelist_federated_learning variable, do not change them!
-    @cache_operator_output
+    # @cache_operator_output
     @federated_sharing_decorator
     def execute(self, context):
 

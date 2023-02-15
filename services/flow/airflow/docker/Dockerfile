@@ -12,13 +12,13 @@ ENV DICT_PATH /scripts/dicom_tag_dict.json
 WORKDIR /app
 
 COPY files/requirements.txt ./
-RUN python3 -m pip install --no-cache-dir -r requirements.txt --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.5.1/constraints-3.8.txt"
+RUN python3 -m pip install --no-cache-dir -r requirements.txt --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.5.1/constraints-3.9.txt"
 
 COPY files/scripts/ /scripts
 
 COPY files/bootstrap.sh /app/bootstrap.sh
 RUN chmod +x /app/bootstrap.sh
 
-COPY files/scheduler_job.py /usr/local/lib/python3.9/dist-packages/airflow/jobs/
+COPY files/scheduler_job.py /usr/local/lib/python3.9/site-packages/airflow/jobs/
 
 ENTRYPOINT ["/app/bootstrap.sh"]

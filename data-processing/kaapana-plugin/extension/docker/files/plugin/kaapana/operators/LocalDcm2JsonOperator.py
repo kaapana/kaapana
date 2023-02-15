@@ -39,7 +39,29 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
     * json file: output json file. DICOM tags are converted to a json file.
     """
+    MODALITY_TAG = "00080060 Modality_keyword"
+    IMAGE_TYPE_TAG = "00080008 ImageType_keyword"
 
+    @staticmethod
+    def predict_modality(metadata_dict: dict):
+        """
+        If dicom modality tag is "CT" and ImageType tag contains "Localizer", "CT" (3D) is changed to "XR" (2D)
+        :param dcm_file: path to first slice of dicom image
+        :param modality: dicom modality tag
+        :return: _description_
+        """
+        assert LocalDcm2JsonOperator.MODALITY_TAG in metadata_dict
+        modality = metadata_dict[LocalDcm2JsonOperator.MODALITY_TAG]
+
+        metadata_dict.update({"curated_modality": modality})
+        if LocalDcm2JsonOperator.IMAGE_TYPE_TAG in metadata_dict:
+            image_type = metadata_dict[LocalDcm2JsonOperator.IMAGE_TYPE_TAG]
+            assert isinstance(image_type, list)
+            if modality =="CT" and "LOCALIZER" in image_type and len(image_type)>=3:
+                metadata_dict.update({"curated_modality": "XR"})
+
+        return metadata_dict
+        
     @staticmethod
     def get_label_tags(metadata):
         result_dict = {}
@@ -132,6 +154,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         
                 self.executeDcm2Json(dcm_file_path, json_file_path)
                 json_dict = self.cleanJsonData(json_file_path)
+        
+                json_dict = LocalDcm2JsonOperator.predict_modality(metadata_dict = json_dict)
+
 
                 with open(json_file_path, "w", encoding='utf-8') as jsonData:
                     json.dump(json_dict, jsonData, indent=4, sort_keys=True, ensure_ascii=True)

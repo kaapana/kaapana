@@ -91,12 +91,10 @@ async def delete_jobs(db: Session = Depends(get_db)):
     # Todo add remote job deletion
     return crud.delete_jobs(db)
 
-# @router.get("/dags")
-# async def dags(only_dag_names: bool = True):
-#     return get_dag_list(only_dag_names=only_dag_names)
+@router.get("/dags")
+async def dags(only_dag_names: bool = True):
+    return get_dag_list(only_dag_names=only_dag_names)
 
-
-# @router.post("/get-instances-dags")
 @router.post("/get-dags")
 async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
     if filter_kaapana_instances.remote is False:

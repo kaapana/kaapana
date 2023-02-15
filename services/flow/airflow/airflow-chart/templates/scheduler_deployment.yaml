@@ -92,7 +92,7 @@ spec:
           value: "WARNING"
         - name: AIRFLOW_HOME
           value: "/root/airflow"
-        - name: SQLALCHEMY_WARN_20
+        - name: SQLALCHEMY_SILENCE_UBER_WARNING
           value: "1"
         - name: DATADIR
           value: "{{ .Values.global.fast_data_dir }}/workflows/data"
@@ -132,9 +132,9 @@ spec:
           value: postgresql+psycopg2://root:root@postgres-airflow:5432/airflow
         resources:
           requests:
-            memory: 1000Mi
+            memory: 3000Mi
           limits:
-            memory: 2000Mi
+            memory: 15000Mi
         volumeMounts:
         - name: airflow-configmap
           mountPath: /root/airflow/airflow.cfg

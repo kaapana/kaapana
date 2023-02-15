@@ -260,8 +260,6 @@ class Nifti2DcmConverter:
         image_slice.SetMetaData("0008|0012", time.strftime("%Y%m%d")) # Instance Creation Date
         image_slice.SetMetaData("0008|0013", time.strftime("%H%M%S")) # Instance Creation Time
 
-        # image_slice.SetMetaData("0008|0060", "CT")
-
         # (0020, 0032) image position patient determines the 3D spacing between slices.
         image_slice.SetMetaData("0020|0032", '\\'.join(map(str,new_img.TransformIndexToPhysicalPoint((0,0,i))))) # Image Position (Patient)
         image_slice.SetMetaData("0020|0013", str(i)) # Instance Number
@@ -298,11 +296,7 @@ class Parser:
 
     def parse_combined_dir(self,path, *args, **kwds):
         
-        # cases = [f for f in Path(path).rglob("Case*.nii.gz")]
-        # cases = glob.glob
-        # cases = [f for f in Path(path).rglob("*") if re.search(r"[cC]ase[0-9]+\.nii(\.gz)", str(f.name)) and not re.search(f"_{path}_[cC]ase\_out", str(f))]
         cases = [f for f in Path(path).rglob("*") if (re.match(r'^(?!.*(?:seg|Seg|segmentation|Segmentation)).*$', str(f.name)) and re.search(r"[0-9]*.\.nii(.gz)?", str(f.name)) ) ]
-        # segs = [f for f in Path(path).rglob("*") if re.search(r"[cC]ase[0-9]+\_[sS]eg(mentation)?\.nii(\.gz)", str(f.name)) and not re.search(f"_{path}_/[cC]ase\_out", str(f))]
         segs = [f for f in Path(path).rglob("*") if re.search(r"[sS]eg(mentation)?\.nii(\.gz)?", str(f.name))]
 
         return self.zip_cases_with_segs(cases, segs)
@@ -351,44 +345,7 @@ class Parser:
         for c in cases_without_segs:
             print(c)
 
-        # cases_with_segs = [c for i,c in enumerate(cases) if len(case_nr[i]) == 1 and case_nr[i][0] in seg_nrs]
-
-        # cases_with_segs = []
-        # cases_without_segs = []
         
-        
-        # neither as efficient nor as elegant as dict comprehension, but probably more comprehensible 
-        # for i, c in enumerate(cases):
-        #     for j, s in enumerate(segs):
-        #         if len(case_nr[i]) == 1 and len(seg_nr[j])==1:
-        #             if case_nr[i][0] == case_nr[j][0]:
-        #                 cases_with_segs.append((c,s))
-        #                 break
-        #         else:
-        #             raise AttributeError("Input file names have multiple numeric values, as a result matching images to segmentations is ambiguous. Please rename your files in a consistent way.")
-        #     cases_without_segs.append((c, None))
-        
-
-
-
-        # [(print(c), print(re.search(os.path.basename(str(c).split(".")[0]) , "|".join(str_segs)))) for c in cases ]
-        # cases_with_segs = [c for c in cases if re.search(str(c).split(".")[0], "|".join(str_segs) )]
-        # cases_without_segs = [c for c in cases if c not in cases_with_segs]
-        # if len(cases_with_segs) > 0:
-
-        # print(f"Found {len(cases_without_segs)} cases without segmentations. Theses cases will be ignored. For more info run script with log='Debug' mode.")
-        # if kwds.get("log")=='Debug':
-        #     print("----Cases without segmentations:----")
-        #     for c in cases_without_segs:
-        #         print(c)
-        #     print("----")
-        
-        # cases_with_segs.sort()
-        # segs.sort()
-
-        # res = list(zip(cases_with_segs, segs))
-        
-        # res = cases_with_segs.extend(cases_without_segs)
         res = [*cases_with_segs, *cases_without_segs]
         return res
 

@@ -5,7 +5,7 @@
       v-card-title
         v-row
           v-col(cols="12", sm="5")
-            span Applications and workflows &nbsp;
+            span Platforms &nbsp;
               v-tooltip(bottom="")
                 template(v-slot:activator="{ on, attrs }")
                   v-icon(
@@ -171,15 +171,20 @@
                     template(v-for="(param, key) in popUpItem.extension_params")
                       v-text-field(
                         v-if="param.type == 'string'"
-                        :label="key + ':' + param.definition + ' [default: ' + param.default + ']' "
+                        :label="key"
                         v-model="popUpExtension[key]"
                         clearable,
                         :rules="popUpRulesStr"
                       )
+                      v-checkbox(
+                        v-if="param.type == 'bool' || param.type == 'boolean'"
+                        :label="key"
+                        v-model="popUpExtension[key]"
+                      )
                       v-select(
                         v-if="param.type == 'list_single'"
                         :items="param.value"
-                        :label="key + ':' + param.definition + ' [default: ' + param.default + ']' "
+                        :label="key"
                         v-model="popUpExtension[key]"
                         :rules="popUpRulesSingleList"
                         clearable
@@ -189,7 +194,7 @@
                         multiple
                         :items="param.value"
                         :item-text="param.default"
-                        :label="key + ':' + param.definition + ' [default: ' + param.default + ']' "
+                        :label="key"
                         v-model="popUpExtension[key]"
                         :rules="popUpRulesMultiList"
                         clearable
@@ -791,6 +796,7 @@ export default Vue.extend({
         name: item.name,
         version: item.version,
         keywords: item.keywords,
+        platforms: "true"
       } as any;
 
       console.log("payload", payload)

@@ -182,7 +182,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                  opensearch_port: int = 9200,
                  opensearch_index: str = "meta-index",
                  check_in_pacs: bool = True,
-                 *args,
                  **kwargs):
 
         """

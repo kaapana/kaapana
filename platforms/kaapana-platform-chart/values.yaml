@@ -82,7 +82,7 @@ extension_params:
         definition: ""
         type: "string"
         value: ""
-        default: "services"
+        default: "admin"
     gpu_support:
         definition: ""
         type: "string"
@@ -93,11 +93,11 @@ extension_params:
         type: "string"
         value: ""
         default: "services"
-    include_reverse_proxy=false: # TODO: make bool
+    include_reverse_proxy:
         definition: ""
-        type: "string"
+        type: "bool"
         value: ""
-        default: "false"
+        default: false
     home_dir:
         definition: ""
         type: "string"
@@ -167,12 +167,12 @@ extension_params:
         definition: ""
         type: "string"
         value: ""
-        default: "13-02-2023"
+        default: ""
     kaapana_build_version:
         definition: ""
         type: "string"
         value: ""
-        default: "0.1.3-488-g45b8aca2"
+        default: ""
     platform_build_branch:
         definition: ""
         type: "string"
@@ -182,7 +182,7 @@ extension_params:
         definition: ""
         type: "string"
         value: ""
-        default: "10-02-2023"
+        default: ""
     slow_data_dir:
         definition: ""
         type: "string"

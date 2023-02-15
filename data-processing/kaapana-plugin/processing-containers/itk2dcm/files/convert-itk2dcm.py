@@ -304,6 +304,44 @@ class Parser:
         cases = [f for f in Path(path).rglob("*") if (re.match(r'^(?!.*(?:seg|Seg|segmentation|Segmentation)).*$', str(f.name)) and re.search(r"[0-9]*.\.nii(.gz)?", str(f.name)) ) ]
         # segs = [f for f in Path(path).rglob("*") if re.search(r"[cC]ase[0-9]+\_[sS]eg(mentation)?\.nii(\.gz)", str(f.name)) and not re.search(f"_{path}_/[cC]ase\_out", str(f))]
         segs = [f for f in Path(path).rglob("*") if re.search(r"[sS]eg(mentation)?\.nii(\.gz)?", str(f.name))]
+        # cases.sort()
+        # segs.sort()
+        # if kwds.get("log") in ["Info", "Debug"]:
+        #     print("----cases----")
+        #     for x in cases: print(x)
+        #     print("----segs-----")
+        #     for x in segs: print(x)
+
+        # str_segs = [str(s) for s in segs]
+        # cases_with_segs = [c for c in cases if re.search(str(c).split(".")[0], "|".join(str_segs) )]
+        # cases_without_segs = [c for c in cases if c not in cases_with_segs]
+        # if len(cases_with_segs) > 0:
+
+        #     print(f"Found {len(cases_without_segs)} cases without segmentations. Theses cases will be ignored. For more info run script with log='Debug' mode.")
+        #     if kwds.get("log")=='Debug':
+        #         print("----Cases without segmentations:----")
+        #         for c in cases_without_segs:
+        #             print(c)
+        #         print("----")
+        
+        # cases_with_segs.sort()
+        # segs.sort()
+
+        # res = list(zip(cases_with_segs, segs))
+        # res.extend([(c, None) for c in cases_without_segs])
+
+        return self.zip_cases_with_segs(cases, segs)
+
+    def parse_by_structure(self, path, *args, **kwds):
+        img_dir = os.path.join(path, "cases")
+        seg_dir = os.path.join(path, "segs")
+        cases = glob.glob(os.path.join(img_dir, "*.nii*"))  # TODO: use a proper regex to specifically filter for .nii, .nii.gz and .nrrd
+        segs = glob.glob(os.path.join(seg_dir, "*.nii*"))
+        
+        return self.zip_cases_with_segs(cases, segs, **kwds)
+
+
+    def zip_cases_with_segs(self, cases, segs, *args, **kwds):
         cases.sort()
         segs.sort()
         if kwds.get("log") in ["Info", "Debug"]:
@@ -331,13 +369,6 @@ class Parser:
         res.extend([(c, None) for c in cases_without_segs])
 
         return res
-
-        def parse_by_structure(path):
-            img_dir = os.path.join(path, "cases")
-            seg_dir = os.path.join(path, "segs")
-            cases = glob.glob(os.path.join(img_dir, "*.nii*"))  # TODO: use a proper regex to specifically filter for .nii, .nii.gz and .nrrd
-            segs_list = [glob.glob(os.path.join(seg_dir, "*.nii*"))  for seg_dir in segs_dirs]
-
 
 
 

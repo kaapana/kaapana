@@ -32,6 +32,8 @@ class BuildUtils:
     parallel_processes = None
     vulnerability_scan = None
     vulnerability_severity_level = None
+    chart_check = None
+    chart_check_severity_level = None
     
     platform_name = None
     platform_build_version = None
@@ -61,7 +63,7 @@ class BuildUtils:
     @staticmethod
     def init(kaapana_dir, build_dir, external_source_dirs, build_ignore_patterns, platform_filter, default_registry, http_proxy, logger, exit_on_error, enable_build_kit,
              create_offline_installation, skip_push_no_changes, parallel_processes, include_credentials, registry_user, registry_pwd, push_to_microk8s, vulnerability_scan,
-             vulnerability_severity_level):
+             vulnerability_severity_level, chart_check, chart_check_severity_level):
 
         BuildUtils.logger = logger
         BuildUtils.kaapana_dir = kaapana_dir
@@ -87,6 +89,8 @@ class BuildUtils:
         BuildUtils.parallel_processes = parallel_processes
         BuildUtils.vulnerability_scan = vulnerability_scan
         BuildUtils.vulnerability_severity_level = vulnerability_severity_level
+        BuildUtils.chart_check = chart_check
+        BuildUtils.chart_check_severity_level = chart_check_severity_level
         BuildUtils.thread_pool = ThreadPool(BuildUtils.parallel_processes)
 
     @staticmethod

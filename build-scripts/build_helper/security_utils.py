@@ -124,6 +124,42 @@ class TrivyUtils:
         # Remove the vulnerability report file
         os.remove(os.path.join(BuildUtils.build_dir, 'vulnerability_report.json'))
 
+    # Function to check the Kaapana chart for configuration errors
+    @staticmethod
+    def check_chart(path_to_chart):
+        command = ['trivy', 'config', '-f', 'json', '-o', os.path.join(BuildUtils.build_dir, 'chart_report.json'), '--severity', BuildUtils.chart_check_severity_level, path_to_chart]
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3600)
+
+        if output.returncode != 0:
+            BuildUtils.logger.error("Failed to check Kaapana chart")
+            BuildUtils.logger.error(output.stderr)
+            exit(1)
+
+        # read the chart report file
+        with open(os.path.join(BuildUtils.build_dir, 'chart_report.json'), 'r') as f:
+            chart_report = json.load(f)
+
+        compressed_chart_report = {}
+
+        # Log the chart report
+        for report in chart_report['Results']:
+            if report['MisconfSummary']['Failures'] > 0:  
+                compressed_chart_report[report['Target']] = {}
+                for misconfiguration in report['Misconfigurations']:
+                    if not misconfiguration['CauseMetadata']['Code']['Lines'] == None:
+                        compressed_chart_report[report['Target']]['Lines'] = str(misconfiguration['CauseMetadata']['StartLine']) + "-" + str(misconfiguration['CauseMetadata']['EndLine'])
+                    compressed_chart_report[report['Target']]['Type'] = misconfiguration['Type']
+                    compressed_chart_report[report['Target']]['Title'] = misconfiguration['Title']
+                    compressed_chart_report[report['Target']]['Description'] = misconfiguration['Description']
+                    compressed_chart_report[report['Target']]['Message'] = misconfiguration['Message']
+                    compressed_chart_report[report['Target']]['Severity'] = misconfiguration['Severity']
+
+        # Safe the chart report to the build directory if there are any errors
+        if not compressed_chart_report == {}:
+            BuildUtils.logger.error("Found configuration errors in Kaapana chart! See compressed_chart_report.json or chart_report.json for details.")
+            with open(os.path.join(BuildUtils.build_dir, 'compressed_chart_report.json'), 'w') as f:
+                json.dump(compressed_chart_report, f)
+        
 if __name__ == '__main__':
     print("Please use the 'start_build.py' script to launch the build-process.")
     exit(1)

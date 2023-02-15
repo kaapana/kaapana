@@ -289,21 +289,21 @@ class Parser:
             return maxdepth
     
         if os.path.isdir(os.path.join(path, "cases")) and os.path.isdir(os.path.join(path, "segs")):
-            return self.parse_by_structure(path)
+            return self.parse_by_structure(path, *args, **kwds)
         elif get_depth(path) == 1:
-            return self.parse_combined_dir(path)
+            return self.parse_combined_dir(path, *args, **kwds)
         else:
-            raise AttributeError("Could not parse file structure, please verify input data.")
+            raise FileNotFoundError("Could not parse file structure, please verify input data.")
         
 
-    def parse_combined_dir(self,path):
+    def parse_combined_dir(self,path, *args, **kwds):
         
         # cases = [f for f in Path(path).rglob("Case*.nii.gz")]
         # cases = glob.glob
         # cases = [f for f in Path(path).rglob("*") if re.search(r"[cC]ase[0-9]+\.nii(\.gz)", str(f.name)) and not re.search(f"_{path}_[cC]ase\_out", str(f))]
-        cases = [f for f in Path(path).rglob("*") if (re.match(r'^(?!.*(?:seg|Seg|segmentation|Segmentation)).*$', str(f.name)) and re.search(r"[0-9]*.\.nii(.gz)?", str(f.name)) and not re.search(f"_{path}_[cC]ase\_out", str(f))) ]
+        cases = [f for f in Path(path).rglob("*") if (re.match(r'^(?!.*(?:seg|Seg|segmentation|Segmentation)).*$', str(f.name)) and re.search(r"[0-9]*.\.nii(.gz)?", str(f.name)) ) ]
         # segs = [f for f in Path(path).rglob("*") if re.search(r"[cC]ase[0-9]+\_[sS]eg(mentation)?\.nii(\.gz)", str(f.name)) and not re.search(f"_{path}_/[cC]ase\_out", str(f))]
-        segs = [f for f in Path(path).rglob("*") if re.search(r"[sS]eg(mentation)?\.nii(\.gz)?", str(f.name)) and not re.search(f"_{path}_/[cC]ase\_out", str(f))]
+        segs = [f for f in Path(path).rglob("*") if re.search(r"[sS]eg(mentation)?\.nii(\.gz)?", str(f.name))]
         cases.sort()
         segs.sort()
         if kwds.get("log") in ["Info", "Debug"]:
@@ -332,7 +332,9 @@ class Parser:
 
         return res
 
-        def parse_by_structure(img_dir, seg_dirs):
+        def parse_by_structure(path):
+            img_dir = os.path.join(path, "cases")
+            seg_dir = os.path.join(path, "segs")
             cases = glob.glob(os.path.join(img_dir, "*.nii*"))  # TODO: use a proper regex to specifically filter for .nii, .nii.gz and .nrrd
             segs_list = [glob.glob(os.path.join(seg_dir, "*.nii*"))  for seg_dir in segs_dirs]
 

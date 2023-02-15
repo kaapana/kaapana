@@ -333,7 +333,7 @@ class Parser:
         return res
 
         def parse_by_structure(img_dir, seg_dirs):
-            cases = glob.glob(os.path.join(img_dir, "*.nii*"))  # TODO: use a proper regez to specifically filter for .nii, .nii.gz and .nrrd
+            cases = glob.glob(os.path.join(img_dir, "*.nii*"))  # TODO: use a proper regex to specifically filter for .nii, .nii.gz and .nrrd
             segs_list = [glob.glob(os.path.join(seg_dir, "*.nii*"))  for seg_dir in segs_dirs]
 
 

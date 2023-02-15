@@ -280,6 +280,23 @@ class Parser:
         pass
 
     def __call__(self, path, *args, **kwds):
+        def get_depth(path, depth=0):
+            if not os.path.isdir(path): return depth
+            maxdepth = depth
+            for entry in os.listdir(path):
+                fullpath = os.path.join(path, entry)
+                maxdepth = max(maxdepth, get_depth(fullpath, depth + 1))
+            return maxdepth
+    
+        if os.path.isdir(os.path.join(path, "cases")) and os.path.isdir(os.path.join(path, "segs")):
+            return self.parse_by_structure(path)
+        elif get_depth(path) == 1:
+            return self.parse_combined_dir(path)
+        else:
+            raise AttributeError("Could not parse file structure, please verify input data.")
+        
+
+    def parse_combined_dir(self,path):
         
         # cases = [f for f in Path(path).rglob("Case*.nii.gz")]
         # cases = glob.glob

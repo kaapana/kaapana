@@ -168,14 +168,6 @@ class BuildUtils:
 
         return build_order
 
-    # Unified exit function for all build scripts to ensure proper cleanup of resources and exit
-    @staticmethod
-    def exit(exit_code=0):
-        BuildUtils.thread_pool.terminate()
-        BuildUtils.thread_pool.join()
-        BuildUtils.logger.info("Exiting...")
-        exit(exit_code)
-
     @staticmethod
     def make_log(output):
         std_out = output.stdout.split("\n")[-100:]

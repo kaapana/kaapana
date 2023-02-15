@@ -67,6 +67,8 @@ class TrivyUtils:
         with open(os.path.join(BuildUtils.build_dir, 'vulnerability_report.json'), 'r') as f:
             vulnerability_report = json.load(f)
 
+        compressed_vulnerability_report = {}
+
         # Exit if vulnerabilities are found and exit on error is set
         if BuildUtils.exit_on_error == True and 'Results' in vulnerability_report:
             # Check if there are any vulnerabilities
@@ -90,7 +92,6 @@ class TrivyUtils:
                 exit(1)
         # Create compressed vulnerability report
         elif 'Results' in vulnerability_report:
-            compressed_vulnerability_report = {}
             if len(vulnerability_report['Results']) > 0:
                 for target in vulnerability_report['Results']:
                     if 'Vulnerabilities' in target:

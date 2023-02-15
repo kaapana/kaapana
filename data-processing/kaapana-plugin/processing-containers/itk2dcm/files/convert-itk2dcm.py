@@ -99,7 +99,7 @@ class Nifti2DcmConverter:
         with open("/data/conf/conf.json", 'r') as conf_file:
             workflow_conf = json.load(conf_file)
 
-        dataset = workflow_conf.get("experiment_form").get("data_dir")
+        dataset = workflow_conf.get("workflow_form").get("data_dir")
         try:
             with open(os.path.join(f"/{path}",dataset, "meta_data.json"), "r") as meta_file:
                 meta_data = json.load(meta_file)
@@ -282,8 +282,13 @@ class Parser:
     def __call__(self, path, *args, **kwds):
         
         # cases = [f for f in Path(path).rglob("Case*.nii.gz")]
-        cases = [f for f in Path(path).rglob("*") if re.search(r"[cC]ase[0-9]+\.nii\.gz", str(f.name)) and not re.search(f"_{path}_[cC]ase\_out", str(f))]
-        segs = [f for f in Path(path).rglob("*") if re.search(r"[cC]ase[0-9]+\_[sS]eg(mentation)?\.nii\.gz", str(f.name)) and not re.search(f"_{path}_/[cC]ase\_out", str(f))]
+        # cases = glob.glob
+        # cases = [f for f in Path(path).rglob("*") if re.search(r"[cC]ase[0-9]+\.nii(\.gz)", str(f.name)) and not re.search(f"_{path}_[cC]ase\_out", str(f))]
+        cases = [f for f in Path(path).rglob("*") if (re.match(r'^(?!.*(?:seg|Seg|segmentation|Segmentation)).*$', str(f.name)) and re.search(r"[0-9]*.\.nii(.gz)?", str(f.name)) and not re.search(f"_{path}_[cC]ase\_out", str(f))) ]
+        # segs = [f for f in Path(path).rglob("*") if re.search(r"[cC]ase[0-9]+\_[sS]eg(mentation)?\.nii(\.gz)", str(f.name)) and not re.search(f"_{path}_/[cC]ase\_out", str(f))]
+        segs = [f for f in Path(path).rglob("*") if re.search(r"[sS]eg(mentation)?\.nii(\.gz)?", str(f.name)) and not re.search(f"_{path}_/[cC]ase\_out", str(f))]
+        cases.sort()
+        segs.sort()
         if kwds.get("log") in ["Info", "Debug"]:
             print("----cases----")
             for x in cases: print(x)

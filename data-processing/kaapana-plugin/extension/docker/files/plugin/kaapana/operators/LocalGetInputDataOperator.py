@@ -127,7 +127,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         dag_run_id = kwargs['dag_run'].run_id
         if self.conf and ("seriesInstanceUID" in self.conf):
             series_uid = self.conf.get('seriesInstanceUID')
-            dcm_path = join("/ctpinput", self.conf.get('dicom_path'))
+            dcm_path = join("/ctpinput","incoming", self.conf.get('dicom_path'))
             print("#")
             print(f"# Dicom-path: {dcm_path}")
 
@@ -138,7 +138,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             self.move_series(dag_run_id, series_uid, dcm_path)
             return
         if self.conf and "ctpBatch" in self.conf:
-            batch_folder = join("/ctpinput", self.conf.get('dicom_path'))
+            batch_folder = join("/ctpinput","incoming", self.conf.get('dicom_path'))
             print(f"# Batch folder: {batch_folder}")
             dcm_series_paths = [f for f in glob.glob(batch_folder+"/*")]
             for dcm_series_path in dcm_series_paths:

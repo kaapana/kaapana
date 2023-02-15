@@ -4,3 +4,4 @@ networkx[default]
 jinja2
 GitPython
 semver
+alive-progress

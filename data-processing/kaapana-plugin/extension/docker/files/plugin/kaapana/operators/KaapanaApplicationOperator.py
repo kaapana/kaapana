@@ -13,7 +13,7 @@ from kaapana.blueprints.kaapana_utils import cure_invalid_name, get_release_name
 
 
 class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
-    HELM_API = f"http://kube-helm-service.{SERVICES_NAMESPACE}.svc:5000"
+    HELM_API = f"http://kube-helm-service.{ADMIN_NAMESPACE}.svc:5000"
     TIMEOUT = 60 * 60 * 12
 
     def rest_sets_update(self, payload):

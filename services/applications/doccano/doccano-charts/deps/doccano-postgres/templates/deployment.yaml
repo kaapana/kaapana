@@ -47,7 +47,7 @@ spec:
         - name: dbvol
           # emptyDir: {}
           hostPath:
-            path: {{ .Values.global.fast_data_dir | default "/home/kaapana" }}/postgres-doccano
+            path: {{ .Values.global.fast_data_dir }}/postgres-doccano
             type: DirectoryOrCreate
       imagePullSecrets:
       - name: registry-secret

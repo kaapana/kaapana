@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-statsd-service
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  selector:
+    app-name: airflow-statsd
+  ports:
+    - name: web-listen
+      protocol: TCP
+      port: 9102
+    - name: statsd-udp-listen
+      protocol: UDP
+      port: 8125
+---

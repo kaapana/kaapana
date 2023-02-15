@@ -33,6 +33,7 @@ spec:
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           args:
             - "--config.file=/etc/prometheus.yaml"
+            - "--log.level=warn"
             - "--storage.tsdb.path=/prometheus/"
             - "--web.external-url=/prometheus"
             - "--web.route-prefix=/prometheus"
@@ -69,9 +70,9 @@ spec:
             defaultMode: 420
             name: prometheus-alerts-config
         - name: prometheus-storage-volume
-          hostPath:
-            path: {{ .Values.global.fast_data_dir }}/prometheus
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: prometheus-pv-claim
       imagePullSecrets:
       - name: registry-secret
+      serviceAccountName: kaapana-kube-admin
 ---

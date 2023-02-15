@@ -75,10 +75,8 @@ class GetContainerModelOperator(KaapanaBaseOperator):
         volume_mounts.append(VolumeMount(
             'models', mount_path='/models_mount', sub_path=None, read_only=False))
         volume_config = {
-            'hostPath':
-            {
-                'type': 'DirectoryOrCreate',
-                'path': host_models_dir
+            "persistentVolumeClaim": {
+                "claimName": "models-jobs-pv-claim"
             }
         }
         volumes.append(Volume(name='models', configs=volume_config))

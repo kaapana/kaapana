@@ -4,7 +4,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: init-collections
-  namespace: "{{  .Values.global.helm_namespace  }}"
+  namespace: "{{  .Values.global.admin_namespace  }}"
 spec:
   template:
     metadata:
@@ -51,9 +51,8 @@ spec:
             mountPath: "/root/extensions" 
       volumes:
       - name: helmextensions
-        hostPath:
-          path: {{ $.Values.global.fast_data_dir }}/extensions
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: extensions-pv-claim
       restartPolicy: Never
       serviceAccountName: kaapana-kube-admin
       imagePullSecrets:
@@ -64,7 +63,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: init-extensions
-  namespace: "{{  $.Values.global.helm_namespace  }}"
+  namespace: "{{  $.Values.global.admin_namespace  }}"
 spec:
   template:
     metadata:
@@ -166,9 +165,8 @@ spec:
       restartPolicy: Never
       volumes:
       - name: helmextensions
-        hostPath:
-          path: {{ $.Values.global.fast_data_dir }}/extensions
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: extensions-pv-claim
       serviceAccountName: kaapana-kube-admin
       imagePullSecrets:
       - name: registry-secret

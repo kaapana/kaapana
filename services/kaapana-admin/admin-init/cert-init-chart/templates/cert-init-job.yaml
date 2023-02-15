@@ -36,9 +36,8 @@ spec:
           mountPath: /cert/tls
       volumes:
       - name: tls-storage
-        hostPath:
-          path: "{{ .Values.global.fast_data_dir }}/tls"
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: tls-pv-claim
       restartPolicy: Never
       serviceAccountName: kaapana-kube-admin
       imagePullSecrets:

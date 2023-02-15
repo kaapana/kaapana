@@ -28,6 +28,7 @@ GPU_SUPPORT="{{ gpu_support|default('false') }}"
 PREFETCH_EXTENSIONS="{{ prefetch_extensions|default('false') }}"
 CHART_PATH=""
 NO_HOOKS=""
+ENABLE_NFS=false
 
 INSTANCE_UID=""
 SERVICES_NAMESPACE="{{ services_namespace }}"
@@ -222,7 +223,7 @@ function delete_deployment {
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
         echo "${RED}kubectl get pods -A${NC}"
         echo "${RED}kubectl get namespaces${NC}"
-        echo "${RED}Executing './deploy_platform.sh --purge-kube-and-helm' is an option to force the resources to be removed.${NC}"        
+        echo "${RED}Executing './deploy_platform.sh --no-hooks' is an option to force the resources to be removed.${NC}"        
         echo "${RED}Once everything is deleted you can re-deploy the platform!${NC}"
         exit 1
     fi
@@ -230,6 +231,18 @@ function delete_deployment {
 
     echo -e "${GREEN}####################################  UNDEPLOYMENT DONE  ############################################${NC}"
 }
+
+function nuke_pods {
+    for namespace in $JOBS_NAMESPACE $EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+        echo "${RED}Deleting all pods from namespaces: $namespace ...${NC}"; 
+        for mypod in $(microk8s.kubectl get pods -n $namespace -o jsonpath="{.items[*].metadata.name}");
+        do
+            echo "${RED}Deleting: $mypod ${NC}"; 
+            microk8s.kubectl delete pod -n $namespace $mypod --grace-period=0 --force 
+        done
+    done
+}
+
 
 function clean_up_kubernetes {
     for n in $EXTENSIONS_NAMESPACE $JOBS_NAMESPACE $HELM_NAMESPACE;
@@ -259,14 +272,10 @@ function deploy_chart {
         exit 1
     fi
 
+    chart_version=$PLATFORM_BUILD_VERSION
 
-    if [ ! "$QUIET" = "true" ] && [ -z "$CHART_PATH" ];then
-        echo -e ""
-        read -e -p "${YELLOW}Which $PLATFORM_NAME version do you want to deploy?: ${NC}" -i $PLATFORM_BUILD_VERSION chart_version;
-    else
-        chart_version=$PLATFORM_BUILD_VERSION
-    fi
-
+    get_domain
+    
     if [ "$GPU_SUPPORT" = "true" ];then
         echo -e "${GREEN} -> GPU found ...${NC}"
     else
@@ -293,7 +302,6 @@ function deploy_chart {
             microk8s.enable gpu
         fi
     fi
-    get_domain
     
     if [ ! -z "$CHART_PATH" ]; then
         echo -e "${YELLOW}Please note, since you have specified a chart file, you deploy the platform in OFFLINE_MODE='true'.${NC}"
@@ -365,6 +373,7 @@ function deploy_chart {
     --set-string global.admin_namespace=$ADMIN_NAMESPACE \
     --set-string global.gpu_support="$GPU_SUPPORT" \
     --set-string global.helm_namespace="$HELM_NAMESPACE" \
+    --set global.enable_nfs=$ENABLE_NFS \
     --set global.include_reverse_proxy=$INCLUDE_REVERSE_PROXY \
     --set-string global.home_dir="$HOME" \
     --set-string global.hostname="$DOMAIN" \
@@ -788,21 +797,15 @@ usage="$(basename "$0")
 _Flag: --install-certs set new HTTPS-certificates for the platform
 _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
 _Flag: --remove-all-images-docker will delete all Docker images from the system
-_Flag: --purge-kube-and-helm will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
+_Flag: --no-hooks will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
+_Flag: --nuke-pods will force-delete all pods of the Kaapana deployment namespaces.
 _Flag: --quiet, meaning non-interactive operation
 
-_Argument: --version of the platform [version]
 _Argument: --username [Docker registry username]
 _Argument: --password [Docker registry password]
 _Argument: --port [Set main https-port]
 _Argument: --chart-path [path-to-chart-tgz]
-_Argument: --upload-tar [path-to-a-tarball]
-
-_Argument: --version [version]
-
-where version is one of the available platform releases:
-    0.1.4  --> latest Kaapana release
-    $PLATFORM_BUILD_VERSION  --> latest development version ${NC}"
+_Argument: --upload-tar [path-to-a-tarball]"
 
 QUIET=NA
 
@@ -812,11 +815,6 @@ do
     key="$1"
 
     case $key in
-        -v|--version)
-            PLATFORM_BUILD_VERSION="$2"
-            shift # past argument
-            shift # past value
-        ;;
 
         -u|--username)
             CONTAINER_REGISTRY_USERNAME="$2"
@@ -880,12 +878,28 @@ do
             exit 0
         ;;
 
-        --purge-kube-and-helm)
+        --no-hooks)
             echo -e "${YELLOW}Starting undeployment ...${NC}"
             NO_HOOKS="--no-hooks"
             echo -e "${YELLOW}Using --no-hooks${NC}"
             delete_deployment
             clean_up_kubernetes
+            exit 0
+        ;;
+
+        --nuke-pods)
+            while true; do
+                read -e -p "Do you really want to nuke all pods? -> Not recommended!" -i " no" yn
+                case $yn in
+                    [Yy]* ) 
+                    nuke_pods
+                    delete_deployment
+                    clean_up_kubernetes
+                    break;;
+                    [Nn]* ) echo "${YELLOW}Pods will be kept${NC}"; break;;
+                    * ) echo "Please answer yes or no.";;
+                esac
+            done
             exit 0
         ;;
 

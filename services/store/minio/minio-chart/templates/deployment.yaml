@@ -60,13 +60,12 @@ spec:
           limits:
             memory: 1000Mi
         volumeMounts:
-        - name: export  # must match the volume name, above
+        - name: minio-data
           mountPath: "/export"
       volumes:
-      - name: export 
-        hostPath:
-          path: {{ .Values.global.slow_data_dir }}/minio
-          type: DirectoryOrCreate
+      - name: minio-data
+        persistentVolumeClaim:
+          claimName: minio-pv-claim
       imagePullSecrets:
       - name: registry-secret
 ---

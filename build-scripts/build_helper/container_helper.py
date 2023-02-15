@@ -5,6 +5,7 @@ from subprocess import PIPE, run
 from time import time
 from shutil import which
 from build_helper.build_utils import BuildUtils
+from alive_progress import alive_bar
 
 suite_tag = "Container"
 max_retries = 5
@@ -501,13 +502,15 @@ class Container:
             BuildUtils.logger.warning("-> Duplicate Dockerfiles found!")
 
         dockerfiles_found = sorted(set(dockerfiles_found))
-
-        for dockerfile in dockerfiles_found:
-            if BuildUtils.build_ignore_patterns != None and len(BuildUtils.build_ignore_patterns) > 0 and sum([ignore_pattern in dockerfile for ignore_pattern in  BuildUtils.build_ignore_patterns]) != 0:
-                BuildUtils.logger.debug(f"Ignoring Dockerfile {dockerfile}")
-                continue            
-            container = Container(dockerfile)
-            Container.container_object_list.append(container)
+        with alive_bar(len(dockerfiles_found), dual_line=True, title='Collect-Container') as bar:
+            for dockerfile in dockerfiles_found:
+                bar()
+                if BuildUtils.build_ignore_patterns != None and len(BuildUtils.build_ignore_patterns) > 0 and sum([ignore_pattern in dockerfile for ignore_pattern in  BuildUtils.build_ignore_patterns]) != 0:
+                    BuildUtils.logger.debug(f"Ignoring Dockerfile {dockerfile}")
+                    continue            
+                container = Container(dockerfile)
+                bar.text(container.image_name)
+                Container.container_object_list.append(container)
 
         Container.container_object_list = Container.check_base_containers(Container.container_object_list)
         return Container.container_object_list

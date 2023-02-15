@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kube-helm-deployment
-  namespace: "{{  .Values.global.services_namespace  }}"
+  namespace: "{{  .Values.global.admin_namespace  }}"
 spec:
   replicas: 1
   selector:
@@ -57,9 +57,8 @@ spec:
             mountPath: "/root/extensions"
       volumes:
       - name: helmextensions
-        hostPath:
-          path: "{{ $.Values.global.fast_data_dir }}/extensions"
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: extensions-pv-claim
       serviceAccountName: kaapana-kube-admin
       imagePullSecrets:
       - name: registry-secret

@@ -67,7 +67,7 @@ dependencies:
   - name: oAuth2-proxy-chart
     condition: global.include_reverse_proxy
     version: 0.0.0
-  - name: cert-init-chart
+  - name: cert-copy-chart
     version: 0.0.0
 # BASE
   - name: landing-page-kaapana-chart

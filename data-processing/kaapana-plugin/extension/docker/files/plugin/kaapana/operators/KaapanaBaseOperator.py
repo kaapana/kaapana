@@ -7,7 +7,6 @@ import time
 from datetime import datetime
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.utils.state import State
 from kaapana.kubetools import kube_client, pod_launcher
 from kaapana.kubetools.volume_mount import VolumeMount
@@ -24,7 +23,7 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 
 from kaapana.blueprints.kaapana_utils import generate_run_id, cure_invalid_name, get_release_name
 from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, ADMIN_NAMESPACE, JOBS_NAMESPACE, SERVICES_NAMESPACE, EXTENSIONS_NAMESPACE
-from kaapana.operators.HelperCaching import cache_operator_output
+# from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
 import uuid
 import json
@@ -87,13 +86,12 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     :type xcom_push: bool
     """
 
-    HELM_API = f"http://kube-helm-service.{SERVICES_NAMESPACE}.svc:5000"
+    HELM_API = f"http://kube-helm-service.{ADMIN_NAMESPACE}.svc:5000"
     TIMEOUT = 60 * 60 * 12
 
     pod_stopper = PodStopper()
     env_pull_policy = os.getenv('PULL_POLICY_PODS',"None")
 
-    @apply_defaults
     def __init__(self,
                  dag,
                  name,
@@ -223,7 +221,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.kind = kind
         self.data_dir = os.getenv('DATADIR', "")
         self.model_dir = os.getenv('MODELDIR', "")
-        self.kaapana_dev_dir = os.getenv('KAAPANA_DEV_DIR', "")
         self.result_message = None
 
         # Namespaces
@@ -233,62 +230,55 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.extensions_namespace = os.getenv("EXTENSIONS_NAMESPACE", "")
         # self.helm_namespace = os.getenv("HELM_NAMESPACE", "")
 
-        self.volume_mounts.append(VolumeMount(
-            'workflowdata', mount_path='/data', sub_path=None, read_only=False
-        ))
+        self.volume_mounts.append(VolumeMount('workflowdata', mount_path='/data', sub_path=None, read_only=False))
 
-        self.volumes.append(
-            Volume(name='workflowdata', configs={'hostPath':
-                                                 {
-                                                     'type': 'DirectoryOrCreate',
-                                                     'path': self.data_dir
-                                                 }
-                                                 })
-        )
-        self.volume_mounts.append(VolumeMount(
-            'miniodata', mount_path='/minio', sub_path=None, read_only=False
-        ))
-
-        self.volumes.append(
-            Volume(name='miniodata', configs={
-                'hostPath':
-                {
-                    'type': 'DirectoryOrCreate',
-                    'path': os.getenv('MINIODIR', "/home/kaapana/minio")
-                }
-            })
-        )
-
-        self.volume_mounts.append(VolumeMount(
-            'modeldata', mount_path='/models', sub_path=None, read_only=False
-        ))
-
-        self.volumes.append(
-            Volume(name='modeldata', configs={'hostPath':
-                                              {
-                                                  'type': 'DirectoryOrCreate',
-                                                  'path': self.model_dir
-                                              }
-                                              })
-        )
-
-        self.volume_mounts.append(VolumeMount(
-            'tensorboard', mount_path='/tensorboard', sub_path=None, read_only=False))
-        tb_config = {
-            'hostPath':
+        self.volumes.append(Volume(name='workflowdata', configs={
+            'PersistentVolumeClaim':
             {
-                'type': 'DirectoryOrCreate',
-                'path': os.path.join(self.data_dir, "tensorboard")
+                'claim_name': 'af-data-jobs-pv-claim',
+                'read_only': False
             }
-        }
-        self.volumes.append(Volume(name='tensorboard', configs=tb_config))
+        }))
+
+        self.volume_mounts.append(VolumeMount('miniodata', mount_path='/minio', sub_path=None, read_only=False))
+
+        self.volumes.append(Volume(name='miniodata', configs={
+            'PersistentVolumeClaim':
+            {
+                'claim_name': 'minio-jobs-pv-claim',
+                'read_only': False
+            
+            }
+        }))
+
+        self.volume_mounts.append(VolumeMount('models', mount_path='/models', sub_path=None, read_only=False))
+        
+        self.volumes.append(Volume(name='models', configs={
+            'PersistentVolumeClaim':
+            {
+                'claim_name': 'models-jobs-pv-claim',
+                'read_only': False
+            
+            }
+        }))
+
+        self.volume_mounts.append(VolumeMount('tensorboard', mount_path='/tensorboard', sub_path=None, read_only=False))
+
+        self.volumes.append(Volume(name='tensorboard', configs={
+            'PersistentVolumeClaim':
+            {
+                'claim_name': 'tb-jobs-pv-claim',
+                'read_only': False
+            
+            }
+        }))
 
         self.volume_mounts.append(VolumeMount(
             'dshm', mount_path='/dev/shm', sub_path=None, read_only=False))
         volume_config = {
             'emptyDir':
             {
-                'medium': 'Memory',
+                'medium': 'Memory'
             }
         }
         self.volumes.append(Volume(name='dshm', configs=volume_config))
@@ -304,10 +294,10 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             self.pod_resources = pod_resources
 
         envs = {
-            "WORKFLOW_DIR": str(self.workflow_dir),
+            "WORKFLOW_DIR": f"{self.workflow_dir}",
             "BATCH_NAME": str(self.batch_name),
             "OPERATOR_OUT_DIR": str(self.operator_out_dir),
-            "BATCHES_INPUT_DIR": f"/{self.workflow_dir}/{self.batch_name}",
+            "BATCHES_INPUT_DIR": f"{self.workflow_dir}/{self.batch_name}",
             "SERVICES_NAMESPACE": str(self.services_namespace),
             "ADMIN_NAMESPACE": str(self.admin_namespace),
             "JOBS_NAMESPACE": str(self.jobs_namespace),
@@ -376,7 +366,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             self.env_vars[k] = str(v)
 
     # The order of this decorators matters because of the whitelist_federated_learning variable, do not change them!
-    @cache_operator_output
+    # @cache_operator_output
     @federated_sharing_decorator
     def execute(self, context):
 
@@ -415,104 +405,98 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             "RUN_ID": context["dag_run"].run_id,
             "DAG_ID": context["dag_run"].dag_id
         })
+        self.env_vars["WORKFLOW_DIR"] =  f"{self.env_vars['WORKFLOW_DIR']}/{context['run_id']}"
 
         print("CONTAINER ENVS:")
         print(json.dumps(self.env_vars, indent=4, sort_keys=True))
 
-        for volume in self.volumes:
-            if "hostPath" in volume.configs and self.data_dir == volume.configs["hostPath"]["path"]:
-                volume.configs["hostPath"]["path"] = os.path.join(volume.configs["hostPath"]["path"], context["run_id"])
-
         if self.dev_server is not None or 'kaapanadevdata' in " ".join(self.cmds) or 'kaaanadevdata' in " ".join(self.arguments):
+           
+            self.volume_mounts.append(VolumeMount('kaapanadevdata', mount_path='/kaapanadevdata', sub_path=None, read_only=False))
 
-            self.volume_mounts.append(VolumeMount(
-                'kaapanadevdata', mount_path='/kaapanadevdata', sub_path=None, read_only=False
-            ))
-
-            self.volumes.append(
-                Volume(name='kaapanadevdata', configs={
-                    'hostPath':
-                    {
-                        'type': 'DirectoryOrCreate',
-                        'path': self.kaapana_dev_dir
-                    }
-                })
-            )
-
-        if self.dev_server is not None:
-            url = f'{KaapanaBaseOperator.HELM_API}/helm-install-chart'
-            env_vars_sets = {}
-            for idx, (k, v) in enumerate(self.env_vars.items()):
-                env_vars_sets.update({
-                    f'envVars[{idx}].name': f"{k}",
-                    f'envVars[{idx}].value': f"{v}"
-                })
-            volume_mounts_sets = {}
-            idx = 0
-            for volume_mount in self.volume_mounts:
-                if volume_mount.name in volume_mounts_sets.values() or volume_mount.name == 'dshm':
-                    print(f'Warning {volume_mount.name} already in volume_mount dict!')
-                    continue
-                volume_mounts_sets.update({
-                    f'volumeMounts[{idx}].name': f"{volume_mount.name}",
-                    f'volumeMounts[{idx}].mountPath': f"{volume_mount.mount_path}"
-                })
-                idx = idx + 1
-            print(volume_mounts_sets)
-            volumes_sets = {}
-            idx = 0
-            for volume in self.volumes:
-                if 'hostPath' in volume.configs:
-                    if volume.name in volumes_sets.values() or volume.name == 'dshm':
-                        print(f'Warning {volume.name} already in volume dict!')
-                        continue
-                    volumes_sets.update({
-                        f'volumes[{idx}].name': f"{volume.name}",
-                        f'volumes[{idx}].path': f"{volume.configs['hostPath']['path']}"
-                    })
-                    idx = idx + 1
-            print(volumes_sets)
-
-            helm_sets = {
-                'image': self.image,
-                **env_vars_sets,
-                **volume_mounts_sets,
-                **volumes_sets}
-            print(helm_sets)
-            # kaapanaint is there, so that it is recognized as a pending application!
-            release_name = get_release_name(context)
-            if self.dev_server == 'code-server':
-                payload = {
-                    'name': 'code-server-chart',
-                    'version': kaapana_build_version,
-                    'release_name': release_name,
-                    'sets': helm_sets
+            self.volumes.append(Volume(name='workflowdata', configs={
+                'PersistentVolumeClaim':
+                {
+                    'claim_name': 'kaapanadevdata',
+                    'read_only': False
                 }
-            elif self.dev_server == 'jupyterlab':
-                payload = {
-                    'name': 'jupyterlab-chart',
-                    'version': kaapana_build_version,
-                    'release_name': release_name,
-                    'sets': helm_sets
-                }
-            else:
-                raise NameError('dev_server must be either None, code-server or jupyterlab!')
-            print('payload')
-            print(payload)
-            r = requests.post(url, json=payload)
-            print(r)
-            print(r.text)
-            r.raise_for_status()
-            t_end = time.time() + KaapanaBaseOperator.TIMEOUT
-            while time.time() < t_end:
-                time.sleep(15)
-                url = f'{KaapanaBaseOperator.HELM_API}/view-chart-status'
-                r = requests.get(url, params={'release_name': release_name})
-                if r.status_code == 500 or r.status_code == 404:
-                    print(f'Release {release_name} was uninstalled. My job is done here!')
-                    break
-                r.raise_for_status()
-            return 
+            }))
+
+
+        # if self.dev_server is not None:
+        #     url = f'{KaapanaBaseOperator.HELM_API}/helm-install-chart'
+        #     env_vars_sets = {}
+        #     for idx, (k, v) in enumerate(self.env_vars.items()):
+        #         env_vars_sets.update({
+        #             f'envVars[{idx}].name': f"{k}",
+        #             f'envVars[{idx}].value': f"{v}"
+        #         })
+        #     volume_mounts_sets = {}
+        #     idx = 0
+        #     for volume_mount in self.volume_mounts:
+        #         if volume_mount.name in volume_mounts_sets.values() or volume_mount.name == 'dshm':
+        #             print(f'Warning {volume_mount.name} already in volume_mount dict!')
+        #             continue
+        #         volume_mounts_sets.update({
+        #             f'volumeMounts[{idx}].name': f"{volume_mount.name}",
+        #             f'volumeMounts[{idx}].mountPath': f"{volume_mount.mount_path}"
+        #         })
+        #         idx = idx + 1
+        #     print(volume_mounts_sets)
+        #     volumes_sets = {}
+        #     idx = 0
+        #     for volume in self.volumes:
+        #         if 'hostPath' in volume.configs:
+        #             if volume.name in volumes_sets.values() or volume.name == 'dshm':
+        #                 print(f'Warning {volume.name} already in volume dict!')
+        #                 continue
+        #             volumes_sets.update({
+        #                 f'volumes[{idx}].name': f"{volume.name}",
+        #                 f'volumes[{idx}].path': f"{volume.configs['hostPath']['path']}"
+        #             })
+        #             idx = idx + 1
+        #     print(volumes_sets)
+
+        #     helm_sets = {
+        #         'image': self.image,
+        #         **env_vars_sets,
+        #         **volume_mounts_sets,
+        #         **volumes_sets}
+        #     print(helm_sets)
+        #     # kaapanaint is there, so that it is recognized as a pending application!
+        #     release_name = get_release_name(context)
+        #     if self.dev_server == 'code-server':
+        #         payload = {
+        #             'name': 'code-server-chart',
+        #             'version': kaapana_build_version,
+        #             'release_name': release_name,
+        #             'sets': helm_sets
+        #         }
+        #     elif self.dev_server == 'jupyterlab':
+        #         payload = {
+        #             'name': 'jupyterlab-chart',
+        #             'version': kaapana_build_version,
+        #             'release_name': release_name,
+        #             'sets': helm_sets
+        #         }
+        #     else:
+        #         raise NameError('dev_server must be either None, code-server or jupyterlab!')
+        #     print('payload')
+        #     print(payload)
+        #     r = requests.post(url, json=payload)
+        #     print(r)
+        #     print(r.text)
+        #     r.raise_for_status()
+        #     t_end = time.time() + KaapanaBaseOperator.TIMEOUT
+        #     while time.time() < t_end:
+        #         time.sleep(15)
+        #         url = f'{KaapanaBaseOperator.HELM_API}/view-chart-status'
+        #         r = requests.get(url, params={'release_name': release_name})
+        #         if r.status_code == 500 or r.status_code == 404:
+        #             print(f'Release {release_name} was uninstalled. My job is done here!')
+        #             break
+        #         r.raise_for_status()
+        #     return 
 
         if self.delete_output_on_start is True:
             KaapanaBaseOperator.delete_operator_out_dir(context['run_id'], self.operator_out_dir)

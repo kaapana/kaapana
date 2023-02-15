@@ -35,13 +35,8 @@ spec:
             mountPath: /data
       volumes:
       - name: tensorboard-files
-        hostPath:
-          {{- if .Values.mount_path }}
-          path: {{ .Values.mount_path }}
-          {{- else }}
-          path: {{ .Values.global.slow_data_dir }}/minio/tensorboard
-          {{- end }}
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: tb-pv-claim
       imagePullSecrets:
       - name: registry-secret
 ---

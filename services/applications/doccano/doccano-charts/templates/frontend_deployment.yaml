@@ -39,11 +39,11 @@ spec:
       volumes:
       - name:  static-volume
         hostPath:
-          path: {{ .Values.global.fast_data_dir | default "/home/kaapana" }}/doccano/static
+          path: {{ .Values.global.fast_data_dir }}/doccano/static
           type: DirectoryOrCreate
       - name:  media
         hostPath:
-          path: {{ .Values.global.fast_data_dir | default "/home/kaapana" }}/doccano/media
+          path: {{ .Values.global.fast_data_dir }}/doccano/media
           type: DirectoryOrCreate
       imagePullSecrets:
       - name: registry-secret

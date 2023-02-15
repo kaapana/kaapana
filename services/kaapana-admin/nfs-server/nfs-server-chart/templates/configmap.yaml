@@ -1,0 +1,32 @@
+apiVersion: v1
+data:
+  dirs.txt: |
+    airflow/logs 1000 1000
+    postgres-airflow 1000 1000
+    os/data 1000 1000
+    os/logs 1000 1000
+    prometheus 1000 1000
+    workflows/dags 1000 1000
+    workflows/data 1000 1000
+    workflows/models 1000 1000
+    workflows/plugins 1000 1000
+    ctp/logs 1000 1000
+    extensions 1000 1000
+    postgres-dcm4che 1000 1000
+    /dcm4che/server_data 1000 1000
+    /dcm4che/dicom_data 1000 1000
+    slapd.d 1024 1024
+    ldap 1000 1000
+    tls 1000 1000
+    postgres-doccano 1000 1000
+    keycloak 1000 1000
+    postgres-keycloak 1000 1000
+    minio 1000 1000
+    traefik 1000 1000
+    tensorboard 1000 1000
+    postgres-backend 1000 1000
+    alembic 1000 1000
+kind: ConfigMap 
+metadata:
+  name: nfs-dir-config
+  namespace: "{{  .Values.global.admin_namespace  }}"

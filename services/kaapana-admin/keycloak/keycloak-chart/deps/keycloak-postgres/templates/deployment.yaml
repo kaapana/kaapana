@@ -37,19 +37,9 @@ spec:
           volumeMounts:
             - mountPath: /db
               name: postgresdata
-            # - name: postgres-keycloak-config-file
-            #   mountPath: /docker-entrypoint-initdb.d/keycloak.sql
-            #   subPath: keycloak.sql
       volumes:
-      # - name: postgres-keycloak-config-file
-      #   configMap:
-      #     name: postgres-keycloak-config
-      #     items:
-      #     - key: keycloak.sql
-      #       path: keycloak.sql
       - name: postgresdata
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/postgres-keycloak
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: keycloak-pv-claim
       imagePullSecrets:
       - name: registry-secret

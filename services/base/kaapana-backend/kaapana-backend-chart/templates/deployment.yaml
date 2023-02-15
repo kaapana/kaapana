@@ -76,13 +76,14 @@ spec:
         - name: https_proxy
           value: {{ .Values.global.http_proxy }}
         - name: no_proxy
-          value: "kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,airflow-service.{{  .Values.global.services_namespace  }},airflow-service.{{  .Values.global.services_namespace  }}.svc,minio-service.{{  .Values.global.services_namespace  }},minio-service.{{  .Values.global.services_namespace  }}.svc,opensearch-service.{{  .Values.global.services_namespace  }},opensearch-service.{{  .Values.global.services_namespace  }}.svc,keycloak-internal-service.{{  .Values.global.admin_namespace  }},keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc"
+          value: "kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,airflow-service.{{  .Values.global.services_namespace  }},airflow-service.{{  .Values.global.services_namespace  }}.svc,minio-service.{{  .Values.global.services_namespace  }},minio-service.{{  .Values.global.services_namespace  }}.svc,opensearch-service.{{  .Values.global.services_namespace  }},opensearch-service.{{  .Values.global.services_namespace  }}.svc"
+          value: "kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,airflow-webserver-service.{{  .Values.global.services_namespace  }},airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc,minio-service.{{  .Values.global.services_namespace  }},minio-service.{{  .Values.global.services_namespace  }}.svc,opensearch-service.{{  .Values.global.services_namespace  }},opensearch-service.{{  .Values.global.services_namespace  }}.svc,keycloak-internal-service.{{  .Values.global.admin_namespace  }}"
         - name: SERVICES_NAMESPACE
           value: "{{  .Values.global.services_namespace  }}"
         - name: KUBE_HELM_URL
-          value: "http://kube-helm-service.{{  .Values.global.services_namespace  }}.svc:5000/kube-helm-api"
+          value: "http://kube-helm-service.{{  .Values.global.admin_namespace  }}.svc:5000/kube-helm-api"
         - name: AIRFLOW_URL
-          value: "http://airflow-service.{{  .Values.global.services_namespace  }}.svc:8080/flow/kaapana/api"
+          value: "http://airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc:8080/flow/kaapana/api"
         - name: PROMETHEUS_URL
           value: {{ .Values.global.prometheus_url }}
         - name: KEYCLOAK_URL
@@ -113,7 +114,7 @@ spec:
           limits:
             memory: "5Gi"
           requests:
-            memory: "100Mi"
+            memory: "4Gi"
         volumeMounts:
 {{- if .Values.global.dev_files }}
         - name: kaapana-dev-files
@@ -125,13 +126,11 @@ spec:
         - name: registry-secret
       volumes:
       - name: alembic
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/alembic-kaapana-backend
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: alembic-pv-claim
 {{- if .Values.global.dev_files }}
       - name: kaapana-dev-files
-        hostPath:
-          path: {{ .Values.global.dev_files}}
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: backen-dev-pv-claim
 {{- end }}
 ---

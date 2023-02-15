@@ -90,13 +90,11 @@ spec:
               name: storage-data
       volumes:
         - name: standalone-data
-          hostPath:
-            path: {{ .Values.global.fast_data_dir }}/dcm4che/server_data
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: dcm4chee-standalone-pv-claim
         - name: storage-data
-          hostPath:
-            path: {{ .Values.global.slow_data_dir }}/dcm4che/dicom_data
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: dcm4chee-dicom-pv-claim
       imagePullSecrets:
       - name: registry-secret
 ---

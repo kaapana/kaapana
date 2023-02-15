@@ -68,9 +68,8 @@ spec:
               name: ssl
       volumes:
         - name: traefiklog
-          hostPath:
-            path: {{ .Values.global.fast_data_dir }}/traefik
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: treaefik-pv-claim
         - name: traefik-config-file
           configMap:
             name: traefik-config

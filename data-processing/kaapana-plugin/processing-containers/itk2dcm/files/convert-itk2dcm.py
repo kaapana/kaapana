@@ -326,23 +326,70 @@ class Parser:
             for x in segs: print(x)
 
         str_segs = [str(s) for s in segs]
-        cases_with_segs = [c for c in cases if re.search(str(c).split(".")[0], "|".join(str_segs) )]
-        cases_without_segs = [c for c in cases if c not in cases_with_segs]
-        if len(cases_with_segs) > 0:
+        c_names = [os.path.basename(str(c)).split(".") for c in cases]
+        s_names = [os.path.basename(str(s)).split(".") for s in segs]
 
-            print(f"Found {len(cases_without_segs)} cases without segmentations. Theses cases will be ignored. For more info run script with log='Debug' mode.")
-            if kwds.get("log")=='Debug':
-                print("----Cases without segmentations:----")
-                for c in cases_without_segs:
-                    print(c)
-                print("----")
+        case_nr = [re.findall(r'\d+', str(c)) for c in c_names]
+        seg_nr = [re.findall(r'\d+', str(s)) for s in s_names]
+
+        c_l = [len(case_nr[i]) != 1 for i in range(len(cases))]
+        s_l = [len(seg_nr[i]) != 1 for i in range(len(segs))]
+
+        case_nr = [c[0] for c in case_nr]
+        seg_nr = [s[0] for s in seg_nr]
+
+        if any(c_l) or any(s_l):
+            raise AttributeError("Input file names have multiple numeric values, as a result matching images to segmentations is ambiguous. Please rename your files in a consistent way.")
+
+        seg_dict = {seg_nr[i]: seg for i, seg in enumerate(segs)}
+        cases_with_segs = [(cases[i], seg_dict[case_nr[i]]) for i in range(len(cases)) if case_nr[i] in seg_dict.keys()]
+        cases_without_segs = [(cases[i], None) for i in range(len(cases)) if case_nr[i] not in seg_dict.keys()]
+        print("cases with segs:")
+        for c in cases_with_segs:
+            print(c)
+        print("cases without segs")
+        for c in cases_without_segs:
+            print(c)
+
+        # cases_with_segs = [c for i,c in enumerate(cases) if len(case_nr[i]) == 1 and case_nr[i][0] in seg_nrs]
+
+        # cases_with_segs = []
+        # cases_without_segs = []
         
-        cases_with_segs.sort()
-        segs.sort()
+        
+        # neither as efficient nor as elegant as dict comprehension, but probably more comprehensible 
+        # for i, c in enumerate(cases):
+        #     for j, s in enumerate(segs):
+        #         if len(case_nr[i]) == 1 and len(seg_nr[j])==1:
+        #             if case_nr[i][0] == case_nr[j][0]:
+        #                 cases_with_segs.append((c,s))
+        #                 break
+        #         else:
+        #             raise AttributeError("Input file names have multiple numeric values, as a result matching images to segmentations is ambiguous. Please rename your files in a consistent way.")
+        #     cases_without_segs.append((c, None))
+        
 
-        res = list(zip(cases_with_segs, segs))
-        res.extend([(c, None) for c in cases_without_segs])
 
+
+        # [(print(c), print(re.search(os.path.basename(str(c).split(".")[0]) , "|".join(str_segs)))) for c in cases ]
+        # cases_with_segs = [c for c in cases if re.search(str(c).split(".")[0], "|".join(str_segs) )]
+        # cases_without_segs = [c for c in cases if c not in cases_with_segs]
+        # if len(cases_with_segs) > 0:
+
+        # print(f"Found {len(cases_without_segs)} cases without segmentations. Theses cases will be ignored. For more info run script with log='Debug' mode.")
+        # if kwds.get("log")=='Debug':
+        #     print("----Cases without segmentations:----")
+        #     for c in cases_without_segs:
+        #         print(c)
+        #     print("----")
+        
+        # cases_with_segs.sort()
+        # segs.sort()
+
+        # res = list(zip(cases_with_segs, segs))
+        
+        # res = cases_with_segs.extend(cases_without_segs)
+        res = [*cases_with_segs, *cases_without_segs]
         return res
 
 

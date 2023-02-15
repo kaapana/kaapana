@@ -12,14 +12,11 @@ dependencies:
     version: 0.0.0
   - name: oAuth2-proxy-chart
     version: 0.0.0
-  - name: nfs-server-chart
-    version: 0.0.0
-    condition: global.enable_nfs
-  - name: kaapana-platform-chart
-    version: 0.0.0
   - name: maintenance-page-chart
     version: 0.0.0
   - name: kube-helm-chart
     version: 0.0.0
   - name: keycloak-init-chart
+    version: 0.0.0
+  - name: auth-backend-chart
     version: 0.0.0

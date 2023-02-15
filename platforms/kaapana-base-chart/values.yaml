@@ -1,0 +1,4 @@
+---
+global:
+    default_admin_limits_mem: "50Mi"
+    default_admin_requests_mem: "50Mi"

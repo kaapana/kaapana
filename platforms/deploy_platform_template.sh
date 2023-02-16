@@ -10,7 +10,7 @@ export HELM_EXPERIMENTAL_OCI=1
 PLATFORM_NAME="{{ platform_name }}" # name of the platform Helm chart
 PLATFORM_BUILD_VERSION="{{ platform_build_version }}"    # version of the platform Helm chart -> auto-generated
 PLATFORM_BUILD_BRANCH="{{ platform_build_branch }}"    # branch name, which was build from -> auto-generated
-PLATFORM_LAST_COMMT_TIMESTAMP="{{ platform_last_commit_timestamp }}" # timestamp of the last commit -> auto-generated
+PLATFORM_LAST_COMMIT_TIMESTAMP="{{ platform_last_commit_timestamp }}" # timestamp of the last commit -> auto-generated
 PLATFORM_BUILD_TIMESTAMP="{{ platform_build_timestamp }}"    # timestamp of the build-time -> auto-generated
 
 CONTAINER_REGISTRY_URL="{{ container_registry_url|default('', true) }}" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
@@ -259,9 +259,9 @@ function clean_up_kubernetes {
 }
 
 function upload_tar {
-    echo "${YELLOW}Importing the images fromt the tar, this might take up to one hour...!${NC}"
+    echo "${YELLOW}Importing the images from the tar, this might take up to one hour...!${NC}"
     microk8s.ctr images import $TAR_PATH
-    echo "${GREEN}Finished image uplaod! You should now be able to deploy the platform by specifying the chart path.${NC}"
+    echo "${GREEN}Finished image upload! You should now be able to deploy the platform by specifying the chart path.${NC}"
 }
 
 function deploy_chart {
@@ -347,9 +347,9 @@ function deploy_chart {
         echo "${YELLOW}Helm login registry...${NC}"
         check_credentials
         echo "${GREEN}Pulling platform chart from registry...${NC}"
-        SCRIPTPATH=$(dirname "$(realpath $0)")
-        pull_chart $SCRIPTPATH
-        CHART_PATH="$SCRIPTPATH/$PLATFORM_NAME-$chart_version.tgz"
+        SCRIPT_PATH=$(dirname "$(realpath $0)")
+        pull_chart $SCRIPT_PATH
+        CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$chart_version.tgz"
     fi
 
     echo "${GREEN}Deploying $PLATFORM_NAME:$chart_version${NC}"
@@ -399,7 +399,7 @@ function deploy_chart {
     --set-string global.build_timestamp="$PLATFORM_BUILD_TIMESTAMP" \
     --set-string global.kaapana_build_version="$PLATFORM_BUILD_VERSION" \
     --set-string global.platform_build_branch="$PLATFORM_BUILD_BRANCH" \
-    --set-string global.platform_last_commit_timestamp="$PLATFORM_LAST_COMMT_TIMESTAMP" \
+    --set-string global.platform_last_commit_timestamp="$PLATFORM_LAST_COMMIT_TIMESTAMP" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
@@ -488,8 +488,8 @@ function preflight_checks {
     # Holds the state of the setup after preflight checks:
     # 0 = OK
     # 100=POTENTIAL PROBLEMS - could lead to upstream problems
-    # 200=MANIFESTED PROBLEMS - very probabily lead to problems
-    # 300=CATASTROPHIC PROBLEMS - definitly leads to problems, continuation not possible
+    # 200=MANIFESTED PROBLEMS - very probably lead to problems
+    # 300=CATASTROPHIC PROBLEMS - definitely leads to problems, continuation not possible
 
     # Since bash has no support for multidimensional arrays every test needs to add exactly one element to this arrays
     SEVERITY=()
@@ -509,9 +509,9 @@ function preflight_checks {
     fi
 
     SEVERITY+=(200)
-    TEST_NAMES+=("Check if enought disk-space")
+    TEST_NAMES+=("Check if enough disk-space")
     SIZE="$(df -k --output=size /var/snap | tail -n1)"
-    if [ "$SIZE" -lt 81920 ]; then
+    if [ "$SIZE" -lt 81920000 ]; then
         TEST_FAILDS+=(true)
         RESULT_MSGS+=("Your disk space is too small to deploy the system.\nThere should be at least 80 GiBytes available @ /var/snap")
     else
@@ -614,7 +614,7 @@ function preflight_checks {
     # Act on Test Results
     MAX_SEVERITY=0
     for i in ${!SEVERITY[@]}; do
-        # Maximum Severity of a faild test
+        # Maximum Severity of a failed test
         if [ "${TEST_FAILDS[$i]}" = true ]; then
             TEST_SEVERITY="${SEVERITY[$i]}"
             MAX_SEVERITY=$((MAX_SEVERITY>TEST_SEVERITY? MAX_SEVERITY : TEST_SEVERITY))
@@ -647,7 +647,7 @@ function preflight_checks {
     elif [ "$MAX_SEVERITY" -ge 100 ]; then
         # 100-199
         echo -e "${YELLOW}Problems with a medium severity have been found! ${NC}"
-        echo -e "${YELLOW}Since your system is out of the specified constraints for the platform, problems during operation or the installation can occure.${NC}"
+        echo -e "${YELLOW}Since your system is out of the specified constraints for the platform, problems during operation or the installation can occur.${NC}"
         echo -e "${YELLOW}Please consider fixing this problems before continuing, it is highly recommended.${NC}"
         TERMINATE=true
     elif [ "$MAX_SEVERITY" -ge 1 ]; then
@@ -663,7 +663,7 @@ function preflight_checks {
     if [ "$TERMINATE" = "true" ]; then
         if [ ! "$QUIET" = "false" ] ; then
             while true; do
-                read -e -p "Do you want to fix the problems before continuing? (Recomended)" -i " no" yn
+                read -e -p "Do you want to fix the problems before continuing? (Recommended)" -i " no" yn
                 case $yn in
                     [Yy]* ) echo "${RED}exiting...${NC}" && exit 1; break;;
                     [Nn]* ) echo "${YELLOW}continuing (be aware that you leaving the supported path, its dangerous here watch your step!)${NC}"; break;;
@@ -680,7 +680,7 @@ function preflight_checks {
 }
 
 function create_report {
-    # Dont abort report generation on errror
+    # Dont abort report generation on error
     set +euf +o pipefail
     # Pipe output also to file
     exec > >(tee -ia "kaapana-report-$(date +'%Y-%m-%d').log")
@@ -920,7 +920,7 @@ do
         ;;
 
         *)    # unknown option
-            echo -e "${RED}unknow parameter: $key ${NC}"
+            echo -e "${RED}unknown parameter: $key ${NC}"
             echo -e "${YELLOW}$usage${NC}"
             exit 1
         ;;

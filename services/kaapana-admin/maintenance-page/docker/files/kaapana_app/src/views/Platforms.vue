@@ -375,8 +375,13 @@ export default Vue.extend({
         return ""
       }
       if (item["available_versions"][item.version]["deployments"].length > 0) {
-        let s = item["available_versions"][item.version]["deployments"][0]["helm_status"]
-        return s.charAt(0).toUpperCase() + s.slice(1);
+        if (typeof(item["available_versions"][item.version]["deployments"][0]["kube_status"]) == "string") {
+          let s = item["available_versions"][item.version]["deployments"][0]["kube_status"]
+          return s.charAt(0).toUpperCase() + s.slice(1);
+        } else {
+          let s = item["available_versions"][item.version]["deployments"][0]["kube_status"][0]
+          return s.charAt(0).toUpperCase() + s.slice(1);
+        }
       }
       return ""
     },
@@ -796,7 +801,8 @@ export default Vue.extend({
         name: item.name,
         version: item.version,
         keywords: item.keywords,
-        platforms: "true"
+        platforms: "true",
+        blocking: "true",
       } as any;
 
       console.log("payload", payload)

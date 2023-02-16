@@ -245,6 +245,8 @@ def add_info_from_deployments(
                 extension_info.kubeStatus = ""
                 extension_info.successful = ""
             else:
+                for deployment in version_content.deployments:
+                    extension_info.links = deployment.links
                 extension_info.installed = "yes"
         else:
             # no deployments

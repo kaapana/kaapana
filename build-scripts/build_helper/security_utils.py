@@ -159,7 +159,22 @@ class TrivyUtils:
             BuildUtils.logger.error("Found configuration errors in Kaapana chart! See compressed_chart_report.json or chart_report.json for details.")
             with open(os.path.join(BuildUtils.build_dir, 'compressed_chart_report.json'), 'w') as f:
                 json.dump(compressed_chart_report, f)
-        
+
+    # Function to check Dockerfile for configuration errors
+    @staticmethod
+    def check_dockerfile(container_images):
+
+        for container_image in container_images:
+            path_to_dockerfile = container_image.path
+
+            command = ['trivy', 'config', '-f', 'json', '-o', os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), '--severity', BuildUtils.chart_check_severity_level, path_to_dockerfile]
+            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3600)
+
+            if output.returncode != 0:
+                BuildUtils.logger.error("Failed to check Dockerfile")
+                BuildUtils.logger.error(output.stderr)
+                exit(1)
+
 if __name__ == '__main__':
     print("Please use the 'start_build.py' script to launch the build-process.")
     exit(1)

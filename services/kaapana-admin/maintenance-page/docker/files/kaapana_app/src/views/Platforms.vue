@@ -6,22 +6,6 @@
         v-row
           v-col(cols="12", sm="5")
             span Platforms &nbsp;
-              v-tooltip(bottom="")
-                template(v-slot:activator="{ on, attrs }")
-                  v-icon(
-                    @click="updateExtensions()",
-                    color="primary",
-                    dark="",
-                    v-bind="attrs",
-                    v-on="on"
-                  )
-                    | mdi-cloud-download-outline
-                span By clicking on this icon it will try to download the latest extensions.
-            br
-            span(style="font-size: 14px") On 
-              a(href="https://kaapana.readthedocs.io/", target="_blank") readthedocs
-              |
-              | you find a description of each extension
           v-col(cols="12", sm="2")
             v-select(
               label="Kind",
@@ -365,8 +349,13 @@ export default Vue.extend({
         return ""
       }
       if (item["available_versions"][item.version]["deployments"].length > 0) {
-        let s = item["available_versions"][item.version]["deployments"][0]["kube_status"][0]
-        return s.charAt(0).toUpperCase() + s.slice(1);
+        if (typeof(item["available_versions"][item.version]["deployments"][0]["kube_status"]) == "string") {
+          let s = item["available_versions"][item.version]["deployments"][0]["kube_status"]
+          return s.charAt(0).toUpperCase() + s.slice(1);
+        } else {
+          let s = item["available_versions"][item.version]["deployments"][0]["kube_status"][0]
+          return s.charAt(0).toUpperCase() + s.slice(1);
+        }
       }
       return ""
     },
@@ -375,13 +364,8 @@ export default Vue.extend({
         return ""
       }
       if (item["available_versions"][item.version]["deployments"].length > 0) {
-        if (typeof(item["available_versions"][item.version]["deployments"][0]["kube_status"]) == "string") {
-          let s = item["available_versions"][item.version]["deployments"][0]["kube_status"]
-          return s.charAt(0).toUpperCase() + s.slice(1);
-        } else {
-          let s = item["available_versions"][item.version]["deployments"][0]["kube_status"][0]
-          return s.charAt(0).toUpperCase() + s.slice(1);
-        }
+        let s = item["available_versions"][item.version]["deployments"][0]["helm_status"]
+        return s.charAt(0).toUpperCase() + s.slice(1);
       }
       return ""
     },

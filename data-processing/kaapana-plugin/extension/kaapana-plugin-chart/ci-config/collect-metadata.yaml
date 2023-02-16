@@ -1,0 +1,23 @@
+dag_id: "collect-metadata"
+instance_names:
+  - central
+conf_data:
+  workflow_form:
+    single_execution: false
+  data_form:
+    cohort_name: "testCT"
+    cohort_limit: 2
+remote: false
+username: "kaapana"
+---
+dag_id: "collect-metadata"
+instance_names:
+  - central
+conf_data:
+  workflow_form:
+    single_execution: true
+  data_form:
+    cohort_name: "testCT"
+    cohort_limit: 2
+remote: false
+username: "kaapana"

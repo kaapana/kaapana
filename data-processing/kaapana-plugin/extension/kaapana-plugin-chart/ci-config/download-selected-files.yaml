@@ -1,0 +1,25 @@
+dag_id: "download-selected-files"
+instance_names:
+  - central
+conf_data:
+  data_form: 
+    cohort_name: "testCT"
+    cohort_limit: 2
+  workflow_form:
+    zip_files: false
+    single_execution: true
+remote: false
+username: "kaapana" 
+---
+dag_id: "download-selected-files"
+instance_names:
+  - central
+conf_data:
+  data_form: 
+    cohort_name: "testCT"
+    cohort_limit: 2
+  workflow_form:
+    zip_files: true
+    single_execution: false
+remote: false
+username: "kaapana"

@@ -1,0 +1,43 @@
+dag_id: "nnunet-predict"
+instance_names:
+  - central
+conf_data:
+  workflow_form:
+    single_execution: true
+    task: "Task010_Colon"
+    body_part: "abdomen"
+    input: "ct"
+    targets: "cancer@colon"
+    model: "3d_fullres"
+    inf_softmax: false
+    interpolation_order: default
+    inf_threads_prep: 1
+    inf_threads_nifti: 1
+    task_url: "http://medicaldecathlon.com/"
+  data_form:
+    cohort_name: testCT
+    cohort_limit: 2
+remote: false
+username: "kaapana"
+---
+dag_id: "nnunet-predict"
+instance_names:
+  - central
+conf_data:
+  workflow_form:
+    single_execution: true
+    task: "Task017_AbdominalOrganSegmentation"
+    body_part: "abdomen"
+    input: "ct"
+    targets: "spleen,right@kidney,left@kidyney,gallbladder,esophagus,liver,stomach,aorta,inferior-vena-cava,portal-vein,splenic-vein,pancreas,right@adrenal-gland,left@adrenal-gland"
+    model: "3d_fullres"
+    inf_softmax: false
+    interpolation_order: default
+    inf_threads_prep: 1
+    inf_threads_nifti: 1
+    task_url: "https://www.synapse.org/'!Synapse:syn3193805/wiki/217754"
+  data_form:
+    cohort_name: testCT
+    cohort_limit: 2
+remote: false
+username: "kaapana"

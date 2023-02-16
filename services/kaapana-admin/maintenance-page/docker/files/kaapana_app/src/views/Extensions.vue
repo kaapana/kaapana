@@ -365,8 +365,13 @@ export default Vue.extend({
         return ""
       }
       if (item["available_versions"][item.version]["deployments"].length > 0) {
-        let s = item["available_versions"][item.version]["deployments"][0]["kube_status"][0]
-        return s.charAt(0).toUpperCase() + s.slice(1);
+        if (typeof(item["available_versions"][item.version]["deployments"][0]["kube_status"]) == "string") {
+          let s = item["available_versions"][item.version]["deployments"][0]["kube_status"]
+          return s.charAt(0).toUpperCase() + s.slice(1);
+        } else {
+          let s = item["available_versions"][item.version]["deployments"][0]["kube_status"][0]
+          return s.charAt(0).toUpperCase() + s.slice(1);
+        }
       }
       return ""
     },

@@ -14,7 +14,7 @@
             <v-list-item-icon></v-list-item-icon>
           </v-list-item>
           <v-list-group :prepend-icon="section.icon"
-                        v-if="isAuthenticated &amp;&amp; section.roles.indexOf(currentUser.role) > -1"
+                        v-if="isAuthenticated && section.roles.indexOf(currentUser.role) > -1"
                         v-for="(section, sectionKey) in externalWebpages" :key="section.id">
             <template v-slot:activator>
               <v-list-item-title>{{ section.label }}</v-list-item-title>

@@ -1,12 +1,13 @@
 <template>
-  <LazyList
-      :data="inner_patients"
-      :itemsPerRender="5"
-      containerClasses="list"
-      defaultLoadingColor="#222"
-  >
-    <template v-slot="{item}">
-      <v-list>
+  <div>
+    <v-list v-for="item in inner_patients">
+      <v-lazy
+          v-model="item.isActive"
+          :options="{
+                threshold: .5,
+                delay: 100
+            }"
+      >
         <v-list-group v-model="item.active"
                       :active-class="activeClass">
           <template v-slot:activator>
@@ -51,6 +52,10 @@
                         :cohort_name="cohort_name"
                         @imageId="(imageId) => propagateImageId(imageId)"
                         @emptyStudy="() => removeEmptyStudy(item, study)"
+                        @imageIds="imageIds => collectAndPropagateImageIds(
+                            study['0020000D StudyInstanceUID_keyword'],
+                             imageIds
+                           )"
                     />
                   </v-row>
                 </v-container>
@@ -58,9 +63,9 @@
             </v-list-item>
           </v-list>
         </v-list-group>
-      </v-list>
-    </template>
-  </LazyList>
+      </v-lazy>
+    </v-list>
+  </div>
 </template>
 
 <script>
@@ -68,7 +73,6 @@
 import Chip from "./Chip";
 import CardSelect from "./CardSelect.vue";
 import Gallery from "./Gallery.vue";
-import LazyList from './lazy-load-list/LazyList.vue'
 
 export default {
   emits: ['imageId'],
@@ -89,18 +93,19 @@ export default {
       active: {},
       image_id: null,
       inner_patients: [],
-      inner_selectedTags: []
+      inner_selectedTags: [],
+      selectedItems: {}
     };
   },
   components: {
     CardSelect,
     Chip,
-    LazyList,
     Gallery
   },
   mounted() {
     this.inner_patients = this.patients
     this.inner_patients.forEach(pat => pat.active = true)
+    this.inner_patients.forEach(pat => pat.isActive = false)
     this.inner_selectedTags = this.selectedTags
   },
   watch: {
@@ -117,6 +122,10 @@ export default {
   methods: {
     propagateImageId(image_id) {
       this.$emit('imageId', image_id);
+    },
+    collectAndPropagateImageIds(study_id, imageIds) {
+      this.selectedItems[study_id] = imageIds
+      this.$emit('selected', Object.values(this.selectedItems))
     },
     removeEmptyStudy(item, study) {
       item.studies = item.studies.filter(s => s.study_key !== study.study_key)

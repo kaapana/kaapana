@@ -180,10 +180,16 @@ async def helm_install_chart(request: Request):
         platforms = False
         if ("platforms" in payload) and (str(payload["platforms"]).lower() == "true"):
             platforms = True
+        blocking=False
+        if ("blocking" in payload) and (str(payload["blocking"]).lower() == "true"):
+            blocking = True
         success, stdout, _, _, cmd = utils.helm_install(
-            payload, shell=True, blocking=True, platforms=platforms)
+            payload, shell=True, blocking=blocking, platforms=platforms)
         if success:
-            return Response(f"Successfully ran helm install, command {cmd}", 200)
+            if blocking:
+                return Response(f"Successfully installed: {stdout}", 200)
+            else:
+                return Response(f"Successfully ran helm install command (non-blocking) {cmd}", 200)
         else:
             return Response(f"Chart install command failed {stdout}", 500)
     except AssertionError as e:

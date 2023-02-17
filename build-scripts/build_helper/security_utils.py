@@ -11,6 +11,12 @@ timeout = 3600
 # Class containing security related helper functions
 # Using Trivy to create SBOMS and check for vulnerabilities
 class TrivyUtils:
+
+    sboms = {}
+    vulnerability_reports = {}
+    compressed_vulnerability_reports = {}
+    compressed_dockerfile_report = {}
+
     def __init__(self):
         # Check if trivy is installed
         if which('Trivy') is not None:

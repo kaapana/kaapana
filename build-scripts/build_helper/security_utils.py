@@ -34,8 +34,10 @@ class TrivyUtils:
         elif not all(x in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'] for x in BuildUtils.vulnerability_severity_level.split(",")):
             BuildUtils.logger.warning(f"Invalid severity level set in vulnerability_severity_level: {BuildUtils.vulnerability_severity_level}. Allowed values are: CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN")
             BuildUtils.generate_issue(
-                "Invalid severity level set in vulnerability_severity_level",
-
+                component=suite_tag,
+                name="Check if vulnerability_severity_level is set correctly",
+                msg="Invalid severity level set in vulnerability_severity_level",
+                level="ERROR"
             )
             
     # Function to create SBOM for a given image
@@ -46,7 +48,12 @@ class TrivyUtils:
         if output.returncode != 0:
             BuildUtils.logger.error("Failed to create SBOM for image: " + image)
             BuildUtils.logger.error(output.stderr)
-            exit(1)
+            BuildUtils.generate_issue(
+                component=suite_tag,
+                name="Create SBOM for image: " + image,
+                msg="Failed to create SBOM for image: " + image,
+                level="ERROR"
+            )
 
         # read the SBOM file
         with open(os.path.join(BuildUtils.build_dir, 'sbom.json'), 'r') as f:
@@ -70,7 +77,12 @@ class TrivyUtils:
         if output.returncode != 0:
             BuildUtils.logger.error("Failed to scan image: " + image)
             BuildUtils.logger.error(output.stderr)
-            exit(1)
+            BuildUtils.generate_issue(
+                component=suite_tag,
+                name="Scan image: " + image,
+                msg="Failed to scan image: " + image,
+                level="ERROR"
+            )
 
         # read the vulnerability file
         with open(os.path.join(BuildUtils.build_dir, 'vulnerability_report.json'), 'r') as f:
@@ -98,7 +110,12 @@ class TrivyUtils:
                             if 'Description' in vulnerability:
                                 BuildUtils.logger.error("Description: " + vulnerability['Description'])
                             BuildUtils.logger.error("")    
-                exit(1)
+                BuildUtils.generate_issue(
+                component=suite_tag,
+                name="Scan image: " + image,
+                msg="Found vulnerabilities in image: " + image,
+                level="ERROR"
+                )
         # Create compressed vulnerability report
         elif 'Results' in vulnerability_report:
             if len(vulnerability_report['Results']) > 0:
@@ -142,7 +159,12 @@ class TrivyUtils:
         if output.returncode != 0:
             BuildUtils.logger.error("Failed to check Kaapana chart")
             BuildUtils.logger.error(output.stderr)
-            exit(1)
+            BuildUtils.generate_issue(
+                component=suite_tag,
+                name="Check Kaapana chart",
+                msg="Failed to check Kaapana chart" + path_to_chart,
+                level="ERROR"
+            )
 
         # read the chart report file
         with open(os.path.join(BuildUtils.build_dir, 'chart_report.json'), 'r') as f:
@@ -178,7 +200,12 @@ class TrivyUtils:
         if output.returncode != 0:
             BuildUtils.logger.error("Failed to check Dockerfile")
             BuildUtils.logger.error(output.stderr)
-            exit(1)
+            BuildUtils.generate_issue(
+                component=suite_tag,
+                name="Check Dockerfile",
+                msg="Failed to check Dockerfile: " + path_to_dockerfile,
+                level="ERROR"
+            )
 
         # Log the dockerfile report
         with open(os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), 'r') as f:
@@ -194,7 +221,12 @@ class TrivyUtils:
             if report['MisconfSummary']['Failures'] > 0: 
                 if BuildUtils.exit_on_error:
                     BuildUtils.logger.error("Found configuration errors in Dockerfile! See dockerfile_report.json for details.")
-                    exit(1)
+                    BuildUtils.generate_issue(
+                    component=suite_tag,
+                    name="Check Dockerfile",
+                    msg="Found configuration errors in Dockerfile! See dockerfile_report.json for details.",
+                    level="ERROR"
+                    )
                 self.compressed_dockerfile_report[path_to_dockerfile] = {}
                 self.compressed_dockerfile_report[path_to_dockerfile][report['Target']] = {}
                 for misconfiguration in report['Misconfigurations']:

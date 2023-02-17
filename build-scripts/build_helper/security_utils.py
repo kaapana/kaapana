@@ -3,6 +3,7 @@ import os
 from subprocess import PIPE, run
 from build_helper.build_utils import BuildUtils
 import json
+from shutil import which
 
 suite_tag = "security"
 
@@ -11,14 +12,14 @@ suite_tag = "security"
 class TrivyUtils:
     def __init__(self):
         # Check if trivy is installed
-        if not os.path.exists("/usr/local/bin/trivy"):
+        if which('Trivy') is not None:
             BuildUtils.logger.error("Trivy is not installed, please visit https://aquasecurity.github.io/trivy/v0.37/getting-started/installation/ for installation instructions")
-
-        self.sboms = {}
-        self.vulnerability_reports = {}
-        self.compressed_vulnerability_reports = {}
-        self.compressed_dockerfile_report = {}
-
+            BuildUtils.generate_issue(
+                component=suite_tag,
+                name="Check if Trivy is installed",
+                msg="Trivy is not installed",
+                level="ERROR"
+            )
         # Check if severity level is set (enable all vulnerabily severity levels if not set)
         if BuildUtils.vulnerability_severity_level == '' or BuildUtils.vulnerability_severity_level == None:
             BuildUtils.vulnerability_severity_level = 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'

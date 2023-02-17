@@ -1,0 +1,142 @@
+<template>
+  <v-dialog v-model="remoteDialog" max-width="600px">
+    <template v-slot:activator="{ on, attrs }">
+      <v-btn v-bind="attrs" v-on="on" small icon>
+        <v-icon color="primary" dark x-large>mdi-plus-circle</v-icon>
+      </v-btn>
+    </template>
+    <v-card>
+      <v-form v-model="remoteValid" ref="remoteForm" lazy-validation="lazy-validation">
+        <v-card-title><span class="text-h5">Remote Instance</span></v-card-title>
+        <v-card-text>
+          <v-container>
+            <v-row>
+              <v-col cols="5">
+                <v-text-field v-model="remotePost.instance_name" label="Instance name" required="" :disabled="remoteUpdate"></v-text-field>
+              </v-col>
+              <v-col cols="5">
+                <v-text-field v-model="remotePost.host" label="Host" required="" :disabled="remoteUpdate"></v-text-field>
+              </v-col>
+              <v-col cols="2">
+                <v-text-field v-model="remotePost.port" label="Port" type="number" required=""></v-text-field>
+              </v-col>
+              <v-col cols="5">
+                <v-text-field v-model="remotePost.token" label="Token" required=""></v-text-field>
+              </v-col>
+              <v-col cols="5">
+                <v-text-field v-model="remotePost.fernet_key" label="Fernet Key" required=""></v-text-field>
+              </v-col>
+              <v-col cols="2">
+                <v-checkbox v-model="remotePost.ssl_check" label="SSL" required=""></v-checkbox>
+              </v-col>
+            </v-row>
+          </v-container>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn class="mr-4" @click="submitRemoteForm">submit</v-btn>
+          <v-btn @click="resetRemoteForm">clear</v-btn>
+        </v-card-actions>
+      </v-form>
+    </v-card>
+  </v-dialog>
+</template>
+
+<script>
+import kaapanaApiService from "@/common/kaapanaApi.service";
+
+export default {
+  name: "AddRemoteInstance",
+  
+  data: () => ({
+    remoteValid: false,
+    remoteUpdate: false,
+    remoteDialog: false,
+    remoteJobs: [],
+    remoteInstances: [],
+    remotePost: {
+      ssl_check: false,
+      token: '',
+      host: '',
+      instance_name: '',
+      port: 443,
+      fernet_key: 'deactivated',
+    }
+  }),
+
+  mounted () {
+    this.refreshRemote();
+  },
+
+  props: {
+    remote: {
+      type: Boolean,
+      required: true,
+    },
+    
+  },
+
+  methods: {
+    refreshRemote () {
+      this.getRemoteInstances()
+      this.getRemoteJobs()
+    },
+    resetRemoteForm () {
+      this.$refs.remoteForm.reset()
+    },
+    submitRemoteForm () {
+      if (this.remoteUpdate == false) {
+        kaapanaApiService
+          .federatedClientApiPost("/remote-kaapana-instance", this.remotePost)
+          .then((response) => {
+            console.log('getting remote')
+            this.remoteUpdate = false
+            this.remoteDialog = false
+            this.refreshRemote()
+          })
+          .catch((err) => {
+            console.log(err);
+          });
+      } else {
+        kaapanaApiService
+          .federatedClientApiPut("/remote-kaapana-instance", this.remotePost)
+          .then((response) => {
+            this.remoteUpdate = false
+            this.remoteDialog = false
+            this.refreshRemote()
+          })
+          .catch((err) => {
+            console.log(err);
+          });
+      }
+    },
+    editRemoteInstance(instance) {
+      this.remotePost = instance
+      this.remoteDialog = true
+      this.remoteUpdate = true
+    },
+    getRemoteInstances() {
+      kaapanaApiService
+        .federatedClientApiPost("/get-remote-kaapana-instances")
+        .then((response) => {
+          this.remoteInstances = response.data;
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    },
+    getRemoteJobs() {
+      kaapanaApiService
+        .federatedRemoteApiGet("/jobs", {
+        limit: 100,
+        }).then((response) => {
+          this.remoteJobs = response.data;
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    },
+  }
+}
+
+</script>

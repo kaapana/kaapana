@@ -30,6 +30,6 @@ RUN code-server --install-extension ms-python.python
 # RUN jupyter-lab --generate-config \
 #  && sed -i "s/^.*ServerApp.token.*$/c.ServerApp.token = ''/g" /root/.jupyter/jupyter_lab_config.py
 # COPY files/jupyterlab.sh /
-# COPY files/kaapana_federated /kaapana_federated
+COPY files/kaapana_federated /kaapana_federated
 
 WORKDIR /app

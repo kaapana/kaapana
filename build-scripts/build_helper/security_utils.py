@@ -6,6 +6,7 @@ import json
 from shutil import which
 
 suite_tag = "security"
+timeout = 3600
 
 # Class containing security related helper functions
 # Using Trivy to create SBOMS and check for vulnerabilities
@@ -34,7 +35,7 @@ class TrivyUtils:
     # Function to create SBOM for a given image
     def create_sbom(self, image):
         command = ['trivy', 'image', '--format', 'cyclonedx', '--output', os.path.join(BuildUtils.build_dir, 'sbom.json') , image]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3600)
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
 
         if output.returncode != 0:
             BuildUtils.logger.error("Failed to create SBOM for image: " + image)
@@ -58,7 +59,7 @@ class TrivyUtils:
     # Function to check for vulnerabilities in a given image
     def create_vulnerability_report(self, image):
         command = ['trivy', 'image', '-f', 'json', '-o', os.path.join(BuildUtils.build_dir, 'vulnerability_report.json'), '--ignore-unfixed', '--severity', BuildUtils.vulnerability_severity_level, image]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3600)
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
 
         if output.returncode != 0:
             BuildUtils.logger.error("Failed to scan image: " + image)
@@ -130,7 +131,7 @@ class TrivyUtils:
     @staticmethod
     def check_chart(path_to_chart):
         command = ['trivy', 'config', '-f', 'json', '-o', os.path.join(BuildUtils.build_dir, 'chart_report.json'), '--severity', BuildUtils.configuration_check_severity_level, path_to_chart]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3600)
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
 
         if output.returncode != 0:
             BuildUtils.logger.error("Failed to check Kaapana chart")
@@ -166,7 +167,7 @@ class TrivyUtils:
     def check_dockerfile(self, path_to_dockerfile):
 
         command = ['trivy', 'config', '-f', 'json', '-o', os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), '--severity', BuildUtils.configuration_check_severity_level, path_to_dockerfile]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3600)
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
 
         if output.returncode != 0:
             BuildUtils.logger.error("Failed to check Dockerfile")

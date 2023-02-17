@@ -138,7 +138,7 @@ def check_dag_id_and_dataset(db_client_kaapana, conf_data, dag_id, owner_kaapana
 
 def execute_job_airflow(conf_data, db_job):
     with requests.Session() as s:
-        resp = requests_retry_session(session=s).post(f'http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/trigger/{dag_id}', timeout=TIMEOUT, json={
+        resp = requests_retry_session(session=s).post(f'http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/trigger/{db_job.dag_id}', timeout=TIMEOUT, json={
             'conf': {
                 **conf_data,
             }})

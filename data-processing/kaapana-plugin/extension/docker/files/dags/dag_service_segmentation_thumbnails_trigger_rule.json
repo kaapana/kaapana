@@ -1,0 +1,16 @@
+[
+  {
+    "search_tags": {
+      "0x0008,0x0060": "SEG"
+    },
+    "dag_ids": {
+      "create-segmentation-thumbnail": {
+        "fetch_method": "copy",
+        "rest_call": {
+          "global": {}
+        },
+        "single_execution" : false
+      }
+    }
+  }
+]

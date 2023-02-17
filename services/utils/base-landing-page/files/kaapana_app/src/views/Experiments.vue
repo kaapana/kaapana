@@ -1,64 +1,48 @@
 <template lang="pug">
-.federated-panel
-  v-container(text-left)
-    v-row(@click="toggleClientPanel()").toggleMouseHand
-      v-col(cols="4")
-        h1 Client Instance
-          i(v-if="openedClientPanel==null").v-icon.notranslate.mdi.mdi-chevron-down.theme--light(aria-hidden='true')
-          i(v-if="openedClientPanel==0").v-icon.notranslate.mdi.mdi-chevron-up.theme--light(aria-hidden='true')
-      v-col(cols="8" align='right')
-        v-dialog(v-model='clientDialog' max-width='600px')
-          v-card
-            v-form(v-model='clientValid' ref="clientForm" lazy-validation)
-              v-card-title
-                span.text-h5 Client Instance
-              v-card-text
-                v-container
-                  v-row
-                    v-col(cols='12')
-                      v-select(v-model='clientPost.allowed_dags' :items='dags' label='Allowed dags' multiple='' chips='' hint='Which dags are allowed to be triggered' persistent-hint='')
-                    v-col(cols='12')
-                      v-select(v-model='clientPost.allowed_datasets' :items='datasets' label='Allowed datasets' multiple='' chips='' hint='Which datasets are allowed to be triggered' persistent-hint='')
-                    v-col(cols='8')
-                      v-checkbox(v-model="clientPost.automatic_update" label="Check automatically for remote updates")
-                    v-col(cols='4')
-                      v-checkbox(v-model="clientPost.ssl_check" label="SSL"  required='')
-                    v-col(cols='8')
-                      v-checkbox(v-model="clientPost.automatic_job_execution" label="Execute automatically jobs")
-                    v-col(cols='4')
-                      v-checkbox(v-model="clientPost.fernet_encrypted" label="Fernet encrypted"  required='')
-              v-card-actions
-                v-spacer
-                v-btn.mr-4(@click='submitClientForm')
-                  | submit
-                v-btn(@click='resetClientForm')
-                  | clear
-        workflow-execution(ref="workflowexecution" v-if="clientInstance" :remote='false', :instances="[clientInstance]")
-        v-btn(v-if="clientInstance" color='orange' @click.stop="checkForRemoteUpdates()" rounded dark ) Sync remote
-        v-btn(v-if="!clientInstance" color='orange' @click.stop="clientDialog=true" rounded dark) Add client instance
-    v-row
-      v-col(sm="12")
-        v-expansion-panels(v-model="openedClientPanel")
-          v-expansion-panel(key='instance')
-            v-expansion-panel-content
-              KaapanaInstance(v-if="clientInstance" :instance="clientInstance" :remote="clientInstance.remote"  @refreshView="refreshClient()" @ei="editClientInstance")
-    job-table(v-if="clientInstance" :jobs="clientJobs" :remote="clientInstance.remote"  @refreshView="refreshClient()")
-</template>
+  .federated-panel
+    v-container(text-left)
+      h1 Experiment Management System
+      v-row(@click="toggleClientPanel()").toggleMouseHand
+        v-col(align="left")
+          //- former LocalKaapanaInstance
+          LocalKaapanaInstance(v-if="clientInstance" :instance="clientInstance" :remote="false"  @refreshView="refreshClient()" @ei="editClientInstance")
+        v-col(align="center")
+          workflow-execution(ref="workflowexecution" v-if="clientInstance" :remote='true' :instances="allInstances" :clientinstance="clientInstance" @refreshView="refreshClient()")
+        v-col(align="reight")
+          v-row(align="center")
+            h2 Remote Instances
+            v-spacer
+            add-remote-instance(ref="addremoteinstance" :remote='true')
+            v-spacer
+            view-remote-instances(ref="viewremoteinstances" :clientinstance="clientInstance" :remote='true')
+            v-spacer
+            v-btn(v-if="clientInstance" @click.stop="checkForRemoteUpdates()" small icon)
+              v-icon(color='primary' dark x-large) mdi-sync-circle
+            v-spacer
+            v-btn(v-if="!clientInstance" color='primary' @click.stop="clientDialog=true" dark) Add client instance
+      experiment-table(v-if="clientInstance" :instance="clientInstance" :experiments="clientExperiments" :remote="clientInstance.remote" @refreshView="refreshClient()")
+  </template>
 
 <script>
 import Vue from "vue";
 import { mapGetters } from "vuex";
 import kaapanaApiService from "@/common/kaapanaApi.service";
 
-import JobTable from "@/components/JobTable.vue";
+import ExperimentTable from "@/components/ExperimentTable.vue"
 import KaapanaInstance  from "@/components/KaapanaInstance.vue";
+import LocalKaapanaInstance from "@/components/LocalKaapanaInstance.vue";
 import WorkflowExecution  from "@/components/WorkflowExecution.vue";
+import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
+import ViewRemoteInstances from "@/components/ViewRemoteInstances.vue";
 
 export default Vue.extend({
   components: {
-    JobTable,
+    ExperimentTable,
     KaapanaInstance,
-    WorkflowExecution
+    LocalKaapanaInstance,
+    WorkflowExecution,
+    AddRemoteInstance,
+    ViewRemoteInstances
   },
   data: () => ({
     polling: 0,
@@ -69,7 +53,11 @@ export default Vue.extend({
     dags: [],
     datasets: [],
     clientJobs: [],
+    clientExperiments: [],
     clientInstance: {},
+    remoteInstances: [],
+    allInstances: [],
+    all_instance_names: [],
     clientPost: {
       ssl_check: false,
       automatic_update: false,
@@ -117,7 +105,9 @@ export default Vue.extend({
     },
     refreshClient() {
       this.getClientInstance()
+      this.getClientExperiments()
       this.getClientJobs()
+      this.getRemoteInstances()
     },
     resetClientForm () {
       this.$refs.clientForm.reset()
@@ -140,7 +130,7 @@ export default Vue.extend({
         .then((response) => {
           this.clientUpdate = false
           this.clientDialog = false
-          this.refreshClient();
+          get_remote_updates
         })
         .catch((err) => {
           console.log(err);
@@ -152,6 +142,7 @@ export default Vue.extend({
         .federatedClientApiPost("/get-dags", {remote: false})
         .then((response) => {
           this.dags = response.data;
+          console.log("Fetched DAGs: ", this.dags);
         })
         .catch((err) => {
           console.log(err);
@@ -178,9 +169,25 @@ export default Vue.extend({
         .federatedClientApiGet("/client-kaapana-instance")
         .then((response) => {
           this.clientInstance = response.data;
+          if (this.all_instance_names.indexOf(this.clientInstance.instance_name) === -1) {
+            this.allInstances.push(this.clientInstance)
+            this.all_instance_names.push(this.clientInstance.instance_name)
+          }
+          console.log("clientInstance: ", this.clientInstance);
         })
         .catch((err) => {
           this.clientInstance = {}
+        });
+    },
+    getClientExperiments() {
+      kaapanaApiService
+        .federatedClientApiGet("/experiments",{
+        limit: 100,
+        }).then((response) => {
+          this.clientExperiments = response.data;
+        })
+        .catch((err) => {
+          console.log(err);
         });
     },
     getClientJobs() {
@@ -189,6 +196,22 @@ export default Vue.extend({
         limit: 100,
         }).then((response) => {
           this.clientJobs = response.data;
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    },
+    getRemoteInstances() {
+      kaapanaApiService
+        .federatedClientApiPost("/get-remote-kaapana-instances")
+        .then((response) => {
+          this.remoteInstances = response.data;
+          this.remoteInstances.forEach(remote_instance => {
+            if (this.all_instance_names.indexOf(remote_instance.instance_name) === -1) {
+              this.allInstances.push(remote_instance)
+              this.all_instance_names.push(remote_instance.instance_name)
+            }
+          })
         })
         .catch((err) => {
           console.log(err);

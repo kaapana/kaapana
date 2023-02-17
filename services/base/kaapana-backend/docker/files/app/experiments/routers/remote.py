@@ -49,4 +49,5 @@ async def delete_job(job_id: int, db: Session = Depends(get_db)):
 
 @router.put("/sync-client-remote")
 async def put_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal, instance_name: str = None, status: str = None, db: Session = Depends(get_db)):
+    # print("I was called by a forgein power!!!")
     return crud.sync_client_remote(db=db, remote_kaapana_instance=remote_kaapana_instance, instance_name=instance_name, status=status)

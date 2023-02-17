@@ -237,6 +237,7 @@ class KaapanaFederatedTrainingBase(ABC):
     def distribute_jobs(self, federated_round):
         # Starting round!
         self.remote_conf_data['federated_form']['federated_round'] = federated_round
+        distributed_jobs = []
         for site_info in self.remote_sites:
             if site_info['instance_name'] not in self.tmp_federated_site_info:
                 self.tmp_federated_site_info[site_info['instance_name']] = {}
@@ -247,13 +248,17 @@ class KaapanaFederatedTrainingBase(ABC):
                 self.remote_conf_data['federated_form']['from_previous_dag_run'] = self.tmp_federated_site_info[site_info['instance_name']]['from_previous_dag_run']
 
             with requests.Session() as s:
-                r = requests_retry_session(session=s).post(f'{self.client_url}/job', json={
-                    "dag_id": self.remote_conf_data['federated_form']["remote_dag_id"],
-                    "conf_data": self.remote_conf_data,
-                    "status": "queued",
-                    "username": self.local_conf_data["experiment_form"]["username"],
-                    "addressed_kaapana_instance_name": self.client_network['instance_name'],
-                    "kaapana_instance_id": site_info['id']}, verify=self.client_network['ssl_check'])
+                r = requests_retry_session(session=s).post(f'{self.client_url}/job',
+                        json={
+                            "dag_id": self.remote_conf_data['federated_form']["remote_dag_id"],
+                            "conf_data": self.remote_conf_data,
+                            "status": "queued",
+                            "username": self.local_conf_data["experiment_form"]["username"],
+                            "owner_kaapana_instance_name": self.client_network['instance_name'],
+                            "kaapana_instance_id": site_info['id']
+                        }, 
+                        verify=self.client_network['ssl_check']
+                    )
 
             KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
             job = r.json()
@@ -263,6 +268,22 @@ class KaapanaFederatedTrainingBase(ABC):
                 'job_id': job['id'],
                 'fernet_key': site_info['fernet_key']
             }
+            distributed_jobs.append(job)
+
+        # update experiment.experiment_jobs with created job
+        with requests.Session() as s:
+            r = requests_retry_session(session=s).put(f'{self.client_url}/experiment_jobs',
+                    json={
+                        "experiment_name": self.local_conf_data["experiment_form"]["experiment_name"],
+                        "experiment_jobs": distributed_jobs,
+                    },
+                    verify=self.client_network['ssl_check']
+                )
+        KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
+        experiment = r.json()
+        print(f'Updated Experiment {experiment["experiment_name"]} with created jobs!')
+        print(experiment)
+        # add sth to self.tmp_federated_site_info[site_info['instance_name']] ?!
     
     @timeit
     def wait_for_jobs(self, federated_round):
@@ -396,7 +417,8 @@ class KaapanaFederatedTrainingBase(ABC):
         print('Recovery conf in one line')
         print(json.dumps(recovery_conf))
         recovery_path = os.path.join(self.fl_working_dir, str(federated_round), "recovery_conf.json")
-        os.makedirs(os.path.basename(recovery_path), exist_ok=True)
+        # os.makedirs(os.path.basename(recovery_path), exist_ok=True)
+        os.makedirs(os.path.dirname(recovery_path), exist_ok=True)
         with open(recovery_path, "w", encoding='utf-8') as jsonData:
             json.dump(recovery_conf, jsonData, indent=2, sort_keys=True, ensure_ascii=True)
 

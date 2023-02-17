@@ -147,7 +147,7 @@ def execute_job_airflow(conf_data, db_job):
 
 def abort_job_airflow(dag_id, dag_run_id, conf_data, status="failed"):
     with requests.Session() as s:
-        resp = requests_retry_session(session=s).post(f'http://airflow-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/abort/{dag_id}/{dag_run_id}',
+        resp = requests_retry_session(session=s).post(f'http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/abort/{dag_id}/{dag_run_id}',
             timeout=TIMEOUT,  
             json={
                 'dag_id': dag_id,
@@ -161,7 +161,7 @@ def abort_job_airflow(dag_id, dag_run_id, conf_data, status="failed"):
 
 def get_dagrun_tasks_airflow(dag_id, dag_run_id):
     with requests.Session() as s:
-        resp = requests_retry_session(session=s).post(f'http://airflow-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/get_dagrun_tasks/{dag_id}/{dag_run_id}',
+        resp = requests_retry_session(session=s).post(f'http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/get_dagrun_tasks/{dag_id}/{dag_run_id}',
                 timeout=TIMEOUT,
                 json={
                     'dag_id': dag_id,

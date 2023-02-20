@@ -170,7 +170,7 @@ def add_extension_to_dict(
                 }
                 latest_helm_status = chart_deployment["status"]
                 if chart_info["helm_status"] == CHART_STATUS_DEPLOYED:
-                    success, deployment_ready, ingress_paths, concatenated_states = get_kube_objects(chart_deployment["name"])
+                    success, deployment_ready, ingress_paths, concatenated_states = get_kube_objects(chart_deployment["name"], chart_deployment["namespace"])
                     if success:
                         chart_info["kube_status"] = concatenated_states["status"]
                         chart_info["kube_info"] = concatenated_states
@@ -302,7 +302,7 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
                 logger.debug("updating cache, states_w_indexes {0}".format(states_w_indexes))
                 # recent changes exist, update these in global extensions dict and return
                 for ind, ext in states_w_indexes:
-                    dep = collect_helm_deployments(chart_name=ext.chart_name)
+                    dep = collect_helm_deployments(chart_name=ext.chart_name, platforms=platforms)
                     tgz = collect_all_tgz_charts(
                         keywords_filter=keywords_filter,
                         name_filter=ext.chart_name+"-"+ext.version
@@ -360,7 +360,7 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
         update_running = True
         available_extension_charts_tgz = collect_all_tgz_charts(
             keywords_filter=keywords_filter)
-        deployed_extensions_dict = collect_helm_deployments()
+        deployed_extensions_dict = collect_helm_deployments(platforms=platforms)
 
         for extension_id, extension_dict in available_extension_charts_tgz.items():
             global_extensions_dict = add_extension_to_dict(
@@ -392,6 +392,7 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
     except Exception as e:
         logger.error(e)
         update_running = False
+        raise Exception(e)
 
     if platforms:
         return global_platforms_list
@@ -507,19 +508,23 @@ def sha256sum(filepath) -> str:
     return h.hexdigest()
 
 
-def collect_helm_deployments(helm_namespace: str = settings.helm_namespace, chart_name: str = None) -> Dict[str, Dict]:
+def collect_helm_deployments(helm_namespace: str = settings.helm_namespace, chart_name: str = None, platforms : bool = False) -> Dict[str, Dict]:
     """
     Gets all deployed helm charts independent of their status
 
     Arguments:
         helm_namespace (str): Namespace for helm commands
+        chart_name (str): If not None only return charts with matched name 
 
     Returns:
         deployed_charts_dict (Dict[str, Dict]): format for keys is `chart['chart']`
 
     """
     deployed_charts_dict = {}
-    cmd = f'{settings.helm_path} -n {helm_namespace} ls --deployed --pending --failed --uninstalling --superseded -o json'
+    namespace_option = f"-n {helm_namespace}"
+    if platforms:
+        namespace_option = "-A"
+    cmd = f'{settings.helm_path} ls {namespace_option} --deployed --pending --failed --uninstalling --superseded -o json'
     success, stdout = execute_shell_command(cmd)
     if success:
         logger.debug(f"Success - got deployments.")
@@ -595,7 +600,6 @@ def get_kube_objects(release_name: str, helm_namespace: str = settings.helm_name
         age=[]
     )
     if success:
-        logger.debug(f"Success: get_kube_objects")
         manifest_dict = list(yaml.load_all(stdout, yaml.FullLoader))
         deployment_ready = True
 
@@ -610,7 +614,10 @@ def get_kube_objects(release_name: str, helm_namespace: str = settings.helm_name
             elif config['kind'] == 'Deployment' or config['kind'] == 'Job':
                 obj_kube_status = None
                 if config['kind'] == 'Deployment':
-                    obj_kube_status = get_kube_status('app', config['spec']['selector']['matchLabels']['app-name'], config['metadata']['namespace'])
+                    # TODO: only traefik lacks app-name in matchLabels
+                    match_labels = config['spec']['selector']['matchLabels']
+                    app_name = match_labels['app-name'] if ('app-name' in match_labels) else match_labels['app']
+                    obj_kube_status = get_kube_status('app', app_name, config['metadata']['namespace'])
                 elif config['kind'] == 'Job':
                     obj_kube_status = get_kube_status('job', config['metadata']['name'], config['metadata']['namespace'])
 

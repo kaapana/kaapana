@@ -16,6 +16,7 @@ function guardRoute(to: any, from: any, next: any) {
 }
 
 const router = new Router({
+  base: "/maintenance",
   routes: routes.map((route: any) => ({
     name: route.name,
     path: route.path,

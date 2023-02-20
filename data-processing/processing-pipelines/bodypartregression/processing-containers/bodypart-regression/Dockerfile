@@ -12,9 +12,9 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-COPY files/requirements.system /app/
-RUN apt-get update -y && cat /app/requirements.system | xargs apt-get install -y --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    python3-opencv \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN apt-get purge -y libhwloc-dev libhwloc-plugins
 # Clone directory from git

@@ -1,7 +1,7 @@
 const routes = [
     {
-        name: 'home',
-        path: '/',
+        name: 'Platforms',
+        path: '/platforms',
         component: () => import('@/views/Platforms.vue'),
         title: 'Platforms',
         permissions: {

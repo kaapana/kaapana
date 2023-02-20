@@ -28,7 +28,7 @@ spec:
   - host: 
     http:
       paths:
-      - path: /
+      - path: /maintenance
         pathType: ImplementationSpecific
         backend:
           service:

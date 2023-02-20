@@ -118,6 +118,8 @@ spec:
           value: "{{ .Values.global.services_namespace }}"
         - name: EXTENSIONS_NAMESPACE
           value: "{{ .Values.global.extensions_namespace }}"
+        - name: ENABLE_NFS
+          value: "{{ .Values.global.enable_nfs }}"
         - name: JOBS_NAMESPACE
           value: "{{ .Values.global.jobs_namespace }}"
         - name: ADMIN_NAMESPACE

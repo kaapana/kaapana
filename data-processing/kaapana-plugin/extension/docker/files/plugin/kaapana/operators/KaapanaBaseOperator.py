@@ -35,6 +35,8 @@ default_registry = os.getenv("DEFAULT_REGISTRY", "")
 kaapana_build_version = os.getenv("KAAPANA_BUILD_VERSION", "")
 platform_version = os.getenv("PLATFORM_VERSION", "")
 gpu_support = True if os.getenv('GPU_SUPPORT', "False").lower() == "true" else False
+enable_nfs = os.getenv("ENABLE_NFS", "")
+
 
 class KaapanaBaseOperator(BaseOperator, SkipMixin):
     """
@@ -88,6 +90,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
     HELM_API = f"http://kube-helm-service.{ADMIN_NAMESPACE}.svc:5000"
     TIMEOUT = 60 * 60 * 12
+    CURE_INVALID_NAME_REGEX = r'[a-z]([-a-z0-9]*[a-z0-9])?'
 
     pod_stopper = PodStopper()
     env_pull_policy = os.getenv('PULL_POLICY_PODS',"None")
@@ -133,8 +136,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                  startup_timeout_seconds=120,
                  namespace=JOBS_NAMESPACE,
                  image_pull_policy= env_pull_policy if env_pull_policy == env_pull_policy.lower() == "never" else 'IfNotPresent',
-                 volume_mounts=None,
-                 volumes=None,
+                #  Deactivated till dynamic persistent volumes are supported
+                #  volume_mounts=None,
+                #  volumes=None,
                  pod_resources=None,
                  in_cluster=False,
                  cluster_context=None,
@@ -153,6 +157,10 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                  dev_server=None,
                  **kwargs
                  ):
+
+        #  Deactivated till dynamic persistent volumes are supported
+        volume_mounts=None
+        volumes=None
 
         KaapanaBaseOperator.set_defaults(
             self,
@@ -275,6 +283,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         self.volume_mounts.append(VolumeMount(
             'dshm', mount_path='/dev/shm', sub_path=None, read_only=False))
+            
         volume_config = {
             'emptyDir':
             {
@@ -347,10 +356,10 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         )
 
     def clear(self, start_date=None, end_date=None, upstream=False, downstream=False, session=None):
-        self.log.warning("##################################################### IN CLEAR!")
-        self.log.warning(self)
-        self.log.warning(self.ti)
-        self.log.warning(self.ti.kube_name)
+        self.log.info("##################################################### IN CLEAR!")
+        self.log.info(self)
+        self.log.info(self.ti)
+        self.log.info(self.ti.kube_name)
 
         super.clear(start_date=start_date, end_date=end_date, upstream=upstream, downstream=downstream, session=session)
 
@@ -378,7 +387,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         self.set_context_variables(context)
         # Same expression as in on_failure method!
-        self.kube_name = cure_invalid_name(context["run_id"].replace(context["dag_run"].dag_id, context["task_instance"].task_id), r'[a-z]([-a-z0-9]*[a-z0-9])?', 63) # actually 63, but because of helm set to 53, maybe...
+        self.kube_name = cure_invalid_name(context["run_id"].replace(context["dag_run"].dag_id, context["task_instance"].task_id), CURE_INVALID_NAME_REGEX, 63) # actually 63, but because of helm set to 53, maybe...
 
         if "NODE_GPU_" in str(context["task_instance"].pool) and str(context["task_instance"].pool).count("_") == 3:
             gpu_id = str(context["task_instance"].pool).split("_")[2]
@@ -389,14 +398,14 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         if context['dag_run'].conf is not None and "form_data" in context['dag_run'].conf and context['dag_run'].conf["form_data"] is not None:
             form_data = context['dag_run'].conf["form_data"]
-            print(form_data)
+            logging.info(form_data)
             # form_envs = {}
             # for form_key in form_data.keys():
             #     form_envs[str(form_key.upper())] = str(form_data[form_key])
 
             # self.env_vars.update(form_envs)
-            # print("CONTAINER ENVS:")
-            # print(json.dumps(self.env_vars, indent=4, sort_keys=True))
+            # logging.info("CONTAINER ENVS:")
+            # logging.info(json.dumps(self.env_vars, indent=4, sort_keys=True))
             context['dag_run'].conf["rest_call"] = {'global': form_data}
         if context['dag_run'].conf is not None and "rest_call" in context['dag_run'].conf and context['dag_run'].conf["rest_call"] is not None:
             self.rest_env_vars_update(context['dag_run'].conf["rest_call"])
@@ -407,103 +416,105 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         })
         self.env_vars["WORKFLOW_DIR"] =  f"{self.env_vars['WORKFLOW_DIR']}/{context['run_id']}"
 
-        print("CONTAINER ENVS:")
-        print(json.dumps(self.env_vars, indent=4, sort_keys=True))
+        logging.info("CONTAINER ENVS:")
+        logging.info(json.dumps(self.env_vars, indent=4, sort_keys=True))
 
-        if self.dev_server is not None or 'kaapanadevdata' in " ".join(self.cmds) or 'kaaanadevdata' in " ".join(self.arguments):
+        # if self.dev_server is not None or 'kaapanadevdata' in " ".join(self.cmds) or 'kaaanadevdata' in " ".join(self.arguments):
            
-            self.volume_mounts.append(VolumeMount('kaapanadevdata', mount_path='/kaapanadevdata', sub_path=None, read_only=False))
+        #     self.volume_mounts.append(VolumeMount('kaapanadevdata', mount_path='/kaapanadevdata', sub_path=None, read_only=False))
 
-            self.volumes.append(Volume(name='workflowdata', configs={
-                'PersistentVolumeClaim':
-                {
-                    'claim_name': 'kaapanadevdata',
-                    'read_only': False
+        #     self.volumes.append(Volume(name='kaapanadevdata', configs={
+        #         'PersistentVolumeClaim':
+        #         {
+        #             'claim_name': 'kaapanadevdata',
+        #             'read_only': False
+        #         }
+        #     }))
+
+
+        if self.dev_server is not None:
+            url = f'{KaapanaBaseOperator.HELM_API}/helm-install-chart'
+            env_vars_sets = {}
+            for idx, (k, v) in enumerate(self.env_vars.items()):
+                env_vars_sets.update({
+                    f'envVars[{idx}].name': f"{k}",
+                    f'envVars[{idx}].value': f"{v}"
+                })
+
+            volume_mounts_sets = {}
+            idx = 0
+            for volume_mount in self.volume_mounts:
+                if volume_mount.name in volume_mounts_sets.values() or volume_mount.name == 'dshm':
+                    logging.warning(f'Warning {volume_mount.name} already in volume_mount dict!')
+                    continue
+                volume_mounts_sets.update({
+                    f'volumeMounts[{idx}].name': f"{volume_mount.name}",
+                    f'volumeMounts[{idx}].mountPath': f"{volume_mount.mount_path}"
+                })
+                idx = idx + 1
+            logging.info(volume_mounts_sets)
+            volumes_sets = {}
+            idx = 0
+            for volume in self.volumes:
+                if 'PersistentVolumeClaim' in volume.configs:
+                    if volume.name in volumes_sets.values() or volume.name == 'dshm':
+                        logging.warning(f'Warning {volume.name} already in volume dict!')
+                        continue
+                    volumes_sets.update({
+                        f'volumes[{idx}].name': f"{volume.name}",
+                        f'volumes[{idx}].claim_name': f"{volume.configs['PersistentVolumeClaim']['claim_name']}",
+                        # f'volumes[{idx}].path': f"{volume.configs['hostPath']['path']}"
+                    })
+                    idx = idx + 1
+            logging.info(volumes_sets)
+
+            helm_sets = {
+                'image': self.image,
+                **env_vars_sets,
+                **volume_mounts_sets,
+                **volumes_sets}
+            logging.info(helm_sets)
+            # kaapanaint is there, so that it is recognized as a pending application!
+            release_name = get_release_name(context)
+            if self.dev_server == 'code-server':
+                payload = {
+                    'name': 'code-server-chart',
+                    'version': kaapana_build_version,
+                    'release_name': release_name,
+                    'sets': helm_sets
                 }
-            }))
-
-
-        # if self.dev_server is not None:
-        #     url = f'{KaapanaBaseOperator.HELM_API}/helm-install-chart'
-        #     env_vars_sets = {}
-        #     for idx, (k, v) in enumerate(self.env_vars.items()):
-        #         env_vars_sets.update({
-        #             f'envVars[{idx}].name': f"{k}",
-        #             f'envVars[{idx}].value': f"{v}"
-        #         })
-        #     volume_mounts_sets = {}
-        #     idx = 0
-        #     for volume_mount in self.volume_mounts:
-        #         if volume_mount.name in volume_mounts_sets.values() or volume_mount.name == 'dshm':
-        #             print(f'Warning {volume_mount.name} already in volume_mount dict!')
-        #             continue
-        #         volume_mounts_sets.update({
-        #             f'volumeMounts[{idx}].name': f"{volume_mount.name}",
-        #             f'volumeMounts[{idx}].mountPath': f"{volume_mount.mount_path}"
-        #         })
-        #         idx = idx + 1
-        #     print(volume_mounts_sets)
-        #     volumes_sets = {}
-        #     idx = 0
-        #     for volume in self.volumes:
-        #         if 'hostPath' in volume.configs:
-        #             if volume.name in volumes_sets.values() or volume.name == 'dshm':
-        #                 print(f'Warning {volume.name} already in volume dict!')
-        #                 continue
-        #             volumes_sets.update({
-        #                 f'volumes[{idx}].name': f"{volume.name}",
-        #                 f'volumes[{idx}].path': f"{volume.configs['hostPath']['path']}"
-        #             })
-        #             idx = idx + 1
-        #     print(volumes_sets)
-
-        #     helm_sets = {
-        #         'image': self.image,
-        #         **env_vars_sets,
-        #         **volume_mounts_sets,
-        #         **volumes_sets}
-        #     print(helm_sets)
-        #     # kaapanaint is there, so that it is recognized as a pending application!
-        #     release_name = get_release_name(context)
-        #     if self.dev_server == 'code-server':
-        #         payload = {
-        #             'name': 'code-server-chart',
-        #             'version': kaapana_build_version,
-        #             'release_name': release_name,
-        #             'sets': helm_sets
-        #         }
-        #     elif self.dev_server == 'jupyterlab':
-        #         payload = {
-        #             'name': 'jupyterlab-chart',
-        #             'version': kaapana_build_version,
-        #             'release_name': release_name,
-        #             'sets': helm_sets
-        #         }
-        #     else:
-        #         raise NameError('dev_server must be either None, code-server or jupyterlab!')
-        #     print('payload')
-        #     print(payload)
-        #     r = requests.post(url, json=payload)
-        #     print(r)
-        #     print(r.text)
-        #     r.raise_for_status()
-        #     t_end = time.time() + KaapanaBaseOperator.TIMEOUT
-        #     while time.time() < t_end:
-        #         time.sleep(15)
-        #         url = f'{KaapanaBaseOperator.HELM_API}/view-chart-status'
-        #         r = requests.get(url, params={'release_name': release_name})
-        #         if r.status_code == 500 or r.status_code == 404:
-        #             print(f'Release {release_name} was uninstalled. My job is done here!')
-        #             break
-        #         r.raise_for_status()
-        #     return 
+            elif self.dev_server == 'jupyterlab':
+                payload = {
+                    'name': 'jupyterlab-chart',
+                    'version': kaapana_build_version,
+                    'release_name': release_name,
+                    'sets': helm_sets
+                }
+            else:
+                raise NameError('dev_server must be either None, code-server or jupyterlab!')
+            logging.info('payload')
+            logging.info(payload)
+            r = requests.post(url, json=payload)
+            logging.info(r)
+            logging.info(r.text)
+            r.raise_for_status()
+            t_end = time.time() + KaapanaBaseOperator.TIMEOUT
+            while time.time() < t_end:
+                time.sleep(15)
+                url = f'{KaapanaBaseOperator.HELM_API}/view-chart-status'
+                r = requests.get(url, params={'release_name': release_name})
+                if r.status_code == 500 or r.status_code == 404:
+                    logging.info(f'Release {release_name} was uninstalled. My job is done here!')
+                    break
+                r.raise_for_status()
+            return 
 
         if self.delete_output_on_start is True:
             KaapanaBaseOperator.delete_operator_out_dir(context['run_id'], self.operator_out_dir)
     
         try:
-            print("++++++++++++++++++++++++++++++++++++++++++++++++ launch pod!")
-            print(self.name)
+            logging.info("++++++++++++++++++++++++++++++++++++++++++++++++ launch pod!")
+            logging.info(self.name)
             pod = Pod(
                 image=self.image,
                 name=self.kube_name,
@@ -537,8 +548,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             else:
                 (result, message) = launcher_return
                 self.result_message = result
-                print("RESULT: {}".format(result))
-                print("MESSAGE: {}".format(message))
+                logging.info("RESULT: {}".format(result))
+                logging.info("MESSAGE: {}".format(message))
 
                 if result != State.SUCCESS:
                     raise AirflowException('Pod returned a failure: {state}'.format(state=message))
@@ -552,15 +563,15 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
     @staticmethod
     def delete_operator_out_dir(run_id, operator_dir):
-        print(f"#### deleting {operator_dir} folders...!")
+        logging.info(f"#### deleting {operator_dir} folders...!")
         run_dir  = os.path.join("/", WORKFLOW_DIR, run_id)
         batch_folders = sorted([f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))])
         for batch_element_dir in batch_folders:
             element_input_dir = os.path.join(batch_element_dir, operator_dir)
-            print(f"# Deleting: {element_input_dir} ...")
+            logging.info(f"# Deleting: {element_input_dir} ...")
             shutil.rmtree(element_input_dir, ignore_errors=True)
         batch_input_dir = os.path.join(run_dir, operator_dir)
-        print(f"# Deleting: {batch_input_dir} ...")
+        logging.info(f"# Deleting: {batch_input_dir} ...")
         shutil.rmtree(batch_input_dir, ignore_errors=True)
 
     @staticmethod
@@ -568,16 +579,16 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         """
         Use this method with caution, because it unclear at which state the context object is updated!
         """
-        print("##################################################### ON FAILURE!")
+        logging.info("##################################################### ON FAILURE!")
         # Same expression as in execute method!
-        kube_name = cure_invalid_name(context["run_id"].replace(context["dag_run"].dag_id, context["task_instance"].task_id), r'[a-z]([-a-z0-9]*[a-z0-9])?', 63) # actually 63, but because of helm set to 53, maybe...
+        kube_name = cure_invalid_name(context["run_id"].replace(context["dag_run"].dag_id, context["task_instance"].task_id), CURE_INVALID_NAME_REGEX, 63) # actually 63, but because of helm set to 53, maybe...
         time.sleep(2) # since the phase needs some time to get updated
         KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=kube_name, phases=['Pending', 'Running'])
         release_name = get_release_name(context)
         url = f'{KaapanaBaseOperator.HELM_API}/view-chart-status'
         r = requests.get(url, params={'release_name': release_name})
         if r.status_code == 500 or r.status_code == 404:
-            print(f'Release {release_name} was uninstalled or never installed. My job is done here!')
+            logging.info(f'Release {release_name} was uninstalled or never installed. My job is done here!')
         else:
             from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
             KaapanaApplicationOperator.uninstall_helm_chart(context)
@@ -587,14 +598,14 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         """
         Use this method with caution, because it unclear at which state the context object is updated!
         """
-        print("##################################################### on_success!")
+        logging.info("##################################################### on_success!")
 
     @staticmethod
     def on_retry(context):
         """
         Use this method with caution, because it unclear at which state the context object is updated!
         """
-        print("##################################################### on_retry!")
+        logging.info("##################################################### on_retry!")
 
     @staticmethod
     def on_execute(context):
@@ -604,9 +615,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         pass
 
     def post_execute(self, context, result=None):
-        print("##################################################### post_execute!")
-        print(context)
-        print(result)
+        logging.info("##################################################### post_execute!")
+        logging.info(context)
+        logging.info(result)
 
     def set_context_variables(self, context):
         self.labels['run_id'] = cure_invalid_name(context["run_id"], r'(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?')
@@ -731,6 +742,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             pass
 
         if run_id_identifier is None:
-            print('No timestamp found in run_id, the last 10 characters of the run_id will be taken as an identifier. When triggering a DAG externally please try to use the generate_run_id method!')
+            logging.info('No timestamp found in run_id, the last 10 characters of the run_id will be taken as an identifier. When triggering a DAG externally please try to use the generate_run_id method!')
             run_id_identifier = s[-10:]
         return run_id_identifier

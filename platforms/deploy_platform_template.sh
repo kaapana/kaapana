@@ -737,7 +737,7 @@ cat << "EOF"
                                      | |
                                      |_|
 EOF
-echo "Version: 0.1.4"
+echo "Version: {{ platform_build_version }}"
 echo "Report created on $(date +'%Y-%m-%d')"
 
 --- "Basics"
@@ -770,6 +770,9 @@ snap list
 
 --- "k8s Pods"
 microk8s.kubectl get pods -A
+
+--- "k8s Describe Pods"
+microk8s.kubectl describe pods -A
 
 --- "k8s Node Status"
 microk8s.kubectl describe node

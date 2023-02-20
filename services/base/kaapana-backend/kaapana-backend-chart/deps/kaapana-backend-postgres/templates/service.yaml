@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kaapana-backend-postgres-service
+  # namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app-name: kaapana-backend-postgres
+spec:
+  selector:
+    app-name: kaapana-backend-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432

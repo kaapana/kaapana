@@ -148,6 +148,15 @@ class Nifti2DcmConverter:
             try:
                 seg_args = meta_data['seg_args']
                 seg_path = path/seg_args['multi_label_seg_info_json'] if seg_args['multi_label_seg_info_json'] else None
+
+                # print("### Checking for segmentation information.")
+                if seg_args is not None:
+                    print("### Extracting parameters for segmentation converter.")                    
+                    with open("/data/conf.json", 'rw') as conf_file:
+                        conf = json.load(conf_file)
+                    conf["seg_args"] = seg_args
+                    json.dump(conf, "/data/conf.json")
+                print("### Processing segmentation parameters finished.")
             except KeyError:
                 print("No arguments for Itk2DcmSegOperator found. Please provide 'seg_args' in the 'meta_data.json'.")
 
@@ -227,15 +236,14 @@ class Nifti2DcmConverter:
         if segmentation:
             print("### Checking for segmentation information.")
             shutil.copy2(segmentation, out_dir/'segmentations/')
-            if seg_args is not None:
-                print("### Extracting parameters for segmentation converter.")
-                with open(out_dir/'segmentations'/"seg_args.json", "w") as f:
-                    json.dump(seg_args, f)
+            # if seg_args is not None:
+            print("### Copying seg_info file.")
+
             if seg_info_path:
                 print("### Passing seg_info.json to segmentation converter.")
                 #study_dir = '/'.join(str(path).split('/')[:-1])
                 shutil.copy2(seg_info_path, out_dir/'segmentations/')
-            print("### Processing segmentation parameters finished.")
+        #     print("### Processing segmentation parameters finished.")
             
 
     def write_slices(self, new_img, series_tag_values, i, out_dir):

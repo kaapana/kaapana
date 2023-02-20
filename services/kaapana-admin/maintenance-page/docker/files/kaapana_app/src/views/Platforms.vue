@@ -349,13 +349,41 @@ export default Vue.extend({
         return ""
       }
       if (item["available_versions"][item.version]["deployments"].length > 0) {
-        if (typeof(item["available_versions"][item.version]["deployments"][0]["kube_status"]) == "string") {
-          let s = item["available_versions"][item.version]["deployments"][0]["kube_status"]
-          return s.charAt(0).toUpperCase() + s.slice(1);
+        let statArr: any = item["available_versions"][item.version]["deployments"][0]["kube_status"]
+
+        if (statArr.length > 3) {
+          let count: any = {}
+          let s = ""
+          for (let i=0; i<statArr.length; i++) {
+            let key = ""
+            if (typeof(statArr[i]) == "string") {
+              let stat = statArr[i]
+              key = stat.charAt(0).toUpperCase() + stat.slice(1);
+            } else {
+              let stat = statArr[i]
+              key += stat.charAt(0).toUpperCase() + stat.slice(1);
+            }
+
+            if (key in count) {
+              count[key] +=1;
+            } else {
+              count[key] = 1;
+            }
+          }
+          for (let k in count) {
+            s += k + ": " + String(count[k]) + " ,\n"
+          }
+          return s.slice(0, s.length-2)
         } else {
-          let s = item["available_versions"][item.version]["deployments"][0]["kube_status"][0]
-          return s.charAt(0).toUpperCase() + s.slice(1);
+          if (typeof(statArr) == "string") {
+            let s = statArr
+            return s.charAt(0).toUpperCase() + s.slice(1);
+          } else {
+            let s = statArr[0]
+            return s.charAt(0).toUpperCase() + s.slice(1);
+          }
         }
+        
       }
       return ""
     },

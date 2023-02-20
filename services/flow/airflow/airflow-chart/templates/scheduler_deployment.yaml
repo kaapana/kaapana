@@ -89,7 +89,7 @@ spec:
         - name: DEFAULT_REGISTRY
           value: "{{ .Values.global.registry_url }}"
         - name: AIRFLOW__LOGGING__LOGGING_LEVEL
-          value: "WARNING"
+          value: "INFO"
         - name: AIRFLOW_HOME
           value: "/root/airflow"
         - name: SQLALCHEMY_SILENCE_UBER_WARNING

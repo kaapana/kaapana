@@ -269,7 +269,17 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             
             }
         }))
+           
+        self.volume_mounts.append(VolumeMount('mounted-scripts', mount_path='/app/mounted_scripts', sub_path=None, read_only=False))
 
+        self.volumes.append(Volume(name='mounted-scripts', configs={
+            'PersistentVolumeClaim':
+            {
+                'claim_name': 'ms-jobs-pv-claim',
+                'read_only': False
+            }
+        }))
+    
         self.volume_mounts.append(VolumeMount('tensorboard', mount_path='/tensorboard', sub_path=None, read_only=False))
 
         self.volumes.append(Volume(name='tensorboard', configs={
@@ -387,7 +397,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         self.set_context_variables(context)
         # Same expression as in on_failure method!
-        self.kube_name = cure_invalid_name(context["run_id"].replace(context["dag_run"].dag_id, context["task_instance"].task_id), CURE_INVALID_NAME_REGEX, 63) # actually 63, but because of helm set to 53, maybe...
+        self.kube_name = cure_invalid_name(context["run_id"].replace(context["dag_run"].dag_id, context["task_instance"].task_id), KaapanaBaseOperator.CURE_INVALID_NAME_REGEX, 63) # actually 63, but because of helm set to 53, maybe...
 
         if "NODE_GPU_" in str(context["task_instance"].pool) and str(context["task_instance"].pool).count("_") == 3:
             gpu_id = str(context["task_instance"].pool).split("_")[2]
@@ -418,19 +428,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         logging.info("CONTAINER ENVS:")
         logging.info(json.dumps(self.env_vars, indent=4, sort_keys=True))
-
-        # if self.dev_server is not None or 'kaapanadevdata' in " ".join(self.cmds) or 'kaaanadevdata' in " ".join(self.arguments):
-           
-        #     self.volume_mounts.append(VolumeMount('kaapanadevdata', mount_path='/kaapanadevdata', sub_path=None, read_only=False))
-
-        #     self.volumes.append(Volume(name='kaapanadevdata', configs={
-        #         'PersistentVolumeClaim':
-        #         {
-        #             'claim_name': 'kaapanadevdata',
-        #             'read_only': False
-        #         }
-        #     }))
-
 
         if self.dev_server is not None:
             url = f'{KaapanaBaseOperator.HELM_API}/helm-install-chart'
@@ -581,7 +578,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         """
         logging.info("##################################################### ON FAILURE!")
         # Same expression as in execute method!
-        kube_name = cure_invalid_name(context["run_id"].replace(context["dag_run"].dag_id, context["task_instance"].task_id), CURE_INVALID_NAME_REGEX, 63) # actually 63, but because of helm set to 53, maybe...
+        kube_name = cure_invalid_name(context["run_id"].replace(context["dag_run"].dag_id, context["task_instance"].task_id), KaapanaBaseOperator.CURE_INVALID_NAME_REGEX, 63) # actually 63, but because of helm set to 53, maybe...
         time.sleep(2) # since the phase needs some time to get updated
         KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=kube_name, phases=['Pending', 'Running'])
         release_name = get_release_name(context)

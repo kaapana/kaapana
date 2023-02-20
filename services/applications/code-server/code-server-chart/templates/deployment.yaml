@@ -51,6 +51,8 @@ spec:
             mountPath: /app/data
           - name: airflow-plugins
             mountPath: /app/plugins
+          - name: airflow-mounted-scripts
+            mountPath: /app/mounted_scripts
           {{- else }}
           - name: dshm
             mountPath: /dev/shm
@@ -82,6 +84,9 @@ spec:
       - name: airflow-data
         persistentVolumeClaim:
           claimName: af-data-pv-claim
+      - name: airflow-mounted-scripts
+        persistentVolumeClaim:
+          claimName: ms-pv-claim
       {{- else }}
       - name: dshm
         emptyDir:

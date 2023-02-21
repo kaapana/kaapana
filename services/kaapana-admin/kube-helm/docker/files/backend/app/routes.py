@@ -149,14 +149,18 @@ async def helm_delete_chart(request: Request):
         assert "release_name" in payload, "Required key 'release_name' not found in payload"
         release_version = None
         helm_command_addons = ''
+        helm_namespace = settings.helm_namespace
         if "release_version" in payload:
             release_version = payload["release_version"]
         if "helm_command_addons" in payload:
             helm_command_addons = payload["helm_command_addons"]
+        if "helm_namespace" in payload:
+            helm_namespace = payload["helm_namespace"]
         success, stdout = utils.helm_delete(
             release_name=payload["release_name"],
             release_version=release_version,
-            helm_command_addons=helm_command_addons
+            helm_namespace=helm_namespace,
+            helm_command_addons=helm_command_addons,
         )
         if success:
             return Response(f"Successfully uninstalled {payload['release_name']}", 200)

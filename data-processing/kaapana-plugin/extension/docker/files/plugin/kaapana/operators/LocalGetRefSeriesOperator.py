@@ -261,12 +261,13 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         if self.limit_file_count != None:
             download_series_list = download_series_list[:self.limit_file_count]
 
-        results = ThreadPool(self.parallel_downloads).imap_unordered(self.download_series, download_series_list)
+        with ThreadPool(self.parallel_downloads) as threadpool:
+            results = threadpool.imap_unordered(self.download_series, download_series_list)
 
-        for result in results:
-            print(result)
-            if "error" in result.lower():
-                raise ValueError('ERROR')
+            for result in results:
+                print(result)
+                if "error" in result.lower():
+                    raise ValueError('ERROR')
 
     def __init__(self,
                  dag,

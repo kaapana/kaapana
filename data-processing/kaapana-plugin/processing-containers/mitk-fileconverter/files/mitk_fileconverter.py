@@ -151,24 +151,25 @@ for batch_element_dir in batch_folders:
 
 
 print(f"# Processing batch-element jobs: {len(job_list)}")
-results = ThreadPool(parallel_processes).imap_unordered(process_input_file, job_list)
-for result, input_file in results:
-    if result:
-        print("#")
-        processed_count += 1
-        print(f"# ✓ {processed_count} / {len(job_list)} successful")
-        print("#")
-    else:
-        print("#")
-        print("##################################################")
-        print("#")
-        print("#               ERROR!")
-        print("#")
-        print(f"# {basename(input_file[0])} was not successful")
-        print("#")
-        print("##################################################")
-        print("#")
-        issue = True
+with ThreadPool(parallel_processes) as threadpool:
+    results = threadpool.imap_unordered(process_input_file, job_list)
+    for result, input_file in results:
+        if result:
+            print("#")
+            processed_count += 1
+            print(f"# ✓ {processed_count} / {len(job_list)} successful")
+            print("#")
+        else:
+            print("#")
+            print("##################################################")
+            print("#")
+            print("#               ERROR!")
+            print("#")
+            print(f"# {basename(input_file[0])} was not successful")
+            print("#")
+            print("##################################################")
+            print("#")
+            issue = True
 
 
 print("#")
@@ -216,24 +217,25 @@ if processed_count == 0:
             job_list.append(file_list, batch_output_dir)
 
         print(f"# Processing batch-element jobs: {len(job_list)}")
-        results = ThreadPool(parallel_processes).imap_unordered(process_input_file, job_list)
-        for result, input_file in results:
-            if result:
-                print("#")
-                processed_count += 1
-                print(f"# {processed_count} / {len(job_list)} successful")
-                print("#")
-            else:
-                print("#")
-                print("##################################################")
-                print("#")
-                print("#               ERROR!")
-                print("#")
-                print(f"# {basename(input_file[0])} was not successful")
-                print("#")
-                print("##################################################")
-                print("#")
-                issue = True
+        with ThreadPool(parallel_processes) as threadpool:
+            results = threadpool.imap_unordered(process_input_file, job_list)
+            for result, input_file in results:
+                if result:
+                    print("#")
+                    processed_count += 1
+                    print(f"# {processed_count} / {len(job_list)} successful")
+                    print("#")
+                else:
+                    print("#")
+                    print("##################################################")
+                    print("#")
+                    print("#               ERROR!")
+                    print("#")
+                    print(f"# {basename(input_file[0])} was not successful")
+                    print("#")
+                    print("##################################################")
+                    print("#")
+                    issue = True
 
     print("#")
     print("##################################################")

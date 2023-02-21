@@ -8,10 +8,7 @@ export HELM_EXPERIMENTAL_OCI=1
 ######################################################
 
 PLATFORM_NAME="{{ platform_name }}" # name of the platform Helm chart
-PLATFORM_BUILD_VERSION="{{ platform_build_version }}"    # version of the platform Helm chart -> auto-generated
-PLATFORM_BUILD_BRANCH="{{ platform_build_branch }}"    # branch name, which was build from -> auto-generated
-PLATFORM_LAST_COMMIT_TIMESTAMP="{{ platform_last_commit_timestamp }}" # timestamp of the last commit -> auto-generated
-PLATFORM_BUILD_TIMESTAMP="{{ platform_build_timestamp }}"    # timestamp of the build-time -> auto-generated
+PLATFORM_VERSION="{{ platform_build_version }}" # Specific version or empty for dialog
 
 CONTAINER_REGISTRY_URL="{{ container_registry_url|default('', true) }}" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 CONTAINER_REGISTRY_USERNAME="{{ container_registry_username|default('', true) }}"
@@ -272,8 +269,6 @@ function deploy_chart {
         exit 1
     fi
 
-    chart_version=$PLATFORM_BUILD_VERSION
-
     get_domain
     
     if [ "$GPU_SUPPORT" = "true" ];then
@@ -308,8 +303,8 @@ function deploy_chart {
         echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
         echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
 
-        if [ $(basename "$CHART_PATH") != "$PLATFORM_NAME-$PLATFORM_BUILD_VERSION.tgz" ]; then
-            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PLATFORM_NAME and PLATFORM_BUILD_VERSION: $PLATFORM_BUILD_VERSION in the deployment script.${NC}" 
+        if [ $(basename "$CHART_PATH") != "$PLATFORM_NAME-$PLATFORM_VERSION.tgz" ]; then
+            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PLATFORM_NAME and PLATFORM_VERSION: $PLATFORM_VERSION in the deployment script.${NC}"
             exit 1
         fi
 
@@ -349,10 +344,10 @@ function deploy_chart {
         echo "${GREEN}Pulling platform chart from registry...${NC}"
         SCRIPT_PATH=$(dirname "$(realpath $0)")
         pull_chart $SCRIPT_PATH
-        CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$chart_version.tgz"
+        CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
     fi
 
-    echo "${GREEN}Deploying $PLATFORM_NAME:$chart_version${NC}"
+    echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
     --set-string global.base_namespace="base" \
@@ -396,10 +391,6 @@ function deploy_chart {
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
     --set-string global.release_name="$PLATFORM_NAME" \
-    --set-string global.build_timestamp="$PLATFORM_BUILD_TIMESTAMP" \
-    --set-string global.kaapana_build_version="$PLATFORM_BUILD_VERSION" \
-    --set-string global.platform_build_branch="$PLATFORM_BUILD_BRANCH" \
-    --set-string global.platform_last_commit_timestamp="$PLATFORM_LAST_COMMIT_TIMESTAMP" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
@@ -420,8 +411,8 @@ function deploy_chart {
 function pull_chart {
     for i in 1 2 3 4 5;
     do
-        echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/$PLATFORM_NAME with version $chart_version ${NC}"
-        helm pull oci://${CONTAINER_REGISTRY_URL}/$PLATFORM_NAME --version $chart_version -d $1 \
+        echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/$PLATFORM_NAME with version $PLATFORM_VERSION ${NC}"
+        helm pull oci://${CONTAINER_REGISTRY_URL}/$PLATFORM_NAME --version $PLATFORM_VERSION -d $1 \
             && break \
             || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 );
         
@@ -746,7 +737,7 @@ cat << "EOF"
                                      | |
                                      |_|
 EOF
-echo "Version: 0.1.4"
+echo "Version: {{ platform_build_version }}"
 echo "Report created on $(date +'%Y-%m-%d')"
 
 --- "Basics"
@@ -779,6 +770,9 @@ snap list
 
 --- "k8s Pods"
 microk8s.kubectl get pods -A
+
+--- "k8s Describe Pods"
+microk8s.kubectl describe pods -A
 
 --- "k8s Node Status"
 microk8s.kubectl describe node

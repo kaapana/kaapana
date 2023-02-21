@@ -60,9 +60,6 @@ def generate_deployment_script(platform_chart):
     platform_params = yaml.load(open(deployment_script_config_path[0]), Loader=yaml.FullLoader)
     platform_params["platform_name"] = platform_chart.name
     platform_params["platform_build_version"] = BuildUtils.platform_build_version
-    platform_params["platform_build_branch"] = BuildUtils.platform_build_branch
-    platform_params["platform_last_commit_timestamp"] = BuildUtils.platform_last_commit_timestamp
-    platform_params["platform_build_timestamp"] = datetime.now().strftime("%d-%m-%Y")
     platform_params["container_registry_url"] = BuildUtils.default_registry
     if BuildUtils.include_credentials:
         platform_params["container_registry_username"] = BuildUtils.registry_user
@@ -819,6 +816,27 @@ class HelmChart:
                     f.write(f"version: \"{BuildUtils.platform_build_version}\"\n")
                 else:
                     f.write(chart_file_line)
+
+        # Update values.yaml of platform chartsdo to contain build meta information
+        if src_chart.kaapana_type != None and src_chart.kaapana_type == "platform":
+            src_chart.build_valuesfile = join(target_build_dir, "values.yaml")
+            if not exists(src_chart.build_valuesfile):
+                values = {}
+            else:
+                values = yaml.load(open(src_chart.build_valuesfile), Loader=yaml.FullLoader)
+
+            if 'global' not in values:
+                values['global'] = {}
+
+            values['global'].update({
+                'platform_build_branch': BuildUtils.platform_build_branch,
+                'platform_last_commit_timestamp': BuildUtils.platform_last_commit_timestamp,
+                'build_timestamp': datetime.now().strftime("%d-%m-%Y"),
+                'kaapana_build_version': BuildUtils.platform_build_version
+            })
+            with open(src_chart.build_valuesfile, "w") as f:
+                yaml.dump(values, f)
+
 
         for dep_chart_index, (dep_chart_key, dep_chart) in enumerate(src_chart.dependencies.items()):
             dep_chart_build_target_dir = join(target_build_dir, "charts", dep_chart.name)

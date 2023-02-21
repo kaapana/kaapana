@@ -174,11 +174,6 @@ for batch_element_dir in batch_folders:
     print("#")
     print("####################################################################################################")
     print("#")
-
-    # Alternative with multi-processing
-    # results = ThreadPool(parallel_processes).imap_unordered(process_input_file, input_files)
-    # for result, input_file in results:
-    #     print(f"#  Done: {input_file}")
     print(f"# Batch-element {batch_element_dir} done.")
 
 print("#")

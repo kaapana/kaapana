@@ -1,10 +1,5 @@
 FROM mhubai/totalsegmentator:cuda11.4
 
-RUN apt-get install -y curl
-RUN wget https://code-server.dev/install.sh
-RUN /bin/bash install.sh --version 4.2.0
-RUN code-server --install-extension ms-python.python
-
 LABEL IMAGE="mhubai-totalsegmentator-cuda"
 LABEL VERSION="0.0.0"
 LABEL CI_IGNORE="False"

@@ -860,73 +860,74 @@ print(f"# Starting {len(queue_dicts)} merging jobs ... ")
 print("#")
 print("#")
 print("#")
-nifti_results = ThreadPool(parallel_processes).imap_unordered(merge_niftis, queue_dicts)
-for queue_dict, nifti_result in nifti_results:
-    processed_count += 1
-    target_dir = queue_dict["target_dir"]
-    seg_nifti_list = queue_dict["seg_files"]
-    base_image = queue_dict["base_image"]
-    batch_elements_to_remove = queue_dict["batch_elements_to_remove"]
+with ThreadPool(parallel_processes) as threadpool:
+    nifti_results = threadpool.imap_unordered(merge_niftis, queue_dicts)
+    for queue_dict, nifti_result in nifti_results:
+        processed_count += 1
+        target_dir = queue_dict["target_dir"]
+        seg_nifti_list = queue_dict["seg_files"]
+        base_image = queue_dict["base_image"]
+        batch_elements_to_remove = queue_dict["batch_elements_to_remove"]
 
-    remove_elements = False
-    print("#")
-    print("# ")
-    print("####################################################################################################")
-    print("#")
-    print(f"# Result for {base_image} arrived: {nifti_result}")
-    print("#")
-    print(f"# ----> process_count: {processed_count}/{len(queue_dicts)}")
-    print("#")
-    print("####################################################################################################")
-    print("# ")
-    print("# ")
-    if nifti_result == "ok":
-        remove_elements = True
-    elif nifti_result == "overlap":
-        if fail_if_overlap:
-            exit(1)
-        elif skipping_level == "base_image":
-            print(f"# Skipping overlap segmentations -> deleting batch-elements for gt-image: {base_image}")
-            skipped_dict["base_images"].append(base_image)
+        remove_elements = False
+        print("#")
+        print("# ")
+        print("####################################################################################################")
+        print("#")
+        print(f"# Result for {base_image} arrived: {nifti_result}")
+        print("#")
+        print(f"# ----> process_count: {processed_count}/{len(queue_dicts)}")
+        print("#")
+        print("####################################################################################################")
+        print("# ")
+        print("# ")
+        if nifti_result == "ok":
             remove_elements = True
-        else:
-            print(f"# Should not happen...")
-            exit(1)
+        elif nifti_result == "overlap":
+            if fail_if_overlap:
+                exit(1)
+            elif skipping_level == "base_image":
+                print(f"# Skipping overlap segmentations -> deleting batch-elements for gt-image: {base_image}")
+                skipped_dict["base_images"].append(base_image)
+                remove_elements = True
+            else:
+                print(f"# Should not happen...")
+                exit(1)
 
-    elif nifti_result == "extracted_label_tag is None":
-        if fail_if_label_not_extractable:
+        elif nifti_result == "extracted_label_tag is None":
+            if fail_if_label_not_extractable:
+                exit(1)
+        elif nifti_result == "seg_id is None":
             exit(1)
-    elif nifti_result == "seg_id is None":
-        exit(1)
-    elif nifti_result == "resampling failed":
-        exit(1)
-    elif nifti_result == "label extraction issue":
-        exit(1)
-    elif nifti_result == "no labels found":
-        print("##################################################")
-        print("# ")
-        print("# No labels could be found in merged-gt-mask! ")
-        print(f"# {base_image}")
-        print("# ")
-        if fail_if_empty_gt:
+        elif nifti_result == "resampling failed":
             exit(1)
-        else:
+        elif nifti_result == "label extraction issue":
+            exit(1)
+        elif nifti_result == "no labels found":
+            print("##################################################")
+            print("# ")
+            print("# No labels could be found in merged-gt-mask! ")
+            print(f"# {base_image}")
+            print("# ")
+            if fail_if_empty_gt:
+                exit(1)
+            else:
+                remove_elements = True
+                print("# Skipping -> deleting batch-elements for gt-image: ")
+                print("#")
+                print("##################################################")
+        elif nifti_result == "false satori export":
             remove_elements = True
             print("# Skipping -> deleting batch-elements for gt-image: ")
             print("#")
-            print("##################################################")
-    elif nifti_result == "false satori export":
-        remove_elements = True
-        print("# Skipping -> deleting batch-elements for gt-image: ")
-        print("#")
-        print("##################################################")  
-    else:
-        print(f"# Unknown status message: {nifti_result}")
-        exit(1)
-    if remove_elements:
-        for batch_element_to_remove in batch_elements_to_remove:
-            print(f"# Removing merged dir: {batch_element_to_remove}")
-            shutil.rmtree(batch_element_to_remove, ignore_errors=True)
+            print("##################################################")  
+        else:
+            print(f"# Unknown status message: {nifti_result}")
+            exit(1)
+        if remove_elements:
+            for batch_element_to_remove in batch_elements_to_remove:
+                print(f"# Removing merged dir: {batch_element_to_remove}")
+                shutil.rmtree(batch_element_to_remove, ignore_errors=True)
 
 if len(skipped_dict["base_images"]) > 0 or len(skipped_dict["segmentation_files"]) > 0:
     print("##################################################")

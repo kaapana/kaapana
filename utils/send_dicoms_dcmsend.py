@@ -154,15 +154,16 @@ if __name__ == '__main__':
         dicom_dirs = dicom_dirs[:max_series]
 
     print(f"# Start sending {len(dicom_dirs)} DICOM-dirs with {threads} threads...")
-    results = ThreadPool(threads).imap_unordered(send_dcm_dir, dicom_dirs)
-    for result, input_dir in results:
-        if result:
-            print(f"# Dir ok: {input_dir}")
-        else:
-            print(f"# Issue with dir: {input_dir}")
+    with ThreadPool(threads) as threadpool:
+        results = threadpool.imap_unordered(send_dcm_dir, dicom_dirs)
+        for result, input_dir in results:
+            if result:
+                print(f"# Dir ok: {input_dir}")
+            else:
+                print(f"# Issue with dir: {input_dir}")
 
-        print("#")
-        print("#")
-        print(f"# {processed_count} series sent!")
-        print("#")
-        print("#")
+            print("#")
+            print("#")
+            print(f"# {processed_count} series sent!")
+            print("#")
+            print("#")

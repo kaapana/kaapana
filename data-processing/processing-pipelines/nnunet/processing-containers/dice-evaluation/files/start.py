@@ -297,20 +297,21 @@ print(f"#")
 print(f"# Starting {parallel_processes} parallel jobs -> job_count: {len(queue_list)} ...")
 print(f"#")
 print(f"#")
-results = ThreadPool(parallel_processes).imap_unordered(get_metric_score, queue_list)
-for success, batch_id, result in results:
-    if success:
-        processed_count += 1
-        print("#")
-        print(f"# {batch_id}: ✓ {processed_count} / {len(queue_list)} successful")
-        print("#")
-        assert batch_id not in dice_results
+with ThreadPool(parallel_processes) as threadpool:
+    results = threadpool.imap_unordered(get_metric_score, queue_list)
+    for success, batch_id, result in results:
+        if success:
+            processed_count += 1
+            print("#")
+            print(f"# {batch_id}: ✓ {processed_count} / {len(queue_list)} successful")
+            print("#")
+            assert batch_id not in dice_results
 
-        dice_results[batch_id] = result
-    else:
-        print("#")
-        print(f"# {batch_id}: issue!")
-        print("#")
+            dice_results[batch_id] = result
+        else:
+            print("#")
+            print(f"# {batch_id}: issue!")
+            print("#")
 
 if processed_count == 0:
     print("#")

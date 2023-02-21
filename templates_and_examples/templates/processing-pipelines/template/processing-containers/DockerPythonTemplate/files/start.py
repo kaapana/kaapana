@@ -130,9 +130,10 @@ for batch_element_dir in batch_folders:
         result, input_file = process_input_file(filepath=input_file)
     
     # Alternative with multi-processing
-    results = ThreadPool(parallel_processes).imap_unordered(process_input_file, input_files)
-    for result, input_file in results:
-        print(f"#  Done: {input_file}")
+    with ThreadPool(parallel_processes) as threadpool:
+        results = threadpool.imap_unordered(process_input_file, input_files)
+        for result, input_file in results:
+            print(f"#  Done: {input_file}")
 
 print("#")
 print("##################################################")
@@ -175,9 +176,10 @@ if processed_count == 0:
             result, input_file = process_input_file(filepath=input_file)
         
         # Alternative with multi-processing
-        results = ThreadPool(parallel_processes).imap_unordered(process_input_file, input_files)
-        for result, input_file in results:
-            print(f"#  Done: {input_file}")
+        with ThreadPool(parallel_processes) as threadpool:
+            results = threadpool.imap_unordered(process_input_file, input_files)
+            for result, input_file in results:
+                print(f"#  Done: {input_file}")
 
     print("#")
     print("##################################################")

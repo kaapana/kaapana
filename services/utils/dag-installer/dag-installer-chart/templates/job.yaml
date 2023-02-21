@@ -82,6 +82,8 @@ spec:
           mountPath: "/dags"
         - name: airflow-plugins
           mountPath: "/plugins"
+        - name: airflow-mounted-scripts
+          mountPath: /mounted_scripts
       volumes:
       - name: airflow-dags
         persistentVolumeClaim:
@@ -89,6 +91,9 @@ spec:
       - name: airflow-plugins
         persistentVolumeClaim:
           claimName: af-plugins-pv-claim
+      - name: airflow-mounted-scripts
+        persistentVolumeClaim:
+          claimName: ms-pv-claim
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret

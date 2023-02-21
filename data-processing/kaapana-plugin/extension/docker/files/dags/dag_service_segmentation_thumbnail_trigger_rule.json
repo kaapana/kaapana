@@ -4,12 +4,12 @@
       "0x0008,0x0060": "SEG"
     },
     "dag_ids": {
-      "create-segmentation-thumbnail": {
+      "service-segmentation-thumbnail": {
         "fetch_method": "copy",
         "rest_call": {
           "global": {}
         },
-        "single_execution" : false
+        "single_execution" : true
       }
     }
   }

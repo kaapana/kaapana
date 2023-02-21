@@ -4,10 +4,20 @@ from pathlib import Path
 import SimpleITK as sitk
 import numpy as np
 
+
 def create_pngs(
-        path_input_img: Path, path_input_seg: Path, path_output_dir: Path
+        path_input_img: Path, path_input_seg: Path, path_output_dir: Path, all_slices=False
 ):
-    '''Create screenshot and save it for each label. Does not fail on all zero segs.'''
+    """
+
+    Creates pngs with the segmentation overlay on the original image.
+
+    :param path_input_img: Path to input image
+    :param path_input_seg: Path to segmentation
+    :param path_output_dir: Path to directory to write to
+    :param all_slices: Indicates if a png for each slice should be generated.
+        Default is only the slice with the most segmentations.
+    """
     # Read
     img = sitk.ReadImage(str(path_input_img))
     img_arr = sitk.GetArrayFromImage(img)
@@ -23,13 +33,8 @@ def create_pngs(
     # Find indices where we have mass
     mass_x, mass_y, mass_z = np.where(seg_arr >= 1)
     # mass_x, mass_y, mass_z are the list of x indices and y indices of mass pixels
-    cent_x = np.average(mass_x)
-    cent_y = np.average(mass_y)
-    cent_z = np.average(mass_z)
-    # interesting slice is the one we want a picture of
-    interesting_slice = round(cent_x) \
-        if round(cent_x) <= len(seg_arr) - 1 \
-        else len(seg_arr) - 1
+    # slice with the most segmentations
+    interesting_slice = np.argmax(np.bincount(mass_x))
     print(f'>> Slice to be used for screenshot: {interesting_slice}')
     # Slice image and seg accordingly
     img_arr_slice = img_arr[interesting_slice]
@@ -48,13 +53,11 @@ def create_pngs(
         ),
         sitk.sitkUInt8
     )
-    # segmentation to contour
-    seg_slice_contour = sitk.LabelContour(seg_slice, fullyConnected=True)
     # Overlay the segmentation using default color map and an alpha value
     res_img = sitk.LabelOverlay(
         image=img_slice_255,
-        labelImage=seg_slice_contour,
-        opacity=0.8, backgroundValue=0
+        labelImage=seg_slice,
+        opacity=0.3, backgroundValue=0.0
     )
     # Save
     output_path = os.path.join(
@@ -65,40 +68,37 @@ def create_pngs(
     sitk.WriteImage(res_img, output_path)
 
     # Save all slices
-    all_slices_with_annotations = list(set(mass_x.tolist()))
-    for sl in all_slices_with_annotations:
-        img_slice = sitk.GetImageFromArray(img_arr[sl])
-        seg_slice = sitk.GetImageFromArray(seg_arr[sl])
-        # img to [0,255]
-        img_slice_255 = sitk.Cast(
-            sitk.IntensityWindowing(
-                img_slice,
-                windowMinimum=float(np.amin(img_slice)),
-                windowMaximum=float(np.amax(img_slice)),
-                outputMinimum=0.0,
-                outputMaximum=200.0
-            ),
-            sitk.sitkUInt8
-        )
-        # segmentation to contour
-        seg_slice_contour = sitk.LabelContour(
-            seg_slice,
-            fullyConnected=True
-        )
-        # Overlay the segmentation using default color map and an alpha value
-        res_img = sitk.LabelOverlay(
-            image=img_slice_255,
-            labelImage=seg_slice_contour,
-            opacity=0.8,
-            backgroundValue=0.5
-        )
-        # Save
-        output_path = os.path.join(
-            path_output_dir,
-            f'{path_input_seg.name.replace(".nii.gz", "")}_{sl}.png'
-        )
-        print(f'Writing file {output_path}')
-        sitk.WriteImage(res_img, output_path)
+    if all_slices:
+        all_slices_with_annotations = list(set(mass_x.tolist()))
+        for sl in all_slices_with_annotations:
+            img_slice = sitk.GetImageFromArray(img_arr[sl])
+            seg_slice = sitk.GetImageFromArray(seg_arr[sl])
+            # img to [0,255]
+            img_slice_255 = sitk.Cast(
+                sitk.IntensityWindowing(
+                    img_slice,
+                    windowMinimum=float(np.amin(img_slice)),
+                    windowMaximum=float(np.amax(img_slice)),
+                    outputMinimum=0.0,
+                    outputMaximum=200.0
+                ),
+                sitk.sitkUInt8
+            )
+
+            # Overlay the segmentation using default color map and an alpha value
+            res_img = sitk.LabelOverlay(
+                image=img_slice_255,
+                labelImage=seg_slice,
+                opacity=0.3,
+                backgroundValue=0.0
+            )
+            # Save
+            output_path = os.path.join(
+                path_output_dir,
+                f'{path_input_seg.name.replace(".nii.gz", "")}_{sl}.png'
+            )
+            print(f'Writing file {output_path}')
+            sitk.WriteImage(res_img, output_path)
 
 
 if __name__ == "__main__":

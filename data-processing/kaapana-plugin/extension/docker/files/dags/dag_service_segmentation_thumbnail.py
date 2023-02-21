@@ -10,6 +10,7 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.LocalCombineMasksOperator import LocalCombineMasksOperator
 
 ui_forms = {
     "workflow_form": {
@@ -19,8 +20,8 @@ ui_forms = {
                 "type": "boolean",
                 "title": "Single execution",
                 "description": "Whether your report is execute in single mode or not",
-                "default": False,
-                "readOnly": True,
+                "default": True,
+                "readOnly": False,
                 "required": True
             }
         }
@@ -36,7 +37,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='create-segmentation-thumbnails',
+    dag_id='service-segmentation-thumbnail',
     default_args=args,
     schedule_interval=None,
     tags=['service']
@@ -52,6 +53,11 @@ dcm2nifti_seg = DcmSeg2ItkOperator(
     dag=dag,
     input_operator=get_input,
     output_format="nii.gz",
+)
+
+combine_masks = LocalCombineMasksOperator(
+    dag=dag,
+    input_operator=dcm2nifti_seg
 )
 
 get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
@@ -72,7 +78,7 @@ dcm2nifti_ct = DcmConverterOperator(
 generate_segmentation_thumbnail = GenerateThumbnailOperator(
     dag=dag,
     name='generate-segmentation-thumbnail',
-    input_operator=dcm2nifti_seg,
+    input_operator=combine_masks,
     orig_image_operator=dcm2nifti_ct
 )
 
@@ -86,5 +92,5 @@ put_to_minio = LocalMinioOperator(
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
-get_input >> dcm2nifti_seg >> generate_segmentation_thumbnail
+get_input >> dcm2nifti_seg >> combine_masks >> generate_segmentation_thumbnail
 get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> generate_segmentation_thumbnail >> put_to_minio >> clean

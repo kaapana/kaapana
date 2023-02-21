@@ -1,5 +1,5 @@
 <template>
-  <v-container>
+  <v-container style="height: 100%">
     <VueSelecto
         dragContainer=".elements"
         :selectableTargets='[".selecto-area .v-card"]'
@@ -13,7 +13,7 @@
         @select="onSelect"
         @scroll="onScroll"
     ></VueSelecto>
-    <div class="elements selecto-area" id="selecto1" ref="scroller">
+    <v-container class="elements selecto-area" id="selecto1" ref="scroller" style="height: 100%">
       <v-row>
         <v-col v-for="item in processed_data" :cols="cols">
           <v-lazy
@@ -40,7 +40,7 @@
           </v-lazy>
         </v-col>
       </v-row>
-    </div>
+    </v-container>
   </v-container>
 </template>
 

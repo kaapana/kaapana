@@ -939,10 +939,12 @@ class HelmChart:
                         else:
                             bar()
                             if issue != None:
+
                                 # Close threadpool if error is fatal
                                 if BuildUtils.exit_on_error or issue["level"] == "FATAL":
                                     threadpool.terminate()
                                     threadpool.join()
+
                                 bar.text(f"{result_container.tag}: ERROR")
                                 BuildUtils.logger.info("")
                                 BuildUtils.generate_issue(

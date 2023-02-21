@@ -6,7 +6,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: code-{{ $uuid }}
-  namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "{{ not .Values.image | ternary  .Values.global.services_namespace .Values.global.jobs_namespace }}"
   labels:
     k8s-app: code-server
 spec:
@@ -51,6 +51,8 @@ spec:
             mountPath: /app/data
           - name: airflow-plugins
             mountPath: /app/plugins
+          - name: airflow-mounted-scripts
+            mountPath: /app/mounted_scripts
           {{- else }}
           - name: dshm
             mountPath: /dev/shm
@@ -82,6 +84,9 @@ spec:
       - name: airflow-data
         persistentVolumeClaim:
           claimName: af-data-pv-claim
+      - name: airflow-mounted-scripts
+        persistentVolumeClaim:
+          claimName: ms-pv-claim
       {{- else }}
       - name: dshm
         emptyDir:
@@ -99,9 +104,8 @@ spec:
             path: settings.json
       {{- range $volume := .Values.volumes }}
       - name: {{ $volume.name }}
-        hostPath:
-          path: "{{ $volume.path }}"
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: {{ $volume.claim_name }}
       {{- end }}
       imagePullSecrets:
       - name: registry-secret
@@ -110,7 +114,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: code-{{ $uuid }}
-  namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "{{ not .Values.image | ternary  .Values.global.services_namespace .Values.global.jobs_namespace }}"
 spec:
   selector:
     app-name: code-{{ $uuid }}
@@ -124,7 +128,7 @@ apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
   name: cs-strip-prefix-{{ $uuid }}
-  namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "{{ not .Values.image | ternary  .Values.global.services_namespace .Values.global.jobs_namespace }}"
 spec:
   stripPrefix:
     prefixes:
@@ -135,10 +139,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: code-{{ $uuid }}
-  namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "{{ not .Values.image | ternary  .Values.global.services_namespace .Values.global.jobs_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-auth-check@kubernetescrd,{{ .Values.global.services_namespace }}-cs-strip-prefix-{{ $uuid }}@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-auth-check@kubernetescrd,{{ not .Values.image | ternary  .Values.global.services_namespace .Values.global.jobs_namespace }}-cs-strip-prefix-{{ $uuid }}@kubernetescrd
     traefik.ingress.kubernetes.io/preserve-host: "true"
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
@@ -229,5 +233,5 @@ data:
 kind: ConfigMap
 metadata:
   name: code-config-{{ $uuid }}
-  namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "{{ not .Values.image | ternary  .Values.global.services_namespace .Values.global.jobs_namespace }}"
 ---

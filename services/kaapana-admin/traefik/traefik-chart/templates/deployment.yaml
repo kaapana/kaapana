@@ -26,7 +26,7 @@ spec:
             - '--providers.kubernetesingress'
             - '--providers.kubernetescrd'
             # - '--providers.kubernetesingress.ingressclass={{ .Values.global.instance_uid  }}'
-            - '--providers.kubernetesingress.namespaces={{  .Values.global.admin_namespace  }},{{  .Values.global.services_namespace  }},{{  .Values.global.extensions_namespace  }}'
+            - '--providers.kubernetesingress.namespaces={{  .Values.global.admin_namespace  }},,{{  .Values.global.jobs_namespace  }},{{  .Values.global.services_namespace  }},{{  .Values.global.extensions_namespace  }}'
             - '--providers.file.filename=/config/conf.toml'
             - '--providers.file.watch=true'
             - '--entrypoints.web.address=:{{ .Values.global.http_port }}'

@@ -214,11 +214,11 @@ spec:
       storage: "1Mi"
   volumeName: "af-data-pv-volume"
 ---
-# kaapanadevdata-services
+# mounted-scripts-services
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: kaapanadevdata-pv-volume
+  name: ms-pv-volume
   labels:
     type: local
 spec:
@@ -230,23 +230,23 @@ spec:
     - ReadWriteMany
   nfs:
     server: "10.152.183.15"
-    path: "/kaapanadevdata"
+    path: "/workflows/mounted_scripts"
 {{- else }}
   storageClassName: host-dir
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "{{ .Values.global.fast_data_dir }}/kaapanadevdata"
+    path: "{{ .Values.global.fast_data_dir }}/workflows/mounted_scripts"
 {{- end }}
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"
-    name: kaapanadevdata-pv-claim
+    name: ms-pv-claim
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: kaapanadevdata-pv-claim
+  name: ms-pv-claim
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
   storageClassName: nfs
@@ -255,5 +255,5 @@ spec:
   resources:
     requests:
       storage: "1Mi"
-  volumeName: "kaapanadevdata-pv-volume"
+  volumeName: "ms-pv-volume"
 ---

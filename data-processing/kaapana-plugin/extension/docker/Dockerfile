@@ -18,6 +18,6 @@ COPY files/dags/dag_tag_train_test_split_dataset.py /temp/dags/
 COPY files/dags/dag_service_extract_metadata_trigger_rule.json /temp/dags/
 COPY files/dags/dag_service_daily_cleanup_jobs.py /temp/dags
 
-COPY files/kaapanadevdata/ /temp/kaapanadevdata
+COPY files/mounted_scripts/ /temp/mounted_scripts
 
 COPY files/plugin/ /temp/plugins

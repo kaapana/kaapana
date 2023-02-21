@@ -131,6 +131,6 @@ spec:
 {{- if .Values.global.dev_files }}
       - name: kaapana-dev-files
         persistentVolumeClaim:
-          claimName: backen-dev-pv-claim
+          claimName: backend-dev-pv-claim
 {{- end }}
 ---

@@ -4,7 +4,7 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: backen-dev-pv-volume
+  name: backend-dev-pv-volume
   labels:
     type: local
 spec:
@@ -16,23 +16,23 @@ spec:
     - ReadWriteMany
   nfs:
     server: "10.152.183.15"
-    path: "/postgres-backend"
+    path: "/dev_backend"
 {{- else }}
   storageClassName: host-dir
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "{{ .Values.global.fast_data_dir }}/postgres-backend"
+    path: "{{ .Values.global.dev_files }}"
 {{- end }}
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"
-    name: backen-dev-pv-claim
+    name: backend-dev-pv-claim
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: backen-dev-pv-claim
+  name: backend-dev-pv-claim
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
   storageClassName: nfs
@@ -41,7 +41,7 @@ spec:
   resources:
     requests:
       storage: "1Mi"
-  volumeName: "backen-dev-pv-volume"
+  volumeName: "backend-dev-pv-volume"
 {{- end }}
 ---
 # logs

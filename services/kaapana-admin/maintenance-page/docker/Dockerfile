@@ -33,6 +33,6 @@ RUN npm run build
 FROM nginx:1.19.3-alpine
 
 RUN mkdir /app
-COPY --from=build-stage /maintenance/app/dist /app
+COPY --from=build-stage /maintenance/app/dist /app/maintenance
 COPY --from=build-stage /maintenance/app/nginx.conf /etc/nginx/nginx.conf
 

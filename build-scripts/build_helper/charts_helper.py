@@ -15,6 +15,7 @@ from jinja2 import Environment, FileSystemLoader
 from multiprocessing.pool import ThreadPool
 import networkx as nx
 from alive_progress import alive_bar
+from build_helper.security_utils import TrivyUtils
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
@@ -920,12 +921,10 @@ class HelmChart:
                         else:
                             bar()
                             if issue != None:
-
                                 # Close threadpool if error is fatal
                                 if BuildUtils.exit_on_error or issue["level"] == "FATAL":
                                     threadpool.terminate()
                                     threadpool.join()
-
                                 bar.text(f"{result_container.tag}: ERROR")
                                 BuildUtils.logger.info("")
                                 BuildUtils.generate_issue(
@@ -952,6 +951,33 @@ class HelmChart:
         BuildUtils.logger.info("")
         BuildUtils.logger.info("")
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
+
+        # Scan for vulnerabilities if enabled
+        if BuildUtils.vulnerability_scan is True:
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("Starting vulnerability scan...")
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("")
+            with alive_bar(len(successful_built_containers), dual_line=True, title='Vulnerability Scan') as bar:
+                
+                # Init trivy utils
+                trivy_utils = TrivyUtils()
+
+                # Loop through all built containers and scan them
+                for image_build_tag in sorted(successful_built_containers):
+                    # Set progress bar text
+                    bar.text(image_build_tag)
+
+                    # Create SBOM
+                    trivy_utils.create_sbom(image_build_tag)
+
+                    # Scan for vulnerabilities
+                    trivy_utils.create_vulnerability_report(image_build_tag)
+
+                    # Print progress bar
+                    bar()
+                    
 
         if BuildUtils.create_offline_installation is True:
             BuildUtils.logger.info("Generating platform docker dump.")

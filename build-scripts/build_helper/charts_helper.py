@@ -911,29 +911,29 @@ class HelmChart:
             while len(waiting_containers_to_built) != 0 and build_rounds <= BuildUtils.max_build_rounds:
                 build_rounds += 1
                 tmp_waiting_containers_to_built = []
-                result_containers = ThreadPool(BuildUtils.parallel_processes).imap_unordered(parallel_execute, containers_to_built)
-
-                for queue_id, result_container, issue, done in result_containers:
-                    if not done:
-                        BuildUtils.logger.info(f"{result_container.build_tag}: Base image not ready yet -> waiting list")
-                        tmp_waiting_containers_to_built.append(result_container)
-                    else:
-                        bar()
-                        if issue != None:
-                            bar.text(f"{result_container.tag}: ERROR")
-                            BuildUtils.logger.info("")
-                            BuildUtils.generate_issue(
-                                component=issue["component"],
-                                name=issue["name"],
-                                level=issue["level"],
-                                msg=issue["msg"],
-                                output=issue["output"] if "output" in issue else None,
-                                path=issue["path"] if "path" in issue else "",
-                            )
+                with ThreadPool(BuildUtils.parallel_processes) as threadpool:
+                    result_containers = threadpool.imap_unordered(parallel_execute, containers_to_built)
+                    for queue_id, result_container, issue, done in result_containers:
+                        if not done:
+                            BuildUtils.logger.info(f"{result_container.build_tag}: Base image not ready yet -> waiting list")
+                            tmp_waiting_containers_to_built.append(result_container)
                         else:
-                            bar.text(f"{result_container.tag}: ok")
+                            bar()
+                            if issue != None:
+                                bar.text(f"{result_container.tag}: ERROR")
+                                BuildUtils.logger.info("")
+                                BuildUtils.generate_issue(
+                                    component=issue["component"],
+                                    name=issue["name"],
+                                    level=issue["level"],
+                                    msg=issue["msg"],
+                                    output=issue["output"] if "output" in issue else None,
+                                    path=issue["path"] if "path" in issue else "",
+                                )
+                            else:
+                                bar.text(f"{result_container.tag}: ok")
 
-                waiting_containers_to_built = tmp_waiting_containers_to_built
+                    waiting_containers_to_built = tmp_waiting_containers_to_built
         
         if build_rounds == BuildUtils.max_build_rounds:
             BuildUtils.generate_issue(

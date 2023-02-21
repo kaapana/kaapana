@@ -247,22 +247,23 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             print("#####################################################")
             raise ValueError('ERROR')
         series_download_fail = []
-        results = ThreadPool(self.parallel_downloads).imap_unordered(self.get_data, download_list)
-        for download_successful, series_uid in results:
-            print(f"# Series download ok: {series_uid}")
-            if not download_successful:
-                series_download_fail.append(series_uid)
+        with ThreadPool(self.parallel_downloads) as threadpool:
+            results = threadpool.imap_unordered(self.get_data, download_list)
+            for download_successful, series_uid in results:
+                print(f"# Series download ok: {series_uid}")
+                if not download_successful:
+                    series_download_fail.append(series_uid)
 
-        if len(series_download_fail) > 0:
-            print("#####################################################")
-            print("#")
-            print(f"# Some series could not be downloaded! ")
-            for series_uid in series_download_fail:
+            if len(series_download_fail) > 0:
+                print("#####################################################")
                 print("#")
-                print(f"# Series: {series_uid} failed !")
-                print("#")
-            print("#####################################################")
-            raise ValueError('ERROR')
+                print(f"# Some series could not be downloaded! ")
+                for series_uid in series_download_fail:
+                    print("#")
+                    print(f"# Series: {series_uid} failed !")
+                    print("#")
+                print("#####################################################")
+                raise ValueError('ERROR')
 
     def __init__(self,
                  dag,

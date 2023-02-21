@@ -245,38 +245,6 @@ def prepare_dataset(datset_list, dataset_id):
         else:
             shutil.move(seg_nifti, target_seg_path)
 
-        # example_img = nib.load(seg_nifti_list[0])
-        # combined = np.zeros_like(example_img.get_fdata().astype(int))
-
-        # print(f"# Starting {thread_count} threads for NIFTI processing ...")
-        # results = ThreadPool(thread_count).imap_unordered(process_seg_nifti, seg_nifti_list)
-        # for result_array, seg_nifti in results:
-        #     if result_array is None or seg_nifti is None:
-        #         print("Something went wrong.")
-        #         exit(1)
-        #     else:
-        #         print(f"Finished: {seg_nifti}")
-        #         print("# Merging NIFTI to Ground Truth ...")
-        #         combined = np.maximum(combined, result_array)
-        #         print("# Merging OK")
-        #         if not copy_target_data:
-        #             print("# Deleting SEG NIFTI ...")
-        #             os.remove(seg_nifti)
-        # # your code here
-        # print(f"# All threads done!")
-        # print(f"# Writing Ground Truth into {target_seg_path} ...")
-        # combined = nib.Nifti1Image(combined, example_img.affine, example_img.header)
-        # Path(dirname(target_seg_path)).mkdir(parents=True, exist_ok=True)
-        # combined.to_filename(target_seg_path)
-        # print("# GT file OK")
-
-        # if not copy_target_data:
-        #     print("# Deleting input NIFTIs ...")
-        #     for file_path in seg_nifti_list:
-        #         os.remove(file_path)
-        # else:
-        #     print("# Keeping input NIFTIs!")
-
         print("# Adding dataset ...")
         template_dataset_json[dataset_id].append(
             {

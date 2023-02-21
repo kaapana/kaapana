@@ -16,6 +16,7 @@
 # under the License.
 
 import kubernetes
+import logging
 
 
 class Volume:
@@ -33,6 +34,9 @@ class Volume:
         """
         self.name = name
         self.configs = configs
+
+        if 'hostPath' in self.configs:
+            logging.warning('hostPath mounts are not allowed in Kaapana')
 
     def get_kube_object(self):
         kube_volume = kubernetes.client.V1Volume(name=self.name)

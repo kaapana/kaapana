@@ -11,50 +11,6 @@ class mHubOperator(KaapanaBaseOperator):
 
     def pre_execute(self, context):
         print("++++++++++++++++++++++++++++ pre_execute operator")
-
-        run_dir = os.path.join(self.workflow_dir, context['dag_run'].run_id)
-        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))]
-
-        if len(batch_folder) > 1:
-            raise ValueError('This workflow can only be executed with one image')
-
-        batch_element_dir  = batch_folder[0]
-
-        self.volume_mounts.append(VolumeMount(
-            'inputdata', mount_path='/app/data/input_data', sub_path=None, read_only=False
-        ))
-
-
-        self.volumes.append(
-            Volume(name='inputdata', configs={
-                'hostPath':
-                {
-                    'type': 'DirectoryOrCreate',
-                    'path': os.path.join(
-                        self.data_dir,
-                        os.path.relpath(os.path.join(batch_element_dir), self.workflow_dir),
-                        self.operator_in_dir
-                        )
-                }
-            })
-        )
-        self.volume_mounts.append(VolumeMount(
-            'outputdata', mount_path='/app/data/output_data', sub_path=None, read_only=False
-        ))
-
-        self.volumes.append(
-            Volume(name='outputdata', configs={
-                'hostPath':
-                {
-                    'type': 'DirectoryOrCreate',
-                    'path': os.path.join(
-                        self.data_dir,
-                        os.path.relpath(os.path.join(batch_element_dir), self.workflow_dir),
-                        self.operator_out_dir
-                    )
-                }
-            })
-        )
         
         if context['dag_run'].conf is not None and "workflow_form" in context['dag_run'].conf and "mhub_model" in context['dag_run'].conf["workflow_form"]:
             image = context['dag_run'].conf["workflow_form"]["mhub_model"]
@@ -74,15 +30,21 @@ class mHubOperator(KaapanaBaseOperator):
         self.image = image_name
         print(f'Using the image {self.image}')
 
+        self.env_vars.update({
+            "MHUB_MODEL": image,
+        })
+
         super().pre_execute(context)
 
     def __init__(self,
-                 dag,
-                 name='mhub-operator',
-                 execution_timeout=timedelta(minutes=300),
-                 gpu_mem_mb=None,
-                 *args, **kwargs
-                 ):
+                dag,
+                name='mhub-operator',
+                cmds=["bash"],
+                arguments=["/app/mounted_scripts/mhub/mhub.sh"],
+                execution_timeout=timedelta(minutes=300),
+                gpu_mem_mb=None,
+                *args, **kwargs
+                ):
 
         if gpu_support:
             gpu_mem_mb = 11000
@@ -95,6 +57,8 @@ class mHubOperator(KaapanaBaseOperator):
             dag=dag,
             name=name,
             image_pull_secrets=["registry-secret"],
+            cmds=cmds,
+            arguments=arguments,
             ram_mem_mb=ram_mem_mb,
             ram_mem_mb_lmt=ram_mem_mb_lmt,
             gpu_mem_mb=gpu_mem_mb,

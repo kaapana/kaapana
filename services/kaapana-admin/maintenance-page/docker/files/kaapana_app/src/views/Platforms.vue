@@ -351,7 +351,7 @@ export default Vue.extend({
       if (item["available_versions"][item.version]["deployments"].length > 0) {
         let statArr: any = item["available_versions"][item.version]["deployments"][0]["kube_status"]
 
-        if (statArr.length > 3) {
+        if (typeof(statArr) != "string" && statArr.length > 3) {
           let count: any = {}
           let s = ""
           for (let i=0; i<statArr.length; i++) {
@@ -733,7 +733,8 @@ export default Vue.extend({
       let params = {
         release_name: item.releaseName,
         release_version: item.version,
-        helm_command_addons: helmCommandAddons
+        helm_command_addons: helmCommandAddons,
+        helm_namespace: item.available_versions[item.version].deployments[0].helm_info.namespace
       };
       console.log("params", params)
       this.loading = true;

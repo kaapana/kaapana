@@ -1,26 +1,22 @@
-from ast import alias
-import ast
 import json
-from typing import List
-from urllib import request
-import uuid
-import requests
 import os
+import uuid
+from typing import List
 
-from sqlalchemy.orm import Session
+import requests
+from cryptography.fernet import Fernet
+from fastapi import HTTPException, Response
+from psycopg2.errors import UniqueViolation
 from sqlalchemy import desc
 from sqlalchemy.exc import IntegrityError
-from psycopg2.errors import UniqueViolation
-from cryptography.fernet import Fernet
-from fastapi import APIRouter, Depends, Request, HTTPException, Response
-
-from . import models, schemas
-from app.config import settings
-from .schemas import Identifier
-from .utils import execute_job_airflow, abort_job_airflow, get_dagrun_tasks_airflow, \
-     check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, \
-    raise_kaapana_connection_error, requests_retry_session, get_uid_list_from_query
+from sqlalchemy.orm import Session
 from urllib3.util import Timeout
+
+from app.config import settings
+from . import models, schemas
+from .utils import execute_job_airflow, abort_job_airflow, get_dagrun_tasks_airflow, \
+    check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, \
+    raise_kaapana_connection_error, requests_retry_session, get_uid_list_from_query
 
 TIMEOUT_SEC = 5
 TIMEOUT = Timeout(TIMEOUT_SEC)
@@ -180,7 +176,6 @@ def create_job(db: Session, job: schemas.JobCreate):
             db_kaapana_instance.instance_name
         )
         job.conf_data['federated_form']['minio_urls'] = minio_urls
-
 
     utc_timestamp = get_utc_timestamp()
 
@@ -502,6 +497,15 @@ def get_identifier(db: Session, identifier: str):
     return db.query(models.Identifier).filter_by(identifier=identifier).first()
 
 
+def create_identifier_if_not_present(db, identifier: schemas.Identifier):
+    db_identifier = get_identifier(db, identifier=identifier.identifier)
+
+    if db_identifier:
+        return db_identifier
+    else:
+        return create_identifier(db, identifier)
+
+
 def delete_identifier(db: Session, identifier: str):
     db_identifier = get_identifier(db, identifier)
     db.delete(db_identifier)
@@ -537,7 +541,7 @@ def create_cohort(db: Session, cohort: schemas.CohortCreate):
         ]
     else:
         db_cohort_identifiers: List[models.Identifier] = [
-            get_identifier(db, identifier.identifier)
+            create_identifier_if_not_present(db, identifier)
             for identifier in cohort.cohort_identifiers
         ]
 

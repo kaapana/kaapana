@@ -16,6 +16,7 @@ from multiprocessing.pool import ThreadPool
 import networkx as nx
 from alive_progress import alive_bar
 from build_helper.security_utils import TrivyUtils
+from build_helper.offline_installer_helper import OfflineInstallerHelper
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
@@ -958,7 +959,7 @@ class HelmChart:
                             else:
                                 bar.text(f"{result_container.tag}: ok")
 
-                    waiting_containers_to_built = tmp_waiting_containers_to_built
+                waiting_containers_to_built = tmp_waiting_containers_to_built
         
         if build_rounds == BuildUtils.max_build_rounds:
             BuildUtils.generate_issue(
@@ -1000,27 +1001,10 @@ class HelmChart:
                     
 
         if BuildUtils.create_offline_installation is True:
-            BuildUtils.logger.info("Generating platform docker dump.")
-            micok8s_base_img_json_path = join(BuildUtils.kaapana_dir,"build-scripts","build_helper","microk8s_images.json")
-            assert exists(micok8s_base_img_json_path)
-            with open(micok8s_base_img_json_path, encoding='utf-8') as f:
-                image_tag_list = json.load(f)["microk8s_base_images"]
-
-            for base_microk8s_image in image_tag_list:
-                pull_container_image(image_tag=base_microk8s_image)
-                successful_built_containers.append(base_microk8s_image)
-
-            command = [Container.container_engine, "save"] + [build_tag for build_tag in successful_built_containers if not build_tag.startswith('local-only')] + ["-o", str(Path(os.path.dirname(platform_chart.build_chart_dir)) / f"{platform_chart.name}-{platform_chart.build_version}-containers.tar")]
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=9000)
-            if output.returncode != 0:
-                BuildUtils.logger.error(f"Docker save failed {output.stderr}!")
-                BuildUtils.generate_issue(
-                    component="docker save",
-                    name="Docker save",
-                    msg=f"Docker save failed {output.stderr}!",
-                    level="ERROR"
-                )
-            BuildUtils.logger.info("Finished: Generating platform docker dump.")
+            OfflineInstallerHelper.generate_microk8s_offline_version()
+            images_tarball_path = join(dirname(platform_chart.build_chart_dir),f"{platform_chart.name}-{platform_chart.build_version}-containers.tar")
+            OfflineInstallerHelper.export_image_list_into_tarball(image_list=successful_built_containers,images_tarball_path=images_tarball_path)
+            BuildUtils.logger.info("Finished: Generating platform images tarball.")
 
     @staticmethod
     def generate_platform_build_tree():

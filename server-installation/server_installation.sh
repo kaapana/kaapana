@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euf -o pipefail
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 # check if stdout is a terminal
 if test -t 1; then
 
@@ -37,7 +39,6 @@ else
     WHITE=""
 fi
 
-# TODO for offline installation
 apply_microk8s_image_export() {
     IMAGE=$1
     if [[ $IMAGE != "REF" ]];
@@ -59,15 +60,14 @@ apply_microk8s_image_import() {
     IMAGE=$1
     BASE_NAME=(${IMAGE//:/ })
     BASE_NAME=${BASE_NAME[0]}
-    echo Uploading $IMAGE
     
-    microk8s ctr images import --base-name ${BASE_NAME//@/\/} $TAR_LOCATION/microk8s_images/$IMAGE
+    echo "${YELLOW}Uploading $IMAGE ...${NC}"
+    microk8s ctr images import --base-name ${BASE_NAME//@/\/} $CONTAINER_TAR_DIR/microk8s_images/$IMAGE
 }
 
 export -f apply_microk8s_image_import
 
 function proxy_environment {
-    
     echo "${YELLOW}Checking proxy settings ...${NC}"
     if [ ! "$QUIET" = "true" ];then
         if [ ! -v http_proxy ]; then
@@ -259,11 +259,11 @@ function insert_text {
     return $rc
 }
 
-function install_microk8s {
-    if command -v microk8s &> /dev/null
+function install_helm {
+    if command -v helm &> /dev/null
     then
         echo ""
-        echo "${GREEN}microk8s already installed ...${NC}"
+        echo "${GREEN}Helm is already installed ...${NC}"
         echo "${GREEN}-> skipping installation ${NC}"
         echo ""
         echo ""
@@ -271,45 +271,78 @@ function install_microk8s {
         echo ""
         echo ""
     else
-        echo "${YELLOW}microk8s not installed -> start installation ${NC}"
-        
-        if [ ! -z "$OFFLINE_TAR_PATH" ]; then
-            echo "${RED}-> HAS TO BE CHECKED FIRST! ${NC}"
-            exit 1
-
-            # echo "${YELLOW} -> offline installation! ${NC}"
-            # TAR_LOCATION=$(dirname "$OFFLINE_TAR_PATH")/$(basename "$OFFLINE_TAR_PATH" .tar.gz)
-            # export TAR_LOCATION
-            # echo $TAR_LOCATION
-            # echo Unpacking $OFFLINE_TAR_PATH to $TAR_LOCATION
-            # tar -xvf $OFFLINE_TAR_PATH -C  $(dirname "$TAR_LOCATION")
-            # set +euf
-            # core_digits=$(find $TAR_LOCATION/core* -maxdepth 0 -not -type d -printf "%f\n" | sed -e s/[a-zcore_\/.]//g | head -1)        
-            # microk8s_digits=$(find $TAR_LOCATION/microk8s* -maxdepth 0 -not -type d -printf "%f\n" | sed -e s/[a-zmicrok8s_\/.]//g | head -1)  
-            # helm_digits=$(find $TAR_LOCATION/helm* -maxdepth 0 -not -type d -printf "%f\n" | sed -e s/[a-zhelm_\/.]//g | head -1)  
-            # set -euf
-            # echo "${YELLOW}Installing core...${NC}"
-            # snap ack $TAR_LOCATION/core_${core_digits}.assert
-            # snap install $TAR_LOCATION/core_${core_digits}.snap
-            # echo "${YELLOW}Installing microk8s...${NC}"
-            # snap ack $TAR_LOCATION/microk8s_${microk8s_digits}.assert
-            # snap install --classic  $TAR_LOCATION/microk8s_${microk8s_digits}.snap
-            # echo "${YELLOW}Installing Helm...${NC}"
-            # snap ack $TAR_LOCATION/helm_${helm_digits}.assert
-            # snap install --classic  $TAR_LOCATION/helm_${helm_digits}.snap
-            
-            # echo "${YELLOW}Wait until microk8s is ready...${NC}"
-            # microk8s.status --wait-ready
-            # echo Importing Images from $TAR_LOCATION/microk8s_images
-            # ls $TAR_LOCATION/microk8s_images | xargs -I {} bash -c 'apply_microk8s_image_import "$@"' _ {}
-            # rm -r $TAR_LOCATION
+        echo "${YELLOW}Helm is not installed -> start installation ${NC}"
+        if [ "$OFFLINE_SNAPS" = "true" ];then
+            echo "${YELLOW} -> Helm offline installation! ${NC}"
+            helm_digits=$(find $SCRIPT_DIR/helm* -maxdepth 0 -not -type d -printf "%f\n" | sed -e s/[a-zhelm_\/.]//g | head -1)  
+            set -euf
+            snap ack $SCRIPT_DIR/helm_${helm_digits}.assert
+            snap install --classic  $SCRIPT_DIR/helm_${helm_digits}.snap
         else
-            echo "${YELLOW}Installing microk8s v$DEFAULT_MICRO_VERSION ...${NC}"
-            snap install microk8s --classic --channel=$DEFAULT_MICRO_VERSION
-            
             echo "${YELLOW}Installing Helm v$DEFAULT_HELM_VERSION ...${NC}"
             snap install helm --classic --channel=$DEFAULT_HELM_VERSION
         fi
+    fi
+}
+
+function import_containers {
+    echo "${YELLOW}Start container image import from $OFFLINE_TAR_PATH ... ${NC}"
+    CONTAINER_TAR_DIR=$(dirname $OFFLINE_TAR_PATH)
+    export CONTAINER_TAR_DIR
+    echo "${YELLOW}CONTAINER_TAR_DIR $CONTAINER_TAR_DIR ${NC}"
+
+    [ -f $OFFLINE_TAR_PATH ] && echo "${GREEN}Container tar exists ... ${NC}" || (echo "${RED}Container tar does not exist -> exit ${NC}" && exit 1)
+
+    echo "${YELLOW}Unpacking $OFFLINE_TAR_PATH to $CONTAINER_TAR_DIR ${NC}"
+    tar -xvf $OFFLINE_TAR_PATH -C $CONTAINER_TAR_DIR)
+    set +euf
+    echo "${YELLOW}Importing Images from $CONTAINER_TAR_DIR/microk8s_images -> this can take a long time!${NC}"
+    ls $CONTAINER_TAR_DIR/microk8s_images | xargs -I {} bash -c 'apply_microk8s_image_import "$@"' _ {}
+    echo "${GREEN}Import done!${NC}"
+    echo "${YELLOW}Removing temp files from $CONTAINER_TAR_DIR/microk8s_images ...${NC}"
+    rm -r $CONTAINER_TAR_DIR/microk8s_images
+    echo "${GREEN}Done!${NC}"
+}
+
+function install_microk8s {
+    if command -v microk8s &> /dev/null
+    then
+        echo ""
+        echo "${GREEN}microk8s is already installed ...${NC}"
+        echo "${GREEN}-> skipping installation ${NC}"
+        echo ""
+        echo ""
+        echo "${GREEN}If you want to start-over use the --uninstall parameter first! ${NC}"
+        echo ""
+        echo ""
+    else
+        echo "${YELLOW}microk8s is not installed -> start installation ${NC}"
+        
+        if [ "$OFFLINE_SNAPS" = "true" ];then
+            echo "${YELLOW} -> offline installation! ${NC}"
+            
+            core_digits=$(find $SCRIPT_DIR/core* -maxdepth 0 -not -type d -printf "%f\n" | sed -e s/[a-zcore_\/.]//g | head -1)        
+            microk8s_digits=$(find $SCRIPT_DIR/microk8s* -maxdepth 0 -not -type d -printf "%f\n" | sed -e s/[a-zmicrok8s_\/.]//g | head -1)  
+            set -euf
+            echo "${YELLOW}Installing core...${NC}"
+            snap ack $SCRIPT_DIR/core_${core_digits}.assert
+            snap install $SCRIPT_DIR/core_${core_digits}.snap
+            echo "${YELLOW}Installing microk8s...${NC}"
+            snap ack $SCRIPT_DIR/microk8s_${microk8s_digits}.assert
+            snap install --classic  $SCRIPT_DIR/microk8s_${microk8s_digits}.snap
+            echo "${YELLOW}Wait until microk8s is ready...${NC}"
+
+        else
+            echo "${YELLOW}Installing microk8s v$DEFAULT_MICRO_VERSION ...${NC}"
+            snap install microk8s --classic --channel=$DEFAULT_MICRO_VERSION
+        fi
+
+        if [ ! -z "$OFFLINE_TAR_PATH" ];then
+            echo "${YELLOW}Image import enabled -> wait for microk8s ...${NC}"
+            microk8s.status --wait-ready
+            import_containers
+        fi
+
         echo "${YELLOW}Stopping microk8s for configuration ...${NC}"
         microk8s.stop
 
@@ -367,25 +400,6 @@ function install_microk8s {
             sudo chown -f -R $REAL_USER:$REAL_USER $USER_HOME/.kube
         fi
 
-        # TODO Offline Installation
-        # if [ "$PREPARE_OFFLINE_SNAP" = "true" ];then
-        #     DUMP_TAR_DIR=snap_offline_microk8s_${DEFAULT_MICRO_VERSION//\//@}_helm_${DEFAULT_HELM_VERSION//\//@}
-        #     export DUMP_TAR_DIR
-        #     mkdir -p $DUMP_TAR_DIR
-        #     mkdir -p $DUMP_TAR_DIR/microk8s_images
-        #     enable_gpu
-        #     microk8s.ctr images ls | awk {'print $1'} | xargs -I {} bash -c 'apply_microk8s_image_export "$@"' _ {}
-        #     snap download core --target-directory $DUMP_TAR_DIR
-        #     snap download microk8s  --channel=$DEFAULT_MICRO_VERSION --target-directory $DUMP_TAR_DIR
-        #     snap download helm --channel=$DEFAULT_HELM_VERSION --target-directory $DUMP_TAR_DIR
-        #     tar -czvf $DUMP_TAR_DIR.tar.gz $DUMP_TAR_DIR
-        #     rm -r $DUMP_TAR_DIR
-        #     snap remove microk8s
-        #     snap remove helm
-        #     exit 0
-        # fi
-        
-
         echo ""
         echo ""
         echo ""
@@ -409,11 +423,6 @@ function install_microk8s {
     echo ""
     echo "${GREEN} DONE ${NC}"
     echo ""
-}
-
-function change_version {
-    echo "${YELLOW}Switching to K8s version $DEFAULT_MICRO_VERSION ${NC}"
-    snap refresh microk8s --channel $DEFAULT_MICRO_VERSION --classic
 }
 
 function uninstall {
@@ -451,19 +460,24 @@ echo -e "${GREEN}REAL_USER: $REAL_USER ${NC}";
 echo -e "${GREEN}USER_HOME: $USER_HOME ${NC}";
 echo ""
 
+DEFAULT_MICRO_VERSION=1.26/stable
+DEFAULT_HELM_VERSION=latest/stable
+
 ### Parsing command line arguments:
 usage="$(basename "$0")
 
-_Flag: -gpu --enable-gpu     will activate gpu support for kubernetes (default: false)
-_Flag: -q   --quiet          will activate quiet mode (default: false)
-_Flag: -sv  --switch-version will switch the Kubernetes version to [-v version]
-_Flag:      --uninstall      removes microk8s and helm from the system
+_Flag: -gpu --enable-gpu          will activate gpu support for kubernetes (default: false)
+_Flag: -q   --quiet               will activate quiet mode (default: false)
+_Flag:      --uninstall           removes microk8s and helm from the system
+_Flag:      --offline-snaps       offline installation for snap packages (expects '*.snap' and '*.assert' files within the working dir)
+
+_Argument: -oc --offline-containers [arg]
+where arg is:
+    containers.tar.gz path
 
 _Argument: -v --version [opt]
 where opt is:
-    1.22/stable --> for Kubernetes v1.22
-    1.23/stable --> for Kubernetes v1.23
-    default: 1.23/stable
+    default: $DEFAULT_MICRO_VERSION
 
 _Argument: -os --operating-system [opt]
 where opt is:
@@ -472,10 +486,8 @@ where opt is:
     default: $OS_PRESENT"
 
 QUIET=NA
-PREPARE_OFFLINE_SNAP=NA
+OFFLINE_SNAPS=NA
 OFFLINE_TAR_PATH=""
-DEFAULT_MICRO_VERSION=1.23/stable
-DEFAULT_HELM_VERSION=3.7/stable
 DNS="8.8.8.8,8.8.4.4"
 
 POSITIONAL=()
@@ -516,21 +528,16 @@ do
             shift # past argument
         ;;
 
-        -sv|--switch-version)
-            OS_PRESENT="SWITCHVERSION"
-            shift # past argument
-        ;;
-        
-        --offline-tar-path)
+        -oc|--offline-containers)
             OFFLINE_TAR_PATH="$2"
             echo -e "${GREEN}SET OFFLINE_TAR_PATH: $OFFLINE_TAR_PATH !${NC}";
             shift # past argument
             shift # past value
         ;;
 
-        --prepare-offline-snap)
-            PREPARE_OFFLINE_SNAP=true
-            echo -e "${GREEN}SET PREPARE_OFFLINE_SNAP: $PREPARE_OFFLINE_SNAP !${NC}";
+        --offline-snaps)
+            OFFLINE_SNAPS=true
+            echo -e "${GREEN}SET OFFLINE_SNAPS: $OFFLINE_SNAPS !${NC}";
             shift # past argument
         ;;
 
@@ -563,6 +570,7 @@ case "$OS_PRESENT" in
         echo -e "${GREEN}Starting AlmaLinux installation...${NC}";
         proxy_environment
         install_packages_almalinux
+        install_helm
         install_microk8s
     ;;
 
@@ -570,12 +578,8 @@ case "$OS_PRESENT" in
         echo -e "${GREEN}Starting Ubuntu installation...${NC}";
         proxy_environment
         install_packages_ubuntu
+        install_helm
         install_microk8s
-    ;;
-
-    "SWITCHVERSION")
-    change_version
-        
     ;;
 
     "GPUSUPPORT")

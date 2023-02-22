@@ -11,6 +11,7 @@ from build_helper.container_helper import Container, container_registry_login
 from build_helper.build_utils import BuildUtils
 from build_helper.security_utils import TrivyUtils
 
+
 supported_log_levels = ["DEBUG", "INFO", "WARN", "ERROR"]
 
 if __name__ == '__main__':
@@ -259,6 +260,7 @@ if __name__ == '__main__':
         enable_build=container_build,
         enable_push=containers_push,
     )
+    
     if not build_only and not no_login:
         container_registry_login(username=registry_user, password=registry_pwd)
         helm_registry_login(username=registry_user, password=registry_pwd)

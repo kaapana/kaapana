@@ -83,32 +83,9 @@ def get_dagrun_tasks(dag_id, run_id):
     - get all tasks including their states of queried dag_run
     - return tasks
     '''
-    # #headers = dict(request.headers)
-    # data = request.get_json(force=True)
-    # print(f"data: {data}")
-    # #username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
-    # if 'conf' in data:
-    #     tmp_conf = data['conf']
-    # else:
-    #     tmp_conf = data
-    # # For authentication
-    # if "x_auth_token" in data:
-    #     tmp_conf["x_auth_token"] = data["x_auth_token"]
-    # else:
-    #     tmp_conf["x_auth_token"] = request.headers.get('X-Auth-Token')
-    # ################################################################################################ 
-    # #### Deprecated! Will be removed with the next version 0.1.3
-    # if "workflow_form" in tmp_conf: # in the future only workflow_form should be included in the tmp_conf
-    #     tmp_conf["form_data"] = tmp_conf["workflow_form"]
-    # elif "form_data" in tmp_conf:
-    #     tmp_conf["workflow_form"] = tmp_conf["form_data"]
-    # ################################################################################################
-
-    ### actual start of function ###
     dag_objects = DagBag().dags                 # returns all DAGs available on platform
     desired_dag = dag_objects[dag_id]           # filter desired_dag from all available dags via dag_id
     session = settings.Session()
-    message = []
 
     task_ids = [task.task_id for task in desired_dag.tasks]  # get task_ids of desired_dag
     tis = session.query(TaskInstance).filter(                # query TaskInstances which are part of desired_dag wit run_id=run_id and task_ids
@@ -125,9 +102,9 @@ def get_dagrun_tasks(dag_id, run_id):
         state_dict[ti.task_id] = ti.state
         exdate_dict[ti.task_id] = str(ti.execution_date)
 
-    # message.append(f"Result of task querying: {tis}")
-    message.append(f'{state_dict}')
-    message.append(f'{exdate_dict}')
+    message = {}
+    message['state_dict'] = state_dict
+    message['exdate_dict'] = exdate_dict
     response = jsonify(message=message)
     return response
 
@@ -136,31 +113,6 @@ def get_dagrun_tasks(dag_id, run_id):
 @csrf.exempt
 @kaapanaApi.route('/api/abort/<dag_id>/<run_id>', methods=['POST'])
 def abort_dag_run(dag_id, run_id):
-    # #headers = dict(request.headers)
-    # data = request.get_json(force=True)
-    # print(f"data: {data}")
-    # 
-    # #username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
-    # if 'conf' in data:
-    #     tmp_conf = data['conf']
-    # else:
-    #     tmp_conf = data
-    # 
-    # # For authentication
-    # if "x_auth_token" in data:
-    #     tmp_conf["x_auth_token"] = data["x_auth_token"]
-    # else:
-    #     tmp_conf["x_auth_token"] = request.headers.get('X-Auth-Token')
-    # 
-    # ################################################################################################ 
-    # #### Deprecated! Will be removed with the next version 0.1.3
-    # 
-    # if "workflow_form" in tmp_conf: # in the future only workflow_form should be included in the tmp_conf
-    #     tmp_conf["form_data"] = tmp_conf["workflow_form"]
-    # elif "form_data" in tmp_conf:
-    #     tmp_conf["workflow_form"] = tmp_conf["form_data"]
-    # 
-    # ################################################################################################ 
 
     # abort dag_run by executing set_dag_run_state_to_failed() (source: https://github.com/apache/airflow/blob/main/airflow/api/common/mark_tasks.py#L421)
     dag_objects = DagBag().dags                 # returns all DAGs available on platform
@@ -274,6 +226,7 @@ def abort_dag_run(dag_id, run_id):
     
     all_tis = [tis_r, tis, tis_n]
 
+    # message = response.text unused in backend but valuable for debugging
     message.append(f"Result of Job abortion: {all_tis}")
     response = jsonify(message=message)
     return response

@@ -289,6 +289,7 @@ def abort_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     conf_data = json.loads(db_job.conf_data)
     conf_data['client_job_id'] = db_job.id
 
+    # repsonse.text of abort_job_airflow usused in backend but might be valuable for debugging
     abort_job_airflow(db_job.dag_id, db_job.run_id, db_job.status, conf_data)
 
 def get_job_taskinstances(db: Session, job_id: int = None):
@@ -298,8 +299,8 @@ def get_job_taskinstances(db: Session, job_id: int = None):
     # parse received response
     response_text = json.loads(response.text)
 
-    ti_state_dict = json.loads(response_text["message"][0].replace("\'", "\""))
-    ti_exdate_dict = json.loads(response_text["message"][1].replace("\'", "\""))
+    ti_state_dict = response_text["message"]["state_dict"]
+    ti_exdate_dict = response_text["message"]["exdate_dict"]
 
     # compose dict in style {"task_instance": ["execution_time", "state"]}
     tis_n_state = {}

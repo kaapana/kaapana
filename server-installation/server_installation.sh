@@ -39,34 +39,6 @@ else
     WHITE=""
 fi
 
-apply_microk8s_image_export() {
-    IMAGE=$1
-    if [[ $IMAGE != "REF" ]];
-    then
-        if [[ $IMAGE != sha* ]];
-        then
-            echo "${GREEN}Pulling $IMAGE"
-            microk8s ctr image pull --all-platforms $IMAGE
-        fi
-        echo "${GREEN}Exporting $IMAGE"
-        microk8s ctr images export $DUMP_TAR_DIR/microk8s_images/${IMAGE//\//@} $IMAGE
-    fi
-    return 0
-}
-
-export -f apply_microk8s_image_export
-
-apply_microk8s_image_import() {
-    IMAGE=$1
-    BASE_NAME=(${IMAGE//:/ })
-    BASE_NAME=${BASE_NAME[0]}
-    
-    echo "${YELLOW}Uploading $IMAGE ...${NC}"
-    microk8s ctr images import --base-name ${BASE_NAME//@/\/} $CONTAINER_TAR_DIR/microk8s_images/$IMAGE
-}
-
-export -f apply_microk8s_image_import
-
 function proxy_environment {
     echo "${YELLOW}Checking proxy settings ...${NC}"
     if [ ! "$QUIET" = "true" ];then
@@ -274,31 +246,17 @@ function install_helm {
         echo "${YELLOW}Helm is not installed -> start installation ${NC}"
         if [ "$OFFLINE_SNAPS" = "true" ];then
             echo "${YELLOW} -> Helm offline installation! ${NC}"
-            helm_digits=$(find $SCRIPT_DIR/helm* -maxdepth 0 -not -type d -printf "%f\n" | sed -e s/[a-zhelm_\/.]//g | head -1)  
-            set -euf
-            snap ack $SCRIPT_DIR/helm_${helm_digits}.assert
-            snap install --classic  $SCRIPT_DIR/helm_${helm_digits}.snap
+            snap_path=$SCRIPT_DIR/helm.snap
+            assert_path=$SCRIPT_DIR/helm.assert
+            [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
+            [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
+            snap ack $assert_path
+            snap install --classic $snap_path
         else
             echo "${YELLOW}Installing Helm v$DEFAULT_HELM_VERSION ...${NC}"
             snap install helm --classic --channel=$DEFAULT_HELM_VERSION
         fi
     fi
-}
-
-function import_microk8s_containers {
-    MICROK8S_BASE_IMAGES_TAR_PATH="$SCRIPT_DIR/microk8s_base_images.tar"
-    echo "${YELLOW}Start Microk8s image import from $MICROK8S_BASE_IMAGES_TAR_PATH ... ${NC}"
-    [ -f $MICROK8S_BASE_IMAGES_TAR_PATH ] && echo "${GREEN}Images tar exists ... ${NC}" || (echo "${RED}Images tar does not exist -> exit ${NC}" && exit 1)
-
-    echo "${YELLOW}Unpacking $MICROK8S_BASE_IMAGES_TAR_PATH to $CONTAINER_TAR_DIR ${NC}"
-    tar -xvf $OFFLINE_TAR_PATH -C $SCRIPT_DIR)
-    set +euf
-    echo "${YELLOW}Importing Images from $SCRIPT_DIR/microk8s_images -> this can take a long time!${NC}"
-    ls $SCRIPT_DIR/microk8s_images | xargs -I {} bash -c 'apply_microk8s_image_import "$@"' _ {}
-    echo "${GREEN}Import done!${NC}"
-    echo "${YELLOW}Removing temp files from $SCRIPT_DIR/microk8s_images ...${NC}"
-    rm -r $SCRIPT_DIR/microk8s_images
-    echo "${GREEN}Done!${NC}"
 }
 
 function install_microk8s {
@@ -317,19 +275,33 @@ function install_microk8s {
         
         if [ "$OFFLINE_SNAPS" = "true" ];then
             echo "${YELLOW} -> offline installation! ${NC}"
-            
-            core_digits=$(find $SCRIPT_DIR/core* -maxdepth 0 -not -type d -printf "%f\n" | sed -e s/[a-zcore_\/.]//g | head -1)        
-            microk8s_digits=$(find $SCRIPT_DIR/microk8s* -maxdepth 0 -not -type d -printf "%f\n" | sed -e s/[a-zmicrok8s_\/.]//g | head -1)  
-            set -euf
-            echo "${YELLOW}Installing core...${NC}"
-            snap ack $SCRIPT_DIR/core_${core_digits}.assert
-            snap install $SCRIPT_DIR/core_${core_digits}.snap
+
+            # echo "${YELLOW}Installing core...${NC}"
+            # snap_path=$SCRIPT_DIR/core.snap
+            # assert_path=$SCRIPT_DIR/core.assert
+            # [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
+            # [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
+            # snap ack $assert_path
+            # set +e
+            # snap install $snap_path
+            # set -e
+
             echo "${YELLOW}Installing microk8s...${NC}"
-            snap ack $SCRIPT_DIR/microk8s_${microk8s_digits}.assert
-            snap install --classic  $SCRIPT_DIR/microk8s_${microk8s_digits}.snap
+            snap_path=$SCRIPT_DIR/microk8s.snap
+            assert_path=$SCRIPT_DIR/microk8s.assert
+            [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
+            [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
+            
+            snap ack $assert_path
+            snap install --classic $snap_path
             echo "${YELLOW}Wait until microk8s is ready...${NC}"
             microk8s.status --wait-ready
-            import_microk8s_containers
+            MICROK8S_BASE_IMAGES_TAR_PATH="$SCRIPT_DIR/microk8s_base_images.tar"
+            echo "${YELLOW}Start Microk8s image import from $MICROK8S_BASE_IMAGES_TAR_PATH ... ${NC}"
+            [ -f $MICROK8S_BASE_IMAGES_TAR_PATH ] && echo "${GREEN}MICROK8S_BASE_IMAGES_TAR tar exists ... ${NC}" || (echo "${RED}Images tar does not exist -> exit ${NC}" && exit 1)
+            echo "${RED}This can take a long time! -> please be patient and wait. ${NC}"
+            microk8s.ctr images import $MICROK8S_BASE_IMAGES_TAR_PATH
+            echo "${GREEN}Microk8s offline installation done!${NC}"
         else
             echo "${YELLOW}Installing microk8s v$DEFAULT_MICRO_VERSION ...${NC}"
             snap install microk8s --classic --channel=$DEFAULT_MICRO_VERSION
@@ -406,8 +378,7 @@ function install_microk8s {
             echo ""
         fi
         echo ""
-        echo "${YELLOW}Then continue with the platform deployment script.${NC}"
-        
+        echo "${GREEN}You can now continue with the platform deployment script.${NC}"
         echo ""
         echo ""
         echo ""

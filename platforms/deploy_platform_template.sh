@@ -255,14 +255,13 @@ function clean_up_kubernetes {
     microk8s.kubectl -n $SERVICES_NAMESPACE delete job --ignore-not-found remove-secret
 }
 
-function upload_tar {
-    echo "${YELLOW}Importing the images from the tar, this might take up to one hour...!${NC}"
+function import_container_images_tar {
+    echo "${RED}Importing the images from the tar, this might take a long time -> please be patient and wait.${NC}"
     microk8s.ctr images import $TAR_PATH
     echo "${GREEN}Finished image upload! You should now be able to deploy the platform by specifying the chart path.${NC}"
 }
 
 function deploy_chart {
-
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
         echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the deploy_platform.sh script!${NC}"
         echo "${RED}ABORT${NC}"
@@ -799,7 +798,7 @@ _Argument: --username [Docker registry username]
 _Argument: --password [Docker registry password]
 _Argument: --port [Set main https-port]
 _Argument: --chart-path [path-to-chart-tgz]
-_Argument: --upload-tar [path-to-a-tarball]"
+_Argument: --import-images-tar [path-to-a-tarball]"
 
 QUIET=NA
 
@@ -845,10 +844,10 @@ do
             shift # past value
         ;;
 
-        --upload-tar)
+        --import-images-tar)
             TAR_PATH="$2"
             echo -e "${GREEN}SET TAR_PATH: $TAR_PATH !${NC}";
-            upload_tar
+            import_container_images_tar
             exit 0
         ;;
 

@@ -94,6 +94,7 @@ def generate_deployment_script(platform_chart):
     with open(platform_deployment_script_path_build, 'w') as rsh:
         rsh.write(output)
 
+    os.chmod(platform_deployment_script_path_build, 0o775)
     BuildUtils.logger.debug(f"Deployment script generated.")
 
 
@@ -927,7 +928,6 @@ class HelmChart:
 
         containers_to_built = [(x, containers_to_built[x]) for x in range(0, len(containers_to_built))]
         waiting_containers_to_built = containers_to_built.copy()
-        bar_count = 0
         with alive_bar(container_count, dual_line=True, title='Container-Build') as bar:
             while len(waiting_containers_to_built) != 0 and build_rounds <= BuildUtils.max_build_rounds:
                 build_rounds += 1
@@ -940,9 +940,6 @@ class HelmChart:
                             tmp_waiting_containers_to_built.append(result_container)
                         else:
                             bar()
-                            bar_count+=1
-                            BuildUtils.logger.info(f"{bar_count=}")
-
                             if issue != None:
 
                                 # Close threadpool if error is fatal
@@ -1005,8 +1002,8 @@ class HelmChart:
 
         if BuildUtils.create_offline_installation is True:
             OfflineInstallerHelper.generate_microk8s_offline_version()
-            images_tarball_path = join(dirname(platform_chart.build_chart_dir),f"{platform_chart.name}-{platform_chart.build_version}-containers.tar")
-            OfflineInstallerHelper.export_image_list_into_tarball(image_list=successful_built_containers,images_tarball_path=images_tarball_path)
+            images_tarball_path = join(dirname(platform_chart.build_chart_dir),f"{platform_chart.name}-{platform_chart.build_version}-images.tar")
+            OfflineInstallerHelper.export_image_list_into_tarball(image_list=successful_built_containers,images_tarball_path=images_tarball_path,timeout=4000)
             BuildUtils.logger.info("Finished: Generating platform images tarball.")
 
     @staticmethod

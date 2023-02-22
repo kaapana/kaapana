@@ -273,7 +273,7 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
     Returns:
         (List[schemas.KaapanaExtension])
     """
-    logger.info(f"{platforms=}")
+    logger.debug(f"{platforms=}")
     global update_running, global_extensions_dict_cached, last_refresh_timestamp, refresh_delay, global_platforms_list, last_refresh_timestamp_platforms
     logger.info("getting extensions...")
 
@@ -302,7 +302,10 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
                 logger.debug("updating cache, states_w_indexes {0}".format(states_w_indexes))
                 # recent changes exist, update these in global extensions dict and return
                 for ind, ext in states_w_indexes:
-                    dep = collect_helm_deployments(chart_name=ext.chart_name, platforms=platforms)
+                    chart_name = ext.chart_name
+                    if ext.multiinstallable == "yes":
+                        chart_name = ext.releaseName
+                    dep = collect_helm_deployments(chart_name=chart_name, platforms=platforms)
                     tgz = collect_all_tgz_charts(
                         keywords_filter=keywords_filter,
                         name_filter=ext.chart_name+"-"+ext.version
@@ -699,10 +702,12 @@ def update_extension_state(state: schemas.ExtensionStateUpdate = None):
                 global_extension_states[key] = schemas.ExtensionState.construct(
                     extension_name=ext.chart_name,
                     extension_version=v,
+                    releaseName=ext.releaseName,
                     state=state,
                     update_time=time.time(),
                     last_read_time=time.time(),
-                    recently_updated=False  # since it's the initialization
+                    recently_updated=False,  # since it's the initialization,
+                    multiinstallable=(True if ext["multiinstallable"] == "yes" else False)
                 )
         return
 
@@ -718,10 +723,12 @@ def update_extension_state(state: schemas.ExtensionStateUpdate = None):
         global_extension_states[key] = schemas.ExtensionState.construct(
             extension_name=name,
             extension_version=version,
+            releaseName=name,
             state=state.state,
             update_time=time.time(),
             last_read_time=time.time(),
             recently_updated=True,
+            multiinstallable=state.multiinstallable
         )
     else:
         logger.debug("{0} is already in global_extension_states, updating".format(key))
@@ -750,8 +757,9 @@ def get_recently_updated_extensions() -> List[schemas.KaapanaExtension]:
         for i, ext in enumerate(global_extensions_dict_cached):
             if ext.releaseName == ext_state.extension_name:
                 res.append((i, global_extensions_dict_cached[i]))
+        logger.debug(f"{res=}")
         if len(res) > 1:
-            logger.error("Found more than one matching charts for {0} in cached extensions dict".format(ext_state.extension_name))
+            logger.error(f"Found more than one matching charts for {ext_state.extension_name} in cached extensions dict")
         elif len(res) == 0:
             # found new chart
             logger.info("New chart {0}".format(ext_state.extension_name))
@@ -761,6 +769,8 @@ def get_recently_updated_extensions() -> List[schemas.KaapanaExtension]:
                 (
                     len(global_extensions_dict_cached),
                     schemas.KaapanaExtension.construct(
+                        releaseName=ext_state.releaseName,
+                        multiinstallable=("yes" if ext_state.multiinstallable == True else "no"),
                         chart_name=name,
                         version=version)
                 )

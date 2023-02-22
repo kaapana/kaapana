@@ -9,6 +9,49 @@ from alive_progress import alive_bar
 from shutil import copyfile
 
 class OfflineInstallerHelper:
+    
+    @staticmethod
+    def download_gpu_operator_chart(target_path):
+        BuildUtils.logger.info(f"Downloading gpu-operator helm chart ...")
+        command = ["helm","repo","add","nvidia","https://nvidia.github.io/gpu-operator"]
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
+        if output.returncode != 0:
+            BuildUtils.logger.error(f"Helm download {name} {output.stderr}!")
+            BuildUtils.generate_issue(
+                component="Helm repo add",
+                name=f"Helm repo add NVIDIA",
+                msg=f"Helm failed {output.stderr}!",
+                level="ERROR"
+            )
+        command = ["helm", "repo", "update"]
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
+        if output.returncode != 0:
+            BuildUtils.logger.error(f"Helm repo update {output.stderr}!")
+            BuildUtils.generate_issue(
+                component="Helm repo update",
+                name=f"Helm repo update",
+                msg=f"Helm repo update failed {output.stderr}!",
+                level="ERROR"
+            )
+        
+        name="nvidia/gpu-operator"
+        version="v22.9.2"
+        command = ["helm","pull",name, f"--version={version}",f"--destination={target_path}"]
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+        if output.returncode != 0:
+            BuildUtils.logger.error(f"Helm download {name} {output.stderr}!")
+            BuildUtils.generate_issue(
+                component="Helm download",
+                name=f"Helm download {name}",
+                msg=f"Helm download failed {output.stderr}!",
+                level="ERROR"
+            )
+        else:
+            helm_chart_path = join(target_path,f"gpu-operator-{version}.tgz")
+            new_helm_chart_path = join(target_path,"gpu-operator.tgz")
+            assert exists(helm_chart_path)
+            os.rename(helm_chart_path,new_helm_chart_path)
+
     @staticmethod
     def download_snap_package(name,version,target_path):
         BuildUtils.logger.info(f"Downloading {name} snap package ...")
@@ -32,6 +75,7 @@ class OfflineInstallerHelper:
             assert_file_path = join(target_path,f"{name}_{snap_version}.assert")
             assert exists(assert_file_path)
             os.rename(assert_file_path,assert_file_path.replace(f"_{snap_version}",""))
+
 
     @staticmethod
     def export_image_list_into_tarball(image_list,images_tarball_path,timeout=600):
@@ -61,6 +105,8 @@ class OfflineInstallerHelper:
         
         DEFAULT_HELM_VERSION="latest/stable"
         OfflineInstallerHelper.download_snap_package(name="helm",version=DEFAULT_HELM_VERSION,target_path=microk8s_offline_installer_target_dir)
+        
+        OfflineInstallerHelper.download_gpu_operator_chart(target_path=microk8s_offline_installer_target_dir)
 
         micok8s_base_img_json_path = join(BuildUtils.kaapana_dir,"build-scripts","build_helper","microk8s_images.json")
         assert exists(micok8s_base_img_json_path)
@@ -81,5 +127,10 @@ class OfflineInstallerHelper:
         dst_script_path =join(microk8s_offline_installer_target_dir,basename(server_install_script_path))
         copyfile(src=server_install_script_path,dst=dst_script_path)
         os.chmod(dst_script_path, 0o775)
+
+        offline_enable_gpu_script_path = join(BuildUtils.kaapana_dir,"server-installation","offline_enable_gpu.py")
+        assert exists(offline_enable_gpu_script_path)
+        dst_script_path =join(microk8s_offline_installer_target_dir,basename(offline_enable_gpu_script_path))
+        copyfile(src=offline_enable_gpu_script_path,dst=dst_script_path)
 
         BuildUtils.logger.info("Finished: Generating Microk8s offline installer.")

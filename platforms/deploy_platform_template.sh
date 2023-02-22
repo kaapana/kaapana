@@ -293,7 +293,13 @@ function deploy_chart {
         if [[ $deployments == *"gpu-operator"* ]];then
             echo -e "-> gpu-operator chart already exists"
         else
-            microk8s.enable gpu
+            if [ "$OFFLINE_MODE" = "true" ];then
+                OFFLINE_ENABLE_GPU_PATH=$SCRIPT_DIR/offline_enable_gpu.py
+                [ -f $OFFLINE_ENABLE_GPU_PATH ] && echo "${GREEN}$OFFLINE_ENABLE_GPU_PATH exists ... ${NC}" || (echo "${RED}$OFFLINE_ENABLE_GPU_PATH does not exist -> exit ${NC}" && exit 1)
+                python3 $OFFLINE_ENABLE_GPU_PATH
+            else
+                microk8s.enable gpu
+            fi
         fi
     fi
     
@@ -311,11 +317,23 @@ function deploy_chart {
         echo -e "${YELLOW}You are deploying the platform in offline mode!${NC}"
             read -p "${YELLOW}Please confirm that you are sure that all images are present in microk8s (yes/no): ${NC}" yn
                 case $yn in
-                    [Yy]* ) break;;
-                    [Nn]* ) exit;;
+                    [Yy]* ) echo "${GREEN}Confirmed${NC}"; break;;
+                    [Nn]* ) echo "${RED}Cancel${NC}"; exit;;
                     * ) echo "Please answer yes or no.";;
                 esac
         done
+
+        echo -e "${YELLOW}Checking available images with version: $PLATFORM_VERSION ${NC}"
+        set +e
+        PRESENT_IMAGE_COUNT=$( microk8s.ctr images ls | grep $PLATFORM_VERSION | wc -l)
+        set -e
+        echo -e "${YELLOW}PRESENT_IMAGE_COUNT: $PRESENT_IMAGE_COUNT ${NC}"
+        if [ "$PRESENT_IMAGE_COUNT" -lt "20" ];then
+            echo -e "${RED}There are only $PRESENT_IMAGE_COUNT present with the version $PLATFORM_VERSION - there seems to be an issue. ${NC}"
+            exit 1
+        else
+            echo -e "${GREEN}PRESENT_IMAGE_COUNT: OK ${NC}"
+        fi
 
         OFFLINE_MODE="true"
         DEV_MODE="false"

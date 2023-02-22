@@ -38,6 +38,7 @@ if __name__ == '__main__':
     parser.add_argument("-vsl", "--vulnerability-severity-level", dest="vulnerability_severity_level", default=None, action="store_true", help="Filter by severity of findings. CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN.")
     parser.add_argument("-cc", "--configuration-check", dest="configuration_check", default=None, action="store_true", help="Wheter the Charts, deployments, dockerfiles etc. should be checked for configuration errors")
     parser.add_argument("-ccl", "--configuration-check-severity-level", dest="configuration_check_severity_level", default=None, action="store_true", help="Filter by severity of findings. CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN.")
+    parser.add_argument("--latest", dest="latest", default=False, action="store_true", help="Force version to 'latest'")
     args = parser.parse_args()
 
     kaapana_dir = args.kaapana_dir if args.kaapana_dir != None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -142,6 +143,7 @@ if __name__ == '__main__':
     vulnerability_severity_level = args.vulnerability_severity_level if args.vulnerability_severity_level != None else conf_vulnerability_severity_level
     configuration_check = args.configuration_check if args.configuration_check != None else conf_configuration_check
     configuration_check_severity_level = args.configuration_check_severity_level if args.configuration_check_severity_level != None else conf_configuration_check_severity_level
+    version_latest = args.latest
 
     for external_source_dir in external_source_dirs:
         if not os.path.isdir(external_source_dir):
@@ -253,6 +255,7 @@ if __name__ == '__main__':
         vulnerability_severity_level=vulnerability_severity_level,
         configuration_check=configuration_check,
         configuration_check_severity_level=configuration_check_severity_level,
+        version_latest=version_latest
     )
 
     Container.init_containers(

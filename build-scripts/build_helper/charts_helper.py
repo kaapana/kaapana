@@ -861,6 +861,8 @@ class HelmChart:
         BuildUtils.logger.info(f"-> Start platform-build for: {platform_chart.name}")
 
         repo_version, repo_branch, repo_last_commit, repo_last_commit_timestamp = BuildUtils.get_repo_info(platform_chart.chart_dir)
+        if BuildUtils.version_latest:
+            repo_version = "0.0.0"
 
         BuildUtils.platform_name = platform_chart.name
         BuildUtils.platform_build_version = repo_version

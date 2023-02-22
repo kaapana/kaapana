@@ -24,17 +24,13 @@ class BuildUtils:
     create_offline_installation = None
     skip_push_no_changes = None
     push_to_microk8s = None
-    kaapana_build_version = None
-    kaapana_build_branch = None
-    kaapana_last_commit_timestamp = None
-    build_timestamp = None
     parallel_processes = None
     vulnerability_scan = None
     vulnerability_severity_level = None
     configuration_check = None
     configuration_check_severity_level = None
     thread_pool = None
-    
+    version_latest = False
     platform_name = None
     platform_build_version = None
     platform_build_branch = None
@@ -62,9 +58,10 @@ class BuildUtils:
     @staticmethod
     def init(kaapana_dir, build_dir, external_source_dirs, build_ignore_patterns, platform_filter, default_registry, http_proxy, logger, exit_on_error, enable_build_kit,
              create_offline_installation, skip_push_no_changes, parallel_processes, include_credentials, registry_user, registry_pwd, push_to_microk8s, vulnerability_scan,
-             vulnerability_severity_level, configuration_check, configuration_check_severity_level):
+             vulnerability_severity_level, configuration_check, configuration_check_severity_level,version_latest):
 
         BuildUtils.logger = logger
+        BuildUtils.version_latest = version_latest
         BuildUtils.kaapana_dir = kaapana_dir
         BuildUtils.build_dir = build_dir
         BuildUtils.platform_filter = platform_filter
@@ -101,7 +98,6 @@ class BuildUtils:
             repo_dir = dirname(repo_dir)
         assert repo_dir != "/"
 
-
         requested_repo = Repo(repo_dir)
         assert not requested_repo.bare
 
@@ -123,7 +119,7 @@ class BuildUtils:
             build_version = requested_repo.git.describe()
             build_branch = requested_repo.active_branch.name.split("/")[-1]
             version_check = semver.VersionInfo.parse(build_version)
-
+        
         return build_version, build_branch, last_commit, last_commit_timestamp
 
     @staticmethod

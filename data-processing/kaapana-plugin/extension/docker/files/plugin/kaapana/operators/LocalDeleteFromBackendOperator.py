@@ -31,9 +31,11 @@ class LocalDeleteFromBackendOperator(KaapanaPythonBaseOperator):
                 resp = requests.delete(
                     f'http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client/identifier?identifier={series_uid}'
                 )
-                if resp.status_code != 200:
+                if resp.status_code == 404:
+                    print('Item not found in database. This might happen when an item was not used in a Dataset/Cohort')
+                elif resp.status_code != 200:
                     print(f'Failed to delete {series_uid} from backend with: [{resp.status_code}] {resp.text}')
-                    exit(0)
+                    exit(1)
             else:
                 json_files = sorted([*Path(batch_element_dir, self.operator_in_dir).rglob("*.json*")])
                 for meta_files in json_files:
@@ -43,9 +45,14 @@ class LocalDeleteFromBackendOperator(KaapanaPythonBaseOperator):
                         resp = requests.delete(
                             f'http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client/identifier?identifier={series_uid}'
                         )
-                        if resp.status_code != 200:
+                        if resp.status_code == 404:
+                            print(
+                                'Item not found in database. This might happen when '
+                                'an item was not used in a Dataset/Cohort'
+                            )
+                        elif resp.status_code != 200:
                             print(f'Failed to delete {series_uid} from backend with: [{resp.status_code}] {resp.text}')
-                            exit(0)
+                            exit(1)
 
     def __init__(self,
                  dag,

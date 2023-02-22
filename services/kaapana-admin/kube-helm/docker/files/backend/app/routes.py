@@ -138,7 +138,7 @@ async def update_extensions():
         return Response(msg, 202)
     else:
         logger.error(f"/update-extensions failed {msg}")
-        return Response(f"Extesions update failed {msg}", 500)
+        return Response(f"Extensions update failed {msg}", 500)
 
 
 @router.post("/helm-delete-chart")
@@ -150,20 +150,24 @@ async def helm_delete_chart(request: Request):
         release_version = None
         helm_command_addons = ''
         helm_namespace = settings.helm_namespace
+        multiinstallable = False
         if "release_version" in payload:
             release_version = payload["release_version"]
         if "helm_command_addons" in payload:
             helm_command_addons = payload["helm_command_addons"]
         if "helm_namespace" in payload:
             helm_namespace = payload["helm_namespace"]
+        if ("multiinstallable" in payload) and payload["multiinstallable"].lower() in ["true", "yes"]:
+            multiinstallable = True
         success, stdout = utils.helm_delete(
             release_name=payload["release_name"],
             release_version=release_version,
             helm_namespace=helm_namespace,
             helm_command_addons=helm_command_addons,
+            multiinstallable=multiinstallable
         )
         if success:
-            return Response(f"Successfully uninstalled {payload['release_name']}", 200)
+            return Response(f"Successfully ran uninstall command for {payload['release_name']}", 200)
         else:
             return Response(f"{stdout}", 400)
     except AssertionError as e:
@@ -183,10 +187,10 @@ async def helm_install_chart(request: Request):
         assert "version" in payload, "Required key 'version' not found in payload"
         platforms = False
         cmd_addons=""
+        blocking=False
         if ("platforms" in payload) and (str(payload["platforms"]).lower() == "true"):
             platforms = True
-            cmd_addonds = "--create-namespace"
-        blocking=False
+            cmd_addons = "--create-namespace"
         if ("blocking" in payload) and (str(payload["blocking"]).lower() == "true"):
             blocking = True
         success, stdout, _, _, cmd = utils.helm_install(
@@ -195,7 +199,7 @@ async def helm_install_chart(request: Request):
             if blocking:
                 return Response(f"Successfully installed: {stdout}", 200)
             else:
-                return Response(f"Successfully ran helm install command (non-blocking) {cmd}", 200)
+                return Response(f"Successfully ran helm install command {cmd}", 200)
         else:
             return Response(f"Chart install command failed {stdout}", 500)
     except AssertionError as e:

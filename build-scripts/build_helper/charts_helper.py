@@ -927,6 +927,7 @@ class HelmChart:
 
         containers_to_built = [(x, containers_to_built[x]) for x in range(0, len(containers_to_built))]
         waiting_containers_to_built = containers_to_built.copy()
+        bar_count = 0
         with alive_bar(container_count, dual_line=True, title='Container-Build') as bar:
             while len(waiting_containers_to_built) != 0 and build_rounds <= BuildUtils.max_build_rounds:
                 build_rounds += 1
@@ -939,6 +940,9 @@ class HelmChart:
                             tmp_waiting_containers_to_built.append(result_container)
                         else:
                             bar()
+                            bar_count+=1
+                            BuildUtils.logger.info(f"{bar_count=}")
+
                             if issue != None:
 
                                 # Close threadpool if error is fatal
@@ -998,7 +1002,6 @@ class HelmChart:
 
                     # Print progress bar
                     bar()
-                    
 
         if BuildUtils.create_offline_installation is True:
             OfflineInstallerHelper.generate_microk8s_offline_version()

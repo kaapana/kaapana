@@ -609,10 +609,9 @@ def update_cohort(db: Session, cohort=schemas.CohortUpdate):
 
     if cohort.cohort_query and not cohort.cohort_identifiers:
         cohort.cohort_identifiers = get_uid_list_from_query(cohort.cohort_query)
-    # TODO: probably have to retrieve them from the db
 
     db_identifiers = [
-        get_identifier(db, identifier.identifier)
+        create_identifier_if_not_present(db, identifier)
         for identifier in cohort.cohort_identifiers
     ]
 

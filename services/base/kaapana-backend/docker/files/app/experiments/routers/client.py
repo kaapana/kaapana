@@ -1,6 +1,7 @@
 import copy
 import json
 from typing import List
+import logging
 
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
@@ -9,7 +10,9 @@ from sqlalchemy.orm import Session
 from app.dependencies import get_db
 from app.experiments import crud
 from app.experiments import schemas
-from app.experiments.utils import get_dag_list
+from app.experiments.utils import get_dag_list, raise_kaapana_connection_error
+
+logging.getLogger().setLevel(logging.INFO)
 
 router = APIRouter(tags=["client"])
 
@@ -206,7 +209,7 @@ async def ui_form_schemas(request: Request, filter_kaapana_instances: schemas.Fi
         elif len(datasets) == 1:    # if just one instance is selected -> return (allowed) datasets of this instance
             schemas["data_form"]["properties"]["cohort_name"]["oneOf"] = [{"const": d, "title": d} for d in list(datasets.values())[0]]
     
-    # print(f"\n\nFinal Schema: \n{schemas}")
+    # logging.info(f"\n\nFinal Schema: \n{schemas}")
     return JSONResponse(content=schemas)
 
 @router.get("/check-for-remote-updates")

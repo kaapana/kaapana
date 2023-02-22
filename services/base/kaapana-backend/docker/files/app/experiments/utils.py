@@ -1,6 +1,7 @@
 import json
 import os
 import requests
+import logging
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from datetime import timezone, timedelta
@@ -11,6 +12,8 @@ from app.config import settings
 from opensearchpy import OpenSearch
 from minio import Minio
 from urllib3.util import Timeout
+
+logging.getLogger().setLevel(logging.INFO)
 
 TIMEOUT_SEC = 5
 TIMEOUT = Timeout(TIMEOUT_SEC)
@@ -112,7 +115,7 @@ def get_uid_list_from_query(cohort_query):
         res = os_client.search(index=cohort_query["index"], body=cohort_query["query_dict"], size=10000, from_=0)
     except Exception as e:
         raise ValueError("ERROR in OpenSearch search!")
-        print(e)
+        logging.error(e)
 
     if 'hits' in res and 'hits' in res['hits']:
         return [

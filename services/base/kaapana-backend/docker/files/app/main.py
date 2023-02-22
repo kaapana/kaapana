@@ -1,6 +1,7 @@
 import requests
 import urllib3
 import os
+import logging
 from fastapi import Depends, FastAPI, Request
 
 from .admin import routers as admin
@@ -20,6 +21,8 @@ models.Base.metadata.create_all(bind=engine)
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+logging.getLogger().setLevel(logging.INFO)
+
 # app = FastAPI()
 app = FastAPI()
 
@@ -30,8 +33,8 @@ def periodically_get_remote_updates():
         try:
             get_remote_updates(db, periodically=True)
         except Exception as e:
-            print('Something went wrong updating')
-            print(e)
+            logging.warning('Something went wrong updating')
+            logging.warning(e)
 
 
 app.include_router(

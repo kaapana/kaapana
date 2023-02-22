@@ -1,6 +1,6 @@
 <template>
   <v-container fluid class="content pa-0">
-    <v-container fluid class="overview-shared pa-0">
+    <v-container fluid class="overview-shared pa-0" style="position: relative">
       <v-container class="pa-0" fluid>
         <v-card class="rounded-0">
           <div style="padding: 0 10px 10px 10px">
@@ -35,33 +35,85 @@
         </v-card>
       </v-container>
       <v-container fluid class="gallery overflow-auto rounded-0 v-card v-sheet pa-0">
-        <v-skeleton-loader
-            v-if="isLoading"
-            class="mx-auto"
-            type="list-item@20"
-        ></v-skeleton-loader>
-        <StructuredGallery
-            v-else-if="!isLoading && data.length > 0 && structuredGallery"
-            :patients="data"
-            :selectedTags="tags"
-            :cohort_name="cohort_name"
-            @imageId="(imageId) => this.image_id = imageId"
-        />
-        <Gallery
-            v-else-if="!isLoading && data.length > 0 && !structuredGallery"
-            :data="data"
-            :selectedTags="tags"
-            :cohort_name="cohort_name"
-            @imageId="(imageId) => this.image_id = imageId"
-        />
-        <h3 v-else>
-          {{ message }}
-        </h3>
-      </v-container>
+      <v-skeleton-loader
+          v-if="isLoading"
+          class="mx-auto"
+          type="list-item@20"
+      ></v-skeleton-loader>
+      <StructuredGallery
+          v-else-if="!isLoading && data.length > 0 && structuredGallery"
+          :patients="data"
+          :selectedTags="tags"
+          :cohort_name="cohort_name"
+          @imageId="(imageId) => this.image_id = imageId"
+          @selected="(_imageIds) => this.imageIds = _imageIds"
+      />
+      <Gallery
+          v-else-if="!isLoading && data.length > 0 && !structuredGallery"
+          :data="data"
+          :selectedTags="tags"
+          :cohort_name="cohort_name"
+          @imageId="(imageId) => this.image_id = imageId"
+          @selected="(_imageIds) => this.imageIds = _imageIds"
+      />
+      <h3 v-else>
+        {{ message }}
+      </h3>
+    </v-container>
+      <v-speed-dial
+          v-if="imageIds.length > 0"
+          v-model="fab"
+          bottom
+          right
+          absolute
+          direction="top"
+          :open-on-hover="true"
+          transition="slide-y-reverse-transition"
+          dense
+      >
+        <template v-slot:activator>
+          <v-btn
+              v-model="fab"
+              color="blue darken-2"
+              dark
+              fab
+          >
+            <v-icon v-if="fab">
+              mdi-close
+            </v-icon>
+            <v-icon v-else>
+              mdi-file-edit-outline
+            </v-icon>
+          </v-btn>
+        </template>
+        <v-btn
+            fab
+            dark
+            small
+            color="green"
+        >
+          <v-icon>mdi-pencil</v-icon>
+        </v-btn>
+        <v-btn
+            fab
+            dark
+            small
+            color="indigo"
+        >
+          <v-icon>mdi-plus</v-icon>
+        </v-btn>
+        <v-btn
+            fab
+            dark
+            small
+            color="red"
+        >
+          <v-icon>mdi-delete</v-icon>
+        </v-btn>
+      </v-speed-dial>
     </v-container>
     <v-container
         fluid class="sidebar rounded-0 v-card v-sheet pa-0"
-        :style="this.image_id ? '' : 'height: calc(100vh - 60px);'"
     >
       <DetailView
           v-if="this.image_id"
@@ -97,12 +149,14 @@ export default {
       data: [],
       tags: [],
       image_id: null,
+      imageIds: [],
       isLoading: true,
       message: 'Loading...',
       structuredGallery: null,
       cohort_names: [],
       cohort_name: null,
-      metadata: {}
+      metadata: {},
+      fab: false
     };
   },
   components: {
@@ -189,7 +243,7 @@ export default {
 <style scoped>
 .sidebar {
   width: 30%;
-  /*height: calc(100vh + 65px);*/
+  height: calc(100vh - 81px);
   float: left;
   overflow-y: auto;
 }
@@ -198,7 +252,6 @@ export default {
   width: 70%;
   float: left;
   height: calc(100vh - 81px);
-  overflow-y: auto;
 }
 
 .overview-full {
@@ -208,7 +261,7 @@ export default {
 }
 
 .gallery {
-  height: calc(100vh - 81px);
+  height: calc(100vh - 227px);
 }
 
 .content {

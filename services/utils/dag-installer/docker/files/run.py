@@ -76,7 +76,7 @@ for file_path in files_to_copy:
         continue
 
     dest_path = os.path.join("/",rel_dest_path)
-    if not dest_path.startswith("/plugins") and not dest_path.startswith("/dags") and not dest_path.startswith("/kaapanadevdata"):
+    if not dest_path.startswith("/plugins") and not dest_path.startswith("/dags") and not dest_path.startswith("/mounted_scripts"):
         print(f"Unknown prefix for {dest_path=} -> issue")
         exit(1)
     

@@ -38,11 +38,9 @@ RUN code-server --install-extension ms-python.python
 
 # Juyterlab
 # Disable security token for Jupyter lab
-
-# TODO re-enable again
-# RUN jupyter-lab --generate-config \
-#  && sed -i "s/^.*ServerApp.token.*$/c.ServerApp.token = ''/g" /root/.jupyter/jupyter_lab_config.py
-# COPY files/jupyterlab.sh /
+RUN jupyter-lab --generate-config \
+ && sed -i "s/^.*ServerApp.token.*$/c.ServerApp.token = ''/g" /root/.jupyter/jupyter_lab_config.py
+COPY files/jupyterlab.sh /
 COPY files/kaapana_federated /kaapana_federated
 
 WORKDIR /app

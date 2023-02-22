@@ -3,22 +3,31 @@
     <v-card
         @click="onClick"
         height="100%"
+        :id="seriesInstanceUID"
     >
       <!--      padding: 5px; background: red-->
       <v-img
           :src="src"
           aspect-ratio="1"
+          @error="() => this.img_loading_error = true"
       >
         <template v-slot:placeholder>
           <v-row
               class="fill-height ma-0"
               align="center"
               justify="center"
+              :style="img_loading_error ? 'background-color: darkgray': ''"
           >
             <v-progress-circular
+                v-if="!img_loading_error"
                 indeterminate
                 color="#0088cc"
             ></v-progress-circular>
+            <div v-else style="text-align: center">
+              <p></p>
+              <v-icon>mdi-alert-circle-outline</v-icon>
+              <p>Thumbnail unavailable</p>
+            </div>
           </v-row>
         </template>
 
@@ -42,9 +51,9 @@
       <v-card-text v-if="config.display_card_text">
         <v-row no-gutters>
           <v-col cols="11">
-              <div class="text-truncate">
-                {{ seriesDescription }}
-              </div>
+            <div class="text-truncate">
+              {{ seriesDescription }}
+            </div>
           </v-col>
           <v-col cols="1">
             <v-tooltip bottom>
@@ -122,11 +131,11 @@ export default {
     },
     selected_tags: {
       type: Array,
-      default: []
+      default: () => ([])
     },
     cohort_names: {
       type: Array,
-      default: []
+      default: () => ([])
     }
   },
   data() {
@@ -138,6 +147,8 @@ export default {
       tags: [],
       config: {},
       tagsData: [],
+
+      img_loading_error: false,
 
       // only required for double-click-event
       clicks: 0,
@@ -172,26 +183,27 @@ export default {
       localStorage[key] = JSON.stringify(this.config)
     }
 
-    await this.get_data();
-    this.tagsData = await getDicomTags(this.studyInstanceUID, this.seriesInstanceUID)
+    this.get_data();
+    getDicomTags(this.studyInstanceUID, this.seriesInstanceUID).then(data => this.tagsData = data)
   },
   watch: {
     // todo: why is this needed?
     async seriesInstanceUID() {
-      await this.get_data();
+      this.get_data();
     }
   },
   methods: {
-    async get_data() {
+    get_data() {
       if (this.seriesInstanceUID !== '') {
-        const data = await loadSeriesFromMeta(this.seriesInstanceUID)
-        if (data !== undefined) {
-          this.src = data.src || ''
-          this.seriesDescription = data.seriesDescription || ''
-          this.modality = data.modality || ''
-          this.seriesData = data.seriesData || {}
-          this.tags = data.tags || []
-        }
+        loadSeriesFromMeta(this.seriesInstanceUID).then(data => {
+          if (data !== undefined) {
+            this.src = data.src || ''
+            this.seriesDescription = data.seriesDescription || ''
+            this.modality = data.modality || ''
+            this.seriesData = data.seriesData || {}
+            this.tags = data.tags || []
+          }
+        })
       }
     },
     async deleteTag(tag) {
@@ -245,7 +257,6 @@ export default {
           })
     },
     onClick() {
-      // this.$emit('delete')
       // helper function
       function single_click() {
         this.timer = setTimeout(() => {
@@ -264,7 +275,6 @@ export default {
       this.clicks = 0;
       // double click
       this.show_details(this.seriesInstanceUID)
-      // TODO: add indicator for selected element
     },
     show_details(objectImage) {
       this.$emit('imageId', objectImage);

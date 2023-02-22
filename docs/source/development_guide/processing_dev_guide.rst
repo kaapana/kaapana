@@ -146,12 +146,12 @@ The python file looks like this:
 
 .. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/processing-containers/extract-study-id/files/extract_study_id.py
 
-We just store the python file in the :code:`/kaapanadevdata` directory of the docker container as ``/extract_study_id.py``.
+We just store the python file in the :code:`/mounted_scripts` directory of the docker container as ``/extract_study_id.py``.
 To check if everything works as expected open a terminal in the code-server and run :code:`python3 extract-study-id.py`.
 After we are finished we terminate the dev server in the "Pending applications" tab of Kaapana, with the "FINISHED MANUAL INTERACTION" button.
 
 .. hint:: 
-    The :code:`/kaapanadevdata` directory in the container of any operator initialized with the parameter ``dev_server="code-server"`` is mounted to the Minio bucket "kaapanadevdata".
+    The :code:`/mounted_scripts` directory in the container of any operator initialized with the parameter ``dev_server="code-server"`` is mounted to the Minio bucket "mounted_scripts".
     Hence, you don't have to worry that your files in this directory are lost after the container is killed.
     You can also use the Minio bucket to download your files, e.g., in order to build an image in the next step.
 

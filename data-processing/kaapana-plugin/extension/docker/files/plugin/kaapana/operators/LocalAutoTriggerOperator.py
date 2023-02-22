@@ -23,7 +23,9 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
         JSON file example:
        [
           {
-             "search_tags": {},
+             "search_tags": {
+                "0x0008,0x0060": "SEG"
+             },
              "dag_ids": {
                    <dag id to trigger>: {
                       "fetch_method": "copy",

@@ -1,40 +1,56 @@
 <template>
-  <LazyList
-      :data="processed_data"
-      :itemsPerRender="24"
-      containerClasses="list row"
-      defaultLoadingColor="#222"
-      style="margin: auto; height:auto"
-  >
-    <template v-slot="{item}">
-      <v-col :cols="cols">
-<!--        TODO: maybe provide cohortNames or cache it-->
-        <CardSelect
-            :cohort_name="cohort_name"
-            :cohort_names="cohort_names"
-            :series-instance-u-i-d="item.seriesInstanceUID"
-            :study-instance-u-i-d="item.studyInstanceUID"
-            :selected_tags="inner_selectedTags"
-            @imageId="propagateImageId({
+  <v-container style="height: 100%">
+    <VueSelecto
+        dragContainer=".elements"
+        :selectableTargets='[".selecto-area .v-card"]'
+        :hitRate='0'
+        :selectByClick='true'
+        :selectFromInside='true'
+        :toggleContinueSelect='["shift"]'
+        :ratio='0'
+        :scrollOptions='scrollOptions'
+        @dragStart="onDragStart"
+        @select="onSelect"
+        @scroll="onScroll"
+    ></VueSelecto>
+    <v-container class="elements selecto-area" id="selecto1" ref="scroller" style="height: 100%">
+      <v-row>
+        <v-col v-for="item in processed_data" :cols="cols">
+          <v-lazy
+              v-model="item.isActive"
+              :options="{
+                threshold: .5,
+                delay: 100
+            }"
+              class="fill-height">
+            <CardSelect
+                :cohort_name="cohort_name"
+                :cohort_names="cohort_names"
+                :series-instance-u-i-d="item.seriesInstanceUID"
+                :study-instance-u-i-d="item.studyInstanceUID"
+                :selected_tags="inner_selectedTags"
+                @imageId="propagateImageId({
                                     seriesInstanceUID: item.seriesInstanceUID,
                                     studyInstanceUID: item.studyInstanceUID,
                                     seriesDescription: item.seriesDescription
                                   })"
-            @removeFromCohort="removeFromCohort(item)"
-            @deleteFromPlatform="deleteFromPlatform(item)"
-        />
-      </v-col>
-    </template>
-  </LazyList>
+                @removeFromCohort="removeFromCohort(item)"
+                @deleteFromPlatform="deleteFromPlatform(item)"
+            />
+          </v-lazy>
+        </v-col>
+      </v-row>
+    </v-container>
+  </v-container>
 </template>
 
 <script>
 /* eslint-disable */
 
 import Chip from "./Chip.vue";
-import LazyList from './lazy-load-list/LazyList.vue'
 import CardSelect from "./CardSelect";
 import {deleteSeriesFromPlatform, loadCohortNames, updateCohort} from "../common/api.service";
+import {VueSelecto} from "vue-selecto";
 
 export default {
   name: 'Gallery',
@@ -54,14 +70,16 @@ export default {
   components: {
     CardSelect,
     Chip,
-    LazyList
+    VueSelecto
   },
   data() {
     return {
       cohort_names: [],
       image_id: null,
       inner_data: [],
-      inner_selectedTags: []
+      inner_selectedTags: [],
+      scrollOptions: {},
+      selected: []
     };
   },
   mounted() {
@@ -99,12 +117,34 @@ export default {
               studyInstanceUID: i['0020000D StudyInstanceUID_keyword'],
               seriesNumber: i['00200011 SeriesNumber_integer'],
               seriesDescription: i['0008103E SeriesDescription_keyword'],
+              active: false
             }
           }
       )
     }
   },
   methods: {
+    onDragStart(e) {
+      if (e.inputEvent.target.nodeName === "BUTTON") {
+        return false;
+      }
+      return true;
+    },
+    onSelect(e) {
+      e.added.forEach(el => {
+        el.classList.add("selected");
+      });
+      e.removed.forEach(el => {
+        el.classList.remove("selected");
+      })
+      this.$emit('selected', e.selected.map(el=> el.id))
+    },
+    onScroll(e) {
+      this.$refs.scroller.scrollBy(e.direction[0] * 10, e.direction[1] * 10);
+    },
+    resetScroll() {
+      this.$refs.scroller.scrollTo(0, 0);
+    },
     async removeFromCohort(item) {
       if (this.cohort_name !== null) {
         try {
@@ -167,11 +207,102 @@ export default {
   },
 };
 </script>
-<style scoped>
+<style>
+
 .col {
   padding: 5px;
 }
+
 .inner-gallery-height {
   height: calc(100vh - 78px)
+}
+
+.cube {
+  display: inline-block;
+  border-radius: 5px;
+
+  margin: 4px;
+  /*background: #eee;*/
+  --color: #4af;
+}
+
+.elements {
+  /*margin-top: 40px;*/
+  /*border: 2px solid #eee;*/
+}
+
+.selecto-area {
+  /*padding: 20px;*/
+}
+
+#selecto1 .cube {
+  transition: all ease 0.2s;
+}
+
+.moveable #selecto1 .cube {
+  transition: none;
+}
+
+.selected {
+  /*TODO: This should be aligned with theme*/
+  color: #fff !important;
+  background: #4af !important;
+}
+
+.scroll {
+  overflow: auto;
+  /*padding-top: 10px;*/
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.infinite-viewer,
+.scroll {
+  width: 100%;
+  /*height: 300px;*/
+  box-sizing: border-box;
+}
+
+.infinite-viewer .viewport {
+  /*padding-top: 10px;*/
+}
+
+.empty.elements {
+  border: none;
+}
+
+/*custom virtual scroll*/
+.wrapper {
+  display: flex !important;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+
+.scroller {
+  /*flex: 1;*/
+}
+
+.scroller :deep(.hover) img {
+  opacity: 0.5;
+}
+
+.item {
+  height: 50px;
+  padding: 6px;
+  margin: 6px;
+  border: 1px solid #b0b0b0;
+  border-radius: 0.25rem;
+
+  flex: 0 1 80px;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
 }
 </style>

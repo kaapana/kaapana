@@ -127,7 +127,7 @@ spec:
       storage: "1Mi"
   volumeName: "minio-jobs-pv-volume"
 ---
-# af-data jobs
+# af-data-jobs
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -169,4 +169,47 @@ spec:
     requests:
       storage: "1Mi"
   volumeName: "af-data-jobs-pv-volume"
+---
+# mounted-scripts-jobs
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ms-jobs-pv-volume
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: "1Mi"
+{{- if .Values.global.enable_nfs }}
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/workflows/mounted_scripts"
+{{- else }}
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.fast_data_dir }}/workflows/mounted_scripts"
+{{- end }}
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{ .Values.global.jobs_namespace }}"
+    name: ms-jobs-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ms-jobs-pv-claim
+  namespace: "{{ .Values.global.jobs_namespace }}"
+spec:
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: "1Mi"
+  volumeName: "ms-jobs-pv-volume"
 ---

@@ -6,6 +6,8 @@ from time import time
 from shutil import which
 from build_helper.build_utils import BuildUtils
 from alive_progress import alive_bar
+from build_helper.security_utils import TrivyUtils
+import json
 
 suite_tag = "Container"
 max_retries = 5
@@ -500,19 +502,40 @@ class Container:
 
         if len(dockerfiles_found) != len(set(dockerfiles_found)):
             BuildUtils.logger.warning("-> Duplicate Dockerfiles found!")
+        
+        # Init Trivy
+        trivy_utils = TrivyUtils()
 
         dockerfiles_found = sorted(set(dockerfiles_found))
-        with alive_bar(len(dockerfiles_found), dual_line=True, title='Collect-Container') as bar:
+
+        if BuildUtils.configuration_check:
+            bar_title = 'Collect container and check configuration'
+        else:
+            bar_title = 'Collect container'
+
+        with alive_bar(len(dockerfiles_found), dual_line=True, title=bar_title) as bar:
             for dockerfile in dockerfiles_found:
                 bar()
                 if BuildUtils.build_ignore_patterns != None and len(BuildUtils.build_ignore_patterns) > 0 and sum([ignore_pattern in dockerfile for ignore_pattern in  BuildUtils.build_ignore_patterns]) != 0:
                     BuildUtils.logger.debug(f"Ignoring Dockerfile {dockerfile}")
-                    continue            
+                    continue
+
+                # Check Dockerfiles for configuration errors using Trivy
+                if BuildUtils.configuration_check:
+                    trivy_utils.check_dockerfile(dockerfile)
+
                 container = Container(dockerfile)
                 bar.text(container.image_name)
                 Container.container_object_list.append(container)
 
         Container.container_object_list = Container.check_base_containers(Container.container_object_list)
+
+        # Safe the Dockerfile report to the build directory if there are any errors
+        if not trivy_utils.compressed_dockerfile_report == {}:
+            BuildUtils.logger.error("Found configuration errors in Dockerfile! See compressed_dockerfile_report.json for details.")
+            with open(os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), 'w') as f:
+                json.dump(trivy_utils.compressed_dockerfile_report, f)
+
         return Container.container_object_list
 
     @staticmethod

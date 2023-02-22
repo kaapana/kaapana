@@ -15,6 +15,7 @@ from jinja2 import Environment, FileSystemLoader
 from multiprocessing.pool import ThreadPool
 import networkx as nx
 from alive_progress import alive_bar
+from build_helper.security_utils import TrivyUtils
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
@@ -59,9 +60,6 @@ def generate_deployment_script(platform_chart):
     platform_params = yaml.load(open(deployment_script_config_path[0]), Loader=yaml.FullLoader)
     platform_params["platform_name"] = platform_chart.name
     platform_params["platform_build_version"] = BuildUtils.platform_build_version
-    platform_params["platform_build_branch"] = BuildUtils.platform_build_branch
-    platform_params["platform_last_commit_timestamp"] = BuildUtils.platform_last_commit_timestamp
-    platform_params["platform_build_timestamp"] = datetime.now().strftime("%d-%m-%Y")
     platform_params["container_registry_url"] = BuildUtils.default_registry
     if BuildUtils.include_credentials:
         platform_params["container_registry_username"] = BuildUtils.registry_user
@@ -819,6 +817,27 @@ class HelmChart:
                 else:
                     f.write(chart_file_line)
 
+        # Update values.yaml of platform chartsdo to contain build meta information
+        if src_chart.kaapana_type != None and src_chart.kaapana_type == "platform":
+            src_chart.build_valuesfile = join(target_build_dir, "values.yaml")
+            if not exists(src_chart.build_valuesfile):
+                values = {}
+            else:
+                values = yaml.load(open(src_chart.build_valuesfile), Loader=yaml.FullLoader)
+
+            if 'global' not in values:
+                values['global'] = {}
+
+            values['global'].update({
+                'platform_build_branch': BuildUtils.platform_build_branch,
+                'platform_last_commit_timestamp': BuildUtils.platform_last_commit_timestamp,
+                'build_timestamp': datetime.now().strftime("%d-%m-%Y"),
+                'kaapana_build_version': BuildUtils.platform_build_version
+            })
+            with open(src_chart.build_valuesfile, "w") as f:
+                yaml.dump(values, f)
+
+
         for dep_chart_index, (dep_chart_key, dep_chart) in enumerate(src_chart.dependencies.items()):
             dep_chart_build_target_dir = join(target_build_dir, "charts", dep_chart.name)
             HelmChart.create_chart_build_version(src_chart=dep_chart, target_build_dir=dep_chart_build_target_dir,bar=bar)
@@ -911,29 +930,35 @@ class HelmChart:
             while len(waiting_containers_to_built) != 0 and build_rounds <= BuildUtils.max_build_rounds:
                 build_rounds += 1
                 tmp_waiting_containers_to_built = []
-                result_containers = ThreadPool(BuildUtils.parallel_processes).imap_unordered(parallel_execute, containers_to_built)
-
-                for queue_id, result_container, issue, done in result_containers:
-                    if not done:
-                        BuildUtils.logger.info(f"{result_container.build_tag}: Base image not ready yet -> waiting list")
-                        tmp_waiting_containers_to_built.append(result_container)
-                    else:
-                        bar()
-                        if issue != None:
-                            bar.text(f"{result_container.tag}: ERROR")
-                            BuildUtils.logger.info("")
-                            BuildUtils.generate_issue(
-                                component=issue["component"],
-                                name=issue["name"],
-                                level=issue["level"],
-                                msg=issue["msg"],
-                                output=issue["output"] if "output" in issue else None,
-                                path=issue["path"] if "path" in issue else "",
-                            )
+                with ThreadPool(BuildUtils.parallel_processes) as threadpool:
+                    result_containers = threadpool.imap_unordered(parallel_execute, containers_to_built)
+                    for queue_id, result_container, issue, done in result_containers:
+                        if not done:
+                            BuildUtils.logger.info(f"{result_container.build_tag}: Base image not ready yet -> waiting list")
+                            tmp_waiting_containers_to_built.append(result_container)
                         else:
-                            bar.text(f"{result_container.tag}: ok")
+                            bar()
+                            if issue != None:
 
-                waiting_containers_to_built = tmp_waiting_containers_to_built
+                                # Close threadpool if error is fatal
+                                if BuildUtils.exit_on_error or issue["level"] == "FATAL":
+                                    threadpool.terminate()
+                                    threadpool.join()
+
+                                bar.text(f"{result_container.tag}: ERROR")
+                                BuildUtils.logger.info("")
+                                BuildUtils.generate_issue(
+                                    component=issue["component"],
+                                    name=issue["name"],
+                                    level=issue["level"],
+                                    msg=issue["msg"],
+                                    output=issue["output"] if "output" in issue else None,
+                                    path=issue["path"] if "path" in issue else "",
+                                )
+                            else:
+                                bar.text(f"{result_container.tag}: ok")
+
+                    waiting_containers_to_built = tmp_waiting_containers_to_built
         
         if build_rounds == BuildUtils.max_build_rounds:
             BuildUtils.generate_issue(
@@ -946,6 +971,33 @@ class HelmChart:
         BuildUtils.logger.info("")
         BuildUtils.logger.info("")
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
+
+        # Scan for vulnerabilities if enabled
+        if BuildUtils.vulnerability_scan is True:
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("Starting vulnerability scan...")
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("")
+            with alive_bar(len(successful_built_containers), dual_line=True, title='Vulnerability Scan') as bar:
+                
+                # Init trivy utils
+                trivy_utils = TrivyUtils()
+
+                # Loop through all built containers and scan them
+                for image_build_tag in sorted(successful_built_containers):
+                    # Set progress bar text
+                    bar.text(image_build_tag)
+
+                    # Create SBOM
+                    trivy_utils.create_sbom(image_build_tag)
+
+                    # Scan for vulnerabilities
+                    trivy_utils.create_vulnerability_report(image_build_tag)
+
+                    # Print progress bar
+                    bar()
+                    
 
         if BuildUtils.create_offline_installation is True:
             BuildUtils.logger.info("Generating platform docker dump.")

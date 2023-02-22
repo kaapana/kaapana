@@ -18,7 +18,7 @@
             :items="tagsData"
             :search="search"
             :hide-default-footer=true
-            height="calc(100vh - 562px)"
+            height="60vh"
             :items-per-page=-1
             dense
         />
@@ -52,7 +52,7 @@ export default {
   methods: {
     async getDicomData() {
       if (this.seriesInstanceUID && this.studyInstanceUID) {
-        this.tagsData = await getDicomTags(this.studyInstanceUID, this.seriesInstanceUID)
+        getDicomTags(this.studyInstanceUID, this.seriesInstanceUID).then(data => this.tagsData = data)
       }
     },
   },

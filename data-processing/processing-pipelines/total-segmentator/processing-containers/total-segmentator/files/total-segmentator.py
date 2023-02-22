@@ -73,7 +73,7 @@ def total_segmentator(input_path: Path, output_path: Path, task: str = 'total', 
     shutil.copy('seg_info.json', output_path)
 
 
-batch_folders: List[Path] = sorted([*Path('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME']).glob('*')])
+batch_folders: List[Path] = sorted(list(Path('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME']).glob('*')))
 
 for batch_element_dir in batch_folders:
 
@@ -93,7 +93,7 @@ for batch_element_dir in batch_folders:
         exit(1)
     else:
         for nifti_file in nifti_files:
-            print(f"# running total segmentator")
+            print(f"# Running total segmentator")
             
             assert exists(nifti_file.absolute())
             assert exists(element_output_dir.absolute())

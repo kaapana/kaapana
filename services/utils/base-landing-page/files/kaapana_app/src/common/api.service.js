@@ -42,8 +42,8 @@ const deleteSeriesFromPlatform = async (seriesInstanceUID, dag_id = 'delete-seri
 const getDicomTags = async (studyInstanceUID, seriesInstanceUID) => {
     try {
         const data = await loadMetaData(studyInstanceUID, seriesInstanceUID)
-        const formatedMetadata = await formatMetadata(JSON.stringify(data[0]))
-        return formatedMetadata.data
+        const formattedMetadata = await formatMetadata(JSON.stringify(data[0]))
+        return formattedMetadata.data
     } catch (e) {
         Vue.notify({
             type: "error",
@@ -125,16 +125,26 @@ const loadSeriesFromMeta = async (seriesInstanceUID) => {
             )
         }
 
-        return {
-            src: RS_ENDPOINT +
-                `/studies/${data['0020000D StudyInstanceUID_keyword']}/` +
-                `series/${data["0020000E SeriesInstanceUID_keyword"]}/` +
-                `thumbnail?viewport=300,300`,
-            seriesDescription: data['0008103E SeriesDescription_keyword'] || "",
-            modality: data['00080060 Modality_keyword'],
-            seriesData: data,
-            tags: data['dataset_tags_keyword'],
-        }
+        if (data['00080060 Modality_keyword'] === 'SEG') {
+            return {
+                src: `minio/service-segmentation-thumbnail/batch/${data["0020000E SeriesInstanceUID_keyword"]}/` +
+                    `generate-segmentation-thumbnail/${data["0020000E SeriesInstanceUID_keyword"]}.png`,
+                seriesDescription: data['0008103E SeriesDescription_keyword'] || "",
+                modality: data['00080060 Modality_keyword'],
+                seriesData: data,
+                tags: data['dataset_tags_keyword']
+            }
+        } else
+            return {
+                src: RS_ENDPOINT +
+                    `/studies/${data['0020000D StudyInstanceUID_keyword']}/` +
+                    `series/${data["0020000E SeriesInstanceUID_keyword"]}/` +
+                    `thumbnail?viewport=300,300`,
+                seriesDescription: data['0008103E SeriesDescription_keyword'] || "",
+                modality: data['00080060 Modality_keyword'],
+                seriesData: data,
+                tags: data['dataset_tags_keyword']
+            }
 
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error, type: 'error'});

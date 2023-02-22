@@ -71,7 +71,7 @@ def helm_search_repo(keywords_filter):
 def helm_get_values(release_name, helm_namespace=settings.helm_namespace):
     logger.debug(f"in function: helm_get_values {release_name=}, {helm_namespace=}")
     success, stdout = helm_helper.execute_shell_command(
-        f'{settings.helm_path} -n {helm_namespace} get values -o json {release_name}')
+        f'{settings.helm_path} -n {helm_namespace} get values --all -o json {release_name}')
     if success and stdout != b'null\n':
         return json.loads(stdout)
     else:

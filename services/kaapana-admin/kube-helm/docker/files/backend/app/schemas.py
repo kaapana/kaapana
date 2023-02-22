@@ -95,6 +95,7 @@ class ExtensionStateUpdate(BaseModelExtended):
     extension_name: str
     extension_version: str
     state: ExtensionStateType
+    multiinstallable: bool
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -103,10 +104,12 @@ class ExtensionStateUpdate(BaseModelExtended):
 class ExtensionState(BaseModelExtended):
     extension_name: str
     extension_version: str
+    releaseName: str
     state: ExtensionStateType
     update_time: int
     last_read_time: int
     recently_updated: bool
+    multiinstallable: bool
 
     def __getitem__(self, item):
         return getattr(self, item)

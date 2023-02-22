@@ -361,6 +361,7 @@ def helm_install(
                 extension_name=release_name,
                 extension_version=version,
                 state=schemas.ExtensionStateType.INSTALLED,
+                multiinstallable=(True if "kaapanamultiinstallable" in keywords else False)
             )
         )
 
@@ -372,29 +373,25 @@ def helm_delete(
     helm_namespace=settings.helm_namespace,
     release_version=None,
     helm_command_addons='',
-    update_state=True
+    update_state=True,
+    multiinstallable=False
 ):
     logger.debug(f"in function: helm_delete with {release_name}")
     # release version only important for extensions charts
     cached_extension = [
         x for x in helm_helper.global_extensions_dict_cached if x["releaseName"] == release_name]
-    try:
-        if len(cached_extension) == 1:
-            ext = cached_extension[0]
-            versions = ext.available_versions
-            dep = list(versions.items())[0]
-            if release_version is not None:
-                logger.debug("fetching version {0} in available versions {1}".format(
-                    release_version, versions
-                ))
-                dep = versions[release_version]
+    if len(cached_extension) == 1:
+        logger.debug(f"{cached_extension=}")
+        ext = cached_extension[0]
+        versions = ext.available_versions
+        dep = list(versions.items())[0]
+        if release_version is not None:
+            dep = versions[release_version]
 
+        release_name = dep.deployments[0].helm_info.name
+
+        if ext.multiinstallable == "yes":
             release_name = dep.deployments[0].helm_info.name
-
-            if ext.multiinstallable == "yes":
-                release_name = dep.deployments[0].helm_info.name
-    except Exception as e:
-        logger.error(f"Error in helm_delete {str(e)=} {cached_extension=}")
 
     # delete version
     helm_command = f'{settings.helm_path} -n {helm_namespace} uninstall {helm_command_addons} {release_name}'
@@ -443,6 +440,7 @@ def helm_delete(
                 extension_name=release_name,
                 extension_version=release_version,
                 state=schemas.ExtensionStateType.NOT_INSTALLED,
+                multiinstallable=multiinstallable
             )
         )
 

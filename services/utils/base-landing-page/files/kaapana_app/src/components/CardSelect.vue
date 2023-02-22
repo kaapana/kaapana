@@ -284,12 +284,4 @@ export default {
 </script>
 
 <style>
-.vue-select-image__thumbnail--selected {
-  background: #0088cc !important;
-}
-
-.vue-select-image__thumbnail--disabled {
-  background: #b9b9b9;
-  cursor: not-allowed;
-}
 </style>

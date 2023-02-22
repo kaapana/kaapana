@@ -285,22 +285,19 @@ function install_helm {
     fi
 }
 
-function import_containers {
-    echo "${YELLOW}Start container image import from $OFFLINE_TAR_PATH ... ${NC}"
-    CONTAINER_TAR_DIR=$(dirname $OFFLINE_TAR_PATH)
-    export CONTAINER_TAR_DIR
-    echo "${YELLOW}CONTAINER_TAR_DIR $CONTAINER_TAR_DIR ${NC}"
+function import_microk8s_containers {
+    MICROK8S_BASE_IMAGES_TAR_PATH="$SCRIPT_DIR/microk8s_base_images.tar"
+    echo "${YELLOW}Start Microk8s image import from $MICROK8S_BASE_IMAGES_TAR_PATH ... ${NC}"
+    [ -f $MICROK8S_BASE_IMAGES_TAR_PATH ] && echo "${GREEN}Images tar exists ... ${NC}" || (echo "${RED}Images tar does not exist -> exit ${NC}" && exit 1)
 
-    [ -f $OFFLINE_TAR_PATH ] && echo "${GREEN}Container tar exists ... ${NC}" || (echo "${RED}Container tar does not exist -> exit ${NC}" && exit 1)
-
-    echo "${YELLOW}Unpacking $OFFLINE_TAR_PATH to $CONTAINER_TAR_DIR ${NC}"
-    tar -xvf $OFFLINE_TAR_PATH -C $CONTAINER_TAR_DIR)
+    echo "${YELLOW}Unpacking $MICROK8S_BASE_IMAGES_TAR_PATH to $CONTAINER_TAR_DIR ${NC}"
+    tar -xvf $OFFLINE_TAR_PATH -C $SCRIPT_DIR)
     set +euf
-    echo "${YELLOW}Importing Images from $CONTAINER_TAR_DIR/microk8s_images -> this can take a long time!${NC}"
-    ls $CONTAINER_TAR_DIR/microk8s_images | xargs -I {} bash -c 'apply_microk8s_image_import "$@"' _ {}
+    echo "${YELLOW}Importing Images from $SCRIPT_DIR/microk8s_images -> this can take a long time!${NC}"
+    ls $SCRIPT_DIR/microk8s_images | xargs -I {} bash -c 'apply_microk8s_image_import "$@"' _ {}
     echo "${GREEN}Import done!${NC}"
-    echo "${YELLOW}Removing temp files from $CONTAINER_TAR_DIR/microk8s_images ...${NC}"
-    rm -r $CONTAINER_TAR_DIR/microk8s_images
+    echo "${YELLOW}Removing temp files from $SCRIPT_DIR/microk8s_images ...${NC}"
+    rm -r $SCRIPT_DIR/microk8s_images
     echo "${GREEN}Done!${NC}"
 }
 
@@ -331,16 +328,11 @@ function install_microk8s {
             snap ack $SCRIPT_DIR/microk8s_${microk8s_digits}.assert
             snap install --classic  $SCRIPT_DIR/microk8s_${microk8s_digits}.snap
             echo "${YELLOW}Wait until microk8s is ready...${NC}"
-
+            microk8s.status --wait-ready
+            import_microk8s_containers
         else
             echo "${YELLOW}Installing microk8s v$DEFAULT_MICRO_VERSION ...${NC}"
             snap install microk8s --classic --channel=$DEFAULT_MICRO_VERSION
-        fi
-
-        if [ ! -z "$OFFLINE_TAR_PATH" ];then
-            echo "${YELLOW}Image import enabled -> wait for microk8s ...${NC}"
-            microk8s.status --wait-ready
-            import_containers
         fi
 
         echo "${YELLOW}Stopping microk8s for configuration ...${NC}"
@@ -471,10 +463,6 @@ _Flag: -q   --quiet               will activate quiet mode (default: false)
 _Flag:      --uninstall           removes microk8s and helm from the system
 _Flag:      --offline-snaps       offline installation for snap packages (expects '*.snap' and '*.assert' files within the working dir)
 
-_Argument: -oc --offline-containers [arg]
-where arg is:
-    containers.tar.gz path
-
 _Argument: -v --version [opt]
 where opt is:
     default: $DEFAULT_MICRO_VERSION
@@ -487,7 +475,6 @@ where opt is:
 
 QUIET=NA
 OFFLINE_SNAPS=NA
-OFFLINE_TAR_PATH=""
 DNS="8.8.8.8,8.8.4.4"
 
 POSITIONAL=()
@@ -526,13 +513,6 @@ do
             echo -e "${GREEN}QUIET-MODE activated!${NC}";
             QUIET=true
             shift # past argument
-        ;;
-
-        -oc|--offline-containers)
-            OFFLINE_TAR_PATH="$2"
-            echo -e "${GREEN}SET OFFLINE_TAR_PATH: $OFFLINE_TAR_PATH !${NC}";
-            shift # past argument
-            shift # past value
         ;;
 
         --offline-snaps)

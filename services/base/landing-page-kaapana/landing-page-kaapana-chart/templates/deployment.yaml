@@ -38,7 +38,7 @@ spec:
           - name: common-data-file
             mountPath: /app/jsons
           - name: minio-data
-            mountPath: "/app/minio"
+            mountPath: /app/minio
       volumes:
       - name: common-data-file
         configMap:

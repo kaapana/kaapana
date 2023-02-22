@@ -1,23 +1,15 @@
-from typing import Optional, List
-import requests
-import httpx
-import json
 import copy
+import json
+from typing import List
 
-
-from fastapi import APIRouter, Depends, Request, HTTPException, UploadFile, Response, File, Header
+from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from urllib.parse import urlparse
-from fastapi.encoders import jsonable_encoder
-import asyncio
 
-
-from app.experiments import models
 from app.dependencies import get_db
-from app.experiments import schemas
 from app.experiments import crud
-from app.experiments.utils import get_dag_list, raise_kaapana_connection_error
+from app.experiments import schemas
+from app.experiments.utils import get_dag_list
 
 router = APIRouter(tags=["client"])
 
@@ -415,12 +407,13 @@ async def delete_experiments(db: Session = Depends(get_db)):
 
 @router.post("/identifier", response_model=schemas.Identifier)
 async def create_identifier(identifier: schemas.Identifier, db: Session= Depends(get_db)):
-    resp = crud.create_identifier(db=db, identifier=identifier)
-    print('response', resp)
-    return resp
+    return crud.create_identifier(db=db, identifier=identifier)
+
 
 @router.delete("/identifier")
 async def delete_cohort(identifier: str, db: Session = Depends(get_db)):
+    if not crud.get_identifier(db, identifier):
+        raise HTTPException(status_code=404, detail="Item not found")
     return crud.delete_identifier(db, identifier)
 
 @router.get("/identifiers", response_model=List[schemas.Identifier])

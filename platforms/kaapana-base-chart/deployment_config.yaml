@@ -11,7 +11,7 @@ https_port: 443
 dicom_port: 11112
 admin_namespace: "admin"
 helm_namespace: "admin"
-services_namespace: "admin"
+services_namespace: "services"
 jobs_namespace: "jobs"
 extensions_namespace: "extensions"
 kaapana_collections:

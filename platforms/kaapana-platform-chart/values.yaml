@@ -163,11 +163,6 @@ extension_params:
         type: "string"
         value: ""
         default: "kaapana-platform-chart"
-    build_timestamp:
-        definition: ""
-        type: "string"
-        value: ""
-        default: ""
     kaapana_build_version:
         definition: ""
         type: "string"
@@ -178,11 +173,6 @@ extension_params:
         type: "string"
         value: ""
         default: "maintenance-page"
-    platform_last_commit_timestamp:
-        definition: ""
-        type: "string"
-        value: ""
-        default: ""
     slow_data_dir:
         definition: ""
         type: "string"
@@ -192,7 +182,7 @@ extension_params:
         definition: ""
         type: "string"
         value: ""
-        default: ""
+        default: "0"
     instance_name:
         definition: ""
         type: "string"

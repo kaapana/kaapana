@@ -366,13 +366,12 @@ export default Vue.extend({
       }
       if (item["available_versions"][item.version]["deployments"].length > 0) {
         let statArr: any = item["available_versions"][item.version]["deployments"][0]["kube_status"]
-
-        if (statArr.length > 3) {
+        if (typeof (statArr) != "string" && statArr.length > 3) {
           let count: any = {}
           let s = ""
-          for (let i=0; i<statArr.length; i++) {
+          for (let i = 0; i < statArr.length; i++) {
             let key = ""
-            if (typeof(statArr[i]) == "string") {
+            if (typeof (statArr[i]) == "string") {
               let stat = statArr[i]
               key = stat.charAt(0).toUpperCase() + stat.slice(1);
             } else {
@@ -381,7 +380,7 @@ export default Vue.extend({
             }
 
             if (key in count) {
-              count[key] +=1;
+              count[key] += 1;
             } else {
               count[key] = 1;
             }
@@ -389,17 +388,18 @@ export default Vue.extend({
           for (let k in count) {
             s += k + ": " + String(count[k]) + " ,\n"
           }
-          return s.slice(0, s.length-2)
+          return s.slice(0, s.length - 2)
+        } else if (typeof (statArr) != "string" && statArr.length > 0) {
+          let s = statArr[0]
+          return s.charAt(0).toUpperCase() + s.slice(1);
+        } else if (typeof (statArr) == "string" && statArr.length > 0) {
+          let s = statArr
+          return s.charAt(0).toUpperCase() + s.slice(1);
         } else {
-          if (typeof(statArr) == "string") {
-            let s = statArr
-            return s.charAt(0).toUpperCase() + s.slice(1);
-          } else {
-            let s = statArr[0]
-            return s.charAt(0).toUpperCase() + s.slice(1);
-          }
+          return ""
         }
-        
+
+
       }
       return ""
     },
@@ -418,7 +418,7 @@ export default Vue.extend({
         return "no"
       }
       if (item["available_versions"][item.version]["deployments"].length > 0) {
-        return "yes" 
+        return "yes"
       }
       return "no"
     },
@@ -641,7 +641,7 @@ export default Vue.extend({
         .helmApiPost("/file_chunks", formData)
         .then(async (resp: any) => {
           console.log("i=", i, "file chunks resp", resp)
-          if (String(resp.data) != String(i+1) || resp.status != 200) {
+          if (String(resp.data) != String(i + 1) || resp.status != 200) {
             console.log("error in response", resp)
             this.loadingFile = false
             this.fileResponse = "Upload Failed"

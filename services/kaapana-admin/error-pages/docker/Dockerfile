@@ -8,12 +8,10 @@ LABEL CI_IGNORE="False"
 WORKDIR /
 
 COPY files/requirements.txt /requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
-
-RUN mkdir /error-server
-ADD files/server.py /error-server/
-ADD files/static /error-server/static
-ADD files/templates /error-server/templates
+RUN pip install --no-cache-dir -r requirements.txt && mkdir /error-server
+COPY files/server.py /error-server/
+COPY files/static /error-server/static
+COPY files/templates /error-server/templates
 
 
 EXPOSE 5000

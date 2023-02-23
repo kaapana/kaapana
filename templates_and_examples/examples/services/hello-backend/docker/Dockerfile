@@ -6,9 +6,10 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /app
 
-COPY files/requirements.system ./
-RUN apt-get update -y && cat /app/requirements.system | xargs apt-get install -y --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    libpq-dev \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY files/requirements.txt ./requirements.txt
 RUN pip install -r ./requirements.txt

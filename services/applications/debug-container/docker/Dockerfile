@@ -6,9 +6,13 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /app
 
-COPY files/requirements.system /app/
-RUN apt-get update -y && cat /app/requirements.system | xargs apt-get install -y --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    apt-transport-https \
+    nmap \
+    netcat \
+    iputils-ping \
+    dnsutils \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY files/requirements.txt /app/
 RUN python -m pip install --no-cache-dir -r /app/requirements.txt

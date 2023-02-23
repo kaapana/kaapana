@@ -7,17 +7,23 @@ LABEL CI_IGNORE="False"
 WORKDIR /src
 RUN mkdir -p /data
 
-# update required for libpulse-dev
-RUN apt-get update
-RUN apt-get upgrade -y
-RUN apt-get install -y libpulse-dev
-
-# slicer-specific libraries
-RUN apt-get install -y libglu1-mesa
-RUN apt-get install -y libnss3
-RUN apt-get install -y libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xkb1 libxkbcommon-x11-0
-RUN apt-get install -y libxcb-shape0 libxcb-xinerama0 
-RUN apt-get install -y libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+    libpulse-dev \
+    libglu1-mesa \
+    libnss3 \
+    libxcb-icccm4 \
+    libxcb-image0 \
+    libxcb-keysyms1 \ 
+    libxcb-render-util0 \ 
+    libxcb-xkb1 \ 
+    libxkbcommon-x11-0 \
+    libxcb-shape0 \ 
+    libxcb-xinerama0 \
+    libxcb-icccm4 \ 
+    libxcb-image0 \ 
+    libxcb-keysyms1 \ 
+    libxcb-randr0 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Slicer 4.11.20200930 https://download.slicer.org/bitstream/60add70fae4540bf6a89bfb4
 # Slicer 5.0.2

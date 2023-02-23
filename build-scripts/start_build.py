@@ -3,7 +3,7 @@ from shutil import copyfile, rmtree
 import yaml
 import os
 import logging
-from os.path import join, dirname, basename, exists, isfile, isdir
+from os.path import join, dirname, exists
 from time import time
 from argparse import ArgumentParser
 from build_helper.charts_helper import HelmChart, init_helm_charts, helm_registry_login

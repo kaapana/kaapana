@@ -29,13 +29,11 @@ USER node
 
 FROM golang:1.17 as golayer
 
-COPY files/requirements.system /app/
-RUN apt-get update -y && cat /app/requirements.system | xargs apt-get install -y --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# ADD go.mod /go/src/github.com/minio/console/go.mod
 COPY --from=uilayer /gitcode/console/go.mod /go/src/github.com/minio/console/go.mod
-# ADD go.sum /go/src/github.com/minio/console/go.sum
 COPY --from=uilayer /gitcode/console/go.sum /go/src/github.com/minio/console/go.sum
 WORKDIR /go/src/github.com/minio/console/
 

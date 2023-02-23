@@ -2,7 +2,7 @@ from time import time
 import json
 import semver
 import networkx as nx
-from os.path import join, dirname, basename, exists, isfile, isdir
+from os.path import join, dirname, basename, exists
 from git import Repo
 
 class BuildUtils:

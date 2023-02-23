@@ -4,6 +4,8 @@ LABEL IMAGE="total-segmentator"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
+ENV SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True
+
 WORKDIR /app
 
 RUN apt-get update -y && apt-get install -y --no-install-recommends \

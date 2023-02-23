@@ -45,10 +45,35 @@ class Nifti2DcmConverter:
         self.seed = str(seed)
         # self.meta_data = meta_data
         # self.series_tag_values = {}
+        self.root_dir = self.get_root()
+        self.workflow_conf = self.get_workflow_conf()
+        self.data_dir = self.get_data_dir()
+        self.meta_data = self.get_metadata()
+
+    def get_root(self):
+        return os.path.join("/" + os.environ.get("WORKFLOW_DIR"),os.environ.get("OPERATOR_IN_DIR"))
+
+    def get_workflow_conf(self):
+        with open("/data/conf/conf.json", 'r') as conf_file:
+            workflow_conf = json.load(conf_file)
+        return workflow_conf
+
+    def get_data_dir(self):
+        data_dir = self.workflow_conf.get("workflow_form").get("data_dir")
+        return data_dir
+        
+        
+    def get_metadata(self):
+        try:
+            with open(os.path.join(f"/{self.root_dir}", self.data_dir, "meta_data.json"), "r") as meta_file:
+                meta_data = json.load(meta_file)
+        except FileNotFoundError:
+            meta_data = {}
+        return meta_data
 
         
     
-    def __call__(self, path, meta_data=None):
+    def __call__(self):
         """ Run the converter on a path with the following directory structure:
 
         path
@@ -96,16 +121,11 @@ class Nifti2DcmConverter:
         """
         # TODO: In theory it would be possible to derive a minimal set of segmentation args from the given files. Probably nice to have in the future.
 
-        with open("/data/conf/conf.json", 'r') as conf_file:
-            workflow_conf = json.load(conf_file)
 
-        dataset = workflow_conf.get("workflow_form").get("data_dir")
-        try:
-            with open(os.path.join(f"/{path}",dataset, "meta_data.json"), "r") as meta_file:
-                meta_data = json.load(meta_file)
-        except FileNotFoundError:
-            meta_data = {}
-        self.convert_dataset(Path(path)/dataset, meta_data)
+
+        # dataset = self.workflow_conf.get("workflow_form").get("data_dir")
+        
+        self.convert_dataset(Path(self.root_dir)/self.data_dir, self.meta_data)
 
 
     def convert_dataset(self, path, meta_data={}):
@@ -152,10 +172,10 @@ class Nifti2DcmConverter:
                 # print("### Checking for segmentation information.")
                 if seg_args is not None:
                     print("### Extracting parameters for segmentation converter.")                    
-                    with open("/data/conf.json", 'rw') as conf_file:
-                        conf = json.load(conf_file)
-                    conf["seg_args"] = seg_args
-                    json.dump(conf, "/data/conf.json")
+                    self.workflow_conf["seg_args"] = seg_args
+                    with open("/data/conf/conf.json", 'w+') as conf_file:
+                        # conf = json.load(conf_file)
+                        json.dump(self.workflow_conf, conf_file)
                 print("### Processing segmentation parameters finished.")
             except KeyError:
                 print("No arguments for Itk2DcmSegOperator found. Please provide 'seg_args' in the 'meta_data.json'.")
@@ -360,6 +380,5 @@ class Parser:
 
 
 if __name__ == "__main__":
-    path = os.path.join("/" + os.environ.get("WORKFLOW_DIR"),os.environ.get("OPERATOR_IN_DIR"))
     converter = Nifti2DcmConverter()
-    converter(path)
+    converter()

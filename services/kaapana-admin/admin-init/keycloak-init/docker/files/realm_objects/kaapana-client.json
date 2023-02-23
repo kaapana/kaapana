@@ -1,22 +1,9 @@
 {
   "clientId" : "kaapana",
-  "surrogateAuthRequired" : false,
-  "enabled" : true,
-  "alwaysDisplayInConsole" : false,
-  "clientAuthenticatorType" : "client-secret",
   "secret" : "uQBJzc2YDzjRfj2OCT79JDShojeqAK2R",
-  "redirectUris" : [],
   "webOrigins" : [ "*" ],
-  "notBefore" : 0,
-  "bearerOnly" : false,
-  "consentRequired" : false,
-  "standardFlowEnabled" : true,
   "implicitFlowEnabled" : true,
   "directAccessGrantsEnabled" : true,
-  "serviceAccountsEnabled" : false,
-  "publicClient" : false,
-  "frontchannelLogout" : false,
-  "protocol" : "openid-connect",
   "attributes" : {
     "access.token.lifespan" : "3600",
     "saml.force.post.binding" : "false",
@@ -43,10 +30,8 @@
     "display.on.consent.screen" : "false",
     "saml.onetimeuse.condition" : "false"
   },
-  "authenticationFlowBindingOverrides" : { },
-  "fullScopeAllowed" : true,
-  "nodeReRegistrationTimeout" : -1,
-  "protocolMappers" : [ {
+  "protocolMappers" : [ 
+    {
     "id" : "f67f85e3-88ca-4167-8f1d-8b46180cd925",
     "name" : "GroupMapper",
     "protocol" : "openid-connect",
@@ -86,7 +71,5 @@
       "included.custom.audience" : "kaapana",
       "userinfo.token.claim" : "true"
     }
-  } ],
-  "defaultClientScopes" : [ "web-origins", "profile", "roles", "email" ],
-  "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ]
+  } ]
   }

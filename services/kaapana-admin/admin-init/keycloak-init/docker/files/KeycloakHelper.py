@@ -1,16 +1,18 @@
 import os
 import requests
-import json
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-from .logger import get_logger
+from logger import get_logger
 import logging
 
 logger = get_logger(__name__, logging.DEBUG)
 
 
 class KeycloakHelper():
-
+    """
+    Use this class to make authorized request to the keycloak REST API.
+    The base api endpoint is based on KEYCLOAK environment variables.
+    """
     def __init__(self):
         self.KEYCLOAK_USER = os.environ["KEYCLOAK_USER"]
         self.KEYCLOAK_PASSWORD = os.environ["KEYCLOAK_PASSWORD"]
@@ -45,7 +47,10 @@ class KeycloakHelper():
         return access_token
 
 
-    def configure_keycloak(self, url: str, request = requests.post, payload = {}, **kwargs):
+    def make_authorized_request(self, url: str, request = requests.post, payload = {}, **kwargs):
+        """
+        Make an authorized request to the keycloak api using the access token stored in self.master_access_token
+        """
         for key, val in kwargs.items():
             payload[key] = val
         r = request(url,
@@ -60,31 +65,37 @@ class KeycloakHelper():
             logger.warning("Ressource not created.")
             logger.warning(r.text)
         else:
-            logger.debug(r.text)
             r.raise_for_status()
         return r
 
-    def post_realm(self, file, **kwargs):
+    def post_realm(self, payload, **kwargs):
         url = self.auth_url
-        payload = json.load(open(file,"r"))
-        return self.configure_keycloak(url, requests.post, payload, **kwargs)
+        return self.make_authorized_request(url, requests.post, payload, **kwargs)
     
-    def post_group(self, file, **kwargs):
+    def post_group(self, payload, **kwargs):
         url = self.auth_url + "kaapana/groups"
-        payload = json.load(open(file,"r"))
-        return self.configure_keycloak(url, requests.post, payload, **kwargs)
+        return self.make_authorized_request(url, requests.post, payload, **kwargs)
     
+    def get_client(self, client_name: str):
+        all_clients = self.make_authorized_request(self.auth_url + f"kaapana/clients", requests.get).json()
+        for client in all_clients:
+            if client["clientId"] == client_name:
+                id = client["id"]
+                break
+        url = self.auth_url + f"kaapana/clients/{id}"
+        return self.make_authorized_request(url, requests.get)
+
     def get_groups(self):
         url = self.auth_url + "kaapana/groups"
-        return self.configure_keycloak(url, requests.get)
+        return self.make_authorized_request(url, requests.get)
 
     def get_realm_roles(self):
         url = self.auth_url +"kaapana/roles"
-        return self.configure_keycloak(url, requests.get)
+        return self.make_authorized_request(url, requests.get)
 
     def post_role_mapping(self, roles_to_add: list, group: str):
         url = self.auth_url + "kaapana/groups"
-        r = self.configure_keycloak(url, requests.get)
+        r = self.make_authorized_request(url, requests.get)
         group_id = None
         for found_group in r.json():
             if found_group["name"] == group:
@@ -97,20 +108,17 @@ class KeycloakHelper():
             return None
 
         payload = []
-
-        roles = self.get_realm_roles()
+        roles = self.get_realm_roles().json()
         for role in roles:
             if role["name"] in roles_to_add:
                 payload.append(role)
         url = self.auth_url + f"kaapana/groups/{group_id}/role-mappings/realm"
-        return self.configure_keycloak(url, requests.post, payload)
+        return self.make_authorized_request(url, requests.post, payload)
 
-    def post_user(self, file, **kwargs):
+    def post_user(self, payload, **kwargs):
         url = self.auth_url + "kaapana/users"
-        payload = json.load(open(file,"r"))
-        return self.configure_keycloak(url, requests.post, payload, **kwargs)
+        return self.make_authorized_request(url, requests.post, payload, **kwargs)
 
-    def post_client(self, file, **kwargs):
+    def post_client(self, payload, **kwargs):
         url = self.auth_url + "kaapana/clients"
-        payload = json.load(open(file,"r"))
-        return self.configure_keycloak(url, requests.post, payload, **kwargs)
+        return self.make_authorized_request(url, requests.post, payload, **kwargs)

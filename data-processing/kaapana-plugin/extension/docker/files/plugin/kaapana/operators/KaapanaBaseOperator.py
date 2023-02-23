@@ -466,7 +466,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             logging.info(volumes_sets)
 
             helm_sets = {
-                'image': self.image,
+                'processing_image': self.image,
                 **env_vars_sets,
                 **volume_mounts_sets,
                 **volumes_sets}

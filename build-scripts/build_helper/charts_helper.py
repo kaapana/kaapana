@@ -587,7 +587,7 @@ class HelmChart:
                             BuildUtils.logger.debug(f"Templated: {line} -> skip")
                             continue
 
-                        elif ".Values.image" in line or "collection.name" in line or "kube_helm_collection" in line:
+                        elif ".Values.image" in line or ".Values.processing_image" in line or ".Values.global.image" in line or "collection.name" in line or "kube_helm_collection" in line:
                             BuildUtils.logger.debug(f"Templated image: {line} -> skip")
                             continue
                         else:
@@ -771,7 +771,7 @@ class HelmChart:
     def create_collection_build_files(collections_chart, platform_build_files_target_dir):
         # iterate over all collection_charts
         collection_build_target_dir = join(platform_build_files_target_dir, collections_chart.name)
-        with alive_bar(bar='classic',spinner='crab',  dual_line=False,title='Generate Build-Version') as bar:
+        with alive_bar(bar='classic', spinner='crab',  dual_line=False,title='Generate Build-Version') as bar:
             HelmChart.create_chart_build_version(src_chart=collections_chart, target_build_dir=collection_build_target_dir,bar=bar)
         with alive_bar(collections_chart.dependencies_count_all,  dual_line=True, title='Generate Build-Version') as bar:
             for collection_chart_index, (collection_chart_name, collection_chart) in enumerate(collections_chart.dependencies.items()):

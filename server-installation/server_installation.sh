@@ -429,10 +429,10 @@ DEFAULT_HELM_VERSION=latest/stable
 ### Parsing command line arguments:
 usage="$(basename "$0")
 
-_Flag: -gpu --enable-gpu          will activate gpu support for kubernetes (default: false)
-_Flag: -q   --quiet               will activate quiet mode (default: false)
-_Flag:      --uninstall           removes microk8s and helm from the system
-_Flag:      --offline-snaps       offline installation for snap packages (expects '*.snap' and '*.assert' files within the working dir)
+_Flag: -gpu --enable-gpu will activate gpu support for kubernetes (default: false)
+_Flag: -q   --quiet      will activate quiet mode (default: false)
+_Flag:      --uninstall  removes microk8s and helm from the system
+_Flag:      --offline    offline installation for snap packages (expects '*.snap' and '*.assert' files within the working dir)
 
 _Argument: -v --version [opt]
 where opt is:
@@ -486,7 +486,7 @@ do
             shift # past argument
         ;;
 
-        --offline-snaps)
+        --offline)
             OFFLINE_SNAPS=true
             echo -e "${GREEN}SET OFFLINE_SNAPS: $OFFLINE_SNAPS !${NC}";
             shift # past argument

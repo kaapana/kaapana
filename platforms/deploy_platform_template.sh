@@ -26,6 +26,7 @@ PREFETCH_EXTENSIONS="{{ prefetch_extensions|default('false') }}"
 CHART_PATH=""
 NO_HOOKS=""
 ENABLE_NFS=false
+OFFLINE_MODE="false"
 
 INSTANCE_UID=""
 SERVICES_NAMESPACE="{{ services_namespace }}"
@@ -345,7 +346,7 @@ function deploy_chart {
         CONTAINER_REGISTRY_USERNAME=""
         CONTAINER_REGISTRY_PASSWORD=""
     else
-        OFFLINE_MODE="false"
+        
         PULL_POLICY_PODS="IfNotPresent"
         PULL_POLICY_JOBS="IfNotPresent"
         PULL_POLICY_OPERATORS="IfNotPresent"

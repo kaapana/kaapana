@@ -222,8 +222,6 @@ class BuildUtils:
         BuildUtils.logger.debug("Collect base-images:")
         BuildUtils.logger.debug("")
         for base_image_tag, child_containers in BuildUtils.base_images_used.items():
-            if "python" in base_image_tag:
-                pass
             if base_image_tag not in base_images:
                 base_images[base_image_tag] = {}
             BuildUtils.logger.debug(f"{base_image_tag}")
@@ -236,7 +234,6 @@ class BuildUtils:
                 if child_tag not in base_images[base_image_tag]:
                     base_images[base_image_tag][child_tag] = {}
         
-        
         changed = True
         runs = 0
         base_images = dict(sorted(base_images.items(),reverse=True, key=lambda item: len(item[1])))
@@ -245,8 +242,6 @@ class BuildUtils:
             del_tags = [] 
             changed = False
             for base_image_tag, child_images in base_images.items():
-                if base_image_tag == "python:3.9.16-slim":
-                    pass
                 for child_image_tag, child_image in child_images.items():
                     if child_image_tag in base_images:
                         base_images[base_image_tag][child_image_tag] = base_images[child_image_tag]
@@ -296,6 +291,10 @@ class BuildUtils:
 
         with open(unused_charts_json_path, 'w') as fp:
             json.dump(unused_charts, fp, indent=4)
+
+        container_image_stats_path = join(BuildUtils.build_dir, "image_stats.json")
+        with open(container_image_stats_path, 'w') as fp:
+            json.dump(BuildUtils.images_stats, fp, indent=4)
 
 if __name__ == '__main__':
     print("Please use the 'start_build.py' script to launch the build-process.")

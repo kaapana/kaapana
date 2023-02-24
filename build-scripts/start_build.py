@@ -73,6 +73,14 @@ if __name__ == '__main__':
         logger.error("----------------------------------------------------------------------")
         exit(1)
 
+    template_config_filepath = os.path.join(kaapana_dir, "build-scripts", "build-config-template.yaml")
+    assert exists(template_config_filepath)
+    with open(template_config_filepath, 'r') as stream:
+        try:
+            template_configuration = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            logger.info(exc)
+
     config_filepath = args.config_filepath
     config_filepath = config_filepath if config_filepath is not None else os.path.join(kaapana_dir, "build-scripts", "build-config.yaml")
     template_config_filepath = os.path.join(kaapana_dir, "build-scripts", "build-config-template.yaml")
@@ -98,30 +106,30 @@ if __name__ == '__main__':
         except yaml.YAMLError as exc:
             logger.info(exc)
 
-    conf_http_proxy = configuration["http_proxy"]
-    conf_default_registry = configuration["default_registry"]
-    conf_container_engine = configuration["container_engine"]
-    conf_log_level = configuration["log_level"]
-    conf_build_only = configuration["build_only"]
-    conf_create_offline_installation = configuration["create_offline_installation"]
-    conf_push_to_microk8s = configuration["push_to_microk8s"]
+    conf_http_proxy = configuration["http_proxy"] if "http_proxy" in configuration else template_configuration["http_proxy"]
+    conf_default_registry = configuration["default_registry"] if "default_registry" in configuration else template_configuration["default_registry"]
+    conf_container_engine = configuration["container_engine"] if "container_engine" in configuration else template_configuration["container_engine"]
+    conf_log_level = configuration["log_level"] if "log_level" in configuration else template_configuration["log_level"]
+    conf_build_only = configuration["build_only"] if "build_only" in configuration else template_configuration["build_only"]
+    conf_create_offline_installation = configuration["create_offline_installation"] if "create_offline_installation" in configuration else template_configuration["create_offline_installation"]
+    conf_push_to_microk8s = configuration["push_to_microk8s"] if "push_to_microk8s" in configuration else template_configuration["push_to_microk8s"]
     conf_platform_filter = configuration["platform_filter"].split(",") if configuration["platform_filter"].replace(" ", "") != "" else []
     conf_external_source_dirs = configuration["external_source_dirs"].split(",") if configuration["external_source_dirs"].replace(" ", "") != "" else []
     conf_build_ignore_patterns = configuration["build_ignore_patterns"].split(",") if configuration["build_ignore_patterns"].replace(" ", "") != "" else []
-    conf_exit_on_error = configuration["exit_on_error"]
-    conf_enable_linting = configuration["enable_linting"]
+    conf_exit_on_error = configuration["exit_on_error"] if "exit_on_error" in configuration else template_configuration["exit_on_error"]
+    conf_enable_linting = configuration["enable_linting"] if "enable_linting" in configuration else template_configuration["enable_linting"]
     conf_enable_build_kit = 1 if "enable_build_kit" in configuration and configuration["enable_build_kit"] else 0
-    conf_skip_push_no_changes = configuration["skip_push_no_changes"]
-    conf_parallel_processes = configuration["parallel_processes"]
-    conf_registry_username = configuration["registry_username"]
+    conf_skip_push_no_changes = configuration["skip_push_no_changes"] if "skip_push_no_changes" in configuration else template_configuration["skip_push_no_changes"]
+    conf_parallel_processes = configuration["parallel_processes"] if "parallel_processes" in configuration else template_configuration["parallel_processes"]
+    conf_registry_username = configuration["registry_username"] if "registry_username" in configuration else template_configuration["registry_username"]
     conf_registry_username = conf_registry_username if conf_registry_username != "" else None
-    conf_registry_password = configuration["registry_password"]
+    conf_registry_password = configuration["registry_password"] if "registry_password" in configuration else template_configuration["registry_password"]
     conf_registry_password = conf_registry_password if conf_registry_password != "" else None
-    conf_include_credentials = configuration["include_credentials"]
-    conf_vulnerability_scan = configuration["vulnerability_scan"]
-    conf_vulnerability_severity_level = configuration["vulnerability_severity_level"]
-    conf_configuration_check = configuration["configuration_check"]
-    conf_configuration_check_severity_level = configuration["configuration_check_severity_level"]
+    conf_include_credentials = configuration["include_credentials"] if "include_credentials" in configuration else template_configuration["include_credentials"]
+    conf_vulnerability_scan = configuration["vulnerability_scan"] if "vulnerability_scan" in configuration else template_configuration["vulnerability_scan"]
+    conf_vulnerability_severity_level = configuration["vulnerability_severity_level"] if "vulnerability_severity_level" in configuration else template_configuration["vulnerability_severity_level"]
+    conf_configuration_check = configuration["configuration_check"] if "configuration_check" in configuration else template_configuration["configuration_check"]
+    conf_configuration_check_severity_level = configuration["configuration_check_severity_level"] if "configuration_check_severity_level" in configuration else template_configuration["configuration_check_severity_level"]
 
     registry_user = args.username if args.username is not None else conf_registry_username
     registry_pwd = args.password if args.password is not None else conf_registry_password
@@ -263,7 +271,7 @@ if __name__ == '__main__':
         enable_build=container_build,
         enable_push=containers_push,
     )
-    
+
     if not build_only and not no_login:
         container_registry_login(username=registry_user, password=registry_pwd)
         helm_registry_login(username=registry_user, password=registry_pwd)

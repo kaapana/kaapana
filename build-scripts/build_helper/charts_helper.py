@@ -10,11 +10,11 @@ from subprocess import PIPE, run
 from os.path import join, dirname, basename, exists, isfile, isdir
 from pathlib import Path
 from build_helper.build_utils import BuildUtils
-from build_helper.container_helper import Container, pull_container_image
 from jinja2 import Environment, FileSystemLoader
 from multiprocessing.pool import ThreadPool
 import networkx as nx
 from alive_progress import alive_bar
+from build_helper.container_helper import get_image_stats
 from build_helper.security_utils import TrivyUtils
 from build_helper.offline_installer_helper import OfflineInstallerHelper
 
@@ -1024,7 +1024,8 @@ class HelmChart:
                 charts_to_build.append(chart_object)
 
                 HelmChart.build_platform(platform_chart=chart_object)
-
+        
+        BuildUtils.images_stats = get_image_stats()
         BuildUtils.generate_component_usage_info()
 
 

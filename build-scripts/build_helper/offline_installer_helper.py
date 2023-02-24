@@ -9,12 +9,15 @@ from alive_progress import alive_bar
 from shutil import copyfile
 
 class OfflineInstallerHelper:
+    SNAP_DOWNLOAD_TIMEOUT = 120
+    HELM_DOWNLOAD_TIMEOUT = 10
+    IMAGE_SAVE_TIMEOUT = 6000
     
     @staticmethod
     def download_gpu_operator_chart(target_path):
         BuildUtils.logger.info(f"Downloading gpu-operator helm chart ...")
         command = ["helm","repo","add","nvidia","https://nvidia.github.io/gpu-operator"]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=OfflineInstallerHelper.HELM_DOWNLOAD_TIMEOUT)
         if output.returncode != 0:
             BuildUtils.logger.error(f"Helm download {name} {output.stderr}!")
             BuildUtils.generate_issue(
@@ -24,7 +27,7 @@ class OfflineInstallerHelper:
                 level="ERROR"
             )
         command = ["helm", "repo", "update"]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=OfflineInstallerHelper.HELM_DOWNLOAD_TIMEOUT)
         if output.returncode != 0:
             BuildUtils.logger.error(f"Helm repo update {output.stderr}!")
             BuildUtils.generate_issue(
@@ -37,7 +40,7 @@ class OfflineInstallerHelper:
         name="nvidia/gpu-operator"
         version="v22.9.2"
         command = ["helm","pull",name, f"--version={version}",f"--destination={target_path}"]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=OfflineInstallerHelper.HELM_DOWNLOAD_TIMEOUT)
         if output.returncode != 0:
             BuildUtils.logger.error(f"Helm download {name} {output.stderr}!")
             BuildUtils.generate_issue(
@@ -56,7 +59,7 @@ class OfflineInstallerHelper:
     def download_snap_package(name,version,target_path):
         BuildUtils.logger.info(f"Downloading {name} snap package ...")
         command = ["snap","download",name,f"--target-directory={target_path}",f"--channel={version}"]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=OfflineInstallerHelper.SNAP_DOWNLOAD_TIMEOUT)
         if output.returncode != 0:
             BuildUtils.logger.error(f"Snap download {name} {output.stderr}!")
             BuildUtils.generate_issue(
@@ -132,5 +135,6 @@ class OfflineInstallerHelper:
         assert exists(offline_enable_gpu_script_path)
         dst_script_path =join(microk8s_offline_installer_target_dir,basename(offline_enable_gpu_script_path))
         copyfile(src=offline_enable_gpu_script_path,dst=dst_script_path)
+        os.chmod(offline_enable_gpu_script_path, 0o775)
 
         BuildUtils.logger.info("Finished: Generating Microk8s offline installer.")

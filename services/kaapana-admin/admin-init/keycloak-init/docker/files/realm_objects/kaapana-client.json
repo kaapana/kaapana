@@ -6,29 +6,7 @@
   "directAccessGrantsEnabled" : true,
   "attributes" : {
     "access.token.lifespan" : "3600",
-    "saml.force.post.binding" : "false",
-    "saml.multivalued.roles" : "false",
-    "oauth2.device.authorization.grant.enabled" : "false",
-    "backchannel.logout.revoke.offline.tokens" : "false",
-    "saml.server.signature.keyinfo.ext" : "false",
-    "use.refresh.tokens" : "true",
-    "oidc.ciba.grant.enabled" : "false",
-    "backchannel.logout.session.required" : "true",
-    "client_credentials.use_refresh_token" : "false",
-    "require.pushed.authorization.requests" : "false",
-    "saml.client.signature" : "false",
-    "id.token.as.detached.signature" : "false",
-    "saml.assertion.signature" : "false",
-    "saml.encrypt" : "false",
-    "login_theme" : "kaapana",
-    "saml.server.signature" : "false",
-    "exclude.session.state.from.auth.response" : "false",
-    "saml.artifact.binding" : "false",
-    "saml_force_name_id_format" : "false",
-    "tls.client.certificate.bound.access.tokens" : "false",
-    "saml.authnstatement" : "false",
-    "display.on.consent.screen" : "false",
-    "saml.onetimeuse.condition" : "false"
+    "login_theme" : "kaapana"
   },
   "protocolMappers" : [ 
     {

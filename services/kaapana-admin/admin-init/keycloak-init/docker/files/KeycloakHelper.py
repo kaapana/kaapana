@@ -59,12 +59,13 @@ class KeycloakHelper():
             headers = {"Authorization": f"Bearer {self.master_access_token}"},
             timeout = 2
             )
-            
+
         if r.status_code in [409]:
             logger.warning("Ressource already exists.")
             logger.warning("Ressource not created.")
             logger.warning(r.text)
         else:
+            logger.debug(f"Requesting endpoint: {url} with method {request}")
             r.raise_for_status()
         return r
 

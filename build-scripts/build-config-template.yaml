@@ -3,7 +3,7 @@ default_registry: "registry.<gitlab-url>/<group/user>/<project>" # registry url 
 registry_username: "" # container registry username
 registry_password: "" # container registry password
 container_engine: "docker" # docker or podman
-enable_build_kit: false # Should be false for now: Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/ 
+enable_build_kit: true # Should be false for now: Docker BuildKit: https://docs.docker.com/develop/develop-images/build_enhancements/ 
 log_level: "INFO" # DEBUG, INFO, WARNING or ERROR
 build_only: false # charts and containers will only be build and not pushed to the registry
 create_offline_installation: false # Advanced feature - whether to create a docker dump from which the platform can be deployed offline (file-size ~50GB)

@@ -536,7 +536,7 @@ def create_cohort(db: Session, cohort: schemas.CohortCreate):
 
     if cohort.cohort_query and not cohort.cohort_identifiers:
         db_cohort_identifiers: List[models.Identifier] = [
-            get_identifier(db, identifier)
+            create_identifier_if_not_present(db, schemas.Identifier(identifier=identifier))
             for identifier in get_uid_list_from_query(cohort.cohort_query)
         ]
     else:

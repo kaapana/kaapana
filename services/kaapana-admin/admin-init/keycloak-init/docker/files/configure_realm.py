@@ -34,9 +34,13 @@ if __name__=='__main__':
 
     ### Add client 
     file = "realm_objects/kaapana-client.json"
-    host = os.environ["HOSTNAME"]
     payload = json.load(open(file,"r"))
-    keycloak.post_client(payload, redirectUris=[ "/oauth2/callback", f"https://{host}:443/minio-console/oauth_callback/" ])
+    host = os.environ["HOSTNAME"]
+    https_port = os.environ["HTTPS_PORT"]
+    
+    redirect_uris = [f"https://{host}:{https_port}/oauth2/callback"]
+    redirect_uris.append(f"https://{host}:{https_port}/minio-console/oauth_callback/")
+    keycloak.post_client(payload, redirectUris=redirect_uris)
     logger.info("Create kaapana client in realm kaapana.")
 
 

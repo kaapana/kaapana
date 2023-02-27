@@ -2,7 +2,8 @@
 global:
     pull_policy_pods: "IfNotPresent"
     pull_policy_jobs: "IfNotPresent"
-    hostname: 
+    hostname:
+    https_port: 
     credentials:
         keycloak_admin_username: "admin"
         keycloak_admin_password: "admin"

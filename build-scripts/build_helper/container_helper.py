@@ -76,6 +76,21 @@ def convert_size(size_string):
 
 def get_image_stats(version):
     images_stats = {}
+    command = [f"{Container.container_engine} image ls | grep {version}"]
+    output = run(command, shell=True, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
+    if output.returncode == 0:
+        system_df_output = output.stdout.split("\n")
+        for image_stats in system_df_output:
+            if len(image_stats) == 0:
+                continue
+            image_name, image_tag, image_hash, image_build_time, size = [
+                x for x in image_stats.strip().split("  ") if x != ""
+            ]
+            size = convert_size(size)
+            images_stats[f"{image_name}:{image_tag}"] = {
+                "size": size
+            }
+
     command = [f"{Container.container_engine} system df -v | grep {version}"]
     output = run(command, shell=True, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
     if output.returncode == 0:

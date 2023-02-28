@@ -5,30 +5,33 @@ import { DARK_MODE_ACTIVE, DARK_MODE_NOT_ACTIVE, QUERY_DARK_MODE } from "@/store
 import { useThemeStore, updateThemeCss } from "@/stores/theme";
 import { mapWritableState } from 'pinia';
 import ErrorBoundary from "@/components/ErrorBoundary.vue"
+import Notifications from "@/components/Notifications.vue"
 </script>
 
 <template>
   <ErrorBoundary>
-    <RouterView />
+    <RouterView></RouterView>
+    <Notifications :notifications="notifications"></Notifications>
   </ErrorBoundary>
 </template>
 
 <script lang="ts">
+interface AppData {
+  notification_interval: number | null;
+  notifications: any[];
+}
+
 export default defineComponent({
-  data() {
+  data(): AppData {
     return {
-      wazuhAgentAvailable: null
-    };
+      notification_interval: null,
+      notifications: []
+    }
   },
   computed: {
     ...mapWritableState(useThemeStore, ["useDarkMode"])
   },
   methods: {
-    async checkWazuhAgents() {
-      const response = await fetch(window.location.origin + "/security/api/extension/wazuh/agent-installed");
-      const json = await response.json();
-      this.wazuhAgentAvailable = json["agent_installed"];
-    },
     updateCss () {
       updateThemeCss(document, this.useDarkMode);
     },
@@ -46,6 +49,9 @@ export default defineComponent({
         this.useDarkMode = false;
         this.updateCss();
       }
+    },
+    hoverBrightness() {
+      return this.useDarkMode ? "120%" : "80%";
     }
   },
   created() {
@@ -54,9 +60,38 @@ export default defineComponent({
     if (window.parent) {
       window.parent.postMessage({message: QUERY_DARK_MODE}, "*");
     }
+
+    this.notification_interval = window.setInterval(async () => {
+      const response = await fetch(`${window.location.origin}/security/api/notifications`);
+      if (response.status !== 200) {
+        this.notifications = ["Could not get notifications from backend."];
+      }
+      const json = await response.json();
+      if (json["notifications"] === null) {
+        this.notifications = [];
+        return;
+      }
+      this.notifications = json["notifications"];
+      this.notifications.push({title: "test test test test test test test test", description: "desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc", link: "no link"});
+    }, 5000);
   },
   beforeDestroy() {
     window.removeEventListener("message", this.receiveMessage);
+    if (this.notification_interval) {
+      window.clearInterval(this.notification_interval);
+    }
   }
 });
 </script>
+
+<style>
+@media (hover: hover) {
+  a {
+    color: var(--color-text);
+  }
+
+  a:hover {
+    filter: brightness(v-bind(hoverBrightness()));
+  }
+}
+</style>

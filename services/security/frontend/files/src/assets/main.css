@@ -1,27 +1,21 @@
 @import "./base.css";
 
 #app {
+  width: 100%;
   max-width: 1280px;
   padding: 2rem;
   height: 100vh;
   font-weight: normal;
+
+
+  --default-margin-value: 30px;
+  --default-margin: 0 var(--default-margin-value);
+  --default-padding-value: var(--default-margin-value);
+  --default-padding: 0 var(--default-padding-value);
+  --default-border: 1px solid var(--color-border);
+  --default-border-radius: 5px;
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
-}
-
-@media (min-width: 1024px) {
-  body {
-    display: flex;
-    place-items: center;
-  }
-
-  /* #app {
-    display: grid;
-    grid-template-rows: 0.5fr 1fr;
-    padding: 0 2rem;
-  } */
+strong {
+  font-weight: bold;
 }

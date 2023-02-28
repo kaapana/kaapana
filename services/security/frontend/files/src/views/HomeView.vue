@@ -1,16 +1,10 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
 import Header from "@/components/Header.vue";
-
-import { useThemeStore } from "@/stores/theme";
-
-const themeStore = useThemeStore();
 </script>
 
 <template>
-  <Header title="Title test" v-bind:divider="true">
-    <p>Darkmode activated: {{ themeStore.useDarkMode }}</p>
-  </Header>
+  <Header title="Overview"></Header>
   <main>
     <RouterLink to="/wazuh">Wazuh</RouterLink>
     <RouterLink to="/stackrox">StackRox</RouterLink>
@@ -21,6 +15,5 @@ const themeStore = useThemeStore();
 main {
   display: flex;
   flex-direction: column;
-  
 }
 </style>

@@ -1,93 +1,60 @@
 
-/* color palette from <https://github.com/vuejs/theme> */
 html {
-  --vt-c-white: #ffffff;
-  --vt-c-white-soft: #f8f8f8;
-  --vt-c-white-mute: #f2f2f2;
+  --c-light: #ffffff;
+  --c-light-soft: whitesmoke;
 
-  --vt-c-black: #181818;
-  --vt-c-black-soft: #222222;
-  --vt-c-black-mute: #282828;
+  --c-light-50: rgba(255, 255, 255, 50);
+  --c-light-soft-50: rgba(245, 245, 245, 50);
 
-  --vt-c-indigo: #2c3e50;
+  --c-dark: #363636;
+  --c-dark-soft: #181818;
 
-  --vt-c-divider-light-1: rgba(60, 60, 60, 0.29);
-  --vt-c-divider-light-2: rgba(60, 60, 60, 0.12);
-  --vt-c-divider-dark-1: rgba(84, 84, 84, 0.65);
-  --vt-c-divider-dark-2: rgba(84, 84, 84, 0.48);
+  --c-dark-50: rgba(54, 54, 54, 50);
+  --c-dark-soft-50: rgba(24, 24, 24, 50);
 
-  --vt-c-text-light-1: var(--vt-c-indigo);
-  --vt-c-text-light-2: rgba(60, 60, 60, 0.66);
-  --vt-c-text-dark-1: var(--vt-c-white);
-  --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
+  --c-warning-light: crimson;
+  --c-warning-dark: crimson;
+
+  --c-success-light: green;
+  --c-success-dark: green;
+
+  --c-kaapana-blue-light: #005ba0;
+  --c-kaapana-blue-dark: #2196f3; 
+
+  --c-color-priority-low: #FFAE12;
+  --c-color-priority-medium: #E46000;
+  --c-color-priority-high: #FF0000;
+  --c-color-priority-critical: #B7006E;
 }
 
 /* semantic color variables for this project */
 html {
-  --color-background-light: var(--vt-c-white);
-  --color-background-soft-light: var(--vt-c-white-soft);
-  --color-background-mute-light: var(--vt-c-white-mute);
+  --color-background-light: var(--c-light);
+  --color-background-soft-light: var(--c-light-soft);
 
-  --color-border-light: var(--vt-c-divider-light-2);
-  --color-border-hover-light: var(--vt-c-divider-light-1);
+  --color-text-light: var(--c-dark);
+  --color-text-soft-light: var(--c-dark-soft);
 
-  --color-heading-light: var(--vt-c-text-light-1);
-  --color-text-light: var(--vt-c-text-light-1);
+  --color-background-dark: var(--c-dark);
+  --color-background-soft-dark: var(--c-dark-soft);
 
-  --color-background-dark: var(--vt-c-black);
-  --color-background-soft-dark: var(--vt-c-black-soft);
-  --color-background-mute-dark: var(--vt-c-black-mute);
-
-  --color-border-dark: var(--vt-c-divider-dark-2);
-  --color-border-hover-dark: var(--vt-c-divider-dark-1);
-
-  --color-heading-dark: var(--vt-c-text-dark-1);
-  --color-text-dark: var(--vt-c-text-dark-2);
+  --color-text-dark: var(--c-light);
+  --color-text-soft-dark: var(--c-light-soft);
 
   --color-background: var(--color-background-light);
   --color-background-soft: var(--color-background-soft-light);
-  --color-background-mute: var(--color-background-mute-light);
 
-  --color-border: var(--color-border-light);
-  --color-border-hover: var(--color-border-hover-light);
+  --color-border: var(--c-dark-soft-50);
 
-  --color-heading: var(--color-heading-light);
   --color-text: var(--color-text-light);
 
-  --section-gap: 160px;
-}
+  --color-warning-background: var(--c-warning-light);
+  --color-warning-text: var(--c-light);
+  
+  --color-success-background: var(--c-success-light);
+  --color-success-text: var(--c-light);
 
-/* semantic color variables for this project */
-html {
-  --color-background-light: var(--vt-c-white);
-  --color-background-soft-light: var(--vt-c-white-soft);
-  --color-background-mute-light: var(--vt-c-white-mute);
-
-  --color-border-light: var(--vt-c-divider-light-2);
-  --color-border-hover-light: var(--vt-c-divider-light-1);
-
-  --color-heading-light: var(--vt-c-text-light-1);
-  --color-text-light: var(--vt-c-text-light-1);
-
-  --color-background-dark: var(--vt-c-black);
-  --color-background-soft-dark: var(--vt-c-black-soft);
-  --color-background-mute-dark: var(--vt-c-black-mute);
-
-  --color-border-dark: var(--vt-c-divider-dark-2);
-  --color-border-hover-dark: var(--vt-c-divider-dark-1);
-
-  --color-heading-dark: var(--vt-c-text-dark-1);
-  --color-text-dark: var(--vt-c-text-dark-2);
-
-  --color-background: var(--color-background-light);
-  --color-background-soft: var(--color-background-soft-light);
-  --color-background-mute: var(--color-background-mute-light);
-
-  --color-border: var(--color-border-light);
-  --color-border-hover: var(--color-border-hover-light);
-
-  --color-heading: var(--color-heading-light);
-  --color-text: var(--color-text-light);
+  --color-kaapana-blue: var(--c-kaapana-blue-light);
 
   --section-gap: 160px;
 }
@@ -96,13 +63,18 @@ html {
   html {
     --color-background: var(--color-background-dark);
     --color-background-soft: var(--color-background-soft-dark);
-    --color-background-mute: var(--color-background-mute-dark);
   
-    --color-border: var(--color-border-dark);
-    --color-border-hover: var(--color-border-hover-dark);
+    --color-border: var(--c-light-soft-50);
   
-    --color-heading: var(--color-heading-dark);
     --color-text: var(--color-text-dark);
+
+    --color-warning-background: var(--c-warning-dark);
+    --color-warning-text: var(--c-light-soft);
+
+    --color-success-background: var(--c-success-dark);
+    --color-success-text: var(--c-light-soft);
+
+    --color-kaapana-blue: var(--c-kaapana-blue-dark);
   }
 }
 

@@ -1,18 +1,37 @@
 <script setup lang="ts">
-import { defineComponent } from "vue";
-import { useThemeStore } from "@/stores/theme";
-
-const themeStore = useThemeStore();
+import { ESize } from "@/types/enums";
+import { defineComponent, type PropType } from "vue";
 </script>
 
 <template>
   <header>
     <div class="wrapper">
-      <h1>{{ title }}</h1>
-      <slot></slot>
+      <h1 v-if="size === undefined || size === EHeaderSize.LARGE">{{ title }}</h1>
+      <h2 v-else-if="size === EHeaderSize.NORMAL">{{ title }}</h2>
+      <h3 v-else>{{ title }}</h3>
     </div>
   </header>
 </template>
+
+<script lang="ts">
+export type EHeaderSize = ESize.LARGE | ESize.NORMAL | ESize.SMALL;
+export const EHeaderSize = {
+  [ESize.LARGE]: ESize.LARGE,
+  [ESize.NORMAL]: ESize.NORMAL,
+  [ESize.SMALL]: ESize.SMALL
+} as const;
+
+
+export default defineComponent({
+  props: {
+    title: String,
+    size: {
+      type: String as PropType<EHeaderSize>,
+      required: false
+    }
+  }
+});
+</script>
 
 <style scoped>
 h1 {
@@ -30,6 +49,7 @@ h3 {
 }
 
 .wrapper h1,
+.wrapper h2,
 .wrapper h3 {
   text-align: left;
 }
@@ -53,12 +73,3 @@ header {
   }
 }
 </style>
-
-<script lang="ts">
-export default defineComponent({
-  props: {
-    title: String,
-    divider: Boolean
-  }
-});
-</script>

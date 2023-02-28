@@ -237,7 +237,6 @@ import { CHECK_AUTH } from '@/store/actions.type';
 export default Vue.extend({
   data: () => ({
     file: '' as any,
-    md5: '' as any,
     fileResponse: '',
     dragging: false,
     loadingFile: false,
@@ -366,13 +365,41 @@ export default Vue.extend({
         return ""
       }
       if (item["available_versions"][item.version]["deployments"].length > 0) {
-        if (typeof(item["available_versions"][item.version]["deployments"][0]["kube_status"]) == "string") {
-          let s = item["available_versions"][item.version]["deployments"][0]["kube_status"]
+        let statArr: any = item["available_versions"][item.version]["deployments"][0]["kube_status"]
+        if (typeof (statArr) != "string" && statArr.length > 3) {
+          let count: any = {}
+          let s = ""
+          for (let i = 0; i < statArr.length; i++) {
+            let key = ""
+            if (typeof (statArr[i]) == "string") {
+              let stat = statArr[i]
+              key = stat.charAt(0).toUpperCase() + stat.slice(1);
+            } else {
+              let stat = statArr[i]
+              key += stat.charAt(0).toUpperCase() + stat.slice(1);
+            }
+
+            if (key in count) {
+              count[key] += 1;
+            } else {
+              count[key] = 1;
+            }
+          }
+          for (let k in count) {
+            s += k + ": " + String(count[k]) + " ,\n"
+          }
+          return s.slice(0, s.length - 2)
+        } else if (typeof (statArr) != "string" && statArr.length > 0) {
+          let s = statArr[0]
+          return s.charAt(0).toUpperCase() + s.slice(1);
+        } else if (typeof (statArr) == "string" && statArr.length > 0) {
+          let s = statArr
           return s.charAt(0).toUpperCase() + s.slice(1);
         } else {
-          let s = item["available_versions"][item.version]["deployments"][0]["kube_status"][0]
-          return s.charAt(0).toUpperCase() + s.slice(1);
+          return ""
         }
+
+
       }
       return ""
     },
@@ -557,7 +584,8 @@ export default Vue.extend({
             this.loadingFile = false;
           }).catch((err: any) => {
             console.log("upload file error", err)
-            this.fileResponse = "Upload Failed: " + err.data;
+            this.fileResponse = "File upload failed!";
+            this.loadingFile = false
           });
       } else {
         this.uploadPerc = 0;
@@ -569,14 +597,8 @@ export default Vue.extend({
           let iters = Math.ceil(this.file.size / this.chunkSize)
 
           // init
-          // TODO remove this and use first chunk
-          console.log("calculating md5sum for", this.file.name)
-          // this.md5 = CryptoJS.MD5(this.file.slice(0,iters)).toString()
-          // this.md5 = crypto.createHash('md5').update(this.file).digest('hex')
-          this.md5 = "md6"
-          console.log("md5 all slice", this.md5)
+          // TODO: use first chunk as 
           let payload = {
-            'md5': this.md5,
             'name': this.file.name,
             'fileSize': this.file.size,
             'chunkSize': this.chunkSize,
@@ -653,24 +675,13 @@ export default Vue.extend({
               console.log("cancelling upload")
               this.loadingFile = false
               this.file = ''
-              return
             }
             console.log(String(i) + "/" + String(iters), "was successful, proceeding...")
             if (i > 0) this.uploadPerc = Math.floor((i / iters) * 100)
             i++;
-            if (i % 30 == 0) {
-              this.$store
-                .dispatch(CHECK_AUTH).then(() => {
-                  console.log('still online')
-                }).catch((err: any) => {
-                  console.log('reloading')
-                  location.reload()
-                })
-            }
             let chunk = this.file.slice(i * this.chunkSize, (i + 1) * this.chunkSize);
             let formData = new FormData();
             formData.append('file', chunk);
-            formData.append('md5', this.md5);
             this.uploadChunkHTTP(formData, i, iters)
           }
         })
@@ -763,6 +774,7 @@ export default Vue.extend({
         this.popUpItem = item;
         for (let key of Object.keys(item["extension_params"])) {
           this.popUpExtension[key] = item["extension_params"][key]["default"]
+
         }
       } else {
         this.installChart(item);
@@ -772,8 +784,8 @@ export default Vue.extend({
     submitForm() {
       // this is the same as `this.$refs.popUpForm.validate()` but it raises a build error
       if ((this.$refs.popUpForm as Vue & { validate: () => boolean }).validate()) {
-        this.popUpDialog = false
-        this.installChart(this.popUpItem)
+        this.popUpDialog = false;
+        this.installChart(this.popUpItem);
       }
 
     },
@@ -782,24 +794,24 @@ export default Vue.extend({
       let params = JSON.parse(JSON.stringify(this.popUpExtension))
       console.log("add parameters", params)
 
-      let res = {} as any
+      let res = {} as any;
       for (let key of Object.keys(params)) {
-        let v = params[key]
-        let s = "" as string
+        let v = params[key];
+        let s = "" as string;
         // TODO: if more types like Object etc will exist as well, check them here
         if (Array.isArray(v) && v.length > 0) {
           for (let vv of v) {
-            s += String(vv) + ","
+            s += String(vv) + ",";
           }
-          s = s.slice(0, s.length - 1)
+          s = s.slice(0, s.length - 1);
         } else { // string or single selectable list item
-          s = v
+          s = v;
         }
 
-        res[key] = s
+        res[key] = s;
       }
-      payload["extension_params"] = res
-      return payload
+      payload["extension_params"] = res;
+      return payload;
     },
 
     installChart(item: any) {
@@ -807,10 +819,11 @@ export default Vue.extend({
         name: item.name,
         version: item.version,
         keywords: item.keywords,
-      };
+      } as any;
+
       console.log("payload", payload)
       if (Object.keys(this.popUpExtension).length > 0) {
-        payload = this.addExtensionParams(payload)
+        payload = this.addExtensionParams(payload);
       }
 
       this.loading = true;
@@ -834,7 +847,7 @@ export default Vue.extend({
     },
   },
   beforeDestroy() {
-    this.clearExtensionsInterval()
+    this.clearExtensionsInterval();
   },
 });
 </script>

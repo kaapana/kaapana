@@ -418,7 +418,7 @@ export default Vue.extend({
         return "no"
       }
       if (item["available_versions"][item.version]["deployments"].length > 0) {
-        return "yes"
+        return "yes" 
       }
       return "no"
     },
@@ -550,13 +550,14 @@ export default Vue.extend({
         return;
       }
 
-      let limit = 10000000
+      let limit = 20000000000
+      let chunkLimit = 10000000
       if (file.size > limit) {
-        alert('file size should not be over 10 MB.')
+        alert('file size should not be over 20 GB.')
         this.dragging = false;
         return;
-      } else if (file.size > 10000000) {
-        console.log("file size greater than 50MB, using async upload")
+      } else if (file.size > chunkLimit) {
+        console.log("file size greater than", chunkLimit, ", using async upload")
         uploadChunks = true;
       }
 
@@ -587,51 +588,50 @@ export default Vue.extend({
             this.loadingFile = false
           });
       } else {
-        // this.uploadPerc = 0;
+        this.uploadPerc = 0;
 
-        // if (this.uploadChunksMethod == "ws") {
-        //   this.uploadChunksWS()
-        // } else {
-        //   // http version
-        //   let iters = Math.ceil(this.file.size / this.chunkSize)
+        if (this.uploadChunksMethod == "ws") {
+          this.uploadChunksWS()
+        } else {
+          // http version
+          let iters = Math.ceil(this.file.size / this.chunkSize)
 
-        //   // init
-        //   console.time("uploadFileChunks")
+          // init
+          // TODO: use first chunk as 
+          let payload = {
+            'name': this.file.name,
+            'fileSize': this.file.size,
+            'chunkSize': this.chunkSize,
+            'index': 0,
+            'endIndex': iters,
+          }
+          kaapanaApiService.helmApiPost("/file_chunks_init", payload)
+            .then((resp: any) => {
+              console.log("init file chunks resp", resp)
+              if (resp.status != 200) {
+                console.log("init failed with err", resp.data)
+                this.loadingFile = false
+                this.fileResponse = "Upload Failed: " + String(resp.data)
+                this.file = ''
+                this.cancelUpload = true
+                return
+              } else {
+                let chunk = this.file.slice(0 * this.chunkSize, 1 * this.chunkSize);
+                let formData = new FormData();
+                formData.append('file', chunk);
 
-        //   let payload = {
-        //     'name': this.file.name,
-        //     'fileSize': this.file.size,
-        //     'chunkSize': this.chunkSize,
-        //     'index': 0,
-        //     'endIndex': iters,
-        //   }
-        //   kaapanaApiService.helmApiPost("/file_chunks_init", payload)
-        //     .then((resp: any) => {
-        //       console.log("init file chunks resp", resp)
-        //       if (resp.status != 200) {
-        //         console.log("init failed with err", resp.data)
-        //         this.loadingFile = false
-        //         this.fileResponse = "Upload Failed: " + String(resp.data)
-        //         this.file = ''
-        //         this.cancelUpload = true
-        //         return
-        //       } else {
-        //         let chunk = this.file.slice(0 * this.chunkSize, 1 * this.chunkSize);
-        //         let formData = new FormData();
-        //         formData.append('file', chunk);
-
-        //         this.uploadChunkHTTP(formData, 0, iters)
-        //       }
-        //     })
-        //     .catch((err: any) => {
-        //       console.log("init failed with err", err)
-        //       this.loadingFile = false
-        //       this.fileResponse = "Upload Failed: " + String(err)
-        //       this.file = ''
-        //       this.cancelUpload = true
-        //       return
-        //     })
-        // }
+                this.uploadChunkHTTP(formData, 0, iters)
+              }
+            })
+            .catch((err: any) => {
+              console.log("init failed with err", err)
+              this.loadingFile = false
+              this.fileResponse = "Upload Failed: " + String(err)
+              this.file = ''
+              this.cancelUpload = true
+              return
+            })
+        }
 
       }
     },
@@ -650,7 +650,6 @@ export default Vue.extend({
           }
           if (i >= iters) {
             console.log("upload completed")
-            console.timeEnd("uploadFileChunks")
             //end
             this.uploadPerc = 100;
             this.loadingFile = false
@@ -661,10 +660,10 @@ export default Vue.extend({
               .then((response: any) => {
                 this.fileResponse = "Successfully imported container " + this.file.name
                 this.file = ''
-                console.log("import failed")
+                console.log("import successful")
               })
               .catch((err: any) => {
-                console.log(err);
+                console.log("import err", err);
                 this.fileResponse = "Failed to import container " + this.file.name
                 this.file = ''
                 console.log("import failed")
@@ -679,15 +678,6 @@ export default Vue.extend({
             console.log(String(i) + "/" + String(iters), "was successful, proceeding...")
             if (i > 0) this.uploadPerc = Math.floor((i / iters) * 100)
             i++;
-            // if (i % 30 == 0) {
-            //   this.$store
-            //     .dispatch(CHECK_AUTH).then(() => {
-            //       console.log('still online')
-            //     }).catch((err: any) => {
-            //       console.log('reloading')
-            //       location.reload()
-            //     })
-            // }
             let chunk = this.file.slice(i * this.chunkSize, (i + 1) * this.chunkSize);
             let formData = new FormData();
             formData.append('file', chunk);
@@ -697,7 +687,6 @@ export default Vue.extend({
         .catch((err: any) => {
           // error
           console.log("error, index", i, ":", err)
-          console.timeEnd("uploadFileChunks")
           this.loadingFile = false
           this.fileResponse = "Upload Failed: " + String(err)
           this.file = ''
@@ -941,4 +930,3 @@ a {
   text-align: center;
 }
 </style>
-  

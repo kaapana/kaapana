@@ -47,6 +47,7 @@ class Nifti2DcmConverter:
         self.workflow_conf = self.get_workflow_conf()
         self.data_dir = self.get_data_dir()
         self.meta_data = self.get_metadata()
+        self.modality = self.get_modality()
 
     def get_root(self):
         return os.path.join("/" + os.environ.get("WORKFLOW_DIR"),os.environ.get("OPERATOR_IN_DIR"))
@@ -69,6 +70,19 @@ class Nifti2DcmConverter:
         except FileNotFoundError:
             meta_data = {}
         return meta_data
+    
+        
+    def get_modality(self):
+        
+        modality = "CT"  # Default modality is CT just because CT scans are usually cheaper and therefore might be more common than MR scans.
+        
+        if self.workflow_conf.get("workflow_form").get("modality"):
+            modality = self.workflow_conf.get("workflow_form").get("modality")
+
+        elif self.meta_data.get("Modality"):
+            modality =  self.meta_data.get("Modality")
+
+        return modality
 
         
     
@@ -154,7 +168,6 @@ class Nifti2DcmConverter:
 
         
         series_descriptions = meta_data.get("Series Descriptions") if meta_data.get("Series descriptions") else [None for _ in range(len(cases))]
-        modality = meta_data.get("Modality") if meta_data.get("Modality") else "OT"
         added_tags = meta_data.get("add_tags")
         
         seg_args = None
@@ -193,7 +206,7 @@ class Nifti2DcmConverter:
                 Path(case[0]), 
                 patient_id=patients[i], 
                 series_description=series_descriptions[i], 
-                modality=modality, 
+                modality=self.modality, 
                 series_tag_values=series_tag_values,
                 seg_args=seg_args,
                 segmentation=case[1],
@@ -201,7 +214,7 @@ class Nifti2DcmConverter:
             )
         
 
-    def convert_series(self, case_path, patient_id, series_tag_values, segmentation=None, seg_args=None, seg_info_path=None, *args, **kwds):
+    def convert_series(self, case_path, patient_id, series_tag_values, segmentation=None, seg_info_path=None, *args, **kwds):
         """
         :param data: data to process given as list of paths of the ".nii.gz" files to process.
         

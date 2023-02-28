@@ -35,6 +35,7 @@ class BuildUtils:
     platform_build_version = None
     platform_build_branch = None
     platform_last_commit_timestamp = None
+    enable_image_stats = None
 
     @staticmethod
     def add_container_images_available(container_images_available):
@@ -56,37 +57,9 @@ class BuildUtils:
             chart_object.check_dependencies()
 
     @staticmethod
-    def init(kaapana_dir, build_dir, external_source_dirs, build_ignore_patterns, platform_filter, default_registry, http_proxy, logger, exit_on_error, enable_build_kit,
-             create_offline_installation, skip_push_no_changes, parallel_processes, include_credentials, registry_user, registry_pwd, push_to_microk8s, vulnerability_scan,
-             vulnerability_severity_level, configuration_check, configuration_check_severity_level,version_latest):
-
-        BuildUtils.logger = logger
-        BuildUtils.version_latest = version_latest
-        BuildUtils.kaapana_dir = kaapana_dir
-        BuildUtils.build_dir = build_dir
-        BuildUtils.platform_filter = platform_filter
-        BuildUtils.default_registry = default_registry
-        BuildUtils.http_proxy = http_proxy
-        BuildUtils.external_source_dirs = external_source_dirs
-        BuildUtils.build_ignore_patterns = build_ignore_patterns        
-        BuildUtils.exit_on_error = exit_on_error
+    def init():
         BuildUtils.issues_list = []
-
         BuildUtils.base_images_used = {}
-        BuildUtils.enable_build_kit = enable_build_kit
-        BuildUtils.create_offline_installation = create_offline_installation
-        BuildUtils.skip_push_no_changes = skip_push_no_changes
-        BuildUtils.push_to_microk8s = push_to_microk8s
-
-        BuildUtils.registry_user = registry_user
-        BuildUtils.registry_pwd = registry_pwd
-        BuildUtils.include_credentials = include_credentials
-
-        BuildUtils.parallel_processes = parallel_processes
-        BuildUtils.vulnerability_scan = vulnerability_scan
-        BuildUtils.vulnerability_severity_level = vulnerability_severity_level
-        BuildUtils.configuration_check = configuration_check
-        BuildUtils.configuration_check_severity_level = configuration_check_severity_level
 
     @staticmethod
     def get_timestamp():
@@ -291,10 +264,11 @@ class BuildUtils:
 
         with open(unused_charts_json_path, 'w') as fp:
             json.dump(unused_charts, fp, indent=4)
-
-        container_image_stats_path = join(BuildUtils.build_dir, "image_stats.json")
-        with open(container_image_stats_path, 'w') as fp:
-            json.dump(BuildUtils.images_stats, fp, indent=4)
+            
+        if BuildUtils.enable_image_stats:
+            container_image_stats_path = join(BuildUtils.build_dir, "image_stats.json")
+            with open(container_image_stats_path, 'w') as fp:
+                json.dump(BuildUtils.images_stats, fp, indent=4)
 
 if __name__ == '__main__':
     print("Please use the 'start_build.py' script to launch the build-process.")

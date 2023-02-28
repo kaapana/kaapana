@@ -259,6 +259,29 @@ function install_helm {
     fi
 }
 
+function dns_check {
+    if [ ! -z $DNS ]; then
+        echo "${GREEN}DNS has been manually configured ...${NC}"
+    else
+
+        echo "${GREEN}Checking server DNS settings ...${NC}"
+        if command -v nslookup dkfz.de &> /dev/null
+        then
+            echo "${GREEN}DNS lookup was successful ...${NC}"
+        else
+            echo ""
+            echo "${RED}DNS lookup failed -> please check your servers DNS configuration ...${NC}"
+            echo "${RED}You can test it with: 'nslookup dkfz.de'${NC}"
+            echo ""
+            exit 1
+        fi
+
+        echo "${GREEN}Get DNS settings ...${NC}"
+        DNS=$(( nmcli dev list || nmcli dev show ) 2>/dev/null | grep DNS |awk -F ' ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
+        echo "${GREEN}Identified DNS: $DNS ${NC}"
+    fi
+}
+
 function install_microk8s {
     if command -v microk8s &> /dev/null
     then
@@ -273,6 +296,7 @@ function install_microk8s {
     else
         echo "${YELLOW}microk8s is not installed -> start installation ${NC}"
         
+
         if [ "$OFFLINE_SNAPS" = "true" ];then
             echo "${YELLOW} -> offline installation! ${NC}"
 
@@ -304,6 +328,7 @@ function install_microk8s {
             echo "${GREEN}Microk8s offline installation done!${NC}"
         else
             echo "${YELLOW}Installing microk8s v$DEFAULT_MICRO_VERSION ...${NC}"
+            dns_check
             snap install microk8s --classic --channel=$DEFAULT_MICRO_VERSION
         fi
 
@@ -446,7 +471,7 @@ where opt is:
 
 QUIET=NA
 OFFLINE_SNAPS=NA
-DNS="8.8.8.8,8.8.4.4"
+DNS=""
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]

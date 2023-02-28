@@ -38,6 +38,7 @@ if __name__ == '__main__':
     parser.add_argument("-vsl", "--vulnerability-severity-level", dest="vulnerability_severity_level", default=None, action="store_true", help="Filter by severity of findings. CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN.")
     parser.add_argument("-cc", "--configuration-check", dest="configuration_check", default=None, action="store_true", help="Wheter the Charts, deployments, dockerfiles etc. should be checked for configuration errors")
     parser.add_argument("-ccl", "--configuration-check-severity-level", dest="configuration_check_severity_level", default=None, action="store_true", help="Filter by severity of findings. CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN.")
+    parser.add_argument("-is", "--enable-image-stats", dest="enable_image_stats", default=None, action="store_true", help="Enable container image size statistics (image_stats.json)")
     parser.add_argument("--latest", dest="latest", default=False, action="store_true", help="Force version to 'latest'")
     args = parser.parse_args()
 
@@ -130,6 +131,7 @@ if __name__ == '__main__':
     conf_vulnerability_severity_level = configuration["vulnerability_severity_level"] if "vulnerability_severity_level" in configuration else template_configuration["vulnerability_severity_level"]
     conf_configuration_check = configuration["configuration_check"] if "configuration_check" in configuration else template_configuration["configuration_check"]
     conf_configuration_check_severity_level = configuration["configuration_check_severity_level"] if "configuration_check_severity_level" in configuration else template_configuration["configuration_check_severity_level"]
+    conf_enable_image_stats = configuration["enable_image_stats"] if "enable_image_stats" in configuration else template_configuration["enable_image_stats"]
 
     registry_user = args.username if args.username is not None else conf_registry_username
     registry_pwd = args.password if args.password is not None else conf_registry_password
@@ -146,11 +148,12 @@ if __name__ == '__main__':
     skip_push_no_changes = args.skip_push_no_changes if args.skip_push_no_changes != None else conf_skip_push_no_changes
     parallel_processes = int(args.parallel_processes if args.parallel_processes != 2 else conf_parallel_processes)
     include_credentials = args.include_credentials if args.include_credentials != None else conf_include_credentials
-    no_login = args.no_login
     vulnerability_scan = args.vulnerability_scan if args.vulnerability_scan != None else conf_vulnerability_scan
     vulnerability_severity_level = args.vulnerability_severity_level if args.vulnerability_severity_level != None else conf_vulnerability_severity_level
     configuration_check = args.configuration_check if args.configuration_check != None else conf_configuration_check
     configuration_check_severity_level = args.configuration_check_severity_level if args.configuration_check_severity_level != None else conf_configuration_check_severity_level
+    enable_image_stats = args.enable_image_stats if args.enable_image_stats != None else conf_enable_image_stats
+    no_login = args.no_login
     version_latest = args.latest
 
     for external_source_dir in external_source_dirs:
@@ -203,10 +206,10 @@ if __name__ == '__main__':
     logger.info(f"{build_dir=}")
     logger.info(f"{kaapana_dir=}")
     logger.info(f"{no_login=}")
+    logger.info(f"{version_latest=}")
     logger.info(f"{vulnerability_scan=}")
     logger.info(f"{vulnerability_severity_level=}")
     logger.info(f"{configuration_check=}")
-    logger.info(f"{no_login=}")
     logger.info("")
     logger.info("-----------------------------------------------------------")
 
@@ -241,30 +244,31 @@ if __name__ == '__main__':
         logger.error(f"Log level {log_level} not identified!")
         exit(1)
 
-    BuildUtils.init(
-        kaapana_dir=kaapana_dir,
-        build_dir=build_dir,
-        external_source_dirs=external_source_dirs,
-        build_ignore_patterns=build_ignore_patterns,
-        platform_filter=platform_filter,
-        default_registry=default_registry,
-        http_proxy=http_proxy,
-        exit_on_error=exit_on_error,
-        logger=logger,
-        enable_build_kit=conf_enable_build_kit,
-        create_offline_installation=create_offline_installation,
-        skip_push_no_changes=skip_push_no_changes,
-        parallel_processes=parallel_processes,
-        include_credentials=include_credentials,
-        registry_user=registry_user,
-        registry_pwd=registry_pwd,
-        push_to_microk8s=push_to_microk8s,
-        vulnerability_scan=vulnerability_scan,
-        vulnerability_severity_level=vulnerability_severity_level,
-        configuration_check=configuration_check,
-        configuration_check_severity_level=configuration_check_severity_level,
-        version_latest=version_latest
-    )
+    BuildUtils.init()
+    BuildUtils.kaapana_dir=kaapana_dir
+    BuildUtils.build_dir=build_dir
+    BuildUtils.external_source_dirs=external_source_dirs
+    BuildUtils.build_ignore_patterns=build_ignore_patterns
+    BuildUtils.platform_filter=platform_filter
+    BuildUtils.default_registry=default_registry
+    BuildUtils.http_proxy=http_proxy
+    BuildUtils.exit_on_error=exit_on_error
+    BuildUtils.logger=logger
+    BuildUtils.enable_build_kit=conf_enable_build_kit
+    BuildUtils.create_offline_installation=create_offline_installation
+    BuildUtils.skip_push_no_changes=skip_push_no_changes
+    BuildUtils.parallel_processes=parallel_processes
+    BuildUtils.include_credentials=include_credentials
+    BuildUtils.registry_user=registry_user
+    BuildUtils.registry_pwd=registry_pwd
+    BuildUtils.push_to_microk8s=push_to_microk8s
+    BuildUtils.vulnerability_scan=vulnerability_scan
+    BuildUtils.vulnerability_severity_level=vulnerability_severity_level
+    BuildUtils.configuration_check=configuration_check
+    BuildUtils.configuration_check_severity_level=configuration_check_severity_level
+    BuildUtils.version_latest=version_latest
+    BuildUtils.enable_image_stats=enable_image_stats
+
 
     Container.init_containers(
         container_engine=container_engine,

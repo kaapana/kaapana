@@ -1149,10 +1149,11 @@ class HelmChart:
 
                 HelmChart.build_platform(platform_chart=chart_object)
         
-        BuildUtils.images_stats = {}
-        container_image_versions = set([x.split(":")[-1] for x in successful_built_containers ])
-        for container_image_version in container_image_versions:
-            BuildUtils.images_stats[container_image_version] = get_image_stats(version=container_image_version)
+        if BuildUtils.enable_image_stats:
+            BuildUtils.images_stats = {}
+            container_image_versions = set([x.split(":")[-1] for x in successful_built_containers ])
+            for container_image_version in container_image_versions:
+                BuildUtils.images_stats[container_image_version] = get_image_stats(version=container_image_version)
 
         BuildUtils.generate_component_usage_info()
 

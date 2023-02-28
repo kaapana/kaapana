@@ -11,7 +11,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /kaapana/base
 
-<<<<<<< HEAD
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     apt-utils \
     git \
@@ -24,12 +23,6 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     texlive-fonts-recommended \
     texlive-plain-generic \
     && rm -rf /var/lib/apt/lists/*
-=======
-COPY files/requirements.system /kaapana/base/
-RUN apt-get update -q -y && apt-get install -y --no-install-recommends apt-utils && \
-    cat /kaapana/base/requirements.system | xargs apt-get install -y --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
->>>>>>> b0d47d1c823a51dd3af874a59ed61ecd4d468b94
 
 # Common Python packages
 COPY files/requirements.txt /kaapana/base/

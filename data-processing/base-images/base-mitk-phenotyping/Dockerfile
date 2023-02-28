@@ -9,7 +9,6 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /kaapana/app
 
-<<<<<<< HEAD
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     libfreetype6 \
     libglu1-mesa-dev \
@@ -20,11 +19,6 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     qtbase5-dev \
     jq \
     && rm -rf /var/lib/apt/lists/*
-=======
-COPY files/requirements.system /kaapana/app/
-RUN apt-get update -y && cat /kaapana/app/requirements.system | xargs apt-get install -y --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
->>>>>>> b0d47d1c823a51dd3af874a59ed61ecd4d468b94
 
 COPY files/requirements.txt /kaapana/app/
 RUN python3 -m pip install --no-cache-dir -r /kaapana/app/requirements.txt && rm /kaapana/app/requirements.txt 

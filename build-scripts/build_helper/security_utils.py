@@ -18,7 +18,7 @@ class TrivyUtils:
     compressed_dockerfile_report = {}
     
     # Check if trivy is installed
-    if which('Trivy') is not None:
+    if which('trivy') is None:
         BuildUtils.logger.error("Trivy is not installed, please visit https://aquasecurity.github.io/trivy/v0.37/getting-started/installation/ for installation instructions")
         BuildUtils.generate_issue(
             component=suite_tag,

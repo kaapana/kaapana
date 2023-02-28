@@ -1,40 +1,64 @@
+import asyncio
+from typing import Callable, Dict, Union
 from fastapi import APIRouter, HTTPException, Request, Response
-from helpers.provider_availability import registered_providers
-from models.provider import ProviderRegistration
-from helpers.wazuh import WazuhAPIAuthentication, WazuhAPIWrapper
+from helpers.provider_availability import RegisteredProviders
+from models.provider import ProviderRegistration, ProviderType
+from routers.wazuh import WazuhRouter
+from routers.stackrox import StackRoxRouter
 import logging
 from helpers.resources import API_ROUTE_PREFIX, LOGGER_NAME
 from helpers.logger import get_logger
-from starlette.status import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
+from starlette.status import HTTP_200_OK, HTTP_404_NOT_FOUND
+from models.misc import SecurityNotification
 
 logger = get_logger(f"{LOGGER_NAME}.api", logging.INFO)
 
-router = APIRouter(prefix=f"/{API_ROUTE_PREFIX}")
-wazuh_authentication = WazuhAPIAuthentication()
+router = APIRouter(prefix=f"/{API_ROUTE_PREFIX}", redirect_slashes=True)
+wazuh_router: WazuhRouter = WazuhRouter()
+stackrox_router: StackRoxRouter = StackRoxRouter()
 
-# export interface SecurityProvider {
-#   id: string;
-#   name: string;
-#   url: string;
-#   api_endpoints: string[];
-# }
 
-@router.get("/provider")
+def on_provider_available(provider_type: ProviderType):
+    logger.debug(f"provider available: {provider_type}")
+    if provider_type == ProviderType.WAZUH and wazuh_router is not None:
+        wazuh_router.set_activated(True)
+    elif provider_type == ProviderType.STACKROX and stackrox_router is not None:
+        pass
+
+
+def on_provider_unavailable(provider_type: ProviderType):
+    logger.debug(f"provider unavailable: {provider_type}")
+    if provider_type == ProviderType.WAZUH and wazuh_router is not None:
+        wazuh_router.set_activated(False)
+    elif provider_type == ProviderType.STACKROX and stackrox_router is not None:
+        pass
+
+
+def on_provider_added(provider_type: ProviderType, provider: ProviderRegistration):
+    if provider_type == ProviderType.WAZUH:
+        wazuh_router.set_endpoints(provider.url, provider.api_endpoints)
+    elif provider_type == ProviderType.STACKROX:
+        pass
+
+
+registered_providers = RegisteredProviders(
+    on_provider_added, on_provider_available, on_provider_unavailable
+)
+
+
+@router.get("/providers")
 def get_provider():
-    return {"provider": registered_providers.get_overview()}
+    return {"providers": registered_providers.get_overview()}
 
-@router.put("/provider")
+
+@router.put("/providers")
 def put_provider(provider: ProviderRegistration):
-    registered_providers.add(provider)  
+    registered_providers.add(provider)
 
-# todo change route
-@router.get("/extension/wazuh/agent-installed")
-def get_wazuh_agent_installed():
-    try:
-        wazuh_api = WazuhAPIWrapper(wazuh_authentication)
-        return {"agent_installed": wazuh_api.is_agent_installed()}
-    except:
-        raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not retrieve information about installed Wazuh agents")
+
+router.include_router(wazuh_router.router, prefix="/providers")
+router.include_router(stackrox_router.router, prefix="/providers")
+
 
 @router.get("/enable-debug")
 def get_enable_debug():
@@ -42,19 +66,31 @@ def get_enable_debug():
         logging.getLogger(name).setLevel(logging.DEBUG)
     return Response(status_code=HTTP_200_OK)
 
+
 @router.get("/disable-debug")
 def get_disable_debug():
     for name in logging.root.manager.loggerDict:
         logging.getLogger(name).setLevel(logging.INFO)
     return Response(status_code=HTTP_200_OK)
 
-# get data dump from specific extension
-#@router.get("/extension/{extension-name}")
 
-# todo: make wazuh and stackrox specific apis and enable them once registration is made
-# todo: find a way to encapsulate event_registrations and provider specific data
+@router.get("/notifications")
+def get_notifications(response: Response):
+    response.headers["max-age"] = "5"
+
+    strip_notification_timestamp: Callable[
+        [SecurityNotification], Dict[str, Union[str, None], Union[str, None]]
+    ] = lambda notification: {
+        "title": notification.title,
+        "description": notification.description,
+        "link": notification.link,
+    }
+    wazuh_notifications = list(map(strip_notification_timestamp, wazuh_router.get_notifcations()))
+    stackrox_notifications = []
+    # stackrox_notifications = list(map(strip_notification_timestamp, stackrox_router.get_notifcations()))
+    return {"notifications": [*wazuh_notifications, *stackrox_notifications]}
+
 
 @router.get("/{full_path:path}")
-def catch_all_api(request: Request, full_path:str):
+def catch_all_api(request: Request, full_path: str):
     raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="API route not available")
-

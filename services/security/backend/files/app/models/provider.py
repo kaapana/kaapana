@@ -8,7 +8,7 @@ class ProviderType(Enum):
     UNKNOWN = 999
 
 class ProviderAPIEndpoints(BaseModel):
-    identifier: Optional[str] = Field(None, description="An identifier to distinguish endpoints if there are multiple.")
+    identifier: str = Field(..., description="An identifier to distinguish endpoints if there are multiple.")
     endpoint: str = Field(..., description="The URI that the API is reachable at.")
 
 class ProviderRegistration(BaseModel):

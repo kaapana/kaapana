@@ -1,8 +1,8 @@
-from typing import List
+from typing import Callable, List, Tuple
 import os.path
 import httpx
 import asyncio
-from models.provider import ProviderRegistration, InternalProviderRegistration
+from models.provider import ProviderRegistration, InternalProviderRegistration, ProviderType
 from models.availability import AvailabilityStatus, ProviderAvailabilityWrapper, ProviderAvailabilityWrapperList
 import logging
 from helpers.resources import LOGGER_NAME
@@ -15,19 +15,33 @@ class RegisteredProviders:
     __providers: ProviderAvailabilityWrapperList = ProviderAvailabilityWrapperList()
     __availability_task = None
 
-    def __init__(self):
+    def __init__(
+            self,
+            fn_on_provider_added: Callable[[ProviderType, ProviderRegistration], None],
+            fn_on_provider_available: Callable[[ProviderType], None],
+            fn_on_provider_unavailable: Callable[[ProviderType], None]
+        ):
+        self.on_provider_added = fn_on_provider_added
+        self.on_provider_available = fn_on_provider_available
+        self.on_provider_unavailable = fn_on_provider_unavailable
+
         self.__read_json()
         self.__availability_task = asyncio.create_task(self.__check_all_provider_availability())
 
     def __read_json(self):
+        logger.debug("reading providers from json")
         if not os.path.isfile(self.__provider_persistence_path):
             return
 
         self.__providers = ProviderAvailabilityWrapperList.parse_file(self.__provider_persistence_path, encoding="utf-8", content_type="application/json")
+        for wrapper in self.__providers.get_provider_wrappers():
+            self.on_provider_added(wrapper.get_type(), wrapper.provider)
 
     def __write_json(self):
-        with open(self.__provider_persistence_path, 'w', encoding='utf-8') as f:
-            f.write(self.__providers.json(ensure_ascii=False, indent=4))
+        json = self.__providers.json(ensure_ascii=False, indent=4)
+        logger.debug(f"writing providers to json: {json}")
+        with open(self.__provider_persistence_path, "w", encoding="utf-8") as f:
+            f.write(json)
 
     async def __check_all_provider_availability(self) -> None:
         while True:
@@ -36,18 +50,22 @@ class RegisteredProviders:
                 if await self.__check_provider_availability(wrapper.provider):
                     logger.debug("setting provider to: available")
                     wrapper.set_available()
+                    self.on_provider_available(wrapper.get_type())
                 else:
                     logger.debug("setting provider to: NOT available")
                     wrapper.set_unavailable()
+                    self.on_provider_unavailable(wrapper.get_type())
 
+            wrappers_to_remove = []
             for wrapper in self.__providers.get_provider_wrappers():
-                any_removed = False
                 if self.__should_provider_be_removed(wrapper):
-                    self.__providers.remove(wrapper)
-                    any_removed = True
+                    wrappers_to_remove += [wrapper]
 
-                if any_removed:
-                    self.__write_json() # make sure persistance data is up-to-date
+            for wrapper in wrappers_to_remove:
+                self.__providers.remove(wrapper)
+
+            if len(wrappers_to_remove) > 0:
+                self.__write_json() # make sure persistance data is up-to-date
 
             await asyncio.sleep(15)
 
@@ -75,19 +93,18 @@ class RegisteredProviders:
     def get_overview(self) -> List[str]:
         return list(map(lambda wrapper: wrapper.provider.get_overview(), self.__providers.get_provider_wrappers()))
 
-    def add(self, provider: ProviderRegistration) -> bool:
+    def add(self, provider: ProviderRegistration) -> Tuple[bool, ProviderType]:
         # check if provider with given name is already registered -> we do not allow double registrations
         new_provider_id = provider.name.lower()
 
         if any([wrapper.provider.id == new_provider_id for wrapper in self.__providers.get_provider_wrappers()]):
-            return False
+            return False, None
 
         wrapped_provider = ProviderAvailabilityWrapper(provider=InternalProviderRegistration(id=new_provider_id, name=provider.name, url=provider.url, api_endpoints=provider.api_endpoints))
         self.__providers.add(wrapped_provider)
 
         self.__write_json() # make sure persistance data is up-to-date
 
-        return True
+        self.on_provider_added(wrapped_provider.get_type(), wrapped_provider.provider)
+        return True, wrapped_provider.get_type()
 
-
-registered_providers = RegisteredProviders()

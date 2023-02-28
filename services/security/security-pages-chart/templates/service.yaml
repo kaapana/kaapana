@@ -1,14 +1,14 @@
 ---
-# apiVersion: traefik.containo.us/v1alpha1
-# kind: Middleware
-# metadata:
-#   name: strip-prefix-security-pages
-#   namespace: {{ .Values.global.security_namespace }}
-# spec:
-#   stripPrefix:
-#     prefixes:
-#     - /security
-#     forceSlash: true
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix-security-pages
+  namespace: {{ .Values.global.security_namespace }}
+spec:
+  stripPrefix:
+    prefixes:
+    - /security
+    forceSlash: true
 ---
 kind: Service
 apiVersion: v1
@@ -32,7 +32,7 @@ metadata:
   namespace: {{ .Values.global.security_namespace }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    #traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-strip-prefix-security-pages@kubernetescrd
     traefik.ingress.kubernetes.io/preserve-host: "true"
 spec:
   rules:

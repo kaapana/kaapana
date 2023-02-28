@@ -28,12 +28,6 @@ spec:
           value: "kaapana-secret"
         - name: APPLICATION_ROOT
           value: "/security"
-        # livenessProbe:
-        #   httpGet:
-        #     path: /
-        #     port: sec-pg-http
-        #   initialDelaySeconds: 10
-        #   periodSeconds: 20
         resources:
           requests:
             memory: 100Mi

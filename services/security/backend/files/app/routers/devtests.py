@@ -6,7 +6,7 @@ from helpers.logger import get_logger
 
 logger = get_logger(f"{LOGGER_NAME}.devtests", logging.INFO)
 
-router = APIRouter(prefix=f"/tests")
+router = APIRouter(prefix=f"/tests", redirect_slashes=True)
 
 @router.get("/ping-wazuh")
 async def get_ping_wazuh():

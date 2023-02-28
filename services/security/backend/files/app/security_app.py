@@ -13,10 +13,6 @@ router.mount("/assets", StaticFiles(directory="./static/assets", html=True), nam
 
 templates = Jinja2Templates(directory="./static")
 
-@router.get("/api")
-def redirect_api_to_api_slash(request: Request):
-    return RedirectResponse(f"{request.url}/")
-
 @router.get("/{full_path:path}")
 async def catch_all(request: Request, full_path: str):
     return templates.TemplateResponse("index.html", {"request": request})

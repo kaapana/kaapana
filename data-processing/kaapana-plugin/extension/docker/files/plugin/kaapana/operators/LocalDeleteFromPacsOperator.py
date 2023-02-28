@@ -4,7 +4,7 @@ import json
 import logging
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, SERVICES_NAMESPACE
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 
 
 class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
@@ -27,8 +27,8 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
                 and 'delete_complete_study' in conf['form_data']:
             self.delete_complete_study = conf['form_data']['delete_complete_study']
             print('Delete entire study set to ', self.delete_complete_study)
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-        batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
+        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))]
         
         study2series_deletion = {}
         

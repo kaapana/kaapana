@@ -40,7 +40,7 @@ spec:
         - name: init-create-backend-user
           image: "{{ .Values.global.registry_url }}/kaapana-backend:{{ .Values.global.kaapana_build_version }}"
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
-          command: ["/app/scripts/create_backend_user.py"]
+          command: ["/kaapana/app/scripts/create_backend_user.py"]
           env:
             - name: KEYCLOAK_URL
               value: "https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/"
@@ -61,7 +61,7 @@ spec:
         # command: ["tail"]
         # args: ["-f", "/dev/null"] 
         command: ["/bin/sh"]
-        args: ["/app/boot.sh"] 
+        args: ["/kaapana/app/boot.sh"] 
         env: # Environment variables
         - name: SECRET_KEY
           value: kaapana-secret
@@ -118,10 +118,10 @@ spec:
         volumeMounts:
 {{- if .Values.global.dev_files }}
         - name: kaapana-dev-files
-          mountPath: /app
+          mountPath: /kaapana/app
 {{- end }}
         - name: alembic
-          mountPath: /app/alembic
+          mountPath: /kaapana/app/alembic
       imagePullSecrets:
         - name: registry-secret
       volumes:

@@ -73,7 +73,7 @@ if URL_BASE_PATH is not None:
     print("#####################")
     print("User id: ", USER_ID)
     print("#####################")
-    RATEME_FOLDER = '/data'
+    RATEME_FOLDER = '/kaapana/mounted/rateme-data'
     invalid_flag = False
     valid_flag = True
     URL_BASE_PATH += '/'

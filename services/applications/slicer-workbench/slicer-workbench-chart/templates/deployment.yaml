@@ -30,7 +30,7 @@ spec:
           value: "slicer-vol-{{ $uuid }}"
         volumeMounts:
         - name: slicer-data
-          mountPath: /data
+          mountPath: /kaapana/mounted/slicer-data
       volumes:
       - name: slicer-data
         hostPath:

@@ -32,7 +32,7 @@ spec:
         image: "{{ .Values.global.registry_url }}/minio:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         command: ["minio"]
-        args: ["server", "/export", "--address", "0.0.0.0:9000"]
+        args: ["server", "/kaapana/mounted/minio", "--address", "0.0.0.0:9000"]
         env:
         - name: MINIO_BROWSER
           value: "off"
@@ -61,7 +61,7 @@ spec:
             memory: 1000Mi
         volumeMounts:
         - name: minio-data
-          mountPath: "/export"
+          mountPath: "/kaapana/mounted/minio"
       volumes:
       - name: minio-data
         persistentVolumeClaim:

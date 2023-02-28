@@ -4,7 +4,6 @@ import shutil
 from pathlib import Path
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from airflow.api.common.trigger_dag import trigger_dag as trigger
 import pydicom
 from datetime import timedelta
@@ -25,7 +24,7 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
         if conf and "dataInputDirs" in conf:
             print("This is already a Dag triggered by this operator")
             return
-        quarantine_path = os.path.join("/ctpinput","incoming", ".quarantines")
+        quarantine_path = os.path.join("/kaapana/mounted/ctpinput","incoming", ".quarantines")
         path_list = [p for p in Path(quarantine_path).rglob("*.dcm") if p.is_file()]
         if path_list:
             print("Files found in quarantine!")
@@ -39,7 +38,7 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
                 try:
                     for dcm_file in path_list_part:
                         series_uid = pydicom.dcmread(dcm_file, force=True)[0x0020, 0x000E].value
-                        target = os.path.join("/data", dag_run_id, "batch", series_uid, self.target_dir)
+                        target = os.path.join(self.airflow_workflow_dir, dag_run_id, "batch", series_uid, self.target_dir)
                         if not os.path.exists(target):
                             os.makedirs(target)
                         print("SRC: {}".format(dcm_file))

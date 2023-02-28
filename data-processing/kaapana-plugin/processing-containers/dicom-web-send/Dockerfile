@@ -13,8 +13,8 @@ RUN pip3 install --upgrade pip
 COPY files/requirements.txt /
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-COPY files/dcmweb.py /app/
+COPY files/dcmweb.py /kaapana/app/
 
 
-CMD ["python","-u","/app/dcmweb.py"]
+CMD ["python","-u","/kaapana/app/dcmweb.py"]
 

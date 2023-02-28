@@ -1,6 +1,7 @@
 import os
 BATCH_NAME = 'batch'
-WORKFLOW_DIR = '/data'
+AIRFLOW_WORKFLOW_DIR = '/kaapana/mounted/workflows/data'
+PROCESSING_WORKFLOW_DIR = '/kaapana/mounted/data'
 INSTANCE_NAME = os.getenv('INSTANCE_NAME', None)
 assert INSTANCE_NAME
 ADMIN_NAMESPACE = os.getenv('ADMIN_NAMESPACE', None)

@@ -1,5 +1,5 @@
 alembic init alembic
-cp env.py /app/alembic/env.py
+cp env.py /kaapana/app/alembic/env.py
 alembic revision --autogenerate -m "Migration"
 alembic upgrade head
 

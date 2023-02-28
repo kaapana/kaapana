@@ -20,7 +20,7 @@ spec:
         image: "{{ .Values.global.registry_url }}/static-website:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         command: ["/bin/sh"]
-        args: ["/app/copy.sh"]
+        args: ["/kaapana/app/copy.sh"]
         volumeMounts:
           - name: staticwebsiteresults
             mountPath: /usr/share/nginx/html/

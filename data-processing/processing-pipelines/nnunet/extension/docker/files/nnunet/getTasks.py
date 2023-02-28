@@ -83,7 +83,7 @@ def get_installed_tasks(af_home_path):
     return installed_tasks
 
 def get_tasks():
-    af_home_path = "/root/airflow"
+    af_home_path = "/kaapana/mounted/workflows"
     tasks, available_pretrained_task_names = get_available_pretrained_tasks(af_home_path=af_home_path)
     installed_tasks = get_installed_tasks(af_home_path=af_home_path)
     all_selectable_tasks = installed_tasks.copy()

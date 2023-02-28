@@ -28,11 +28,11 @@ spec:
           value: "{{ .Values.global.registry_url }}"
         volumeMounts:
         - name: airflow-dags
-          mountPath: "/dags"
+          mountPath: "/kaapana/mounted/workflows/dags"
         - name: airflow-plugins
-          mountPath: "/plugins"
+          mountPath: "/kaapana/mounted/workflows/plugins"
         - name: airflow-mounted-scripts
-          mountPath: /mounted_scripts
+          mountPath: /kaapana/mounted/workflows/mounted_scripts
       securityContext:
         runAsUser: 0
       volumes:

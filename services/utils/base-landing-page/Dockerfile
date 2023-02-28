@@ -6,7 +6,7 @@ LABEL IMAGE="base-landing-page"
 LABEL VERSION="latest"
 LABEL CI_IGNORE="False"
 
-WORKDIR /landing/app
+WORKDIR /kaapana/app
 COPY files/kaapana_app/package*.json ./
 RUN npm install
 
@@ -28,8 +28,8 @@ COPY files/kaapana_app .
 # ###############################
 # FROM nginx:1.19.3-alpine
 
-# RUN mkdir /app
-# COPY --from=build-stage /landing/app/dist /app
+# RUN mkdir /kaapana/app
+# COPY --from=build-stage /kaapana/app/dist /kaapana/app
 # COPY files/kaapana_app/nginx.conf /etc/nginx/nginx.conf
 
 # # # ###############################

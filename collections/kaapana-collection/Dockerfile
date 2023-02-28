@@ -1,6 +1,6 @@
-FROM local-only/base-charts-manager:latest
+FROM local-only/base-installer:latest
 
 LABEL IMAGE="kaapana-extension-collection"
 LABEL CI_IGNORE="False"
 
-COPY charts/*.tgz /tmp/
+COPY charts/*.tgz /kaapana/tmp/extensions/

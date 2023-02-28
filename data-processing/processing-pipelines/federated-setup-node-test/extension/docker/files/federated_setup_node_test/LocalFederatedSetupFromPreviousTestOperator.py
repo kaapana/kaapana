@@ -9,7 +9,6 @@ import datetime
 from datetime import timedelta
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator, rest_self_udpate
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperCaching import cache_operator_output
 
 class LocalFederatedSetupFromPreviousTestOperator(KaapanaPythonBaseOperator):
@@ -19,7 +18,7 @@ class LocalFederatedSetupFromPreviousTestOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         conf = kwargs['dag_run'].conf
         print('conf', conf)
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
         json_output_path=os.path.join(run_dir, self.operator_out_dir, "from_previous.json")
         if not os.path.exists(os.path.dirname(json_output_path)):
             os.makedirs(os.path.dirname(json_output_path))

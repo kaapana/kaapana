@@ -44,7 +44,7 @@ spec:
         volumeMounts:
           {{- if not .Values.volumeMounts }}
           - name: jupyterlabdata
-            mountPath: /app
+            mountPath: /kaapana/mounted/jupyterlab
           {{- else }}
           - name: dshm
             mountPath: /dev/shm

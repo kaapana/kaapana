@@ -1,5 +1,5 @@
 #!/bin/bash
 
-cd landing/app
-cp -r /app/jsons/ /landing/app/public
+cd kaapana/app
+cp -r /kaapana/app/jsons/ /kaapana/app/public
 npm run serve

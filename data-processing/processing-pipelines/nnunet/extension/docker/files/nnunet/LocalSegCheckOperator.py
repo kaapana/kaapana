@@ -11,7 +11,6 @@ from pathlib import Path
 from datetime import timedelta
 from multiprocessing.pool import ThreadPool
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
 class LocalSegCheckOperator(KaapanaPythonBaseOperator):
@@ -75,8 +74,8 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
 
         case_count = 0
         ignored_cases = []
-        run_dir = join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-        batch_folders = sorted([f for f in glob.glob(join(run_dir, BATCH_NAME, '*'))])
+        run_dir = join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
+        batch_folders = sorted([f for f in glob.glob(join(run_dir, self.batch_name, '*'))])
         output_dir = join(run_dir, self.operator_out_dir)
 
         print("# Found {} batches".format(len(batch_folders)))
@@ -145,7 +144,7 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
 
             if error:
                 if self.move_data:
-                    target_dir = batch_element_dir.replace(BATCH_NAME, "dimension_issue")
+                    target_dir = batch_element_dir.replace(self.batch_name, "dimension_issue")
                     print("# ")
                     print("# Moving batch-data:")
                     print(f"{batch_element_dir} -> {target_dir}")

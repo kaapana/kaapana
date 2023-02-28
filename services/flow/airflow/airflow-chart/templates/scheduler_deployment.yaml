@@ -41,10 +41,10 @@ spec:
         - name: DELAY
           value: "5"
         - name: FILES_AND_FOLDERS_EXISTS
-          value: "/root/airflow/plugins/kaapana"
+          value: "/kaapana/mounted/workflows/plugins/kaapana"
         volumeMounts:
         - name: airflow-plugins
-          mountPath: /root/airflow/plugins
+          mountPath: /kaapana/mounted/workflows/plugins
       - name: init-airflow-db
         image: "{{ .Values.global.registry_url }}/airflow:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
@@ -56,15 +56,15 @@ spec:
             memory: 250Mi
         volumeMounts:
         - name: airflow-configmap
-          mountPath: /root/airflow/airflow.cfg
+          mountPath: /kaapana/mounted/workflows/airflow.cfg
           subPath: airflow.cfg
         - name: airflow-webserver-config
-          mountPath: /root/airflow/webserver_config.py
+          mountPath: /kaapana/mounted/workflows/webserver_config.py
           subPath: webserver_config.py
         - name: airflow-dags
-          mountPath: /root/airflow/dags
+          mountPath: /kaapana/mounted/workflows/dags
         - name: airflow-plugins
-          mountPath: /root/airflow/plugins
+          mountPath: /kaapana/mounted/workflows/plugins
         env:
         - name: SERVICES_NAMESPACE
           value: "{{ .Values.global.services_namespace }}"
@@ -75,7 +75,7 @@ spec:
         - name: ADMIN_NAMESPACE
           value: "{{ .Values.global.admin_namespace }}"
         - name: AIRFLOW_HOME
-          value: "/root/airflow"
+          value: "/kaapana/mounted/workflows"
         - name: INSTANCE_NAME
           value: "{{ .Values.global.instance_name }}"
         - name: SQL_ALCHEMY_CONN
@@ -91,7 +91,7 @@ spec:
         - name: AIRFLOW__LOGGING__LOGGING_LEVEL
           value: "INFO"
         - name: AIRFLOW_HOME
-          value: "/root/airflow"
+          value: "/kaapana/mounted/workflows"
         - name: SQLALCHEMY_SILENCE_UBER_WARNING
           value: "1"
         - name: DATADIR
@@ -139,25 +139,25 @@ spec:
             memory: 15000Mi
         volumeMounts:
         - name: airflow-configmap
-          mountPath: /root/airflow/airflow.cfg
+          mountPath: /kaapana/mounted/workflows/airflow.cfg
           subPath: airflow.cfg
         - name: airflow-webserver-config
-          mountPath: /root/airflow/webserver_config.py
+          mountPath: /kaapana/mounted/workflows/webserver_config.py
           subPath: webserver_config.py
         - name: airflow-dags
-          mountPath: /root/airflow/dags
+          mountPath: /kaapana/mounted/workflows/dags
         - name: airflow-logs
-          mountPath: /root/airflow/logs
+          mountPath: /kaapana/mounted/workflows/logs
         - name: airflow-plugins
-          mountPath: /root/airflow/plugins
+          mountPath: /kaapana/mounted/workflows/plugins
         - name: modeldata
-          mountPath: /models
+          mountPath: /kaapana/mounted/workflows/models
         - name: ctpinput
-          mountPath: /ctpinput
+          mountPath: /kaapana/mounted/ctpinput
         - name: workflowdata
-          mountPath: /data
+          mountPath: /kaapana/mounted/workflows/data
         - name: dicomdir
-          mountPath: /pacsdata
+          mountPath: /kaapana/mounted/pacsdata
       volumes:
       - name: airflow-configmap
         configMap:

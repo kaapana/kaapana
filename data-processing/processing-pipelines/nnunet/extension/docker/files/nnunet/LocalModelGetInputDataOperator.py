@@ -11,7 +11,6 @@ from pathlib import Path
 from shutil import copy2, move, rmtree
 
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.blueprints.kaapana_global_variables import WORKFLOW_DIR
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 
 class LocalModelGetInputDataOperator(LocalGetInputDataOperator):

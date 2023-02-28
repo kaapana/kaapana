@@ -10,5 +10,5 @@ fi
 
 echo 'Converting jupyter notebook file'
 TIMESTAMP=$(date +%y-%m-%d-%H:%M:%S)
-jupyter nbconvert --to pdf --execute --no-input /app/otsus_notebooks/run_otsus_report_notebook.ipynb  --output-dir /$WORKFLOW_DIR/$OPERATOR_OUT_DIR --output otsus_report_${EXPERIMENT_NAME// /_}.pdf
-jupyter nbconvert --to html --execute --no-input /app/otsus_notebooks/run_otsus_report_notebook.ipynb  --output-dir /$WORKFLOW_DIR/$OPERATOR_OUT_DIR --output otsus_report_${EXPERIMENT_NAME// /_}.html
+jupyter nbconvert --to pdf --execute --no-input /kaapana/app/otsus_notebooks/run_otsus_report_notebook.ipynb  --output-dir /$WORKFLOW_DIR/$OPERATOR_OUT_DIR --output otsus_report_${EXPERIMENT_NAME// /_}.pdf
+jupyter nbconvert --to html --execute --no-input /kaapana/app/otsus_notebooks/run_otsus_report_notebook.ipynb  --output-dir /$WORKFLOW_DIR/$OPERATOR_OUT_DIR --output otsus_report_${EXPERIMENT_NAME// /_}.html

@@ -4,10 +4,10 @@ LABEL IMAGE="hello-backend"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-WORKDIR /app
+WORKDIR /kaapana/app
 
 COPY files/requirements.system ./
-RUN apt-get update -y && cat /app/requirements.system | xargs apt-get install -y --no-install-recommends && \
+RUN apt-get update -y && cat /kaapana/app/requirements.system | xargs apt-get install -y --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
 COPY files/requirements.txt ./requirements.txt

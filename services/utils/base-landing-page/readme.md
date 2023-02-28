@@ -49,9 +49,9 @@ spec:
             memory: 10Gi
         volumeMounts:
           - name: common-data-file
-            mountPath: /app/jsons
+            mountPath: /kaapana/app/jsons
           - name: landing-dev-files
-            mountPath: /landing/app/src
+            mountPath: /kaapana/app/src
       volumes:
       - name: common-data-file
         configMap:

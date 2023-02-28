@@ -111,7 +111,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         print("# Evaluating predictions started ...")
-        print(f"# workflow_dir {self.workflow_dir}")
+        print(f"# workflow_dir {self.airflow_workflow_dir}")
         print(f"# operator_in_dir {self.operator_in_dir}")
         print(f"# gt_dir {self. gt_dir}")
         self.anonymize_lookup_table = {}
@@ -121,8 +121,8 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
         result_scores_model_based = {}
         result_table = []
 
-        # run_dir = self.workflow_dir
-        run_dir = os.path.join(self.workflow_dir, kwargs['dag_run'].run_id)
+        # run_dir = self.airflow_workflow_dir
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
         processed_count = 0
 
         batch_folders = sorted([f for f in glob(os.path.join(run_dir, self.batch_name, '*'))])
@@ -235,7 +235,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
 
 
     # def __init__(self):
-    #     self.workflow_dir = "/home/jonas/Downloads/dice_test_data/nnunet-ensemble-210505182552676296"
+    #     self.airflow_workflow_dir = "/home/jonas/Downloads/dice_test_data/nnunet-ensemble-210505182552676296"
     #     self.batch_name = "nnunet-cohort"
 
     #     self.gt_dir = "seg-check-gt"
@@ -249,7 +249,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                  gt_operator,
                  ensemble_operator=None,
                  batch_name=None,
-                 workflow_dir=None,
+                 airflow_workflow_dir=None,
                  anonymize=True,
                  **kwargs):
 
@@ -262,7 +262,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
             name="dice-eval",
             python_callable=self.start,
             batch_name=batch_name,
-            workflow_dir=workflow_dir,
+            airflow_workflow_dir=airflow_workflow_dir,
             execution_timeout=timedelta(hours=5),
             **kwargs
         )

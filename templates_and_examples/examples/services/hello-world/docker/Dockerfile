@@ -4,7 +4,7 @@ LABEL IMAGE="hello-world"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-WORKDIR /app
+WORKDIR /kaapana/app
 
 # RUN apk update && apk add postgresql-dev gcc python3-dev musl-dev
 # RUN pip install psycopg2

@@ -7,7 +7,6 @@ from typing import List, Dict
 import nibabel as nib
 import numpy as np
 
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -72,7 +71,7 @@ class LocalCombineMasksOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         run_id = kwargs['dag_run'].run_id
-        batch_folders = list(Path(WORKFLOW_DIR, run_id, BATCH_NAME).glob('*'))
+        batch_folders = list(Path(self.airflow_workflow_dir, run_id, self.batch_name).glob('*'))
 
         for batch_element_dir in batch_folders:
             element_input_dir = batch_element_dir / self.operator_in_dir

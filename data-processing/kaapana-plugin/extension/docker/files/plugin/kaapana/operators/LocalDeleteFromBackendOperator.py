@@ -6,7 +6,7 @@ from pathlib import Path
 import pydicom
 import requests
 
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, SERVICES_NAMESPACE
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -20,8 +20,8 @@ class LocalDeleteFromBackendOperator(KaapanaPythonBaseOperator):
     """
 
     def start(self, ds, **kwargs):
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-        batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
+        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))]
 
         for batch_element_dir in batch_folder:
             dcm_files = sorted([*Path(batch_element_dir, self.operator_in_dir).rglob("*.dcm*")])

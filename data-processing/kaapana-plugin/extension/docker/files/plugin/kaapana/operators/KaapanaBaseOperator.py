@@ -22,7 +22,7 @@ from random import randint
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
 from kaapana.blueprints.kaapana_utils import generate_run_id, cure_invalid_name, get_release_name
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, ADMIN_NAMESPACE, JOBS_NAMESPACE, SERVICES_NAMESPACE, EXTENSIONS_NAMESPACE
+from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME, PROCESSING_WORKFLOW_DIR, ADMIN_NAMESPACE, JOBS_NAMESPACE
 # from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
 import uuid
@@ -128,7 +128,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                  enable_proxy=False,
                  no_proxy=None,
                  batch_name=None,
-                 workflow_dir=None,
+                 airflow_workflow_dir=None,
                  cmds=None,
                  arguments=None,
                  env_vars=None,
@@ -184,7 +184,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             allow_federated_learning=allow_federated_learning,
             whitelist_federated_learning=whitelist_federated_learning,
             batch_name=batch_name,
-            workflow_dir=workflow_dir,
+            airflow_workflow_dir=airflow_workflow_dir,
             delete_input_on_success=delete_input_on_success,
             delete_output_on_start=delete_output_on_start
         )
@@ -238,7 +238,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.extensions_namespace = os.getenv("EXTENSIONS_NAMESPACE", "")
         # self.helm_namespace = os.getenv("HELM_NAMESPACE", "")
 
-        self.volume_mounts.append(VolumeMount('workflowdata', mount_path='/data', sub_path=None, read_only=False))
+        self.volume_mounts.append(VolumeMount('workflowdata', mount_path=PROCESSING_WORKFLOW_DIR, sub_path=None, read_only=False))
 
         self.volumes.append(Volume(name='workflowdata', configs={
             'PersistentVolumeClaim':
@@ -270,7 +270,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             }
         }))
            
-        self.volume_mounts.append(VolumeMount('mounted-scripts', mount_path='/app/mounted_scripts', sub_path=None, read_only=False))
+        self.volume_mounts.append(VolumeMount('mounted-scripts', mount_path='/kaapana/mounted/workflows/mounted_scripts', sub_path=None, read_only=False))
 
         self.volumes.append(Volume(name='mounted-scripts', configs={
             'PersistentVolumeClaim':
@@ -313,10 +313,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             self.pod_resources = pod_resources
 
         envs = {
-            "WORKFLOW_DIR": f"{self.workflow_dir}",
-            "BATCH_NAME": str(self.batch_name),
-            "OPERATOR_OUT_DIR": str(self.operator_out_dir),
-            "BATCHES_INPUT_DIR": f"{self.workflow_dir}/{self.batch_name}",
             "SERVICES_NAMESPACE": str(self.services_namespace),
             "ADMIN_NAMESPACE": str(self.admin_namespace),
             "JOBS_NAMESPACE": str(self.jobs_namespace),
@@ -389,7 +385,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     @federated_sharing_decorator
     def execute(self, context):
 
-        config_path = os.path.join(self.workflow_dir, context["run_id"], 'conf', 'conf.json')
+        config_path = os.path.join(self.airflow_workflow_dir, context["run_id"], 'conf', 'conf.json')
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
         if context['dag_run'].conf is not None: #not os.path.isfile(config_path) and
             with open(os.path.join(config_path), "w") as file:
@@ -422,9 +418,12 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         self.env_vars.update({
             "RUN_ID": context["dag_run"].run_id,
-            "DAG_ID": context["dag_run"].dag_id
+            "DAG_ID": context["dag_run"].dag_id,
+            "WORKFLOW_DIR": f"{PROCESSING_WORKFLOW_DIR}/{context['run_id']}",
+            "BATCH_NAME": str(self.batch_name),
+            "OPERATOR_OUT_DIR": str(self.operator_out_dir),
+            "BATCHES_INPUT_DIR": f"{PROCESSING_WORKFLOW_DIR}/{context['run_id']}/{self.batch_name}",
         })
-        self.env_vars["WORKFLOW_DIR"] =  f"{self.env_vars['WORKFLOW_DIR']}/{context['run_id']}"
 
         logging.info("CONTAINER ENVS:")
         logging.info(json.dumps(self.env_vars, indent=4, sort_keys=True))
@@ -507,7 +506,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             return 
 
         if self.delete_output_on_start is True:
-            KaapanaBaseOperator.delete_operator_out_dir(context['run_id'], self.operator_out_dir)
+            self.delete_operator_out_dir(context['run_id'], self.operator_out_dir)
     
         try:
             logging.info("++++++++++++++++++++++++++++++++++++++++++++++++ launch pod!")
@@ -552,17 +551,16 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     raise AirflowException('Pod returned a failure: {state}'.format(state=message))
                 else:
                     if self.delete_input_on_success:
-                        KaapanaBaseOperator.delete_operator_out_dir(context['run_id'], self.operator_in_dir)
+                        self.delete_operator_out_dir(context['run_id'], self.operator_in_dir)
                 if self.xcom_push:
                     return result
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
-    @staticmethod
-    def delete_operator_out_dir(run_id, operator_dir):
+    def delete_operator_out_dir(self, run_id, operator_dir):
         logging.info(f"#### deleting {operator_dir} folders...!")
-        run_dir  = os.path.join("/", WORKFLOW_DIR, run_id)
-        batch_folders = sorted([f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))])
+        run_dir  = os.path.join(self.airflow_workflow_dir, run_id)
+        batch_folders = sorted([f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))])
         for batch_element_dir in batch_folders:
             element_input_dir = os.path.join(batch_element_dir, operator_dir)
             logging.info(f"# Deleting: {element_input_dir} ...")
@@ -642,7 +640,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         allow_federated_learning,
         whitelist_federated_learning,
         batch_name,
-        workflow_dir,
+        airflow_workflow_dir,
         delete_input_on_success,
         delete_output_on_start
     ):
@@ -669,7 +667,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         obj.delete_output_on_start = delete_output_on_start
 
         obj.batch_name = batch_name if batch_name != None else BATCH_NAME
-        obj.workflow_dir = workflow_dir if workflow_dir != None else WORKFLOW_DIR
+        obj.airflow_workflow_dir = airflow_workflow_dir if airflow_workflow_dir != None else AIRFLOW_WORKFLOW_DIR
 
         if obj.task_id is None:
             obj.task_id = obj.name

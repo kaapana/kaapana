@@ -9,7 +9,7 @@ from datetime import timedelta
 import requests
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator, rest_self_udpate
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, EXTENSIONS_NAMESPACE
+from kaapana.blueprints.kaapana_global_variables import  EXTENSIONS_NAMESPACE
 from kaapana.blueprints.kaapana_utils import generate_minio_credentials
 from kaapana.operators.HelperMinio import HelperMinio
 from kaapana.operators.HelperCaching import cache_operator_output
@@ -28,7 +28,7 @@ class LocalDoccanoUploadDatasetOperator(KaapanaPythonBaseOperator):
 
         print('project_payload', project_payload)
 
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
         batch_input_dir = os.path.join(run_dir, self.operator_in_dir)     
 
         # Login

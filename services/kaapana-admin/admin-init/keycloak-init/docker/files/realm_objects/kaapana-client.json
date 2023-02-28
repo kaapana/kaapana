@@ -10,7 +10,6 @@
   },
   "protocolMappers" : [ 
     {
-    "id" : "f67f85e3-88ca-4167-8f1d-8b46180cd925",
     "name" : "GroupMapper",
     "protocol" : "openid-connect",
     "protocolMapper" : "oidc-group-membership-mapper",
@@ -23,7 +22,6 @@
       "userinfo.token.claim" : "true"
     }
   }, {
-    "id" : "3079b173-4dbc-4a39-ade1-969ac2be81f5",
     "name" : "KaapanaMinioAudience",
     "protocol" : "openid-connect",
     "protocolMapper" : "oidc-usermodel-attribute-mapper",
@@ -37,7 +35,6 @@
       "jsonType.label" : "String"
     }
   }, {
-    "id" : "b765b146-4142-4cdd-a473-89a6ce338035",
     "name" : "kaapana-audience",
     "protocol" : "openid-connect",
     "protocolMapper" : "oidc-audience-mapper",

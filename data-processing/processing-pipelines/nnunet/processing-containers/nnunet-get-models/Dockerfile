@@ -6,6 +6,6 @@ LABEL CI_IGNORE="False"
 
 ENV MODELDIR "/models"
 
-COPY files/process.py /app/
+COPY files/process.py /kaapana/app/
 
-CMD ["python3","-u","/app/process.py"]
+CMD ["python3","-u","/kaapana/app/process.py"]

@@ -1,11 +1,11 @@
-FROM local-only/dag-installer:latest
+FROM local-only/base-installer:latest
 
 LABEL IMAGE="dag-mhub-models-workflow"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-COPY files/ /temp/ 
+COPY files/ /kaapana/tmp/ 
 
-# COPY files/dags/dag_mhub_models.py /temp/dags/
-# COPY files/dags/mhub /temp/dags/mhub
+# COPY files/dags/dag_mhub_models.py /kaapana/tmp/dags/
+# COPY files/dags/mhub /kaapana/tmp/dags/mhub
 # COPY files/mounted_scripts/ 

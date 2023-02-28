@@ -8,7 +8,7 @@ import pandas as pd
 from io import StringIO
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, EXTENSIONS_NAMESPACE
+from kaapana.blueprints.kaapana_global_variables import EXTENSIONS_NAMESPACE
 from kaapana.operators.HelperCaching import cache_operator_output
 
 class LocalDoccanoDownloadDatasetOperator(KaapanaPythonBaseOperator):
@@ -18,7 +18,7 @@ class LocalDoccanoDownloadDatasetOperator(KaapanaPythonBaseOperator):
         print("Starting moule LocalNLPDownloadProjectOperator...")
         print(kwargs)
 
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
         conf = kwargs['dag_run'].conf
         print(conf)
         project_number = conf['project_id']

@@ -40,7 +40,7 @@ class mHubOperator(KaapanaBaseOperator):
                 dag,
                 name='mhub-operator',
                 cmds=["bash"],
-                arguments=["/app/mounted_scripts/mhub/mhub.sh"],
+                arguments=["/kaapana/mounted/workflows/mounted_scripts/mhub/mhub.sh"],
                 execution_timeout=timedelta(minutes=300),
                 gpu_mem_mb=None,
                 *args, **kwargs

@@ -7,16 +7,16 @@ LABEL CI_IGNORE="False"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-WORKDIR /kaapana
+WORKDIR /kaapana/base
 
-COPY files/requirements.system /kaapana/
+COPY files/requirements.system /kaapana/base/
 RUN apt-get update -q -y && apt-get install -y --no-install-recommends apt-utils && \
-    cat /kaapana/requirements.system | xargs apt-get install -y --no-install-recommends && \
+    cat /kaapana/base/requirements.system | xargs apt-get install -y --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
 # Common Python packages
-COPY files/requirements.txt /kaapana/
-RUN python -m pip install --upgrade setuptools pip && pip3 install -r /kaapana/requirements.txt
+COPY files/requirements.txt /kaapana/base/
+RUN python -m pip install --upgrade setuptools pip && pip3 install -r /kaapana/base/requirements.txt
 
 # Code server
 RUN wget https://code-server.dev/install.sh
@@ -30,4 +30,4 @@ RUN jupyter-lab --generate-config \
 COPY files/jupyterlab.sh /
 COPY files/kaapana_federated /kaapana_federated
 
-WORKDIR /app
+WORKDIR /kaapana/app

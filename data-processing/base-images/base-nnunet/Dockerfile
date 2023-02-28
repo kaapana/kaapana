@@ -27,4 +27,4 @@ COPY files/patched/nnUNetTrainerV2.py /opt/conda/lib/python3.9/site-packages/nnu
 COPY files/patched/predict.py /opt/conda/lib/python3.9/site-packages/nnunet/inference/predict.py
 COPY files/patched/run_training.py /opt/conda/lib/python3.9/site-packages/nnunet/run/run_training.py
 
-WORKDIR /app/
+WORKDIR /kaapana/app/

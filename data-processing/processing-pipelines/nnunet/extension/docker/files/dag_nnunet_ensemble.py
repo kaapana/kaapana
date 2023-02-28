@@ -348,7 +348,7 @@ nnunet_evaluation_notebook = NnUnetNotebookOperator(
     dag=dag,
     name='nnunet-evaluation-notebook',
     input_operator=evaluation,
-    arguments=["/app/notebooks/nnunet_ensemble/run_nnunet_evaluation_notebook.sh"],
+    arguments=["/kaapana/app/notebooks/nnunet_ensemble/run_nnunet_evaluation_notebook.sh"],
     # dev_server='code-server'
 )
 

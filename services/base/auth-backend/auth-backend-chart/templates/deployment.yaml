@@ -29,7 +29,7 @@ spec:
             memory: "50Mi"
         volumeMounts:
         - name: auth-config
-          mountPath: /app/auth_role_mapping.json
+          mountPath: /kaapana/app/auth_role_mapping.json
           subPath: auth_role_mapping.json
       volumes:
       - name: auth-config

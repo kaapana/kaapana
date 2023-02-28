@@ -36,9 +36,9 @@ spec:
             memory: 10Mi
         volumeMounts:
           - name: common-data-file
-            mountPath: /app/jsons
+            mountPath: /kaapana/app/jsons
           - name: minio-data
-            mountPath: /app/minio
+            mountPath: /kaapana/app/minio
       volumes:
       - name: common-data-file
         configMap:

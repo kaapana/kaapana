@@ -664,7 +664,7 @@ operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
 operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
 assert operator_out_dir is not None
 
-executable = getenv("EXECUTABLE", "/app/MitkCLResampleImageToReference.sh")
+executable = getenv("EXECUTABLE", "/kaapana/app/MitkCLResampleImageToReference.sh")
 executable = executable if executable.lower() != "none" else None
 assert executable is not None
 

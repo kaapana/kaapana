@@ -1,5 +1,4 @@
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from airflow.api.common.trigger_dag import trigger_dag as trigger
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from airflow.models import DagBag
@@ -65,7 +64,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                         if "LocalGetInputDataOperator" == task.__class__.__name__:
                             print(f"# found LocalGetInputDataOperator task: {task.name}")
                             get_input_dir_name = task.operator_out_dir
-                            target = os.path.join("/data", dag_run_id, "batch", series_uid, get_input_dir_name)
+                            target = os.path.join(self.airflow_workflow_dir, dag_run_id, "batch", series_uid, get_input_dir_name)
                             print(f"# Copy data to: {target}")
                             shutil.copytree(src=dcm_path, dst=target)
                             print("#")
@@ -91,7 +90,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
         print("# ")
         print(kwargs)
         trigger_rule_list = []
-        for filePath in glob("/root/airflow/**/*trigger_rule.json"):
+        for filePath in glob("/kaapana/mounted/workflows/**/*trigger_rule.json"):
             with open(filePath, "r") as f:
                 print(f"Found auto-trigger configuration: {filePath}")
                 trigger_rule_list = trigger_rule_list + json.load(f)
@@ -100,7 +99,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
         print(f"# Found {len(trigger_rule_list)} auto-trigger configurations -> start processing ...")
         print("# ")
 
-        batch_folders = sorted([f for f in glob(join(WORKFLOW_DIR, kwargs['dag_run'].run_id, "batch", '*'))])
+        batch_folders = sorted([f for f in glob(join(self.airflow_workflow_dir, kwargs['dag_run'].run_id, "batch", '*'))])
         triggering_list = []
         for batch_element_dir in batch_folders:
             print("#")

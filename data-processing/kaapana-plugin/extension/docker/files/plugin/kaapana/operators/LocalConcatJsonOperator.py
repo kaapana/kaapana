@@ -4,7 +4,6 @@ import json
 import datetime
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 class LocalConcatJsonOperator(KaapanaPythonBaseOperator):
 
@@ -12,8 +11,8 @@ class LocalConcatJsonOperator(KaapanaPythonBaseOperator):
         print("Starting moule LocalConcatJsonOperator...")
         print(kwargs)
 
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-        batch_dirs = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
+        batch_dirs = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))]
         timestamp=datetime.datetime.utcnow()
         json_output_path=os.path.join(run_dir,self.operator_out_dir,"{}-{}.json".format(timestamp, self.name))
         if not os.path.exists(os.path.dirname(json_output_path)):

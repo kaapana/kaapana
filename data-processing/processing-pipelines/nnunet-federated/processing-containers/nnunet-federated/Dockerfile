@@ -4,6 +4,6 @@ LABEL IMAGE="nnunet-federated"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-COPY files/ /app/
+COPY files/ /kaapana/app/
 
-CMD ["python3","-u","/app/run_nnunet_federated.py"]
+CMD ["python3","-u","/kaapana/app/run_nnunet_federated.py"]

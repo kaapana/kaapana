@@ -8,7 +8,6 @@ import datetime
 from datetime import timedelta
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator, rest_self_udpate
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.blueprints.kaapana_utils import generate_minio_credentials
 from kaapana.operators.HelperMinio import HelperMinio
 from kaapana.operators.HelperCaching import cache_operator_output
@@ -23,8 +22,8 @@ class LocalCreateStudyIDJsonOperator(KaapanaPythonBaseOperator):
                 self.zip_files = conf['workflow_form']['zip_files']
                 print('Zip files set by workflow_form', self.zip_files)
 
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-        batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
+        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))]
         print(batch_folder)
 
         study_id_dict = {}

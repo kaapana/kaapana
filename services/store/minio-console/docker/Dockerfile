@@ -13,7 +13,7 @@ COPY files/provider.go /gitcode/console/pkg/auth/idp/oauth2/provider.go
 COPY files/LoginPage.tsx /gitcode/console/portal-ui/src/screens/LoginPage/LoginPage.tsx
 COPY files/utils.ts /gitcode/console/portal-ui/src/screens/Console/Buckets/ListBuckets/Objects/utils.ts
 
-WORKDIR /app
+WORKDIR /kaapana/app
 # COPY ./portal-ui/package.json ./
 RUN cp  /gitcode/console/portal-ui/package.json ./
 # COPY ./portal-ui/yarn.lock ./
@@ -29,8 +29,8 @@ USER node
 
 FROM golang:1.17 as golayer
 
-COPY files/requirements.system /app/
-RUN apt-get update -y && cat /app/requirements.system | xargs apt-get install -y --no-install-recommends && \
+COPY files/requirements.system /kaapana/app/
+RUN apt-get update -y && cat /kaapana/app/requirements.system | xargs apt-get install -y --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
 # ADD go.mod /go/src/github.com/minio/console/go.mod
@@ -47,7 +47,7 @@ WORKDIR /go/src/github.com/minio/console/
 
 ENV CGO_ENABLED=0
 
-COPY --from=uilayer /app/build /go/src/github.com/minio/console/portal-ui/build
+COPY --from=uilayer /kaapana/app/build /go/src/github.com/minio/console/portal-ui/build
 RUN go build --tags=kqueue,operator -ldflags "-w -s" -a -o console ./cmd/console
 
 FROM registry.access.redhat.com/ubi8/ubi-minimal:8.5

@@ -41,7 +41,7 @@ spec:
           value: "{{ .Values.username | default "annotator"}}"
         volumeMounts:
           - name: ratemedata
-            mountPath: /data
+            mountPath: /kaapana/mounted/rateme-data
       volumes:
       - name: ratemedata
         hostPath:

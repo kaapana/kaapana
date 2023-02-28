@@ -3,9 +3,6 @@ from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 from kaapana.blueprints.kaapana_utils import generate_run_id
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
-
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from airflow.api.common.trigger_dag import trigger_dag as trigger
 from os.path import join
 import os
@@ -23,10 +20,10 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         study_uid = dicom_series["dcm-uid"]["study-uid"]
         series_uid = dicom_series["dcm-uid"]["series-uid"]
 
-        output_dir = join(self.run_dir, BATCH_NAME, series_uid, self.operator_out_dir)
+        output_dir = join(self.run_dir, self.batch_name, series_uid, self.operator_out_dir)
         # ctpet-prep batch 1.3.12.2.1107.5.8.15.101314.30000019092314381173500002262normalization
 
-        object_dirs = [join(BATCH_NAME, series_uid, cache_operator)]
+        object_dirs = [join(self.batch_name, series_uid, cache_operator)]
         HelperMinio.apply_action_to_object_dirs(HelperMinio.minioClient, "get", self.target_bucket, output_dir,
                                                 object_dirs=object_dirs)
         try:
@@ -47,7 +44,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         return loaded_from_cache
 
     def get_dicom_list(self):
-        batch_dir = join("/", WORKFLOW_DIR, self.dag_run_id, "batch", '*')
+        batch_dir = join(self.airflow_workflow_dir, self.dag_run_id, "batch", '*')
         batch_folders = sorted([f for f in glob(batch_dir)])
         print("##################################################################")
         print(" Get DICOM list ...")
@@ -269,7 +266,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
             for dicom_series in dicom_info_list:
                 src = dicom_series["input-dir"]
                 target_dir = self.operator_out_dir if self.operator_out_dir else "get-input-data"
-                target = join(self.workflow_dir, dag_run_id, self.batch_name, dicom_series["series-uid"],
+                target = join(self.airflow_workflow_dir, dag_run_id, self.batch_name, dicom_series["series-uid"],
                               target_dir)
                 target_list.add(target)
                 self.copy(src, target)

@@ -69,7 +69,7 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
         assert self.origin in ["batch", "batchelement"]
         assert self.target in ["batch", "batchelement"]
 
-        run_dir = os.path.join(self.workflow_dir, kwargs['dag_run'].run_id)
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
         if self.origin == "batch":
             iter_dirs = [run_dir]
         elif self.origin == "batchelement":
@@ -134,7 +134,7 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
                  mode,  # batch2batch,batchelement2batchelement,batch2batchelement,batchelement2batch
                  target_batchname=None,
                  batch_name=None,
-                 workflow_dir=None,
+                 airflow_workflow_dir=None,
                  parallel_id=None,
                  **kwargs):
 
@@ -148,7 +148,7 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
             python_callable=self.start,
             batch_name=batch_name,
             parallel_id=parallel_id,
-            workflow_dir=workflow_dir,
+            airflow_workflow_dir=airflow_workflow_dir,
             execution_timeout=timedelta(minutes=20),
             **kwargs
         )

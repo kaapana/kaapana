@@ -49,13 +49,12 @@ async def file_chunks_init(request: Request):
     try:
         payload = await request.json()
         logger.debug(f"in file_chunks_init, {payload=}")
-        req_keys = ("md5", "name", "fileSize",
+        req_keys = ("name", "fileSize",
                     "chunkSize", "index", "endIndex")
         if not all(k in req_keys for k in payload.keys()):
             raise AssertionError(
                 f"All following keys are required: {req_keys}")
         fpath, msg = file_handler.init_file_chunks(
-            md5=payload["md5"],
             fname=payload["name"],
             fsize=payload["fileSize"],
             chunk_size=payload["chunkSize"],
@@ -82,7 +81,7 @@ async def upload_file_chunks(file: UploadFile):
     except Exception as e:
         msg = str(e)
         logger.error(f"/file_chunks failed: {msg}")
-        return Response(f"File upload failed {msg}", 500)
+        return Response(f"File upload failed", 500)
 
 
 # @router.websocket("/file_chunks/{client_id}")
@@ -109,7 +108,7 @@ async def upload_file_chunks(file: UploadFile):
 
 
 @router.get("/import-container")
-def import_container(filename: str):
+async def import_container(filename: str):
     try:
         logger.info(f"/import-container called with {filename}")
         assert filename != "", "Required key 'filename' can not be empty"
@@ -257,7 +256,7 @@ async def pending_applications():
 
 
 @router.get("/extensions")
-def extensions():
+async def extensions():
     # TODO: return Response with status code, fix front end accordingly
     try:
         cached_extensions = helm_helper.get_extensions_list()
@@ -270,7 +269,7 @@ def extensions():
     
 
 @router.get("/platforms")
-def get_platforms():
+async def get_platforms():
     try:
         platforms = helm_helper.get_extensions_list(platforms=True)
 
@@ -281,7 +280,7 @@ def get_platforms():
         return Response(f"Failed to get platforms", 500)
 
 @router.get("/view-chart-status")
-def view_chart_status(release_name: str):
+async def view_chart_status(release_name: str):
     status = utils.helm_status(release_name)
     if status:
         return status

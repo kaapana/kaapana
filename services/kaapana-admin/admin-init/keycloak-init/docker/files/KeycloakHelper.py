@@ -47,67 +47,68 @@ class KeycloakHelper():
         return access_token
 
 
-    def make_authorized_request(self, url: str, request = requests.post, payload = {}, **kwargs):
+    def make_authorized_request(self, url: str, request = requests.post, payload = {}, update_url= "", **kwargs):
         """
         Make an authorized request to the keycloak api using the access token stored in self.master_access_token
         """
         for key, val in kwargs.items():
             payload[key] = val
+        logger.debug(f"Requesting endpoint: {url} with method {request}")
         r = request(url,
             verify = False,
             json = payload,
             headers = {"Authorization": f"Bearer {self.master_access_token}"},
-            timeout = 2
-            )
+            timeout = 2)
 
         if r.status_code in [409]:
             logger.warning("Ressource already exists.")
-            logger.warning("Ressource not created.")
-            logger.warning(r.text)
+            if update_url:
+                logger.info(f"Ressource will be updated!")
+                r = self.make_authorized_request(update_url, requests.put, payload, **kwargs)
+                logger.info(f"Ressource was updated!")
+                r.raise_for_status()
+            else:
+                logger.warning(f"Ressource won't be updated")
         else:
-            logger.debug(f"Requesting endpoint: {url} with method {request}")
             r.raise_for_status()
         return r
 
-    def post_realm(self, payload, **kwargs):
+    def post_realm(self, payload, update=True, **kwargs):
         url = self.auth_url
-        return self.make_authorized_request(url, requests.post, payload, **kwargs)
-    
-    def post_group(self, payload, **kwargs):
+        realm = payload["id"]
+        update_url = url + realm if update else ""
+        r = self.make_authorized_request(url, requests.post, payload=payload, update_url=update_url, **kwargs)
+        return r
+
+    def get_all_groups(self):
         url = self.auth_url + "kaapana/groups"
-        return self.make_authorized_request(url, requests.post, payload, **kwargs)
-    
-    def get_client(self, client_name: str):
-        all_clients = self.make_authorized_request(self.auth_url + f"kaapana/clients", requests.get).json()
-        for client in all_clients:
-            if client["clientId"] == client_name:
-                id = client["id"]
-                break
-        url = self.auth_url + f"kaapana/clients/{id}"
         return self.make_authorized_request(url, requests.get)
 
-    def get_groups(self):
+    def get_group_id(self, group: str):
+        r = self.get_all_groups()
+        group_id = None
+        for found_group in r.json():
+            if found_group["name"] == group:
+                group_id = found_group["id"]
+                return group_id
+        if not group_id:
+            logger.debug(f"Group with name: {group} not found!")
+            logger.debug(f"Found the folling groups: {r.json()}")
+            return None
+        
+    def post_group(self, payload, update=True, **kwargs):
         url = self.auth_url + "kaapana/groups"
-        return self.make_authorized_request(url, requests.get)
+        group = payload["name"]
+        group_id = self.get_group_id(group)
+        update_url = url + f"/{group_id}" if update and group_id and group_id else ""
+        return self.make_authorized_request(url, requests.post, payload=payload, update_url=update_url, **kwargs)
 
     def get_realm_roles(self):
         url = self.auth_url +"kaapana/roles"
         return self.make_authorized_request(url, requests.get)
 
     def post_role_mapping(self, roles_to_add: list, group: str):
-        url = self.auth_url + "kaapana/groups"
-        r = self.make_authorized_request(url, requests.get)
-        group_id = None
-        for found_group in r.json():
-            if found_group["name"] == group:
-                group_id = found_group["id"]
-                break
-        if not group_id:
-            logger.debug(f"Group with name: {group} not found!")
-            logger.debug("Found the folling groups:")
-            logger.debug(r.json())
-            return None
-
+        group_id = self.get_group_id(group)
         payload = []
         roles = self.get_realm_roles().json()
         for role in roles:
@@ -120,6 +121,22 @@ class KeycloakHelper():
         url = self.auth_url + "kaapana/users"
         return self.make_authorized_request(url, requests.post, payload, **kwargs)
 
-    def post_client(self, payload, **kwargs):
+    def get_client_id(self, client_name: str):
+        all_clients = self.make_authorized_request(self.auth_url + f"kaapana/clients", requests.get).json()
+        for client in all_clients:
+            if client["clientId"] == client_name:
+                id = client["id"]
+                return id
+        return None
+
+    def get_client(self, client_name: str):
+        id = self.get_client_id(client_name)
+        url = self.auth_url + f"kaapana/clients/{id}"
+        return self.make_authorized_request(url, requests.get)
+
+    def post_client(self, payload, update=True, **kwargs):
         url = self.auth_url + "kaapana/clients"
-        return self.make_authorized_request(url, requests.post, payload, **kwargs)
+        client_name = payload["clientId"]
+        client_id = self.get_client_id(client_name)
+        update_url = url + f"/{client_id}" if update and client_id else ""
+        return self.make_authorized_request(url, requests.post, payload=payload, update_url=update_url ,**kwargs)

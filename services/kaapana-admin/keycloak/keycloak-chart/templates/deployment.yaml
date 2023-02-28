@@ -46,10 +46,17 @@ spec:
             value: "keycloak"
           - name: KC_LOG_LEVEL
             value: "INFO"
+          {{- if ne (.Values.global.https_port | default "443") "443" }}
           - name: KC_HOSTNAME_ADMIN_URL
-            value: "https://{{ .Values.global.hostname }}:{{  .Values.global.https_port }}/auth" 
+            value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/auth" 
           - name: KC_HOSTNAME_URL
-            value: "https://{{ .Values.global.hostname }}:{{  .Values.global.https_port }}/auth" 
+            value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/auth" 
+          {{- else }}
+          - name: KC_HOSTNAME_ADMIN_URL
+            value: "https://{{ .Values.global.hostname }}/auth" 
+          - name: KC_HOSTNAME_URL
+            value: "https://{{ .Values.global.hostname }}/auth" 
+          {{- end }}
           - name: KC_PROXY
             value: edge
           - name: KC_HTTP_RELATIVE_PATH

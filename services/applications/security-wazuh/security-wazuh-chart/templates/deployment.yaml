@@ -34,6 +34,9 @@ spec:
               name: security-wazuh-api-volume
             - mountPath: /wazuh_api_secret
               name: api-credentials-secret
+            - mountPath: /wazuh-agent-config
+              name: security-wazuh-volume
+              subPath: wazuh_etc
       containers:
       - name: security-wazuh-manager
         image: "{{ .Values.global.registry_url }}/security-wazuh-manager:{{ .Values.global.kaapana_build_version  }}"
@@ -41,7 +44,7 @@ spec:
         lifecycle:
           postStart:
             exec:
-              command: ["/bin/sh", "-c", "curl -H 'Content-Type: application/json' -d '{\"name\": \"Wazuh\", \"url\": \"{{ .Values.global.hostname }}/security-wazuh\" \"api_endpoints\": [{\"identifier\": \"wazuh_manager_api\", \"endpoint\":\"https://security-wazuh-service.services.svc:55000/\"}]}' -X PUT http://security-pages-service.services.svc:5000/security/api/provider --insecure"]
+              command: ["/bin/sh", "-c", "curl -H 'Content-Type: application/json' -d '{\"name\": \"Wazuh\", \"url\": \"https://{{ .Values.global.hostname }}/{{ .Values.ingress_path }}\", \"api_endpoints\": [{\"identifier\": \"api\", \"endpoint\":\"https://{{ .Values.service_name }}.services.svc:{{ .Values.wazuh_api_port }}/\"}, {\"identifier\": \"elastic_api\", \"endpoint\":\"https://{{ .Values.service_name }}.services.svc:{{ .Values.wazuh_elastic_api_port }}/\"}]}' -X PUT http://security-pages-service.services.svc:5000/api/providers --insecure"]
         ports:
           - containerPort: 1514
           - containerPort: 1515
@@ -73,6 +76,12 @@ spec:
             value: /etc/ssl/root-ca.pem
           - name: SSL_KEY
             value: /etc/ssl/filebeat.key
+          - name: "HTTP_PROXY"
+            value: {{ .Values.global.http_proxy }}
+          - name: "HTTPS_PROXY"
+            value: {{ .Values.global.http_proxy }}
+          - name: "NO_PROXY"
+            value: "svc,local,wazuh.manager,wazuh.indexer,wazuh.dashboard"
         resources:
           limits:
             memory: "8Gi"
@@ -133,7 +142,7 @@ spec:
           - containerPort: 9200
         resources:
           limits:
-            memory: "8Gi"
+            memory: "12Gi"
         volumeMounts:
           - mountPath: /var/lib/wazuh-indexer
             name: security-wazuh-volume

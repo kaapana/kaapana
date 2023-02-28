@@ -1,3 +1,8 @@
 ---
 global:
     pull_policy_pods: "IfNotPresent"
+
+ingress_path: "/security-wazuh"
+service_name: "security-wazuh-service"
+wazuh_api_port: 55000
+wazuh_elastic_api_port: 9200

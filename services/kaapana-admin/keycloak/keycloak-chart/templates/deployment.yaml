@@ -37,9 +37,7 @@ spec:
           - name: KC_DB 
             value: "postgres"
           - name: KC_DB_URL 
-            value: "jdbc:postgresql://postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc:5432/keycloak" 
-          - name: KC_DB_URL_PORT 
-            value: "5432"
+            value: "jdbc:postgresql://postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc/keycloak" 
           - name: KC_DB_USERNAME 
             value: "keycloak"
           - name: KC_DB_PASSWORD

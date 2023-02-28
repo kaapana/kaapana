@@ -56,7 +56,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
         client = DICOMwebClient(url=self.pacs_dcmweb, qido_url_prefix="rs", wado_url_prefix="rs", stow_url_prefix="rs")
 
-        run_dir = join(self.workflow_dir, kwargs['dag_run'].run_id)
+        run_dir = join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
         batch_folder = [f for f in glob.glob(join(run_dir, self.batch_name, '*'))]
         download_series_list = []
 

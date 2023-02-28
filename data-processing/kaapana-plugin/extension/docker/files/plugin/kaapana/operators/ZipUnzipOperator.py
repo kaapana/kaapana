@@ -3,7 +3,6 @@ import glob
 from datetime import timedelta
 
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
 class ZipUnzipOperator(KaapanaBaseOperator):

@@ -17,11 +17,11 @@ class LocalWorkflowCleanerOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         run_id, dag_run_dir, dag_run, downstream_tasks = \
-            get_operator_properties(**kwargs)
+            get_operator_properties(self.airflow_workflow_dir, **kwargs)
         conf = dag_run.conf
 
-        clean_previous_dag_run(conf, 'from_previous_dag_run')
-        clean_previous_dag_run(conf, 'before_previous_dag_run')
+        clean_previous_dag_run(self.airflow_workflow_dir, conf, 'from_previous_dag_run')
+        clean_previous_dag_run(self.airflow_workflow_dir, conf, 'before_previous_dag_run')
 
         run_dir = dag_run_dir if self.run_dir is None else self.run_dir
         if self.clean_workflow_dir and Path(run_dir).exists():

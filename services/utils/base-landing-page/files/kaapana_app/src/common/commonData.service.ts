@@ -4,7 +4,7 @@ const CommonDataService = {
   getCommonData() {
     return new Promise((resolve, reject) => {
 
-      request.get('/jsons/commonData.json').then((response: any) => {
+      request.get('/mounted/commonData.json').then((response: any) => {
         resolve(response.data)
       }).catch((error: any) => {
         console.log('Something went wrong loading the common Data', error)

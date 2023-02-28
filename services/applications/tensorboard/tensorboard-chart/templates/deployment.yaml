@@ -32,7 +32,7 @@ spec:
             value: "/tensorboard-{{ $uuid }}"
         volumeMounts:
           - name: tensorboard-files
-            mountPath: /data
+            mountPath: /kaapana/mounted/tensorboard
       volumes:
       - name: tensorboard-files
         persistentVolumeClaim:

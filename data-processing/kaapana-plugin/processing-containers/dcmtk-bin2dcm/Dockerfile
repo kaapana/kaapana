@@ -4,7 +4,7 @@ LABEL IMAGE="bin2dcm"
 LABEL VERSION="3.6.4"
 LABEL CI_IGNORE="False"
 
-COPY files/template.xml /app/
-COPY files/start.py /app/
+COPY files/template.xml /kaapana/app/
+COPY files/start.py /kaapana/app/
 
-CMD ["python3","-u","/app/start.py"]
+CMD ["python3","-u","/kaapana/app/start.py"]

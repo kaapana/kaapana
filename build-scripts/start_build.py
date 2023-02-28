@@ -21,7 +21,7 @@ if __name__ == '__main__':
     parser.add_argument("-bo", "--build-only", dest="build_only", default=None, action='store_true', help="Just building the containers and charts -> no pushing")
     parser.add_argument("-oi", "--create-offline-installation", dest="create_offline_installation", default=None, help="Will create a docker dump, from which the platfrom can be installed.")
     parser.add_argument("-pm", "--push-to-microk8s", dest="push_to_microk8s", default=None, help="Will create a docker dump, from which the platfrom can be installed.")
-    parser.add_argument("-kd", "--kaapana-dir", dest="kaapaa_dir", default=None, help="Kaapana repo path.")
+    parser.add_argument("-kd", "--kaapana-dir", dest="kaapana_dir", default=None, help="Kaapana repo path.")
     parser.add_argument("-ll", "--log-level", dest="log_level", default=None, help="Set log-level.")
     parser.add_argument("-el", "--enable-linting", dest="enable_linting", default=None, help="Enable Helm Chart lint & kubeval.")
     parser.add_argument("-sp", "--skip-push-no-changes", dest="skip_push_no_changes", default=None, help="Skip the image push if it didn't change.")
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     parser.add_argument("-ccl", "--configuration-check-severity-level", dest="configuration_check_severity_level", default=None, action="store_true", help="Filter by severity of findings. CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN.")
     args = parser.parse_args()
 
-    kaapana_dir = args.kaapaa_dir if args.kaapaa_dir != None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    kaapana_dir = args.kaapana_dir if args.kaapana_dir != None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     build_dir = args.build_dir if args.build_dir != None else join(dirname(dirname(os.path.realpath(__file__))), "build")
 
     if exists(build_dir):

@@ -7,6 +7,6 @@ LABEL CI_IGNORE="False"
 COPY files/requirements.txt /
 RUN pip3 install --no-cache-dir -r /requirements.txt
 
-COPY files/seg-thumbnail-generator.py /app/
+COPY files/seg-thumbnail-generator.py /kaapana/app/
 
-CMD ["python3", "-u", "/app/seg-thumbnail-generator.py"]
+CMD ["python3", "-u", "/kaapana/app/seg-thumbnail-generator.py"]

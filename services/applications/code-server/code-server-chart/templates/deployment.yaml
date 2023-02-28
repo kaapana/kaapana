@@ -30,7 +30,7 @@ spec:
         {{- end }}
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         command: ["code-server"]
-        args: ["--auth", "none", "--bind-addr", "0.0.0.0:8080","/app"]
+        args: ["--auth", "none", "--bind-addr", "0.0.0.0:8080","/kaapana"]
         env:
         {{- range $envVar := .Values.envVars }}
         - name: {{ $envVar.name }}
@@ -55,18 +55,18 @@ spec:
           - name: containerd-socket
             mountPath: "/root/containerd.sock"
           - name: podman-data
-            mountPath: /app/podman
+            mountPath: /kaapana/mounted/podman
           {{- else }}
           - name: models
-            mountPath: /app/models
+            mountPath: /kaapana/mounted/workflows/models
           - name: airflow-dags
-            mountPath: /app/dags
+            mountPath: /kaapana/mounted/workflows/dags
           - name: airflow-data
-            mountPath: /app/data
+            mountPath: /kaapana/mounted/workflows/data
           - name: airflow-plugins
-            mountPath: /app/plugins
+            mountPath: /kaapana/mounted/workflows/plugins
           - name: airflow-mounted-scripts
-            mountPath: /app/mounted_scripts
+            mountPath: /kaapana/mounted/workflows/mounted_scripts
           {{- end }}
           - name: configs
             mountPath: /root/.local/share/code-server/User/keybindings.json

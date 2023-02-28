@@ -279,7 +279,7 @@ In :code:`extension/docker/` create the :code:`Dockerfile` for the DAG
 .. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/otsus-method/extension/docker/Dockerfile
 
 .. hint :: 
-    The base image :code:`local-only/dag-installer:0.1.0` scans all .py files in :code:`tmp` for images and pulls them via the Helm API.
+    The base image :code:`local-only/base-installer:0.1.0` scans all .py files in :code:`tmp` for images and pulls them via the Helm API.
     It also copies files into desired locations.
 
 Tag the image and push it to the registry. Next to the :code:`Dockerfile` in :code:`extension/docker/` run 

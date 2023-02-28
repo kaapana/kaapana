@@ -19,7 +19,6 @@ import errno
 import re
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperCaching import cache_operator_output
 
 
@@ -114,8 +113,8 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         print("Starting moule dcm2json...")
         print(kwargs)
 
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-        batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
+        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))]
 
         with open(self.dict_path, encoding='utf-8') as dict_data:
             self.dictionary = json.load(dict_data)

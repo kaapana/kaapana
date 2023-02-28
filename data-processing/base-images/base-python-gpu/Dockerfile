@@ -9,8 +9,9 @@ LABEL CI_IGNORE="False"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-WORKDIR /kaapana
+WORKDIR /kaapana/base
 
+<<<<<<< HEAD
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     apt-utils \
     git \
@@ -23,10 +24,16 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     texlive-fonts-recommended \
     texlive-plain-generic \
     && rm -rf /var/lib/apt/lists/*
+=======
+COPY files/requirements.system /kaapana/base/
+RUN apt-get update -q -y && apt-get install -y --no-install-recommends apt-utils && \
+    cat /kaapana/base/requirements.system | xargs apt-get install -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+>>>>>>> b0d47d1c823a51dd3af874a59ed61ecd4d468b94
 
 # Common Python packages
-COPY files/requirements.txt /kaapana/
-RUN python -m pip install --upgrade setuptools pip && pip3 install -r /kaapana/requirements.txt
+COPY files/requirements.txt /kaapana/base/
+RUN python -m pip install --upgrade setuptools pip && pip3 install -r /kaapana/base/requirements.txt
 
 # Code server
 RUN wget https://code-server.dev/install.sh
@@ -40,4 +47,4 @@ RUN jupyter-lab --generate-config \
 COPY files/jupyterlab.sh /
 COPY files/kaapana_federated /kaapana_federated
 
-WORKDIR /app
+WORKDIR /kaapana/app

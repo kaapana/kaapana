@@ -54,7 +54,7 @@ spec:
           - containerPort: 5000
         volumeMounts:
           - name: helmextensions
-            mountPath: "/root/extensions"
+            mountPath: "/kaapana/mounted/extensions"
       volumes:
       - name: helmextensions
         persistentVolumeClaim:

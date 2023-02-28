@@ -2,7 +2,7 @@ import json
 import os
 import logging
 
-auth_role_mapping_path = "/app/auth_role_mapping.json"
+auth_role_mapping_path = "/kaapana/app/auth_role_mapping.json"
 global auth_role_mapping_dict
 
 

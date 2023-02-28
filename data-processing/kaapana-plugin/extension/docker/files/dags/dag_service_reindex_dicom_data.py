@@ -6,7 +6,7 @@ import pydicom
 from shutil import copyfile
 from airflow.utils.dates import days_ago
 from kaapana.blueprints.kaapana_utils import generate_run_id
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, AIRFLOW_WORKFLOW_DIR
 from kaapana.operators.LocalDeleteFromMetaOperator import LocalDeleteFromMetaOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
@@ -35,7 +35,6 @@ def start_reindexing(ds, **kwargs):
     from airflow.api.common.trigger_dag import trigger_dag as trigger
 
     pacs_data_dir = '/pacsdata'
-    workflowdata_dir = "/data/"
     dag_id = "service-extract-metadata"
 
     print("Start re-index")
@@ -59,7 +58,7 @@ def start_reindexing(ds, **kwargs):
         incoming_dcm = pydicom.dcmread(dcm_file)
         seriesUID = incoming_dcm.SeriesInstanceUID
 
-        target_dir = os.path.join(workflowdata_dir, dag_run_id, BATCH_NAME, "{}".format(seriesUID), 'get-input-data')
+        target_dir = os.path.join(AIRFLOW_WORKFLOW_DIR, dag_run_id, BATCH_NAME, "{}".format(seriesUID), 'get-input-data')
         print(target_dir)
 
         if not os.path.exists(target_dir):

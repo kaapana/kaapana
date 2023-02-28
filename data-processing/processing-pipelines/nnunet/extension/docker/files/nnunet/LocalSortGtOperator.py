@@ -9,14 +9,13 @@ from pathlib import Path
 from shutil import copy2, move, rmtree
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import WORKFLOW_DIR
 
 class LocalSortGtOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         print("Starting LocalSortGtOperator ...")
         print(kwargs)
 
-        run_dir = join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
+        run_dir = join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
         batch_dirs = [f for f in glob(join(run_dir, self.batch_name, '*'))]
 
         print(f"# Found {len(batch_dirs)} batch elements...")

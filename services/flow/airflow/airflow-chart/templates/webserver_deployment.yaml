@@ -39,10 +39,10 @@ spec:
         - name: DELAY
           value: "5"
         - name: FILES_AND_FOLDERS_EXISTS
-          value: "/root/airflow/dags/__pycache__"
+          value: "/kaapana/mounted/workflows/dags/__pycache__"
         volumeMounts:
         - name: airflow-dags
-          mountPath: /root/airflow/dags
+          mountPath: /kaapana/mounted/workflows/dags
       containers:
       - name: webserver
         image: "{{ .Values.global.registry_url }}/airflow:{{ .Values.global.kaapana_build_version  }}"
@@ -54,6 +54,8 @@ spec:
         env:
         - name: AIRFLOW__LOGGING__LOGGING_LEVEL
           value: "WARNING"
+        - name: AIRFLOW_HOME
+          value: "/kaapana/mounted/workflows"
         - name: HOSTDOMAIN
           value: "{{ .Values.global.hostname }}"
         - name: HTTPS_PORT
@@ -77,15 +79,15 @@ spec:
             memory: 3000Mi
         volumeMounts:
         - name: airflow-configmap
-          mountPath: /root/airflow/airflow.cfg
+          mountPath: /kaapana/mounted/workflows/airflow.cfg
           subPath: airflow.cfg
         - name: airflow-webserver-config
-          mountPath: /root/airflow/webserver_config.py
+          mountPath: /kaapana/mounted/workflows/webserver_config.py
           subPath: webserver_config.py
         - name: airflow-plugins
-          mountPath: /root/airflow/plugins
+          mountPath: /kaapana/mounted/workflows/plugins
         - name: airflow-dags
-          mountPath: /root/airflow/dags
+          mountPath: /kaapana/mounted/workflows/dags
         # readinessProbe:
         #   initialDelaySeconds: 120
         #   timeoutSeconds: 5

@@ -30,7 +30,7 @@ spec:
           value: "mitk-vol-{{ $uuid }}"
         volumeMounts:
         - name: mitk-data
-          mountPath: /data
+          mountPath: /kaapana/mounted/mitk-data
       volumes:
       - name: mitk-data
         hostPath:

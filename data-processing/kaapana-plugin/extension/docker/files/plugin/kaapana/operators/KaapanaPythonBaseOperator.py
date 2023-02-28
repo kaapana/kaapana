@@ -60,7 +60,7 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
         delete_input_on_success=False,
         delete_output_on_start=True,
         batch_name=None,
-        workflow_dir=None,
+        airflow_workflow_dir=None,
         **kwargs
     ):
 
@@ -86,7 +86,7 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
             allow_federated_learning=allow_federated_learning,
             whitelist_federated_learning=whitelist_federated_learning,
             batch_name=batch_name,
-            workflow_dir=workflow_dir,
+            airflow_workflow_dir=airflow_workflow_dir,
             delete_input_on_success=delete_input_on_success,
             delete_output_on_start=delete_output_on_start
         )

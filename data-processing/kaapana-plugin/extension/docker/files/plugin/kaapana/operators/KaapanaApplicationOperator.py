@@ -8,7 +8,7 @@ import requests
 from airflow.exceptions import AirflowException
 from datetime import timedelta
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator, rest_self_udpate
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, ADMIN_NAMESPACE, SERVICES_NAMESPACE
+from kaapana.blueprints.kaapana_global_variables import PROCESSING_WORKFLOW_DIR, ADMIN_NAMESPACE, SERVICES_NAMESPACE
 from kaapana.blueprints.kaapana_utils import cure_invalid_name, get_release_name
 
 
@@ -38,11 +38,11 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
             'release_name': release_name,
             'sets': {
                 'mount_path': f'{self.data_dir}/{kwargs["run_id"]}',
-                "workflow_dir": str(WORKFLOW_DIR),
-                "batch_name": str(BATCH_NAME),
+                "workflow_dir": f'{str(PROCESSING_WORKFLOW_DIR)}/{kwargs["run_id"]}',
+                "batch_name": str(self.batch_name),
                 "operator_out_dir": str(self.operator_out_dir),
                 "operator_in_dir": str(self.operator_in_dir),
-                "batches_input_dir": "/{}/{}".format(WORKFLOW_DIR, BATCH_NAME)
+                "batches_input_dir": f'{str(PROCESSING_WORKFLOW_DIR)}/{kwargs["run_id"]}/{self.batch_name}',
             }
         }
 

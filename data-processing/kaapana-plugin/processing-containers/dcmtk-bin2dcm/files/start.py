@@ -180,7 +180,7 @@ def xml_to_binary(target_dir, delete_xml=True):
     converter_count += 1
 
 
-def generate_xml(binary_path, target_dir, template_path="/app/template.xml"):
+def generate_xml(binary_path, target_dir, template_path="/kaapana/app/template.xml"):
     if not exists(target_dir):
         os.makedirs(target_dir)
 

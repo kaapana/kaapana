@@ -5,7 +5,7 @@ from opensearchpy import OpenSearch
 from enum import Enum
 from typing import List
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, SERVICES_NAMESPACE
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 
 class LocalTaggingOperator(KaapanaPythonBaseOperator):
 
@@ -64,8 +64,8 @@ class LocalTaggingOperator(KaapanaPythonBaseOperator):
         
         print(f"Action: {action}")
         print(f"Tags from form: {tags}")
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-        batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
+        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))]
 
         for batch_element_dir in batch_folder:
             json_files = sorted(glob.glob(os.path.join(batch_element_dir, self.operator_in_dir, "*.json*"), recursive=True))

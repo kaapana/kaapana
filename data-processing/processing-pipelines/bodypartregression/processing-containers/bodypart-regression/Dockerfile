@@ -10,11 +10,17 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Turns off buffering for easier container logging
 ENV PYTHONUNBUFFERED=1
 
-WORKDIR /app
+WORKDIR /kaapana/app
 
+<<<<<<< HEAD
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     python3-opencv \
     && rm -rf /var/lib/apt/lists/*
+=======
+COPY files/requirements.system /kaapana/app/
+RUN apt-get update -y && cat /kaapana/app/requirements.system | xargs apt-get install -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+>>>>>>> b0d47d1c823a51dd3af874a59ed61ecd4d468b94
 
 RUN apt-get purge -y libhwloc-dev libhwloc-plugins
 # Clone directory from git
@@ -22,13 +28,13 @@ RUN git clone  --single-branch --branch master https://github.com/MIC-DKFZ/BodyP
 
 # Download public model from zenodo 
 RUN touch BodyPartRegression/src/models/public_bpr_model.zip
-RUN curl https://zenodo.org/record/5113483/files/public_bpr_model.zip?download=1 -o /app/BodyPartRegression/src/models/public_bpr_model.zip 
+RUN curl https://zenodo.org/record/5113483/files/public_bpr_model.zip?download=1 -o /kaapana/app/BodyPartRegression/src/models/public_bpr_model.zip 
 
-RUN unzip BodyPartRegression/src/models/public_bpr_model.zip -d /app/BodyPartRegression/src/models/
+RUN unzip BodyPartRegression/src/models/public_bpr_model.zip -d /kaapana/app/BodyPartRegression/src/models/
 
-COPY files/requirements.txt /app/requirements.txt
-RUN pip3 uninstall -y torch torchtext &&  pip3 install -r /app/requirements.txt
+COPY files/requirements.txt /kaapana/app/requirements.txt
+RUN pip3 uninstall -y torch torchtext &&  pip3 install -r /kaapana/app/requirements.txt
 
-WORKDIR /app/BodyPartRegression
+WORKDIR /kaapana/app/BodyPartRegression
 
 CMD ["python3", "-u", "starter.py"]

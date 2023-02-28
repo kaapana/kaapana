@@ -16,10 +16,10 @@ ENV OPERATOR_OUT_DIR seg-check
 ENV INTERPOLATOR 1 
 ENV ORG_IMG_IN_DIR ""
 
-ENV EXECUTABLE /app/MitkCLResampleImageToReference.sh
+ENV EXECUTABLE /kaapana/app/MitkCLResampleImageToReference.sh
 
-COPY files/start.py /app/
-CMD ["python3","-u","/app/start.py"]
+COPY files/start.py /kaapana/app/
+CMD ["python3","-u","/kaapana/app/start.py"]
 
 # root@cd72f914f1cd:/opt# ./MitkCLResampleImageToReference.sh 
 # Running Command Line Utility *Resample Image To Reference*

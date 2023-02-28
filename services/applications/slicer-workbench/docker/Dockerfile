@@ -5,7 +5,7 @@ LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
 WORKDIR /src
-RUN mkdir -p /data
+RUN mkdir -p /kaapana/mounted/slicer-data
 
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     libpulse-dev \
@@ -61,8 +61,8 @@ RUN su researcher -c "mkdir /home/researcher/Documents"
 #WORKDIR /data
 
 RUN mkdir -p /home/researcher/Desktop
-RUN ln -s /data /home/researcher/Desktop/
-WORKDIR /data
+RUN ln -s /kaapana/mounted/slicer-data /home/researcher/Desktop/
+WORKDIR /kaapana/mounted/slicer-data
 
 # A supervisord config is used to make the application managed
 COPY files/supervisord.conf /etc/supervisor/conf.d/

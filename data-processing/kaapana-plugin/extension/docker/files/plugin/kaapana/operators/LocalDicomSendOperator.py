@@ -7,7 +7,7 @@ from subprocess import PIPE, run
 
 import pydicom
 import requests
-from kaapana.blueprints.kaapana_global_variables import WORKFLOW_DIR, BATCH_NAME, SERVICES_NAMESPACE
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.KaapanaPythonBaseOperator import \
     KaapanaPythonBaseOperator
 
@@ -79,8 +79,8 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
             raise ValueError('ERROR')
 
     def start(self, **kwargs):
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-        batch_folders = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
+        batch_folders = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))]
         for batch_element_dir in batch_folders:
             print("input operator ", self.operator_in_dir)
             element_input_dir = os.path.join(batch_element_dir, self.operator_in_dir)

@@ -10,8 +10,6 @@ import numpy as np
 import pydicom
 
 from pathlib import Path
-from utils import set_args_from_config
-
 processed_count = 0
 
 
@@ -177,10 +175,43 @@ def adding_aetitle(element_input_dir, output_dcm_file, body_part):
 # Only a single Item shall be included in this Sequence.
 # http://dicom.nema.org/medical/dicom/current/output/chtml/part16/chapter_L.html#chapter_L
 
+def set_args_file(batch_element_dir):
+
+    config_file = '/data/conf/conf.json'
+    try:
+        with open(config_file, 'r') as f:
+            config = json.load(f)
+            seg_args = config['seg_args']
 
 
+        valid_keys = [
+            "INPUT_TYPE", 
+            "SINGLE_LABEL_SEG_INFO",
+            "CREATE_MULIT_LABEL_DCM_FROM_SINGLE_LABEL_SEGS",
+            "MULTI_LABEL_SEG_INFO_JSON",
+            "MULTI_LABEL_SEG_NAME",
+            "SERIES_DISCRIPTION",
+            "ALGORITHM_NAME",
+            "CREATOR_NAME",
+            "ALGORITHM_TYPE",
+            "SERIES_NUMBER",
+            "INSTANCE_NUMBER",
+            "SKIP_EMPTY_SLICES",
+            "DCMQI_COMMAND",
+            "OPERATOR_IMAGE_LIST_INPUT_DIR"]
 
-set_args_from_config()
+        for k,v in seg_args.items():
+            key = k.upper()
+            if key not in valid_keys:
+                raise NameError(f"Arguments in 'seg_args.json' is invalid. Valid keys are {valid_keys}")
+            os.environ[key] = v
+        print("Found args.json in segmentation folder. parameters given by dag will be overwritten.")
+    except FileNotFoundError:
+        print("No args.json found. Continuing with parameters from dag definition.")
+
+batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
+
+set_args_file(batch_folders[0])
 
 
 print("Started: 'itkimage2segimage' ")
@@ -254,7 +285,7 @@ code_lookup_table_path = "code_lookup_table.json"
 with open(code_lookup_table_path) as f:
     code_lookup_table = json.load(f)
 
-batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
+# batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 
 print("Found {} batches".format(len(batch_folders)))
 

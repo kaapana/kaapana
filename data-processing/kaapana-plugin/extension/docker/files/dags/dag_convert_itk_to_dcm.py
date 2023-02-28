@@ -32,6 +32,25 @@ ui_forms = {
                 "description": "Directory containing the dataset.",
                 "type": "string",
                 "default": "BMC"
+            },
+            "modality":{
+                "title": "modality",
+                "description": "Modality of the input images. Usually CT or MR.",
+                "type": "string",
+                "default": "CT"
+            },
+            "seg_labels":{
+                "type": "array",
+                "title": "Segmentation labels",
+                "items":{
+                    "type": "object",
+                    "properties": {
+                        "name":{
+                            "title": "Label name",
+                            "type": "string"
+                        }
+                    }
+                }
             }
         }
     }
@@ -73,11 +92,6 @@ convert = Itk2DcmOperator(
     # dev_server='code-server',
     input_operator=get_data_from_minio) 
 
-# send_dcm_to_pacs = LocalDicomSendOperator(
-#     dag=dag,
-#     input_operator = convert
-# )
-
 convert_seg = Itk2DcmSegOperator(
     dag=dag,
     # config_file=Path(convert.operator_out_dir)/'segmentations/seg_args.json',
@@ -98,12 +112,6 @@ dcm_send_img = DcmSendOperator(
     operator_in_dir=Path(convert.operator_out_dir)/'dicoms'
 )
 
-# send_segs_to_pacs = LocalDicomSendOperator(
-#     dag=dag,
-#     input_operator = convert_seg
-# )
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-# put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[convert])
-# clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
-
-get_data_from_minio >> convert >> convert_seg >> dcm_send_img >> dcm_send_seg# >> put_to_minio # >> clean
+get_data_from_minio >> convert >> convert_seg >> dcm_send_img >> dcm_send_seg >> clean

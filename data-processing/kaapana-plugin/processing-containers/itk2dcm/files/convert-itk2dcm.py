@@ -43,8 +43,6 @@ class Nifti2DcmConverter:
     def __init__(self, meta_data=None, seed=42):
         self.parser = Parser()
         self.seed = str(seed)
-        # self.meta_data = meta_data
-        # self.series_tag_values = {}
         self.root_dir = self.get_root()
         self.workflow_conf = self.get_workflow_conf()
         self.data_dir = self.get_data_dir()
@@ -67,6 +65,7 @@ class Nifti2DcmConverter:
         try:
             with open(os.path.join(f"/{self.root_dir}", self.data_dir, "meta_data.json"), "r") as meta_file:
                 meta_data = json.load(meta_file)
+
         except FileNotFoundError:
             meta_data = {}
         return meta_data
@@ -101,17 +100,15 @@ class Nifti2DcmConverter:
                     '(xxxx|xxxx)': tag_value,
                     ...
                 }
-                
             }
 
             'seg_args': {
                 'input_type': 'multi_label_seg' | 'single_label_segs',
                 'single_label_seg_info': 'prostate',
                 'multi_label_seg_info_json': 'seg_info.json'
-
             }
-
         }
+
         All fields are optional, but it is highly recommended, to at least set the modality since the default is set to "OT" i.e. "Other" which will omit necessary positioning data for image processing.
         The field "add_tags" allows to set specific tags on all series matching the given file name pattern. At the moment this is just a simple glob pattern matching.
         If needed we could also add regex syntax here, but for now this seems unnecessarily complex.
@@ -179,6 +176,7 @@ class Nifti2DcmConverter:
                 print("### Processing segmentation parameters finished.")
             except KeyError:
                 print("No arguments for Itk2DcmSegOperator found. Please provide 'seg_args' in the 'meta_data.json'.")
+                seg_args = make_seg_args()
 
         for i, case in enumerate(cases):
             series_tag_values = {}
@@ -207,7 +205,7 @@ class Nifti2DcmConverter:
         """
         :param data: data to process given as list of paths of the ".nii.gz" files to process.
         
-        :returns: None type. Writes dicomS to $OPERATOR_OUT_DIR.
+        :returns: None type. Writes dicoms to $OPERATOR_OUT_DIR.
         """
         series_id = str(case_path).split('/')[-1].split('.')[0]
         series_description = kwds.get("series_description")
@@ -257,7 +255,7 @@ class Nifti2DcmConverter:
             print("### Checking for segmentation information.")
             shutil.copy2(segmentation, out_dir/'segmentations/')
             # if seg_args is not None:
-            print("### Copying seg_info file.")
+            # print("### Copying segmentatin file.")
 
             if seg_info_path:
                 print("### Passing seg_info.json to segmentation converter.")
@@ -377,7 +375,37 @@ class Parser:
         res = [*cases_with_segs, *cases_without_segs]
         return res
 
+def make_seg_args():
+    import os
+    import json
+    json_path = os.path.join(os.environ['OPERATOR_IN_DIR'], 'seg_info.json')
+    # case1: seg_info.json exists
+    seg_args = {}
+    try:
+        with open(json_path, 'r') as f:
+            seg_info_json = json.load(f)
+            seg_args['input_type'] = "multi_label_seg"
+            seg_args['multi_label_seg_info_json'] = "seg_info.json"
+    except FileNotFoundError:
+    # case2: seg_info for label comes from workflow argument
+        try:
+            with open("/data/conf/conf.json", 'r') as conf_file:
+                conf = json.load(conf_file)
+                seg_args['input_type'] = "single_label_segs"
+                seg_args['single_label_seg_info']= conf['workflow_form']["seg_info"]
+            print("No seg_info.json found. Assuming single label segmentation with label:{}")
+        except KeyError as e:
+            print("Could not find seg_info or workflow_form.")
+            raise e
+    
+    # case3: seg_info for label comes from file_name
+    seg_args['input_type'] = "single_label_segs"
+    seg_args['single_label_seg_info'] = "from_file_name"
+    
+    # if there is also more than one segmentation per image file:
+    seg_args['create_multi_label_dcm_from_single_label_segs'] = True
 
+    return seg_args
 
 if __name__ == "__main__":
     converter = Nifti2DcmConverter()

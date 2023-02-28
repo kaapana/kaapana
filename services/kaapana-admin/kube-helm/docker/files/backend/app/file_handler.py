@@ -12,6 +12,7 @@ from config import settings
 import schemas
 import helm_helper
 
+# TODO: add md5 logic
 
 chunks_fname: str = ""
 chunks_fsize: int = 0
@@ -30,18 +31,18 @@ class FileSession:
         self.chunk_size: int = chunk_size
         self.endindex: int = endindex
         self.curr_index: int = curr_index
-        # wait 30 mins for the next chunk before deleting the file
+        # wait 20 mins for the next chunk before deleting the file
         self.wait_before_del = 20
-        self.timer = RepeatedTimer(
-            self.wait_before_del, delete_file, self.fpath)
+        # self.timer = RepeatedTimer(
+        #     self.wait_before_del, delete_file, self.fpath)
 
     def update(self, index):
         self.curr_index = index
         if self.curr_index > self.endindex:
             logger.error(
                 f"ERROR: for {self.fpath=} {self.curr_index=} > {self.endindex=}")
-        self.timer.stop()
-        self.timer.start()
+        # self.timer.stop()
+        # self.timer.start()
 
     def delete_file(self):
         logger.warning(
@@ -50,7 +51,8 @@ class FileSession:
         delete_file(self.fpath)
 
     def pause(self):
-        self.timer.stop()
+        # self.timer.stop()
+        return
 
     def check_md5(self, md5):
         return self.md5 == md5
@@ -95,7 +97,7 @@ def check_file_namespace(fpath):
     tmp_dir = "/tmp"
     logger.info(f"untarring file into temp directory {tmp_dir}")
     os.mkdir(tmp_dir)
-    cmd = f"tar -xf {fpath} --directory {tmp_dir}"
+    cmd = f"{settings.helm_path} -n {settings.helm_namespace} "
     helm_helper.execute_shell_command(cmd, shell=True, blocking=True)
 
     os.chdir(tmp_dir)
@@ -111,6 +113,8 @@ def check_file_namespace(fpath):
                 if "kube-system" in f.read():
                     raise AssertionError(
                         f"Permission denied: kube-system present in file {f}")
+
+    # return multiinstallable
 
 
 def add_file(file: UploadFile, content: bytes, overwrite: bool = True) -> Tuple[bool, str]:
@@ -128,27 +132,32 @@ def add_file(file: UploadFile, content: bytes, overwrite: bool = True) -> Tuple[
     if fpath == "":
         return False, msg
 
+    multiinstallable = False
+
     # write file
     logger.info(f"saving file to {fpath}...")
     try:
         with open(fpath, "wb") as f:
             f.write(content)
+        success, stdout = helm_helper.execute_shell_command(
+            f"{settings.helm_path} show chart {fpath}"
+        )
+        if not success:
+            raise Exception(stdout)
+        if "kaapanamultiinstallable" in stdout:
+            multiinstallable = True
         # TODO: check_file_namespace(fpath)
     except Exception as e:
         logger.error(e)
         err = "Failed to write chart file {0}".format(file.filename)
         logger.error(err)
-        # TODO:
-        # if os.path.exists(fpath):
-        #     logger.debug(f"removing file {fpath}")
-        #     os.remove(fpath)
-        # if os.path.exists("/tmp"):
-        #     shutil.rmtree("/tmp")
+        deleted = delete_file(fpath)
+        if deleted:
+            logger.info(f"deleted file {fpath}")
         return False, err
     finally:
         # TODO: os.chdir(cwd)
         f.close()
-        logger.info("write successful")
 
     # parse name, version
     if file.filename[-4:] != ".tgz":
@@ -161,7 +170,8 @@ def add_file(file: UploadFile, content: bytes, overwrite: bool = True) -> Tuple[
     helm_helper.update_extension_state(schemas.ExtensionStateUpdate.construct(
         extension_name=fname,
         extension_version=fversion,
-        state=schemas.ExtensionStateType.NOT_INSTALLED
+        state=schemas.ExtensionStateType.NOT_INSTALLED,
+        multiinstallable=multiinstallable
     ))
 
     if msg == "":
@@ -170,7 +180,7 @@ def add_file(file: UploadFile, content: bytes, overwrite: bool = True) -> Tuple[
     return True, msg
 
 
-def init_file_chunks(fname: str, fsize: int, chunk_size: int, index: int, endindex: int, md5: str, overwrite: bool = True):
+def init_file_chunks(fname: str, fsize: int, chunk_size: int, index: int, endindex: int, md5: str = "placeholder", overwrite: bool = True):
     global chunks_fname, chunks_fsize, chunks_chunk_size, chunks_endindex, chunks_fpath, chunks_index
 
     # sanity checks
@@ -216,7 +226,6 @@ def init_file_chunks(fname: str, fsize: int, chunk_size: int, index: int, endind
 
 def add_file_chunks(chunk: bytes):
     """
-
     Args:
         chunk (bytes): 
 
@@ -318,8 +327,8 @@ def run_containerd_import(fname: str) -> Tuple[bool, str]:
         return res, f"Failed to import container {fname}"
 
     sess = sessions[list(sessions.keys())[0]]
-    sess.timer.stop()
-    del sess.timer
+    # sess.timer.stop()
+    # del sess.timer
     del sess
 
     logger.info("Successfully imported container")
@@ -328,11 +337,11 @@ def run_containerd_import(fname: str) -> Tuple[bool, str]:
 
 
 def delete_file(fpath) -> bool:
-    logger.warning("file_handler.delete_file() is called")
+    logger.warning(f"file_handler.delete_file() is called with {fpath}")
     global chunks_fpath
     sess = sessions[list(sessions.keys())[0]]
-    sess.timer.stop()
-    del sess.timer
+    # sess.timer.stop()
+    # del sess.timer
     if not os.path.exists(fpath):
         del sess
         return True

@@ -22,7 +22,7 @@ metadata:
 spec:
   redirectRegex:
     regex: ^.*/kubernetes([^\/]*)$
-    replacement: /kubernetes/#/overview?namespace={{  .Values.global.admin_namespace  }}
+    replacement: /kubernetes/#/pod?namespace=_all
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware

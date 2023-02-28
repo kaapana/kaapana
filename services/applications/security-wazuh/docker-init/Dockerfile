@@ -20,6 +20,8 @@ LABEL IMAGE="security-wazuh-init"
 LABEL VERSION="0.0.1"
 LABEL CI_IGNORE="False"
 
+RUN apk update && apk add --no-cache sed
+
 COPY files/ ./
 RUN chmod +x init.sh
 

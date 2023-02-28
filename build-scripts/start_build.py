@@ -291,7 +291,8 @@ if __name__ == '__main__':
         logger.info("-----------------------------------------------------------")
         logger.info("")
         for chart_object in BuildUtils.platform_filter:
-            TrivyUtils.check_chart(path_to_chart=os.path.join(BuildUtils.build_dir, chart_object))
+            trivy_utils = TrivyUtils()
+            trivy_utils.check_chart(path_to_chart=os.path.join(BuildUtils.build_dir, chart_object))
 
     if len(BuildUtils.issues_list) > 0:
         logger.info("")

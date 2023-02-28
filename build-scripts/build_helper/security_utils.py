@@ -17,27 +17,28 @@ class TrivyUtils:
     compressed_vulnerability_reports = {}
     compressed_dockerfile_report = {}
     
-    # Check if trivy is installed
-    if which('trivy') is None:
-        BuildUtils.logger.error("Trivy is not installed, please visit https://aquasecurity.github.io/trivy/v0.37/getting-started/installation/ for installation instructions")
-        BuildUtils.generate_issue(
-            component=suite_tag,
-            name="Check if Trivy is installed",
-            msg="Trivy is not installed",
-            level="ERROR"
-        )
-    # Check if severity level is set (enable all vulnerabily severity levels if not set)
-    if BuildUtils.vulnerability_severity_level == '' or BuildUtils.vulnerability_severity_level == None:
-        BuildUtils.vulnerability_severity_level = 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
-    # Check if vulnerability_severity_levels are in the allowed values
-    elif not all(x in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'] for x in BuildUtils.vulnerability_severity_level.split(",")):
-        BuildUtils.logger.warning(f"Invalid severity level set in vulnerability_severity_level: {BuildUtils.vulnerability_severity_level}. Allowed values are: CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN")
-        BuildUtils.generate_issue(
-            component=suite_tag,
-            name="Check if vulnerability_severity_level is set correctly",
-            msg="Invalid severity level set in vulnerability_severity_level",
-            level="ERROR"
-        )
+    def __init__(self):
+        # Check if trivy is installed
+        if which('trivy') is None:
+            BuildUtils.logger.error("Trivy is not installed, please visit https://aquasecurity.github.io/trivy/v0.37/getting-started/installation/ for installation instructions")
+            BuildUtils.generate_issue(
+                component=suite_tag,
+                name="Check if Trivy is installed",
+                msg="Trivy is not installed",
+                level="ERROR"
+            )
+        # Check if severity level is set (enable all vulnerabily severity levels if not set)
+        if BuildUtils.vulnerability_severity_level == '' or BuildUtils.vulnerability_severity_level == None:
+            BuildUtils.vulnerability_severity_level = 'CRITICAL,HIGH,MEDIUM,LOW,UNKNOWN'
+        # Check if vulnerability_severity_levels are in the allowed values
+        elif not all(x in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN'] for x in BuildUtils.vulnerability_severity_level.split(",")):
+            BuildUtils.logger.warning(f"Invalid severity level set in vulnerability_severity_level: {BuildUtils.vulnerability_severity_level}. Allowed values are: CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN")
+            BuildUtils.generate_issue(
+                component=suite_tag,
+                name="Check if vulnerability_severity_level is set correctly",
+                msg="Invalid severity level set in vulnerability_severity_level",
+                level="ERROR"
+            )
 
     # Function to create SBOM for a given image
     def create_sbom(self, image):
@@ -150,8 +151,7 @@ class TrivyUtils:
         os.remove(os.path.join(BuildUtils.build_dir, 'vulnerability_report.json'))
 
     # Function to check the Kaapana chart for configuration errors
-    @staticmethod
-    def check_chart(path_to_chart):
+    def check_chart(self, path_to_chart):
         command = ['trivy', 'config', '-f', 'json', '-o', os.path.join(BuildUtils.build_dir, 'chart_report.json'), '--severity', BuildUtils.configuration_check_severity_level, path_to_chart]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
 

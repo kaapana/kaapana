@@ -503,8 +503,9 @@ class Container:
         if len(dockerfiles_found) != len(set(dockerfiles_found)):
             BuildUtils.logger.warning("-> Duplicate Dockerfiles found!")
         
-        # Init Trivy
-        trivy_utils = TrivyUtils()
+        # Init Trivy if configuration check is enabled
+        if BuildUtils.configuration_check:
+            trivy_utils = TrivyUtils()
 
         dockerfiles_found = sorted(set(dockerfiles_found))
 

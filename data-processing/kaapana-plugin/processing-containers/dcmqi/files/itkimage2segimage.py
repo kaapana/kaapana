@@ -175,13 +175,14 @@ def adding_aetitle(element_input_dir, output_dcm_file, body_part):
 # Only a single Item shall be included in this Sequence.
 # http://dicom.nema.org/medical/dicom/current/output/chtml/part16/chapter_L.html#chapter_L
 
-def set_args_file(batch_element_dir):
+def set_args_from_config():
 
-    config_file = Path(batch_element_dir)/ os.environ.get("OPERATOR_IMAGE_LIST_INPUT_DIR")/'seg_args.json'
+    # config_file = Path(batch_element_dir)/ os.environ.get("OPERATOR_IMAGE_LIST_INPUT_DIR")/'seg_args.json'
+    config_file = "/data/conf/conf.json"
     try:
         with open(config_file, 'r') as f:
-            config = json.load(f)
-
+            config_json = json.load(f)
+        config = config_json["seg_args"]
         valid_keys = [
             "INPUT_TYPE", 
             "SINGLE_LABEL_SEG_INFO",
@@ -207,10 +208,9 @@ def set_args_file(batch_element_dir):
     except FileNotFoundError:
         print("No args.json found. Continuing with parameters from dag definition.")
 
-batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 
-set_args_file(batch_folders[0])
 
+set_args_from_config()
 
 print("Started: 'itkimage2segimage' ")
 DCMQI = '/kaapana/app/dcmqi/bin'

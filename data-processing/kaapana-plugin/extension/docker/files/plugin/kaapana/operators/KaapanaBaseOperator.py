@@ -389,7 +389,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             self.env_vars[k] = str(v)
 
     # The order of this decorators matters because of the whitelist_federated_learning variable, do not change them!
-    # @cache_operator_output
+    @cache_operator_output
     @federated_sharing_decorator
     def execute(self, context):
         config_path = os.path.join(self.airflow_workflow_dir, context["run_id"], "conf", "conf.json")

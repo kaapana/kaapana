@@ -1,0 +1,60 @@
+# The following script uninstalls the Kaapana platform
+# Same functionality is possible by using 'uninstall' option of install_platform.sh script
+# When you change the playbook, make sure that changes are in sync with the bash script
+# See phabricator task T28533 for more details
+
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    - target: "{{ target_host }}"
+      default: 10.133.26.2"
+
+  tasks:
+    - add_host:
+        name: "{{ target }}"
+        groups: os_server
+
+- name: Delete platform
+  hosts: os_server
+  strategy: free
+  remote_user: root
+  vars:
+    #TODO: change hardcoded
+    ansible_ssh_private_key_file: ~/.ssh/tfda_iso.pem
+
+  tasks:
+  - name: Check Helm deployments 
+    command: helm ls
+    register: deployments
+    until: deployments.rc == 0
+    retries: 5
+    delay: 3
+
+  - name: Delete Helm charts
+    shell: /bin/bash -i -c "helm ls --all --short | xargs -L1 helm uninstall"
+    when: deployments.stdout != ''
+
+  - name: Wait until namespaces are removed
+    shell: /bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered 'flow-jobs|flow|base|monitoring|store' | cut -d' ' -f1"
+    register: deployment_removed
+    until: deployment_removed.stdout == '' and deployment_removed.stderr == ''
+    failed_when: deployment_removed.stdout != '' and deployment_removed.stderr != ''   
+    retries: 50
+    delay: 3
+
+  - name: Wait until all pods are terminated
+    shell: /bin/bash -i -c "kubectl get pods --all-namespaces | grep -E --line-buffered 'Terminating' | cut -d' ' -f1"
+    register: deployment_terminated
+    until: deployment_terminated.stdout == '' and deployment_terminated.stderr == ''
+    failed_when: deployment_terminated.stdout != '' and deployment_terminated.stderr != ''   
+    retries: 50
+    delay: 3
+
+  - name: RESULT
+    debug:
+      msg: "DEPLOYMENT REMOVED SUCCESSFULLY"
+  
+  - name: RETURN
+    debug:
+      msg: "OK"

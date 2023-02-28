@@ -49,7 +49,7 @@
           .dragdrop-uploaded-info(@drag='onChange')
             span.dragdrop-title {{fileResponse}}
             .dragdrop-upload-limit-info
-              div Upload completed. Select another chart(.tgz) or container(.tar) file
+              div Upload completed. Select another chart(.tgz)
           input(type='file' @change='onChange')
       div(v-else-if='file && !loadingFile')
         div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
@@ -63,9 +63,9 @@
         div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
           .dragdrop-info(@drag='onChange')
             span.fa.fa-cloud-upload.dragdrop-title
-            span.dragdrop-title Drag/select chart(.tgz) or container(.tar) file for upload
+            span.dragdrop-title Drag/select chart(.tgz) file for upload
             .dragdrop-upload-limit-info
-              div file types: tgz,tar  |  max size: 20GB
+              div file types: tgz,tar  |  max size: 10MB
           input(type='file' @change='onChange')
 
 
@@ -225,9 +225,7 @@ export default Vue.extend({
     dragging: false,
     loadingFile: false,
     conn: null as WebSocket | null,
-    uploadChunksMethod: 'http' as string, // set 'ws' for websocket otherwise 'http'
     cancelUpload: false,
-    chunkSize: 10 * 1024 * 1024,
     uploadPerc: 0,
     loading: true,
     polling: 0,
@@ -421,106 +419,6 @@ export default Vue.extend({
       if (this.conn) this.conn.close()
       this.cancelUpload = true
     },
-    uploadChunksWS() {
-      // websocket version
-      let iters = Math.ceil(this.file.size / this.chunkSize)
-      let clientID = Date.now();
-      // console.log("clientID", clientID)
-      let baseURL: any = request.defaults.baseURL
-      if (baseURL.includes("//")) {
-        let sp = baseURL.split("//")
-        baseURL = sp[1]
-      }
-      let conn = new WebSocket("ws://" + baseURL + "/file_chunks/" + String(clientID));
-      conn.onclose = (closeEvent) => {
-        console.log("connection closed", closeEvent)
-        this.conn = null;
-        this.loadingFile = false
-        this.fileResponse = "Upload Failed: connection closed"
-        let fname = this.file.name
-        this.file = ''
-        if (this.uploadPerc == 100) {
-          this.fileResponse = "Importing container " + fname
-          console.log("importing container...")
-          kaapanaApiService
-            .helmApiGet("/import-container", { filename: fname })
-            .then((response: any) => {
-              this.fileResponse = "Successfully imported container " + fname
-            })
-            .catch((err: any) => {
-              console.log(err);
-              this.fileResponse = "Failed to import container " + fname
-            });
-        }
-      }
-      conn.onerror = (errorEvent) => {
-        this.conn = null;
-        console.log("connection error", errorEvent)
-        conn.close()
-      }
-      conn.onopen = (openEvent) => {
-        this.conn = conn;
-        console.log("Successfully connected", openEvent)
-      }
-
-      let i = -1
-
-      conn.onmessage = (msg) => {
-        if (!this.conn) {
-          console.log("connection not established, returning")
-          return
-        }
-        // console.log("msg", msg)
-        var jmsg
-        try {
-          jmsg = JSON.parse(msg.data)
-        }
-        catch (err) {
-          console.log("JSON parse failed", err)
-          if (this.conn) { this.conn.close() }
-          this.loadingFile = false
-          return
-        }
-
-        if (jmsg["success"] == true && jmsg["index"] == i) {
-          // console.log("previous send for index", i, "was successful, proceeding...")
-          if (i != -1) { this.uploadPerc = Math.floor((i / iters) * 100) }
-          i++;
-
-          if (i > iters) {
-            this.uploadPerc = 100;
-            console.log("upload completed, closing connection")
-            if (this.conn) { this.conn.close() }
-            return
-          }
-
-          const chunk = this.file.slice(i * this.chunkSize, (i + 1) * this.chunkSize);
-          if (this.conn) {
-            // console.log("sending ws msg chunk index", i)
-            this.conn.send(chunk)
-          } else {
-            // console.log("websocket connection lost");
-            this.loadingFile = false;
-          }
-        }
-        else {
-          // console.log("success", jmsg["success"], "expected index", i, "got", jmsg["index"])
-          console.log("something went wrong, closing the connection")
-          if (this.conn) {
-            this.conn.close()
-            this.loadingFile = false
-          }
-        }
-      }
-
-      // send file info first
-      setTimeout(() => {
-        if (this.conn) {
-          // console.log("sending ws msg", { name: file.name, fileSize: file.size, chunkSize: chunkSize })
-          this.conn.send(JSON.stringify({ name: this.file.name, fileSize: this.file.size, chunkSize: this.chunkSize }))
-        }
-      }, 1500);
-    },
     uploadFile(file: any) {
       let uploadChunks = false;
 
@@ -571,123 +469,8 @@ export default Vue.extend({
             this.loadingFile = false
           });
       } else {
-        // this.uploadPerc = 0;
-
-        // if (this.uploadChunksMethod == "ws") {
-        //   this.uploadChunksWS()
-        // } else {
-        //   // http version
-        //   let iters = Math.ceil(this.file.size / this.chunkSize)
-
-        //   // init
-        //   console.time("uploadFileChunks")
-
-        //   let payload = {
-        //     'name': this.file.name,
-        //     'fileSize': this.file.size,
-        //     'chunkSize': this.chunkSize,
-        //     'index': 0,
-        //     'endIndex': iters,
-        //   }
-        //   kaapanaApiService.helmApiPost("/file_chunks_init", payload)
-        //     .then((resp: any) => {
-        //       console.log("init file chunks resp", resp)
-        //       if (resp.status != 200) {
-        //         console.log("init failed with err", resp.data)
-        //         this.loadingFile = false
-        //         this.fileResponse = "Upload Failed: " + String(resp.data)
-        //         this.file = ''
-        //         this.cancelUpload = true
-        //         return
-        //       } else {
-        //         let chunk = this.file.slice(0 * this.chunkSize, 1 * this.chunkSize);
-        //         let formData = new FormData();
-        //         formData.append('file', chunk);
-
-        //         this.uploadChunkHTTP(formData, 0, iters)
-        //       }
-        //     })
-        //     .catch((err: any) => {
-        //       console.log("init failed with err", err)
-        //       this.loadingFile = false
-        //       this.fileResponse = "Upload Failed: " + String(err)
-        //       this.file = ''
-        //       this.cancelUpload = true
-        //       return
-        //     })
-        // }
-
+        console.log("upload chunks is not supported for Platforms");
       }
-    },
-    uploadChunkHTTP(formData: any, i: number, iters: number) {
-      console.log("uploading chunk", i, "/", iters)
-      kaapanaApiService
-        .helmApiPost("/file_chunks", formData)
-        .then(async (resp: any) => {
-          console.log("i=", i, "file chunks resp", resp)
-          if (String(resp.data) != String(i+1) || resp.status != 200) {
-            console.log("error in response", resp)
-            this.loadingFile = false
-            this.fileResponse = "Upload Failed"
-            this.file = ''
-            return
-          }
-          if (i >= iters) {
-            console.log("upload completed")
-            console.timeEnd("uploadFileChunks")
-            //end
-            this.uploadPerc = 100;
-            this.loadingFile = false
-            this.fileResponse = "Importing container " + this.file.name
-            console.log("importing container...")
-            kaapanaApiService
-              .helmApiGet("/import-container", { filename: this.file.name })
-              .then((response: any) => {
-                this.fileResponse = "Successfully imported container " + this.file.name
-                this.file = ''
-                console.log("import failed")
-              })
-              .catch((err: any) => {
-                console.log(err);
-                this.fileResponse = "Failed to import container " + this.file.name
-                this.file = ''
-                console.log("import failed")
-              });
-          } else {
-            // loop
-            if (this.cancelUpload) {
-              console.log("cancelling upload")
-              this.loadingFile = false
-              this.file = ''
-            }
-            console.log(String(i) + "/" + String(iters), "was successful, proceeding...")
-            if (i > 0) this.uploadPerc = Math.floor((i / iters) * 100)
-            i++;
-            // if (i % 30 == 0) {
-            //   this.$store
-            //     .dispatch(CHECK_AUTH).then(() => {
-            //       console.log('still online')
-            //     }).catch((err: any) => {
-            //       console.log('reloading')
-            //       location.reload()
-            //     })
-            // }
-            let chunk = this.file.slice(i * this.chunkSize, (i + 1) * this.chunkSize);
-            let formData = new FormData();
-            formData.append('file', chunk);
-            this.uploadChunkHTTP(formData, i, iters)
-          }
-        })
-        .catch((err: any) => {
-          // error
-          console.log("error, index", i, ":", err)
-          console.timeEnd("uploadFileChunks")
-          this.loadingFile = false
-          this.fileResponse = "Upload Failed: " + String(err)
-          this.file = ''
-          this.cancelUpload = true
-          return
-        });
     },
     getHelmCharts() {
       let params = {

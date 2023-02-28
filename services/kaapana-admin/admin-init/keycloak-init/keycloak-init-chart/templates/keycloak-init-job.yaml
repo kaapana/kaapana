@@ -36,10 +36,8 @@ spec:
               value: "{{ .Values.global.credentials_keycloak_admin_password }}"
             - name: KEYCLOAK_HOST
               value: "keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc"
-            - name: HOSTNAME
-              value: "{{ .Values.global.hostname }}"
-            - name: HTTPS_PORT
-              value: "{{ .Values.global.https_port }}"
+            - name: KEYCLOAK_URI
+              value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}"
         restartPolicy: Never
         serviceAccountName: kaapana-kube-admin
         imagePullSecrets:

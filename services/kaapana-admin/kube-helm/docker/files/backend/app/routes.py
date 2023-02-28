@@ -156,9 +156,6 @@ async def helm_install_chart(request: Request):
 
         if payload["name"] == "security-stackrox-chart":
             success, stdout, _, _, cmd = utils.install_stackrox(payload)
-        elif payload["name"] == "security-wazuh-chart":
-            success, stdout, _, _, cmd = utils.helm_install(payload, shell=True, blocking=False)
-            # todo jr: install wazuh agent locally?
         else:
             success, stdout, _, _, cmd = utils.helm_install(payload, shell=True, blocking=False)
 

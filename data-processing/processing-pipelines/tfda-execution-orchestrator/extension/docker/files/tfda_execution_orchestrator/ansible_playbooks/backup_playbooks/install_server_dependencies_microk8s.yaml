@@ -1,0 +1,312 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars_prompt:
+  - name: target_host
+    prompt: please enter the target host IP
+    default: "10.128.129.79"
+    private: no
+
+  tasks:
+    - add_host:
+        name: "{{ target_host }}"
+        groups: os_server
+
+- name: Install Microk8s
+  hosts: os_server
+  remote_user: root
+  strategy: free
+  become: no
+
+  vars:
+    kube_version: 1.18/stable
+    users: []
+    no_users: ["kaapana","jip"]
+    KAAPANA_HOME: "../../"
+
+  tasks:
+  - fail:
+      msg: "{{ ansible_distribution }} not supported! valid OS: [Ubuntu,CentOS]"
+    when: ansible_distribution != "Ubuntu" and ansible_distribution != "CentOS"
+
+  - name: Set OpenStack hostname
+    hostname:
+      name: "vm-{{ ansible_ssh_host.split('.')[2] }}-{{ ansible_ssh_host.split('.')[3] }}.cloud.dkfz-heidelberg.de"
+    when: ansible_ssh_host.split('.')[0] == "10"
+  
+  - import_tasks: "{{ KAAPANA_HOME }}/CI/ansible_playbooks/task_templates/set_hostname_fact.yaml"
+  
+  - name: Check if kubectl is installed
+    shell: '/bin/bash -i -c "command -v kubectl >/dev/null 2>&1"'
+    ignore_errors: yes
+    register: kubectl_available
+
+  - name: Execute microk8s installation
+    block:
+    - name: get username
+      command: ls /home/
+      register: username
+      
+    - name: set user
+      set_fact:
+        users: "{{ username.stdout.split('\n') | difference(no_users) }}"
+      when: username.stdout != "" and ansible_user == "root"
+
+    - name: 'Loop: Print users'
+      debug:
+        msg: "USER: {{ item }}"
+      loop: "{{ users }}"
+
+    - name: Set http_proxy fact
+      set_fact:
+        http_proxy: "{{ ansible_env.http_proxy |default('None') }}"
+
+    - debug:
+        msg: "Found proxy: {{ http_proxy }}"
+      when: http_proxy is defined and http_proxy != 'None'
+
+    # - fail:
+    #     msg: "No proxy found!"
+    #   when: http_proxy == 'None'
+
+    - name: install Ubuntu dependencies
+      import_tasks: task_templates/microk8s_ubuntu.yaml
+      when: ansible_distribution == "Ubuntu"
+
+    - name: install CentOs dependencies
+      import_tasks: task_templates/microk8s_centos.yaml
+      when: ansible_distribution == "CentOS"
+
+    - name: Snap Install Microk8s
+      become: yes
+      snap:
+        classic: yes
+        channel: "{{ kube_version | default(stable) }}"
+        name:
+          - microk8s
+          
+    - name: Install Helm
+      become: yes
+      snap:
+        classic: yes
+        channel: 3.1/stable
+        name:
+          - helm
+
+    - name: add /snap/bin to path
+      become: yes
+      lineinfile:
+        dest: /etc/environment
+        state: present
+        backrefs: yes
+        regexp: 'PATH=(["]*)((?!.*?/snap/bin).*?)(["]*)$'
+        line: "PATH=\\1\\2:/snap/bin\\3"
+    
+    # - name: Set authentication-token-webhook=true
+    #   become: yes
+    #   lineinfile:
+    #       dest: /var/snap/microk8s/current/args/kubelet
+    #       regexp: '^--authentication-token-webhook=true'
+    #       line: '--authentication-token-webhook=true'
+    #       state: present
+
+    # - name: authorization-mode=Webhook
+    #   become: yes
+    #   lineinfile:
+    #       dest: /var/snap/microk8s/current/args/kubelet
+    #       regexp: '^--authorization-mode=Webhook'
+    #       line: '--authorization-mode=Webhook'
+    #       state: present
+
+    - name: Set Node Port Range 
+      become: yes
+      lineinfile:
+          dest: /var/snap/microk8s/current/args/kube-apiserver
+          regexp: '^80-32000'
+          line: '--service-node-port-range=80-32000'
+          state: present
+      register: set_port_range
+
+    - name: Set Docker http Proxy
+      become: yes
+      lineinfile:
+          dest: /var/snap/microk8s/current/args/containerd-env 
+          regexp: '^http_proxy='
+          line: "http_proxy={{ http_proxy }}"
+          state: present
+      when: http_proxy is defined and http_proxy != 'None'
+
+    - name: Set Docker https Proxy
+      become: yes
+      lineinfile:
+          dest: /var/snap/microk8s/current/args/containerd-env 
+          regexp: '^https_proxy='
+          line: "https_proxy={{ http_proxy }}"
+          state: present
+      when: http_proxy is defined and http_proxy != 'None'
+
+    - name: Set Docker no_proxy
+      become: yes
+      lineinfile:
+          dest: /var/snap/microk8s/current/args/containerd-env 
+          regexp: '^no_proxy='
+          line: "no_proxy=127.0.0.1,localhost,{{ ansible_host }},{{ system_hostname }}"
+          state: present
+      when: http_proxy is defined and http_proxy != 'None'
+
+    - name: Set vm.max_map_count
+      become: yes
+      lineinfile:
+          dest: /etc/sysctl.conf 
+          regexp: '^vm.max_map_count=262144'
+          line: "vm.max_map_count=262144"
+          state: present
+
+    - name: Set Alias Kubectl user != root
+      become: no
+      lineinfile:
+          dest: "{{ ansible_env.HOME }}/.bashrc"
+          regexp: '^alias kubectl'
+          line: "alias kubectl=\"microk8s.kubectl\""
+          state: present
+      when: ansible_user != "root"
+
+    - name: 'Loop: Set Alias Kubectl user == root'
+      become: no
+      lineinfile:
+          dest: "/home/{{ item }}/.bashrc"
+          regexp: '^alias kubectl'
+          line: "alias kubectl=\"microk8s.kubectl\""
+          state: present
+      loop: "{{ users }}"
+
+    - name: Set auto-completion kubectl user
+      become: yes
+      lineinfile:
+          dest: "{{ ansible_env.HOME }}/.bashrc"
+          regexp: '^source <'
+          line: "microk8s.kubectl --help > /dev/null 2>&1 && source <(microk8s.kubectl completion bash)"
+          state: present
+          create: True
+      when: ansible_user != "root"
+
+    - name: 'Loop: Set auto-completion kubectl user'
+      become: yes
+      lineinfile:
+          dest: "/home/{{ item }}/.bashrc"
+          regexp: '^source <'
+          line: "microk8s.kubectl --help > /dev/null 2>&1 && source <(microk8s.kubectl completion bash)"
+          state: present
+          create: True
+      loop: "{{ users }}"
+
+    - name: Set Alias Kubectl root
+      become: yes
+      lineinfile:
+          dest: "/root/.bashrc"
+          regexp: '^alias kubectl'
+          line: "alias kubectl=\"microk8s.kubectl\""
+          state: present
+          create: True
+
+    - name: Set auto-completion kubectl root
+      become: yes
+      lineinfile:
+          dest: "/root/.bashrc"
+          regexp: '^source <'
+          line: "microk8s.kubectl --help > /dev/null 2>&1 && source <(microk8s.kubectl completion bash)"
+          state: present
+          create: True
+
+    - name: restart service snap.microk8s.daemon-kubelet
+      become: yes
+      systemd:
+        daemon_reload: yes
+        state: restarted
+        name: snap.microk8s.daemon-kubelet
+
+    - name: restart service daemon-containerd.service
+      become: yes
+      systemd:
+        daemon_reload: yes
+        state: restarted
+        name: snap.microk8s.daemon-containerd.service
+    
+    - name: Microk8s wait-ready
+      become: yes
+      command: timeout 1m /snap/bin/microk8s.status --wait-ready
+      ignore_errors: yes
+
+    - name: Microk8s start
+      become: yes
+      command: timeout 1m /snap/bin/microk8s.start
+      ignore_errors: yes
+
+    - name: Microk8s enable dns
+      become: yes
+      command: /snap/bin/microk8s.enable dns
+      ignore_errors: no
+
+    - name: Creates kube dir
+      file:
+        path: "{{ ansible_env.HOME }}/.kube"
+        state: directory
+      when: ansible_user != "root"
+
+    - name: Creates kube dir
+      file:
+        path: "/home/{{ item }}/.kube"
+        state: directory
+      loop: "{{ users }}"
+
+    - name: Microk8s config kubectl config
+      become: yes
+      shell: /snap/bin/microk8s.kubectl config view --raw | tee {{ ansible_env.HOME }}/.kube/config > /dev/null
+      ignore_errors: no
+      when: ansible_user != "root"
+
+    - name: Microk8s config kubectl config
+      become: yes
+      shell: /snap/bin/microk8s.kubectl config view --raw | tee /home/{{ item }}/.kube/config > /dev/null
+      ignore_errors: no
+      loop: "{{ users }}"
+
+    - name: Creates kube dir
+      become: yes
+      file:
+        path: "/root/.kube"
+        state: directory
+
+    - name: Microk8s config kubectl config
+      become: yes
+      shell: /snap/bin/microk8s.kubectl config view --raw | tee /root/.kube/config > /dev/null
+      ignore_errors: no
+
+    - name: Microk8s user
+      become: yes
+      shell: usermod -a -G microk8s {{ ansible_user }}
+      ignore_errors: no
+      when: ansible_user != "root"
+
+    - name: Microk8s user
+      become: yes
+      shell: usermod -a -G microk8s {{ item }}
+      ignore_errors: no
+      loop: "{{ users }}"
+      
+    - name: Reboot machine...
+      become: yes
+      reboot:
+          reboot_timeout: 120
+      when: set_port_range.changed
+
+    when: kubectl_available.rc != 0
+
+  - name: RESULT
+    debug:
+      msg: "MICROk8S DEPENDENCIES INSTALLED SUCCESSFULLY"
+  
+  - name: RETURN
+    debug:
+      msg: "OK"
+

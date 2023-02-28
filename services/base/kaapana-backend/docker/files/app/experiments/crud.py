@@ -241,11 +241,15 @@ def delete_jobs(db: Session):
     return {"ok": True}
 
 
-def get_jobs(db: Session, instance_name: str = None, status: str = None, remote: bool = True, limit=None):
+def get_jobs(db: Session, instance_name: str = None, experiment_name: str = None, status: str = None, remote: bool = True, limit=None):
     if instance_name is not None and status is not None:
         return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name).order_by(desc(models.Job.time_updated)).limit(limit).all()  # same as org but w/o filtering by remote
+    elif experiment_name is not None and status is not None:
+        return db.query(models.Job).filter_by(status=status).join(models.Job.experiment, aliased=True).filter_by(experiment_name=experiment_name).order_by(desc(models.Job.time_updated)).limit(limit).all()
     elif instance_name is not None:
         return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name).order_by(desc(models.Job.time_updated)).limit(limit).all()  # same as org but w/o filtering by remote
+    elif experiment_name is not None:
+        return db.query(models.Job).join(models.Job.experiment, aliased=True).filter_by(experiment_name=experiment_name).order_by(desc(models.Job.time_updated)).limit(limit).all()
     elif status is not None:
         return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).order_by(desc(models.Job.time_updated)).limit(limit).all()  # same as org but w/o filtering by remote
     else:
@@ -690,17 +694,6 @@ def get_experiments(db: Session, instance_name: str = None, involved_instance_na
         return db.query(models.Experiment).join(models.Experiment.experiment_jobs, aliased=True).filter_by(id=experiment_job_id).all()
     else:
         return db.query(models.Experiment).join(models.Experiment.kaapana_instance).order_by(desc(models.Experiment.time_updated)).limit(limit).all()   # , aliased=True
-
-def get_experiment_jobs(db: Session, experiment_name: str = None, status: str = None, limit=None):
-    if experiment_name is not None and status is not None:
-        return db.query(models.Job).filter_by(status=status).join(models.Job.experiment, aliased=True).filter_by(experiment_name=experiment_name).order_by(desc(models.Job.time_updated)).limit(limit).all()
-    elif experiment_name is not None:
-        return db.query(models.Job).join(models.Job.experiment, aliased=True).filter_by(experiment_name=experiment_name).order_by(desc(models.Job.time_updated)).limit(limit).all()
-    # third case not necessary since experiment has no remote argument so far
-    elif status is not None:
-        return db.query(models.Job).filter_by(status=status).join(models.Job.experiment, aliased=True).order_by(desc(models.Job.time_updated)).limit(limit).all()
-    else:
-        return db.query(models.Job).join(models.Job.experiment, aliased=True).order_by(desc(models.Job.time_updated)).limit(limit).all()
 
 def update_experiment(db: Session, experiment=schemas.ExperimentUpdate):
     utc_timestamp = get_utc_timestamp()

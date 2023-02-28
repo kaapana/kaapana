@@ -23,6 +23,11 @@
                          :to="{ name: 'ew-section-view', params: { ewSection: sectionKey, ewSubSection: subSectionKey }}">
               <v-list-item-title v-text="subSection.label"></v-list-item-title>
             </v-list-item>
+            <template v-if="section.label.toLowerCase() === 'monitoring'">
+              <v-list-item v-for="provider of securityProviders" :key="provider.id" :to="'/security/' + provider.id">
+                <v-list-item-title v-text="provider.name"></v-list-item-title>
+              </v-list-item>
+            </template>
           </v-list-group>
           <v-list-item :to="'/datasets'" v-if="isAuthenticated">
             <v-list-item-action>
@@ -69,18 +74,12 @@
             </v-list-item-content>
             <v-list-item-icon></v-list-item-icon>
           </v-list-item>
-          <v-list-group :prepend-icon="'mdi-security'" v-if="isAuthenticated">
+          <v-list-group :prepend-icon="'mdi-security'" v-if="isAuthenticated && (!externalWebpages || !('monitoring' in externalWebpages) && securityProviders?.length > 0)">
             <template v-slot:activator>
               <v-list-item-title>Security</v-list-item-title>
             </template>
-            <v-list-item v-for="provider of securityProviders" :key="provider.id" :to="'/security/' + provider.id)">
+            <v-list-item v-for="provider of securityProviders" :key="provider.id" :to="'/security/' + provider.id">
               <v-list-item-title v-text="provider.name"></v-list-item-title>
-            </v-list-item>
-            <v-list-item :to="'/security/wazuh'">
-              <v-list-item-title>Wazuh</v-list-item-title>
-            </v-list-item>
-            <v-list-item :to="'/security/stackrox'">
-              <v-list-item-title>StackRox</v-list-item-title>
             </v-list-item>
           </v-list-group>
           <v-list-item :to="'/extensions'" v-if="isAuthenticated">
@@ -174,7 +173,7 @@ export default Vue.extend({
     staticWebsiteAvailable: false
   }),
   computed: {
-    ...mapGetters(['currentUser', 'isAuthenticated', 'externalWebpages', 'commonData', 'securityProviders']),
+    ...mapGetters(['currentUser', 'isAuthenticated', 'externalWebpages', 'commonData', 'securityProviders'])
   },
   methods: {
     changeMode(v: boolean) {
@@ -201,13 +200,12 @@ export default Vue.extend({
       if (event.data.message === QUERY_DARK_MODE) {
         sendModeToIFrame(this.darkMode);
       }
-    },
+    }
   },
   beforeCreate() {
     this.$store.dispatch(CHECK_AVAILABLE_WEBSITES)
     this.$store.dispatch(LOAD_COMMON_DATA)
     this.$store.dispatch(CHECK_SECURITY_PROVIDERS)
-    console.log(this);
   },
   mounted() {
     this.$vuetify.theme.dark = this.darkMode

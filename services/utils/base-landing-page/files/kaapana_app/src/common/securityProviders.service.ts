@@ -1,10 +1,15 @@
 import request from '@/request'
 
+interface APIEndpoint {
+  identifier: string;
+  endpoint: string;
+}
+
 export interface SecurityProvider {
   id: string;
   name: string;
   url: string;
-  api_endpoints: string[];
+  api_endpoints: APIEndpoint[];
 }
 
 const securityProviderService = {
@@ -12,7 +17,7 @@ const securityProviderService = {
     const securityProviders: SecurityProvider[] = [];
 
     try {
-      const response = await request.get('/security/api/provider');
+      const response = await request.get('/security/api/providers');
       const { data } = response;
       const providerList = data.providers;
       for (const provider of providerList) {

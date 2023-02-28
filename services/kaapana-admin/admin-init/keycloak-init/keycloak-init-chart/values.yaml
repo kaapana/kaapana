@@ -1,8 +1,3 @@
 ---
 global:
     pull_policy_jobs: "IfNotPresent"
-    hostname: ""
-    https_port: "443"
-    credentials:
-        keycloak_admin_username: "admin"
-        keycloak_admin_password: "admin"

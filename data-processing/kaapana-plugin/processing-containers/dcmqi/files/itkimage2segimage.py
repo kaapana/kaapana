@@ -283,7 +283,7 @@ code_lookup_table_path = "code_lookup_table.json"
 with open(code_lookup_table_path) as f:
     code_lookup_table = json.load(f)
 
-# batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
+batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 
 print("Found {} batches".format(len(batch_folders)))
 

@@ -399,7 +399,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     def execute(self, context):
         config_path = os.path.join(self.airflow_workflow_dir, context["run_id"], "conf", "conf.json")
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
-        if context["dag_run"].conf is not None:  # not os.path.isfile(config_path) and
+        if context["dag_run"].conf is not None and not os.path.exists(config_path): #not os.path.isfile(config_path) and
             with open(os.path.join(config_path), "w") as file:
                 json.dump(context["dag_run"].conf, file, indent=4, sort_keys=True)
 

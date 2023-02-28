@@ -1,0 +1,7 @@
+---
+global:
+    pull_policy_jobs: "IfNotPresent"
+    tls_secret:
+        name: "certificate"
+        common_name: "kaapana"
+        expiration: 365

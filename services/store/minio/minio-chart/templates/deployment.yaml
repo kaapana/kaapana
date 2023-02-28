@@ -32,7 +32,7 @@ spec:
         image: "{{ .Values.global.registry_url }}/minio:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
         command: ["minio"]
-        args: ["server", "/export", "--address", "0.0.0.0:9000"]
+        args: ["server", "/kaapana/mounted/minio", "--address", "0.0.0.0:9000"]
         env:
         - name: MINIO_BROWSER
           value: "off"
@@ -60,13 +60,12 @@ spec:
           limits:
             memory: 1000Mi
         volumeMounts:
-        - name: export  # must match the volume name, above
-          mountPath: "/export"
+        - name: minio-data
+          mountPath: "/kaapana/mounted/minio"
       volumes:
-      - name: export 
-        hostPath:
-          path: {{ .Values.global.slow_data_dir }}/minio
-          type: DirectoryOrCreate
+      - name: minio-data
+        persistentVolumeClaim:
+          claimName: minio-pv-claim
       imagePullSecrets:
       - name: registry-secret
 ---

@@ -9,7 +9,6 @@ import datetime
 from datetime import timedelta
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator, rest_self_udpate
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
 
@@ -21,7 +20,7 @@ class LocalFedartedSetupFederatedTestOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         conf = kwargs['dag_run'].conf
         print('conf', conf)
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
 
         from_previous_json_path = os.path.join(run_dir, self.operator_in_dir, "from_previous.json")
         with open(from_previous_json_path, "r", encoding='utf-8') as jsonData:

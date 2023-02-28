@@ -19,7 +19,6 @@ import errno
 import re
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperCaching import cache_operator_output
 
 
@@ -39,7 +38,29 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
     * json file: output json file. DICOM tags are converted to a json file.
     """
+    MODALITY_TAG = "00080060 Modality_keyword"
+    IMAGE_TYPE_TAG = "00080008 ImageType_keyword"
 
+    @staticmethod
+    def predict_modality(metadata_dict: dict):
+        """
+        If dicom modality tag is "CT" and ImageType tag contains "Localizer", "CT" (3D) is changed to "XR" (2D)
+        :param dcm_file: path to first slice of dicom image
+        :param modality: dicom modality tag
+        :return: _description_
+        """
+        assert LocalDcm2JsonOperator.MODALITY_TAG in metadata_dict
+        modality = metadata_dict[LocalDcm2JsonOperator.MODALITY_TAG]
+
+        metadata_dict.update({"curated_modality": modality})
+        if LocalDcm2JsonOperator.IMAGE_TYPE_TAG in metadata_dict:
+            image_type = metadata_dict[LocalDcm2JsonOperator.IMAGE_TYPE_TAG]
+            assert isinstance(image_type, list)
+            if modality =="CT" and "LOCALIZER" in image_type and len(image_type)>=3:
+                metadata_dict.update({"curated_modality": "XR"})
+
+        return metadata_dict
+        
     @staticmethod
     def get_label_tags(metadata):
         result_dict = {}
@@ -92,8 +113,8 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         print("Starting moule dcm2json...")
         print(kwargs)
 
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-        batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
+        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))]
 
         with open(self.dict_path, encoding='utf-8') as dict_data:
             self.dictionary = json.load(dict_data)
@@ -132,6 +153,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         
                 self.executeDcm2Json(dcm_file_path, json_file_path)
                 json_dict = self.cleanJsonData(json_file_path)
+        
+                json_dict = LocalDcm2JsonOperator.predict_modality(metadata_dict = json_dict)
+
 
                 with open(json_file_path, "w", encoding='utf-8') as jsonData:
                     json.dump(json_dict, jsonData, indent=4, sort_keys=True, ensure_ascii=True)

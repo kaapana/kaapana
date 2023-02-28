@@ -56,7 +56,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
         client = DICOMwebClient(url=self.pacs_dcmweb, qido_url_prefix="rs", wado_url_prefix="rs", stow_url_prefix="rs")
 
-        run_dir = join(self.workflow_dir, kwargs['dag_run'].run_id)
+        run_dir = join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
         batch_folder = [f for f in glob.glob(join(run_dir, self.batch_name, '*'))]
         download_series_list = []
 
@@ -261,12 +261,13 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         if self.limit_file_count != None:
             download_series_list = download_series_list[:self.limit_file_count]
 
-        results = ThreadPool(self.parallel_downloads).imap_unordered(self.download_series, download_series_list)
+        with ThreadPool(self.parallel_downloads) as threadpool:
+            results = threadpool.imap_unordered(self.download_series, download_series_list)
 
-        for result in results:
-            print(result)
-            if "error" in result.lower():
-                raise ValueError('ERROR')
+            for result in results:
+                print(result)
+                if "error" in result.lower():
+                    raise ValueError('ERROR')
 
     def __init__(self,
                  dag,

@@ -5,6 +5,9 @@ from subprocess import PIPE, run
 from time import time
 from shutil import which
 from build_helper.build_utils import BuildUtils
+from alive_progress import alive_bar
+from build_helper.security_utils import TrivyUtils
+import json
 
 suite_tag = "Container"
 max_retries = 5
@@ -29,6 +32,15 @@ def container_registry_login(username, password):
         BuildUtils.logger.error(f"Error:   {output.stderr}")
         exit(1)
 
+def pull_container_image(image_tag):
+    command = [Container.container_engine, "pull", image_tag]
+    BuildUtils.logger.info(f"{image_tag}: Start pulling container image")
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000, env=dict(os.environ, DOCKER_BUILDKIT=f"{BuildUtils.enable_build_kit}"))
+
+    if output.returncode == 0:
+        BuildUtils.logger.info(f"{image_tag}: Success")
+    else:
+        BuildUtils.logger.error(f"{image_tag}: Something went wrong...")
 
 class BaseImage:
     registry = None
@@ -125,8 +137,13 @@ class Container:
 
         return repr_obj
 
-    def __init__(self, dockerfile):
+    def __init__(self, dockerfile=None):
+        if dockerfile == None:
+            return
+
+        self.image_name = None
         self.image_version = None
+        self.repo_version = None
         self.tag = None
         self.path = dockerfile
         self.ci_ignore = False
@@ -152,24 +169,31 @@ class Container:
         with open(dockerfile, 'rt') as f:
             lines = f.readlines()
             for line in lines:
+                if "#" in line:
+                    line = line[:line.index("#")]
+                if line.strip() == "":
+                    continue
 
                 if line.__contains__('LABEL REGISTRY='):
-                    self.registry = line.split("=")[1].rstrip().strip().replace("\"", "")
+                    self.registry = line.split("#")[0].split("=")[1].rstrip().strip().replace("\"", "")
                 elif line.__contains__('LABEL IMAGE='):
-                    self.image_name = line.split("=")[1].rstrip().strip().replace("\"", "")
+                    self.image_name = line.split("#")[0].split("=")[1].rstrip().strip().replace("\"", "")
                 elif line.__contains__('LABEL VERSION='):
-                    self.image_version = line.split("=")[1].rstrip().strip().replace("\"", "")
+                    self.repo_version = line.split("#")[0].split("=")[1].rstrip().strip().replace("\"", "")
                 elif line.startswith('FROM') and not line.__contains__('#ignore'):
-                    base_img_tag = line.split("FROM ")[1].split(" ")[0].rstrip().strip().replace("\"", "")
+                    base_img_tag = line.split("#")[0].split("FROM ")[1].split(" ")[0].rstrip().strip().replace("\"", "")
                     base_img_obj = BaseImage(tag=base_img_tag)
                     if base_img_obj not in self.base_images:
                         self.base_images.append(base_img_obj)
-                        if base_img_obj not in BuildUtils.base_images_used:
-                            BuildUtils.base_images_used.append(base_img_obj)
+                        if base_img_obj.tag not in BuildUtils.base_images_used:
+                            BuildUtils.base_images_used[base_img_obj.tag] = []
+                        
+                        BuildUtils.base_images_used[base_img_obj.tag].append(self)
+                        
                 elif line.__contains__('LABEL CI_IGNORE='):
-                    self.ci_ignore = True if line.split("=")[1].rstrip().lower().replace("\"", "").replace("'", "") == "true" else False
+                    self.ci_ignore = True if line.split("#")[0].split("=")[1].rstrip().lower().replace("\"", "").replace("'", "") == "true" else False
 
-        if self.image_version == None and self.image_version == "" or self.image_name == None or self.image_name == "":
+        if self.repo_version == None and self.repo_version == "" or self.image_name == None or self.image_name == "":
             BuildUtils.logger.debug(f"{self.container_dir}: could not extract container infos!")
             BuildUtils.generate_issue(
                 component=suite_tag,
@@ -180,14 +204,17 @@ class Container:
             return
 
         else:
+
             self.registry = self.registry if self.registry != None else BuildUtils.default_registry
             if "local-only" in self.registry:
                 self.local_image = True
-                self.image_version = "latest"
-            else:
-                self.image_version = BuildUtils.kaapana_build_version
+                self.repo_version = "latest"
 
-            self.tag = self.registry+"/"+self.image_name+":"+self.image_version
+            else:
+                build_version, build_branch, last_commit, last_commit_timestamp = BuildUtils.get_repo_info(self.container_dir)
+                self.repo_version = build_version
+
+            self.tag = self.registry+"/"+self.image_name+":"+self.repo_version
 
         self.check_if_dag()
 
@@ -435,7 +462,7 @@ class Container:
                 for line in python_content:
                     if "image=" in line and "{default_registry}" in line:
                         line = line.rstrip('\n').split("\"")[1].replace(" ", "")
-                        line = line.replace("{kaapana_build_version}", BuildUtils.kaapana_build_version)
+                        line = line.replace("{kaapana_build_version}", self.repo_version)
                         container_id = line.replace("{default_registry}", BuildUtils.default_registry)
                         self.operator_containers.append(container_id)
 
@@ -475,14 +502,40 @@ class Container:
 
         if len(dockerfiles_found) != len(set(dockerfiles_found)):
             BuildUtils.logger.warning("-> Duplicate Dockerfiles found!")
+        
+        # Init Trivy
+        trivy_utils = TrivyUtils()
 
         dockerfiles_found = sorted(set(dockerfiles_found))
 
-        for dockerfile in dockerfiles_found:
-            container = Container(dockerfile)
-            Container.container_object_list.append(container)
+        if BuildUtils.configuration_check:
+            bar_title = 'Collect container and check configuration'
+        else:
+            bar_title = 'Collect container'
+
+        with alive_bar(len(dockerfiles_found), dual_line=True, title=bar_title) as bar:
+            for dockerfile in dockerfiles_found:
+                bar()
+                if BuildUtils.build_ignore_patterns != None and len(BuildUtils.build_ignore_patterns) > 0 and sum([ignore_pattern in dockerfile for ignore_pattern in  BuildUtils.build_ignore_patterns]) != 0:
+                    BuildUtils.logger.debug(f"Ignoring Dockerfile {dockerfile}")
+                    continue
+
+                # Check Dockerfiles for configuration errors using Trivy
+                if BuildUtils.configuration_check:
+                    trivy_utils.check_dockerfile(dockerfile)
+
+                container = Container(dockerfile)
+                bar.text(container.image_name)
+                Container.container_object_list.append(container)
 
         Container.container_object_list = Container.check_base_containers(Container.container_object_list)
+
+        # Safe the Dockerfile report to the build directory if there are any errors
+        if not trivy_utils.compressed_dockerfile_report == {}:
+            BuildUtils.logger.error("Found configuration errors in Dockerfile! See compressed_dockerfile_report.json for details.")
+            with open(os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), 'w') as f:
+                json.dump(trivy_utils.compressed_dockerfile_report, f)
+
         return Container.container_object_list
 
     @staticmethod

@@ -317,7 +317,7 @@ def process_input_file(inputCompositeContextDirectory, inputImageLibraryDirector
     return True, inputMetadata
 
 
-DCMQI = '/app/dcmqi/bin'
+DCMQI = '/kaapana/app/dcmqi/bin'
 
 # DCMQI = '/home/jonas/software/dcmqi/bin'
 # os.environ['SRC_DICOM_OPERATOR'] = 'initial-input'

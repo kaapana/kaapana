@@ -138,20 +138,20 @@ We can now implement and test our algorithm.
 In this example the algorithm is a python script, that extracts the study IDs from the loaded data and returns it.
 
 .. note::
-    The code server looks for the ``kaapanasrc`` directory by default. 
-    When we use it as dev-server inside the docker container it will prompt an error message, that ``kaapanasrc`` does not exist.
+    The code server looks for the ``app`` directory by default. 
+    When we use it as dev-server inside the docker container it will prompt an error message, that ``app`` does not exist.
     You can safely ignore this message and open the root directory of the container.
 
 The python file looks like this:
 
 .. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/processing-containers/extract-study-id/files/extract_study_id.py
 
-We just store the python file in the :code:`/kaapanadevdata` directory of the docker container as ``/extract_study_id.py``.
+We just store the python file in the :code:`/mounted_scripts` directory of the docker container as ``/extract_study_id.py``.
 To check if everything works as expected open a terminal in the code-server and run :code:`python3 extract-study-id.py`.
 After we are finished we terminate the dev server in the "Pending applications" tab of Kaapana, with the "FINISHED MANUAL INTERACTION" button.
 
 .. hint:: 
-    The :code:`/kaapanadevdata` directory in the container of any operator initialized with the parameter ``dev_server="code-server"`` is mounted to the Minio bucket "kaapana-dev-data".
+    The :code:`/mounted_scripts` directory in the container of any operator initialized with the parameter ``dev_server="code-server"`` is mounted to the Minio bucket "mounted_scripts".
     Hence, you don't have to worry that your files in this directory are lost after the container is killed.
     You can also use the Minio bucket to download your files, e.g., in order to build an image in the next step.
 
@@ -279,7 +279,7 @@ In :code:`extension/docker/` create the :code:`Dockerfile` for the DAG
 .. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/otsus-method/extension/docker/Dockerfile
 
 .. hint :: 
-    The base image :code:`local-only/dag-installer:0.1.0` scans all .py files in :code:`tmp` for images and pulls them via the Helm API.
+    The base image :code:`local-only/base-installer:0.1.0` scans all .py files in :code:`tmp` for images and pulls them via the Helm API.
     It also copies files into desired locations.
 
 Tag the image and push it to the registry. Next to the :code:`Dockerfile` in :code:`extension/docker/` run 

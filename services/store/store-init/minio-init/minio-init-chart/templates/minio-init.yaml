@@ -15,7 +15,7 @@ spec:
         imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
         env:
           - name: WAIT
-            value: "minio,minio-service.{{  .Values.global.services_namespace  }}.svc,9000,/minio/health/live;airflow,airflow-service.{{  .Values.global.services_namespace  }}.svc,8080"
+            value: "minio,minio-service.{{  .Values.global.services_namespace  }}.svc,9000,/minio/health/live;airflow,airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc,8080"
           - name: DELAY
             value: "2"
           - name: TIMEOUT

@@ -39,9 +39,8 @@ spec:
             mountPath: "/var/lib/postgresql/data" # path in container
       volumes:
       - name: kaapana-backend-postgres-data # key of volume mount
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/kaapana-backend-postgres
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: backend-pv-claim
       imagePullSecrets:
         - name: registry-secret
 ---

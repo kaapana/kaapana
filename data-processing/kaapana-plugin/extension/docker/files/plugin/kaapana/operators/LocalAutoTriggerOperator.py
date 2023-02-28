@@ -1,6 +1,5 @@
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
-from airflow.api.common.experimental.trigger_dag import trigger_dag as trigger
+from airflow.api.common.trigger_dag import trigger_dag as trigger
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from airflow.models import DagBag
 from glob import glob
@@ -23,7 +22,9 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
         JSON file example:
        [
           {
-             "search_tags": {},
+             "search_tags": {
+                "0x0008,0x0060": "SEG"
+             },
              "dag_ids": {
                    <dag id to trigger>: {
                       "fetch_method": "copy",
@@ -63,7 +64,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                         if "LocalGetInputDataOperator" == task.__class__.__name__:
                             print(f"# found LocalGetInputDataOperator task: {task.name}")
                             get_input_dir_name = task.operator_out_dir
-                            target = os.path.join("/data", dag_run_id, "batch", series_uid, get_input_dir_name)
+                            target = os.path.join(self.airflow_workflow_dir, dag_run_id, "batch", series_uid, get_input_dir_name)
                             print(f"# Copy data to: {target}")
                             shutil.copytree(src=dcm_path, dst=target)
                             print("#")
@@ -83,14 +84,13 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
 
         return conf
 
-
     def start(self, ds, **kwargs):
         print("# ")
         print("# Starting LocalAutoTriggerOperator...")
         print("# ")
         print(kwargs)
         trigger_rule_list = []
-        for filePath in glob("/root/airflow/**/*trigger_rule.json"):
+        for filePath in glob("/kaapana/mounted/workflows/**/*trigger_rule.json"):
             with open(filePath, "r") as f:
                 print(f"Found auto-trigger configuration: {filePath}")
                 trigger_rule_list = trigger_rule_list + json.load(f)
@@ -98,8 +98,8 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
         print("# ")
         print(f"# Found {len(trigger_rule_list)} auto-trigger configurations -> start processing ...")
         print("# ")
-        
-        batch_folders = sorted([f for f in glob(join(WORKFLOW_DIR, kwargs['dag_run'].run_id, "batch", '*'))])
+
+        batch_folders = sorted([f for f in glob(join(self.airflow_workflow_dir, kwargs['dag_run'].run_id, "batch", '*'))])
         triggering_list = []
         for batch_element_dir in batch_folders:
             print("#")
@@ -143,7 +143,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                             single_execution = False
                             if "single_execution" in conf and conf["single_execution"]:
                                 # if it is a batch, still process triggered dag witout batch-processing
-                                print("Single execution enabled for dag!") 
+                                print("Single execution enabled for dag!")
                                 single_execution = True
                             if single_execution:
                                 dag_run_id = generate_run_id(dag_id)
@@ -175,7 +175,6 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
 
         for triggering in triggering_list:
             self.trigger_it(triggering)
-
 
     def __init__(self,
                  dag,

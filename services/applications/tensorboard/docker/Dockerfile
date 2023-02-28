@@ -5,7 +5,7 @@ LABEL VERSION="2.8.0"
 LABEL CI_IGNORE="False"
 
 ENV INGRESS_PATH /tensorboard
-ENV LOG_DIR=/data
+ENV LOG_DIR=/kaapana/mounted/tensorboard
 
 COPY files/requirements.txt /src/requirements.txt
 RUN pip3 install --no-cache-dir -r /src/requirements.txt

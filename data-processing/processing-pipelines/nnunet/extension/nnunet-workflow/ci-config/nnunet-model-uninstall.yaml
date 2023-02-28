@@ -1,0 +1,5 @@
+workflow: nnunet-model-uninstall
+opensearch_form:
+  dataset: "testMODEL"
+workflow_form:
+  task: "Task017_AbdominalOrganSegmentation"

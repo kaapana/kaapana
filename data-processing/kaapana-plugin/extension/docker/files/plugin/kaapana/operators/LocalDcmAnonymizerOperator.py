@@ -6,7 +6,6 @@ import json
 import shutil
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
 class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
@@ -32,8 +31,8 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
         for tag in list(anonymize_tags.keys()):  # [:15]:
             erase_tags += " --erase-all \"(%s)\"" % tag
 
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-        batch_dirs = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
+        batch_dirs = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))]
 
         print("Found {} batch elements.".format(len(batch_dirs)))
 

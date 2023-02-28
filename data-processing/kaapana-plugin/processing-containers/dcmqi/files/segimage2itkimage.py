@@ -5,7 +5,7 @@ import os
 import subprocess
 
 processed_count = 0
-DCMQI = '/app/dcmqi/bin'
+DCMQI = '/kaapana/app/dcmqi/bin'
 
 output_type = os.environ.get('OUTPUT_TYPE', 'nrrd')
 seg_filter = os.environ.get('SEG_FILTER', "")

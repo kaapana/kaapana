@@ -1,0 +1,5 @@
+---
+global:
+    pull_policy_jobs: ""
+    image: "dag-mhub-models-workflow"
+    action: "copy"

@@ -1,0 +1,4 @@
+---
+dependencies:
+- name: code-server-chart
+  version: 0.0.0

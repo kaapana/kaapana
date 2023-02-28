@@ -4,7 +4,7 @@ from keycloak.exceptions import KeycloakGetError
 from .schemas import KaapanaUser, KaapanaGroup, KaapanaRole
 
 class UserService:
-    def __init__(self, server_url: str,  username: str, password: str, realm_name : str = "kaapana", user_realm_name : str = "kaapana", verify: bool = False):
+    def __init__(self, server_url: str,  username: str, password: str, realm_name : str = "kaapana", user_realm_name : str = "master", verify: bool = False):
         self.server_url = server_url
         self.username = username
         self.password = password

@@ -176,7 +176,7 @@ def adding_aetitle(element_input_dir, output_dcm_file, body_part):
 
 
 print("Started: 'itkimage2segimage' ")
-DCMQI = '/app/dcmqi/bin'
+DCMQI = '/kaapana/app/dcmqi/bin'
 
 
 # os.environ['BATCH_NAME'] = 'batch'

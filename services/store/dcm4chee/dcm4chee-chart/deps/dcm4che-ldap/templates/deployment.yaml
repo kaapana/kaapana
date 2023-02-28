@@ -56,13 +56,11 @@ spec:
               name: ldif
       volumes:
       - name: ldap
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/ldap
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: ldap-pv-claim
       - name: slapd
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/slapd.d
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: slapd-pv-claim
       - name: ldif
         configMap:
           name: dcm4che-iid-config

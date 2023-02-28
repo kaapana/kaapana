@@ -1,0 +1,5 @@
+workflow: nnunet-model-install
+opensearch_form:
+  dataset: "testMODEL"
+workflow_form:
+  input: "OT"

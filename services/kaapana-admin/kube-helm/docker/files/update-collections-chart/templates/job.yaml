@@ -3,7 +3,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: copy-kube-helm-collections-{{ $uuid }}
-  namespace: "{{ .Values.global.helm_namespace }}"
+  namespace: "{{ .Values.global.admin_namespace }}"
 spec:
   template:
     spec:
@@ -18,18 +18,17 @@ spec:
         env:
         - name: ACTION
           value: copy
-        - name: CHARTS_DIR
-          value: "{{ .Values.global.charts_dir }}"
+        - name: TARGET_PREFIX
+          value: "{{ .Values.global.target_prefix }}"
         volumeMounts:
         - name: data
-          mountPath: /extensions
+          mountPath: /kaapana/mounted/extensions
       # securityContext:
       #   runAsUser: 0
       volumes:
       - name: data
-        hostPath:
-          path: "{{ .Values.global.fast_data_dir }}/extensions"
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: extensions-pv-claim
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret

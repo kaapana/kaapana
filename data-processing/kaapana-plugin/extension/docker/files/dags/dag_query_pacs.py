@@ -6,7 +6,6 @@ from kaapana.operators.DcmQueryOperator import DcmQueryOperator
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from airflow.operators.python import PythonOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -118,8 +117,8 @@ class Dcm2MetaJsonLinesOperator(KaapanaPythonBaseOperator):
         #operator_in = "dcmqr"
         # use task id as output
         operator_out = kwargs['ti'].task_id 
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-        batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
+        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))]
         for batch_element_dir in batch_folder:
             jsonl_files = sorted(glob.glob(os.path.join(batch_element_dir, self.operator_in_dir, "*.jsonl"), recursive=True))
             print(f"Processing batch {batch_element_dir} - found {len(jsonl_files)} inputs")

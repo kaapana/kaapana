@@ -31,7 +31,7 @@
       >
         <v-list-item-title>Delete from system</v-list-item-title>
       </v-list-item>
-      <template v-if="cohortNames.length > 0">
+      <template v-if="cohort_names.length > 0">
         <v-menu :offset-x=true :offset-y=false
                 transition='scale-transition'
                 :close-on-click=true
@@ -44,7 +44,7 @@
             </v-list-item>
           </template>
           <v-list>
-            <v-list-item v-for="cohortName in cohortNames" @click="() => addToCohort(cohortName)">
+            <v-list-item v-for="cohortName in cohort_names" @click="() => addToCohort(cohortName)">
               <v-list-item-title>{{ cohortName }}</v-list-item-title>
             </v-list-item>
           </v-list>
@@ -57,7 +57,7 @@
 <script>
 /* eslint-disable */
 
-import {loadCohortNames, updateCohort} from "../common/api.service";
+import {updateCohort} from "../common/api.service";
 
 export default {
   name: "CardMenu",
@@ -66,17 +66,17 @@ export default {
       type: String,
       default: null
     },
+    cohort_names: {
+      type: Array,
+      default: [],
+    },
     studyInstanceUID: "",
     seriesInstanceUID: "",
   },
   data() {
     return {
-      cohortNames: [],
       openMenu: false
     }
-  },
-  async mounted() {
-    this.cohortNames = await loadCohortNames()
   },
   methods: {
     openInOHIF() {

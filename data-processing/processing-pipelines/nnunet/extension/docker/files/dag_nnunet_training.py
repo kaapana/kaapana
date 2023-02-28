@@ -325,7 +325,7 @@ generate_nnunet_report = NnUnetNotebookOperator(
     dag=dag,
     name='generate-nnunet-report',
     input_operator=nnunet_train,
-    arguments=["/kaapanasrc/notebooks/nnunet_training/run_generate_nnunet_report.sh"]
+    arguments=["/kaapana/app/notebooks/nnunet_training/run_generate_nnunet_report.sh"]
 )
 
 put_to_minio = LocalMinioOperator(

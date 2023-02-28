@@ -11,7 +11,6 @@ from pathlib import Path
 from datetime import timedelta
 from multiprocessing.pool import ThreadPool
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
 class LocalSegCheckOperator(KaapanaPythonBaseOperator):
@@ -75,8 +74,8 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
 
         case_count = 0
         ignored_cases = []
-        run_dir = join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-        batch_folders = sorted([f for f in glob.glob(join(run_dir, BATCH_NAME, '*'))])
+        run_dir = join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
+        batch_folders = sorted([f for f in glob.glob(join(run_dir, self.batch_name, '*'))])
         output_dir = join(run_dir, self.operator_out_dir)
 
         print("# Found {} batches".format(len(batch_folders)))
@@ -92,27 +91,28 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
             print("# ")
             dimensions_list = []
             input_dirs_complete = [join(batch_element_dir, dir) for dir in input_dirs]
+            with ThreadPool(self.parallel_checks) as threadpool:
+                dcm_results = threadpool.imap_unordered(self.get_dicom_dimensions, input_dirs_complete)
 
-            dcm_results = ThreadPool(self.parallel_checks).imap_unordered(self.get_dicom_dimensions, input_dirs_complete)
-
-            nifti_check_list = []
-            for dcm_result in dcm_results:
-                if len(dcm_result) == 2:
-                    dimensions_list.append(dcm_result[1])
-                else:
-                    nifti_check_list.append(dcm_result[0])
+                nifti_check_list = []
+                for dcm_result in dcm_results:
+                    if len(dcm_result) == 2:
+                        dimensions_list.append(dcm_result[1])
+                    else:
+                        nifti_check_list.append(dcm_result[0])
 
             if len(nifti_check_list) > 0:
-                nifti_results = ThreadPool(self.parallel_checks).imap_unordered(self.get_nifti_dimensions, nifti_check_list)
+                with ThreadPool(self.parallel_checks) as threadpool:
+                    nifti_results = threadpool.imap_unordered(self.get_nifti_dimensions, nifti_check_list)
 
-                for nifti_result in nifti_results:
-                    if len(nifti_result) == 2:
-                        dimensions_list.append(nifti_result[1])
-                    else:
-                        dimensions_list.append(None)
-                        print("# ")
-                        print(f"# Could not extract dimensions: {nifti_check_list[0]}")
-                        print("# ")
+                    for nifti_result in nifti_results:
+                        if len(nifti_result) == 2:
+                            dimensions_list.append(nifti_result[1])
+                        else:
+                            dimensions_list.append(None)
+                            print("# ")
+                            print(f"# Could not extract dimensions: {nifti_check_list[0]}")
+                            print("# ")
 
             last_dimension = None
             error = False
@@ -144,7 +144,7 @@ class LocalSegCheckOperator(KaapanaPythonBaseOperator):
 
             if error:
                 if self.move_data:
-                    target_dir = batch_element_dir.replace(BATCH_NAME, "dimension_issue")
+                    target_dir = batch_element_dir.replace(self.batch_name, "dimension_issue")
                     print("# ")
                     print("# Moving batch-data:")
                     print(f"{batch_element_dir} -> {target_dir}")

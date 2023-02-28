@@ -4,7 +4,7 @@ import os
 from datetime import timedelta
 from zipfile import ZipFile
 
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR, SERVICES_NAMESPACE
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperMinio import HelperMinio
 from kaapana.operators.KaapanaPythonBaseOperator import \
@@ -62,11 +62,11 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
             secure=False
         )
 
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id) \
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id) \
             if self.run_dir is None \
             else os.path.join(self.run_dir)
         batch_folder = [
-            f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))
+            f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))
         ]
         print(batch_folder)
 

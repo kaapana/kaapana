@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM local-only/base-python-cpu:latest
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -7,28 +7,16 @@ LABEL IMAGE="base-mitk-phenotyping"
 LABEL VERSION="latest"
 LABEL CI_IGNORE="False"
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
-    libfreetype6 \
-    libglu1-mesa-dev \
-    libglib2.0-0 \
-    libgomp1 \
-    libxt-dev \
-    xvfb \
-    qtbase5-dev \
-    python3 \
-    python3-pip \
-    dcmtk \
-    jq \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /kaapana/app
 
-COPY files/requirements.txt /
-RUN python3 -m pip install --no-cache-dir -r /requirements.txt && rm /requirements.txt 
+COPY files/requirements.system /kaapana/app/
+RUN apt-get update -y && cat /kaapana/app/requirements.system | xargs apt-get install -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 
-WORKDIR /kaapanasrc
-RUN wget --no-check-certificate https://www.mitk.org/download/kaapana/phenotyping/MITK-v2021.02-linux-x86_64.tar.gz -O /kaapanasrc/mitk.tar.gz \
-    && tar -xzf /kaapanasrc/mitk.tar.gz --strip 1 -C /kaapanasrc/ && rm -rf /kaapanasrc/mitk.tar.gz
+COPY files/requirements.txt /kaapana/app/
+RUN python3 -m pip install --no-cache-dir -r /kaapana/app/requirements.txt && rm /kaapana/app/requirements.txt 
 
-WORKDIR /kaapanasrc
+RUN wget --no-check-certificate https://www.mitk.org/download/kaapana/phenotyping/MITK-v2021.02-linux-x86_64.tar.gz -O /kaapana/app/mitk.tar.gz \
+    && tar -xzf /kaapana/app/mitk.tar.gz --strip 1 -C /kaapana/app/ && rm -rf /kaapana/app/mitk.tar.gz
 
 CMD ["echo","Do not use this container directly - only as base-image!"]

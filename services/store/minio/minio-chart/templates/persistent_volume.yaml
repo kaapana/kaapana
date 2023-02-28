@@ -1,0 +1,44 @@
+# Minio Services
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: minio-pv-volume
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: "1Mi"
+{{- if .Values.global.enable_nfs }}
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/minio"
+{{- else }}
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.slow_data_dir }}/minio"
+{{- end }}
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{ .Values.global.services_namespace }}"
+    name: minio-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-pv-claim
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: "1Mi"
+  volumeName: "minio-pv-volume"
+---

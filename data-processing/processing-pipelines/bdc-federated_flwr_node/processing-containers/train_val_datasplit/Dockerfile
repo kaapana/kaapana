@@ -4,10 +4,10 @@ LABEL IMAGE="train-val-datasplit"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-COPY files/requirements.txt /kaapanasrc/requirements.txt
+COPY files/requirements.txt /kaapana/app/requirements.txt
 
-RUN pip install --upgrade pip && pip install -r /kaapanasrc/requirements.txt
+RUN pip install --upgrade pip && pip install -r /kaapana/app/requirements.txt
 
-COPY files/* /kaapanasrc/
+COPY files/* /kaapana/app/
 
-CMD ["python3","-u","/kaapanasrc/train_val_datasplit.py"]
+CMD ["python3","-u","/kaapana/app/train_val_datasplit.py"]

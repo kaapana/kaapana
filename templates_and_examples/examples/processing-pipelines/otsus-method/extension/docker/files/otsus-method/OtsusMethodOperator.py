@@ -6,17 +6,18 @@ class OtsusMethodOperator(KaapanaBaseOperator):
 
     def __init__(self,
                  dag,
-                 execution_timeout=timedelta(seconds=30),
+                 name='otsus-method',
+                 execution_timeout=timedelta(seconds=120),
                  *args, **kwargs
                  ):
 
         super().__init__(
             dag=dag,
-            name='otsus-method',
-            image=f"{default_registry}"/otsus-method:0.1.0",
+            name=name,
+            image=f"{default_registry}/otsus-method:{kaapana_build_version}",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
-            operator_out_dir="otsus-method/",
+            #operator_out_dir="otsus-method/",
             *args,
             **kwargs
         )

@@ -1,74 +1,64 @@
 ---
 dependencies:
-  - name: code-server-chart
-    version: 0.0.0
-    repository: file://../../services/applications/code-server/code-server-chart
-  - name: doccano
-    version: 0.0.0
-    repository: file://../../services/applications/doccano/doccano-charts
-  - name: doccano-image-tagging-workflow
-    version: 0.0.0
-    repository: file://../../data-processing/processing-pipelines/doccano-image-tagging/extension/doccano-image-tagging-workflow
-  - name: debug-container-chart
-    version: 0.0.0
-    repository: file://../../services/applications/debug-container/debug-container-chart
-  - name: federated-setup-central-test-workflow
-    version: 0.0.0
-    repository: file://../../data-processing/processing-pipelines/federated-setup-central-test/extension/federated-setup-central-test-workflow
-  - name: federated-setup-node-test-workflow
-    version: 0.0.0
-    repository: file://../../data-processing/processing-pipelines/federated-setup-node-test/extension/federated-setup-node-test-workflow
-  - name: kaapana-plugin-chart
-    version: 0.0.0
-    repository: file://../../data-processing/kaapana-plugin/extension/kaapana-plugin-chart
-  - name: jupyterlab-chart
-    version: 0.0.0
-    repository: file://../../services/applications/jupyterlab/jupyterlab-chart
-  - name: mitk-flow-workflow
-    version: 0.0.0
-    repository: file://../../data-processing/processing-pipelines/mitk-flow/extension/mitk-flow-workflow
-  - name: mitk-workbench-chart
-    version: 0.0.0
-    repository: file://../../services/applications/mitk-workbench/mitk-workbench-chart
-  - name: mitk-flow-chart
-    version: 0.0.0
-    repository: file://../../services/applications/mitk-workbench/mitk-workbench-chart
-  - name: nnunet-workflow
-    version: 0.0.0
-    repository: file://../../data-processing/processing-pipelines/nnunet/extension/nnunet-workflow
-  - name: nnunet-federated-workflow
-    version: 0.0.0
-    repository: file://../../data-processing/processing-pipelines/nnunet-federated/extension/nnunet-federated-workflow
   - name: bodypartregression-workflow
     version: 0.0.0
-    repository: file://../../data-processing/processing-pipelines/bodypartregression/extension/bodypartregression-workflow
-  - name: radiomics-workflow
+  - name: podman-chart # lives here before build script can handle the code-server as dependency
     version: 0.0.0
-    repository: file://../../data-processing/processing-pipelines/radiomics/extension/radiomics-workflow
-  - name: shapemodel-workflow
+  - name: code-server-chart
     version: 0.0.0
-    repository: file://../../data-processing/processing-pipelines/shapemodel/extension/shapemodel-workflow
-  - name: total-segmentator-workflow
+  - name: debug-container-chart
     version: 0.0.0
-    repository: file://../../data-processing/processing-pipelines/total-segmentator/extension/total-segmentator-workflow
-  - name: static-website-chart
+  - name: doccano
     version: 0.0.0
-    repository: file://../../services/applications/static-website/static-website-chart
-  - name: tensorboard-chart
+  - name: doccano-image-tagging-workflow
     version: 0.0.0
-    repository: file://../../services/applications/tensorboard/tensorboard-chart 
+  - name: example-workflow
+    version: 0.0.0
+  - name: federated-setup-central-test-workflow
+    version: 0.0.0
+  - name: federated-setup-node-test-workflow
+    version: 0.0.0
+  - name: hello-backend-chart
+    version: 0.0.0
+  - name: hello-world-chart
+    version: 0.0.0
+  - name: jupyterlab-chart
+    version: 0.0.0
+  - name: kaapana-plugin-chart
+    version: 0.0.0
+  - name: mhub-models-workflow
+    version: 0.0.0
+  - name: mitk-flow-chart
+    version: 0.0.0 
+  - name: mitk-flow-workflow
+    version: 0.0.0
+  - name: mitk-workbench-chart
+    version: 0.0.0
+  - name: nnunet-workflow
+    version: 0.0.0
+  - name: nnunet-federated-workflow
+    version: 0.0.0
   - name: openedc-chart
     version: 0.0.0
-    repository: file://../../services/applications/openEDC/openedc-chart
+  - name: otsus-method-workflow
+    version: 0.0.0
+  - name: radiomics-workflow
+    version: 0.0.0
   - name: rateme-workflow
     version: 0.0.0
-    repository: file://../../data-processing/processing-pipelines/rateme/extension/rateme-workflow
   - name: rateme-chart
     version: 0.0.0
-    repository: file://../../services/applications/rateme/rateme-chart
+  - name: shapemodel-workflow
+    version: 0.0.0
+  - name: slicer-workbench-chart
+    version: 0.0.0
+  - name: static-website-chart
+    version: 0.0.0
+  - name: tensorboard-chart
+    version: 0.0.0
+  - name: total-segmentator-workflow
+    version: 0.0.0
   - name: security-wazuh-chart
     version: 0.0.0
-    repository: file://../../services/applications/security-wazuh/security-wazuh-chart
   - name: security-stackrox-chart
     version: 0.0.0
-    repository: file://../../services/applications/security-stackrox/security-stackrox-chart

@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build-ctp
 
-RUN git clone -n https://github.com/johnperry/CTP.git . && git checkout acaf7a6902a6bace4e3416a7cdb99ac031cbe0a4
+RUN git clone -n https://github.com/johnperry/CTP.git . && git checkout 2ae3e71ce84b425857ce0b5cca249eda2ea542ed
 
 ADD /files/Runner.java ./source/java/org/rsna/runner/
 # added consolelogs, to directly view logs in kubernetes logs

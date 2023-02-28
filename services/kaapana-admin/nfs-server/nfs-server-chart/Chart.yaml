@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+appVersion: "7.2.1"
+description: nfs-server
+name: nfs-server-chart
+version: "0.0.0"
+

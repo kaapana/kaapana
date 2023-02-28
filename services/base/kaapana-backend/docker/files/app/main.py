@@ -4,7 +4,6 @@ import os
 from fastapi import Depends, FastAPI, Request
 
 from .admin import routers as admin
-from .extensions import routers as extensions
 from .experiments.routers import remote, client
 from .monitoring import routers as monitoring
 from .storage import routers as storage
@@ -49,11 +48,6 @@ app.include_router(
     client.router,
     prefix="/client",
     responses={418: {"description": "I'm the clients backend..."}},
-)
-
-app.include_router(
-    extensions.router,
-    prefix="/extensions"
 )
 
 # Not used yet

@@ -1,14 +1,13 @@
-FROM ubuntu:20.04
+FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="otsus-method"
 LABEL VERSION="0.1.0"
-LABEL CI_IGNORE="True"
+LABEL CI_IGNORE="False"
 
-RUN apt update
-RUN apt install -y python3 python3-pip
+WORKDIR /kaapana/app
 
-RUN python3 -m pip install SimpleITK
+COPY files/requirements.txt /kaapana/app/
+RUN python -m pip install --no-cache-dir -r /kaapana/app/requirements.txt
 
-COPY files/ /
-
-CMD ["python3","-u","otsus_method.py"]
+COPY files/ /kaapana/app/
+CMD ["python3","-u","/kaapana/app/otsus_method.py"]

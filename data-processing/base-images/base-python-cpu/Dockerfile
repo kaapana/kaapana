@@ -1,5 +1,4 @@
-# Same python version as in pytorch-gpu
-FROM python:3.8.10
+FROM python:3.9.16-slim
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-python-cpu"
@@ -8,23 +7,16 @@ LABEL CI_IGNORE="False"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    htop \
-    zip \
-    unzip \
-    nano \
-    dcmtk \
-    pandoc \
-    texlive-xetex \
-    texlive-fonts-recommended \
-    texlive-plain-generic \
-    && rm -rf /var/lib/apt/lists/*
-# pandoc and texlive-packages only for jupyternotebook: jupyter nbconvert --to html --no-input ...
+WORKDIR /kaapana/base
+
+COPY files/requirements.system /kaapana/base/
+RUN apt-get update -q -y && apt-get install -y --no-install-recommends apt-utils && \
+    cat /kaapana/base/requirements.system | xargs apt-get install -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 
 # Common Python packages
-COPY files/requirements.txt /root/
-RUN python -m pip install --upgrade pip && pip3 install -r /root/requirements.txt
+COPY files/requirements.txt /kaapana/base/
+RUN python -m pip install --upgrade setuptools pip && pip3 install -r /kaapana/base/requirements.txt
 
 # Code server
 RUN wget https://code-server.dev/install.sh
@@ -38,4 +30,4 @@ RUN jupyter-lab --generate-config \
 COPY files/jupyterlab.sh /
 COPY files/kaapana_federated /kaapana_federated
 
-WORKDIR /kaapanasrc
+WORKDIR /kaapana/app

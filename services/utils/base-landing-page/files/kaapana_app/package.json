@@ -11,6 +11,7 @@
   "dependencies": {
     "@babel/preset-env": "^7.11.5",
     "@koumoul/vjsf": "^2.11.3",
+    "apexcharts": "^3.36.3",
     "aws-sdk": "^2.748.0",
     "axios": "^0.19.2",
     "babel-polyfill": "^6.26.0",
@@ -28,6 +29,8 @@
     "idle-vue": "^2.0.5",
     "license-checker": "^25.0.1",
     "local-storage-fallback": "^4.1.2",
+    "vue-selecto": "^1.22.0",
+    "vue-apexcharts": "^1.6.2",
     "vue-class-component": "^7.2.6",
     "vue-filepond": "^6.0.3",
     "vue-json-editor": "^1.4.3",

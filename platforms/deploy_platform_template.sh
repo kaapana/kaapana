@@ -7,8 +7,8 @@ export HELM_EXPERIMENTAL_OCI=1
 # Main platform configuration
 ######################################################
 
-PROJECT_NAME="{{ project_name }}" # name of the platform Helm chart
-PLATFORM_BUILD_VERSION="{{ platform_build_version }}"    # version of the platform Helm chart -> auto-generated
+PLATFORM_NAME="{{ platform_name }}" # name of the platform Helm chart
+PLATFORM_VERSION="{{ platform_build_version }}" # Specific version or empty for dialog
 
 CONTAINER_REGISTRY_URL="{{ container_registry_url|default('', true) }}" # empty for local build or registry-url like 'dktk-jip-registry.dkfz.de/kaapana' or 'registry.hzdr.de/kaapana/kaapana'
 CONTAINER_REGISTRY_USERNAME="{{ container_registry_username|default('', true) }}"
@@ -25,17 +25,9 @@ GPU_SUPPORT="{{ gpu_support|default('false') }}"
 PREFETCH_EXTENSIONS="{{ prefetch_extensions|default('false') }}"
 CHART_PATH=""
 NO_HOOKS=""
-
-PLATFORM_BUILD_BRANCH="{{ platform_build_branch }}"    # branch name, which was build from -> auto-generated
-PLATFORM_LAST_COMMT_TIMESTAMP="{{ platform_last_commit_timestamp }}" # timestamp of the last commit -> auto-generated
-
-BUILD_TIMESTAMP="{{ build_timestamp }}"    # timestamp of the build-time -> auto-generated
-KAAPANA_BUILD_VERSION="{{ kaapana_build_version }}"    # version of the platform Helm chart -> auto-generated
-KAAPANA_BUILD_BRANCH="{{ kaapana_build_branch }}"    # branch name, which was build from -> auto-generated
-KAAPANA_LAST_COMMT_TIMESTAMP="{{ kaapana_last_commit_timestamp }}" # timestamp of the last commit -> auto-generated
+ENABLE_NFS=false
 
 INSTANCE_UID=""
-
 SERVICES_NAMESPACE="{{ services_namespace }}"
 ADMIN_NAMESPACE="{{ admin_namespace }}"
 JOBS_NAMESPACE="{{ jobs_namespace }}"
@@ -231,7 +223,7 @@ function delete_deployment {
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
         echo "${RED}kubectl get pods -A${NC}"
         echo "${RED}kubectl get namespaces${NC}"
-        echo "${RED}Executing './deploy_platform.sh --purge-kube-and-helm' is an option to force the resources to be removed.${NC}"        
+        echo "${RED}Executing './deploy_platform.sh --no-hooks' is an option to force the resources to be removed.${NC}"        
         echo "${RED}Once everything is deleted you can re-deploy the platform!${NC}"
         exit 1
     fi
@@ -239,6 +231,18 @@ function delete_deployment {
 
     echo -e "${GREEN}####################################  UNDEPLOYMENT DONE  ############################################${NC}"
 }
+
+function nuke_pods {
+    for namespace in $JOBS_NAMESPACE $EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+        echo "${RED}Deleting all pods from namespaces: $namespace ...${NC}"; 
+        for mypod in $(microk8s.kubectl get pods -n $namespace -o jsonpath="{.items[*].metadata.name}");
+        do
+            echo "${RED}Deleting: $mypod ${NC}"; 
+            microk8s.kubectl delete pod -n $namespace $mypod --grace-period=0 --force 
+        done
+    done
+}
+
 
 function clean_up_kubernetes {
     for n in $EXTENSIONS_NAMESPACE $JOBS_NAMESPACE $HELM_NAMESPACE;
@@ -255,9 +259,9 @@ function clean_up_kubernetes {
 }
 
 function upload_tar {
-    echo "${YELLOW}Importing the images fromt the tar, this might take up to one hour...!${NC}"
+    echo "${YELLOW}Importing the images from the tar, this might take up to one hour...!${NC}"
     microk8s.ctr images import $TAR_PATH
-    echo "${GREEN}Finished image uplaod! You should now be able to deploy the platform by specifying the chart path.${NC}"
+    echo "${GREEN}Finished image upload! You should now be able to deploy the platform by specifying the chart path.${NC}"
 }
 
 function deploy_chart {
@@ -268,14 +272,8 @@ function deploy_chart {
         exit 1
     fi
 
-
-    if [ ! "$QUIET" = "true" ] && [ -z "$CHART_PATH" ];then
-        echo -e ""
-        read -e -p "${YELLOW}Which $PROJECT_NAME version do you want to deploy?: ${NC}" -i $PLATFORM_BUILD_VERSION chart_version;
-    else
-        chart_version=$PLATFORM_BUILD_VERSION
-    fi
-
+    get_domain
+    
     if [ "$GPU_SUPPORT" = "true" ];then
         echo -e "${GREEN} -> GPU found ...${NC}"
     else
@@ -302,15 +300,14 @@ function deploy_chart {
             microk8s.enable gpu
         fi
     fi
-    get_domain
     
     if [ ! -z "$CHART_PATH" ]; then
         echo -e "${YELLOW}Please note, since you have specified a chart file, you deploy the platform in OFFLINE_MODE='true'.${NC}"
         echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
         echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
 
-        if [ $(basename "$CHART_PATH") != "$PROJECT_NAME-$PLATFORM_BUILD_VERSION.tgz" ]; then
-            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PROJECT_NAME and PLATFORM_BUILD_VERSION: $PLATFORM_BUILD_VERSION in the deployment script.${NC}" 
+        if [ $(basename "$CHART_PATH") != "$PLATFORM_NAME-$PLATFORM_VERSION.tgz" ]; then
+            echo "${RED} Version of chart_path $CHART_PATH differs from PROJECT_NAME: $PLATFORM_NAME and PLATFORM_VERSION: $PLATFORM_VERSION in the deployment script.${NC}"
             exit 1
         fi
 
@@ -348,12 +345,12 @@ function deploy_chart {
         echo "${YELLOW}Helm login registry...${NC}"
         check_credentials
         echo "${GREEN}Pulling platform chart from registry...${NC}"
-        SCRIPTPATH=$(dirname "$(realpath $0)")
-        pull_chart $SCRIPTPATH
-        CHART_PATH="$SCRIPTPATH/$PROJECT_NAME-$chart_version.tgz"
+        SCRIPT_PATH=$(dirname "$(realpath $0)")
+        pull_chart $SCRIPT_PATH
+        CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
     fi
 
-    echo "${GREEN}Deploying $PROJECT_NAME:$chart_version${NC}"
+    echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
     --set-string global.base_namespace="base" \
@@ -375,6 +372,7 @@ function deploy_chart {
     --set-string global.admin_namespace=$ADMIN_NAMESPACE \
     --set-string global.gpu_support="$GPU_SUPPORT" \
     --set-string global.helm_namespace="$HELM_NAMESPACE" \
+    --set global.enable_nfs=$ENABLE_NFS \
     --set global.include_reverse_proxy=$INCLUDE_REVERSE_PROXY \
     --set-string global.home_dir="$HOME" \
     --set-string global.hostname="$DOMAIN" \
@@ -387,7 +385,6 @@ function deploy_chart {
     --set-string global.kaapana_collections[{{loop.index0}}].version="{{ item.version }}" \
     {% endfor -%}
     --set-string global.offline_mode="$OFFLINE_MODE" \
-    --set-string global.platform_version="$chart_version" \
     --set-string global.prefetch_extensions="$PREFETCH_EXTENSIONS" \
     {% for item in preinstall_extensions -%}
     --set-string global.preinstall_extensions[{{loop.index0}}].name="{{ item.name }}" \
@@ -397,18 +394,12 @@ function deploy_chart {
     --set-string global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
-    --set-string global.release_name="$PROJECT_NAME" \
-    --set-string global.build_timestamp="$BUILD_TIMESTAMP" \
-    --set-string global.kaapana_build_version="$KAAPANA_BUILD_VERSION" \
-    --set-string global.kaapana_build_branch="$KAAPANA_BUILD_BRANCH" \
-    --set-string global.kaapana_last_commit_timestamp="$KAAPANA_LAST_COMMT_TIMESTAMP" \
-    --set-string global.platform_build_branch="$PLATFORM_BUILD_BRANCH" \
-    --set-string global.platform_last_commit_timestamp="$PLATFORM_LAST_COMMT_TIMESTAMP" \
+    --set-string global.release_name="$PLATFORM_NAME" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
-    --name-template "$PROJECT_NAME"
+    --name-template "$PLATFORM_NAME"
 
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm $CHART_PATH
@@ -424,8 +415,8 @@ function deploy_chart {
 function pull_chart {
     for i in 1 2 3 4 5;
     do
-        echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/$PROJECT_NAME with version $chart_version ${NC}"
-        helm pull oci://${CONTAINER_REGISTRY_URL}/$PROJECT_NAME --version $chart_version -d $1 \
+        echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/$PLATFORM_NAME with version $PLATFORM_VERSION ${NC}"
+        helm pull oci://${CONTAINER_REGISTRY_URL}/$PLATFORM_NAME --version $PLATFORM_VERSION -d $1 \
             && break \
             || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 );
         
@@ -492,8 +483,8 @@ function preflight_checks {
     # Holds the state of the setup after preflight checks:
     # 0 = OK
     # 100=POTENTIAL PROBLEMS - could lead to upstream problems
-    # 200=MANIFESTED PROBLEMS - very probabily lead to problems
-    # 300=CATASTROPHIC PROBLEMS - definitly leads to problems, continuation not possible
+    # 200=MANIFESTED PROBLEMS - very probably lead to problems
+    # 300=CATASTROPHIC PROBLEMS - definitely leads to problems, continuation not possible
 
     # Since bash has no support for multidimensional arrays every test needs to add exactly one element to this arrays
     SEVERITY=()
@@ -513,9 +504,9 @@ function preflight_checks {
     fi
 
     SEVERITY+=(200)
-    TEST_NAMES+=("Check if enought disk-space")
+    TEST_NAMES+=("Check if enough disk-space")
     SIZE="$(df -k --output=size /var/snap | tail -n1)"
-    if [ "$SIZE" -lt 81920 ]; then
+    if [ "$SIZE" -lt 81920000 ]; then
         TEST_FAILDS+=(true)
         RESULT_MSGS+=("Your disk space is too small to deploy the system.\nThere should be at least 80 GiBytes available @ /var/snap")
     else
@@ -554,13 +545,13 @@ function preflight_checks {
     fi
 
     SEVERITY+=(100)
-    TEST_NAMES+=("Check if ~/.kube/config matches micork8s config")
+    TEST_NAMES+=("Check if ~/.kube/config matches microk8s config")
     if [ "$(cat /home/$USER/.kube/config)" == "$(microk8s.kubectl config view --raw)" ]; then
         TEST_FAILDS+=(false)
         RESULT_MSGS+=("")
     else
         TEST_FAILDS+=(true)
-        RESULT_MSGS+=("Your kubeconfig differs from the micork8s version.")
+        RESULT_MSGS+=("Your kubeconfig differs from the microk8s version.")
     fi
 
     SEVERITY+=(100)
@@ -618,7 +609,7 @@ function preflight_checks {
     # Act on Test Results
     MAX_SEVERITY=0
     for i in ${!SEVERITY[@]}; do
-        # Maximum Severity of a faild test
+        # Maximum Severity of a failed test
         if [ "${TEST_FAILDS[$i]}" = true ]; then
             TEST_SEVERITY="${SEVERITY[$i]}"
             MAX_SEVERITY=$((MAX_SEVERITY>TEST_SEVERITY? MAX_SEVERITY : TEST_SEVERITY))
@@ -651,7 +642,7 @@ function preflight_checks {
     elif [ "$MAX_SEVERITY" -ge 100 ]; then
         # 100-199
         echo -e "${YELLOW}Problems with a medium severity have been found! ${NC}"
-        echo -e "${YELLOW}Since your system is out of the specified constraints for the platform, problems during operation or the installation can occure.${NC}"
+        echo -e "${YELLOW}Since your system is out of the specified constraints for the platform, problems during operation or the installation can occur.${NC}"
         echo -e "${YELLOW}Please consider fixing this problems before continuing, it is highly recommended.${NC}"
         TERMINATE=true
     elif [ "$MAX_SEVERITY" -ge 1 ]; then
@@ -667,7 +658,7 @@ function preflight_checks {
     if [ "$TERMINATE" = "true" ]; then
         if [ ! "$QUIET" = "false" ] ; then
             while true; do
-                read -e -p "Do you want to fix the problems before continuing? (Recomended)" -i " no" yn
+                read -e -p "Do you want to fix the problems before continuing? (Recommended)" -i " no" yn
                 case $yn in
                     [Yy]* ) echo "${RED}exiting...${NC}" && exit 1; break;;
                     [Nn]* ) echo "${YELLOW}continuing (be aware that you leaving the supported path, its dangerous here watch your step!)${NC}"; break;;
@@ -684,7 +675,7 @@ function preflight_checks {
 }
 
 function create_report {
-    # Dont abort report generation on errror
+    # Dont abort report generation on error
     set +euf +o pipefail
     # Pipe output also to file
     exec > >(tee -ia "kaapana-report-$(date +'%Y-%m-%d').log")
@@ -750,7 +741,7 @@ cat << "EOF"
                                      | |
                                      |_|
 EOF
-echo "Version: 0.1.4"
+echo "Version: {{ platform_build_version }}"
 echo "Report created on $(date +'%Y-%m-%d')"
 
 --- "Basics"
@@ -784,6 +775,9 @@ snap list
 --- "k8s Pods"
 microk8s.kubectl get pods -A
 
+--- "k8s Describe Pods"
+microk8s.kubectl describe pods -A
+
 --- "k8s Node Status"
 microk8s.kubectl describe node
 
@@ -801,21 +795,15 @@ usage="$(basename "$0")
 _Flag: --install-certs set new HTTPS-certificates for the platform
 _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
 _Flag: --remove-all-images-docker will delete all Docker images from the system
-_Flag: --purge-kube-and-helm will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
+_Flag: --no-hooks will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
+_Flag: --nuke-pods will force-delete all pods of the Kaapana deployment namespaces.
 _Flag: --quiet, meaning non-interactive operation
 
-_Argument: --version of the platform [version]
 _Argument: --username [Docker registry username]
 _Argument: --password [Docker registry password]
 _Argument: --port [Set main https-port]
 _Argument: --chart-path [path-to-chart-tgz]
-_Argument: --upload-tar [path-to-a-tarball]
-
-_Argument: --version [version]
-
-where version is one of the available platform releases:
-    0.1.4  --> latest Kaapana release
-    $PLATFORM_BUILD_VERSION  --> latest development version ${NC}"
+_Argument: --upload-tar [path-to-a-tarball]"
 
 QUIET=NA
 
@@ -825,11 +813,6 @@ do
     key="$1"
 
     case $key in
-        -v|--version)
-            PLATFORM_BUILD_VERSION="$2"
-            shift # past argument
-            shift # past value
-        ;;
 
         -u|--username)
             CONTAINER_REGISTRY_USERNAME="$2"
@@ -893,12 +876,28 @@ do
             exit 0
         ;;
 
-        --purge-kube-and-helm)
+        --no-hooks)
             echo -e "${YELLOW}Starting undeployment ...${NC}"
             NO_HOOKS="--no-hooks"
             echo -e "${YELLOW}Using --no-hooks${NC}"
             delete_deployment
             clean_up_kubernetes
+            exit 0
+        ;;
+
+        --nuke-pods)
+            while true; do
+                read -e -p "Do you really want to nuke all pods? -> Not recommended!" -i " no" yn
+                case $yn in
+                    [Yy]* ) 
+                    nuke_pods
+                    delete_deployment
+                    clean_up_kubernetes
+                    break;;
+                    [Nn]* ) echo "${YELLOW}Pods will be kept${NC}"; break;;
+                    * ) echo "Please answer yes or no.";;
+                esac
+            done
             exit 0
         ;;
 
@@ -919,7 +918,7 @@ do
         ;;
 
         *)    # unknown option
-            echo -e "${RED}unknow parameter: $key ${NC}"
+            echo -e "${RED}unknown parameter: $key ${NC}"
             echo -e "${YELLOW}$usage${NC}"
             exit 1
         ;;
@@ -933,8 +932,8 @@ deployments=$(helm -n $HELM_NAMESPACE ls -a |cut -f1 |tail -n +2)
 echo "Current deployments: " 
 echo $deployments
 
-if [[ $deployments == *"$PROJECT_NAME"* ]] && [[ ! $QUIET = true ]];then
-    echo -e "${YELLOW}$PROJECT_NAME already deployed!${NC}"
+if [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ ! $QUIET = true ]];then
+    echo -e "${YELLOW}$PLATFORM_NAME already deployed!${NC}"
     PS3='select option: '
     options=("Un- and Re-deploy" "Undeploy" "Quit")
     select opt in "${options[@]}"
@@ -958,7 +957,7 @@ if [[ $deployments == *"$PROJECT_NAME"* ]] && [[ ! $QUIET = true ]];then
             *) echo "invalid option $REPLY";;
         esac
     done
-elif [[ $deployments == *"$PROJECT_NAME"* ]] && [[ $QUIET = true ]];then
+elif [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ $QUIET = true ]];then
     echo -e "${RED}Project already deployed!${NC}"
     echo -e "${RED}abort.${NC}"
     exit 1

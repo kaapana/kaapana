@@ -3,22 +3,31 @@
     <v-card
         @click="onClick"
         height="100%"
+        :id="seriesInstanceUID"
     >
       <!--      padding: 5px; background: red-->
       <v-img
           :src="src"
           aspect-ratio="1"
+          @error="() => this.img_loading_error = true"
       >
         <template v-slot:placeholder>
           <v-row
               class="fill-height ma-0"
               align="center"
               justify="center"
+              :style="img_loading_error ? 'background-color: darkgray': ''"
           >
             <v-progress-circular
+                v-if="!img_loading_error"
                 indeterminate
                 color="#0088cc"
             ></v-progress-circular>
+            <div v-else style="text-align: center">
+              <p></p>
+              <v-icon>mdi-alert-circle-outline</v-icon>
+              <p>Thumbnail unavailable</p>
+            </div>
           </v-row>
         </template>
 
@@ -32,6 +41,7 @@
           <CardMenu
               @removeFromCohort="() => {this.$emit('removeFromCohort')}"
               @deleteFromPlatform="() => {this.$emit('deleteFromPlatform')}"
+              :cohort_names="cohort_names"
               :cohort_name="cohort_name"
               :seriesInstanceUID="seriesInstanceUID"
               :studyInstanceUID="studyInstanceUID"
@@ -41,7 +51,9 @@
       <v-card-text v-if="config.display_card_text">
         <v-row no-gutters>
           <v-col cols="11">
-            {{ seriesDescription }}
+            <div class="text-truncate">
+              {{ seriesDescription }}
+            </div>
           </v-col>
           <v-col cols="1">
             <v-tooltip bottom>
@@ -68,7 +80,7 @@
             </v-tooltip>
           </v-col>
         </v-row>
-        <div v-if="seriesData[data['key']]" v-for="data in config.props">
+        <div v-for="data in config.props">
           <div v-if="data['display']">
             <v-row no-gutters style="font-size: x-small">
               <v-col style="margin-bottom: -5px">
@@ -77,7 +89,9 @@
             </v-row>
             <v-row no-gutters style="font-size: small; padding-top: 0" align="start">
               <v-col>
-                {{ seriesData[data['key']] }}
+                <div :class="data['truncate'] ? 'text-truncate' : ''">
+                  {{ seriesData[data['key']] || 'N/A' }}
+                </div>
               </v-col>
             </v-row>
           </div>
@@ -117,7 +131,11 @@ export default {
     },
     selected_tags: {
       type: Array,
-      default: []
+      default: () => ([])
+    },
+    cohort_names: {
+      type: Array,
+      default: () => ([])
     }
   },
   data() {
@@ -130,12 +148,13 @@ export default {
       config: {},
       tagsData: [],
 
+      img_loading_error: false,
+
       // only required for double-click-event
       clicks: 0,
       timer: null,
     };
   },
-  computed: {},
   async mounted() {
     const type = JSON.parse(localStorage.getItem("Dataset.structuredGallery")) ? 'structured' : 'unstructured'
     const key = `Dataset.CardSelect.config.${type}`
@@ -147,9 +166,9 @@ export default {
           display_card_text: true,
           display_tags: true,
           props: [
-            {name: "Patient ID", key: '00100020 PatientID_keyword', display: true},
-            {name: 'Study Description', key: '00081030 StudyDescription_keyword', display: true},
-            {name: 'Study Date', key: '00080020 StudyDate_date', display: true},
+            {name: "Patient ID", key: '00100020 PatientID_keyword', display: true, truncate: true},
+            {name: 'Study Description', key: '00081030 StudyDescription_keyword', display: true, truncate: true},
+            {name: 'Study Date', key: '00080020 StudyDate_date', display: true, truncate: true},
           ]
         }
       } else {
@@ -157,33 +176,34 @@ export default {
           display_card_text: true,
           display_tags: true,
           props: [
-            {name: "Slice thickness", key: '00180050 SliceThickness_float', display: true}
+            {name: "Slice thickness", key: '00180050 SliceThickness_float', display: true, truncate: true}
           ]
         }
       }
       localStorage[key] = JSON.stringify(this.config)
     }
 
-    await this.get_data();
-    this.tagsData = await getDicomTags(this.studyInstanceUID, this.seriesInstanceUID)
+    this.get_data();
+    getDicomTags(this.studyInstanceUID, this.seriesInstanceUID).then(data => this.tagsData = data)
   },
   watch: {
     // todo: why is this needed?
     async seriesInstanceUID() {
-      await this.get_data();
+      this.get_data();
     }
   },
   methods: {
-    async get_data() {
+    get_data() {
       if (this.seriesInstanceUID !== '') {
-        const data = await loadSeriesFromMeta(this.seriesInstanceUID)
-        if (data !== undefined) {
-          this.src = data.src || ''
-          this.seriesDescription = data.seriesDescription || ''
-          this.modality = data.modality || ''
-          this.seriesData = data.seriesData || {}
-          this.tags = data.tags || []
-        }
+        loadSeriesFromMeta(this.seriesInstanceUID).then(data => {
+          if (data !== undefined) {
+            this.src = data.src || ''
+            this.seriesDescription = data.seriesDescription || ''
+            this.modality = data.modality || ''
+            this.seriesData = data.seriesData || {}
+            this.tags = data.tags || []
+          }
+        })
       }
     },
     async deleteTag(tag) {
@@ -237,7 +257,6 @@ export default {
           })
     },
     onClick() {
-      // this.$emit('delete')
       // helper function
       function single_click() {
         this.timer = setTimeout(() => {
@@ -256,7 +275,6 @@ export default {
       this.clicks = 0;
       // double click
       this.show_details(this.seriesInstanceUID)
-      // TODO: add indicator for selected element
     },
     show_details(objectImage) {
       this.$emit('imageId', objectImage);
@@ -266,12 +284,4 @@ export default {
 </script>
 
 <style>
-.vue-select-image__thumbnail--selected {
-  background: #0088cc !important;
-}
-
-.vue-select-image__thumbnail--disabled {
-  background: #b9b9b9;
-  cursor: not-allowed;
-}
 </style>

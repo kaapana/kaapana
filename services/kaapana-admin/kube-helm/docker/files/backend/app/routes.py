@@ -134,10 +134,18 @@ async def helm_delete_chart(request: Request):
     try:
         payload = await request.json()
         logger.debug(f"/helm-delete-chart called with {payload=}")
+        if "release_name" not in payload:
+            raise AssertionError("Required key 'release_name' not found in payload")
+        release_version = None
+        helm_command_addons = ''
+        if "release_version" in payload:
+            release_version = payload["release_version"]
+        if "helm_command_addons" in payload:
+            helm_command_addons = payload["helm_command_addons"]
         success, stdout = utils.helm_delete(
             release_name=payload["release_name"],
-            release_version=payload["release_version"],
-            helm_command_addons=payload["helm_command_addons"]
+            release_version=release_version,
+            helm_command_addons=helm_command_addons
         )
         if success:
             return Response("Successfully uninstalled {0}".format(payload["release_name"]), 200)
@@ -145,7 +153,10 @@ async def helm_delete_chart(request: Request):
             return Response("{0}".format(stdout), 400)
     except subprocess.CalledProcessError as e:
         logger.error("/helm-delete-chart failed: {0}".format(e))
-        return Response(f"An internal server error occured!", 500)
+        return Response("Internal server error!", 500)
+    except Exception as e:
+        logger.error("/helm-delete-chart failed: {0}".format(e))
+        return Response("Helm delete failed {0}".format(e), 400)
 
 
 @router.post("/helm-install-chart")
@@ -153,6 +164,10 @@ async def helm_install_chart(request: Request):
     try:
         payload = await request.json()
         logger.debug(f"/helm-install-chart called with {payload=}")
+        if "name" not in payload:
+            raise AssertionError("Required key 'name' not found in payload")
+        if "version" not in payload:
+            raise AssertionError("Required key 'version' not found in payload")
 
         if payload["name"] == "security-stackrox-chart":
             success, stdout, _, _, cmd = utils.install_stackrox(payload)
@@ -162,10 +177,13 @@ async def helm_install_chart(request: Request):
         if success:
             return Response("Successfully ran helm install, command {0}".format(cmd), 200)
         else:
-            return Response("{0}".format(stdout), 400)
+            return Response("{0}".format(stdout), 500)
     except subprocess.CalledProcessError as e:
         logger.error("/helm-install-chart failed: {0}".format(e))
-        return Response(f"An internal server error occured!", 500)
+        return Response(f"Internal server error!", 500)
+    except Exception as e:
+        logger.error("/helm-install-chart failed: {0}".format(e))
+        return Response("Helm install failed {0}".format(e), 400)
 
 
 @router.post("/pull-docker-image")
@@ -182,8 +200,10 @@ async def pull_docker_image(request: Request):
     except subprocess.CalledProcessError as e:
         utils.helm_delete(release_name)
         logger.error(e)
-        return Response(f"We could not download your container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}", 500)
-
+        return Response(f"Unable to download container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}", 500)
+    except Exception as e:
+        logger.error("/pull-docker-image failed: {0}".format(e))
+        return Response("Pulling docker image failed {0}".format(e), 400)
 
 @router.get("/pending-applications")
 async def pending_applications():
@@ -201,17 +221,21 @@ async def pending_applications():
             }
             extensions_list.append(extension)
 
+        # TODO: return Response with status code, fix front end accordingly
+        return extensions_list
+
     except subprocess.CalledProcessError as e:
-        return Response(f"{e.output}", 500)
-    # TODO: return Response with status code, fix front end accordingly
-    return extensions_list
+        logger.error("/pending-applications failed {0}".format(e))
+        return Response("Internal server error!", 500)
+    except Exception as e:
+        logger.error("/pending-applications failed: {0}".format(e))
+        return Response("Pending applications failed {0}".format(e), 400)
 
 
 @router.get("/extensions")
 def extensions():
-    # cached_extensions = utils.get_extensions_list()
-    cached_extensions = helm_helper.get_extensions_list()
     # TODO: return Response with status code, fix front end accordingly
+    cached_extensions = helm_helper.get_extensions_list()
     return cached_extensions
 
 

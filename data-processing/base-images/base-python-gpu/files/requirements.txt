@@ -8,7 +8,7 @@ pydicom==2.3.0
 # scikit-learn==0.23.2
 jupyterlab==3.3.2
 kaleido==0.2.1 # For export of plotly express figures...
-kubernetes==23.3.0
+kubernetes==25.3.0
 minio==7.1.5
 #bleach==3.1.5
 plotly==5.7.0

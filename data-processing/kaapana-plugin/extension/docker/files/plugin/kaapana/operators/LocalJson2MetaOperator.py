@@ -11,7 +11,7 @@ import requests
 
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR,SERVICES_NAMESPACE
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from opensearchpy import OpenSearch
 
 
@@ -89,8 +89,8 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         self.ti = kwargs['ti']
         print("# Starting module json2meta")
 
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-        batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
+        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))]
 
         if self.dicom_operator is not None:
             self.rel_dicom_dir = self.dicom_operator.operator_out_dir
@@ -182,7 +182,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                  opensearch_port: int = 9200,
                  opensearch_index: str = "meta-index",
                  check_in_pacs: bool = True,
-                 *args,
                  **kwargs):
 
         """

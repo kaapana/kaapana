@@ -4,7 +4,7 @@
     <v-col cols="2">
       <v-autocomplete
           solo v-model="key_select" :items="Object.keys(mapping)" :key="key_select"
-          dense hide-details @change="() => {this.item_select=[]; filterChanged()}"
+          dense hide-details @change="() => {this.item_select=[]; this.filterChanged()}"
       ></v-autocomplete>
     </v-col>
     <v-col cols="5">

@@ -12,13 +12,13 @@ ENV OPERATOR_OUT_DIR mitk-fileconverter
 ENV CONVERTTO nrrd 
 ENV CONVERTFROM dcm
 ENV FORCE_SINGLE_FILE false
-ENV FILECONVERTER /kaapanasrc/MitkFileConverter.sh
+ENV FILECONVERTER /kaapana/app/MitkFileConverter.sh
 
 COPY files/requirements.txt /
 RUN pip3 install -r /requirements.txt
 
-COPY files/mitk_fileconverter.py /kaapanasrc/
-CMD ["python3","-u", "/kaapanasrc/mitk_fileconverter.py"]
+COPY files/mitk_fileconverter.py /kaapana/app/
+CMD ["python3","-u", "/kaapana/app/mitk_fileconverter.py"]
 
 # COPY files/mitk_fileconverter.sh /mitk_fileconverter.sh
 # CMD ["/bin/bash", "/mitk_fileconverter.sh"]

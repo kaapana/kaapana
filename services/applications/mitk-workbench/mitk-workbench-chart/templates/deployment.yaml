@@ -30,7 +30,7 @@ spec:
           value: "mitk-vol-{{ $uuid }}"
         volumeMounts:
         - name: mitk-data
-          mountPath: /data
+          mountPath: /kaapana/mounted/mitk-data
       volumes:
       - name: mitk-data
         hostPath:
@@ -77,7 +77,7 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-mitk-vol-{{ $uuid }}-redirect@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-auth-check@kubernetescrd,{{ .Values.global.services_namespace }}-mitk-vol-{{ $uuid }}-redirect@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

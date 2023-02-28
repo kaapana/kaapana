@@ -1,5 +1,4 @@
 ---
 global:
-    pull_policy_jobs: "Always"
     image: "dag-otsus-method"
     action: "copy"

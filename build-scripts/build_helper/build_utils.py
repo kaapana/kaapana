@@ -4,10 +4,9 @@ import semver
 import networkx as nx
 from os.path import join, dirname, basename, exists, isfile, isdir
 from git import Repo
-from datetime import datetime
-
 
 class BuildUtils:
+    max_build_rounds = 4
     container_images_available = None
     container_images_unused = None
     charts_available = None
@@ -18,6 +17,7 @@ class BuildUtils:
     default_registry = None
     platform_filter = None
     external_source_dirs = None
+    build_ignore_patterns = None
     issues_list = None
     exit_on_error = True
     enable_build_kit = None
@@ -29,6 +29,16 @@ class BuildUtils:
     kaapana_last_commit_timestamp = None
     build_timestamp = None
     parallel_processes = None
+    vulnerability_scan = None
+    vulnerability_severity_level = None
+    configuration_check = None
+    configuration_check_severity_level = None
+    thread_pool = None
+    
+    platform_name = None
+    platform_build_version = None
+    platform_build_branch = None
+    platform_last_commit_timestamp = None
 
     @staticmethod
     def add_container_images_available(container_images_available):
@@ -50,8 +60,9 @@ class BuildUtils:
             chart_object.check_dependencies()
 
     @staticmethod
-    def init(kaapana_dir, build_dir, external_source_dirs, platform_filter, default_registry, http_proxy, logger, exit_on_error, enable_build_kit,
-             create_offline_installation, skip_push_no_changes, parallel_processes, include_credentials, registry_user, registry_pwd, push_to_microk8s):
+    def init(kaapana_dir, build_dir, external_source_dirs, build_ignore_patterns, platform_filter, default_registry, http_proxy, logger, exit_on_error, enable_build_kit,
+             create_offline_installation, skip_push_no_changes, parallel_processes, include_credentials, registry_user, registry_pwd, push_to_microk8s, vulnerability_scan,
+             vulnerability_severity_level, configuration_check, configuration_check_severity_level):
 
         BuildUtils.logger = logger
         BuildUtils.kaapana_dir = kaapana_dir
@@ -60,54 +71,60 @@ class BuildUtils:
         BuildUtils.default_registry = default_registry
         BuildUtils.http_proxy = http_proxy
         BuildUtils.external_source_dirs = external_source_dirs
+        BuildUtils.build_ignore_patterns = build_ignore_patterns        
         BuildUtils.exit_on_error = exit_on_error
         BuildUtils.issues_list = []
 
-        BuildUtils.base_images_used = []
+        BuildUtils.base_images_used = {}
         BuildUtils.enable_build_kit = enable_build_kit
         BuildUtils.create_offline_installation = create_offline_installation
         BuildUtils.skip_push_no_changes = skip_push_no_changes
         BuildUtils.push_to_microk8s = push_to_microk8s
 
-        BuildUtils.build_timestamp = datetime.now().strftime("%d-%m-%Y")
-
-        build_version,build_branch,last_commit,last_commit_timestamp = BuildUtils.get_repo_info(BuildUtils.kaapana_dir)
-        BuildUtils.kaapana_last_commit_timestamp = last_commit_timestamp
-        BuildUtils.kaapana_build_branch = build_branch
-        BuildUtils.kaapana_build_version = build_version
         BuildUtils.registry_user = registry_user
         BuildUtils.registry_pwd = registry_pwd
         BuildUtils.include_credentials = include_credentials
 
         BuildUtils.parallel_processes = parallel_processes
-        BuildUtils.parallel_processes = parallel_processes
-
-        BuildUtils.logger.debug(f"{BuildUtils.kaapana_dir=}")
-        BuildUtils.logger.debug(f"{BuildUtils.kaapana_build_branch=}")
-        BuildUtils.logger.debug(f"{BuildUtils.kaapana_build_version=}")
-        BuildUtils.logger.debug(f"{BuildUtils.parallel_processes=}")
-        BuildUtils.logger.debug(f"{BuildUtils.kaapana_last_commit_timestamp=}")
-        BuildUtils.logger.debug(f"{BuildUtils.build_timestamp=}")
+        BuildUtils.vulnerability_scan = vulnerability_scan
+        BuildUtils.vulnerability_severity_level = vulnerability_severity_level
+        BuildUtils.configuration_check = configuration_check
+        BuildUtils.configuration_check_severity_level = configuration_check_severity_level
 
     @staticmethod
     def get_timestamp():
         return str(int(time() * 1000))
-    
+
     @staticmethod
     def get_repo_info(repo_dir):
-        while not exists(join(repo_dir,".git")) and repo_dir != "/":
+        while not exists(join(repo_dir, ".git")) and repo_dir != "/":
             repo_dir = dirname(repo_dir)
         assert repo_dir != "/"
-        repo = Repo(repo_dir)
-        assert not repo.bare
-        
-        last_commit = repo.head.commit
-        last_commit_timestamp = last_commit.committed_datetime.strftime("%d-%m-%Y")
-        build_version = repo.git.describe()
-        build_branch = repo.active_branch.name.split("/")[-1]
-        version_check = semver.VersionInfo.parse(build_version)
-        
-        return build_version,build_branch,last_commit,last_commit_timestamp
+
+
+        requested_repo = Repo(repo_dir)
+        assert not requested_repo.bare
+
+        if "modules" in requested_repo.common_dir:
+            repo_name = basename(requested_repo.working_dir)
+            requested_repo = [Repo(x) for x in Repo(dirname(repo_dir)).submodules if x.name == repo_name]
+            assert len(requested_repo) == 1
+            requested_repo = requested_repo[0]
+            last_commit = requested_repo.head.commit
+            last_commit_timestamp = last_commit.committed_datetime.strftime("%d-%m-%Y")
+            build_version = requested_repo.git.describe()
+            build_branch = requested_repo.git.branch()
+            if "\n" in build_branch:
+                build_branch = build_branch.split("\n")[1].strip()
+            # version_check = semver.VersionInfo.parse(build_version)
+        else:
+            last_commit = requested_repo.head.commit
+            last_commit_timestamp = last_commit.committed_datetime.strftime("%d-%m-%Y")
+            build_version = requested_repo.git.describe()
+            build_branch = requested_repo.active_branch.name.split("/")[-1]
+            version_check = semver.VersionInfo.parse(build_version)
+
+        return build_version, build_branch, last_commit, last_commit_timestamp
 
     @staticmethod
     def get_build_order(build_graph):
@@ -123,7 +140,7 @@ class BuildUtils:
             entry_id = f"{name}:{version}"
 
             if "chart:" in entry:
-                unused_chart = [x_chart for x_key,x_chart in BuildUtils.charts_unused.items() if f"{x_chart.name}:{x_chart.version}" == entry_id ]
+                unused_chart = [x_chart for x_key, x_chart in BuildUtils.charts_unused.items() if f"{x_chart.name}:{x_chart.repo_version}" == entry_id]
                 if len(unused_chart) == 1:
                     del BuildUtils.charts_unused[unused_chart[0].name]
                     BuildUtils.logger.debug(f"{entry_id} removed from charts_unused!")
@@ -204,13 +221,47 @@ class BuildUtils:
             json.dump(unused_container, fp, indent=4)
 
         base_images_json_path = join(BuildUtils.build_dir, "build_base_images.json")
-        base_images = []
+        base_images = {}
         BuildUtils.logger.debug("")
         BuildUtils.logger.debug("Collect base-images:")
         BuildUtils.logger.debug("")
-        for base_image in BuildUtils.base_images_used:
-            BuildUtils.logger.debug(f"{base_image.tag}")
-            base_images.append(base_image.get_dict())
+        for base_image_tag, child_containers in BuildUtils.base_images_used.items():
+            if "python" in base_image_tag:
+                pass
+            if base_image_tag not in base_images:
+                base_images[base_image_tag] = {}
+            BuildUtils.logger.debug(f"{base_image_tag}")
+            for child_container in child_containers:
+                if child_container.build_tag is not None:
+                    child_tag = child_container.build_tag
+                else:
+                    child_tag = f"Not build: {child_container.tag}"
+                    
+                if child_tag not in base_images[base_image_tag]:
+                    base_images[base_image_tag][child_tag] = {}
+        
+        
+        changed = True
+        runs = 0
+        base_images = dict(sorted(base_images.items(),reverse=True, key=lambda item: len(item[1])))
+        while changed and runs <= BuildUtils.max_build_rounds:
+            runs +=1 
+            del_tags = [] 
+            changed = False
+            for base_image_tag, child_images in base_images.items():
+                if base_image_tag == "python:3.9.16-slim":
+                    pass
+                for child_image_tag, child_image in child_images.items():
+                    if child_image_tag in base_images:
+                        base_images[base_image_tag][child_image_tag] = base_images[child_image_tag]
+                        del_tags.append(child_image_tag)
+            
+            for del_tag in del_tags:
+                del base_images[del_tag]
+                changed = True
+        
+
+        base_images = dict(sorted(base_images.items(),reverse=True, key=lambda item: sum(len(v) for v in item[1].values())))
         with open(base_images_json_path, 'w') as fp:
             json.dump(base_images, fp, indent=4)
 
@@ -249,28 +300,6 @@ class BuildUtils:
 
         with open(unused_charts_json_path, 'w') as fp:
             json.dump(unused_charts, fp, indent=4)
-
-    @staticmethod
-    def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
-        """
-        Call in a loop to create terminal progress bar
-        @params:
-            iteration   - Required  : current iteration (Int)
-            total       - Required  : total iterations (Int)
-            prefix      - Optional  : prefix string (Str)
-            suffix      - Optional  : suffix string (Str)
-            decimals    - Optional  : positive number of decimals in percent complete (Int)
-            length      - Optional  : character length of bar (Int)
-            fill        - Optional  : bar fill character (Str)
-            printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
-        """
-        percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
-        filledLength = int(length * iteration // total)
-        bar = fill * filledLength + '-' * (length - filledLength)
-        print(f'\r{prefix} |{bar}| {percent}% {suffix.tag.ljust(100)}', end = printEnd)
-        # Print New Line on Complete
-        if iteration == total: 
-            print()
 
 if __name__ == '__main__':
     print("Please use the 'start_build.py' script to launch the build-process.")

@@ -41,7 +41,7 @@ spec:
           value: "{{ .Values.username | default "annotator"}}"
         volumeMounts:
           - name: ratemedata
-            mountPath: /data
+            mountPath: /kaapana/mounted/rateme-data
       volumes:
       - name: ratemedata
         hostPath:
@@ -76,9 +76,8 @@ metadata:
   namespace: {{ .Values.global.services_namespace }}
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    #traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
     traefik.ingress.kubernetes.io/preserve-host: "true"
-    #traefik.frontend.rule.type: PathPrefixStrip
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-auth-check@kubernetescrd
 spec:
   rules:
   - host: 

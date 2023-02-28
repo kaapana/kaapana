@@ -7,6 +7,6 @@ LABEL CI_IGNORE="False"
 COPY files/requirements.txt /
 RUN pip3 install --no-cache-dir -r /requirements.txt
 
-COPY files/start.py /kaapanasrc/
+COPY files/start.py /kaapana/app/
 
-CMD ["python3", "-u", "/kaapanasrc/start.py"]
+CMD ["python3", "-u", "/kaapana/app/start.py"]

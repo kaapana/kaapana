@@ -26,7 +26,7 @@ def process_input_file(paras):
         output_filepath = join(element_output_dir, f"{incoming_dcm_series_id}.{convert_to}")
         print(f"# Starting conversion: {basename(input_filepath)} -> {basename(output_filepath)}")
         if not exists(output_filepath):
-            command = ["/kaapanasrc/MitkFileConverter.sh", "-i", input_filepath, "-o", output_filepath]
+            command = ["/kaapana/app/MitkFileConverter.sh", "-i", input_filepath, "-o", output_filepath]
             output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=execution_timeout)
             # command stdout output -> output.stdout
             # command stderr output -> output.stderr
@@ -151,24 +151,25 @@ for batch_element_dir in batch_folders:
 
 
 print(f"# Processing batch-element jobs: {len(job_list)}")
-results = ThreadPool(parallel_processes).imap_unordered(process_input_file, job_list)
-for result, input_file in results:
-    if result:
-        print("#")
-        processed_count += 1
-        print(f"# ✓ {processed_count} / {len(job_list)} successful")
-        print("#")
-    else:
-        print("#")
-        print("##################################################")
-        print("#")
-        print("#               ERROR!")
-        print("#")
-        print(f"# {basename(input_file[0])} was not successful")
-        print("#")
-        print("##################################################")
-        print("#")
-        issue = True
+with ThreadPool(parallel_processes) as threadpool:
+    results = threadpool.imap_unordered(process_input_file, job_list)
+    for result, input_file in results:
+        if result:
+            print("#")
+            processed_count += 1
+            print(f"# ✓ {processed_count} / {len(job_list)} successful")
+            print("#")
+        else:
+            print("#")
+            print("##################################################")
+            print("#")
+            print("#               ERROR!")
+            print("#")
+            print(f"# {basename(input_file[0])} was not successful")
+            print("#")
+            print("##################################################")
+            print("#")
+            issue = True
 
 
 print("#")
@@ -216,24 +217,25 @@ if processed_count == 0:
             job_list.append(file_list, batch_output_dir)
 
         print(f"# Processing batch-element jobs: {len(job_list)}")
-        results = ThreadPool(parallel_processes).imap_unordered(process_input_file, job_list)
-        for result, input_file in results:
-            if result:
-                print("#")
-                processed_count += 1
-                print(f"# {processed_count} / {len(job_list)} successful")
-                print("#")
-            else:
-                print("#")
-                print("##################################################")
-                print("#")
-                print("#               ERROR!")
-                print("#")
-                print(f"# {basename(input_file[0])} was not successful")
-                print("#")
-                print("##################################################")
-                print("#")
-                issue = True
+        with ThreadPool(parallel_processes) as threadpool:
+            results = threadpool.imap_unordered(process_input_file, job_list)
+            for result, input_file in results:
+                if result:
+                    print("#")
+                    processed_count += 1
+                    print(f"# {processed_count} / {len(job_list)} successful")
+                    print("#")
+                else:
+                    print("#")
+                    print("##################################################")
+                    print("#")
+                    print("#               ERROR!")
+                    print("#")
+                    print(f"# {basename(input_file[0])} was not successful")
+                    print("#")
+                    print("##################################################")
+                    print("#")
+                    issue = True
 
     print("#")
     print("##################################################")

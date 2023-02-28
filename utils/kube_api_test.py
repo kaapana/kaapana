@@ -17,7 +17,7 @@ def _load_kube_config(in_cluster, cluster_context, config_file):
         configuration = Configuration()
         configuration.assert_hostname = False
         Configuration.set_default(configuration)
-    return client.CoreV1Api(), client.BatchV1Api(), client.NetworkingV1beta1Api()
+    return client.CoreV1Api(), client.BatchV1Api(), client.NetworkingV1Api()
 
 
 _client, _batch_client, _extensions_client = _load_kube_config('in_cluster', cluster_context=None, config_file=None)

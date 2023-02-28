@@ -79,10 +79,9 @@ spec:
               - exec pg_isready --host $POD_IP
       volumes:
         - name: dbvol
-          # emptyDir: {}
-          hostPath:
-            path: {{ .Values.global.fast_data_dir }}/postgres-airflow
-            type: DirectoryOrCreate
+        - name: data
+          persistentVolumeClaim:
+            claimName: af-postgres-pv-claim
       imagePullSecrets:
       - name: registry-secret
 ---

@@ -4,11 +4,11 @@ LABEL IMAGE="pyradiomics"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-RUN apt-get update
+WORKDIR /kaapana/app
 
-COPY files/requirements.txt /root/
-RUN pip3 install -r /root/requirements.txt
-COPY files/pyradiomics.py /kaapanasrc/
+COPY files/requirements.txt /kaapana/app/
+RUN python3 -m pip install --no-cache-dir -r /kaapana/app/requirements.txt && rm /kaapana/app/requirements.txt 
 
-WORKDIR /kaapanasrc/
-CMD ["python3","-u","/kaapanasrc/pyradiomics.py"]
+COPY files/pyradiomics.py /kaapana/app/
+
+CMD ["python3","-u","/kaapana/app/pyradiomics.py"]

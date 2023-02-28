@@ -69,7 +69,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         download_successful = True
         studyUID, seriesUID, dag_run_id = series_dict["studyUID"], series_dict["seriesUID"], series_dict["dag_run_id"]
         print(f"Start download series: {seriesUID}")
-        target_dir = os.path.join(self.workflow_dir, dag_run_id, self.batch_name, f'{seriesUID}', self.operator_out_dir)
+        target_dir = os.path.join(self.airflow_workflow_dir, dag_run_id, self.batch_name, f'{seriesUID}', self.operator_out_dir)
         print(f"# Target_dir: {target_dir}")
 
         if not os.path.exists(target_dir):
@@ -109,7 +109,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         print(f"# SeriesUID:  {series_uid}")
         print(f"# RUN_id:     {dag_run_id}")
         print("#")
-        target = join("/data", dag_run_id, "batch", series_uid, self.operator_out_dir)
+        target = join(self.airflow_workflow_dir, dag_run_id, "batch", series_uid, self.operator_out_dir)
 
         print("#")
         print(f"# Moving data from {dcm_path} -> {target}")
@@ -127,7 +127,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         dag_run_id = kwargs['dag_run'].run_id
         if self.conf and ("seriesInstanceUID" in self.conf):
             series_uid = self.conf.get('seriesInstanceUID')
-            dcm_path = join("/ctpinput", self.conf.get('dicom_path'))
+            dcm_path = join("/kaapana/mounted/ctpinput","incoming", self.conf.get('dicom_path'))
             print("#")
             print(f"# Dicom-path: {dcm_path}")
 
@@ -138,7 +138,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             self.move_series(dag_run_id, series_uid, dcm_path)
             return
         if self.conf and "ctpBatch" in self.conf:
-            batch_folder = join("/ctpinput", self.conf.get('dicom_path'))
+            batch_folder = join("/kaapana/mounted/ctpinput","incoming", self.conf.get('dicom_path'))
             print(f"# Batch folder: {batch_folder}")
             dcm_series_paths = [f for f in glob.glob(batch_folder+"/*")]
             for dcm_series_path in dcm_series_paths:
@@ -247,22 +247,23 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             print("#####################################################")
             raise ValueError('ERROR')
         series_download_fail = []
-        results = ThreadPool(self.parallel_downloads).imap_unordered(self.get_data, download_list)
-        for download_successful, series_uid in results:
-            print(f"# Series download ok: {series_uid}")
-            if not download_successful:
-                series_download_fail.append(series_uid)
+        with ThreadPool(self.parallel_downloads) as threadpool:
+            results = threadpool.imap_unordered(self.get_data, download_list)
+            for download_successful, series_uid in results:
+                print(f"# Series download ok: {series_uid}")
+                if not download_successful:
+                    series_download_fail.append(series_uid)
 
-        if len(series_download_fail) > 0:
-            print("#####################################################")
-            print("#")
-            print(f"# Some series could not be downloaded! ")
-            for series_uid in series_download_fail:
+            if len(series_download_fail) > 0:
+                print("#####################################################")
                 print("#")
-                print(f"# Series: {series_uid} failed !")
-                print("#")
-            print("#####################################################")
-            raise ValueError('ERROR')
+                print(f"# Some series could not be downloaded! ")
+                for series_uid in series_download_fail:
+                    print("#")
+                    print(f"# Series: {series_uid} failed !")
+                    print("#")
+                print("#####################################################")
+                raise ValueError('ERROR')
 
     def __init__(self,
                  dag,

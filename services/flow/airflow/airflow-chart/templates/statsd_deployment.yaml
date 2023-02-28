@@ -1,0 +1,57 @@
+---
+#  Licensed to the Apache Software Foundation (ASF) under one   *
+#  or more contributor license agreements.  See the NOTICE file *
+#  distributed with this work for additional information        *
+#  regarding copyright ownership.  The ASF licenses this file   *
+#  to you under the Apache License, Version 2.0 (the            *
+#  "License"); you may not use this file except in compliance   *
+#  with the License.  You may obtain a copy of the License at   *
+#                                                               *
+#    http://www.apache.org/licenses/LICENSE-2.0                 *
+#                                                               *
+#  Unless required by applicable law or agreed to in writing,   *
+#  software distributed under the License is distributed on an  *
+#  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY       *
+#  KIND, either express or implied.  See the License for the    *
+#  specific language governing permissions and limitations      *
+#  under the License.                                           *
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-statsd
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: airflow-statsd
+  template:
+    metadata:
+      labels:
+        app-name: airflow-statsd
+    spec:
+      containers:
+      - name: statsd-metrics-exporter
+        image: "{{ .Values.global.registry_url }}/statsd-exporter:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        args: 
+          - --statsd.mapping-config=/tmp/statsd_mapping.yaml
+          - --web.listen-address=:9102
+          - --statsd.listen-udp=:8125
+        resources:
+          requests:
+            memory: 50Mi
+          limits:
+            memory: 50Mi
+        volumeMounts:
+        - name: airflow-statsd-config
+          mountPath: /tmp/statsd_mapping.yaml
+          subPath: statsd_mapping.yaml
+      volumes:
+      - name: airflow-statsd-config
+        configMap:
+          name: airflow-statsd-config
+      imagePullSecrets:
+      - name: registry-secret
+---

@@ -1,0 +1,29 @@
+dag_id: "tag-seg-ct-tuples"
+instance_names:
+  - central
+conf_data:
+  workflow_form:
+    single_execution: false 
+    input: SEG
+    action: "add"
+    tags: "TestSegTag"
+  data_form:
+    cohort_name: "testSEG"
+    cohort_limit: 2
+remote: false
+username: "kaapana"
+---
+dag_id: "tag-seg-ct-tuples"
+instance_names:
+  - central
+conf_data:
+  workflow_form:
+    single_execution: false 
+    input: SEG
+    action: "delete"
+    tags: "TestSegTag"
+  data_form:
+    cohort_name: "testSEG"
+    cohort_limit: 2
+remote: false
+username: "kaapana"

@@ -4,7 +4,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: init-collections
-  namespace: "{{  .Values.global.helm_namespace  }}"
+  namespace: "{{  .Values.global.admin_namespace  }}"
 spec:
   template:
     metadata:
@@ -15,7 +15,7 @@ spec:
         image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         command: ["python", "-u"]
-        args: ["/app/backend/init_collections.py"]
+        args: ["/kaapana/app/backend/init_collections.py"]
         env: # Environment variables copied from deployment.yaml
         - name: SECRET_KEY
           value: kaapana-secret
@@ -48,12 +48,11 @@ spec:
             memory: 500Mi    
         volumeMounts:
           - name: helmextensions
-            mountPath: "/root/extensions" 
+            mountPath: "/kaapana/mounted/extensions" 
       volumes:
       - name: helmextensions
-        hostPath:
-          path: {{ $.Values.global.fast_data_dir }}/extensions
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: extensions-pv-claim
       restartPolicy: Never
       serviceAccountName: kaapana-kube-admin
       imagePullSecrets:
@@ -64,7 +63,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: init-extensions
-  namespace: "{{  $.Values.global.helm_namespace  }}"
+  namespace: "{{  $.Values.global.admin_namespace  }}"
 spec:
   template:
     metadata:
@@ -76,20 +75,20 @@ spec:
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           env:
             - name: FILES_AND_FOLDERS_EXISTS
-              value: "{{- range $extension := $.Values.global.preinstall_extensions }}/root/extensions/{{ $extension.name }}-{{ $extension.version }}.tgz;{{- end }}"
+              value: "{{- range $extension := $.Values.global.preinstall_extensions }}/kaapana/mounted/extensions/{{ $extension.name }}-{{ $extension.version }}.tgz;{{- end }}"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
               value: "10"
           volumeMounts:
             - name: helmextensions
-              mountPath: "/root/extensions"
+              mountPath: "/kaapana/mounted/extensions"
       containers:
       - name: preinstall-extensions
         image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         command: ["python", "-u"]
-        args: ["/app/backend/preinstall_extensions.py"]
+        args: ["/kaapana/app/backend/preinstall_extensions.py"]
         env: # Environment variables copied from deployment.yaml
         - name: SECRET_KEY
           value: kaapana-secret
@@ -117,7 +116,7 @@ spec:
           value: "{{ $.Values.global.prefetch_extensions }}"
         volumeMounts:
           - name: helmextensions
-            mountPath: "/root/extensions"
+            mountPath: "/kaapana/mounted/extensions"
         resources:
           requests:
             memory: 100Mi
@@ -128,7 +127,7 @@ spec:
         image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         command: ["python", "-u"]
-        args: ["/app/backend/prefetch_extensions.py"]
+        args: ["/kaapana/app/backend/prefetch_extensions.py"]
         env: # Environment variables copied from deployment.yaml
         - name: SECRET_KEY
           value: kaapana-secret
@@ -156,7 +155,7 @@ spec:
           value: "{{ $.Values.global.prefetch_extensions }}"
         volumeMounts:
           - name: helmextensions
-            mountPath: "/root/extensions"
+            mountPath: "/kaapana/mounted/extensions"
         resources:
           requests:
             memory: 100Mi
@@ -166,9 +165,8 @@ spec:
       restartPolicy: Never
       volumes:
       - name: helmextensions
-        hostPath:
-          path: {{ $.Values.global.fast_data_dir }}/extensions
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: extensions-pv-claim
       serviceAccountName: kaapana-kube-admin
       imagePullSecrets:
       - name: registry-secret

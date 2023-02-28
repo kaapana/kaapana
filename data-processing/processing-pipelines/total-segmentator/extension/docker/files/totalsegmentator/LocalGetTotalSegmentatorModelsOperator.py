@@ -96,7 +96,7 @@ class LocalGetTotalSegmentatorModelsOperator(KaapanaPythonBaseOperator):
             weights_path = config_dir / "Task517_Bones40"
             WEIGHTS_URL = "TODO"
 
-        if WEIGHTS_URL is not None and (not weights_path.exists() or force_download):
+        if WEIGHTS_URL and (not weights_path.exists() or force_download):
             print(f"Downloading pretrained weights for Task {task_id} (~230MB) ...")
             weights_path.mkdir(exist_ok=True, parents=True)
             LocalGetTotalSegmentatorModelsOperator.download_url_and_unpack(WEIGHTS_URL, config_dir, task_id)
@@ -104,7 +104,7 @@ class LocalGetTotalSegmentatorModelsOperator(KaapanaPythonBaseOperator):
     @staticmethod
     def start():
         # Downstream TotalSegmentatorOperator expects the files to be located here:
-        config_dir = Path("models/total_segmentator/nnUNet/3d_fullres")
+        config_dir = Path("/models/total_segmentator/nnUNet/3d_fullres")
 
         config_dir.mkdir(exist_ok=True, parents=True)
         for task_id in [251, 252, 253, 254, 255]:  # [251, 252, 253, 254, 255, 256, 258, 150, 260, 503]:

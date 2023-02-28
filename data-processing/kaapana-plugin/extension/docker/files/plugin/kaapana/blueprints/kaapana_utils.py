@@ -12,7 +12,7 @@ from datetime import datetime
 from socket import timeout
 
 
-from kaapana.blueprints.kaapana_global_variables import WORKFLOW_DIR, SERVICES_NAMESPACE
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 
 
 def generate_run_id(dag_id):
@@ -56,7 +56,7 @@ def cure_invalid_name(name, regex, max_length=None):
     return name
 
 
-def get_operator_properties(*args, **kwargs):
+def get_operator_properties(airflow_workflow_dir, *args, **kwargs):
     if 'context' in kwargs:
         run_id = kwargs['context']['run_id']
         dag_run = kwargs['context']['dag_run']
@@ -70,7 +70,7 @@ def get_operator_properties(*args, **kwargs):
         dag_run = kwargs['dag_run']
         downstream_tasks = kwargs['task'].get_flat_relatives(upstream=False)
     
-    dag_run_dir = os.path.join(WORKFLOW_DIR, run_id)
+    dag_run_dir = os.path.join(airflow_workflow_dir, run_id)
     
     return run_id, dag_run_dir, dag_run, downstream_tasks
 
@@ -155,11 +155,11 @@ def trying_request_action(func, *args, **kwargs):
         raise ValueError(f"We were not able to apply action on {func.__name__}")
 
 
-def clean_previous_dag_run(conf, run_identifier):
+def clean_previous_dag_run(airflow_workflow_dir, conf, run_identifier):
     if conf is not None and 'federated_form' in conf and conf['federated_form'] is not None:
         federated = conf['federated_form']
         if run_identifier in federated and federated[run_identifier] is not None:
-            dag_run_dir = os.path.join(WORKFLOW_DIR, conf['federated_form'][run_identifier])
+            dag_run_dir = os.path.join(airflow_workflow_dir, conf['federated_form'][run_identifier])
             print(f'Removing batch files from {run_identifier}: {dag_run_dir}')
             if os.path.isdir(dag_run_dir):
                 shutil.rmtree(dag_run_dir)
@@ -167,7 +167,7 @@ def clean_previous_dag_run(conf, run_identifier):
 
 def parse_ui_dict(dag_dict):
 
-    if "ui_forms" in dag_dict:
+    if "ui_forms" in dag_dict and dag_dict["ui_forms"] is not None:
         if "ui_visible" in dag_dict and dag_dict["ui_visible"] is True and "data_form" not in dag_dict["ui_forms"]:
             dag_dict["ui_forms"].update({
                 "data_form": {
@@ -189,7 +189,7 @@ def parse_ui_dict(dag_dict):
                         "type": "boolean",
                         "title": "Single execution",
                         "description": "Whether your report is execute in single mode or not",
-                        "default": True,
+                        "default": False,
                         "readOnly": False,
                         "required": True
                     }

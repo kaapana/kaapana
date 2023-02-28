@@ -89,7 +89,7 @@ Updated Components
 
 * Airflow v2.2.5
 * Dcm4chee v5.26.0
-* Keycloak v16.1.1
+* Keycloak v19.0.3
 * Traefik v2.6
 * Kubernetes Dashboard v2.5.1
 * OHIF v4.12.26

@@ -32,7 +32,9 @@ then
 		echo Setting default variables!
 		airflow variables set enable_job_scheduler True
 		
-		ram=$(free --mega | awk '{print $2}' | sed -n 2p)
+		ram=$(free -m | awk '{print $2}' | sed -n 2p)
+		echo RAM detected: $ram
+		
 		airflow pools set NODE_GPU_COUNT 0 "init"
 		airflow pools set NODE_RAM $ram "init"
 		airflow pools set NODE_CPU_CORES 1 "init"

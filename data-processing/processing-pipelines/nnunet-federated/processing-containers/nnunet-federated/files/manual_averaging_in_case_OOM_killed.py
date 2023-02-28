@@ -11,14 +11,14 @@ from argparse import Namespace
 import os, psutil
 
 sys.path.insert(0, '../')
-sys.path.insert(0, '/kaapanasrc')
+sys.path.insert(0, '/kaapana/app')
 from kaapana_federated.KaapanaFederatedTraining import KaapanaFederatedTrainingBase, timeit
 
 ############################################################################################################
 # Needs adaptations!
 federated_round = 451
-current_dir = '/kaapanasrc/nnunet-training/nnunet-federated-220627045607689042'
-use_minio_mount = '/kaapanasrc'
+current_dir = '/kaapana/app/nnunet-training/nnunet-federated-220627045607689042'
+use_minio_mount = '/kaapana/app'
 # instance_names = ['A', 'B', 'C', 'D', 'E']
 instance_names = ['G', 'J', 'K', 'L', 'M']
 ############################################################################################################

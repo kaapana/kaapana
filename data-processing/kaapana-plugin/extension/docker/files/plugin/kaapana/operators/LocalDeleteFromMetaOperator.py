@@ -4,7 +4,6 @@ import pydicom
 import json
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 
 class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):
@@ -29,8 +28,8 @@ class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):
             query = {"query": {"match_all": {}}}
             HelperOpensearch.delete_by_query(query)
         else:
-            run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-            batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
+            run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
+            batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))]
 
             dicoms_to_delete = []
             for batch_element_dir in batch_folder:

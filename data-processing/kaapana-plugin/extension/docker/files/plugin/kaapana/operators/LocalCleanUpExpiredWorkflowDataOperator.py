@@ -7,7 +7,6 @@ from datetime import timedelta
 from datetime import datetime
 import shutil
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import WORKFLOW_DIR
 
 class LocalCleanUpExpiredWorkflowDataOperator(KaapanaPythonBaseOperator):
 
@@ -15,9 +14,9 @@ class LocalCleanUpExpiredWorkflowDataOperator(KaapanaPythonBaseOperator):
         conf = kwargs['dag_run'].conf
         
         print(f'Expired time {self.expired_period}')        
-        print(f'Working in {WORKFLOW_DIR}')
-        for dag_id in os.listdir(WORKFLOW_DIR):
-            target_dir = os.path.join(WORKFLOW_DIR, dag_id)
+        print(f'Working in {self.airflow_workflow_dir}')
+        for dag_id in os.listdir(self.airflow_workflow_dir):
+            target_dir = os.path.join(self.airflow_workflow_dir, dag_id)
             youngest_time = 0
             modified_time = 0
             for file_path in glob.glob(f'{target_dir}/**/*', recursive=True):

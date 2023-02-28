@@ -12,7 +12,7 @@ from app.experiments import crud
 from app.experiments import schemas
 from app.experiments.utils import get_dag_list, raise_kaapana_connection_error
 
-logging.getLogger().setLevel(logging.INFO)
+logging.getLogger().setLevel(logging.DEBUG)
 
 router = APIRouter(tags=["client"])
 
@@ -54,7 +54,7 @@ async def delete_kaapana_instance(kaapana_instance_id: int, db: Session = Depend
 async def delete_kaapana_instances(db: Session = Depends(get_db)):
     return crud.delete_kaapana_instances(db)
 
-@router.post("/job", response_model=schemas.JobWithKaapanaInstance) # changed JobWithKaapanaInstance to JobWithExperiment
+@router.post("/job", response_model=schemas.JobWithKaapanaInstance) # also okay: JobWithExperiment
 async def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(get_db)):
 
     if job.username is not None:
@@ -65,11 +65,11 @@ async def create_job(request: Request, job: schemas.JobCreate, db: Session = Dep
         raise HTTPException(status_code=400, detail="A username has to be set when you start a job, either as parameter or in the request!")
     return crud.create_job(db=db, job=job)
 
-@router.get("/job", response_model=schemas.JobWithKaapanaInstance) # changed JobWithKaapanaInstance to JobWithExperiment
+@router.get("/job", response_model=schemas.JobWithKaapanaInstance) # also okay: JobWithExperiment
 async def get_job(job_id: int, db: Session = Depends(get_db)):
     return crud.get_job(db, job_id)
 
-@router.get("/jobs", response_model=List[schemas.JobWithKaapanaInstance])  # changed JobWithKaapanaInstance to JobWithExperiment
+@router.get("/jobs", response_model=List[schemas.JobWithKaapanaInstance])  # also okay: JobWithExperiment
 async def get_jobs(instance_name: str = None, status: str = None, limit: int = None, db: Session = Depends(get_db)):
     return crud.get_jobs(db, instance_name, status, remote=False, limit=limit)
 
@@ -247,7 +247,7 @@ async def delete_cohorts(db: Session = Depends(get_db)):
     return crud.delete_cohorts(db)
 
 # create_experiment ; should replace and be sth like "def submit_workflow_json_schema()"
-@router.post("/experiment", response_model=schemas.Experiment)   # schemas.ExperimentWithKaapanaInstance
+@router.post("/experiment", response_model=schemas.Experiment)   # also okay: schemas.ExperimentWithKaapanaInstance
 async def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData, db: Session = Depends(get_db)):
     
     if json_schema_data.username is not None:
@@ -310,11 +310,20 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
             }
         ]
 
+    # create an experiment with involved_instances=conf_data["experiment_form"]["involved_instances"] and add jobs to it
+    experiment = schemas.ExperimentCreate(**{
+        "experiment_name": json_schema_data.experiment_name,
+        "username": username,
+        "kaapana_instance_id": db_client_kaapana.id,
+        # "experiment_jobs": db_jobs,
+        "involved_kaapana_instances": conf_data["experiment_form"]["involved_instances"],
+        "cohort_name": db_cohort.cohort_name if db_cohort is not None else None,
+    })
+    db_experiment = crud.create_experiment(db=db, experiment=experiment)
     
     # create jobs on conf_data["experiment_form"]["runner_instances"]
     db_jobs = []
     db_kaapana_instances = []
-    kaapana_instances_names = []
     for jobs_to_create in queued_jobs: 
         db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': json_schema_data.remote, 
                 'instance_names': conf_data["experiment_form"]["runner_instances"]
@@ -335,25 +344,18 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
 
             db_job = crud.create_job(db, job)
             db_jobs.append(db_job)
-            kaapana_instances_names.append(str(json.dumps(db_kaapana_instance.instance_name)))
 
-    # create an experiment with involved_instances=conf_data["experiment_form"]["involved_instances"] and add jobs to it
-    kaapana_instances_names = [db_kaapana_instance.instance_name for db_kaapana_instance in db_kaapana_instances_set]
-    experiment = schemas.ExperimentCreate(**{
-        "experiment_name": json_schema_data.experiment_name,
-        "username": username,
-        "kaapana_instance_id": db_client_kaapana.id,
+    # update experiment w/ created db_jobs
+    experiment = schemas.ExperimentUpdate(**{
+        "experiment_name": db_experiment.experiment_name,
         "experiment_jobs": db_jobs,
-        # "involved_kaapana_instances": kaapana_instances_names,
-        "involved_kaapana_instances": conf_data["experiment_form"]["involved_instances"],
-        "cohort_name": db_cohort.cohort_name if db_cohort is not None else None,
     })
-    db_experiment = crud.create_experiment(db=db, experiment=experiment)
+    crud.put_experiment_jobs(db, experiment)
 
     return db_experiment
 
 # get_experiment
-@router.get("/experiment", response_model=schemas.ExperimentWithKaapanaInstance) # response_model=schemas.ExperimentWithKaapanaInstance
+@router.get("/experiment", response_model=schemas.ExperimentWithKaapanaInstance)
 async def get_experiment(experiment_id: int = None, experiment_name: str = None, db: Session = Depends(get_db)):
     return crud.get_experiment(db, experiment_id, experiment_name)
 
@@ -362,7 +364,7 @@ async def get_experiment(experiment_id: int = None, experiment_name: str = None,
 async def get_experiments(request: Request, instance_name: str = None, involved_instance_name: str = None, experiment_job_id: int = None, limit: int = None, db: Session = Depends(get_db)):
     return crud.get_experiments(db, instance_name, involved_instance_name, experiment_job_id, limit=limit) # , username=request.headers["x-forwarded-preferred-username"]
 
-@router.get("/experiment_jobs", response_model=List[schemas.JobWithKaapanaInstance])  # changed JobWithKaapanaInstance to JobWithExperiment
+@router.get("/experiment_jobs", response_model=List[schemas.JobWithKaapanaInstance])  # also okay: JobWithExperiment
 async def get_experiment_jobs(experiment_name: str = None, status: str = None, limit: int = None, db: Session = Depends(get_db)):
     exp_jobs = crud.get_experiment_jobs(db, experiment_name, status, limit=limit)
     return exp_jobs

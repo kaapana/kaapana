@@ -447,6 +447,20 @@ def get_remote_updates(db: Session, periodically=False):
         create_and_update_remote_kaapana_instance(db=db, remote_kaapana_instance=remote_kaapana_instance,
                                                   action='external_update')
 
+        # create experiment for incoming experiment if does NOT exist yet
+        for incoming_experiment in incoming_experiments:
+            # check if incoming_experiment already exists
+            # db_incoming_experiment = get_experiment(db, experiment_id=incoming_experiment["id"])
+            db_incoming_experiment = get_experiment(db, experiment_name=incoming_experiment["experiment_name"]) # rather query via experiment_name than via experiment_id
+            if db_incoming_experiment is None:
+                # if not: create incoming experiments
+                incoming_experiment['kaapana_instance_id'] = db_remote_kaapana_instance.id
+                incoming_experiment['external_exp_id'] = incoming_experiment["id"]
+                incoming_experiment['involved_kaapana_instances'] = incoming_experiment["involved_kaapana_instances"][1:-1].split(',')  # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
+                experiment = schemas.ExperimentCreate(**incoming_experiment)
+                db_experiment = create_experiment(db, experiment)
+                logging.info(f"Remote experiment: {db_experiment}")
+
         # create incoming jobs
         db_jobs = []
         for incoming_job in incoming_jobs:
@@ -458,27 +472,14 @@ def get_remote_updates(db: Session, periodically=False):
             db_job = create_job(db, job)
             db_jobs.append(db_job)
 
+        # update incoming experiments
         for incoming_experiment in incoming_experiments:
-            # check if incoming_experiment already exists
-            db_incoming_experiment = get_experiment(db, experiment_id=incoming_experiment["id"])
-            
-            if db_incoming_experiment is None:
-                # if not: create incoming experiments
-                incoming_experiment['kaapana_instance_id'] = db_remote_kaapana_instance.id
-                incoming_experiment['experiment_jobs'] = db_jobs
-                incoming_experiment['external_exp_id'] = incoming_experiment["id"]
-                incoming_experiment['involved_kaapana_instances'] = incoming_experiment["involved_kaapana_instances"][1:-1].split(',')  # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
-                experiment = schemas.ExperimentCreate(**incoming_experiment)
-                db_experiment = create_experiment(db, experiment)
-                # logging.info(f"Remote experiment: {db_experiment}")
-            else:
-                # if yes: update experiment w/ incoming_job
-                exp_update = schemas.ExperimentUpdate(**{
-                    "experiment_name": incoming_experiment["experiment_name"],  # instead of db_incoming_experiment.experiment_name
-                    "experiment_jobs": db_jobs, #  instead of incoming_jobs
-                })
-                db_experiment = put_experiment_jobs(db, exp_update)
-                # logging.info(f"Remote experiment: {db_experiment}")
+            exp_update = schemas.ExperimentUpdate(**{
+                "experiment_name": incoming_experiment["experiment_name"],  # instead of db_incoming_experiment.experiment_name
+                "experiment_jobs": db_jobs, #  instead of incoming_jobs
+            })
+            db_experiment = put_experiment_jobs(db, exp_update)
+            logging.info(f"Remote experiment: {db_experiment}")
 
 
     return  # schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload)

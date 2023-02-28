@@ -2,6 +2,7 @@ import requests
 import urllib3
 import os
 import logging
+import traceback
 from fastapi import Depends, FastAPI, Request
 
 from .admin import routers as admin
@@ -34,7 +35,7 @@ def periodically_get_remote_updates():
             get_remote_updates(db, periodically=True)
         except Exception as e:
             logging.warning('Something went wrong updating')
-            logging.warning(e)
+            logging.warning(traceback.format_exc())
 
 
 app.include_router(

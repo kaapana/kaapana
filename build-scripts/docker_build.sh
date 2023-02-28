@@ -44,12 +44,12 @@ do
 done
 
 
-if [ -z $GIT_REPOSITORY ]; then
+if [ -z ${GIT_REPOSITORY-""} ]; then
     GIT_REPOSITORY=https://github.com/kaapana/kaapana.git 
     echo "GIT_REPOSITORY not set, setting it to $GIT_REPOSITORY"
 fi
 
-if [ -z $BRANCH ]; then
+if [ -z ${BRANCH-""} ]; then
     BRANCH=develop
     echo "GIT_REPOSITORY not set, setting it to $BRANCH"
 fi

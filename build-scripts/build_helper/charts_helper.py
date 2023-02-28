@@ -927,10 +927,10 @@ class HelmChart:
         containers_to_built = [(x, containers_to_built[x]) for x in range(0, len(containers_to_built))]
         waiting_containers_to_built = containers_to_built.copy()
         with alive_bar(container_count, dual_line=True, title='Container-Build') as bar:
-            while len(waiting_containers_to_built) != 0 and build_rounds <= BuildUtils.max_build_rounds:
-                build_rounds += 1
-                tmp_waiting_containers_to_built = []
-                with ThreadPool(BuildUtils.parallel_processes) as threadpool:
+            with ThreadPool(BuildUtils.parallel_processes) as threadpool:
+                while len(waiting_containers_to_built) != 0 and build_rounds <= BuildUtils.max_build_rounds:
+                    build_rounds += 1
+                    tmp_waiting_containers_to_built = []
                     result_containers = threadpool.imap_unordered(parallel_execute, containers_to_built)
                     for queue_id, result_container, issue, done in result_containers:
                         if not done:
@@ -939,7 +939,6 @@ class HelmChart:
                         else:
                             bar()
                             if issue != None:
-
                                 # Close threadpool if error is fatal
                                 if BuildUtils.exit_on_error or issue["level"] == "FATAL":
                                     threadpool.terminate()

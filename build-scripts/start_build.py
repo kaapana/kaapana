@@ -18,6 +18,7 @@ if __name__ == '__main__':
     parser.add_argument("-c", "--config", dest="config_filepath", default=None, help="Path the the build-config.yaml")
     parser.add_argument("-u", "--username", dest="username", default=None, help="Username")
     parser.add_argument("-p", "--password", dest="password", default=None, required=False, help="Password")
+    parser.add_argument("-dr", "--default-registry", dest="default_registry", default=None, help="Name of the registry to which the platform should be build.")
     parser.add_argument("-bo", "--build-only", dest="build_only", default=None, action='store_true', help="Just building the containers and charts -> no pushing")
     parser.add_argument("-oi", "--create-offline-installation", dest="create_offline_installation", default=None, help="Will create a docker dump, from which the platfrom can be installed.")
     parser.add_argument("-pm", "--push-to-microk8s", dest="push_to_microk8s", default=None, help="Will create a docker dump, from which the platfrom can be installed.")
@@ -158,7 +159,11 @@ if __name__ == '__main__':
 
     build_ignore_patterns = build_ignore_patterns + ["templates_and_examples/templates"]
     container_engine = "docker" if "container_engine" not in configuration else configuration["container_engine"]
-    default_registry = configuration["default_registry"] if "default_registry" in configuration else ""
+    
+    if args.default_registry is not None:
+        default_registry = args.default_registry
+    else:
+        default_registry = configuration["default_registry"] if "default_registry" in configuration else ""
 
     http_proxy = conf_http_proxy if conf_http_proxy != "" else None
     http_proxy = os.environ.get("http_proxy", "") if http_proxy == None and os.environ.get("http_proxy", None) != None else http_proxy

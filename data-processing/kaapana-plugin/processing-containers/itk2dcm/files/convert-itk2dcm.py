@@ -171,25 +171,21 @@ class Nifti2DcmConverter:
         added_tags = meta_data.get("add_tags")
         
         seg_args = None
-        seg_path = None
         # check if there are volumes with associated segmentations
         if any([s != None for _, s in cases]):
             # check if there are seg_args in meta_data
-            try:
-                seg_args = meta_data['seg_args']
-                seg_path = path/seg_args['multi_label_seg_info_json'] if seg_args['multi_label_seg_info_json'] else None
+            seg_args = make_seg_args()
+        seg_path = path/seg_args.get('multi_label_seg_info_json') if seg_args.get('multi_label_seg_info_json') else None
 
-                # print("### Checking for segmentation information.")
-                if seg_args is not None:
-                    print("### Extracting parameters for segmentation converter.")                    
-                    self.workflow_conf["seg_args"] = seg_args
-                    with open("/data/conf/conf.json", 'w+') as conf_file:
-                        # conf = json.load(conf_file)
-                        json.dump(self.workflow_conf, conf_file)
-                print("### Processing segmentation parameters finished.")
-            except KeyError:
-                print("No arguments for Itk2DcmSegOperator found. Please provide 'seg_args' in the 'meta_data.json'.")
-                seg_args = make_seg_args()
+
+        if seg_args is not None:
+            print("### Extracting parameters for segmentation converter.")                    
+            self.workflow_conf["seg_args"] = seg_args
+            with open("/data/conf/conf.json", 'w+') as conf_file:
+                # conf = json.load(conf_file)
+                json.dump(self.workflow_conf, conf_file)
+            print("### Processing segmentation parameters finished.")
+
 
         for i, case in enumerate(cases):
             series_tag_values = {}
@@ -201,6 +197,7 @@ class Nifti2DcmConverter:
                     p = f"/{p}" if p[0] != "/" else p
                     if str(case[0]) in glob.glob(f"{str(path)}{p}"):
                         series_tag_values= {**series_tag_values, **added_tags[p]}
+        
 
             self.convert_series(
                 Path(case[0]), 
@@ -391,8 +388,8 @@ class Parser:
 def make_seg_args():
     import os
     import json
-    json_path = os.path.join(os.environ['OPERATOR_IN_DIR'], 'seg_info.json')
-    # case1: seg_info.json exists
+    json_path = os.path.join("/data/",os.environ['OPERATOR_IN_DIR'],os.environ["DATA_DIR"], 'seg_info.json')
+    # case1: seg_info.json exists (only for multi label seg, prob works anyways if it only contains 1 label)
     seg_args = {}
     try:
         with open(json_path, 'r') as f:
@@ -404,19 +401,35 @@ def make_seg_args():
         try:
             with open("/data/conf/conf.json", 'r') as conf_file:
                 conf = json.load(conf_file)
-                seg_args['input_type'] = "single_label_segs"
-                seg_args['single_label_seg_info']= conf['workflow_form']["seg_info"]
+                label_names = conf['workflow_form']['seg_labels']
+                if len(label_names)==1:
+                    seg_args['input_type'] = "single_label_segs"
+                    seg_args['single_label_seg_info']= label_names[0]["name"]
+                elif len(label_names) > 1:
+                    raise NotImplementedError
+                else:
+                    print("trying to infer labels from filenames.")
+                    seg_args['input_type'] = "single_label_segs"
+                    seg_args['single_label_seg_info'] = "from_file_name"
+
+                
             print("No seg_info.json found. Assuming single label segmentation with label:{}")
         except KeyError as e:
-            print("Could not find seg_info or workflow_form.")
-            raise e
-    
-    # case3: seg_info for label comes from file_name
-    seg_args['input_type'] = "single_label_segs"
-    seg_args['single_label_seg_info'] = "from_file_name"
-    
+            # case3
+            print("Could not find seg_labels in workflow_form. Trying to get info from meta-data.json")
+            raise warnings.warn("This is just legacy code arguments for segementation should always be set via ui or explicit seg_info.json")
+
+            try:
+                seg_args = meta_data['seg_args']
+                seg_path = path/seg_args['multi_label_seg_info_json'] if seg_args['multi_label_seg_info_json'] else None
+
+                # print("### Checking for segmentation information.")
+                
+            except KeyError:
+                print("No arguments for Itk2DcmSegOperator found in meta-data.")
     # if there is also more than one segmentation per image file:
-    seg_args['create_multi_label_dcm_from_single_label_segs'] = True
+    # seg_args['create_multi_label_dcm_from_single_label_segs'] = True
+    print("seg_args:", seg_args)
 
     return seg_args
 

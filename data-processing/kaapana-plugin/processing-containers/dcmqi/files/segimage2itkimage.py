@@ -1,16 +1,11 @@
 import os
-import json
 import glob
-import re
-import math
-import random
-from matplotlib import cm
+import json
+import os
 import subprocess
-import numpy as np
-import pydicom
 
-from pathlib import Path
 processed_count = 0
+DCMQI = '/kaapana/app/dcmqi/bin'
 
 
 def find_code_meaning(tag):
@@ -278,14 +273,17 @@ elif input_type == 'single_label_segs':
     else:
         print(f'Taking {single_label_seg_info} as seg info')
 else:
-    raise NameError('Input_type must be either multi_label_seg or single_label_segs')
+    seg_filter = None
 
+if output_type not in ['nrrd', 'mhd', 'mha', 'nii', 'nii.gz', 'nifti', 'hdr', 'img']:
+    raise AssertionError('Output type must be <nrrd|mhd|mha|nii|nii.gz|nifti|hdr|img>')
 
-code_lookup_table_path = "code_lookup_table.json"
-with open(code_lookup_table_path) as f:
-    code_lookup_table = json.load(f)
+if output_type == "nii.gz":
+    output_type_dcmqi = "nii"
+else:
+    output_type_dcmqi = output_type
 
-# batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
+batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 
 print("Found {} batches".format(len(batch_folders)))
 
@@ -293,183 +291,73 @@ for batch_element_dir in batch_folders:
     print("process: {}".format(batch_element_dir))
 
     element_input_dir = os.path.join(batch_element_dir, os.environ['OPERATOR_IN_DIR'])
-    input_image_list_input_dir = os.path.join(batch_element_dir, os.environ['OPERATOR_IMAGE_LIST_INPUT_DIR'])
 
     element_output_dir = os.path.join(batch_element_dir, os.environ['OPERATOR_OUT_DIR'])
     if not os.path.exists(element_output_dir):
         os.makedirs(element_output_dir)
 
-    segmentation_paths = []
-    for endings in ('*.nii', '*.nii.gz', '*.nrrd'):
-        segmentation_paths.extend(glob.glob(f'{input_image_list_input_dir}/{endings}'))
+    dcm_paths = glob.glob(f'{element_input_dir}/*.dcm')
 
-    if len(segmentation_paths) == 0:
-        print("Could not find valid segmentation file in {}".format(input_image_list_input_dir))
-        print("Supported: '*.nii', '*.nii.gz', '*.nrrd'")
-        print("skipping!")
-        # exit(1)
-        continue
+    print("Found {} dcm-files".format(len(dcm_paths)))
 
-    segmentation_information = {
-        "@schema": "https://raw.githubusercontent.com/qiicr/dcmqi/master/doc/schemas/seg-schema.json#"
-    }
-
-    segmentation_information["ContentCreatorName"] = content_creator_name
-    segmentation_information["SeriesNumber"] = series_number
-    segmentation_information["InstanceNumber"] = instance_number
-
-    if input_type == 'single_label_segs':
-        print("input_type == 'single_label_segs'")
-
-        segment_attributes = []
-        for idx, seg_filepath in enumerate(segmentation_paths):
-            print(f"process idx: {idx} - {seg_filepath}")
-
-            seg_filename = os.path.basename(seg_filepath)
-            m = re.compile(r'(.*?)(\.nii.gz|\.nii|\.nrrd)').search(seg_filename)
-            rootname = m.groups()[-2]
-
-            if get_seg_info_from_file is True:
-                single_label_seg_info = rootname
-
-            code_meaning, segmentation_information["SeriesDescription"] = process_seg_info(single_label_seg_info, series_description)
-            color = np.round(np.array(cm.get_cmap('gist_ncar', 20)(random.randint(0, 19))[:3])*255).astype(int).tolist()
-            segment_attribute = create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, color)
-
-            if create_multi_label_dcm_from_single_label_segs.lower() == 'true':
-                segment_attributes.append([segment_attribute])
-
-            segmentation_information["segmentAttributes"] = [[segment_attribute]]
-            meta_data_file = f"{input_image_list_input_dir}/{rootname}.json"
-
-            with open(meta_data_file, "w") as write_file:
-                json.dump(segmentation_information, write_file, indent=4, sort_keys=True)
-
-            # Creating dcm_object
-            output_dcm_file = f"{element_output_dir}/{rootname}.dcm"
-
-            print("Starting dcmqi-subprocess for: {}".format(output_dcm_file))
-            print(f"skip_empty_slices: {skip_empty_slices}")
-            if skip_empty_slices:
-                try:
-                    dcmqi_command = [
-                        f"{DCMQI}/itkimage2segimage",
-                        "--skip",
-                        "--inputImageList", seg_filepath,
-                        "--inputMetadata", meta_data_file,
-                        "--outputDICOM", output_dcm_file,
-                        "--inputDICOMDirectory",  element_input_dir
-                    ]
-                    print('Executing', " ".join(dcmqi_command))
-                    resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
-                    print(resp)
-                except subprocess.CalledProcessError as e:
-                    raise AssertionError(f'Something weng wrong while creating the single-label-dcm object {e.output}')
-            else:
-                try:
-                    dcmqi_command = [
-                        f"{DCMQI}/itkimage2segimage",
-                        "--inputImageList", seg_filepath,
-                        "--inputMetadata", meta_data_file,
-                        "--outputDICOM", output_dcm_file,
-                        "--inputDICOMDirectory",  element_input_dir
-                    ]
-                    print('Executing', " ".join(dcmqi_command))
-                    resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
-                    print(resp)
-                except subprocess.CalledProcessError as e:
-                    print(f'The image seems to have empty slices, we will skip them! This might make the segmentation no usable anymore for MITK. Error: {e.output}')
-                    raise AssertionError(f'Something weng wrong while creating the single-label-dcm object {e.output}')
-
-            adding_aetitle(element_input_dir, output_dcm_file, body_part="N/A")
-            processed_count += 1
-
-    elif input_type == 'multi_label_seg':
-        print("input_type == 'multi_label_seg'")
-
-        json_path = os.path.join(input_image_list_input_dir, multi_label_seg_info_json)
-        with open(json_path) as f:
-            data = json.load(f)
-
-        print('Loaded seg_info', data)
-
-        if "seg_info" not in data:
-            print("Could not find key 'seg_info' in json-file: {}".format(json_path))
-            print("Abort!")
+    for dcm_filepath in dcm_paths:
+        # Creating objects
+        json_output = os.path.basename(dcm_filepath)[:-4]
+        try:
+            dcmqi_command = [
+                f"{DCMQI}/segimage2itkimage",
+                "--outputType", output_type_dcmqi,
+                "-p", f'{json_output}',
+                "--outputDirectory", element_output_dir,
+                "--inputDICOM",  dcm_filepath
+            ]
+            print('Executing', " ".join(dcmqi_command))
+            resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
+            print(resp)
+        except subprocess.CalledProcessError as e:
+            print("Error with dcmqi. Might be due to missing resources!", e.output)
+            print("Abort !")
             exit(1)
 
-        label_info = data['seg_info']
+        # Filtering unwanted objects
+        meta_data_file = os.path.join(element_output_dir, f'{json_output}-meta.json')
+        try:
+            with open(meta_data_file) as f:
+                meta_data = json.load(f)
+        except FileNotFoundError as e:
+            print("DCMQI was not successfull in converting the dcmseg object. Might be due to missing resources!", e)
+            print("Abort !")
+            exit(1)
 
-        body_part = "N/A"
-        if "task_body_part" in data:
-            body_part = data['task_body_part']
+        to_remove_indexes = []
+        for idx, segment in enumerate(meta_data['segmentAttributes']):
+            segment_info = segment[0]
+            segment_label = segment_info['SegmentLabel'].lower()
+            print(f"SEG-INFO: {segment_label} -> Label: {segment_info['labelID']}")
+            if seg_filter is None or segment_label.lower().replace(","," ").replace("  "," ") in seg_filter:
+                segment_label = segment_label.replace("/", "++")
+                os.rename(os.path.join(element_output_dir, f'{json_output}-{segment_info["labelID"]}.{output_type}'),
+                          os.path.join(element_output_dir, f'{json_output}--{segment_info["labelID"]}--{segment_label}.{output_type}'))
+            else:
+                to_remove_indexes.append(idx)
+                os.remove(os.path.join(element_output_dir, f'{json_output}-{segment_info["labelID"]}.{output_type}'))
 
-        if "algorithm" in data:
-            series_description = "{}-{}".format(segment_algorithm_name, data["algorithm"])
+        # Updating meta-data-json
+        for idx in sorted(to_remove_indexes, reverse=True):
+            del meta_data['segmentAttributes'][idx]
 
-        segment_attributes = [[]]
-
-        label_counts = len(label_info)
-        for idx, label in enumerate(label_info):
-            label_int = int(label["label_int"])
-            single_label_seg_info = label["label_name"]
-            print(f"process: {single_label_seg_info}: {label_int}")
-            if str(label_int) == "0":
-                print("Clear Label -> skipping")
-                continue
-
-            code_meaning, segmentation_information["SeriesDescription"] = process_seg_info(single_label_seg_info, series_description)
-            color = np.round(np.array(cm.get_cmap('gist_ncar', label_counts)(idx)[:3])*255).astype(int).tolist()
-            segment_attribute = create_segment_attribute(segment_algorithm_type, segment_algorithm_name, code_meaning, color, label_name=single_label_seg_info, labelID=label_int)
-            segment_attributes[0].append(segment_attribute)
-
-    if input_type == 'multi_label_seg' or create_multi_label_dcm_from_single_label_segs.lower() == 'true':
-        _, segmentation_information["SeriesDescription"] = process_seg_info(multi_label_seg_name, series_description)
-
-        segmentation_information["segmentAttributes"] = segment_attributes
-        meta_data_file = f"{input_image_list_input_dir}/{multi_label_seg_name.lower()}.json"
         with open(meta_data_file, "w") as write_file:
-            print("Writing JSON:: {}".format(meta_data_file))
-            json.dump(segmentation_information, write_file, indent=4, sort_keys=True)
+            json.dump(meta_data, write_file, indent=4, sort_keys=True)
+            # print("Overwriting JSON: {}".format(meta_data_file))
+        # print(json.dumps(meta_data, indent=4, sort_keys=True))
 
-        output_dcm_file = f"{element_output_dir}/{multi_label_seg_name.lower()}.dcm"
-        print("Output SEG.dcm file:: {}".format(output_dcm_file))
-        print("Starting dcmqi-subprocess for: {}".format(output_dcm_file))
-        print(f"skip_empty_slices: {skip_empty_slices}")
-        if skip_empty_slices:
-            try:
-                dcmqi_command = [
-                    f"{DCMQI}/itkimage2segimage",
-                    "--skip",
-                    "--inputImageList", ",".join(segmentation_paths),
-                    "--inputMetadata", meta_data_file,
-                    "--outputDICOM", output_dcm_file,
-                    "--inputDICOMDirectory",  element_input_dir
-                ]
-                print('Executing', " ".join(dcmqi_command))
-                resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
-                print(resp)
-            except subprocess.CalledProcessError as e:
-                raise AssertionError(f'Something weng wrong while creating the multi-label-dcm object {e.output}')
-        else:
-            try:
-                dcmqi_command = [
-                    f"{DCMQI}/itkimage2segimage",
-                    "--inputImageList", ",".join(segmentation_paths),
-                    "--inputMetadata", meta_data_file,
-                    "--outputDICOM", output_dcm_file,
-                    "--inputDICOMDirectory",  element_input_dir
-                ]
-                print('Executing', " ".join(dcmqi_command))
-                resp = subprocess.check_output(dcmqi_command, stderr=subprocess.STDOUT)
-                print(resp)
-            except subprocess.CalledProcessError as e:
-                print(f'The image seems to have emtpy slices, we will skip them! This might make the segmentation no usable anymore for MITK. Error: {e.output}')
-                raise AssertionError(f'Something weng wrong while creating the multi-label-dcm object {e.output}')
+        if seg_filter != None and seg_filter != "":
+            len_output_files = len(sorted(glob.glob(os.path.join(element_output_dir, f"*{output_type_dcmqi}*"), recursive=False)))
+            if len_output_files != len(seg_filter):
+                print(f"Found {len_output_files} files -> expected {len(seg_filter)}!")
+                print(f"Filter: {seg_filter}")
 
-        adding_aetitle(element_input_dir, output_dcm_file, body_part=body_part)
         processed_count += 1
-
 
 print("#")
 print("#")

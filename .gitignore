@@ -25,5 +25,9 @@ __pycache__
 *~
 history
 build-scripts/build-config.yaml
+*del.*
+platform_config.yaml
+platform_config.json
+request_config.yaml
 .direnv/
 .envrc

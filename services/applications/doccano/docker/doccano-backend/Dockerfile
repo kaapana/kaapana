@@ -6,6 +6,8 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /
 
+# Reduce caching layers
+# hadolint ignore=DL3003
 RUN git clone https://github.com/doccano/doccano.git doccano && cd doccano && git checkout 0489118f92084d85b30a95a8b306636dfae38ff9
 
 FROM python:3.8.6-slim-buster
@@ -20,7 +22,6 @@ ENV PYTHONUNBUFFERED 1
 COPY --from=build-stage /doccano/backend /backend/
 COPY --from=build-stage /doccano/Pipfile* /backend/
 
-# hadolint ignore=DL3013
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
     netcat=1.* \
@@ -30,8 +31,10 @@ RUN apt-get update \
  && pip install --no-cache-dir pipenv==2020.11.15 \
  && pipenv install --system --deploy \
  && pip uninstall -y pipenv virtualenv-clone virtualenv \
+ # Security fix for CVE-2022-40898
+ && pip install --no-cache-dir wheel==0.38.1 \
  && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/* 
 
 COPY --from=build-stage /doccano/tools/ /opt/bin/
 RUN mkdir -p /backend/staticfiles \

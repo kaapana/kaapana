@@ -12,6 +12,12 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-ke
 COPY files/requirements.system /kaapana/app/
 RUN apt-get update -y && cat /kaapana/app/requirements.system | xargs apt-get install -y --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
+    
+RUN pip install --no-cache-dir \
+    # Security fix for CVE-2021-33503
+    urllib3==1.26.5 \
+    # Security fix for CVE-2022-40898
+    wheel==0.38.1
 
 COPY files/startup.sh /startup.sh
 

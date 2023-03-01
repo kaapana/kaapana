@@ -5,5 +5,4 @@ scipy==1.7.0
 albumentations==0.5.2
 dataclasses
 pandas==1.2.1
-torch==1.8.1 
 torchvision==0.9.1 

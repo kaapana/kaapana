@@ -4,7 +4,7 @@ from airflow.models import DAG
 from airflow.utils.dates import days_ago
 
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
+from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
@@ -49,10 +49,9 @@ get_input = LocalGetInputDataOperator(
     parallel_downloads=5
 )
 
-dcm2nifti_seg = DcmSeg2ItkOperator(
+dcm2nifti_seg = Mask2nifitiOperator(
     dag=dag,
-    input_operator=get_input,
-    output_format="nii.gz",
+    input_operator=get_input
 )
 
 combine_masks = LocalCombineMasksOperator(

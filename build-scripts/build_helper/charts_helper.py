@@ -980,7 +980,7 @@ class HelmChart:
         )
         if BuildUtils.version_latest:
             repo_version = "0.0.0-latest"
-        
+
         BuildUtils.platform_name = platform_chart.name
         BuildUtils.platform_build_version = repo_version
         BuildUtils.platform_build_branch = repo_branch
@@ -1045,7 +1045,7 @@ class HelmChart:
 
         containers_to_built = [(x, containers_to_built[x]) for x in range(0, len(containers_to_built))]
         waiting_containers_to_built = containers_to_built.copy()
-        with alive_bar(container_count, dual_line=True, title='Container-Build') as bar:
+        with alive_bar(container_count, dual_line=True, title="Container-Build") as bar:
             with ThreadPool(BuildUtils.parallel_processes) as threadpool:
                 while len(waiting_containers_to_built) != 0 and build_rounds <= BuildUtils.max_build_rounds:
                     build_rounds += 1
@@ -1076,7 +1076,7 @@ class HelmChart:
                                     path=issue["path"] if "path" in issue else "",
                                 )
                             else:
-                                bar.text(f"{result_container.tag}: ok")
+                                bar.text(f"{result_container.build_tag}: ok")
 
                     waiting_containers_to_built = tmp_waiting_containers_to_built.copy()
 
@@ -1148,10 +1148,10 @@ class HelmChart:
                 charts_to_build.append(chart_object)
 
                 HelmChart.build_platform(platform_chart=chart_object)
-        
+
         if BuildUtils.enable_image_stats:
             BuildUtils.images_stats = {}
-            container_image_versions = set([x.split(":")[-1] for x in successful_built_containers ])
+            container_image_versions = set([x.split(":")[-1] for x in successful_built_containers])
             for container_image_version in container_image_versions:
                 BuildUtils.images_stats[container_image_version] = get_image_stats(version=container_image_version)
 

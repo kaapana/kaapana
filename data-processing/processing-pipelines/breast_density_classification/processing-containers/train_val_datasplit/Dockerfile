@@ -4,7 +4,7 @@ LABEL IMAGE="train-val-datasplit"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-COPY files/requirements.txt /kaapana/app/requirements.txt
+COPY files/requirements.txt /kaapana/app/
 
 RUN pip install --upgrade pip && pip install -r /kaapana/app/requirements.txt
 

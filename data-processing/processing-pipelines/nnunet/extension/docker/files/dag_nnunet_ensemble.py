@@ -11,7 +11,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
 from nnunet.LocalSortGtOperator import LocalSortGtOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
-from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
+from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from nnunet.LocalModelGetInputDataOperator import LocalModelGetInputDataOperator
@@ -195,13 +195,12 @@ sort_gt = LocalSortGtOperator(
     input_operator=get_test_images
 )
 
-dcm2nifti_gt = DcmSeg2ItkOperator(
+dcm2nifti_gt = Mask2nifitiOperator(
     dag=dag,
     input_operator=get_test_images,
     batch_name=str(get_test_images.operator_out_dir),
     seg_filter=organ_filter,
-    parallel_id="gt",
-    output_format='nii.gz',
+    parallel_id="gt"
 )
 
 get_ref_ct_series_from_gt = LocalGetRefSeriesOperator(

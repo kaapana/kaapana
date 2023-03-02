@@ -69,7 +69,7 @@ class TrivyUtils:
                 pass
             retry_count += 1
             time.sleep(3)
-            BuildUtils.logger.error("Server is not ready yet, retrying...")
+            BuildUtils.logger.info("Server is not ready yet, retrying...")
 
         # If we've retried too many times, print an error message
         if retry_count == self.server_connect_max_retries:

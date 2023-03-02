@@ -29,6 +29,7 @@ class BuildUtils:
     vulnerability_severity_level = None
     configuration_check = None
     configuration_check_severity_level = None
+    create_sboms = None
     thread_pool = None
     version_latest = False
     platform_name = None

@@ -1093,29 +1093,57 @@ class HelmChart:
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
 
         # Scan for vulnerabilities if enabled
-        if BuildUtils.vulnerability_scan is True:
-            BuildUtils.logger.info("")
-            BuildUtils.logger.info("")
-            BuildUtils.logger.info("Starting vulnerability scan...")
-            BuildUtils.logger.info("")
-            BuildUtils.logger.info("")
-            with alive_bar(len(successful_built_containers), dual_line=True, title="Vulnerability Scan") as bar:
-                # Init trivy utils
-                trivy_utils = TrivyUtils()
+        if BuildUtils.vulnerability_scan is True or BuildUtils.create_sboms is True:
+            # Init trivy utils
+            trivy_utils = TrivyUtils()
+            try:
+                BuildUtils.logger.info("")
+                BuildUtils.logger.info("Start trivy server...")
+                BuildUtils.logger.info("")
+                trivy_utils.start_trivy_server()
+                if BuildUtils.create_sboms:
+                    BuildUtils.logger.info("")
+                    BuildUtils.logger.info("")
+                    BuildUtils.logger.info("Creating SBOMs...")
+                    BuildUtils.logger.info("")
+                    BuildUtils.logger.info("")
+                    with ThreadPool(BuildUtils.parallel_processes) as threadpool:
+                        with alive_bar(len(successful_built_containers), dual_line=True, title="Create SBOMS") as bar:
+                            results = threadpool.imap_unordered(trivy_utils.create_sbom, successful_built_containers)
+                            # Loop through all built containers and scan them
+                            for image_build_tag in results:
+                                # Set progress bar text
+                                bar.text(image_build_tag)
+                                # Print progress bar
+                                bar()
 
-                # Loop through all built containers and scan them
-                for image_build_tag in sorted(successful_built_containers):
-                    # Set progress bar text
-                    bar.text(image_build_tag)
+                    # save the SBOMs to the build directory
+                    with open(os.path.join(BuildUtils.build_dir, 'sboms.json'), 'w') as f:
+                        json.dump(trivy_utils.sboms, f)
+                if BuildUtils.vulnerability_scan:
+                    BuildUtils.logger.info("")
+                    BuildUtils.logger.info("")
+                    BuildUtils.logger.info("Starting vulnerability scan...")
+                    BuildUtils.logger.info("")
+                    BuildUtils.logger.info("")
+                    with ThreadPool(BuildUtils.parallel_processes) as threadpool:
+                        with alive_bar(len(successful_built_containers), dual_line=True, title="Vulnerability Scans") as bar:
+                            results = threadpool.imap_unordered(trivy_utils.create_vulnerability_report, successful_built_containers)
+                            # Loop through all built containers and scan them
+                            for image_build_tag in results:
+                                # Set progress bar text
+                                bar.text(image_build_tag)
+                                # Print progress bar
+                                bar()
 
-                    # Create SBOM
-                    trivy_utils.create_sbom(image_build_tag)
+                    # save the vulnerability reports to the build directory
+                    with open(os.path.join(BuildUtils.build_dir, 'vulnerability_reports.json'), 'w') as f:
+                        json.dump(trivy_utils.vulnerability_reports, f)
 
-                    # Scan for vulnerabilities
-                    trivy_utils.create_vulnerability_report(image_build_tag)
-
-                    # Print progress bar
-                    bar()
+                    with open(os.path.join(BuildUtils.build_dir, 'compressed_vulnerability_report.json'), 'w') as f:
+                        json.dump(trivy_utils.compressed_vulnerability_reports, f)
+            finally:
+                trivy_utils.stop_trivy_server()
 
         if BuildUtils.create_offline_installation is True:
             OfflineInstallerHelper.generate_microk8s_offline_version()

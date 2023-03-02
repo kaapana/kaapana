@@ -3,7 +3,7 @@ from datetime import timedelta
 from airflow.models import DAG
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
-from kaapana.operators.KaapanaBaseOperator import kaapana_build_version
+from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
 from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
@@ -70,7 +70,7 @@ rateme = KaapanaApplicationOperator(
     name="rateme",
     input_operator=get_input,
     chart_name='rateme-chart',
-    version=kaapana_build_version,
+    version=KAAPANA_BUILD_VERSION,
 )
 
 clean = LocalWorkflowCleanerOperator(

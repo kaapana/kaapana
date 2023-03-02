@@ -24,8 +24,8 @@ def listdir_nohidden(path):
 
 def get_images(target_dir):
     print("Searching for images...")
-    default_registry_identifier =  "{default_registry}"
-    default_version_identifier =  "{kaapana_build_version}"
+    default_registry_identifier =  "{DEFAULT_REGISTRY}"
+    default_version_identifier =  "{KAAPANA_BUILD_VERSION}"
     image_dict = {}
     file_paths = glob.glob(f'{target_dir}/**/*.py', recursive=True)
     print("Found %i files..." % len(file_paths))
@@ -36,9 +36,14 @@ def get_images(target_dir):
             matches = re.findall(REGEX, content)
             if matches:
                 for match in matches:
-                    docker_registry_url = match[1] if default_registry_identifier not in match[1] else match[1].replace(default_registry_identifier,KAAPANA_DEFAULT_REGISTRY)
+                    # Backward compatibility default_registry vs DEFAULT_REGISTRY
+                    match = list(match)
+                    match[1] = match[1].replace("{default_registry}", default_registry_identifier)
+                    docker_registry_url = match[1] if default_registry_identifier not in match[1] else match[1].replace(default_registry_identifier, KAAPANA_DEFAULT_REGISTRY)
                     docker_image = match[3]
-                    docker_version = match[4] if default_version_identifier not in match[4] else match[4].replace(default_version_identifier,KAAPANA_BUILD_VERSION)
+                    # Backward compatibility default_registry vs DEFAULT_REGISTRY
+                    match[4] = match[4].replace("{default_version_identifier}", default_version_identifier)
+                    docker_version = match[4] if default_version_identifier not in match[4] else match[4].replace(default_version_identifier, KAAPANA_BUILD_VERSION)
                     print(f"{docker_registry_url=}")
                     print(f"{docker_image=}")
                     print(f"{docker_version=}")

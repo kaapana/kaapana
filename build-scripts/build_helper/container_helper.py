@@ -562,10 +562,12 @@ class Container:
 
             with open(python_file, "r") as python_content:
                 for line in python_content:
-                    if "image=" in line and "{default_registry}" in line:
+                    # Backward compatibility default_registry vs DEFAULT_REGISTRY
+                    line = line.replace("{default_registry}", "{DEFAULT_REGISTRY}").replace("{kaapana_build_version}", "{KAAPANA_BUILD_VERSION}")
+                    if "image=" in line and "{DEFAULT_REGISTRY}" in line:
                         line = line.rstrip("\n").split('"')[1].replace(" ", "")
-                        line = line.replace("{kaapana_build_version}", self.repo_version)
-                        container_id = line.replace("{default_registry}", BuildUtils.default_registry)
+                        line = line.replace("{KAAPANA_BUILD_VERSION}", self.repo_version)
+                        container_id = line.replace("{DEFAULT_REGISTRY}", BuildUtils.default_registry)
                         self.operator_containers.append(container_id)
 
     @staticmethod

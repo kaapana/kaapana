@@ -1,0 +1,8 @@
+apiVersion: v1
+appVersion: "0.0.0"
+description: A Helm chart for mainzelliste
+name: mainzelliste-chart
+version: "0.0.0"
+keywords:
+- kaapanaapplication
+- kaapanaexperimental

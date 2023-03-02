@@ -1,0 +1,70 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: postgres-mainzelliste
+  namespace: "{{ .Values.global.extensions_namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: postgres-mainzelliste
+  template:
+    metadata:
+      labels:
+        app-name: postgres-mainzelliste
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: postgres
+          image: "{{ .Values.global.registry_url }}/postgres-9.6-alpine:{{ .Values.global.kaapana_build_version  }}"
+          args: ["-c", "max_connections=200"]
+          imagePullPolicy: {{ .Values.global.pull_policy_pods | default "IfNotPresent" }}
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          resources:
+            requests:
+              memory: 100Mi
+            limits:
+              memory: 500Mi
+          volumeMounts:
+            - name: dbvol
+              mountPath: /var/lib/postgresql/data/pgdata
+              subPath: pgdata
+          env:
+            - name: POSTGRES_USER
+              value: root
+            - name: POSTGRES_USER
+              value: root
+            - name: POSTGRES_PASSWORD
+              value: root
+            - name: POSTGRES_DB
+              value: mainzelliste
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POD_IP
+              valueFrom: { fieldRef: { fieldPath: status.podIP } }
+          livenessProbe:
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+            failureThreshold: 5
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - exec pg_isready --host $POD_IP ||  if [[ $(psql -qtAc --host $POD_IP 'SELECT pg_is_in_recovery') != "f" ]]; then  exit 0 else; exit 1; fi
+          readinessProbe:
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+            periodSeconds: 5
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - exec pg_isready --host $POD_IP
+      volumes:
+        - name: dbvol
+        - name: data
+          persistentVolumeClaim:
+            claimName: mz-postgres-pv-claim

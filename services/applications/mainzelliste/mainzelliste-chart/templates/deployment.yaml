@@ -1,0 +1,48 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: mainzelliste
+  namespace: "{{ .Values.global.extensions_namespace }}"
+  labels:
+    k8s-app: mainzelliste
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: mainzelliste
+  template:
+    metadata:
+      labels:
+        app-name: mainzelliste
+    spec:
+      containers:
+      - name: mainzelliste
+        image: "{{ .Values.global.registry_url }}/mainzelliste:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_pods | default "IfNotPresent" }}
+        ports:
+        - containerPort: 8000 
+          protocol: TCP
+        resources:
+          requests:
+            memory: 250Mi
+          limits:
+            memory: 500Mi
+        env:
+          - name: ML_REVERSEPROXY_FQDN
+            value: mainzelliste
+          - name: ML_REVERSEPROXY_SSL
+            value: "false"
+          - name: ML_DB_NAME
+            value: mainzelliste
+          - name: ML_DB_USER
+            value: root
+          - name: ML_DB_PASS
+            value: root
+          - name: ML_DB_HOST
+            value: postgres-mainzelliste-{{ .Values.global.extensions_namespace }}.svc
+          - name: ML_API_KEY
+            value: Mainzelliste2023
+          - name: ML_ALLOWEDREMOTEADDRESSES
+            value: 0.0.0.0/0;127.0.0.1:8080;
+      imagePullSecrets:
+      - name: registry-secret

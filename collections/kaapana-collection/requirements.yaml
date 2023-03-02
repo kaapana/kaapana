@@ -58,3 +58,5 @@ dependencies:
     version: 0.0.0
   - name: total-segmentator-workflow
     version: 0.0.0
+  - name: mainzelliste-chart
+    version: 0.0.0

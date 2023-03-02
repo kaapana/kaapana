@@ -1,0 +1,6 @@
+---
+dependencies:
+  - name: mainzelliste-postgres
+    version: 0.0.0
+    repository: file://deps/mainzelliste-postgres
+

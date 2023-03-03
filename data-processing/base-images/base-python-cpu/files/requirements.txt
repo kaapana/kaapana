@@ -1,7 +1,6 @@
 # Versions should be equal to base-python-gpu container check with pip freeze
 opensearch-py==2.0.0
 pydicom==2.3.0
-cryptography==3.4.8
 scikit-learn==0.24.0
 kaleido==0.2.1
 minio==7.1.5
@@ -14,3 +13,5 @@ jupyterlab==3.3.2
 seaborn==0.11.2
 # Security fix for CVE-2022-1941
 protobuf==3.20.2
+# Security fix for CVE-2023-0286
+cryptography==39.0.1

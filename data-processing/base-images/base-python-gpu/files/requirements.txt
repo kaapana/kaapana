@@ -11,3 +11,5 @@ seaborn==0.11.2
 protobuf==3.20.2
 # Security fix for CVE-2022-40898
 wheel==0.38.1
+# Security fix for CVE-2022-25882
+onnx==1.13.0

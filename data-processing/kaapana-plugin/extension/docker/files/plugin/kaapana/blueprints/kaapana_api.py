@@ -71,6 +71,10 @@ def trigger_dag(dag_id):
         return response
 
     message = ["{} created!".format(dr.dag_id)]
+    dag_dagrun_dict = {}
+    dag_dagrun_dict["dag_id"] = dr.dag_id
+    dag_dagrun_dict["run_id"] = dr.run_id
+    message.append(dag_dagrun_dict)
     response = jsonify(message=message)
     return response
 
@@ -86,6 +90,7 @@ def get_dagrun_tasks(dag_id, run_id):
     dag_objects = DagBag().dags                 # returns all DAGs available on platform
     desired_dag = dag_objects[dag_id]           # filter desired_dag from all available dags via dag_id
     session = settings.Session()
+    message = []
 
     task_ids = [task.task_id for task in desired_dag.tasks]  # get task_ids of desired_dag
     tis = session.query(TaskInstance).filter(                # query TaskInstances which are part of desired_dag wit run_id=run_id and task_ids
@@ -102,9 +107,9 @@ def get_dagrun_tasks(dag_id, run_id):
         state_dict[ti.task_id] = ti.state
         exdate_dict[ti.task_id] = str(ti.execution_date)
 
-    message = {}
-    message['state_dict'] = state_dict
-    message['exdate_dict'] = exdate_dict
+    # message.append(f"Result of task querying: {tis}")
+    message.append(f'{state_dict}')
+    message.append(f'{exdate_dict}')
     response = jsonify(message=message)
     return response
 
@@ -226,20 +231,20 @@ def abort_dag_run(dag_id, run_id):
     
     all_tis = [tis_r, tis, tis_n]
 
-    # message = response.text unused in backend but valuable for debugging
     message.append(f"Result of Job abortion: {all_tis}")
     response = jsonify(message=message)
     return response
 
-@kaapanaApi.route('/api/getdagruns', methods=['GET'])
+@kaapanaApi.route('/api/getdagruns', methods=['POST'])
 @csrf.exempt
 def getAllDagRuns():
-    dag_id = request.args.get('dag_id')
-    run_id = request.args.get('run_id')
-    state = request.args.get('state')
-    limit = request.args.get('limit')
-    count = request.args.get('count')
-    categorize = request.args.get('categorize')
+    data = request.get_json(force=True)
+    dag_id = data['dag_id'] if 'dag_id' in data else None
+    run_id = data['run_id'] if 'run_id' in data else None
+    state = data['state'] if 'state' in data else None
+    limit = data['limit'] if 'limit' in data else None
+    count = data['count'] if 'count' in data else None
+    categorize = data['categorize'] if 'categorize' in data else None
 
     session = settings.Session()
     time_format = "%Y-%m-%dT%H:%M:%S"

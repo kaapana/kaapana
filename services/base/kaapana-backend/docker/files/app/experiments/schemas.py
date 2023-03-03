@@ -96,7 +96,7 @@ class Job(JobBase):
 
     @validator('status')
     def check_status(cls, v):
-        allowed_states = ['queued', 'pending', 'scheduled', 'running', 'finished', 'failed']
+        allowed_states = ['planned', 'queued', 'pending', 'scheduled', 'running', 'finished', 'failed']
         if v not in allowed_states:
             raise ValueError(f'status must be on of the following values: {", ".join(allowed_states)}')
         return v

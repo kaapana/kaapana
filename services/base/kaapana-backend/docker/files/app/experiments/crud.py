@@ -1,6 +1,7 @@
 import json
 import os
 import logging
+import traceback
 import uuid
 from typing import List
 
@@ -16,8 +17,8 @@ from urllib3.util import Timeout
 from app.config import settings
 from . import models, schemas
 from .utils import execute_job_airflow, abort_job_airflow, get_dagrun_tasks_airflow, \
-    check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, \
-    raise_kaapana_connection_error, requests_retry_session, get_uid_list_from_query
+    get_dagrun_details_airflow, get_dagruns_airflow, check_dag_id_and_dataset, get_utc_timestamp, \
+        HelperMinio, get_dag_list, raise_kaapana_connection_error, requests_retry_session, get_uid_list_from_query
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -209,7 +210,7 @@ def create_job(db: Session, job: schemas.JobCreate):
     if db_kaapana_instance.remote is False and db_kaapana_instance.automatic_job_execution is True:
         job = schemas.JobUpdate(**{
             'job_id': db_job.id,
-            'status': 'scheduled',
+            'status': 'scheduled',  # keep 'scheduled' and don't change to 'planned'
             'description': 'The worklow was triggered!'
         })
         update_job(db, job, remote=False)
@@ -217,8 +218,11 @@ def create_job(db: Session, job: schemas.JobCreate):
     return db_job
 
 
-def get_job(db: Session, job_id: int):
-    db_job = db.query(models.Job).filter_by(id=job_id).first()
+def get_job(db: Session, job_id: int = None, run_id: str = None):
+    if job_id is not None:
+        db_job = db.query(models.Job).filter_by(id=job_id).first()
+    elif run_id is not None:
+        db_job = db.query(models.Job).filter_by(run_id=run_id).first()
     if not db_job:
         raise HTTPException(status_code=404, detail="Job not found")
     return db_job
@@ -259,7 +263,7 @@ def get_jobs(db: Session, instance_name: str = None, experiment_name: str = None
 def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     utc_timestamp = get_utc_timestamp()
 
-    db_job = get_job(db, job.job_id)
+    db_job = get_job(db, job.job_id, job.run_id)#
 
     if (job.status == 'scheduled' and db_job.kaapana_instance.remote == False): #  or (job.status == 'failed'); status='scheduled' for restarting, status='failed' for aborting
         conf_data = json.loads(db_job.conf_data)
@@ -270,12 +274,22 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
             job.status = 'failed'
             job.description = dag_id_and_dataset
         else:
-            execute_job_airflow(conf_data, db_job)
+            airflow_execute_resp = execute_job_airflow(conf_data, db_job)
+            airflow_execute_resp_text = json.loads(airflow_execute_resp.text)
+            dag_id = airflow_execute_resp_text["message"][1]["dag_id"]
+            dag_run_id = airflow_execute_resp_text["message"][1]["run_id"]
+            db_job.dag_id = dag_id      # write directly to db_job to already use db_job.dag_id before db commit
+            db_job.run_id = dag_run_id
 
     if (db_job.kaapana_instance.remote != remote) and db_job.status not in ["queued", "finished", "failed"]:
         raise HTTPException(status_code=401,
                             detail="You are not allowed to update this job, since its on the client site")
-    db_job.status = job.status
+    # ask here first time Airflow for job status (explicit w/ job_id) via kaapana_api's def dag_run_status()
+    airflow_details_resp = get_dagrun_details_airflow(db_job.dag_id, db_job.run_id)
+    airflow_details_resp_text = json.loads(airflow_details_resp.text)
+    # update db_job w/ job's real state and run_id fetched from Airflow
+    db_job.status = "finished" if airflow_details_resp_text["state"] == "success" else airflow_details_resp_text["state"]  # special case for status = "success"
+    db_job.run_id = airflow_details_resp_text["run_id"]
     if job.run_id is not None:
         db_job.run_id = job.run_id
     if job.description is not None:
@@ -488,6 +502,51 @@ def get_remote_updates(db: Session, periodically=False):
 
     return  # schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload)
 
+glob_jobs_in_qsr_state = {}
+def sync_states_from_airflow(db: Session, periodically=False):
+    # get list from airflow for jobs in states 'queued', 'scheduled', 'running': {'dag_run_id': 'state'} -> jobs_in_qsr_state
+    global glob_jobs_in_qsr_state
+    states = ["queued", "scheduled", "running"]
+    jobs_in_qsr_state = get_dagruns_airflow(tuple(states))
+
+    # find elements which are in current jobs_in_qsr_state but not in glob_jobs_in_qsr_state from previous round
+    diff_curr_to_glob = [elem for elem in jobs_in_qsr_state if elem not in glob_jobs_in_qsr_state]
+    # find elements which are in glob_jobs_in_qsr_state from previous round but not in current jobs_in_qsr_state
+    diff_glob_to_curr = [elem for elem in glob_jobs_in_qsr_state if elem not in jobs_in_qsr_state]
+
+    if len(diff_curr_to_glob) > 0:
+        # request airflow for states of all jobs in diff_curr_to_glob && update db_jobs of all jobs in diff_curr_to_glob
+        for diff_job in diff_curr_to_glob:
+            # get db_job from db via 'run_id'
+            db_job = get_job(db, run_id=diff_job["run_id"])
+            # update db_job w/ updated state
+            job_update = schemas.JobUpdate(**{
+                    'job_id': db_job.id,
+                    })
+            update_job(db, job_update, remote=False)
+        # update glob_jobs_in_qsr_state
+        glob_jobs_in_qsr_state = jobs_in_qsr_state
+
+    elif len(diff_glob_to_curr) > 0:
+        # request airflow for states of all jobs in diff_glob_to_curr && update db_jobs of all jobs in diff_glob_to_curr
+        for diff_job in diff_glob_to_curr:
+            # get db_job from db via 'run_id'
+            db_job = get_job(db, run_id=diff_job["run_id"])
+            # update db_job w/ updated state
+            job_update = schemas.JobUpdate(**{
+                    'job_id': db_job.id,
+                    })
+            update_job(db, job_update, remote=False)
+        # update glob_jobs_in_qsr_state
+        glob_jobs_in_qsr_state = jobs_in_qsr_state
+
+    elif len(diff_glob_to_curr) == 0 and len(diff_curr_to_glob) == 0:
+        # update glob_jobs_in_qsr_state
+        glob_jobs_in_qsr_state = jobs_in_qsr_state
+
+    else:
+        logging.error("Error while syncing kaapana-backend with Airflow")
+        
 
 def create_identifier(db: Session, identifier: schemas.Identifier):
     db_identifier = models.Identifier(

@@ -2,6 +2,7 @@ import copy
 import json
 from typing import List
 import logging
+import traceback
 
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
@@ -66,8 +67,8 @@ async def create_job(request: Request, job: schemas.JobCreate, db: Session = Dep
     return crud.create_job(db=db, job=job)
 
 @router.get("/job", response_model=schemas.JobWithKaapanaInstance) # also okay: JobWithExperiment
-async def get_job(job_id: int, db: Session = Depends(get_db)):
-    return crud.get_job(db, job_id)
+async def get_job(job_id: int, run_id: str, db: Session = Depends(get_db)):
+    return crud.get_job(db, job_id, run_id)
 
 @router.get("/jobs", response_model=List[schemas.JobWithKaapanaInstance])  # also okay: JobWithExperiment
 async def get_jobs(instance_name: str = None, experiment_name: str = None, status: str = None, limit: int = None, db: Session = Depends(get_db)):
@@ -336,7 +337,7 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
 
         for db_kaapana_instance in db_kaapana_instances_set:
             job = schemas.JobCreate(**{
-                "status": "queued",
+                "status": "planned",
                 "kaapana_instance_id": db_kaapana_instance.id,
                 "owner_kaapana_instance_name": db_client_kaapana.instance_name,
                 **jobs_to_create

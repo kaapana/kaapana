@@ -24,21 +24,18 @@ class BuildUtils:
     create_offline_installation = None
     skip_push_no_changes = None
     push_to_microk8s = None
-    kaapana_build_version = None
-    kaapana_build_branch = None
-    kaapana_last_commit_timestamp = None
-    build_timestamp = None
     parallel_processes = None
     vulnerability_scan = None
     vulnerability_severity_level = None
     configuration_check = None
     configuration_check_severity_level = None
     thread_pool = None
-    
+    version_latest = False
     platform_name = None
     platform_build_version = None
     platform_build_branch = None
     platform_last_commit_timestamp = None
+    enable_image_stats = None
 
     @staticmethod
     def add_container_images_available(container_images_available):
@@ -60,36 +57,9 @@ class BuildUtils:
             chart_object.check_dependencies()
 
     @staticmethod
-    def init(kaapana_dir, build_dir, external_source_dirs, build_ignore_patterns, platform_filter, default_registry, http_proxy, logger, exit_on_error, enable_build_kit,
-             create_offline_installation, skip_push_no_changes, parallel_processes, include_credentials, registry_user, registry_pwd, push_to_microk8s, vulnerability_scan,
-             vulnerability_severity_level, configuration_check, configuration_check_severity_level):
-
-        BuildUtils.logger = logger
-        BuildUtils.kaapana_dir = kaapana_dir
-        BuildUtils.build_dir = build_dir
-        BuildUtils.platform_filter = platform_filter
-        BuildUtils.default_registry = default_registry
-        BuildUtils.http_proxy = http_proxy
-        BuildUtils.external_source_dirs = external_source_dirs
-        BuildUtils.build_ignore_patterns = build_ignore_patterns        
-        BuildUtils.exit_on_error = exit_on_error
+    def init():
         BuildUtils.issues_list = []
-
         BuildUtils.base_images_used = {}
-        BuildUtils.enable_build_kit = enable_build_kit
-        BuildUtils.create_offline_installation = create_offline_installation
-        BuildUtils.skip_push_no_changes = skip_push_no_changes
-        BuildUtils.push_to_microk8s = push_to_microk8s
-
-        BuildUtils.registry_user = registry_user
-        BuildUtils.registry_pwd = registry_pwd
-        BuildUtils.include_credentials = include_credentials
-
-        BuildUtils.parallel_processes = parallel_processes
-        BuildUtils.vulnerability_scan = vulnerability_scan
-        BuildUtils.vulnerability_severity_level = vulnerability_severity_level
-        BuildUtils.configuration_check = configuration_check
-        BuildUtils.configuration_check_severity_level = configuration_check_severity_level
 
     @staticmethod
     def get_timestamp():
@@ -100,7 +70,6 @@ class BuildUtils:
         while not exists(join(repo_dir, ".git")) and repo_dir != "/":
             repo_dir = dirname(repo_dir)
         assert repo_dir != "/"
-
 
         requested_repo = Repo(repo_dir)
         assert not requested_repo.bare
@@ -123,7 +92,7 @@ class BuildUtils:
             build_version = requested_repo.git.describe()
             build_branch = requested_repo.active_branch.name.split("/")[-1]
             version_check = semver.VersionInfo.parse(build_version)
-
+        
         return build_version, build_branch, last_commit, last_commit_timestamp
 
     @staticmethod
@@ -226,8 +195,6 @@ class BuildUtils:
         BuildUtils.logger.debug("Collect base-images:")
         BuildUtils.logger.debug("")
         for base_image_tag, child_containers in BuildUtils.base_images_used.items():
-            if "python" in base_image_tag:
-                pass
             if base_image_tag not in base_images:
                 base_images[base_image_tag] = {}
             BuildUtils.logger.debug(f"{base_image_tag}")
@@ -240,7 +207,6 @@ class BuildUtils:
                 if child_tag not in base_images[base_image_tag]:
                     base_images[base_image_tag][child_tag] = {}
         
-        
         changed = True
         runs = 0
         base_images = dict(sorted(base_images.items(),reverse=True, key=lambda item: len(item[1])))
@@ -249,8 +215,6 @@ class BuildUtils:
             del_tags = [] 
             changed = False
             for base_image_tag, child_images in base_images.items():
-                if base_image_tag == "python:3.9.16-slim":
-                    pass
                 for child_image_tag, child_image in child_images.items():
                     if child_image_tag in base_images:
                         base_images[base_image_tag][child_image_tag] = base_images[child_image_tag]
@@ -300,6 +264,11 @@ class BuildUtils:
 
         with open(unused_charts_json_path, 'w') as fp:
             json.dump(unused_charts, fp, indent=4)
+            
+        if BuildUtils.enable_image_stats:
+            container_image_stats_path = join(BuildUtils.build_dir, "image_stats.json")
+            with open(container_image_stats_path, 'w') as fp:
+                json.dump(BuildUtils.images_stats, fp, indent=4)
 
 if __name__ == '__main__':
     print("Please use the 'start_build.py' script to launch the build-process.")

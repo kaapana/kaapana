@@ -256,8 +256,10 @@ function install_helm {
 }
 
 function dns_check {
-    if [ ! -z $DNS ]; then
-        echo "${GREEN}DNS has been manually configured ...${NC}"
+    if [ ! -z "$DNS" ]; then
+        echo "${GREEN}${NC}"
+        echo "${GREEN}DNS has been manually configured to '$DNS' ...${NC}"
+        echo "${GREEN}${NC}"
     else
         if [ "$OFFLINE_SNAPS" != "true" ];then
             echo "${GREEN}Checking server DNS settings ...${NC}"
@@ -278,19 +280,24 @@ function dns_check {
         DNS=$(( nmcli dev list || nmcli dev show ) 2>/dev/null | grep DNS |awk -F ' ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
         echo "${YELLOW}Identified DNS: $DNS ${NC}"
         if [ -z $DNS ]; then
-            echo "${YELLOW}FAILED -> Get DNS settings systemd-resolve ...${NC}"
-            DNS=$(systemd-resolve --status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
+            echo "${RED}FAILED -> Get DNS settings resolvectl status ...${NC}"
+            DNS=$(resolvectl status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
             echo "${YELLOW}Identified DNS: $DNS ${NC}"
             if [ -z $DNS ]; then
-                echo "${YELLOW}FAILED -> Get DNS settings resolv.conf ...${NC}"
+                echo "${RED}FAILED -> Get DNS settings systemd-resolve ...${NC}"
+                DNS=$(systemd-resolve --status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
+                echo "${YELLOW}Identified DNS: $DNS ${NC}"
+                if [ -z $DNS ]; then
+                echo "${RED}FAILED -> Get DNS settings resolv.conf ...${NC}"
                 DNS=$(grep "nameserver" /etc/resolv.conf | awk -F ' ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
                 echo "${YELLOW}Identified DNS: $DNS ${NC}"
-                if [[ -z $DNS ]] || [[ $DNS =~ "127." ]]; then
-                    if [ "$OFFLINE_SNAPS" = "true" ];then
-                        DNS="8.8.8.8,8.8.4.4"
-                    else
-                        echo "${RED}DNS lookup failed.${NC}"
-                        exit 1
+                    if [[ -z $DNS ]] || [[ $DNS =~ "127." ]]; then
+                        if [ "$OFFLINE_SNAPS" = "true" ];then
+                            DNS="8.8.8.8,8.8.4.4"
+                        else
+                            echo "${RED}DNS lookup failed.${NC}"
+                            exit 1
+                        fi
                     fi
                 fi
             fi
@@ -387,7 +394,7 @@ function install_microk8s {
         echo "${YELLOW}Enable microk8s RBAC ...${NC}"
         microk8s.enable rbac
 
-        echo "${YELLOW}Enable microk8s DNS ...${NC}"
+        echo "${YELLOW}Enable microk8s DNS: '$DNS' ...${NC}"
         microk8s.enable dns:$DNS
 
         echo "${YELLOW}Waiting for DNS to be ready ...${NC}"

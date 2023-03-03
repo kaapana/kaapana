@@ -49,16 +49,6 @@ get_input = LocalGetInputDataOperator(
     parallel_downloads=5
 )
 
-dcm2nifti_seg = Mask2nifitiOperator(
-    dag=dag,
-    input_operator=get_input
-)
-
-combine_masks = LocalCombineMasksOperator(
-    dag=dag,
-    input_operator=dcm2nifti_seg
-)
-
 get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     dag=dag,
     input_operator=get_input,
@@ -66,6 +56,17 @@ get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     parallel_downloads=5,
     parallel_id="ct",
     modality=None
+)
+
+dcm2nifti_seg = Mask2nifitiOperator(
+    dag=dag,
+    dicom_operator=get_ref_ct_series_from_seg,
+    input_operator=get_input
+)
+
+combine_masks = LocalCombineMasksOperator(
+    dag=dag,
+    input_operator=dcm2nifti_seg
 )
 
 dcm2nifti_ct = DcmConverterOperator(
@@ -91,5 +92,5 @@ put_to_minio = LocalMinioOperator(
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
-get_input >> dcm2nifti_seg >> combine_masks >> generate_segmentation_thumbnail
+get_input >> get_ref_ct_series_from_seg >> dcm2nifti_seg >> combine_masks >> generate_segmentation_thumbnail
 get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> generate_segmentation_thumbnail >> put_to_minio >> clean

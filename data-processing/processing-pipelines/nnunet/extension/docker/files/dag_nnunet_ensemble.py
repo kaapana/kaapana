@@ -195,13 +195,6 @@ sort_gt = LocalSortGtOperator(
     input_operator=get_test_images
 )
 
-dcm2nifti_gt = Mask2nifitiOperator(
-    dag=dag,
-    input_operator=get_test_images,
-    batch_name=str(get_test_images.operator_out_dir),
-    seg_filter=organ_filter,
-    parallel_id="gt"
-)
 
 get_ref_ct_series_from_gt = LocalGetRefSeriesOperator(
     dag=dag,
@@ -212,6 +205,15 @@ get_ref_ct_series_from_gt = LocalGetRefSeriesOperator(
     modality=None,
     batch_name=str(get_test_images.operator_out_dir),
     delete_input_on_success=False
+)
+
+dcm2nifti_gt = Mask2nifitiOperator(
+    dag=dag,
+    dicom_operator=get_ref_ct_series_from_gt,
+    input_operator=get_test_images,
+    batch_name=str(get_test_images.operator_out_dir),
+    seg_filter=organ_filter,
+    parallel_id="gt"
 )
 
 dcm2nifti_ct = DcmConverterOperator(
@@ -364,7 +366,7 @@ put_report_to_minio = LocalMinioOperator(dag=dag, name='upload-staticwebsiteresu
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_test_images >> sort_gt >> dcm2nifti_gt >> seg_check_gt 
+get_test_images >> sort_gt >> get_ref_ct_series_from_gt >> dcm2nifti_gt >> seg_check_gt 
 sort_gt >> get_ref_ct_series_from_gt >> dcm2nifti_ct >> nnunet_predict >> do_inference >> seg_check_inference >> seg_check_gt >> evaluation
 get_input >> dcm2bin >> extract_model >> nnunet_predict >> nnunet_ensemble >> do_ensemble
 do_inference >> do_ensemble >> seg_check_ensemble >> evaluation 

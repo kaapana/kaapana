@@ -33,6 +33,7 @@ def process_input_file(paras):
         )
     elif dcm_modality.lower() == "rtstruct":
         logger.info(f"# {element_mask_dicom}: RTSTRUCT")
+        assert base_dicom_in_dir is not None
         success = convert_rtstruct(
             element_mask_dicom=element_mask_dicom,
             element_base_dicom_in_dir=element_base_dicom_in_dir,
@@ -69,7 +70,6 @@ assert operator_in_dir is not None
 
 base_dicom_in_dir = getenv("BASE_DICOM_DIR", "None")
 base_dicom_in_dir = base_dicom_in_dir if base_dicom_in_dir.lower() != "none" else None
-assert base_dicom_in_dir is not None
 
 operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
 operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None

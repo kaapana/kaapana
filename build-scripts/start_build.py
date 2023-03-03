@@ -11,6 +11,7 @@ from build_helper.container_helper import Container, container_registry_login
 from build_helper.build_utils import BuildUtils
 from build_helper.security_utils import TrivyUtils
 
+
 supported_log_levels = ["DEBUG", "INFO", "WARN", "ERROR"]
 
 if __name__ == '__main__':
@@ -38,6 +39,8 @@ if __name__ == '__main__':
     parser.add_argument("-vsl", "--vulnerability-severity-level", dest="vulnerability_severity_level", default=None, action="store_true", help="Filter by severity of findings. CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN.")
     parser.add_argument("-cc", "--configuration-check", dest="configuration_check", default=None, action="store_true", help="Wheter the Charts, deployments, dockerfiles etc. should be checked for configuration errors")
     parser.add_argument("-ccl", "--configuration-check-severity-level", dest="configuration_check_severity_level", default=None, action="store_true", help="Filter by severity of findings. CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN.")
+    parser.add_argument("-is", "--enable-image-stats", dest="enable_image_stats", default=None, action="store_true", help="Enable container image size statistics (image_stats.json)")
+    parser.add_argument("--latest", dest="latest", default=False, action="store_true", help="Force version to 'latest'")
     args = parser.parse_args()
 
     kaapana_dir = args.kaapana_dir if args.kaapana_dir != None else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -72,6 +75,14 @@ if __name__ == '__main__':
         logger.error("----------------------------------------------------------------------")
         exit(1)
 
+    template_config_filepath = os.path.join(kaapana_dir, "build-scripts", "build-config-template.yaml")
+    assert exists(template_config_filepath)
+    with open(template_config_filepath, 'r') as stream:
+        try:
+            template_configuration = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            logger.info(exc)
+
     config_filepath = args.config_filepath
     config_filepath = config_filepath if config_filepath is not None else os.path.join(kaapana_dir, "build-scripts", "build-config.yaml")
     template_config_filepath = os.path.join(kaapana_dir, "build-scripts", "build-config-template.yaml")
@@ -97,30 +108,31 @@ if __name__ == '__main__':
         except yaml.YAMLError as exc:
             logger.info(exc)
 
-    conf_http_proxy = configuration["http_proxy"]
-    conf_default_registry = configuration["default_registry"]
-    conf_container_engine = configuration["container_engine"]
-    conf_log_level = configuration["log_level"]
-    conf_build_only = configuration["build_only"]
-    conf_create_offline_installation = configuration["create_offline_installation"]
-    conf_push_to_microk8s = configuration["push_to_microk8s"]
+    conf_http_proxy = configuration["http_proxy"] if "http_proxy" in configuration else template_configuration["http_proxy"]
+    conf_default_registry = configuration["default_registry"] if "default_registry" in configuration else template_configuration["default_registry"]
+    conf_container_engine = configuration["container_engine"] if "container_engine" in configuration else template_configuration["container_engine"]
+    conf_log_level = configuration["log_level"] if "log_level" in configuration else template_configuration["log_level"]
+    conf_build_only = configuration["build_only"] if "build_only" in configuration else template_configuration["build_only"]
+    conf_create_offline_installation = configuration["create_offline_installation"] if "create_offline_installation" in configuration else template_configuration["create_offline_installation"]
+    conf_push_to_microk8s = configuration["push_to_microk8s"] if "push_to_microk8s" in configuration else template_configuration["push_to_microk8s"]
     conf_platform_filter = configuration["platform_filter"].split(",") if configuration["platform_filter"].replace(" ", "") != "" else []
     conf_external_source_dirs = configuration["external_source_dirs"].split(",") if configuration["external_source_dirs"].replace(" ", "") != "" else []
     conf_build_ignore_patterns = configuration["build_ignore_patterns"].split(",") if configuration["build_ignore_patterns"].replace(" ", "") != "" else []
-    conf_exit_on_error = configuration["exit_on_error"]
-    conf_enable_linting = configuration["enable_linting"]
+    conf_exit_on_error = configuration["exit_on_error"] if "exit_on_error" in configuration else template_configuration["exit_on_error"]
+    conf_enable_linting = configuration["enable_linting"] if "enable_linting" in configuration else template_configuration["enable_linting"]
     conf_enable_build_kit = 1 if "enable_build_kit" in configuration and configuration["enable_build_kit"] else 0
-    conf_skip_push_no_changes = configuration["skip_push_no_changes"]
-    conf_parallel_processes = configuration["parallel_processes"]
-    conf_registry_username = configuration["registry_username"]
+    conf_skip_push_no_changes = configuration["skip_push_no_changes"] if "skip_push_no_changes" in configuration else template_configuration["skip_push_no_changes"]
+    conf_parallel_processes = configuration["parallel_processes"] if "parallel_processes" in configuration else template_configuration["parallel_processes"]
+    conf_registry_username = configuration["registry_username"] if "registry_username" in configuration else template_configuration["registry_username"]
     conf_registry_username = conf_registry_username if conf_registry_username != "" else None
-    conf_registry_password = configuration["registry_password"]
+    conf_registry_password = configuration["registry_password"] if "registry_password" in configuration else template_configuration["registry_password"]
     conf_registry_password = conf_registry_password if conf_registry_password != "" else None
-    conf_include_credentials = configuration["include_credentials"]
-    conf_vulnerability_scan = configuration["vulnerability_scan"]
-    conf_vulnerability_severity_level = configuration["vulnerability_severity_level"]
-    conf_configuration_check = configuration["configuration_check"]
-    conf_configuration_check_severity_level = configuration["configuration_check_severity_level"]
+    conf_include_credentials = configuration["include_credentials"] if "include_credentials" in configuration else template_configuration["include_credentials"]
+    conf_vulnerability_scan = configuration["vulnerability_scan"] if "vulnerability_scan" in configuration else template_configuration["vulnerability_scan"]
+    conf_vulnerability_severity_level = configuration["vulnerability_severity_level"] if "vulnerability_severity_level" in configuration else template_configuration["vulnerability_severity_level"]
+    conf_configuration_check = configuration["configuration_check"] if "configuration_check" in configuration else template_configuration["configuration_check"]
+    conf_configuration_check_severity_level = configuration["configuration_check_severity_level"] if "configuration_check_severity_level" in configuration else template_configuration["configuration_check_severity_level"]
+    conf_enable_image_stats = configuration["enable_image_stats"] if "enable_image_stats" in configuration else template_configuration["enable_image_stats"]
 
     registry_user = args.username if args.username is not None else conf_registry_username
     registry_pwd = args.password if args.password is not None else conf_registry_password
@@ -137,11 +149,13 @@ if __name__ == '__main__':
     skip_push_no_changes = args.skip_push_no_changes if args.skip_push_no_changes != None else conf_skip_push_no_changes
     parallel_processes = int(args.parallel_processes if args.parallel_processes != 2 else conf_parallel_processes)
     include_credentials = args.include_credentials if args.include_credentials != None else conf_include_credentials
-    no_login = args.no_login
     vulnerability_scan = args.vulnerability_scan if args.vulnerability_scan != None else conf_vulnerability_scan
     vulnerability_severity_level = args.vulnerability_severity_level if args.vulnerability_severity_level != None else conf_vulnerability_severity_level
     configuration_check = args.configuration_check if args.configuration_check != None else conf_configuration_check
     configuration_check_severity_level = args.configuration_check_severity_level if args.configuration_check_severity_level != None else conf_configuration_check_severity_level
+    enable_image_stats = args.enable_image_stats if args.enable_image_stats != None else conf_enable_image_stats
+    no_login = args.no_login
+    version_latest = args.latest
 
     for external_source_dir in external_source_dirs:
         if not os.path.isdir(external_source_dir):
@@ -197,10 +211,10 @@ if __name__ == '__main__':
     logger.info(f"{build_dir=}")
     logger.info(f"{kaapana_dir=}")
     logger.info(f"{no_login=}")
+    logger.info(f"{version_latest=}")
     logger.info(f"{vulnerability_scan=}")
     logger.info(f"{vulnerability_severity_level=}")
     logger.info(f"{configuration_check=}")
-    logger.info(f"{no_login=}")
     logger.info("")
     logger.info("-----------------------------------------------------------")
 
@@ -235,35 +249,38 @@ if __name__ == '__main__':
         logger.error(f"Log level {log_level} not identified!")
         exit(1)
 
-    BuildUtils.init(
-        kaapana_dir=kaapana_dir,
-        build_dir=build_dir,
-        external_source_dirs=external_source_dirs,
-        build_ignore_patterns=build_ignore_patterns,
-        platform_filter=platform_filter,
-        default_registry=default_registry,
-        http_proxy=http_proxy,
-        exit_on_error=exit_on_error,
-        logger=logger,
-        enable_build_kit=conf_enable_build_kit,
-        create_offline_installation=create_offline_installation,
-        skip_push_no_changes=skip_push_no_changes,
-        parallel_processes=parallel_processes,
-        include_credentials=include_credentials,
-        registry_user=registry_user,
-        registry_pwd=registry_pwd,
-        push_to_microk8s=push_to_microk8s,
-        vulnerability_scan=vulnerability_scan,
-        vulnerability_severity_level=vulnerability_severity_level,
-        configuration_check=configuration_check,
-        configuration_check_severity_level=configuration_check_severity_level,
-    )
+    BuildUtils.init()
+    BuildUtils.kaapana_dir=kaapana_dir
+    BuildUtils.build_dir=build_dir
+    BuildUtils.external_source_dirs=external_source_dirs
+    BuildUtils.build_ignore_patterns=build_ignore_patterns
+    BuildUtils.platform_filter=platform_filter
+    BuildUtils.default_registry=default_registry
+    BuildUtils.http_proxy=http_proxy
+    BuildUtils.exit_on_error=exit_on_error
+    BuildUtils.logger=logger
+    BuildUtils.enable_build_kit=conf_enable_build_kit
+    BuildUtils.create_offline_installation=create_offline_installation
+    BuildUtils.skip_push_no_changes=skip_push_no_changes
+    BuildUtils.parallel_processes=parallel_processes
+    BuildUtils.include_credentials=include_credentials
+    BuildUtils.registry_user=registry_user
+    BuildUtils.registry_pwd=registry_pwd
+    BuildUtils.push_to_microk8s=push_to_microk8s
+    BuildUtils.vulnerability_scan=vulnerability_scan
+    BuildUtils.vulnerability_severity_level=vulnerability_severity_level
+    BuildUtils.configuration_check=configuration_check
+    BuildUtils.configuration_check_severity_level=configuration_check_severity_level
+    BuildUtils.version_latest=version_latest
+    BuildUtils.enable_image_stats=enable_image_stats
+
 
     Container.init_containers(
         container_engine=container_engine,
         enable_build=container_build,
         enable_push=containers_push,
     )
+
     if not build_only and not no_login:
         container_registry_login(username=registry_user, password=registry_pwd)
         helm_registry_login(username=registry_user, password=registry_pwd)

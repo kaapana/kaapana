@@ -23,7 +23,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
        [
           {
              "search_tags": {
-                "0x0008,0x0060": "SEG"
+                "0x0008,0x0060": "SEG,RTSTRUCT" # comma separated values represent 'or'-logic  
              },
              "dag_ids": {
                    <dag id to trigger>: {
@@ -128,14 +128,26 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
             print(f"# series_uid:      {series_uid}")
             print("#")
 
-            for config_entry in trigger_rule_list:
+            for idx,config_entry in enumerate(trigger_rule_list):
+                print(f"# Checking trigger-rule: {idx}")
                 fullfills_all_search_tags = True
                 for search_key, search_value in config_entry["search_tags"].items():
+                    print(f"# search_tag: {search_key}")
                     dicom_tag = search_key.split(',')
-                    if (dicom_tag in incoming_dcm) and (str(incoming_dcm[dicom_tag].value).lower() == search_value.lower()):
-                        print(f"Filtering for {incoming_dcm[dicom_tag]}")
-                    else:
+                    if dicom_tag not in incoming_dcm:
+                        print(f"# dicom_tag: {dicom_tag} could not be found in incoming dcm file -> skipping")
+                        continue
+                    incoming_tag_value= str(incoming_dcm[dicom_tag].value).lower() if (dicom_tag in incoming_dcm) else ""
+                    search_tag_values = search_value.lower().split(",")
+                    print(f"# incoming_tag_value: {incoming_tag_value}")
+                    print(f"# search_tag_values:  {search_tag_values}")
+                    if  incoming_tag_value not in search_tag_values:
+                        print(f"# No match identified for tag {dicom_tag}")
                         fullfills_all_search_tags = False
+                    else:
+                        print(f"# Match for tag {dicom_tag}! -> triggering")
+                    print(f"#")
+
                 if fullfills_all_search_tags is True:
                     for dag_id, conf, in config_entry["dag_ids"].items():
                         if dag_id == "service-extract-metadata" or (dcm_dataset != "dicom-test" and dcm_dataset != "phantom-example"):

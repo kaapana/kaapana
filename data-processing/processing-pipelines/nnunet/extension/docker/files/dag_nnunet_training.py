@@ -5,7 +5,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
+from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
@@ -18,9 +18,7 @@ from nnunet.NnUnetNotebookOperator import NnUnetNotebookOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 from airflow.utils.trigger_rule import TriggerRule
-from kaapana.blueprints.kaapana_global_variables import INSTANCE_NAME, SERVICES_NAMESPACE
-
-
+from kaapana.blueprints.kaapana_global_variables import INSTANCE_NAME, SERVICES_NAMESPACE, GPU_COUNT, CPU_CORE_COUNT
 
 study_id = "Kaapana"
 TASK_NAME = f"Task{random.randint(100,999):03}_RACOON_{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
@@ -34,12 +32,11 @@ num_batches_per_epoch = 250
 num_val_batches_per_epoch = 50
 dicom_model_slice_size_limit = 70
 training_results_study_uid = None
-
-gpu_count_pool = pool_api.get_pool(name="NODE_GPU_COUNT")
-gpu_count = int(gpu_count_pool.slots) if gpu_count_pool is not None and gpu_count_pool != 0 else 1
-max_active_runs = gpu_count + 1
-concurrency = max_active_runs * 2
 prep_threads = 2
+
+print(f"### nnunet-training GPU_COUNT {GPU_COUNT}")
+max_active_runs = GPU_COUNT if GPU_COUNT != 0 else 1 
+print(f"### nnunet-training max_active_runs {max_active_runs}")
 
 ui_forms = {
     "publication_form": {
@@ -212,7 +209,7 @@ ui_forms = {
             # },
             "input": {
                 "title": "Input Modality",
-                "default": "SEG",
+                "default": "SEG,RTSTRUCT",
                 "description": "Expected input modality.",
                 "type": "string",
                 "readOnly": False,
@@ -242,7 +239,7 @@ args = {
 dag = DAG(
     dag_id='nnunet-training',
     default_args=args,
-    concurrency=concurrency,
+    concurrency=2*max_active_runs,
     max_active_runs=max_active_runs,
     schedule_interval=None
 )
@@ -253,12 +250,6 @@ get_input = LocalGetInputDataOperator(
     parallel_downloads=5
 )
 
-dcm2nifti_seg = DcmSeg2ItkOperator(
-    dag=dag,
-    input_operator=get_input,
-    output_format="nii.gz",
-    seg_filter=seg_filter
-)
 
 get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     dag=dag,
@@ -267,6 +258,13 @@ get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     parallel_downloads=5,
     parallel_id="ct",
     modality=None
+)
+
+dcm2nifti_seg = Mask2nifitiOperator(
+    dag=dag,
+    input_operator=get_input,
+    dicom_operator=get_ref_ct_series_from_seg,
+    seg_filter=seg_filter
 )
 
 dcm2nifti_ct = DcmConverterOperator(
@@ -402,20 +400,9 @@ dcm_send_int = DcmSendOperator(
     input_operator=bin2dcm
 )
 
-# dcm_send_ext = DcmSendOperator(
-#     dag=dag,
-#     level="batch",
-#     pacs_host='192.168.0.2',
-#     pacs_port='2021',
-#     ae_title=ae_title,
-#     input_operator=bin2dcm,
-#     delete_input_on_success=True
-# )
-
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
-get_input >> dcm2nifti_seg >> check_seg
+get_input >> get_ref_ct_series_from_seg >> dcm2nifti_seg >> check_seg
 get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> check_seg >> nnunet_preprocess >> nnunet_train
 
 nnunet_train >> generate_nnunet_report >> put_to_minio >> put_report_to_minio >> pdf2dcm >> dcmseg_send_pdf >> clean
 nnunet_train >> zip_model >> bin2dcm >> dcm_send_int >> clean
-# bin2dcm >> dcm_send_ext

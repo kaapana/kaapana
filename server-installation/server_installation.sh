@@ -279,19 +279,19 @@ function dns_check {
         echo "${GREEN}Get DNS settings nmcli ...${NC}"
         DNS=$(( nmcli dev list || nmcli dev show ) 2>/dev/null | grep DNS |awk -F ' ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
         echo "${YELLOW}Identified DNS: $DNS ${NC}"
-        if [ -z $DNS ]; then
+        if [ -z "$DNS" ]; then
             echo "${RED}FAILED -> Get DNS settings resolvectl status ...${NC}"
             DNS=$(resolvectl status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
             echo "${YELLOW}Identified DNS: $DNS ${NC}"
-            if [ -z $DNS ]; then
+            if [ -z "$DNS" ]; then
                 echo "${RED}FAILED -> Get DNS settings systemd-resolve ...${NC}"
                 DNS=$(systemd-resolve --status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
                 echo "${YELLOW}Identified DNS: $DNS ${NC}"
-                if [ -z $DNS ]; then
-                echo "${RED}FAILED -> Get DNS settings resolv.conf ...${NC}"
-                DNS=$(grep "nameserver" /etc/resolv.conf | awk -F ' ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
-                echo "${YELLOW}Identified DNS: $DNS ${NC}"
-                    if [[ -z $DNS ]] || [[ $DNS =~ "127." ]]; then
+                if [ -z "$DNS" ]; then
+                    echo "${RED}FAILED -> Get DNS settings resolv.conf ...${NC}"
+                    DNS=$(grep "nameserver" /etc/resolv.conf | awk -F ' ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
+                    echo "${YELLOW}Identified DNS: $DNS ${NC}"
+                    if [[ -z "$DNS" ]] || [[ $DNS =~ "127." ]]; then
                         if [ "$OFFLINE_SNAPS" = "true" ];then
                             DNS="8.8.8.8,8.8.4.4"
                         else

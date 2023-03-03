@@ -34,6 +34,8 @@ dependencies:
     version: 0.0.0
   - name: mitk-workbench-chart
     version: 0.0.0
+  - name: mainzelliste-chart
+    version: 0.0.0 
   - name: nnunet-workflow
     version: 0.0.0
   - name: nnunet-federated-workflow
@@ -57,6 +59,4 @@ dependencies:
   - name: tensorboard-chart
     version: 0.0.0
   - name: total-segmentator-workflow
-    version: 0.0.0
-  - name: mainzelliste-chart
     version: 0.0.0

@@ -263,7 +263,12 @@ def get_jobs(db: Session, instance_name: str = None, experiment_name: str = None
 def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     utc_timestamp = get_utc_timestamp()
 
-    db_job = get_job(db, job.job_id, job.run_id)#
+    db_job = get_job(db, job.job_id, job.run_id)
+    print(f"CRUD def update_job(): job(JobUpdate).status = {job.status}")
+
+    # TODO: not very good!!!!!
+    if job.status == "finished":
+        db_job.status = "finished"
 
     if (job.status == 'scheduled' and db_job.kaapana_instance.remote == False): #  or (job.status == 'failed'); status='scheduled' for restarting, status='failed' for aborting
         conf_data = json.loads(db_job.conf_data)
@@ -281,15 +286,20 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
             db_job.dag_id = dag_id      # write directly to db_job to already use db_job.dag_id before db commit
             db_job.run_id = dag_run_id
 
+    # check state and run_id for created or queued, scheduled, running jobs on local instance
+    print(f"CRUD def update_job(): db_job.kaapana_instance.remote = {db_job.kaapana_instance.remote}")
+    if db_job.kaapana_instance.remote == False:
+        # ask here first time Airflow for job status (explicit w/ job_id) via kaapana_api's def dag_run_status()
+        airflow_details_resp = get_dagrun_details_airflow(db_job.dag_id, db_job.run_id)
+        airflow_details_resp_text = json.loads(airflow_details_resp.text)
+        # update db_job w/ job's real state and run_id fetched from Airflow
+        db_job.status = "finished" if airflow_details_resp_text["state"] == "success" else airflow_details_resp_text["state"]  # special case for status = "success"
+        db_job.run_id = airflow_details_resp_text["run_id"]
+
     if (db_job.kaapana_instance.remote != remote) and db_job.status not in ["queued", "finished", "failed"]:
         raise HTTPException(status_code=401,
                             detail="You are not allowed to update this job, since its on the client site")
-    # ask here first time Airflow for job status (explicit w/ job_id) via kaapana_api's def dag_run_status()
-    airflow_details_resp = get_dagrun_details_airflow(db_job.dag_id, db_job.run_id)
-    airflow_details_resp_text = json.loads(airflow_details_resp.text)
-    # update db_job w/ job's real state and run_id fetched from Airflow
-    db_job.status = "finished" if airflow_details_resp_text["state"] == "success" else airflow_details_resp_text["state"]  # special case for status = "success"
-    db_job.run_id = airflow_details_resp_text["run_id"]
+
     if job.run_id is not None:
         db_job.run_id = job.run_id
     if job.description is not None:
@@ -392,7 +402,8 @@ def delete_external_job(db: Session, db_job):
 
 def update_external_job(db: Session, db_job):
     if db_job.external_job_id is not None:
-        same_instance = db_job.owner_kaapana_instance_name == settings.instance_name    # will be the same !
+        same_instance = db_job.owner_kaapana_instance_name == settings.instance_name
+        print(f"CRUD def update_external_job(): db_job.owner_kaapana_instance_name={db_job.owner_kaapana_instance_name} ; settings.instance_name={settings.instance_name} ; same_instance={same_instance}")
         db_remote_kaapana_instance = get_kaapana_instance(db, instance_name=db_job.owner_kaapana_instance_name,
                                                           remote=True)
         payload = {
@@ -401,9 +412,11 @@ def update_external_job(db: Session, db_job):
             "status": db_job.status,
             "description": db_job.description
         }
+        # update_job(db, schemas.JobUpdate(**payload))
         if same_instance:
             update_job(db, schemas.JobUpdate(**payload))
         else:
+            print(f"CRUD def update_external_job(): right before requesting /kaapana-backend/remote/job with payload: {payload}")
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-backend/remote'
             with requests.Session() as s:
                 r = requests_retry_session(session=s).put(f'{remote_backend_url}/job',
@@ -502,12 +515,15 @@ def get_remote_updates(db: Session, periodically=False):
 
     return  # schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload)
 
-glob_jobs_in_qsr_state = {}
+glob_jobs_in_qsr_state = [{}]   # solves weird issue that dict is not hashable
 def sync_states_from_airflow(db: Session, periodically=False):
     # get list from airflow for jobs in states 'queued', 'scheduled', 'running': {'dag_run_id': 'state'} -> jobs_in_qsr_state
     global glob_jobs_in_qsr_state
     states = ["queued", "scheduled", "running"]
     jobs_in_qsr_state = get_dagruns_airflow(tuple(states))
+
+    print(f"CRUD def sync_states_from_airflow(): jobs_in_qsr_state = {jobs_in_qsr_state} ; type = {type(jobs_in_qsr_state)}")
+    print(f"CRUD def sync_states_from_airflow(): glob_jobs_in_qsr_state = {glob_jobs_in_qsr_state} ; type = {type(glob_jobs_in_qsr_state)}")
 
     # find elements which are in current jobs_in_qsr_state but not in glob_jobs_in_qsr_state from previous round
     diff_curr_to_glob = [elem for elem in jobs_in_qsr_state if elem not in glob_jobs_in_qsr_state]

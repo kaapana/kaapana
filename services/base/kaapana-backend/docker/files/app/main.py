@@ -28,7 +28,8 @@ logging.getLogger().setLevel(logging.INFO)
 app = FastAPI()
 
 @app.on_event("startup")
-@repeat_every(seconds=float(os.getenv('REMOTE_SYNC_INTERVAL', 2.5)))
+# @repeat_every(seconds=float(os.getenv('REMOTE_SYNC_INTERVAL', 5)))
+@repeat_every(seconds=10.0)
 def periodically_get_remote_updates():
     with SessionLocal() as db:
         try:
@@ -38,7 +39,8 @@ def periodically_get_remote_updates():
             logging.warning(traceback.format_exc())
 
 @app.on_event("startup")
-@repeat_every(seconds=float(os.getenv('REMOTE_SYNC_INTERVAL', 2.5)))
+# @repeat_every(seconds=float(os.getenv('REMOTE_SYNC_INTERVAL', 1)))
+@repeat_every(seconds=1.0)
 def periodically_sync_states_from_airflow():
     with SessionLocal() as db:
         try:

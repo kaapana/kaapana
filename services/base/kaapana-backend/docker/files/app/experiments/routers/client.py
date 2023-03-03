@@ -67,7 +67,7 @@ async def create_job(request: Request, job: schemas.JobCreate, db: Session = Dep
     return crud.create_job(db=db, job=job)
 
 @router.get("/job", response_model=schemas.JobWithKaapanaInstance) # also okay: JobWithExperiment
-async def get_job(job_id: int, run_id: str, db: Session = Depends(get_db)):
+async def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
     return crud.get_job(db, job_id, run_id)
 
 @router.get("/jobs", response_model=List[schemas.JobWithKaapanaInstance])  # also okay: JobWithExperiment

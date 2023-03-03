@@ -4,7 +4,7 @@ from airflow.models import DAG
 from airflow.utils.dates import days_ago
 
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
+from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
@@ -32,8 +32,8 @@ args = {
     'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),
-    'retries': 0,
-    'retry_delay': timedelta(seconds=30)
+    'retries': 2,
+    'retry_delay': timedelta(minutes=5)
 }
 
 dag = DAG(
@@ -49,17 +49,6 @@ get_input = LocalGetInputDataOperator(
     parallel_downloads=5
 )
 
-dcm2nifti_seg = DcmSeg2ItkOperator(
-    dag=dag,
-    input_operator=get_input,
-    output_format="nii.gz",
-)
-
-combine_masks = LocalCombineMasksOperator(
-    dag=dag,
-    input_operator=dcm2nifti_seg
-)
-
 get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     dag=dag,
     input_operator=get_input,
@@ -67,6 +56,17 @@ get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     parallel_downloads=5,
     parallel_id="ct",
     modality=None
+)
+
+dcm2nifti_seg = Mask2nifitiOperator(
+    dag=dag,
+    dicom_operator=get_ref_ct_series_from_seg,
+    input_operator=get_input
+)
+
+combine_masks = LocalCombineMasksOperator(
+    dag=dag,
+    input_operator=dcm2nifti_seg
 )
 
 dcm2nifti_ct = DcmConverterOperator(
@@ -92,5 +92,5 @@ put_to_minio = LocalMinioOperator(
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
-get_input >> dcm2nifti_seg >> combine_masks >> generate_segmentation_thumbnail
+get_input >> get_ref_ct_series_from_seg >> dcm2nifti_seg >> combine_masks >> generate_segmentation_thumbnail
 get_input >> get_ref_ct_series_from_seg >> dcm2nifti_ct >> generate_segmentation_thumbnail >> put_to_minio >> clean

@@ -17,9 +17,11 @@ from alive_progress import alive_bar
 from build_helper.container_helper import get_image_stats
 from build_helper.security_utils import TrivyUtils
 from build_helper.offline_installer_helper import OfflineInstallerHelper
+import threading
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
+semaphore_successful_built_containers = threading.Lock()
 successful_built_containers = []
 
 
@@ -29,13 +31,21 @@ def parallel_execute(container_object):
     issue = None
 
     for base_container in container_object.base_images:
-        if base_container.local_image and base_container.tag not in successful_built_containers:
-            done = False
-            return queue_id, container_object, issue, done
+        semaphore_successful_built_containers.acquire()
+        try:
+            if base_container.local_image and base_container.tag not in successful_built_containers:
+                done = False
+                return queue_id, container_object, issue, done
+        finally:
+            semaphore_successful_built_containers.release()
 
     issue = container_object.build()
     if issue == None:
-        successful_built_containers.append(container_object.build_tag)
+        semaphore_successful_built_containers.acquire()
+        try:
+            successful_built_containers.append(container_object.build_tag)
+        finally:
+            semaphore_successful_built_containers.release()
         issue = container_object.push()
 
     return queue_id, container_object, issue, done

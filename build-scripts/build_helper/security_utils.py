@@ -94,16 +94,30 @@ class TrivyUtils:
         # convert image name to a valid SBOM name
         image_name = image.replace('/', '_').replace(':', '_')
 
-        command = ['trivy', 'image', '--server', self.trivy_server_url, '--timeout', str(timeout) + 's', '--format', 'cyclonedx', '--output', os.path.join(BuildUtils.build_dir, image_name + '_sbom.json') , image]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
+        retry_count = 0
+        # Wait for the SBOM file to be generated
+        for _ in range(5):
+            if not os.path.isfile(os.path.join(BuildUtils.build_dir, image_name + '_sbom.json')):
+                command = ['trivy', 'image', '--server', self.trivy_server_url, '--timeout', str(timeout) + 's', '--format', 'cyclonedx', '--output', os.path.join(BuildUtils.build_dir, image_name + '_sbom.json') , image]
+                output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
 
-        if output.returncode != 0:
-            BuildUtils.logger.error("Failed to create SBOM for image: " + image)
-            BuildUtils.logger.error(output.stderr)
+                if output.returncode != 0:
+                    BuildUtils.logger.error("Failed to create SBOM for image: " + image)
+                    BuildUtils.logger.error(output.stderr)
+
+            if not os.path.isfile(os.path.join(BuildUtils.build_dir, image_name + '_sbom.json')):
+                retry_count += 1
+                time.sleep(3)
+                BuildUtils.logger.info("SBOM file not found, retrying...")
+            else:
+                break
+        
+        if retry_count == 5:
+            BuildUtils.logger.error("Error: SBOM file not found after 5 retries")
             BuildUtils.generate_issue(
                 component=suite_tag,
                 name="Create SBOM for image: " + image,
-                msg="Failed to create SBOM for image: " + image,
+                msg="SBOM file not found after 5 retries",
                 level="ERROR"
             )
 
@@ -128,20 +142,32 @@ class TrivyUtils:
         # convert image name to a valid SBOM name
         image_name = image.replace('/', '_').replace(':', '_')
 
-        command = ['trivy', 'image', '--server', self.trivy_server_url, '--timeout', str(timeout) + 's', '-f', 'json', '-o', os.path.join(BuildUtils.build_dir, image_name + '_vulnerability_report.json'), '--ignore-unfixed', '--severity', BuildUtils.vulnerability_severity_level, image]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
+        retry_count = 0
+        # Keep trying to read the vulnerability report until it's generated, or we've retried too many times
+        for _ in range(5):
+            if not os.path.isfile(os.path.join(BuildUtils.build_dir, image_name + '_vulnerability_report.json')):
+                command = ['trivy', 'image', '--server', self.trivy_server_url, '--timeout', str(timeout) + 's', '-f', 'json', '-o', os.path.join(BuildUtils.build_dir, image_name + '_vulnerability_report.json'), '--ignore-unfixed', '--severity', BuildUtils.vulnerability_severity_level, image]
+                output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
 
-        if output.returncode != 0:
-            BuildUtils.logger.error("Failed to scan image: " + image)
-            BuildUtils.logger.error(output.stderr)
+                if output.returncode != 0:
+                    BuildUtils.logger.error("Failed to scan image: " + image)
+                    BuildUtils.logger.error(output.stderr)
+
+            if not os.path.isfile(os.path.join(BuildUtils.build_dir, image_name + '_vulnerability_report.json')):
+                retry_count += 1
+                time.sleep(3)
+                BuildUtils.logger.info("Waiting for vulnerability report to be generated...")
+            else:
+                break
+
+        if retry_count == 5:
+            BuildUtils.logger.error("Error: Vulnerability report was not generated after 5 retries")
             BuildUtils.generate_issue(
                 component=suite_tag,
                 name="Scan image: " + image,
                 msg="Failed to scan image: " + image,
                 level="ERROR"
             )
-        # convert image name to a valid SBOM name
-        image_name = image.replace('/', '_').replace(':', '_')
 
         # read the vulnerability file
         with open(os.path.join(BuildUtils.build_dir, image_name + '_vulnerability_report.json'), 'r') as f:

@@ -26,7 +26,7 @@ RUN curl https://zenodo.org/record/5113483/files/public_bpr_model.zip?download=1
 
 RUN unzip BodyPartRegression/src/models/public_bpr_model.zip -d /kaapana/app/BodyPartRegression/src/models/
 
-COPY files/requirements.txt /kaapana/app/requirements.txt
+COPY files/requirements.txt /kaapana/app/
 RUN pip3 uninstall -y torch torchtext &&  pip3 install -r /kaapana/app/requirements.txt
 
 WORKDIR /kaapana/app/BodyPartRegression

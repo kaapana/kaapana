@@ -76,7 +76,6 @@ spec:
         - name: https_proxy
           value: {{ .Values.global.http_proxy }}
         - name: no_proxy
-          value: "kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,airflow-service.{{  .Values.global.services_namespace  }},airflow-service.{{  .Values.global.services_namespace  }}.svc,minio-service.{{  .Values.global.services_namespace  }},minio-service.{{  .Values.global.services_namespace  }}.svc,opensearch-service.{{  .Values.global.services_namespace  }},opensearch-service.{{  .Values.global.services_namespace  }}.svc"
           value: "kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,airflow-webserver-service.{{  .Values.global.services_namespace  }},airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc,minio-service.{{  .Values.global.services_namespace  }},minio-service.{{  .Values.global.services_namespace  }}.svc,opensearch-service.{{  .Values.global.services_namespace  }},opensearch-service.{{  .Values.global.services_namespace  }}.svc,keycloak-internal-service.{{  .Values.global.admin_namespace  }}"
         - name: SERVICES_NAMESPACE
           value: "{{  .Values.global.services_namespace  }}"

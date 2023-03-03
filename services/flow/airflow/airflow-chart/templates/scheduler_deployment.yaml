@@ -53,7 +53,7 @@ spec:
           requests:
             memory: 250Mi
           limits:
-            memory: 250Mi
+            memory: 500Mi
         volumeMounts:
         - name: airflow-configmap
           mountPath: /kaapana/mounted/workflows/airflow.cfg

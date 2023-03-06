@@ -7,6 +7,8 @@ from shutil import which
 import threading
 import time
 import requests
+from multiprocessing.pool import ThreadPool
+from alive_progress import alive_bar
 
 suite_tag = "security"
 timeout = 3600
@@ -323,6 +325,77 @@ class TrivyUtils:
         # Delete the dockerfile report file
         os.remove(os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'))
 
+    def create_sboms(self, list_of_images):
+        try:
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("Start trivy server...")
+            BuildUtils.logger.info("")
+
+            # Start trivy server
+            self.start_trivy_server()
+
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("Creating SBOMs...")
+            BuildUtils.logger.info("")
+
+            with ThreadPool(BuildUtils.parallel_processes) as threadpool:
+                with alive_bar(len(list_of_images), dual_line=True, title="Create SBOMS") as bar:
+                    results = threadpool.imap_unordered(self.create_sbom, list_of_images)
+                    # Loop through all built containers and scan them
+                    for image_build_tag in results:
+                        # Set progress bar text
+                        bar.text(image_build_tag)
+                        # Print progress bar
+                        bar()
+        finally:
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("Stop trivy server...")
+            BuildUtils.logger.info("")
+
+            # Stop trivy server
+            self.stop_trivy_server()
+
+            # save the SBOMs to the build directory
+            with open(os.path.join(BuildUtils.build_dir, 'sboms.json'), 'w') as f:
+                json.dump(self.sboms, f)
+
+    def create_vulnerability_reports(self, list_of_images):
+        try:
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("Start trivy server...")
+            BuildUtils.logger.info("")
+
+            # Start trivy server
+            self.start_trivy_server()
+
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("Starting vulnerability scan...")
+            BuildUtils.logger.info("")
+
+            with ThreadPool(BuildUtils.parallel_processes) as threadpool:
+                with alive_bar(len(list_of_images), dual_line=True, title="Vulnerability Scans") as bar:
+                    results = threadpool.imap_unordered(self.create_vulnerability_report, list_of_images)
+                    # Loop through all built containers and scan them
+                    for image_build_tag in results:
+                        # Set progress bar text
+                        bar.text(image_build_tag)
+                        # Print progress bar
+                        bar()
+        finally:
+            BuildUtils.logger.info("")
+            BuildUtils.logger.info("Stop trivy server...")
+            BuildUtils.logger.info("")
+
+            # Stop trivy server
+            self.stop_trivy_server()
+
+            # save the vulnerability reports to the build directory
+            with open(os.path.join(BuildUtils.build_dir, 'vulnerability_reports.json'), 'w') as f:
+                json.dump(self.vulnerability_reports, f)
+
+            with open(os.path.join(BuildUtils.build_dir, 'compressed_vulnerability_report.json'), 'w') as f:
+                json.dump(self.compressed_vulnerability_reports, f)
+                
 if __name__ == '__main__':
     print("Please use the 'start_build.py' script to launch the build-process.")
     exit(1)

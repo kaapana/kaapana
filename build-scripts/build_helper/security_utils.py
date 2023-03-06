@@ -236,8 +236,7 @@ class TrivyUtils:
         return image
 
     # Function to check the Kaapana chart for configuration errors
-    @staticmethod
-    def check_chart(path_to_chart):
+    def check_chart(self, path_to_chart):
         command = ['trivy', 'config', '-f', 'json', '-o', os.path.join(BuildUtils.build_dir, 'chart_report.json'), '--severity', BuildUtils.configuration_check_severity_level, path_to_chart]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
 

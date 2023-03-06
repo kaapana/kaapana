@@ -2,3 +2,6 @@
 dependencies:
 - name: code-server-chart
   version: 0.0.0
+- name: dynamic-persistent-volume-chart
+  version: 0.0.0
+  repository: file://../../../utils/dynamic-persistent-volume/dynamic-persistent-volume-chart/

@@ -1,0 +1,6 @@
+---
+dependencies:
+- name: dynamic-persistent-volume-chart
+  version: 0.0.0
+  repository: file://../../../utils/dynamic-persistent-volume/dynamic-persistent-volume-chart/
+  

@@ -1,9 +1,9 @@
-# Dags
+# hello-postgres
 ---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: tb-pv-volume
+  name: hello-postgres-pv-volume
   labels:
     type: local
 spec:
@@ -15,23 +15,23 @@ spec:
     - ReadWriteMany
   nfs:
     server: "10.152.183.15"
-    path: "/tensorboard"
+    path: "/postgres-hello"
 {{- else }}
   storageClassName: host-dir
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "{{ .Values.global.fast_data_dir }}/tensorboard"
+    path: "{{ .Values.global.fast_data_dir }}/postgres-hello"
 {{- end }}
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"
-    name: tb-pv-claim
+    name: hello-postgres-pv-claim
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: tb-pv-claim
+  name: hello-postgres-pv-claim
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
   storageClassName: nfs
@@ -40,5 +40,5 @@ spec:
   resources:
     requests:
       storage: "1Mi"
-  volumeName: "tb-pv-volume"
+  volumeName: "hello-postgres-pv-volume"
 ---

@@ -26,6 +26,7 @@ data:
     tensorboard 1000 1000
     postgres-backend 1000 1000
     alembic 1000 1000
+    postgres-mainzelliste 1000 1000
 kind: ConfigMap 
 metadata:
   name: nfs-dir-config

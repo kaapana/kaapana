@@ -1,4 +1,6 @@
 import os
+from airflow.api.common.experimental.pool import get_pool
+
 BATCH_NAME = 'batch'
 AIRFLOW_WORKFLOW_DIR = '/kaapana/mounted/workflows/data'
 PROCESSING_WORKFLOW_DIR = '/kaapana/mounted/data'
@@ -13,3 +15,13 @@ assert JOBS_NAMESPACE
 EXTENSIONS_NAMESPACE = os.getenv('EXTENSIONS_NAMESPACE', None)
 assert EXTENSIONS_NAMESPACE
 
+try:
+    GPU_COUNT = int(get_pool(name="NODE_GPU_COUNT").slots)
+except Exception as e:
+    GPU_COUNT = 0
+
+try:
+    CPU_CORE_COUNT = int(get_pool(name="NODE_CPU_CORES").slots)
+except Exception as e:
+    CPU_CORE_COUNT = 1
+    

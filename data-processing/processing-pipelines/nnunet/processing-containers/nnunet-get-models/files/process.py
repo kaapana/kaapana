@@ -7,22 +7,23 @@ import glob
 from datetime import datetime
 from pathlib import Path
 from shutil import rmtree
+from alive_progress import alive_bar
 from os.path import join, basename, normpath
 
 processed_count = 0
 max_retries = 3
 max_hours_since_creation = 3
 
-workflow_dir = os.getenv('WORKFLOW_DIR', "data")
-output_dir = os.getenv('OPERATOR_OUT_DIR', "/models")
+workflow_dir = os.getenv("WORKFLOW_DIR", "data")
+output_dir = os.getenv("OPERATOR_OUT_DIR", "/models")
 
-target_level = os.getenv('TARGET_LEVEL', "default")
+target_level = os.getenv("TARGET_LEVEL", "default")
 
-task_ids = os.getenv('TASK', "NONE")
+task_ids = os.getenv("TASK", "NONE")
 task_ids = None if task_ids == "NONE" else task_ids
-model = os.getenv('MODEL', "NONE")
+model = os.getenv("MODEL", "NONE")
 model = None if model == "NONE" else model
-mode = os.getenv('MODE', "install_pretrained")
+mode = os.getenv("MODE", "install_pretrained")
 
 print("# Starting GetModelOperator ...")
 print("#")
@@ -34,9 +35,12 @@ print(f"# target_level: {target_level}")
 print("#")
 print("#")
 
+
 def check_dl_running(model_path_dl_running, model_path, wait=True):
     if os.path.isfile(model_path_dl_running):
-        hours_since_creation = int((datetime.now() - datetime.fromtimestamp(os.path.getmtime(model_path_dl_running))).total_seconds()/3600)
+        hours_since_creation = int(
+            (datetime.now() - datetime.fromtimestamp(os.path.getmtime(model_path_dl_running))).total_seconds() / 3600
+        )
         if hours_since_creation > max_hours_since_creation:
             print("Download lock-file present! -> waiting until it is finished!")
             print("File older than {} hours! -> removing and triggering download!".format(max_hours_since_creation))
@@ -60,6 +64,22 @@ def delete_file(target_file):
         pass
 
 
+def bar_update(block_num, block_size, total_size):
+    global pbar, pbar_count
+
+    downloaded = block_num * block_size
+    one_percent = total_size // 100
+    percent_done = downloaded // one_percent
+
+    if percent_done != pbar_count:
+        print(f"{percent_done} / 100 % Done")
+    
+    for i in range(0, percent_done - pbar_count):
+        pbar()
+        pbar.text(f"{downloaded} / {total_size}")
+        pbar_count += 1
+
+
 print("------------------------------------")
 print(f"--     MODE: {mode}")
 print("------------------------------------")
@@ -68,9 +88,11 @@ if mode == "install_zip":
     print("# Search for model-zip-files...")
     print("------------------------------------")
     zip_files = []
-    batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
+    batch_folders = sorted(
+        [f for f in glob.glob(os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*"))]
+    )
     for batch_element_dir in batch_folders:
-        zip_dir_path = os.path.join(batch_element_dir, os.environ['OPERATOR_IN_DIR'])
+        zip_dir_path = os.path.join(batch_element_dir, os.environ["OPERATOR_IN_DIR"])
         zip_files = glob.glob(os.path.join(zip_dir_path, "*.zip"), recursive=True)
 
         if len(zip_files) == 0:
@@ -107,12 +129,12 @@ if mode == "install_zip":
             print("Could not extract model: {}".format(target_file))
             print("Target dir: {}".format(models_dir))
             print("Abort.")
-            print('MSG: ' + str(e))
+            print("MSG: " + str(e))
             exit(1)
 
     if processed_count == 0:
         print("# Searching for zip-files on batch-level...")
-        batch_input_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
+        batch_input_dir = os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"])
         zip_files = glob.glob(os.path.join(batch_input_dir, "*.zip"), recursive=True)
 
         if len(zip_files) == 0:
@@ -131,7 +153,7 @@ if mode == "install_zip":
             print("Could not extract model: {}".format(target_file))
             print("Target dir: {}".format(models_dir))
             print("Abort.")
-            print('MSG: ' + str(e))
+            print("MSG: " + str(e))
             exit(1)
 
     print("# ✓ successfully extracted model into model-dir.")
@@ -186,7 +208,7 @@ elif mode == "install_pretrained":
         print("TASK: {}".format(task_id))
         print("MODEL: {}".format(model))
 
-        tasks_found = glob.glob(join(models_dir,"**",task_id),recursive=True)
+        tasks_found = glob.glob(join(models_dir, "**", task_id), recursive=True)
         if len(tasks_found) > 0:
             print("Model {} found!".format(task_id))
             continue
@@ -201,7 +223,7 @@ elif mode == "install_pretrained":
         file_name = "{}.zip".format(task_id)
         model_url = "https://zenodo.org/record/4003545/files/{}?download=1".format(file_name)
 
-        output_dir = os.path.join('/', os.getenv("WORKFLOW_DIR", "tmp"), os.getenv("OPERATOR_OUT_DIR", ""))
+        output_dir = os.path.join("/", os.getenv("WORKFLOW_DIR", "tmp"), os.getenv("OPERATOR_OUT_DIR", ""))
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
@@ -213,11 +235,15 @@ elif mode == "install_pretrained":
             try:
                 print("set lock-file: {}".format(model_path_dl_running))
                 Path(model_path_dl_running).touch()
-                urllib.request.urlretrieve(model_url, target_file)
+                pbar = None
+                pbar_count = 0
+                with alive_bar(100, dual_line=True, title=f"Downloading {target_file}") as bar:
+                    pbar = bar
+                    urllib.request.urlretrieve(model_url, target_file, bar_update)
             except Exception as e:
                 print("Could not download model: {}".format(model_url))
                 print("Abort.")
-                print('MSG: ' + str(e))
+                print("MSG: " + str(e))
                 delete_file(target_file)
 
         if try_count >= max_retries:
@@ -239,11 +265,13 @@ elif mode == "install_pretrained":
         try:
             with zipfile.ZipFile(target_file, "r") as zip_ref:
                 zip_ref.extractall(models_dir)
+            delete_file(target_file)
+
         except Exception as e:
             print("Could not extract model: {}".format(zipfile))
             print("Target dir: {}".format(models_dir))
             print("Abort.")
-            print('MSG: ' + str(e))
+            print("MSG: " + str(e))
             delete_file(target_file)
             delete_file(model_path_dl_running)
             continue

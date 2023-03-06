@@ -11,7 +11,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from nnunet.GetTaskModelOperator import GetTaskModelOperator
 from nnunet.LocalSortGtOperator import LocalSortGtOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
-from kaapana.operators.DcmSeg2ItkOperator import DcmSeg2ItkOperator
+from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from nnunet.LocalModelGetInputDataOperator import LocalModelGetInputDataOperator
@@ -195,14 +195,6 @@ sort_gt = LocalSortGtOperator(
     input_operator=get_test_images
 )
 
-dcm2nifti_gt = DcmSeg2ItkOperator(
-    dag=dag,
-    input_operator=get_test_images,
-    batch_name=str(get_test_images.operator_out_dir),
-    seg_filter=organ_filter,
-    parallel_id="gt",
-    output_format='nii.gz',
-)
 
 get_ref_ct_series_from_gt = LocalGetRefSeriesOperator(
     dag=dag,
@@ -213,6 +205,15 @@ get_ref_ct_series_from_gt = LocalGetRefSeriesOperator(
     modality=None,
     batch_name=str(get_test_images.operator_out_dir),
     delete_input_on_success=False
+)
+
+dcm2nifti_gt = Mask2nifitiOperator(
+    dag=dag,
+    dicom_operator=get_ref_ct_series_from_gt,
+    input_operator=get_test_images,
+    batch_name=str(get_test_images.operator_out_dir),
+    seg_filter=organ_filter,
+    parallel_id="gt"
 )
 
 dcm2nifti_ct = DcmConverterOperator(
@@ -365,7 +366,7 @@ put_report_to_minio = LocalMinioOperator(dag=dag, name='upload-staticwebsiteresu
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_test_images >> sort_gt >> dcm2nifti_gt >> seg_check_gt 
+get_test_images >> sort_gt >> get_ref_ct_series_from_gt >> dcm2nifti_gt >> seg_check_gt 
 sort_gt >> get_ref_ct_series_from_gt >> dcm2nifti_ct >> nnunet_predict >> do_inference >> seg_check_inference >> seg_check_gt >> evaluation
 get_input >> dcm2bin >> extract_model >> nnunet_predict >> nnunet_ensemble >> do_ensemble
 do_inference >> do_ensemble >> seg_check_ensemble >> evaluation 

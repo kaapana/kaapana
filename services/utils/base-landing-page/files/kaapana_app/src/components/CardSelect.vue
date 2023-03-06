@@ -90,7 +90,7 @@
             <v-row no-gutters style="font-size: small; padding-top: 0" align="start">
               <v-col>
                 <div :class="data['truncate'] ? 'text-truncate' : ''">
-                  {{ seriesData[data['key']] || 'N/A' }}
+                  {{ seriesData[data['name']] || 'N/A' }}
                 </div>
               </v-col>
             </v-row>
@@ -111,8 +111,7 @@ import Chip from "./Chip.vue";
 import TagChip from "./TagChip.vue";
 import CardMenu from "./CardMenu";
 
-import {loadSeriesFromMeta, updateTags} from "@/common/api.service"
-import {getDicomTags} from "../common/api.service";
+import {loadSeriesData, updateTags} from "@/common/api.service"
 
 
 export default {
@@ -166,9 +165,9 @@ export default {
           display_card_text: true,
           display_tags: true,
           props: [
-            {name: "Patient ID", key: '00100020 PatientID_keyword', display: true, truncate: true},
-            {name: 'Study Description', key: '00081030 StudyDescription_keyword', display: true, truncate: true},
-            {name: 'Study Date', key: '00080020 StudyDate_date', display: true, truncate: true},
+            {name: "Patient ID", display: true, truncate: true},
+            {name: 'Study Description', display: true, truncate: true},
+            {name: 'Study Date', display: true, truncate: true},
           ]
         }
       } else {
@@ -176,7 +175,7 @@ export default {
           display_card_text: true,
           display_tags: true,
           props: [
-            {name: "Slice thickness", key: '00180050 SliceThickness_float', display: true, truncate: true}
+            {name: "Slice thickness", display: true, truncate: true}
           ]
         }
       }
@@ -184,7 +183,6 @@ export default {
     }
 
     this.get_data();
-    getDicomTags(this.studyInstanceUID, this.seriesInstanceUID).then(data => this.tagsData = data)
   },
   watch: {
     // todo: why is this needed?
@@ -194,14 +192,15 @@ export default {
   },
   methods: {
     get_data() {
-      if (this.seriesInstanceUID !== '') {
-        loadSeriesFromMeta(this.seriesInstanceUID).then(data => {
+      if (this.studyInstanceUID !== '' && this.seriesInstanceUID !== '') {
+        loadSeriesData(this.studyInstanceUID, this.seriesInstanceUID).then(data => {
           if (data !== undefined) {
-            this.src = data.src || ''
-            this.seriesDescription = data.seriesDescription || ''
-            this.modality = data.modality || ''
-            this.seriesData = data.seriesData || {}
-            this.tags = data.tags || []
+            this.src = data['thumbnail_src'] || ''
+            this.seriesDescription = data['metadata']['Series Description'] || ''
+            this.modality = data['metadata']['Modality'] || ''
+            this.seriesData = data['metadata'] || {}
+            this.tags = data['metadata']['dataset tags'] || []
+            this.tagsData = Object.entries(this.seriesData).map(i => ({name: i[0], value: i[1]}))
           }
         })
       }
@@ -213,7 +212,7 @@ export default {
         "tags2add": [],
         "tags2delete": [tag]
       }]
-      updateTags(JSON.stringify(request_body))
+      updateTags(request_body)
           .then(() => this.tags = this.tags.filter((_tag) => _tag !== tag))
     },
     modifyTags() {
@@ -247,8 +246,8 @@ export default {
           "tags2delete": []
         }]
       }
-
-      updateTags(JSON.stringify(request_body))
+      console.log(request_body)
+      updateTags(request_body)
           .then(() => {
             this.tags =
                 tagsAlreadyExist

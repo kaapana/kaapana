@@ -189,7 +189,7 @@ export default {
         },
       }
       console.log(JSON.stringify(query))
-      return JSON.stringify(query)
+      return query
     },
     async search(onMount = false) {
       this.display_filters = onMount

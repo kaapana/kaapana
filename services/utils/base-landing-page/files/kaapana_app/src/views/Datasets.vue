@@ -171,7 +171,7 @@ export default {
     addFilterToSearch(selectedItem) {
       this.$refs.search.addFilterItem(selectedItem['key'], selectedItem['value'])
     },
-    async updatePatients(query = "{}") {
+    async updatePatients(query = {}) {
       this.isLoading = true
       let url = (this.structuredGallery ? 'structured' : 'unstructured')
       try {

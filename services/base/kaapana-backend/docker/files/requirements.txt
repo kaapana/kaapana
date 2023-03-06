@@ -14,3 +14,4 @@ python-multipart==0.0.5
 pytest==7.0.0
 requests==2.27.1
 SQLAlchemy==1.4.31
+dicom_parser==1.2.3

@@ -4,6 +4,7 @@ from os.path import join, exists, dirname, basename
 from glob import glob
 from pathlib import Path
 import json
+import shutil
 
 import torch
 import monai
@@ -15,8 +16,8 @@ from multiprocessing.pool import ThreadPool
 
 # For shell-execution
 from subprocess import PIPE, run
-execution_timeout=10
- 
+execution_timeout=None  # 10
+
 # # Counter to check if smth has been processed
 # processed_count = 0
 # 
@@ -122,7 +123,8 @@ stderr = output.stderr.strip()
 print(stdout)
 print(stderr)
 
-# TODO: write results to output dir
+# copy results to output_dir
+shutil.copytree(os.environ["monai_workspace_eval"], os.path.join("/minio", monai_data_input_bucket), dirs_exist_ok=True)
 
 # print("##################################################")
 # print("#")

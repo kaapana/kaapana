@@ -45,7 +45,6 @@ async def get_jobs(instance_name: str = None, status: str = None, limit: int = N
 
 @router.put("/job", response_model=schemas.JobWithKaapanaInstance)
 async def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
-    print(f"REMOTE def put_job(): JobUpdate = {job}")
     return crud.update_job(db, job, remote=True)
 
 @router.delete("/job")

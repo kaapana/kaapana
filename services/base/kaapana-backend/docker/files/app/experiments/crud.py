@@ -264,11 +264,10 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     utc_timestamp = get_utc_timestamp()
 
     db_job = get_job(db, job.job_id, job.run_id)
-    print(f"CRUD def update_job(): job(JobUpdate).status = {job.status}")
 
-    # TODO: not very good!!!!!
-    if job.status == "finished":
-        db_job.status = "finished"
+    # update jobs of own db which are remotely executed (def update_job() is in this case called from remote.py's def put_job())
+    if db_job.kaapana_instance.remote:
+        db_job.status = job.status
 
     if (job.status == 'scheduled' and db_job.kaapana_instance.remote == False): #  or (job.status == 'failed'); status='scheduled' for restarting, status='failed' for aborting
         conf_data = json.loads(db_job.conf_data)
@@ -287,7 +286,6 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
             db_job.run_id = dag_run_id
 
     # check state and run_id for created or queued, scheduled, running jobs on local instance
-    print(f"CRUD def update_job(): db_job.kaapana_instance.remote = {db_job.kaapana_instance.remote}")
     if db_job.kaapana_instance.remote == False:
         # ask here first time Airflow for job status (explicit w/ job_id) via kaapana_api's def dag_run_status()
         airflow_details_resp = get_dagrun_details_airflow(db_job.dag_id, db_job.run_id)
@@ -403,7 +401,7 @@ def delete_external_job(db: Session, db_job):
 def update_external_job(db: Session, db_job):
     if db_job.external_job_id is not None:
         same_instance = db_job.owner_kaapana_instance_name == settings.instance_name
-        print(f"CRUD def update_external_job(): db_job.owner_kaapana_instance_name={db_job.owner_kaapana_instance_name} ; settings.instance_name={settings.instance_name} ; same_instance={same_instance}")
+
         db_remote_kaapana_instance = get_kaapana_instance(db, instance_name=db_job.owner_kaapana_instance_name,
                                                           remote=True)
         payload = {
@@ -412,11 +410,10 @@ def update_external_job(db: Session, db_job):
             "status": db_job.status,
             "description": db_job.description
         }
-        # update_job(db, schemas.JobUpdate(**payload))
+        # update_job(db, schemas.JobUpdate(**payload))  # TRYOUT
         if same_instance:
             update_job(db, schemas.JobUpdate(**payload))
         else:
-            print(f"CRUD def update_external_job(): right before requesting /kaapana-backend/remote/job with payload: {payload}")
             remote_backend_url = f'{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-backend/remote'
             with requests.Session() as s:
                 r = requests_retry_session(session=s).put(f'{remote_backend_url}/job',
@@ -515,15 +512,12 @@ def get_remote_updates(db: Session, periodically=False):
 
     return  # schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload)
 
-glob_jobs_in_qsr_state = [{}]   # solves weird issue that dict is not hashable
+glob_jobs_in_qsr_state = []   # [{}] solves weird issue that dict is not hashable
 def sync_states_from_airflow(db: Session, periodically=False):
     # get list from airflow for jobs in states 'queued', 'scheduled', 'running': {'dag_run_id': 'state'} -> jobs_in_qsr_state
     global glob_jobs_in_qsr_state
     states = ["queued", "scheduled", "running"]
     jobs_in_qsr_state = get_dagruns_airflow(tuple(states))
-
-    print(f"CRUD def sync_states_from_airflow(): jobs_in_qsr_state = {jobs_in_qsr_state} ; type = {type(jobs_in_qsr_state)}")
-    print(f"CRUD def sync_states_from_airflow(): glob_jobs_in_qsr_state = {glob_jobs_in_qsr_state} ; type = {type(glob_jobs_in_qsr_state)}")
 
     # find elements which are in current jobs_in_qsr_state but not in glob_jobs_in_qsr_state from previous round
     diff_curr_to_glob = [elem for elem in jobs_in_qsr_state if elem not in glob_jobs_in_qsr_state]
@@ -534,7 +528,7 @@ def sync_states_from_airflow(db: Session, periodically=False):
         # request airflow for states of all jobs in diff_curr_to_glob && update db_jobs of all jobs in diff_curr_to_glob
         for diff_job in diff_curr_to_glob:
             # get db_job from db via 'run_id'
-            db_job = get_job(db, run_id=diff_job["run_id"])
+            db_job = get_job(db, run_id=diff_job["run_id"]) # fails for all airflow jobs which aren't user-created aka system-jobs
             # update db_job w/ updated state
             job_update = schemas.JobUpdate(**{
                     'job_id': db_job.id,

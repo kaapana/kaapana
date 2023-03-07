@@ -165,7 +165,6 @@ def create_and_update_remote_kaapana_instance(db: Session, remote_kaapana_instan
     db.refresh(db_remote_kaapana_instance)
     return db_remote_kaapana_instance
 
-
 def create_job(db: Session, job: schemas.JobCreate):
     db_kaapana_instance = db.query(models.KaapanaInstance).filter_by(id=job.kaapana_instance_id).first()
     if not db_kaapana_instance:
@@ -224,7 +223,9 @@ def get_job(db: Session, job_id: int = None, run_id: str = None):
     elif run_id is not None:
         db_job = db.query(models.Job).filter_by(run_id=run_id).first()
     if not db_job:
-        raise HTTPException(status_code=404, detail="Job not found")
+        logging.warning(f"No job found in db with job_id={job_id}, run_id={run_id} --> will return None")
+        return None
+        # raise HTTPException(status_code=404, detail="Job not found")
     return db_job
 
 
@@ -529,11 +530,12 @@ def sync_states_from_airflow(db: Session, periodically=False):
         for diff_job in diff_curr_to_glob:
             # get db_job from db via 'run_id'
             db_job = get_job(db, run_id=diff_job["run_id"]) # fails for all airflow jobs which aren't user-created aka system-jobs
-            # update db_job w/ updated state
-            job_update = schemas.JobUpdate(**{
-                    'job_id': db_job.id,
-                    })
-            update_job(db, job_update, remote=False)
+            if db_job is not None:
+                # update db_job w/ updated state
+                job_update = schemas.JobUpdate(**{
+                        'job_id': db_job.id,
+                        })
+                update_job(db, job_update, remote=False)
         # update glob_jobs_in_qsr_state
         glob_jobs_in_qsr_state = jobs_in_qsr_state
 
@@ -542,11 +544,12 @@ def sync_states_from_airflow(db: Session, periodically=False):
         for diff_job in diff_glob_to_curr:
             # get db_job from db via 'run_id'
             db_job = get_job(db, run_id=diff_job["run_id"])
-            # update db_job w/ updated state
-            job_update = schemas.JobUpdate(**{
-                    'job_id': db_job.id,
-                    })
-            update_job(db, job_update, remote=False)
+            if db_job is not None:
+                # update db_job w/ updated state
+                job_update = schemas.JobUpdate(**{
+                        'job_id': db_job.id,
+                        })
+                update_job(db, job_update, remote=False)
         # update glob_jobs_in_qsr_state
         glob_jobs_in_qsr_state = jobs_in_qsr_state
 

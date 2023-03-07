@@ -31,11 +31,6 @@ RUN apt-get update \
  && pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.0/build-scripts/constraints-0.2.0.txt --no-cache-dir pipenv==2020.11.15 \
  && pipenv install --system --deploy \
  && pip uninstall -y pipenv virtualenv-clone virtualenv \
- && pip install --no-cache-dir \ 
-    # Security fix for CVE-2022-40898
-    wheel==0.38.1 \
-    # Security fix for CVE-2022-40897
-    setuptools==65.5.1 \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/* 
 

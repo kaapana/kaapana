@@ -13,3 +13,9 @@ protobuf==3.20.2
 wheel==0.38.1
 # Security fix for CVE-2022-25882
 onnx==1.13.0
+# Security fix for CVE-2023-25577
+Werkzeug==2.2.3
+# Security fix for CVE-2022-45907
+torch==1.13.1
+# Security fix for CVE-2022-45199
+Pillow==9.3.0

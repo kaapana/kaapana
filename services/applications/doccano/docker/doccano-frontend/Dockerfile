@@ -29,7 +29,7 @@ RUN apk add -U --no-cache python3 make g++ \
 RUN yarn build \
   && apk del --no-cache git make g++
 
-FROM nginx:1.21.1-alpine AS runtime
+FROM nginx:1.23.3-alpine AS runtime
 ENV SUB_URL='/doccano'
 COPY --from=frontend-builder /app/dist /var/www/html/doccano
 COPY files/nginx/default.conf /etc/nginx/conf.d/default.conf

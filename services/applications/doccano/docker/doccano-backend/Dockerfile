@@ -1,4 +1,4 @@
-FROM alpine/git:v2.34.2 as build-stage
+FROM alpine/git:2.36.3 as build-stage
 
 LABEL IMAGE="doccano-backend"
 LABEL VERSION="sha-0489118"
@@ -10,7 +10,7 @@ WORKDIR /
 # hadolint ignore=DL3003
 RUN git clone https://github.com/doccano/doccano.git doccano && cd doccano && git checkout 0489118f92084d85b30a95a8b306636dfae38ff9
 
-FROM python:3.8.6-slim-buster
+FROM python:3.8.16-slim-buster
 
 CMD ["python3"]
 
@@ -31,14 +31,26 @@ RUN apt-get update \
  && pip install --no-cache-dir pipenv==2020.11.15 \
  && pipenv install --system --deploy \
  && pip uninstall -y pipenv virtualenv-clone virtualenv \
- && pip install --no-cache-dir \ 
-    # Security fix for CVE-2022-40898
-    wheel==0.38.1 \
-    # Security fix for CVE-2022-40897
-    setuptools==65.5.1 \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/* 
 
+ # Security fixes
+ RUN pip install --no-cache-dir \ 
+      # Security fix for CVE-2022-40898
+      wheel==0.38.1 \
+      # Security fix for CVE-2022-40897
+      setuptools==65.5.1 \
+      # Security fix for CVE-2022-21797
+      joblib==1.2.0 \
+      # Security fix for CVE-2023-0286
+      cryptography==39.0.1 \
+      # Security fix for CVE-2021-23727
+      celery==5.2.2 \
+      # Security fix for CVE-2022-28346
+      Django==3.2.18 \
+      # Security fix for CVE-2022-29217
+      PyJWT==2.4.0 
+ 
 COPY --from=build-stage /doccano/tools/ /opt/bin/
 RUN mkdir -p /backend/staticfiles \
   && mkdir -p /backend/client/dist/static \

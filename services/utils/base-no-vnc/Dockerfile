@@ -19,7 +19,10 @@ RUN pip install --no-cache-dir \
     # Security fix for CVE-2022-40898
     wheel==0.38.1 \
     # Security fix for CVE-2023-25577
-    Werkzeug==2.2.3
+    Werkzeug==2.2.3 \
+    # Werkzeug 2.0.0+ breaks Flask
+    Flask==2.2.3 \
+    Jinja2==3.1.2
 
 COPY files/startup.sh /startup.sh
 

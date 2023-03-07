@@ -205,7 +205,7 @@ export default {
     },
     getJobsOfExperiment(experiment_name) {
         kaapanaApiService
-          .federatedClientApiGet("/experiment_jobs",{
+          .federatedClientApiGet("/jobs",{
             experiment_name: experiment_name,
             limit: 100,
           }).then((response) => {

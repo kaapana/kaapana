@@ -62,11 +62,17 @@ class KaapanaInstance(KaapanaInstanceBase):
 
     @validator('time_created')
     def convert_time_created(cls, v):
-        return datetime.datetime.timestamp(v)
-
+        if isinstance(v, datetime.datetime):
+            return v
+        else:
+            return datetime.datetime.timestamp(v)
+    
     @validator('time_updated')
     def convert_time_updated(cls, v):
-        return datetime.datetime.timestamp(v)
+        if isinstance(v, datetime.datetime):
+            return v
+        else:
+            return datetime.datetime.timestamp(v)
 
     class Config:
         orm_mode = True
@@ -90,7 +96,7 @@ class Job(JobBase):
 
     @validator('status')
     def check_status(cls, v):
-        allowed_states = ['queued', 'pending', 'scheduled', 'running', 'finished', 'failed']
+        allowed_states = ['planned', 'queued', 'pending', 'scheduled', 'running', 'finished', 'failed']
         if v not in allowed_states:
             raise ValueError(f'status must be on of the following values: {", ".join(allowed_states)}')
         return v
@@ -98,6 +104,20 @@ class Job(JobBase):
     @validator('conf_data')
     def convert_conf_data(cls, v):
         return json.loads(v)
+
+    @validator('time_created')
+    def convert_time_created(cls, v):
+        if isinstance(v, datetime.datetime):
+            return v
+        else:
+            return datetime.datetime.timestamp(v)
+    
+    @validator('time_updated')
+    def convert_time_updated(cls, v):
+        if isinstance(v, datetime.datetime):
+            return v
+        else:
+            return datetime.datetime.timestamp(v)
 
     class Config:
         orm_mode = True
@@ -180,11 +200,17 @@ class Cohort(CohortBase):
 
     @validator('time_created')
     def convert_time_created(cls, v):
-        return datetime.datetime.timestamp(v)
-
+        if isinstance(v, datetime.datetime):
+            return v
+        else:
+            return datetime.datetime.timestamp(v)
+    
     @validator('time_updated')
     def convert_time_updated(cls, v):
-        return datetime.datetime.timestamp(v)
+        if isinstance(v, datetime.datetime):
+            return v
+        else:
+            return datetime.datetime.timestamp(v)
 
     class Config:
         orm_mode = True
@@ -201,22 +227,22 @@ class Experiment(ExperimentBase):
     status: str = None
     time_created: datetime.datetime = None
     time_updated: datetime.datetime = None
-    # experiment_jobs: List = []     # List[Job] = [], do NOT include or get recursion error when querying jobs from experiment via 
     involved_kaapana_instances: str = None  # List = []
     cohort_name: str = None
 
-    # comment or you will get "pydantic.error_wrappers.ValidationError: 1 validation error for Experiment; response -> experiment_jobs; the JSON object must be str, bytes or bytearray, not list (type=type_error)"
-    # @validator('experiment_jobs')
-    # def convert_experiment_jobs(cls, v):
-    #     return json.loads(v)
-
-    # # convert methods for time_created and time_updated lead to datetime being displayed as e.g. "1668590451.586321" instead of sth like "2022-11-21T07:35:49.839591+00:00"
-    # @validator('time_created')
-    # def convert_time_created(cls, v):
-    #     return datetime.datetime.timestamp(v)
-    # @validator('time_updated')
-    # def convert_time_updated(cls, v):
-    #     return datetime.datetime.timestamp(v)
+    @validator('time_created')
+    def convert_time_created(cls, v):
+        if isinstance(v, datetime.datetime):
+            return v
+        else:
+            return datetime.datetime.timestamp(v)
+    
+    @validator('time_updated')
+    def convert_time_updated(cls, v):
+        if isinstance(v, datetime.datetime):
+            return v
+        else:
+            return datetime.datetime.timestamp(v)
 
     class Config:           # makes Pydantic model compatible with sqlalchemy ORMs
         orm_mode = True

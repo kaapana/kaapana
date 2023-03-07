@@ -30,7 +30,7 @@ from kaapana.blueprints.kaapana_global_variables import (
     JOBS_NAMESPACE,
 )
 
-# from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
 import uuid
 import json

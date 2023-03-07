@@ -38,7 +38,7 @@ ENV HELM_EXTENSIONS_CACHE "/kaapana/mounted/extensions"
 ENV HELM_PLATFORMS_CACHE "/kaapana/mounted/platforms"
 ENV LOG_LEVEL="debug"
 ENV RECENT_UPDATE_CACHE="true"
-ENV CONTAINERD_SOCK="/root/containerd.sock"
+ENV CONTAINERD_SOCK="/kaapana/mounted/containerd.sock"
 
 EXPOSE 5000
 CMD ["gunicorn","main:app","--chdir","/kaapana/app/backend/app","--workers","1","--worker-class","uvicorn.workers.UvicornWorker","--bind","0.0.0.0:5000","--access-logfile","-","--error-logfile","-"]

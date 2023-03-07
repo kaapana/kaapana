@@ -29,10 +29,12 @@ spec:
           limits:
             memory: 1000Mi
         env:
-          - name: ML_REVERSEPROXY_FQDN
-            value: {{ .Values.global.hostname }}
-          - name: ML_REVERSEPROXY_SSL
+          - name: TOMCAT_REVERSEPROXY_FQDN
+            value: localhost/mainzelliste
+          - name: TOMCAT_REVERSEPROXY_SSL
             value: "false"
+          - name: DEPLOYMENT_CONTEXT
+            value: mainzelliste
           - name: ML_DB_NAME
             value: mainzelliste
           - name: ML_DB_USER
@@ -40,7 +42,7 @@ spec:
           - name: ML_DB_PASS
             value: root
           - name: ML_DB_HOST
-            value: postgres-mainzelliste-{{ .Values.global.extensions_namespace }}.svc
+            value: postgres-mainzelliste-service.{{ .Values.global.extensions_namespace }}.svc
           - name: ML_API_KEY
             value: Mainzelliste2023
           - name: ML_ALLOWEDREMOTEADDRESSES

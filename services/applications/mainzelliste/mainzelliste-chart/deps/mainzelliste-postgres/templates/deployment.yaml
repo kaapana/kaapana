@@ -31,9 +31,8 @@ spec:
             limits:
               memory: 500Mi
           volumeMounts:
-            - name: dbvol
-              mountPath: /var/lib/postgresql/data/pgdata
-              subPath: pgdata
+            - name: mainzelliste-postgres-data
+              mountPath: "/var/lib/postgresql/data"
           env:
             - name: POSTGRES_USER
               value: root
@@ -41,30 +40,8 @@ spec:
               value: root
             - name: POSTGRES_DB
               value: mainzelliste
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
-            - name: POD_IP
-              valueFrom: { fieldRef: { fieldPath: status.podIP } }
-          livenessProbe:
-            initialDelaySeconds: 60
-            timeoutSeconds: 5
-            failureThreshold: 5
-            exec:
-              command:
-              - /bin/sh
-              - -c
-              - exec pg_isready --host $POD_IP ||  if [[ $(psql -qtAc --host $POD_IP 'SELECT pg_is_in_recovery') != "f" ]]; then  exit 0 else; exit 1; fi
-          readinessProbe:
-            initialDelaySeconds: 5
-            timeoutSeconds: 5
-            periodSeconds: 5
-            exec:
-              command:
-              - /bin/sh
-              - -c
-              - exec pg_isready --host $POD_IP
       volumes:
-        - name: dbvol
+        - name: mainzelliste-postgres-data
           persistentVolumeClaim:
             claimName: mz-postgres-pv-claim
       imagePullSecrets:

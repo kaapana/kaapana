@@ -79,6 +79,7 @@ spec:
               - exec pg_isready --host $POD_IP
       volumes:
         - name: dbvol
+        - name: data
           persistentVolumeClaim:
             claimName: af-postgres-pv-claim
       imagePullSecrets:

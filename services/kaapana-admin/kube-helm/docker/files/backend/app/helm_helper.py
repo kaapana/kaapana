@@ -260,8 +260,8 @@ def add_info_from_deployments(
     #     extension_info.releaseName = extension_info.chart_name
     #     extension_info.installed = "no"
     #     result_list.append(extension_info)
-
-    logger.debug(f"total added {len(result_list) - init_len}")
+    if len(result_list) - init_len > 1:
+        logger.warning(f"multiple extensions added for {extension_info.releaseName}")
     return result_list
 
 

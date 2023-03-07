@@ -89,19 +89,7 @@ def check_file_exists(filename, overwrite):
 
 
 def check_file_namespace(fpath):
-    # TODO: get file folder instead of the file path
-    # TODO: decide on how to best check the namespace, what keyword to search in file actually?
-
-    # open tgz to temp folder and check namespaces
-    cwd = os.getcwd()
-    tmp_dir = "/tmp"
-    logger.info(f"untarring file into temp directory {tmp_dir}")
-    os.mkdir(tmp_dir)
-    cmd = f"{settings.helm_path} -n {settings.helm_namespace} "
-    helm_helper.execute_shell_command(cmd, shell=True, blocking=True)
-
-    os.chdir(tmp_dir)
-    os.chdir(os.listdir()[0])
+    
     # TODO: if it doesnt' have any kube objects defined, still check or not?
     if "templates" in os.listdir():
         os.chdir("templates")
@@ -256,7 +244,8 @@ def add_file_chunks(chunk: bytes):
         f.write(chunk)
     logger.debug("write completed")
 
-    sess.update(sess.curr_index + 1)
+    if sess.curr_index != sess.endindex:
+        sess.update(sess.curr_index + 1)
 
     return sess.curr_index
 

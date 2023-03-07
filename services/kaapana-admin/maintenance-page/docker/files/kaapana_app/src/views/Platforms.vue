@@ -426,7 +426,8 @@ export default Vue.extend({
       console.log("file.size", file.size)
       console.log("file.type", file.type)
 
-      if (!file.type.match('application/x-compressed') && !file.type.match('application/x-tar')) {
+      let allowedFileTypes: any = ['application/x-compressed', 'application/x-tar', 'application/gzip']
+      if (!allowedFileTypes.includes(file.type) ) {
         alert('please upload a tgz or tar file');
         this.dragging = false;
         return;

@@ -5,7 +5,6 @@ import logging
 from airflow.exceptions import AirflowFailException
 from subprocess import PIPE
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
 class LocalManageIsoInstanceOperator(KaapanaPythonBaseOperator):

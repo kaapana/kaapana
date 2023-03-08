@@ -795,7 +795,7 @@ async def queue_generate_jobs_and_add_to_exp(db: Session, db_client_kaapana: mod
 
         for db_kaapana_instance in db_kaapana_instances_set:
             job = schemas.JobCreate(**{
-                "status": "planned",
+                "status": "queued",    # changed back from 'planned' to 'queued'
                 "kaapana_instance_id": db_kaapana_instance.id,
                 "owner_kaapana_instance_name": db_client_kaapana.instance_name,
                 **jobs_to_create

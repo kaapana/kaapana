@@ -18,7 +18,6 @@ from airflow.api.common.trigger_dag import trigger_dag as trigger
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 class LocalTFDAVettingBraTSOperator(KaapanaPythonBaseOperator):
     def send_email(self, email_address, cc_address, subject, message, filepath, container_name):

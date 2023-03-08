@@ -1,7 +1,6 @@
 import logging
 from subprocess import PIPE, run
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
 class LocalTrustedPostETLOperator(KaapanaPythonBaseOperator):

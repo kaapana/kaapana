@@ -9,7 +9,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 operator_dir = os.path.dirname(os.path.abspath(__file__))
 subm_results_path = os.path.join(operator_dir, "subm_results")

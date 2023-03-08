@@ -19,10 +19,10 @@ spec:
       - name: volume-permissions
         image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
-        command: ["sh", "-c", "chown -R 1000:1000 /prometheus"]
+        command: ["sh", "-c", "chown -R 1000:1000 /node-monitoring"]
         volumeMounts:
         - name: prometheus-storage-volume
-          mountPath: /prometheus/
+          mountPath: /node-monitoring/
         securityContext:
           runAsUser: 0
       securityContext:
@@ -34,7 +34,7 @@ spec:
           args:
             - "--config.file=/etc/prometheus.yaml"
             - "--log.level=warn"
-            - "--storage.tsdb.path=/prom-monitoring/"
+            - "--storage.tsdb.path=/node-monitoring/"
             - "--web.external-url=/prom-monitoring"
             - "--web.route-prefix=/prom-monitoring"
           ports:
@@ -49,7 +49,7 @@ spec:
               mountPath: /etc/prometheus.yaml
               subPath: prometheus.yaml
             - name: prometheus-storage-volume
-              mountPath: /prometheus/
+              mountPath: /node-monitoring/
           livenessProbe:
             httpGet:
               path: /
@@ -83,8 +83,7 @@ spec:
               path: prometheus.yaml
         - name: prometheus-storage-volume
           persistentVolumeClaim:
-            claimName: prometheus-pv-claim
+            claimName: node-monitoring-pvc
       imagePullSecrets:
       - name: registry-secret
-      serviceAccountName: kaapana-kube-admin
 ---

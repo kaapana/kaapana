@@ -19,12 +19,6 @@ spec:
         image: "{{ .Values.global.registry_url }}/grafana:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         env:
-        # - name: GF_SERVER_ROOT_URL
-        #   value: "https://{{ required "A valid hostname (or fqdn) is required!" .Values.global.hostname }}/grafana"
-        # - name: GF_AUTH_ANONYMOUS_ENABLED
-        #   value: "true"
-        # - name: GF_AUTH_ANONYMOUS_ORG_NAME
-        #   value: "Main Org."
         - name: GF_SECURITY_ADMIN_PASSWORD
           value: {{ .Values.global.credentials_grafana_password }}
         - name: GF_SECURITY_ADMIN_USER
@@ -46,26 +40,9 @@ spec:
             subPath: prometheus.yml
           - name: dashboard-provisioning
             mountPath: /etc/grafana/provisioning/dashboards
-          - name: grafana-kubernetes-dashboard
-            mountPath: /etc/grafana/dashboards/kubernetes/dashboards/kubernetes-dashboard.json
-            subPath: kubernetes-dashboard.json
-          - name: grafana-traefik-dashboard
-            mountPath: /etc/grafana/dashboards/traefik/dashboards/traefik-dashboard.json
-            subPath: traefik-dashboard.json
-          - name: grafana-prometheus-dashboard
-            mountPath: /etc/grafana/dashboards/prometheus/dashboards/prometheus-dashboard.json
-            subPath: prometheus-dashboard.json
-          - name: grafana-airflow-cluster-dashboard
-            mountPath: /etc/grafana/dashboards/prometheus/dashboards/airflow-cluster-dashboard.json
-            subPath: airflow-cluster-dashboard.json
-          - name: grafana-airflow-dag-dashboard
-            mountPath: /etc/grafana/dashboards/prometheus/dashboards/airflow-dag-dashboard.json
-            subPath: airflow-dag-dashboard.json
-          {{- if .Values.global.gpu_support }}
-          - name: grafana-gpu-dashboard
-            mountPath: /etc/grafana/dashboards/gpu/dashboards/gpu-dashboard.json
-            subPath: gpu-dashboard.json
-          {{- end }}
+          - name: grafana-racoon-dashboard
+            mountPath: /etc/grafana/dashboards/racoon-dashboard/dashboards/racoon-dashboard.json
+            subPath: racoon-dashboard.json
         livenessProbe:
           httpGet:
             path: /
@@ -88,43 +65,11 @@ spec:
       - name: dashboard-provisioning
         configMap:
           name: grafana-provisioning-dashboards
-      - name: grafana-kubernetes-dashboard
+      - name: grafana-racoon-dashboard
         configMap:
           name: grafana-dashboards
           items:
-          - key: kubernetes-dashboard.json
-            path: kubernetes-dashboard.json
-      - name: grafana-traefik-dashboard
-        configMap:
-          name: grafana-dashboards
-          items:
-          - key: traefik-dashboard.json
-            path: traefik-dashboard.json
-      {{- if .Values.global.gpu_support }}
-      - name: grafana-gpu-dashboard
-        configMap:
-          name: grafana-dashboards
-          items:
-          - key: gpu-dashboard.json
-            path: gpu-dashboard.json
-      {{- end }}
-      - name: grafana-prometheus-dashboard
-        configMap:
-          name: grafana-dashboards
-          items:
-          - key: prometheus-dashboard.json
-            path: prometheus-dashboard.json
-      - name: grafana-airflow-cluster-dashboard
-        configMap:
-          name: grafana-dashboards
-          items:
-          - key: airflow-cluster-dashboard.json
-            path: airflow-cluster-dashboard.json
-      - name: grafana-airflow-dag-dashboard
-        configMap:
-          name: grafana-dashboards
-          items:
-          - key: airflow-dag-dashboard.json
-            path: airflow-dag-dashboard.json
+          - key: racoon-dashboard.json
+            path: racoon-dashboard.json
       imagePullSecrets:
         - name: registry-secret

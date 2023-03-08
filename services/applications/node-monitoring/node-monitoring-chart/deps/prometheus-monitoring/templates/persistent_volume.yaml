@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: prometheus-pv-volume
+  name: node-monitoring-pv
   labels:
     type: local
 spec:
@@ -21,17 +21,17 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "{{ .Values.global.fast_data_dir }}/node-monitoring/prometheus"
+    path: "{{ .Values.global.fast_data_dir }}/node-monitoring"
 {{- end }}
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.extensions_namespace }}"
-    name: prometheus-pv-claim
+    name: node-monitoring-pvc
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: prometheus-pv-claim
+  name: node-monitoring-pvc
   namespace: "{{ .Values.global.extensions_namespace }}"
 spec:
   storageClassName: nfs
@@ -40,5 +40,5 @@ spec:
   resources:
     requests:
       storage: "1Mi"
-  volumeName: "prometheus-pv-volume"
+  volumeName: "node-monitoring-pv"
 ---

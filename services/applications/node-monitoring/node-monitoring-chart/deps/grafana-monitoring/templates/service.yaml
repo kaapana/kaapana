@@ -4,7 +4,6 @@ kind: Service
 metadata:
   name: grafana
   namespace: "{{ .Values.global.extensions_namespace }}"
-
   labels:
     app-name: grafana
 spec:
@@ -23,7 +22,7 @@ metadata:
 spec:
   stripPrefix:
     prefixes:
-    - /grafana
+    - /racoon-monitoring
     forceSlash: true
 ---
 apiVersion: networking.k8s.io/v1 
@@ -31,17 +30,16 @@ kind: Ingress
 metadata:
   name: grafna-ingress
   namespace: "{{ .Values.global.extensions_namespace }}"
-
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.extensions_namespace  }}-auth-check@kubernetescrd,{{  .Values.global.extensions_namespace  }}-gf-strip-prefix@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.extensions_namespace  }}-gf-strip-prefix@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:
   - host: 
     http:
       paths:
-      - path: /grafana
+      - path: /racoon-monitoring
         pathType: ImplementationSpecific
         backend:
           service:

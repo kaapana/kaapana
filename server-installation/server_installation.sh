@@ -287,17 +287,12 @@ function dns_check {
                 echo "${RED}FAILED -> Get DNS settings systemd-resolve ...${NC}"
                 DNS=$(systemd-resolve --status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
                 echo "${YELLOW}Identified DNS: $DNS ${NC}"
-                if [ -z "$DNS" ]; then
-                    echo "${RED}FAILED -> Get DNS settings resolv.conf ...${NC}"
-                    DNS=$(grep "nameserver" /etc/resolv.conf | awk -F ' ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
-                    echo "${YELLOW}Identified DNS: $DNS ${NC}"
-                    if [[ -z "$DNS" ]] || [[ $DNS =~ "127." ]]; then
-                        if [ "$OFFLINE_SNAPS" = "true" ];then
-                            DNS="8.8.8.8,8.8.4.4"
-                        else
-                            echo "${RED}DNS lookup failed.${NC}"
-                            exit 1
-                        fi
+                if [[ -z $DNS ]]; then
+                    if [ "$OFFLINE_SNAPS" = "true" ];then
+                        DNS="8.8.8.8,8.8.4.4"
+                    else
+                        echo "${RED}DNS lookup failed.${NC}"
+                        exit 1
                     fi
                 fi
             fi

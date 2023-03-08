@@ -1,9 +1,11 @@
 ---
 dependencies:
-  - name: doccano-postgres
-    version: 0.0.0
-    repository: file://deps/doccano-postgres
-  - name: doccano-rabbitmq
-    version: 0.0.0
-    repository: file://deps/doccano-rabbitmq
-
+- name: doccano-postgres
+  version: 0.0.0
+  repository: file://deps/doccano-postgres
+- name: doccano-rabbitmq
+  version: 0.0.0
+  repository: file://deps/doccano-rabbitmq
+- name: dynamic-persistent-volume-chart
+  version: 0.0.0
+  repository: file://../../../utils/dynamic-persistent-volume/dynamic-persistent-volume-chart/

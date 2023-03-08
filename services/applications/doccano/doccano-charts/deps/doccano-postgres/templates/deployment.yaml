@@ -31,7 +31,6 @@ spec:
           volumeMounts:
             - name: doccano-postgres
               mountPath: /var/lib/postgresql/data/pgdata
-              subPath: pgdata
           env:
             - name: POSTGRES_USER
               value: doccano
@@ -44,8 +43,8 @@ spec:
             - name: POD_IP
               valueFrom: { fieldRef: { fieldPath: status.podIP } }
       volumes:
-        - name:  doccano-postgres
+        - name: doccano-postgres
           persistentVolumeClaim:
-            claimName: doccano-postgres-pv-claim
+            claimName: postgres-pv-claim-doccano
       imagePullSecrets:
       - name: registry-secret

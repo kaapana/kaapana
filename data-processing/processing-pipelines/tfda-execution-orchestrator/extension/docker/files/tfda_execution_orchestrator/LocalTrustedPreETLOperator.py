@@ -6,7 +6,6 @@ from subprocess import PIPE
 from pathlib import Path
 from airflow.exceptions import AirflowFailException
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
 
 
 class LocalTrustedPreETLOperator(KaapanaPythonBaseOperator):

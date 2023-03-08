@@ -1,0 +1,44 @@
+# dev-files
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: prometheus-pv-volume
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: "1Mi"
+{{- if .Values.global.enable_nfs }}
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/prometheus"
+{{- else }}
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.fast_data_dir }}/node-monitoring/prometheus"
+{{- end }}
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{ .Values.global.extensions_namespace }}"
+    name: prometheus-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-pv-claim
+  namespace: "{{ .Values.global.extensions_namespace }}"
+spec:
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: "1Mi"
+  volumeName: "prometheus-pv-volume"
+---

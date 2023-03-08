@@ -1,0 +1,4 @@
+---
+global:
+  dummy: ""
+  image: code-server

@@ -1,0 +1,22 @@
+---
+apiVersion: v1
+data:
+  prometheus.yaml: |
+    global:
+      scrape_interval:     30s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+      evaluation_interval: 30s # Evaluate rules every 15 seconds. The default is every 1 minute.
+    
+    scrape_configs:
+      - job_name: 'GPUs'
+        scheme: http
+        metrics_path: '/metrics/job/racoon/instance/local'
+        static_configs:
+        - targets: ['pushgateway-service.{{ .Values.global.extensions_namespace }}.svc:9091']
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  labels:
+    name: prometheus-config
+  namespace: "{{ .Values.global.extensions_namespace }}"
+
+---

@@ -1,0 +1,46 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-mon-service
+  namespace: "{{ .Values.global.extensions_namespace }}"
+spec:
+  selector:
+    app-name: prometheus-node-monitoring
+  type: ClusterIP
+  ports:
+    - port: 9090
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pushgateway-service
+  namespace: "{{ .Values.global.extensions_namespace }}"
+spec:
+  selector:
+    app-name: prometheus-node-monitoring
+  type: ClusterIP
+  ports:
+    - port: 9091
+---
+apiVersion: networking.k8s.io/v1 
+kind: Ingress
+metadata:
+  name: prometheus-ingress
+  namespace: "{{ .Values.global.extensions_namespace }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /prom-monitoring
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: prometheus-mon-service
+            port:
+              number: 9090
+---

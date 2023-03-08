@@ -1,0 +1,7 @@
+---
+dependencies:
+  - name: prometheus-monitoring
+    version: 0.0.0
+  - name: grafana-monitoring
+    version: 0.0.0
+

@@ -3,6 +3,7 @@ import json
 from typing import List
 import logging
 import traceback
+import asyncio
 
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
@@ -290,27 +291,6 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
         single_execution = False
         db_cohort = None
 
-    queued_jobs = []
-    if single_execution is True:
-        for cohort_identifier in data_form['cohort_identifiers'][:cohort_limit]:
-            # Copying due to reference?!
-            single_conf_data = copy.deepcopy(conf_data)
-            single_conf_data["data_form"]["cohort_identifiers"] = [cohort_identifier]
-            queued_jobs.append({
-                'conf_data': single_conf_data,
-                'dag_id': json_schema_data.dag_id,
-                "username": username
-            })
-    else:
-        queued_jobs = [
-            {
-                'conf_data': conf_data,
-                'dag_id': json_schema_data.dag_id,
-                # 'dag_id': json_schema_data.dag_id if json_schema_data.federated == False else conf_data['external_schema_federated_form']['remote_dag_id'],
-                "username": username
-            }
-        ]
-
     # create an experiment with involved_instances=conf_data["experiment_form"]["involved_instances"] and add jobs to it
     experiment = schemas.ExperimentCreate(**{
         "experiment_name": json_schema_data.experiment_name,
@@ -321,38 +301,11 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
         "cohort_name": db_cohort.cohort_name if db_cohort is not None else None,
     })
     db_experiment = crud.create_experiment(db=db, experiment=experiment)
-    
-    # create jobs on conf_data["experiment_form"]["runner_instances"]
-    db_jobs = []
-    db_kaapana_instances = []
-    for jobs_to_create in queued_jobs: 
-        db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': json_schema_data.remote, 
-                'instance_names': conf_data["experiment_form"]["runner_instances"]
-                }))
-        # add client instance to instance list only if it is marked as an involved_instance of current experiment
-        if db_client_kaapana.instance_name in conf_data['experiment_form']['runner_instances']:  # add client instance to instance list only if it is marked as an involved_instance of current experiment
-            db_kaapana_instances.append(db_client_kaapana)
-        db_kaapana_instances.extend(db_remote_kaapana_instances)
-        db_kaapana_instances_set = set(db_kaapana_instances)
 
-        for db_kaapana_instance in db_kaapana_instances_set:
-            job = schemas.JobCreate(**{
-                "status": "planned",
-                "kaapana_instance_id": db_kaapana_instance.id,
-                "owner_kaapana_instance_name": db_client_kaapana.instance_name,
-                **jobs_to_create
-            })
+    # async function call to queue jobs and generate db_jobs + adding them to db_experiment
+    asyncio.create_task(crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_experiment, json_schema_data, conf_data))
 
-            db_job = crud.create_job(db, job)
-            db_jobs.append(db_job)
-
-    # update experiment w/ created db_jobs
-    experiment = schemas.ExperimentUpdate(**{
-        "experiment_name": db_experiment.experiment_name,
-        "experiment_jobs": db_jobs,
-    })
-    crud.put_experiment_jobs(db, experiment)
-
+    # directly return created db_experiment for fast feedback
     return db_experiment
 
 # get_experiment

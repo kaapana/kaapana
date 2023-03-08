@@ -124,7 +124,7 @@ spec:
           value: "{{ .Values.global.jobs_namespace }}"
         - name: ADMIN_NAMESPACE
           value: "{{ .Values.global.admin_namespace }}"
-        - name: PULL_POLICY_PODS
+        - name: PULL_POLICY_IMAGES
           value: "{{ .Values.global.pull_policy_pods }}"
         - name: MINIOUSER
           value: "{{ .Values.global.credentials_minio_username }}"

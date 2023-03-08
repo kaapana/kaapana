@@ -9,9 +9,7 @@ from kaapana.kubetools.prometheus_query import get_node_gpu_infos
 from subprocess import PIPE, run, Popen
 # from subprocess import STDOUT, check_output
 from kubernetes.client.models.v1_container_image import V1ContainerImage
-
-gpu_support = True if os.getenv('GPU_SUPPORT', "False").lower() == "true" else False
-
+from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION, GPU_SUPPORT
 
 class UtilService():
     query_delay = None
@@ -152,7 +150,7 @@ class UtilService():
             UtilService.memory_available_limit = abs(UtilService.mem_alloc - UtilService.mem_lmt)
 
             pool_id = "NODE_GPU_COUNT"
-            if UtilService.pool_gpu_count == None or UtilService.pool_gpu_count != UtilService.gpu_dev_count or UtilService.pool_gpu_count == 0 and gpu_support:
+            if UtilService.pool_gpu_count == None or UtilService.pool_gpu_count != UtilService.gpu_dev_count or UtilService.pool_gpu_count == 0 and GPU_SUPPORT:
                 UtilService.create_pool(
                     pool_name=pool_id,
                     pool_slots=UtilService.gpu_dev_count,
@@ -306,7 +304,7 @@ class UtilService():
                         return False, pool_id, gpu_mem_mb
 
                 logger.error(f"No GPU for the TI found! -> Not scheduling !")
-                if not gpu_support:
+                if not GPU_SUPPORT:
                     pool_id = "NODE_GPU_COUNT"
                     return False, pool_id, 1
                 else:

@@ -1,5 +1,4 @@
 ---
 global:
-    pull_policy_jobs: ""
     image: "dag-extract-scanparameters"
     action: "copy"

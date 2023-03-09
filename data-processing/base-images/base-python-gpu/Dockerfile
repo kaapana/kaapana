@@ -9,7 +9,7 @@ LABEL CI_IGNORE="False"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-WORKDIR /kaapana/base
+WORKDIR /app
 
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     apt-utils \
@@ -25,8 +25,8 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Common Python packages
-COPY files/requirements.txt /kaapana/base/
-RUN python -m pip install --upgrade setuptools pip && pip3 install -r /kaapana/base/requirements.txt
+COPY files/requirements.txt /app/
+RUN python -m pip install --upgrade setuptools pip && pip3 install -r /app/requirements.txt
 
 # Code server
 RUN wget https://code-server.dev/install.sh

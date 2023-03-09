@@ -2,7 +2,8 @@ from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
 from kaapana.kubetools.resources import Resources as PodResources
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
 from datetime import timedelta
 import os
 
@@ -59,7 +60,7 @@ class GetContainerModelOperator(KaapanaBaseOperator):
                  **kwargs
                  ):
 
-        self.registry_url = registry_url or default_registry
+        self.registry_url = registry_url or DEFAULT_REGISTRY
         self.model_version = model_version
         self.af_models_dir = "/models"
         

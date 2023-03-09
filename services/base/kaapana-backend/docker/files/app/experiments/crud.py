@@ -1,5 +1,7 @@
 import json
 import os
+import logging
+import traceback
 import uuid
 from typing import List
 
@@ -15,8 +17,10 @@ from urllib3.util import Timeout
 from app.config import settings
 from . import models, schemas
 from .utils import execute_job_airflow, abort_job_airflow, get_dagrun_tasks_airflow, \
-    check_dag_id_and_dataset, get_utc_timestamp, HelperMinio, get_dag_list, \
-    raise_kaapana_connection_error, requests_retry_session, get_uid_list_from_query
+    get_dagrun_details_airflow, get_dagruns_airflow, check_dag_id_and_dataset, get_utc_timestamp, \
+        HelperMinio, get_dag_list, raise_kaapana_connection_error, requests_retry_session, get_uid_list_from_query
+
+logging.getLogger().setLevel(logging.INFO)
 
 TIMEOUT_SEC = 5
 TIMEOUT = Timeout(TIMEOUT_SEC)
@@ -110,7 +114,7 @@ def create_and_update_client_kaapana_instance(db: Session, client_kaapana_instan
     else:
         raise NameError('action must be one of create, update')
 
-    print("Updating Kaapana Instance successful!")
+    logging.info("Updating Kaapana Instance successful!")
 
     db.add(db_client_kaapana_instance)
     db.commit()
@@ -145,7 +149,7 @@ def create_and_update_remote_kaapana_instance(db: Session, remote_kaapana_instan
         db_remote_kaapana_instance.fernet_key = remote_kaapana_instance.fernet_key or 'deactivated'
         db_remote_kaapana_instance.time_updated = utc_timestamp
     elif action == 'external_update':
-        print(f"Externally updating with db_remote_kaapana_instance: {db_remote_kaapana_instance}")
+        logging.info(f"Externally updating with db_remote_kaapana_instance: {db_remote_kaapana_instance}")
         if db_remote_kaapana_instance:
             db_remote_kaapana_instance.allowed_dags = json.dumps(remote_kaapana_instance.allowed_dags)
             db_remote_kaapana_instance.allowed_datasets = json.dumps(remote_kaapana_instance.allowed_datasets)
@@ -160,7 +164,6 @@ def create_and_update_remote_kaapana_instance(db: Session, remote_kaapana_instan
     db.commit()
     db.refresh(db_remote_kaapana_instance)
     return db_remote_kaapana_instance
-
 
 def create_job(db: Session, job: schemas.JobCreate):
     db_kaapana_instance = db.query(models.KaapanaInstance).filter_by(id=job.kaapana_instance_id).first()
@@ -206,7 +209,7 @@ def create_job(db: Session, job: schemas.JobCreate):
     if db_kaapana_instance.remote is False and db_kaapana_instance.automatic_job_execution is True:
         job = schemas.JobUpdate(**{
             'job_id': db_job.id,
-            'status': 'scheduled',
+            'status': 'scheduled',  # keep 'scheduled' and don't change to 'planned'
             'description': 'The worklow was triggered!'
         })
         update_job(db, job, remote=False)
@@ -214,10 +217,15 @@ def create_job(db: Session, job: schemas.JobCreate):
     return db_job
 
 
-def get_job(db: Session, job_id: int):
-    db_job = db.query(models.Job).filter_by(id=job_id).first()
+def get_job(db: Session, job_id: int = None, run_id: str = None):
+    if job_id is not None:
+        db_job = db.query(models.Job).filter_by(id=job_id).first()
+    elif run_id is not None:
+        db_job = db.query(models.Job).filter_by(run_id=run_id).first()
     if not db_job:
-        raise HTTPException(status_code=404, detail="Job not found")
+        logging.warning(f"No job found in db with job_id={job_id}, run_id={run_id} --> will return None")
+        return None
+        # raise HTTPException(status_code=404, detail="Job not found")
     return db_job
 
 
@@ -238,11 +246,15 @@ def delete_jobs(db: Session):
     return {"ok": True}
 
 
-def get_jobs(db: Session, instance_name: str = None, status: str = None, remote: bool = True, limit=None):
+def get_jobs(db: Session, instance_name: str = None, experiment_name: str = None, status: str = None, remote: bool = True, limit=None):
     if instance_name is not None and status is not None:
         return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name).order_by(desc(models.Job.time_updated)).limit(limit).all()  # same as org but w/o filtering by remote
+    elif experiment_name is not None and status is not None:
+        return db.query(models.Job).filter_by(status=status).join(models.Job.experiment, aliased=True).filter_by(experiment_name=experiment_name).order_by(desc(models.Job.time_updated)).limit(limit).all()
     elif instance_name is not None:
         return db.query(models.Job).join(models.Job.kaapana_instance, aliased=True).filter_by(instance_name=instance_name).order_by(desc(models.Job.time_updated)).limit(limit).all()  # same as org but w/o filtering by remote
+    elif experiment_name is not None:
+        return db.query(models.Job).join(models.Job.experiment, aliased=True).filter_by(experiment_name=experiment_name).order_by(desc(models.Job.time_updated)).limit(limit).all()
     elif status is not None:
         return db.query(models.Job).filter_by(status=status).join(models.Job.kaapana_instance, aliased=True).order_by(desc(models.Job.time_updated)).limit(limit).all()  # same as org but w/o filtering by remote
     else:
@@ -252,7 +264,11 @@ def get_jobs(db: Session, instance_name: str = None, status: str = None, remote:
 def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     utc_timestamp = get_utc_timestamp()
 
-    db_job = get_job(db, job.job_id)
+    db_job = get_job(db, job.job_id, job.run_id)
+
+    # update jobs of own db which are remotely executed (def update_job() is in this case called from remote.py's def put_job())
+    if db_job.kaapana_instance.remote:
+        db_job.status = job.status
 
     if (job.status == 'scheduled' and db_job.kaapana_instance.remote == False): #  or (job.status == 'failed'); status='scheduled' for restarting, status='failed' for aborting
         conf_data = json.loads(db_job.conf_data)
@@ -263,12 +279,26 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
             job.status = 'failed'
             job.description = dag_id_and_dataset
         else:
-            execute_job_airflow(conf_data, db_job)
+            airflow_execute_resp = execute_job_airflow(conf_data, db_job)
+            airflow_execute_resp_text = json.loads(airflow_execute_resp.text)
+            dag_id = airflow_execute_resp_text["message"][1]["dag_id"]
+            dag_run_id = airflow_execute_resp_text["message"][1]["run_id"]
+            db_job.dag_id = dag_id      # write directly to db_job to already use db_job.dag_id before db commit
+            db_job.run_id = dag_run_id
+
+    # check state and run_id for created or queued, scheduled, running jobs on local instance
+    if db_job.kaapana_instance.remote == False:
+        # ask here first time Airflow for job status (explicit w/ job_id) via kaapana_api's def dag_run_status()
+        airflow_details_resp = get_dagrun_details_airflow(db_job.dag_id, db_job.run_id)
+        airflow_details_resp_text = json.loads(airflow_details_resp.text)
+        # update db_job w/ job's real state and run_id fetched from Airflow
+        db_job.status = "finished" if airflow_details_resp_text["state"] == "success" else airflow_details_resp_text["state"]  # special case for status = "success"
+        db_job.run_id = airflow_details_resp_text["run_id"]
 
     if (db_job.kaapana_instance.remote != remote) and db_job.status not in ["queued", "finished", "failed"]:
         raise HTTPException(status_code=401,
                             detail="You are not allowed to update this job, since its on the client site")
-    db_job.status = job.status
+
     if job.run_id is not None:
         db_job.run_id = job.run_id
     if job.description is not None:
@@ -286,6 +316,7 @@ def abort_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     conf_data = json.loads(db_job.conf_data)
     conf_data['client_job_id'] = db_job.id
 
+    # repsonse.text of abort_job_airflow usused in backend but might be valuable for debugging
     abort_job_airflow(db_job.dag_id, db_job.run_id, db_job.status, conf_data)
 
 def get_job_taskinstances(db: Session, job_id: int = None):
@@ -295,8 +326,8 @@ def get_job_taskinstances(db: Session, job_id: int = None):
     # parse received response
     response_text = json.loads(response.text)
 
-    ti_state_dict = json.loads(response_text["message"][0].replace("\'", "\""))
-    ti_exdate_dict = json.loads(response_text["message"][1].replace("\'", "\""))
+    ti_state_dict = response_text["message"]["state_dict"]
+    ti_exdate_dict = response_text["message"]["exdate_dict"]
 
     # compose dict in style {"task_instance": ["execution_time", "state"]}
     tis_n_state = {}
@@ -309,16 +340,16 @@ def get_job_taskinstances(db: Session, job_id: int = None):
 
 def sync_client_remote(db: Session, remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal,
                        instance_name: str = None, status: str = None):
+    # logging.info(f"SYNC_CLIENT_REMOTE for instance_name: {instance_name} ; job status: {status}")
     db_client_kaapana = get_kaapana_instance(db, remote=False)
 
     create_and_update_remote_kaapana_instance(
         db=db, remote_kaapana_instance=remote_kaapana_instance, action='external_update')
 
     # get jobs on client_kaapana_instance with instance="instance_name" and status="status"
-    # print(f"SYNC_CLIENT_REMOTE for instance_name: {instance_name} ; job status: {status}")
     db_incoming_jobs = get_jobs(db, instance_name=instance_name, status=status, remote=True)
     incoming_jobs = [schemas.Job(**job.__dict__).dict() for job in db_incoming_jobs]
-    # print(f"SYNC_CLIENT_REMOTE incoming_jobs: {incoming_jobs}")
+    # logging.info(f"SYNC_CLIENT_REMOTE incoming_jobs: {incoming_jobs}")
 
     # get experiments on client_kaapana_instance which contain incoming_jobs
     incoming_experiments = []
@@ -326,7 +357,7 @@ def sync_client_remote(db: Session, remote_kaapana_instance: schemas.RemoteKaapa
         db_incoming_experiment = get_experiments(db, experiment_job_id=db_incoming_job.id)
         incoming_experiment = [schemas.Experiment(**experiment.__dict__).dict() for experiment in db_incoming_experiment][0] if len(db_incoming_experiment) > 0 else None
         incoming_experiments.append(incoming_experiment)
-    # print(f"SYNC_CLIENT_REMOTE incoming_experiments: {incoming_experiments}")
+    # logging.info(f"SYNC_CLIENT_REMOTE incoming_experiments: {incoming_experiments}")
 
 
     update_remote_instance_payload = {
@@ -362,15 +393,16 @@ def delete_external_job(db: Session, db_job):
                                                                  'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'},
                                                              timeout=TIMEOUT)
             if r.status_code == 404:
-                print(f'External job {db_job.external_job_id} does not exist')
+                logging.warning(f'External job {db_job.external_job_id} does not exist')
             else:
                 raise_kaapana_connection_error(r)
-                print(r.json())
+                logging.error(r.json())
 
 
 def update_external_job(db: Session, db_job):
     if db_job.external_job_id is not None:
-        same_instance = db_job.owner_kaapana_instance_name == settings.instance_name    # will be the same !
+        same_instance = db_job.owner_kaapana_instance_name == settings.instance_name
+
         db_remote_kaapana_instance = get_kaapana_instance(db, instance_name=db_job.owner_kaapana_instance_name,
                                                           remote=True)
         payload = {
@@ -379,6 +411,7 @@ def update_external_job(db: Session, db_job):
             "status": db_job.status,
             "description": db_job.description
         }
+        # update_job(db, schemas.JobUpdate(**payload))  # TRYOUT
         if same_instance:
             update_job(db, schemas.JobUpdate(**payload))
         else:
@@ -390,10 +423,10 @@ def update_external_job(db: Session, db_job):
                                                               'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'},
                                                           timeout=TIMEOUT)
             if r.status_code == 404:
-                print(f'External job {db_job.external_job_id} does not exist')
+                logging.warning(f'External job {db_job.external_job_id} does not exist')
             else:
                 raise_kaapana_connection_error(r)
-                print(r.json())
+                logging.error(r.json())
 
 
 def get_remote_updates(db: Session, periodically=False):
@@ -402,7 +435,7 @@ def get_remote_updates(db: Session, periodically=False):
         return
     db_remote_kaapana_instances = get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(
         **{'remote': True}))
-    # print(f"GET REMOTE UPDATES FROM db_remote_kaapana_instances: {db_remote_kaapana_instances}")
+    # logging.info(f"GET REMOTE UPDATES FROM db_remote_kaapana_instances: {db_remote_kaapana_instances}")
     for db_remote_kaapana_instance in db_remote_kaapana_instances:
         same_instance = db_remote_kaapana_instance.instance_name == settings.instance_name
         update_remote_instance_payload = {
@@ -431,7 +464,7 @@ def get_remote_updates(db: Session, periodically=False):
                                                               'FederatedAuthorization': f'{db_remote_kaapana_instance.token}'},
                                                           timeout=TIMEOUT)
             if r.status_code == 405:
-                print(f'Warning!!! We could not reach the following backend {db_remote_kaapana_instance.host}')
+                logging.warning(f'Warning!!! We could not reach the following backend {db_remote_kaapana_instance.host}')
                 continue
             raise_kaapana_connection_error(r)
             incoming_data = r.json()
@@ -442,6 +475,20 @@ def get_remote_updates(db: Session, periodically=False):
 
         create_and_update_remote_kaapana_instance(db=db, remote_kaapana_instance=remote_kaapana_instance,
                                                   action='external_update')
+
+        # create experiment for incoming experiment if does NOT exist yet
+        for incoming_experiment in incoming_experiments:
+            # check if incoming_experiment already exists
+            # db_incoming_experiment = get_experiment(db, experiment_id=incoming_experiment["id"])
+            db_incoming_experiment = get_experiment(db, experiment_name=incoming_experiment["experiment_name"]) # rather query via experiment_name than via experiment_id
+            if db_incoming_experiment is None:
+                # if not: create incoming experiments
+                incoming_experiment['kaapana_instance_id'] = db_remote_kaapana_instance.id
+                incoming_experiment['external_exp_id'] = incoming_experiment["id"]
+                incoming_experiment['involved_kaapana_instances'] = incoming_experiment["involved_kaapana_instances"][1:-1].split(',')  # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
+                experiment = schemas.ExperimentCreate(**incoming_experiment)
+                db_experiment = create_experiment(db, experiment)
+                logging.info(f"Remote experiment: {db_experiment}")
 
         # create incoming jobs
         db_jobs = []
@@ -454,30 +501,65 @@ def get_remote_updates(db: Session, periodically=False):
             db_job = create_job(db, job)
             db_jobs.append(db_job)
 
+        # update incoming experiments
         for incoming_experiment in incoming_experiments:
-            # check if incoming_experiment already exists
-            db_incoming_experiment = get_experiment(db, experiment_id=incoming_experiment["id"])
-            
-            if db_incoming_experiment is None:
-                # if not: create incoming experiments
-                incoming_experiment['kaapana_instance_id'] = db_remote_kaapana_instance.id
-                incoming_experiment['experiment_jobs'] = db_jobs
-                incoming_experiment['external_exp_id'] = incoming_experiment["id"]
-                incoming_experiment['involved_kaapana_instances'] = incoming_experiment["involved_kaapana_instances"][1:-1].split(',')  # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
-                experiment = schemas.ExperimentCreate(**incoming_experiment)
-                db_experiment = create_experiment(db, experiment)
-
-            else:
-                # if yes: update experiment w/ incoming_job
-                exp_update = schemas.ExperimentUpdate(**{
-                    "experiment_name": incoming_experiment["experiment_name"],  # instead of db_incoming_experiment.experiment_name
-                    "experiment_jobs": db_jobs, #  instead of incoming_jobs
-                })
-                db_experiment = put_experiment_jobs(db, exp_update)
+            exp_update = schemas.ExperimentUpdate(**{
+                "experiment_name": incoming_experiment["experiment_name"],  # instead of db_incoming_experiment.experiment_name
+                "experiment_jobs": db_jobs, #  instead of incoming_jobs
+            })
+            db_experiment = put_experiment_jobs(db, exp_update)
+            logging.info(f"Remote experiment: {db_experiment}")
 
 
     return  # schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload)
 
+glob_jobs_in_qsr_state = []   # [{}] solves weird issue that dict is not hashable
+def sync_states_from_airflow(db: Session, periodically=False):
+    # get list from airflow for jobs in states 'queued', 'scheduled', 'running': {'dag_run_id': 'state'} -> jobs_in_qsr_state
+    global glob_jobs_in_qsr_state
+    states = ["queued", "scheduled", "running"]
+    jobs_in_qsr_state = get_dagruns_airflow(tuple(states))
+
+    # find elements which are in current jobs_in_qsr_state but not in glob_jobs_in_qsr_state from previous round
+    diff_curr_to_glob = [elem for elem in jobs_in_qsr_state if elem not in glob_jobs_in_qsr_state]
+    # find elements which are in glob_jobs_in_qsr_state from previous round but not in current jobs_in_qsr_state
+    diff_glob_to_curr = [elem for elem in glob_jobs_in_qsr_state if elem not in jobs_in_qsr_state]
+
+    if len(diff_curr_to_glob) > 0:
+        # request airflow for states of all jobs in diff_curr_to_glob && update db_jobs of all jobs in diff_curr_to_glob
+        for diff_job in diff_curr_to_glob:
+            # get db_job from db via 'run_id'
+            db_job = get_job(db, run_id=diff_job["run_id"]) # fails for all airflow jobs which aren't user-created aka system-jobs
+            if db_job is not None:
+                # update db_job w/ updated state
+                job_update = schemas.JobUpdate(**{
+                        'job_id': db_job.id,
+                        })
+                update_job(db, job_update, remote=False)
+        # update glob_jobs_in_qsr_state
+        glob_jobs_in_qsr_state = jobs_in_qsr_state
+
+    elif len(diff_glob_to_curr) > 0:
+        # request airflow for states of all jobs in diff_glob_to_curr && update db_jobs of all jobs in diff_glob_to_curr
+        for diff_job in diff_glob_to_curr:
+            # get db_job from db via 'run_id'
+            db_job = get_job(db, run_id=diff_job["run_id"])
+            if db_job is not None:
+                # update db_job w/ updated state
+                job_update = schemas.JobUpdate(**{
+                        'job_id': db_job.id,
+                        })
+                update_job(db, job_update, remote=False)
+        # update glob_jobs_in_qsr_state
+        glob_jobs_in_qsr_state = jobs_in_qsr_state
+
+    elif len(diff_glob_to_curr) == 0 and len(diff_curr_to_glob) == 0:
+        # update glob_jobs_in_qsr_state
+        glob_jobs_in_qsr_state = jobs_in_qsr_state
+
+    else:
+        logging.error("Error while syncing kaapana-backend with Airflow")
+        
 
 def create_identifier(db: Session, identifier: schemas.Identifier):
     db_identifier = models.Identifier(
@@ -545,7 +627,7 @@ def create_cohort(db: Session, cohort: schemas.CohortCreate):
             for identifier in cohort.cohort_identifiers
         ]
 
-    print('identifiers: ', db_cohort_identifiers)
+    logging.info('identifiers: ', db_cohort_identifiers)
 
     db_cohort = models.Cohort(
         username=cohort.username,
@@ -571,7 +653,7 @@ def get_cohort(db: Session, cohort_name: str):
 
 
 def get_cohorts(db: Session, instance_name: str = None, limit=None, as_list: bool = True, username: str = None):
-    print(username)
+    logging.info(username)
     if username is not None:
         db_cohorts = db.query(models.Cohort).filter_by(username=username).join(models.Cohort.kaapana_instance,
                                                                                aliased=True).order_by(
@@ -601,7 +683,7 @@ def delete_cohorts(db: Session):
 def update_cohort(db: Session, cohort=schemas.CohortUpdate):
     utc_timestamp = get_utc_timestamp()
 
-    print(f'Updating cohort {cohort.cohort_name}')
+    logging.info(f'Updating cohort {cohort.cohort_name}')
     db_cohort = get_cohort(db, cohort.cohort_name)
 
     if cohort.cohort_name is not None:
@@ -684,17 +766,6 @@ def get_experiments(db: Session, instance_name: str = None, involved_instance_na
         return db.query(models.Experiment).join(models.Experiment.experiment_jobs, aliased=True).filter_by(id=experiment_job_id).all()
     else:
         return db.query(models.Experiment).join(models.Experiment.kaapana_instance).order_by(desc(models.Experiment.time_updated)).limit(limit).all()   # , aliased=True
-
-def get_experiment_jobs(db: Session, experiment_name: str = None, status: str = None, limit=None):
-    if experiment_name is not None and status is not None:
-        return db.query(models.Job).filter_by(status=status).join(models.Job.experiment, aliased=True).filter_by(experiment_name=experiment_name).order_by(desc(models.Job.time_updated)).limit(limit).all()
-    elif experiment_name is not None:
-        return db.query(models.Job).join(models.Job.experiment, aliased=True).filter_by(experiment_name=experiment_name).order_by(desc(models.Job.time_updated)).limit(limit).all()
-    # third case not necessary since experiment has no remote argument so far
-    elif status is not None:
-        return db.query(models.Job).filter_by(status=status).join(models.Job.experiment, aliased=True).order_by(desc(models.Job.time_updated)).limit(limit).all()
-    else:
-        return db.query(models.Job).join(models.Job.experiment, aliased=True).order_by(desc(models.Job.time_updated)).limit(limit).all()
 
 def update_experiment(db: Session, experiment=schemas.ExperimentUpdate):
     utc_timestamp = get_utc_timestamp()

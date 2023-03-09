@@ -14,6 +14,13 @@ JOBS_NAMESPACE = os.getenv('JOBS_NAMESPACE', None)
 assert JOBS_NAMESPACE
 EXTENSIONS_NAMESPACE = os.getenv('EXTENSIONS_NAMESPACE', None)
 assert EXTENSIONS_NAMESPACE
+PULL_POLICY_IMAGES = os.getenv("PULL_POLICY_PODS", "IfNotPresent")
+DEFAULT_REGISTRY = os.getenv("DEFAULT_REGISTRY", None)
+KAAPANA_BUILD_VERSION = os.getenv("KAAPANA_BUILD_VERSION", None)
+PLATFORM_VERSION = os.getenv("PLATFORM_VERSION", None)
+GPU_SUPPORT = True if os.getenv("GPU_SUPPORT", "False").lower() == "true" else False
+ENABLE_NFS = os.getenv("ENABLE_NFS", None)
+
 
 try:
     GPU_COUNT = int(get_pool(name="NODE_GPU_COUNT").slots)

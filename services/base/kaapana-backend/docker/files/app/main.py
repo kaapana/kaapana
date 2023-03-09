@@ -1,6 +1,8 @@
 import requests
 import urllib3
 import os
+import logging
+import traceback
 from fastapi import Depends, FastAPI, Request
 
 from .admin import routers as admin
@@ -14,11 +16,13 @@ from .dependencies import get_query_token, get_token_header
 from .database import SessionLocal, engine
 from .decorators import repeat_every
 from .experiments import models
-from .experiments.crud import get_remote_updates
+from .experiments.crud import get_remote_updates, sync_states_from_airflow
 
 models.Base.metadata.create_all(bind=engine)
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+logging.getLogger().setLevel(logging.INFO)
 
 # app = FastAPI()
 app = FastAPI()
@@ -30,8 +34,18 @@ def periodically_get_remote_updates():
         try:
             get_remote_updates(db, periodically=True)
         except Exception as e:
-            print('Something went wrong updating')
-            print(e)
+            logging.warning('Something went wrong updating')
+            logging.warning(traceback.format_exc())
+
+@app.on_event("startup")
+@repeat_every(seconds=float(os.getenv('REMOTE_SYNC_INTERVAL', 2.5)))
+def periodically_sync_states_from_airflow():
+    with SessionLocal() as db:
+        try:
+            sync_states_from_airflow(db, periodically=True)
+        except Exception as e:
+            logging.warning('Something went wrong updating')
+            logging.warning(traceback.format_exc())
 
 
 app.include_router(

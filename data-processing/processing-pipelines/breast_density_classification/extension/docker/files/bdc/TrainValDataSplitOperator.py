@@ -1,5 +1,6 @@
 from datetime import timedelta
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
 
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -27,7 +28,7 @@ class TrainValDataSplitOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name='train-val-datasplit',
-            image=f"{default_registry}/train-val-datasplit:{kaapana_build_version}",
+            image=f"{DEFAULT_REGISTRY}/train-val-datasplit:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             env_vars=env_vars,      # forward newly set env variables to container

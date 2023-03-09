@@ -1,5 +1,6 @@
 from datetime import timedelta
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
 
 
 class OtsusMethodOperator(KaapanaBaseOperator):
@@ -14,7 +15,7 @@ class OtsusMethodOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name=name,
-            image=f"{default_registry}/otsus-method:{kaapana_build_version}",
+            image=f"{DEFAULT_REGISTRY}/otsus-method:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             #operator_out_dir="otsus-method/",

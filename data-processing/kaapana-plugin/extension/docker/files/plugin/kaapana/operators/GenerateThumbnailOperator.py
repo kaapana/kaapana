@@ -1,5 +1,5 @@
-from kaapana.operators.KaapanaBaseOperator import default_registry, kaapana_build_version, KaapanaBaseOperator
-
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
 
 class GenerateThumbnailOperator(KaapanaBaseOperator):
     """
@@ -28,7 +28,7 @@ class GenerateThumbnailOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/seg-thumbnail-generator:{kaapana_build_version}",
+            image=f"{DEFAULT_REGISTRY}/seg-thumbnail-generator:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             ram_mem_mb=1000,

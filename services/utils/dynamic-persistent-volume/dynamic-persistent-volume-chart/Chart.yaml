@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+appVersion: "0.1.0"
+description: For multiple installable extensions
+name: dynamic-persistent-volume-chart
+version: "0.0.0"
+    

@@ -1,8 +1,15 @@
 ---
 global:
-    registry_url: ""
-    pull_policy_pods: ""
-    base_namespace: ""
-    fast_data_dir: ""
-    slow_data_dir: ""
-mount_path: ""
+  registry_url: ""
+  pull_policy_pods: ""
+  base_namespace: ""
+  fast_data_dir: ""
+  slow_data_dir: ""
+  uuid: "single"
+  volumeMounts:
+  - name: tensorboarddata
+    mount_path: /kaapana/mounted/tensorboard
+  volumes:
+  - name: tensorboarddata
+    claim_name: tb-pv-claim
+    host_path: /tensorboard

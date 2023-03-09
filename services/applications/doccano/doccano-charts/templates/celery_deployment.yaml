@@ -3,7 +3,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: doccano-celery
-  namespace: "{{ .Values.global.extensions_namespace }}"
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -37,8 +37,7 @@ spec:
               mountPath: /backend/media
       volumes:
       - name:  media
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/doccano/media
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: media-pv-claim-doccano
       imagePullSecrets:
       - name: registry-secret

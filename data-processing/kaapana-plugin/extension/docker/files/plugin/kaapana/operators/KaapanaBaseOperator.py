@@ -4,6 +4,7 @@ import re
 import shutil
 import requests
 import time
+import secrets
 from datetime import datetime
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -464,8 +465,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     continue
                 volume_mounts_sets.update(
                     {
-                        f"volumeMounts[{idx}].name": f"{volume_mount.name}",
-                        f"volumeMounts[{idx}].mountPath": f"{volume_mount.mount_path}",
+                        f"global.volumeMounts[{idx}].name": f"{volume_mount.name}",
+                        f"global.volumeMounts[{idx}].mount_path": f"{volume_mount.mount_path}",
                     }
                 )
                 idx = idx + 1
@@ -479,15 +480,15 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                         continue
                     volumes_sets.update(
                         {
-                            f"volumes[{idx}].name": f"{volume.name}",
-                            f"volumes[{idx}].claim_name": f"{volume.configs['PersistentVolumeClaim']['claim_name']}",
+                            f"global.volumes[{idx}].name": f"{volume.name}",
+                            f"global.volumes[{idx}].claim_name": f"{volume.configs['PersistentVolumeClaim']['claim_name']}",
                             # f'volumes[{idx}].path': f"{volume.configs['hostPath']['path']}"
                         }
                     )
                     idx = idx + 1
             logging.info(volumes_sets)
 
-            helm_sets = {"processing_image": self.image, **env_vars_sets, **volume_mounts_sets, **volumes_sets}
+            helm_sets = {"global.processing_image": self.image, "global.namespace": JOBS_NAMESPACE, "global.uuid": secrets.token_hex(5), **env_vars_sets, **volume_mounts_sets, **volumes_sets}
             logging.info(helm_sets)
             # kaapanaint is there, so that it is recognized as a pending application!
             release_name = get_release_name(context)

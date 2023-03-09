@@ -1,9 +1,16 @@
 ---
 global:
-    registry_url: ""
-    pull_policy_pods: ""
-    base_namespace: ""
-    fast_data_dir: ""
-    slow_data_dir: ""
-mount_path: ""
-postfix: 'browser'
+  registry_url: ""
+  pull_policy_pods: ""
+  base_namespace: ""
+  fast_data_dir: ""
+  slow_data_dir: ""
+  uuid: 'browser'
+  volumeMounts:
+  - name: staticwebsiteresults
+    mount_path: /usr/share/nginx/html/
+  volumes:
+  - name: staticwebsiteresults
+    claim_name: sw-pv-claim
+    host_path: /minio/staticwebsiteresults
+    storage: "10Mi"

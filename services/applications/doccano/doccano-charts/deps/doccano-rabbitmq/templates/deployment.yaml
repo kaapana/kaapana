@@ -3,7 +3,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: doccano-rabbitmq
-  namespace: "{{ .Values.global.extensions_namespace }}"
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:

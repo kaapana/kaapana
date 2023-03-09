@@ -67,6 +67,13 @@
             .dragdrop-upload-limit-info
               div Upload completed. Select another chart(.tgz) or container(.tar) file
           input(type='file' @change='onChange')
+      div(v-else-if='uploadPerc == 100 && file && !loadingFile')
+        div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
+          .dragdrop-info(@drag='onChange')
+            span.fa.fa-cloud-upload.dragdrop-title
+            span.dragdrop-title {{fileResponse}}
+            .dragdrop-upload-limit-info
+              div filename: {{file.name}} | file size: {{(file.size / 1000000).toFixed(2)}} MB
       div(v-else-if='file && !loadingFile')
         div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
           .dragdrop-info(@drag='onChange')
@@ -159,16 +166,18 @@
 
             v-dialog(
               v-if="item.extension_params !== undefined || item.extension_params!== 'null'"
-              v-model="popUpDialog"
-              :retain-focus="true"
+              v-model="popUpDialog[item.releaseName]"
+              :retain-focus="false"
               max-width="600px"
-              @click:outside="resetFormInfo()"
+              persistent
+              scrollable
             )
               v-card
-                v-card-title Setup Extension {{ popUpItem.name }}
+                v-card-title Set up Extension {{ popUpItem.name }}
                 v-card-text
                   v-form.px-3(ref="popUpForm")
                     template(v-for="(param, key) in popUpItem.extension_params")
+                      v-card-title(v-if="param.type == 'group_name'" style="font-weight:bold") {{ param.default }}
                       v-text-field(
                         v-if="param.type == 'string'"
                         :label="key"
@@ -199,8 +208,10 @@
                         :rules="popUpRulesMultiList"
                         clearable
                       )
-
-                  v-btn(color="primary", @click="submitForm()") Submit
+                v-card-actions
+                  v-spacer
+                  v-btn(color="primary", @click="resetFormInfo(item.releaseName)") Close
+                  v-btn(color="primary", @click="submitForm(item.releaseName)") Submit
 
           v-btn(
             color="primary",
@@ -251,7 +262,7 @@ export default Vue.extend({
     search: "",
     extensionExperimental: "Stable",
     extensionKind: "All",
-    popUpDialog: false,
+    popUpDialog: {} as any,
     popUpItem: {} as any,
     popUpChartName: "",
     popUpExtension: {} as any,
@@ -639,16 +650,9 @@ export default Vue.extend({
     uploadChunkHTTP(formData: any, i: number, iters: number) {
       console.log("uploading chunk", i, "/", iters)
       kaapanaApiService
-        .helmApiPost("/file_chunks", formData)
+        .helmApiPost("/file_chunks", formData, 0)
         .then(async (resp: any) => {
           console.log("i=", i, "file chunks resp", resp)
-          if (String(resp.data) != String(i + 1) || resp.status != 200) {
-            console.log("error in response", resp)
-            this.loadingFile = false
-            this.fileResponse = "Upload Failed"
-            this.file = ''
-            return
-          }
           if (i >= iters) {
             console.log("upload completed")
             //end
@@ -657,7 +661,7 @@ export default Vue.extend({
             this.fileResponse = "Importing container " + this.file.name
             console.log("importing container...")
             kaapanaApiService
-              .helmApiGet("/import-container", { filename: this.file.name })
+              .helmApiGet("/import-container", { filename: this.file.name }, 0)
               .then((response: any) => {
                 console.log("import response", response)
                 this.fileResponse = "Successfully imported container " + this.file.name
@@ -672,6 +676,13 @@ export default Vue.extend({
               });
           } else {
             // loop
+            if (String(resp.data) != String(i + 1) || resp.status != 200) {
+              console.log("error in response", resp)
+              this.loadingFile = false
+              this.fileResponse = "Upload Failed"
+              this.file = ''
+              return
+            }
             if (this.cancelUpload) {
               console.log("cancelling upload")
               this.loadingFile = false
@@ -759,7 +770,8 @@ export default Vue.extend({
         });
     },
 
-    resetFormInfo() {
+    resetFormInfo(key: any) {
+      this.popUpDialog[key] = false
       if (this.$refs.popUpForm !== undefined) {
         this.popUpExtension = {} as any;
         (this.$refs.popUpForm as Vue & { reset: () => any }).reset()
@@ -767,11 +779,11 @@ export default Vue.extend({
     },
 
     getFormInfo(item: any) {
-      this.popUpDialog = false;
+      this.popUpDialog[item.releaseName] = false;
       this.popUpItem = {} as any;
 
       if (item["extension_params"] && Object.keys(item["extension_params"]).length > 0) {
-        this.popUpDialog = true;
+        this.popUpDialog[item.releaseName] = true;
         this.popUpItem = item;
         for (let key of Object.keys(item["extension_params"])) {
           this.popUpExtension[key] = item["extension_params"][key]["default"]
@@ -782,10 +794,10 @@ export default Vue.extend({
       }
     },
 
-    submitForm() {
+    submitForm(key: any) {
       // this is the same as `this.$refs.popUpForm.validate()` but it raises a build error
       if ((this.$refs.popUpForm as Vue & { validate: () => boolean }).validate()) {
-        this.popUpDialog = false;
+        this.popUpDialog[key] = false;
         this.installChart(this.popUpItem);
       }
 

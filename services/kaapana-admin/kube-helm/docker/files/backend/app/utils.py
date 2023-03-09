@@ -334,6 +334,11 @@ def helm_install(
     if "global.helm_namespace" in payload["sets"]:
         helm_namespace = payload["sets"]["global.helm_namespace"]
 
+    # TODO: workaround for avoiding the namespace conflict
+    if platforms:
+        helm_namespace = "default"
+        helm_command_addons = ""
+
     # make the whole command
     helm_command = f'{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}'
 
@@ -374,17 +379,22 @@ def helm_delete(
     release_version=None,
     helm_command_addons='',
     update_state=True,
-    multiinstallable=False
+    multiinstallable=False,
+    platforms=False
 ):
-    logger.debug(f"in function: helm_delete with {release_name}")
     # release version only important for extensions charts
-    cached_extension = [
-        x for x in helm_helper.global_extensions_dict_cached if x["releaseName"] == release_name]
+    cached_extension = []
+    if platforms:
+        cached_extension = [
+            x for x in helm_helper.global_platforms_list if x["releaseName"] == release_name]
+    else:
+        cached_extension = [
+            x for x in helm_helper.global_extensions_dict_cached if x["releaseName"] == release_name]
+
     if len(cached_extension) == 1:
-        logger.debug(f"{cached_extension=}")
         ext = cached_extension[0]
         versions = ext.available_versions
-        dep = list(versions.items())[0]
+        dep = list(versions.items())[0][1]
         if release_version is not None:
             dep = versions[release_version]
 

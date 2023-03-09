@@ -3,7 +3,7 @@ set -euf -o pipefail
 
 ### Parsing command line arguments:
 usage="$(basename "$0")
-USAGE: docker run -t -i --privileged klakadkfz/kaapana:0.0.0 -gr https://github.com/kaapana/kaapana.git -b feature/podman-base-python-cpu -dr registry.<gitlab-url>/<group/user>/<project> -u <registry_username> -p <registry_password>
+USAGE: docker run -t -i --privileged <registry>/kaapana:0.0.0 -gr https://github.com/kaapana/kaapana.git -b feature/podman-base-python-cpu -dr registry.<gitlab-url>/<group/user>/<project> -u <registry_username> -p <registry_password>
 
 _Argument: -gr|--git-repository [Kaapana Git repository, the default is 'https://github.com/kaapana/kaapana.git']
 _Argument: -b|--branch [Branch of repository that should be built, the default is 'develop']

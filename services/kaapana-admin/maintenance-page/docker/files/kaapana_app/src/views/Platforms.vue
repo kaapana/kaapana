@@ -84,6 +84,7 @@
               :href="link",
               target="_blank",
               v-for="link in item.links",
+              v-if="item.links.length < 3"
               :key="item.link"
             )
               v-icon(color="primary") mdi-open-in-new
@@ -136,23 +137,25 @@
             @click="getFormInfo(item)",
             color="primary",
             min-width = "160px",
-            v-if="checkInstalled(item) === 'no' && item.successful !== 'pending'"
+            v-if="checkInstalled(item) === 'no' && item.successful !== 'pending' && item.successful !== 'justLaunched'"
           ) 
             span(v-if="item.multiinstallable === 'yes'") Launch
             span(v-if="item.multiinstallable === 'no'") Install
 
             v-dialog(
               v-if="item.extension_params !== undefined || item.extension_params!== 'null'"
-              v-model="popUpDialog"
-              :retain-focus="true"
+              v-model="popUpDialog[item.releaseName]"
+              :retain-focus="false"
               max-width="600px"
-              @click:outside="resetFormInfo()"
+              persistent
+              scrollable
             )
               v-card
-                v-card-title Setup Extension {{ popUpItem.name }}
+                v-card-title Set up Platform: {{ popUpItem.name }}
                 v-card-text
                   v-form.px-3(ref="popUpForm")
                     template(v-for="(param, key) in popUpItem.extension_params")
+                      v-card-title(v-if="param.type == 'group_name'" style="font-weight:bold") {{ param.default }}
                       v-text-field(
                         v-if="param.type == 'string'"
                         :label="key"
@@ -183,8 +186,10 @@
                         :rules="popUpRulesMultiList"
                         clearable
                       )
-
-                  v-btn(color="primary", @click="submitForm()") Submit
+                v-card-actions
+                  v-spacer
+                  v-btn(color="primary", @click="resetFormInfo(item.releaseName)") Close
+                  v-btn(color="primary", @click="submitForm(item.releaseName)") Submit
 
           v-btn(
             color="primary",
@@ -233,7 +238,7 @@ export default Vue.extend({
     search: "",
     extensionExperimental: "Stable",
     extensionKind: "All",
-    popUpDialog: false,
+    popUpDialog: {} as any,
     popUpItem: {} as any,
     popUpChartName: "",
     popUpExtension: {} as any,
@@ -518,7 +523,8 @@ export default Vue.extend({
         release_name: item.releaseName,
         release_version: item.version,
         helm_command_addons: helmCommandAddons,
-        helm_namespace: item.available_versions[item.version].deployments[0].helm_info.namespace
+        helm_namespace: item.available_versions[item.version].deployments[0].helm_info.namespace,
+        platforms: true
       };
       console.log("params", params)
       this.loading = true;
@@ -537,7 +543,8 @@ export default Vue.extend({
         });
     },
 
-    resetFormInfo() {
+    resetFormInfo(key: any) {
+      this.popUpDialog[key] = false
       if (this.$refs.popUpForm !== undefined) {
         this.popUpExtension = {} as any;
         (this.$refs.popUpForm as Vue & { reset: () => any }).reset()
@@ -545,11 +552,11 @@ export default Vue.extend({
     },
 
     getFormInfo(item: any) {
-      this.popUpDialog = false;
+      this.popUpDialog[item.releaseName] = false;
       this.popUpItem = {} as any;
 
       if (item["extension_params"] && Object.keys(item["extension_params"]).length > 0) {
-        this.popUpDialog = true;
+        this.popUpDialog[item.releaseName] = true;
         this.popUpItem = item;
         for (let key of Object.keys(item["extension_params"])) {
           this.popUpExtension[key] = item["extension_params"][key]["default"]
@@ -560,10 +567,10 @@ export default Vue.extend({
       }
     },
 
-    submitForm() {
+    submitForm(key: any) {
       // this is the same as `this.$refs.popUpForm.validate()` but it raises a build error
       if ((this.$refs.popUpForm as Vue & { validate: () => boolean }).validate()) {
-        this.popUpDialog = false;
+        this.popUpDialog[key] = false;
         this.installChart(this.popUpItem);
       }
 

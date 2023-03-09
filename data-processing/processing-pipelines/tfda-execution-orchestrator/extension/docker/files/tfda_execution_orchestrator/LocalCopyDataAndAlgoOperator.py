@@ -1,6 +1,4 @@
 import os
-import glob
-import zipfile
 import logging
 import subprocess
 from subprocess import PIPE
@@ -25,7 +23,6 @@ class LocalCopyDataAndAlgoOperator(KaapanaPythonBaseOperator):
         workflow_type = conf["workflow_type"]
         platform_name = platform_config["default_platform"][workflow_type]
         flavor_name = platform_config["platforms"][platform_name]["default_flavor"][workflow_type]
-        # ssh_key_path = platform_config["platforms"][platform_name]["platform_flavors"][flavor_name]["ssh_key_path"]
         ssh_key_name = platform_config["platforms"][platform_name]["platform_flavors"][flavor_name]["ssh_key_name"]
         remote_username = platform_config["platforms"][platform_name]["platform_flavors"][flavor_name]["remote_username"]
         user_selected_data = conf["bucket_id"]

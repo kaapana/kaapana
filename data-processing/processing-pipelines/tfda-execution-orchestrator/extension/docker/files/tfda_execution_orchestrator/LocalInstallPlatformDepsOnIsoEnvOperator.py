@@ -1,6 +1,4 @@
 import os
-import glob
-import zipfile
 from subprocess import PIPE, run
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator

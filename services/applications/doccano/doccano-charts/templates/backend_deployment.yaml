@@ -2,7 +2,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: doccano-backend
-  namespace: "{{ .Values.global.extensions_namespace }}"
+  namespace: "{{ .Values.global.services_namespace }}"
   labels:
     k8s-app: doccano-backend
 spec:
@@ -53,12 +53,10 @@ spec:
             mountPath: /backend/media
       volumes:
       - name:  static-volume
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/doccano/static
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: static-pv-claim-doccano
       - name:  media
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/doccano/media
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: media-pv-claim-doccano
       imagePullSecrets:
       - name: registry-secret

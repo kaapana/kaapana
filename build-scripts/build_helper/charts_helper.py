@@ -771,7 +771,7 @@ class HelmChart:
 
                         elif (
                             ".Values.image" in line
-                            or ".Values.processing_image" in line
+                            or ".Values.global.processing_image" in line
                             or ".Values.global.image" in line
                             or "collection.name" in line
                             or "kube_helm_collection" in line

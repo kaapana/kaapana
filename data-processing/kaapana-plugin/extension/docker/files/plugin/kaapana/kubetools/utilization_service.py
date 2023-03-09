@@ -57,7 +57,7 @@ class UtilService():
     @staticmethod
     def create_pool(pool_name, pool_slots, pool_description, logger=logging):
         command = ["airflow", "pools", "set", str(pool_name), str(pool_slots), str(pool_description)]
-        logger.error(f"Creating pool {pool_name}: {pool_slots} - {pool_description}")
+        logger.info(f"Creating pool {pool_name}: {pool_slots} - {pool_description}")
         output = Popen(command)
 
     @staticmethod
@@ -76,7 +76,7 @@ class UtilService():
 
     @staticmethod
     def get_utilization(logger=logging):
-        logger.error("UtilService -> get_utilization")
+        logger.info("UtilService -> get_utilization")
 
         data = {}
         UtilService.last_update = datetime.now()

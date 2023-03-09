@@ -1,6 +1,4 @@
 import os
-import glob
-import zipfile
 import logging
 import subprocess
 from subprocess import PIPE

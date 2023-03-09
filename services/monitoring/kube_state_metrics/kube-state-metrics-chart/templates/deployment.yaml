@@ -23,7 +23,7 @@ spec:
       automountServiceAccountToken: true
       containers:
       - image: "{{ .Values.global.registry_url }}/kube-state-metrics:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         livenessProbe:
           httpGet:
             path: /healthz

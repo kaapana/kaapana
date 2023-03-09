@@ -1,6 +1,6 @@
 ---
 global:
-    pull_policy_pods: "IfNotPresent"
+    pull_policy_images: "IfNotPresent"
     hostname: ""
     fast_data_dir: /home/kaapana
     slow_data_dir: /home/kaapana

@@ -17,7 +17,7 @@ spec:
       containers:
       - name: openedc-container
         image: "{{  .Values.global.registry_url }}/openedc:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         resources:
           requests:
             memory: 20Mi

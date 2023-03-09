@@ -17,7 +17,7 @@ spec:
       containers:
       - name: debug
         image: "{{ .Values.global.registry_url }}/debug-container:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
         ports:
         - name: debug-http
           containerPort: 5000

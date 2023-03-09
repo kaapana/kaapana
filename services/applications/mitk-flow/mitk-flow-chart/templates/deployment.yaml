@@ -19,7 +19,7 @@ spec:
         # ToDo add init-container to wait for db-host
       - name: mitk
         image: "{{  .Values.global.registry_url }}/mitk-flow:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
         resources:
           requests:
             memory: "4Gi"

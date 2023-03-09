@@ -1,11 +1,10 @@
 from datetime import timedelta
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 import requests
-import glob
+from glob import glob
 from os.path import join, basename, dirname, exists
 
-INSTANCE_NAME = "Test 1"
-
+INSTANCE_NAME = "Test-1"
 
 class LocalPushToPromOperator(KaapanaPythonBaseOperator):
     def push_to_gateway(self, job_name, instance_name, data):
@@ -14,7 +13,7 @@ class LocalPushToPromOperator(KaapanaPythonBaseOperator):
         assert job_name != ""
         # data = "websites_offline{website=\"example.com\"} 0\n"
         try:
-            r = requests.post(
+            response = requests.post(
                 url,
                 headers=headers,
                 data=data,
@@ -22,50 +21,55 @@ class LocalPushToPromOperator(KaapanaPythonBaseOperator):
                 verify=self.verify_ssl,
             )
         except requests.exceptions.Timeout:
-            pass
+            print("Post request error! - Timeout")
         except requests.exceptions.TooManyRedirects:
-            pass
+            print("Post request error! - TooManyRedirects")
+            exit(1)
         except requests.exceptions.RequestException as e:
-            pass
-        print(r.reason)
-        print(r.status_code)
+            print("Post request error! - RequestException")
+            print(str(e))
+            exit(1)
+
+        if response.status_code != 200:
+            print(f"# ERROR! Status code: {response.status_code}!")
+            print(f"# Text: {response.text}!")
+            exit(1)
+
+        print(response.reason)
 
     def start(self, ds, **kwargs):
+        global INSTANCE_NAME
         print("Start LocalPushToPromOperator ...")
         conf = kwargs["dag_run"].conf
 
         run_dir = join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder = [f for f in glob(join(run_dir, self.batch_name, "*"))]
+        txt_input_dir = join(run_dir, self.batch_name, self.operator_in_dir)
+        assert exists(txt_input_dir)
 
-        for batch_element_dir in batch_folder:
-            metrics_txt_files = sorted(
-                glob(
-                    join(batch_element_dir, self.operator_in_dir, "*.txt*"),
-                    recursive=False,
-                )
-            )
+        metrics_txt_files = glob(join(txt_input_dir,"*.txt*"),recursive=False)
+        job_name = ""
+        for metrics_file in metrics_txt_files:
+            print(f"Prepare metrics from: {metrics_file}")
+
             job_name = ""
-            for metrics_file in metrics_txt_files:
-                print(f"Prepare metrics from: {metrics_file}")
-
-                job_name = ""
-                metrics_data = ""
-                with open(metrics_file) as file:
-                    for line in file:
-                        line_text = line.rstrip()
-                        if "job_name:" in line_text:
-                            job_name = line_text.split("job_name:")[-1]
-                            metrics_data = ""
+            metrics_data = ""
+            with open(metrics_file) as file:
+                for line in file:
+                    line_text = line.rstrip()
+                    if "job_name:" in line_text:
+                        job_name = line_text.split("job_name:")[-1]
+                        metrics_data = ""
+                    else:
                         metrics_data += f"{line_text}\n"
 
-                LocalPushToPromOperator.push_to_gateway(
-                    self, job_name, instance_name=INSTANCE_NAME, data=metrics_data
-                )
+            job_name = job_name.strip().replace(" ","-")
+            INSTANCE_NAME = INSTANCE_NAME.strip().replace(" ","-")
+            self.push_to_gateway(job_name=job_name, instance_name=INSTANCE_NAME, data=metrics_data)
 
     def __init__(
         self,
         dag,
-        pushgateway_url="pushgateway-service.extensions.svc:9091",
+        pushgateway_url="http://pushgateway-service.extensions.svc:9091",
         timeout=5,
         verify_ssl=False,
         **kwargs,

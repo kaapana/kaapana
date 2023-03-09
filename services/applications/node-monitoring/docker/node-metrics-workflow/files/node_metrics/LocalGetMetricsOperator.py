@@ -14,12 +14,18 @@ class LocalGetMetricsOperator(KaapanaPythonBaseOperator):
                 self.metrics_endpoint, timeout=self.timeout, verify=self.verify_ssl
             )
         except requests.exceptions.Timeout:
+            print("# ERROR! Request timeout!")
             return None
         except requests.exceptions.TooManyRedirects:
+            print("# ERROR! Request TooManyRedirects!")
             return None
         except requests.exceptions.RequestException as e:
+            print("# ERROR! Request TooManyRedirects!")
             return None
-        
+        if response.status_code != 200:
+            print(f"# ERROR! Status code: {response.status_code}!")
+            print(f"# Text: {response.text}!")
+            return None
         return response.text
 
     def write_metrics_to_file(self, metrics, metrics_output_dir):
@@ -34,9 +40,10 @@ class LocalGetMetricsOperator(KaapanaPythonBaseOperator):
         run_dir = join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         metrics_output_dir = join(run_dir, self.batch_name, self.operator_out_dir)
         os.makedirs(metrics_output_dir, exist_ok=True)
-        component_metrics = LocalGetMetricsOperator.get_metrics()
+        component_metrics = self.get_metrics()
+
         assert component_metrics != None
-        LocalGetMetricsOperator.write_metrics_to_file(
+        self.write_metrics_to_file(
             metrics=component_metrics, metrics_output_dir=metrics_output_dir
         )
 

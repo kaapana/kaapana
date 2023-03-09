@@ -1,4 +1,5 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
 from datetime import timedelta
 
 
@@ -54,7 +55,7 @@ class ResampleOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/mitk-resample:{kaapana_build_version}",
+            image=f"{DEFAULT_REGISTRY}/mitk-resample:{KAAPANA_BUILD_VERSION}",
             name='mitk-resample',
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],

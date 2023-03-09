@@ -345,7 +345,6 @@ function deploy_chart {
         DEV_MODE="false"
         PULL_POLICY_PODS="IfNotPresent"
         PULL_POLICY_JOBS="IfNotPresent"
-        PULL_POLICY_OPERATORS="IfNotPresent"
         PREFETCH_EXTENSIONS="false"
 
         CONTAINER_REGISTRY_USERNAME=""
@@ -354,12 +353,10 @@ function deploy_chart {
         
         PULL_POLICY_PODS="IfNotPresent"
         PULL_POLICY_JOBS="IfNotPresent"
-        PULL_POLICY_OPERATORS="IfNotPresent"
 
         if [ "$DEV_MODE" == "true" ]; then
             PULL_POLICY_PODS="Always"
             PULL_POLICY_JOBS="Always"
-            PULL_POLICY_OPERATORS="Always"
         fi
 
         echo "${YELLOW}Helm login registry...${NC}"
@@ -401,7 +398,6 @@ function deploy_chart {
     --set-string global.offline_mode="$OFFLINE_MODE" \
     --set-string global.prefetch_extensions="$PREFETCH_EXTENSIONS" \
     --set-string global.pull_policy_jobs="$PULL_POLICY_JOBS" \
-    --set-string global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
     --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
     --set-string global.release_name="$PLATFORM_NAME" \

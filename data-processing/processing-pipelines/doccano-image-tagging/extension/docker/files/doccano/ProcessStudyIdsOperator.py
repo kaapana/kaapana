@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
 
 class ProcessStudyIdsOperator(KaapanaBaseOperator):
 
@@ -21,7 +22,7 @@ class ProcessStudyIdsOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name=name,
-            image=f"{default_registry}/doccano-processing:{kaapana_build_version}",
+            image=f"{DEFAULT_REGISTRY}/doccano-processing:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             execution_timeout=execution_timeout,

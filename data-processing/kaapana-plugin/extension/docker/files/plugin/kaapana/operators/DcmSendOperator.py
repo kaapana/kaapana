@@ -1,8 +1,7 @@
 from datetime import timedelta, datetime
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, \
-    default_registry, kaapana_build_version
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE, DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
 
 class DcmSendOperator(KaapanaBaseOperator):
     """
@@ -56,7 +55,7 @@ class DcmSendOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name=name,
-            image=f"{default_registry}/dcmsend:{kaapana_build_version}",
+            image=f"{DEFAULT_REGISTRY}/dcmsend:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             execution_timeout=execution_timeout,

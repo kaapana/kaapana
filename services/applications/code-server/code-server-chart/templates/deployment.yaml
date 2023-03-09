@@ -29,12 +29,21 @@ spec:
         image: "{{ .Values.processing_image }}"
         {{- end }}
         imagePullPolicy: {{ .Values.global.pull_policy_pods }}
-        command: ["code-server"]
-        args: ["--auth", "none", "--bind-addr", "0.0.0.0:8080","/kaapana"]
+        command: ["sh", "-c", "code-server --auth none --bind-addr 0.0.0.0:8080 ${WORKSPACE}"]
         env:
         {{- range $envVar := .Values.envVars }}
         - name: {{ $envVar.name }}
           value: "{{ $envVar.value }}"
+        {{- end }}
+        {{- if .Values.processing_image }}
+        - name: WORKSPACE
+          value: "/kaapana"
+        {{- else if eq .Values.global.image "podman" }}
+        - name: WORKSPACE
+          value: "/kaapana/mounted/podman"
+        {{- else }}
+        - name: WORKSPACE
+          value: "/kaapana/mounted/workflows"
         {{- end }}
         {{- if eq .Values.global.image "podman" }}
         - name: http_proxy

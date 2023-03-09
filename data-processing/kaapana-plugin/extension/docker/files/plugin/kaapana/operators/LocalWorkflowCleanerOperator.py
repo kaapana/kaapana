@@ -3,7 +3,6 @@ from pathlib import Path
 
 from kaapana.blueprints.kaapana_utils import get_operator_properties, \
     clean_previous_dag_run
-from kaapana.operators.HelperCaching import update_job
 from kaapana.operators.KaapanaPythonBaseOperator import \
     KaapanaPythonBaseOperator
 
@@ -27,11 +26,6 @@ class LocalWorkflowCleanerOperator(KaapanaPythonBaseOperator):
         if self.clean_workflow_dir and Path(run_dir).exists():
             print(("Cleaning dir: %s" % run_dir))
             shutil.rmtree(run_dir)
-        if conf is not None and 'client_job_id' in conf:
-            update_job(
-                conf['client_job_id'], status='finished',
-                run_id=dag_run.run_id, description=f'Finished successfully'
-            )
 
     def __init__(self,
                  dag,

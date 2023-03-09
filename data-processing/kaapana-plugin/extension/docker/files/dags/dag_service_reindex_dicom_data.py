@@ -6,7 +6,7 @@ import pydicom
 from shutil import copyfile
 from airflow.utils.dates import days_ago
 from kaapana.blueprints.kaapana_utils import generate_run_id
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, AIRFLOW_WORKFLOW_DIR
+from kaapana.blueprints.kaapana_global_variables import KAAPANA_BUILD_VERSION, INSTANCE_NAME
 from kaapana.operators.LocalDeleteFromMetaOperator import LocalDeleteFromMetaOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 

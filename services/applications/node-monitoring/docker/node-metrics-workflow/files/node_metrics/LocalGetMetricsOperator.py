@@ -38,7 +38,7 @@ class LocalGetMetricsOperator(KaapanaPythonBaseOperator):
         conf = kwargs["dag_run"].conf
 
         run_dir = join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        metrics_output_dir = join(run_dir, self.batch_name, self.operator_out_dir)
+        metrics_output_dir = join(run_dir, self.operator_out_dir)
         os.makedirs(metrics_output_dir, exist_ok=True)
         component_metrics = self.get_metrics()
 

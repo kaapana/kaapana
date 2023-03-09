@@ -4,8 +4,9 @@ import AuthService from '@/common/auth.service'
 
 const kaapanaApiService = {
 
-  helmApiPost(subUrl: any, payload: any) {
+  helmApiPost(subUrl: any, payload: any, timeout: any = 10000) {
     return new Promise((resolve, reject) => {
+      request.defaults.timeout = timeout
       request.post('/kube-helm-api' + subUrl, payload).then((response: any) => {
         console.log(response)
         resolve(response)
@@ -16,8 +17,9 @@ const kaapanaApiService = {
     })
   },
 
-  helmApiGet(subUrl: any, params: any) {
+  helmApiGet(subUrl: any, params: any, timeout: any = 10000) {
     return new Promise((resolve, reject) => {
+      request.defaults.timeout = timeout
       request.get('/kube-helm-api' + subUrl, { params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {

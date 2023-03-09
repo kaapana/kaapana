@@ -4,24 +4,26 @@ import AuthService from '@/common/auth.service'
 
 const kaapanaApiService = {
 
-  helmApiPost(subUrl: any, payload: any) {
+  helmApiPost(subUrl: any, payload: any, timeout: any = 10000) {
     return new Promise((resolve, reject) => {
+      request.defaults.timeout = timeout
       request.post('/kube-helm-api' + subUrl, payload).then((response: any) => {
         console.log(response)
         resolve(response)
       }).catch((error: any) => {
-        console.log('Failed: ' + error)
+        console.log('Failed: ' + error.data)
         reject(error)
       })
     })
   },
 
-  helmApiGet(subUrl: any, params: any) {
+  helmApiGet(subUrl: any, params: any, timeout: any = 10000) {
     return new Promise((resolve, reject) => {
+      request.defaults.timeout = timeout
       request.get('/kube-helm-api' + subUrl, { params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
-        console.log('Failed: ' + error)
+        console.log('Failed: ' + error.data)
         reject(error)
       })
     })
@@ -227,7 +229,7 @@ const kaapanaApiService = {
       request.get('/flow/kaapana/api/' + subUrl, { params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
-        console.log('Failed: ' + error.response.data)
+        console.log('Failed: ' + error.data)
         reject(error)
       })
     })

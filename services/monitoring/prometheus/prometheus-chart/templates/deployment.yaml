@@ -18,7 +18,7 @@ spec:
       initContainers:
       - name: volume-permissions
         image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         command: ["sh", "-c", "chown -R 1000:1000 /prometheus"]
         volumeMounts:
         - name: prometheus-storage-volume
@@ -30,7 +30,7 @@ spec:
       containers:
         - name: prometheus
           image: "{{ .Values.global.registry_url }}/prometheus:{{ .Values.global.kaapana_build_version  }}"
-          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           args:
             - "--config.file=/etc/prometheus.yaml"
             - "--log.level=warn"

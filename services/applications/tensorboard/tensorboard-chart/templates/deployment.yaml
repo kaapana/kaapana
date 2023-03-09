@@ -21,7 +21,7 @@ spec:
       containers:
       - name: tensorboard
         image: "{{ .Values.global.registry_url }}/tensorboard:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
         resources:
           requests:
             memory: "100Mi"

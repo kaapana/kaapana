@@ -17,7 +17,7 @@ spec:
       containers:
       - name: grafana
         image: "{{ .Values.global.registry_url }}/grafana:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         env:
         # - name: GF_SERVER_ROOT_URL
         #   value: "https://{{ required "A valid hostname (or fqdn) is required!" .Values.global.hostname }}/grafana"

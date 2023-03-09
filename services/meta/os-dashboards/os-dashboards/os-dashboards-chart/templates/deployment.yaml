@@ -16,7 +16,7 @@ spec:
       containers:
         - name: os-dashboards-container
           image: "{{ .Values.global.registry_url }}/os-dashboards:{{ .Values.global.kaapana_build_version  }}"
-          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           env:
           - name: DISABLE_SECURITY_DASHBOARDS_PLUGIN
             value: "true"          

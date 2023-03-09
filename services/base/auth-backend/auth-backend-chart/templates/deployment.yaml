@@ -19,7 +19,7 @@ spec:
       containers:
       - name: auth-backend
         image: "{{ .Values.global.registry_url }}/auth-backend:{{ .Values.global.kaapana_build_version }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         ports:
           - containerPort: 5000
         resources:

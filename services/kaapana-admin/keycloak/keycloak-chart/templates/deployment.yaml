@@ -17,7 +17,7 @@ spec:
       initContainers:
       - name: init
         image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         env:
           - name: WAIT
             value: "postgres,postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc,5432"
@@ -28,7 +28,7 @@ spec:
       containers: 
         - name: keycloak-container
           image: "{{ .Values.global.registry_url }}/keycloak:{{ .Values.global.kaapana_build_version  }}"
-          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           env:
           - name: KEYCLOAK_ADMIN 
             value: {{ .Values.global.credentials_keycloak_admin_username }}

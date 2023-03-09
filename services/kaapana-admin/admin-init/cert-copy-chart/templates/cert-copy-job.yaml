@@ -12,7 +12,7 @@ spec:
       containers:
       - name: cert-copy
         image: "{{ .Values.global.registry_url }}/cert-init:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         resources:
           requests:
             memory: 200Mi

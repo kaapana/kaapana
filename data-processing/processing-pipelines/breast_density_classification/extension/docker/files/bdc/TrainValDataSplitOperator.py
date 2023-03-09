@@ -35,7 +35,6 @@ class TrainValDataSplitOperator(KaapanaBaseOperator):
             gpu_mem_mb=24000,        # define GPU memory; default=6000
             ram_mem_mb=8000,        # and RAM memory specs to avoid K8s' OMMKilled errros; default=2000
             ram_mem_mb_lmt=24000,   # default=12000
-            image_pull_policy="Always",
             *args,
             **kwargs
         )

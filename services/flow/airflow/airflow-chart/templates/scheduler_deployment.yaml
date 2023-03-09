@@ -34,7 +34,7 @@ spec:
       initContainers:
       - name: airflow-services-ready-check
         image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
         env:
         - name: WAIT
           value: "postgres,postgres-airflow,5432;prometheus,prometheus-service.{{  .Values.global.services_namespace  }}.svc,9090;statsd-service,airflow-statsd-service.{{  .Values.global.services_namespace  }}.svc,9102"
@@ -47,7 +47,7 @@ spec:
           mountPath: /kaapana/mounted/workflows/plugins
       - name: init-airflow-db
         image: "{{ .Values.global.registry_url }}/airflow:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         args: ["init"]
         resources:
           requests:
@@ -83,7 +83,7 @@ spec:
       containers:
       - name: scheduler
         image: "{{ .Values.global.registry_url }}/airflow:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         args: ["scheduler"]
         env:
         - name: DEFAULT_REGISTRY
@@ -125,7 +125,7 @@ spec:
         - name: ADMIN_NAMESPACE
           value: "{{ .Values.global.admin_namespace }}"
         - name: PULL_POLICY_IMAGES
-          value: "{{ .Values.global.pull_policy_pods }}"
+          value: "{{ .Values.global.pull_policy_images }}"
         - name: MINIOUSER
           value: "{{ .Values.global.credentials_minio_username }}"
         - name: MINIOPASSWORD

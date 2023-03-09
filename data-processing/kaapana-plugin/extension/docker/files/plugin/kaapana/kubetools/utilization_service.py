@@ -9,7 +9,10 @@ from kaapana.kubetools.prometheus_query import get_node_gpu_infos
 from subprocess import PIPE, run, Popen
 # from subprocess import STDOUT, check_output
 from kubernetes.client.models.v1_container_image import V1ContainerImage
-from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION, GPU_SUPPORT
+
+# Not imported from kaapana.blueprints.kaapana_global_variables because inside the kaapana_global_variables the get_pool method is called which results in the error "sqlalchemy.exc.ResourceClosedError: This Connection is closed " because UtilService is imported in scheduler_job.py of Airflow...
+ 
+GPU_SUPPORT = True if os.getenv('GPU_SUPPORT', "False").lower() == "true" else False
 
 class UtilService():
     query_delay = None

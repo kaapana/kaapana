@@ -32,7 +32,7 @@ spec:
         - name: {{ $envVar.name }}
           value: "{{ $envVar.value }}"
         {{- end }}
-        {{- if .Values.processing_image }}
+        {{- if .Values.global.processing_image }}
         - name: WORKSPACE
           value: "/kaapana"
         {{- else if eq .Values.global.image "podman" }}

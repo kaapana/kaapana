@@ -30,7 +30,7 @@ spec:
               memory: 500Mi
           volumeMounts:
             - name: doccano-postgres
-              mountPath: /var/lib/postgresql/data/pgdata
+              mountPath: /var/lib/postgresql/data
           env:
             - name: POSTGRES_USER
               value: doccano
@@ -38,8 +38,6 @@ spec:
               value: doccano
             # - name: POSTGRES_DB
             #   value: airflow
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
             - name: POD_IP
               valueFrom: { fieldRef: { fieldPath: status.podIP } }
       volumes:

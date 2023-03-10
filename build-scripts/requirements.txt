@@ -5,3 +5,4 @@ jinja2
 GitPython
 semver
 alive-progress
+requests

@@ -20,7 +20,7 @@ dag = DAG(
     default_args=args,
     concurrency=4,
     max_active_runs=1,
-    schedule_interval=None,
+    schedule_interval="@hourly",
 )
 
 higher_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")

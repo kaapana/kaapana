@@ -27,7 +27,7 @@ dag = DAG(
     default_args=args,
     concurrency=4,
     max_active_runs=1,
-    schedule_interval="@daily",
+    schedule_interval="@hourly",
 )
 
 get_host_metrics = LocalGetMetricsOperator(

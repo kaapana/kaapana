@@ -15,5 +15,6 @@ WORKDIR /home/node/OpenSearch-Dashboards
 RUN yarn osd bootstrap
 
 USER root
-ADD workflow-trigger /home/node/OpenSearch-Dashboards/plugins/workflow-trigger
-RUN cd /home/node/OpenSearch-Dashboards/plugins/workflow-trigger && yarn build --opensearch-dashboards-version 2.2.0 --allow-root
+COPY workflow-trigger /home/node/OpenSearch-Dashboards/plugins/workflow-trigger
+WORKDIR /home/node/OpenSearch-Dashboards/plugins/workflow-trigger
+RUN yarn build --opensearch-dashboards-version 2.2.0 --allow-root

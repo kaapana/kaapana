@@ -1,8 +1,0 @@
-libfreetype6
-libglu1-mesa-dev
-libglib2.0-0
-libgomp1
-libxt-dev
-xvfb
-qtbase5-dev
-jq

@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 from treelib import Tree
 from subprocess import PIPE, run
-from os.path import join, dirname, basename, exists, isfile, isdir
+from os.path import join, dirname, exists, isfile
 from pathlib import Path
 from build_helper.build_utils import BuildUtils
 from jinja2 import Environment, FileSystemLoader

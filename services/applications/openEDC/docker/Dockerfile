@@ -6,9 +6,9 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /kaapana/app
 
-COPY files/requirements.system /kaapana/app/
-RUN apt-get update -y && cat /kaapana/app/requirements.system | xargs apt-get install -y --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN git clone https://github.com/imi-muenster/OpenEDC /usr/local/apache2/htdocs/openedc && \
     cd /usr/local/apache2/htdocs/openedc && \

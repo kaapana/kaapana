@@ -9,10 +9,24 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
-COPY files/requirements.system /app/
-RUN apt-get update -q -y && apt-get install -y --no-install-recommends apt-utils && \
-    cat /app/requirements.system | xargs apt-get install -y --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    apt-utils \
+    git \
+    htop \
+    zip \
+    unzip \
+    nano \
+    dcmtk \
+    pandoc \
+    texlive-xetex \
+    texlive-fonts-recommended \
+    texlive-plain-generic \
+    ca-certificates \
+    build-essential \
+    wget \
+    curl \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
 
 # Common Python packages
 COPY files/requirements.txt /app/

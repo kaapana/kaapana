@@ -85,8 +85,6 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
                 env_vars['OPERATOR_IMAGE_LIST_INPUT_DIR'] = str(segmentation_operator.operator_out_dir)
             else:
                 raise NameError('Either segmentation_operator or operator_in_dir has to be set.')
-        if config_file:
-            env_vars['config_file'] = config_file
 
         super().__init__(
             dag=dag,

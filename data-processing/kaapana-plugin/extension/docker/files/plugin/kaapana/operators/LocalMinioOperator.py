@@ -29,6 +29,11 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
             self.zip_files = conf['form_data']['zip_files']
             print('Zip files set by form data', self.zip_files)
 
+        if conf is not None and "data_form" in conf:
+            for attr in ["bucket_name", "action_operator_dirs", "action_operators", "action_files"]:
+                if attr in conf["data_form"]:
+                    print(f'From data_form {attr}={conf["data_form"][attr]}')
+                    setattr(self, attr,  conf["data_form"][attr])
         ###################
         # TODO: Can't be used like this, since token expires, we should use presigned_urls, which should be generated when the airflow is triggered
         # if 'conf' in conf:
@@ -46,13 +51,12 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
 
         # Todo: actually should be in pre_execute, however, when utilizing
         # Airflow PythonOperator pre_execute seems to have no effect...
+        # For files coming from Minio hooks!
         if conf is not None and 'Key' in conf:
             self.bucket_name = conf['Key'].split('/')[0]
-            self.object_name = "/".join(conf['Key'].split('/')[1:])
-            print(
-                f'Setting bucket name to {self.bucket_name} '
-                f'and object name to {self.object_name}'
-            )
+            object_names = ["/".join(conf['Key'].split('/')[1:])]
+        else:
+            object_names = []
 
         minio_client = Minio(
             self.minio_host + ":" + self.minio_port,
@@ -102,7 +106,6 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
 
         # Files to apply action
         # Add object_names
-        object_names = []
         object_names = object_names + self.action_files
         # Add relative file paths from operators
         for object_dir in object_dirs:

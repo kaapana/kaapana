@@ -174,6 +174,42 @@ def adding_aetitle(element_input_dir, output_dcm_file, body_part):
 # Only a single Item shall be included in this Sequence.
 # http://dicom.nema.org/medical/dicom/current/output/chtml/part16/chapter_L.html#chapter_L
 
+def set_args_from_config():
+
+    # config_file = Path(batch_element_dir)/ os.environ.get("OPERATOR_IMAGE_LIST_INPUT_DIR")/'seg_args.json'
+    config_file = f"{os.environ.get('WORKFLOW_DIR')}/conf/conf.json"
+    try:
+        with open(config_file, 'r') as f:
+            config_json = json.load(f)
+        config = config_json["seg_args"]
+        valid_keys = [
+            "INPUT_TYPE", 
+            "SINGLE_LABEL_SEG_INFO",
+            "CREATE_MULIT_LABEL_DCM_FROM_SINGLE_LABEL_SEGS",
+            "MULTI_LABEL_SEG_INFO_JSON",
+            "MULTI_LABEL_SEG_NAME",
+            "SERIES_DISCRIPTION",
+            "ALGORITHM_NAME",
+            "CREATOR_NAME",
+            "ALGORITHM_TYPE",
+            "SERIES_NUMBER",
+            "INSTANCE_NUMBER",
+            "SKIP_EMPTY_SLICES",
+            "DCMQI_COMMAND",
+            "OPERATOR_IMAGE_LIST_INPUT_DIR"]
+
+        for k,v in config.items():
+            key = k.upper()
+            if key not in valid_keys:
+                raise NameError(f"Arguments in 'seg_args.json' is invalid. Valid keys are {valid_keys}")
+            os.environ[key] = v
+        print("Found args.json in segmentation folder. parameters given by dag will be overwritten.")
+    except FileNotFoundError:
+        print("No args.json found. Continuing with parameters from dag definition.")
+
+
+
+set_args_from_config()
 
 print("Started: 'itkimage2segimage' ")
 DCMQI = '/kaapana/app/dcmqi/bin'

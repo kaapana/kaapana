@@ -115,3 +115,11 @@ class HelperMinio():
         except InvalidResponseError as err:
             print(err)
             raise
+
+    @staticmethod
+    def list_objects(minioClient, *args, **kwargs):
+        try:
+            return minioClient.list_objects(*args, **kwargs)
+        except InvalidResponseError as err:
+            print(err)
+            raise

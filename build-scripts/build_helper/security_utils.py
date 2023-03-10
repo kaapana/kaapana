@@ -562,24 +562,9 @@ class TrivyUtils:
 
     # Function to check Dockerfile for configuration errors
     def check_dockerfile(self, path_to_dockerfile):
-        command = [
-            "trivy",
-            "config",
-            "-f",
-            "json",
-            "-o",
-            os.path.join(self.reports_path, "dockerfile_report.json"),
-            "--severity",
-            BuildUtils.configuration_check_severity_level,
-            path_to_dockerfile,
-        ]
-        output = run(
-            command,
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
-            timeout=self.timeout,
-        )
+
+        command = ['trivy', 'config', '-f', 'json', '-o', os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), '--severity', BuildUtils.configuration_check_severity_level, path_to_dockerfile]
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
 
         if output.returncode != 0:
             BuildUtils.logger.error("Failed to check Dockerfile")
@@ -592,7 +577,7 @@ class TrivyUtils:
             )
 
         # Log the dockerfile report
-        with open(os.path.join(self.reports_path, "dockerfile_report.json"), "r") as f:
+        with open(os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), 'r') as f:
             dockerfile_report = json.load(f)
 
         # Check if the report contains any results -> weird if it doesn't e.g. when the Dockerfile is empty

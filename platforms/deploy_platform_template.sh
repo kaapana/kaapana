@@ -343,20 +343,17 @@ function deploy_chart {
 
         OFFLINE_MODE="true"
         DEV_MODE="false"
-        PULL_POLICY_PODS="IfNotPresent"
-        PULL_POLICY_JOBS="IfNotPresent"
+        PULL_POLICY_IMAGES="IfNotPresent"
         PREFETCH_EXTENSIONS="false"
 
         CONTAINER_REGISTRY_USERNAME=""
         CONTAINER_REGISTRY_PASSWORD=""
     else
         
-        PULL_POLICY_PODS="IfNotPresent"
-        PULL_POLICY_JOBS="IfNotPresent"
+        PULL_POLICY_IMAGES="IfNotPresent"
 
         if [ "$DEV_MODE" == "true" ]; then
-            PULL_POLICY_PODS="Always"
-            PULL_POLICY_JOBS="Always"
+            PULL_POLICY_IMAGES="Always"
         fi
 
         echo "${YELLOW}Helm login registry...${NC}"
@@ -397,8 +394,9 @@ function deploy_chart {
     --set-string global.https_proxy="$https_proxy" \
     --set-string global.offline_mode="$OFFLINE_MODE" \
     --set-string global.prefetch_extensions="$PREFETCH_EXTENSIONS" \
-    --set-string global.pull_policy_jobs="$PULL_POLICY_JOBS" \
-    --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
+    --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
+    --set-string global.pull_policy_jobs="$PULL_POLICY_IMAGES" \
+    --set-string global.pull_policy_pods="$PULL_POLICY_IMAGES" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
     --set-string global.release_name="$PLATFORM_NAME" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
@@ -407,6 +405,7 @@ function deploy_chart {
     {% endfor -%}
     --name-template "$PLATFORM_NAME"
 
+    # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.1.3
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm $CHART_PATH
     fi

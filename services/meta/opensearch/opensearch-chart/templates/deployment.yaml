@@ -17,7 +17,7 @@ spec:
       initContainers:
       - name: volume-permissions
         image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         command: ["sh", "-c", "chown -R 1000:1000 /os"]
         volumeMounts:
         - name: osdata
@@ -31,7 +31,7 @@ spec:
       containers:
         - name: opensearch-container
           image: "{{ .Values.global.registry_url }}/opensearch:{{ .Values.global.kaapana_build_version  }}"
-          imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+          imagePullPolicy: {{ .Values.global.pull_policy_images }}
           env:
           - name: plugins.security.disabled
             value: "true"

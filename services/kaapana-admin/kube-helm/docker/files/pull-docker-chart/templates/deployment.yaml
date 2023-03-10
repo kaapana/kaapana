@@ -19,7 +19,7 @@ spec:
         #command: ["echo", "downloaded"] # tail better since otherwise the pod tries to restart after successfull deployment
         command: ["tail"]
         args: ["-f", "/dev/null"]
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
       imagePullSecrets:
         - name: registry-secret
 

@@ -34,7 +34,7 @@ spec:
       containers:
       - name: statsd-metrics-exporter
         image: "{{ .Values.global.registry_url }}/statsd-exporter:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         args: 
           - --statsd.mapping-config=/tmp/statsd_mapping.yaml
           - --web.listen-address=:9102

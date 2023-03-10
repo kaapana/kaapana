@@ -1,7 +1,7 @@
 ---
 global:
   registry_url: ""
-  pull_policy_pods: ""
+  pull_policy_images: ""
   base_namespace: ""
   fast_data_dir: ""
   slow_data_dir: ""

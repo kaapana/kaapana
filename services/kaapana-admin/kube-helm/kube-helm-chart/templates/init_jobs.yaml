@@ -13,7 +13,7 @@ spec:
       containers:
       - name: init-collections
         image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         command: ["python", "-u"]
         args: ["/kaapana/app/backend/init_collections.py"]
         env: # Environment variables copied from deployment.yaml
@@ -72,7 +72,7 @@ spec:
       initContainers:
         - name: wait-for-extensions
           image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
-          imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
+          imagePullPolicy: {{ .Values.global.pull_policy_images }}
           env:
             - name: FILES_AND_FOLDERS_EXISTS
               value: "{{- range $extension := $.Values.global.preinstall_extensions }}/kaapana/mounted/extensions/{{ $extension.name }}-{{ $extension.version }}.tgz;{{- end }}"
@@ -86,7 +86,7 @@ spec:
       containers:
       - name: preinstall-extensions
         image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         command: ["python", "-u"]
         args: ["/kaapana/app/backend/preinstall_extensions.py"]
         env: # Environment variables copied from deployment.yaml
@@ -125,7 +125,7 @@ spec:
 {{- if $.Values.global.prefetch_extensions }}
       - name: prefetch-extensions
         image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         command: ["python", "-u"]
         args: ["/kaapana/app/backend/prefetch_extensions.py"]
         env: # Environment variables copied from deployment.yaml

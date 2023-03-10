@@ -1302,7 +1302,7 @@ class HelmChart:
                     build_rounds += 1
                     tmp_waiting_containers_to_built = []
                     result_containers = threadpool.imap_unordered(
-                        parallel_execute, containers_to_built
+                        parallel_execute, waiting_containers_to_built
                     )
                     for queue_id, result_container, issue, done in result_containers:
                         if not done:

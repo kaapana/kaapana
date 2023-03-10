@@ -33,7 +33,10 @@ def parallel_execute(container_object):
     for base_container in container_object.base_images:
         semaphore_successful_built_containers.acquire()
         try:
-            if base_container.local_image and base_container.tag not in successful_built_containers:
+            if (
+                base_container.local_image
+                and base_container.tag not in successful_built_containers
+            ):
                 done = False
                 return queue_id, container_object, issue, done
         finally:
@@ -1158,12 +1161,14 @@ class HelmChart:
                         "version": BuildUtils.platform_build_version,
                     }
                 )
-            
+
             values["global"]["preinstall_extensions"] = []
             for idx, preinstall_extension in enumerate(src_chart.preinstall_extensions):
                 values["global"]["preinstall_extensions"].append(
                     {
-                        "name": src_chart.preinstall_extensions[preinstall_extension].name,
+                        "name": src_chart.preinstall_extensions[
+                            preinstall_extension
+                        ].name,
                         "version": BuildUtils.platform_build_version,
                     }
                 )
@@ -1334,7 +1339,11 @@ class HelmChart:
                                 )
                             else:
                                 bar.text(f"{result_container.build_tag}: ok")
-
+                    
+                    tmp_waiting_containers_to_built = [
+                        (x, tmp_waiting_containers_to_built[x])
+                        for x in range(0, len(tmp_waiting_containers_to_built))
+                    ]
                     waiting_containers_to_built = tmp_waiting_containers_to_built.copy()
 
         if build_rounds == BuildUtils.max_build_rounds:

@@ -9,9 +9,16 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /kaapana/app
 
-COPY files/requirements.system /kaapana/app/
-RUN apt-get update -y && cat /kaapana/app/requirements.system | xargs apt-get install -y --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    libfreetype6 \
+    libglu1-mesa-dev \
+    libglib2.0-0 \
+    libgomp1 \
+    libxt-dev \
+    xvfb \
+    qtbase5-dev \
+    jq \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY files/requirements.txt /kaapana/app/
 RUN python3 -m pip install --no-cache-dir -r /kaapana/app/requirements.txt && rm /kaapana/app/requirements.txt 

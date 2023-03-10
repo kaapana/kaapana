@@ -29,7 +29,7 @@ class TrivyUtils:
         # Check if trivy is installed
         if which("trivy") is None:
             BuildUtils.logger.error(
-                "Trivy is not installed, please visit https://aquasecurity.github.io/trivy/v0.37/getting-started/installation/ for installation instructions"
+                "Trivy is not installed, please visit https://aquasecurity.github.io/trivy/v0.38/getting-started/installation/ for installation instructions. You must install Trivy version 0.38.1, higher is not supported yet."
             )
             BuildUtils.generate_issue(
                 component=suite_tag,
@@ -69,7 +69,7 @@ class TrivyUtils:
             "-p",
             "8081:80",
             "--detach",
-            "aquasec/trivy:latest",
+            "aquasec/trivy:0.38.1",
             "server",
             "--listen",
             "0.0.0.0:80",
@@ -91,7 +91,7 @@ class TrivyUtils:
                         "image",
                         "--server",
                         self.trivy_server_url,
-                        "aquasec/trivy:latest",
+                        "aquasec/trivy:0.38.1",
                     ],
                     stdout=PIPE,
                     stderr=PIPE,

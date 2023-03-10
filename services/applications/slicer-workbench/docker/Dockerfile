@@ -7,17 +7,23 @@ LABEL CI_IGNORE="False"
 WORKDIR /src
 RUN mkdir -p /kaapana/mounted/slicer-data
 
-# update required for libpulse-dev
-RUN apt-get update
-RUN apt-get upgrade -y
-RUN apt-get install -y libpulse-dev
-
-# slicer-specific libraries
-RUN apt-get install -y libglu1-mesa
-RUN apt-get install -y libnss3 libglu1-mesa
-RUN apt-get install -y libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xkb1 libxkbcommon-x11-0
-RUN apt-get install -y libxcb-shape0 libxcb-xinerama0 libxcb-xinerama0-dev
-RUN apt-get install -y libxcb-icccm4-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-randr0 libxcb-xkb-dev libxkbcommon-x11-dev
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+    libpulse-dev \
+    libglu1-mesa \
+    libnss3 \
+    libxcb-icccm4 \
+    libxcb-image0 \
+    libxcb-keysyms1 \ 
+    libxcb-render-util0 \ 
+    libxcb-xkb1 \ 
+    libxkbcommon-x11-0 \
+    libxcb-shape0 \ 
+    libxcb-xinerama0 \
+    libxcb-icccm4 \ 
+    libxcb-image0 \ 
+    libxcb-keysyms1 \ 
+    libxcb-randr0 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Slicer 5.2.2
 RUN SLICER_URL="https://download.slicer.org/bitstream/63f5bee68939577d9867b4c7" && \

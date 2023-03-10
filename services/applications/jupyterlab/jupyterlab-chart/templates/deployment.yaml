@@ -1,29 +1,29 @@
-{{- $uuid := uuidv4 | trunc 10 }}
+{{- $namespace := not .Values.global.namespace | ternary .Values.global.services_namespace .Values.global.namespace | toString }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: jupyterlab-{{ $uuid }}
-  namespace: "{{ not .Values.image | ternary  .Values.global.services_namespace .Values.global.jobs_namespace }}"
+  name: jupyterlab-{{ .Values.global.uuid }}
+  namespace: "{{ $namespace }}"
   labels:
     k8s-app: jupyterlab
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: "jupyterlab-{{ $uuid }}"
+      app-name: "jupyterlab-{{ .Values.global.uuid }}"
   template:
     metadata:
       labels:
-        app-name: "jupyterlab-{{ $uuid }}"
+        app-name: "jupyterlab-{{ .Values.global.uuid }}"
     spec:
       containers:
       - name: jupyterlab
-        {{- if not .Values.image }}
+        {{- if not .Values.global.processing_image }}
         image: "{{ .Values.global.registry_url }}/jupyterlab:{{ .Values.global.kaapana_build_version  }}"
         {{- else }}
-        image: "{{ .Values.image }}"
+        image: "{{ .Values.global.processing_image }}"
         {{- end }}
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
         command: ["/bin/bash"]
         args: ["/jupyterlab.sh"]
         resources:
@@ -36,84 +36,34 @@ spec:
           containerPort: 8888
         env:
         - name: INGRESS_PATH
-          value: "/jupyterlab-{{ $uuid }}"
-        {{- range $envVar := .Values.envVars }}
+          value: "/jupyterlab-{{ .Values.global.uuid }}"
+        {{- range $envVar := .Values.global.envVars }}
         - name: {{ $envVar.name }}
           value: "{{ $envVar.value }}"
         {{- end }}
         volumeMounts:
-          {{- if not .Values.volumeMounts }}
-          - name: jupyterlabdata
-            mountPath: /kaapana/mounted/jupyterlab
-          {{- else }}
+          {{- range $volumeMount := .Values.global.volumeMounts }}
+          - name: {{ $volumeMount.name }}
+            mountPath: "{{ $volumeMount.mount_path }}"
+          {{- end }}
+          {{- if .Values.global.processing_image }}
           - name: dshm
             mountPath: /dev/shm
           {{- end }}
-          {{- range $volumeMount := .Values.volumeMounts }}
-          - name: {{ $volumeMount.name }}
-            mountPath: "{{ $volumeMount.mountPath }}"
-          {{- end }}
       volumes:
-      {{- if not .Values.volumes }}
-      - name: jupyterlabdata
-        hostPath:
-          {{- if .Values.mount_path }}
-          path: {{ .Values.mount_path }}
-          {{- else if .Values.global.slow_mount_path }}
-          path: {{ .Values.global.slow_data_dir }}{{ .Values.global.slow_mount_path }}
-          {{- else if .Values.global.fast_mount_path }}
-          path: {{ .Values.global.fast_data_dir }}{{ .Values.global.fast_mount_path }}
+      {{- range $volume := .Values.global.volumes }}
+      - name: {{ $volume.name }}
+        persistentVolumeClaim:
+          {{- if not (lookup "v1" "PersistentVolumeClaim" $namespace $volume.claim_name ) }}
+          claimName: {{ $volume.claim_name }}-pv-claim-{{ $.Values.global.uuid }}
           {{- else }}
-          path: {{ .Values.global.fast_data_dir }}/jupyterlab
+          claimName: {{ $volume.claim_name }}
           {{- end }}
-          type: DirectoryOrCreate
-      {{- else }}
+      {{- end }}
+      {{- if .Values.global.processing_image }}
       - name: dshm
         emptyDir:
           medium: Memory
       {{- end }}
-      {{- range $volume := .Values.volumes }}
-      - name: {{ $volume.name }}
-        persistentVolumeClaim:
-          claimName: {{ $volume.claim_name }}
-      {{- end }}
       imagePullSecrets:
       - name: registry-secret
----
-kind: Service
-apiVersion: v1
-metadata:
-  name: "jupyterlab-{{ $uuid }}"
-  namespace: "{{ not .Values.image | ternary  .Values.global.services_namespace .Values.global.jobs_namespace }}"
-spec:
-  selector:
-    app-name: "jupyterlab-{{ $uuid }}"
-  ports:
-    - protocol: TCP
-      port: 8888
-      targetPort: jupyterlab-http
-      name: log-http-port
-  type: ClusterIP
----
-apiVersion: networking.k8s.io/v1 
-kind: Ingress
-metadata:
-  name: "jupyterlab-{{ $uuid }}"
-  namespace: "{{ not .Values.image | ternary  .Values.global.services_namespace .Values.global.jobs_namespace }}"
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-auth-check@kubernetescrd
-    traefik.ingress.kubernetes.io/preserve-host: "true"
-spec:
-  rules:
-  - host: 
-    http:
-      paths:
-      - path: /jupyterlab-{{ $uuid }}
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: "jupyterlab-{{ $uuid }}"
-            port:
-              name: log-http-port
----

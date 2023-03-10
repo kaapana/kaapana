@@ -2,7 +2,7 @@ from time import time
 import json
 import semver
 import networkx as nx
-from os.path import join, dirname, basename, exists, isfile, isdir
+from os.path import join, dirname, basename, exists
 from git import Repo
 
 class BuildUtils:
@@ -29,6 +29,7 @@ class BuildUtils:
     vulnerability_severity_level = None
     configuration_check = None
     configuration_check_severity_level = None
+    create_sboms = None
     thread_pool = None
     version_latest = False
     platform_name = None

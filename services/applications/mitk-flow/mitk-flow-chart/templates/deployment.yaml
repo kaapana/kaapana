@@ -1,25 +1,25 @@
-{{- $uuid := uuidv4 | trunc 10 }}
+{{- $namespace := .Values.global.namespace | toString }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: mitk-flow-{{ $uuid }}
-  namespace: "{{ .Values.global.services_namespace }}"
+  name: mitk-flow-{{ .Values.global.uuid }}
+  namespace: "{{ $namespace }}"
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: mitk-flow-{{ $uuid }}
+      app-name: mitk-flow-{{ .Values.global.uuid }}
   template:
     metadata:
       labels:
-        app-name: mitk-flow-{{ $uuid }}
+        app-name: mitk-flow-{{ .Values.global.uuid }}
     spec:
       restartPolicy: Always
       containers:
         # ToDo add init-container to wait for db-host
       - name: mitk
         image: "{{  .Values.global.registry_url }}/mitk-flow:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
         resources:
           requests:
             memory: "4Gi"
@@ -27,7 +27,7 @@ spec:
             memory: "8Gi"
         env:
         - name: INGRESS_PATH
-          value: mitk-flow-{{ $uuid }}
+          value: mitk-flow-{{ .Values.global.uuid }}
         - name: USER
           value: mitk
         - name: PASSWORD
@@ -39,68 +39,21 @@ spec:
         - name: OPERATOR_OUT_DIR
           value: "{{ .Values.operator_out_dir }}" 
         - name: OPERATOR_IN_DIR
-          value: "{{ .Values.operator_in_dir }}"           
+          value: "{{ .Values.operator_in_dir }}"
         volumeMounts:
-        - name: mitk-data
-          mountPath: /kaapana/mounted/mitk-data
-      volumes:
-      - name: mitk-data
-        hostPath:
-          {{- if .Values.mount_path }}
-          path: {{ .Values.mount_path }}
-          {{- else }}
-          path: {{ .Values.global.slow_data_dir }}/minio
+          {{- range $volumeMount := .Values.global.volumeMounts }}
+          - name: {{ $volumeMount.name }}
+            mountPath: "{{ $volumeMount.mount_path }}"
           {{- end }}
-          type: DirectoryOrCreate
+      volumes:
+      {{- range $volume := .Values.global.volumes }}
+      - name: {{ $volume.name }}
+        persistentVolumeClaim:
+          {{- if not (lookup "v1" "PersistentVolumeClaim" $namespace $volume.claim_name ) }}
+          claimName: {{ $volume.claim_name }}-pv-claim-{{ $.Values.global.uuid }}
+          {{- else }}
+          claimName: {{ $volume.claim_name }}
+          {{- end }}
+      {{- end }}
       imagePullSecrets:
       - name: registry-secret
----
-kind: Service
-apiVersion: v1
-metadata:
-  name: mitk-flow-{{ $uuid }}
-  namespace: "{{ .Values.global.services_namespace }}"
-  labels:
-    app: mitk-flow-{{ $uuid }}
-spec:
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 80
-      name: pt-mitk-http
-  type: ClusterIP
-  selector:
-    app-name: mitk-flow-{{ $uuid }}
----
-apiVersion: traefik.containo.us/v1alpha1
-kind: Middleware
-metadata:
-  name: mitk-flow-{{ $uuid }}-redirect
-  namespace: "{{ .Values.global.services_namespace }}"
-spec:
-  redirectRegex:
-    regex: ^.*/mitk-flow-{{ $uuid }}([^\/]*)$
-    replacement: /mitk-flow-{{ $uuid }}/
----
-apiVersion: networking.k8s.io/v1 
-kind: Ingress
-metadata:
-  name: mitk-flow-{{ $uuid }}
-  namespace: "{{ .Values.global.services_namespace }}"
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-auth-check@kubernetescrd,{{ .Values.global.services_namespace }}-mitk-flow-{{ $uuid }}-redirect@kubernetescrd
-    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
-spec:
-  rules:
-  - host:
-    http:
-      paths:
-      - path: /mitk-flow-{{ $uuid }}
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: mitk-flow-{{ $uuid }}
-            port:
-              name: pt-mitk-http
----

@@ -1,7 +1,7 @@
 from datetime import timedelta
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, \
-    default_registry, kaapana_build_version
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
 
 
 class BprOperator(KaapanaBaseOperator):
@@ -42,7 +42,7 @@ class BprOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/bodypartregression:{kaapana_build_version}",
+            image=f"{DEFAULT_REGISTRY}/bodypartregression:{KAAPANA_BUILD_VERSION}",
             name="bodypartregression",
             parallel_id=parallel_id,
             image_pull_secrets=["registry-secret"],

@@ -1,8 +1,14 @@
 ---
 global:
-    registry_url: ""
-    pull_policy_pods: ""
-    base_namespace: ""
-    fast_data_dir: ""
-    slow_data_dir: ""
-mount_path: ""
+  registry_url: ""
+  pull_policy_images: ""
+  base_namespace: ""
+  fast_data_dir: ""
+  slow_data_dir: ""
+  uuid: "single"
+  volumeMounts:
+  - name: mitkdata
+    mount_path: /kaapana/mounted/mitk-data
+  volumes:
+  - name: mitkdata
+    claim_name: minio-pv-claim

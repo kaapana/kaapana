@@ -21,7 +21,7 @@ spec:
       - name: kaapana-backend-postgres
         image: "{{ .Values.global.registry_url }}/postgres-9.6-alpine:{{ .Values.global.kaapana_build_version  }}"
         # imagePullPolicy: Always
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         env: # Environment variables
         - name: POSTGRES_USER
           value: kaapanauser

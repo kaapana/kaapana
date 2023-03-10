@@ -1,27 +1,27 @@
-{{- $uuid := uuidv4 | trunc 10 }}
+{{- $namespace := .Values.global.services_namespace | toString }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: tensorboard-{{ $uuid }}
-  namespace: "{{ .Values.global.services_namespace }}"
+  name: tensorboard-{{ .Values.global.uuid }}
+  namespace: "{{ $namespace }}"
   labels:
     k8s-app: tensorboard
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: tensorboard-{{ $uuid }}
+      app-name: tensorboard-{{ .Values.global.uuid }}
   template:
     metadata:
       labels:
-        app-name: tensorboard-{{ $uuid }}
+        app-name: tensorboard-{{ .Values.global.uuid }}
     spec:
       securityContext:
         runAsUser: 1000
       containers:
       - name: tensorboard
         image: "{{ .Values.global.registry_url }}/tensorboard:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
         resources:
           requests:
             memory: "100Mi"
@@ -29,50 +29,21 @@ spec:
             memory: "1Gi"
         env:
           - name: INGRESS_PATH
-            value: "/tensorboard-{{ $uuid }}"
+            value: "/tensorboard-{{ .Values.global.uuid }}"
         volumeMounts:
-          - name: tensorboard-files
-            mountPath: /kaapana/mounted/tensorboard
+          {{- range $volumeMount := .Values.global.volumeMounts }}
+          - name: {{ $volumeMount.name }}
+            mountPath: "{{ $volumeMount.mount_path }}"
+          {{- end }}
       volumes:
-      - name: tensorboard-files
+      {{- range $volume := .Values.global.volumes }}
+      - name: {{ $volume.name }}
         persistentVolumeClaim:
-          claimName: tb-pv-claim
+          {{- if not (lookup "v1" "PersistentVolumeClaim" $namespace $volume.claim_name ) }}
+          claimName: {{ $volume.claim_name }}-pv-claim-{{ $.Values.global.uuid }}
+          {{- else }}
+          claimName: {{ $volume.claim_name }}
+          {{- end }}
+      {{- end }}
       imagePullSecrets:
       - name: registry-secret
----
-kind: Service
-apiVersion: v1
-metadata:
-  name: tensorboard-{{ $uuid }}
-  namespace: "{{ .Values.global.services_namespace }}"
-spec:
-  selector:
-    app-name: tensorboard-{{ $uuid }}
-  ports:
-    - protocol: TCP
-      port: 6006
-      name: log-http-port
-  type: ClusterIP
----
-apiVersion: networking.k8s.io/v1 
-kind: Ingress
-metadata:
-  name: tensorboard-{{ $uuid }}
-  namespace: "{{ .Values.global.services_namespace }}"
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-auth-check@kubernetescrd
-    traefik.ingress.kubernetes.io/preserve-host: "true"
-spec:
-  rules:
-  - host: 
-    http:
-      paths:
-      - path: /tensorboard-{{ $uuid }}
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: tensorboard-{{ $uuid }}
-            port:
-              name: log-http-port
----

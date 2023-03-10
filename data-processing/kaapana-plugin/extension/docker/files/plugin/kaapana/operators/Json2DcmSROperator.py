@@ -1,4 +1,5 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
 from datetime import timedelta
 
 class Json2DcmSROperator(KaapanaBaseOperator):
@@ -51,7 +52,7 @@ class Json2DcmSROperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/dcmqi:{kaapana_build_version}",
+            image=f"{DEFAULT_REGISTRY}/dcmqi:{KAAPANA_BUILD_VERSION}",
             name="json2dcmSR",
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],

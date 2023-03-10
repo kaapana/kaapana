@@ -17,7 +17,7 @@ spec:
       initContainers:
       - name: init
         image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         env:
           - name: WAIT
             value: "postgres,postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc,5432"
@@ -28,28 +28,33 @@ spec:
       containers: 
         - name: keycloak-container
           image: "{{ .Values.global.registry_url }}/keycloak:{{ .Values.global.kaapana_build_version  }}"
-          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           env:
-          - name: KEYCLOAK_ADMIN ### KEYCLOAK_USER
+          - name: KEYCLOAK_ADMIN 
             value: {{ .Values.global.credentials_keycloak_admin_username }}
           - name: KEYCLOAK_ADMIN_PASSWORD
             value: {{ .Values.global.credentials_keycloak_admin_password }}
-          - name: KC_DB #DB_VENDOR
+          - name: KC_DB 
             value: "postgres"
-          - name: KC_DB_URL #DB_ADDR
-            value: "jdbc:postgresql://postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc:5432/keycloak" #"http://postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc:5432"
-          - name: KC_DB_URL_PORT ##DB_PORT
-            value: "5432"
-          - name: KC_DB_USERNAME #DB_USER
+          - name: KC_DB_URL 
+            value: "jdbc:postgresql://postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc/keycloak" 
+          - name: KC_DB_USERNAME 
             value: "keycloak"
-          - name: KC_DB_PASSWORD #DB_PASSWORD
+          - name: KC_DB_PASSWORD
             value: "keycloak"
           - name: KC_LOG_LEVEL
             value: "INFO"
+          {{- if ne (.Values.global.https_port | default "443") "443" }}
           - name: KC_HOSTNAME_ADMIN_URL
-            value: "https://{{ .Values.global.hostname }}/auth" ##"https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc:8443/" ## "localhost"
+            value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/auth" 
           - name: KC_HOSTNAME_URL
-            value: "https://{{ .Values.global.hostname }}/auth"  ###"https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc:8443/" ## "localhost"
+            value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/auth" 
+          {{- else }}
+          - name: KC_HOSTNAME_ADMIN_URL
+            value: "https://{{ .Values.global.hostname }}/auth" 
+          - name: KC_HOSTNAME_URL
+            value: "https://{{ .Values.global.hostname }}/auth" 
+          {{- end }}
           - name: KC_PROXY
             value: edge
           - name: KC_HTTP_RELATIVE_PATH

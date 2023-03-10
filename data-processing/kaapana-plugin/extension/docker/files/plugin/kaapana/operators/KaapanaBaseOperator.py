@@ -4,6 +4,7 @@ import re
 import shutil
 import requests
 import time
+import secrets
 from datetime import datetime
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -28,9 +29,14 @@ from kaapana.blueprints.kaapana_global_variables import (
     PROCESSING_WORKFLOW_DIR,
     ADMIN_NAMESPACE,
     JOBS_NAMESPACE,
+    PULL_POLICY_IMAGES,
+    DEFAULT_REGISTRY,
+    KAAPANA_BUILD_VERSION,
+    PLATFORM_VERSION,
+    GPU_SUPPORT
 )
 
-# from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
 import uuid
 import json
@@ -38,11 +44,11 @@ import logging
 from airflow.models import Variable
 
 
-default_registry = os.getenv("DEFAULT_REGISTRY", "")
-kaapana_build_version = os.getenv("KAAPANA_BUILD_VERSION", "")
-platform_version = os.getenv("PLATFORM_VERSION", "")
-gpu_support = True if os.getenv("GPU_SUPPORT", "False").lower() == "true" else False
-enable_nfs = os.getenv("ENABLE_NFS", "")
+# Backward compatibility
+default_registry = DEFAULT_REGISTRY
+kaapana_build_version = KAAPANA_BUILD_VERSION
+platform_version = PLATFORM_VERSION
+gpu_support = GPU_SUPPORT
 
 
 class KaapanaBaseOperator(BaseOperator, SkipMixin):
@@ -100,7 +106,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     CURE_INVALID_NAME_REGEX = r"[a-z]([-a-z0-9]*[a-z0-9])?"
 
     pod_stopper = PodStopper()
-    env_pull_policy = os.getenv("PULL_POLICY_PODS", "None")
 
     def __init__(
         self,
@@ -143,7 +148,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         image_pull_secrets=None,
         startup_timeout_seconds=120,
         namespace=JOBS_NAMESPACE,
-        image_pull_policy=env_pull_policy if env_pull_policy == env_pull_policy.lower() == "never" else "IfNotPresent",
+        image_pull_policy=PULL_POLICY_IMAGES,
         #  Deactivated till dynamic persistent volumes are supported
         #  volume_mounts=None,
         #  volumes=None,
@@ -389,7 +394,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             self.env_vars[k] = str(v)
 
     # The order of this decorators matters because of the whitelist_federated_learning variable, do not change them!
-    # @cache_operator_output
+    @cache_operator_output
     @federated_sharing_decorator
     def execute(self, context):
         config_path = os.path.join(self.airflow_workflow_dir, context["run_id"], "conf", "conf.json")
@@ -450,7 +455,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             url = f"{KaapanaBaseOperator.HELM_API}/helm-install-chart"
             env_vars_sets = {}
             for idx, (k, v) in enumerate(self.env_vars.items()):
-                env_vars_sets.update({f"envVars[{idx}].name": f"{k}", f"envVars[{idx}].value": f"{v}"})
+                env_vars_sets.update({f"global.envVars[{idx}].name": f"{k}", f"global.envVars[{idx}].value": f"{v}"})
 
             volume_mounts_sets = {}
             idx = 0
@@ -460,8 +465,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     continue
                 volume_mounts_sets.update(
                     {
-                        f"volumeMounts[{idx}].name": f"{volume_mount.name}",
-                        f"volumeMounts[{idx}].mountPath": f"{volume_mount.mount_path}",
+                        f"global.volumeMounts[{idx}].name": f"{volume_mount.name}",
+                        f"global.volumeMounts[{idx}].mount_path": f"{volume_mount.mount_path}",
                     }
                 )
                 idx = idx + 1
@@ -475,29 +480,29 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                         continue
                     volumes_sets.update(
                         {
-                            f"volumes[{idx}].name": f"{volume.name}",
-                            f"volumes[{idx}].claim_name": f"{volume.configs['PersistentVolumeClaim']['claim_name']}",
+                            f"global.volumes[{idx}].name": f"{volume.name}",
+                            f"global.volumes[{idx}].claim_name": f"{volume.configs['PersistentVolumeClaim']['claim_name']}",
                             # f'volumes[{idx}].path': f"{volume.configs['hostPath']['path']}"
                         }
                     )
                     idx = idx + 1
             logging.info(volumes_sets)
 
-            helm_sets = {"processing_image": self.image, **env_vars_sets, **volume_mounts_sets, **volumes_sets}
+            helm_sets = {"global.processing_image": self.image, "global.namespace": JOBS_NAMESPACE, "global.uuid": secrets.token_hex(5), **env_vars_sets, **volume_mounts_sets, **volumes_sets}
             logging.info(helm_sets)
             # kaapanaint is there, so that it is recognized as a pending application!
             release_name = get_release_name(context)
             if self.dev_server == "code-server":
                 payload = {
                     "name": "code-server-chart",
-                    "version": kaapana_build_version,
+                    "version": KAAPANA_BUILD_VERSION,
                     "release_name": release_name,
                     "sets": helm_sets,
                 }
             elif self.dev_server == "jupyterlab":
                 payload = {
                     "name": "jupyterlab-chart",
-                    "version": kaapana_build_version,
+                    "version": KAAPANA_BUILD_VERSION,
                     "release_name": release_name,
                     "sets": helm_sets,
                 }
@@ -675,7 +680,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         obj.ram_mem_mb_lmt = ram_mem_mb_lmt
         obj.cpu_millicores = cpu_millicores
         obj.cpu_millicores_lmt = cpu_millicores_lmt
-        obj.gpu_mem_mb = gpu_mem_mb if gpu_support else None
+        obj.gpu_mem_mb = gpu_mem_mb if GPU_SUPPORT else None
         obj.gpu_mem_mb_lmt = gpu_mem_mb_lmt
         obj.manage_cache = manage_cache or "ignore"
         obj.allow_federated_learning = allow_federated_learning

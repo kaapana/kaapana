@@ -12,7 +12,7 @@ spec:
         initContainers:
         - name: init
           image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
-          imagePullPolicy: "{{ .Values.global.pull_policy_pods }}"
+          imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
           env:
             - name: WAIT
               value: "keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
@@ -23,7 +23,7 @@ spec:
         containers:
         - name: keycloak-init
           image: "{{ .Values.global.registry_url }}/keycloak-init:{{ .Values.global.kaapana_build_version  }}"
-          imagePullPolicy:  "{{ .Values.global.pull_policy_jobs }}"
+          imagePullPolicy:  "{{ .Values.global.pull_policy_images }}"
           resources:
             requests:
               memory: 200Mi
@@ -36,8 +36,8 @@ spec:
               value: "{{ .Values.global.credentials_keycloak_admin_password }}"
             - name: KEYCLOAK_HOST
               value: "keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc"
-            - name: HOSTNAME
-              value: "{{ .Values.global.hostname }}"
+            - name: KEYCLOAK_URI
+              value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}"
         restartPolicy: Never
         serviceAccountName: kaapana-kube-admin
         imagePullSecrets:

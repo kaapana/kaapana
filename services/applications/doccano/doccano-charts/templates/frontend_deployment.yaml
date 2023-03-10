@@ -2,7 +2,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: doccano-frontend
-  namespace: "{{ .Values.global.extensions_namespace }}"
+  namespace: "{{ .Values.global.services_namespace }}"
   labels:
     k8s-app: doccano-frontend
 spec:
@@ -18,7 +18,7 @@ spec:
       containers:
       - name: doccano-frontend
         image: "{{ .Values.global.registry_url }}/doccano-frontend:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy: {{ .Values.global.pull_policy_pods | default "IfNotPresent" }}
+        imagePullPolicy: {{ .Values.global.pull_policy_images | default "IfNotPresent" }}
         ports:
         - containerPort: 8080
         resources:
@@ -38,12 +38,10 @@ spec:
             mountPath: /media
       volumes:
       - name:  static-volume
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/doccano/static
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: static-pv-claim-doccano
       - name:  media
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/doccano/media
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: media-pv-claim-doccano
       imagePullSecrets:
       - name: registry-secret

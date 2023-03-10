@@ -1,9 +1,14 @@
 ---
 global:
-    registry_url: ""
-    pull_policy_pods: ""
-    base_namespace: ""
-    fast_data_dir: ""
-    slow_data_dir: ""
-mount_path: ""
-postfix: 'browser'
+  registry_url: ""
+  pull_policy_images: ""
+  base_namespace: ""
+  fast_data_dir: ""
+  slow_data_dir: ""
+  uuid: "single"
+  volumeMounts:
+  - name: ratemedata
+    mount_path: /kaapana/mounted/rateme-data
+  volumes:
+  - name: ratemedata
+    claim_name: minio-pv-claim

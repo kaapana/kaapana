@@ -34,7 +34,7 @@ spec:
       containers:
         - name: postgres
           image: "{{ .Values.global.registry_url }}/postgres-9.6-alpine:{{ .Values.global.kaapana_build_version  }}"
-          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           args: ["-c", "max_connections=200"]          
           ports:
             - containerPort: 5432
@@ -46,8 +46,7 @@ spec:
               memory: 500Mi
           volumeMounts:
             - name: dbvol
-              mountPath: /var/lib/postgresql/data/pgdata
-              subPath: pgdata
+              mountPath: /var/lib/postgresql/data
           env:
             - name: POSTGRES_USER
               value: root
@@ -55,8 +54,6 @@ spec:
               value: root
             - name: POSTGRES_DB
               value: airflow
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
             - name: POD_IP
               valueFrom: { fieldRef: { fieldPath: status.podIP } }
           livenessProbe:
@@ -79,7 +76,6 @@ spec:
               - exec pg_isready --host $POD_IP
       volumes:
         - name: dbvol
-        - name: data
           persistentVolumeClaim:
             claimName: af-postgres-pv-claim
       imagePullSecrets:

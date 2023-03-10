@@ -1,5 +1,7 @@
 from typing import List
 import requests
+import logging
+
 from fastapi import APIRouter, UploadFile, Response, File, Header, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.dependencies import get_db
@@ -10,6 +12,8 @@ from app.experiments.utils import requests_retry_session
 from app.config import settings
 from urllib3.util import Timeout
 
+logging.getLogger().setLevel(logging.INFO)
+
 TIMEOUT_SEC = 5
 TIMEOUT = Timeout(TIMEOUT_SEC)
 
@@ -18,7 +22,7 @@ router = APIRouter(tags=["remote"])
 
 @router.get("/minio-presigned-url")
 async def get_minio_presigned_url(presigned_url: str = Header(...)):
-    print(f'http://minio-service.{settings.services_namespace}.svc:9000{presigned_url}')
+    logging.info(f'http://minio-service.{settings.services_namespace}.svc:9000{presigned_url}')
     # # Todo add file streaming!
     with requests.Session() as s:
         resp = requests_retry_session(session=s).get(f'http://minio-service.{settings.services_namespace}.svc:9000{presigned_url}',timeout=TIMEOUT)
@@ -49,5 +53,5 @@ async def delete_job(job_id: int, db: Session = Depends(get_db)):
 
 @router.put("/sync-client-remote")
 async def put_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal, instance_name: str = None, status: str = None, db: Session = Depends(get_db)):
-    # print("I was called by a forgein power!!!")
     return crud.sync_client_remote(db=db, remote_kaapana_instance=remote_kaapana_instance, instance_name=instance_name, status=status)
+    

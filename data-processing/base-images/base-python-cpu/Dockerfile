@@ -7,16 +7,30 @@ LABEL CI_IGNORE="False"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-WORKDIR /kaapana/base
+WORKDIR /app
 
-COPY files/requirements.system /kaapana/base/
-RUN apt-get update -q -y && apt-get install -y --no-install-recommends apt-utils && \
-    cat /kaapana/base/requirements.system | xargs apt-get install -y --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    apt-utils \
+    git \
+    htop \
+    zip \
+    unzip \
+    nano \
+    dcmtk \
+    pandoc \
+    texlive-xetex \
+    texlive-fonts-recommended \
+    texlive-plain-generic \
+    ca-certificates \
+    build-essential \
+    wget \
+    curl \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
 
 # Common Python packages
-COPY files/requirements.txt /kaapana/base/
-RUN python -m pip install --upgrade setuptools pip && pip3 install -r /kaapana/base/requirements.txt
+COPY files/requirements.txt /app/
+RUN python -m pip install --upgrade setuptools pip && pip3 install -r /app/requirements.txt
 
 # Code server
 RUN wget https://code-server.dev/install.sh

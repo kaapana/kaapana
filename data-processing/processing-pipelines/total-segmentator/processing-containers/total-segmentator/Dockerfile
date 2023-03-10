@@ -8,9 +8,10 @@ LABEL CI_IGNORE="False"
 WORKDIR /kaapana/app
 ENV SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True
 
-COPY files/requirements.system /kaapana/app/
-RUN apt-get update -y && cat /kaapana/app/requirements.system | xargs apt-get install -y --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    xvfb \
+    libxrender1 \
+    && rm -rf /var/lib/apt/lists/*
 
 
 COPY files/requirements.txt /kaapana/app/

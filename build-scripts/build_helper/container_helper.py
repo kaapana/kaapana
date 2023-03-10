@@ -562,10 +562,12 @@ class Container:
 
             with open(python_file, "r") as python_content:
                 for line in python_content:
-                    if "image=" in line and "{default_registry}" in line:
+                    # Backward compatibility default_registry vs DEFAULT_REGISTRY
+                    line = line.replace("{default_registry}", "{DEFAULT_REGISTRY}").replace("{kaapana_build_version}", "{KAAPANA_BUILD_VERSION}")
+                    if "image=" in line and "{DEFAULT_REGISTRY}" in line:
                         line = line.rstrip("\n").split('"')[1].replace(" ", "")
-                        line = line.replace("{kaapana_build_version}", self.repo_version)
-                        container_id = line.replace("{default_registry}", BuildUtils.default_registry)
+                        line = line.replace("{KAAPANA_BUILD_VERSION}", self.repo_version)
+                        container_id = line.replace("{DEFAULT_REGISTRY}", BuildUtils.default_registry)
                         self.operator_containers.append(container_id)
 
     @staticmethod
@@ -604,9 +606,10 @@ class Container:
 
         if len(dockerfiles_found) != len(set(dockerfiles_found)):
             BuildUtils.logger.warning("-> Duplicate Dockerfiles found!")
-
-        # Init Trivy
-        trivy_utils = TrivyUtils()
+        
+        # Init Trivy if configuration check is enabled
+        if BuildUtils.configuration_check:
+            trivy_utils = TrivyUtils()
 
         dockerfiles_found = sorted(set(dockerfiles_found))
 
@@ -636,13 +639,12 @@ class Container:
 
         Container.container_object_list = Container.check_base_containers(Container.container_object_list)
 
-        # Safe the Dockerfile report to the build directory if there are any errors
-        if not trivy_utils.compressed_dockerfile_report == {}:
-            BuildUtils.logger.error(
-                "Found configuration errors in Dockerfile! See compressed_dockerfile_report.json for details."
-            )
-            with open(os.path.join(BuildUtils.build_dir, "dockerfile_report.json"), "w") as f:
-                json.dump(trivy_utils.compressed_dockerfile_report, f)
+        if BuildUtils.configuration_check:
+            # Safe the Dockerfile report to the build directory if there are any errors
+            if not trivy_utils.compressed_dockerfile_report == {}:
+                BuildUtils.logger.error("Found configuration errors in Dockerfile! See compressed_dockerfile_report.json for details.")
+                with open(os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), 'w') as f:
+                    json.dump(trivy_utils.compressed_dockerfile_report, f)
 
         return Container.container_object_list
 

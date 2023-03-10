@@ -17,9 +17,11 @@ from alive_progress import alive_bar
 from build_helper.container_helper import get_image_stats
 from build_helper.security_utils import TrivyUtils
 from build_helper.offline_installer_helper import OfflineInstallerHelper
+import threading
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
+semaphore_successful_built_containers = threading.Lock()
 successful_built_containers = []
 
 
@@ -29,16 +31,21 @@ def parallel_execute(container_object):
     issue = None
 
     for base_container in container_object.base_images:
-        if (
-            base_container.local_image
-            and base_container.tag not in successful_built_containers
-        ):
-            done = False
-            return queue_id, container_object, issue, done
+        semaphore_successful_built_containers.acquire()
+        try:
+            if base_container.local_image and base_container.tag not in successful_built_containers:
+                done = False
+                return queue_id, container_object, issue, done
+        finally:
+            semaphore_successful_built_containers.release()
 
     issue = container_object.build()
     if issue == None:
-        successful_built_containers.append(container_object.build_tag)
+        semaphore_successful_built_containers.acquire()
+        try:
+            successful_built_containers.append(container_object.build_tag)
+        finally:
+            semaphore_successful_built_containers.release()
         issue = container_object.push()
 
     return queue_id, container_object, issue, done
@@ -1343,33 +1350,13 @@ class HelmChart:
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
 
         # Scan for vulnerabilities if enabled
-        if BuildUtils.vulnerability_scan is True:
-            BuildUtils.logger.info("")
-            BuildUtils.logger.info("")
-            BuildUtils.logger.info("Starting vulnerability scan...")
-            BuildUtils.logger.info("")
-            BuildUtils.logger.info("")
-            with alive_bar(
-                len(successful_built_containers),
-                dual_line=True,
-                title="Vulnerability Scan",
-            ) as bar:
-                # Init trivy utils
-                trivy_utils = TrivyUtils()
-
-                # Loop through all built containers and scan them
-                for image_build_tag in sorted(successful_built_containers):
-                    # Set progress bar text
-                    bar.text(image_build_tag)
-
-                    # Create SBOM
-                    trivy_utils.create_sbom(image_build_tag)
-
-                    # Scan for vulnerabilities
-                    trivy_utils.create_vulnerability_report(image_build_tag)
-
-                    # Print progress bar
-                    bar()
+        if BuildUtils.vulnerability_scan:
+            trivy_utils = TrivyUtils()
+            trivy_utils.create_vulnerability_reports(successful_built_containers)
+        # Create SBOMs if enabled
+        if BuildUtils.create_sboms:
+            trivy_utils = TrivyUtils()
+            trivy_utils.create_sboms(successful_built_containers)
 
         if BuildUtils.create_offline_installation is True:
             OfflineInstallerHelper.generate_microk8s_offline_version()

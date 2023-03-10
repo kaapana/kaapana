@@ -45,7 +45,7 @@ get_satori_metrics = LocalGetMetricsOperator(
 get_jip_metrics = LocalGetMetricsOperator(
     dag=dag,
     component_id="satori",
-    metrics_endpoint="http://prometheus-service.services.svc:9090/prometheus/metrics",
+    metrics_endpoint=f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/monitoring/metrics/scrape",
 )
 aggregate_metrics = LocalAggregateMetricsOperator(
     dag=dag,

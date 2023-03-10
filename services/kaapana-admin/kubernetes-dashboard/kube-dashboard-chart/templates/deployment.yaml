@@ -34,7 +34,7 @@ spec:
       containers:
         - name: kubernetes-dashboard
           image: "{{ .Values.global.registry_url }}/kube-dashboard:{{ .Values.global.kaapana_build_version  }}"
-          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           ports:
             - containerPort: 9090
               protocol: TCP

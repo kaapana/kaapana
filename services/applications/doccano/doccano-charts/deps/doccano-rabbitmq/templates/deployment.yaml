@@ -18,7 +18,7 @@ spec:
       containers:
         - name: doccano-rabbitmq
           image: "{{ .Values.global.registry_url }}/rabbitmq:{{ .Values.global.kaapana_build_version  }}"
-          imagePullPolicy: {{ .Values.global.pull_policy_pods | default "IfNotPresent" }}
+          imagePullPolicy: {{ .Values.global.pull_policy_images | default "IfNotPresent" }}
           ports:
             - containerPort: 5672
               protocol: TCP

@@ -17,7 +17,7 @@ spec:
       containers:
         - name: ohif-container
           image: "{{ .Values.global.registry_url }}/ohif:{{ .Values.global.kaapana_build_version  }}"
-          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           ports:
             - containerPort: 80
           resources:

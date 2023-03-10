@@ -19,7 +19,7 @@ spec:
       initContainers:
         - name: init
           image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
-          imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+          imagePullPolicy: {{ .Values.global.pull_policy_images }}
           env:
             - name: WAIT
               value: "keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
@@ -30,7 +30,7 @@ spec:
       containers:
       - name: minio
         image: "{{ .Values.global.registry_url }}/minio:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
         command: ["minio"]
         args: ["server", "/kaapana/mounted/minio", "--address", "0.0.0.0:9000"]
         env:

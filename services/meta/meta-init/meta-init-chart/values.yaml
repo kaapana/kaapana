@@ -1,5 +1,5 @@
 ---
 global:
-    pull_policy_jobs: "IfNotPresent"
+    pull_policy_images: "IfNotPresent"
     meta_namespace: "meta"
     hostname: ""

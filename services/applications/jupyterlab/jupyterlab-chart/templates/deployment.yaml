@@ -23,7 +23,7 @@ spec:
         {{- else }}
         image: "{{ .Values.global.processing_image }}"
         {{- end }}
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
         command: ["/bin/bash"]
         args: ["/jupyterlab.sh"]
         resources:

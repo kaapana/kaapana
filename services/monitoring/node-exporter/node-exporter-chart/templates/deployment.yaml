@@ -27,7 +27,7 @@ spec:
         - --collector.netclass.ignored-devices=^(veth.*)$
         name: node-exporter
         image: "{{ .Values.global.registry_url }}/node-exporter:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         ports:
           - containerPort: 9100
             protocol: TCP

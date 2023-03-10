@@ -18,8 +18,8 @@ class OfflineInstallerHelper:
         BuildUtils.logger.info(f"Downloading gpu-operator helm chart ...")
         command = ["helm","repo","add","nvidia","https://nvidia.github.io/gpu-operator"]
         output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=OfflineInstallerHelper.HELM_DOWNLOAD_TIMEOUT)
-        if output.returncode != 0:
-            BuildUtils.logger.error(f"Helm download {name} {output.stderr}!")
+        if output.returncode != 0 and "already exists" not in output.stderr:
+            BuildUtils.logger.error(f"Helm download gpu-operator {output.stderr}!")
             BuildUtils.generate_issue(
                 component="Helm repo add",
                 name=f"Helm repo add NVIDIA",

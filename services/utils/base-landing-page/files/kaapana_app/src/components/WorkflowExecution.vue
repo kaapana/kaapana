@@ -14,18 +14,32 @@ v-dialog(v-model='dialogOpen' max-width='600px')
         span.text-h5 Experiment Execution
       v-card-text
         v-container
+          //- Instance: check if experiment is started on local or remote instance
           v-row
-            v-col(cols='12')
-              v-text-field(v-model='experiment_name' label='Experiment name' required='')
-            //- switch whether local experiment or not --> default: local => instance = local instance; NOT local => dropdown for remte instances
-            v-row
+            v-row(v-if="remote_instance_names.length")
+              //- remote instances registered --> offer switch
               v-col(align="center")
                 v-switch(v-model="local_remote_switch" :label="switch_label()")
-            v-col(v-if="remote, !local_remote_switch" cols='12')
-              v-select(v-model='instance_names' :items='remote_instance_names' label='Remote instances' multiple='' chips='' hint='On which instances do you want to execute the workflow')
+              v-col(v-if="remote, !local_remote_switch" cols='12')
+                v-select(v-model='instance_names' :items='remote_instance_names' label='Remote instances' multiple='' chips='' hint='On which instances do you want to execute the workflow')
+            v-row(v-else)
+              //- no remote instances registered --> just display that local instance is used
+              v-col(align="left")
+                //- switch_label() also adds client_instance to instance_names
+                p(class="text-body-1") {{ switch_label() }}
+          //- DAG: select dag
+          v-row
             v-col(v-if="instance_names.length" cols='12')
-              v-select(v-model='dag_id' :items='available_dags' label='Dags' chips='' hint='Select a dag')
-            //- v-if="!(remote==false && name=='federated_form')"
+              v-select(v-model='dag_id' :items='available_dags' label='DAGs' chips='' hint='Select a dag' required)
+          //- Experiment name
+          v-row(v-if="dag_id")
+            v-col(cols='12')
+              //- v-text-field(v-model='experiment_name' label='Experiment name' required='')
+              //-  required='' clearable
+              v-text-field(label="Experiment name" v-model="experiment_name_wID" required)
+            //- don't do exp_id rn
+          //- Data- and Workflow forms
+          v-row(v-if="experiment_name")
             v-col(v-for="(schema, name) in schemas" cols='12')
               p {{name}}
               v-jsf(v-model="formData[name]" :schema="schema")
@@ -78,8 +92,9 @@ export default {
     external_dag_id: null,
     external_available_instance_names: [],
     remote_instance_names: [],
-    experiment_name: null,
     dag_id: null,
+    experiment_name: '',
+    experiment_id: null, // Math.random().toString(20).substr(2, 6), // new Date().getTime(),
     showConfData: false,
     federated_data: false,
     remote_data: false,
@@ -99,12 +114,22 @@ export default {
       required: true,
     }
   },
+  created() {
+  },
   computed: {
     available_instance_names () {
       return this.instances.map(({ instance_name }) => instance_name);
     },
     formDataFormatted () {
       return this.formatFormData(this.formData)
+    },
+    experiment_name_wID: {
+      get() {
+        return `${this.dag_id}_${this.experiment_id}`;
+      },
+      set(value) {
+        this.experiment_name = value;
+      }
     }
   },
   mounted() {
@@ -113,16 +138,23 @@ export default {
     dialogOpen () {
       this.instance_names = [];
       this.experiment_name = null
+      this.experiment_id = this.experiment_id = Math.random().toString(20).substr(2, 6)
       this.dag_id = null
       this.external_instance_names = []
+      this.local_remote_switch = true
     },
     instance_names() {
       this.getDags()
       this.resetFormData()
       this.getRemoteInstanceNames()
     },
-    experiment_name() {
-      this.resetFormData()
+    // doesn't make any sense anymore, since experiment_name is intended to be changed from default
+    // experiment_name() {
+    //   this.resetFormData()
+    // },
+    
+    experiment_name_wID(value) {
+      this.experiment_name = value;
     },
     dag_id() {
       this.resetFormData()
@@ -138,6 +170,9 @@ export default {
     }
   },
   methods: {
+    saveTestName() {
+      console.log(`Saving testname: ${this.test_name}`)
+    },
     switch_label() {
       if (this.local_remote_switch == true) {
         if (this.instance_names.indexOf(this.clientinstance.instance_name) === -1) {
@@ -183,7 +218,7 @@ export default {
     resetExternalFormData() {
       this.external_schemas = {}
       this.external_available_instance_names = []
-      this.remote_instance_names = []
+      // this.remote_instance_names = []  // if not commented out, remote instance not displayed anymore in experiment_form
       if (this.external_dag_id != null) {
         console.log('getting')
         this.getAvailableExternalNodeIds()

@@ -11,7 +11,7 @@ from multiprocessing.pool import ThreadPool
 from alive_progress import alive_bar
 
 suite_tag = "security"
-timeout = 3600
+timeout = 10000
 
 # Class containing security related helper functions
 # Using Trivy to create SBOMS and check for vulnerabilities
@@ -114,6 +114,13 @@ class TrivyUtils:
                     self.server_connect_max_retries
                 )
             )
+            BuildUtils.generate_issue(
+                component=suite_tag,
+                name="Start Trivy server",
+                msg="Failed to start Trivy server",
+                level="FATAL",
+            )
+
 
     def stop_trivy_server(self):
         command = ["docker", "stop", self.trivy_server_id]

@@ -49,6 +49,14 @@ if __name__ == "__main__":
         required=False,
         help="Plattform version: e.g.: 0.1.3-591-g6426ef53",
     )
+    parser.add_argument(
+        "-n",
+        "--num-parallel-processes",
+        dest="num_parallel_processes",
+        default=2,
+        required=False,
+        help="Number of parallel processes",
+    )
     args = parser.parse_args()
 
     sbom = args.sbom
@@ -68,7 +76,7 @@ if __name__ == "__main__":
 
     BuildUtils.kaapana_dir = kaapana_dir
     BuildUtils.build_dir = build_dir
-    BuildUtils.parallel_processes = configuration["parallel_processes"] if "parallel_processes" in configuration else 2
+    BuildUtils.parallel_processes = int(args.num_parallel_processes)
 
     if tag == None:
         logger.error("No tag provided!")

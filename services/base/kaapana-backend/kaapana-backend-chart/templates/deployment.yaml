@@ -92,7 +92,7 @@ spec:
         - name: MINIO_PASSWORD
           value: {{ .Values.global.credentials_minio_password | default ""}}
         - name: MINIO_URL
-          value: {{ .Values.global.minio_url }}
+          value: "minio-service.{{  .Values.global.services_namespace  }}:9000"
         - name: APPLICATION_ROOT
           value: "/kaapana-backend"
         - name: DATABASE_URL

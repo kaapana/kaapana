@@ -1319,7 +1319,6 @@ class HelmChart:
                                     or issue["level"] == "FATAL"
                                 ):
                                     threadpool.terminate()
-                                    threadpool.join()
 
                                 bar.text(f"{result_container.tag}: ERROR")
                                 BuildUtils.logger.info("")

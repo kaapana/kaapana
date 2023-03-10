@@ -93,6 +93,14 @@ spec:
           value: {{ .Values.global.credentials_minio_password | default ""}}
         - name: MINIO_URL
           value: "minio-service.{{  .Values.global.services_namespace  }}:9000"
+        - name: KAAPANA_BUILD_TIMESTAMP
+          value: {{ .Values.global.build_timestamp }}
+        - name: KAAPANA_BUILD_VERSION
+          value: {{ .Values.global.kaapana_build_version }}
+        - name: KAAPANA_BUILD_BRANCH
+          value: {{ .Values.global.platform_build_branch }}
+        - name: KAAPANA_LAST_COMMIT_TIMESTAMP
+          value: {{ .Values.global.platform_last_commit_timestamp }}
         - name: APPLICATION_ROOT
           value: "/kaapana-backend"
         - name: DATABASE_URL

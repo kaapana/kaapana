@@ -12,7 +12,15 @@ class Settings(BaseSettings):
     hostname: str
     instance_name: str
     
-    prometheus_url: str
+    prometheus_url: str = os.getenv("PROMETHEUS_URL")
+
+    kaapana_build_version: str = os.getenv("PROMETHEUS_URL")
+    kaapana_build_version: str = os.getenv("PROMETHEUS_URL")
+    
+    kaapana_build_timestamp: str = os.getenv("KAAPANA_BUILD_TIMESTAMP")
+    kaapana_build_version: str = os.getenv("KAAPANA_BUILD_VERSION")
+    kaapana_platform_build_branch: str = os.getenv("KAAPANA_BUILD_BRANCH")
+    kaapana_platform_last_commit_timestamp: str = os.getenv("KAAPANA_LAST_COMMIT_TIMESTAMP")
 
     minio_url: str
     minio_username: str

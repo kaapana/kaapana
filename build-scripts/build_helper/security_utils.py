@@ -507,7 +507,7 @@ class TrivyUtils:
             )
 
         # read the chart report file
-        with open(os.path.join(self.reports_path, "chart_report.json"), "r") as f:
+        with open(os.path.join(BuildUtils.build_dir, 'chart_report.json'), 'r') as f:
             chart_report = json.load(f)
 
         compressed_chart_report = {}
@@ -541,34 +541,15 @@ class TrivyUtils:
 
         # Safe the chart report to the build directory if there are any errors
         if not compressed_chart_report == {}:
-            BuildUtils.logger.error(
-                "Found configuration errors in Kaapana chart! See compressed_chart_report.json or chart_report.json for details."
-            )
-            with open(
-                os.path.join(self.reports_path, "compressed_chart_report.json"), "w"
-            ) as f:
+            BuildUtils.logger.error("Found configuration errors in Kaapana chart! See compressed_chart_report.json or chart_report.json for details.")
+            with open(os.path.join(BuildUtils.build_dir, 'compressed_chart_report.json'), 'w') as f:
                 json.dump(compressed_chart_report, f)
 
     # Function to check Dockerfile for configuration errors
     def check_dockerfile(self, path_to_dockerfile):
-        command = [
-            "trivy",
-            "config",
-            "-f",
-            "json",
-            "-o",
-            os.path.join(self.reports_path, "dockerfile_report.json"),
-            "--severity",
-            BuildUtils.configuration_check_severity_level,
-            path_to_dockerfile,
-        ]
-        output = run(
-            command,
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
-            timeout=self.timeout,
-        )
+
+        command = ['trivy', 'config', '-f', 'json', '-o', os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), '--severity', BuildUtils.configuration_check_severity_level, path_to_dockerfile]
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
 
         if output.returncode != 0:
             BuildUtils.logger.error("Failed to check Dockerfile")
@@ -581,7 +562,7 @@ class TrivyUtils:
             )
 
         # Log the dockerfile report
-        with open(os.path.join(self.reports_path, "dockerfile_report.json"), "r") as f:
+        with open(os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), 'r') as f:
             dockerfile_report = json.load(f)
 
         # Check if the report contains any results -> weird if it doesn't e.g. when the Dockerfile is empty

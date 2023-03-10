@@ -8,7 +8,7 @@ data:
       type: prometheus
       access: proxy
       orgId: 1
-      url: http://prometheus-mon-service.{{  .Values.global.extensions_namespace  }}.svc:9090/prometheus
+      url: http://prometheus-mon-service.{{  .Values.global.extensions_namespace  }}.svc:9090/prom-monitoring
       isDefault: true
       version: 1
       editable: true

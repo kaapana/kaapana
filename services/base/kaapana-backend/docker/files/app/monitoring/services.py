@@ -70,7 +70,7 @@ class MonitoringService:
 
     def prom_query_int(query):
         try:
-            return MonitoringService.prom.custom_query(query=query)[0]["value"][1]
+            return int(MonitoringService.prom.custom_query(query=query)[0]["value"][1])
         except Exception as e:
             return -1
 
@@ -114,19 +114,17 @@ class MonitoringService:
         g.set(study_count)
         g = Gauge("patient_count", "patient_count", registry=registry)
         g.set(patient_count)
-        kaapana_root_drive_size = int(
-            MonitoringService.prom_query_int(
+        kaapana_root_drive_size = MonitoringService.prom_query_int(
                 query="node_filesystem_size_bytes{mountpoint='/',fstype!='rootfs'}"
             )
-        )
+        
         g = Gauge(
             "kaapana_root_drive_size", "kaapana_root_drive_size", registry=registry
         )
         g.set(kaapana_root_drive_size)
-        kaapana_root_drive_available = int(
-            MonitoringService.prom_query_int(
+        kaapana_root_drive_available = MonitoringService.prom_query_int(
                 query="node_filesystem_avail_bytes{mountpoint='/',fstype!='rootfs'}"
-            )
+            
         )
         g = Gauge(
             "kaapana_root_drive_available",

@@ -39,13 +39,13 @@ get_host_metrics = LocalGetMetricsOperator(
 get_satori_metrics = LocalGetMetricsOperator(
     dag=dag,
     component_id="jip",
-    metrics_endpoint="https://oauth2-proxy-service.admin.svc:8443/oauth2/metrics",
+    metrics_endpoint=f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/monitoring/metrics/scrape",
     verify_ssl=False,
 )
 get_jip_metrics = LocalGetMetricsOperator(
     dag=dag,
     component_id="satori",
-    metrics_endpoint=f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/monitoring/metrics/scrape",
+    metrics_endpoint="https://oauth2-proxy-service.admin.svc:8443/oauth2/metrics",
 )
 aggregate_metrics = LocalAggregateMetricsOperator(
     dag=dag,

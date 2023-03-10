@@ -19,6 +19,7 @@ kaapana_collections:
 preinstall_extensions:
 - name: code-server-chart
 - name: kaapana-plugin-chart
+- name: node-monitoring-chart
 additional_env:
 - name: INSTANCE_NAME
   default_value: "central"

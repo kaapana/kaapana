@@ -36,6 +36,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     libqt5webengine-data \
     at-spi2-core \
     gedit \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
     
 

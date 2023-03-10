@@ -11,7 +11,6 @@ import datetime
 
 suite_tag = "security"
 
-
 # Class containing security related helper functions
 # Using Trivy to create SBOMS and check for vulnerabilities
 class TrivyUtils:

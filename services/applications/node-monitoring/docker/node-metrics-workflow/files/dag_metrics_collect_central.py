@@ -16,7 +16,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id="central-metrics",
+    dag_id="metrics-collect-central",
     default_args=args,
     concurrency=4,
     max_active_runs=1,

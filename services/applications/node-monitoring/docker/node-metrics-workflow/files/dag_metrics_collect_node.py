@@ -4,6 +4,7 @@ from airflow.models import DAG
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from node_metrics.LocalGetMetricsOperator import LocalGetMetricsOperator
 from node_metrics.LocalAggregateMetricsOperator import LocalAggregateMetricsOperator
+from airflow.utils.trigger_rule import TriggerRule
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.blueprints.kaapana_global_variables import (
     KAAPANA_BUILD_VERSION,
@@ -22,7 +23,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id="collect-node-metrics",
+    dag_id="metrics-collect-node",
     default_args=args,
     concurrency=4,
     max_active_runs=1,
@@ -51,6 +52,7 @@ aggregate_metrics = LocalAggregateMetricsOperator(
     metrics_operators=[get_host_metrics, get_satori_metrics, get_jip_metrics],
     instance_name=INSTANCE_NAME,
     version=KAAPANA_BUILD_VERSION,
+    trigger_rule=TriggerRule.ALL_DONE,
 )
 txt2dcm = Bin2DcmOperator(
     dag=dag,

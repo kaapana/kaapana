@@ -78,15 +78,15 @@ class MonitoringService:
         registry = CollectorRegistry()
 
         # timestamp = datetime.now().strftime("%Y-%m-%d %H%M%S%f")
-        i = Info("kaapana_build", "Build information of Kaapana.", registry=registry)
+        i = Info("build_info", "Build information.", registry=registry)
         i.info(
             {
-                "kaapana_build_timestamp": str(settings.kaapana_build_timestamp),
-                "kaapana_build_version": str(settings.kaapana_build_version),
-                "kaapana_platform_build_branch": str(
+                "version": str(settings.kaapana_build_version),
+                "build_timestamp": str(settings.kaapana_build_timestamp),
+                "build_branch": str(
                     settings.kaapana_platform_build_branch
                 ),
-                "kaapana_platform_last_commit_timestamp": str(
+                "last_commit_timestamp": str(
                     settings.kaapana_platform_last_commit_timestamp
                 ),
             }
@@ -103,6 +103,7 @@ class MonitoringService:
         )
         g = Gauge("kaapana_success_jobs", "kaapana_success_jobs", registry=registry)
         g.set(kaapana_success_jobs)
+        
         kaapana_fail_jobs = MonitoringService.prom_query_int(query="af_agg_ti_failures")
         g = Gauge("kaapana_fail_jobs", "kaapana_fail_jobs", registry=registry)
         g.set(kaapana_fail_jobs)
@@ -114,10 +115,10 @@ class MonitoringService:
         g.set(study_count)
         g = Gauge("patient_count", "patient_count", registry=registry)
         g.set(patient_count)
+        
         kaapana_root_drive_size = MonitoringService.prom_query_int(
                 query="node_filesystem_size_bytes{mountpoint='/',fstype!='rootfs'}"
             )
-        
         g = Gauge(
             "kaapana_root_drive_size", "kaapana_root_drive_size", registry=registry
         )

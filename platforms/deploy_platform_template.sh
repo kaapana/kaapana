@@ -55,6 +55,8 @@ HTTP_PORT="{{ http_port|default(80)|int }}"      # -> has to be 80
 HTTPS_PORT="{{ https_port|default(443) }}"    # HTTPS port
 DICOM_PORT="{{ dicom_port|default(11112) }}"  # configure DICOM receiver port
 
+VERSION_IMAGE_COUNT="20"
+
 {% for item in additional_env %}
 {{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}
 {%- endfor %}
@@ -319,22 +321,26 @@ function deploy_chart {
             exit 1
         fi
 
-        while true; do
-        echo -e "${YELLOW}You are deploying the platform in offline mode!${NC}"
-            read -p "${YELLOW}Please confirm that you are sure that all images are present in microk8s (yes/no): ${NC}" yn
-                case $yn in
-                    [Yy]* ) echo "${GREEN}Confirmed${NC}"; break;;
-                    [Nn]* ) echo "${RED}Cancel${NC}"; exit;;
-                    * ) echo "Please answer yes or no.";;
-                esac
-        done
+        if [ ! "$QUIET" = "true" ];then
+            while true; do
+            echo -e "${YELLOW}You are deploying the platform in offline mode!${NC}"
+                read -p "${YELLOW}Please confirm that you are sure that all images are present in microk8s (yes/no): ${NC}" yn
+                    case $yn in
+                        [Yy]* ) echo "${GREEN}Confirmed${NC}"; break;;
+                        [Nn]* ) echo "${RED}Cancel${NC}"; exit;;
+                        * ) echo "Please answer yes or no.";;
+                    esac
+            done
+        else
+            echo -e "${GREEN}QUIET: true -> SKIP USER INPUT ${NC}";
+        fi
 
         echo -e "${YELLOW}Checking available images with version: $PLATFORM_VERSION ${NC}"
         set +e
         PRESENT_IMAGE_COUNT=$( microk8s.ctr images ls | grep $PLATFORM_VERSION | wc -l)
         set -e
         echo -e "${YELLOW}PRESENT_IMAGE_COUNT: $PRESENT_IMAGE_COUNT ${NC}"
-        if [ "$PRESENT_IMAGE_COUNT" -lt "20" ];then
+        if [ "$PRESENT_IMAGE_COUNT" -lt "$VERSION_IMAGE_COUNT" ];then
             echo -e "${RED}There are only $PRESENT_IMAGE_COUNT present with the version $PLATFORM_VERSION - there seems to be an issue. ${NC}"
             exit 1
         else

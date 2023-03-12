@@ -7,6 +7,7 @@ from app.config import settings
 from prometheus_api_client import PrometheusConnect
 from prometheus_client import CollectorRegistry, Info, Gauge, generate_latest
 
+
 class MonitoringService:
     prom = PrometheusConnect(url=settings.prometheus_url, disable_ssl=True)
 
@@ -27,9 +28,75 @@ class MonitoringService:
     def all_metrics(self) -> List[str]:
         return self.con.all_metrics()
 
-    def get_os_info():
+    def es_query(query):
         _opensearchhost = f"opensearch-service.{settings.services_namespace}.svc:9200"
         os_client = OpenSearch(hosts=_opensearchhost)
+        try:
+            res = os_client.search(
+                index="meta-index",
+                body=query,
+                size=10000,
+                from_=0,
+                request_timeout=10,
+            )
+            return True, res
+        except Exception as e:
+            print(f"Error requesting OS: {e}")
+            return False, None
+
+    def query_prom(query, return_type="int"):
+        try:
+            prom_result = MonitoringService.prom.custom_query(query=query)
+            if return_type == "int":
+                return int(prom_result[0]["value"][1])
+            elif return_type == "float":
+                return float(prom_result[0]["value"][1])
+            elif return_type == "raw":
+                return prom_result
+            else:
+                raise Exception
+
+        except Exception as e:
+            print(f"Error requesting Prometheus: {query}")
+            print(str(e))
+            if return_type == "int" or return_type == "float":
+                return -1
+            elif return_type == "raw":
+                return []
+            else:
+                return None
+
+    def get_modaility_series_count(modality):
+        modality_query = {
+            "aggs": {
+                "1": {
+                    "cardinality": {
+                        "field": "0020000D SeriesInstanceUID_keyword.keyword"
+                    }
+                }
+            },
+            "size": 0,
+            "stored_fields": ["*"],
+            "query": {
+                "bool": {
+                    "filter": [
+                        {
+                            "match_phrase": {
+                                "00080060 Modality_keyword.keyword": modality
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+        success, es_result = MonitoringService.es_query(query=modality_query)
+        if success:
+            modality_series_count = es_result["hits"]["total"]["value"]
+            return modality_series_count
+        else:
+            return -1
+
+    def get_study_series_patient_count():
         study_series_patient_count_query = {
             "aggs": {
                 "1": {
@@ -37,12 +104,12 @@ class MonitoringService:
                         "field": "0020000D StudyInstanceUID_keyword.keyword"
                     }
                 },
-                "4": {
+                "2": {
                     "cardinality": {
                         "field": "0020000E SeriesInstanceUID_keyword.keyword"
                     }
                 },
-                "6": {
+                "3": {
                     "cardinality": {
                         "field": "00100010 PatientName_keyword_alphabetic.keyword"
                     }
@@ -52,200 +119,113 @@ class MonitoringService:
             "stored_fields": ["*"],
             "query": {"bool": {"filter": [], "should": [], "must_not": []}},
         }
-        try:
-            res = os_client.search(
-                index="meta-index",
-                body=study_series_patient_count_query,
-                size=10000,
-                from_=0,
-                request_timeout=10,
-            )
-            series_count = res["aggregations"]["1"]["value"]
-            study_count = res["aggregations"]["4"]["value"]
-            patient_count = res["aggregations"]["6"]["value"]
+        success, es_result = MonitoringService.es_query(
+            query=study_series_patient_count_query
+        )
+        if success:
+            study_count = es_result["aggregations"]["1"]["value"]
+            series_count = es_result["aggregations"]["2"]["value"]
+            patient_count = es_result["aggregations"]["3"]["value"]
             return series_count, study_count, patient_count
-        except Exception as e:
-            print(f"Error requesting OS: {e}")
-            return 0, 0, 0
+        else:
+            return -1, -1, -1
 
-    def prom_query_int(query):
-        try:
-            return int(MonitoringService.prom.custom_query(query=query)[0]["value"][1])
-        except Exception as e:
-            return -1
-
-    def get_get_node_metrics(self) -> bytes:
+    def get_node_metrics(self) -> bytes:
         registry = CollectorRegistry()
 
-        # timestamp = datetime.now().strftime("%Y-%m-%d %H%M%S%f")
         i = Info("build_info", "Build information.", registry=registry)
         i.info(
             {
-                "version": str(settings.kaapana_build_version),
+                "software_version": str(settings.kaapana_build_version),
                 "build_timestamp": str(settings.kaapana_build_timestamp),
-                "build_branch": str(
-                    settings.kaapana_platform_build_branch
-                ),
+                "build_branch": str(settings.kaapana_platform_build_branch),
+                "deployment_timestamp": str(settings.kaapana_deployment_timestamp),
                 "last_commit_timestamp": str(
                     settings.kaapana_platform_last_commit_timestamp
                 ),
             }
         )
-        uptime_seconds = int(
-            MonitoringService.prom_query_int(
-                query="round(time() - process_start_time_seconds{job='oAuth2-proxy'})"
+        uptime = MonitoringService.query_prom(
+            query="round(time() - process_start_time_seconds{job='oAuth2-proxy'})",
+            return_type="int",
+        )
+        g = Gauge("uptime", "uptime in seconds", registry=registry)
+        g.set(uptime)
+
+        (
+            number_series_total,
+            number_studies_total,
+            number_patiens_total,
+        ) = MonitoringService.get_study_series_patient_count()
+        g = Gauge("number_series_total", "number_series_total", registry=registry)
+        g.set(number_series_total)
+        g = Gauge("number_studies_total", "number_studies_total", registry=registry)
+        g.set(number_studies_total)
+        g = Gauge("number_patiens_total", "number_patiens_total", registry=registry)
+        g.set(number_patiens_total)
+
+        number_series_ct_total = MonitoringService.get_modaility_series_count(
+            modality="CT"
+        )
+        g = Gauge("number_series_ct_total", "number_series_ct_total", registry=registry)
+        g.set(number_series_ct_total)
+
+        number_series_mr_total = MonitoringService.get_modaility_series_count(
+            modality="MR"
+        )
+        g = Gauge("number_series_mr_total", "number_series_mr_total", registry=registry)
+        g.set(number_series_mr_total)
+
+        number_series_seg_total = MonitoringService.get_modaility_series_count(
+            modality="SEG"
+        )
+        g = Gauge(
+            "number_series_seg_total", "number_series_seg_total", registry=registry
+        )
+        g.set(number_series_seg_total)
+
+        storage_devices = MonitoringService.query_prom(
+            query="node_filesystem_size_bytes{mountpoint=~'/.*',fstype!='xfs',fstype!='tmpfs',app_kubernetes_io_managed_by=''}",
+            return_type="raw",
+        )
+        for idx, storage_device in enumerate(storage_devices):
+            device_id = str(storage_device["metric"]["device"])
+            mount_point = str(storage_device["metric"]["mountpoint"])
+            storage_size_total = int(storage_device["value"][1])
+            query = f"node_filesystem_avail_bytes{{device='{device_id}',mountpoint='{mount_point}',fstype!='rootfs'}}"
+            storage_size_free = MonitoringService.query_prom(
+                query=query, return_type="int"
             )
-        )
-        g = Gauge("uptime_seconds", "uptime_seconds", registry=registry)
-        g.set(uptime_seconds)
-        kaapana_success_jobs = MonitoringService.prom_query_int(
-            query="af_agg_ti_successes"
-        )
-        g = Gauge("kaapana_success_jobs", "kaapana_success_jobs", registry=registry)
-        g.set(kaapana_success_jobs)
-        
-        kaapana_fail_jobs = MonitoringService.prom_query_int(query="af_agg_ti_failures")
-        g = Gauge("kaapana_fail_jobs", "kaapana_fail_jobs", registry=registry)
-        g.set(kaapana_fail_jobs)
-
-        series_count, study_count, patient_count = MonitoringService.get_os_info()
-        g = Gauge("series_count", "series_count", registry=registry)
-        g.set(series_count)
-        g = Gauge("study_count", "study_count", registry=registry)
-        g.set(study_count)
-        g = Gauge("patient_count", "patient_count", registry=registry)
-        g.set(patient_count)
-        
-        kaapana_root_drive_size = MonitoringService.prom_query_int(
-                query="node_filesystem_size_bytes{mountpoint='/',fstype!='rootfs'}"
+            g = Gauge(
+                f"storage_size_{idx}_total",
+                f"Total storgae of {device_id} {mount_point}",
+                registry=registry,
             )
-        g = Gauge(
-            "kaapana_root_drive_size", "kaapana_root_drive_size", registry=registry
-        )
-        g.set(kaapana_root_drive_size)
-        kaapana_root_drive_available = MonitoringService.prom_query_int(
-                query="node_filesystem_avail_bytes{mountpoint='/',fstype!='rootfs'}"
-            
-        )
-        g = Gauge(
-            "kaapana_root_drive_available",
-            "kaapana_root_drive_available",
-            registry=registry,
-        )
-        g.set(kaapana_root_drive_available)
-        kaapana_root_drive_percent_available = (
-            -1
-            if kaapana_root_drive_size < 0 or kaapana_root_drive_available < 0
-            else kaapana_root_drive_available // (kaapana_root_drive_size // 100)
-        )
-        g = Gauge(
-            "kaapana_root_drive_percent_available",
-            "kaapana_root_drive_percent_available",
-            registry=registry,
-        )
-        g.set(kaapana_root_drive_percent_available)
-
-        kaapana_root_drive_percent_used = (
-            -1
-            if kaapana_root_drive_size < 0 or kaapana_root_drive_available < 0
-            else 100 - kaapana_root_drive_percent_available
-        )
-        g = Gauge(
-            "kaapana_root_drive_percent_used",
-            "kaapana_root_drive_percent_used",
-            registry=registry,
-        )
-        g.set(kaapana_root_drive_percent_used)
-
-        kaapana_home_drive_size = int(
-            MonitoringService.prom_query_int(
-                query="node_filesystem_size_bytes{mountpoint='/home',fstype!='rootfs'}"
+            g.set(storage_size_total)
+            g = Gauge(
+                f"storage_size_{idx}_free",
+                f"Free storgae of {device_id} {mount_point}",
+                registry=registry,
             )
-        )
-        g = Gauge(
-            "kaapana_home_drive_size", "kaapana_home_drive_size", registry=registry
-        )
-        g.set(kaapana_home_drive_size)
+            g.set(storage_size_free)
 
-        kaapana_home_drive_available = int(
-            MonitoringService.prom_query_int(
-                query="node_filesystem_avail_bytes{mountpoint='/home',fstype!='rootfs'}"
-            )
+        system_load_24H = MonitoringService.query_prom(
+            query="avg(1-rate(node_cpu_seconds_total{mode='idle'}[24h]))",
+            return_type="float",
         )
-        g = Gauge(
-            "kaapana_home_drive_available",
-            "kaapana_home_drive_available",
-            registry=registry,
-        )
-        g.set(kaapana_home_drive_available)
-        kaapana_home_drive_percent_available = (
-            -1
-            if kaapana_home_drive_size < 0 or kaapana_home_drive_available < 0
-            else kaapana_home_drive_available // (kaapana_home_drive_size // 100)
-        )
-        g = Gauge(
-            "kaapana_home_drive_percent_available",
-            "kaapana_home_drive_percent_available",
-            registry=registry,
-        )
-        g.set(kaapana_home_drive_percent_available)
+        g = Gauge("system_load_24H", "system_load_24H", registry=registry)
+        g.set(system_load_24H)
 
-        kaapana_home_drive_percent_used = (
-            -1
-            if kaapana_home_drive_size < 0 or kaapana_home_drive_available < 0
-            else 100 - kaapana_home_drive_percent_available
+        jobs_success = MonitoringService.query_prom(
+            query="af_agg_ti_successes", return_type="int"
         )
-        g = Gauge(
-            "kaapana_home_drive_percent_used",
-            "kaapana_home_drive_percent_used",
-            registry=registry,
-        )
-        g.set(kaapana_home_drive_percent_used)
+        g = Gauge("jobs_success", "jobs_success", registry=registry)
+        g.set(jobs_success)
 
-        kaapana_data_drive_size = int(
-            MonitoringService.prom_query_int(
-                query="node_filesystem_size_bytes{mountpoint='/data',fstype!='rootfs'}"
-            )
+        jobs_failures = MonitoringService.query_prom(
+            query="af_agg_ti_failures", return_type="int"
         )
-        g = Gauge(
-            "kaapana_data_drive_size", "kaapana_data_drive_size", registry=registry
-        )
-        g.set(kaapana_data_drive_size)
-
-        kaapana_data_drive_available = int(
-            MonitoringService.prom_query_int(
-                query="node_filesystem_avail_bytes{mountpoint='/data',fstype!='rootfs'}"
-            )
-        )
-        g = Gauge(
-            "kaapana_data_drive_available",
-            "kaapana_data_drive_available",
-            registry=registry,
-        )
-        g.set(kaapana_data_drive_available)
-
-        kaapana_data_drive_percent_available = (
-            -1
-            if kaapana_data_drive_size < 0 or kaapana_data_drive_available < 0
-            else kaapana_data_drive_available // (kaapana_data_drive_size // 100)
-        )
-        g = Gauge(
-            "kaapana_data_drive_percent_available",
-            "kaapana_data_drive_percent_available",
-            registry=registry,
-        )
-        g.set(kaapana_data_drive_percent_available)
-
-        kaapana_data_drive_percent_used = (
-            -1
-            if kaapana_data_drive_size < 0 or kaapana_data_drive_available < 0
-            else 100 - kaapana_data_drive_percent_available
-        )
-        g = Gauge(
-            "kaapana_data_drive_percent_used",
-            "kaapana_data_drive_percent_used",
-            registry=registry,
-        )
-        g.set(kaapana_data_drive_percent_used)
+        g = Gauge("jobs_failures", "jobs_failures", registry=registry)
+        g.set(jobs_failures)
 
         return generate_latest(registry=registry)

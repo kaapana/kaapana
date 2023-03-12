@@ -55,7 +55,11 @@ HTTP_PORT="{{ http_port|default(80)|int }}"      # -> has to be 80
 HTTPS_PORT="{{ https_port|default(443) }}"    # HTTPS port
 DICOM_PORT="{{ dicom_port|default(11112) }}"  # configure DICOM receiver port
 
+<<<<<<< Updated upstream
 VERSION_IMAGE_COUNT="20"
+=======
+DEPLOYMENT_TIMESTAMP=`date "+%Y.%m.%d-%H:%M"`
+>>>>>>> Stashed changes
 
 {% for item in additional_env %}
 {{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}
@@ -405,6 +409,7 @@ function deploy_chart {
     --set-string global.pull_policy_pods="$PULL_POLICY_IMAGES" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
     --set-string global.release_name="$PLATFORM_NAME" \
+    --set-string global.deployment_timestamp="$DEPLOYMENT_TIMESTAMP" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \

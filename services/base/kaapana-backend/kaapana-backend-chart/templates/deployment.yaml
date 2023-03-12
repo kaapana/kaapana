@@ -101,6 +101,8 @@ spec:
           value: {{ .Values.global.platform_build_branch }}
         - name: KAAPANA_LAST_COMMIT_TIMESTAMP
           value: {{ .Values.global.platform_last_commit_timestamp }}
+        - name: DEPLOYMENT_TIMESTAMP
+          value: {{ .Values.global.deployment_timestamp }}
         - name: APPLICATION_ROOT
           value: "/kaapana-backend"
         - name: DATABASE_URL

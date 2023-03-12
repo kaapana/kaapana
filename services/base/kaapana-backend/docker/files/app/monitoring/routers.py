@@ -30,7 +30,7 @@ def node_info(client = Depends(get_monitoring_service)):
 def scrape(client = Depends(get_monitoring_service)):
     """Return Kaapana node metrics
     """
-    return client.get_get_node_metrics()
+    return client.get_node_metrics()
 
 @router.get('/metrics/mem-usage', response_model=Measurement)
 def mem_usage(client = Depends(get_monitoring_service)):

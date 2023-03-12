@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     kaapana_build_version: str = os.getenv("KAAPANA_BUILD_VERSION")
     kaapana_platform_build_branch: str = os.getenv("KAAPANA_BUILD_BRANCH")
     kaapana_platform_last_commit_timestamp: str = os.getenv("KAAPANA_LAST_COMMIT_TIMESTAMP")
+    kaapana_deployment_timestamp: str = os.getenv("DEPLOYMENT_TIMESTAMP")
 
     minio_url: str
     minio_username: str

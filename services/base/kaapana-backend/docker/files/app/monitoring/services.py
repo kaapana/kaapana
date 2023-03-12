@@ -133,7 +133,7 @@ class MonitoringService:
     def get_node_metrics(self) -> bytes:
         registry = CollectorRegistry()
 
-        i = Info("build_info", "Build information.", registry=registry)
+        i = Info("build", "Build information.", registry=registry)
         i.info(
             {
                 "software_version": str(settings.kaapana_build_version),
@@ -184,27 +184,26 @@ class MonitoringService:
         )
         g.set(number_series_seg_total)
 
-        storage_devices = MonitoringService.query_prom(
-            query="node_filesystem_size_bytes{mountpoint=~'/.*',fstype!='xfs',fstype!='tmpfs',app_kubernetes_io_managed_by=''}",
-            return_type="raw",
-        )
-        for idx, storage_device in enumerate(storage_devices):
-            device_id = str(storage_device["metric"]["device"])
-            mount_point = str(storage_device["metric"]["mountpoint"])
-            storage_size_total = int(storage_device["value"][1])
-            query = f"node_filesystem_avail_bytes{{device='{device_id}',mountpoint='{mount_point}',fstype!='rootfs'}}"
+        mount_points = ["/","/mnt/dicom"]
+        # mount_points = ["/","/data"]
+        for idx, mount_point in enumerate(mount_points):
+            total_query = f"node_filesystem_size_bytes{{app_kubernetes_io_managed_by='',fstype!='tmpfs',mountpoint='{mount_point}'}}"
+            storage_size_total = MonitoringService.query_prom(
+                query=total_query, return_type="int"
+            )
+            free_query = f"node_filesystem_avail_bytes{{app_kubernetes_io_managed_by='',fstype!='tmpfs',mountpoint='{mount_point}'}}"
             storage_size_free = MonitoringService.query_prom(
-                query=query, return_type="int"
+                query=free_query, return_type="int"
             )
             g = Gauge(
                 f"storage_size_{idx}_total",
-                f"Total storgae of {device_id} {mount_point}",
+                f"Total storgae of {mount_point}",
                 registry=registry,
             )
             g.set(storage_size_total)
             g = Gauge(
                 f"storage_size_{idx}_free",
-                f"Free storgae of {device_id} {mount_point}",
+                f"Free storgae of {mount_point}",
                 registry=registry,
             )
             g.set(storage_size_free)

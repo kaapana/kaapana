@@ -55,11 +55,8 @@ HTTP_PORT="{{ http_port|default(80)|int }}"      # -> has to be 80
 HTTPS_PORT="{{ https_port|default(443) }}"    # HTTPS port
 DICOM_PORT="{{ dicom_port|default(11112) }}"  # configure DICOM receiver port
 
-<<<<<<< Updated upstream
 VERSION_IMAGE_COUNT="20"
-=======
 DEPLOYMENT_TIMESTAMP=`date "+%Y.%m.%d-%H:%M"`
->>>>>>> Stashed changes
 
 {% for item in additional_env %}
 {{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}

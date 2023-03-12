@@ -36,17 +36,25 @@ get_host_metrics = LocalGetMetricsOperator(
     metrics_endpoint="http://kaapana-02:9000/metrics",
     timeout=20,
 )
-get_satori_metrics = LocalGetMetricsOperator(
+get_jip_metrics = LocalGetMetricsOperator(
     dag=dag,
     component_id="jip",
     metrics_endpoint=f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/monitoring/metrics/scrape",
     verify_ssl=False,
 )
-get_jip_metrics = LocalGetMetricsOperator(
+get_satori_metrics = LocalGetMetricsOperator(
     dag=dag,
     component_id="satori",
-    metrics_endpoint="https://oauth2-proxy-service.admin.svc:8443/oauth2/metrics",
+    metrics_endpoint=f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/monitoring/metrics/scrape",
+    verify_ssl=False,
 )
+get_imfusion_metrics = LocalGetMetricsOperator(
+    dag=dag,
+    component_id="imfusion",
+    metrics_endpoint=f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/monitoring/metrics/scrape",
+    verify_ssl=False,
+)
+
 aggregate_metrics = LocalAggregateMetricsOperator(
     dag=dag,
     metrics_operators=[get_host_metrics, get_satori_metrics, get_jip_metrics],
@@ -85,4 +93,6 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_host_metrics >> aggregate_metrics
 get_satori_metrics >> aggregate_metrics
-get_jip_metrics >> aggregate_metrics >> txt2dcm >> dcm_send_int >> clean
+get_imfusion_metrics >> aggregate_metrics
+get_jip_metrics >> aggregate_metrics
+aggregate_metrics >> txt2dcm >> dcm_send_int >> clean

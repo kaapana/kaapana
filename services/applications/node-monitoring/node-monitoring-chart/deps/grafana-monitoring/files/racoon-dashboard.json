@@ -21,8 +21,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
-  "iteration": 1678488885808,
+  "iteration": 1678643320567,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -84,7 +83,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "exemplar": false,
-          "expr": "kaapana_build_info{instance=\"$racoon_instance\",job=\"$racoon_component\"}",
+          "expr": "build_info{instance=\"$site_instance\",job=\"$component\"}",
           "format": "table",
           "instant": true,
           "interval": "",
@@ -92,7 +91,7 @@
           "refId": "A"
         }
       ],
-      "title": "Panel Title",
+      "title": "Basic Infos",
       "transformations": [],
       "type": "table"
     },
@@ -105,139 +104,17 @@
           "custom": {
             "axisLabel": "",
             "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
+            "axisSoftMin": 0,
+            "fillOpacity": 80,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
-            "lineInterpolation": "linear",
             "lineWidth": 1,
-            "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 0
-      },
-      "id": 6,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "exemplar": false,
-          "expr": "kaapana_root_drive_percent_used{instance=\"$racoon_instance\",job=\"$racoon_component\"}",
-          "instant": true,
-          "interval": "10",
-          "legendFormat": "ROOT (/)",
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "exemplar": true,
-          "expr": "kaapana_home_drive_percent_used{instance=\"$racoon_instance\",job=\"$racoon_component\"}",
-          "hide": false,
-          "interval": "10",
-          "legendFormat": "HOME (/home)",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "exemplar": true,
-          "expr": "kaapana_data_drive_percent_used{instance=\"$racoon_instance\",job=\"$racoon_component\"}",
-          "hide": false,
-          "interval": "10",
-          "legendFormat": "DATA(/data)",
-          "refId": "C"
-        }
-      ],
-      "title": "Drive Usage (%)",
-      "type": "timeseries"
-    },
-    {
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
             }
           },
           "mappings": [],
@@ -259,22 +136,30 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 8
+        "h": 21,
+        "w": 5,
+        "x": 12,
+        "y": 0
       },
       "id": 5,
       "options": {
+        "barRadius": 0,
+        "barWidth": 0.97,
+        "groupWidth": 0.7,
         "legend": {
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom"
         },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
         "tooltip": {
           "mode": "single",
           "sort": "none"
-        }
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
       },
       "targets": [
         {
@@ -283,15 +168,15 @@
             "uid": "PBFA97CFB590B2093"
           },
           "exemplar": false,
-          "expr": "uptime_seconds{instance=\"$racoon_instance\",job=\"$racoon_component\"}",
+          "expr": "uptime{instance=\"$site_instance\",job=\"$component\"}",
           "instant": true,
           "interval": "",
-          "legendFormat": "Uptime",
+          "legendFormat": " $component Uptime",
           "refId": "A"
         }
       ],
       "title": "Uptime",
-      "type": "timeseries"
+      "type": "barchart"
     },
     {
       "fieldConfig": {
@@ -300,65 +185,77 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
             }
           },
           "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
+          "unit": "decbytes"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "OS Storage Free"
+            },
+            "properties": [
               {
-                "color": "green",
-                "value": null
-              },
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "OS Storage Used"
+            },
+            "properties": [
               {
-                "color": "red",
-                "value": 80
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
               }
             ]
           }
-        },
-        "overrides": []
+        ]
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
+        "h": 13,
+        "w": 6,
+        "x": 0,
         "y": 8
       },
-      "id": 2,
+      "id": 7,
       "options": {
+        "displayLabels": [
+          "name",
+          "percent"
+        ],
         "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "value"
+          ]
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
         "tooltip": {
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
@@ -368,11 +265,11 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "exemplar": false,
-          "expr": "series_count{instance=\"$racoon_instance\",job=\"$racoon_component\"}",
-          "instant": true,
-          "interval": "10",
-          "legendFormat": "Series Count",
+          "exemplar": true,
+          "expr": "storage_size_1_free{instance=\"$site_instance\",job=\"$component\"}",
+          "hide": false,
+          "interval": "",
+          "legendFormat": "OS Storage Free",
           "refId": "A"
         },
         {
@@ -381,10 +278,110 @@
             "uid": "PBFA97CFB590B2093"
           },
           "exemplar": true,
-          "expr": "patient_count{instance=\"$racoon_instance\",job=\"$racoon_component\"}",
+          "expr": "storage_size_1_total{instance=\"$site_instance\",job=\"$component\"} - storage_size_1_free{instance=\"$site_instance\",job=\"$component\"}",
           "hide": false,
-          "interval": "10",
-          "legendFormat": "Patient Count",
+          "interval": "",
+          "legendFormat": "OS Storage Used",
+          "refId": "C"
+        }
+      ],
+      "title": "OS Storage Usage",
+      "type": "piechart"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "blue",
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": [],
+          "unit": "decbytes"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Data Storage Used"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Data Storage Free"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 13,
+        "w": 6,
+        "x": 6,
+        "y": 8
+      },
+      "id": 6,
+      "options": {
+        "displayLabels": [
+          "name",
+          "percent"
+        ],
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "value"
+          ]
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "exemplar": true,
+          "expr": "storage_size_0_total{instance=\"$site_instance\",job=\"$component\"} - storage_size_0_free{instance=\"$site_instance\",job=\"$component\"}",
+          "format": "time_series",
+          "hide": false,
+          "interval": "",
+          "legendFormat": "Data Storage Used",
           "refId": "B"
         },
         {
@@ -393,15 +390,16 @@
             "uid": "PBFA97CFB590B2093"
           },
           "exemplar": true,
-          "expr": "study_count{instance=\"$racoon_instance\",job=\"$racoon_component\"}",
+          "expr": "storage_size_0_free{instance=\"$site_instance\",job=\"$component\"}",
+          "format": "time_series",
           "hide": false,
-          "interval": "10",
-          "legendFormat": "Study Count",
-          "refId": "C"
+          "interval": "",
+          "legendFormat": "Data Storage Free",
+          "refId": "A"
         }
       ],
-      "title": "Home Drive Used (%)",
-      "type": "timeseries"
+      "title": "Date Storage Usage",
+      "type": "piechart"
     }
   ],
   "schemaVersion": 35,
@@ -411,19 +409,19 @@
     "list": [
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "central",
           "value": "central"
         },
-        "definition": "label_values(kaapana_build_info,instance)",
+        "definition": "label_values(build_info,instance)",
         "hide": 0,
         "includeAll": true,
         "label": "Site",
         "multi": false,
-        "name": "racoon_instance",
+        "name": "site_instance",
         "options": [],
         "query": {
-          "query": "label_values(kaapana_build_info,instance)",
+          "query": "label_values(build_info,instance)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
@@ -434,16 +432,16 @@
       },
       {
         "current": {
-          "selected": false,
-          "text": "Pushgateway Metrics",
-          "value": "Pushgateway Metrics"
+          "selected": true,
+          "text": "jip",
+          "value": "jip"
         },
         "definition": "label_values(job)",
         "hide": 0,
         "includeAll": true,
         "label": "Node Software Component",
         "multi": false,
-        "name": "racoon_component",
+        "name": "component",
         "options": [],
         "query": {
           "query": "label_values(job)",
@@ -463,8 +461,8 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "RACOON SIte Monitoring",
+  "title": "RACOON Site Monitoring",
   "uid": "iuIKAD-4k",
-  "version": 12,
+  "version": 1,
   "weekStart": ""
 }

@@ -5,9 +5,9 @@ from node_metrics.LocalPushToPromOperator import LocalPushToPromOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
-from kaapana.operators.LocalDeleteFromMetaOperator import LocalDeleteFromMetaOperator
-from kaapana.operators.LocalDeleteFromPacsOperator import LocalDeleteFromPacsOperator
-from kaapana.operators.LocalDeleteFromBackendOperator import LocalDeleteFromBackendOperator
+# from kaapana.operators.LocalDeleteFromMetaOperator import LocalDeleteFromMetaOperator
+# from kaapana.operators.LocalDeleteFromPacsOperator import LocalDeleteFromPacsOperator
+# from kaapana.operators.LocalDeleteFromBackendOperator import LocalDeleteFromBackendOperator
 
 max_active_runs = 5
 args = {
@@ -70,10 +70,10 @@ dcm2txt = Bin2DcmOperator(
 
 push_metrics = LocalPushToPromOperator(dag=dag, input_operator=dcm2txt)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
-delete_from_backend = LocalDeleteFromBackendOperator(dag=dag, input_operator=get_input, retries=1)
 
 get_input >> dcm2txt >> push_metrics >> clean
 
 # delete_dcm_pacs = LocalDeleteFromPacsOperator(dag=dag, input_operator=get_input, delete_complete_study=False, retries=1)
 # delete_dcm_meta = LocalDeleteFromMetaOperator(dag=dag, input_operator=get_input, delete_complete_study=False, retries=1)
+# delete_from_backend = LocalDeleteFromBackendOperator(dag=dag, input_operator=get_input, retries=1)
 # get_input >> dcm2txt >> push_metrics >> delete_dcm_pacs >> delete_dcm_meta >> delete_from_backend >> clean

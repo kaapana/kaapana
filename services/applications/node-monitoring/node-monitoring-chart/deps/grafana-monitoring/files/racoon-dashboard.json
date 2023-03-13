@@ -21,7 +21,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "iteration": 1678658705266,
+  "iteration": 1678730676579,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -266,7 +266,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "exemplar": true,
-          "expr": "storage_size_1_free{instance=\"$site_instance\",job=\"$component\"}",
+          "expr": "storage_size_0_free{instance=\"$site_instance\",job=\"$component\"}",
           "hide": false,
           "interval": "",
           "legendFormat": "OS Storage Free",
@@ -278,14 +278,14 @@
             "uid": "PBFA97CFB590B2093"
           },
           "exemplar": true,
-          "expr": "storage_size_1_total{instance=\"$site_instance\",job=\"$component\"} - storage_size_1_free{instance=\"$site_instance\",job=\"$component\"}",
+          "expr": "storage_size_0_total{instance=\"$site_instance\",job=\"$component\"} - storage_size_0_free{instance=\"$site_instance\",job=\"$component\"}",
           "hide": false,
           "interval": "",
           "legendFormat": "OS Storage Used",
           "refId": "C"
         }
       ],
-      "title": "OS Storage Usage",
+      "title": "OS Storage",
       "type": "piechart"
     },
     {
@@ -377,7 +377,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "exemplar": true,
-          "expr": "storage_size_0_total{instance=\"$site_instance\",job=\"$component\"} - storage_size_0_free{instance=\"$site_instance\",job=\"$component\"}",
+          "expr": "storage_size_1_total{instance=\"$site_instance\",job=\"$component\"} - storage_size_1_free{instance=\"$site_instance\",job=\"$component\"}",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -390,7 +390,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "exemplar": true,
-          "expr": "storage_size_0_free{instance=\"$site_instance\",job=\"$component\"}",
+          "expr": "storage_size_1_free{instance=\"$site_instance\",job=\"$component\"}",
           "format": "time_series",
           "hide": false,
           "interval": "",
@@ -398,7 +398,7 @@
           "refId": "A"
         }
       ],
-      "title": "Date Storage Usage",
+      "title": "Data 1 Storage",
       "type": "piechart"
     }
   ],
@@ -432,9 +432,9 @@
       },
       {
         "current": {
-          "selected": true,
-          "text": "jip",
-          "value": "jip"
+          "selected": false,
+          "text": "satori",
+          "value": "satori"
         },
         "definition": "label_values(build_info,job)",
         "hide": 0,

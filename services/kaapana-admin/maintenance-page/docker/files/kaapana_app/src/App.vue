@@ -175,10 +175,10 @@ $kaapana-green: #ff7a20;
 .kaapana-intro-header .kaapana-intro-image {
   padding-top: 10px;
   padding-bottom: 10px;
-  color: white;
+  //color: white;
   text-align: center;
   min-height: calc(100vh - 105px);
-  background: url(assets/img/bg.jpg) no-repeat center center;
+  //background: DeepSkyBlue;
   background-size: cover;
 }
 

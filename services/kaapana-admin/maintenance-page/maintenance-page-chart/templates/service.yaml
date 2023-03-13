@@ -1,0 +1,38 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: maintenancepage-service
+  namespace: "{{ .Values.global.admin_namespace }}"
+spec:
+  selector:
+    app-name: maintenancepage
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: maintn-http
+      name: log-http-port
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1 
+kind: Ingress
+metadata:
+  name: maintenancep-ing-ip-redirect
+  namespace: "{{ .Values.global.admin_namespace }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+
+    traefik.ingress.kubernetes.io/preserve-host: "true"
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+      - path: /maintenance
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: maintenancepage-service
+            port:
+              name: log-http-port
+---

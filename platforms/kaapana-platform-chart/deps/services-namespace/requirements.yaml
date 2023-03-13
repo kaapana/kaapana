@@ -26,6 +26,9 @@ dependencies:
   - name: ctp-chart
     version: 0.0.0
     repository: file://../../../../services/flow/ctp/ctp-chart
+  - name: kaapana-plugin-chart
+    version: 0.0.0
+    repository: file://../../../../data-processing/kaapana-plugin/extension/kaapana-plugin-chart
 # STORE
   - name: dcm4chee-chart
     version: 0.0.0
@@ -59,8 +62,6 @@ dependencies:
     version: 0.0.0
     repository: file://../../../services/meta/os-dashboards/os-dashboards/os-dashboards-chart
 # SYSTEM
-  - name: kube-helm-chart
-    version: 0.0.0
   - name: traefik-chart
     condition: global.include_reverse_proxy
     version: 0.0.0

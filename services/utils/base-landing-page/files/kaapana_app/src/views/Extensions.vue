@@ -177,7 +177,8 @@
                 v-card-text
                   v-form.px-3(ref="popUpForm")
                     template(v-for="(param, key) in popUpItem.extension_params")
-                      v-card-title(v-if="param.type == 'group_name'" style="font-weight:bold") {{ param.default }}
+                      span(v-if="param.type == 'group_name'" style="font-weight:bold;font-size:25px;float:left;align:left") {{ param.default }}
+
                       v-text-field(
                         v-if="param.type == 'string'"
                         :label="key"
@@ -448,106 +449,6 @@ export default Vue.extend({
       if (this.conn) this.conn.close()
       this.cancelUpload = true
     },
-    uploadChunksWS() {
-      // websocket version
-      let iters = Math.ceil(this.file.size / this.chunkSize)
-      let clientID = Date.now();
-      // console.log("clientID", clientID)
-      let baseURL: any = request.defaults.baseURL
-      if (baseURL.includes("//")) {
-        let sp = baseURL.split("//")
-        baseURL = sp[1]
-      }
-      let conn = new WebSocket("ws://" + baseURL + "/file_chunks/" + String(clientID));
-      conn.onclose = (closeEvent) => {
-        console.log("connection closed", closeEvent)
-        this.conn = null;
-        this.loadingFile = false
-        this.fileResponse = "Upload Failed: connection closed"
-        let fname = this.file.name
-        this.file = ''
-        if (this.uploadPerc == 100) {
-          this.fileResponse = "Importing container " + fname
-          console.log("importing container...")
-          kaapanaApiService
-            .helmApiGet("/import-container", { filename: fname })
-            .then((response: any) => {
-              this.fileResponse = "Successfully imported container " + fname
-            })
-            .catch((err: any) => {
-              console.log(err);
-              this.fileResponse = "Failed to import container " + fname
-            });
-        }
-      }
-      conn.onerror = (errorEvent) => {
-        this.conn = null;
-        console.log("connection error", errorEvent)
-        conn.close()
-      }
-      conn.onopen = (openEvent) => {
-        this.conn = conn;
-        console.log("Successfully connected", openEvent)
-      }
-
-      let i = -1
-
-      conn.onmessage = (msg) => {
-        if (!this.conn) {
-          console.log("connection not established, returning")
-          return
-        }
-        // console.log("msg", msg)
-        var jmsg
-        try {
-          jmsg = JSON.parse(msg.data)
-        }
-        catch (err) {
-          console.log("JSON parse failed", err)
-          if (this.conn) { this.conn.close() }
-          this.loadingFile = false
-          return
-        }
-
-        if (jmsg["success"] == true && jmsg["index"] == i) {
-          // console.log("previous send for index", i, "was successful, proceeding...")
-          if (i != -1) { this.uploadPerc = Math.floor((i / iters) * 100) }
-          i++;
-
-          if (i > iters) {
-            this.uploadPerc = 100;
-            console.log("upload completed, closing connection")
-            if (this.conn) { this.conn.close() }
-            return
-          }
-
-          const chunk = this.file.slice(i * this.chunkSize, (i + 1) * this.chunkSize);
-          if (this.conn) {
-            // console.log("sending ws msg chunk index", i)
-            this.conn.send(chunk)
-          } else {
-            // console.log("websocket connection lost");
-            this.loadingFile = false;
-          }
-        }
-        else {
-          // console.log("success", jmsg["success"], "expected index", i, "got", jmsg["index"])
-          console.log("something went wrong, closing the connection")
-          if (this.conn) {
-            this.conn.close()
-            this.loadingFile = false
-          }
-        }
-      }
-
-      // send file info first
-      setTimeout(() => {
-        if (this.conn) {
-          // console.log("sending ws msg", { name: file.name, fileSize: file.size, chunkSize: chunkSize })
-          this.conn.send(JSON.stringify({ name: this.file.name, fileSize: this.file.size, chunkSize: this.chunkSize }))
-        }
-      }, 1500);
-    },
     uploadFile(file: any) {
       let uploadChunks = false;
 
@@ -603,7 +504,7 @@ export default Vue.extend({
         this.uploadPerc = 0;
 
         if (this.uploadChunksMethod == "ws") {
-          this.uploadChunksWS()
+          console.log("WS upload is not supported")
         } else {
           // http version
           let iters = Math.ceil(this.file.size / this.chunkSize)

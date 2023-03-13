@@ -177,7 +177,8 @@
                 v-card-text
                   v-form.px-3(ref="popUpForm")
                     template(v-for="(param, key) in popUpItem.extension_params")
-                      v-card-title(v-if="param.type == 'group_name'" style="font-weight:bold") {{ param.default }}
+                      span(v-if="param.type == 'group_name'" style="font-weight:bold;font-size:25px;align:left") {{ param.default }}
+
                       v-text-field(
                         v-if="param.type == 'string'"
                         :label="key"
@@ -454,6 +455,7 @@ export default Vue.extend({
       console.log("file.name", file.name)
       console.log("file.size", file.size)
       console.log("file.type", file.type)
+
       let allowedFileTypes: any = ['application/x-compressed', 'application/x-tar', 'application/gzip']
       if (!allowedFileTypes.includes(file.type) ) {
         alert('please upload a tgz or tar file');
@@ -502,7 +504,7 @@ export default Vue.extend({
         this.uploadPerc = 0;
 
         if (this.uploadChunksMethod == "ws") {
-          this.uploadChunksWS()
+          console.log("WS upload is not supported")
         } else {
           // http version
           let iters = Math.ceil(this.file.size / this.chunkSize)

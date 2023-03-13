@@ -57,7 +57,7 @@ get_imfusion_metrics = LocalGetMetricsOperator(
 
 aggregate_metrics = LocalAggregateMetricsOperator(
     dag=dag,
-    metrics_operators=[get_host_metrics, get_satori_metrics, get_jip_metrics],
+    metrics_operators=[get_host_metrics, get_satori_metrics, get_jip_metrics, get_imfusion_metrics],
     instance_name=INSTANCE_NAME,
     version=KAAPANA_BUILD_VERSION,
     trigger_rule=TriggerRule.ALL_DONE,
@@ -74,7 +74,7 @@ txt2dcm = Bin2DcmOperator(
     study_uid=None,
     protocol_name=None,
     study_description=None,
-    series_description=f"node metrics from {datetime.now().strftime('%d.%m.%Y %H:%M')}",
+    series_description=f"Node metrics from {INSTANCE_NAME} | {datetime.now().astimezone().replace(microsecond=0).isoformat()}",
     size_limit=10,
     input_operator=aggregate_metrics,
     file_extensions="*.txt",

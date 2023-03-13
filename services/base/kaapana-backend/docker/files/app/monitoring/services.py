@@ -1,5 +1,4 @@
 from typing import List
-from datetime import datetime
 from .schemas import Measurement
 from datetime import datetime
 from opensearchpy import OpenSearch
@@ -87,7 +86,7 @@ class MonitoringService:
                         }
                     ]
                 }
-            }
+            },
         }
         success, es_result = MonitoringService.es_query(query=modality_query)
         if success:
@@ -140,6 +139,7 @@ class MonitoringService:
                 "build_timestamp": str(settings.kaapana_build_timestamp),
                 "build_branch": str(settings.kaapana_platform_build_branch),
                 "deployment_timestamp": str(settings.kaapana_deployment_timestamp),
+                "scrape_timestamp": datetime.now().astimezone().replace(microsecond=0).isoformat(),
                 "last_commit_timestamp": str(
                     settings.kaapana_platform_last_commit_timestamp
                 ),
@@ -149,7 +149,7 @@ class MonitoringService:
             query="round(time() - process_start_time_seconds{job='oAuth2-proxy'})",
             return_type="int",
         )
-        g = Gauge("uptime", "uptime in seconds", registry=registry)
+        g = Gauge(name="uptime", documentation="uptime in seconds", registry=registry)
         g.set(uptime)
 
         (
@@ -157,36 +157,44 @@ class MonitoringService:
             number_studies_total,
             number_patiens_total,
         ) = MonitoringService.get_study_series_patient_count()
-        g = Gauge("number_series_total", "number_series_total", registry=registry)
-        g.set(number_series_total)
-        g = Gauge("number_studies_total", "number_studies_total", registry=registry)
+        g = Gauge(
+            name="number_studies_total",
+            documentation="number_studies_total",
+            registry=registry,
+        )
         g.set(number_studies_total)
-        g = Gauge("number_patiens_total", "number_patiens_total", registry=registry)
+        g = Gauge(
+            name="number_patiens_total",
+            documentation="number_patiens_total",
+            registry=registry,
+        )
         g.set(number_patiens_total)
 
-        number_series_ct_total = MonitoringService.get_modaility_series_count(
-            modality="CT"
-        )
-        g = Gauge("number_series_ct_total", "number_series_ct_total", registry=registry)
-        g.set(number_series_ct_total)
-
-        number_series_mr_total = MonitoringService.get_modaility_series_count(
-            modality="MR"
-        )
-        g = Gauge("number_series_mr_total", "number_series_mr_total", registry=registry)
-        g.set(number_series_mr_total)
-
-        number_series_seg_total = MonitoringService.get_modaility_series_count(
-            modality="SEG"
-        )
         g = Gauge(
-            "number_series_seg_total", "number_series_seg_total", registry=registry
+            name="number_series_total",
+            documentation="number_series_total",
+            labelnames=["modality"],
+            registry=registry,
         )
-        g.set(number_series_seg_total)
+        g.labels("total").set(number_series_total)
 
-        mount_points = ["/","/mnt/dicom"]
-        # mount_points = ["/","/data"]
-        for idx, mount_point in enumerate(mount_points):
+        modality = "CT"
+        number_series = MonitoringService.get_modaility_series_count(modality=modality)
+        g.labels(modality).set(number_series)
+
+        modality = "MR"
+        number_series = MonitoringService.get_modaility_series_count(modality=modality)
+        g.labels(modality).set(number_series)
+
+        modality = "SEG"
+        number_series = MonitoringService.get_modaility_series_count(modality=modality)
+        g.labels(modality).set(number_series)
+
+        modality = "OT"
+        number_series = MonitoringService.get_modaility_series_count(modality=modality)
+        g.labels(modality).set(number_series)
+
+        for idx, mount_point in enumerate(settings.mount_points):
             total_query = f"node_filesystem_size_bytes{{app_kubernetes_io_managed_by='',fstype!='tmpfs',mountpoint='{mount_point}'}}"
             storage_size_total = MonitoringService.query_prom(
                 query=total_query, return_type="int"
@@ -209,22 +217,26 @@ class MonitoringService:
             g.set(storage_size_free)
 
         system_load_24H = MonitoringService.query_prom(
-            query="avg(1-rate(node_cpu_seconds_total{mode='idle'}[24h]))",
+            query="100-(avg(rate(node_cpu_seconds_total{job='Node-Exporter',mode='idle'}[24h]))*100)",
             return_type="float",
         )
-        g = Gauge("system_load_24H", "system_load_24H", registry=registry)
+        g = Gauge(
+            name="system_load_24H", documentation="system_load_24H", registry=registry
+        )
         g.set(system_load_24H)
 
         jobs_success = MonitoringService.query_prom(
             query="af_agg_ti_successes", return_type="int"
         )
-        g = Gauge("jobs_success", "jobs_success", registry=registry)
+        g = Gauge(name="jobs_success", documentation="jobs_success", registry=registry)
         g.set(jobs_success)
 
         jobs_failures = MonitoringService.query_prom(
             query="af_agg_ti_failures", return_type="int"
         )
-        g = Gauge("jobs_failures", "jobs_failures", registry=registry)
+        g = Gauge(
+            name="jobs_failures", documentation="jobs_failures", registry=registry
+        )
         g.set(jobs_failures)
 
         return generate_latest(registry=registry)

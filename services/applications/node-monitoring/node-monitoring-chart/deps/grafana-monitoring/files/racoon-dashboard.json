@@ -21,7 +21,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "iteration": 1678643320567,
+  "iteration": 1678658705266,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -409,13 +409,13 @@
     "list": [
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "central",
           "value": "central"
         },
         "definition": "label_values(build_info,instance)",
         "hide": 0,
-        "includeAll": true,
+        "includeAll": false,
         "label": "Site",
         "multi": false,
         "name": "site_instance",
@@ -436,15 +436,15 @@
           "text": "jip",
           "value": "jip"
         },
-        "definition": "label_values(job)",
+        "definition": "label_values(build_info,job)",
         "hide": 0,
-        "includeAll": true,
+        "includeAll": false,
         "label": "Node Software Component",
         "multi": false,
         "name": "component",
         "options": [],
         "query": {
-          "query": "label_values(job)",
+          "query": "label_values(build_info,job)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,

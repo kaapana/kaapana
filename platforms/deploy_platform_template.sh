@@ -56,7 +56,8 @@ HTTPS_PORT="{{ https_port|default(443) }}"    # HTTPS port
 DICOM_PORT="{{ dicom_port|default(11112) }}"  # configure DICOM receiver port
 
 VERSION_IMAGE_COUNT="20"
-DEPLOYMENT_TIMESTAMP=`date "+%Y.%m.%d-%H:%M"`
+DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`
+MOUNT_POINTS_TO_MONITOR="{{ mount_points_to_monitor }}"
 
 {% for item in additional_env %}
 {{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}
@@ -407,6 +408,7 @@ function deploy_chart {
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
     --set-string global.release_name="$PLATFORM_NAME" \
     --set-string global.deployment_timestamp="$DEPLOYMENT_TIMESTAMP" \
+    --set-string global.mount_points_to_monitor="$MOUNT_POINTS_TO_MONITOR" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \

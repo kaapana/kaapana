@@ -320,15 +320,15 @@ function install_microk8s {
         if [ "$OFFLINE_SNAPS" = "true" ];then
             echo "${YELLOW} -> offline installation! ${NC}"
 
-            # echo "${YELLOW}Installing core...${NC}"
-            # snap_path=$SCRIPT_DIR/core.snap
-            # assert_path=$SCRIPT_DIR/core.assert
-            # [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
-            # [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
-            # snap ack $assert_path
-            # set +e
-            # snap install $snap_path
-            # set -e
+            echo "${YELLOW}Installing core18...${NC}"
+            snap_path=$SCRIPT_DIR/core18.snap
+            assert_path=$SCRIPT_DIR/core18.assert
+            [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
+            [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
+            snap ack $assert_path
+            set +e
+            snap install $snap_path
+            set -e
 
             echo "${YELLOW}Installing microk8s...${NC}"
             snap_path=$SCRIPT_DIR/microk8s.snap
@@ -338,7 +338,6 @@ function install_microk8s {
             
             snap ack $assert_path
             snap install --classic $snap_path
-            echo "${YELLOW}Wait until microk8s is ready...${NC}"
             MICROK8S_BASE_IMAGES_TAR_PATH="$SCRIPT_DIR/microk8s_base_images.tar"
             echo "${YELLOW}Start Microk8s image import from $MICROK8S_BASE_IMAGES_TAR_PATH ... ${NC}"
             [ -f $MICROK8S_BASE_IMAGES_TAR_PATH ] && echo "${GREEN}MICROK8S_BASE_IMAGES_TAR exists ... ${NC}" || (echo "${RED}Images tar does not exist -> exit ${NC}" && exit 1)

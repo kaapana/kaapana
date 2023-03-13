@@ -103,6 +103,8 @@ spec:
           value: {{ .Values.global.platform_last_commit_timestamp }}
         - name: DEPLOYMENT_TIMESTAMP
           value: {{ .Values.global.deployment_timestamp }}
+        - name: MOUNT_POINTS_TO_MONITOR
+          value: {{ .Values.global.mount_points_to_monitor }}
         - name: APPLICATION_ROOT
           value: "/kaapana-backend"
         - name: DATABASE_URL

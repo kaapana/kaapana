@@ -1178,7 +1178,7 @@ class HelmChart:
                 {
                     "platform_build_branch": BuildUtils.platform_build_branch,
                     "platform_last_commit_timestamp": BuildUtils.platform_last_commit_timestamp,
-                    "build_timestamp": datetime.now().strftime("%d-%m-%Y"),
+                    "build_timestamp": datetime.now().astimezone().replace(microsecond=0).isoformat(),
                     "kaapana_build_version": BuildUtils.platform_build_version,
                 }
             )

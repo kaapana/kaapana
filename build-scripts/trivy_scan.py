@@ -2,11 +2,12 @@
 import argparse
 import logging
 from build_helper.security_utils import TrivyUtils
-from subprocess import PIPE, run
+from subprocess import PIPE, run, DEVNULL
 from build_helper.build_utils import BuildUtils
 from os.path import join, dirname, exists
 import os
 import yaml
+import signal
 
 logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,14 +30,14 @@ if __name__ == "__main__":
         "-s",
         "--sbom",
         dest="sbom",
-        action='store_true',
+        action="store_true",
         default=False,
         help="Create SBOMs",
     )
     parser.add_argument(
         "-v",
         "--vuln",
-        action='store_true',
+        action="store_true",
         dest="vuln",
         default=False,
         help="Create vulnerability reports",
@@ -78,6 +79,37 @@ if __name__ == "__main__":
     BuildUtils.build_dir = build_dir
     BuildUtils.parallel_processes = int(args.num_parallel_processes)
 
+    trivy_utils = TrivyUtils()
+
+    def handler(signum, frame):
+        BuildUtils.logger.info("Received SIGTSTP, exiting...")
+        BuildUtils.logger.info("Stopping ThreadPool...")
+        trivy_utils.kill_flag = True
+        trivy_utils.threadpool.terminate()
+
+        # stop all running containers
+        BuildUtils.logger.info("Stopping all running containers...")
+        trivy_utils.semaphore_running_containers.acquire()
+        try:
+            for container in trivy_utils.list_of_running_containers:
+
+                command = ["docker", "kill", container]
+                run(command, check=False, stdout=DEVNULL, stderr=DEVNULL)
+
+                # remove empty json files
+                if os.path.exists(join(BuildUtils.build_dir, container + ".json")):
+                    os.remove(join(BuildUtils.build_dir, container + ".json"))
+        finally:
+            trivy_utils.semaphore_running_containers.release()
+
+        if sbom:
+            trivy_utils.safe_sboms()
+        if vuln:
+            trivy_utils.safe_vulnerability_reports()
+        exit(1)
+
+    signal.signal(signal.SIGTSTP, handler)
+
     if tag == None:
         logger.error("No tag provided!")
         exit(1)
@@ -109,13 +141,11 @@ if __name__ == "__main__":
             logger.info("Container: {}".format(container))
 
     if sbom:
-       logger.info("Creating SBOMs...")
-       trivy_utils = TrivyUtils()
-       trivy_utils.create_sboms(list_of_containers)
-       logger.info("Done.")
+        logger.info("Creating SBOMs...")
+        trivy_utils.create_sboms(list_of_containers)
+        logger.info("Done.")
 
     if vuln:
         logger.info("Creating vulnerability reports...")
-        trivy_utils = TrivyUtils()
         trivy_utils.create_vulnerability_reports(list_of_containers)
         logger.info("Done.")

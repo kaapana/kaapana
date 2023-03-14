@@ -9,6 +9,7 @@ from multiprocessing.pool import ThreadPool
 from alive_progress import alive_bar
 import datetime
 
+
 suite_tag = "security"
 
 # Class containing security related helper functions

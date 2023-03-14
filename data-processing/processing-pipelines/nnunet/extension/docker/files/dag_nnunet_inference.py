@@ -156,7 +156,7 @@ ui_forms = {
             },
             "confirmation": {
                 "title": "Accept",
-                "default": False,
+                # "default": False,
                 "type": "boolean",
                 "readOnly": False,
                 "required": True,

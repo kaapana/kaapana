@@ -296,6 +296,7 @@ class nnUNetDatasetParser:
     
         # Creating seg_info.json from datset.json
         seg_info_json = {
+            "algorithm": dataset_json.get("name", path.name),
             "seg_info": []
         }
         for k, v in dataset_json["labels"].items():
@@ -359,8 +360,8 @@ class nnUNetDatasetParser:
                     images_with_segs.append(ct)
                 else:
                     images_without_segs.append(ct)
-
-            assert len(images_with_segs) == len(labels)
+            if len(labels) > 0:
+                assert len(images_with_segs) == len(labels)
 
             images_with_segs.sort()
             images_without_segs.sort()

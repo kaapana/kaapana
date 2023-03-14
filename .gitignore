@@ -18,11 +18,7 @@ __pycache__
 *.pyc
 *.lock
 *.tgz
-*orig
 ## Linux
 *~
 history
 build-scripts/build-config.yaml
-data-processing/kaapana-plugin/processing-containers/itk2dcm/tests/
-ci-pipe/
-database.db

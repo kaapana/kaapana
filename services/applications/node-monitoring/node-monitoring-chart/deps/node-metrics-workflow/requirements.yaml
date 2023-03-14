@@ -1,4 +1,0 @@
----
-dependencies:
-  - name: dag-installer-chart
-    version: 0.0.0

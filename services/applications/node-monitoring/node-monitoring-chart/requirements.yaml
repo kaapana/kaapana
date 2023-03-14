@@ -1,9 +1,0 @@
----
-dependencies:
-  - name: prometheus-monitoring
-    version: 0.0.0
-  - name: grafana-monitoring
-    version: 0.0.0
-  - name: node-metrics-workflow
-    version: 0.0.0
-

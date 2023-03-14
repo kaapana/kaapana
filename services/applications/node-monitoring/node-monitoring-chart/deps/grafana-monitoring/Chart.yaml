@@ -1,7 +1,0 @@
----
-apiVersion: v1
-appVersion: "8.4.4"
-description: Chart for Grafana
-name: grafana-monitoring
-version: "0.0.0"
-

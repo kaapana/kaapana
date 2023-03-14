@@ -1,5 +1,0 @@
----
-global:
-    pull_policy_jobs: ""
-    image: "dag-node-metrics"
-    action: "copy"

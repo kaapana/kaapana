@@ -58,6 +58,4 @@ dependencies:
     version: 0.0.0
   - name: total-segmentator-workflow
     version: 0.0.0
-  - name: node-monitoring-chart
-    version: 0.0.0
     

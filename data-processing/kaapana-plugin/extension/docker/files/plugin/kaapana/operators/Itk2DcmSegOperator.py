@@ -33,6 +33,7 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
                  multi_label_seg_name=None,
                  series_description=None,
                  skip_empty_slices=False,
+                 fail_on_no_segmentation_found=True,
                  env_vars=None,
                  execution_timeout=timedelta(minutes=90),
                  **kwargs):
@@ -66,6 +67,7 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
             "MULTI_LABEL_SEG_INFO_JSON": multi_label_seg_info_json, # name of json file inside OPERATOR_IMAGE_LIST_INPUT_DIR that contains the organ seg infos e.g. {"seg_info": ["spleen", "right@kidney"]}
             # Always relevant:
             "MULTI_LABEL_SEG_NAME": multi_label_seg_name,  # Name used for multi-label segmentation object, if it will be created
+            "FAIL_ON_NO_SEGMENTATION_FOUND": f"{fail_on_no_segmentation_found}",
             # "OPERATOR_IMAGE_LIST_INPUT_DIR":  segmentation_operator.operator_out_dir, # directory that contains segmentaiton objects
             "SERIES_DISCRIPTION": "{}".format(series_description or alg_name or 'UNKOWN SEGMENTATION ALGORITHM'),
             "ALGORITHM_NAME": f'{alg_name or "kaapana"}',

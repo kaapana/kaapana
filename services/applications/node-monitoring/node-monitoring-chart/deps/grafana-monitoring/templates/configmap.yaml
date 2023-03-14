@@ -232,6 +232,7 @@ data:
     [dashboards]
     # Number dashboard versions to keep (per dashboard). Default: 20, Minimum: 1
     versions_to_keep = 20
+    default_home_dashboard_path = /etc/grafana/dashboards/racoon-dashboard/dashboards/racoon-dashboard.json
 
     #################################### Users ###############################
     [users]

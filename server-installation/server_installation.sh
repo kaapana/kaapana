@@ -101,7 +101,7 @@ function no_proxy_environment {
 function install_packages_almalinux {
     echo "${YELLOW}Check packages...${NC}"
     if [ -x "$(command -v snap)" ] && [ -x "$(command -v jq)" ]; then
-        echo "${GREEN}Dependencies ok.${NC}"
+        echo "${GREEN}Snap installed.${NC}"
     else
 
         echo "${YELLOW}Enable epel-release${NC}"
@@ -150,7 +150,7 @@ function install_packages_almalinux {
 
 function install_packages_ubuntu {
     if [ -x "$(command -v nano)" ] && [ -x "$(command -v jq)" ] && [ -x "$(command -v snap)" ]; then
-        echo "${GREEN}Dependencies ok.${NC}"
+        echo "${GREEN}snap,nano and jq already installed.${NC}"
     else
         echo "${YELLOW}Check if apt is locked ...${NC}"
         i=0
@@ -229,6 +229,30 @@ function insert_text {
     [ -f $filepath ] || { echo "$filepath does not exist! -> abort." && exit 1; }
     grep -q "$search_string" $filepath && echo "${YELLOW}SKIPPED: $insert_string ....${NC}" || { echo "${GREEN}Setting: $insert_string >> $filepath ${NC}" && rc=0 && sh -c "echo '$insert_string' >> $filepath"; }
     return $rc
+}
+
+function install_core18 {
+    echo "${YELLOW}Checking if core18 is installed ... ${NC}"
+    if ls -l /var/lib/snapd/snaps | grep core18 ;
+    then
+        echo ""
+        echo "${GREEN}core18 is already installed ...${NC}"
+        echo "${GREEN}-> skipping installation ${NC}"
+        echo ""
+    else
+        echo "${YELLOW}core18 is not installed -> start installation ${NC}"
+        if [ "$OFFLINE_SNAPS" = "true" ];then
+            echo "${YELLOW} -> core18 offline installation! ${NC}"
+            snap_path=$SCRIPT_DIR/core18.snap
+            assert_path=$SCRIPT_DIR/core18.assert
+            [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
+            [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
+            snap ack $assert_path
+            snap install --classic $snap_path
+        else
+            echo "${YELLOW}Core18 will be automatically installed ...${NC}"
+        fi
+    fi
 }
 
 function install_helm {
@@ -319,16 +343,6 @@ function install_microk8s {
         
         if [ "$OFFLINE_SNAPS" = "true" ];then
             echo "${YELLOW} -> offline installation! ${NC}"
-
-            echo "${YELLOW}Installing core18...${NC}"
-            snap_path=$SCRIPT_DIR/core18.snap
-            assert_path=$SCRIPT_DIR/core18.assert
-            [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
-            [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
-            snap ack $assert_path
-            set +e
-            snap install $snap_path
-            set -e
 
             echo "${YELLOW}Installing microk8s...${NC}"
             snap_path=$SCRIPT_DIR/microk8s.snap
@@ -563,6 +577,7 @@ case "$OS_PRESENT" in
         echo -e "${GREEN}Starting AlmaLinux installation...${NC}";
         proxy_environment
         install_packages_almalinux
+        install_core18
         install_helm
         install_microk8s
     ;;
@@ -571,6 +586,7 @@ case "$OS_PRESENT" in
         echo -e "${GREEN}Starting Ubuntu installation...${NC}";
         proxy_environment
         install_packages_ubuntu
+        install_core18
         install_helm
         install_microk8s
     ;;

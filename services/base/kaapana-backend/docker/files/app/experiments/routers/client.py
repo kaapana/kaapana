@@ -4,6 +4,9 @@ from typing import List
 import logging
 import traceback
 import asyncio
+import jsonschema
+from pydantic import ValidationError
+from pydantic.schema import schema
 
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
@@ -252,13 +255,20 @@ async def delete_cohorts(db: Session = Depends(get_db)):
 @router.post("/experiment", response_model=schemas.Experiment)   # also okay: schemas.ExperimentWithKaapanaInstance
 async def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData, db: Session = Depends(get_db)):
     
+    # validate incoming json_schema_data
+    try:
+        jsonschema.validate(json_schema_data.json(), schema([schemas.JsonSchemaData]))
+    except ValidationError as e:
+        logging.error(f"JSON Schema is not valid for the Pydantic model. Error: {e}")
+        raise HTTPException(status_code=400, detail="JSON Schema is not valid for the Pydantic model.")
+
     if json_schema_data.username is not None:
         username = json_schema_data.username
     elif "x-forwarded-preferred-username" in request.headers:
         username = request.headers["x-forwarded-preferred-username"]
+        json_schema_data.username = username
     else:
         raise HTTPException(status_code=400, detail="A username has to be set when you submit a workflow schema, either as parameter or in the request!")
-
 
     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
     # if db_client_kaapana.instance_name in json_schema_data.instance_names:  # check or correct: if client_kaapana_instance in experiment's runner instances ...

@@ -751,9 +751,9 @@ def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
 
 async def queue_generate_jobs_and_add_to_exp(db: Session, db_client_kaapana: models.KaapanaInstance, db_experiment: models.Experiment, json_schema_data: schemas.JsonSchemaData, conf_data=None):
     # get variables
-    # conf_data = json_schema_data.conf_data
-    data_form = conf_data["data_form"]
+    single_execution = False    # initialize with False
     if "data_form" in conf_data and "cohort_name" in conf_data["data_form"]:
+        data_form = conf_data["data_form"]
         single_execution = "workflow_form" in conf_data and "single_execution" in conf_data["workflow_form"] and conf_data["workflow_form"]["single_execution"] is True
         cohort_limit = int(data_form["cohort_limit"]) if ("cohort_limit" in data_form and data_form["cohort_limit"] is not None) else None
     username = conf_data["experiment_form"]["username"]

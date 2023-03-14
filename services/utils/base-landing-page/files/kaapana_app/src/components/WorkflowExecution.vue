@@ -30,19 +30,21 @@ v-dialog(v-model='dialogOpen' max-width='600px')
           //- DAG: select dag
           v-row
             v-col(v-if="instance_names.length" cols='12')
-              v-select(v-model='dag_id' :items='available_dags' label='DAGs' chips='' hint='Select a dag' required)
+              v-select(v-model='dag_id' :items='available_dags' label='DAGs' chips='' hint='Select a dag' :rules="dagRules" required)
           //- Experiment name
           v-row(v-if="dag_id")
             v-col(cols='12')
               //- v-text-field(v-model='experiment_name' label='Experiment name' required='')
               //-  required='' clearable
-              v-text-field(label="Experiment name" v-model="experiment_name_wID" required)
+              v-text-field(label="Experiment name" v-model="experiment_name_wID" :rules="experimentnameRules" required)
             //- don't do exp_id rn
           //- Data- and Workflow forms
           v-row(v-if="experiment_name")
+            //- :rules="dataformRules" required)
             v-col(v-for="(schema, name) in schemas" cols='12')
               p {{name}}
-              v-jsf(v-model="formData[name]" :schema="schema")
+              //- v-jsf(v-model="formData[name]" :schema="schema" v-bind:class="{ 'is-invalid': !validateFormData(schema, formData[name]) }" required)
+              v-jsf(v-model="formData[name]" :schema="schema" required)
           v-row(v-if="external_available_instance_names.length")
             v-col(cols='12')
               h3 Remote Workflow
@@ -51,7 +53,7 @@ v-dialog(v-model='dialogOpen' max-width='600px')
           v-row(v-if="Object.keys(external_schemas).length")
             v-col(v-for="(schema, name) in external_schemas" cols='12')
               p {{name}}
-              v-jsf(v-model="formData['external_schema_' + name]" :schema="schema")
+              v-jsf(v-model="formData['external_schema_' + name]" :schema="schema" required)
           v-row
             v-col(cols='12')
               v-tooltip(v-model='showConfData' top='')
@@ -65,7 +67,7 @@ v-dialog(v-model='dialogOpen' max-width='600px')
                 pre.text-left External instance name: {{external_instance_names}}
                 pre.text-left {{ formDataFormatted }}
       v-card-actions
-        v-btn(color="primary", @click="submitWorkflow()"  dark) Start Experiment
+        v-btn(color="primary", @click="submissionValidator()"  dark) Start Experiment
         v-btn(color="primary", @click="(instance_names=[]) && (dag_id=null)"  dark) Clear
 </template>
 
@@ -99,6 +101,10 @@ export default {
     federated_data: false,
     remote_data: false,
     local_remote_switch: true,
+    form_requiredFields: [],
+    my_form_validation: false,
+    form_validation_cohort_name: false,
+    form_validation_method_confirmation: false
   }),
   props: {
     remote: {
@@ -130,7 +136,24 @@ export default {
       set(value) {
         this.experiment_name = value;
       }
-    }
+    },
+    dagRules() {
+      return [
+        (v) => !!v || "DAG is required",
+        // (v) => (v && v.length <= 20) || "Name must be less than or equal to 20 characters",
+      ];
+    },
+    experimentnameRules() {
+      return [
+        (v) => !!v || "Experiment name is required",
+      ];
+    },
+    // dataformRules() {
+    //   return [
+    //     (v['data_form']['cohort']) => !!v['data_form']['cohort'] || "Cohort is required"
+    //     // (v) => !!v || "Cohort is required",
+    //   ];
+    // }
   },
   mounted() {
   },
@@ -170,9 +193,6 @@ export default {
     }
   },
   methods: {
-    saveTestName() {
-      console.log(`Saving testname: ${this.test_name}`)
-    },
     switch_label() {
       if (this.local_remote_switch == true) {
         if (this.instance_names.indexOf(this.clientinstance.instance_name) === -1) {
@@ -237,6 +257,9 @@ export default {
         .federatedClientApiPost("/get-ui-form-schemas", {remote: this.remote, experiment_name: this.experiment_name, dag_id: this.dag_id, instance_names: this.instance_names})
         .then((response) => {
           let schemas = response.data
+          console.log("getUiFormSchemas: ", schemas)
+          this.form_requiredFields = this.findRequiredFields(schemas)
+          console.log("form_requiredFields: ", this.form_requiredFields)
           if ('external_schemas' in schemas) {
             this.external_dag_id = schemas["external_schemas"]
             delete schemas.external_schemas
@@ -276,6 +299,7 @@ export default {
         .federatedClientApiPost("/get-remote-kaapana-instances", {dag_id: this.external_dag_id})
         .then((response) => {
           this.external_available_instance_names = response.data.map(({ instance_name }) => instance_name);
+          console.log("getAvailableExternalNodeIds -> external_instanes: ", this.external_available_instance_names)
         })
         .catch((err) => {
           console.log(err);
@@ -291,25 +315,80 @@ export default {
           console.log(err);
         });
     },
+    findRequiredFields(obj, result = [], prefix = '') {
+      for (const key in obj) {
+        const value = obj[key];
+        const fullKey = prefix ? `${prefix}.${key}` : key;
+        if (value && typeof value === 'object') {
+          this.findRequiredFields(value, result, fullKey);
+        } else if (key === 'required' && !('default' in obj) && !('enum' in obj)) {
+          // only add a required_field if no default value is defined and it's no 'enum' data type (special case for nnunet-predict)
+          result.push(fullKey);
+        }
+      }
+      return result;
+    },
+    submissionValidator() {
+      let valid_check = []
+      let invalid_fields = []
+      if (this.$refs.executeWorkflow.validate()) { // validate dag_id and experiment_name in any cases
+        // extract form name and attribute names of form_requiredFields
+        for (let i=0; i<this.form_requiredFields.length; i++) {
+          const req_field = this.form_requiredFields[i];
+          const substrings = req_field.split(".");
+          let form_name = "";
+          let req_prop_name = "";
+          for (let i = 0; i < substrings.length; i++) {
+            if (i === 0) {
+              form_name = substrings[i];
+            } else if (substrings[i] === "required") {
+              req_prop_name = substrings[i - 1];
+              break;
+            }
+          }
+          // find req_prop_name in form_name and check if valid
+          if (this.formData[form_name].hasOwnProperty(req_prop_name)) {
+            if (this.formData[form_name][req_prop_name]) {
+              // valid value --> set indicator to true
+              valid_check.push(true)
+            } else {
+              // inalid value --> set indicator to false
+              valid_check.push(false)
+              invalid_fields.push(req_prop_name)
+            }
+          }
+          else {
+            valid_check.push(false)
+            invalid_fields.push(req_prop_name)
+          }
+        }
+        if (valid_check.every(value => value === true)) {
+          // all checks have been successful --> start experiment & return true
+          this.submitWorkflow()
+          return true
+        } else {
+          // NOT all checks have been successful --> return false
+          const message = `Validation of form input values failed! Please set required values for ${invalid_fields.join(', ')}!`;
+          alert(message);
+          return false
+        }
+      }
+    },
     submitWorkflow() {
       // modify attributes remote_data and federated_data depending on instances 
-
       this.federated_data = false;
-      if ((this.instance_names.indexOf(this.clientinstance.instance_name) != -1) && (this.instance_names.length == 1)) {  // clientinstance is in instance_names ==> local experiment
+      if ((this.instance_names.indexOf(this.clientinstance.instance_name) != -1) && (this.instance_names.length == 1)) {
+        // clientinstance is in instance_names ==> local experiment
         this.remote_data = false;
-        // console.log("Local Experiment -> federated_data:", this.federated_data, ", remote_data: ,", this.remote_data)
-      }
-      else {                                                          // clientinstance is not in instance_names ==> remote experiment
+      } else {
+        // clientinstance is not in instance_names ==> remote experiment
         this.remote_data = true;
-        // console.log("Remote Experiment -> federated_data:", this.federated_data, ", remote_data: ,", this.remote_data)
       }
-      // }
       if (this.external_instance_names.length) {
         this.formData['external_schema_instance_names'] = this.external_instance_names
         this.federated_data = true
       }
       kaapanaApiService
-        // .federatedClientApiPost("/submit-workflow-schema", {
         .federatedClientApiPost("/experiment", {
           experiment_name: this.experiment_name,
           dag_id: this.dag_id,
@@ -332,4 +411,7 @@ export default {
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped lang="scss">
+  .is-invalid {
+    border: 1px solid red;
+  }
 </style>

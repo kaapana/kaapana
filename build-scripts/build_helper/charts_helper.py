@@ -6,7 +6,7 @@ import os
 import json
 from datetime import datetime
 from treelib import Tree
-from subprocess import PIPE, run
+from subprocess import PIPE, run, DEVNULL
 from os.path import join, dirname, exists, isfile
 from pathlib import Path
 from build_helper.build_utils import BuildUtils
@@ -18,6 +18,7 @@ from build_helper.container_helper import get_image_stats
 from build_helper.security_utils import TrivyUtils
 from build_helper.offline_installer_helper import OfflineInstallerHelper
 import threading
+import signal
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
@@ -33,7 +34,10 @@ def parallel_execute(container_object):
     for base_container in container_object.base_images:
         semaphore_successful_built_containers.acquire()
         try:
-            if base_container.local_image and base_container.tag not in successful_built_containers:
+            if (
+                base_container.local_image
+                and base_container.tag not in successful_built_containers
+            ):
                 done = False
                 return queue_id, container_object, issue, done
         finally:
@@ -1158,12 +1162,14 @@ class HelmChart:
                         "version": BuildUtils.platform_build_version,
                     }
                 )
-            
+
             values["global"]["preinstall_extensions"] = []
             for idx, preinstall_extension in enumerate(src_chart.preinstall_extensions):
                 values["global"]["preinstall_extensions"].append(
                     {
-                        "name": src_chart.preinstall_extensions[preinstall_extension].name,
+                        "name": src_chart.preinstall_extensions[
+                            preinstall_extension
+                        ].name,
                         "version": BuildUtils.platform_build_version,
                     }
                 )
@@ -1349,13 +1355,46 @@ class HelmChart:
         BuildUtils.logger.info("")
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
 
+        if BuildUtils.vulnerability_scan or BuildUtils.create_sboms:
+            trivy_utils = TrivyUtils()
+
+            def handler(signum, frame):
+                BuildUtils.logger.info("Received SIGTSTP, exiting...")
+                BuildUtils.logger.info("Stopping ThreadPool...")
+                trivy_utils.kill_flag = True
+                trivy_utils.threadpool.terminate()
+
+                # stop all running containers
+                BuildUtils.logger.info("Stopping all running containers...")
+                trivy_utils.semaphore_running_containers.acquire()
+                try:
+                    for container in trivy_utils.list_of_running_containers:
+
+                        command = ["docker", "kill", container]
+                        run(command, check=False, stdout=DEVNULL, stderr=DEVNULL)
+
+                        # remove empty json files
+                        if os.path.exists(
+                            join(BuildUtils.build_dir, container + ".json")
+                        ):
+                            os.remove(join(BuildUtils.build_dir, container + ".json"))
+                finally:
+                    trivy_utils.semaphore_running_containers.release()
+
+                if BuildUtils.create_sboms:
+                    trivy_utils.safe_sboms()
+                if BuildUtils.vulnerability_scan:
+                    trivy_utils.safe_vulnerability_reports()
+
+                exit(1)
+
+            signal.signal(signal.SIGTSTP, handler)
+
         # Scan for vulnerabilities if enabled
         if BuildUtils.vulnerability_scan:
-            trivy_utils = TrivyUtils()
             trivy_utils.create_vulnerability_reports(successful_built_containers)
         # Create SBOMs if enabled
         if BuildUtils.create_sboms:
-            trivy_utils = TrivyUtils()
             trivy_utils.create_sboms(successful_built_containers)
 
         if BuildUtils.create_offline_installation is True:

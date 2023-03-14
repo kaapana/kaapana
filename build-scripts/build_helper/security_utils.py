@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
 import os
-from subprocess import PIPE, run
+from subprocess import PIPE, run, DEVNULL
 from build_helper.build_utils import BuildUtils
 import json
 from shutil import which
 import threading
-import time
-import requests
 from multiprocessing.pool import ThreadPool
 from alive_progress import alive_bar
 
+
 suite_tag = "security"
-timeout = 10000
+skip_commands = {
+    "otsus-method": [
+        [
+            "--skip-files",
+            "usr/local/lib/python3.9/site-packages/nibabel/tests/data/Phantom_EPI_3mm_sag_15RL_SENSE_11_1.PAR",
+        ]
+    ],
+}
 
 # Class containing security related helper functions
 # Using Trivy to create SBOMS and check for vulnerabilities
@@ -21,9 +27,11 @@ class TrivyUtils:
     vulnerability_reports = {}
     compressed_vulnerability_reports = {}
     compressed_dockerfile_report = {}
-    trivy_server_url = "http://localhost:8081"
-    trivy_server_id = ""
-    server_connect_max_retries = 10
+    trivy_image = "0.38.3"
+    timeout = 10000
+    threadpool = None
+    list_of_running_containers = []
+    kill_flag = False
 
     def __init__(self):
         # Check if trivy is installed
@@ -61,142 +69,91 @@ class TrivyUtils:
         self.semaphore_sboms = threading.Lock()
         self.semaphore_vulnerability_reports = threading.Lock()
         self.semaphore_compressed_dockerfile_report = threading.Lock()
+        self.semaphore_running_containers = threading.Lock()
 
-    def start_trivy_server(self):
-        command = [
-            "docker",
-            "run",
-            "-p",
-            "8081:80",
-            "--detach",
-            "aquasec/trivy:0.38.1",
-            "server",
-            "--listen",
-            "0.0.0.0:80",
-        ]
+        self.threadpool = ThreadPool(BuildUtils.parallel_processes)
+
+    def check_if_image_exists(self, image):
+        command = ["docker", "image", "inspect", image]
+
         output = run(
-            command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout
-        )
-
-        self.trivy_server_id = output.stdout.strip()
-
-        retry_count = 0
-
-        # Keep trying to connect until the server responds with 200 OK, or we've retried too many times
-        while retry_count < self.server_connect_max_retries:
-            try:
-                output = run(
-                    [
-                        "trivy",
-                        "image",
-                        "--server",
-                        self.trivy_server_url,
-                        "aquasec/trivy:0.38.1",
-                    ],
-                    stdout=PIPE,
-                    stderr=PIPE,
-                    universal_newlines=True,
-                    timeout=timeout,
-                )
-                if output.returncode == 0:
-                    # Server is ready,
-                    break
-            except requests.exceptions.RequestException:
-                pass
-            retry_count += 1
-            time.sleep(3)
-            BuildUtils.logger.info("Server is not ready yet, retrying...")
-
-        # If we've retried too many times, print an error message
-        if retry_count == self.server_connect_max_retries:
-            BuildUtils.logger.error(
-                "Error: Server did not respond after {} retries".format(
-                    self.server_connect_max_retries
-                )
-            )
-            BuildUtils.generate_issue(
-                component=suite_tag,
-                name="Start Trivy server",
-                msg="Failed to start Trivy server",
-                level="FATAL",
-            )
-
-
-    def stop_trivy_server(self):
-        command = ["docker", "stop", self.trivy_server_id]
-        output = run(
-            command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout
+            command,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+            timeout=self.timeout,
         )
 
         if output.returncode != 0:
-            BuildUtils.logger.error("Failed to stop Trivy server")
-            BuildUtils.logger.error(output.stderr)
-            BuildUtils.generate_issue(
-                component=suite_tag,
-                name="Stop Trivy server",
-                msg="Failed to stop Trivy server",
-                level="ERROR",
-            )
+            return False
+        else:
+            return True
 
     # Function to create SBOM for a given image
     def create_sbom(self, image):
         # convert image name to a valid SBOM name
         image_name = image.replace("/", "_").replace(":", "_")
 
-        retry_count = 0
-        # Wait for the SBOM file to be generated
-        for _ in range(5):
-            if not os.path.isfile(
-                os.path.join(BuildUtils.build_dir, image_name + "_sbom.json")
-            ):
-                command = [
-                    "trivy",
-                    "image",
-                    "--server",
-                    self.trivy_server_url,
-                    "--timeout",
-                    str(timeout) + "s",
-                    "--format",
-                    "cyclonedx",
-                    "--output",
-                    os.path.join(BuildUtils.build_dir, image_name + "_sbom.json"),
-                    image,
-                ]
-                output = run(
-                    command,
-                    stdout=PIPE,
-                    stderr=PIPE,
-                    universal_newlines=True,
-                    timeout=timeout,
-                )
+        # Add the image to the list of running containers
+        self.semaphore_running_containers.acquire()
+        try:
+            self.list_of_running_containers.append(image_name + "_sbom")
+        finally:
+            self.semaphore_running_containers.release()
 
-                if output.returncode != 0:
-                    BuildUtils.logger.error("Failed to create SBOM for image: " + image)
-                    BuildUtils.logger.error(output.stderr)
+        command = [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            "/var/run/docker.sock:/var/run/docker.sock",
+            "-v",
+            f"{BuildUtils.build_dir}:/kaapana/trivy_results",
+            "--name",
+            image_name + "_sbom",
+            self.trivy_image,
+            "image",
+            "--format",
+            "cyclonedx",
+            "--quiet",
+            "--timeout",
+            str(self.timeout) + "s",
+            "--output",
+            f"/kaapana/trivy_results/{image_name}_sbom.json",
+            image,
+        ]
+        output = run(
+            command,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+            timeout=self.timeout,
+        )
 
-            if not os.path.isfile(
-                os.path.join(BuildUtils.build_dir, image_name + "_sbom.json")
-            ):
-                retry_count += 1
-                time.sleep(3)
-                BuildUtils.logger.info("SBOM file not found, retrying...")
-            else:
-                break
-
-        if retry_count == 5:
-            BuildUtils.logger.error("Error: SBOM file not found after 5 retries")
-            BuildUtils.generate_issue(
-                component=suite_tag,
-                name="Create SBOM for image: " + image,
-                msg="SBOM file not found after 5 retries",
-                level="ERROR",
+        if self.kill_flag:
+            exit(1)
+        elif output.returncode != 0:
+            BuildUtils.logger.error(
+                "Failed to create SBOM for image: "
+                + image
+                + "."
+                + "Inspect the issue using the trivy --debug flag."
             )
+            BuildUtils.logger.error(output.stderr)
+            exit(1)
 
         # read the SBOM file
         with open(
             os.path.join(BuildUtils.build_dir, image_name + "_sbom.json"), "r"
         ) as f:
             sbom = json.load(f)
+
+        # Remove the image from the list of running containers
+        self.semaphore_running_containers.acquire()
+        try:
+            self.list_of_running_containers.remove(image_name + "_sbom")
+        finally:
+            self.semaphore_running_containers.release()
 
         self.semaphore_sboms.acquire()
         try:
@@ -215,67 +172,57 @@ class TrivyUtils:
         # convert image name to a valid SBOM name
         image_name = image.replace("/", "_").replace(":", "_")
 
-        retry_count = 0
-        # Keep trying to read the vulnerability report until it's generated, or we've retried too many times
-        for _ in range(5):
-            if not os.path.isfile(
-                os.path.join(
-                    BuildUtils.build_dir, image_name + "_vulnerability_report.json"
-                )
-            ):
-                command = [
-                    "trivy",
-                    "image",
-                    "--server",
-                    self.trivy_server_url,
-                    "--timeout",
-                    str(timeout) + "s",
-                    "-f",
-                    "json",
-                    "-o",
-                    os.path.join(
-                        BuildUtils.build_dir, image_name + "_vulnerability_report.json"
-                    ),
-                    "--ignore-unfixed",
-                    "--severity",
-                    BuildUtils.vulnerability_severity_level,
-                    image,
-                ]
-                output = run(
-                    command,
-                    stdout=PIPE,
-                    stderr=PIPE,
-                    universal_newlines=True,
-                    timeout=timeout,
-                )
+        self.semaphore_running_containers.acquire()
+        try:
+            self.list_of_running_containers.append(image_name + "_vulnerability_report")
+        finally:
+            self.semaphore_running_containers.release()
 
-                if output.returncode != 0:
-                    BuildUtils.logger.error("Failed to scan image: " + image)
-                    BuildUtils.logger.error(output.stderr)
+        command = [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            "/var/run/docker.sock:/var/run/docker.sock",
+            "-v",
+            f"{BuildUtils.build_dir}:/kaapana/trivy_results",
+            "--name",
+            image_name + "_vulnerability_report",
+            self.trivy_image,
+            "image",
+            "--severity",
+            BuildUtils.vulnerability_severity_level,
+            "--format",
+            "json",
+            "--ignore-unfixed",
+            "--quiet",
+            "--timeout",
+            str(self.timeout) + "s",
+            "--output",
+            f"/kaapana/trivy_results/{image_name}_vulnerability_report.json",
+            image,
+        ]
 
-            if not os.path.isfile(
-                os.path.join(
-                    BuildUtils.build_dir, image_name + "_vulnerability_report.json"
-                )
-            ):
-                retry_count += 1
-                time.sleep(3)
-                BuildUtils.logger.info(
-                    "Waiting for vulnerability report to be generated..."
-                )
-            else:
-                break
+        output = run(
+            command,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+            timeout=self.timeout,
+        )
 
-        if retry_count == 5:
+        if self.kill_flag:
+            exit(1)
+
+        elif output.returncode != 0:
             BuildUtils.logger.error(
-                "Error: Vulnerability report was not generated after 5 retries"
+                "Failed to create vulnerability report for image: "
+                + image
+                + "."
+                + "Inspect the issue using the trivy --debug flag."
             )
-            BuildUtils.generate_issue(
-                component=suite_tag,
-                name="Scan image: " + image,
-                msg="Failed to scan image: " + image,
-                level="ERROR",
-            )
+            BuildUtils.logger.error(output.stderr)
+            exit(1)
 
         # read the vulnerability file
         with open(
@@ -285,6 +232,13 @@ class TrivyUtils:
             "r",
         ) as f:
             vulnerability_report = json.load(f)
+
+        self.semaphore_running_containers.acquire()
+        try:
+            # Remove the container from the list of running containers
+            self.list_of_running_containers.remove(image_name + "_vulnerability_report")
+        finally:
+            self.semaphore_running_containers.release()
 
         compressed_vulnerability_report = {}
 
@@ -391,7 +345,11 @@ class TrivyUtils:
             path_to_chart,
         ]
         output = run(
-            command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout
+            command,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+            timeout=self.timeout,
         )
 
         if output.returncode != 0:
@@ -462,7 +420,11 @@ class TrivyUtils:
             path_to_dockerfile,
         ]
         output = run(
-            command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout
+            command,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+            timeout=self.timeout,
         )
 
         if output.returncode != 0:
@@ -531,91 +493,85 @@ class TrivyUtils:
         # Delete the dockerfile report file
         os.remove(os.path.join(BuildUtils.build_dir, "dockerfile_report.json"))
 
+    def __error_clean_up(self):
+        if not self.kill_flag:
+            self.semaphore_running_containers.acquire()
+            try:
+                for container in self.list_of_running_containers:
+
+                    command = ["docker", "kill", container]
+                    run(command, check=False, stdout=DEVNULL, stderr=DEVNULL)
+
+                    # remove empty json files
+                    if os.path.exists(
+                        os.path.join(BuildUtils.build_dir, container + ".json")
+                    ):
+                        os.remove(
+                            os.path.join(BuildUtils.build_dir, container + ".json")
+                        )
+            finally:
+                self.semaphore_running_containers.release()
+
+    def __safe_sboms(self):
+        # save the SBOMs to the build directory
+        with open(os.path.join(BuildUtils.build_dir, "sboms.json"), "w") as f:
+            json.dump(self.sboms, f)
+
     def create_sboms(self, list_of_images):
+
         try:
-            BuildUtils.logger.info("")
-            BuildUtils.logger.info("Start trivy server...")
-            BuildUtils.logger.info("")
-
-            # Start trivy server
-            self.start_trivy_server()
-
-            BuildUtils.logger.info("")
-            BuildUtils.logger.info("Creating SBOMs...")
-            BuildUtils.logger.info("")
-
-            with ThreadPool(BuildUtils.parallel_processes) as threadpool:
+            with self.threadpool as threadpool:
                 with alive_bar(
                     len(list_of_images), dual_line=True, title="Create SBOMS"
                 ) as bar:
                     results = threadpool.imap_unordered(
                         self.create_sbom, list_of_images
                     )
+
                     # Loop through all built containers and scan them
                     for image_build_tag in results:
                         # Set progress bar text
                         bar.text(image_build_tag)
                         # Print progress bar
                         bar()
+        except:
+            self.__error_clean_up()
         finally:
-            BuildUtils.logger.info("")
-            BuildUtils.logger.info("Stop trivy server...")
-            BuildUtils.logger.info("")
+            self.__safe_sboms()
 
-            # Stop trivy server
-            self.stop_trivy_server()
+    def __safe_vulnerability_reports(self):
+        # save the vulnerability reports to the build directory
+        with open(
+            os.path.join(BuildUtils.build_dir, "vulnerability_reports.json"), "w"
+        ) as f:
+            json.dump(self.vulnerability_reports, f)
 
-            # save the SBOMs to the build directory
-            with open(os.path.join(BuildUtils.build_dir, "sboms.json"), "w") as f:
-                json.dump(self.sboms, f)
+        with open(
+            os.path.join(BuildUtils.build_dir, "compressed_vulnerability_report.json"),
+            "w",
+        ) as f:
+            json.dump(self.compressed_vulnerability_reports, f)
 
     def create_vulnerability_reports(self, list_of_images):
         try:
-            BuildUtils.logger.info("")
-            BuildUtils.logger.info("Start trivy server...")
-            BuildUtils.logger.info("")
-
-            # Start trivy server
-            self.start_trivy_server()
-
-            BuildUtils.logger.info("")
-            BuildUtils.logger.info("Starting vulnerability scan...")
-            BuildUtils.logger.info("")
-
-            with ThreadPool(BuildUtils.parallel_processes) as threadpool:
+            with self.threadpool as threadpool:
                 with alive_bar(
                     len(list_of_images), dual_line=True, title="Vulnerability Scans"
                 ) as bar:
                     results = threadpool.imap_unordered(
                         self.create_vulnerability_report, list_of_images
                     )
+
                     # Loop through all built containers and scan them
                     for image_build_tag in results:
                         # Set progress bar text
                         bar.text(image_build_tag)
                         # Print progress bar
                         bar()
+        except:
+            self.__error_clean_up()
         finally:
-            BuildUtils.logger.info("")
-            BuildUtils.logger.info("Stop trivy server...")
-            BuildUtils.logger.info("")
-
-            # Stop trivy server
-            self.stop_trivy_server()
-
-            # save the vulnerability reports to the build directory
-            with open(
-                os.path.join(BuildUtils.build_dir, "vulnerability_reports.json"), "w"
-            ) as f:
-                json.dump(self.vulnerability_reports, f)
-
-            with open(
-                os.path.join(
-                    BuildUtils.build_dir, "compressed_vulnerability_report.json"
-                ),
-                "w",
-            ) as f:
-                json.dump(self.compressed_vulnerability_reports, f)
+            self.__safe_vulnerability_reports()
 
 
 if __name__ == "__main__":

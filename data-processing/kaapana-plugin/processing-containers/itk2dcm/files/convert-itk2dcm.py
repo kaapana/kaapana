@@ -11,6 +11,8 @@ import SimpleITK as sitk
 from pathlib import Path
 from pydicom.uid import generate_uid
 
+#http://dicomlookup.com/modalities.asp
+VALID_MODALITIES = ["CR", "CT", "MR", "US", "OT", "BI", "CD", "DD", "DG", "ES", "LS", "PT", "RG", "ST", "TG", "XA", "RF", "RTIMAGE", "RTDOSE", "RTSTRUCT", "RTPLAN", "RTRECORD", "HC", "DX", "NM", "MG", "IO", "PX", "GM", "SM", "XC", "PR", "AU", "EPS", "HD", "SR", "IVUS", "OP", "SMR"]
 
 def make_out_dir(series_uid, dataset, case, segmentation=False, human_readable=False):
     # operator_output = "/data/output" 
@@ -23,13 +25,6 @@ def make_out_dir(series_uid, dataset, case, segmentation=False, human_readable=F
         case_dir = Path(f"{batch_output}/{series_uid}/{os.environ['OPERATOR_OUT_DIR']}")
         
     case_dir.mkdir(exist_ok=True, parents=True)
-    # dicom_dir =  case_dir/ 'dicoms' # Dicom Directory
-    # dicom_dir.mkdir(exist_ok=True, parents=True)
-    
-    # if segmentation:
-    #     nii_segmentation_dir = case_dir / 'segmentations'
-    #     nii_segmentation_dir.mkdir(exist_ok=True, parents=True)
-    
     return case_dir
 
 
@@ -38,46 +33,10 @@ class Nifti2DcmConverter:
     not include all necessary meta information, it is possible to provide additional meta information 
     on a 'per study' basis. (See __call__(self, ...))
     """
-    def __init__(self, root_dir: Path, meta_data=None, seed=42):
-        self.parser = Parser()
+    def __init__(self, root_dir: Path, parser=None, seed=42):
+        self.parser = parser or Parser()
         self.seed = str(seed)
         self.root_dir = root_dir #self.get_root()
-        # self.workflow_conf = self.get_workflow_conf()
-        # self.data_dir = self.get_data_dir()
-        self.meta_data = self.get_metadata()
-        self.modality = self.get_modality()
-
-    # def get_root(self):
-        # return os.path.join("/" + os.environ.get("WORKFLOW_DIR"),os.environ.get("OPERATOR_IN_DIR"))
-
-    # def get_workflow_conf(self):
-    #     with open(f"{os.environ.get('WORKFLOW_DIR')}/conf/conf.json", 'r') as conf_file:
-    #         workflow_conf = json.load(conf_file)
-    #     return workflow_conf
-
-    # def get_data_dir(self):
-    #     data_dir = self.workflow_conf.get("workflow_form").get("data_dir")
-    #     print(data_dir)
-    #     return data_dir
-        
-    def get_metadata(self):
-        try:
-            with open(self.root_dir / "meta_data.json", "r") as meta_file:
-                meta_data = json.load(meta_file)
-
-        except FileNotFoundError:
-            meta_data = {}
-        return meta_data
-        
-    def get_modality(self):
-        
-        modality = os.getenv("MODALITY", "CT")  # Default modality is CT just because CT scans are usually cheaper and therefore might be more common than MR scans.
-        if self.meta_data.get("Modality"):
-            modality =  self.meta_data.get("Modality")
-            print(f"Taking modality from file: {modality}")
-        return modality
-
-        
     
     def __call__(self):
         """ Run the converter on a path with the following directory structure:
@@ -92,29 +51,21 @@ class Nifti2DcmConverter:
         |    | series2_seg.nii.gz
         |    | ...
 
-
         The meta_data.json can be used to set values for patient ids, study uids, series ids and also arbitrary dicom tags. The expected structure is as follows:
-
         {
-            'Patients': 'all_same' | 'all_different' | [name1, name2, ..., nameN],
-            'Study UIDs': 'all_same' | 'all_different' | [study1, study2, ..., studyN],
-            'Modality': 'MR' | 'CT' | 'OT' | ...   # any valid value listed under dicom tag (0008,0060) 
-            'Series instance UID': [series_instance_uid1, series_instance_uid1, ..., series_instance_uidN]
-            'Series descriptions': some_description | [desc1, desc2, ..., descN],
-            
-            'add_tags': {
-                '/some/path/*nii.gz':{
-                    '(xxxx|xxxx)': tag_value,
-                    ...
+            "global_tags": {
+                "0008|0060": "MR"
+            },
+            "series_tags": {
+                "Case00.nii": {
+                    "0008|103e": "I am unique"
                 }
             }
-
-            'seg_args': {
-                'input_type': 'multi_label_seg' | 'single_label_segs',
-                'single_label_seg_info': 'prostate',
-                'multi_label_seg_info_json': 'seg_info.json'
-            }
         }
+
+        Good to know:
+        - Unique identifier for series: study_id, parent folder_name and filename!
+        - Enforce same study instance uid by specifying the study_id (0020|0010)!
 
         All fields are optional, but it is highly recommended, to at least set the modality since the default is set to "OT" i.e. "Other" which will omit necessary positioning data for image processing.
         The field "add_tags" allows to set specific tags on all series matching the given file name pattern. At the moment this is just a simple glob pattern matching.
@@ -125,126 +76,109 @@ class Nifti2DcmConverter:
         """
         # TODO: In theory it would be possible to derive a minimal set of segmentation args from the given files. Probably nice to have in the future.
         
-        self.convert_dataset(self.root_dir, self.meta_data)
+        self.convert_dataset(self.root_dir)
 
 
-    def convert_dataset(self, path, meta_data={}):
+    def convert_dataset(self, path):
         print(path)
         cases = self.parser(path, log='Info')
 
-        patients = meta_data.get("Patients") if meta_data.get("Patients") else "all_different"
-        # series_filenames = glob.glob()
-        if patients == 'all_same':
-            patients = ['single_patient' for _ in range(len(cases))]
-        elif patients == 'all_different':
-            patients = [f'patient_{i}' for i in range(len(cases))]
-        else:
-            if not isinstance(self.patients, list):
-                raise AttributeError("Patients attribute must be 'all_same', 'all_different' or list of patients.") 
-            for pat in self.patients:
-                if not isinstance(pat, str):
-                    raise AttributeError("Patient list must be list of strings.")
+        try:
+            with open(self.root_dir / "meta_data.json", "r") as meta_file:
+                meta_data = json.load(meta_file)
+        except FileNotFoundError:
+            meta_data = {}
 
-        # generate study uids
-        study_instance_UIDs = meta_data.get("Study UIDs", 'all_same')
-        if study_instance_UIDs == "all_same":
-            study_instance_UIDs = [generate_uid(entropy_srcs=[str(patients[i]), self.seed]) for i in range(len(patients))]
-        elif study_instance_UIDs == "all_different":
-            study_instance_UIDs = [generate_uid(entropy_srcs=[str(patients[i]), str(case[0]), self.seed]) for i,case in enumerate(cases)]
-        else:
-            assert(isinstance(study_instance_UIDs, list))
-            assert(len(study_instance_UIDs) == len(patients))
 
-        
-        series_descriptions = meta_data.get("Series Descriptions") if meta_data.get("Series descriptions") else [None for _ in range(len(cases))]
-        added_tags = meta_data.get("add_tags")
+        def _update_tag(series_tag_values, pattern, k, v):
+            if not pattern.match(k):
+                raise Exception(r"Not a valid dicom tag! Needs to fullfil the followinr regex ^([a-f0-9]{4})\|([a-f0-9]{4})$")
+            print(f"Setting {k}={v}")
+            series_tag_values[k] = v
 
         for i, case in enumerate(cases):
-            series_tag_values = {}
-            # series_tag_values["0020|0010"] = # study_id
-            series_tag_values["0020|000d"] = study_instance_UIDs[i]
-            series_tag_values["0020|0011"] = str(i)
-            if added_tags is not None:
-                for p in added_tags.keys():
-                    p = f"/{p}" if p[0] != "/" else p
-                    if str(case[0]) in glob.glob(f"{str(path)}{p}"):
-                        series_tag_values= {**series_tag_values, **added_tags[p]}
-        
+            case_path = Path(case[0])
+            # defaults
+            series_tag_values = {
+                "0008|0008": "DERIVED\\SECONDARY", # Image Type Attribute
+                "0008|0031": time.strftime("%H%M%S"), # Series Time Attribute
+                "0008|0021": time.strftime("%Y%m%d"), # Series Date Attribute
+                "0008|0060": os.getenv("MODALITY", "OT"), # Modality
+                "0008|1070": case_path.parents[0].name, # Operators' Name Attribute
+                "0020|0011": str(i), # Series Number 
+                "0008|103E": f"{str(case[0].name).rstrip(''.join(case[0].suffixes))}", # Series Description Attribute
+                "0020|0010": str(case[0].name).rstrip(''.join(case[0].suffixes)) # Study ID Attribute
+            }
+
+            pattern = re.compile(r"^([a-f0-9]{4})\|([a-f0-9]{4})$")
+
+            for k, v in meta_data.get("global_tags", {}).items():
+                _update_tag(series_tag_values, pattern, k, v)
+            
+            for path_posix, series_tags in meta_data.get("series_tags", {}).items():
+                if path_posix in str(case_path):
+                    for k, v in series_tags.items():
+                        _update_tag(series_tag_values, pattern, k, v)
+
+            # Derived and generated tags: 
+            if "0010|0020" not in series_tag_values: # Patient ID Attribute
+                series_tag_values["0010|0020"] = series_tag_values["0020|0010"] # Fallback
+            if "0010|0010" not in series_tag_values: # Patient's Name Attribute
+                series_tag_values["0010|0010"] = series_tag_values["0010|0020"] # Fallback
+            if "0020|000d" not in series_tag_values: # Study Instance UID
+                series_tag_values["0020|000d"] =  generate_uid(entropy_srcs=[series_tag_values["0020|0010"], series_tag_values["0008|1070"], self.seed])
+            if "0020|000e" not in series_tag_values: # Series Instance UID
+                series_tag_values["0020|000e"] =  generate_uid(entropy_srcs=[series_tag_values["0020|000d"], str(case[0].name), self.seed])
+
 
             self.convert_series(
-                Path(case[0]), 
-                patient_id=patients[i], 
-                series_description=series_descriptions[i], 
-                modality=self.modality, 
+                case_path, 
                 series_tag_values=series_tag_values,
-                # seg_args=seg_args,
                 segmentation=case[1]
             )
         
 
-    def convert_series(self, case_path, patient_id, series_tag_values, segmentation=None, *args, **kwds):
+    def convert_series(self, case_path, series_tag_values, segmentation=None):
         """
         :param data: data to process given as list of paths of the ".nii.gz" files to process.
         
         :returns: None type. Writes dicoms to $OPERATOR_OUT_DIR.
         """
-        series_id = str(case_path).split('/')[-1].split('.')[0]
-        series_description = kwds.get("series_description")
         dataset = str(case_path).split('/')[-2]
-        if series_description == None:
-            series_description = f"{str(case_path).split('/')[-2]}-{series_id}-{patient_id}"
-    
-        modality = kwds.get("modality") or "OT"
-        if modality == "OT":
+
+        if series_tag_values["0008|0060"] not in VALID_MODALITIES:
+            raise Exception("Invalid modality!")
+
+        if series_tag_values["0008|0060"] == "OT":
             warnings.warn("Modality is 'other' (OT). Unspecific modality does not not support correct representation of translation and rotation.", UserWarning)
 
+        out_dir = make_out_dir(series_tag_values["0020|000e"], dataset=dataset, case=series_tag_values["0020|000e"], segmentation=segmentation, human_readable=False)
 
-        study_uid = series_tag_values['0020|000d']
-        series_instance_UID = kwds.get("series_uid") or generate_uid(entropy_srcs=[patient_id, study_uid, series_id, self.seed])
-        out_dir = make_out_dir(series_instance_UID, dataset=dataset, case=series_id, segmentation=segmentation, human_readable=False)
-
-        new_img = sitk.ReadImage(case_path) 
-        modification_time = time.strftime("%H%M%S")
-        modification_date = time.strftime("%Y%m%d")
+        new_img = sitk.ReadImage(str(case_path)) 
 
         direction = new_img.GetDirection()
-        
-        if "0008|0008" in series_tag_values.keys():
-            pass
-        else:
-            series_tag_values["0008|0008"] = "DERIVED\\SECONDARY" # Image Type
 
-        series_tag_values["0008|0031"] = modification_time # Series Time
-        series_tag_values["0008|0021"] = modification_date # Series Date
         series_tag_values["0020|0037"] = '\\'.join(map(str, (direction[0], direction[3], direction[6], direction[1],direction[4],direction[7])))
-        series_tag_values["0008|103e"] = series_description # Series Description
-        series_tag_values["0020|000e"] = series_instance_UID
-        series_tag_values["0008|0060"] = modality
-        series_tag_values["0010|0020"] = patient_id
-        
-        
+
         castFilter = sitk.CastImageFilter()
         castFilter.SetOutputPixelType(sitk.sitkInt16)
         imgFiltered = castFilter.Execute(new_img)
         
+        # with open(out_dir / "atags.json", "w", encoding='utf-8') as jsonData:
+        #     json.dump(series_tag_values, jsonData, indent=2, sort_keys=True, ensure_ascii=True)
+
         for i in range(imgFiltered.GetDepth()):
             self.write_slices(imgFiltered, series_tag_values, i, out_dir) #/'dicoms')
         print("***", out_dir, "written.")
         
 
         if segmentation:
-            seg_out_dir = Path(os.environ['BATCHES_INPUT_DIR']) / series_instance_UID / 'segmentations'
+            seg_out_dir = Path(os.environ['BATCHES_INPUT_DIR']) / series_tag_values["0020|000e"] / 'segmentations'
             seg_out_dir.mkdir(exist_ok=True)
             print("### Checking for segmentation information.")
             shutil.copy2(segmentation, seg_out_dir)
-            # shutil.copy2(segmentation, out_dir /'segmentations/')
-            # if seg_args is not None:
-            # print("### Copying segmentatin file.")
             print("### Passing seg_info.json to segmentation converter.")
-            #study_dir = '/'.join(str(path).split('/')[:-1])
             shutil.copy2( self.root_dir / "seg_info.json", seg_out_dir)
-            # shutil.copy2( self.root_dir / "seg_info.json", out_dir/'segmentations/')
-        #     print("### Processing segmentation parameters finished.")
             
 
     def write_slices(self, new_img, series_tag_values, i, out_dir):
@@ -340,97 +274,122 @@ class Parser:
                     if seg_canditate is None:
                         seg_canditate = s
                     else:
-                        raise "Duplicate identifiers..."
+                        raise Exception("Duplicate identifiers...")
             if seg_canditate is None:
                 cases_without_segs.append((v, seg_canditate))
             else:
                 cases_with_segs.append((v, seg_canditate))
-            # if k in seg_identifier:
-            #     cases_with_segs.append((v, seg_identifier[k]))
-            # else:
-            #     cases_without_segs.append((v, None))
-
-        # case_nr = [re.sub(r"\.nii(.gz)?", "", c.name) for c in cases]
-        # seg_nr = [re.sub(r"\.[sS]eg(mentation)?\.nii(\.gz)?", "", s.name) for s in segs]
-        # c_names = [os.path.basename(str(c)).split(".") for c in cases]
-        # s_names = [os.path.basename(str(s)).split(".") for s in segs]
-
-        # case_nr = [re.findall(r'\d+', str(c)) for c in c_names]
-        # seg_nr = [re.findall(r'\d+', str(s)) for s in s_names]
-
-        # c_l = [len(case_nr[i]) != 1 for i in range(len(cases))]
-        # s_l = [len(seg_nr[i]) != 1 for i in range(len(segs))]
-
-        # case_nr = [c[0] for c in case_nr]
-        # seg_nr = [s[0] for s in seg_nr]
-
-        # if any(c_l) or any(s_l):
-        #     raise AttributeError("Input file names have multiple numeric values, as a result matching images to segmentations is ambiguous. Please rename your files in a consistent way.")
-
-        # seg_dict = {seg_nr[i]: seg for i, seg in enumerate(segs)}
-        # cases_with_segs = [(cases[i], seg_dict[case_nr[i]]) for i in range(len(cases)) if case_nr[i] in seg_dict.keys()]
-        # cases_without_segs = [(cases[i], None) for i in range(len(cases)) if case_nr[i] not in seg_dict.keys()]
-        # print("cases with segs:")
-        # for c in cases_with_segs:
-        #     print(c)
-        # print("cases without segs")
-        # for c in cases_without_segs:
-        #     print(c)
-
         
         res = [*cases_with_segs, *cases_without_segs]
         return res
 
-# def make_seg_args():
-#     import os
-#     import json
-#     json_path = os.path.join(os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"],os.environ["DATA_DIR"], "seg_info.json")
-#     # case1: seg_info.json exists (only for multi label seg, prob works anyways if it only contains 1 label)
-#     seg_args = {}
-#     try:
-#         with open(json_path, 'r') as f:
-#             seg_info_json = json.load(f)
-#             seg_args['input_type'] = "multi_label_seg"
-#             seg_args['multi_label_seg_info_json'] = "seg_info.json"
-#     except FileNotFoundError:
-#     # case2: seg_info for label comes from workflow argument
-#         try:
-#             with open(f"{os.environ['WORKFLOW_DIR']}/conf/conf.json", 'r') as conf_file:
-#                 conf = json.load(conf_file)
-#                 label_names = conf['workflow_form']['seg_labels']
-#                 if len(label_names)==1:
-#                     seg_args['input_type'] = "single_label_segs"
-#                     seg_args['single_label_seg_info']= label_names[0]["name"]
-#                 elif len(label_names) > 1:
-#                     raise NotImplementedError
-#                 else:
-#                     print("trying to infer labels from filenames.")
-#                     seg_args['input_type'] = "single_label_segs"
-#                     seg_args['single_label_seg_info'] = "from_file_name"
 
-                
-#             print("No seg_info.json found. Assuming single label segmentation with label:{}")
-#         except KeyError as e:
-#             # case3
-#             print("Could not find seg_labels in workflow_form. Trying to get info from meta-data.json")
-#             raise warnings.warn("This is just legacy code arguments for segementation should always be set via ui or explicit seg_info.json")
+class nnUNetDatasetParser:
+    """Parser for nifti or nrrd files. Lists all cases to process within a certain directory, along with the respective segmentation files. 
+    Can be overwritten to support custom file trees.
+    """
 
-#             try:
-#                 seg_args = meta_data['seg_args']
-#                 seg_path = path/seg_args['multi_label_seg_info_json'] if seg_args['multi_label_seg_info_json'] else None
+    @staticmethod
+    def create_info_files(path, cases):
+        with open(path / 'dataset.json' , 'r') as f:
+            dataset_json = json.load(f)
+    
+        # Creating seg_info.json from datset.json
+        seg_info_json = {
+            "seg_info": []
+        }
+        for k, v in dataset_json["labels"].items():
+            seg_info_json["seg_info"].append(
+                {
+                    "label_int": v,
+                    "label_name": k
+                }
+            )
 
-#                 # print("### Checking for segmentation information.")
-                
-#             except KeyError:
-#                 print("No arguments for Itk2DcmSegOperator found in meta-data.")
-#     # if there is also more than one segmentation per image file:
-#     # seg_args['create_multi_label_dcm_from_single_label_segs'] = True
-#     print("seg_args:", seg_args)
+        with open(path / "seg_info.json", "w", encoding='utf-8') as jsonData:
+            json.dump(seg_info_json, jsonData, indent=2, sort_keys=True, ensure_ascii=True)
 
-#     return seg_args
+        # Creating meta_data.json from datset.json
+        series_tags = {}
+        for case in cases:
+            case_path = case[0]
+            matches = re.findall(r"_[0-9]{4}\.", str(case_path.name))
+            if matches and len(matches) == 1:
+                channel_identifier = matches[0][1:-1]
+                study_id = str(case_path.name).replace(matches[0], ".").rstrip(''.join(case_path.suffixes))
+                target_tags = {
+                    "0020|0010": study_id # Study ID Attribute
+                }
+                for channel, v in dataset_json["channel_names"].items():
+                    if channel_identifier.endswith(channel):
+                        v = v.replace("MRI", "MR").replace("MRT", "MR")
+                        if v in VALID_MODALITIES:
+                            target_tags["0008|0060"] = v
+                        else:
+                            target_tags["0008|0060"] = "MR"
+                            target_tags["0018|1030"] = v
+                        if case_path.name in series_tags:
+                            raise Exception("You do not want to overwrite me")
+                        series_tags[case_path.name] = target_tags
+                if case_path.name not in series_tags:
+                    raise Exception("I think you forgot me!")
+            else:
+                raise Exception("Problem identifying the channel!")
+
+        meta_data_json = {
+            "series_tags": series_tags
+        }
+        with open(path / "meta_data.json", "w", encoding='utf-8') as jsonData:
+            json.dump(meta_data_json, jsonData, indent=2, sort_keys=True, ensure_ascii=True)
+
+
+    def __init__(self) -> None:
+        pass
+
+    def __call__(self, path, *args, **kwds):
+        def _get_cases(images_path, labels_path):
+
+            images = list(images_path.glob('*'))
+            labels = list(labels_path.glob('*'))
+
+            images_with_segs = []
+            images_without_segs = []
+            for ct in images:
+                if re.findall(r"_[0000]{4}\.", str(ct)):
+                    images_with_segs.append(ct)
+                else:
+                    images_without_segs.append(ct)
+
+            assert len(images_with_segs) == len(labels)
+
+            images_with_segs.sort()
+            images_without_segs.sort()
+            labels.sort()
+            images.sort()
+
+            cases_with_segs = [(ct, seg) for ct, seg in zip(images_with_segs, labels)]
+            cases_without_segs =  [(ct, None) for ct in images_without_segs]
+
+            return [*cases_with_segs, *cases_without_segs]
+        
+        path = Path(path)
+        cases = _get_cases(path / 'imagesTr', path / 'labelsTr') + _get_cases(path / 'imagesTs', path / 'labelsTs') 
+        nnUNetDatasetParser.create_info_files(path, cases)
+        return cases
 
 if __name__ == "__main__":
     for root, dirs, files in os.walk(Path(os.environ['WORKFLOW_DIR']) / os.environ['OPERATOR_IN_DIR']):
-        if len(files) > 0 and not root.endswith("segs") and not root.endswith("cases"):
-            converter = Nifti2DcmConverter(Path(root))
+        parser = None
+        dataset_json = Path(root) / "dataset.json"
+        if dataset_json.is_file():
+            print("nnUNet dataset!")
+            parser = nnUNetDatasetParser()
+        elif not parser and len(files) > 0 and not root.endswith("segs") and not root.endswith("cases") and not root.endswith("imagesTr") and not root.endswith("imagesTs") and not root.endswith("labelsTr"):
+            print("Custom dataset!")
+            parser = Parser()
+        else:
+            print(f'Skipping directory {root}')
+        if parser:
+            converter = Nifti2DcmConverter(Path(root), parser=parser)
             converter()
+        parser = None

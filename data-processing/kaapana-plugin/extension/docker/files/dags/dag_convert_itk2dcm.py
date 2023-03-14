@@ -53,9 +53,16 @@ ui_forms = {
                 "title": "modality",
                 "description": "Modality of the input images. Usually CT or MR.",
                 "type": "string",
-                "default": "CT",
-                "required": True,
-            }
+                "default": "",
+                "required": False,
+            },
+            "aetitle": {
+                "title": "Dataset tag",
+                "description": "Specify a tag for your dataset.",
+                "type": "string",
+                "default": "itk2dcm",
+                "required": True
+            },
         }
     }
 }
@@ -105,6 +112,7 @@ convert_seg = Itk2DcmSegOperator(
     segmentation_in_dir='segmentations', 
     input_type="multi_label_seg",
     skip_empty_slices=True,
+    fail_on_no_segmentation_found=False
     # dev_server='code-server',
 )
 
@@ -123,7 +131,6 @@ dcm_send_img = DcmSendOperator(
 clean = LocalWorkflowCleanerOperator(dag=dag, trigger_rule="none_failed_min_one_success", clean_workflow_dir=False)
 
 def branch_func(**kwargs):
-    conf = kwargs['dag_run'].conf
     run_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs['dag_run'].run_id
     if [p for p in run_dir.rglob('seg_info.json')]:
         return [convert_seg.name, dcm_send_img.name]

@@ -20,9 +20,8 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
     """
     def __init__(self,
                  dag,
+                 segmentation_operator,
                  name="nrrd2dcmseg",
-                 segmentation_in_dir=None,
-                 segmentation_operator=None,
                  input_type='single_label_segs',
                  alg_name= None,
                  creator_name="kaapana",
@@ -79,14 +78,6 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
             "DCMQI_COMMAND": 'itkimage2segimage'
         }
         env_vars.update(envs)
-
-        if segmentation_operator is None and segmentation_in_dir is not None:
-            env_vars['OPERATOR_IMAGE_LIST_INPUT_DIR'] = str(segmentation_in_dir)
-        else:
-            if segmentation_operator is not None and segmentation_in_dir is None:
-                env_vars['OPERATOR_IMAGE_LIST_INPUT_DIR'] = str(segmentation_operator.operator_out_dir)
-            else:
-                raise NameError('Either segmentation_operator or operator_in_dir has to be set.')
 
         super().__init__(
             dag=dag,

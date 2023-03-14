@@ -32,7 +32,7 @@ dag = DAG(
 
 get_object_from_minio = LocalMinioOperator(
     dag=dag,
-    # action_operator_dirs=['dicoms'],
+    action_operator_dirs=['dicoms'],
     file_white_tuples=('.zip'),
     operator_out_dir='dicoms'
 )

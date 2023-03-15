@@ -270,5 +270,11 @@ class JobWithExperiment(Job):
     experiment: Experiment = None
     # involved_kaapana_instances: Optional[list]  # idk y?
 
+class JobWithExperimentWithKaapanaInstance(JobWithKaapanaInstance):
+    experiment: Experiment = None
+
 class ExperimentWithJobs(Experiment):
     jobs: List[Job] = []
+
+class ExperimentWithKaapanaInstanceWithJobs(ExperimentWithKaapanaInstance):
+    experiment_jobs: List[Job] = []

@@ -1,6 +1,6 @@
 <template lang="pug">
   .federated-panel
-    v-container(text-left)
+    v-container(text-left fluid)
       h1 Experiment Management System
       v-row(@click="toggleClientPanel()").toggleMouseHand
         v-col(align="left")
@@ -97,6 +97,11 @@ export default Vue.extend({
       kaapanaApiService
         .federatedClientApiGet("/check-for-remote-updates")
         .then((response) => {
+          this.$notify({
+            type: 'success',
+            title: 'Successfully checked for remote updates',
+            // text: 
+          })
           this.$emit('refreshView')
         })
         .catch((err) => {
@@ -106,7 +111,7 @@ export default Vue.extend({
     refreshClient() {
       this.getClientInstance()
       this.getClientExperiments()
-      this.getClientJobs()
+      // this.getClientJobs()
       this.getRemoteInstances()
     },
     resetClientForm () {
@@ -173,7 +178,7 @@ export default Vue.extend({
             this.allInstances.push(this.clientInstance)
             this.all_instance_names.push(this.clientInstance.instance_name)
           }
-          console.log("clientInstance: ", this.clientInstance);
+          // console.log("clientInstance: ", this.clientInstance);
         })
         .catch((err) => {
           this.clientInstance = {}
@@ -185,17 +190,7 @@ export default Vue.extend({
         limit: 100,
         }).then((response) => {
           this.clientExperiments = response.data;
-        })
-        .catch((err) => {
-          console.log(err);
-        });
-    },
-    getClientJobs() {
-      kaapanaApiService
-        .federatedClientApiGet("/jobs",{
-        limit: 100,
-        }).then((response) => {
-          this.clientJobs = response.data;
+          // console.log("clientExperiments: ", this.clientExperiments)
         })
         .catch((err) => {
           console.log(err);

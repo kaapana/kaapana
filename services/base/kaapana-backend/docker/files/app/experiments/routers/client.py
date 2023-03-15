@@ -74,7 +74,7 @@ async def create_job(request: Request, job: schemas.JobCreate, db: Session = Dep
 async def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
     return crud.get_job(db, job_id, run_id)
 
-@router.get("/jobs", response_model=List[schemas.JobWithKaapanaInstance])  # also okay: JobWithExperiment
+@router.get("/jobs", response_model=List[schemas.JobWithExperimentWithKaapanaInstance])  # also okay: JobWithExperiment; JobWithKaapanaInstance
 async def get_jobs(instance_name: str = None, experiment_name: str = None, status: str = None, limit: int = None, db: Session = Depends(get_db)):
     return crud.get_jobs(db, instance_name, experiment_name, status, remote=False, limit=limit)
 
@@ -324,7 +324,7 @@ async def get_experiment(experiment_id: int = None, experiment_name: str = None,
     return crud.get_experiment(db, experiment_id, experiment_name)
 
 # get_experiments
-@router.get("/experiments", response_model=List[schemas.ExperimentWithKaapanaInstance]) # also okay: response_model=List[schemas.Experiment]
+@router.get("/experiments", response_model=List[schemas.ExperimentWithKaapanaInstanceWithJobs]) # also okay: response_model=List[schemas.Experiment] ; List[schemas.ExperimentWithKaapanaInstance]
 async def get_experiments(request: Request, instance_name: str = None, involved_instance_name: str = None, experiment_job_id: int = None, limit: int = None, db: Session = Depends(get_db)):
     return crud.get_experiments(db, instance_name, involved_instance_name, experiment_job_id, limit=limit) # , username=request.headers["x-forwarded-preferred-username"]
 

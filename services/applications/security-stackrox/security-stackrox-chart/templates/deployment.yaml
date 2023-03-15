@@ -24,5 +24,9 @@ spec:
         image: "{{ .Values.global.registry_url }}/security-stackrox:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
         resources: {}
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh", "-c", "curl -H 'Content-Type: application/json' -d '{\"name\": \"StackRox\", \"url\": \"https://{{ .Values.global.hostname }}:19443\", \"api_endpoints\": [{\"identifier\": \"api\", \"endpoint\":\"https://{{ .Values.service_name }}.stackrox.svc:19443/\"}]}' -X PUT http://security-pages-service.services.svc:5000/api/providers --insecure"]
       imagePullSecrets:
       - name: registry-secret

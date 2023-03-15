@@ -37,33 +37,24 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
     def check_dag_modality(self, input_modality):
         config = self.conf
         input_modality = input_modality.lower()
-        if config is not None and "form_data" in config and config["form_data"] is not None and "input" in config[
-            "form_data"]:
-            dag_modality = config["form_data"]["input"].lower()
-            if dag_modality == "ct" or dag_modality == "mri" or dag_modality == "mrt" or dag_modality == "seg" or dag_modality == "ot" or dag_modality == "xr":
-                if input_modality != dag_modality:
-                    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                    print("")
-                    print("check_dag_modality failed!")
-                    print("DAG modality vs input modality: {} vs {}".format(dag_modality, input_modality))
-                    print("Wrong modality for this DAG!")
-                    print("ABORT")
-                    print("")
-                    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                    raise ValueError('ERROR')
-
+        if config is not None and "form_data" in config and config["form_data"] is not None and "input" in config["form_data"]:
+            dag_modalities = config["form_data"]["input"].lower()
+            if input_modality not in dag_modalities:
+                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                print("")
+                print("check_dag_modality failed!")
+                print("DAG modality vs input modality: {} vs {}".format(dag_modalities, input_modality))
+                print("Wrong modality for this DAG!")
+                print("ABORT")
+                print("")
+                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                raise ValueError('ERROR')
             else:
-                print(f"DAG modality: {dag_modality} is not supported!")
-                print("Supported modalities: CT,MRI,MRT,SEG,OT")
+                print("Could not find DAG modality in DAG-run conf!")
                 print("Skipping 'check_dag_modality'")
                 return
-
-        else:
-            print("Could not find DAG modality in DAG-run conf!")
-            print("Skipping 'check_dag_modality'")
-            return
 
     def get_data(self, series_dict):
         download_successful = True

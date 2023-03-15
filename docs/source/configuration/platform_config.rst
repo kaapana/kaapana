@@ -40,10 +40,6 @@ Deployment configuration
 | If true, it will set all PULL_POLICY parameters to "Always". In other words, after every pod or job restart, associated containers will be re-downloaded.
 |
 
-.. TODO: could not find any use for DEV_PORTS in any Helm chart or image
-.. | :code:`DEV_PORTS` `(default: "false")`
-.. |
-
 | :code:`GPU_SUPPORT` `(default: "false", type="bool")` 
 | Enable or disable NVIDIA GPU support for MicroK8s. Deployment script will check :code:`nvidia-smi` and set this to true if any GPUs are available 
 |

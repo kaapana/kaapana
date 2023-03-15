@@ -6,11 +6,6 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /kaapana/app
 
-# COPY files/requirements.system /kaapana/app/
-# RUN apt-get update -q -y && apt-get install -y --no-install-recommends apt-utils && \
-#     cat /kaapana/app/requirements.system | xargs apt-get install -y --no-install-recommends && \
-#     rm -rf /var/lib/apt/lists/*
-
 ENV KUBE_LATEST_VERSION="v1.23.0"
 ENV HELM_VERSION="v3.8.1"
 

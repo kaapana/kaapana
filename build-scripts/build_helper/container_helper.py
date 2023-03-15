@@ -19,10 +19,20 @@ def container_registry_login(username, password):
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
 
     if output.returncode != 0:
-        BuildUtils.logger.info(f"Docker couldn't logout from registry: {BuildUtils.default_registry} -> not logged in!")
+        BuildUtils.logger.info(
+            f"Docker couldn't logout from registry: {BuildUtils.default_registry} -> not logged in!"
+        )
 
     BuildUtils.logger.info(f"-> Container registry-login: {BuildUtils.default_registry}")
-    command = [Container.container_engine, "login", BuildUtils.default_registry, "--username", username, "--password", password]
+    command = [
+        Container.container_engine,
+        "login",
+        BuildUtils.default_registry,
+        "--username",
+        username,
+        "--password",
+        password,
+    ]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
 
     if output.returncode != 0:
@@ -32,15 +42,82 @@ def container_registry_login(username, password):
         BuildUtils.logger.error(f"Error:   {output.stderr}")
         exit(1)
 
+
 def pull_container_image(image_tag):
     command = [Container.container_engine, "pull", image_tag]
     BuildUtils.logger.info(f"{image_tag}: Start pulling container image")
-    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000, env=dict(os.environ, DOCKER_BUILDKIT=f"{BuildUtils.enable_build_kit}"))
+    output = run(
+        command,
+        stdout=PIPE,
+        stderr=PIPE,
+        universal_newlines=True,
+        timeout=6000,
+        env=dict(os.environ, DOCKER_BUILDKIT=f"{BuildUtils.enable_build_kit}"),
+    )
 
     if output.returncode == 0:
         BuildUtils.logger.info(f"{image_tag}: Success")
     else:
         BuildUtils.logger.error(f"{image_tag}: Something went wrong...")
+
+
+def convert_size(size_string):
+    if "GB" in size_string:
+        return float(size_string.replace("GB", ""))
+    elif "MB" in size_string:
+        return round(float(size_string.replace("MB", "")) / 1000, 2)
+    elif "kB" in size_string:
+        return 0
+    elif "B" in size_string:
+        return 0
+    else:
+        pass
+
+
+def get_image_stats(version):
+    images_stats = {}
+    command = [f"{Container.container_engine} image ls | grep {version}"]
+    output = run(command, shell=True, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
+    if output.returncode == 0:
+        system_df_output = output.stdout.split("\n")
+        for image_stats in system_df_output:
+            if len(image_stats) == 0:
+                continue
+            image_name, image_tag, image_hash, image_build_time, size = [
+                x for x in image_stats.strip().split("  ") if x != ""
+            ]
+            size = convert_size(size)
+            images_stats[f"{image_name}:{image_tag}"] = {
+                "size": size
+            }
+
+    command = [f"{Container.container_engine} system df -v | grep {version}"]
+    output = run(command, shell=True, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
+    if output.returncode == 0:
+        system_df_output = output.stdout.split("\n")
+        for image_stats in system_df_output:
+            if len(image_stats) == 0:
+                continue
+            image_name, image_tag, image_hash, image_build_time, size, shared_size, unique_size, containers = [
+                x for x in image_stats.strip().split("  ") if x != ""
+            ]
+            size = convert_size(size)
+            shared_size = convert_size(shared_size)
+            unique_size = convert_size(unique_size)
+
+            images_stats[f"{image_name}:{image_tag}"] = {
+                "size": size,
+                "unique_size": unique_size,
+                "shared_size": shared_size,
+                "image_build_time": image_build_time,
+                "containers": int(containers.strip()),
+            }
+
+    images_stats = {
+        k: v for k, v in sorted(images_stats.items(), key=lambda item: item[1]["size"], reverse=True)
+    }
+    return images_stats
+
 
 class BaseImage:
     registry = None
@@ -54,21 +131,14 @@ class BaseImage:
         return self.tag == other.tag
 
     def get_dict(self):
-        base_img_dict = {
-            "name": self.name,
-            "version": self.version,
-            "tag": self.tag
-        }
+        base_img_dict = {"name": self.name, "version": self.version, "tag": self.tag}
         return base_img_dict
 
     def __init__(self, tag):
         if ":" not in tag:
             BuildUtils.logger.error(f"{tag}: Could not extract base-image version!")
             BuildUtils.generate_issue(
-                component=suite_tag,
-                name=f"{tag}",
-                msg="Could not extract base-image version!",
-                level="ERROR"
+                component=suite_tag, name=f"{tag}", msg="Could not extract base-image version!", level="ERROR"
             )
 
         self.local_image = False
@@ -109,6 +179,7 @@ class Container:
     container_build_status = None
     container_push_status = None
     local_image = None
+    image_size = None
 
     def __eq__(self, other):
         if isinstance(self, str):
@@ -166,32 +237,37 @@ class Container:
             if BuildUtils.exit_on_error:
                 exit(1)
 
-        with open(dockerfile, 'rt') as f:
+        with open(dockerfile, "rt") as f:
             lines = f.readlines()
             for line in lines:
                 if "#" in line:
-                    line = line[:line.index("#")]
+                    line = line[: line.index("#")]
                 if line.strip() == "":
                     continue
 
-                if line.__contains__('LABEL REGISTRY='):
-                    self.registry = line.split("#")[0].split("=")[1].rstrip().strip().replace("\"", "")
-                elif line.__contains__('LABEL IMAGE='):
-                    self.image_name = line.split("#")[0].split("=")[1].rstrip().strip().replace("\"", "")
-                elif line.__contains__('LABEL VERSION='):
-                    self.repo_version = line.split("#")[0].split("=")[1].rstrip().strip().replace("\"", "")
-                elif line.startswith('FROM') and not line.__contains__('#ignore'):
-                    base_img_tag = line.split("#")[0].split("FROM ")[1].split(" ")[0].rstrip().strip().replace("\"", "")
+                if line.__contains__("LABEL REGISTRY="):
+                    self.registry = line.split("#")[0].split("=")[1].rstrip().strip().replace('"', "")
+                elif line.__contains__("LABEL IMAGE="):
+                    self.image_name = line.split("#")[0].split("=")[1].rstrip().strip().replace('"', "")
+                elif line.__contains__("LABEL VERSION="):
+                    self.repo_version = line.split("#")[0].split("=")[1].rstrip().strip().replace('"', "")
+                elif line.startswith("FROM") and not line.__contains__("#ignore"):
+                    base_img_tag = line.split("#")[0].split("FROM ")[1].split(" ")[0].rstrip().strip().replace('"', "")
                     base_img_obj = BaseImage(tag=base_img_tag)
                     if base_img_obj not in self.base_images:
                         self.base_images.append(base_img_obj)
                         if base_img_obj.tag not in BuildUtils.base_images_used:
                             BuildUtils.base_images_used[base_img_obj.tag] = []
-                        
+
                         BuildUtils.base_images_used[base_img_obj.tag].append(self)
-                        
-                elif line.__contains__('LABEL CI_IGNORE='):
-                    self.ci_ignore = True if line.split("#")[0].split("=")[1].rstrip().lower().replace("\"", "").replace("'", "") == "true" else False
+
+                elif line.__contains__("LABEL CI_IGNORE="):
+                    self.ci_ignore = (
+                        True
+                        if line.split("#")[0].split("=")[1].rstrip().lower().replace('"', "").replace("'", "")
+                        == "true"
+                        else False
+                    )
 
         if self.repo_version == None and self.repo_version == "" or self.image_name == None or self.image_name == "":
             BuildUtils.logger.debug(f"{self.container_dir}: could not extract container infos!")
@@ -204,26 +280,29 @@ class Container:
             return
 
         else:
-
             self.registry = self.registry if self.registry != None else BuildUtils.default_registry
             if "local-only" in self.registry:
                 self.local_image = True
                 self.repo_version = "latest"
 
             else:
-                build_version, build_branch, last_commit, last_commit_timestamp = BuildUtils.get_repo_info(self.container_dir)
+                build_version, build_branch, last_commit, last_commit_timestamp = BuildUtils.get_repo_info(
+                    self.container_dir
+                )
                 self.repo_version = build_version
 
-            self.tag = self.registry+"/"+self.image_name+":"+self.repo_version
+            self.tag = self.registry + "/" + self.image_name + ":" + self.repo_version
 
         self.check_if_dag()
 
     def check_prebuild(self):
         BuildUtils.logger.debug(f"{self.build_tag}: check_prebuild")
-        pre_build_script = os.path.dirname(self.path)+"/pre_build.sh"
+        pre_build_script = os.path.dirname(self.path) + "/pre_build.sh"
         if os.path.isfile(pre_build_script):
             command = [pre_build_script]
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3600, cwd=self.container_dir)
+            output = run(
+                command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=3600, cwd=self.container_dir
+            )
 
             if output.returncode == 0:
                 BuildUtils.logger.debug(f"{self.build_tag}: pre-build ok.")
@@ -236,7 +315,7 @@ class Container:
                     msg="pre-build failed!",
                     level="ERROR",
                     output=output,
-                    path=pre_build_script
+                    path=pre_build_script,
                 )
 
         else:
@@ -258,18 +337,37 @@ class Container:
                     "name": f"{self.build_tag}",
                     "msg": f"Container build skipped: {self.ci_ignore=} !",
                     "level": "WARING",
-                    "path": self.container_dir
+                    "path": self.container_dir,
                 }
                 return issue
 
             startTime = time()
             if BuildUtils.http_proxy is not None:
-                command = [Container.container_engine, "build", "--build-arg", f"http_proxy={BuildUtils.http_proxy}",
-                           "--build-arg", f"https_proxy={BuildUtils.http_proxy}", "-t", self.build_tag, "-f", self.path, "."]
+                command = [
+                    Container.container_engine,
+                    "build",
+                    "--build-arg",
+                    f"http_proxy={BuildUtils.http_proxy}",
+                    "--build-arg",
+                    f"https_proxy={BuildUtils.http_proxy}",
+                    "-t",
+                    self.build_tag,
+                    "-f",
+                    self.path,
+                    ".",
+                ]
             else:
                 command = [Container.container_engine, "build", "-t", self.build_tag, "-f", self.path, "."]
 
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000, cwd=self.container_dir, env=dict(os.environ, DOCKER_BUILDKIT=f"{BuildUtils.enable_build_kit}"))
+            output = run(
+                command,
+                stdout=PIPE,
+                stderr=PIPE,
+                universal_newlines=True,
+                timeout=6000,
+                cwd=self.container_dir,
+                env=dict(os.environ, DOCKER_BUILDKIT=f"{BuildUtils.enable_build_kit}"),
+            )
 
             if output.returncode == 0:
                 if "---> Running in" in output.stdout:
@@ -279,9 +377,11 @@ class Container:
                     self.container_build_status = "nothing_changed"
                     BuildUtils.logger.debug(f"{self.build_tag}: Build sucessful - no changes.")
 
-                hours, rem = divmod(time()-startTime, 3600)
+                hours, rem = divmod(time() - startTime, 3600)
                 minutes, seconds = divmod(rem, 60)
-                BuildUtils.logger.debug("{}: Build-time: {:0>2}:{:0>2}:{:05.2f}".format(self.build_tag, int(hours), int(minutes), seconds))
+                BuildUtils.logger.debug(
+                    "{}: Build-time: {:0>2}:{:0>2}:{:05.2f}".format(self.build_tag, int(hours), int(minutes), seconds)
+                )
                 return issue
 
             else:
@@ -293,7 +393,7 @@ class Container:
                     "msg": "container build failed!",
                     "level": "ERROR",
                     "output": output,
-                    "path": self.container_dir
+                    "path": self.container_dir,
                 }
                 return issue
         else:
@@ -311,12 +411,12 @@ class Container:
                 "name": f"{self.build_tag}",
                 "msg": f"Container push skipped: {self.ci_ignore=} !",
                 "level": "WARING",
-                "path": self.container_dir
+                "path": self.container_dir,
             }
             return issue
 
         if BuildUtils.push_to_microk8s is True:
-            if self.build_tag.startswith('local-only'):
+            if self.build_tag.startswith("local-only"):
                 BuildUtils.logger.info(f"Skipping: Pushing {self.build_tag} to microk8s, due to local-only")
                 return issue
             BuildUtils.logger.debug(f"{self.build_tag}: push_to_microk8s")
@@ -331,7 +431,7 @@ class Container:
                     "component": "Microk8s push",
                     "name": "docker save",
                     "msg": f"Docker save failed {output.stderr}!",
-                    "level": "ERROR"
+                    "level": "ERROR",
                 }
                 return issue
 
@@ -345,7 +445,7 @@ class Container:
                     "component": "Microk8s image push",
                     "name": "Microk8s image push",
                     "msg": f"Microk8s image push failed {output.stderr}!",
-                    "level": "ERROR"
+                    "level": "ERROR",
                 }
                 return issue
 
@@ -366,14 +466,16 @@ class Container:
                 return
 
             elif self.container_build_status != "built":
-                BuildUtils.logger.warning("{self.build_tag}: Skipping push since image has not been built successfully!")
+                BuildUtils.logger.warning(
+                    "{self.build_tag}: Skipping push since image has not been built successfully!"
+                )
                 BuildUtils.logger.warning(f"{self.build_tag}: container_build_status: {self.container_build_status}")
                 issue = {
                     "component": suite_tag,
                     "name": f"{self.build_tag}",
                     "msg": f"Push skipped -> image has not been built successfully! container_build_status: {self.container_build_status}",
                     "level": "WARNING",
-                    "path": self.container_dir
+                    "path": self.container_dir,
                 }
                 return issue
 
@@ -410,7 +512,7 @@ class Container:
                         "name": f"{self.build_tag}",
                         "msg": f"Container not pushed -> immutable!",
                         "level": "WARNING",
-                        "path": self.container_dir
+                        "path": self.container_dir,
                     }
 
                 elif "read only mode" in output.stderr and retry:
@@ -420,7 +522,7 @@ class Container:
                         "name": f"{self.build_tag}",
                         "msg": f"Container not pushed -> read only mode!",
                         "level": "WARNING",
-                        "path": self.container_dir
+                        "path": self.container_dir,
                     }
 
                 elif "denied" in output.stderr and retry:
@@ -431,7 +533,7 @@ class Container:
                         "msg": "container not pushed -> access denied!",
                         "level": "ERROR",
                         "output": output,
-                        "path": self.container_dir
+                        "path": self.container_dir,
                     }
                 else:
                     BuildUtils.logger.error(f"{self.build_tag}: not pushed -> unknown reason!")
@@ -441,7 +543,7 @@ class Container:
                         "msg": "container not pushed -> unknown reason!",
                         "level": "ERROR",
                         "output": output,
-                        "path": self.container_dir
+                        "path": self.container_dir,
                     }
 
                 return issue
@@ -453,17 +555,19 @@ class Container:
 
     def check_if_dag(self):
         self.operator_containers = []
-        python_files = glob(self.container_dir+"/**/*.py", recursive=True)
+        python_files = glob(self.container_dir + "/**/*.py", recursive=True)
         for python_file in python_files:
             if "operator" not in python_file.lower():
                 continue
 
             with open(python_file, "r") as python_content:
                 for line in python_content:
-                    if "image=" in line and "{default_registry}" in line:
-                        line = line.rstrip('\n').split("\"")[1].replace(" ", "")
-                        line = line.replace("{kaapana_build_version}", self.repo_version)
-                        container_id = line.replace("{default_registry}", BuildUtils.default_registry)
+                    # Backward compatibility default_registry vs DEFAULT_REGISTRY
+                    line = line.replace("{default_registry}", "{DEFAULT_REGISTRY}").replace("{kaapana_build_version}", "{KAAPANA_BUILD_VERSION}")
+                    if "image=" in line and "{DEFAULT_REGISTRY}" in line:
+                        line = line.rstrip("\n").split('"')[1].replace(" ", "")
+                        line = line.replace("{KAAPANA_BUILD_VERSION}", self.repo_version)
+                        container_id = line.replace("{DEFAULT_REGISTRY}", BuildUtils.default_registry)
                         self.operator_containers.append(container_id)
 
     @staticmethod
@@ -488,7 +592,7 @@ class Container:
         Container.container_object_list = []
         Container.used_tags_list = []
 
-        dockerfiles_found = glob(BuildUtils.kaapana_dir+"/**/Dockerfile*", recursive=True)
+        dockerfiles_found = glob(BuildUtils.kaapana_dir + "/**/Dockerfile*", recursive=True)
         BuildUtils.logger.info("")
         BuildUtils.logger.info(f"-> Found {len(dockerfiles_found)} Dockerfiles @Kaapana")
 
@@ -496,27 +600,32 @@ class Container:
             for external_source in BuildUtils.external_source_dirs:
                 BuildUtils.logger.info("")
                 BuildUtils.logger.info(f"-> adding external sources: {external_source}")
-                dockerfiles_found.extend(glob(external_source+"/**/Dockerfile*", recursive=True))
+                dockerfiles_found.extend(glob(external_source + "/**/Dockerfile*", recursive=True))
                 BuildUtils.logger.info(f"Found {len(dockerfiles_found)} Dockerfiles")
                 BuildUtils.logger.info("")
 
         if len(dockerfiles_found) != len(set(dockerfiles_found)):
             BuildUtils.logger.warning("-> Duplicate Dockerfiles found!")
         
-        # Init Trivy
-        trivy_utils = TrivyUtils()
+        # Init Trivy if configuration check is enabled
+        if BuildUtils.configuration_check:
+            trivy_utils = TrivyUtils()
 
         dockerfiles_found = sorted(set(dockerfiles_found))
 
         if BuildUtils.configuration_check:
-            bar_title = 'Collect container and check configuration'
+            bar_title = "Collect container and check configuration"
         else:
-            bar_title = 'Collect container'
+            bar_title = "Collect container"
 
         with alive_bar(len(dockerfiles_found), dual_line=True, title=bar_title) as bar:
             for dockerfile in dockerfiles_found:
                 bar()
-                if BuildUtils.build_ignore_patterns != None and len(BuildUtils.build_ignore_patterns) > 0 and sum([ignore_pattern in dockerfile for ignore_pattern in  BuildUtils.build_ignore_patterns]) != 0:
+                if (
+                    BuildUtils.build_ignore_patterns != None
+                    and len(BuildUtils.build_ignore_patterns) > 0
+                    and sum([ignore_pattern in dockerfile for ignore_pattern in BuildUtils.build_ignore_patterns]) != 0
+                ):
                     BuildUtils.logger.debug(f"Ignoring Dockerfile {dockerfile}")
                     continue
 
@@ -530,11 +639,12 @@ class Container:
 
         Container.container_object_list = Container.check_base_containers(Container.container_object_list)
 
-        # Safe the Dockerfile report to the build directory if there are any errors
-        if not trivy_utils.compressed_dockerfile_report == {}:
-            BuildUtils.logger.error("Found configuration errors in Dockerfile! See compressed_dockerfile_report.json for details.")
-            with open(os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), 'w') as f:
-                json.dump(trivy_utils.compressed_dockerfile_report, f)
+        if BuildUtils.configuration_check:
+            # Safe the Dockerfile report to the build directory if there are any errors
+            if not trivy_utils.compressed_dockerfile_report == {}:
+                BuildUtils.logger.error("Found configuration errors in Dockerfile! See compressed_dockerfile_report.json for details.")
+                with open(os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), 'w') as f:
+                    json.dump(trivy_utils.compressed_dockerfile_report, f)
 
         return Container.container_object_list
 
@@ -557,6 +667,6 @@ class Container:
         return container_object_list
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("Please use the 'start_build.py' script to launch the build-process.")
     exit(1)

@@ -7,7 +7,7 @@ LABEL CI_IGNORE="False"
 # set work directory
 WORKDIR /kaapana/app
 
-COPY files/requirements.txt /kaapana/app
+COPY files/requirements.txt /kaapana/app/
 RUN python -m pip install --no-cache-dir -r /kaapana/app/requirements.txt
 
 #Release 1.2.5

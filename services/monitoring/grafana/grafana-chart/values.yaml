@@ -1,5 +1,5 @@
 ---
 global:
-    pull_policy_pods: "IfNotPresent"
+    pull_policy_images: "IfNotPresent"
     credentials_grafana_username: "admin"
     credentials_grafana_password: "admin"

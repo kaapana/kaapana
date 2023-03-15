@@ -1,24 +1,25 @@
+{{- $namespace := .Values.global.services_namespace | toString }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: static-website-{{ .Values.postfix }}
-  namespace: "{{ .Values.global.services_namespace }}"
+  name: static-website-{{ .Values.global.uuid }}
+  namespace: "{{ $namespace }}"
   labels:
     k8s-app: static-website
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: static-website-{{ .Values.postfix }}
+      app-name: static-website-{{ .Values.global.uuid }}
   template:
     metadata:
       labels:
-        app-name: static-website-{{ .Values.postfix }}
+        app-name: static-website-{{ .Values.global.uuid }}
     spec:
       initContainers:
       - name: static-webiste-copy
         image: "{{ .Values.global.registry_url }}/static-website:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
         command: ["/bin/sh"]
         args: ["/kaapana/app/copy.sh"]
         volumeMounts:
@@ -27,7 +28,7 @@ spec:
       containers:
       - name: static-website
         image: "{{ .Values.global.registry_url }}/static-website:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
         resources:
           requests:
             memory: "100Mi"
@@ -35,66 +36,22 @@ spec:
             memory: "500Mi"
         env:
           - name: INGRESS_PATH
-            value: "/static-website-{{ .Values.postfix }}"
+            value: "/static-website-{{ .Values.global.uuid }}"
         volumeMounts:
-          - name: staticwebsiteresults
-            mountPath: /usr/share/nginx/html/
-      volumes:
-      - name: staticwebsiteresults
-        hostPath:
-          {{- if .Values.mount_path }}
-          path: {{ .Values.mount_path }}
-          {{- else }}
-          path: {{ .Values.global.slow_data_dir }}/minio/staticwebsiteresults
+          {{- range $volumeMount := .Values.global.volumeMounts }}
+          - name: {{ $volumeMount.name }}
+            mountPath: "{{ $volumeMount.mount_path }}"
           {{- end }}
-          type: DirectoryOrCreate
+      volumes:
+      {{- range $volume := .Values.global.volumes }}
+      - name: {{ $volume.name }}
+        persistentVolumeClaim:
+          {{- if not (lookup "v1" "PersistentVolumeClaim" $namespace $volume.claim_name ) }}
+          claimName: {{ $volume.claim_name }}-pv-claim-{{ $.Values.global.uuid }}
+          {{- else }}
+          claimName: {{ $volume.claim_name }}
+          {{- end }}
+      {{- end }}
       imagePullSecrets:
       - name: registry-secret
----
-kind: Service
-apiVersion: v1
-metadata:
-  name: static-website-{{ .Values.postfix }}
-  namespace: "{{ .Values.global.services_namespace }}"
-spec:
-  selector:
-    app-name: static-website-{{ .Values.postfix }}
-  ports:
-    - protocol: TCP
-      port: 80
-      name: log-http-port
-  type: ClusterIP
---- 
-apiVersion: traefik.containo.us/v1alpha1
-kind: Middleware
-metadata:
-  name: static-website-strip-{{ .Values.postfix }}
-  namespace: "{{ .Values.global.services_namespace }}"
-spec:
-  stripPrefix:
-    prefixes:
-    - /static-website-{{ .Values.postfix }}
-    forceSlash: true
----
-apiVersion: networking.k8s.io/v1 
-kind: Ingress
-metadata:
-  name: static-website-{{ .Values.postfix }}
-  namespace: "{{ .Values.global.services_namespace }}"
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-auth-check@kubernetescrd,{{ .Values.global.services_namespace }}-static-website-strip-{{ .Values.postfix }}@kubernetescrd
-    traefik.ingress.kubernetes.io/preserve-host: "true"
-spec:
-  rules:
-  - host: 
-    http:
-      paths:
-      - path: /static-website-{{ .Values.postfix }}
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: static-website-{{ .Values.postfix }}
-            port:
-              name: log-http-port
 ---

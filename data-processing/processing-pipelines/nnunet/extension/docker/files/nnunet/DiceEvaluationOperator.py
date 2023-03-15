@@ -1,4 +1,5 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
 from datetime import timedelta
 
 
@@ -28,7 +29,7 @@ class DiceEvaluationOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/dice-evaluation:{kaapana_build_version}",
+            image=f"{DEFAULT_REGISTRY}/dice-evaluation:{KAAPANA_BUILD_VERSION}",
             name=name,
             batch_name=batch_name,
             image_pull_secrets=["registry-secret"],

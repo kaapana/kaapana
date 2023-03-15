@@ -40,7 +40,7 @@
           </v-list-item>
           <v-list-item :to="'/experiments'" v-if="isAuthenticated">
             <v-list-item-action>
-              <v-icon>mdi-controller-classic</v-icon>
+              <v-icon>mdi-play-box</v-icon>
             </v-list-item-action>
             <v-list-item-content>
               <v-list-item-title>Experiments</v-list-item-title>

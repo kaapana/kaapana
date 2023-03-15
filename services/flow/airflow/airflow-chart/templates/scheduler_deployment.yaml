@@ -34,7 +34,7 @@ spec:
       initContainers:
       - name: airflow-services-ready-check
         image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
         env:
         - name: WAIT
           value: "postgres,postgres-airflow,5432;prometheus,prometheus-service.{{  .Values.global.services_namespace  }}.svc,9090;statsd-service,airflow-statsd-service.{{  .Values.global.services_namespace  }}.svc,9102"
@@ -47,13 +47,13 @@ spec:
           mountPath: /kaapana/mounted/workflows/plugins
       - name: init-airflow-db
         image: "{{ .Values.global.registry_url }}/airflow:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         args: ["init"]
         resources:
           requests:
             memory: 250Mi
           limits:
-            memory: 250Mi
+            memory: 500Mi
         volumeMounts:
         - name: airflow-configmap
           mountPath: /kaapana/mounted/workflows/airflow.cfg
@@ -66,76 +66,82 @@ spec:
         - name: airflow-plugins
           mountPath: /kaapana/mounted/workflows/plugins
         env:
-        - name: SERVICES_NAMESPACE
-          value: "{{ .Values.global.services_namespace }}"
-        - name: EXTENSIONS_NAMESPACE
-          value: "{{ .Values.global.extensions_namespace }}"
-        - name: JOBS_NAMESPACE
-          value: "{{ .Values.global.jobs_namespace }}"
         - name: ADMIN_NAMESPACE
           value: "{{ .Values.global.admin_namespace }}"
         - name: SECURITY_NAMESPACE
           value: "{{ .Values.global.security_namespace }}"
         - name: AIRFLOW_HOME
           value: "/kaapana/mounted/workflows"
+        - name: DEFAULT_REGISTRY
+          value: "{{ .Values.global.registry_url }}"
+        - name: EXTENSIONS_NAMESPACE
+          value: "{{ .Values.global.extensions_namespace }}"
         - name: INSTANCE_NAME
           value: "{{ .Values.global.instance_name }}"
+        - name: JOBS_NAMESPACE
+          value: "{{ .Values.global.jobs_namespace }}"
+        - name: KAAPANA_BUILD_VERSION
+          value: "{{ .Values.global.kaapana_build_version }}"
+        - name: PULL_POLICY_IMAGES
+          value: "{{ .Values.global.pull_policy_images }}"
+        - name: SERVICES_NAMESPACE
+          value: "{{ .Values.global.services_namespace }}"
         - name: SQL_ALCHEMY_CONN
           value: postgresql+psycopg2://root:root@postgres-airflow:5432/airflow
       containers:
       - name: scheduler
         image: "{{ .Values.global.registry_url }}/airflow:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         args: ["scheduler"]
         env:
-        - name: DEFAULT_REGISTRY
-          value: "{{ .Values.global.registry_url }}"
+        - name: ADMIN_NAMESPACE
+          value: "{{ .Values.global.admin_namespace }}"
         - name: AIRFLOW__LOGGING__LOGGING_LEVEL
           value: "INFO"
         - name: AIRFLOW_HOME
           value: "/kaapana/mounted/workflows"
-        - name: SQLALCHEMY_SILENCE_UBER_WARNING
-          value: "1"
         - name: DATADIR
           value: "{{ .Values.global.fast_data_dir }}/workflows/data"
-        - name: MODELDIR
-          value: "{{ .Values.global.fast_data_dir }}/workflows/models"
-        - name: MINIODIR
-          value: "{{ .Values.global.slow_data_dir }}/minio"
-        - name: PROXY
-          value: "{{ .Values.global.http_proxy }}"
-        - name: KAAPANA_BUILD_VERSION
-          value: "{{ .Values.global.kaapana_build_version }}"
-        - name: HOSTDOMAIN
-          value: "{{ .Values.global.hostname }}"
-        - name: HTTPS_PORT
-          value: "{{ .Values.global.https_port }}"
-        - name: INSTANCE_NAME
-          value: "{{ .Values.global.instance_name }}"
-        - name: GPU_SUPPORT
-          value: "{{ .Values.global.gpu_support }}"
-        - name: INSTANCE_ID
-          value: "{{ .Values.global.instance_id }}"
-        - name: SERVICES_NAMESPACE
-          value: "{{ .Values.global.services_namespace }}"
+        - name: DEFAULT_REGISTRY
+          value: "{{ .Values.global.registry_url }}"
         - name: EXTENSIONS_NAMESPACE
           value: "{{ .Values.global.extensions_namespace }}"
         - name: ENABLE_NFS
           value: "{{ .Values.global.enable_nfs }}"
+        - name: GPU_SUPPORT
+          value: "{{ .Values.global.gpu_support }}"
+        - name: HOSTDOMAIN
+          value: "{{ .Values.global.hostname }}"
+        - name: HTTPS_PORT
+          value: "{{ .Values.global.https_port }}"
+        - name: INSTANCE_ID
+          value: "{{ .Values.global.instance_id }}"
+        - name: INSTANCE_NAME
+          value: "{{ .Values.global.instance_name }}"
         - name: JOBS_NAMESPACE
           value: "{{ .Values.global.jobs_namespace }}"
-        - name: ADMIN_NAMESPACE
-          value: "{{ .Values.global.admin_namespace }}"
         - name: SECURITY_NAMESPACE
           value: "{{ .Values.global.security_namespace }}"
-        - name: PULL_POLICY_PODS
-          value: "{{ .Values.global.pull_policy_pods }}"
+        - name: KAAPANA_BUILD_VERSION
+          value: "{{ .Values.global.kaapana_build_version }}"
+        - name: MINIODIR
+          value: "{{ .Values.global.slow_data_dir }}/minio"
         - name: MINIOUSER
           value: "{{ .Values.global.credentials_minio_username }}"
         - name: MINIOPASSWORD
           value: "{{ .Values.global.credentials_minio_password }}"
+        - name: MODELDIR
+          value: "{{ .Values.global.fast_data_dir }}/workflows/models"
+        - name: PROXY
+          value: "{{ .Values.global.http_proxy }}"
+        - name: PULL_POLICY_IMAGES
+          value: "{{ .Values.global.pull_policy_images }}"
+        - name: SERVICES_NAMESPACE
+          value: "{{ .Values.global.services_namespace }}"
         - name: SQL_ALCHEMY_CONN
           value: postgresql+psycopg2://root:root@postgres-airflow:5432/airflow
+        - name: SQLALCHEMY_SILENCE_UBER_WARNING
+          value: "1"
         resources:
           requests:
             memory: 3000Mi

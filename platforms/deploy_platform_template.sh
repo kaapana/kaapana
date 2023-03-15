@@ -19,13 +19,13 @@ CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}
 ######################################################
 
 DEV_MODE="{{ dev_mode|default('true', true) }}" # dev-mode -> containers will always be re-downloaded after pod-restart
-DEV_PORTS="{{ dev_ports|default('false') }}"
 GPU_SUPPORT="{{ gpu_support|default('false') }}"
 
 PREFETCH_EXTENSIONS="{{ prefetch_extensions|default('false') }}"
 CHART_PATH=""
 NO_HOOKS=""
 ENABLE_NFS=false
+OFFLINE_MODE="false"
 
 INSTANCE_UID=""
 SERVICES_NAMESPACE="{{ services_namespace }}"
@@ -166,7 +166,13 @@ function get_domain {
 
     if [ -z ${DOMAIN+x} ]; then
         echo -e ""
-        DOMAIN=$(hostname -f)
+        echo -e "${YELLOW}Get Server IP ...${NC}";
+        SERVER_IP=$(hostname -I | awk -F ' ' '{print $1}')
+        echo -e "${YELLOW}SERVER_IP: $SERVER_IP${NC}";
+        echo -e "${YELLOW}NS lookup DOMAIN ...${NC}";
+        DOMAIN=$(nslookup $SERVER_IP | head -n 1 | awk -F '= ' '{print $2}')
+        DOMAIN=${DOMAIN%.*}
+        echo -e "${YELLOW}DOMAIN: $DOMAIN${NC}";
     else
         echo -e "${GREEN}Server domain (FQDN): $DOMAIN ${NC}" > /dev/stderr;
     fi
@@ -258,14 +264,13 @@ function clean_up_kubernetes {
     microk8s.kubectl -n $SERVICES_NAMESPACE delete job --ignore-not-found remove-secret
 }
 
-function upload_tar {
-    echo "${YELLOW}Importing the images from the tar, this might take up to one hour...!${NC}"
+function import_container_images_tar {
+    echo "${RED}Importing the images from the tar, this might take a long time -> please be patient and wait.${NC}"
     microk8s.ctr images import $TAR_PATH
     echo "${GREEN}Finished image upload! You should now be able to deploy the platform by specifying the chart path.${NC}"
 }
 
 function deploy_chart {
-
     if [ -z "$CONTAINER_REGISTRY_URL" ]; then
         echo "${RED}CONTAINER_REGISTRY_URL needs to be set! -> please adjust the deploy_platform.sh script!${NC}"
         echo "${RED}ABORT${NC}"
@@ -297,7 +302,13 @@ function deploy_chart {
         if [[ $deployments == *"gpu-operator"* ]];then
             echo -e "-> gpu-operator chart already exists"
         else
-            microk8s.enable gpu
+            if [ "$OFFLINE_MODE" = "true" ];then
+                OFFLINE_ENABLE_GPU_PATH=$SCRIPT_DIR/offline_enable_gpu.py
+                [ -f $OFFLINE_ENABLE_GPU_PATH ] && echo "${GREEN}$OFFLINE_ENABLE_GPU_PATH exists ... ${NC}" || (echo "${RED}$OFFLINE_ENABLE_GPU_PATH does not exist -> exit ${NC}" && exit 1)
+                python3 $OFFLINE_ENABLE_GPU_PATH
+            else
+                microk8s.enable gpu
+            fi
         fi
     fi
     
@@ -315,31 +326,37 @@ function deploy_chart {
         echo -e "${YELLOW}You are deploying the platform in offline mode!${NC}"
             read -p "${YELLOW}Please confirm that you are sure that all images are present in microk8s (yes/no): ${NC}" yn
                 case $yn in
-                    [Yy]* ) break;;
-                    [Nn]* ) exit;;
+                    [Yy]* ) echo "${GREEN}Confirmed${NC}"; break;;
+                    [Nn]* ) echo "${RED}Cancel${NC}"; exit;;
                     * ) echo "Please answer yes or no.";;
                 esac
         done
 
+        echo -e "${YELLOW}Checking available images with version: $PLATFORM_VERSION ${NC}"
+        set +e
+        PRESENT_IMAGE_COUNT=$( microk8s.ctr images ls | grep $PLATFORM_VERSION | wc -l)
+        set -e
+        echo -e "${YELLOW}PRESENT_IMAGE_COUNT: $PRESENT_IMAGE_COUNT ${NC}"
+        if [ "$PRESENT_IMAGE_COUNT" -lt "20" ];then
+            echo -e "${RED}There are only $PRESENT_IMAGE_COUNT present with the version $PLATFORM_VERSION - there seems to be an issue. ${NC}"
+            exit 1
+        else
+            echo -e "${GREEN}PRESENT_IMAGE_COUNT: OK ${NC}"
+        fi
+
         OFFLINE_MODE="true"
         DEV_MODE="false"
-        PULL_POLICY_PODS="IfNotPresent"
-        PULL_POLICY_JOBS="IfNotPresent"
-        PULL_POLICY_OPERATORS="IfNotPresent"
+        PULL_POLICY_IMAGES="IfNotPresent"
         PREFETCH_EXTENSIONS="false"
 
         CONTAINER_REGISTRY_USERNAME=""
         CONTAINER_REGISTRY_PASSWORD=""
     else
-        OFFLINE_MODE="false"
-        PULL_POLICY_PODS="IfNotPresent"
-        PULL_POLICY_JOBS="IfNotPresent"
-        PULL_POLICY_OPERATORS="IfNotPresent"
+        
+        PULL_POLICY_IMAGES="IfNotPresent"
 
         if [ "$DEV_MODE" == "true" ]; then
-            PULL_POLICY_PODS="Always"
-            PULL_POLICY_JOBS="Always"
-            PULL_POLICY_OPERATORS="Always"
+            PULL_POLICY_IMAGES="Always"
         fi
 
         echo "${YELLOW}Helm login registry...${NC}"
@@ -362,7 +379,6 @@ function deploy_chart {
     --set-string global.credentials_grafana_password="$GRAFANA_PASSWORD" \
     --set-string global.credentials_keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
     --set-string global.credentials_keycloak_admin_password="$KEYCLOAK_ADMIN_PASSWORD" \
-    --set-string global.dev_ports="$DEV_PORTS" \
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
     --set-string global.services_namespace=$SERVICES_NAMESPACE \
@@ -380,19 +396,11 @@ function deploy_chart {
     --set-string global.http_proxy="$http_proxy" \
     --set-string global.https_port="$HTTPS_PORT" \
     --set-string global.https_proxy="$https_proxy" \
-    {% for item in kaapana_collections -%}
-    --set-string global.kaapana_collections[{{loop.index0}}].name="{{ item.name }}" \
-    --set-string global.kaapana_collections[{{loop.index0}}].version="{{ item.version }}" \
-    {% endfor -%}
     --set-string global.offline_mode="$OFFLINE_MODE" \
     --set-string global.prefetch_extensions="$PREFETCH_EXTENSIONS" \
-    {% for item in preinstall_extensions -%}
-    --set-string global.preinstall_extensions[{{loop.index0}}].name="{{ item.name }}" \
-    --set-string global.preinstall_extensions[{{loop.index0}}].version="{{ item.version }}" \
-    {% endfor -%}
-    --set-string global.pull_policy_jobs="$PULL_POLICY_JOBS" \
-    --set-string global.pull_policy_operators="$PULL_POLICY_OPERATORS" \
-    --set-string global.pull_policy_pods="$PULL_POLICY_PODS" \
+    --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
+    --set-string global.pull_policy_jobs="$PULL_POLICY_IMAGES" \
+    --set-string global.pull_policy_pods="$PULL_POLICY_IMAGES" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
     --set-string global.release_name="$PLATFORM_NAME" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
@@ -401,6 +409,7 @@ function deploy_chart {
     {% endfor -%}
     --name-template "$PLATFORM_NAME"
 
+    # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.1.3
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm $CHART_PATH
     fi
@@ -803,7 +812,7 @@ _Argument: --username [Docker registry username]
 _Argument: --password [Docker registry password]
 _Argument: --port [Set main https-port]
 _Argument: --chart-path [path-to-chart-tgz]
-_Argument: --upload-tar [path-to-a-tarball]"
+_Argument: --import-images-tar [path-to-a-tarball]"
 
 QUIET=NA
 
@@ -849,10 +858,10 @@ do
             shift # past value
         ;;
 
-        --upload-tar)
+        --import-images-tar)
             TAR_PATH="$2"
             echo -e "${GREEN}SET TAR_PATH: $TAR_PATH !${NC}";
-            upload_tar
+            import_container_images_tar
             exit 0
         ;;
 

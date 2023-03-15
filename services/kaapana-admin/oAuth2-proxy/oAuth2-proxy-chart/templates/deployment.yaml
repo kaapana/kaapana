@@ -17,7 +17,7 @@ spec:
       initContainers:
       - name: init
         image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         env:
           - name: WAIT
 
@@ -29,7 +29,7 @@ spec:
       containers:
         - name: oauth2-proxy-container
           image: "{{ .Values.global.registry_url }}/oauth2-proxy:{{ .Values.global.kaapana_build_version  }}"
-          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           args:
         {{- if ne (.Values.global.https_port | default "443") "443" }}
           - --login-url=https://{{ required "A valid hostname (or fqdn) is required!" $.Values.global.hostname }}:{{ .Values.global.https_port }}/auth/realms/kaapana/protocol/openid-connect/auth

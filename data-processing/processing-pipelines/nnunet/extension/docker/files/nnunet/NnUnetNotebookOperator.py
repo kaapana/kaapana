@@ -2,7 +2,8 @@ import os
 import glob
 from datetime import timedelta
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
 
 class NnUnetNotebookOperator(KaapanaBaseOperator):
 
@@ -16,7 +17,7 @@ class NnUnetNotebookOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name=name,
-            image=f"{default_registry}/nnunet-gpu:{kaapana_build_version}",
+            image=f"{DEFAULT_REGISTRY}/nnunet-gpu:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             cmds=["/bin/bash"],
             execution_timeout=execution_timeout,

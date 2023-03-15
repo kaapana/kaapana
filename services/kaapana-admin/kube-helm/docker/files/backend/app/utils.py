@@ -10,6 +10,7 @@ import yaml
 import secrets
 import tarfile
 import shutil
+import uuid
 
 from typing import Tuple
 from fastapi import Response
@@ -422,13 +423,21 @@ def helm_install(
     else:
         keywords = payload["keywords"]
 
-    if "global" in values:
-        for key, value in values["global"].items():
-            if value != "":
-                default_sets.update({f"global.{key}": value})
+    if 'global' in values:
+        for key, value in values['global'].items():
+            if isinstance(value, str) and value != '':
+                default_sets.update({f'global.{key}': value})
+            elif isinstance(value, list) and value:
+                for idx, sub_dict in enumerate(value):
+                    for k, v in sub_dict.items():
+                        default_sets[f'global.{key}[{idx}].{k}']  = v
 
-    if "sets" not in payload:
-        payload["sets"] = default_sets
+    if 'kaapanamultiinstallable' in keywords:
+        multi_installable_uuid = secrets.token_hex(5)
+        default_sets['global.uuid'] = multi_installable_uuid
+        
+    if 'sets' not in payload:
+        payload['sets'] = default_sets
     else:
         for key, value in default_sets.items():
             if key not in payload["sets"] or payload["sets"][key] == "":
@@ -436,8 +445,8 @@ def helm_install(
 
     if "release_name" in payload:
         release_name = payload["release_name"]
-    elif "kaapanamultiinstallable" in keywords:
-        release_name = f"{name}-{secrets.token_hex(10)}"
+    elif 'kaapanamultiinstallable' in keywords:
+        release_name = f'{name}-{multi_installable_uuid}'
     else:
         release_name = name
 

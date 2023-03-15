@@ -19,7 +19,7 @@ spec:
       initContainers:
         - name: init-wait-for-postgres
           image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version }}"
-          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           env:
             - name: WAIT
               value: "kaapana-backend-postgres,kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,5432"
@@ -29,7 +29,7 @@ spec:
               value: "10"
         - name: init-wait-for-keycloak
           image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version }}"
-          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           env:
             - name: WAIT
               value: "keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
@@ -39,7 +39,7 @@ spec:
               value: "10"
         - name: init-create-backend-user
           image: "{{ .Values.global.registry_url }}/kaapana-backend:{{ .Values.global.kaapana_build_version }}"
-          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           command: ["/kaapana/app/scripts/create_backend_user.py"]
           env:
             - name: KEYCLOAK_URL
@@ -57,7 +57,7 @@ spec:
       containers:
       - name: kaapana-backend
         image: "{{ .Values.global.registry_url }}/kaapana-backend:{{ .Values.global.kaapana_build_version }}"
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         # command: ["tail"]
         # args: ["-f", "/dev/null"] 
         command: ["/bin/sh"]
@@ -76,7 +76,6 @@ spec:
         - name: https_proxy
           value: {{ .Values.global.http_proxy }}
         - name: no_proxy
-          value: "kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,airflow-service.{{  .Values.global.services_namespace  }},airflow-service.{{  .Values.global.services_namespace  }}.svc,minio-service.{{  .Values.global.services_namespace  }},minio-service.{{  .Values.global.services_namespace  }}.svc,opensearch-service.{{  .Values.global.services_namespace  }},opensearch-service.{{  .Values.global.services_namespace  }}.svc"
           value: "kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,airflow-webserver-service.{{  .Values.global.services_namespace  }},airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc,minio-service.{{  .Values.global.services_namespace  }},minio-service.{{  .Values.global.services_namespace  }}.svc,opensearch-service.{{  .Values.global.services_namespace  }},opensearch-service.{{  .Values.global.services_namespace  }}.svc,keycloak-internal-service.{{  .Values.global.admin_namespace  }}"
         - name: SERVICES_NAMESPACE
           value: "{{  .Values.global.services_namespace  }}"
@@ -93,7 +92,7 @@ spec:
         - name: MINIO_PASSWORD
           value: {{ .Values.global.credentials_minio_password | default ""}}
         - name: MINIO_URL
-          value: {{ .Values.global.minio_url }}
+          value: "minio-service.{{  .Values.global.services_namespace  }}:9000"
         - name: APPLICATION_ROOT
           value: "/kaapana-backend"
         - name: DATABASE_URL

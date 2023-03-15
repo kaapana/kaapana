@@ -4,7 +4,8 @@ import glob
 from datetime import timedelta
 from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, kaapana_build_version, gpu_support
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION, GPU_SUPPORT
 
 
 class mHubOperator(KaapanaBaseOperator):
@@ -17,16 +18,16 @@ class mHubOperator(KaapanaBaseOperator):
         else:
             raise ValueError('You need to select a mhub_model!')
 
-        if gpu_support:
+        if GPU_SUPPORT:
             tag = 'cuda'
         else:
             tag = 'nocuda'
         # Tricking the CI to not check of image_name but still building all mhubai docker containers
-        image_name=f"{default_registry}/mhubai-{image}-{tag}:{kaapana_build_version}"
-        # self.image=f"{default_registry}/mhubai-platipy-cuda:{kaapana_build_version}"
-        # self.image=f"{default_registry}/mhubai-platipy-nocuda:{kaapana_build_version}"
-        # self.image=f"{default_registry}/mhubai-totalsegmentator-cuda:{kaapana_build_version}"
-        # self.image=f"{default_registry}/mhubai-totalsegmentator-nocuda:{kaapana_build_version}"
+        image_name=f"{DEFAULT_REGISTRY}/mhubai-{image}-{tag}:{KAAPANA_BUILD_VERSION}"
+        # self.image=f"{DEFAULT_REGISTRY}/mhubai-platipy-cuda:{KAAPANA_BUILD_VERSION}"
+        # self.image=f"{DEFAULT_REGISTRY}/mhubai-platipy-nocuda:{KAAPANA_BUILD_VERSION}"
+        # self.image=f"{DEFAULT_REGISTRY}/mhubai-totalsegmentator-cuda:{KAAPANA_BUILD_VERSION}"
+        # self.image=f"{DEFAULT_REGISTRY}/mhubai-totalsegmentator-nocuda:{KAAPANA_BUILD_VERSION}"
         self.image = image_name
         print(f'Using the image {self.image}')
 
@@ -46,7 +47,7 @@ class mHubOperator(KaapanaBaseOperator):
                 *args, **kwargs
                 ):
 
-        if gpu_support:
+        if GPU_SUPPORT:
             gpu_mem_mb = 11000
             execution_timeout = timedelta(minutes=60)
 

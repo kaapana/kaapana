@@ -231,9 +231,7 @@
           this.dialogConfData = false
         },
         getStatusColor(status) {
-          if (status == 'planned') {
-            return 'pink'
-          }else if (status == 'queued') {
+          if (status == 'queued') {
             return 'grey'
           } else if (status == 'pending') {
             return 'orange'

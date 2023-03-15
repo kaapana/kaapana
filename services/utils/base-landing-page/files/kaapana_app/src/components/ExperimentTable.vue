@@ -174,7 +174,6 @@ methods: {
   getStatesColorMap(item) {
     const states = item.experiment_jobs.map(job => job.status)
     const colorMap = {
-      'planned': 'pink',
       'queued': 'grey',
       'scheduled': 'blue',
       'running': 'green',

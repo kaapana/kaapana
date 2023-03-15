@@ -125,7 +125,6 @@ export default {
       display_filters: true,
       filters: [],
       counter: 0,
-      item_values: {},
       mapping: {},
       dialog: false
     }
@@ -238,29 +237,27 @@ export default {
     }
   },
   async mounted() {
-    // console.log(await this.constructCohortQuery(this.cohort_name))
-    this.mapping = (await loadAvailableTags(
-        (await this.constructCohortQuery(this.cohort_name)) || {}
-    )).data
-    // if (localStorage['Dataset.search.filters']) {
-    //   this.filters = JSON.parse(localStorage['Dataset.search.filters'])
-    //   this.counter = this.filters.length
-    // }
-    // if (localStorage['Dataset.search.query_string']) {
-    //   this.query_string = JSON.parse(localStorage['Dataset.search.query_string'])
-    // }
-    await this.search(true)
+    const data = await this.constructCohortQuery(this.cohort_name)
+    this.search(true)
+    loadAvailableTags(data || {}).then(res => {
+      this.mapping = res.data
+    })
+
+    // this.filters = JSON.parse(localStorage['Dataset.search.filters'] || "[]")
+    // this.counter = this.filters.length
+    // this.query_string = JSON.parse(localStorage['Dataset.search.query_string'] || "")
+    // await this.search(true)
   },
   watch: {
     async cohort_name() {
-
       this.filters = []
-
-      this.mapping = (await loadAvailableTags(
-          (await this.constructCohortQuery(this.cohort_name)) || {}
-      )).data
-      console.log('watch: ' + this.cohort_name)
-      await this.search()
+      this.constructCohortQuery(this.cohort_name)
+          .then(data => loadAvailableTags(data || {})
+              .then(res => {
+                this.mapping = res.data
+                this.search()
+              }))
+      // await this.search()
     }
   }
 }

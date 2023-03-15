@@ -1,69 +1,34 @@
 <template>
   <div>
-    <v-list v-for="item in inner_patients">
-      <v-lazy
-          v-model="item.isActive"
-          :options="{
-                threshold: .5,
-                delay: 100
-            }"
-      >
-        <v-list-group v-model="item.active"
-                      :active-class="activeClass">
-          <template v-slot:activator>
-            <v-list-item-content>
-              <v-row no-gutters>
-                <v-col cols="4">
-                  {{ item.patient_key }}
-                </v-col>
-                <v-col cols="3" class="text--secondary">
-                  Age: {{ item['00101010 PatientAge_integer'] || 'N/A' }}
-                </v-col>
-                <v-col cols="2" class="text--secondary">
-                  Sex: {{ item['00100040 PatientSex_keyword'] || 'N/A' }}
-                </v-col>
-                <v-col cols="3">
-                  <Chip :items="[...item['modalities']]"/>
-                </v-col>
-              </v-row>
-            </v-list-item-content>
-          </template>
-          <v-list subheader>
-            <v-list-item
-                v-for="study in [...item.studies]
-              .sort((a, b) =>
-                new Date(b['00080020 StudyDate_date']) - new Date(a['00080020 StudyDate_date'])
-              )"
-                :key="JSON.stringify(study)">
-
-              <v-list-item-content>
-                <v-list-item-title>
-                  {{ study['00081030 StudyDescription_keyword'] }}
-                </v-list-item-title>
-                <v-list-item-subtitle> {{
-                    study['00080020 StudyDate_date']
-                  }}
-                </v-list-item-subtitle>
-                <v-container fluid style="padding: 10px">
-                  <v-row>
-                    <Gallery
-                        :data="study.series"
-                        :selectedTags="inner_selectedTags"
-                        :cohort_name="cohort_name"
-                        @imageId="(imageId) => propagateImageId(imageId)"
-                        @emptyStudy="() => removeEmptyStudy(item, study)"
-                        @imageIds="imageIds => collectAndPropagateImageIds(
-                            study['0020000D StudyInstanceUID_keyword'],
-                             imageIds
-                           )"
-                    />
-                  </v-row>
-                </v-container>
-              </v-list-item-content>
-            </v-list-item>
-          </v-list>
-        </v-list-group>
-      </v-lazy>
+    <v-list
+        v-for="([patient, studyInstanceUIDs]) in Object.entries(patients)"
+        :key="patient"
+    >
+      <h3> {{ patient }}</h3>
+      <v-container style="padding-top: 0">
+        <v-list
+            v-for="([studyInstanceUID, seriesInstanceUIDs]) in Object.entries(studyInstanceUIDs)"
+            :key="studyInstanceUID"
+        >
+          <h4>{{ studyInstanceUID }}</h4>
+          <v-lazy
+              :options="{
+                  threshold: .0,
+                  delay: 100
+                }"
+          >
+            <Gallery
+                :seriesInstanceUIDs="seriesInstanceUIDs"
+                :selectedTags="selectedTags"
+                :cohort_name="cohort_name"
+                :cohort_names="cohort_names"
+                @openInDetailView="(_seriesInstanceUID) => openInDetailView(_seriesInstanceUID)"
+                @emptyStudy="() => removeEmptyStudy(patient, studyInstanceUID)"
+                @selectedItems="_seriesInstanceUIDs => collectAndPropagateImageIds(studyInstanceUID, _seriesInstanceUIDs)"
+            />
+          </v-lazy>
+        </v-list>
+      </v-container>
     </v-list>
   </div>
 </template>
@@ -75,14 +40,19 @@ import CardSelect from "./CardSelect.vue";
 import Gallery from "./Gallery.vue";
 
 export default {
-  emits: ['imageId'],
+  emits: ['openInDetailView', 'update:patients', 'selectedItems'],
   props: {
+    cohort_names: {
+      type: Array,
+      default: () => []
+    },
     cohort_name: {
       type: String,
       default: null
     },
     patients: {
-      type: Array
+      type: Object,
+      default: () => {}
     },
     selectedTags: {
       type: Array
@@ -90,11 +60,8 @@ export default {
   },
   data() {
     return {
-      active: {},
-      image_id: null,
-      inner_patients: [],
-      inner_selectedTags: [],
-      selectedItems: {}
+      detailViewSeriesInstanceUID: null,
+      selectedItems: {},
     };
   },
   components: {
@@ -103,64 +70,33 @@ export default {
     Gallery
   },
   mounted() {
-    this.inner_patients = this.patients
-    this.inner_patients.forEach(pat => pat.active = true)
-    this.inner_patients.forEach(pat => pat.isActive = false)
-    this.inner_selectedTags = this.selectedTags
   },
   watch: {
-    patients() {
-      // TODO why is this needed?
-      this.inner_patients = this.patients
-      this.inner_patients.forEach(pat => pat.active = true)
-      this.inner_selectedTags = this.selectedTags
-    },
     selectedTags() {
-      this.inner_selectedTags = this.selectedTags
-    }
+      console.log(this.selectedTags)
+    },
   },
   methods: {
-    propagateImageId(image_id) {
-      this.$emit('imageId', image_id);
+    openInDetailView(seriesInstanceUID) {
+      this.$emit('openInDetailView', seriesInstanceUID);
     },
-    collectAndPropagateImageIds(study_id, imageIds) {
-      this.selectedItems[study_id] = imageIds
-      this.$emit('selected', Object.values(this.selectedItems))
+    collectAndPropagateImageIds(study_id, _seriesInstanceUIDs) {
+      this.selectedItems[study_id] = _seriesInstanceUIDs
+      this.$emit('selectedItems', Object.values(this.selectedItems))
     },
-    removeEmptyStudy(item, study) {
-      item.studies = item.studies.filter(s => s.study_key !== study.study_key)
-      if (item.studies.length === 0) {
-        this.inner_patients = this.inner_patients.filter(patient => item.patient_key !== patient.patient_key)
+    removeEmptyStudy(patient, study) {
+      const patients_copy = {...this.patients}
+      delete patients_copy[patient][study]
+
+      if (Object.values(patients_copy[patient]).length === 0) {
+        delete patients_copy[patient]
       }
+
+      this.$emit('update:patients', patients_copy)
     },
-  },
-  computed: {
-    activeClass() {
-      return localStorage.getItem('darkMode') && JSON.parse(localStorage.getItem('darkMode')) === true
-          ? 'gray-dark'
-          : 'gray-light'
-    }
   },
 };
 </script>
 <style>
-.v-list {
-  padding: 0;
-}
 
-/*TODO: this is not ideal -> should be matched with theme*/
-.gray-light {
-  background-color: #E7E7E7;
-}
-
-.gray-dark {
-  background-color: #666666;
-}
-
-</style>
-
-<style scoped>
-.col {
-  padding: 5px;
-}
 </style>

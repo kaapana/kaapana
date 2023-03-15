@@ -36,10 +36,7 @@ export default {
   props: {
     seriesInstanceUID: {
       type: String,
-    },
-    studyInstanceUID: {
-      type: String,
-    },
+    }
   },
   data: () => ({
     tagsData: [],
@@ -51,8 +48,8 @@ export default {
   }),
   methods: {
     async getDicomData() {
-      if (this.seriesInstanceUID && this.studyInstanceUID) {
-        loadSeriesData(this.studyInstanceUID, this.seriesInstanceUID).then(data =>
+      if (this.seriesInstanceUID) {
+        loadSeriesData(this.seriesInstanceUID).then(data =>
             this.tagsData = Object.entries(data['metadata']).map(i => ({name: i[0], value: i[1]}))
         )
       }

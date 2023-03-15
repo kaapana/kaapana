@@ -6,7 +6,7 @@ import logging
 from helpers.resources import LOGGER_NAME
 from helpers.logger import get_logger, function_logger_factory, trimContent
 from models.JWTToken import JWTToken
-from models.wazuh import (
+from models.wazuh_models import (
     FileIntegrityAlertRule,
     WazuhAgent,
     WazuhAgentFileIntegrityAlert,
@@ -23,7 +23,7 @@ from models.provider import ProviderAPIEndpoints
 import inspect
 from models.misc import SecurityNotification
 
-logger = get_logger(f"{LOGGER_NAME}.wazuh", logging.INFO)
+logger = get_logger(f"{LOGGER_NAME}.wazuh_api", logging.INFO)
 
 WAZUH_API_ITEM_LIMIT = 500  # 500 is default
 
@@ -32,6 +32,7 @@ class WazuhAPIAuthentication:
     __jwt_token: JWTToken = None
     __api_username: str = ""
     __api_pw: str = ""
+    __api_endpoint: Optional[str] = None
 
     def __init__(self):
         self.__read_credentials()
@@ -51,32 +52,20 @@ class WazuhAPIAuthentication:
         logger.debug(f"wazuh user: {self.__api_username}, pw: {self.__api_pw}")
 
     @function_logger_factory(logger)
-    def __jwt_token_expired_or_expires_soon(self) -> bool:
-        if self.__jwt_token is None:
-            logger.debug("no jwt token saved")
-            return True
-
-        if self.__jwt_token.is_expired():
-            logger.debug("jwt token is expired")
-            return True
-
-        if self.__jwt_token.get_seconds_until_expiration() < 30:
-            logger.debug("expiration date of jwt token is in less than 30s")
-            return True
-
-        logger.debug("token does not expire in the next 30s")
-        return False
-
-    @function_logger_factory(logger)
     def __retrieve_token(self, retry=True) -> bool:
         self.__read_credentials()
-        auth_bytes = base64.b64encode(bytes(f"{self.__api_username}:{self.__api_pw}", "utf-8"))
+        auth_bytes = base64.b64encode(
+            bytes(f"{self.__api_username}:{self.__api_pw}", "utf-8")
+        )
         auth_base64 = auth_bytes.decode("utf-8")
 
         try:
-            headers = {"Content-Type": "application/json", "Authorization": f"Basic {auth_base64}"}
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Basic {auth_base64}",
+            }
             result = httpx.get(
-                "https://security-wazuh-service.services.svc:55000/security/user/authenticate",
+                f"{self.__api_endpoint}/security/user/authenticate",
                 verify=False,
                 headers=headers,
             )
@@ -93,8 +82,12 @@ class WazuhAPIAuthentication:
             decoded_token = jwt.decode(
                 jwt_token, verify=False, options={"verify_signature": False}
             )
-            expiration_date = datetime.fromtimestamp(float(decoded_token["exp"]), tz=timezone.utc)
-            self.__jwt_token = JWTToken(token=jwt_token, expiration_date=expiration_date)
+            expiration_date = datetime.fromtimestamp(
+                float(decoded_token["exp"]), tz=timezone.utc
+            )
+            self.__jwt_token = JWTToken(
+                token=jwt_token, expiration_date=expiration_date
+            )
 
             return True
         except Exception as e:
@@ -103,7 +96,10 @@ class WazuhAPIAuthentication:
 
     @function_logger_factory(logger)
     def get_bearer_token(self) -> Optional[str]:
-        if self.__jwt_token_expired_or_expires_soon() and not self.__retrieve_token():
+        if (
+            self.__jwt_token is None
+            or self.__jwt_token.expired_or_expires_soon(expires_soon_seconds=30)
+        ) and not self.__retrieve_token():
             logger.error("Could not retrieve Wazuh jwt token")
             return None
 
@@ -116,6 +112,9 @@ class WazuhAPIAuthentication:
         self.__api_username = ""
         self.__api_pw = ""
 
+    def set_api_endpoint(self, api_endpoint: str):
+        self.__api_endpoint = api_endpoint
+
 
 class WazuhAPIWrapper:
     # https://documentation.wazuh.com/current/user-manual/api/reference.html
@@ -126,7 +125,6 @@ class WazuhAPIWrapper:
         wazuh_authentication: WazuhAPIAuthentication,
         api_endpoints: List[ProviderAPIEndpoints],
     ):
-        # todo: add api endpoint as init arg
         self.__wazuh_authentication = wazuh_authentication
 
         logger.debug(f"wazuh api given endpoints: {api_endpoints}")
@@ -144,6 +142,7 @@ class WazuhAPIWrapper:
             if len(elastic_api) > 0
             else "https://security-wazuh-service.services.svc:9200"
         )
+        self.__wazuh_authentication.set_api_endpoint(self.__api_endpoint)
         logger.debug(
             f"setting wazuh api wrapper endpoints, api: {self.__api_endpoint}, elastic api: {self.__elastic_api_endpoint}"
         )
@@ -232,13 +231,18 @@ class WazuhAPIWrapper:
         iteration = 0
 
         while True:
-            params = {"limit": WAZUH_API_ITEM_LIMIT, "offset": iteration * WAZUH_API_ITEM_LIMIT}
+            params = {
+                "limit": WAZUH_API_ITEM_LIMIT,
+                "offset": iteration * WAZUH_API_ITEM_LIMIT,
+            }
 
             result = httpx.get(
                 f"{self.__api_endpoint}/sca/{agent_id}",
                 params=params,
                 verify=False,
-                headers={"Authorization": self.__wazuh_authentication.get_bearer_token()},
+                headers={
+                    "Authorization": self.__wazuh_authentication.get_bearer_token()
+                },
             )
             logger.debug(
                 f"result from '/sca/{agent_id}': {result} - {trimContent(result.content)}"
@@ -261,8 +265,8 @@ class WazuhAPIWrapper:
 
             iteration += 1
 
-            # if we have 500 items, there could potentially be more -> query once more
-            if len(affected_items) < 500:
+            # if we have WAZUH_API_ITEM_LIMIT items, there could potentially be more -> query once more
+            if len(affected_items) < WAZUH_API_ITEM_LIMIT:
                 break
 
         return policy_list
@@ -277,13 +281,18 @@ class WazuhAPIWrapper:
         iteration = 0
 
         while True:
-            params = {"limit": WAZUH_API_ITEM_LIMIT, "offset": iteration * WAZUH_API_ITEM_LIMIT}
+            params = {
+                "limit": WAZUH_API_ITEM_LIMIT,
+                "offset": iteration * WAZUH_API_ITEM_LIMIT,
+            }
 
             result = httpx.get(
                 f"{self.__api_endpoint}/sca/{agent_id}/checks/{policy_id}",
                 params=params,
                 verify=False,
-                headers={"Authorization": self.__wazuh_authentication.get_bearer_token()},
+                headers={
+                    "Authorization": self.__wazuh_authentication.get_bearer_token()
+                },
             )
             logger.debug(
                 f"result from '/sca/{agent_id}/checks/{policy_id}': {result} - {trimContent(result.content)}"
@@ -310,15 +319,17 @@ class WazuhAPIWrapper:
 
             iteration += 1
 
-            # if we have 500 items, there could potentially be more -> query once more
-            if len(affected_items) < 500:
+            # if we have WAZUH_API_ITEM_LIMIT items, there could potentially be more -> query once more
+            if len(affected_items) < WAZUH_API_ITEM_LIMIT:
                 break
 
         return policy_data_list
 
     @retry_on_unauthorized
     @function_logger_factory(logger)
-    def get_agent_file_integrity_alerts(self, agent_id: str) -> List[WazuhAgentFileIntegrityAlert]:
+    def get_agent_file_integrity_alerts(
+        self, agent_id: str
+    ) -> List[WazuhAgentFileIntegrityAlert]:
         fim_alerts: List[WazuhAgentFileIntegrityAlert] = []
         iteration = 0
 
@@ -340,7 +351,9 @@ class WazuhAPIWrapper:
         while True:
             result = httpx.post(
                 f"{self.__elastic_api_endpoint}/wazuh-alerts*/_search",
-                json=generate_payload(iteration * WAZUH_API_ITEM_LIMIT, WAZUH_API_ITEM_LIMIT),
+                json=generate_payload(
+                    iteration * WAZUH_API_ITEM_LIMIT, WAZUH_API_ITEM_LIMIT
+                ),
                 verify=False,
                 # Auth is default 'admin:SecretPassword', todo: remove once SSO works
                 headers={
@@ -373,8 +386,8 @@ class WazuhAPIWrapper:
 
             iteration += 1
 
-            # if we have 500 items, there could potentially be more -> query once more
-            if len(alert_list) < 500:
+            # if we have WAZUH_API_ITEM_LIMIT items, there could potentially be more -> query once more
+            if len(alert_list) < WAZUH_API_ITEM_LIMIT:
                 break
 
         return fim_alerts
@@ -398,10 +411,12 @@ class WazuhAPIWrapper:
                 result = await session.get(
                     f"{self.__api_endpoint}/vulnerability/{agent_id}",
                     params=params | additional_params,
-                    headers={"Authorization": self.__wazuh_authentication.get_bearer_token()},
+                    headers={
+                        "Authorization": self.__wazuh_authentication.get_bearer_token()
+                    },
                 )
                 logger.debug(
-                    f"result from '/vulnerability/{agent_id}': {result} - {trimContent(result.content)}"
+                    f"result from '/vulnerability/{agent_id}' with severity '{severity}' and additional params '{additional_params}': {result} - {trimContent(result.content)}"
                 )
 
                 result.raise_for_status()
@@ -430,8 +445,8 @@ class WazuhAPIWrapper:
 
                 iteration += 1
 
-                # if we have 500 items, there could potentially be more -> query once more
-                if len(affected_items) < 500:
+                # if we have WAZUH_API_ITEM_LIMIT items, there could potentially be more -> query once more
+                if len(affected_items) < WAZUH_API_ITEM_LIMIT:
                     break
 
         return vulnerabilities
@@ -439,7 +454,9 @@ class WazuhAPIWrapper:
     # https://documentation.wazuh.com/current/user-manual/api/reference.html#operation/api.controllers.vulnerability_controller.get_vulnerability_agent
     @retry_on_unauthorized
     @function_logger_factory(logger)
-    async def get_agent_vulnerabilities(self, agent_id: str) -> List[WazuhAgentVulnerability]:
+    async def get_agent_vulnerabilities(
+        self, agent_id: str
+    ) -> List[WazuhAgentVulnerability]:
         vulnerability_results: Coroutine[Any, Any, List[WazuhAgentVulnerability]] = []
 
         # first get fixable vulnerabilities
@@ -473,7 +490,11 @@ class WazuhAPIWrapper:
             "query": {
                 "bool": {
                     "must": [
-                        {"range": {"timestamp": {"gte": f"now-{events_of_last_n_seconds}s"}}}
+                        {
+                            "range": {
+                                "timestamp": {"gte": f"now-{events_of_last_n_seconds}s"}
+                            }
+                        }
                     ],
                     "must_not": [{"match": {"agent.id": "000"}}],
                 }
@@ -491,7 +512,7 @@ class WazuhAPIWrapper:
             },
         )
 
-        logger.debug(
+        logger.info(
             f"result from '/_wazuh-alerts*/_search': {result} - {trimContent(result.content)}"
         )
 

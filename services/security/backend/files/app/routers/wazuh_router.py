@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 import logging
 from helpers.resources import LOGGER_NAME
 from helpers.logger import get_logger, function_logger_factory
-from helpers.wazuh import WazuhAPIAuthentication, WazuhAPIWrapper
+from api_access.wazuh_api import WazuhAPIAuthentication, WazuhAPIWrapper
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
 from routers.deactivatable_router import DeactivatableRouter
 from models.provider import ProviderAPIEndpoints
@@ -21,6 +21,7 @@ class WazuhRouter(DeactivatableRouter):
     __wazuh_api: Optional[WazuhAPIWrapper] = None
     __current_notifications: List[SecurityNotification] = []
     __notification_task = None
+    __notification_task_activated = False
 
     def __init__(self, activated=False):
         self.router.add_api_route("/url", self.get_wazuh_url, methods=["GET"])
@@ -32,10 +33,14 @@ class WazuhRouter(DeactivatableRouter):
             "/agents/{agent_id}/sca", self.get_agent_sca_policies, methods=["GET"]
         )  # security compatibility assessment policy
         self.router.add_api_route(
-            "/agents/{agent_id}/sca/{policy_id}", self.get_agent_sca_policy_checks, methods=["GET"]
+            "/agents/{agent_id}/sca/{policy_id}",
+            self.get_agent_sca_policy_checks,
+            methods=["GET"],
         )  # security compatibility assessment
         self.router.add_api_route(
-            "/agents/{agent_id}/vulnerabilities", self.get_agent_vulnerabilities, methods=["GET"]
+            "/agents/{agent_id}/vulnerabilities",
+            self.get_agent_vulnerabilities,
+            methods=["GET"],
         )
         self.router.add_api_route(
             "/agents/{agent_id}/file-integrity-alerts",
@@ -43,6 +48,7 @@ class WazuhRouter(DeactivatableRouter):
             methods=["GET"],
         )
 
+        self.__notification_task = asyncio.create_task(self.__get_new_events())
         self._activated = activated
 
     async def __get_new_events(self) -> None:
@@ -50,25 +56,29 @@ class WazuhRouter(DeactivatableRouter):
         keep_for_seconds = fetch_interval * 2
 
         while True:
-            logger.debug(f"fetching notifications, old: {self.__current_notifications}")
-
-            # remove old notifications
-            new_notifications: List[SecurityNotification] = []
-            for notification in self.__current_notifications:
-                # check if notification timestamp is older than `keep_for_seconds` seconds
-                if (
-                    datetime.now(timezone.utc) - notification.timestamp
-                ).total_seconds() <= keep_for_seconds:
-                    new_notifications += [notification]
-
-            # fetch new events from wazuh
-            if self.__wazuh_api is not None:
-                new_notifications += self.__wazuh_api.get_new_events(
-                    self.__ui_url, fetch_interval + 5
+            if self.__notification_task_activated:
+                logger.debug(
+                    f"fetching notifications, old: {self.__current_notifications}"
                 )
 
-            self.__current_notifications = new_notifications
-            logger.debug(f"new notifications: {self.__current_notifications}")
+                # remove old notifications
+                new_notifications: List[SecurityNotification] = []
+                for notification in self.__current_notifications:
+                    # check if notification timestamp is older than `keep_for_seconds` seconds
+                    if (
+                        datetime.now(timezone.utc) - notification.timestamp
+                    ).total_seconds() <= keep_for_seconds:
+                        new_notifications += [notification]
+
+                # fetch new events from wazuh
+                if self.__wazuh_api is not None:
+                    new_notifications += self.__wazuh_api.get_new_events(
+                        self.__ui_url, fetch_interval + 5
+                    )
+
+                self.__current_notifications = new_notifications
+                logger.debug(f"new notifications: {self.__current_notifications}")
+
             await asyncio.sleep(fetch_interval)
 
     @function_logger_factory(logger)
@@ -81,7 +91,7 @@ class WazuhRouter(DeactivatableRouter):
         logger.debug(f"setting endpoints, ui url: {ui_url}, others: {api_endpoints}")
         self.__ui_url = ui_url
         self.__wazuh_api = WazuhAPIWrapper(self.__wazuh_authentication, api_endpoints)
-        self.__notification_task = asyncio.create_task(self.__get_new_events())
+        self.__notification_task_activated = True
 
     @DeactivatableRouter.activation_wrapper
     @function_logger_factory(logger)
@@ -89,7 +99,9 @@ class WazuhRouter(DeactivatableRouter):
         if self.__ui_url is not None and self.__ui_url != "":
             return {"url": self.__ui_url}
         else:
-            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Url not available")
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND, detail="Url not available"
+            )
 
     @DeactivatableRouter.activation_wrapper
     @function_logger_factory(logger)
@@ -144,7 +156,9 @@ class WazuhRouter(DeactivatableRouter):
     def get_agent_file_integrity_alerts(self, agent_id: str):
         try:
             return {
-                "file_integrity_alerts": self.__wazuh_api.get_agent_file_integrity_alerts(agent_id)
+                "file_integrity_alerts": self.__wazuh_api.get_agent_file_integrity_alerts(
+                    agent_id
+                )
             }  # todo pagination?
         except:
             raise HTTPException(
@@ -157,7 +171,9 @@ class WazuhRouter(DeactivatableRouter):
     async def get_agent_vulnerabilities(self, agent_id: str):
         try:
             return {
-                "vulnerabilities": await self.__wazuh_api.get_agent_vulnerabilities(agent_id)
+                "vulnerabilities": await self.__wazuh_api.get_agent_vulnerabilities(
+                    agent_id
+                )
             }  # todo pagination?
         except:
             raise HTTPException(

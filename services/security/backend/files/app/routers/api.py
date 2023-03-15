@@ -3,8 +3,8 @@ from typing import Callable, Dict, Union
 from fastapi import APIRouter, HTTPException, Request, Response
 from helpers.provider_availability import RegisteredProviders
 from models.provider import ProviderRegistration, ProviderType
-from routers.wazuh import WazuhRouter
-from routers.stackrox import StackRoxRouter
+from routers.wazuh_router import WazuhRouter
+from routers.stackrox_router import StackRoxRouter
 import logging
 from helpers.resources import API_ROUTE_PREFIX, LOGGER_NAME
 from helpers.logger import get_logger
@@ -23,7 +23,7 @@ def on_provider_available(provider_type: ProviderType):
     if provider_type == ProviderType.WAZUH and wazuh_router is not None:
         wazuh_router.set_activated(True)
     elif provider_type == ProviderType.STACKROX and stackrox_router is not None:
-        pass
+        stackrox_router.set_activated(True)
 
 
 def on_provider_unavailable(provider_type: ProviderType):
@@ -31,14 +31,14 @@ def on_provider_unavailable(provider_type: ProviderType):
     if provider_type == ProviderType.WAZUH and wazuh_router is not None:
         wazuh_router.set_activated(False)
     elif provider_type == ProviderType.STACKROX and stackrox_router is not None:
-        pass
+        stackrox_router.set_activated(False)
 
 
 def on_provider_added(provider_type: ProviderType, provider: ProviderRegistration):
     if provider_type == ProviderType.WAZUH:
         wazuh_router.set_endpoints(provider.url, provider.api_endpoints)
     elif provider_type == ProviderType.STACKROX:
-        pass
+        stackrox_router.set_endpoints(provider.url, provider.api_endpoints)
 
 
 registered_providers = RegisteredProviders(
@@ -85,7 +85,9 @@ def get_notifications(response: Response):
         "description": notification.description,
         "link": notification.link,
     }
-    wazuh_notifications = list(map(strip_notification_timestamp, wazuh_router.get_notifcations()))
+    wazuh_notifications = list(
+        map(strip_notification_timestamp, wazuh_router.get_notifcations())
+    )
     stackrox_notifications = []
     # stackrox_notifications = list(map(strip_notification_timestamp, stackrox_router.get_notifcations()))
     return {"notifications": [*wazuh_notifications, *stackrox_notifications]}
@@ -93,4 +95,6 @@ def get_notifications(response: Response):
 
 @router.get("/{full_path:path}")
 def catch_all_api(request: Request, full_path: str):
-    raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="API route not available")
+    raise HTTPException(
+        status_code=HTTP_404_NOT_FOUND, detail="API route not available"
+    )

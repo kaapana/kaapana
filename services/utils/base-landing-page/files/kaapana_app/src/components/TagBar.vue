@@ -45,11 +45,11 @@
       <v-chip-group
           v-model="selection"
           active-class="deep-purple--text text--accent-4"
-          :multiple="this.multiple"
+          :multiple="settings.datasets.tagBar.multiple"
           @change="onChangeSelection"
           dense
       >
-        <v-chip v-for="tag in tags" :key="tag" small>
+        <v-chip v-for="tag in tags" :key="tag" small :disabled="!settings.datasets.cardText">
           {{ tag }}
         </v-chip>
       </v-chip-group>
@@ -67,28 +67,28 @@
 
 
 import {loadAvailableTags} from "@/common/api.service";
+import {settings} from "@/static/defaultUIConfig";
 
 
 export default {
   data() {
     return {
-      tags: [],
       selection: null,
       editMode: true,
-      multiple: false,
-      availableTags: []
+      availableTags: [],
+      multiple: settings.datasets.tagBar.multiple,
+      tags: settings.datasets.tagBar.tags,
+      settings: settings
     };
   },
   emits: ['selectedTags'],
   mounted() {
-    if (localStorage['Dataset.tagbar.multiple']) {
-      this.multiple = JSON.parse(localStorage['Dataset.tagbar.multiple'])
-    }
+    this.settings = JSON.parse(localStorage['settings'])
+    this.multiple = this.settings.datasets.tagBar.multiple
+    this.tags = this.settings.datasets.tagBar.tags
 
-    if (localStorage['Dataset.tagbar.tags']) {
-      this.tags = JSON.parse(localStorage['Dataset.tagbar.tags'])
+    if (this.settings.datasets.tagBar.tags.length > 0)
       this.editMode = false
-    }
 
     loadAvailableTags()
         .then(res => this.availableTags = 'dataset tags' in res.data ? res.data['dataset tags']['items'].map(i => i['value']) : [])
@@ -112,7 +112,6 @@ export default {
         return
       const n = parseInt(keyCode) - 1
       if (n >= 0 && n < this.tags.length) {
-        console.log(this.multiple)
         if (this.multiple) {
           if (this.selection.filter(t => t === n).length > 0) {
             // already selected
@@ -136,10 +135,14 @@ export default {
       } else {
         this.selection = null
       }
-      localStorage['Dataset.tagbar.multiple'] = this.multiple
+      const settings = JSON.parse(localStorage['settings'])
+      settings.datasets.tagBar.multiple = this.multiple
+      localStorage['settings'] = JSON.stringify(settings)
     },
     tags() {
-      localStorage['Dataset.tagbar.tags'] = JSON.stringify(this.tags)
+      const settings = JSON.parse(localStorage['settings'])
+      settings.datasets.tagBar.tags = this.tags
+      localStorage['settings'] = JSON.stringify(settings)
     }
   }
 };

@@ -6,33 +6,32 @@ import dicomWebClient from "./dicomWebClient";
 import httpClient from "./httpClient";
 
 const WADO_ENDPOINT = process.env.VUE_APP_WADO_ENDPOINT
-const RS_ENDPOINT = process.env.VUE_APP_RS_ENDPOINT
 const KAAPANA_BACKEND_ENDPOINT = process.env.VUE_APP_KAAPANA_BACKEND_ENDPOINT
 
-const updateTags = async (data) => {
-    const response = await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/tag', data)
-    // TODO: ideally this should return the new tags which are then assigned
-}
-
 const deleteSeriesFromPlatform = async (seriesInstanceUID, dag_id = 'delete-series-from-platform') => {
-    return await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'client/trigger/' + dag_id,
+    return await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'client/job',
         {
-            "data_form": {
-                "cohort_identifiers": [
-                    seriesInstanceUID
-                ],
-                "cohort_query": {
-                    'index': 'meta-index'
+            "dag_id": dag_id,
+            "conf_data": {
+                "data_form": {
+                    "cohort_identifiers": [
+                        seriesInstanceUID
+                    ],
+                    "cohort_query": {
+                        'index': 'meta-index'
+                    }
+                },
+                "form_data": {
+                    "delete_complete_study": false,
+                    "single_execution": false
                 }
             },
-            "form_data": {
-                "delete_complete_study": false,
-                "single_execution": false
-            }
-        })
+            "kaapana_instance_id": 1 // TODO: this should rather be set by the backend
+        }
+    )
 }
 
-const updateCohort = async (body) => {
+const updateDataset = async (body) => {
     return await httpClient.put(KAAPANA_BACKEND_ENDPOINT + 'client/cohort', body)
 }
 
@@ -80,10 +79,10 @@ const loadCohortNames = async () => {
 }
 
 
-const loadSeriesData = async (studyInstanceUID, seriesInstanceUID) => {
+const loadSeriesData = async (seriesInstanceUID) => {
     try {
         const response = (await httpClient.get(
-            KAAPANA_BACKEND_ENDPOINT + `dataset/curation_tool/${studyInstanceUID}/${seriesInstanceUID}`
+            KAAPANA_BACKEND_ENDPOINT + `dataset/series/${seriesInstanceUID}`
         ))
         return response.data
     } catch (error) {
@@ -137,14 +136,15 @@ const loadSeriesMetaData = async (studyInstanceUID, seriesInstanceUID) => {
     }
 }
 
-const loadPatients = async (url, data) => {
+const loadPatients = async (data) => {
     try {
-        const res = await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/curation_tool/' + url, data)
+        const res = await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/series', data)
         return res.data
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
     }
 }
+
 
 const loadAvailableTags = async (body = {}) => {
     try {
@@ -154,6 +154,24 @@ const loadAvailableTags = async (body = {}) => {
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
     }
+}
+
+
+const updateTags = async (data) => {
+    const response = await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/tag', data)
+    // TODO: ideally this should return the new tags which are then assigned
+}
+
+const loadDashboard = async (seriesInstanceUIDs, fields) => {
+    return (await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/dashboard', {
+        series_instance_uids: seriesInstanceUIDs,
+        names: fields
+    })).data
+
+}
+
+const loadDicomTagMapping = async () => {
+    return (await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/fields')).data
 }
 
 
@@ -168,7 +186,9 @@ export {
     createCohort,
     loadCohorts,
     deleteSeriesFromPlatform,
-    updateCohort,
+    updateDataset,
     loadCohortNames,
-    loadCohortByName
+    loadCohortByName,
+    loadDashboard,
+    loadDicomTagMapping
 }

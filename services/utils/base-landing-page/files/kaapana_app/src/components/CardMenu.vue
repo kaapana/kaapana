@@ -22,7 +22,7 @@
       </v-list-item>
       <v-list-item
           v-if="cohort_name"
-          @click="() => {this.$emit('removeFromCohort')}"
+          @click="() => {this.$emit('removeFromDataset')}"
       >
         <v-list-item-title>Remove from Dataset</v-list-item-title>
       </v-list-item>
@@ -57,10 +57,11 @@
 <script>
 /* eslint-disable */
 
-import {updateCohort} from "../common/api.service";
+import {loadSeriesData, updateDataset} from "../common/api.service";
 
 export default {
   name: "CardMenu",
+  emits: ['removeFromDataset'],
   props: {
     cohort_name: {
       type: String,
@@ -70,7 +71,6 @@ export default {
       type: Array,
       default: [],
     },
-    studyInstanceUID: "",
     seriesInstanceUID: "",
   },
   data() {
@@ -80,13 +80,14 @@ export default {
   },
   methods: {
     openInOHIF() {
-      window.open(`/ohif/viewer/${this.studyInstanceUID}`)
+      loadSeriesData(this.seriesInstanceUID)
+          .then(data => window.open(`/ohif/viewer/${data['metadata']['Study Instance UID']}`))
     },
     async addToCohort(cohortName) {
       // this only works for depth max 1
       this.openMenu = false
       try {
-        await updateCohort({
+        await updateDataset({
           "cohort_name": cohortName,
           "action": "ADD",
           "cohort_query": {"index": "meta-index"},

@@ -39,7 +39,7 @@ class Nifti2DcmConverter:
         self.root_dir = root_dir #self.get_root()
     
     def __call__(self):
-        """ Run the converter on a path with the following directory structure:
+        """ Run the converter on a path with either the following directory structure:
 
         path
         |----dataset
@@ -51,7 +51,9 @@ class Nifti2DcmConverter:
         |    | series2_seg.nii.gz
         |    | ...
 
-        The meta_data.json can be used to set values for patient ids, study uids, series ids and also arbitrary dicom tags. The expected structure is as follows:
+        or a Dataset directory structure of the nnU-Net (https://github.com/MIC-DKFZ/nnUNet) 
+
+        The meta_data.json can be used to set DICOM tags. The expected structure is as follows:
         {
             "global_tags": {
                 "0008|0060": "MR"
@@ -63,16 +65,13 @@ class Nifti2DcmConverter:
             }
         }
 
+        where global tags are written to all dicoms and series tags only to the specific file specified by the filename. 
+
+        In case of the Dataset directory structure of the nnU-Net, the file is created automatically based on the dataset.json.
+
         Good to know:
         - Unique identifier for series: study_id, parent folder_name and filename!
         - Enforce same study instance uid by specifying the study_id (0020|0010)!
-
-        All fields are optional, but it is highly recommended, to at least set the modality since the default is set to "OT" i.e. "Other" which will omit necessary positioning data for image processing.
-        The field "add_tags" allows to set specific tags on all series matching the given file name pattern. At the moment this is just a simple glob pattern matching.
-        If needed we could also add regex syntax here, but for now this seems unnecessarily complex.
-
-        The 'seg_args' parameter passes arguments to the Itk2DcmSegOperator which is responsible for the conversion of the segmentation objects if any are present.
-        If there are no segmentation files 'seg_args' will be ignored.
         """
         # TODO: In theory it would be possible to derive a minimal set of segmentation args from the given files. Probably nice to have in the future.
         

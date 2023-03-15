@@ -197,9 +197,6 @@ export default {
       if (this.local_remote_switch == true) {
         if (this.instance_names.indexOf(this.clientinstance.instance_name) === -1) {
           this.instance_names.push(this.clientinstance.instance_name)
-        }
-        else {
-          console.log("This item already exists")
         } 
         return `Local experiment on instance: ${this.clientinstance.instance_name}`
       }
@@ -257,9 +254,7 @@ export default {
         .federatedClientApiPost("/get-ui-form-schemas", {remote: this.remote, experiment_name: this.experiment_name, dag_id: this.dag_id, instance_names: this.instance_names})
         .then((response) => {
           let schemas = response.data
-          console.log("getUiFormSchemas: ", schemas)
           this.form_requiredFields = this.findRequiredFields(schemas)
-          console.log("form_requiredFields: ", this.form_requiredFields)
           if ('external_schemas' in schemas) {
             this.external_dag_id = schemas["external_schemas"]
             delete schemas.external_schemas
@@ -299,7 +294,6 @@ export default {
         .federatedClientApiPost("/get-remote-kaapana-instances", {dag_id: this.external_dag_id})
         .then((response) => {
           this.external_available_instance_names = response.data.map(({ instance_name }) => instance_name);
-          console.log("getAvailableExternalNodeIds -> external_instanes: ", this.external_available_instance_names)
         })
         .catch((err) => {
           console.log(err);
@@ -369,9 +363,20 @@ export default {
         } else {
           // NOT all checks have been successful --> return false
           const message = `Validation of form input values failed! Please set required values for ${invalid_fields.join(', ')}!`;
-          alert(message);
+          this.$notify({
+            type: 'error',
+            title: message,
+          })
           return false
         }
+      } else {
+        // NOT all checks have been successful --> return false
+        const message = `Validation of form input values failed! Please set all required values!`;
+        this.$notify({
+          type: 'error',
+          title: message,
+        })
+        return false
       }
     },
     submitWorkflow() {

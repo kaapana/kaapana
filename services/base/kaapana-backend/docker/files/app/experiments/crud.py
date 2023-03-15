@@ -517,12 +517,6 @@ def get_remote_updates(db: Session, periodically=False):
 glob_jobs_in_qsr_state = []   # [{}] solves weird issue that dict is not hashable
 def sync_states_from_airflow(db: Session, periodically=False):
 
-    # # DEV: check how often / with how many workers this method is executed
-    # print(f"CRUD def sync_states_from_airflow(): write to freq_check.txt ==> TIME={get_utc_timestamp()} ; PID={os.getpid()}")
-    # check_file = open("freq_check.txt","a+")
-    # check_file.write(f"Time: {get_utc_timestamp()} ; PID: {os.getpid()}")
-    # check_file.close()
-
     # get list from airflow for jobs in states 'queued', 'scheduled', 'running': {'dag_run_id': 'state'} -> jobs_in_qsr_state
     global glob_jobs_in_qsr_state
     states = ["queued", "scheduled", "running"]

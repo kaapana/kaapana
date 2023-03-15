@@ -1,27 +1,28 @@
 <template lang="pug">
   .federated-panel
     v-container(text-left fluid)
-      //- h1 Experiment Management System
-      v-row(@click="toggleClientPanel()").toggleMouseHand
-        v-col(align="left")
-          //- former LocalKaapanaInstance
-          LocalKaapanaInstance(v-if="clientInstance" :instance="clientInstance" :remote="false"  @refreshView="refreshClient()" @ei="editClientInstance")
-        v-col(align="center")
-          workflow-execution(ref="workflowexecution" v-if="clientInstance" :remote='true' :instances="allInstances" :clientinstance="clientInstance" @refreshView="refreshClient()")
-        v-col(align="reight")
-          v-row(align="center")
-            h2 Remote Instances
-            v-spacer
-            add-remote-instance(ref="addremoteinstance" :remote='true')
-            v-spacer
-            view-remote-instances(ref="viewremoteinstances" :clientinstance="clientInstance" :remote='true')
-            v-spacer
-            v-btn(v-if="clientInstance" @click.stop="checkForRemoteUpdates()" small icon)
-              v-icon(color='primary' dark x-large) mdi-sync-circle
-            v-spacer
-            v-btn(v-if="!clientInstance" color='primary' @click.stop="clientDialog=true" dark) Add client instance
-      experiment-table(v-if="clientInstance" :instance="clientInstance" :experiments="clientExperiments" :remote="clientInstance.remote" @refreshView="refreshClient()")
-  </template>
+      v-row
+        v-col(cols="9", align="left")
+          experiment-table(v-if="clientInstance" :instance="clientInstance" :experiments="clientExperiments" :remote="clientInstance.remote" @refreshView="refreshClient()")
+        v-col(cols="3", align="right")
+          v-container(fluid)
+            v-row(class="someSpace" justify="center" align="center")
+              workflow-execution(ref="workflowexecution" v-if="clientInstance" :remote='true' :instances="allInstances" :clientinstance="clientInstance" @refreshView="refreshClient()")
+            v-row(class="someSpace" justify="center" align="center")
+              LocalKaapanaInstance(v-if="clientInstance" :instance="clientInstance" :remote="false"  @refreshView="refreshClient()" @ei="editClientInstance")
+            v-row(class="someSpace" justify="center" align="center")
+              v-spacer
+              h2 REMOTE INSTANCES
+              v-spacer
+              add-remote-instance(ref="addremoteinstance" :remote='true')
+              v-spacer
+              view-remote-instances(ref="viewremoteinstances" :clientinstance="clientInstance" :remote='true')
+              v-spacer
+              v-btn(v-if="clientInstance" @click.stop="checkForRemoteUpdates()" small icon)
+                v-icon(color='primary' dark x-large) mdi-sync-circle
+              v-spacer
+              v-btn(v-if="!clientInstance" color='primary' @click.stop="clientDialog=true" dark) Add client instance  
+</template>
 
 <script>
 import Vue from "vue";
@@ -85,13 +86,6 @@ export default Vue.extend({
     ...mapGetters(['currentUser', 'isAuthenticated'])
   },
   methods: {
-    toggleClientPanel() {
-      if (this.openedClientPanel == 0) {
-        this.openedClientPanel = null
-      } else {
-        this.openedClientPanel = 0
-      }
-    },
     checkForRemoteUpdates() {
       console.log('checking remote')
       kaapanaApiService
@@ -237,8 +231,10 @@ a {
 .v-expansion-panel-content__wrap {
   padding: 0;
 }
-
 .toggleMouseHand {
   cursor: pointer;
+}
+.someSpace {
+  margin-bottom: 20px; /* add horizontal space between items */
 }
 </style>

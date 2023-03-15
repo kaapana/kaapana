@@ -149,7 +149,7 @@
         dag_run_tasks_n_states: {},
         options: { pageCount: 1 },
         page: 1,
-        itemsPerPage: 5,
+        itemsPerPage: 10,
       }),
 
       props: {

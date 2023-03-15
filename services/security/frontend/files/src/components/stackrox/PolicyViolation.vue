@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { IAgentVulnerability } from '@/types/wazuh';
+import type { IPolicyViolation } from '@/types/stackrox';
 import { defineComponent, type PropType } from 'vue'
 import Extender from "@/components/Extender.vue"
 import Group from "@/components/Group.vue"
-import TextIconContainer from '../icons/TextIconContainer.vue';
+import TextIconContainer from "@/components/icons/TextIconContainer.vue";
+import ExternalArrow from "@/components/icons/ExternalArrow.vue"
 </script>
 
 <template>
@@ -12,35 +13,29 @@ import TextIconContainer from '../icons/TextIconContainer.vue';
       <TextIconContainer class="icon-container" :containerColor="iconColor"></TextIconContainer>
     </div>
     <div class="title">
-      <div><strong>{{ vulnerability.severity + ' - ' + vulnerability.title }}</strong></div>
+      <div><strong>{{ policyViolation.policy.severity + ' - ' + policyViolation.policy.name }}</strong> for entity '<strong>{{policyViolation.deployment.name }}</strong>'</div>
     </div>
     <div class="main">
       <div>
-        <strong>Condition:</strong> {{ vulnerability.condition }} {{ vulnerability.condition.toLowerCase() === "package unfixed" ? "(upstream fix needed)" : "(issue can be resolved)" }}
+        <strong>Namespace:</strong> {{ policyViolation.commonEntityInfo.namespace }}
       </div>
       <div>
-        <strong>CVE published:</strong> {{ vulnerability.published }}
+        <strong>Resource type:</strong> {{ policyViolation.commonEntityInfo.resourceType }}
       </div>
       <div>
-        <strong>Vulnerability detected:</strong> {{ vulnerability.detection_time }}
+        <a :href="policyViolation.externalUrl" target="_blank" rel="noopener noreferrer"><strong class="view-external-item">View externally<ExternalArrow></ExternalArrow></strong></a>
       </div>
-    </div>
-    <div class="main-second">
-      <div>Architecture: {{ vulnerability.architecture }}</div>
-      <div>CVSS3 Score: {{ vulnerability.cvss3_score }}</div>
-      <div>CVSS2 Score: {{ vulnerability.cvss2_score }}</div>
     </div>
     <div class="additional">
       <template v-if="!hideAdditionalInfo">
         <div class="additional-text">
-          <div><strong>Status:</strong> {{ vulnerability.status }}</div>
-          <div><strong>Type:</strong> {{ vulnerability.type }}</div>
-          <div><strong>Version:</strong> {{ vulnerability.version }}</div>
+          <div><strong>Detected:</strong> {{ policyViolation.time }}</div>
+          <div><strong>Lifecycle stage:</strong> {{ policyViolation.lifecycleStage }}</div>
         </div>
-        <div><strong>References:</strong></div>
-        <Group class="references">
-          <div v-for="reference in vulnerability.external_references">
-            • <a :href="reference" target="_blank" rel="noopener noreferrer">{{ reference }}</a>
+        <div><strong>Categories:</strong></div>
+        <Group class="categories">
+          <div v-for="category in policyViolation.policy.categories">
+            • {{ category }}
           </div>
         </Group>
       </template>
@@ -52,33 +47,35 @@ import TextIconContainer from '../icons/TextIconContainer.vue';
 </template>
 
 <script lang="ts">
-interface AgentVulnerabilityData {
+interface PolicyViolationData {
   hideAdditionalInfo: boolean;
 }
 
 export default defineComponent({
   props: {
-    vulnerability: {
-      type: Object as PropType<IAgentVulnerability>,
+    policyViolation: {
+      type: Object as PropType<IPolicyViolation>,
       required: true
     }
   },
-  data(): AgentVulnerabilityData {
+  data(): PolicyViolationData {
     return {
       hideAdditionalInfo: true
     }
   },
   computed: {
     iconColor() {
-      const severity = this.vulnerability.severity.toLowerCase();
+      const severity = this.policyViolation.policy.severity.toLowerCase();
       if (severity === "critical") {
         return "var(--c-color-priority-critical)";
       } else if (severity === "high") {
         return "var(--c-color-priority-high)";
       } else if (severity === "medium") {
         return "var(--c-color-priority-medium)";
+      } else if (severity === "low") {
+        return "var(--c-color-priority-low)";
       }
-      return "var(--c-color-priority-low)";
+      return "var(--color-text)"
     }
   },
   methods: {
@@ -109,16 +106,8 @@ export default defineComponent({
 }
 
 .main {
-  grid-area: 2 / 1 / 3 / 3;
+  grid-area: 2 / 1 / 4 / 3;
 }
-
-.main-second {
-  grid-area: 3 / 1 / 4 / 3;
-  display: flex;
-  flex-direction: column;
-  font-size: 80%;
-}
-
 .additional {
   grid-area: 4 / 1 / 5 / 3;
 }
@@ -132,10 +121,15 @@ export default defineComponent({
   grid-area: 5 / 1 / 6 / 3;
 }
 
-.references {
+.categories {
   display: flex;
   flex-direction: column;
   overflow-wrap: break-word;
+}
+
+.view-external-item {
+  display: flex;
+  gap: 3px;
 }
 
 @media (min-width: 1024px) {
@@ -154,12 +148,7 @@ export default defineComponent({
   }
 
   .main {
-    grid-area: 2 / 2 / 3 / 2;
-  }
-
-  .main-second {
-    grid-area: 2 / 3 / 3 / 4;
-    align-items: flex-end;
+    grid-area: 2 / 2 / 3 / 4;
   }
 
   .additional {

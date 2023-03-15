@@ -9,6 +9,8 @@ import { navigateTo } from "@/router";
 import ElementList, { EElementListMargin } from "@/components/ElementList.vue";
 import { EDirection } from "@/types/enums";
 import TextIconContainer from "../icons/TextIconContainer.vue";
+import { useThemeStore } from "@/stores/theme";
+import { mapState } from "pinia";
 </script>
 
 <template>
@@ -16,7 +18,9 @@ import TextIconContainer from "../icons/TextIconContainer.vue";
     <AgentSecondaryInformation :agent="agent"></AgentSecondaryInformation>
   </GroupHeader>
   <ElementList class="group-list" :margin=EElementListMargin.NONE :direction=EDirection.VERTICAL>
-    <Group :class="listEntryCssClasses(agent)" @click="agentStatusGate(agent, () => navigateTo('vulnerabilitylist', {agent_id: agent.id}))" :alternativeColorScheme="true" :paddingSize=EGroupPadding.SMALL>
+    <Group :class="listEntryCssClasses(agent)"
+      @click="agentStatusGate(agent, () => navigateTo('vulnerabilitylist', { agent_id: agent.id }))"
+      :alternativeColorScheme="true" :paddingSize=EGroupPadding.SMALL>
       <div class="group-entry">
         <div class="icon-and-text">
           <TextIconContainer containerColor="var(--color-kaapana-blue)" text="!!"></TextIconContainer> Vulnerabilities
@@ -24,7 +28,9 @@ import TextIconContainer from "../icons/TextIconContainer.vue";
         <div class="arrow">►</div>
       </div>
     </Group>
-    <Group :class="listEntryCssClasses(agent)" @click="agentStatusGate(agent, () => navigateTo('policylist', {agent_id: agent.id}))" :alternativeColorScheme="true" :paddingSize=EGroupPadding.SMALL>
+    <Group :class="listEntryCssClasses(agent)"
+      @click="agentStatusGate(agent, () => navigateTo('policylist', { agent_id: agent.id }))" :alternativeColorScheme="true"
+      :paddingSize=EGroupPadding.SMALL>
       <div class="group-entry">
         <div class="icon-and-text">
           <TextIconContainer containerColor="var(--color-kaapana-blue)" text="§"></TextIconContainer> Policies
@@ -32,10 +38,13 @@ import TextIconContainer from "../icons/TextIconContainer.vue";
         <div class="arrow">►</div>
       </div>
     </Group>
-    <Group :class="listEntryCssClasses(agent)" @click="agentStatusGate(agent, () => navigateTo('fileintegritylist', {agent_id: agent.id}))" :alternativeColorScheme="true" :paddingSize=EGroupPadding.SMALL>
+    <Group :class="listEntryCssClasses(agent)"
+      @click="agentStatusGate(agent, () => navigateTo('fileintegritylist', { agent_id: agent.id }))"
+      :alternativeColorScheme="true" :paddingSize=EGroupPadding.SMALL>
       <div class="group-entry">
         <div class="icon-and-text">
-          <TextIconContainer containerColor="var(--color-kaapana-blue)" text="[]"></TextIconContainer> File Integrity Monitoring
+          <TextIconContainer containerColor="var(--color-kaapana-blue)" text="[]"></TextIconContainer> File Integrity
+          Monitoring
         </div>
         <div class="arrow">►</div>
       </div>
@@ -45,30 +54,36 @@ import TextIconContainer from "../icons/TextIconContainer.vue";
 
 <script lang="ts">
 export default defineComponent({
-    props: {
-        agent: {
-            type: Object as PropType<IAgentInformation>,
-            required: true
-        }
-    },
-    methods: {
-        listEntryCssClasses(agent: IAgentInformation) {
-            const classes: string[] = [];
-            classes.push("list-entry");
-            if (agent.status === "active") {
-                classes.push("pointer");
-            }
-            else {
-                classes.push("not-allowed");
-            }
-            return classes.join(" ");
-        }
+  props: {
+    agent: {
+      type: Object as PropType<IAgentInformation>,
+      required: true
     }
+  },
+  computed: {
+    ...mapState(useThemeStore, ["useDarkMode"])
+  },
+  methods: {
+    listEntryCssClasses(agent: IAgentInformation) {
+      const classes: string[] = [];
+      classes.push("list-entry");
+      if (agent.status === "active") {
+        classes.push("pointer");
+      }
+      else {
+        classes.push("not-allowed");
+      }
+      return classes.join(" ");
+    },
+    hoverBrightness() {
+      return this.useDarkMode ? "120%" : "95%";
+    }
+  }
 });
 </script>
 
 <style scoped>
-.group-list > :not(:first-child):not(:last-child)  {
+.group-list> :not(:first-child):not(:last-child) {
   border-radius: 0;
 }
 
@@ -78,6 +93,10 @@ export default defineComponent({
 
 .not-allowed {
   cursor: not-allowed;
+}
+
+.list-entry:hover {
+  filter: brightness(v-bind(hoverBrightness()));
 }
 
 .list-entry:first-child {

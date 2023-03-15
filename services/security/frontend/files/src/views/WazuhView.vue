@@ -7,6 +7,7 @@ import { useWazuhStore, type AgentInformationMap } from "@/stores/wazuh";
 import { mapWritableState } from "pinia";
 import type { IAgentInformation } from "@/types/wazuh";
 import Group from "@/components/Group.vue";
+import ExternalArrow from '@/components/icons/ExternalArrow.vue';
 
 </script>
 
@@ -14,7 +15,7 @@ import Group from "@/components/Group.vue";
   <div class="header">
     <Header title="Wazuh" :divider="true"></Header>
     <template v-if="wazuhUrl !== null">
-      <Button @:click="openWazuhDashboard" class="middleButton">> Wazuh Dashboard</Button>
+      <Button @:click="openWazuhDashboard" class="middleButton"><ExternalArrow></ExternalArrow>Wazuh Dashboard</Button>
       <Button @:click="addNewAgent">+ Add new Agent</Button>
     </template>
   </div>

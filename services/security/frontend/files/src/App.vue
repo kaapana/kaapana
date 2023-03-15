@@ -10,7 +10,7 @@ import Notifications from "@/components/Notifications.vue"
 
 <template>
   <ErrorBoundary>
-    <RouterView></RouterView>
+    <RouterView class="router"></RouterView>
     <Notifications :notifications="notifications"></Notifications>
   </ErrorBoundary>
 </template>
@@ -36,8 +36,6 @@ export default defineComponent({
       updateThemeCss(document, this.useDarkMode);
     },
     receiveMessage(event: MessageEvent) {
-      console.log(event);
-
       // only process our own messages
       if (event.origin !== window.location.origin || !("message" in event.data)) {
         return;
@@ -51,7 +49,7 @@ export default defineComponent({
       }
     },
     hoverBrightness() {
-      return this.useDarkMode ? "120%" : "80%";
+      return this.useDarkMode ? "120%" : "95%";
     }
   },
   created() {
@@ -85,6 +83,7 @@ export default defineComponent({
 </script>
 
 <style>
+
 @media (hover: hover) {
   a {
     color: var(--color-text);

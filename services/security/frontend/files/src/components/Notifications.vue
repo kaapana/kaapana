@@ -35,12 +35,12 @@ export default defineComponent({
 <style scoped>
 .notification-container {
   position: fixed;
-  right: 30px;
-  top: 30px;
+  right: 0px;
+  top: var(--default-margin-value);
   width: max-content;
-  max-width: 350px;
-  min-width: 200px;
-  max-height: calc(100vh - 60px);
+  max-width: 380px;
+  min-width: 230px;
+  max-height: calc(100vh - 2*var(--default-margin-value));
   display: v-bind(display);
   flex-direction: column;
   gap: 10px;
@@ -49,6 +49,7 @@ export default defineComponent({
   transition: all .15s ease-out;
   mask-image: linear-gradient(to right, rgba(0,0,0,1), rgba(0,0,0,1) 15%, rgba(0,0,0,0) 60%);
   padding: 5px;
+  padding-right: var(--default-padding-value);
 }
 
 .notification-container:hover {

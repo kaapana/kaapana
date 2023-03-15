@@ -51,7 +51,40 @@ const router = createRouter({
       // this generates a separate chunk (About.[hash].js) for this route
       // which is lazy-loaded when the route is visited.
       component: () => import("@/views/StackRoxView.vue"),
+      children: [
+        {
+          path: "",
+          name: "overview",
+          component: () => import("@/views/stackrox/OverviewView.vue")
+        },
+        {
+          path: "networkgraph",
+          name: "networkgraph",
+          component: () => import("@/views/stackrox/NetworkGraphView.vue")
+        },
+        {
+          path: "policyviolations",
+          name: "policyviolations",
+          component: () => import("@/views/stackrox/PolicyViolationView.vue")
+        },
+        {
+          path: "images",
+          name: "images",
+          component: () => import("@/views/stackrox/Images.vue")
+        },
+        {
+          path: "deployments",
+          name: "deployments",
+          component: () => import("@/views/stackrox/DeploymentsView.vue")
+        },
+        {
+          path: "secrets",
+          name: "secrets",
+          component: () => import("@/views/stackrox/SecretsView.vue")
+        }
+      ]
     },
+    { path: '/:pathMatch(.*)*', name: "notfound", redirect: '/' },
   ],
 });
 

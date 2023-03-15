@@ -40,5 +40,7 @@ button:hover {
   width: 100%;
   padding: var(--default-padding);
   justify-content: center;
+  gap: 3px;
 }
+
 </style>

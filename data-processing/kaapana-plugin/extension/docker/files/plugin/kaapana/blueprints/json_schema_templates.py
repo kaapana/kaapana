@@ -1,7 +1,8 @@
 import functools
+from pathlib import Path
 
 from kaapana.operators.HelperMinio import HelperMinio
-from pathlib import Path
+
 
 def properties_filter(func):
     @functools.wraps(func)
@@ -14,10 +15,12 @@ def properties_filter(func):
         if filter_keys:
             filtered_json_schema = {}
             for k in filter_keys:
-                filtered_json_schema[k] = default_json_schema[k] 
+                filtered_json_schema[k] = default_json_schema[k]
             return filtered_json_schema
         return default_json_schema
+
     return wrapper
+
 
 @properties_filter
 def properties_workflow_execution(filter_keys: list = None):
@@ -32,22 +35,24 @@ def properties_workflow_execution(filter_keys: list = None):
         }
     }
 
+
 @properties_filter
 def properties_dataset_form(filter_keys: list = None):
     return {
-        "cohort_name": {
+        "dataset_name": {
             "type": "string",
-            "title": "Cohort name",
+            "title": "Dataset name",
             "oneOf": [],
             "required": True
         },
-        "cohort_limit": {
+        "dataset_limit": {
             "type": "integer",
-            "title": "Limit cohort-size",
-            "description": "Limit Cohort to this many cases."
+            "title": "Limit dataset size",
+            "description": "Limit dataset to this many cases."
         }
     }
-    
+
+
 def schema_dataset_form(filter_keys: list = None):
     return {
         "data_form": {
@@ -56,21 +61,28 @@ def schema_dataset_form(filter_keys: list = None):
         }
     }
 
-def schema_minio_form(select_options="files", blacklist_directory_endings: tuple = (), whitelist_object_endings: tuple = ()):
+
+def schema_minio_form(select_options="files",
+                      blacklist_directory_endings: tuple = (),
+                      whitelist_object_endings: tuple = ()):
     if select_options not in ["both", "files", "folders"]:
-        raise Exception("select_options has to be either both, files or folders")
+        raise Exception(
+            "select_options has to be either both, files or folders")
     try:
         objects = HelperMinio.list_objects(HelperMinio.minioClient,
-            "uploads", recursive=True,
-        )
+                                           "uploads", recursive=True,
+                                           )
         object_names = [obj.object_name for obj in objects]
-        filtered_minio_objects = [object_name for object_name in object_names if object_name.endswith(whitelist_object_endings)]
+        filtered_minio_objects = [object_name for object_name in object_names if
+                                  object_name.endswith(
+                                      whitelist_object_endings)]
 
         filtered_minio_directories = []
         for object_name in object_names:
             object_directory = str(Path(object_name).parents[0])
             if not object_directory.endswith(blacklist_directory_endings):
-                filtered_minio_directories.append(str(Path(object_name).parents[0]))
+                filtered_minio_directories.append(
+                    str(Path(object_name).parents[0]))
     except Exception as e:
         filtered_minio_directories = ["Something does not work :/"]
         filtered_minio_objects = ["Something does not work :/"]
@@ -97,7 +109,7 @@ def schema_minio_form(select_options="files", blacklist_directory_endings: tuple
                                 "type": "string",
                                 "const": "files"
                             },
-                            "action_files":  {
+                            "action_files": {
                                 "title": "Objects from bucket",
                                 "description": "Relative paths to object in Bucket",
                                 "type": "array",
@@ -122,7 +134,8 @@ def schema_minio_form(select_options="files", blacklist_directory_endings: tuple
                                 "type": "array",
                                 "items": {
                                     "type": "string",
-                                    "enum": list(set(filtered_minio_directories))
+                                    "enum": list(
+                                        set(filtered_minio_directories))
                                 },
                                 "readOnly": False
                             }
@@ -143,7 +156,7 @@ def schema_minio_form(select_options="files", blacklist_directory_endings: tuple
                         "default": "uploads",
                         "readOnly": True
                     },
-                    "action_files":  {
+                    "action_files": {
                         "title": "Objects from bucket",
                         "description": "Relative paths to object in Bucket",
                         "type": "array",

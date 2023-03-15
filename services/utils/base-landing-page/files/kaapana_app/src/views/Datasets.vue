@@ -35,33 +35,37 @@
         </v-card>
       </v-container>
       <v-container fluid class="gallery overflow-auto rounded-0 v-card v-sheet pa-0">
-      <v-skeleton-loader
-          v-if="isLoading"
-          class="mx-auto"
-          type="list-item@20"
-      ></v-skeleton-loader>
-      <StructuredGallery
-          v-else-if="!isLoading && data.length > 0 && structuredGallery"
-          :patients="data"
-          :selectedTags="tags"
-          :cohort_name="cohort_name"
-          @imageId="(imageId) => this.image_id = imageId"
-          @selected="(_imageIds) => this.imageIds = _imageIds"
-      />
-      <Gallery
-          v-else-if="!isLoading && data.length > 0 && !structuredGallery"
-          :data="data"
-          :selectedTags="tags"
-          :cohort_name="cohort_name"
-          @imageId="(imageId) => this.image_id = imageId"
-          @selected="(_imageIds) => this.imageIds = _imageIds"
-      />
-      <h3 v-else>
-        {{ message }}
-      </h3>
-    </v-container>
+        <v-skeleton-loader
+            v-if="isLoading"
+            class="mx-auto"
+            type="list-item@100"
+        ></v-skeleton-loader>
+        <!--        property patients in two-ways bound -->
+        <StructuredGallery
+            v-else-if="!isLoading && Object.entries(patients).length > 0 && settings.datasets.structured"
+            :patients.sync="patients"
+            :selectedTags="tags"
+            :cohort_name="cohort_name"
+            :cohort_names="cohort_names"
+            @openInDetailView="(seriesInstanceUID) => this.detailViewSeriesInstanceUID = seriesInstanceUID"
+            @selectedItems="(_seriesInstanceUIDs) => this.selectedSeriesInstanceUIDs = _seriesInstanceUIDs"
+        />
+        <!--        seriesInstanceUIDs is not bound due to issues with the Gallery embedded in StructuredGallery-->
+        <Gallery
+            v-else-if="!isLoading && seriesInstanceUIDs.length > 0 && !settings.datasets.structured"
+            :seriesInstanceUIDs="seriesInstanceUIDs"
+            :selectedTags="tags"
+            :cohort_name="cohort_name"
+            :cohort_names="cohort_names"
+            @openInDetailView="(seriesInstanceUID) => this.detailViewSeriesInstanceUID = seriesInstanceUID"
+            @selectedItems="(_seriesInstanceUIDs) => this.selectedSeriesInstanceUIDs = _seriesInstanceUIDs"
+        />
+        <h3 v-else>
+          {{ message }}
+        </h3>
+      </v-container>
       <v-speed-dial
-          v-if="imageIds.length > 0"
+          v-if="selectedSeriesInstanceUIDs.length > 0"
           v-model="fab"
           bottom
           right
@@ -116,15 +120,13 @@
         fluid class="sidebar rounded-0 v-card v-sheet pa-0"
     >
       <DetailView
-          v-if="this.image_id"
-          :series-instance-u-i-d="this.image_id['seriesInstanceUID']"
-          :study-instance-u-i-d="this.image_id['studyInstanceUID']"
-          :seriesDescription="this.image_id['seriesDescription']"
-          @close="() => this.image_id = null"
+          v-if="this.detailViewSeriesInstanceUID"
+          :series-instance-u-i-d="this.detailViewSeriesInstanceUID"
+          @close="() => this.detailViewSeriesInstanceUID = null"
       />
       <MetaData
           v-else
-          :metaData="this.metadata"
+          :series-instance-u-i-ds="seriesInstanceUIDs"
           @dataPointSelection="d => addFilterToSearch(d)"
       />
       <!--      </ErrorBoundary>-->
@@ -139,20 +141,21 @@ import StructuredGallery from "@/components/StructuredGallery.vue";
 import Gallery from "@/components/Gallery.vue";
 import Search from "@/components/Search.vue";
 import TagBar from "@/components/TagBar.vue";
-import {createCohort, updateCohort, loadCohortNames, loadPatients, loadAvailableTags} from "../common/api.service";
+import {createCohort, updateDataset, loadCohortNames, loadPatients, loadAvailableTags} from "../common/api.service";
 import MetaData from "@/components/MetaData.vue";
-
+import {settings} from "@/static/defaultUIConfig";
 
 export default {
   data() {
     return {
-      data: [],
+      seriesInstanceUIDs: [],
+      patients: {},
       tags: [],
-      image_id: null,
-      imageIds: [],
+      detailViewSeriesInstanceUID: null,
+      selectedSeriesInstanceUIDs: [],
       isLoading: true,
       message: 'Loading...',
-      structuredGallery: null,
+      settings: settings,
       cohort_names: [],
       cohort_name: null,
       metadata: {},
@@ -171,51 +174,63 @@ export default {
     addFilterToSearch(selectedItem) {
       this.$refs.search.addFilterItem(selectedItem['key'], selectedItem['value'])
     },
+    // TODO: rename
     async updatePatients(query = {}) {
       this.isLoading = true
-      let url = (this.structuredGallery ? 'structured' : 'unstructured')
       try {
-        loadPatients(url, query).then((data) => {
-          this.data = data
-          if (this.data.length === 0)
+        loadPatients({
+          structured: this.settings.datasets.structured,
+          query: query
+        }).then((data) => {
+          // TODO: this is not ideal...
+          if (this.settings.datasets.structured) {
+            this.patients = data
+            this.seriesInstanceUIDs = Object.values(this.patients).map(studies => Object.values(studies)).flat(Infinity)
+          } else {
+            this.seriesInstanceUIDs = data
+          }
+          if (this.seriesInstanceUIDs.length === 0)
             this.message = 'No data found.'
+          this.isLoading = false
         })
-
-        // update metadata
-        this.metadata = (await loadAvailableTags(query)).data
       } catch (e) {
         this.message = e
-      } finally {
         this.isLoading = false
       }
     },
     async updateCohort(name, query) {
       try {
-        const items = await loadPatients('unstructured', query)
+        const items = await loadPatients({
+          structured: false,
+          query: query
+        })
         const body = {
           action: 'UPDATE',
           cohort_name: name,
-          cohort_identifiers: items.map(item => ({'identifier': item['0020000E SeriesInstanceUID_keyword']})),
+          cohort_identifiers: items.map(item => ({'identifier': item})),
           cohort_query: {index: 'meta-index'}
         }
-        await updateCohort(body)
+        await updateDataset(body)
         this.$notify({title: 'Dataset updated', text: `Successfully updated dataset ${name}.`, type: 'success'})
-        await this.updatePatients(query)
+        this.updatePatients(query)
       } catch (error) {
         this.$notify({title: 'Network/Server error', text: error, type: 'error'});
       }
     },
     async saveCohort(name, query) {
       try {
-        const items = await loadPatients('unstructured', query)
+        const items = await loadPatients({
+          structured: false,
+          query: query
+        })
         const body = {
           cohort_name: name,
-          cohort_identifiers: items.map(item => ({'identifier': item['0020000E SeriesInstanceUID_keyword']})),
+          cohort_identifiers: items.map(item => ({'identifier': item})),
           cohort_query: {index: 'meta-index'}
         }
         await createCohort(body)
         this.$notify({title: 'Dataset created', text: `Successfully new dataset ${name}.`, type: 'success'});
-        this.cohort_names = await loadCohortNames()
+        loadCohortNames().then(_cohort_names => this.cohort_names = _cohort_names)
         this.cohort_name = name
         await this.updatePatients(query)
       } catch (error) {
@@ -224,19 +239,9 @@ export default {
     }
   },
   async created() {
-    if (localStorage['Dataset.structuredGallery']) {
-      this.structuredGallery = JSON.parse(localStorage['Dataset.structuredGallery'])
-    } else {
-      this.structuredGallery = false
-      localStorage['Dataset.structuredGallery'] = JSON.stringify(this.structuredGallery)
-    }
-    this.cohort_names = await loadCohortNames()
-    // if (
-    //     localStorage['Dataset.search.cohort_name']
-    //     && this.cohort_names.includes(JSON.parse(localStorage['Dataset.search.cohort_name']))
-    // ) {
-    //   this.cohort_name = JSON.parse(localStorage['Dataset.search.cohort_name'])
-    // }
+    this.settings = JSON.parse(localStorage['settings'])
+    // this.cohort_name = JSON.parse(localStorage['Dataset.search.cohort_name'] || '')
+    loadCohortNames().then(_cohort_names => this.cohort_names = _cohort_names)
   }
 };
 </script>

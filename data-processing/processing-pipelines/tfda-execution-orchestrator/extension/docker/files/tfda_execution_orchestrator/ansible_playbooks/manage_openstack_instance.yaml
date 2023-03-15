@@ -8,6 +8,8 @@
     os_auth_url: "{{ os_auth_url }}"
     project_name: "{{ os_project_name }}"
     os_project_id: "{{ os_proj_id }}"
+    os_network_id: "{{ os_network_id | default('') }}"
+    os_floating_ip_pools: "{{ os_floating_ip_pools | default('') }}"
     os_user_domain: "{{ os_user_domain }}"
     username: "{{ username }}"
     password: "{{ password }}"
@@ -41,6 +43,8 @@
         - "{{ os_auth_url }}"
         - "{{ os_project_name }}"
         - "{{ os_project_id }}"
+        - "{{ os_network_id }}"
+        - "{{ os_floating_ip_pools }}"
         - "{{ os_user_domain }}"
         - "{{ os_image }}"
         - "{{ os_instance_flavor }}"
@@ -64,23 +68,6 @@
       debug: 
         msg: "Instance does NOT already exist!"
       when: inst_info.openstack_servers | length == 0
-
-    - fail: msg="{{ project_name }} this project is not supported! [E230 E230-DKTK-JIP E230-Kaapana-CI E230-DCIPHER-CI E130-OP41 E230-Production]"
-      when: 
-      - project_name != "E230"
-      - project_name != "E230-Kaapana"
-      - project_name != "E230-Kaapana-CI"
-      - project_name != "E230-TFDA"
-    
-    - name: Set network ID for project E230 to avoid conflict, because E230 has 2 network items
-      set_fact: 
-        network_id: "6ca0c141-3a54-4439-8ae6-45eafb93b0fa"
-      when: project_name == "E230"
-
-    - name: Set network ID for project E230-TFDA to avoid conflict, because E230 has 2 network items
-      set_fact: 
-        network_id: "1ebc9079-e20e-4a3b-9eec-1054808c8382"
-      when: project_name == "E230-TFDA"
     
     - name: Create instance if not already present
       block:
@@ -118,7 +105,7 @@
       - name: launch an instance
         environment:
           OS_TENANT_ID: "{{ os_project_id }}"
-        os_server:
+        openstack.cloud.server:
           state: "{{ instance_state }}"
           auth:
             auth_url: "{{ os_auth_url }}"
@@ -126,7 +113,7 @@
             password: "{{ password }}"
             user_domain_name: "{{ os_user_domain }}"
             project_name: "{{ project_name }}"
-          network: "{{ network_id | default('') }}"
+          network: "{{ os_network_id }}"
           name: "{{ instance_name }}"
           image: "{{ instance_image }}"
           volume_size: "{{ volume_size }}"
@@ -144,17 +131,17 @@
           # floating_ips:
           #   - 10.133.26.2
           floating_ip_pools:
-            - external-DKFZ-net
+            - "{{ os_floating_ip_pools }}"
           meta:
             hostname: new_instance.localdomain
         register: new_instance
-      
+
       - name: Reset fingerprint
-        command: ssh-keygen -R {{ new_instance.openstack.accessIPv4 }}
+        command: ssh-keygen -R {{ new_instance.server.accessIPv4 }}
         ignore_errors: yes
 
       - name: Wait for SSH on the Instance
-        command: "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i ~/.ssh/{{ ssh_key }} root@{{ new_instance.openstack.accessIPv4 }} true"
+        command: "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i ~/.ssh/{{ ssh_key }} root@{{ new_instance.server.accessIPv4 }} true"
         register: result
         until: result.rc == 0
         retries: 6
@@ -166,7 +153,7 @@
 
       - name: RETURN
         debug:
-          msg: "isolated_env_ip: {{ new_instance.openstack.accessIPv4 }}"
+          msg: "isolated_env_ip: {{ new_instance.server.accessIPv4 }}"
       
       when: (inst_info.openstack_servers | length == 0) and "{{ instance_state }}" == "present"
 
@@ -175,7 +162,7 @@
       - name: delete an instance  
         environment: 
           OS_TENANT_ID: "{{ os_project_id }}"
-        os_server:
+        openstack.cloud.server:
           state: "{{ instance_state }}"
           auth:
             auth_url: "{{ os_auth_url }}"
@@ -185,7 +172,7 @@
             project_name: "{{ os_project_name }}"
           name: "{{ instance_name }}"
           terminate_volume: True
-          # delete_fip: True
+          delete_fip: yes
           timeout: 120
         register: del_instance
 

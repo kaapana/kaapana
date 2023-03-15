@@ -1,46 +1,47 @@
 <template>
-  <v-container style="height: 100%">
-    <VueSelecto
-        dragContainer=".elements"
-        :selectableTargets='[".selecto-area .v-card"]'
-        :hitRate='0'
-        :selectByClick='true'
-        :selectFromInside='true'
-        :toggleContinueSelect='["shift"]'
-        :ratio='0'
-        :scrollOptions='scrollOptions'
-        @dragStart="onDragStart"
-        @select="onSelect"
-        @scroll="onScroll"
-    ></VueSelecto>
-    <v-container class="elements selecto-area" id="selecto1" ref="scroller" style="height: 100%">
-      <v-row>
-        <v-col v-for="item in processed_data" :cols="cols">
-          <v-lazy
-              v-model="item.isActive"
-              :options="{
-                threshold: .5,
-                delay: 100
-            }"
-              class="fill-height">
-            <CardSelect
-                :cohort_name="cohort_name"
-                :cohort_names="cohort_names"
-                :series-instance-u-i-d="item.seriesInstanceUID"
-                :study-instance-u-i-d="item.studyInstanceUID"
-                :selected_tags="inner_selectedTags"
-                @imageId="propagateImageId({
-                                    seriesInstanceUID: item.seriesInstanceUID,
-                                    studyInstanceUID: item.studyInstanceUID,
-                                    seriesDescription: item.seriesDescription
-                                  })"
-                @removeFromCohort="removeFromCohort(item)"
-                @deleteFromPlatform="deleteFromPlatform(item)"
-            />
-          </v-lazy>
-        </v-col>
-      </v-row>
-    </v-container>
+  <v-container fluid style="height: 100%">
+      <VueSelecto
+          dragContainer=".elements"
+          :selectableTargets='[".selecto-area .v-card"]'
+          :hitRate='0'
+          :selectByClick='true'
+          :selectFromInside='true'
+          :toggleContinueSelect='["shift"]'
+          :ratio='0'
+          :scrollOptions='scrollOptions'
+          @dragStart="onDragStart"
+          @select="onSelect"
+          @scroll="onScroll"
+      ></VueSelecto>
+      <v-container fluid class="elements selecto-area" id="selecto1" ref="scroller" style="height: 100%">
+        <v-row>
+          <v-col
+              v-for="seriesInstanceUID in inner_seriesInstanceUIDs"
+              :key="seriesInstanceUID"
+              :cols="cols"
+          >
+            <v-lazy
+                :options="{
+                  threshold: .5,
+                  delay: 100
+                }"
+                transition="fade-transition"
+                class="fill-height"
+                :min-height="50*cols"
+            >
+              <CardSelect
+                  :cohort_name="cohort_name"
+                  :cohort_names="cohort_names"
+                  :series-instance-u-i-d="seriesInstanceUID"
+                  :selected_tags="selectedTags"
+                  @openInDetailView="openInDetailView(seriesInstanceUID)"
+                  @removeFromDataset="removeFromDataset(seriesInstanceUID)"
+                  @deleteFromPlatform="deleteFromPlatform(seriesInstanceUID)"
+              />
+            </v-lazy>
+          </v-col>
+        </v-row>
+      </v-container>
   </v-container>
 </template>
 
@@ -49,22 +50,28 @@
 
 import Chip from "./Chip.vue";
 import CardSelect from "./CardSelect";
-import {deleteSeriesFromPlatform, loadCohortNames, updateCohort} from "../common/api.service";
+import {deleteSeriesFromPlatform, loadCohortNames, updateDataset} from "../common/api.service";
 import {VueSelecto} from "vue-selecto";
 
 export default {
   name: 'Gallery',
-  emits: ['imageId'],
+  emits: ['selectedItems', 'openInDetailView', 'emptyStudy'],
   props: {
+    cohort_names: {
+      type: Array,
+      default: () => []
+    },
     cohort_name: {
       type: String,
       default: null
     },
-    data: {
-      type: Array
+    seriesInstanceUIDs: {
+      type: Array,
+      default: () => []
     },
     selectedTags: {
-      type: Array
+      type: Array,
+      default: () => []
     },
   },
   components: {
@@ -74,27 +81,20 @@ export default {
   },
   data() {
     return {
-      cohort_names: [],
-      image_id: null,
-      inner_data: [],
-      inner_selectedTags: [],
+      detailViewSeriesInstanceUID: null,
       scrollOptions: {},
-      selected: []
+      selected: [],
+      inner_seriesInstanceUIDs: []
     };
   },
   mounted() {
-    loadCohortNames().then(cohort_names => this.cohort_names = cohort_names)
-
-    this.inner_data = this.data
-    this.inner_selectedTags = this.selectedTags
-    if (localStorage['Dataset.Gallery.cols'] === undefined) {
-      localStorage['Dataset.Gallery.cols'] = JSON.stringify("auto")
-    }
+    this.inner_seriesInstanceUIDs = this.seriesInstanceUIDs
   },
   computed: {
     cols() {
-      if (JSON.parse(localStorage['Dataset.Gallery.cols']) !== 'auto') {
-        return JSON.parse(localStorage['Dataset.Gallery.cols'])
+      const _cols = JSON.parse(localStorage['settings']).datasets.cols
+      if (_cols !== 'auto') {
+        return _cols
       } else {
         switch (this.$vuetify.breakpoint.name) {
           case 'xs':
@@ -106,21 +106,9 @@ export default {
           case 'lg':
             return 2
           case 'xl':
-            return 2
+            return 1
         }
       }
-    },
-    processed_data() {
-      return this.inner_data.map(i => {
-            return {
-              seriesInstanceUID: i['0020000E SeriesInstanceUID_keyword'],
-              studyInstanceUID: i['0020000D StudyInstanceUID_keyword'],
-              seriesNumber: i['00200011 SeriesNumber_integer'],
-              seriesDescription: i['0008103E SeriesDescription_keyword'],
-              active: false
-            }
-          }
-      )
     }
   },
   methods: {
@@ -137,7 +125,7 @@ export default {
       e.removed.forEach(el => {
         el.classList.remove("selected");
       })
-      this.$emit('selected', e.selected.map(el=> el.id))
+      this.$emit('selectedItems', e.selected.map(el => el.id))
     },
     onScroll(e) {
       this.$refs.scroller.scrollBy(e.direction[0] * 10, e.direction[1] * 10);
@@ -145,19 +133,20 @@ export default {
     resetScroll() {
       this.$refs.scroller.scrollTo(0, 0);
     },
-    async removeFromCohort(item) {
+    async removeFromDataset(seriesInstanceUID) {
       if (this.cohort_name !== null) {
         try {
-          await updateCohort({
+          await updateDataset({
             "cohort_name": this.cohort_name,
             "action": "DELETE",
             "cohort_query": {"index": "meta-index"},
-            "cohort_identifiers": [{"identifier": item.seriesInstanceUID}]
+            "cohort_identifiers": [{"identifier": seriesInstanceUID}]
           })
           this.$notify({
             type: 'success',
-            text: `Removed series ${item.seriesDescription} from ${this.cohort_name}`
+            text: `Removed series ${seriesInstanceUID} from ${this.cohort_name}`
           });
+          this.removeFromUI(seriesInstanceUID)
         } catch (error) {
           this.$notify({
             type: 'error',
@@ -166,15 +155,15 @@ export default {
           });
         }
       }
-      this.removeFromUI(item)
     },
-    async deleteFromPlatform(item) {
+    async deleteFromPlatform(seriesInstanceUID) {
       try {
-        await deleteSeriesFromPlatform(item.seriesInstanceUID)
+        await deleteSeriesFromPlatform(seriesInstanceUID)
         this.$notify({
           type: 'success',
-          text: `Started deletion of series ${item.seriesDescription}`
+          text: `Started deletion of series ${seriesInstanceUID}`
         });
+        this.removeFromUI(seriesInstanceUID)
       } catch (error) {
         this.$notify({
           type: 'error',
@@ -182,27 +171,26 @@ export default {
           text: error,
         });
       }
-      this.removeFromUI(item)
     },
-    removeFromUI(item) {
-      this.inner_data = this.inner_data.filter(
-          i => item.seriesInstanceUID !== i['0020000E SeriesInstanceUID_keyword']
+    removeFromUI(seriesInstanceUIDToRemove) {
+      this.inner_seriesInstanceUIDs = this.inner_seriesInstanceUIDs.filter(
+          seriesInstanceUID => seriesInstanceUIDToRemove !== seriesInstanceUID
       )
-      if (this.inner_data.length === 0) {
+      if (this.inner_seriesInstanceUIDs.length === 0) {
+        // only relevant for structured Gallery View
         this.$emit('emptyStudy')
       }
     },
-    propagateImageId(image_id) {
-      this.$emit('imageId', image_id);
+    openInDetailView(seriesInstanceUID) {
+      this.$emit('openInDetailView', seriesInstanceUID);
     },
   },
   watch: {
-    data() {
-      // TODO: should not be necessary
-      this.inner_data = this.data
+    seriesInstanceUIDs() {
+      this.inner_seriesInstanceUIDs = this.seriesInstanceUIDs
     },
     selectedTags() {
-      this.inner_selectedTags = this.selectedTags
+      console.log(this.selectedTags)
     }
   },
 };
@@ -211,19 +199,6 @@ export default {
 
 .col {
   padding: 5px;
-}
-
-.inner-gallery-height {
-  height: calc(100vh - 78px)
-}
-
-.cube {
-  display: inline-block;
-  border-radius: 5px;
-
-  margin: 4px;
-  /*background: #eee;*/
-  --color: #4af;
 }
 
 .elements {
@@ -235,74 +210,13 @@ export default {
   /*padding: 20px;*/
 }
 
-#selecto1 .cube {
-  transition: all ease 0.2s;
-}
-
-.moveable #selecto1 .cube {
-  transition: none;
-}
-
 .selected {
   /*TODO: This should be aligned with theme*/
   color: #fff !important;
   background: #4af !important;
 }
 
-.scroll {
-  overflow: auto;
-  /*padding-top: 10px;*/
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-}
-
-.infinite-viewer,
-.scroll {
-  width: 100%;
-  /*height: 300px;*/
-  box-sizing: border-box;
-}
-
-.infinite-viewer .viewport {
-  /*padding-top: 10px;*/
-}
-
 .empty.elements {
   border: none;
-}
-
-/*custom virtual scroll*/
-.wrapper {
-  display: flex !important;
-  flex-direction: row;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-
-.scroller {
-  /*flex: 1;*/
-}
-
-.scroller :deep(.hover) img {
-  opacity: 0.5;
-}
-
-.item {
-  height: 50px;
-  padding: 6px;
-  margin: 6px;
-  border: 1px solid #b0b0b0;
-  border-radius: 0.25rem;
-
-  flex: 0 1 80px;
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  justify-content: center;
-  align-items: center;
 }
 </style>

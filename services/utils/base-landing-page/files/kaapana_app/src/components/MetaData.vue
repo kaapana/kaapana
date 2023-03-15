@@ -8,7 +8,7 @@
               Patients
             </v-row>
             <v-row align="center" justify="center">
-              {{ this.metaData['Patient ID'] && this.metaData['Patient ID']['items'].length || 'N/A' }}
+              {{ this.metrics['Patients'] || 'N/A' }}
             </v-row>
           </v-col>
           <v-col>
@@ -16,7 +16,7 @@
               Studies
             </v-row>
             <v-row align="center" justify="center">
-              {{ this.metaData['Study Instance UID'] && this.metaData['Study Instance UID']['items'].length || 'N/A' }}
+              {{ this.metrics['Studies'] || 'N/A' }}
             </v-row>
           </v-col>
           <v-col>
@@ -25,7 +25,7 @@
             </v-row>
             <v-row align="center" justify="center">
               {{
-                this.metaData['Series Instance UID'] && this.metaData['Series Instance UID']['items'].length || 'N/A'
+                this.metrics['Series'] || 'N/A'
               }}
             </v-row>
           </v-col>
@@ -35,16 +35,14 @@
 
     <v-card-text>
       <apexcharts
-          v-for="[key, value] in Object.entries(this.metaData).filter(
-                ([_key, _value]) => ['Modality', 'Patient Sex', 'Manufacturer', 'dataset tags'].includes(_key)
-              )"
-          :key="JSON.stringify({key: value})"
+          v-for="[key, values] in Object.entries(this.histograms)"
+          :key="JSON.stringify({key: values})"
           :options="{
             chart: {
               id: key,
               events: {
                 dataPointSelection: (event, chartContext, config) => {
-                  return dataPointSelection(event, chartContext, config, key, value)
+                  return dataPointSelection(event, chartContext, config, key, values)
                 },
               },
               toolbar: {
@@ -85,13 +83,13 @@
               text: key,
             },
             xaxis: {
-              categories: value['items'].map(item => item['value']),
+              categories: Object.keys(values['items']),
               tickPlacement: 'on'
             }
           }"
           :series="[{
             name: key,
-            data: value['items'].map(item => item.count)
+            data: Object.values(values['items'])
           }]"
           type="bar"
       >
@@ -103,6 +101,8 @@
 <script>
 /* eslint-disable */
 import VueApexCharts from "vue-apexcharts";
+import {loadDashboard} from "@/common/api.service";
+import {settings} from "@/static/defaultUIConfig";
 
 
 export default {
@@ -111,21 +111,45 @@ export default {
     apexcharts: VueApexCharts,
   },
   props: {
-    metaData: {
-      type: Object,
-      default: {}
+    seriesInstanceUIDs: {
+      type: Array,
+      default: () => []
     }
   },
   data() {
-    return {};
+    return {
+      histograms: {},
+      metrics: {},
+      fields: [],
+      settings: settings
+    }
+  },
+  created() {
+    this.settings = JSON.parse(localStorage['settings'])
+    this.fields = this.settings.datasets.props.filter(i => i.dashboard).map(i => i.name)
+  },
+  watch: {
+    seriesInstanceUIDs() {
+      this.updateDashboard()
+    }
+  },
+  mounted() {
+    this.updateDashboard()
   },
   methods: {
+    updateDashboard() {
+      loadDashboard(this.seriesInstanceUIDs, this.fields).then(data => {
+        this.histograms = data['histograms'] || {}
+        this.metrics = data['metrics'] || {}
+      })
+    },
     dataPointSelection(event, chartContext, config, key, value) {
+      console.log(Object.keys(value['items']), config['dataPointIndex'])
       this.$emit(
           'dataPointSelection',
           {
             key: key,
-            value: value['items'].map(item => item['value'])[config['dataPointIndex']]
+            value: Object.keys(value['items'])[config['dataPointIndex']]
           }
       )
     }

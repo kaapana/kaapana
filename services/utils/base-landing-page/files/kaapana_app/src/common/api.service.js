@@ -138,6 +138,7 @@ const loadPatients = async (data) => {
 }
 
 
+
 const loadAvailableTags = async (body = {}) => {
     try {
         return (

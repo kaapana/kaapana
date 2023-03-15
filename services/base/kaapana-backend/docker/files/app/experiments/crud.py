@@ -210,7 +210,7 @@ def create_job(db: Session, job: schemas.JobCreate):
     if db_kaapana_instance.remote is False and db_kaapana_instance.automatic_job_execution is True:
         job = schemas.JobUpdate(**{
             'job_id': db_job.id,
-            'status': 'scheduled',  # keep 'scheduled' and don't change to 'planned'
+            'status': 'scheduled',
             'description': 'The worklow was triggered!'
         })
         update_job(db, job, remote=False)
@@ -796,7 +796,7 @@ async def queue_generate_jobs_and_add_to_exp(db: Session, db_client_kaapana: mod
 
         for db_kaapana_instance in db_kaapana_instances_set:
             job = schemas.JobCreate(**{
-                "status": "queued",    # changed back from 'planned' to 'queued'
+                "status": "queued",
                 "kaapana_instance_id": db_kaapana_instance.id,
                 "owner_kaapana_instance_name": db_client_kaapana.instance_name,
                 **jobs_to_create

@@ -1,7 +1,7 @@
 <template lang="pug">
   .federated-panel
     v-container(text-left fluid)
-      h1 Experiment Management System
+      //- h1 Experiment Management System
       v-row(@click="toggleClientPanel()").toggleMouseHand
         v-col(align="left")
           //- former LocalKaapanaInstance

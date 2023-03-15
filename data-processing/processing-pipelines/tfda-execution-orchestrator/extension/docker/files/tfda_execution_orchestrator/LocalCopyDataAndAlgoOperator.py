@@ -8,8 +8,9 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 class LocalCopyDataAndAlgoOperator(KaapanaPythonBaseOperator):
     def start(self, ds, ti, **kwargs):
         logging.info("Copy data and algorithm to isolated environment...")
-        airflow_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        minio_path = os.path.join(airflow_dir, "miniobuckets")
+        workflow_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        base_dir = os.path.dirname(workflow_dir)
+        minio_path = os.path.join(base_dir, "minio")
         operator_dir = os.path.dirname(os.path.abspath(__file__))
         playbooks_dir = os.path.join(operator_dir, "ansible_playbooks")
         playbook_path = os.path.join(playbooks_dir, "copy_data_and_algo_to_iso_env.yaml")

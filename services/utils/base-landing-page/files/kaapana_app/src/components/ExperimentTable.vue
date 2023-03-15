@@ -2,7 +2,7 @@
   <v-card>
     <v-card-title>
       <v-row>
-          <h2>Experiments</h2>
+          <h3>Experiment Management System</h3>
       </v-row>
       <v-text-field
         v-model="search"
@@ -26,7 +26,7 @@
         <v-chip
           v-for="state in getStatesColorMap(item)"
           :color="state.color"
-          class="ma-1, my-chip"
+          class="ma-1 my-chip"
           dense
           outlined>{{ state.count }}
         </v-chip>

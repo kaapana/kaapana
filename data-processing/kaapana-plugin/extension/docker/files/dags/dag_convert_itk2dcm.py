@@ -3,6 +3,7 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 from airflow.operators.python import BranchPythonOperator
+from airflow.utils.trigger_rule import TriggerRule
 
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
@@ -50,7 +51,7 @@ ui_forms = {
         "type": "object",
         "properties": {
             "modality":{
-                "title": "modality",
+                "title": "Modality",
                 "description": "Modality of the input images. Usually CT or MR.",
                 "type": "string",
                 "default": "",
@@ -63,6 +64,11 @@ ui_forms = {
                 "default": "itk2dcm",
                 "required": True
             },
+            "delete_original_file": {
+                "title": "Delete file from Minio after successful upload?",
+                "type": "boolean",
+                "default": True,
+            }
         }
     }
 }
@@ -128,21 +134,47 @@ dcm_send_img = DcmSendOperator(
     input_operator=convert,
 )
 
-clean = LocalWorkflowCleanerOperator(dag=dag, trigger_rule="none_failed_min_one_success", clean_workflow_dir=False)
+remove_object_from_minio = LocalMinioOperator(
+    dag=dag,
+    name='removing-object-from-minio',
+    action='remove',
+    file_white_tuples=('.zip'),
+    # trigger_rule="one_success"
+)
 
-def branch_func(**kwargs):
+clean = LocalWorkflowCleanerOperator(dag=dag, trigger_rule="none_failed_min_one_success", clean_workflow_dir=True)
+
+def branching_sending(**kwargs):
     run_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs['dag_run'].run_id
     if [p for p in run_dir.rglob('seg_info.json')]:
         return [convert_seg.name, dcm_send_img.name]
     else:
         return [dcm_send_img.name]
-
-branch_op = BranchPythonOperator(
-    task_id='branching',
+    
+branching_sending = BranchPythonOperator(
+    task_id='branching-sending',
     provide_context=True,
-    python_callable=branch_func,
+    python_callable=branching_sending,
     dag=dag)
 
-get_object_from_minio >> unzip_files >> convert >> branch_op
-branch_op >> convert_seg >> dcm_send_seg >> clean
-branch_op >> dcm_send_img >> clean
+def branching_cleaning_minio(**kwargs):
+    conf = kwargs['dag_run'].conf
+    delete_original_file = conf["workflow_form"]["delete_original_file"]
+    if delete_original_file:
+        return [remove_object_from_minio.name]
+    else:
+        return [clean.name]
+
+branching_cleaning_minio = BranchPythonOperator(
+    task_id='branching-cleaning-minio',
+    provide_context=True,
+    trigger_rule="none_failed_min_one_success",
+    python_callable=branching_cleaning_minio,
+    dag=dag)
+
+
+get_object_from_minio >> unzip_files >> convert >> branching_sending
+branching_sending >> convert_seg >> dcm_send_seg >> branching_cleaning_minio
+branching_sending >> dcm_send_img >> branching_cleaning_minio
+branching_cleaning_minio >> remove_object_from_minio >> clean
+branching_cleaning_minio >> clean

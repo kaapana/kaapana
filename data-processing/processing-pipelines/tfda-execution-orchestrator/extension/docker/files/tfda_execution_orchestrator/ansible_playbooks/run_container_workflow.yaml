@@ -44,7 +44,7 @@
         msg: "Loaded the following images: {{ result.image_names | join(', ') }}"
     
     - name: Run the loaded docker container
-      command: docker run "{{ user_container_name_version }}"
+      command: docker run "{{ user_experiment_name }}" -v /home/ubuntu/"{{ user_selected_data }}":/input -v /home/ubuntu/results:/output
       register: docker_run
 
     - debug:

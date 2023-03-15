@@ -65,7 +65,7 @@ class LocalTrustedPreETLOperator(KaapanaPythonBaseOperator):
     def start(self, ds, ti, **kwargs):
         logging.info("Prepare data and algorithm before being loaded into the isolated environment...")
         conf = kwargs["dag_run"].conf
-        """Prepare algorithm files"""
+        ## Prepare algorithm files
         self.algo_pre_etl(conf)
 
 

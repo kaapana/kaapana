@@ -139,12 +139,25 @@ class MonitoringService:
                 "build_timestamp": str(settings.kaapana_build_timestamp),
                 "build_branch": str(settings.kaapana_platform_build_branch),
                 "deployment_timestamp": str(settings.kaapana_deployment_timestamp),
-                "scrape_timestamp": datetime.now().astimezone().replace(microsecond=0).isoformat(),
+                "scrape_timestamp": datetime.now()
+                .astimezone()
+                .replace(microsecond=0)
+                .isoformat(),
                 "last_commit_timestamp": str(
                     settings.kaapana_platform_last_commit_timestamp
                 ),
             }
         )
+
+        i = Info(
+            "component_info", "Custom information for the component", registry=registry
+        )
+        i.info(
+            {
+                "workflist_size": "0",
+            }
+        )
+
         uptime = MonitoringService.query_prom(
             query="round(time() - process_start_time_seconds{job='oAuth2-proxy'})",
             return_type="int",
@@ -157,22 +170,20 @@ class MonitoringService:
             number_studies_total,
             number_patiens_total,
         ) = MonitoringService.get_study_series_patient_count()
-        g = Gauge(
-            name="number_studies_total",
-            documentation="number_studies_total",
-            registry=registry,
-        )
-        g.set(number_studies_total)
-        g = Gauge(
-            name="number_patiens_total",
-            documentation="number_patiens_total",
-            registry=registry,
-        )
-        g.set(number_patiens_total)
 
         g = Gauge(
-            name="number_series_total",
-            documentation="number_series_total",
+            name="dicom_stats",
+            documentation="DICOM imaging stats of site.",
+            labelnames=["tag"],
+            registry=registry,
+        )
+        g.labels("total_series").set(number_series_total)
+        g.labels("total_patients").set(number_patiens_total)
+        g.labels("total_studies").set(number_studies_total)
+
+        g = Gauge(
+            name="number_dicom_series_modality",
+            documentation="Amount of DICOM series per modality.",
             labelnames=["modality"],
             registry=registry,
         )
@@ -194,7 +205,15 @@ class MonitoringService:
         number_series = MonitoringService.get_modaility_series_count(modality=modality)
         g.labels(modality).set(number_series)
 
-        for idx, mount_point in enumerate(settings.mount_points):
+        g = Gauge(
+            name="storage_stats",
+            documentation="Storage utilization for different mount-points.",
+            labelnames=["mount_point", "feature"],
+            registry=registry,
+        )
+
+        for idx, mount_point in enumerate(["/", "/home"]):
+            # for idx, mount_point in enumerate(settings.mount_points):
             total_query = f"node_filesystem_size_bytes{{app_kubernetes_io_managed_by='',fstype!='tmpfs',mountpoint='{mount_point}'}}"
             storage_size_total = MonitoringService.query_prom(
                 query=total_query, return_type="int"
@@ -203,18 +222,8 @@ class MonitoringService:
             storage_size_free = MonitoringService.query_prom(
                 query=free_query, return_type="int"
             )
-            g = Gauge(
-                f"storage_size_{idx}_total",
-                f"Total storgae of {mount_point}",
-                registry=registry,
-            )
-            g.set(storage_size_total)
-            g = Gauge(
-                f"storage_size_{idx}_free",
-                f"Free storgae of {mount_point}",
-                registry=registry,
-            )
-            g.set(storage_size_free)
+            g.labels(mount_point, "size").set(storage_size_total)
+            g.labels(mount_point, "free").set(storage_size_free)
 
         system_load_24H = MonitoringService.query_prom(
             query="100-(avg(rate(node_cpu_seconds_total{job='Node-Exporter',mode='idle'}[24h]))*100)",

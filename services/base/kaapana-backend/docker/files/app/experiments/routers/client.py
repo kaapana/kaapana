@@ -311,8 +311,8 @@ def create_dataset(
     query: Union[str, None] = None,
     db: Session = Depends(get_db),
 ):
-    query_dict = json.loads(query)
     if not dataset and query:
+        query_dict = json.loads(query)
         dataset = schemas.DatasetCreate(
             name=query_dict["name"],
             identifiers=[

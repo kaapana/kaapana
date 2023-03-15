@@ -148,6 +148,7 @@ export default Vue.extend({
     drawer: true,
     federatedBackendAvailable: false,
     staticWebsiteAvailable: false,
+    settings: settings,
     workflowsList: [
       ['Data Upload', 'mdi-cloud-upload', '/data-upload'],
       ['Data curation', 'mdi-view-gallery-outline', '/datasets'],

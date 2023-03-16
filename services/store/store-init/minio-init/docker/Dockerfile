@@ -5,7 +5,8 @@ LABEL CI_IGNORE="False"
 
 COPY files/minio.sh .
 RUN chmod +x minio.sh
-COPY files/readme.txt .
+COPY files/readme_dicom.txt .
+COPY files/readme_itk.txt .
 COPY files/permissions_uploads.json .
 #CMD tail -f  /dev/null
 ENTRYPOINT ["/bin/sh", "minio.sh"]

@@ -21,11 +21,22 @@ from pathlib import Path
 objects = HelperMinio.list_objects(HelperMinio.minioClient,
     "uploads", prefix="itk", recursive=True,
 )
-itk_objects = [obj.object_name for obj in objects if obj.object_name != "itk/readme.txt"]
 
+object_names = [obj.object_name for obj in objects]
+itk_zip_objects = [object_name for object_name in object_names if object_name.endswith(".zip")]
+
+itk_directories = []
+for object_name in object_names:
+    object_directory = str(Path(object_name).parents[0])
+    if not object_directory.endswith(("imagesTr", "imagesTs", "labelsTr", "labelsTs", "cases", "segs")):
+        itk_directories.append(str(Path(object_name).parents[0]))
+
+# Todo add object either or 
 ui_forms = {
     "data_form": {
         "type": "object",
+        "title": "Select file or folder from Minio",
+        "description": "The uplods/itk directory in Minio is crawled for zip files and folders",
         "properties": {
             "bucket_name": {
                 "title": "Bucket name",
@@ -33,19 +44,48 @@ ui_forms = {
                 "type": "string",
                 "default": "uploads",
                 "readOnly": True
+            }
+        },
+        "oneOf": [
+            {
+                "title": "Search for files",
+                "properties": {
+                    "identifier": {
+                        "type": "string",
+                        "const": "files"
+                    },
+                    "action_files":  {
+                        "title": "ZIP files from bucket",
+                        "description": "Relative paths to zip file in Bucket",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": itk_zip_objects
+                        },
+                        "readOnly": False
+                    }
+                }
             },
-            "action_files":  {
-                "title": "ZIP files from bucket",
-                "description": "Relative paths to zip file in Bucket",
-                "type": "array",
-                "items": {
-                    "type": "string",
-                    "enum": itk_objects
-                },
-                "required": True,
-                "readOnly": False
-            },
-        }
+            {
+                "title": "Search for folders",
+                "properties": {
+                    "identifier": {
+                        "type": "string",
+                        "const": "folders"
+                    },
+                    "action_operator_dirs": {
+                        "title": "Directories",
+                        "description": "Directory from bucket",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": list(set(itk_directories))
+                        },
+                        "readOnly": False
+                    }
+                }
+            }
+        ]
     },
     "workflow_form": {
         "type": "object",
@@ -100,6 +140,7 @@ get_object_from_minio = LocalMinioOperator(
 unzip_files = ZipUnzipOperator(
     dag=dag,
     input_operator=get_object_from_minio,
+    #operator_out_dir="itk",
     batch_level=True,
     mode="unzip"
 )
@@ -108,6 +149,7 @@ convert = Itk2DcmOperator(
     dag=dag, 
     name="convert-itk2dcm", 
     # dev_server='code-server',
+    trigger_rule="none_failed_min_one_success",
     input_operator=unzip_files
 ) 
 
@@ -137,12 +179,28 @@ dcm_send_img = DcmSendOperator(
 remove_object_from_minio = LocalMinioOperator(
     dag=dag,
     name='removing-object-from-minio',
-    action='remove',
-    file_white_tuples=('.zip'),
-    # trigger_rule="one_success"
+    action='remove'
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, trigger_rule="none_failed_min_one_success", clean_workflow_dir=True)
+
+def branching_zipping(**kwargs):
+    download_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs['dag_run'].run_id / get_object_from_minio.operator_out_dir
+    conf = kwargs['dag_run'].conf
+    if "action_files" in conf["data_form"]:
+        return [unzip_files.name]
+    else:
+        unzip_dir = download_dir.parents[0] / unzip_files.operator_out_dir
+        unzip_dir.mkdir(parents=True, exist_ok=True)
+        download_dir.rename(unzip_dir)
+        return [convert.name]
+    
+branching_zipping = BranchPythonOperator(
+    task_id='branching-unzipping',
+    provide_context=True,
+    python_callable=branching_zipping,
+    dag=dag)
+
 
 def branching_sending(**kwargs):
     run_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs['dag_run'].run_id
@@ -173,7 +231,10 @@ branching_cleaning_minio = BranchPythonOperator(
     dag=dag)
 
 
-get_object_from_minio >> unzip_files >> convert >> branching_sending
+get_object_from_minio >> branching_zipping
+branching_zipping >> unzip_files >> convert
+branching_zipping >> convert
+convert >> branching_sending
 branching_sending >> convert_seg >> dcm_send_seg >> branching_cleaning_minio
 branching_sending >> dcm_send_img >> branching_cleaning_minio
 branching_cleaning_minio >> remove_object_from_minio >> clean

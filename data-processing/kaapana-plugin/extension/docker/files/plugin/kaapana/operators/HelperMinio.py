@@ -90,7 +90,9 @@ class HelperMinio():
                         path_object_dir = os.path.join(*path_object_name.parts[:split_level])
                     else:
                         path_object_dir = os.path.join(path_object_name.parent)
-                    if not object_dirs or path_object_dir in object_dirs:
+                    # if not object_dirs or path_object_dir in object_dirs:
+                    if not object_dirs or str(path_object_name.parents[0]).startswith(tuple(object_dirs)):
+                        print('hello')
                         HelperMinio.apply_action_to_file(minioClient, action, bucket_name, object_name, file_path, file_white_tuples)
             except S3Error as err:
                 print(f'Skipping since bucket {bucket_name} does not exist')

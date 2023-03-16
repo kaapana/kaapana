@@ -162,6 +162,14 @@ class MonitoringService:
             number_patiens_total,
         ) = MonitoringService.get_study_series_patient_count()
 
+        dicom_studies_total = Gauge(
+            name="dicom_studies_total",
+            documentation="Number of individual DICOM studies stored in the component.",
+            labelnames=["modality"],
+            registry=registry,
+        )
+        dicom_studies_total.labels("total").set(number_studies_total)
+
         dicom_patients_total = Gauge(
             name="dicom_patients_total",
             documentation="Number of individual patients stored in the component.",
@@ -170,15 +178,6 @@ class MonitoringService:
         )
         dicom_patients_total.labels("total").set(number_patiens_total)
         
-        number_patiens_ct = -1
-        dicom_patients_total.labels("CT").set(number_patiens_ct)
-        number_patiens_mr = -1
-        dicom_patients_total.labels("MR").set(number_patiens_mr)
-        number_patiens_ot = -1
-        dicom_patients_total.labels("OT").set(number_patiens_ot)
-        number_patiens_seg = -1
-        dicom_patients_total.labels("SEG").set(number_patiens_seg)
-
         dicom_series_total = Gauge(
             name="dicom_series_total",
             documentation="Number of individual series stored in the component.",

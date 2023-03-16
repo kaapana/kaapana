@@ -1,9 +1,10 @@
 <template>
-    <v-container>
-        <v-row>
-            <h3>Jobs of expanded experiment</h3>
-        </v-row>
-        <v-dialog v-model="dialogConfData" width="600px"><template v-slot:activator="{ on, attrs }"></template>
+    <v-container fluid>
+        <v-dialog
+          v-model="dialogConfData"
+          width="600px"
+        >
+          <template v-slot:activator="{ on, attrs }"></template>
           <v-card>
             <v-card-title class="text-h5 lighten-2">Conf object</v-card-title>
             <v-card-text class="text-left">
@@ -23,7 +24,31 @@
           :search="search"
           sort-by="time_updated"
           sort-desc="sort-desc"
-          :hide-default-footer="true">
+          :items-per-page="itemsPerPage"
+          
+          @update:options="options = $event"
+        >
+
+          <template v-slot:bottom>
+            <div class="text-center pt-2">
+              <v-pagination
+                v-model="page"
+                :length="options.pageCount"
+                @page-update="page = $event"
+              ></v-pagination>
+              <v-text-field
+                :model-value="itemsPerPage"
+                class="pa-2"
+                label="Items per page"
+                type="number"
+                min="-1"
+                max="15"
+                hide-details
+                @update:model-value="itemsPerPage = parseInt($event, 10)"
+              ></v-text-field>
+            </div>
+          </template>
+
           <template v-slot:item.conf_data="{ item }">
             <v-icon color="secondary" dark="" @click="openConfData(item.conf_data)">
                 mdi-email
@@ -31,7 +56,13 @@
           </template>
           <template v-slot:item.status="{ item }">
             <v-chip
-              :color="getStatusColor(item.status)" dark="">{{ item.status }}
+              :color="getStatusColor(item.status)"
+              class="my-chip"
+              dark=""
+              dense
+              outlined
+            >
+              {{ item.status }}
             </v-chip>
           </template>
           <template v-slot:item.airflow="{ item }">
@@ -91,6 +122,7 @@
               </v-tooltip>
             </div>
           </template>
+          
         </v-data-table>
 
     </v-container>
@@ -115,6 +147,9 @@
         dag_run_datetime: '',
         dag_run_ms: '',
         dag_run_tasks_n_states: {},
+        options: { pageCount: 1 },
+        page: 1,
+        itemsPerPage: 10,
       }),
 
       props: {
@@ -196,9 +231,7 @@
           this.dialogConfData = false
         },
         getStatusColor(status) {
-          if (status == 'planned') {
-            return 'pink'
-          }else if (status == 'queued') {
+          if (status == 'queued') {
             return 'grey'
           } else if (status == 'pending') {
             return 'orange'
@@ -313,5 +346,7 @@
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped lang="scss">
-
+  .my-chip {
+    border-width: 3px;
+  }
 </style>

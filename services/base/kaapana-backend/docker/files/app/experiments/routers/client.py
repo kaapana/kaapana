@@ -3,6 +3,10 @@ import json
 from typing import List
 import logging
 import traceback
+import asyncio
+import jsonschema
+from pydantic import ValidationError
+from pydantic.schema import schema
 
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse
@@ -70,7 +74,7 @@ async def create_job(request: Request, job: schemas.JobCreate, db: Session = Dep
 async def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
     return crud.get_job(db, job_id, run_id)
 
-@router.get("/jobs", response_model=List[schemas.JobWithKaapanaInstance])  # also okay: JobWithExperiment
+@router.get("/jobs", response_model=List[schemas.JobWithExperimentWithKaapanaInstance])  # also okay: JobWithExperiment; JobWithKaapanaInstance
 async def get_jobs(instance_name: str = None, experiment_name: str = None, status: str = None, limit: int = None, db: Session = Depends(get_db)):
     return crud.get_jobs(db, instance_name, experiment_name, status, remote=False, limit=limit)
 
@@ -251,13 +255,20 @@ async def delete_cohorts(db: Session = Depends(get_db)):
 @router.post("/experiment", response_model=schemas.Experiment)   # also okay: schemas.ExperimentWithKaapanaInstance
 async def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData, db: Session = Depends(get_db)):
     
+    # validate incoming json_schema_data
+    try:
+        jsonschema.validate(json_schema_data.json(), schema([schemas.JsonSchemaData]))
+    except ValidationError as e:
+        logging.error(f"JSON Schema is not valid for the Pydantic model. Error: {e}")
+        raise HTTPException(status_code=400, detail="JSON Schema is not valid for the Pydantic model.")
+
     if json_schema_data.username is not None:
         username = json_schema_data.username
     elif "x-forwarded-preferred-username" in request.headers:
         username = request.headers["x-forwarded-preferred-username"]
+        json_schema_data.username = username
     else:
         raise HTTPException(status_code=400, detail="A username has to be set when you submit a workflow schema, either as parameter or in the request!")
-
 
     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
     # if db_client_kaapana.instance_name in json_schema_data.instance_names:  # check or correct: if client_kaapana_instance in experiment's runner instances ...
@@ -290,27 +301,6 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
         single_execution = False
         db_cohort = None
 
-    queued_jobs = []
-    if single_execution is True:
-        for cohort_identifier in data_form['cohort_identifiers'][:cohort_limit]:
-            # Copying due to reference?!
-            single_conf_data = copy.deepcopy(conf_data)
-            single_conf_data["data_form"]["cohort_identifiers"] = [cohort_identifier]
-            queued_jobs.append({
-                'conf_data': single_conf_data,
-                'dag_id': json_schema_data.dag_id,
-                "username": username
-            })
-    else:
-        queued_jobs = [
-            {
-                'conf_data': conf_data,
-                'dag_id': json_schema_data.dag_id,
-                # 'dag_id': json_schema_data.dag_id if json_schema_data.federated == False else conf_data['external_schema_federated_form']['remote_dag_id'],
-                "username": username
-            }
-        ]
-
     # create an experiment with involved_instances=conf_data["experiment_form"]["involved_instances"] and add jobs to it
     experiment = schemas.ExperimentCreate(**{
         "experiment_name": json_schema_data.experiment_name,
@@ -321,38 +311,11 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
         "cohort_name": db_cohort.cohort_name if db_cohort is not None else None,
     })
     db_experiment = crud.create_experiment(db=db, experiment=experiment)
-    
-    # create jobs on conf_data["experiment_form"]["runner_instances"]
-    db_jobs = []
-    db_kaapana_instances = []
-    for jobs_to_create in queued_jobs: 
-        db_remote_kaapana_instances = crud.get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': json_schema_data.remote, 
-                'instance_names': conf_data["experiment_form"]["runner_instances"]
-                }))
-        # add client instance to instance list only if it is marked as an involved_instance of current experiment
-        if db_client_kaapana.instance_name in conf_data['experiment_form']['runner_instances']:  # add client instance to instance list only if it is marked as an involved_instance of current experiment
-            db_kaapana_instances.append(db_client_kaapana)
-        db_kaapana_instances.extend(db_remote_kaapana_instances)
-        db_kaapana_instances_set = set(db_kaapana_instances)
 
-        for db_kaapana_instance in db_kaapana_instances_set:
-            job = schemas.JobCreate(**{
-                "status": "planned",
-                "kaapana_instance_id": db_kaapana_instance.id,
-                "owner_kaapana_instance_name": db_client_kaapana.instance_name,
-                **jobs_to_create
-            })
+    # async function call to queue jobs and generate db_jobs + adding them to db_experiment
+    asyncio.create_task(crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_experiment, json_schema_data, conf_data))
 
-            db_job = crud.create_job(db, job)
-            db_jobs.append(db_job)
-
-    # update experiment w/ created db_jobs
-    experiment = schemas.ExperimentUpdate(**{
-        "experiment_name": db_experiment.experiment_name,
-        "experiment_jobs": db_jobs,
-    })
-    crud.put_experiment_jobs(db, experiment)
-
+    # directly return created db_experiment for fast feedback
     return db_experiment
 
 # get_experiment
@@ -361,7 +324,7 @@ async def get_experiment(experiment_id: int = None, experiment_name: str = None,
     return crud.get_experiment(db, experiment_id, experiment_name)
 
 # get_experiments
-@router.get("/experiments", response_model=List[schemas.ExperimentWithKaapanaInstance]) # also okay: response_model=List[schemas.Experiment]
+@router.get("/experiments", response_model=List[schemas.ExperimentWithKaapanaInstanceWithJobs]) # also okay: response_model=List[schemas.Experiment] ; List[schemas.ExperimentWithKaapanaInstance]
 async def get_experiments(request: Request, instance_name: str = None, involved_instance_name: str = None, experiment_job_id: int = None, limit: int = None, db: Session = Depends(get_db)):
     return crud.get_experiments(db, instance_name, involved_instance_name, experiment_job_id, limit=limit) # , username=request.headers["x-forwarded-preferred-username"]
 

@@ -2,7 +2,7 @@ import os
 import sys
 import uuid
 from pathlib import Path
-sys.path.insert(0, '../')
+sys.path.insert(0, '/')
 sys.path.insert(0, '/kaapana/app')
 from kaapana_federated.KaapanaFederatedTraining import KaapanaFederatedTrainingBase, timeit
 

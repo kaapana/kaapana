@@ -173,7 +173,6 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                 run_dir,
                 object_dirs,
                 self.file_white_tuples,
-                self.split_level
             )
 
         return
@@ -191,7 +190,6 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                  minio_port: str = '9000',
                  file_white_tuples=None,
                  zip_files: bool = False,
-                 split_level: int = None,
                  **kwargs
                  ):
         """
@@ -206,7 +204,6 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         :param minio_port: MinIO port
         :param file_white_tuples: Optional whitelisting for files
         :param zip_files: If files should be zipped
-        :param split_level: split level for file paths
         """
 
         if action not in ['get', 'remove', 'put']:
@@ -229,7 +226,6 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         self.minio_port = minio_port
         self.file_white_tuples = file_white_tuples
         self.zip_files = zip_files
-        self.split_level = split_level
 
         super(LocalMinioOperator, self).__init__(
             dag=dag,

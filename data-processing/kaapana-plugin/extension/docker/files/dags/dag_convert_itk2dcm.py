@@ -134,8 +134,7 @@ dag = DAG(
 get_object_from_minio = LocalMinioOperator(
     action='get',
     dag=dag,
-    operator_out_dir="itk",
-    split_level=1)
+    operator_out_dir="itk")
 
 unzip_files = ZipUnzipOperator(
     dag=dag,

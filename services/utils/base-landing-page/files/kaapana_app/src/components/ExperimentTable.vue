@@ -28,6 +28,7 @@
           :color="state.color"
           class="ma-1 my-chip"
           dense
+          small
           outlined>{{ state.count }}
         </v-chip>
       </template>

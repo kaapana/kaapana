@@ -20,7 +20,9 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
     """
     def __init__(self,
                  dag,
-                 segmentation_operator,
+                 segmentation_in_dir=None,
+                 segmentation_operator=None,
+                 name="nrrd2dcmseg",
                  input_type='single_label_segs',
                  alg_name= None,
                  creator_name="kaapana",
@@ -31,6 +33,7 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
                  multi_label_seg_name=None,
                  series_description=None,
                  skip_empty_slices=False,
+                 fail_on_no_segmentation_found=True,
                  env_vars=None,
                  execution_timeout=timedelta(minutes=90),
                  **kwargs):
@@ -64,7 +67,8 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
             "MULTI_LABEL_SEG_INFO_JSON": multi_label_seg_info_json, # name of json file inside OPERATOR_IMAGE_LIST_INPUT_DIR that contains the organ seg infos e.g. {"seg_info": ["spleen", "right@kidney"]}
             # Always relevant:
             "MULTI_LABEL_SEG_NAME": multi_label_seg_name,  # Name used for multi-label segmentation object, if it will be created
-            "OPERATOR_IMAGE_LIST_INPUT_DIR":  segmentation_operator.operator_out_dir, # directory that contains segmentaiton objects
+            "FAIL_ON_NO_SEGMENTATION_FOUND": f"{fail_on_no_segmentation_found}",
+            # "OPERATOR_IMAGE_LIST_INPUT_DIR":  segmentation_operator.operator_out_dir, # directory that contains segmentaiton objects
             "SERIES_DISCRIPTION": "{}".format(series_description or alg_name or 'UNKOWN SEGMENTATION ALGORITHM'),
             "ALGORITHM_NAME": f'{alg_name or "kaapana"}',
             "CREATOR_NAME": creator_name,
@@ -76,10 +80,19 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
         }
         env_vars.update(envs)
 
+        if segmentation_operator is None and segmentation_in_dir is not None:
+            env_vars['OPERATOR_IMAGE_LIST_INPUT_DIR'] = str(segmentation_in_dir)
+        else:
+            if segmentation_operator is not None and segmentation_in_dir is None:
+                env_vars['OPERATOR_IMAGE_LIST_INPUT_DIR'] = str(segmentation_operator.operator_out_dir)
+            else:
+                raise NameError('Either segmentation_operator or operator_in_dir has to be set.')
+
+
         super().__init__(
             dag=dag,
             image=f"{DEFAULT_REGISTRY}/dcmqi:{KAAPANA_BUILD_VERSION}",
-            name="nrrd2dcmseg",
+            name=name,
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,

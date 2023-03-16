@@ -74,6 +74,10 @@ spec:
           value: "{{ .Values.global.jobs_namespace }}"
         - name: KAAPANA_BUILD_VERSION
           value: "{{ .Values.global.kaapana_build_version }}"
+        - name: MINIOUSER
+          value: "{{ .Values.global.credentials_minio_username }}"
+        - name: MINIOPASSWORD
+          value: "{{ .Values.global.credentials_minio_password }}"
         - name: PULL_POLICY_IMAGES
           value: "{{ .Values.global.pull_policy_images }}"
         - name: SERVICES_NAMESPACE

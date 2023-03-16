@@ -212,7 +212,7 @@ DCMQI = '/kaapana/app/dcmqi/bin'
 # If input type is set to "multi_label_seg" you must create a json inside the OPERATOR_IMAGE_LIST_INPUT_DIR that contains the parts as follows: {"seg_info": ["spleen", "right@kidney"]}
 
 input_type = os.environ.get('INPUT_TYPE')  # multi_label_seg or single_label_segs
-multi_label_seg_name = os.environ.get('MULTI_LABEL_SEG_NAME', 'multi-label')  # Name used for multi-label segmentation object, if it will be created
+multi_label_seg_name = os.environ.get('MULTI_LABEL_SEG_NAME') if os.environ.get('MULTI_LABEL_SEG_NAME') not in [None, "None", ''] else 'multi-label'  # Name used for multi-label segmentation object, if it will be created
 segment_algorithm_name = os.environ.get('ALGORITHM_NAME', 'kaapana')
 segment_algorithm_type = os.environ.get('ALGORITHM_TYPE', 'AUTOMATIC')
 content_creator_name = os.environ.get('CREATOR_NAME', 'kaapana')
@@ -220,12 +220,13 @@ series_description = os.environ.get('SERIES_DISCRIPTION', '')
 series_number = os.environ.get('SERIES_NUMBER', '300')
 instance_number = os.environ.get('INSTANCE_NUMBER', '1')
 skip_empty_slices = True if os.environ.get('SKIP_EMPTY_SLICES', 'false').lower() == "true" else False
+fail_on_no_segmentation_found = True if os.environ.get('FAIL_ON_NO_SEGMENTATION_FOUND', 'true').lower() == "true" else False
 
 get_seg_info_from_file = False
 if input_type == 'multi_label_seg':
     multi_label_seg_info_json = os.environ.get('MULTI_LABEL_SEG_INFO_JSON', 'seg_info.json')  # name of json file that contain the parts as follows e.g. {"seg_info": ["spleen", "right@kidney"]}
 
-    if multi_label_seg_info_json == "":
+    if multi_label_seg_info_json in [None, "None", ''] :
         multi_label_seg_info_json = "seg_info.json"
 
 elif input_type == 'single_label_segs':
@@ -267,8 +268,12 @@ for batch_element_dir in batch_folders:
     if len(segmentation_paths) == 0:
         print("Could not find valid segmentation file in {}".format(input_image_list_input_dir))
         print("Supported: '*.nii', '*.nii.gz', '*.nrrd'")
-        print("abort!")
-        exit(1)
+        if fail_on_no_segmentation_found:
+            print("abort!")
+            exit(1)
+        else:
+            print(f"Skipping {input_image_list_input_dir}!")
+            continue
 
     segmentation_information = {
         "@schema": "https://raw.githubusercontent.com/qiicr/dcmqi/master/doc/schemas/seg-schema.json#"

@@ -132,7 +132,7 @@ class MonitoringService:
     def get_node_metrics(self) -> bytes:
         registry = CollectorRegistry()
 
-        i = Info("build", "Build information.", registry=registry)
+        i = Info("component_build", "Component Build Information.", registry=registry)
         i.info(
             {
                 "software_version": str(settings.kaapana_build_version),
@@ -149,21 +149,12 @@ class MonitoringService:
             }
         )
 
-        i = Info(
-            "component_info", "Custom information for the component", registry=registry
-        )
-        i.info(
-            {
-                "workflist_size": "0",
-            }
-        )
-
-        uptime = MonitoringService.query_prom(
+        component_uptime_seconds = MonitoringService.query_prom(
             query="round(time() - process_start_time_seconds{job='oAuth2-proxy'})",
             return_type="int",
         )
-        g = Gauge(name="uptime", documentation="uptime in seconds", registry=registry)
-        g.set(uptime)
+        g = Gauge(name="component_uptime_seconds", documentation="Number of seconds the system is running.", registry=registry)
+        g.set(component_uptime_seconds)
 
         (
             number_series_total,
@@ -171,49 +162,64 @@ class MonitoringService:
             number_patiens_total,
         ) = MonitoringService.get_study_series_patient_count()
 
-        g = Gauge(
-            name="dicom_stats",
-            documentation="DICOM imaging stats of site.",
-            labelnames=["tag"],
-            registry=registry,
-        )
-        g.labels("total_series").set(number_series_total)
-        g.labels("total_patients").set(number_patiens_total)
-        g.labels("total_studies").set(number_studies_total)
-
-        g = Gauge(
-            name="number_dicom_series_modality",
-            documentation="Amount of DICOM series per modality.",
+        dicom_patients_total = Gauge(
+            name="dicom_patients_total",
+            documentation="Number of individual patients stored in the component.",
             labelnames=["modality"],
             registry=registry,
         )
-        g.labels("total").set(number_series_total)
+        dicom_patients_total.labels("total").set(number_patiens_total)
+        
+        number_patiens_ct = -1
+        dicom_patients_total.labels("CT").set(number_patiens_ct)
+        number_patiens_mr = -1
+        dicom_patients_total.labels("MR").set(number_patiens_mr)
+        number_patiens_ot = -1
+        dicom_patients_total.labels("OT").set(number_patiens_ot)
+        number_patiens_seg = -1
+        dicom_patients_total.labels("SEG").set(number_patiens_seg)
 
-        modality = "CT"
-        number_series = MonitoringService.get_modaility_series_count(modality=modality)
-        g.labels(modality).set(number_series)
+        dicom_series_total = Gauge(
+            name="dicom_series_total",
+            documentation="Number of individual series stored in the component.",
+            labelnames=["modality"],
+            registry=registry,
+        )
+        dicom_series_total.labels("total").set(number_series_total)
+        
 
-        modality = "MR"
-        number_series = MonitoringService.get_modaility_series_count(modality=modality)
-        g.labels(modality).set(number_series)
+        number_patiens_ct = MonitoringService.get_modaility_series_count(modality="CT")
+        dicom_series_total.labels("CT").set(number_patiens_ct)
+        number_patiens_mr = MonitoringService.get_modaility_series_count(modality="MR")
+        dicom_series_total.labels("MR").set(number_patiens_mr)
+        number_patiens_ot = MonitoringService.get_modaility_series_count(modality="OT")
+        dicom_series_total.labels("OT").set(number_patiens_ot)
+        number_patiens_seg = MonitoringService.get_modaility_series_count(modality="SEG")
+        dicom_series_total.labels("SEG").set(number_patiens_seg)
 
-        modality = "SEG"
-        number_series = MonitoringService.get_modaility_series_count(modality=modality)
-        g.labels(modality).set(number_series)
-
-        modality = "OT"
-        number_series = MonitoringService.get_modaility_series_count(modality=modality)
-        g.labels(modality).set(number_series)
-
+        system_load_24h_percent = MonitoringService.query_prom(
+            query="100-(avg(rate(node_cpu_seconds_total{job='Node-Exporter',mode='idle'}[24h]))*100)",
+            return_type="float",
+        )
         g = Gauge(
-            name="storage_stats",
-            documentation="Storage utilization for different mount-points.",
-            labelnames=["mount_point", "feature"],
+            name="system_load_24h_percent", documentation="A load indicator for the system indicating the system load over the last 24 hours in percent.", registry=registry
+        )
+        g.set(system_load_24h_percent)
+
+        storage_size_total_bytes = Gauge(
+            name="storage_size_total_bytes",
+            documentation="The total size in bytes of the persistent storage the component has available (Labels specify the corresponding mount points).",
+            labelnames=["mount_point"],
+            registry=registry,
+        )
+        storage_size_free_bytes = Gauge(
+            name="storage_size_free_bytes",
+            documentation="The free size in bytes of the persistent storage the component has available (specifying the corresponding mount points).",
+            labelnames=["mount_point"],
             registry=registry,
         )
 
-        for idx, mount_point in enumerate(["/", "/home"]):
-            # for idx, mount_point in enumerate(settings.mount_points):
+        for idx, mount_point in enumerate(settings.mount_points):
             total_query = f"node_filesystem_size_bytes{{app_kubernetes_io_managed_by='',fstype!='tmpfs',mountpoint='{mount_point}'}}"
             storage_size_total = MonitoringService.query_prom(
                 query=total_query, return_type="int"
@@ -222,30 +228,55 @@ class MonitoringService:
             storage_size_free = MonitoringService.query_prom(
                 query=free_query, return_type="int"
             )
-            g.labels(mount_point, "size").set(storage_size_total)
-            g.labels(mount_point, "free").set(storage_size_free)
+            storage_size_total_bytes.labels(mount_point).set(storage_size_total)
+            storage_size_free_bytes.labels(mount_point).set(storage_size_free)
 
-        system_load_24H = MonitoringService.query_prom(
-            query="100-(avg(rate(node_cpu_seconds_total{job='Node-Exporter',mode='idle'}[24h]))*100)",
-            return_type="float",
-        )
-        g = Gauge(
-            name="system_load_24H", documentation="system_load_24H", registry=registry
-        )
-        g.set(system_load_24H)
-
-        jobs_success = MonitoringService.query_prom(
+        
+        
+        jobs_success_total = MonitoringService.query_prom(
             query="af_agg_ti_successes", return_type="int"
         )
-        g = Gauge(name="jobs_success", documentation="jobs_success", registry=registry)
-        g.set(jobs_success)
+        g = Gauge(
+            name="jobs_success_total",
+            documentation="The number of jobs the component has processed successfully.",
+            registry=registry,
+        )
+        g.set(jobs_success_total)
 
-        jobs_failures = MonitoringService.query_prom(
+        jobs_failed_total = MonitoringService.query_prom(
             query="af_agg_ti_failures", return_type="int"
         )
         g = Gauge(
-            name="jobs_failures", documentation="jobs_failures", registry=registry
+            name="jobs_failed_total",
+            documentation="The number of jobs the component has failed to process.",
+            registry=registry,
         )
-        g.set(jobs_failures)
+        g.set(jobs_failed_total)
+
+        jobs_queued_total = MonitoringService.query_prom(
+            query="airflow_scheduler_tasks_executable", return_type="int"
+        )
+        g = Gauge(
+            name="jobs_queued_total",
+            documentation="The number of jobs in about to be executed (aka worklist).",
+            registry=registry,
+        )
+        g.set(jobs_queued_total)
+
+
+        workflow_avg_execution_time_seconds = Gauge(
+            name="workflow_avg_execution_time_seconds",
+            documentation="The number of jobs in about to be executed (aka worklist).",
+            labelnames=["workflow"],
+            registry=registry,
+        )
+        dag_avg_execution_time_seconds = MonitoringService.query_prom(
+            query="af_agg_dag_processing_duration_sum", return_type="raw"
+        )
+        for dag_metrics in dag_avg_execution_time_seconds:
+            dag_id = dag_metrics["metric"]["dag_file"]
+            avg_time = int(float(dag_metrics["value"][1]))
+            if "dag_" in dag_id:
+                workflow_avg_execution_time_seconds.labels(dag_id).set(avg_time)
 
         return generate_latest(registry=registry)

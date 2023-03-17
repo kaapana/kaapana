@@ -32,22 +32,10 @@ spec:
         - name: {{ $envVar.name }}
           value: "{{ $envVar.value }}"
         {{- end }}
-        {{- if .Values.global.processing_image }}
-        - name: WORKSPACE
-          value: "/kaapana"
-        {{- else if eq .Values.global.image "podman" }}
-        - name: WORKSPACE
-          value: "/kaapana/mounted/podman"
-        {{- else }}
-        - name: WORKSPACE
-          value: "/kaapana/mounted/workflows"
-        {{- end }}
-        {{- if eq .Values.global.image "podman" }}
         - name: http_proxy
           value: {{ .Values.global.http_proxy }}
         - name: https_proxy
           value: {{ .Values.global.https_proxy }}
-        {{- end }}
         resources:
           requests:
             memory: 200Mi
@@ -67,10 +55,8 @@ spec:
           - name: {{ $volumeMount.name }}
             mountPath: "{{ $volumeMount.mount_path }}"
           {{- end }}
-          {{- if .Values.global.processing_image }}
           - name: dshm
             mountPath: /dev/shm
-          {{- end }}
         {{- if eq .Values.global.image "podman" }}
         securityContext:
           privileged: true
@@ -91,10 +77,8 @@ spec:
         persistentVolumeClaim:
           claimName: {{ $volume.claim_name }}
       {{- end }}
-      {{- if .Values.global.processing_image }}
       - name: dshm
         emptyDir:
           medium: Memory
-      {{- end }}
       imagePullSecrets:
       - name: registry-secret

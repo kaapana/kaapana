@@ -454,7 +454,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         if self.dev_server is not None:
             url = f"{KaapanaBaseOperator.HELM_API}/helm-install-chart"
             env_vars_sets = {}
-            for idx, (k, v) in enumerate(self.env_vars.items()):
+            for idx, (k, v) in enumerate({"WORKSPACE": "/kaapana", **self.env_vars}.items()):
                 env_vars_sets.update({f"global.envVars[{idx}].name": f"{k}", f"global.envVars[{idx}].value": f"{v}"})
 
             volume_mounts_sets = {}

@@ -25,3 +25,5 @@ global:
   - name: airflow-mounted-scripts
     claim_name: ms-pv-claim
   envVars:
+  - name: WORKSPACE
+    value: "/kaapana"

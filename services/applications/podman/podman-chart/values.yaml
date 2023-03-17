@@ -14,3 +14,6 @@ global:
   - name: podman-data
     claim_name: podman-pv-claim
     host_path: /podman
+  envVars:
+  - name: WORKSPACE
+    value: "/kaapana/mounted/workflows"

@@ -45,6 +45,7 @@
       archive: 
         path: 
         - "{{ vm_results_dir }}"
+        ##TODO: Add experiment details to result file name
         dest: "{{ vm_results_dir }}_{{ '%Y-%m-%d' | strftime }}.zip"
         format: zip
 

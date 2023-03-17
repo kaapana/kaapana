@@ -2,6 +2,7 @@ import os
 import logging
 import subprocess
 from subprocess import PIPE
+from pathlib import Path
 from airflow.exceptions import AirflowFailException
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
@@ -9,8 +10,11 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 class LocalFetchResultsOperator(KaapanaPythonBaseOperator):
     def start(self, ds, ti, **kwargs):
         print("Fetch the results...")
+        workflow_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        base_dir = os.path.dirname(workflow_dir)
+        results_path = os.path.join(base_dir, "minio", "results")
+        Path(results_path).mkdir(parents=True, exist_ok=True)
         operator_dir = os.path.dirname(os.path.abspath(__file__))
-        results_path = os.path.join(operator_dir, "results")
         playbooks_dir = os.path.join(operator_dir, "ansible_playbooks")
         
         iso_env_ip = ti.xcom_pull(key="iso_env_ip", task_ids="create-iso-inst")

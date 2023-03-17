@@ -561,7 +561,29 @@ def sync_states_from_airflow(db: Session, periodically=False):
 
     else:
         logging.error("Error while syncing kaapana-backend with Airflow")
+
+def sync_n_clean_qsr_jobs_with_airflow(db: Session, periodically=False):
+    '''
+    Function to clean up unsuccessful synced jobs between airflow and backend.
+    Function asks in backend for jobs in states 'queued', 'scheduled', 'running', asks Airflow for their real status and updates them.
+    '''
+    # get db_jobs in states "queued", "scheduled", "running"
+    db_jobs_queued = get_jobs(db, status="queued")
+    db_jobs_scheduled = get_jobs(db, status="scheduled")
+    db_jobs_running = get_jobs(db, status="running")
+    db_jobs_qsr = db_jobs_queued + db_jobs_scheduled + db_jobs_running
+    print(f"CRUD def sync_qsr_jobs_with_airflow() db_jobs_qsr: ", db_jobs_qsr)
+    print(f"CRUD def sync_qsr_jobs_with_airflow() len(db_jobs_qsr): ", len(db_jobs_qsr))
+
+    # iterate over db_jobs_qsr
+    for db_job in db_jobs_qsr:
+        # call crud.update job fpr each db_job in list to sync it's state from airflow
+        job_update = schemas.JobUpdate(**{
+                        'job_id': db_job.id,
+                        })
+        update_job(db, job_update, remote=False)
         
+
 
 def create_identifier(db: Session, identifier: schemas.Identifier):
     db_identifier = models.Identifier(

@@ -25,9 +25,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     libxcb-randr0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Slicer 4.11.20200930 https://download.slicer.org/bitstream/60add70fae4540bf6a89bfb4
-# Slicer 5.0.2
-RUN SLICER_URL="https://download.slicer.org/bitstream/6286ce04e8408647b39f803a" && \
+# Slicer 5.2.2
+RUN SLICER_URL="https://download.slicer.org/bitstream/63f5bee68939577d9867b4c7" && \
   curl -k -v -s -L $SLICER_URL | tar xz -C /tmp && \
   mv /tmp/Slicer* /opt/slicer
 
@@ -40,7 +39,6 @@ RUN useradd -m researcher -s /bin/bash && \
     sed -i -e '/^PS1/s/^/#/' /etc/bash.bashrc && \
     sed -i -e '/stdout.*uname/s/^/#/' /etc/pam.d/login && \
     echo 'source /etc/profile.d/prompt.sh' >> /etc/bash.bashrc
-
 
 # install Slicer extension; extension name hardcoded in install-slicer-extension.py
 COPY files/install-slicer-extension.py /opt/slicer

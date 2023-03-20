@@ -65,12 +65,12 @@ export default defineComponent({
         this.notifications = ["Could not get notifications from backend."];
       }
       const json = await response.json();
-      if (json["notifications"] === null) {
+      if (json["data"] === null) {
         this.notifications = [];
         return;
       }
-      this.notifications = json["notifications"];
-      this.notifications.push({title: "test test test test test test test test", description: "desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc desc", link: "no link"});
+      this.notifications = json["data"];
+      this.notifications.push({title: "test test test", description: "desc desc desc desc desc desc desc desc", link: "no link"});
     }, 5000);
   },
   beforeDestroy() {

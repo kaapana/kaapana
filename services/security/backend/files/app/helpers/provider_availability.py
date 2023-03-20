@@ -5,6 +5,7 @@ import asyncio
 from models.provider import (
     ProviderRegistration,
     InternalProviderRegistration,
+    ProviderRegistrationOverview,
     ProviderType,
 )
 from models.availability import (
@@ -35,9 +36,7 @@ class RegisteredProviders:
         self.on_provider_unavailable = fn_on_provider_unavailable
 
         self.__read_json()
-        self.__availability_task = asyncio.create_task(
-            self.__check_all_provider_availability()
-        )
+        self.__availability_task = asyncio.create_task(self.__check_all_provider_availability())
 
     def __read_json(self):
         logger.debug("reading providers from json")
@@ -84,9 +83,7 @@ class RegisteredProviders:
 
             await asyncio.sleep(15)
 
-    async def __check_provider_availability(
-        self, provider: InternalProviderRegistration
-    ) -> bool:
+    async def __check_provider_availability(self, provider: InternalProviderRegistration) -> bool:
         logger.debug(f"availability check for provider: {provider.id}")
 
         async def check_url(url: str):
@@ -105,9 +102,7 @@ class RegisteredProviders:
 
         return any(result)
 
-    def __should_provider_be_removed(
-        self, provider: ProviderAvailabilityWrapper
-    ) -> bool:
+    def __should_provider_be_removed(self, provider: ProviderAvailabilityWrapper) -> bool:
         return (
             provider.get_status() == AvailabilityStatus.NOT_CHECKED
             and provider.get_not_available_count() >= 15
@@ -124,7 +119,7 @@ class RegisteredProviders:
             )
         )
 
-    def get_overview(self) -> List[str]:
+    def get_overview(self) -> List[ProviderRegistrationOverview]:
         return list(
             map(
                 lambda wrapper: wrapper.provider.get_overview(),

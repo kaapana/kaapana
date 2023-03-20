@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException
 import logging
+
 from helpers.resources import LOGGER_NAME
 from helpers.logger import get_logger, function_logger_factory
 from api_access.wazuh_api import WazuhAPIAuthentication, WazuhAPIWrapper
@@ -10,6 +11,14 @@ from starlette.status import HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
 from routers.deactivatable_router import DeactivatableRouter
 from models.provider import ProviderAPIEndpoints
 from models.misc import SecurityNotification
+from models.response import Response as ResponseModel
+from models.wazuh_models import (
+    WazuhAgent,
+    WazuhAgentFileIntegrityAlert,
+    WazuhAgentVulnerability,
+    WazuhSCAPolicy,
+    WazuhSCAPolicyCheck,
+)
 
 logger = get_logger(f"{LOGGER_NAME}.wazuh_router", logging.INFO)
 
@@ -24,28 +33,44 @@ class WazuhRouter(DeactivatableRouter):
     __notification_task_activated = False
 
     def __init__(self, activated=False):
-        self.router.add_api_route("/url", self.get_wazuh_url, methods=["GET"])
         self.router.add_api_route(
-            "/agent-installed", self.get_wazuh_agent_installed, methods=["GET"]
+            "/url", self.get_wazuh_url, methods=["GET"], response_model=ResponseModel[str]
         )
-        self.router.add_api_route("/agents", self.get_wazuh_agents, methods=["GET"])
         self.router.add_api_route(
-            "/agents/{agent_id}/sca", self.get_agent_sca_policies, methods=["GET"]
+            "/agent-installed",
+            self.get_wazuh_agent_installed,
+            methods=["GET"],
+            response_model=ResponseModel[bool],
+        )
+        self.router.add_api_route(
+            "/agents",
+            self.get_wazuh_agents,
+            methods=["GET"],
+            response_model=ResponseModel[List[WazuhAgent]],
+        )
+        self.router.add_api_route(
+            "/agents/{agent_id}/sca",
+            self.get_agent_sca_policies,
+            methods=["GET"],
+            response_model=ResponseModel[List[WazuhSCAPolicy]],
         )  # security compatibility assessment policy
         self.router.add_api_route(
             "/agents/{agent_id}/sca/{policy_id}",
             self.get_agent_sca_policy_checks,
             methods=["GET"],
+            response_model=ResponseModel[List[WazuhSCAPolicyCheck]],
         )  # security compatibility assessment
         self.router.add_api_route(
             "/agents/{agent_id}/vulnerabilities",
             self.get_agent_vulnerabilities,
             methods=["GET"],
+            response_model=ResponseModel[List[WazuhAgentVulnerability]],
         )
         self.router.add_api_route(
             "/agents/{agent_id}/file-integrity-alerts",
             self.get_agent_file_integrity_alerts,
             methods=["GET"],
+            response_model=ResponseModel[List[WazuhAgentFileIntegrityAlert]],
         )
 
         self.__notification_task = asyncio.create_task(self.__get_new_events())
@@ -57,9 +82,7 @@ class WazuhRouter(DeactivatableRouter):
 
         while True:
             if self.__notification_task_activated:
-                logger.debug(
-                    f"fetching notifications, old: {self.__current_notifications}"
-                )
+                logger.debug(f"fetching notifications, old: {self.__current_notifications}")
 
                 # remove old notifications
                 new_notifications: List[SecurityNotification] = []
@@ -97,17 +120,15 @@ class WazuhRouter(DeactivatableRouter):
     @function_logger_factory(logger)
     def get_wazuh_url(self):
         if self.__ui_url is not None and self.__ui_url != "":
-            return {"url": self.__ui_url}
+            return {"data": self.__ui_url}
         else:
-            raise HTTPException(
-                status_code=HTTP_404_NOT_FOUND, detail="Url not available"
-            )
+            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Url not available")
 
     @DeactivatableRouter.activation_wrapper
     @function_logger_factory(logger)
     def get_wazuh_agent_installed(self):
         try:
-            return {"agent_installed": self.__wazuh_api.is_agent_installed()}
+            return {"data": self.__wazuh_api.is_agent_installed()}
         except:
             raise HTTPException(
                 status_code=HTTP_500_INTERNAL_SERVER_ERROR,
@@ -118,7 +139,7 @@ class WazuhRouter(DeactivatableRouter):
     @function_logger_factory(logger)
     def get_wazuh_agents(self):
         try:
-            return {"agents": self.__wazuh_api.get_all_agents()}
+            return {"data": self.__wazuh_api.get_all_agents()}
         except:
             raise HTTPException(
                 status_code=HTTP_500_INTERNAL_SERVER_ERROR,
@@ -129,7 +150,7 @@ class WazuhRouter(DeactivatableRouter):
     @function_logger_factory(logger)
     def get_agent_sca_policies(self, agent_id: str):
         try:
-            return {"sca_policies": self.__wazuh_api.get_agent_sca_policies(agent_id)}
+            return {"data": self.__wazuh_api.get_agent_sca_policies(agent_id)}
         except:
             raise HTTPException(
                 status_code=HTTP_500_INTERNAL_SERVER_ERROR,
@@ -141,9 +162,7 @@ class WazuhRouter(DeactivatableRouter):
     def get_agent_sca_policy_checks(self, agent_id: str, policy_id: str):
         try:
             return {
-                "sca_policy_checks": self.__wazuh_api.get_agent_sca_policy_checks(
-                    agent_id, policy_id
-                )
+                "data": self.__wazuh_api.get_agent_sca_policy_checks(agent_id, policy_id)
             }  # todo pagination?
         except:
             raise HTTPException(
@@ -156,9 +175,7 @@ class WazuhRouter(DeactivatableRouter):
     def get_agent_file_integrity_alerts(self, agent_id: str):
         try:
             return {
-                "file_integrity_alerts": self.__wazuh_api.get_agent_file_integrity_alerts(
-                    agent_id
-                )
+                "data": self.__wazuh_api.get_agent_file_integrity_alerts(agent_id)
             }  # todo pagination?
         except:
             raise HTTPException(
@@ -171,9 +188,7 @@ class WazuhRouter(DeactivatableRouter):
     async def get_agent_vulnerabilities(self, agent_id: str):
         try:
             return {
-                "vulnerabilities": await self.__wazuh_api.get_agent_vulnerabilities(
-                    agent_id
-                )
+                "data": await self.__wazuh_api.get_agent_vulnerabilities(agent_id)
             }  # todo pagination?
         except:
             raise HTTPException(

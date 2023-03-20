@@ -75,11 +75,11 @@ export default defineComponent({
         throw new Error("Unexpected response from backend");
       }
       const json = await response.json();
-      if (json["sca_policy_checks"] === null) {
+      if (json["data"] === null) {
         this.scaPolicyChecks = [];
         return;
       }
-      this.scaPolicyChecks = json["sca_policy_checks"];
+      this.scaPolicyChecks = json["data"];
     },
     headerBreadCrumbs(): BreadCrumb[] {
       return [

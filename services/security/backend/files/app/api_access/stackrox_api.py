@@ -29,7 +29,7 @@ STACKROX_API_ITEM_LIMIT = 100
 class StackRoxAPIAuthentication:
     __jwt_token: JWTToken = None
     __api_username: str = "admin"
-    __api_pw: str = "gtSXi9UWsosv3aTQ6jVn4Ag6Y"
+    __api_pw: str = "adminpassword"
     __api_endpoint: Optional[str] = None
 
     def __init__(self):

@@ -57,12 +57,12 @@ export default defineComponent({
         throw new Error("Unexpected response from backend");
       }
       const json = await response.json();
-      if (json["sca_policies"] === null) {
+      if (json["data"] === null) {
         this.policyInformation.set(this.agent_id, new Map());
         return;
       }
 
-      const agentPolicyInformation = json["sca_policies"].reduce((acc: PolicyInformationMap, policy: IAgentSCAPolicy) => {
+      const agentPolicyInformation = json["data"].reduce((acc: PolicyInformationMap, policy: IAgentSCAPolicy) => {
         acc.set(policy.id, policy);
         return acc;
       }, new Map());

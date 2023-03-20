@@ -1,15 +1,19 @@
-import asyncio
-from typing import Callable, Dict, Union
+from typing import Callable, List
 from fastapi import APIRouter, HTTPException, Request, Response
 from helpers.provider_availability import RegisteredProviders
-from models.provider import ProviderRegistration, ProviderType
+from models.provider import (
+    ProviderRegistration,
+    ProviderRegistrationOverview,
+    ProviderType,
+)
 from routers.wazuh_router import WazuhRouter
 from routers.stackrox_router import StackRoxRouter
 import logging
 from helpers.resources import API_ROUTE_PREFIX, LOGGER_NAME
 from helpers.logger import get_logger
 from starlette.status import HTTP_200_OK, HTTP_404_NOT_FOUND
-from models.misc import SecurityNotification
+from models.misc import Notification, SecurityNotification
+from models.response import Response as ResponseModel
 
 logger = get_logger(f"{LOGGER_NAME}.api", logging.INFO)
 
@@ -46,14 +50,17 @@ registered_providers = RegisteredProviders(
 )
 
 
-@router.get("/providers")
+@router.get(
+    "/providers", response_model=ResponseModel[List[ProviderRegistrationOverview]]
+)
 def get_provider():
-    return {"providers": registered_providers.get_overview()}
+    return {"data": registered_providers.get_overview()}
 
 
 @router.put("/providers")
 def put_provider(provider: ProviderRegistration):
     registered_providers.add(provider)
+    return Response(status_code=HTTP_200_OK)
 
 
 router.include_router(wazuh_router.router, prefix="/providers")
@@ -74,12 +81,13 @@ def get_disable_debug():
     return Response(status_code=HTTP_200_OK)
 
 
-@router.get("/notifications")
+# todo: get alerts from stackrox and also include errors from fastapi
+@router.get("/notifications", response_model=ResponseModel[List[Notification]])
 def get_notifications(response: Response):
     response.headers["max-age"] = "5"
 
     strip_notification_timestamp: Callable[
-        [SecurityNotification], Dict[str, Union[str, None], Union[str, None]]
+        [SecurityNotification], Notification
     ] = lambda notification: {
         "title": notification.title,
         "description": notification.description,
@@ -90,7 +98,7 @@ def get_notifications(response: Response):
     )
     stackrox_notifications = []
     # stackrox_notifications = list(map(strip_notification_timestamp, stackrox_router.get_notifcations()))
-    return {"notifications": [*wazuh_notifications, *stackrox_notifications]}
+    return {"data": [*wazuh_notifications, *stackrox_notifications]}
 
 
 @router.get("/{full_path:path}")

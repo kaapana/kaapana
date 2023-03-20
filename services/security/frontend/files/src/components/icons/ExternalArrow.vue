@@ -14,7 +14,7 @@ export default defineComponent({
 });
 </script>
 
-<style scoped>
+<style scopWazuhSCAPolicyed>
 .svg {
   width: 15px;
   height: inherit;

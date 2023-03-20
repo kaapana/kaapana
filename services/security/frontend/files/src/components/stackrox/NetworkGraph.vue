@@ -30,7 +30,7 @@ export default defineComponent({
                 throw new Error("Unexpected response from backend");
             }
             const json = await response.json();
-            this.url = json["networkgraph_url"];
+            this.url = json["data"];
         }
     },
     async mounted() {

@@ -52,7 +52,7 @@ export default defineComponent({
         throw new Error("Unexpected response from backend");
       }
       const json = await response.json();
-      this.wazuhAgentAvailable = json["agent_installed"];
+      this.wazuhAgentAvailable = json["data"];
     },
     async getAgentInformation() {
       if (this.agentInformation) {
@@ -63,11 +63,11 @@ export default defineComponent({
         throw new Error("Unexpected response from backend");
       }
       const json = await response.json();
-      if (json["agents"] === null) {
+      if (json["data"] === null) {
         this.agentInformation = new Map();
         return;
       }
-      this.agentInformation = json["agents"].reduce((acc: AgentInformationMap, agent: IAgentInformation) => {
+      this.agentInformation = json["data"].reduce((acc: AgentInformationMap, agent: IAgentInformation) => {
         acc.set(agent.id, agent);
         return acc;
       }, new Map());
@@ -78,7 +78,7 @@ export default defineComponent({
         throw new Error("Unexpected response from backend");
       }
       const json = await response.json();
-      this.wazuhUrl = json["url"];
+      this.wazuhUrl = json["data"];
     },
     openWazuhDashboard() {
       if (this.wazuhUrl) {

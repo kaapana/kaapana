@@ -11,6 +11,8 @@ from api_access.stackrox_api import (
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
 from routers.deactivatable_router import DeactivatableRouter
 from models.provider import ProviderAPIEndpoints
+from models.response import Response as ResponseModel
+from models.stackrox_models import Deployment, Image, PolicyViolation, Secret
 
 logger = get_logger(f"{LOGGER_NAME}.stackrox_router", logging.INFO)
 
@@ -22,19 +24,48 @@ class StackRoxRouter(DeactivatableRouter):
     __stackrox_api: Optional[StackRoxAPIWrapper] = None
 
     def __init__(self, activated=False):
-        self.router.add_api_route("/url", self.get_stackrox_url, methods=["GET"])
         self.router.add_api_route(
-            "/networkgraph-url", self.get_network_graph_url, methods=["GET"]
+            "/url",
+            self.get_stackrox_url,
+            methods=["GET"],
+            response_model=ResponseModel[str],
         )
         self.router.add_api_route(
-            "/compliance-url", self.get_compliance_url, methods=["GET"]
+            "/networkgraph-url",
+            self.get_network_graph_url,
+            methods=["GET"],
+            response_model=ResponseModel[str],
         )
         self.router.add_api_route(
-            "/policy-violations", self.get_policy_violations, methods=["GET"]
+            "/compliance-url",
+            self.get_compliance_url,
+            methods=["GET"],
+            response_model=ResponseModel[str],
         )
-        self.router.add_api_route("/images", self.get_images, methods=["GET"])
-        self.router.add_api_route("/deployments", self.get_deployments, methods=["GET"])
-        self.router.add_api_route("/secrets", self.get_secrets, methods=["GET"])
+        self.router.add_api_route(
+            "/policy-violations",
+            self.get_policy_violations,
+            methods=["GET"],
+            response_model=ResponseModel[List[PolicyViolation]],
+        )
+        self.router.add_api_route(
+            "/images",
+            self.get_images,
+            methods=["GET"],
+            response_model=ResponseModel[List[Image]],
+        )
+        self.router.add_api_route(
+            "/deployments",
+            self.get_deployments,
+            methods=["GET"],
+            response_model=ResponseModel[List[Deployment]],
+        )
+        self.router.add_api_route(
+            "/secrets",
+            self.get_secrets,
+            methods=["GET"],
+            response_model=ResponseModel[List[Secret]],
+        )
         self._activated = activated
 
     @function_logger_factory(logger)
@@ -54,7 +85,7 @@ class StackRoxRouter(DeactivatableRouter):
     @function_logger_factory(logger)
     def get_stackrox_url(self):
         if self.__ui_url is not None and self.__ui_url != "":
-            return {"url": self.__ui_url}
+            return {"data": self.__ui_url}
         else:
             raise HTTPException(
                 status_code=HTTP_404_NOT_FOUND, detail="Url not available"
@@ -64,11 +95,7 @@ class StackRoxRouter(DeactivatableRouter):
     @function_logger_factory(logger)
     def get_network_graph_url(self):
         try:
-            return {
-                "networkgraph_url": self.__stackrox_api.get_network_graph_url(
-                    self.__ui_url
-                )
-            }
+            return {"data": self.__stackrox_api.get_network_graph_url(self.__ui_url)}
         except:
             raise HTTPException(
                 status_code=HTTP_500_INTERNAL_SERVER_ERROR,
@@ -79,9 +106,7 @@ class StackRoxRouter(DeactivatableRouter):
     @function_logger_factory(logger)
     def get_compliance_url(self):
         try:
-            return {
-                "compliance_url": self.__stackrox_api.get_compliance_url(self.__ui_url)
-            }
+            return {"data": self.__stackrox_api.get_compliance_url(self.__ui_url)}
         except:
             raise HTTPException(
                 status_code=HTTP_500_INTERNAL_SERVER_ERROR,
@@ -92,11 +117,7 @@ class StackRoxRouter(DeactivatableRouter):
     @function_logger_factory(logger)
     def get_policy_violations(self):
         try:
-            return {
-                "policy_violations": self.__stackrox_api.get_policy_violations(
-                    self.__ui_url
-                )
-            }
+            return {"data": self.__stackrox_api.get_policy_violations(self.__ui_url)}
         except:
             raise HTTPException(
                 status_code=HTTP_500_INTERNAL_SERVER_ERROR,
@@ -107,7 +128,7 @@ class StackRoxRouter(DeactivatableRouter):
     @function_logger_factory(logger)
     def get_images(self):
         try:
-            return {"images": self.__stackrox_api.get_images(self.__ui_url)}
+            return {"data": self.__stackrox_api.get_images(self.__ui_url)}
         except:
             raise HTTPException(
                 status_code=HTTP_500_INTERNAL_SERVER_ERROR,
@@ -118,7 +139,7 @@ class StackRoxRouter(DeactivatableRouter):
     @function_logger_factory(logger)
     def get_deployments(self):
         try:
-            return {"deployments": self.__stackrox_api.get_deployments(self.__ui_url)}
+            return {"data": self.__stackrox_api.get_deployments(self.__ui_url)}
         except:
             raise HTTPException(
                 status_code=HTTP_500_INTERNAL_SERVER_ERROR,
@@ -129,7 +150,7 @@ class StackRoxRouter(DeactivatableRouter):
     @function_logger_factory(logger)
     def get_secrets(self):
         try:
-            return {"secrets": self.__stackrox_api.get_secrets(self.__ui_url)}
+            return {"data": self.__stackrox_api.get_secrets(self.__ui_url)}
         except:
             raise HTTPException(
                 status_code=HTTP_500_INTERNAL_SERVER_ERROR,

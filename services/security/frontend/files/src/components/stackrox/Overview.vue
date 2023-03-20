@@ -103,7 +103,7 @@ export default defineComponent({
       }
       const json = await response.json();
 
-      this.complianceUrl = json["compliance_url"];
+      this.complianceUrl = json["data"];
     }
   },
   async mounted() {

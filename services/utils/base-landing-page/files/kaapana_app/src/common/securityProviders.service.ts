@@ -19,7 +19,7 @@ const securityProviderService = {
     try {
       const response = await request.get('/security/api/providers');
       const { data } = response;
-      const providerList = data.providers;
+      const providerList = data["data"];
       for (const provider of providerList) {
         securityProviders.push(provider);
       }

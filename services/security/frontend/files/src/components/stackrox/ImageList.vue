@@ -35,12 +35,12 @@ export default defineComponent({
         throw new Error("Unexpected response from backend");
       }
       const json = await response.json();
-      if (json["images"] === null) {
+      if (json["data"] === null) {
         this.images = [];
         return;
       }
 
-      this.images = json["images"];
+      this.images = json["data"];
     }
   },
   async mounted() {

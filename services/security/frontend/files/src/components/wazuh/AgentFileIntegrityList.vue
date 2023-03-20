@@ -52,12 +52,12 @@ export default defineComponent({
         throw new Error("Unexpected response from backend");
       }
       const json = await response.json();
-      if (json["file_integrity_alerts"] === null) {
+      if (json["data"] === null) {
         this.fileIntegrityInformation.set(this.agent_id, new Map());
         return;
       }
 
-      const agentFileIntegrityInformation = json["file_integrity_alerts"].reduce((acc: FileIntegrityInformationMap, fileIntegrityAlert: IAgentFileIntegrityAlert) => {
+      const agentFileIntegrityInformation = json["data"].reduce((acc: FileIntegrityInformationMap, fileIntegrityAlert: IAgentFileIntegrityAlert) => {
         acc.set(fileIntegrityAlert.id, fileIntegrityAlert);
         return acc;
       }, new Map());

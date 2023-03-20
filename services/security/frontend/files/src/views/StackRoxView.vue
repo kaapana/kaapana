@@ -35,7 +35,7 @@ export default defineComponent({
         throw new Error("Unexpected response from backend");
       }
       const json = await response.json();
-      this.stackRoxUrl = json["url"];
+      this.stackRoxUrl = json["data"];
     },
     openStackRoxDashboard() {
       if (this.stackRoxUrl) {

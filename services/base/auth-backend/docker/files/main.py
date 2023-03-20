@@ -8,23 +8,29 @@ import jwt
 
 app = FastAPI()
 
+white_list_paths=[
+    "/oauth2/metrics",
+    "/auth/realms/kaapana",
+    "/auth/resources",
+]
 
 @app.get("/auth-check",status_code=status.HTTP_200_OK)
 async def auth_check(request: Request,response: Response):
     """
     Check if the user who made the request is mapped to the required roles in order to be authorized to access the requested resource.
     """
-    for header, value in request.headers.items():
-        logger.warn(f"{header}:{value}")
+    # for header, value in request.headers.items():
+    #     logger.warn(f"{header}:{value}")
     requested_prefix = request.headers.get('x-forwarded-prefix')
     if requested_prefix is None:
         requested_prefix = request.headers.get('x-forwarded-uri')
     
-    if requested_prefix.startswith("/auth/realms/kaapana") or requested_prefix.startswith("/auth/resources"):
-        message = f"White-listed auth-endpoint: {requested_prefix} -> ok"
-        logger.warn(message)
-        response.status_code = status.HTTP_200_OK
-        return message
+    for white_list_path in white_list_paths:
+        if requested_prefix.startswith(white_list_path):
+            message = f"White-listed auth-endpoint: {requested_prefix} -> ok"
+            logger.warn(message)
+            response.status_code = status.HTTP_200_OK
+            return message
         
     if requested_prefix is None:
         response.status_code = status.HTTP_403_FORBIDDEN

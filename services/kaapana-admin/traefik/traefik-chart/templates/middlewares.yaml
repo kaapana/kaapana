@@ -27,7 +27,7 @@ metadata:
   namespace: "{{  .Values.global.helm_namespace  }}"
 spec:
   forwardAuth:
-    address: http://auth-backend-service.{{  .Values.global.services_namespace  }}.svc:5000/auth-check
+    address: http://auth-backend-service.{{  .Values.global.admin_namespace  }}.svc:5000/auth-check
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware

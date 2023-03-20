@@ -105,4 +105,7 @@ if wait_env != None and delay != None:
             while check_port(name, host, port, delay) != 0:
                 time.sleep(delay)
 
+print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+print("+++++                        ALL DONE                               +++++")
+print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                 

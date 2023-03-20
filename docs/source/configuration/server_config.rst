@@ -24,7 +24,7 @@ Login again
 
 ::
 
-    ping www.dkfz-heidelberg.de 
+    curl www.dkfz-heidelberg.de 
 
 Should work -> network connection is working
 

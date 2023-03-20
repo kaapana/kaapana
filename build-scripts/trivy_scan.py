@@ -78,34 +78,28 @@ if __name__ == "__main__":
     BuildUtils.kaapana_dir = kaapana_dir
     BuildUtils.build_dir = build_dir
     BuildUtils.parallel_processes = int(args.num_parallel_processes)
+    BuildUtils.create_sboms = sbom
+    BuildUtils.vulnerability_scan = vuln
 
     trivy_utils = TrivyUtils()
 
     def handler(signum, frame):
-        BuildUtils.logger.info("Received SIGTSTP, exiting...")
-        BuildUtils.logger.info("Stopping ThreadPool...")
+        BuildUtils.logger.info("Exiting...")
+
         trivy_utils.kill_flag = True
-        trivy_utils.threadpool.terminate()
 
-        # stop all running containers
-        BuildUtils.logger.info("Stopping all running containers...")
-        trivy_utils.semaphore_running_containers.acquire()
-        try:
-            for container in trivy_utils.list_of_running_containers:
+        with trivy_utils.semaphore_threadpool:
+            if trivy_utils.threadpool is not None:
+                trivy_utils.threadpool.terminate()
+                trivy_utils.threadpool = None
+            
+        trivy_utils.error_clean_up()
 
-                command = ["docker", "kill", container]
-                run(command, check=False, stdout=DEVNULL, stderr=DEVNULL)
-
-                # remove empty json files
-                if os.path.exists(join(BuildUtils.build_dir, container + ".json")):
-                    os.remove(join(BuildUtils.build_dir, container + ".json"))
-        finally:
-            trivy_utils.semaphore_running_containers.release()
-
-        if sbom:
+        if BuildUtils.create_sboms:
             trivy_utils.safe_sboms()
-        if vuln:
+        if BuildUtils.vulnerability_scan:
             trivy_utils.safe_vulnerability_reports()
+
         exit(1)
 
     signal.signal(signal.SIGTSTP, handler)

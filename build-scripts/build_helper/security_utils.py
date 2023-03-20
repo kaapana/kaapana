@@ -198,7 +198,7 @@ class TrivyUtils:
             universal_newlines=True,
             timeout=self.timeout,
         )
-
+        
         if self.kill_flag:
             issue = {
                 "component": image,

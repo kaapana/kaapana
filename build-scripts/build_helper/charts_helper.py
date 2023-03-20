@@ -1424,7 +1424,6 @@ class HelmChart:
         # Scan for vulnerabilities if enabled
         if BuildUtils.vulnerability_scan:
             trivy_utils.create_vulnerability_reports(successful_built_containers)
-
         if BuildUtils.create_offline_installation is True:
             OfflineInstallerHelper.generate_microk8s_offline_version()
             images_tarball_path = join(

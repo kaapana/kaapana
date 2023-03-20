@@ -6,7 +6,7 @@ import os
 import json
 from datetime import datetime
 from treelib import Tree
-from subprocess import PIPE, run
+from subprocess import PIPE, run, DEVNULL
 from os.path import join, dirname, exists, isfile
 from pathlib import Path
 from build_helper.build_utils import BuildUtils
@@ -18,6 +18,7 @@ from build_helper.container_helper import get_image_stats
 from build_helper.security_utils import TrivyUtils
 from build_helper.offline_installer_helper import OfflineInstallerHelper
 import threading
+import signal
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
@@ -1297,7 +1298,7 @@ class HelmChart:
         containers_to_built = [
             (x, containers_to_built[x]) for x in range(0, len(containers_to_built))
         ]
-        waiting_containers_to_built = containers_to_built.copy()
+        waiting_containers_to_built = sorted(containers_to_built).copy()
         with alive_bar(container_count, dual_line=True, title="Container-Build") as bar:
             with ThreadPool(BuildUtils.parallel_processes) as threadpool:
                 while (
@@ -1358,15 +1359,37 @@ class HelmChart:
         BuildUtils.logger.info("")
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
 
-        # Scan for vulnerabilities if enabled
-        if BuildUtils.vulnerability_scan:
+        if BuildUtils.vulnerability_scan or BuildUtils.create_sboms:
             trivy_utils = TrivyUtils()
-            trivy_utils.create_vulnerability_reports(successful_built_containers)
+
+            def handler(signum, frame):
+                BuildUtils.logger.info("Exiting...")
+
+                trivy_utils.kill_flag = True
+
+                with trivy_utils.semaphore_threadpool:
+                    if trivy_utils.threadpool is not None:
+                        trivy_utils.threadpool.terminate()
+                        trivy_utils.threadpool = None
+                    
+                trivy_utils.error_clean_up()
+
+                if BuildUtils.create_sboms:
+                    trivy_utils.safe_sboms()
+                if BuildUtils.vulnerability_scan:
+                    trivy_utils.safe_vulnerability_reports()
+
+                exit(1)
+
+            signal.signal(signal.SIGTSTP, handler)
+
         # Create SBOMs if enabled
         if BuildUtils.create_sboms:
-            trivy_utils = TrivyUtils()
             trivy_utils.create_sboms(successful_built_containers)
-
+        # Scan for vulnerabilities if enabled
+        if BuildUtils.vulnerability_scan:
+            trivy_utils.create_vulnerability_reports(successful_built_containers)
+            
         if BuildUtils.create_offline_installation is True:
             OfflineInstallerHelper.generate_microk8s_offline_version()
             images_tarball_path = join(

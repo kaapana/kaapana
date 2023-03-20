@@ -12,7 +12,8 @@ ENV DICT_PATH /scripts/dicom_tag_dict.json
 WORKDIR /kaapana/app
 
 COPY files/requirements.txt ./
-RUN python3 -m pip install --no-cache-dir -r requirements.txt --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.5.1/constraints-3.9.txt"
+COPY files/constraints-3.9.txt ./
+RUN python3 -m pip install --no-cache-dir -r requirements.txt --constraint 'constraints-3.9.txt'
 
 COPY files/scripts/ /scripts
 

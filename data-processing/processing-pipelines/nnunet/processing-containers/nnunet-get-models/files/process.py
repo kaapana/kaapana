@@ -36,15 +36,15 @@ print("#")
 print("#")
 
 
-def check_dl_running(model_path_dl_running, model_path, wait=True):
-    if os.path.isfile(model_path_dl_running):
+def check_dl_running(model_download_lockfile_path, model_path, wait=True):
+    if os.path.isfile(model_download_lockfile_path):
         hours_since_creation = int(
-            (datetime.now() - datetime.fromtimestamp(os.path.getmtime(model_path_dl_running))).total_seconds() / 3600
+            (datetime.now() - datetime.fromtimestamp(os.path.getmtime(model_download_lockfile_path))).total_seconds() / 3600
         )
         if hours_since_creation > max_hours_since_creation:
             print("Download lock-file present! -> waiting until it is finished!")
             print("File older than {} hours! -> removing and triggering download!".format(max_hours_since_creation))
-            delete_file(model_path_dl_running)
+            delete_file(model_download_lockfile_path)
             return False
 
         print("Download already running -> waiting until it is finished!")
@@ -89,7 +89,7 @@ if mode == "install_zip":
     print("------------------------------------")
     zip_files = []
     batch_folders = sorted(
-        [f for f in glob.glob(os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*"))]
+        [f for f in glob.glob(os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ[""], "*"))]
     )
     for batch_element_dir in batch_folders:
         zip_dir_path = os.path.join(batch_element_dir, os.environ["OPERATOR_IN_DIR"])
@@ -215,26 +215,27 @@ elif mode == "install_pretrained":
 
         print("Model not present: {}".format(model_path))
 
-        model_path_dl_running = os.path.join(models_dir, "dl_{}.txt".format(task_id))
+        model_download_lockfile_path = os.path.join(models_dir, "dl_{}.txt".format(task_id))
         wait = True if len(task_ids) == 1 else False
-        if check_dl_running(model_path_dl_running=model_path_dl_running, model_path=model_path, wait=wait):
+        if check_dl_running(model_download_lockfile_path=model_download_lockfile_path, model_path=model_path, wait=wait):
             continue
 
         file_name = "{}.zip".format(task_id)
         model_url = "https://zenodo.org/record/4003545/files/{}?download=1".format(file_name)
 
-        output_dir = os.path.join("/", os.getenv("WORKFLOW_DIR", "tmp"), os.getenv("OPERATOR_OUT_DIR", ""))
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        model_download_zip_tmp_path = os.path.join(models_dir, "tmp-download")
+        if not os.path.exists(model_download_zip_tmp_path):
+            os.makedirs(model_download_zip_tmp_path)
 
         try_count = 0
-        target_file = os.path.join(output_dir, file_name)
+        target_file = os.path.join(model_download_zip_tmp_path, file_name)
+        print(f"# Model download tmp-path: {target_file}")
         while not os.path.isfile(target_file) and try_count < max_retries:
             print("Try: {} - Start download: {}".format(try_count, model_url))
             try_count += 1
             try:
-                print("set lock-file: {}".format(model_path_dl_running))
-                Path(model_path_dl_running).touch()
+                print("set lock-file: {}".format(model_download_lockfile_path))
+                Path(model_download_lockfile_path).touch()
                 pbar = None
                 pbar_count = 0
                 with alive_bar(100, dual_line=True, title=f"Downloading {target_file}") as bar:
@@ -245,13 +246,14 @@ elif mode == "install_pretrained":
                 print("Abort.")
                 print("MSG: " + str(e))
                 delete_file(target_file)
+                delete_file(model_download_lockfile_path)
 
         if try_count >= max_retries:
             print("------------------------------------")
             print("Max retries reached!")
             print("Skipping...")
             print("------------------------------------")
-            delete_file(model_path_dl_running)
+            delete_file(model_download_lockfile_path)
             continue
 
         print("------------------------------------")
@@ -273,10 +275,10 @@ elif mode == "install_pretrained":
             print("Abort.")
             print("MSG: " + str(e))
             delete_file(target_file)
-            delete_file(model_path_dl_running)
+            delete_file(model_download_lockfile_path)
             continue
 
-        delete_file(model_path_dl_running)
+        delete_file(model_download_lockfile_path)
 
     print("------------------------------------")
     print("------------------------------------")

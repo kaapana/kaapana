@@ -960,7 +960,7 @@ class HelmChart:
                     component=suite_tag,
                     name=f"{self.chart_id}",
                     msg="chart push failed!",
-                    level="ERROR",
+                    level="FATAL",
                     output=output,
                     path=self.chart_dir,
                 )

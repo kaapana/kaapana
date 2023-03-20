@@ -1440,7 +1440,6 @@ class HelmChart:
                     if trivy_utils.threadpool is not None:
                         trivy_utils.threadpool.terminate()
                         trivy_utils.threadpool = None
-
                 trivy_utils.error_clean_up()
 
                 if BuildUtils.create_sboms:
@@ -1458,7 +1457,6 @@ class HelmChart:
         # Scan for vulnerabilities if enabled
         if BuildUtils.vulnerability_scan:
             trivy_utils.create_vulnerability_reports(successful_built_containers)
-
         if BuildUtils.create_offline_installation is True:
             OfflineInstallerHelper.generate_microk8s_offline_version()
             images_tarball_path = join(

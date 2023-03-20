@@ -198,7 +198,7 @@ class TrivyUtils:
             universal_newlines=True,
             timeout=self.timeout,
         )
-
+        
         if self.kill_flag:
             issue = {
                 "component": image,
@@ -206,7 +206,6 @@ class TrivyUtils:
                 "description": "Vulnerability scan was interrupted.",
             }
             return image, issue
-
         elif output.returncode != 0:
             BuildUtils.logger.error(
                 "Failed to create vulnerability report for image: "

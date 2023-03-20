@@ -1298,7 +1298,7 @@ class HelmChart:
         containers_to_built = [
             (x, containers_to_built[x]) for x in range(0, len(containers_to_built))
         ]
-        waiting_containers_to_built = containers_to_built.copy()
+        waiting_containers_to_built = sorted(containers_to_built).copy()
         with alive_bar(container_count, dual_line=True, title="Container-Build") as bar:
             with ThreadPool(BuildUtils.parallel_processes) as threadpool:
                 while (
@@ -1359,27 +1359,16 @@ class HelmChart:
             trivy_utils = TrivyUtils()
 
             def handler(signum, frame):
-                BuildUtils.logger.info("Received SIGTSTP, exiting...")
-                BuildUtils.logger.info("Stopping ThreadPool...")
+                BuildUtils.logger.info("Exiting...")
+
                 trivy_utils.kill_flag = True
-                trivy_utils.threadpool.terminate()
 
-                # stop all running containers
-                BuildUtils.logger.info("Stopping all running containers...")
-                trivy_utils.semaphore_running_containers.acquire()
-                try:
-                    for container in trivy_utils.list_of_running_containers:
-
-                        command = ["docker", "kill", container]
-                        run(command, check=False, stdout=DEVNULL, stderr=DEVNULL)
-
-                        # remove empty json files
-                        if os.path.exists(
-                            join(BuildUtils.build_dir, container + ".json")
-                        ):
-                            os.remove(join(BuildUtils.build_dir, container + ".json"))
-                finally:
-                    trivy_utils.semaphore_running_containers.release()
+                with trivy_utils.semaphore_threadpool:
+                    if trivy_utils.threadpool is not None:
+                        trivy_utils.threadpool.terminate()
+                        trivy_utils.threadpool = None
+                    
+                trivy_utils.error_clean_up()
 
                 if BuildUtils.create_sboms:
                     trivy_utils.safe_sboms()
@@ -1390,13 +1379,13 @@ class HelmChart:
 
             signal.signal(signal.SIGTSTP, handler)
 
-        # Scan for vulnerabilities if enabled
-        if BuildUtils.vulnerability_scan:
-            trivy_utils.create_vulnerability_reports(successful_built_containers)
         # Create SBOMs if enabled
         if BuildUtils.create_sboms:
             trivy_utils.create_sboms(successful_built_containers)
-
+        # Scan for vulnerabilities if enabled
+        if BuildUtils.vulnerability_scan:
+            trivy_utils.create_vulnerability_reports(successful_built_containers)
+            
         if BuildUtils.create_offline_installation is True:
             OfflineInstallerHelper.generate_microk8s_offline_version()
             images_tarball_path = join(

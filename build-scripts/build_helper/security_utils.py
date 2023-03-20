@@ -10,14 +10,6 @@ from alive_progress import alive_bar
 
 
 suite_tag = "security"
-skip_commands = {
-    "otsus-method": [
-        [
-            "--skip-files",
-            "usr/local/lib/python3.9/site-packages/nibabel/tests/data/Phantom_EPI_3mm_sag_15RL_SENSE_11_1.PAR",
-        ]
-    ],
-}
 
 # Class containing security related helper functions
 # Using Trivy to create SBOMS and check for vulnerabilities
@@ -27,7 +19,7 @@ class TrivyUtils:
     vulnerability_reports = {}
     compressed_vulnerability_reports = {}
     compressed_dockerfile_report = {}
-    trivy_image = "0.38.3"
+    trivy_image = "aquasec/trivy:0.38.3"
     timeout = 10000
     threadpool = None
     list_of_running_containers = []
@@ -66,10 +58,13 @@ class TrivyUtils:
                 level="ERROR",
             )
 
+        run(["docker", "logout", "ghcr.io"], stdout=DEVNULL, stderr=DEVNULL)
+
         self.semaphore_sboms = threading.Lock()
         self.semaphore_vulnerability_reports = threading.Lock()
         self.semaphore_compressed_dockerfile_report = threading.Lock()
         self.semaphore_running_containers = threading.Lock()
+        self.semaphore_threadpool = threading.Lock()
 
         self.threadpool = ThreadPool(BuildUtils.parallel_processes)
 
@@ -91,6 +86,8 @@ class TrivyUtils:
 
     # Function to create SBOM for a given image
     def create_sbom(self, image):
+
+        issue = None
         # convert image name to a valid SBOM name
         image_name = image.replace("/", "_").replace(":", "_")
 
@@ -115,6 +112,10 @@ class TrivyUtils:
             "image",
             "--format",
             "cyclonedx",
+            "--skip-dirs",
+            "usr/local/lib/python3.8/dist-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "usr/local/lib/python3.9/site-packages/nibabel/tests/data",
             "--quiet",
             "--timeout",
             str(self.timeout) + "s",
@@ -131,7 +132,13 @@ class TrivyUtils:
         )
 
         if self.kill_flag:
-            exit(1)
+            issue = {
+                "component": image,
+                "level": "FATAL",
+                "description": "SBOM creation was interrupted",
+            }
+            return image, issue
+
         elif output.returncode != 0:
             BuildUtils.logger.error(
                 "Failed to create SBOM for image: "
@@ -140,7 +147,15 @@ class TrivyUtils:
                 + "Inspect the issue using the trivy --debug flag."
             )
             BuildUtils.logger.error(output.stderr)
-            exit(1)
+            issue = {
+                "component": image,
+                "level": "FATAL",
+                "description": "Failed to create SBOM for image: "
+                + image
+                + "."
+                + "Inspect the issue using the trivy --debug flag.",
+            }
+            return image, issue
 
         # read the SBOM file
         with open(
@@ -165,10 +180,13 @@ class TrivyUtils:
         # Remove the SBOM file
         os.remove(os.path.join(BuildUtils.build_dir, image_name + "_sbom.json"))
 
-        return image
+        return image, issue
 
     # Function to check for vulnerabilities in a given image
     def create_vulnerability_report(self, image):
+
+        issue = None
+
         # convert image name to a valid SBOM name
         image_name = image.replace("/", "_").replace(":", "_")
 
@@ -195,6 +213,10 @@ class TrivyUtils:
             "--format",
             "json",
             "--ignore-unfixed",
+            "--skip-dirs",
+            "usr/local/lib/python3.8/dist-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "usr/local/lib/python3.9/site-packages/nibabel/tests/data",
             "--quiet",
             "--timeout",
             str(self.timeout) + "s",
@@ -210,10 +232,15 @@ class TrivyUtils:
             universal_newlines=True,
             timeout=self.timeout,
         )
-
+        
         if self.kill_flag:
-            exit(1)
-
+            issue = {
+                "component": image,
+                "level": "FATAL",
+                "description": "Vulnerability scan was interrupted.",
+            }
+            return image, issue
+        
         elif output.returncode != 0:
             BuildUtils.logger.error(
                 "Failed to create vulnerability report for image: "
@@ -222,7 +249,12 @@ class TrivyUtils:
                 + "Inspect the issue using the trivy --debug flag."
             )
             BuildUtils.logger.error(output.stderr)
-            exit(1)
+            issue = {
+                "component": image,
+                "level": "FATAL",
+                "description": "Failed to create vulnerability report.",
+            }
+            return image, issue
 
         # read the vulnerability file
         with open(
@@ -275,12 +307,13 @@ class TrivyUtils:
                                     "Description: " + vulnerability["Description"]
                                 )
                             BuildUtils.logger.error("")
-                BuildUtils.generate_issue(
-                    component=suite_tag,
-                    name="Scan image: " + image,
-                    msg="Found vulnerabilities in image: " + image,
-                    level="ERROR",
-                )
+                BuildUtils.logger.error("Vulnerabilities found in image: " + image)
+                issue = {
+                    "component": image,
+                    "level": "ERROR",
+                    "description": "Vulnerabilities found in image.",
+                }
+                return image, issue
         # Create compressed vulnerability report
         elif "Results" in vulnerability_report:
             if len(vulnerability_report["Results"]) > 0:
@@ -329,7 +362,7 @@ class TrivyUtils:
             )
         )
 
-        return image
+        return image, issue
 
     # Function to check the Kaapana chart for configuration errors
     def check_chart(self, path_to_chart):
@@ -493,26 +526,26 @@ class TrivyUtils:
         # Delete the dockerfile report file
         os.remove(os.path.join(BuildUtils.build_dir, "dockerfile_report.json"))
 
-    def __error_clean_up(self):
-        if not self.kill_flag:
-            self.semaphore_running_containers.acquire()
-            try:
-                for container in self.list_of_running_containers:
+    def error_clean_up(self):
+        self.kill_flag = True
+        self.semaphore_running_containers.acquire()
+        try:
+            for container in self.list_of_running_containers:
 
-                    command = ["docker", "kill", container]
-                    run(command, check=False, stdout=DEVNULL, stderr=DEVNULL)
+                command = ["docker", "kill", container]
+                run(command, check=False, stdout=DEVNULL, stderr=DEVNULL)
 
-                    # remove empty json files
-                    if os.path.exists(
+                # remove empty json files
+                if os.path.exists(
+                    os.path.join(BuildUtils.build_dir, container + ".json")
+                ):
+                    os.remove(
                         os.path.join(BuildUtils.build_dir, container + ".json")
-                    ):
-                        os.remove(
-                            os.path.join(BuildUtils.build_dir, container + ".json")
-                        )
-            finally:
-                self.semaphore_running_containers.release()
+                    )
+        finally:
+            self.semaphore_running_containers.release()
 
-    def __safe_sboms(self):
+    def safe_sboms(self):
         # save the SBOMs to the build directory
         with open(os.path.join(BuildUtils.build_dir, "sboms.json"), "w") as f:
             json.dump(self.sboms, f)
@@ -524,22 +557,30 @@ class TrivyUtils:
                 with alive_bar(
                     len(list_of_images), dual_line=True, title="Create SBOMS"
                 ) as bar:
-                    results = threadpool.imap_unordered(
-                        self.create_sbom, list_of_images
-                    )
+                    with self.semaphore_threadpool:
+                        results = threadpool.imap_unordered(
+                            self.create_sbom, list_of_images
+                        )
 
                     # Loop through all built containers and scan them
-                    for image_build_tag in results:
+                    for image_build_tag, error in results:
+                        if error is not None:
+                            raise Exception(error["description"])
                         # Set progress bar text
                         bar.text(image_build_tag)
                         # Print progress bar
                         bar()
-        except:
-            self.__error_clean_up()
+        except Exception as e:
+            BuildUtils.logger.error(f"{e}")
+            with self.semaphore_threadpool:
+                if self.threadpool is not None:
+                    self.threadpool.terminate()
+                    self.threadpool = None
+            self.error_clean_up()
         finally:
-            self.__safe_sboms()
+            self.safe_sboms()
 
-    def __safe_vulnerability_reports(self):
+    def safe_vulnerability_reports(self):
         # save the vulnerability reports to the build directory
         with open(
             os.path.join(BuildUtils.build_dir, "vulnerability_reports.json"), "w"
@@ -558,20 +599,30 @@ class TrivyUtils:
                 with alive_bar(
                     len(list_of_images), dual_line=True, title="Vulnerability Scans"
                 ) as bar:
-                    results = threadpool.imap_unordered(
-                        self.create_vulnerability_report, list_of_images
-                    )
+                    with self.semaphore_threadpool:
+                        results = threadpool.imap_unordered(
+                            self.create_vulnerability_report, list_of_images
+                        )
 
                     # Loop through all built containers and scan them
-                    for image_build_tag in results:
+                    for image_build_tag, error in results:
+                        if error is not None:
+                            raise Exception(error["description"])
                         # Set progress bar text
                         bar.text(image_build_tag)
                         # Print progress bar
                         bar()
-        except:
-            self.__error_clean_up()
+        except Exception as e:
+            BuildUtils.logger.error(f"{e}")
+            with self.semaphore_threadpool:
+                if self.threadpool is not None:
+                    self.threadpool.terminate()
+                    self.threadpool = None
+            self.error_clean_up()
         finally:
-            self.__safe_vulnerability_reports()
+            self.safe_vulnerability_reports()
+
+    
 
 
 if __name__ == "__main__":

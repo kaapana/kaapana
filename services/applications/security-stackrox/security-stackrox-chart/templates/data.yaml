@@ -12,6 +12,5 @@ spec:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Recycle
   hostPath:
-    #path: {{ .Values.global.fast_data_dir | default "/home/kaapana-admin" }}/security/stackrox
-    path: "/home/kaapana-admin/security/stackrox"
+    path: {{ .Values.global.fast_data_dir | default "/home/kaapana" }}/security/stackrox
     type: DirectoryOrCreate

@@ -3,7 +3,14 @@ from os.path import basename, dirname, join
 import secrets
 import subprocess
 
-from fastapi import APIRouter, Response, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import (
+    APIRouter,
+    Response,
+    Request,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi.logger import logger
@@ -23,8 +30,7 @@ router = APIRouter()
 # templates = Jinja2Templates(
 #     directory=os.path.abspath(os.path.expanduser('app/templates'))
 # )
-templates = Jinja2Templates(directory=join(
-    dirname(str(__file__)), "templates"))
+templates = Jinja2Templates(directory=join(dirname(str(__file__)), "templates"))
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -137,7 +143,7 @@ async def helm_delete_chart(request: Request):
         if "release_name" not in payload:
             raise AssertionError("Required key 'release_name' not found in payload")
         release_version = None
-        helm_command_addons = ''
+        helm_command_addons = ""
         if "release_version" in payload:
             release_version = payload["release_version"]
         if "helm_command_addons" in payload:
@@ -145,10 +151,12 @@ async def helm_delete_chart(request: Request):
         success, stdout = utils.helm_delete(
             release_name=payload["release_name"],
             release_version=release_version,
-            helm_command_addons=helm_command_addons
+            helm_command_addons=helm_command_addons,
         )
         if success:
-            return Response("Successfully uninstalled {0}".format(payload["release_name"]), 200)
+            return Response(
+                "Successfully uninstalled {0}".format(payload["release_name"]), 200
+            )
         else:
             return Response("{0}".format(stdout), 400)
     except subprocess.CalledProcessError as e:
@@ -169,13 +177,14 @@ async def helm_install_chart(request: Request):
         if "version" not in payload:
             raise AssertionError("Required key 'version' not found in payload")
 
-        if payload["name"] == "security-stackrox-chart":
-            success, stdout, _, _, cmd = utils.install_stackrox(payload)
-        else:
-            success, stdout, _, _, cmd = utils.helm_install(payload, shell=True, blocking=False)
+        success, stdout, _, _, cmd = utils.helm_install(
+            payload, shell=True, blocking=True
+        )
 
         if success:
-            return Response("Successfully ran helm install, command {0}".format(cmd), 200)
+            return Response(
+                "Successfully ran helm install, command {0}".format(cmd), 200
+            )
         else:
             return Response("{0}".format(stdout), 500)
     except subprocess.CalledProcessError as e:
@@ -194,30 +203,40 @@ async def pull_docker_image(request: Request):
     try:
         payload = await request.json()
         logger.info(f"/pull-docker-image called {payload=}")
-        release_name = f'pull-docker-chart-{secrets.token_hex(10)}'
+        release_name = f"pull-docker-chart-{secrets.token_hex(10)}"
         utils.pull_docker_image(release_name, **payload)
-        return Response(f"Trying to download the docker container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}", 202)
+        return Response(
+            f"Trying to download the docker container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}",
+            202,
+        )
     except subprocess.CalledProcessError as e:
         utils.helm_delete(release_name)
         logger.error(e)
-        return Response(f"Unable to download container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}", 500)
+        return Response(
+            f"Unable to download container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}",
+            500,
+        )
     except Exception as e:
         logger.error("/pull-docker-image failed: {0}".format(e))
         return Response("Pulling docker image failed {0}".format(e), 400)
+
 
 @router.get("/pending-applications")
 async def pending_applications():
     try:
         extensions_list = []
-        for chart in utils.helm_ls(release_filter='kaapanaint'):
+        for chart in utils.helm_ls(release_filter="kaapanaint"):
             _, _, ingress_paths, kube_status = helm_helper.get_kube_objects(
-                chart["name"])
+                chart["name"]
+            )
             extension = {
-                'releaseName': chart['name'],
-                'links': ingress_paths,
-                'helmStatus': chart['status'].capitalize(),
-                'successful': utils.all_successful(set(kube_status['status'] + [chart['status']])),
-                'kubeStatus': ", ".join(kube_status['status'])
+                "releaseName": chart["name"],
+                "links": ingress_paths,
+                "helmStatus": chart["status"].capitalize(),
+                "successful": utils.all_successful(
+                    set(kube_status["status"] + [chart["status"]])
+                ),
+                "kubeStatus": ", ".join(kube_status["status"]),
             }
             extensions_list.append(extension)
 

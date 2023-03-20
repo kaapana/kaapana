@@ -19,14 +19,10 @@ sed -i "s/password: \"MyS3cr37P450r.*-\"/password: \"$API_PW\"/" ./config/wazuh_
 
 # enable vulnerability detection
 sed -i -z "s/<vulnerability-detector>\(\s*\)<enabled>no/<vulnerability-detector>\1<enabled>yes/g" ./config/wazuh_cluster/wazuh_manager.conf
-#perl -i -pe 'BEGIN{undef $/;} s/<vulnerability-detector>\(.*\)<enabled>no/<vulnerability-detector>\1<enabled>yes/smg' ./config/wazuh_cluster/wazuh_manager.conf
 sed -i -z "s/<provider name=\"canonical\">\(\s*\)<enabled>no/<provider name=\"canonical\">\1<enabled>yes/g" ./config/wazuh_cluster/wazuh_manager.conf
-#perl -i -pe 'BEGIN{undef $/;} s/<provider name=\"canonical\">\(.*\)<enabled>no/<provider name=\"canonical\">\1<enabled>yes/smg' ./config/wazuh_cluster/wazuh_manager.conf
 sed -i -z "s/<provider name=\"redhat\">\(\s*\)<enabled>no/<provider name=\"redhat\">\1<enabled>yes/g" ./config/wazuh_cluster/wazuh_manager.conf
-#perl -i -pe 'BEGIN{undef $/;} s/<provider name=\"redhat\">\(.*\)<enabled>no/<provider name=\"redhat\">\1<enabled>yes/smg' ./config/wazuh_cluster/wazuh_manager.conf
 
 # set sca interval to 30min
-#perl -i -pe 'BEGIN{undef $/;} s/<sca>\(.*\)<interval>12h/<sca>\1<interval>30m/smg' ./config/wazuh_cluster/wazuh_manager.conf
 sed -i -z "s/<sca>\(.*\)<interval>12h/<sca>\1<interval>30m/g" ./config/wazuh_cluster/wazuh_manager.conf
 
 mkdir ./config/wazuh_indexer_ssl_certs

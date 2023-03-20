@@ -13,9 +13,18 @@ spec:
     spec:
       containers:
       - name: security-stackrox
-        image: "{{ .Values.global.registry_url }}/security-stackrox:{{ .Values.global.kaapana_build_version  }}"
+        image: "{{ .Values.global.registry_url }}/security-stackrox-install:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
-        resources: {}
+        resources:
+          limits:
+            memory: "1Gi"
+          requests:
+            memory: "100Mi"
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh", "-c", "curl -H 'Content-Type: application/json' -d '{\"name\": \"StackRox\", \"url\": \"https://{{ .Values.global.hostname }}:19443\", \"api_endpoints\": [{\"identifier\": \"api\", \"endpoint\":\"https://{{ .Values.service_name }}.stackrox.svc:443/\"}]}' -X PUT http://security-pages-service.services.svc:5000/api/providers --insecure"]
       imagePullSecrets:
       - name: registry-secret
       restartPolicy: Never
+      serviceAccountName: kaapana-kube-admin

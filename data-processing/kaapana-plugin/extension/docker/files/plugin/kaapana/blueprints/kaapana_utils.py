@@ -48,6 +48,7 @@ def cure_invalid_name(name, regex, max_length=None):
                 name = name.replace(c, '')
             print(f'Your name does not fullfill the regex {regex}, we adapt it to {name} to work with Kubernetes')
         return name
+    name = re.sub(r"[^-a-z0-9]", "", name)
     name = _regex_match(regex, name)
     if max_length is not None and len(name) > max_length:
         name = name[-max_length:]

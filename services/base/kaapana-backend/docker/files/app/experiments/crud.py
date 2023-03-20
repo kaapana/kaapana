@@ -3,6 +3,7 @@ import os
 import logging
 import traceback
 import uuid
+import copy
 from typing import List
 
 import requests
@@ -209,7 +210,7 @@ def create_job(db: Session, job: schemas.JobCreate):
     if db_kaapana_instance.remote is False and db_kaapana_instance.automatic_job_execution is True:
         job = schemas.JobUpdate(**{
             'job_id': db_job.id,
-            'status': 'scheduled',  # keep 'scheduled' and don't change to 'planned'
+            'status': 'scheduled',
             'description': 'The worklow was triggered!'
         })
         update_job(db, job, remote=False)
@@ -325,13 +326,13 @@ def get_job_taskinstances(db: Session, job_id: int = None):
 
     # parse received response
     response_text = json.loads(response.text)
-
-    ti_state_dict = response_text["message"]["state_dict"]
-    ti_exdate_dict = response_text["message"]["exdate_dict"]
+    ti_state_dict = eval(response_text["message"][0])   # convert dict-like strings to dicts
+    ti_exdate_dict = eval(response_text["message"][1])
 
     # compose dict in style {"task_instance": ["execution_time", "state"]}
     tis_n_state = {}
     for key in ti_state_dict:
+        print(f"CRUD def get_job_taskinstances(): key = {key}")
         time_n_state = [ti_exdate_dict[key], ti_state_dict[key]]
         tis_n_state[key] = time_n_state
 
@@ -515,6 +516,7 @@ def get_remote_updates(db: Session, periodically=False):
 
 glob_jobs_in_qsr_state = []   # [{}] solves weird issue that dict is not hashable
 def sync_states_from_airflow(db: Session, periodically=False):
+
     # get list from airflow for jobs in states 'queued', 'scheduled', 'running': {'dag_run_id': 'state'} -> jobs_in_qsr_state
     global glob_jobs_in_qsr_state
     states = ["queued", "scheduled", "running"]
@@ -747,6 +749,72 @@ def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
     db.commit()
     db.refresh(db_experiment)
     return db_experiment
+
+async def queue_generate_jobs_and_add_to_exp(db: Session, db_client_kaapana: models.KaapanaInstance, db_experiment: models.Experiment, json_schema_data: schemas.JsonSchemaData, conf_data=None):
+    # get variables
+    single_execution = False    # initialize with False
+    if "data_form" in conf_data and "cohort_name" in conf_data["data_form"]:
+        data_form = conf_data["data_form"]
+        single_execution = "workflow_form" in conf_data and "single_execution" in conf_data["workflow_form"] and conf_data["workflow_form"]["single_execution"] is True
+        cohort_limit = int(data_form["cohort_limit"]) if ("cohort_limit" in data_form and data_form["cohort_limit"] is not None) else None
+    username = conf_data["experiment_form"]["username"]
+
+    # compose queued_jobs according to 'single_execution'
+    queued_jobs = []
+    if single_execution is True:
+        for cohort_identifier in data_form['cohort_identifiers'][:cohort_limit]:
+            # Copying due to reference?!
+            single_conf_data = copy.deepcopy(conf_data)
+            single_conf_data["data_form"]["cohort_identifiers"] = [cohort_identifier]
+            queued_jobs.append({
+                'conf_data': single_conf_data,
+                'dag_id': json_schema_data.dag_id,
+                "username": username
+            })
+    else:
+        queued_jobs = [
+            {
+                'conf_data': conf_data,
+                'dag_id': json_schema_data.dag_id,
+                # 'dag_id': json_schema_data.dag_id if json_schema_data.federated == False else conf_data['external_schema_federated_form']['remote_dag_id'],
+                "username": username
+            }
+        ]
+    
+    # create jobs on conf_data["experiment_form"]["runner_instances"]
+    db_jobs = []
+    db_kaapana_instances = []
+    for jobs_to_create in queued_jobs: 
+        db_remote_kaapana_instances = get_kaapana_instances(db, filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': json_schema_data.remote, 
+                'instance_names': conf_data["experiment_form"]["runner_instances"]
+                }))
+        # add client instance to instance list only if it is marked as an involved_instance of current experiment
+        if db_client_kaapana.instance_name in conf_data['experiment_form']['runner_instances']:  # add client instance to instance list only if it is marked as an involved_instance of current experiment
+            db_kaapana_instances.append(db_client_kaapana)
+        db_kaapana_instances.extend(db_remote_kaapana_instances)
+        db_kaapana_instances_set = set(db_kaapana_instances)
+
+        for db_kaapana_instance in db_kaapana_instances_set:
+            job = schemas.JobCreate(**{
+                "status": "queued",
+                "kaapana_instance_id": db_kaapana_instance.id,
+                "owner_kaapana_instance_name": db_client_kaapana.instance_name,
+                **jobs_to_create
+            })
+
+            db_job = create_job(db, job)
+            db_jobs.append(db_job)
+    print(f"CRUD def queue_generate_jobs_and_add_to_exp(): db_jobs={db_jobs}")
+
+    # update experiment w/ created db_jobs
+    experiment = schemas.ExperimentUpdate(**{
+        "experiment_name": db_experiment.experiment_name,
+        "experiment_jobs": db_jobs,
+    })
+    put_experiment_jobs(db, experiment)
+
+    return db_experiment
+
 
 def get_experiment(db: Session, experiment_id: int = None, experiment_name: str = None):
     if experiment_id is not None:

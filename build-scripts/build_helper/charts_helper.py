@@ -1340,7 +1340,11 @@ class HelmChart:
                                 )
                             else:
                                 bar.text(f"{result_container.build_tag}: ok")
-
+                    
+                    tmp_waiting_containers_to_built = [
+                        (x, tmp_waiting_containers_to_built[x])
+                        for x in range(0, len(tmp_waiting_containers_to_built))
+                    ]
                     waiting_containers_to_built = tmp_waiting_containers_to_built.copy()
 
         if build_rounds == BuildUtils.max_build_rounds:

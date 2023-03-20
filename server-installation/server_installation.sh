@@ -339,7 +339,6 @@ function install_microk8s {
             snap ack $assert_path
             snap install --classic $snap_path
             echo "${YELLOW}Wait until microk8s is ready...${NC}"
-            microk8s.status --wait-ready
             MICROK8S_BASE_IMAGES_TAR_PATH="$SCRIPT_DIR/microk8s_base_images.tar"
             echo "${YELLOW}Start Microk8s image import from $MICROK8S_BASE_IMAGES_TAR_PATH ... ${NC}"
             [ -f $MICROK8S_BASE_IMAGES_TAR_PATH ] && echo "${GREEN}MICROK8S_BASE_IMAGES_TAR exists ... ${NC}" || (echo "${RED}Images tar does not exist -> exit ${NC}" && exit 1)

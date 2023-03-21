@@ -38,6 +38,6 @@
     
     - name: Run user shell workflow
       become: no
-      shell: bash /home/{{ remote_username }}/algorithm_files/{{ user_experiment_name }}/main.sh
+      shell: bash /home/{{ remote_username }}/algorithm_files/{{ user_experiment_name }}/main.sh --input /home/{{ remote_username }}/{{ user_selected_data }} --output /home/{{ remote_username }}/results 
 
     # - debug: msg="{{ '%H:%M:%S' | strftime }}"

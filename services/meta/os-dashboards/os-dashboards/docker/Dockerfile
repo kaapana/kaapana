@@ -1,4 +1,4 @@
-FROM opensearchproject/opensearch-dashboards:2.2.0
+FROM docker.io/opensearchproject/opensearch-dashboards:2.2.0
 
 LABEL IMAGE="os-dashboards"
 LABEL VERSION="2.2.0"

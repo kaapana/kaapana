@@ -1,4 +1,4 @@
-FROM grafana/grafana:8.4.4
+FROM docker.io/grafana/grafana:9.4.3
 
 LABEL IMAGE="grafana"
 LABEL VERSION="8.4.4"

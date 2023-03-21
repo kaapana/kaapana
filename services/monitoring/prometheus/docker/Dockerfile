@@ -1,4 +1,4 @@
-FROM prom/prometheus:v2.34.0
+FROM docker.io/prom/prometheus:v2.34.0
 
 LABEL IMAGE="prometheus"
 LABEL VERSION="v2.34.0"

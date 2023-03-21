@@ -1,5 +1,5 @@
 ARG NODE_VERSION=14.20.0
-FROM node:${NODE_VERSION} AS base
+FROM docker.io/node:${NODE_VERSION} AS base
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="os-dashboards-workflow-trigger"

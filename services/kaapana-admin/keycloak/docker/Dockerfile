@@ -5,7 +5,7 @@ WORKDIR /
 RUN git clone  --single-branch --depth 1 --branch 19.0.3 https://github.com/keycloak/keycloak.git keycloak-repo && cd keycloak-repo && git checkout 1641fbb
 RUN cp -r keycloak-repo/themes/src/main/resources/theme/keycloak/ keycloak
 
-FROM quay.io/keycloak/keycloak:19.0.3 as builder
+FROM docker.io/quay.io/keycloak/keycloak:19.0.3 as builder
 
 WORKDIR /opt/keycloak
 
@@ -15,7 +15,7 @@ COPY files/login.jpg /opt/keycloak/themes/kaapana/login/resources/img/kaapana-bg
 
 RUN /opt/keycloak/bin/kc.sh build
 
-FROM quay.io/keycloak/keycloak:19.0.3
+FROM docker.io/quay.io/keycloak/keycloak:19.0.3
 
 LABEL IMAGE="keycloak"
 LABEL VERSION="19.0.3"

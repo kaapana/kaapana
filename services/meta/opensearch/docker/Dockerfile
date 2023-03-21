@@ -1,4 +1,4 @@
-FROM opensearchproject/opensearch:2.2.0
+FROM docker.io/opensearchproject/opensearch:2.2.0
 
 LABEL IMAGE="opensearch"
 LABEL VERSION="2.2.0"

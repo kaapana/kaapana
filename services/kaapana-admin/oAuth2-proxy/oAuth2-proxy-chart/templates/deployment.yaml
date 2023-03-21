@@ -61,10 +61,10 @@ spec:
           - --insecure-oidc-allow-unverified-email 
           - --email-domain=*
           # - --force-https=true
-          - --pass-access-token 
-          - --skip-auth-regex=/metrics
-          - --skip-auth-regex=/auth/*
-          - --skip-auth-regex=/kaapana-backend/remote/*
+          - --pass-access-token
+          - --skip-auth-route=^/metrics
+          - --skip-auth-route=^/auth/*
+          - --skip-auth-route=^/kaapana-backend/remote/*
           - --reverse-proxy
           # - --set-authorization-header
           # - --set-xauthrequest

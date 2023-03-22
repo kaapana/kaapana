@@ -198,7 +198,7 @@ class PodLauncher(LoggingMixin):
                 time.sleep(2)
             return (self._task_status(pod=pod, event=self.read_pod(pod)), result)
         except Exception as e:
-            self.log.warn(f"################# ISSUE! Could not _monitor_pod: {pod}")
+            self.log.warn(f"################# ISSUE! Could not _monitor_pod: {pod.metadata.name}")
             self.log.warn(f"################# ISSUE! message: {e}")
 
     def _task_status(self, pod, event):

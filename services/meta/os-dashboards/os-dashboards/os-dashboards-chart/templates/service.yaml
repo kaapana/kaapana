@@ -25,7 +25,6 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-auth-check@kubernetescrd
 spec:
   rules:
   - host: 

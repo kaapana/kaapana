@@ -1,4 +1,4 @@
-FROM mhubai/platipy:nocuda
+FROM docker.io/mhubai/platipy:nocuda
 
 LABEL IMAGE="mhubai-platipy-nocuda"
 LABEL VERSION="0.0.0"

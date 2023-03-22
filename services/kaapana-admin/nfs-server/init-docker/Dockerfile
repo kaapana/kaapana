@@ -1,4 +1,4 @@
-FROM busybox:1.31
+FROM docker.io/busybox:1.31
 
 LABEL IMAGE="nfs-init"
 LABEL VERSION="1.31"

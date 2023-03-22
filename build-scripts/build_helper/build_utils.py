@@ -81,7 +81,7 @@ class BuildUtils:
             assert len(requested_repo) == 1
             requested_repo = requested_repo[0]
             last_commit = requested_repo.head.commit
-            last_commit_timestamp = last_commit.committed_datetime.strftime("%d-%m-%Y")
+            last_commit_timestamp = last_commit.committed_datetime.astimezone().replace(microsecond=0).isoformat()
             build_version = requested_repo.git.describe()
             build_branch = requested_repo.git.branch()
             if "\n" in build_branch:
@@ -89,7 +89,7 @@ class BuildUtils:
             # version_check = semver.VersionInfo.parse(build_version)
         else:
             last_commit = requested_repo.head.commit
-            last_commit_timestamp = last_commit.committed_datetime.strftime("%d-%m-%Y")
+            last_commit_timestamp = last_commit.committed_datetime.astimezone().replace(microsecond=0).isoformat()
             build_version = requested_repo.git.describe()
             build_branch = requested_repo.active_branch.name.split("/")[-1]
             version_check = semver.VersionInfo.parse(build_version)

@@ -1,7 +1,5 @@
 ---
 dependencies:
-  - name: error-pages-chart
-    version: 0.0.0
   - name: keycloak-chart
     version: 0.0.0
   - name: kube-dashboard-chart

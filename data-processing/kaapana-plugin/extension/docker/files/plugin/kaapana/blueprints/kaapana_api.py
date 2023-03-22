@@ -443,7 +443,7 @@ def get_os_dashboards():
         }, size=10000, from_=0)
     except Exception as e:
         print("ERROR in OpenSearch search!")
-        return jsonify({'Error message': e}), 500
+        return jsonify({'Error message': str(e)}), 500
 
     hits = res['hits']['hits']
     dashboards = list(sorted([hit['_source']['dashboard']['title'] for hit in hits]))
@@ -545,7 +545,7 @@ def tag_data():
 
     except Exception as e:
         print("ERROR!")
-        return jsonify({'Error message': e}), 500
+        return jsonify({'Error message': str(e)}), 500
 
 
 @kaapanaApi.route('/api/curation_tool/structured', methods=['POST'])
@@ -618,7 +618,7 @@ def get_query_elastic_structured():
         })
     except Exception as e:
         print("ERROR in elasticsearch search!")
-        return jsonify({'Error message': e}), 500
+        return jsonify({'Error message': str(e)}), 500
 
     results = list()
 
@@ -728,7 +728,7 @@ def get_query_elastic_unstructured():
 
     except Exception as e:
         print("ERROR in elasticsearch search!")
-        return jsonify({'Error message': e}), 500
+        return jsonify({'Error message': str(e)}), 500
 
     return jsonify([d['_source'] for d in res['hits']['hits']]), 200
 
@@ -747,7 +747,7 @@ def get_data_for_series_instance_UID(seriesInstanceUID):
         })
     except Exception as e:
         print("ERROR in elasticsearch search!")
-        return jsonify({'Error message': e}), 500
+        return jsonify({'Error message': str(e)}), 500
 
     return jsonify(res['hits']['hits'][0]['_source']), 200
 
@@ -810,7 +810,7 @@ def get_query_values():
 
     except Exception as e:
         print("ERROR in elasticsearch search!")
-        return jsonify({'Error message': e}), 500
+        return jsonify({'Error message': str(e)}), 500
 
     result = {
         k: {

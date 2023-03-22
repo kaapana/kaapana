@@ -46,8 +46,8 @@ spec:
           - --redeem-url=https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/realms/kaapana/protocol/openid-connect/token
           - --oidc-jwks-url=https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/realms/kaapana/protocol/openid-connect/certs
           - --profile-url=https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/realms/kaapana/protocol/openid-connect/userinfo
+          - --custom-templates-dir=/usr/share/oauth2-proxy
           - --https-address=0.0.0.0:8443
-          # - --http-address=0.0.0.0:8080
           - --metrics-address=:8081
           - --tls-cert-file=/ssl/tls.crt 
           - --tls-key-file=/ssl/tls.key
@@ -60,17 +60,13 @@ spec:
           - --skip-jwt-bearer-tokens
           - --insecure-oidc-allow-unverified-email 
           - --email-domain=*
-          # - --force-https=true
-          - --pass-access-token
-          - --skip-auth-route=^/metrics
           - --skip-auth-route=^/auth/*
           - --skip-auth-route=^/kaapana-backend/remote/*
+          - --skip-auth-route=^/oauth2/metrics
+          - --pass-access-token 
           - --reverse-proxy
-          # - --set-authorization-header
-          # - --set-xauthrequest
-          # - --skip-auth-preflight
-          # - --insecure-oidc-skip-nonce
-          # - --show-debug-on-error
+          - --show-debug-on-error
+          # - --force-https=true
           ports:
           - name: metrics
             containerPort: 8081

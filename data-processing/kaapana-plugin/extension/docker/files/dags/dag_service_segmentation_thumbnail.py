@@ -32,13 +32,15 @@ args = {
     'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),
-    'retries': 2,
-    'retry_delay': timedelta(minutes=5)
+    'retries': 1,
+    'retry_delay': timedelta(minutes=1)
 }
 
 dag = DAG(
     dag_id='service-segmentation-thumbnail',
     default_args=args,
+    concurrency=2,
+    max_active_runs=5,
     schedule_interval=None,
     tags=['service']
 )

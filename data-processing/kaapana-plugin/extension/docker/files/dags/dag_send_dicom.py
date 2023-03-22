@@ -74,8 +74,7 @@ dcm_send = DcmSendOperator(
     pacs_port=pacs_port,
     level='element',
     enable_proxy=True,
-    no_proxy=".svc"
-    # no_proxy="ctp-dicom-service.flow,ctp-dicom-service.flow.svc,dcm4chee-service.store,dcm4chee-service.store.svc"
+    no_proxy=".svc,.svc.cluster,.svc.cluster.local"
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

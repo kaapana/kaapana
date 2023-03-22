@@ -53,8 +53,6 @@ if hits is not None:
             if isinstance(available_protocol_name_hits, str):
                 available_protocol_name_hits = [available_protocol_name_hits]
             available_protocol_names = available_protocol_names + available_protocol_name_hits
-else:
-    raise ValueError('Invalid opensearch query!')
 
 parallel_processes = 3
 ui_forms = {

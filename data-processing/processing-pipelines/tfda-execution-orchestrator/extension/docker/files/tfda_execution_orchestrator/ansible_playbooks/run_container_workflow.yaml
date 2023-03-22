@@ -16,9 +16,9 @@
   remote_user: "{{ remote_username }}"
   vars:
     ansible_ssh_private_key_file: ~/.ssh/{{ ssh_key_name }}
-    dst_results_dir: /home/{{ remote_username }}/results
+    dst_results_dir: "{{ ansible_env.HOME }}/results"
   environment:
-    PATH: '/home/{{ remote_username }}/.local/bin:{{ ansible_env.PATH }}'
+    PATH: '{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}'
 
   tasks:
     - name: Check if all required variables are passed using --extra-vars
@@ -36,7 +36,7 @@
 
     - name: Load container via Docker
       community.docker.docker_image_load:
-        path: /home/{{ remote_username }}/algorithm_files/{{ user_experiment_name }}/{{ user_experiment_name }}.tar
+        path: "{{ ansible_env.HOME }}/algorithm_files/{{ user_experiment_name }}/{{ user_experiment_name }}.tar"
       register: result
 
     - name: Print the loaded image names
@@ -44,7 +44,7 @@
         msg: "Loaded the following images: {{ result.image_names | join(', ') }}"
     
     - name: Run the loaded docker container
-      command: docker run -v /home/"{{ remote_username }}"/"{{ user_selected_data }}":/input -v "{{ dst_results_dir }}":/output "{{ user_experiment_name }}"
+      command: docker run -v "{{ ansible_env.HOME }}"/"{{ user_selected_data }}":/input -v "{{ dst_results_dir }}":/output "{{ user_experiment_name }}"
       register: docker_run
 
     - debug:

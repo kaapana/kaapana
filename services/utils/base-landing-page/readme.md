@@ -12,7 +12,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: landingpage
-  namespace: services
+  namespace: "{{ .Values.global.services_namespace }}"
   labels:
     k8s-app: landingpage
 spec:

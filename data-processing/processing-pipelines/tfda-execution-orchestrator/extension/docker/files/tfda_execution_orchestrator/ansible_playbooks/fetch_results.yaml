@@ -46,7 +46,7 @@
         path: 
         - "{{ vm_results_dir }}"
         ##TODO: Add experiment details to result file name
-        dest: "{{ vm_results_dir }}_{{ '%Y-%m-%d' | strftime }}.zip"
+        dest: "{{ vm_results_dir }}_{{ user_experiment_name }}_{{ '%Y-%m-%d' | strftime }}.zip"
         format: zip
 
 
@@ -54,6 +54,6 @@
       become: yes
       ## Currently Ansible doesn't directly support directory/recursive copying from remote to local
       fetch:
-        src: "{{ vm_results_dir }}_{{ '%Y-%m-%d' | strftime }}.zip"
+        src: "{{ vm_results_dir }}_{{ user_experiment_name }}_{{ '%Y-%m-%d' | strftime }}.zip"
         dest: "{{ results_path }}/"
         flat: yes

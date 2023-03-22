@@ -33,3 +33,4 @@ class GenerateThumbnailOperator(KaapanaBaseOperator):
             ram_mem_mb=1000,
             ram_mem_mb_lmt=3000,
             **kwargs,
+        )

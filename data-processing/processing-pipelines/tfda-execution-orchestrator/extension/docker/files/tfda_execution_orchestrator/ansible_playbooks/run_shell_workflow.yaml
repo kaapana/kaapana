@@ -17,7 +17,7 @@
   vars:
     ansible_ssh_private_key_file: ~/.ssh/{{ ssh_key_name }}
   environment:
-    PATH: '/home/{{ remote_username }}/.local/bin:{{ ansible_env.PATH }}'
+    PATH: '{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}'
 
   tasks:
     - name: Check if all required variables are passed using --extra-vars
@@ -29,15 +29,14 @@
 
     - name: Create results directory if it doesn't exist
       file:
-        path: /home/{{ remote_username }}/results
+        path: "{{ ansible_env.HOME }}/results"
         state: directory
         recurse: yes
     
     - name: Unzip user experiment files
-      command: "unzip /home/{{ remote_username }}/algorithm_files/{{ user_experiment_name }}/{{ user_experiment_name }}.zip -d /home/{{ remote_username }}/algorithm_files/{{ user_experiment_name }}"
+      command: "unzip {{ ansible_env.HOME }}/algorithm_files/{{ user_experiment_name }}/{{ user_experiment_name }}.zip -d {{ ansible_env.HOME }}/algorithm_files/{{ user_experiment_name }}"
     
     - name: Run user shell workflow
-      become: no
-      shell: bash /home/{{ remote_username }}/algorithm_files/{{ user_experiment_name }}/main.sh --input /home/{{ remote_username }}/{{ user_selected_data }} --output /home/{{ remote_username }}/results 
+      command: "bash {{ ansible_env.HOME }}/algorithm_files/{{ user_experiment_name }}/main.sh --input {{ ansible_env.HOME }}/{{ user_selected_data }} --output {{ ansible_env.HOME }}/results"
 
     # - debug: msg="{{ '%H:%M:%S' | strftime }}"

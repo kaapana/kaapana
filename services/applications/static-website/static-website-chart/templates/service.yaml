@@ -31,7 +31,7 @@ metadata:
   namespace: "{{ $namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-auth-check@kubernetescrd,{{ $namespace }}-static-website-strip-{{ .Values.global.uuid }}@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{ $namespace }}-static-website-strip-{{ .Values.global.uuid }}@kubernetescrd
     traefik.ingress.kubernetes.io/preserve-host: "true"
 spec:
   rules:

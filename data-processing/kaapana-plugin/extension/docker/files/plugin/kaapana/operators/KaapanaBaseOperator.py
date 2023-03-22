@@ -406,7 +406,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.set_context_variables(context)
         # Same expression as in on_failure method!
         self.kube_name = cure_invalid_name(
-            context["run_id"].replace(context["dag_run"].dag_id, context["task_instance"].task_id).replace('manual', context["task_instance"].task_id),
+            context["run_id"].replace(context["dag_run"].dag_id, context["task_instance"].task_id).replace('manual', context["task_instance"].task_id).replace('scheduled', context["task_instance"].task_id),
             KaapanaBaseOperator.CURE_INVALID_NAME_REGEX,
             63,
         )  # actually 63, but because of helm set to 53, maybe...
@@ -595,7 +595,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         logging.info("##################################################### ON FAILURE!")
         # Same expression as in execute method!
         kube_name = cure_invalid_name(
-            context["run_id"].replace(context["dag_run"].dag_id, context["task_instance"].task_id).replace('manual', context["task_instance"].task_id),
+            context["run_id"].replace(context["dag_run"].dag_id, context["task_instance"].task_id).replace('manual', context["task_instance"].task_id).replace('scheduled', context["task_instance"].task_id),
             KaapanaBaseOperator.CURE_INVALID_NAME_REGEX,
             63,
         )  # actually 63, but because of helm set to 53, maybe...

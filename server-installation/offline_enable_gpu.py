@@ -6,6 +6,7 @@ import subprocess
 
 chart_name="gpu-operator"
 chart_version="v22.9.2"
+chart_path="/home/kaapana/installation-scipts/gpu-operator.tgz"
 
 try:
     subprocess.check_call(["nvidia-smi", "-L"])
@@ -19,7 +20,7 @@ CONTAINERD_TOML = pathlib.Path("/var/snap/microk8s/current/args/containerd-templ
 helm_args = [
     "install",
     chart_name,
-    f"/home/racoon/installation-scripts/{chart_name}.tgz",
+    chart_path,
     f"--version={chart_version}",
     "--create-namespace",
     f"--namespace={chart_name}-resources",

@@ -1,4 +1,4 @@
-FROM dorowu/ubuntu-desktop-lxde-vnc:focal
+FROM docker.io/dorowu/ubuntu-desktop-lxde-vnc:focal
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="no-vnc-base"

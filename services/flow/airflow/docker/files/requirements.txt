@@ -1,4 +1,4 @@
-apache-airflow==2.5.1
+apache-airflow==2.5.2
 psycopg2-binary == 2.9.5
 Flask-Admin==1.6.0
 pydicom == 2.3.0
@@ -11,6 +11,6 @@ dicom_parser==1.2.3
 statsd==4.0.1
 monai==0.7.0
 # Security fix for CVE-2023-0286
-cryptography==39.0.1
+cryptography==39.0.2
 # Security fix for CVE-2023-25577
 Werkzeug==2.2.3

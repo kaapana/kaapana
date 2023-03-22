@@ -62,6 +62,7 @@ spec:
           - --email-domain=*
           - --skip-auth-route=^/auth/*
           - --skip-auth-route=^/kaapana-backend/remote/*
+          - --skip-auth-route=^/oauth2/metrics
           - --pass-access-token 
           - --reverse-proxy
           - --show-debug-on-error

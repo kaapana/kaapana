@@ -106,7 +106,7 @@ export default {
           case 'lg':
             return 2
           case 'xl':
-            return 1
+            return 2
         }
       }
     }

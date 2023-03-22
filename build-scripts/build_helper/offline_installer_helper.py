@@ -100,8 +100,8 @@ class OfflineInstallerHelper:
         microk8s_offline_installer_target_dir=join(BuildUtils.build_dir,"microk8s-offline-installer")
         BuildUtils.logger.info("Generating Microk8s offline installer...")
 
-        # DEFAULT_CORE_VERSION="latest/stable"
-        # OfflineInstallerHelper.download_snap_package(name="core",version=DEFAULT_CORE_VERSION,target_path=microk8s_offline_installer_target_dir)
+        DEFAULT_CORE_VERSION="latest/stable"
+        OfflineInstallerHelper.download_snap_package(name="core18",version=DEFAULT_CORE_VERSION,target_path=microk8s_offline_installer_target_dir)
         
         DEFAULT_MICRO_VERSION="1.26/stable"
         OfflineInstallerHelper.download_snap_package(name="microk8s",version=DEFAULT_MICRO_VERSION,target_path=microk8s_offline_installer_target_dir)

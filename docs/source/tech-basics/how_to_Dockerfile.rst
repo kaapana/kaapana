@@ -78,7 +78,7 @@ Write the Dockerfile for the workflow which installs requirements, copies the ``
 
 .. code-block::
 
-    FROM python:3.9-alpine3.12                              # small-sized alpine base image
+    FROM docker.io/python:3.9-alpine3.12                              # small-sized alpine base image
 
     LABEL IMAGE="example-dockerfile-workflow"               # define utilization of image
     LABEL VERSION="0.1.0"                                   # define specific version of image

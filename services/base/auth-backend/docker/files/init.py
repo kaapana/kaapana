@@ -2,11 +2,16 @@ import json
 import os
 import logging
 
+global auth_role_mapping_dict, error_page
 auth_role_mapping_path = "/kaapana/app/auth_role_mapping.json"
-global auth_role_mapping_dict
-
+error_page_path = "/kaapana/app/403.html"
 
 logger = logging.getLogger("gunicorn.access")
+
+def load_error_page():
+    global error_page
+    with open(error_page_path, "r", encoding='utf-8') as f:
+        error_page= f.read()
 
 def load_auth_config():
     global auth_role_mapping_dict
@@ -31,3 +36,4 @@ def load_auth_config():
     logger.warn("")
 
 load_auth_config()
+load_error_page()

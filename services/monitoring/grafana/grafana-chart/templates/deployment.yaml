@@ -34,9 +34,9 @@ spec:
           protocol: TCP
         resources:
           requests:
-            memory: 50Mi
-          limits:
             memory: 100Mi
+          limits:
+            memory: 500Mi
         volumeMounts:
           - name: grafana-config-file
             mountPath: /etc/grafana/grafana.ini

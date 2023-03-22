@@ -130,6 +130,12 @@ spec:
           value: "{{ .Values.global.fast_data_dir }}/workflows/models"
         - name: PROXY
           value: "{{ .Values.global.http_proxy }}"
+        - name: http_proxy
+          value: {{ .Values.global.http_proxy }}
+        - name: https_proxy
+          value: {{ .Values.global.http_proxy }}
+        - name: no_proxy
+          value: ".svc,.svc.cluster,.svc.cluster.local"
         - name: PULL_POLICY_IMAGES
           value: "{{ .Values.global.pull_policy_images }}"
         - name: SERVICES_NAMESPACE

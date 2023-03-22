@@ -17,7 +17,7 @@ RUN git clone  --single-branch --branch ${BRANCH} https://github.com/MIC-DKFZ/nn
 
 RUN cd /nnunet-pip-package && pip3 install ./
 
-RUN pip install tensorboard==2.8.0
+RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/develop/build-scripts/constraints-0.1.3.txt tensorboard==2.8.0
 
 COPY files/patched/DatasetAnalyzer.py /usr/local/lib/python3.8/dist-packages/nnunet/experiment_planning/DatasetAnalyzer.py
 COPY files/patched/network_trainer.py /usr/local/lib/python3.8/dist-packages/nnunet/training/network_training/network_trainer.py

@@ -12,7 +12,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY files/requirements.txt ./requirements.txt
-RUN pip install -r ./requirements.txt
+RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/develop/build-scripts/constraints-0.1.3.txt -r ./requirements.txt
 
 COPY files/ ./
 RUN chmod +x boot.sh

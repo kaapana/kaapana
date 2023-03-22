@@ -40,7 +40,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
     
 
-RUN pip install --no-cache-dir \
+RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/develop/build-scripts/constraints-0.1.3.txt --no-cache-dir \
     # Security fix for CVE-2021-33503
     urllib3==1.26.5 \
     # Security fix for CVE-2022-40898

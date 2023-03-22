@@ -14,7 +14,7 @@ RUN curl https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -xzO 
 RUN chmod g+rwx /root && mkdir /config && chmod g+rwx /config    
 
 COPY files/requirements.txt /kaapana/app/
-RUN python -m pip install --upgrade setuptools pip && pip3 install -r /kaapana/app/requirements.txt
+RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/develop/build-scripts/constraints-0.1.3.txt --upgrade setuptools pip && pip3 install -r /kaapana/app/requirements.txt
 
 COPY files/backend /kaapana/app/backend
 

@@ -44,7 +44,7 @@
         msg: "Loaded the following images: {{ result.image_names | join(', ') }}"
     
     - name: Run the loaded docker container
-      command: docker run -v "{{ ansible_env.HOME }}"/"{{ user_selected_data }}":/input -v "{{ dst_results_dir }}":/output "{{ user_experiment_name }}"
+      command: "docker run -v {{ ansible_env.HOME }}/{{ user_selected_data }}:/input -v {{ dst_results_dir }}:/output {{ user_experiment_name }}"
       register: docker_run
 
     - debug:

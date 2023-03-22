@@ -31,12 +31,23 @@ do
     esac
 done
 
-
-if [ -z "$(ls -A $dir)" ]; then
-  echo "Data bucket is empty" >> "$results_folder"/out.txt
-else
-  for entry in $dir/*
-  do
-   echo "$entry" >> "$results_folder"/out.txt
-  done
+# Check if the directory exists
+if [ ! -d $dir ]; then
+  echo "Directory does not exist."
+  exit 1
 fi
+
+# Loop through all files in the directory
+for file in $dir/*; do
+  # Check if the file is a regular file
+  if [ -f $file ]; then
+    # Get the file name
+    file_name=$(basename $file)
+    # Get the file content
+    file_content=$(cat $file)
+    # Write the file content to a new file with the same name
+    echo "$file_content" > "${results_folder}/out.txt"
+  fi
+done
+
+echo "Done."

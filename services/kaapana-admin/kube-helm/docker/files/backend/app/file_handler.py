@@ -35,6 +35,7 @@ class FileSession:
         self.wait_before_del = 20
         # self.timer = RepeatedTimer(
         #     self.wait_before_del, delete_file, self.fpath)
+        logger.debug(f"FileSession created with {fpath=}")
 
     def update(self, index):
         self.curr_index = index
@@ -61,8 +62,10 @@ class FileSession:
 sessions = dict()  # {md5, FileSession}
 
 
-def make_fpath(fname: str):
+def make_fpath(fname: str, platforms=False):
     pre = settings.helm_extensions_cache
+    if platforms:
+        pre = settings.helm_platforms_cache
     if pre[-1] != "/":
         pre += "/"
 
@@ -71,9 +74,9 @@ def make_fpath(fname: str):
     return fpath
 
 
-def check_file_exists(filename, overwrite):
+def check_file_exists(filename, overwrite, platforms: bool = False):
     logger.debug(f"checking if file {filename} exists")
-    fpath = make_fpath(filename)
+    fpath = make_fpath(filename, platforms=platforms)
 
     msg = ""
     # check if file exists
@@ -105,8 +108,8 @@ def check_file_namespace(fpath):
     # return multiinstallable
 
 
-def add_file(file: UploadFile, content: bytes, overwrite: bool = True) -> Tuple[bool, str]:
-    """writes tgz file into fast_data_dir/extensions
+def add_file(file: UploadFile, content: bytes, overwrite: bool = True, platforms: bool = False) -> Tuple[bool, str]:
+    """writes tgz file into fast_data_dir/extensions or fast_data_dir/platforms
     """
     allowed_types = ["application/x-compressed", "application/x-compressed-tar", "application/gzip"]
     if file.content_type not in allowed_types:
@@ -116,7 +119,7 @@ def add_file(file: UploadFile, content: bytes, overwrite: bool = True) -> Tuple[
     logger.debug("filename {0}".format(file.filename))
     logger.debug("file type {0}".format(file.content_type))
 
-    fpath, msg = check_file_exists(file.filename, overwrite)
+    fpath, msg = check_file_exists(file.filename, overwrite, platforms=platforms)
     if fpath == "":
         return False, msg
 
@@ -168,7 +171,7 @@ def add_file(file: UploadFile, content: bytes, overwrite: bool = True) -> Tuple[
     return True, msg
 
 
-def init_file_chunks(fname: str, fsize: int, chunk_size: int, index: int, endindex: int, md5: str = "placeholder", overwrite: bool = True):
+def init_file_chunks(fname: str, fsize: int, chunk_size: int, index: int, endindex: int, md5: str = "placeholder", overwrite: bool = True, platforms=False):
     global chunks_fname, chunks_fsize, chunks_chunk_size, chunks_endindex, chunks_fpath, chunks_index
 
     # sanity checks
@@ -183,7 +186,7 @@ def init_file_chunks(fname: str, fsize: int, chunk_size: int, index: int, endind
     logger.debug(
         f"in function: init_file_chunks with {fname=}, {fsize=}, {chunk_size=}, {index=}, {endindex=}, {max_iter=}")
 
-    fpath, msg = check_file_exists(fname, overwrite)
+    fpath, msg = check_file_exists(fname, overwrite, platforms=platforms)
     logger.debug(f"add_file_chunks first call, creating file {fpath}")
     if fpath == "":
         return False, msg
@@ -298,9 +301,9 @@ async def ws_add_file_chunks(ws: WebSocket, fname: str, fsize: int, chunk_size: 
     return fpath, "File successfully uploaded"
 
 
-def run_containerd_import(fname: str) -> Tuple[bool, str]:
+def run_containerd_import(fname: str, platforms: bool = False) -> Tuple[bool, str]:
     logger.debug(f"in function: run_containerd_import, {fname=}")
-    fpath = make_fpath(fname)
+    fpath = make_fpath(fname, platforms=platforms)
     # check if file exists
     if not os.path.exists(fpath):
         logger.error(f"file can not be found in path {fpath}")

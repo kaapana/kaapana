@@ -18,8 +18,8 @@
   vars:
     ansible_ssh_private_key_file: ~/.ssh/{{ ssh_key_name }}
     src_algorithm_dir: "{{ src_algorithm_files_path }}/{{ user_experiment_name }}"
-    dst_algorithm_dir: /home/{{ remote_username }}/algorithm_files/{{ user_experiment_name }}
-    dst_data_dir: /home/{{ remote_username }}/{{ user_selected_data }}
+    dst_algorithm_dir: "{{ ansible_env.HOME }}/algorithm_files/{{ user_experiment_name }}"
+    dst_data_dir: "{{ ansible_env.HOME }}/{{ user_selected_data }}"
   # TODO: data could be in any or multiple instances
   tasks:
     - name: Check if all required variables are passed using --extra-vars

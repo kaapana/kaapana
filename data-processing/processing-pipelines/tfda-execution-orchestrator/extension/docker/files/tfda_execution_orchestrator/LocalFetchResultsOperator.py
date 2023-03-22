@@ -23,6 +23,7 @@ class LocalFetchResultsOperator(KaapanaPythonBaseOperator):
         platform_config = conf["platform_config"]
         
         workflow_type = conf["workflow_type"]
+        user_experiment_name = conf["experiment_name"]
         platform_name = platform_config["default_platform"][workflow_type]
         flavor_name = platform_config["platforms"][platform_name]["default_flavor"][workflow_type]
         
@@ -35,7 +36,7 @@ class LocalFetchResultsOperator(KaapanaPythonBaseOperator):
         remote_username = platform_config["platforms"][platform_name]["platform_flavors"][flavor_name]["remote_username"]
         
         logging.info(f"Fetching results from isolated execution environment for {workflow_type} workflow...")
-        playbook_args = f"target_host={iso_env_ip} ssh_key_name={ssh_key_name} remote_username={remote_username} results_path={results_path}"
+        playbook_args = f"target_host={iso_env_ip} ssh_key_name={ssh_key_name} remote_username={remote_username} results_path={results_path} user_experiment_name={user_experiment_name}"
         command = ["ansible-playbook", fetch_results_playbook_path, "--extra-vars", playbook_args]
         process = subprocess.Popen(command, stdout=PIPE, stderr=PIPE, encoding="Utf-8")
         while True:

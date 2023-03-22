@@ -9,7 +9,6 @@ import hashlib
 import yaml
 import secrets
 import json
-import uuid
 
 from typing import Tuple
 from fastapi import Response
@@ -32,9 +31,9 @@ charts_hashes = {}
 
 
 def all_successful(status):
-    successfull = ['completed', 'running', 'Completed', 'Running', 'deployed', 'Deployed']
+    successful = ['completed', 'running', 'deployed']
     for i in status:
-        if i not in successfull:
+        if type(i) is not str or i.lower() not in successful:
             return "pending"
 
     return "yes"
@@ -227,7 +226,8 @@ def helm_install(
     helm_cache_path=None,
     update_state=True,
     blocking=True,
-    platforms=False
+    platforms=False,
+    execute_cmd=True
 ) -> Tuple[bool, str, dict, str]:
     # TODO: must be shell=False as default
     """
@@ -325,6 +325,23 @@ def helm_install(
     else:
         logger.info("No previous installations were found")
 
+    if not platforms and "global.helm_namespace" in payload["sets"]:
+        helm_namespace = payload["sets"]["global.helm_namespace"]
+
+    if platforms:
+        # current workaround for avoiding the namespace conflict
+        helm_namespace = "default"
+        helm_command_addons = ""
+        # for preinstall, set correct helm_namespace for charts
+        if "extension_params" in values and "helm_namespace" in values["extension_params"]:
+            eparams = values["extension_params"]
+            payload["sets"]["global.helm_namespace"] = eparams["helm_namespace"]["default"]
+
+        # for preinstall, change path folder to extensions if doesn't exist
+        curr_fpath = f"{helm_cache_path}/{name}-{version}.tgz"
+        if not os.path.exists(curr_fpath) and helm_cache_path == settings.helm_platforms_cache:
+            helm_cache_path = settings.helm_extensions_cache
+
     # creating --set variables from values
     helm_sets = ''
     if "sets" in payload:
@@ -335,18 +352,13 @@ def helm_install(
             else:
                 helm_sets = helm_sets + f" --set {key}='{value}'"
 
-    if "global.helm_namespace" in payload["sets"]:
-        helm_namespace = payload["sets"]["global.helm_namespace"]
-
-    # TODO: workaround for avoiding the namespace conflict
-    if platforms:
-        helm_namespace = "default"
-        helm_command_addons = ""
 
     # make the whole command
     helm_command = f'{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}'
 
-    # TODO: fix the following: currently skips check for ';' if there are any suffixes in the command, not safe
+    if not execute_cmd:
+        return False, "", {}, release_name, helm_command
+
     skip_check = False
     if helm_command_suffix != "":
         skip_check = True
@@ -354,11 +366,13 @@ def helm_install(
         success, stdout = helm_helper.execute_shell_command(helm_delete_prefix, shell=shell, blocking=blocking, skip_check=skip_check)
         if not success:
             logger.error(f"helm delete prefix failed: cmd={helm_delete_prefix} success={success} stdout={stdout}")
-    success, stdout = helm_helper.execute_shell_command(helm_command, shell=shell, blocking=blocking)
+    timeout=5
+    if platforms:
+        timeout = 15
+    success, stdout = helm_helper.execute_shell_command(helm_command, shell=shell, blocking=blocking, timeout=timeout)
 
     helm_result_dict = {}
     if blocking and success:
-        logger.debug(f"making helm_result_dict after blocking execution, {stdout=}")
         for item in helm_helper.global_extensions_dict_cached:
             if item["releaseName"] == release_name and item["version"] == version:
                 item["successful"] = KUBE_STATUS_PENDING

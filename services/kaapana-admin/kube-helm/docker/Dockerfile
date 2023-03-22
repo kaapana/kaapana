@@ -6,8 +6,8 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /kaapana/app
 
-ENV KUBE_LATEST_VERSION="v1.23.0"
-ENV HELM_VERSION="v3.8.1"
+ENV KUBE_LATEST_VERSION="v1.26.1"
+ENV HELM_VERSION="v3.10.1"
 
 RUN curl https://storage.googleapis.com/kubernetes-release/release/${KUBE_LATEST_VERSION}/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl && chmod +x /usr/local/bin/kubectl
 RUN curl https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -xzO linux-amd64/helm > /usr/local/bin/helm && chmod +x /usr/local/bin/helm

@@ -215,8 +215,6 @@ async def get_field_mapping(index="meta-index") -> Dict:
         hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
     ).indices.get_mapping(index=index)[index]["mappings"]["properties"]
 
-    print(res)
-
     name_field_map = {
         camel_case_to_space(k): k + type_suffix(v) for k, v in res.items()
     }

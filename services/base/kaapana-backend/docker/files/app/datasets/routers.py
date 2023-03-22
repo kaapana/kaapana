@@ -65,11 +65,8 @@ async def tag_data(data: list = Body(...)):
 async def get_query_elastic_structured(body: dict = Body(...)):
     import pandas as pd
 
-    structured: bool = body["structured"] if "structured" in body else False
-    query = body["query"] if "query" in body else {"query_string": {"query": "*"}}
-
-    if not query:
-        query = {"query_string": {"query": "*"}}
+    structured: bool = body.get("structured") or False
+    query = body.get("query") or {"query_string": {"query": "*"}}
 
     if structured:
         hits = execute_opensearch_query(
@@ -85,7 +82,7 @@ async def get_query_elastic_structured(body: dict = Body(...)):
 
         res_array = [
             [
-                hit["_source"]["00100020 PatientID_keyword"],
+                hit["_source"].get("00100020 PatientID_keyword") or "N/A",
                 hit["_source"]["0020000D StudyInstanceUID_keyword"],
                 hit["_source"]["0020000E SeriesInstanceUID_keyword"],
             ]

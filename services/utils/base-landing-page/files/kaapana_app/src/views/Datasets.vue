@@ -177,26 +177,25 @@ export default {
     // TODO: rename
     async updatePatients(query = {}) {
       this.isLoading = true
-      try {
-        loadPatients({
-          structured: this.settings.datasets.structured,
-          query: query
-        }).then((data) => {
-          // TODO: this is not ideal...
-          if (this.settings.datasets.structured) {
-            this.patients = data
-            this.seriesInstanceUIDs = Object.values(this.patients).map(studies => Object.values(studies)).flat(Infinity)
-          } else {
-            this.seriesInstanceUIDs = data
-          }
-          if (this.seriesInstanceUIDs.length === 0)
-            this.message = 'No data found.'
-          this.isLoading = false
-        })
-      } catch (e) {
+
+      loadPatients({
+        structured: this.settings.datasets.structured,
+        query: query
+      }).then((data) => {
+        // TODO: this is not ideal...
+        if (this.settings.datasets.structured) {
+          this.patients = data
+          this.seriesInstanceUIDs = Object.values(this.patients).map(studies => Object.values(studies)).flat(Infinity)
+        } else {
+          this.seriesInstanceUIDs = data
+        }
+        if (this.seriesInstanceUIDs.length === 0)
+          this.message = 'No data found.'
+        this.isLoading = false
+      }).catch(e => {
         this.message = e
         this.isLoading = false
-      }
+      })
     },
     async updateCohort(name, query) {
       try {

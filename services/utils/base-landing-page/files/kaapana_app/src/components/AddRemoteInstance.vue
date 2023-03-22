@@ -1,8 +1,9 @@
 <template>
   <v-dialog v-model="remoteDialog" max-width="600px">
     <template v-slot:activator="{ on, attrs }">
-      <v-btn v-bind="attrs" v-on="on" small icon>
-        <v-icon color="primary" dark x-large>mdi-plus-circle</v-icon>
+      <v-btn v-bind="attrs" v-on="on" small plain>
+        add remote
+        <!--v-icon color="primary" dark x-large>mdi-plus-circle</v-icon -->
       </v-btn>
     </template>
     <v-card>

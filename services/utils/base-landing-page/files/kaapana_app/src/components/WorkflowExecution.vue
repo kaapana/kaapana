@@ -2,12 +2,11 @@
 <template lang="pug">
 v-dialog(v-model='dialogOpen' max-width='600px')
   template(v-slot:activator='{ on, attrs }')
-    v-btn(x-large color="primary" v-bind='attrs' v-on='on' dark)
-      v-icon(class="mx-2" x-large) mdi-play-circle
-      v-spacer
-      div
-        strong 
-          h3 Start Experiment
+    v-tooltip(bottom)
+      template(v-slot:activator="{ on }")
+        v-btn(v-bind='attrs' v-on='on' color="primary" @click="dialogOpen = true" x-large small icon dark)
+          v-icon(class="mx-2" x-large) mdi-play-circle
+      span Start Experiment
   v-card
     v-form(v-model="valid", ref="executeWorkflow", lazy-validation)
       v-card-title

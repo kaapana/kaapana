@@ -1,17 +1,55 @@
 <template>
   <v-card>
     <v-card-title>
-      <v-row>
-          <h3>Experiment Management System</h3>
-      </v-row>
-      <v-text-field
-        v-model="search"
-        append-icon="mdi-magnify"
-        label="Search for Experiment"
-        single-line
-        hide-details
-        class="mx-4"
-      ></v-text-field>
+      <v-col cols="4">
+        <p>Experiment Management System</p>
+      </v-col>
+      <v-col cols="4">
+        <workflow-execution 
+          ref="workflowexecution"
+          v-if="clientInstance" 
+          :remote="true" 
+          :instances="allInstances" 
+          :clientinstance="clientInstance" 
+          @refreshView="refreshClient()"
+        ></workflow-execution>
+        <LocalKaapanaInstance 
+          v-if="clientInstance" 
+          :instance="clientInstance" 
+          :remote="false" 
+          @refreshView="refreshClient()" 
+          @ei="editClientInstance"
+        ></LocalKaapanaInstance>
+        <template>
+          <v-menu offset-y bottom transition="scale-transition" close-on-click>
+            <template v-slot:activator="{ on, attrs }">
+              <v-btn v-on="on" v-bind="attrs" color="primary" class="mx-2" dark rounded outlined> remote </v-btn>
+            </template>
+            <v-list dense>
+              <v-list-item>
+                <add-remote-instance :remote="true"></add-remote-instance>
+              </v-list-item>
+              <v-list-item>
+                <view-remote-instances :clientinstance="clientInstance" :remote="true"></view-remote-instances>
+              </v-list-item>
+              <v-list-item>
+                <sync-remote-instances :clientinstance="clientInstance" :remote="true"></sync-remote-instances>
+              </v-list-item >
+            </v-list>
+          </v-menu>
+        </template>
+        <v-btn v-if="!clientInstance" color="primary" @click.stop="clientDialog=true" dark="dark">Add client instance </v-btn>
+      </v-col>
+      <v-col cols="4">
+        <v-text-field
+          v-model="search"
+          append-icon="mdi-magnify"
+          label="Search for Experiment"
+          single-line
+          hide-details
+          class="mx-4"
+        ></v-text-field>
+      </v-col>
     </v-card-title>
     <v-data-table
       :headers="experimentHeaders"
@@ -82,12 +120,25 @@
 <script>
 
 import kaapanaApiService from "@/common/kaapanaApi.service";
+
+import KaapanaInstance  from "@/components/KaapanaInstance.vue";
+import LocalKaapanaInstance from "@/components/LocalKaapanaInstance.vue";
+import WorkflowExecution  from "@/components/WorkflowExecution.vue";
+import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
+import ViewRemoteInstances from "@/components/ViewRemoteInstances.vue";
+import SyncRemoteInstances from "@/components/SyncRemoteInstances.vue";
 import JobTable from "./JobTable.vue";
 
 export default {
 name: 'ExperimentTable',
 
 components: {
+  KaapanaInstance,
+  LocalKaapanaInstance,
+  WorkflowExecution,
+  AddRemoteInstance,
+  ViewRemoteInstances,
+  SyncRemoteInstances,
   JobTable,
 },
 
@@ -120,6 +171,7 @@ data () {
     restartID: '',
     deleteID: '',
     hover: false,
+    activateAddRemote: false,
   }
 },
 
@@ -139,6 +191,10 @@ props: {
   remote: {
     type: Boolean,
     default: true
+  },
+  allInstances: {
+    type: Array,
+    required: true,
   }
 },
 
@@ -185,6 +241,12 @@ methods: {
       color: color,
       count: states.filter(_state => _state === state).length
     }))
+  },
+  editClientInstance(instance) {
+    this.clientPost = instance
+    this.clientPost.fernet_encrypted = false
+    this.clientDialog = true
+    this.clientUpdate = true
   },
   abortExperiment(item) {
       this.abortID = item.id

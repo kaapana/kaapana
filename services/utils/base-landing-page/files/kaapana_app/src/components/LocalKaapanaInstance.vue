@@ -1,11 +1,11 @@
 
 <template lang="pug">
 v-dialog(v-model='dialogOpen' max-width='600px')
-  //-  :persistent=dialogPersistence ;  :persistent='isPersistent' ; @close="dialogClose()" 
   template(v-if="!remote" v-slot:activator='{on, attrs}')
-    v-btn(x-large color="primary" v-bind='attrs' v-on='on' dark) 
-      strong
-        h3 Local Instance: {{ instance.instance_name }}
+    v-tooltip(bottom)
+      template(v-slot:activator="{ on }")
+        v-btn(color="primary" v-bind='attrs' v-on='on' class="mx-2" @click="dialogOpen = true" rounded outlined) local: {{ instance.instance_name }}
+      span Local Instance specification
   v-card
     v-card-title Instance name: {{ instance.instance_name }}
       //- v-spacer
@@ -291,7 +291,11 @@ v-dialog(v-model='dialogOpen' max-width='600px')
   
   <!-- Add "scoped" attribute to limit CSS to this component only -->
   <style scoped lang="scss">
-  
+  .center-text {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
   
   </style>
   

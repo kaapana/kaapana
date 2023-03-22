@@ -9,7 +9,6 @@ from multiprocessing.pool import ThreadPool
 from alive_progress import alive_bar
 import datetime
 
-
 suite_tag = "security"
 
 # Class containing security related helper functions
@@ -198,7 +197,7 @@ class TrivyUtils:
             universal_newlines=True,
             timeout=self.timeout,
         )
-        
+
         if self.kill_flag:
             issue = {
                 "component": image,
@@ -319,6 +318,53 @@ class TrivyUtils:
         os.remove(
             os.path.join(self.reports_path, image_name + "_vulnerability_report.json")
         )
+
+        if self.kill_flag:
+            issue = {
+                "component": image,
+                "level": "FATAL",
+                "description": "SBOM creation was interrupted",
+            }
+            return image, issue
+
+        elif output.returncode != 0:
+            BuildUtils.logger.error(
+                "Failed to create SBOM for image: "
+                + image
+                + "."
+                + "Inspect the issue using the trivy --debug flag."
+            )
+            BuildUtils.logger.error(output.stderr)
+            issue = {
+                "component": image,
+                "level": "FATAL",
+                "description": "Failed to create SBOM for image: "
+                + image
+                + "."
+                + "Inspect the issue using the trivy --debug flag.",
+            }
+            return image, issue
+
+        # read the SBOM file
+        with open(os.path.join(self.reports_path, image_name + "_sbom.json"), "r") as f:
+            sbom = json.load(f)
+
+        # Remove the image from the list of running containers
+        self.semaphore_running_containers.acquire()
+        try:
+            self.list_of_running_containers.remove(image_name + "_sbom")
+        finally:
+            self.semaphore_running_containers.release()
+
+        self.semaphore_sboms.acquire()
+        try:
+            # add the SBOM to the dictionary
+            self.sboms[image] = sbom
+        finally:
+            self.semaphore_sboms.release()
+
+        # Remove the SBOM file
+        os.remove(os.path.join(self.reports_path, image_name + "_sbom.json"))
 
         return image, issue
 
@@ -749,6 +795,10 @@ class TrivyUtils:
         return output.stdout.split("NextUpdate: ")[1].split(".")[0]
         # timestamp_object = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
 
+        # Get the timestamp of the last database download 
+        # Ignore the under second part of the timestamp
+        return output.stdout.split("NextUpdate: ")[1].split(".")[0]
+        #timestamp_object = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
 
 if __name__ == "__main__":
     print("Please use the 'start_build.py' script to launch the build-process.")

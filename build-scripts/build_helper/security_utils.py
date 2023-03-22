@@ -9,7 +9,6 @@ from multiprocessing.pool import ThreadPool
 from alive_progress import alive_bar
 import datetime
 
-
 suite_tag = "security"
 
 # Class containing security related helper functions
@@ -198,7 +197,7 @@ class TrivyUtils:
             universal_newlines=True,
             timeout=self.timeout,
         )
-        
+
         if self.kill_flag:
             issue = {
                 "component": image,
@@ -768,6 +767,10 @@ class TrivyUtils:
         return output.stdout.split("NextUpdate: ")[1].split(".")[0]
         # timestamp_object = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
 
+        # Get the timestamp of the last database download 
+        # Ignore the under second part of the timestamp
+        return output.stdout.split("NextUpdate: ")[1].split(".")[0]
+        #timestamp_object = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
 
 if __name__ == "__main__":
     print("Please use the 'start_build.py' script to launch the build-process.")

@@ -7,6 +7,7 @@ import json
 import subprocess
 import hashlib
 import time
+import asyncio
 from distutils.version import LooseVersion
 
 from typing import Dict, List, Set, Union, Tuple
@@ -15,9 +16,6 @@ from fastapi.logger import logger
 
 from config import settings
 import schemas
-
-# TODO: get single extension
-# TODO: get single tgz file
 
 CHART_STATUS_UNDEPLOYED = "un-deployed"
 CHART_STATUS_DEPLOYED = "deployed"
@@ -42,6 +40,50 @@ global_collected_tgz_charts_platforms = {}
 global_extension_states: Dict[str, schemas.ExtensionState] = {}  # keys are in form <name>__<version>
 global_recently_updated: Set[str] = set()  # list of keys for recently updated ( < refresh_delay) extensions
 
+
+async def exec_shell_cmd_async(command, shell=False, timeout: float=5) -> Tuple[bool, str]:
+    """Runs given command via asyncio.create_subprocess_shell()
+
+    Args:
+        command (_type_): _description_
+        shell (bool, optional): _description_. Defaults to False.
+        timeout (int, optional): _description_. Defaults to 5.
+
+    Returns:
+        success (bool)  : whether the command ran successfully
+        stdout  (str)   : output of the command. If success=False it is the same as stderr
+    """
+    logger.debug("executing ASYNC shell command: {0}".format(command))
+    logger.debug("shell={0} , timeout={1}".format(shell, timeout))
+    try:
+        if shell == False and (type(command) is str):
+            command = [x for x in command.replace("  ", " ").split(" ") if x != ""]
+        
+        command_result = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                shell=shell
+            )
+
+        stdout, stderr = await asyncio.wait_for(command_result.communicate(), timeout=timeout)
+        if command_result.returncode == 0:
+            logger.info(f"Command successful executed: {command}")
+            out = stdout.decode()
+            return True, out
+        else:
+            err = stderr.decode()
+            logger.error(f"ERROR while executing command: {err}")
+            logger.error(f"COMMAND: {command}")
+            return False, err
+
+    except asyncio.TimeoutError as e:
+        logger.error(f"Command timed out after {timeout} seconds")
+        return False, f"Command timed out after {timeout} seconds"
+    
+    except Exception as e:
+        logger.error(str(e))
+        return False, str(e)
 
 def execute_shell_command(command, shell=False, blocking=True, timeout=5, skip_check=False) -> Tuple[bool, str]:
     """Runs given command via subprocess.run or subprocess.Popen
@@ -90,12 +132,8 @@ def execute_shell_command(command, shell=False, blocking=True, timeout=5, skip_c
         return success, stdout
 
     else:
-        logger.error("#######################################################################################################################################################")
-        logger.error("")
         logger.error("ERROR while executing command: ")
-        logger.error("")
         logger.error(f"COMMAND: {command}")
-        logger.error("")
         logger.error("STDOUT:")
         for line in stdout.splitlines():
             logger.error(f"{line}")
@@ -104,7 +142,6 @@ def execute_shell_command(command, shell=False, blocking=True, timeout=5, skip_c
         for line in stderr.splitlines():
             logger.error(f"{line}")
         logger.error("")
-        logger.error("#######################################################################################################################################################")
         return success, stderr
 
 
@@ -433,7 +470,7 @@ def collect_all_tgz_charts(keywords_filter: List, name_filter: str = "") -> Dict
         platforms = True
         current_hash = global_charts_hashes_platforms
         current_tgz_charts = global_collected_tgz_charts_platforms
-        chart_tgz_files = [f for f in glob.glob(
+        chart_tgz_files += [f for f in glob.glob(
             os.path.join(settings.helm_platforms_cache, '*.tgz')) if name_filter in f]
     logger.info(f"found chart tgz files length: {len(chart_tgz_files)}")
     logger.debug(f"found chart tgz files: {chart_tgz_files}")
@@ -645,6 +682,10 @@ def helm_show_values(name, version, platforms=False) -> Dict:
     if platforms:
         assert settings.helm_platforms_cache is not None, f"HELM_PLATFORMS_CACHE is not defined"
         helm_cache_dir = settings.helm_platforms_cache
+
+        curr_fpath = f"{helm_cache_dir}/{name}-{version}.tgz"
+        if not os.path.exists(curr_fpath):
+            helm_cache_dir = settings.helm_extensions_cache
     success, stdout = execute_shell_command(
         f'{settings.helm_path} show values {helm_cache_dir}/{name}-{version}.tgz')
     if success:
@@ -671,6 +712,10 @@ def helm_show_chart(name=None, version=None, package=None, platforms=False) -> D
         if platforms:
             assert settings.helm_platforms_cache is not None, f"HELM_PLATFORMS_CACHE is not defined"
             helm_cache_dir = settings.helm_platforms_cache
+
+            curr_fpath = f"{helm_cache_dir}/{name}-{version}.tgz"
+            if not os.path.exists(curr_fpath):
+                helm_cache_dir = settings.helm_extensions_cache
         helm_command = f'{helm_command} {helm_cache_dir}/{name}-{version}.tgz'
 
     success, stdout = execute_shell_command(helm_command)

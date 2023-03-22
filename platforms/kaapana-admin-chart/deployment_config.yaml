@@ -18,6 +18,7 @@ mount_points_to_monitor: "/"
 kaapana_collections:
 - name: kaapana-extension-collection
 preinstall_extensions:
+- name: kaapana-platform-chart
 - name: code-server-chart
 additional_env:
 - name: INSTANCE_NAME

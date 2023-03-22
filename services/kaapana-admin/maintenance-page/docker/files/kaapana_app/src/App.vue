@@ -1,49 +1,85 @@
-<template lang="pug">
-#app
-  v-app#inspire
-    v-navigation-drawer(clipped, v-model="drawer", app)
-      v-list(dense)
-        v-list-item(:to="'/platforms'")
-          v-list-item-action
-            v-icon mdi-apps
-          v-list-item-content
-            v-list-item-title Platforms
-          v-list-item-icon
-        v-list-item(:to="'/extensions'")
-          v-list-item-action
-            v-icon mdi-apps
-          v-list-item-content
-            v-list-item-title Extensions
-          v-list-item-icon
-    v-app-bar(color="primary", dark, dense, clipped-left, app)
-      v-app-bar-nav-icon(@click.stop="drawer = !drawer")
-      v-toolbar-title {{ commonData.name }}
-      v-spacer
-      v-menu(
-        :close-on-content-click="false",
-        :nudge-width="200",
-        offset-x
-      )
-        template(v-slot:activator="{ on }")
-          v-btn(v-on="on", icon)
-            v-icon mdi-account-circle
-        v-card
-          v-list
-            v-list-item
-              v-list-item-content
-                v-list-item-title {{ currentUser.username }}
-                  p Welcome back!
-          v-card-actions
-            v-spacer
-            v-btn(icon, @click="logout()")
-              v-icon mdi-exit-to-app
-    v-content#v-main-content
-      v-container.router-container(fluid, fill-height)
-        v-layout(justify-center, align-start)
-          v-flex(text-xs-center)
-            router-view
-    v-footer(color="primary", app, inset)
-      span.white--text &copy; DKFZ 2018 - DKFZ 2022: Version {{ commonData.version }}
+<template>
+  <div id="app">
+    <v-app id="inspire">
+      <notifications position="bottom right" width="20%"/>
+      <v-navigation-drawer clipped v-model="drawer" app class="ta-center">
+        <v-list dense>
+          <v-list-item :to="'/platforms'">
+            <v-list-item-action>
+              <v-icon>mdi-apps</v-icon>
+            </v-list-item-action>
+            <v-list-item-content>
+              <v-list-item-title>Platforms</v-list-item-title>
+            </v-list-item-content>
+            <v-list-item-icon></v-list-item-icon>
+          </v-list-item>
+          <v-list-item :to="'/extensions'" v-if="isAuthenticated">
+            <v-list-item-action>
+              <v-icon>mdi-apps</v-icon>
+            </v-list-item-action>
+            <v-list-item-content>
+              <v-list-item-title>Extensions</v-list-item-title>
+            </v-list-item-content>
+            <v-list-item-icon></v-list-item-icon>
+          </v-list-item>
+        </v-list>
+      </v-navigation-drawer>
+      <v-app-bar color="primary" dark dense clipped-left app>
+        <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
+        <v-toolbar-title>{{ commonData.name }}</v-toolbar-title>
+        <v-spacer></v-spacer>
+        <v-menu v-if="isAuthenticated" :close-on-content-click="false" :nudge-width="200" offset-x="offset-x">
+          <template v-slot:activator="{ on }">
+            <v-btn v-on="on" icon="icon">
+              <v-icon>mdi-account-circle</v-icon>
+            </v-btn>
+          </template>
+          <v-card>
+            <v-list>
+              <v-list-item>
+                <v-list-item-content>
+                  <v-list-item-title>{{ currentUser.username }}
+                    <p>Welcome back!</p>
+                  </v-list-item-title>
+                </v-list-item-content>
+              </v-list-item>
+              <v-list-item>
+                <Settings></Settings>
+              </v-list-item>
+              <v-list-item>
+                <v-switch
+                    label="Dark mode"
+                    hide-details
+                    v-model="darkMode"
+                    @change="(v) => changeMode(v)"
+                ></v-switch>
+              </v-list-item>
+            </v-list>
+            <v-card-actions>
+              <v-spacer></v-spacer>
+              <v-btn icon="icon" @click="logout()">
+                <v-icon>mdi-exit-to-app</v-icon>
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-menu>
+      </v-app-bar>
+      <v-main id="v-main-content">
+        <v-container class="router-container pa-0" fluid fill-height>
+          <v-layout align-start="align-start">
+            <v-flex text-xs="text-xs">
+              <router-view></router-view>
+            </v-flex>
+          </v-layout>
+        </v-container>
+      </v-main>
+      <v-footer color="primary" app inset>
+        <span class="white--text">
+          &copy; DKFZ 2018 - DKFZ 2023 | {{ commonData.version }}
+        </span>
+      </v-footer>
+    </v-app>
+  </div>
 </template>
 
 
@@ -58,73 +94,63 @@ import {CHECK_AVAILABLE_WEBSITES, LOAD_COMMON_DATA} from '@/store/actions.type';
 
 
 export default Vue.extend({
-  name: "App",
+  name: 'App',
   data: () => ({
     drawer: true,
+    darkMode: 'darkMode' in localStorage ? JSON.parse(localStorage['darkMode']) : false,
     federatedBackendAvailable: false,
-    staticWebsiteAvailable: false,
+    staticWebsiteAvailable: false
   }),
   computed: {
-    ...mapGetters([
-      "currentUser",
-      "isAuthenticated",
-      "externalWebpages",
-      "commonData",
-    ]),
+    ...mapGetters(['currentUser', 'isAuthenticated', 'externalWebpages', 'commonData']),
   },
   methods: {
+    changeMode(v: boolean) {
+      this.darkMode = v
+      localStorage['darkMode'] = JSON.stringify(v)
+      this.$vuetify.theme.dark = v
+    },
     login() {
       this.$store
-        .dispatch(LOGIN)
-        .then(() => this.$router.push({ name: "home" }));
+          .dispatch(LOGIN)
+          .then(() => this.$router.push({name: 'home'}));
     },
     logout() {
-      this.$store.dispatch(LOGOUT);
-    },
+      this.$store.dispatch(LOGOUT)
+    }
   },
   beforeCreate() {
-    this.$store.dispatch(CHECK_AVAILABLE_WEBSITES);
-    this.$store.dispatch(LOAD_COMMON_DATA);
+    this.$store.dispatch(CHECK_AVAILABLE_WEBSITES)
+    this.$store.dispatch(LOAD_COMMON_DATA)
   },
   mounted() {
-    request
-      .get("/traefik/api/http/routers")
-      .then((response: { data: {} }) => {
-        this.federatedBackendAvailable = kaapanaApiService.checkUrl(
-          response.data,
-          "/federated-backend"
-        );
-      })
-      .catch((error: any) => {
-        console.log("Something went wrong with traefik", error);
-      });
-    request
-      .get("/traefik/api/http/routers")
-      .then((response: { data: {} }) => {
-        this.staticWebsiteAvailable = kaapanaApiService.checkUrl(
-          response.data,
-          "/static-website-browser"
-        );
-      })
-      .catch((error: any) => {
-        console.log("Something went wrong with traefik", error);
-      });
+    this.$vuetify.theme.dark = this.darkMode
+    request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
+      this.federatedBackendAvailable = kaapanaApiService.checkUrl(response.data, '/kaapana-backend')
+    }).catch((error: any) => {
+      console.log('Something went wrong with traefik', error)
+    })
+    request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
+      this.staticWebsiteAvailable = kaapanaApiService.checkUrl(response.data, '/static-website-browser')
+    }).catch((error: any) => {
+      console.log('Something went wrong with traefik', error)
+    })
   },
   onIdle() {
     console.log("checking", this.$store.getters.isAuthenticated);
     this.$store
-      .dispatch(CHECK_AUTH)
-      .then(() => {
-        console.log("still online");
-      })
-      .catch((err: any) => {
-        console.log("reloading");
-        location.reload();
-        // this.$router.push({ name: 'home' });
-        // this.$store.dispatch(LOGOUT).then(() => {
-        //   this.$router.push({ name: 'home' });
-        // });
-      });
+        .dispatch(CHECK_AUTH)
+        .then(() => {
+      console.log("still online");
+    })
+    .catch((err: any) => {
+      console.log("reloading");
+      location.reload();
+      // this.$router.push({ name: 'home' });
+      // this.$store.dispatch(LOGOUT).then(() => {
+      //   this.$router.push({ name: 'home' });
+      // });
+    });
   },
 });
 </script>
@@ -144,12 +170,12 @@ $kaapana-green: #ff7a20;
   color: #333;
 }
 
-.router-container {
-  padding: 12px;
+.ta-center {
+  text-align: center;
 }
 // Example of colors
 .kaapana-blue {
-  color: $kaapana-blue;
+  color: $kaapana-blue
 }
 
 .kaapana-iframe-container {
@@ -169,9 +195,11 @@ $kaapana-green: #ff7a20;
 .kaapana-card-prop {
   padding: 10px;
 }
+
 .kaapana-intro-header {
   position: relative;
 }
+
 .kaapana-intro-header .kaapana-intro-image {
   padding-top: 10px;
   padding-bottom: 10px;
@@ -182,7 +210,7 @@ $kaapana-green: #ff7a20;
   background-size: cover;
 }
 
-.kaapana-opacity-card {
-  background: rgba(255, 255, 255, 0.87) !important;
+.pa-0 {
+  padding: 0;
 }
 </style>

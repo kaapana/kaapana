@@ -1,5 +1,5 @@
 import os
-from os.path import basename, dirname, join
+from os.path import dirname, join
 import secrets
 import subprocess
 
@@ -7,7 +7,6 @@ from fastapi import APIRouter, Response, Request, UploadFile, WebSocket, WebSock
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi.logger import logger
-import aiofiles
 
 from config import settings
 import helm_helper
@@ -36,7 +35,10 @@ async def index(request: Request):
 async def upload_file(file: UploadFile):
     logger.info(f"chart file {file.filename}")
     content = await file.read()
-    res, msg = file_handler.add_file(file, content)
+    platforms = False
+    if file.filename.startswith("/platform/"):
+        platforms = True
+    res, msg = file_handler.add_file(file, content, platforms)
     if not res:
         logger.error(f"/file upload failed {msg}")
         return Response(f"File upload failed {msg}", 500)
@@ -51,15 +53,19 @@ async def file_chunks_init(request: Request):
         logger.debug(f"in file_chunks_init, {payload=}")
         req_keys = ("name", "fileSize",
                     "chunkSize", "index", "endIndex")
-        if not all(k in req_keys for k in payload.keys()):
+        if not all(k in payload.keys() for k in req_keys):
             raise AssertionError(
                 f"All following keys are required: {req_keys}")
+        platforms = False
+        if "platforms" in payload:
+            platforms = payload["platforms"]
         fpath, msg = file_handler.init_file_chunks(
             fname=payload["name"],
             fsize=payload["fileSize"],
             chunk_size=payload["chunkSize"],
             index=payload["index"],
-            endindex=payload["endIndex"]
+            endindex=payload["endIndex"],
+            platforms=platforms
         )
         if not fpath:
             logger.error(msg)
@@ -108,11 +114,11 @@ async def upload_file_chunks(file: UploadFile):
 
 
 @router.get("/import-container")
-async def import_container(filename: str):
+async def import_container(filename: str, platforms: bool):
     try:
-        logger.info(f"/import-container called with {filename}")
+        logger.info(f"/import-container called with {filename=}, {platforms=}")
         assert filename != "", "Required key 'filename' can not be empty"
-        res, msg = file_handler.run_containerd_import(filename)
+        res, msg = file_handler.run_containerd_import(filename, platforms=platforms)
         logger.debug(f"returned {res=}, {msg=}")
         if not res:
             logger.error(f"/import-container failed {msg}")
@@ -150,7 +156,6 @@ async def helm_delete_chart(request: Request):
         helm_command_addons = ''
         helm_namespace = settings.helm_namespace
         multiinstallable = False
-        platforms = False
         if "release_version" in payload:
             release_version = payload["release_version"]
         if "helm_command_addons" in payload:
@@ -159,15 +164,12 @@ async def helm_delete_chart(request: Request):
             helm_namespace = payload["helm_namespace"]
         if ("multiinstallable" in payload) and payload["multiinstallable"].lower() in ["true", "yes"]:
             multiinstallable = True
-        if "platforms" in payload:
-            platforms = payload["platforms"]
         success, stdout = utils.helm_delete(
             release_name=payload["release_name"],
             release_version=release_version,
             helm_namespace=helm_namespace,
             helm_command_addons=helm_command_addons,
-            multiinstallable=multiinstallable,
-            platforms=platforms
+            multiinstallable=multiinstallable
         )
         if success:
             return Response(f"Successfully ran uninstall command for {payload['release_name']}", 200)
@@ -196,13 +198,12 @@ async def helm_install_chart(request: Request):
             cmd_addons = "--create-namespace"
         if ("blocking" in payload) and (str(payload["blocking"]).lower() == "true"):
             blocking = True
-        success, stdout, _, _, cmd = utils.helm_install(
-            payload, shell=True, blocking=blocking, platforms=platforms, helm_command_addons=cmd_addons)
+        _, _, _, _, cmd = utils.helm_install(
+            payload, shell=True, blocking=blocking, platforms=platforms, helm_command_addons=cmd_addons, execute_cmd=False)
+        success, stdout = await helm_helper.exec_shell_cmd_async(cmd, shell=True, timeout=5)
+        logger.debug(f"await ended {success=} {stdout=}")
         if success:
-            if blocking:
-                return Response(f"Successfully installed: {stdout}", 200)
-            else:
-                return Response(f"Successfully ran helm install command {cmd}", 200)
+            return Response(f"Successfully installed: {stdout}", 200)
         else:
             return Response(f"Chart install command failed {stdout}", 500)
     except AssertionError as e:

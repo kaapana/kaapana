@@ -14,6 +14,7 @@ helm_namespace: "admin"
 services_namespace: "services"
 jobs_namespace: "jobs"
 extensions_namespace: "extensions"
+mount_points_to_monitor: "/"
 kaapana_collections:
 - name: kaapana-extension-collection
 preinstall_extensions:

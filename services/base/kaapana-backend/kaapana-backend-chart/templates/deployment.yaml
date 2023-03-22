@@ -76,7 +76,7 @@ spec:
         - name: https_proxy
           value: {{ .Values.global.http_proxy }}
         - name: no_proxy
-          value: "kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,airflow-webserver-service.{{  .Values.global.services_namespace  }},airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc,minio-service.{{  .Values.global.services_namespace  }},minio-service.{{  .Values.global.services_namespace  }}.svc,opensearch-service.{{  .Values.global.services_namespace  }},opensearch-service.{{  .Values.global.services_namespace  }}.svc,keycloak-internal-service.{{  .Values.global.admin_namespace  }}"
+          value: ".svc,.svc.cluster,.svc.cluster.local"
         - name: SERVICES_NAMESPACE
           value: "{{  .Values.global.services_namespace  }}"
         - name: KUBE_HELM_URL
@@ -84,7 +84,7 @@ spec:
         - name: AIRFLOW_URL
           value: "http://airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc:8080/flow/kaapana/api"
         - name: PROMETHEUS_URL
-          value: {{ .Values.global.prometheus_url }}
+          value: "http://prometheus-service.{{  .Values.global.services_namespace  }}.svc:9090/prometheus"
         - name: KEYCLOAK_URL
           value: "https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/"
         - name: MINIO_USERNAME
@@ -93,6 +93,18 @@ spec:
           value: {{ .Values.global.credentials_minio_password | default ""}}
         - name: MINIO_URL
           value: "minio-service.{{  .Values.global.services_namespace  }}:9000"
+        - name: KAAPANA_BUILD_TIMESTAMP
+          value: {{ .Values.global.build_timestamp }}
+        - name: KAAPANA_BUILD_VERSION
+          value: {{ .Values.global.kaapana_build_version }}
+        - name: KAAPANA_BUILD_BRANCH
+          value: {{ .Values.global.platform_build_branch }}
+        - name: KAAPANA_LAST_COMMIT_TIMESTAMP
+          value: {{ .Values.global.platform_last_commit_timestamp }}
+        - name: DEPLOYMENT_TIMESTAMP
+          value: {{ .Values.global.deployment_timestamp }}
+        - name: MOUNT_POINTS_TO_MONITOR
+          value: {{ .Values.global.mount_points_to_monitor }}
         - name: APPLICATION_ROOT
           value: "/kaapana-backend"
         - name: DATABASE_URL

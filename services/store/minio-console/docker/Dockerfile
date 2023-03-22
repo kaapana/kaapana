@@ -1,4 +1,4 @@
-FROM node:17 as uilayer
+FROM docker.io/node:17 as uilayer
 
 LABEL IMAGE=minio-console
 LABEL VERSION=0.15.6
@@ -27,7 +27,7 @@ RUN make build-static
 
 USER node
 
-FROM golang:1.17 as golayer
+FROM docker.io/golang:1.17 as golayer
 
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     ca-certificates \

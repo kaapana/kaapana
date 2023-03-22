@@ -960,7 +960,7 @@ class HelmChart:
                     component=suite_tag,
                     name=f"{self.chart_id}",
                     msg="chart push failed!",
-                    level="ERROR",
+                    level="FATAL",
                     output=output,
                     path=self.chart_dir,
                 )
@@ -980,13 +980,17 @@ class HelmChart:
             BuildUtils.logger.info(
                 f"Searching for Charts in target_dir: {external_source_dir}"
             )
-            charts_found.extend(
-                glob(external_source_dir + "/**/Chart.yaml", recursive=True)
-            )
+            external_charts = glob(external_source_dir + "/**/Chart.yaml", recursive=True)
+            external_charts = [x for x in external_charts if BuildUtils.kaapana_dir not in x]
+            charts_found.extend(external_charts)
             BuildUtils.logger.info(f"Found {len(charts_found)} Charts")
 
         if len(charts_found) != len(set(charts_found)):
-            BuildUtils.logger.warning("-> Duplicate Charts found!")
+            BuildUtils.logger.warning(f"-> Duplicate Charts found: {len(charts_found)} vs {len(set(charts_found))}")
+            for duplicate in set([x for x in charts_found if charts_found.count(x) > 1]):
+                BuildUtils.logger.warning(duplicate)
+            BuildUtils.logger.warning("")
+
 
         charts_found = sorted(
             set(charts_found), key=lambda p: (-p.count(os.path.sep), p)
@@ -1178,7 +1182,7 @@ class HelmChart:
                 {
                     "platform_build_branch": BuildUtils.platform_build_branch,
                     "platform_last_commit_timestamp": BuildUtils.platform_last_commit_timestamp,
-                    "build_timestamp": datetime.now().strftime("%d-%m-%Y"),
+                    "build_timestamp": datetime.now().astimezone().replace(microsecond=0).isoformat(),
                     "kaapana_build_version": BuildUtils.platform_build_version,
                 }
             )

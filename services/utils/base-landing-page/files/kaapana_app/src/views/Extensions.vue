@@ -177,8 +177,7 @@
                 v-card-text
                   v-form.px-3(ref="popUpForm")
                     template(v-for="(param, key) in popUpItem.extension_params")
-                      span(v-if="param.type == 'group_name'" style="font-weight:bold;font-size:25px;float:left;align:left") {{ param.default }}
-
+                      span(v-if="param.type == 'group_name'" style="font-weight:bold;font-size:25px;align:left") {{ param.default }}
                       v-text-field(
                         v-if="param.type == 'string'"
                         :label="key"

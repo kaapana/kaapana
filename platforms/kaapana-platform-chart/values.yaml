@@ -3,189 +3,213 @@ global:
     test: ""
 
 extension_params:
-    base_namespace:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "base"
-    credentials_registry_username:
-        definition: ""
-        type: "string"
-        value: ""
-        default: ""
-    credentials_registry_password:
-        definition: ""
-        type: "string"
-        value: ""
-        default: ""
-    credentials_minio_username:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "kaapanaminio"
-    credentials_minio_password:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "Kaapana2020"
-    credentials_grafana_username:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "admin"
-    credentials_grafana_password:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "admin"
-    credentials_keycloak_admin_username:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "admin"
-    credentials_keycloak_admin_password:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "Kaapana2020"
-    dev_ports:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "false"
-    dicom_port:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "11112"
-    fast_data_dir:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "/home/kaapana-data"
-    services_namespace:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "services"
-    jobs_namespace:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "jobs"
-    extensions_namespace:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "extensions"
-    admin_namespace:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "admin"
-    gpu_support:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "false"
-    helm_namespace:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "services"
-    include_reverse_proxy:
-        definition: ""
-        type: "bool"
-        value: ""
-        default: false
-    home_dir:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "/home/ubuntu"
+    group_config:
+        default: Config
+        definition: Name of the group
+        type: group_name
+        value: Config
     hostname:
-        definition: ""
-        type: "string"
-        value: ""
         default: ""
-    http_port:
-        definition: ""
-        type: "string"
+        definition: FQDN of the server
+        type: string
         value: ""
-        default: "80"
-    http_proxy:
-        definition: ""
-        type: "string"
+    include_reverse_proxy:
+        default: false
+        definition: "Spawns a separate set of traefik and oauth2-proxy deployments for the platform"
+        type: bool
         value: ""
-        default: "http://www-int2.dkfz-heidelberg.de:80"
-    https_port:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "443"
-    https_proxy:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "http://www-int2.dkfz-heidelberg.de:80"
-    offline_mode:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "false"
-    prefetch_extensions:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "false"
-    pull_policy_jobs:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "Always"
-    pull_policy_operators:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "Always"
-    pull_policy_pods:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "Always"
-    registry_url:
-        definition: ""
-        type: "string"
-        value: ""
-        default: ""
-    release_name:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "kaapana-platform-chart"
-    kaapana_build_version:
-        definition: ""
-        type: "string"
-        value: ""
-        default: ""
-    platform_build_branch:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "maintenance-page"
-    slow_data_dir:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "/home/kaapana-data"
-    instance_uid:
-        definition: ""
-        type: "string"
-        value: ""
-        default: "0"
     instance_name:
-        definition: ""
-        type: "string"
+        default: ""
+        definition: "Only valid if multiple instances for the same Kaapana platform are deployed"
+        type: string
         value: ""
-        default: "central"
-        
+    instance_uid:
+        default: ""
+        definition: Only valid if multiple instances for the same Kaapana platform are deployed
+        type: string
+        value: ""
+    kaapana_build_version:
+        default: ""
+        definition: The current build version of the platform
+        type: string
+        value: ""
+    offline_mode:
+        default: "false"
+        definition: Offline installation build
+        type: string
+        value: ""
+    prefetch_extensions:
+        default: "false"
+        definition: Comma separated list of extensions to be installed
+        type: string
+        value: ""
+    registry_url:
+        default: ""
+        definition: ""
+        type: string
+        value: ""
+    release_name:
+        default: kaapana-platform-chart
+        definition: Name of the helm chart for this platform
+        type: string
+        value: ""
+    group_credentials:
+        default: Credentials
+        definition: Name of the group
+        type: group_name
+        value: Credentials
+    credentials_grafana_password:
+        default: admin
+        definition: ""
+        type: string
+        value: ""
+    credentials_grafana_username:
+        default: admin
+        definition: ""
+        type: string
+        value: ""
+    credentials_keycloak_admin_password:
+        default: Kaapana2020
+        definition: ""
+        type: string
+        value: ""
+    credentials_keycloak_admin_username:
+        default: admin
+        definition: ""
+        type: string
+        value: ""
+    credentials_minio_password:
+        default: Kaapana2020
+        definition: ""
+        type: string
+        value: ""
+    credentials_minio_username:
+        default: kaapanaminio
+        definition: ""
+        type: string
+        value: ""
+    credentials_registry_password:
+        default: ""
+        definition: ""
+        type: string
+        value: ""
+    credentials_registry_username:
+        default: ""
+        definition: ""
+        type: string
+        value: ""
+    group_namespaces:
+        default: Namespaces
+        definition: Name of the group
+        type: group_name
+        value: Namespaces
+    admin_namespace:
+        default: admin
+        definition: "Namespace for Kubernetes resources with admin access, such as reverse proxy and authentication"
+        type: string
+        value: ""
+    base_namespace:
+        default: base
+        definition: ""
+        type: string
+        value: ""
+    extensions_namespace:
+        default: extensions
+        definition: Namespace for extensions installed in this platform
+        type: string
+        value: ""
+    helm_namespace:
+        default: services
+        definition: Namespace for helm charts of this platform
+        type: string
+        value: ""
+    jobs_namespace:
+        default: jobs
+        definition: Kubernetes namespace for jobs
+        type: string
+        value: ""
+    services_namespace:
+        default: services
+        definition: "Namespace for fundamental resources in this platform, such as the backend and the landing page"
+        type: string
+        value: ""
+    group_network:
+        default: Network
+        definition: Name of the group
+        type: group_name
+        value: Network
+    dicom_port:
+        default: "11112"
+        definition: ""
+        type: string
+        value: ""
+    http_port:
+        default: "80"
+        definition: ""
+        type: string
+        value: ""
+    http_proxy:
+        default: ""
+        definition: ""
+        type: string
+        value: ""
+    https_port:
+        default: "443"
+        definition: ""
+        type: string
+        value: ""
+    https_proxy:
+        default: ""
+        definition: ""
+        type: string
+        value: ""
+    group_data:
+        default: Data
+        definition: Name of the group
+        type: group_name
+        value: Data
+    fast_data_dir:
+        default: /home/kaapana-data
+        definition: Data directory path
+        type: string
+        value: ""
+    home_dir:
+        default: /home/ubuntu
+        definition: ""
+        type: string
+        value: ""
+    slow_data_dir:
+        default: /home/kaapana-data
+        definition: Data directory
+        type: string
+        value: ""
+    group_hardware:
+        default: Hardware
+        definition: Name of the group
+        type: group_name
+        value: Hardware
+    gpu_support:
+        default: "false"
+        definition: Enables microk8s GPU support
+        type: string
+        value: ""
+    group_kubernetes:
+        default: Kubernetes
+        definition: Name of the group
+        type: group_name
+        value: Kubernetes
+    pull_policy_jobs:
+        default: Always
+        definition: ""
+        type: string
+        value: ""
+    pull_policy_operators:
+        default: Always
+        definition: ""
+        type: string
+        value: ""
+    pull_policy_pods:
+        default: Always
+        definition: ""
+        type: string
+        value: ""

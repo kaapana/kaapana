@@ -1,4 +1,4 @@
-FROM node:lts-alpine3.10 as build
+FROM docker.io/node:lts-alpine3.10 as build
 
 LABEL IMAGE="ohif"
 LABEL VERSION="4.12.26"
@@ -24,7 +24,7 @@ ENV APP_CONFIG "config/kaapana.js"
 RUN yarn install
 RUN yarn run build
 
-FROM nginx:stable-alpine as production-stage
+FROM docker.io/nginx:stable-alpine as production-stage
 
 COPY --from=build /src/platform/viewer/dist/ /usr/share/nginx/html/ohif/
 

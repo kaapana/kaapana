@@ -600,12 +600,18 @@ class Container:
             for external_source in BuildUtils.external_source_dirs:
                 BuildUtils.logger.info("")
                 BuildUtils.logger.info(f"-> adding external sources: {external_source}")
-                dockerfiles_found.extend(glob(external_source + "/**/Dockerfile*", recursive=True))
+                external_dockerfiles_found = glob(external_source + "/**/Dockerfile", recursive=True)
+                external_dockerfiles_found = [x for x in external_dockerfiles_found if BuildUtils.kaapana_dir not in x]
+                dockerfiles_found.extend(external_dockerfiles_found)
                 BuildUtils.logger.info(f"Found {len(dockerfiles_found)} Dockerfiles")
                 BuildUtils.logger.info("")
 
         if len(dockerfiles_found) != len(set(dockerfiles_found)):
-            BuildUtils.logger.warning("-> Duplicate Dockerfiles found!")
+            BuildUtils.logger.warning(f"-> Duplicate Dockerfiles found: {len(dockerfiles_found)} vs {len(set(dockerfiles_found))}")
+            for duplicate in set([x for x in dockerfiles_found if dockerfiles_found.count(x) > 1]):
+                BuildUtils.logger.warning(duplicate)
+            BuildUtils.logger.warning("")
+
         
         # Init Trivy if configuration check is enabled
         if BuildUtils.configuration_check:

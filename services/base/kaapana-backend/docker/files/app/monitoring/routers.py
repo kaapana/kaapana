@@ -1,5 +1,6 @@
 import os
 from fastapi import APIRouter, Response, Depends
+from fastapi.responses import PlainTextResponse
 from app.dependencies import get_monitoring_service
 from .schemas import Measurement
 from typing import List
@@ -13,13 +14,23 @@ def list_metrics(client = Depends(get_monitoring_service)):
     """
     return client.all_metrics()
 
-
 @router.get('/metrics/cpu-usage', response_model=Measurement)
 def cpu_usage(client = Depends(get_monitoring_service)):
     """Return cluster CPU Usage
     """
     return client.query("cpu-usage","sum(rate(container_cpu_usage_seconds_total{id='/',kubernetes_io_hostname=~'^.*$'}[1m]))/sum(machine_cpu_cores{kubernetes_io_hostname=~'^.*$'})*100")
 
+@router.get('/metrics/node-info', response_model=List[str])
+def node_info(client = Depends(get_monitoring_service)):
+    """Return Kaapana node metrics
+    """
+    return client.query("cpu-usage","sum(rate(container_cpu_usage_seconds_total{id='/',kubernetes_io_hostname=~'^.*$'}[1m]))/sum(machine_cpu_cores{kubernetes_io_hostname=~'^.*$'})*100")
+
+@router.get('/metrics/scrape', response_class=PlainTextResponse)
+def scrape(client = Depends(get_monitoring_service)):
+    """Return Kaapana node metrics
+    """
+    return client.get_node_metrics()
 
 @router.get('/metrics/mem-usage', response_model=Measurement)
 def mem_usage(client = Depends(get_monitoring_service)):

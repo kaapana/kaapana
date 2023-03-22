@@ -1,4 +1,4 @@
-FROM alpine/git:2.36.3 as build-stage
+FROM docker.io/alpine/git:2.36.3 as build-stage
 
 LABEL IMAGE="doccano-backend"
 LABEL VERSION="sha-0489118"
@@ -10,7 +10,7 @@ WORKDIR /
 # hadolint ignore=DL3003
 RUN git clone https://github.com/doccano/doccano.git doccano && cd doccano && git checkout 0489118f92084d85b30a95a8b306636dfae38ff9
 
-FROM python:3.8.16-slim-buster
+FROM docker.io/python:3.8.16-slim-buster
 
 CMD ["python3"]
 

@@ -16,9 +16,9 @@
   remote_user: "{{ remote_username }}"
   vars:
     ansible_ssh_private_key_file: ~/.ssh/{{ ssh_key_name }}
-    vm_results_dir: /home/{{ remote_username }}/results
+    vm_results_dir: "{{ ansible_env.HOME }}/results"
   environment:
-    PATH: '/home/{{ remote_username }}/.local/bin:{{ ansible_env.PATH }}'
+    PATH: '{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}'
 
   tasks:
     - name: Check if all required variables are passed using --extra-vars

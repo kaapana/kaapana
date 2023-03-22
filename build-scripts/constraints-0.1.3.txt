@@ -17,7 +17,7 @@ Pillow==9.3.0
 # Security fix for CVE-2022-1941
 protobuf==3.20.2
 # Security fix for CVE-2022-29217
-PyJWT==2.4.0 
+PyJWT==2.6.0 
 # Security fix for CVE-2020-14343
 PyYAML==6.0
 # Security fix for CVE-2022-45907

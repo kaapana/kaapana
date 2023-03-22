@@ -141,7 +141,8 @@ const loadPatients = async (data) => {
         const res = await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/series', data)
         return res.data
     } catch (error) {
-        Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
+        Vue.notify({title: 'Network/Server error', text: error.text, type: 'error'});
+        throw error
     }
 }
 

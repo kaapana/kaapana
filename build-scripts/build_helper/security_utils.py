@@ -149,7 +149,6 @@ class TrivyUtils:
             BuildUtils.vulnerability_severity_level,
             "--format",
             "json",
-            "--ignore-unfixed",
             "--skip-dirs",
             "usr/local/lib/python3.8/dist-packages/nibabel/tests/data",
             "--skip-dirs",
@@ -292,9 +291,12 @@ class TrivyUtils:
                             compressed_vulnerability_report[target["Target"]][
                                 "InstalledVersion"
                             ] = vulnerability["InstalledVersion"]
-                            compressed_vulnerability_report[target["Target"]][
-                                "FixedVersion"
-                            ] = vulnerability["FixedVersion"]
+
+                            if "FixedVersion" in vulnerability:
+                                compressed_vulnerability_report[target["Target"]][
+                                    "FixedVersion"
+                                ] = vulnerability["FixedVersion"]
+                                
                             compressed_vulnerability_report[target["Target"]][
                                 "Severity"
                             ] = vulnerability["Severity"]

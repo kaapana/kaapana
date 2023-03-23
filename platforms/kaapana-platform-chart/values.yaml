@@ -3,11 +3,6 @@ global:
     test: ""
 
 extension_params:
-    group_config:
-        default: Config
-        definition: Name of the group
-        type: group_name
-        value: Config
     hostname:
         default: ""
         definition: FQDN of the server
@@ -53,11 +48,6 @@ extension_params:
         definition: Name of the helm chart for this platform
         type: string
         value: ""
-    group_credentials:
-        default: Credentials
-        definition: Name of the group
-        type: group_name
-        value: Credentials
     credentials_grafana_password:
         default: admin
         definition: ""
@@ -98,11 +88,6 @@ extension_params:
         definition: ""
         type: string
         value: ""
-    group_namespaces:
-        default: Namespaces
-        definition: Name of the group
-        type: group_name
-        value: Namespaces
     admin_namespace:
         default: admin
         definition: "Namespace for Kubernetes resources with admin access, such as reverse proxy and authentication"
@@ -133,11 +118,6 @@ extension_params:
         definition: "Namespace for fundamental resources in this platform, such as the backend and the landing page"
         type: string
         value: ""
-    group_network:
-        default: Network
-        definition: Name of the group
-        type: group_name
-        value: Network
     dicom_port:
         default: "11112"
         definition: ""
@@ -163,11 +143,6 @@ extension_params:
         definition: ""
         type: string
         value: ""
-    group_data:
-        default: Data
-        definition: Name of the group
-        type: group_name
-        value: Data
     fast_data_dir:
         default: /home/kaapana-data
         definition: Data directory path
@@ -183,21 +158,11 @@ extension_params:
         definition: Data directory
         type: string
         value: ""
-    group_hardware:
-        default: Hardware
-        definition: Name of the group
-        type: group_name
-        value: Hardware
     gpu_support:
         default: "false"
         definition: Enables microk8s GPU support
         type: string
         value: ""
-    group_kubernetes:
-        default: Kubernetes
-        definition: Name of the group
-        type: group_name
-        value: Kubernetes
     pull_policy_jobs:
         default: Always
         definition: ""

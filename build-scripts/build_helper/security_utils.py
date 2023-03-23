@@ -152,7 +152,6 @@ class TrivyUtils:
             BuildUtils.vulnerability_severity_level,
             "--format",
             "json",
-            "--ignore-unfixed",
             "--skip-dirs",
             "usr/local/lib/python3.8/dist-packages/nibabel/tests/data",
             "--skip-dirs",
@@ -268,9 +267,12 @@ class TrivyUtils:
                             compressed_vulnerability_report[target["Target"]][
                                 "InstalledVersion"
                             ] = vulnerability["InstalledVersion"]
-                            compressed_vulnerability_report[target["Target"]][
-                                "FixedVersion"
-                            ] = vulnerability["FixedVersion"]
+
+                            if "FixedVersion" in vulnerability:
+                                compressed_vulnerability_report[target["Target"]][
+                                    "FixedVersion"
+                                ] = vulnerability["FixedVersion"]
+                                
                             compressed_vulnerability_report[target["Target"]][
                                 "Severity"
                             ] = vulnerability["Severity"]
@@ -649,9 +651,9 @@ class TrivyUtils:
 
         # Check if the timestamp has expired (UTC)
         if datetime.datetime.utcnow() > timestamp_object:
-            return False
-        else:
             return True
+        else:
+            return False
 
     def check_vulnerability_reports_cache(self, image):
         if image in self.vulnerability_reports:

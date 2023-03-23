@@ -1,7 +1,7 @@
 node_modules
 build
-security-reports
 venv
+security-reports/*.json
 tmpcharts
 migrations
 .ipynb_checkpoints

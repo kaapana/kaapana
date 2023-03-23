@@ -7,3 +7,5 @@ dependencies:
     version: 0.0.0
   - name: services-namespace
     version: 0.0.0
+  - name: base-named-templates-chart
+    version: 0.0.0

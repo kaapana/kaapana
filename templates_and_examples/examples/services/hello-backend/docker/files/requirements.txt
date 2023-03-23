@@ -3,8 +3,8 @@ alembic==1.4.2
 click>=8.0
 Flask>=2.2.2
 Flask-Migrate==2.5.3
-Flask-SQLAlchemy==2.4.1
-Flask-WTF==0.14.3
+Flask-SQLAlchemy==2.5.1
+Flask-WTF==1.1.1
 gunicorn==20.0.4
 itsdangerous>=2.0
 MarkupSafe==2.1.1

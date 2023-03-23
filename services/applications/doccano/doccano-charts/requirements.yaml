@@ -6,6 +6,5 @@ dependencies:
 - name: doccano-rabbitmq
   version: 0.0.0
   repository: file://deps/doccano-rabbitmq
-- name: dynamic-persistent-volume-chart
+- name: base-named-templates-chart
   version: 0.0.0
-  repository: file://../../../utils/dynamic-persistent-volume/dynamic-persistent-volume-chart/

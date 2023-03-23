@@ -1,20 +1,19 @@
-{{- $namespace := .Values.global.services_namespace | toString }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: tensorboard-{{ .Values.global.uuid }}
-  namespace: "{{ $namespace }}"
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
   labels:
     k8s-app: tensorboard
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: tensorboard-{{ .Values.global.uuid }}
+      app-name: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app-name: tensorboard-{{ .Values.global.uuid }}
+        app-name: {{ .Release.Name }}
     spec:
       securityContext:
         runAsUser: 1000
@@ -29,21 +28,10 @@ spec:
             memory: "1Gi"
         env:
           - name: INGRESS_PATH
-            value: "/tensorboard-{{ .Values.global.uuid }}"
+            value: {{ printf "/%s" .Release.Name }}
         volumeMounts:
-          {{- range $volumeMount := .Values.global.volumeMounts }}
-          - name: {{ $volumeMount.name }}
-            mountPath: "{{ $volumeMount.mount_path }}"
-          {{- end }}
+{{ include "dynamicVolumeMounts" $ | indent 10 }}
       volumes:
-      {{- range $volume := .Values.global.volumes }}
-      - name: {{ $volume.name }}
-        persistentVolumeClaim:
-          {{- if not (lookup "v1" "PersistentVolumeClaim" $namespace $volume.claim_name ) }}
-          claimName: {{ $volume.claim_name }}-pv-claim-{{ $.Values.global.uuid }}
-          {{- else }}
-          claimName: {{ $volume.claim_name }}
-          {{- end }}
-      {{- end }}
+{{ include "dynamicVolumes" $ | indent 6 }}
       imagePullSecrets:
       - name: registry-secret

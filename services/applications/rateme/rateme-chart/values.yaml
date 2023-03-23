@@ -5,10 +5,7 @@ global:
   base_namespace: ""
   fast_data_dir: ""
   slow_data_dir: ""
-  uuid: "single"
-  volumeMounts:
-  - name: ratemedata
+  namespace: "{{ .Values.global.services_namespace }}"
+  dynamicVolumes:
+  - name: minio
     mount_path: /kaapana/mounted/rateme-data
-  volumes:
-  - name: ratemedata
-    claim_name: minio-pv-claim

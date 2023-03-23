@@ -6,12 +6,22 @@
 celery==5.2.2
 # Security fix for CVE-2023-0286
 cryptography==39.0.1
+# Security fix for CVE-2022-4296
+cleo==1.0.0
+# Security fix for CVE-2022-23491
+certifi==2022.12.07
 # Security fix for CVE-2022-28346
 Django==3.2.18
+# Security fix for GHSA-74m5-2c7w-9w3x
+fastapi==0.95.0
 # Security fix for CVE-2022-21797
 joblib==1.2.0
 # Security fix for CVE-2022-40023
 Mako==1.2.2
+# Security fix for CVE-2022-29238
+notebook==6.4.12
+# Security fix for CVE-2022-36087
+oauthlib==3.2.2
 # Security fix for CVE-2022-45199
 Pillow==9.3.0
 # Security fix for CVE-2022-1941

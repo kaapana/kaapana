@@ -1,3 +1,4 @@
+{{/* Used to set environmal variables given to global.envVars as name, value map */}}
 {{- define "dynamicEnvs" }}
 {{- range $envVar := .Values.global.envVars }}
 - name: {{ $envVar.name }}
@@ -5,6 +6,9 @@
 {{- end }}
 {{- end }}
 
+{{/* The folloiwng three templates faciliate the use of volumes. To use them provide needed volume information as explained in the methods below as a map to global.dynamicVolumes as name. Possible values are: name, host_path, mount_path, storage. "name" is needed for "dynamicVolumes", "name" and "mount_path" is neeeded for "dynamicVolumeMounts", and "name", "host_path" and "storage" is needed for "dynamicPersistentVolumes" */}}
+
+{{/* Used to set volumes dynamically given to global.dynamicVolumes as name, the pv-claim is automatically added */}}
 {{- define "dynamicVolumes" }}
 {{- $namespace := not .Values.global.namespace | ternary .Values.global.services_namespace (tpl (.Values.global.namespace | toString) .) }}
 {{- $release_name := .Release.Name }}
@@ -17,6 +21,7 @@
 {{- end }}
 {{- end }}
 
+{{/* Used to set volumeMounts dynamically given to global.dynamicVolumes as name, mount_path map */}}
 {{- define "dynamicVolumeMounts" }}
 {{- range $volumeMount := .Values.global.dynamicVolumes }}
 - name: {{ $volumeMount.name }}
@@ -24,6 +29,7 @@
 {{- end }}
 {{- end }}
 
+{{/* Used to set PersistentVolume and PersistentVolumeClaim dynamically by setting global.dynamicVolumes with a list of name, host_path, storage map */}}
 {{- define "dynamicPersistentVolumes" }}
 ---
 # Variables

@@ -8,6 +8,6 @@ global:
   namespace: "{{ .Values.global.services_namespace }}"
   dynamicVolumes:
   - name: minio
-    mount_path: /kaapana/mounted/slicer-data
+    mount_path: /kaapana/mounted/minio
 
 

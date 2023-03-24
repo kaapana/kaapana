@@ -5,5 +5,5 @@ global:
   namespace: "{{ .Values.global.services_namespace }}"
   dynamicVolumes:
   - name: minio
-    mount_path: /kaapana/mounted/jupyterlab
+    mount_path: /kaapana/mounted/minio
   envVars:

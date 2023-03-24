@@ -43,6 +43,14 @@ if __name__ == "__main__":
         help="Create vulnerability reports",
     )
     parser.add_argument(
+        "-c",
+        "--no-cache",
+        action="store_true",
+        dest="no_cache",
+        default=False,
+        help="Do not use cache",
+    )
+    parser.add_argument(
         "-t",
         "--tag",
         dest="tag",
@@ -63,6 +71,7 @@ if __name__ == "__main__":
     sbom = args.sbom
     vuln = args.vuln
     tag = args.tag
+    no_cache = args.no_cache
 
     kaapana_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     build_dir = join(dirname(dirname(os.path.realpath(__file__))), "build")
@@ -81,7 +90,7 @@ if __name__ == "__main__":
     BuildUtils.create_sboms = sbom
     BuildUtils.vulnerability_scan = vuln
 
-    trivy_utils = TrivyUtils()
+    trivy_utils = TrivyUtils(cache=not no_cache, tag=tag)
 
     def handler(signum, frame):
         BuildUtils.logger.info("Exiting...")
@@ -100,7 +109,7 @@ if __name__ == "__main__":
         if BuildUtils.vulnerability_scan:
             trivy_utils.safe_vulnerability_reports()
 
-        exit(1)
+        exit()
 
     signal.signal(signal.SIGTSTP, handler)
 

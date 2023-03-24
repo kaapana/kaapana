@@ -500,7 +500,7 @@ def get_os_dashboards():
         )
     except Exception as e:
         print("ERROR in OpenSearch search!")
-        return jsonify({'Error message': str(e)}), 500
+        return jsonify({"Error message": str(e)}), 500
 
     hits = res["hits"]["hits"]
     dashboards = list(sorted([hit["_source"]["dashboard"]["title"] for hit in hits]))

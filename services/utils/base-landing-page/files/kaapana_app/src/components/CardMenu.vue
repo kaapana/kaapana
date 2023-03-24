@@ -91,7 +91,7 @@ export default {
           "cohort_name": cohortName,
           "action": "ADD",
           "cohort_query": {"index": "meta-index"},
-          "cohort_identifiers": [{"identifier": this.seriesInstanceUID}]
+          "cohort_identifiers": [this.seriesInstanceUID]
         })
         this.$notify({
           type: 'success',

@@ -228,7 +228,7 @@ export default {
       if (cohort.identifiers && cohort.identifiers.length > 0) {
         return {
           "ids": {
-            "values": cohort.identifiers.map(item => item['identifier'])
+            "values": cohort.identifiers
           }
         }
       } else {

@@ -3,7 +3,7 @@ from glob import glob
 import shutil
 import yaml
 import os
-import json
+import re
 from datetime import datetime
 from treelib import Tree
 from subprocess import PIPE, run, DEVNULL
@@ -719,6 +719,21 @@ class HelmChart:
                     container_name=container_image,
                     container_version=container_version,
                 )
+            elif (
+                "global" in self.values_yaml
+                and self.values_yaml["global"] is not None
+                and "complete_image" in self.values_yaml["global"]
+                and self.values_yaml["global"]["complete_image"] != None
+            ):
+                regex = r'({{\s*\.Values\.global\.registry_url\s+}}\/)(.*)(:{{\s*\.Values\.global\.kaapana_build_version\s*}})'
+                match = re.search(regex, self.values_yaml["global"]["complete_image"])
+                assert match
+                self.add_container_by_tag(
+                    container_registry=BuildUtils.default_registry,
+                    container_name=match.group(2),
+                    container_version=self.repo_version,
+                )
+
 
         template_dirs = (
             f"{self.chart_dir}/templates/*.yaml",
@@ -775,7 +790,7 @@ class HelmChart:
 
                         elif (
                             ".Values.image" in line
-                            or ".Values.global.processing_image" in line
+                            or ".Values.global.complete_image" in line
                             or ".Values.global.image" in line
                             or "collection.name" in line
                             or "kube_helm_collection" in line
@@ -1067,7 +1082,7 @@ class HelmChart:
                     collections_chart=collections_chart,
                     platform_build_files_target_dir=platform_build_files_base_target_dir,
                 )
-
+        platform_chart.lint_chart(build_version=True)
         platform_chart.lint_kubeval(build_version=True)
 
     @staticmethod
@@ -1104,6 +1119,8 @@ class HelmChart:
                 collection_chart_target_dir = join(
                     collection_build_target_dir, "charts", collection_chart.name
                 )
+                collection_chart.lint_chart(build_version=True)
+                collection_chart.lint_kubeval(build_version=True)
                 collection_chart.make_package()
                 bar()
         collection_container = [
@@ -1117,8 +1134,7 @@ class HelmChart:
     @staticmethod
     def create_chart_build_version(src_chart, target_build_dir, bar=None):
         BuildUtils.logger.info(f"{src_chart.chart_id}: create_chart_build_version")
-
-        src_chart.lint_chart(build_version=False)
+        
         shutil.copytree(src=src_chart.chart_dir, dst=target_build_dir)
 
         # remove repositories from requirements.txt

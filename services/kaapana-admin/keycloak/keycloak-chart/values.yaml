@@ -1,3 +1,7 @@
 ---
 global:
-    pull_policy_images: "IfNotPresent"
+  pull_policy_images: "IfNotPresent"
+  namespace: "{{ .Values.global.admin_namespace }}"
+  dynamicVolumes:
+  - name: keycloak
+    host_path: /keycloak

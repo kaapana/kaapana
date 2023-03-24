@@ -1,4 +1,3 @@
-{{- $namespace := not .Values.global.namespace | ternary .Values.global.services_namespace .Values.global.namespace | toString }}
 apiVersion: v1
 data:
   keybindings.json: |-
@@ -73,6 +72,6 @@ data:
     }
 kind: ConfigMap
 metadata:
-  name: vs-config-{{ .Values.global.uuid }}
-  namespace: "{{ $namespace }}"
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
 ---

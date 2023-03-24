@@ -44,7 +44,7 @@ spec:
           claimName: af-plugins-pv-claim
       - name: airflow-mounted-scripts
         persistentVolumeClaim:
-          claimName: ms-pv-claim
+          claimName: mounted-scripts-pv-claim
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret

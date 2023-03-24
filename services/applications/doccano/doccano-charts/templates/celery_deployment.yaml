@@ -38,6 +38,6 @@ spec:
       volumes:
       - name:  media
         persistentVolumeClaim:
-          claimName: media-pv-claim-doccano
+          claimName: doccano-media-pv-claim
       imagePullSecrets:
       - name: registry-secret

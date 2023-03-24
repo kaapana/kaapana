@@ -206,7 +206,7 @@ export default {
         const body = {
           action: 'UPDATE',
           cohort_name: name,
-          cohort_identifiers: items.map(item => ({'identifier': item})),
+          cohort_identifiers: items,
           cohort_query: {index: 'meta-index'}
         }
         await updateDataset(body)
@@ -224,7 +224,7 @@ export default {
         })
         const body = {
           cohort_name: name,
-          cohort_identifiers: items.map(item => ({'identifier': item})),
+          cohort_identifiers: items,
           cohort_query: {index: 'meta-index'}
         }
         await createCohort(body)

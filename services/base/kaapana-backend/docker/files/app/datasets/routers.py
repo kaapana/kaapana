@@ -65,8 +65,8 @@ async def tag_data(data: list = Body(...)):
 async def get_query_elastic_structured(body: dict = Body(...)):
     import pandas as pd
 
-    structured: bool = body.get("structured") or False
-    query = body.get("query") or {"query_string": {"query": "*"}}
+    structured: bool = body.get("structured", False)
+    query: dict = body.get("query", {"query_string": {"query": "*"}})
 
     if structured:
         hits = execute_opensearch_query(
@@ -160,10 +160,8 @@ async def get_fields(index: str = "meta-index", field: str = None):
 
 @router.post("/dashboard")
 async def get_dashboard(config: dict = Body(...)):
-    series_instance_uids = (
-        config["series_instance_uids"] if "series_instance_uids" in config else None
-    )
-    names = config["names"] if "names" in config else []
+    series_instance_uids = config.get("series_instance_uids")
+    names = config.get("names", [])
 
     name_field_map = await get_field_mapping()
     filtered_name_field_map = {name: name_field_map[name] for name in names}
@@ -270,10 +268,8 @@ async def get_query_values(query: dict = Body(...)):
             "items": (
                 [
                     dict(
-                        text=f"{(i['key_as_string'] if 'key_as_string' in i else i['key'])}  ({i['doc_count']})",
-                        value=(
-                            i["key_as_string"] if "key_as_string" in i else i["key"]
-                        ),
+                        text=f"{i.get('key_as_string', i['key'])}  ({i['doc_count']})",
+                        value=i.get("key_as_string", i["key"]),
                         count=i["doc_count"],
                     )
                     for i in item["buckets"]

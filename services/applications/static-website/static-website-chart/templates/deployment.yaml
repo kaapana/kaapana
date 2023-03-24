@@ -1,20 +1,19 @@
-{{- $namespace := .Values.global.services_namespace | toString }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: static-website-{{ .Values.global.uuid }}
-  namespace: "{{ $namespace }}"
+  name: static-website-browser
+  namespace: "{{ .Values.global.services_namespace }}"
   labels:
     k8s-app: static-website
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: static-website-{{ .Values.global.uuid }}
+      app-name: static-website-browser
   template:
     metadata:
       labels:
-        app-name: static-website-{{ .Values.global.uuid }}
+        app-name: static-website-browser
     spec:
       initContainers:
       - name: static-webiste-copy
@@ -23,8 +22,7 @@ spec:
         command: ["/bin/sh"]
         args: ["/kaapana/app/copy.sh"]
         volumeMounts:
-          - name: staticwebsiteresults
-            mountPath: /usr/share/nginx/html/
+{{ include "dynamicVolumeMounts" $ | indent 10 }}
       containers:
       - name: static-website
         image: "{{ .Values.global.registry_url }}/static-website:{{ .Values.global.kaapana_build_version  }}"
@@ -36,22 +34,11 @@ spec:
             memory: "500Mi"
         env:
           - name: INGRESS_PATH
-            value: "/static-website-{{ .Values.global.uuid }}"
+            value: "/static-website-browser"
         volumeMounts:
-          {{- range $volumeMount := .Values.global.volumeMounts }}
-          - name: {{ $volumeMount.name }}
-            mountPath: "{{ $volumeMount.mount_path }}"
-          {{- end }}
+{{ include "dynamicVolumeMounts" $ | indent 10 }}
       volumes:
-      {{- range $volume := .Values.global.volumes }}
-      - name: {{ $volume.name }}
-        persistentVolumeClaim:
-          {{- if not (lookup "v1" "PersistentVolumeClaim" $namespace $volume.claim_name ) }}
-          claimName: {{ $volume.claim_name }}-pv-claim-{{ $.Values.global.uuid }}
-          {{- else }}
-          claimName: {{ $volume.claim_name }}
-          {{- end }}
-      {{- end }}
+{{ include "dynamicVolumes" $ | indent 6 }}
       imagePullSecrets:
       - name: registry-secret
 ---

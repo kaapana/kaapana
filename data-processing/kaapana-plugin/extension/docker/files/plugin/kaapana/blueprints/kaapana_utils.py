@@ -206,8 +206,7 @@ def parse_ui_dict(dag_dict):
                     "cohort_limit": {
                         "type": "integer",
                         "title": "Limit cohort-size",
-                        "description": "Limit Cohort to this many cases.",
-                        "required": True
+                        "description": "Limit Cohort to this many cases."
                     }
                 }
             elif ui_form_key == 'external_schema_federated_form':

@@ -1,11 +1,10 @@
 ---
 global:
-  uuid: "doccano"
-  volumes:
-  - claim_name: static
+  dynamicVolumes:
+  - name: doccano-static
     host_path: /doccano/static
-  - claim_name: media
+  - name: doccano-media
     host_path: /doccano/media
-  - claim_name: postgres
+  - name: doccano-postgres
     host_path: /postgres-doccano
     storage: 10Mi

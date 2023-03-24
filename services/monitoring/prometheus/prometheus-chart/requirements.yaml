@@ -1,4 +1,0 @@
----
-dependencies:
-  - name: base-named-templates-chart
-    version: 0.0.0

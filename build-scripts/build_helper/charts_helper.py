@@ -1082,7 +1082,7 @@ class HelmChart:
                     collections_chart=collections_chart,
                     platform_build_files_target_dir=platform_build_files_base_target_dir,
                 )
-
+        platform_chart.lint_chart(build_version=True)
         platform_chart.lint_kubeval(build_version=True)
 
     @staticmethod
@@ -1119,6 +1119,8 @@ class HelmChart:
                 collection_chart_target_dir = join(
                     collection_build_target_dir, "charts", collection_chart.name
                 )
+                collection_chart.lint_chart(build_version=True)
+                collection_chart.lint_kubeval(build_version=True)
                 collection_chart.make_package()
                 bar()
         collection_container = [
@@ -1132,8 +1134,7 @@ class HelmChart:
     @staticmethod
     def create_chart_build_version(src_chart, target_build_dir, bar=None):
         BuildUtils.logger.info(f"{src_chart.chart_id}: create_chart_build_version")
-
-        src_chart.lint_chart(build_version=False)
+        
         shutil.copytree(src=src_chart.chart_dir, dst=target_build_dir)
 
         # remove repositories from requirements.txt

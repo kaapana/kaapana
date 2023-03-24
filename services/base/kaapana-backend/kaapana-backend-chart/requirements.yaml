@@ -3,5 +3,3 @@ dependencies:
   - name: kaapana-backend-postgres
     version: 0.0.0
     repository: file://deps/kaapana-backend-postgres
-  - name: base-named-templates-chart
-    version: 0.0.0

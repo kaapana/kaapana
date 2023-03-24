@@ -1,4 +1,4 @@
-FROM local-only/base-kaapana:latest
+FROM local-only/base-podman:latest
 
 LABEL IMAGE="podman"
 LABEL VERSION="4.4.1"

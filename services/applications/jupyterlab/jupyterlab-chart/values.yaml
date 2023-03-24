@@ -1,15 +1,9 @@
 ---
 global:
-  registry_url: ""
-  pull_policy_images: ""
-  base_namespace: ""
-  fast_data_dir: ""
-  slow_data_dir: ""
-  uuid: "single"
-  volumeMounts:
-  - name: jupyterlabdata
-    mount_path: /kaapana/mounted/jupyterlab
-  volumes:
-  - name: jupyterlabdata
-    claim_name: minio-pv-claim
+  ingress_path: "{{ .Release.Name }}"
+  complete_image: "{{ .Values.global.registry_url }}/jupyterlab:{{ .Values.global.kaapana_build_version  }}"
+  namespace: "{{ .Values.global.services_namespace }}"
+  dynamicVolumes:
+  - name: minio
+    mount_path: /kaapana/mounted/minio
   envVars:

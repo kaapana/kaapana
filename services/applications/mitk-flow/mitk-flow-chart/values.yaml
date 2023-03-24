@@ -5,6 +5,5 @@ global:
   base_namespace: ""
   fast_data_dir: ""
   slow_data_dir: ""
-  uuid: "single"
-  volumeMounts:
-  volumes:
+  namespace: "{{ .Values.global.jobs_namespace }}"
+  dynamicVolumes:

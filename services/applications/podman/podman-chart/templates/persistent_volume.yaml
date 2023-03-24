@@ -1,9 +1,7 @@
-# hello-postgres
----
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: hello-postgres-pv-volume
+  name: podman-containerd-pv-volume
   labels:
     type: local
 spec:
@@ -15,23 +13,23 @@ spec:
     - ReadWriteMany
   nfs:
     server: "10.152.183.15"
-    path: "/postgres-hello"
+    path: "/var/snap/microk8s/common/run/containerd.sock"
 {{- else }}
   storageClassName: host-dir
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: "{{ .Values.global.fast_data_dir }}/postgres-hello"
+    path: /var/snap/microk8s/common/run/containerd.sock
 {{- end }}
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"
-    name: hello-postgres-pv-claim
+    name: podman-containerd-pv-claim
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: hello-postgres-pv-claim
+  name: podman-containerd-pv-claim
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
   storageClassName: nfs
@@ -40,5 +38,5 @@ spec:
   resources:
     requests:
       storage: "1Mi"
-  volumeName: "hello-postgres-pv-volume"
+  volumeName: "podman-containerd-pv-volume"
 ---

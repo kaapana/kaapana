@@ -649,9 +649,9 @@ class TrivyUtils:
 
         # Check if the timestamp has expired (UTC)
         if datetime.datetime.utcnow() > timestamp_object:
-            return False
-        else:
             return True
+        else:
+            return False
 
     def check_vulnerability_reports_cache(self, image):
         if image in self.vulnerability_reports:

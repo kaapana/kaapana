@@ -7,5 +7,5 @@ dependencies:
     version: 0.0.0
   - name: services-namespace
     version: 0.0.0
-  - name: base-named-templates-chart
+  - name: kaapana-library-chart
     version: 0.0.0

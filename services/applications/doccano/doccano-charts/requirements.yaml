@@ -6,5 +6,5 @@ dependencies:
 - name: doccano-rabbitmq
   version: 0.0.0
   repository: file://deps/doccano-rabbitmq
-- name: base-named-templates-chart
+- name: kaapana-library-chart
   version: 0.0.0

@@ -1,6 +1,6 @@
-FROM local-only/base-kaapana:latest
+FROM local-only/base-podman:latest
 
-LABEL IMAGE="kaapana"
+LABEL IMAGE="build-kaapana"
 LABEL VERSION="0.0.0"
 
 LABEL CI_IGNORE="False"

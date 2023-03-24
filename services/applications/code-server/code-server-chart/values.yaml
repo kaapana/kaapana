@@ -1,27 +1,19 @@
 ---
 global:
-  image: code-server
-  uuid: code-server
-  volumeMounts:
+  ingress_path: "code-server"
+  complete_image: "{{ .Values.global.registry_url }}/code-server:{{ .Values.global.kaapana_build_version  }}"
+  namespace: "{{ .Values.global.services_namespace }}"
+  dynamicVolumes:
   - name: models
     mount_path: /kaapana/mounted/workflows/models
-  - name: airflow-dags
+  - name: dags
     mount_path: /kaapana/mounted/workflows/dags
-  - name: airflow-plugins
+  - name: af-plugins
     mount_path: /kaapana/mounted/workflows/plugins
-  - name: airflow-data
+  - name: af-data
     mount_path: /kaapana/mounted/workflows/data
-  - name: airflow-mounted-scripts
+  - name: mounted-scripts
     mount_path: /kaapana/mounted/workflows/mounted_scripts
-  volumes:
-  - name: models
-    claim_name: models-pv-claim
-  - name: airflow-dags
-    claim_name: dags-pv-claim
-  - name: airflow-plugins
-    claim_name: af-plugins-pv-claim
-  - name: airflow-data
-    claim_name: af-data-pv-claim
-  - name: airflow-mounted-scripts
-    claim_name: ms-pv-claim
   envVars:
+  - name: WORKSPACE
+    value: "/kaapana"

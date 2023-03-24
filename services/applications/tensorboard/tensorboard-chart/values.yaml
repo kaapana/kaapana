@@ -5,11 +5,8 @@ global:
   base_namespace: ""
   fast_data_dir: ""
   slow_data_dir: ""
-  uuid: "single"
-  volumeMounts:
-  - name: tensorboarddata
+  namespace: "{{ .Values.global.services_namespace }}"
+  dynamicVolumes:
+  - name: data
     mount_path: /kaapana/mounted/tensorboard
-  volumes:
-  - name: tensorboarddata
-    claim_name: tb-pv-claim
     host_path: /tensorboard

@@ -290,10 +290,6 @@ def helm_install(
                 for idx, sub_dict in enumerate(value):
                     for k, v in sub_dict.items():
                         default_sets[f'global.{key}[{idx}].{k}']  = v
-
-    if 'kaapanamultiinstallable' in keywords:
-        multi_installable_uuid = secrets.token_hex(5)
-        default_sets['global.uuid'] = multi_installable_uuid
         
     if 'sets' not in payload:
         payload['sets'] = default_sets
@@ -305,7 +301,7 @@ def helm_install(
     if "release_name" in payload:
         release_name = payload["release_name"]
     elif 'kaapanamultiinstallable' in keywords:
-        release_name = f'{name}-{multi_installable_uuid}'
+        release_name = f'{name}-{secrets.token_hex(10)}'
     else:
         release_name = name
 
@@ -326,7 +322,7 @@ def helm_install(
     helm_sets = ''
     if "sets" in payload:
         for key, value in payload["sets"].items():
-            value = str(value).replace(",", "\,").replace("'", '\'"\'').replace(" ", "")
+            value = str(value).replace(",", "\,").replace("'", '\'"\'').replace(" ", "").replace("{", "\{").replace("}", "\}")
             helm_sets = helm_sets + f" --set {key}='{value}'"
 
     # make the whole command

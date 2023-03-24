@@ -27,13 +27,13 @@ class MitkInputOperator(KaapanaPythonBaseOperator):
         tasklist["Name"] = "Kaapana Task List"
         tasklist["Tasks"] = tasks
 
-        with open(os.path.join(run_dir, BATCH_NAME,'tasklist.json'), 'w', encoding='utf-8') as f:
+        with open(os.path.join(run_dir, self.batch_name,'tasklist.json'), 'w', encoding='utf-8') as f:
             json.dump(tasklist, f, ensure_ascii=False, indent=4)
 
 
     def get_files(self, ds, **kwargs):
-        run_dir = os.path.join(WORKFLOW_DIR, kwargs['dag_run'].run_id)
-        batch_folder = [f for f in glob.glob(os.path.join(run_dir, BATCH_NAME, '*'))]
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
+        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))]
 
         print("Starting module MtikInputOperator")
 

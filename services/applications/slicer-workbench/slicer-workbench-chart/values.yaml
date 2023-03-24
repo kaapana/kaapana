@@ -5,12 +5,9 @@ global:
   base_namespace: ""
   fast_data_dir: ""
   slow_data_dir: ""
-  uuid: "single"
-  volumeMounts:
-  - name: slicerdata
-    mount_path: /kaapana/mounted/slicer-data
-  volumes:
-  - name: slicerdata
-    claim_name: minio-pv-claim
+  namespace: "{{ .Values.global.services_namespace }}"
+  dynamicVolumes:
+  - name: minio
+    mount_path: /kaapana/mounted/minio
 
 

@@ -1,5 +1,16 @@
 ---
 global:
-    pull_policy_images: "IfNotPresent"
-    fast_data_dir: /home/kaapana
-    slow_data_dir: /home/kaapana
+  pull_policy_images: "IfNotPresent"
+  fast_data_dir: /home/kaapana
+  slow_data_dir: /home/kaapana
+  dynamicVolumes:
+  - name: dcm4chee-standalone
+    host_path: /dcm4che/server_data
+  - name: dcm4chee-dicom
+    host_path: /dcm4che/dicom_data
+  - name: dcm4chee-postgres
+    host_path: /postgres-dcm4che
+  - name: ldap
+    host_path: /ldap
+  - name: slapd
+    host_path: /slapd.d

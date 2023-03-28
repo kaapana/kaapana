@@ -11,7 +11,7 @@ spec:
     - protocol: TCP
       port: 5000
       targetPort: maintn-http
-      name: log-http-port
+      name: maintn-http-svc
   type: ClusterIP
 ---
 apiVersion: networking.k8s.io/v1 
@@ -33,5 +33,5 @@ spec:
           service:
             name: maintenancepage-service
             port:
-              name: log-http-port
+              name: maintn-http-svc
 ---

@@ -1,13 +1,12 @@
-{{- $namespace := .Values.global.services_namespace | toString }}
 ---
 kind: Service
 apiVersion: v1
 metadata:
-  name: tensorboard-{{ .Values.global.uuid }}
-  namespace: "{{ $namespace }}"
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
 spec:
   selector:
-    app-name: tensorboard-{{ .Values.global.uuid }}
+    app-name: {{ .Release.Name }}
   ports:
     - protocol: TCP
       port: 6006
@@ -17,8 +16,8 @@ spec:
 apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
-  name: tensorboard-{{ .Values.global.uuid }}
-  namespace: "{{ $namespace }}"
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/preserve-host: "true"
@@ -27,11 +26,11 @@ spec:
   - host: 
     http:
       paths:
-      - path: /tensorboard-{{ .Values.global.uuid }}
+      - path: {{ printf "/%s" .Release.Name }}
         pathType: ImplementationSpecific
         backend:
           service:
-            name: tensorboard-{{ .Values.global.uuid }}
+            name: {{ .Release.Name }}
             port:
               name: log-http-port
 ---

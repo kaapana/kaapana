@@ -1,5 +1,10 @@
 ---
 global:
-    pull_policy_images: "IfNotPresent"
-    meta_namespace: "meta"
-    fast_data_dir: /home/kaapana
+  pull_policy_images: "IfNotPresent"
+  meta_namespace: "meta"
+  fast_data_dir: /home/kaapana
+  dynamicVolumes:
+  - name: os-logs
+    host_path: /os/logs
+  - name: os-data
+    host_path: /os/data

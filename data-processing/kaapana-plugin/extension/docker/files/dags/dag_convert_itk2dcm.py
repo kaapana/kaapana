@@ -18,18 +18,22 @@ from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR
 
 from pathlib import Path
 
-objects = HelperMinio.list_objects(HelperMinio.minioClient,
-    "uploads", prefix="itk", recursive=True,
-)
+try:
+    objects = HelperMinio.list_objects(HelperMinio.minioClient,
+        "uploads", prefix="itk", recursive=True,
+    )
 
-object_names = [obj.object_name for obj in objects]
-itk_zip_objects = [object_name for object_name in object_names if object_name.endswith(".zip")]
+    object_names = [obj.object_name for obj in objects]
+    itk_zip_objects = [object_name for object_name in object_names if object_name.endswith(".zip")]
 
-itk_directories = []
-for object_name in object_names:
-    object_directory = str(Path(object_name).parents[0])
-    if not object_directory.endswith(("imagesTr", "imagesTs", "labelsTr", "labelsTs", "cases", "segs")):
-        itk_directories.append(str(Path(object_name).parents[0]))
+    itk_directories = []
+    for object_name in object_names:
+        object_directory = str(Path(object_name).parents[0])
+        if not object_directory.endswith(("imagesTr", "imagesTs", "labelsTr", "labelsTs", "cases", "segs")):
+            itk_directories.append(str(Path(object_name).parents[0]))
+except Exception as e:
+    itk_directories = ["Something does not work :/"]
+    itk_zip_objects = ["Something does not work :/"]
 
 # Todo add object either or 
 ui_forms = {

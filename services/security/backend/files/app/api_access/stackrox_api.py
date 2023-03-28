@@ -465,7 +465,7 @@ class StackRoxAPIWrapper:
                 },
             )
             logger.debug(
-                f"result from '/v1/secrets/{secret_id}': {result} - {(result.content)}"  # todo: trim content
+                f"result from '/v1/secrets/{secret_id}': {result} - {trimContent(result.content)}"
             )
 
             result.raise_for_status()
@@ -497,3 +497,55 @@ class StackRoxAPIWrapper:
             ]
 
         return secret_list
+
+    @retry_on_unauthorized
+    @function_logger_factory(logger)
+    def get_debug_levels(self):
+        result = httpx.get(
+            f"{self.__api_endpoint}/v1/debug/loglevel",
+            verify=False,
+            headers={
+                "Authorization": self.__stackrox_authentication.get_bearer_token()
+            },
+        )
+
+        logger.debug(
+            f"result from '/v1/debug/loglevel' with': {result} - {(result.content)}"  # todo: trim content
+        )
+        return result.json()
+
+    @retry_on_unauthorized
+    @function_logger_factory(logger)
+    def enable_debug(self):
+        data = {"level": "Debug", "modules": []}
+
+        result = httpx.patch(
+            f"{self.__api_endpoint}/v1/debug/loglevel",
+            verify=False,
+            headers={
+                "Authorization": self.__stackrox_authentication.get_bearer_token()
+            },
+            json=data,
+        )
+
+        logger.debug(
+            f"result from '/v1/debug/loglevel' with level '{data['level']}': {result} - {(result.content)}"  # todo: trim content
+        )
+
+    @retry_on_unauthorized
+    @function_logger_factory(logger)
+    def disable_debug(self):
+        data = {"level": "Info", "modules": []}
+
+        result = httpx.patch(
+            f"{self.__api_endpoint}/v1/debug/loglevel",
+            verify=False,
+            headers={
+                "Authorization": self.__stackrox_authentication.get_bearer_token()
+            },
+            json=data,
+        )
+
+        logger.debug(
+            f"result from '/v1/debug/loglevel' with level '{data['level']}': {result} - {(result.content)}"  # todo: trim content
+        )

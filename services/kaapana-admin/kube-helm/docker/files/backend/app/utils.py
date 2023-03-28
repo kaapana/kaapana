@@ -247,112 +247,11 @@ def pull_docker_image(
     return success, helm_result_dict
 
 
-# todo jr: this whole method could maybe be done inside extension container?
-# the commented out code would work like it is, but it triggers a fastapi worker timeout because of stackrox deployment duration
-# the commented in code is for triggering a job that does the commented out code inside a job
-def install_stackrox(payload):
-    helm_command = "<stackrox install not yet executed>"
-    print(f"trying to install stackrox...")
-    try:
-        name = payload["name"]
-        version = payload["version"]
-        STACKROX_ADMIN_PASSWORD = "admin"
-        STACKROX_CLUSTER_NAME = "kaapana-stackrox-cluster"
-
-        release_values = helm_get_values(os.getenv("RELEASE_NAME"))
-        slow_data_dir = release_values["global"]["slow_data_dir"]
-
-        extension_path = f"{settings.helm_extensions_cache}/{name}-{version}.tgz"
-
-        central_services_subpath = (
-            "security-stackrox-chart/charts/stackrox-central-services/"
-        )
-        cluster_services_subpath = (
-            "security-stackrox-chart/charts/stackrox-secured-cluster-services/"
-        )
-        # with tarfile.open(extension_path, "r") as tar:
-        #     subdir_and_files = [
-        #         tarinfo for tarinfo in tar.getmembers()
-        #         if tarinfo.name.startswith(central_services_subpath)
-        #     ]
-        #     tar.extractall(members=subdir_and_files)
-
-        #     subdir_and_files = [
-        #         tarinfo for tarinfo in tar.getmembers()
-        #         if tarinfo.name.startswith(cluster_services_subpath)
-        #     ]
-        #     tar.extractall(members=subdir_and_files)
-
-        # #  we don't care if delete fails, it can happen if namespace does not exist
-        # print(f"deleting stackrox namespace...")
-        # delete_stackrox_namespace = f'kubectl delete namespace stackrox'
-        # process_result = subprocess.run(delete_stackrox_namespace, capture_output=True, shell=True, check=False)
-        # print(f"result stdout: {process_result.stdout}, stderr: {process_result.stderr}")
-
-        # print(f"installing stackrox central...")
-        # install_central_cmd = f'{os.environ["HELM_PATH"]} -n stackrox install stackrox-central-services ./{central_services_subpath} -o json --set central.adminPassword.value="{STACKROX_ADMIN_PASSWORD}" --set central.persistence.hostPath="/home/kaapana/security/stackrox" --create-namespace'
-        # process_result = subprocess.run(install_central_cmd, capture_output=True, shell=True, check=True)
-        # print(f"result stdout: {process_result.stdout}, stderr: {process_result.stderr}")
-        # --set global.https_proxy='http://www-int2.dkfz-heidelberg.de:80'
-
-        # print(f"wait for deployment...")
-        # wait_for_central_cmd = f"kubectl wait deployment -n stackrox central --for condition=Available=True --timeout=90s"
-        # process_result = subprocess.run(wait_for_central_cmd, capture_output=True, shell=True, check=False)
-        # print(f"result stdout: {process_result.stdout}, stderr: {process_result.stderr}")
-
-        # print(f"generating cluster init bundle...")
-        # generate_bundle_cmd = f'kubectl -n stackrox exec deploy/central -- roxctl --insecure-skip-tls-verify --password "{STACKROX_ADMIN_PASSWORD}" central init-bundles generate stackrox-init-bundle --output - > stackrox-init-bundle.yaml'
-        # process_result = subprocess.run(generate_bundle_cmd, capture_output=True, shell=True, check=True)
-        # print(f"result stdout: {process_result.stdout}, stderr: {process_result.stderr}")
-
-        # print(f"installing stackrox cluster...")
-        # install_cluster_cmd = f'helm install -n stackrox stackrox-secured-cluster-services ./{cluster_services_subpath} -f stackrox-init-bundle.yaml --set clusterName="{STACKROX_CLUSTER_NAME}"'
-        # process_result = subprocess.run(install_cluster_cmd, capture_output=True, shell=True, check=True)
-        # print(f"result stdout: {process_result.stdout}, stderr: {process_result.stderr}")
-
-        with tarfile.open(extension_path, "r") as tar:
-            tar.extractall()
-
-        shutil.copytree("security-stackrox-chart", "security-stackrox-chart-temp")
-        shutil.rmtree("security-stackrox-chart/charts")
-        os.remove("security-stackrox-chart/requirements.yaml")
-        os.remove(extension_path)
-
-        with tarfile.open(extension_path, "w:gz") as tar:
-            tar.add("security-stackrox-chart")
-
-        print("tgz before install")
-        with tarfile.open(extension_path, "r") as tar:
-            for item in tar:
-                print(item)
-
-        shutil.rmtree("security-stackrox-chart")
-
-        print(f"installing extension chart...")
-        success, stdout, helm_result_dict, release_name, helm_command = helm_install(
-            payload, shell=True, blocking=False
-        )
-        print(helm_command)
-
-        shutil.move("security-stackrox-chart-temp", "security-stackrox-chart")
-        os.remove(extension_path)
-
-        with tarfile.open(extension_path, "w:gz") as tar:
-            tar.add("security-stackrox-chart")
-
-        print("tgz after install")
-        with tarfile.open(extension_path, "r") as tar:
-            for item in tar:
-                print(item)
-    except Exception as e:
-        print(e)
-    finally:
-        try:
-            shutil.rmtree("security-stackrox-chart")
-            os.remove("stackrox-init-bundle.yaml")
-        except:
-            pass
-        return success, stdout, helm_result_dict, release_name, helm_command
+def create_namespace(name: str):
+    create_namespace = f"kubectl create namespace {name}"
+    success, stdout = helm_helper.execute_shell_command(create_namespace)
+    if not success:
+        logger.error(f"creating namespace {name} failed: {stdout}")
 
 
 def helm_install(
@@ -423,21 +322,21 @@ def helm_install(
     else:
         keywords = payload["keywords"]
 
-    if 'global' in values:
-        for key, value in values['global'].items():
-            if isinstance(value, str) and value != '':
-                default_sets.update({f'global.{key}': value})
+    if "global" in values:
+        for key, value in values["global"].items():
+            if isinstance(value, str) and value != "":
+                default_sets.update({f"global.{key}": value})
             elif isinstance(value, list) and value:
                 for idx, sub_dict in enumerate(value):
                     for k, v in sub_dict.items():
-                        default_sets[f'global.{key}[{idx}].{k}']  = v
+                        default_sets[f"global.{key}[{idx}].{k}"] = v
 
-    if 'kaapanamultiinstallable' in keywords:
+    if "kaapanamultiinstallable" in keywords:
         multi_installable_uuid = secrets.token_hex(5)
-        default_sets['global.uuid'] = multi_installable_uuid
-        
-    if 'sets' not in payload:
-        payload['sets'] = default_sets
+        default_sets["global.uuid"] = multi_installable_uuid
+
+    if "sets" not in payload:
+        payload["sets"] = default_sets
     else:
         for key, value in default_sets.items():
             if key not in payload["sets"] or payload["sets"][key] == "":
@@ -445,8 +344,8 @@ def helm_install(
 
     if "release_name" in payload:
         release_name = payload["release_name"]
-    elif 'kaapanamultiinstallable' in keywords:
-        release_name = f'{name}-{multi_installable_uuid}'
+    elif "kaapanamultiinstallable" in keywords:
+        release_name = f"{name}-{multi_installable_uuid}"
     else:
         release_name = name
 

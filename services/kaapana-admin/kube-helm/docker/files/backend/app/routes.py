@@ -177,6 +177,9 @@ async def helm_install_chart(request: Request):
         if "version" not in payload:
             raise AssertionError("Required key 'version' not found in payload")
 
+        if payload["name"] == "security-stackrox-chart":
+            utils.create_namespace("stackrox")
+
         success, stdout, _, _, cmd = utils.helm_install(
             payload, shell=True, blocking=True
         )

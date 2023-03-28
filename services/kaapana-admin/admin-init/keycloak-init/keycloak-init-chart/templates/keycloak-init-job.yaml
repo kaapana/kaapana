@@ -38,6 +38,8 @@ spec:
               value: "keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc"
             - name: KEYCLOAK_URI
               value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}"
+            - name: STACKROX_URI
+              value: "https://{{ .Values.global.hostname }}:19443"
         restartPolicy: Never
         serviceAccountName: kaapana-kube-admin
         imagePullSecrets:

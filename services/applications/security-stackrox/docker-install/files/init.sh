@@ -1,10 +1,12 @@
 #!/bin/bash
 
 HTTP_PROXY="http://www-int2.dkfz-heidelberg.de:80"
+# todo: generate randomly and provide to security backend
 ADMIN_PASSWORD="adminpassword"
 CLUSTER_NAME="stackrox-secured-cluster"
 
-${KUBECTL_PATH} create namespace stackrox
+# not early enough for service creation
+# ${KUBECTL_PATH} create namespace stackrox
 
 ${HELM_PATH} -n stackrox install stackrox-central-services ./stackrox-central-services.tgz -o json --set central.adminPassword.value="${ADMIN_PASSWORD}"  --create-namespace --set central.persistence.persistentVolumeClaim.size=20 --set "env.proxyConfig=url: ${HTTP_PROXY}"
 

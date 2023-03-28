@@ -168,6 +168,13 @@ spec:
           - mountPath: /usr/share/wazuh-indexer/plugins/opensearch-security/securityconfig/internal_users.yml
             name: security-wazuh-volume
             subPath: config/wazuh_indexer/internal_users.yml
+          - mountPath: /usr/share/wazuh-indexer/plugins/opensearch-security/securityconfig/config.yml
+            name: security-wazuh-volume
+            subPath: config/wazuh_indexer/security_config.yml
+          - mountPath: /usr/share/wazuh-indexer/plugins/opensearch-security/securityconfig/roles_mapping.yml 
+            name: security-wazuh-volume
+            subPath: config/wazuh_indexer/roles_mapping.yml
+
 
       - name: security-wazuh-dashboard
         image: "{{ .Values.global.registry_url }}/security-wazuh-dashboard:{{ .Values.global.kaapana_build_version  }}"

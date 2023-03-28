@@ -66,6 +66,15 @@ class StackRoxRouter(DeactivatableRouter):
             methods=["GET"],
             response_model=ResponseModel[List[Secret]],
         )
+        self.router.add_api_route(
+            "/get-debug-levels", self.get_debug_levels, methods=["GET"]
+        )
+        self.router.add_api_route(
+            "/enable-debug", self.get_enable_debug, methods=["GET"]
+        )
+        self.router.add_api_route(
+            "/disable-debug", self.get_disable_debug, methods=["GET"]
+        )
         self._activated = activated
 
     @function_logger_factory(logger)
@@ -80,6 +89,12 @@ class StackRoxRouter(DeactivatableRouter):
         self.__stackrox_api = StackRoxAPIWrapper(
             self.__stackrox_authentication, api_endpoints
         )
+
+    @function_logger_factory(logger)
+    def enable_oidc(self):
+        # https+insecure://vm-128-206.cloud.dkfz-heidelberg.de/auth/realms/kaapana
+        # {"id":"","name":"Kaapana","type":"oidc","config":{"mode":"auto","do_not_use_client_secret":"false","client_secret":"","client_id":"kaapana","issuer":"https+insecure://vm-128-206.cloud.dkfz-heidelberg.de/auth/realms/kaapana"},"uiEndpoint":"vm-128-206.cloud.dkfz-heidelberg.de:19443","enabled":true,"traits":{"mutabilityMode":"ALLOW_MUTATE"}}
+        pass
 
     @DeactivatableRouter.activation_wrapper
     @function_logger_factory(logger)
@@ -156,3 +171,24 @@ class StackRoxRouter(DeactivatableRouter):
                 status_code=HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Could not retrieve StackRox secret information",
             )
+
+    @DeactivatableRouter.activation_wrapper
+    @function_logger_factory(logger)
+    def get_debug_levels(self):
+        try:
+            return {"data": self.__stackrox_api.get_debug_levels()}
+        except:
+            raise HTTPException(
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Could not retrieve StackRox debug levels",
+            )
+
+    @DeactivatableRouter.activation_wrapper
+    @function_logger_factory(logger)
+    def get_enable_debug(self):
+        self.__stackrox_api.enable_debug()
+
+    @DeactivatableRouter.activation_wrapper
+    @function_logger_factory(logger)
+    def get_disable_debug(self):
+        self.__stackrox_api.disable_debug()

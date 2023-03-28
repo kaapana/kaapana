@@ -20,7 +20,9 @@ async def auth_check(request: Request,response: Response):
         requested_prefix = request.headers.get('x-forwarded-uri')
 
     for url_auth_config in auth_role_mapping_dict.keys():
-        if url_auth_config.startswith(requested_prefix) and auth_role_mapping_dict[url_auth_config] == "whitelisted":
+        print(f"{url_auth_config=}")
+        print(f"{requested_prefix=}")
+        if requested_prefix.startswith(url_auth_config) and "whitelisted" in auth_role_mapping_dict[url_auth_config]:
             message = f"White-listed auth-endpoint: {requested_prefix} -> ok"
             logger.warn(message)
             response.status_code = status.HTTP_200_OK

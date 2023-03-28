@@ -1,6 +1,5 @@
 ---
 global:
-  pull_policy_images: "IfNotPresent"
   offline_mode: "false"
   fast_data_dir: ""
   slow_data_dir: ""

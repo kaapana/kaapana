@@ -39,7 +39,7 @@ dependencies:
   - name: tensorboard-chart
     version: 2.5.0
     repository: file://../../../../../../services/applications/tensorboard/tensorboard-chart 
-  - name: m2aia-workbench-chart
-    version: 2021.07-vdev
-    repository: file://../../../../../../services/applications/m2aia-workbench/m2aia-workbench-chart
+  - name: m2olie-workbench-chart
+    version: 2022.10
+    repository: file://../../../../../../services/applications/m2olie-workbench/m2olie-workbench-chart
     

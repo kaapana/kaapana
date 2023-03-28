@@ -58,7 +58,6 @@ dependencies:
     version: 0.0.0
   - name: slim-chart
     version: 0.0.0
-<<<<<<< HEAD
   # - name: openedc-chart
   #   version: 0.0.0
   # - name: doccano

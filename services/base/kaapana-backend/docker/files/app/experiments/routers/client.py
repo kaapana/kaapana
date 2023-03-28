@@ -79,13 +79,6 @@ def delete_kaapana_instances(db: Session = Depends(get_db)):
 
 @router.post("/job", response_model=schemas.JobWithKaapanaInstance) # also okay: JobWithExperiment
 def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(get_db)):
-
-@router.post(
-    "/job", response_model=schemas.JobWithKaapanaInstance
-)  # also okay: JobWithExperiment
-async def create_job(
-    request: Request, job: schemas.JobCreate, db: Session = Depends(get_db)
-):
     if job.username is not None:
         pass
     elif "x-forwarded-preferred-username" in request.headers:

@@ -1,7 +1,7 @@
 FROM local-only/base-python-gpu:latest
 
 LABEL REGISTRY="local-only"
-LABEL IMAGE="base-kaapana"
+LABEL IMAGE="base-podman"
 LABEL VERSION="latest"
 
 ENV HELM_VERSION="v3.8.1"

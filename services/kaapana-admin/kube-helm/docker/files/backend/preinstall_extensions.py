@@ -68,7 +68,9 @@ for extension in preinstall_extensions:
         if success:
             logger.info(f"Chart {release_name} successfully installed")
         else:
-            logger.info(f"Failed to install chart {release_name}, see error logs")
+            error_message=f"Failed to install chart {release_name}, see error logs"
+            logger.error(error_message)
+            raise Exception(error_message)
 
     except Exception as e:
         logger.error(

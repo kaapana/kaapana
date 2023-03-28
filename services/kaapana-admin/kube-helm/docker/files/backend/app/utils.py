@@ -256,7 +256,7 @@ def helm_install(
     name = payload["name"]
     version = payload["version"]
 
-    release_values = helm_get_values(settings.release_name)
+    release_values = helm_get_values(settings.release_name,helm_namespace="default")
 
     default_sets = {}
     if 'global' in release_values:

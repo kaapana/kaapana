@@ -368,9 +368,7 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
         jsonschema.validate(json_schema_data.json(), schema([schemas.JsonSchemaData]))
     except ValidationError as e:
         logging.error(f"JSON Schema is not valid for the Pydantic model. Error: {e}")
-        raise HTTPException(
-            status_code=400, detail="JSON Schema is not valid for the Pydantic model."
-        )
+        raise HTTPException(status_code=400, detail="JSON Schema is not valid for the Pydantic model.")
 
     # username
     if json_schema_data.username is not None:
@@ -379,10 +377,7 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
         username = request.headers["x-forwarded-preferred-username"]
         json_schema_data.username = username
     else:
-        raise HTTPException(
-            status_code=400,
-            detail="A username has to be set when you submit a workflow schema, either as parameter or in the request!",
-        )
+        raise HTTPException(status_code=400, detail="A username has to be set when you submit a workflow schema, either as parameter or in the request!")
 
     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
     # if db_client_kaapana.instance_name in json_schema_data.instance_names:  # check or correct: if client_kaapana_instance in experiment's runner instances ...

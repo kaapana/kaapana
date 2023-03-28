@@ -58,12 +58,22 @@ class StackRoxAPIAuthentication:
             available_authproviders_result = httpx.get(
                 f"{self.__api_endpoint}/v1/login/authproviders", verify=False
             )
-
+            logger.debug(
+                f"result from '/v1/authProviders/': {available_authproviders_result} - {trimContent(available_authproviders_result.content)}"
+            )
             available_authproviders_result.raise_for_status()
 
             # id of basic login authprovider has to be state data of next request
-            logger.info(available_authproviders_result.json())
-            state = available_authproviders_result.json()["authProviders"][0]["id"]
+            available_auth_providers = available_authproviders_result.json()[
+                "authProviders"
+            ]
+            state = next(
+                filter(
+                    lambda provider: provider["type"] == "basic",
+                    available_auth_providers,
+                ),
+                None,
+            )["id"]
 
             headers = {"Content-Type": "application/json"}
             data = {

@@ -313,7 +313,9 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
     db_experiment = crud.create_experiment(db=db, experiment=experiment)
 
     # async function call to queue jobs and generate db_jobs + adding them to db_experiment
-    asyncio.create_task(crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_experiment, json_schema_data, conf_data))
+    # TODO moved methodcall outside of async framwork because our database implementation is not async compatible
+    #asyncio.create_task(crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_experiment, json_schema_data, conf_data))
+    crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_experiment, json_schema_data, conf_data)
 
     # directly return created db_experiment for fast feedback
     return db_experiment

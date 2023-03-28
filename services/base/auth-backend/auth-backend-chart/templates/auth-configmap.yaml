@@ -3,63 +3,23 @@ apiVersion: v1
 data:
   auth_role_mapping.json: |
     {
-      "/meta":[
-          "guest",
-          "user",
-          "admin"
-      ],
-      "/dcm4chee-arc":[
-          "user",
-          "admin"
-      ],
-      "/flow":[
-          "guest",
-          "user",
-          "admin"
-      ],
-      "/ohif":[
-          "guest",
-          "user",
-          "admin"
-      ],
-      "/workflowdata":[
-          "admin"
-      ],
-      "/web-ide":[
-          "user",
-          "admin"
-      ],
-      "/minio-console":[
-          "user",
-          "admin"
-      ],
-      "/jupyterlab":[
-          "user",
-          "admin"
-      ],
-      "/qpsma":[
-          "user",
-          "admin"
-      ],
-      "/doccano":[
-          "user",
-          "admin"
-      ],
-      "/kubernetes":[
-          "admin"
-      ],
-      "/traefik":[
-          "admin"
-      ],
-      "/grafana":[
-          "guest",
-          "user",
-          "admin"
-      ],
-      "/prometheus":[
-          "user",
-          "admin"
-      ]
+    "/oauth2/metrics": ["whitelisted"],
+    "/auth/realms/kaapana": ["whitelisted"],
+    "/auth/resources": ["whitelisted"],
+    "/meta": ["guest", "user", "admin"],
+    "/dcm4chee-arc": ["user", "admin"],
+    "/flow": ["guest", "user", "admin"],
+    "/ohif": ["guest", "user", "admin"],
+    "/workflowdata": ["admin"],
+    "/web-ide": ["user", "admin"],
+    "/minio-console": ["user", "admin"],
+    "/jupyterlab": ["user", "admin"],
+    "/qpsma": ["user", "admin"],
+    "/doccano": ["user", "admin"],
+    "/kubernetes": ["admin"],
+    "/traefik": ["admin"],
+    "/grafana": ["guest", "user", "admin"],
+    "/prometheus": ["user", "admin"]
     }
 kind: ConfigMap
 metadata:

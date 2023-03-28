@@ -49,9 +49,9 @@ spec:
             value: '-Xms512m -Xmx512m'
           resources:
             requests:
-              memory: 500Mi
-            limits:
               memory: 1000Mi
+            limits:
+              memory: 2000Mi
           volumeMounts:
             - name: osdata
               mountPath: /usr/share/opensearch/data

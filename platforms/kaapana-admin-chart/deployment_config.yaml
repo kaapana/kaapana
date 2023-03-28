@@ -10,7 +10,7 @@ http_port: 80
 https_port: 443
 dicom_port: 11112
 admin_namespace: "admin"
-helm_namespace: "admin"
+helm_namespace: "default"
 services_namespace: "services"
 jobs_namespace: "jobs"
 extensions_namespace: "extensions"
@@ -18,8 +18,8 @@ mount_points_to_monitor: "/"
 kaapana_collections:
 - name: kaapana-extension-collection
 preinstall_extensions:
+- name: kaapana-platform-chart
 - name: code-server-chart
-- name: kaapana-plugin-chart
 additional_env:
 - name: INSTANCE_NAME
   default_value: "central"

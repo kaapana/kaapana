@@ -1,0 +1,24 @@
+---
+dependencies:
+  - name: keycloak-chart
+    version: 0.0.0
+  - name: kube-dashboard-chart
+    version: 0.0.0
+  - name: cert-init-chart
+    version: 0.0.0
+  - name: traefik-chart
+    version: 0.0.0
+  - name: oAuth2-proxy-chart
+    version: 0.0.0
+  - name: maintenance-page-chart
+    version: 0.0.0
+  - name: kube-helm-chart
+    version: 0.0.0
+  - name: keycloak-init-chart
+    version: 0.0.0
+  - name: auth-backend-chart
+    version: 0.0.0
+  - name: kaapana-library-chart
+    version: 0.0.0
+  - name: admin-namespace
+    version: 0.0.0

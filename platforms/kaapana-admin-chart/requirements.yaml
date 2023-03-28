@@ -23,3 +23,5 @@ dependencies:
     version: 0.0.0
   - name: auth-backend-chart
     version: 0.0.0
+  - name: admin-namespace
+    version: 0.0.0

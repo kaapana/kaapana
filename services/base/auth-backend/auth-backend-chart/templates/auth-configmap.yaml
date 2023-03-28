@@ -6,6 +6,7 @@ data:
     "/oauth2/metrics": ["whitelisted"],
     "/auth/realms/kaapana": ["whitelisted"],
     "/auth/resources": ["whitelisted"],
+    "/kaapana-backend/remote/": ["whitelisted"],
     "/meta": ["guest", "user", "admin"],
     "/dcm4chee-arc": ["user", "admin"],
     "/flow": ["guest", "user", "admin"],

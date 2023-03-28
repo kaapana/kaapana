@@ -25,7 +25,7 @@ PREFETCH_EXTENSIONS="{{ prefetch_extensions|default('false') }}"
 CHART_PATH=""
 NO_HOOKS=""
 ENABLE_NFS=false
-OFFLINE_MODE="false"
+OFFLINE_MODE=false
 
 INSTANCE_UID=""
 SERVICES_NAMESPACE="{{ services_namespace }}"
@@ -223,8 +223,8 @@ function delete_deployment {
         fi
     done
     
-    echo -e "${YELLOW}Removing namespace $HELM_NAMESPACE ...${NC}"
-    microk8s.kubectl delete namespace $HELM_NAMESPACE --ignore-not-found=true
+    # echo -e "${YELLOW}Removing namespace $HELM_NAMESPACE ...${NC}"
+    # microk8s.kubectl delete namespace $HELM_NAMESPACE --ignore-not-found=true
 
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
@@ -252,7 +252,7 @@ function nuke_pods {
 
 
 function clean_up_kubernetes {
-    for n in $EXTENSIONS_NAMESPACE $JOBS_NAMESPACE $HELM_NAMESPACE;
+    for n in $EXTENSIONS_NAMESPACE $JOBS_NAMESPACE; # $HELM_NAMESPACE;
     do
         echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
         microk8s.kubectl delete --ignore-not-found namespace $n
@@ -349,10 +349,10 @@ function deploy_chart {
             echo -e "${GREEN}PRESENT_IMAGE_COUNT: OK ${NC}"
         fi
 
-        OFFLINE_MODE="true"
+        OFFLINE_MODE=true
         DEV_MODE="false"
         PULL_POLICY_IMAGES="IfNotPresent"
-        PREFETCH_EXTENSIONS="false"
+        PREFETCH_EXTENSIONS=false
 
         CONTAINER_REGISTRY_USERNAME=""
         CONTAINER_REGISTRY_PASSWORD=""
@@ -391,7 +391,7 @@ function deploy_chart {
     --set-string global.extensions_namespace=$EXTENSIONS_NAMESPACE \
     --set-string global.admin_namespace=$ADMIN_NAMESPACE \
     --set-string global.gpu_support="$GPU_SUPPORT" \
-    --set-string global.helm_namespace="$HELM_NAMESPACE" \
+    --set-string global.helm_namespace="$ADMIN_NAMESPACE" \
     --set global.enable_nfs=$ENABLE_NFS \
     --set global.include_reverse_proxy=$INCLUDE_REVERSE_PROXY \
     --set-string global.home_dir="$HOME" \
@@ -400,8 +400,8 @@ function deploy_chart {
     --set-string global.http_proxy="$http_proxy" \
     --set-string global.https_port="$HTTPS_PORT" \
     --set-string global.https_proxy="$https_proxy" \
-    --set-string global.offline_mode="$OFFLINE_MODE" \
-    --set-string global.prefetch_extensions="$PREFETCH_EXTENSIONS" \
+    --set global.offline_mode=$OFFLINE_MODE \
+    --set global.prefetch_extensions=$PREFETCH_EXTENSIONS \
     --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
     --set-string global.pull_policy_jobs="$PULL_POLICY_IMAGES" \
     --set-string global.pull_policy_pods="$PULL_POLICY_IMAGES" \

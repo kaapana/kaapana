@@ -20,3 +20,5 @@ dependencies:
     version: 0.0.0
   - name: kaapana-library-chart
     version: 0.0.0
+  - name: admin-namespace
+    version: 0.0.0

@@ -357,9 +357,7 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
         jsonschema.validate(json_schema_data.json(), schema([schemas.JsonSchemaData]))
     except ValidationError as e:
         logging.error(f"JSON Schema is not valid for the Pydantic model. Error: {e}")
-        raise HTTPException(
-            status_code=400, detail="JSON Schema is not valid for the Pydantic model."
-        )
+        raise HTTPException(status_code=400, detail="JSON Schema is not valid for the Pydantic model.")
 
     if json_schema_data.username is not None:
         username = json_schema_data.username
@@ -367,10 +365,7 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
         username = request.headers["x-forwarded-preferred-username"]
         json_schema_data.username = username
     else:
-        raise HTTPException(
-            status_code=400,
-            detail="A username has to be set when you submit a workflow schema, either as parameter or in the request!",
-        )
+        raise HTTPException(status_code=400, detail="A username has to be set when you submit a workflow schema, either as parameter or in the request!")
 
     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
     # if db_client_kaapana.instance_name in json_schema_data.instance_names:  # check or correct: if client_kaapana_instance in experiment's runner instances ...
@@ -430,11 +425,9 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
     db_experiment = crud.create_experiment(db=db, experiment=experiment)
 
     # async function call to queue jobs and generate db_jobs + adding them to db_experiment
-    asyncio.create_task(
-        crud.queue_generate_jobs_and_add_to_exp(
-            db, db_client_kaapana, db_experiment, json_schema_data, conf_data
-        )
-    )
+    # TODO moved methodcall outside of async framwork because our database implementation is not async compatible
+    #asyncio.create_task(crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_experiment, json_schema_data, conf_data))
+    crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_experiment, json_schema_data, conf_data)
 
     # directly return created db_experiment for fast feedback
     return db_experiment

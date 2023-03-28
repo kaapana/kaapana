@@ -291,7 +291,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.volumes.append(
             Volume(
                 name="mounted-scripts",
-                configs={"PersistentVolumeClaim": {"claim_name": "ms-jobs-pv-claim", "read_only": False}},
+                configs={"PersistentVolumeClaim": {"claim_name": "mounted-scripts-jobs-pv-claim", "read_only": False}},
             )
         )
 
@@ -454,41 +454,45 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         if self.dev_server is not None:
             url = f"{KaapanaBaseOperator.HELM_API}/helm-install-chart"
             env_vars_sets = {}
-            for idx, (k, v) in enumerate(self.env_vars.items()):
+            for idx, (k, v) in enumerate({"WORKSPACE": "/kaapana", **self.env_vars}.items()):
                 env_vars_sets.update({f"global.envVars[{idx}].name": f"{k}", f"global.envVars[{idx}].value": f"{v}"})
 
-            volume_mounts_sets = {}
-            idx = 0
+            volume_mounts_lookup = {}
             for volume_mount in self.volume_mounts:
-                if volume_mount.name in volume_mounts_sets.values() or volume_mount.name == "dshm":
+                if volume_mount.name in volume_mounts_lookup.values() or volume_mount.name == "dshm":
                     logging.warning(f"Warning {volume_mount.name} already in volume_mount dict!")
                     continue
-                volume_mounts_sets.update(
-                    {
-                        f"global.volumeMounts[{idx}].name": f"{volume_mount.name}",
-                        f"global.volumeMounts[{idx}].mount_path": f"{volume_mount.mount_path}",
-                    }
-                )
-                idx = idx + 1
-            logging.info(volume_mounts_sets)
-            volumes_sets = {}
-            idx = 0
+                volume_mounts_lookup.update({
+                    volume_mount.name:  volume_mount.mount_path
+                })
+            logging.info(volume_mounts_lookup)
+
+            volume_claims_lookup = {}
             for volume in self.volumes:
                 if "PersistentVolumeClaim" in volume.configs:
-                    if volume.name in volumes_sets.values() or volume.name == "dshm":
+                    if volume.name in volume_claims_lookup.values() or volume.name == "dshm":
                         logging.warning(f"Warning {volume.name} already in volume dict!")
                         continue
-                    volumes_sets.update(
-                        {
-                            f"global.volumes[{idx}].name": f"{volume.name}",
-                            f"global.volumes[{idx}].claim_name": f"{volume.configs['PersistentVolumeClaim']['claim_name']}",
-                            # f'volumes[{idx}].path': f"{volume.configs['hostPath']['path']}"
-                        }
-                    )
-                    idx = idx + 1
-            logging.info(volumes_sets)
+                    volume_claims_lookup.update({
+                        volume.name: volume.configs['PersistentVolumeClaim']['claim_name'].replace("-pv-claim", "")
+                    })
+            logging.info(volume_claims_lookup)
 
-            helm_sets = {"global.processing_image": self.image, "global.namespace": JOBS_NAMESPACE, "global.uuid": secrets.token_hex(5), **env_vars_sets, **volume_mounts_sets, **volumes_sets}
+            dynamic_volumes = {}
+            for idx, (k, name) in enumerate(volume_claims_lookup.items()):
+                dynamic_volumes.update(                    
+                    {
+                        f"global.dynamicVolumes[{idx}].name": f"{name}",
+                        f"global.dynamicVolumes[{idx}].mount_path": f"{volume_mounts_lookup[k]}",
+                    }
+                )
+            helm_sets = {
+                "global.complete_image": self.image,
+                "global.namespace": JOBS_NAMESPACE,
+                "global.ingress_path": '{{ .Release.Name }}',
+                **env_vars_sets,
+                **dynamic_volumes
+            }
             logging.info(helm_sets)
             # kaapanaint is there, so that it is recognized as a pending application!
             release_name = get_release_name(context)

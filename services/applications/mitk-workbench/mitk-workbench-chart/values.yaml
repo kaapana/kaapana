@@ -5,10 +5,7 @@ global:
   base_namespace: ""
   fast_data_dir: ""
   slow_data_dir: ""
-  uuid: "single"
-  volumeMounts:
-  - name: mitkdata
-    mount_path: /kaapana/mounted/mitk-data
-  volumes:
-  - name: mitkdata
-    claim_name: minio-pv-claim
+  namespace: "{{ .Values.global.services_namespace }}"
+  dynamicVolumes:
+  - name: minio
+    mount_path: /kaapana/mounted/minio

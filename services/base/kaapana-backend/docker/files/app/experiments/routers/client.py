@@ -22,45 +22,45 @@ logging.getLogger().setLevel(logging.DEBUG)
 router = APIRouter(tags=["client"])
 
 @router.post("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)
-async def create_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate, db: Session = Depends(get_db)):
+def create_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate, db: Session = Depends(get_db)):
     return crud.create_and_update_remote_kaapana_instance(db=db, remote_kaapana_instance=remote_kaapana_instance)
 
 @router.post("/client-kaapana-instance", response_model=schemas.KaapanaInstance)
-async def create_client_kaapana_instance(client_kaapana_instance: schemas.ClientKaapanaInstanceCreate, db: Session = Depends(get_db)):
+def create_client_kaapana_instance(client_kaapana_instance: schemas.ClientKaapanaInstanceCreate, db: Session = Depends(get_db)):
     return crud.create_and_update_client_kaapana_instance(db=db, client_kaapana_instance=client_kaapana_instance)
 
 @router.put("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)
-async def put_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate, db: Session = Depends(get_db)):
+def put_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate, db: Session = Depends(get_db)):
     return crud.create_and_update_remote_kaapana_instance(db=db, remote_kaapana_instance=remote_kaapana_instance, action='update')
 
 @router.put("/client-kaapana-instance", response_model=schemas.KaapanaInstance)
-async def put_client_kaapana_instance(client_kaapana_instance: schemas.ClientKaapanaInstanceCreate, db: Session = Depends(get_db)):
+def put_client_kaapana_instance(client_kaapana_instance: schemas.ClientKaapanaInstanceCreate, db: Session = Depends(get_db)):
     return crud.create_and_update_client_kaapana_instance(db=db, client_kaapana_instance=client_kaapana_instance, action='update')
 
 @router.get("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)
-async def get_remote_kaapana_instance(instance_name: str, db: Session = Depends(get_db)):
+def get_remote_kaapana_instance(instance_name: str, db: Session = Depends(get_db)):
     return crud.get_kaapana_instance(db, instance_name, remote=True)
 
 @router.get("/client-kaapana-instance", response_model=schemas.KaapanaInstance)
-async def get_client_kaapana_instance(db: Session = Depends(get_db)):
+def get_client_kaapana_instance(db: Session = Depends(get_db)):
     return crud.get_kaapana_instance(db, remote=False)
 
 @router.post("/get-remote-kaapana-instances", response_model=List[schemas.KaapanaInstance])
-async def get_remote_kaapana_instances(filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
+def get_remote_kaapana_instances(filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
     if filter_kaapana_instances is None:
         filter_kaapana_instances=schemas.FilterKaapanaInstances(**{'remote': True})
     return crud.get_kaapana_instances(db, filter_kaapana_instances=filter_kaapana_instances)
 
 @router.delete("/kaapana-instance")
-async def delete_kaapana_instance(kaapana_instance_id: int, db: Session = Depends(get_db)):
+def delete_kaapana_instance(kaapana_instance_id: int, db: Session = Depends(get_db)):
     return crud.delete_kaapana_instance(db, kaapana_instance_id=kaapana_instance_id)
 
 @router.delete("/kaapana-instances")
-async def delete_kaapana_instances(db: Session = Depends(get_db)):
+def delete_kaapana_instances(db: Session = Depends(get_db)):
     return crud.delete_kaapana_instances(db)
 
 @router.post("/job", response_model=schemas.JobWithKaapanaInstance) # also okay: JobWithExperiment
-async def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(get_db)):
+def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(get_db)):
 
     if job.username is not None:
         pass
@@ -71,15 +71,15 @@ async def create_job(request: Request, job: schemas.JobCreate, db: Session = Dep
     return crud.create_job(db=db, job=job)
 
 @router.get("/job", response_model=schemas.JobWithKaapanaInstance) # also okay: JobWithExperiment
-async def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
+def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
     return crud.get_job(db, job_id, run_id)
 
 @router.get("/jobs", response_model=List[schemas.JobWithExperimentWithKaapanaInstance])  # also okay: JobWithExperiment; JobWithKaapanaInstance
-async def get_jobs(instance_name: str = None, experiment_name: str = None, status: str = None, limit: int = None, db: Session = Depends(get_db)):
+def get_jobs(instance_name: str = None, experiment_name: str = None, status: str = None, limit: int = None, db: Session = Depends(get_db)):
     return crud.get_jobs(db, instance_name, experiment_name, status, remote=False, limit=limit)
 
 @router.put("/job", response_model=schemas.JobWithExperiment) # changed JobWithKaapanaInstance to JobWithExperiment
-async def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
+def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
     # return crud.update_job(db, job, remote=False)
     if job.status == "abort":
         crud.abort_job(db, job, remote=False)
@@ -89,11 +89,11 @@ async def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
         return crud.update_job(db, job, remote=False)
 
 @router.delete("/job")
-async def delete_job(job_id: int, db: Session = Depends(get_db)):
+def delete_job(job_id: int, db: Session = Depends(get_db)):
     return crud.delete_job(db, job_id, remote=False)
 
 @router.delete("/jobs")
-async def delete_jobs(db: Session = Depends(get_db)):
+def delete_jobs(db: Session = Depends(get_db)):
     # Todo add remote job deletion
     return crud.delete_jobs(db)
 
@@ -102,11 +102,11 @@ async def dags(only_dag_names: bool = True):
     return get_dag_list(only_dag_names=only_dag_names)
 
 @router.get("/get_job_taskinstances")
-async def get_job_taskinstances(job_id: int, db: Session = Depends(get_db)):
+def get_job_taskinstances(job_id: int, db: Session = Depends(get_db)):
     return crud.get_job_taskinstances(db, job_id)
 
 @router.post("/get-dags")
-async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
+def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
 
     if len(filter_kaapana_instances.instance_names)==0 and filter_kaapana_instances.remote is False:    # necessary from old implementation to get dags in client instance view
         dags = get_dag_list(only_dag_names=True)
@@ -139,7 +139,7 @@ async def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstanc
         return JSONResponse(content=list(dags.values())[0])
 
 @router.post("/get-ui-form-schemas")
-async def ui_form_schemas(request: Request, filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
+def ui_form_schemas(request: Request, filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
 
     username = request.headers["x-forwarded-preferred-username"]
     dag_id = filter_kaapana_instances.dag_id
@@ -218,42 +218,42 @@ async def ui_form_schemas(request: Request, filter_kaapana_instances: schemas.Fi
     return JSONResponse(content=schemas)
 
 @router.get("/check-for-remote-updates")
-async def check_for_remote_updates(db: Session = Depends(get_db)):
+def check_for_remote_updates(db: Session = Depends(get_db)):
     crud.get_remote_updates(db, periodically=False)
     return {f"Federated backend is up and running!"}
 
 @router.post("/cohort", response_model=schemas.Cohort)
-async def create_cohort(request: Request, cohort: schemas.CohortCreate, db: Session = Depends(get_db)):
+def create_cohort(request: Request, cohort: schemas.CohortCreate, db: Session = Depends(get_db)):
     cohort.username = request.headers["x-forwarded-preferred-username"]
     return crud.create_cohort(db=db, cohort=cohort)
 
 @router.get("/cohort", response_model=schemas.Cohort)
-async def get_cohort(cohort_name: str, db: Session = Depends(get_db)):
+def get_cohort(cohort_name: str, db: Session = Depends(get_db)):
     return crud.get_cohort(db, cohort_name)
 
 @router.get("/cohorts", response_model=List[schemas.Cohort])
-async def get_cohorts(request: Request, instance_name: str = None, limit: int = None, db: Session = Depends(get_db)):
+def get_cohorts(request: Request, instance_name: str = None, limit: int = None, db: Session = Depends(get_db)):
     return crud.get_cohorts(db, instance_name, limit=limit, as_list=False, username=request.headers["x-forwarded-preferred-username"])
 
 @router.get("/cohort-names")
-async def get_cohort_names(request: Request, db: Session = Depends(get_db)):
+def get_cohort_names(request: Request, db: Session = Depends(get_db)):
     return crud.get_cohorts(db, username=request.headers["x-forwarded-preferred-username"])
 
 @router.put("/cohort", response_model=schemas.Cohort)
-async def put_cohort(cohort: schemas.CohortUpdate, db: Session = Depends(get_db)):
+def put_cohort(cohort: schemas.CohortUpdate, db: Session = Depends(get_db)):
     return crud.update_cohort(db, cohort)
 
 @router.delete("/cohort")
-async def delete_cohort(cohort_name: str, db: Session = Depends(get_db)):
+def delete_cohort(cohort_name: str, db: Session = Depends(get_db)):
     return crud.delete_cohort(db, cohort_name)
 
 @router.delete("/cohorts")
-async def delete_cohorts(db: Session = Depends(get_db)):
+def delete_cohorts(db: Session = Depends(get_db)):
     return crud.delete_cohorts(db)
 
 # create_experiment ; should replace and be sth like "def submit_workflow_json_schema()"
 @router.post("/experiment", response_model=schemas.Experiment)   # also okay: schemas.ExperimentWithKaapanaInstance
-async def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData, db: Session = Depends(get_db)):
+def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData, db: Session = Depends(get_db)):
     
     # validate incoming json_schema_data
     try:
@@ -320,17 +320,17 @@ async def create_experiment(request: Request, json_schema_data: schemas.JsonSche
 
 # get_experiment
 @router.get("/experiment", response_model=schemas.ExperimentWithKaapanaInstance)
-async def get_experiment(experiment_id: int = None, experiment_name: str = None, db: Session = Depends(get_db)):
+def get_experiment(experiment_id: int = None, experiment_name: str = None, db: Session = Depends(get_db)):
     return crud.get_experiment(db, experiment_id, experiment_name)
 
 # get_experiments
 @router.get("/experiments", response_model=List[schemas.ExperimentWithKaapanaInstanceWithJobs]) # also okay: response_model=List[schemas.Experiment] ; List[schemas.ExperimentWithKaapanaInstance]
-async def get_experiments(request: Request, instance_name: str = None, involved_instance_name: str = None, experiment_job_id: int = None, limit: int = None, db: Session = Depends(get_db)):
+def get_experiments(request: Request, instance_name: str = None, involved_instance_name: str = None, experiment_job_id: int = None, limit: int = None, db: Session = Depends(get_db)):
     return crud.get_experiments(db, instance_name, involved_instance_name, experiment_job_id, limit=limit) # , username=request.headers["x-forwarded-preferred-username"]
 
 # put/update_experiment
 @router.put("/experiment", response_model=schemas.Experiment)
-async def put_experiment(experiment: schemas.ExperimentUpdate, db: Session = Depends(get_db)):
+def put_experiment(experiment: schemas.ExperimentUpdate, db: Session = Depends(get_db)):
     if experiment.experiment_status == "abort":
         # iterate over experiment's jobs and execute crud.abort_job() and crud.update_job() and at the end also crud.update_experiment()
         db_experiment = crud.get_experiment(db, experiment.experiment_id)   # better call crud method directly instead of calling client.py's def get_experiment()
@@ -355,35 +355,35 @@ async def put_experiment(experiment: schemas.ExperimentUpdate, db: Session = Dep
 
 # endpoint to update an experiment with additional experiment_jobs
 @router.put("/experiment_jobs", response_model=schemas.Experiment)
-async def put_experiment_jobs(experiment: schemas.ExperimentUpdate, db: Session = Depends(get_db)):
+def put_experiment_jobs(experiment: schemas.ExperimentUpdate, db: Session = Depends(get_db)):
     return crud.put_experiment_jobs(db, experiment)
 
 # delete_experiment
 @router.delete("/experiment")
-async def delete_experiment(experiment_id: int, db: Session = Depends(get_db)):
+def delete_experiment(experiment_id: int, db: Session = Depends(get_db)):
     return crud.delete_experiment(db, experiment_id)
 
 # delete_experiments
 @router.delete("/experiments")
-async def delete_experiments(db: Session = Depends(get_db)):
+def delete_experiments(db: Session = Depends(get_db)):
     return crud.delete_experiments(db)
 
 
 @router.post("/identifier", response_model=schemas.Identifier)
-async def create_identifier(identifier: schemas.Identifier, db: Session= Depends(get_db)):
+def create_identifier(identifier: schemas.Identifier, db: Session= Depends(get_db)):
     return crud.create_identifier(db=db, identifier=identifier)
 
 
 @router.delete("/identifier")
-async def delete_cohort(identifier: str, db: Session = Depends(get_db)):
+def delete_cohort(identifier: str, db: Session = Depends(get_db)):
     if not crud.get_identifier(db, identifier):
         raise HTTPException(status_code=404, detail="Item not found")
     return crud.delete_identifier(db, identifier)
 
 @router.get("/identifiers", response_model=List[schemas.Identifier])
-async def get_identifiers(db: Session = Depends(get_db)):
+def get_identifiers(db: Session = Depends(get_db)):
     return crud.get_identifiers(db)
 
 @router.delete("/identifiers")
-async def get_identifiers(db: Session = Depends(get_db)):
+def get_identifiers(db: Session = Depends(get_db)):
     return crud.delete_identifiers(db)

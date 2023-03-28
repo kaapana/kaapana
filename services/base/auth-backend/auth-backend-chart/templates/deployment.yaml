@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: auth-backend
-  namespace: "{{ .Values.global.admin_namespace }}"
+  namespace: "{{ .Values.global.helm_namespace }}"
 spec:
   replicas: 1
   selector:

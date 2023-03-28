@@ -5,62 +5,46 @@ dependencies:
     version: 0.0.0
   - name: kaapana-backend-chart
     version: 0.0.0
-    repository: file://../../../../services/base/kaapana-backend/kaapana-backend-chart 
 # MONITORING
   - name: prometheus-chart
     version: 0.0.0
-    repository: file://../../../../services/monitoring/prometheus/prometheus-chart
   - name: alertmanager-chart
     version: 0.0.0
-    repository: file://../../../../services/monitoring/alert-manager/alertmanager-chart
   - name: grafana-chart
     version: 0.0.0
-    repository: file://../../../../services/monitoring/grafana/grafana-chart
   - name: node-exporter-chart
     version: 0.0.0
-    repository: file://../../../../services/monitoring/node-exporter/node-exporter-chart
 # FLOW
   - name: airflow-chart
     version: 0.0.0
-    repository: file://../../../../services/flow/airflow/airflow-chart
   - name: ctp-chart
     version: 0.0.0
-    repository: file://../../../../services/flow/ctp/ctp-chart
+  - name: kaapana-plugin-chart
+    version: 0.0.0
 # STORE
   - name: dcm4chee-chart
     version: 0.0.0
-    repository: file://../../../../services/store/dcm4chee/dcm4chee-chart
   - name: ohif-chart
     version: 0.0.0
-    repository: file://../../../../services/store/ohif-viewer/ohif-chart
   - name: minio-chart
     version: 0.0.0
-    repository: file://../../../../services/store/minio/minio-chart
   - name: minio-console-chart
     version: 0.0.0
-    repository: file://../../../../services/store/minio-console/minio-console-chart
   - name: minio-init-chart
     version: 0.0.0
     condition: Release.IsInstall
-    repository: file://../../../../services/store/store-init/minio-init/minio-init-chart
   - name: dicom-init-chart
     version: 0.0.0
     condition: Release.IsInstall
-    repository: file://../../../../services/store/store-init/dicom-init/dicom-init-chart
   # META
   - name: meta-init-chart
     condition: Release.IsInstall
     version: 0.0.0
-    repository: file://../../../services/meta/meta-init/meta-init-chart
   - name: opensearch-chart
     version: 0.0.0
-    repository: file://../../../services/meta/opensearch/opensearch-chart
   - name: os-dashboards-chart
     version: 0.0.0
-    repository: file://../../../services/meta/os-dashboards/os-dashboards/os-dashboards-chart
 # SYSTEM
-  - name: kube-helm-chart
-    version: 0.0.0
   - name: traefik-chart
     condition: global.include_reverse_proxy
     version: 0.0.0
@@ -72,4 +56,3 @@ dependencies:
 # BASE
   - name: landing-page-kaapana-chart
     version: 0.0.0
-    repository: file://../../../services/base/landing-page-kaapana/landing-page-kaapana-chart

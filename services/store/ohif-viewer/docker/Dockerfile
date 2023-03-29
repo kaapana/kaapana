@@ -24,7 +24,7 @@ ENV APP_CONFIG "config/kaapana.js"
 RUN yarn install
 RUN yarn run build
 
-FROM docker.io/nginx:stable-alpine as production-stage
+FROM docker.io/nginx:1.23.3-alpine as production-stage
 
 COPY --from=build /src/platform/viewer/dist/ /usr/share/nginx/html/ohif/
 

@@ -750,7 +750,8 @@ def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
     db.refresh(db_experiment)
     return db_experiment
 
-async def queue_generate_jobs_and_add_to_exp(db: Session, db_client_kaapana: models.KaapanaInstance, db_experiment: models.Experiment, json_schema_data: schemas.JsonSchemaData, conf_data=None):
+# TODO removed async because our current database is not able to execute async methods
+def queue_generate_jobs_and_add_to_exp(db: Session, db_client_kaapana: models.KaapanaInstance, db_experiment: models.Experiment, json_schema_data: schemas.JsonSchemaData, conf_data=None):
     # get variables
     single_execution = False    # initialize with False
     if "data_form" in conf_data and "cohort_name" in conf_data["data_form"]:

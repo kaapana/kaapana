@@ -14,6 +14,87 @@ from tfda_execution_orchestrator.LocalTrustedPostETLOperator import LocalTrusted
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from airflow.operators.python_operator import PythonOperator
 
+ui_forms = {
+    "data_form": {
+        "type": "object",
+        "title": "Select file or folder from Minio",
+        "description": "The uplods/itk directory in Minio is crawled for zip files and folders",
+        "properties": {
+            "bucket_name": {
+                "title": "Bucket name",
+                "description": "Bucket name from MinIO",
+                "type": "string",
+                "default": "uploads",
+                "readOnly": True
+            }
+        },
+        "oneOf": [
+            {
+                "title": "Search for files",
+                "properties": {
+                    "identifier": {
+                        "type": "string",
+                        "const": "files"
+                    },
+                    "action_files":  {
+                        "title": "ZIP files from bucket",
+                        "description": "Relative paths to zip file in Bucket",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": itk_zip_objects
+                        },
+                        "readOnly": False
+                    }
+                }
+            },
+            {
+                "title": "Search for folders",
+                "properties": {
+                    "identifier": {
+                        "type": "string",
+                        "const": "folders"
+                    },
+                    "action_operator_dirs": {
+                        "title": "Directories",
+                        "description": "Directory from bucket",
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": list(set(itk_directories))
+                        },
+                        "readOnly": False
+                    }
+                }
+            }
+        ]
+    },
+    "workflow_form": {
+        "type": "object",
+        "properties": {
+            "modality":{
+                "title": "Modality",
+                "description": "Modality of the input images. Usually CT or MR.",
+                "type": "string",
+                "default": "",
+                "required": False,
+            },
+            "aetitle": {
+                "title": "Dataset tag",
+                "description": "Specify a tag for your dataset.",
+                "type": "string",
+                "default": "itk2dcm",
+                "required": True
+            },
+            "delete_original_file": {
+                "title": "Delete file from Minio after successful upload?",
+                "type": "boolean",
+                "default": True,
+            }
+        }
+    }
+}
+
 log = LoggingMixin().log
 
 ae_title = "NONE"

@@ -16,6 +16,6 @@ RUN make html
 ###############################
 ######### Production ##########
 ###############################
-FROM nginx:1.19.3-alpine
+FROM docker.io/nginx:1.23.3-alpine
 
 COPY --from=build-stage /src/build/html/ /usr/share/nginx/html/

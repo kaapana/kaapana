@@ -26,7 +26,7 @@ COPY files/kaapana_app .
 # ###############################
 # ######### Production ##########
 # ###############################
-# FROM nginx:1.19.3-alpine
+# FROM docker.io/nginx:1.23.3-alpine
 
 # RUN mkdir /kaapana/app
 # COPY --from=build-stage /kaapana/app/dist /kaapana/app

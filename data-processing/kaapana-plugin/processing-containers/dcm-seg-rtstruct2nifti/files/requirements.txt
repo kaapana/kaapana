@@ -1,20 +1,2 @@
-matplotlib==3.5.1
-cleo==0.8.1
-clikit==0.6.2
-crashtest==0.3.1
 dcmrtstruct2nii==2
-imageio==2.18.0
-networkx==2.8
-numpy==1.22.3
-packaging==21.3
-pastel==0.2.1
-# Security fix for CVE-2022-45199
-Pillow==9.3.0
 pydicom==2.3.0
-pylev==1.4.0
-pyparsing==3.0.8
-PyWavelets==1.3.0
-scikit-image==0.19.2
-scipy==1.8.0
-SimpleITK==2.1.1.2
-tifffile==2022.4.28

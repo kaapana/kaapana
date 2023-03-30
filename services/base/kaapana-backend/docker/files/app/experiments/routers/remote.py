@@ -36,22 +36,22 @@ async def post_minio_presigned_url(file: UploadFile = File(...), presigned_url: 
     return Response(resp.content, resp.status_code)
 
 @router.get("/job", response_model=schemas.JobWithKaapanaInstance)
-async def get_job(job_id: int, db: Session = Depends(get_db)):
+def get_job(job_id: int, db: Session = Depends(get_db)):
     return crud.get_job(db, job_id)
 
 @router.get("/jobs", response_model=List[schemas.JobWithKaapanaInstance])
-async def get_jobs(instance_name: str = None, status: str = None, limit: int = None, db: Session = Depends(get_db)):
+def get_jobs(instance_name: str = None, status: str = None, limit: int = None, db: Session = Depends(get_db)):
     return crud.get_jobs(db, instance_name, status, remote=True, limit=limit)
 
 @router.put("/job", response_model=schemas.JobWithKaapanaInstance)
-async def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
+def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
     return crud.update_job(db, job, remote=True)
 
 @router.delete("/job")
-async def delete_job(job_id: int, db: Session = Depends(get_db)):
+def delete_job(job_id: int, db: Session = Depends(get_db)):
     return crud.delete_job(db, job_id, remote=True)
 
 @router.put("/sync-client-remote")
-async def put_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal, instance_name: str = None, status: str = None, db: Session = Depends(get_db)):
+def put_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal, instance_name: str = None, status: str = None, db: Session = Depends(get_db)):
     return crud.sync_client_remote(db=db, remote_kaapana_instance=remote_kaapana_instance, instance_name=instance_name, status=status)
     

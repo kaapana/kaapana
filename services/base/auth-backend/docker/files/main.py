@@ -8,12 +8,6 @@ import jwt
 
 app = FastAPI()
 
-white_list_paths=[
-    "/oauth2/metrics",
-    "/auth/realms/kaapana",
-    "/auth/resources",
-]
-
 @app.get("/auth-check",status_code=status.HTTP_200_OK)
 async def auth_check(request: Request,response: Response):
     """
@@ -24,14 +18,16 @@ async def auth_check(request: Request,response: Response):
     requested_prefix = request.headers.get('x-forwarded-prefix')
     if requested_prefix is None:
         requested_prefix = request.headers.get('x-forwarded-uri')
-    
-    for white_list_path in white_list_paths:
-        if requested_prefix.startswith(white_list_path):
+
+    for url_auth_config in auth_role_mapping_dict.keys():
+        print(f"{url_auth_config=}")
+        print(f"{requested_prefix=}")
+        if requested_prefix.startswith(url_auth_config) and "whitelisted" in auth_role_mapping_dict[url_auth_config]:
             message = f"White-listed auth-endpoint: {requested_prefix} -> ok"
             logger.warn(message)
             response.status_code = status.HTTP_200_OK
             return message
-        
+    
     if requested_prefix is None:
         response.status_code = status.HTTP_403_FORBIDDEN
         message = "No HTTP_X_FORWARDED_PREFIX could be identified within the request -> restricting access."
@@ -57,9 +53,9 @@ async def auth_check(request: Request,response: Response):
         return HTMLResponse(content=error_page, status_code=status.HTTP_403_FORBIDDEN)
 
     prefix_roles_allowed = None
-    for restricted_access_prefix in auth_role_mapping_dict.keys():
-        if restricted_access_prefix in requested_prefix:
-            prefix_roles_allowed = auth_role_mapping_dict[restricted_access_prefix]
+    for url_auth_config in auth_role_mapping_dict.keys():
+        if url_auth_config in requested_prefix:
+            prefix_roles_allowed = auth_role_mapping_dict[url_auth_config]
             break
 
     if prefix_roles_allowed is None:

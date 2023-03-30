@@ -1,4 +1,4 @@
-FROM docker.io/node:lts-alpine3.16 as build
+FROM docker.io/node:lts-alpine3.10 as build
 
 LABEL IMAGE="ohif"
 LABEL VERSION="4.12.26"

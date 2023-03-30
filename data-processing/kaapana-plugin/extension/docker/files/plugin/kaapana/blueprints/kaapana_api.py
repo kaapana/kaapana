@@ -39,6 +39,8 @@ kaapanaApi = Blueprint("kaapana", __name__, url_prefix="/kaapana")
 with app.app_context():
     app.json.sort_keys = False
 
+app.json.sort_keys = False
+
 @csrf.exempt
 @kaapanaApi.route("/api/trigger/<string:dag_id>", methods=["POST"])
 def trigger_dag(dag_id):

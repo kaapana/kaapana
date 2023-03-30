@@ -22,9 +22,18 @@ RUN npm run build
 ###############################
 FROM docker.io/nginx:1.19.3-alpine
 
+# Create a user "kaapana" with minimal rights
+RUN adduser -D -H -u 1000 -s /bin/sh kaapana
+
 WORKDIR /kaapana/app
 
 # RUN mkdir -p /kaapana/app
 COPY --from=build-stage /kaapana/app/dist /kaapana/app
 COPY --from=build-stage /kaapana/app/nginx.conf /etc/nginx/nginx.conf
+
+# Set "kaapana" as the owner of the /kaapana/app directory
+RUN chown -R kaapana:kaapana /kaapana/app
+
+# Switch to the "kaapana" user for security reasons
+USER kaapana
 

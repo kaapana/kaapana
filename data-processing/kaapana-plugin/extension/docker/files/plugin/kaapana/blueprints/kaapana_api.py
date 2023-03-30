@@ -15,6 +15,7 @@ from airflow.utils import timezone
 
 from flask import Blueprint, request, jsonify, Response
 from flask import current_app as app
+
 from sqlalchemy import and_
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -29,6 +30,8 @@ Represents a blueprint kaapanaApi
 """
 kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
 
+
+app.json.sort_keys = False
 
 @csrf.exempt
 @kaapanaApi.route('/api/trigger/<string:dag_id>', methods=['POST'])
@@ -321,7 +324,6 @@ def get_dags_endpoint():
 
         dags[dag_id] = parse_ui_dict(dag_dict)
 
-    app.config['JSON_SORT_KEYS'] = False
     return jsonify(dags)
 
 

@@ -65,7 +65,7 @@ ui_forms = {
                 "title": "Accept",
                 "default": False,
                 "type": "boolean",
-                "readOnly": True,
+                "readOnly": False,
                 "required": True,
             }
         }

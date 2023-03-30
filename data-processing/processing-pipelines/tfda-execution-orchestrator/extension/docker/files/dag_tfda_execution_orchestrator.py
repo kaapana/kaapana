@@ -3,8 +3,6 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 from tfda_execution_orchestrator.LocalManageIsoInstanceOperator import LocalManageIsoInstanceOperator
-from tfda_execution_orchestrator.LocalInstallPlatformDepsOnIsoEnvOperator import LocalInstallPlatformDepsOnIsoEnvOperator
-from tfda_execution_orchestrator.LocalDeployPlatformOnIsoEnvOperator import LocalDeployPlatformOnIsoEnvOperator
 from tfda_execution_orchestrator.LocalTrustedPreETLOperator import LocalTrustedPreETLOperator
 from tfda_execution_orchestrator.LocalCopyDataAndAlgoOperator import LocalCopyDataAndAlgoOperator
 from tfda_execution_orchestrator.LocalRunAlgoOperator import LocalRunAlgoOperator
@@ -13,84 +11,52 @@ from tfda_execution_orchestrator.LocalFetchResultsOperator import LocalFetchResu
 from tfda_execution_orchestrator.LocalTrustedPostETLOperator import LocalTrustedPostETLOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from airflow.operators.python_operator import PythonOperator
+from kaapana.operators.HelperMinio import HelperMinio
+
+buckets = HelperMinio.minioClient.list_buckets()
+bucket_names = [bucket.name for bucket in buckets]
 
 ui_forms = {
     "data_form": {
         "type": "object",
         "title": "Select file or folder from Minio",
-        "description": "The uplods/itk directory in Minio is crawled for zip files and folders",
+        "description": "Choose Data for your analysis",
         "properties": {
             "bucket_name": {
                 "title": "Bucket name",
                 "description": "Bucket name from MinIO",
-                "type": "string",
-                "default": "uploads",
-                "readOnly": True
+                "type": "array",
+                "items": {
+                    "type": "string",
+                    "enum": list(set(bucket_names))
+                },
+                "readOnly": False
             }
         },
-        "oneOf": [
-            {
-                "title": "Search for files",
-                "properties": {
-                    "identifier": {
-                        "type": "string",
-                        "const": "files"
-                    },
-                    "action_files":  {
-                        "title": "ZIP files from bucket",
-                        "description": "Relative paths to zip file in Bucket",
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                            "enum": itk_zip_objects
-                        },
-                        "readOnly": False
-                    }
-                }
-            },
-            {
-                "title": "Search for folders",
-                "properties": {
-                    "identifier": {
-                        "type": "string",
-                        "const": "folders"
-                    },
-                    "action_operator_dirs": {
-                        "title": "Directories",
-                        "description": "Directory from bucket",
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                            "enum": list(set(itk_directories))
-                        },
-                        "readOnly": False
-                    }
-                }
-            }
-        ]
     },
     "workflow_form": {
         "type": "object",
         "properties": {
-            "modality":{
-                "title": "Modality",
-                "description": "Modality of the input images. Usually CT or MR.",
+            "container_name_version":{
+                "title": "Enter container name:version ",
                 "type": "string",
-                "default": "",
-                "required": False,
+                "required": True,
             },
-            "aetitle": {
-                "title": "Dataset tag",
-                "description": "Specify a tag for your dataset.",
+            "container_registry_pwd":{
+                "title": "Enter container registry password ",
                 "type": "string",
-                "default": "itk2dcm",
-                "required": True
+                "required": True,
             },
-            "delete_original_file": {
-                "title": "Delete file from Minio after successful upload?",
-                "type": "boolean",
-                "default": True,
-            }
+            "container_registry_user":{
+                "title": "Enter container registry username",
+                "type": "string",
+                "required": True,
+            },
+            "container_registry_url":{
+                "title": "Enter container registry URL",
+                "type": "string",
+                "required": True,
+            },
         }
     }
 }
@@ -103,7 +69,7 @@ pacs_port = 11112
 
 args = {
     "ui_visible": True,
-    # 'ui_forms': ui_forms,
+    'ui_forms': ui_forms,
     "owner": "kaapana",
     "start_date": days_ago(0),
     "retries": 0,

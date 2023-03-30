@@ -149,7 +149,6 @@ import kaapanaApiService from "@/common/kaapanaApi.service";
 import VJsf from "@koumoul/vjsf/lib/VJsf.js";
 import "@koumoul/vjsf/lib/VJsf.css";
 import "@koumoul/vjsf/lib/deps/third-party.js";
-import request from '@/request';
 
 export default {
   name: "WorkflowExecution",

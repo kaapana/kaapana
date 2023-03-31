@@ -90,7 +90,7 @@
 #         tarball_path = os.path.join(operator_dir, "algorithm_files")
 #         subm_results_path = os.path.join(operator_dir, "results")
 #         singularity_images_path = os.path.join(operator_dir, "singularity_images")
-#         platform_config_path = os.path.join(operator_dir, "platform_specific_configs", "platform_config.yaml")
+#         platform_config_path = os.path.join(operator_dir, "platform_specific_config", "platform_config.yaml")
 #         request_config_path = os.path.join(operator_dir, "request_specific_configs", "request_config.yaml")
 #         tasks = [("fets_2022_test_queue", 9615030)]
 #         # tasks = [("FeTS 2022 Task 2 Docker Submissions Queue", 9615036)]

@@ -3,8 +3,7 @@ import json
 import logging
 import random
 import string
-from typing import List
-from typing import Union
+from typing import List, Union
 
 import jsonschema
 from app.datasets.utils import execute_opensearch_query

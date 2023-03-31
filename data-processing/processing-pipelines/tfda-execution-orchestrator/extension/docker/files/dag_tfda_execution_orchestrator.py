@@ -11,55 +11,6 @@ from tfda_execution_orchestrator.LocalFetchResultsOperator import LocalFetchResu
 from tfda_execution_orchestrator.LocalTrustedPostETLOperator import LocalTrustedPostETLOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from airflow.operators.python_operator import PythonOperator
-from kaapana.operators.HelperMinio import HelperMinio
-
-buckets = HelperMinio.minioClient.list_buckets()
-bucket_names = [bucket.name for bucket in buckets]
-
-ui_forms = {
-    "data_form": {
-        "type": "object",
-        "title": "Select file or folder from Minio",
-        "description": "Choose Data for your analysis",
-        "properties": {
-            "bucket_name": {
-                "title": "Bucket name",
-                "description": "Bucket name from MinIO",
-                "type": "array",
-                "items": {
-                    "type": "string",
-                    "enum": list(set(bucket_names))
-                },
-                "readOnly": False
-            }
-        },
-    },
-    "workflow_form": {
-        "type": "object",
-        "properties": {
-            "container_name_version":{
-                "title": "Enter container name:version ",
-                "type": "string",
-                "required": True,
-            },
-            "container_registry_pwd":{
-                "title": "Enter container registry password ",
-                "type": "string",
-                "required": True,
-            },
-            "container_registry_user":{
-                "title": "Enter container registry username",
-                "type": "string",
-                "required": True,
-            },
-            "container_registry_url":{
-                "title": "Enter container registry URL",
-                "type": "string",
-                "required": True,
-            },
-        }
-    }
-}
 
 log = LoggingMixin().log
 
@@ -68,8 +19,7 @@ pacs_host = ""
 pacs_port = 11112
 
 args = {
-    "ui_visible": True,
-    'ui_forms': ui_forms,
+    "ui_visible": False,
     "owner": "kaapana",
     "start_date": days_ago(0),
     "retries": 0,

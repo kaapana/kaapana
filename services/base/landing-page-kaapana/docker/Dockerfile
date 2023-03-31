@@ -22,9 +22,6 @@ RUN npm run build
 ###############################
 FROM docker.io/nginx:1.19.3-alpine
 
-# Create a user "kaapana" with minimal rights
-RUN adduser -D -H -u 1000 -s /bin/sh kaapana
-
 WORKDIR /kaapana/app
 
 # RUN mkdir -p /kaapana/app

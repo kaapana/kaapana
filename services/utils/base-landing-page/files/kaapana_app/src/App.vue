@@ -51,6 +51,15 @@
             </v-list-item-content>
             <v-list-item-icon></v-list-item-icon>
           </v-list-item -->
+          <v-list-item :to="'/data-upload/'" v-if="isAuthenticated">
+            <v-list-item-action>
+              <v-icon>mdi-cloud-upload</v-icon>
+            </v-list-item-action>
+            <v-list-item-content>
+              <v-list-item-title>Data upload</v-list-item-title>
+            </v-list-item-content>
+            <v-list-item-icon></v-list-item-icon>
+          </v-list-item>
           <v-list-item :to="'/pending-applications'" v-if="isAuthenticated">
             <v-list-item-action>
               <v-icon>mdi-gamepad-variant</v-icon>

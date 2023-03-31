@@ -7,19 +7,26 @@ import asyncio
 import jsonschema
 from pydantic import ValidationError
 from pydantic.schema import schema
-
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, Request, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
 from app.experiments import crud
 from app.experiments import schemas
-from app.experiments.utils import get_dag_list, raise_kaapana_connection_error
+from app.experiments.utils import HelperMinio
+
+from app.experiments.utils import get_dag_list
 
 logging.getLogger().setLevel(logging.DEBUG)
 
 router = APIRouter(tags=["client"])
+
+@router.post("/post-minio-object-to-uploads")
+async def post_minio_object_to_uploads(filepond: UploadFile = File(...)):
+    logging.info('Uploading file:', filepond.filename)
+    HelperMinio.minioClient.put_object("uploads", filepond.filename, filepond.file, length=-1, part_size=10*1024*1024)
+    return JSONResponse(content={"message": "Succesfully uploaded file " + filepond.filename})
 
 @router.post("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)
 def create_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate, db: Session = Depends(get_db)):

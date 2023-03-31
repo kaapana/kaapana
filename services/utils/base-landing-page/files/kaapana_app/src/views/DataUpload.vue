@@ -2,7 +2,7 @@
   .dropzone
     v-container(grid-list-lg text-left)
       div(v-if="supported")
-        upload(targetFolder="dicoms", labelIdle="Drop zip with dicoms files here...")
+        upload(labelIdle="Drop files that shoud be available in workflows here...")
       div(v-else)
         v-alert(color='red' type='info') The data upload is not supported in Firefox.
 

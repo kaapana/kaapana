@@ -28,3 +28,11 @@ WORKDIR /kaapana/app
 COPY --from=build-stage /kaapana/app/dist /kaapana/app
 COPY --from=build-stage /kaapana/app/nginx.conf /etc/nginx/nginx.conf
 
+# Set "nginx" as the owner of the /kaapana/app directory
+RUN chown -R nginx:nginx /kaapana/app && \
+    chown -R nginx:nginx /var/cache/nginx && \
+    mkdir -p /var/run/nginx && chown -R nginx:nginx /var/run/nginx
+    
+# Switch to the "nginx" user for security reasons
+USER nginx
+

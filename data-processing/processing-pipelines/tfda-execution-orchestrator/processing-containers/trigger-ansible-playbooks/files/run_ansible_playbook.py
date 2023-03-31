@@ -2,15 +2,20 @@ import os
 import logging
 import subprocess
 from subprocess import PIPE
+from os import getenv
 from pathlib import Path
 from airflow.exceptions import AirflowFailException
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
-data_dir = getenv("DATADIR", "None")
-data_dir = data_dir if data_dir.lower() != "none" else None
-assert data_dir is not None
+workflow_dir = getenv("WORKFLOW_DIR", "None")
+workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
+assert workflow_dir is not None
+dag_run_id = os.getenv('RUN_ID')
 
-def start(self, ds, ti, **kwargs):
+operator_in_dir = getenv("OPERATOR_IN_DIR", "None")
+operator_in_dir = operator_in_dir if operator_in_dir.lower() != "none" else None
+assert operator_in_dir is not None
+
+def start():
     print("Fetch the results...")
     workflow_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     base_dir = os.path.dirname(workflow_dir)

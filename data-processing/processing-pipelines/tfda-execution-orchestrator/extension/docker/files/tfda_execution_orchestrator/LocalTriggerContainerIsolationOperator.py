@@ -10,7 +10,7 @@ from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
-class LocalTFDATestingOperator(KaapanaPythonBaseOperator):    
+class LocalTriggerContainerIsolationOperator(KaapanaPythonBaseOperator):    
     def run_command(self, command):
         process = subprocess.Popen(command, stdout=PIPE, stderr=PIPE, encoding="Utf-8")
         while True:
@@ -39,7 +39,7 @@ class LocalTFDATestingOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, ti, **kwargs):
         operator_dir = os.path.dirname(os.path.abspath(__file__))
-        platform_config_path = os.path.join(operator_dir, "platform_specific_configs", "platform_config.json")
+        platform_config_path = os.path.join(operator_dir, "platform_specific_config", "platform_config.json")
         logging.info("Loading platform specific configuration...")
         platform_config = self.load_config(platform_config_path)
         
@@ -78,7 +78,7 @@ class LocalTFDATestingOperator(KaapanaPythonBaseOperator):
 
         super().__init__(
             dag=dag,
-            name="tfda-testing",
+            name="trigger-isolated-container-execution",
             python_callable=self.start,
             **kwargs
         )

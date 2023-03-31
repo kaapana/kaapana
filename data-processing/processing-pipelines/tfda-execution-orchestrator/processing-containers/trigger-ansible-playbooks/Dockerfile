@@ -1,6 +1,6 @@
 FROM local-only/base-python-cpu:latest
 
-LABEL IMAGE="trigger-ansible-playbooks"
+LABEL IMAGE="trigger-ansible-playbook"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 

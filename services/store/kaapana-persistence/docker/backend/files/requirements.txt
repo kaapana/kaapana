@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+urnparse
+httpx
+motor
+jsonschema
+jsonschema-spec
+deepdiff
+semver
+jsf
+python-magic
+python-multipart

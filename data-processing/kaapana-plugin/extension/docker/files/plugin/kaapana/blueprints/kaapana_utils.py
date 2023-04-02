@@ -13,7 +13,7 @@ from socket import timeout
 
 
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-
+from kaapana.blueprints.json_schema_templates import schema_dataset_form
 
 def generate_run_id(dag_id):
     run_id = datetime.now().strftime('%y%m%d%H%M%S%f')
@@ -167,90 +167,7 @@ def clean_previous_dag_run(airflow_workflow_dir, conf, run_identifier):
 
 
 def parse_ui_dict(dag_dict):
-
     if "ui_forms" in dag_dict and dag_dict["ui_forms"] is not None:
         if "ui_visible" in dag_dict and dag_dict["ui_visible"] is True and "data_form" not in dag_dict["ui_forms"]:
-            dag_dict["ui_forms"].update({
-                "data_form": {
-                    "type": "object",
-                    "properties": {
-                        "cohort_name": "$default",
-                        "cohort_limit": "$default"
-                    }
-                }
-            })
-
-        default_properties = {}
-        for ui_form_key, ui_form in dag_dict["ui_forms"].items():
-            if ui_form_key=='publication_form':
-                pass
-            elif ui_form_key=='workflow_form':
-                default_properties = {
-                    "single_execution": {
-                        "type": "boolean",
-                        "title": "Single execution",
-                        "description": "Whether your report is execute in single mode or not",
-                        "default": False,
-                        "readOnly": False,
-                        "required": True
-                    }
-                }
-            elif ui_form_key=='data_form':
-                default_properties = {
-                    "cohort_name": {
-                        "type": "string",
-                        "title": "Cohort name",
-                        "oneOf": [],
-                        "required": True
-                    },
-                    "cohort_limit": {
-                        "type": "integer",
-                        "title": "Limit cohort-size",
-                        "description": "Limit Cohort to this many cases."
-                    }
-                }
-            elif ui_form_key == 'external_schema_federated_form':
-                default_properties = {
-                    "federated_bucket": {
-                        "type": "string",
-                        "title": "Federated bucket",
-                        "description": "Bucket to which the files should be saved to",
-                        "readOnly": True
-                    },
-                    "federated_dir": {
-                        "type": "string",
-                        "title": "Federated directory",
-                        "description": "Directory to which the files should be saved to",
-                        "readOnly": True
-                    },
-                    "federated_operators": {
-                        "type": "array",
-                        "title": "Operators for which the results should be saved",
-                        "items": {
-                            "type": "string"
-                        },
-                        "readOnly": True
-                    },
-                    "skip_operators": {
-                        "type": "array",
-                        "title": "Operators that should not be executed",
-                        "items": {
-                            "type": "string"
-                        },
-                        "readOnly": True
-                    },
-                    "federated_round": {
-                        "type": "integer",
-                        "title": "Federated round",
-                        "readOnly": True
-                    },
-                    "federated_total_rounds": {
-                        "type": "integer",
-                        "title": "Federated total rounds"
-                    }
-                }
-            if 'properties' in ui_form:
-                for k, v in ui_form['properties'].items():
-                    if v == "$default":
-                        ui_form['properties'][k] = default_properties[k]
+            dag_dict["ui_forms"].update(**schema_dataset_form())
     return dag_dict

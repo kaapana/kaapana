@@ -30,8 +30,8 @@ Represents a blueprint kaapanaApi
 """
 kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
 
-
-app.json.sort_keys = False
+with app.app_context():
+    app.json.sort_keys = False
 
 @csrf.exempt
 @kaapanaApi.route('/api/trigger/<string:dag_id>', methods=['POST'])

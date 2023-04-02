@@ -66,12 +66,14 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
             secure=False
         )
 
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id) \
-            if self.run_dir is None \
-            else os.path.join(self.run_dir)
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
+        local_root_dir = eval(f"f'{self.local_root_dir}'")
+
+        print(f"Working relative to the following director: {local_root_dir}")
         batch_folder = [
-            f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))
+            f for f in glob.glob(os.path.join(local_root_dir, self.batch_name, '*'))
         ]
+
         print(batch_folder)
 
         if self.bucket_name is None:
@@ -83,7 +85,12 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         # Get contents from run_dir
         object_dirs = object_dirs + self.action_operator_dirs
         for action_operator in self.action_operators:
-            object_dirs.append(action_operator.operator_out_dir)
+            object_dirs.append(
+                    os.path.relpath(
+                        os.path.join(run_dir, action_operator.operator_out_dir),
+                        local_root_dir
+                    )
+                )
 
         # Get contents from batch_elements
         for batch_element_dir in batch_folder:
@@ -91,7 +98,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                 object_dirs.append(
                     os.path.relpath(
                         os.path.join(batch_element_dir, operator_dir),
-                        run_dir
+                        local_root_dir
                     )
                 )
             for action_operator in self.action_operators:
@@ -100,7 +107,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                         os.path.join(
                             batch_element_dir, action_operator.operator_out_dir
                         ),
-                        run_dir
+                        local_root_dir
                     )
                 )
 
@@ -124,17 +131,17 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
             zip_file_path = os.path.join(target_dir, zip_object_name)
             with ZipFile(zip_file_path, 'w') as zipObj:
                 if not object_dirs:
-                    print(f'Zipping everything from {run_dir}')
+                    print(f'Zipping everything from {local_root_dir}')
                     object_dirs = ['']
                 else:
                     print(f'Zipping everything from {", ".join(object_dirs)}')
                 for object_dir in object_dirs:
                     for path, _, files in os.walk(
-                            os.path.join(run_dir, object_dir)
+                            os.path.join(local_root_dir, object_dir)
                     ):
                         for name in files:
                             file_path = os.path.join(path, name)
-                            rel_dir = os.path.relpath(path, run_dir)
+                            rel_dir = os.path.relpath(path, local_root_dir)
                             rel_dir = '' if rel_dir == '.' else rel_dir
                             if rel_dir == self.operator_out_dir:
                                 print(
@@ -154,7 +161,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         if object_names:
             print(f'Applying action "{self.action}" to files {object_names}')
             HelperMinio.apply_action_to_object_names(
-                minio_client, self.action, self.bucket_name, run_dir,
+                minio_client, self.action, self.bucket_name, local_root_dir,
                 object_names, self.file_white_tuples
             )
         else:
@@ -170,7 +177,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                 minio_client,
                 self.action,
                 self.bucket_name,
-                run_dir,
+                local_root_dir,
                 object_dirs,
                 self.file_white_tuples,
             )
@@ -181,7 +188,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                  dag,
                  action='get',  # 'get', 'remove' or 'put'
                  name=None,
-                 run_dir=None,
+                 local_root_dir="{run_dir}",
                  bucket_name=None,
                  action_operators=None,
                  action_operator_dirs=None,
@@ -194,7 +201,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                  ):
         """
         :param action: Action to execute ('get', 'remove' or 'put')
-        :param run_dir: Workflow directory
+        :param local_root_dir: Workflow directory
         :param bucket_name: Name of the Bucket to interact with
         :param action_operators: Operator to use the output data from
         :param action_operator_dirs: (Additional) directory to apply MinIO
@@ -217,7 +224,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                                 )
         name = name or f'minio-actions-{action}'
         self.action = action
-        self.run_dir = run_dir
+        self.local_root_dir = local_root_dir
         self.bucket_name = bucket_name
         self.action_operator_dirs = action_operator_dirs or []
         self.action_operators = action_operators or []

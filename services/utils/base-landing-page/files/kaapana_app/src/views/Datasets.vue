@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid class="content pa-0">
+  <v-container fluid class="content pa-0" style="padding-top: 10px !important">
     <v-container fluid class="overview-shared pa-0" style="position: relative">
       <v-container class="pa-0" fluid>
         <v-card class="rounded-0">

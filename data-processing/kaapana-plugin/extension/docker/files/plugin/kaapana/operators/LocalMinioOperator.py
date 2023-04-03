@@ -67,7 +67,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         )
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
-        local_root_dir = eval(f"f'{self.local_root_dir}'")
+        local_root_dir = self.local_root_dir.format(run_dir=run_dir)
 
         print(f"Working relative to the following director: {local_root_dir}")
         batch_folder = [

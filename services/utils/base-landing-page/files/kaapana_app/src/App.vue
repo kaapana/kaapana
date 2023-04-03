@@ -13,6 +13,15 @@
             </v-list-item-content>
             <v-list-item-icon></v-list-item-icon>
           </v-list-item>
+          <v-list-item :to="'/experiments'" v-if="isAuthenticated">
+            <v-list-item-action>
+              <v-icon>mdi-gamepad-variant</v-icon>
+            </v-list-item-action>
+            <v-list-item-content>
+              <v-list-item-title>Workflows</v-list-item-title>
+            </v-list-item-content>
+            <v-list-item-icon></v-list-item-icon>
+          </v-list-item>
           <v-list-group :prepend-icon="section.icon"
                         v-if="isAuthenticated && section.roles.indexOf(currentUser.role) > -1"
                         v-for="(section, sectionKey) in externalWebpages" :key="section.id">
@@ -24,60 +33,6 @@
               <v-list-item-title v-text="subSection.label"></v-list-item-title>
             </v-list-item>
           </v-list-group>
-          <v-list-item :to="'/datasets'" v-if="isAuthenticated">
-            <v-list-item-action>
-              <v-icon>mdi-view-gallery-outline</v-icon>
-            </v-list-item-action>
-            <v-list-item-content>
-              <v-list-item-title>Datasets</v-list-item-title>
-            </v-list-item-content>
-            <v-list-item-icon></v-list-item-icon>
-          </v-list-item>
-          <v-list-item :to="'/experiments'" v-if="isAuthenticated">
-            <v-list-item-action>
-              <v-icon>mdi-play-box</v-icon>
-            </v-list-item-action>
-            <v-list-item-content>
-              <v-list-item-title>Experiments</v-list-item-title>
-            </v-list-item-content>
-            <v-list-item-icon></v-list-item-icon>
-          </v-list-item>
-          <!-- v-list-item :to="'/federated'" v-if="isAuthenticated && federatedBackendAvailable">
-            <v-list-item-action>
-              <v-icon>mdi-vector-triangle</v-icon>
-            </v-list-item-action>
-            <v-list-item-content>
-              <v-list-item-title>Federated</v-list-item-title>
-            </v-list-item-content>
-            <v-list-item-icon></v-list-item-icon>
-          </v-list-item -->
-          <v-list-item :to="'/data-upload/'" v-if="isAuthenticated">
-            <v-list-item-action>
-              <v-icon>mdi-cloud-upload</v-icon>
-            </v-list-item-action>
-            <v-list-item-content>
-              <v-list-item-title>Data upload</v-list-item-title>
-            </v-list-item-content>
-            <v-list-item-icon></v-list-item-icon>
-          </v-list-item>
-          <v-list-item :to="'/pending-applications'" v-if="isAuthenticated">
-            <v-list-item-action>
-              <v-icon>mdi-gamepad-variant</v-icon>
-            </v-list-item-action>
-            <v-list-item-content>
-              <v-list-item-title>Pending applications</v-list-item-title>
-            </v-list-item-content>
-            <v-list-item-icon></v-list-item-icon>
-          </v-list-item>
-          <v-list-item :to="'/results-browser'" v-if="isAuthenticated && staticWebsiteAvailable">
-            <v-list-item-action>
-              <v-icon>mdi-file-tree</v-icon>
-            </v-list-item-action>
-            <v-list-item-content>
-              <v-list-item-title>Results browser</v-list-item-title>
-            </v-list-item-content>
-            <v-list-item-icon></v-list-item-icon>
-          </v-list-item>
           <v-list-item :to="'/extensions'" v-if="isAuthenticated">
             <v-list-item-action>
               <v-icon>mdi-apps</v-icon>
@@ -109,6 +64,24 @@
                 </v-list-item-content>
               </v-list-item>
               <v-list-item>
+                <v-list-item-content>
+                  <v-list-item-title>Version</v-list-item-title>
+                  <v-tooltip left>
+                    <template v-slot:activator="{ on, attrs }">
+                      <v-btn
+                        color="primary"
+                        dark
+                        v-bind="attrs"
+                        v-on="on"
+                      >
+                        Left
+                      </v-btn>
+                    </template>
+                    <span>&copy; DKFZ 2018 - DKFZ 2023 | {{ commonData.version }}</span>
+                  </v-tooltip>
+                </v-list-item-content>
+              </v-list-item>
+              <v-list-item>
                 <Settings></Settings>
               </v-list-item>
               <v-list-item>
@@ -133,6 +106,12 @@
         <v-container class="router-container pa-0" fluid fill-height>
           <v-layout align-start="align-start">
             <v-flex text-xs="text-xs">
+              <v-bottom-navigation v-if="workflowNavigation" color="primary" :elevation="0" inset mode="shift">
+              <v-btn v-for="([title, icon, to], i) in workflowsList" :key="i" :to="to" :value="to">
+                <v-icon>{{ icon }}</v-icon>
+                {{ title }}
+              </v-btn>
+              </v-bottom-navigation>
               <router-view></router-view>
             </v-flex>
           </v-layout>
@@ -169,10 +148,30 @@ export default Vue.extend({
     drawer: true,
     federatedBackendAvailable: false,
     staticWebsiteAvailable: false,
+    workflowsList: [
+      ['Data Upload', 'mdi-cloud-upload', '/data-upload'],
+      ['Data curation', 'mdi-view-gallery-outline', '/datasets'],
+      ['Experiment execution', 'mdi-play-box', '/experiments'],
+      ['Experiment list', 'mdi-clipboard-text-outline', '/experiments'],
+      ['Experiment results', 'mdi-chart-bar-stacked', '/results-browser'],
+      ['Federated learning', 'mdi-vector-triangle', '/experiments'],
+      ['Pending Applications', 'mdi-timer-sand', '/pending-applications']
+    ],
     settings: settings
   }),
   computed: {
     ...mapGetters(['currentUser', 'isAuthenticated', 'externalWebpages', 'commonData']),
+    workflowNavigation() {
+      let routerPath = []
+      for (const workflow of this.workflowsList) {
+        routerPath.push(workflow[2])
+        console.log(workflow);
+      }
+      console.log(routerPath)
+      console.log(this.$route.path)
+      console.log(routerPath.includes(this.$route.path))
+      return routerPath.includes(this.$route.path)
+    }
   },
   methods: {
     changeMode(v: boolean) {
@@ -295,4 +294,5 @@ $kaapana-green: #ff7a20;
 .pa-0 {
   padding: 0;
 }
+
 </style>

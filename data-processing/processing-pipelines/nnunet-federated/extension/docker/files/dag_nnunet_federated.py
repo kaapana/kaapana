@@ -9,6 +9,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
 
+from kaapana.blueprints.json_schema_templates import properties_external_federated_form
 from kaapana.blueprints.kaapana_global_variables import INSTANCE_NAME, SERVICES_NAMESPACE
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
@@ -35,7 +36,7 @@ ui_forms = {
     "external_schema_federated_form": {
         "type": "object",
         "properties": {
-            "federated_total_rounds": "$default",
+            **properties_external_federated_form(["federated_total_rounds"]),
             "remote_dag_id": {
                 "type": "string",
                 "title": "Remote dag id",

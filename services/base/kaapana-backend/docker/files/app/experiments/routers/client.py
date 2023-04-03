@@ -24,8 +24,13 @@ router = APIRouter(tags=["client"])
 
 @router.post("/post-minio-object-to-uploads")
 async def post_minio_object_to_uploads(filepond: UploadFile = File(...)):
-    logging.info('Uploading file:', filepond.filename)
-    HelperMinio.minioClient.put_object("uploads", filepond.filename, filepond.file, length=-1, part_size=10*1024*1024)
+    logging.info(f'Uploading file: {filepond.filename}')
+    try:
+        HelperMinio.minioClient.put_object("uploads", filepond.filename, filepond.file, length=-1, part_size=10*1024*1024)
+        logging.info(f'Successfully saved file {filepond.filename} to Minio')
+    except Exception as e:
+        logging.error(f"Failed to upload to Minio: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload to Minio: {e}")
     return JSONResponse(content={"message": "Succesfully uploaded file " + filepond.filename})
 
 @router.post("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)

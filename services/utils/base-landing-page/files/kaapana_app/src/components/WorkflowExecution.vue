@@ -33,26 +33,32 @@ v-dialog(v-model='dialogOpen' max-width='600px')
           //- Experiment name
           v-row(v-if="dag_id")
             v-col(cols='12')
-              //- v-text-field(v-model='experiment_name' label='Experiment name' required='')
-              //-  required='' clearable
               v-text-field(label="Experiment name" v-model="experiment_name_wID" :rules="experimentnameRules" required)
             //- don't do exp_id rn
           //- Data- and Workflow forms
           v-row(v-if="experiment_name")
-            //- :rules="dataformRules" required)
             v-col(v-for="(schema, name) in schemas" cols='12')
               p {{name}}
-              //- v-jsf(v-model="formData[name]" :schema="schema" v-bind:class="{ 'is-invalid': !validateFormData(schema, formData[name]) }" required)
               v-jsf(v-model="formData[name]" :schema="schema" required)
+          //- Select remote instance for remote workflow
           v-row(v-if="external_available_instance_names.length")
             v-col(cols='12')
               h3 Remote Workflow
             v-col(cols='12')
-              v-select(v-model='external_instance_names' :items='external_available_instance_names' label='External Instance names' multiple='' chips='' hint='On which (remote) nodes do you want to execute the workflow')
+              v-select(
+                v-model='external_instance_names' 
+                :items='external_available_instance_names' 
+                label='External Instance names' 
+                multiple='' 
+                chips='' 
+                hint='On which (remote) nodes do you want to execute the workflow'
+              )
+          //- forms of external workflows
           v-row(v-if="Object.keys(external_schemas).length")
             v-col(v-for="(schema, name) in external_schemas" cols='12')
               p {{name}}
               v-jsf(v-model="formData['external_schema_' + name]" :schema="schema" required)
+          //- Conf data summarizing the configured experiment
           v-row
             v-col(cols='12')
               v-tooltip(v-model='showConfData' top='')
@@ -292,12 +298,20 @@ export default {
       kaapanaApiService
         .federatedClientApiPost("/get-remote-kaapana-instances", {dag_id: this.external_dag_id})
         .then((response) => {
-          this.external_available_instance_names = response.data.map(({ instance_name }) => instance_name);
+          this.external_available_instance_names = response.data.map(({ instance_name }) => instance_name)
+          // this.addLocalInstanceForRemoteExecution()
         })
         .catch((err) => {
           console.log(err);
         });
     },
+    // addLocalInstanceForRemoteExecution() {
+    //   // check if external_dag_id is in available_dags of local instance
+    //   if (this.available_dags.includes(this.external_dag_id)) {
+    //     // if yes, add local instance to this.external_available_instance_names
+    //     this.external_available_instance_names.push(this.clientinstance.instance_name)
+    //   }
+    // },
     getRemoteInstanceNames() {
       kaapanaApiService
         .federatedClientApiPost("/get-remote-kaapana-instances")

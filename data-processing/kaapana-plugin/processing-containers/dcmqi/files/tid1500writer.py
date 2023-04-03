@@ -319,16 +319,6 @@ def process_input_file(inputCompositeContextDirectory, inputImageLibraryDirector
 
 DCMQI = '/kaapana/app/dcmqi/bin'
 
-# DCMQI = '/home/jonas/software/dcmqi/bin'
-# os.environ['SRC_DICOM_OPERATOR'] = 'initial-input'
-# os.environ['SEG_DICOM_OPERATOR'] = 'None'
-
-# os.environ['BATCH_NAME'] = 'batch'
-# os.environ['WORKFLOW_DIR'] = '/home/jonas/Downloads/ukf_test/racoon-ukf-preseg-210625115616399119'
-# os.environ['OPERATOR_IN_DIR'] = 'pathonomical-segmentation'
-# os.environ['OPERATOR_OUT_DIR'] = 'measurements-sr'
-# os.environ['INPUT_FILE_EXTENSION'] = 'volumes.json'
-
 workflow_dir = getenv("WORKFLOW_DIR", "None")
 workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
 assert workflow_dir is not None

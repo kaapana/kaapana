@@ -218,7 +218,7 @@ class Cohort(CohortBase):
 class ExperimentBase(BaseModel):
     experiment_name: str = None
     experiment_status: str = None
-    external_experiment_id: int = None # experiment_id on another system
+    # external_experiment_id: int = None # experiment_id on another system
     
 
 class Experiment(ExperimentBase):

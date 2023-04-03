@@ -82,7 +82,7 @@ class Experiment(Base):
     __tablename__ = "experiment"
     id = Column(Integer, primary_key=True)
     experiment_name = Column(String(64))
-    external_experiment_id = Column(Integer)
+    # external_experiment_id = Column(Integer)
     username = Column(String(64))
     # cohort_name = Column(String(64), index=True)  # now in a relationship
     time_created = Column(DateTime(timezone=True))

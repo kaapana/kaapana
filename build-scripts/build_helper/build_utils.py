@@ -105,8 +105,8 @@ class BuildUtils:
             if "root" in entry.lower():
                 continue
 
-            name = entry.split(":")[1]
-            version = entry.split(":")[2]
+            name = ":".join(entry.split(":")[1:-1])
+            version = entry.split(":")[-1]
             entry_id = f"{name}:{version}"
 
             if "chart:" in entry:

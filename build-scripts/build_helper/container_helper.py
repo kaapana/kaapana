@@ -167,7 +167,7 @@ class BaseImage:
             BuildUtils.logger.error("Could not extract base-image!")
             exit(1)
 
-        self.version = tag.split(":")[1]
+        self.version = tag.split(":")[-1]
         self.tag = tag
         self.present = None
 

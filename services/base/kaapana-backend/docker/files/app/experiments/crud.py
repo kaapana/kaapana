@@ -750,14 +750,17 @@ def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
     else:
         db_kaapana_instance = db.query(models.KaapanaInstance).filter_by(id=experiment.kaapana_instance_id).first() # yes: search Kaapana instance in db according to given kaapana_instance_id
     
-    if db.query(models.Experiment).filter_by(experiment_name=experiment.experiment_name).first():   # experiment already exists?
-        raise HTTPException(status_code=409, detail="Experiment exists already!")                   # ... raise http exception!
-    if not db_kaapana_instance:                                                                     # no kaapana_instance found in db in previous "search"?
-        raise HTTPException(status_code=404, detail="Kaapana instance not found")                   # ... raise http exception!
+    # if db.query(models.Experiment).filter_by(id=experiment.exp_id).first():            # experiment already exists?
+    if get_experiment(db, experiment_id=experiment.exp_id):
+        raise HTTPException(status_code=409, detail="Experiment exists already!")  # ... raise http exception!
+    if not db_kaapana_instance:                                                    # no kaapana_instance found in db in previous "search"?
+        raise HTTPException(status_code=404, detail="Kaapana instance not found")  # ... raise http exception!
     
     utc_timestamp = get_utc_timestamp()
 
+    print(f"CRUD def create_experiment() ExperimentCreate's experiment.id: {experiment.exp_id}")
     db_experiment = models.Experiment(
+        exp_id=experiment.exp_id,
         kaapana_id=experiment.kaapana_instance_id,
         username=experiment.username,
         experiment_name=experiment.experiment_name,
@@ -767,6 +770,7 @@ def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
         time_created=utc_timestamp,
         time_updated=utc_timestamp
     )
+    print(f"CRUD def create_experiment() db_experiment.exp_id: {db_experiment.exp_id}")
 
     # TODO: also update all involved_kaapana_instances with the experiment_id in which they are involved
 
@@ -842,9 +846,9 @@ def queue_generate_jobs_and_add_to_exp(db: Session, db_client_kaapana: models.Ka
     return db_experiment
 
 
-def get_experiment(db: Session, experiment_id: int = None, experiment_name: str = None):
+def get_experiment(db: Session, experiment_id: str = None, experiment_name: str = None):
     if experiment_id is not None:
-        db_experiment = db.query(models.Experiment).filter_by(id=experiment_id).first()
+        db_experiment = db.query(models.Experiment).filter_by(exp_id=experiment_id).first()
     elif experiment_name is not None:
         db_experiment = db.query(models.Experiment).filter_by(experiment_name=experiment_name).first()
     # if not db_experiment:
@@ -893,6 +897,8 @@ def update_experiment(db: Session, experiment=schemas.ExperimentUpdate):
 def put_experiment_jobs(db: Session, experiment=schemas.ExperimentUpdate):
     utc_timestamp = get_utc_timestamp()
 
+    print(f"CRUD def put_experiment_jobs() ExperimentUpdate's experiment.experiment_name: {experiment.experiment_name}")
+    print(f"CRUD def put_experiment_jobs() ExperimentUpdate's experiment.exp_id: {experiment.exp_id}")
     db_experiment = get_experiment(db, experiment_name=experiment.experiment_name)
 
     # get db_jobs via job_id which should be added to db_experiment
@@ -917,7 +923,7 @@ def put_experiment_jobs(db: Session, experiment=schemas.ExperimentUpdate):
     return db_experiment
 
 
-def delete_experiment(db: Session, experiment_id: int):
+def delete_experiment(db: Session, experiment_id: str):
     db_experiment = get_experiment(db, experiment_id)   # get db's db_experiment object
 
     # iterate over jobs of to-be-deleted experiment

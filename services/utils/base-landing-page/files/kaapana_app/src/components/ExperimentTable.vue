@@ -148,10 +148,11 @@ data () {
     expanded: [],
     experimentHeaders: [
       {
-        text: 'Experiment Name',
+        text: 'Experiment ID',
         align: 'start',
-        value: 'experiment_name',
+        value: 'exp_id',
       },
+      { text: 'Experiment Name', value: 'experiment_name' },
       { text: 'Cohort Name', value: 'cohort_name' },
       { text: 'Created', value: 'time_created' },
       { text: 'Updated', value: 'time_updated' },
@@ -281,6 +282,7 @@ methods: {
       limit: 100,
       }).then((response) => {
         this.clientExperiments = response.data;
+        console.log("clientExperiments: ", this.clientExperiments)
       })
       .catch((err) => {
         console.log(err);

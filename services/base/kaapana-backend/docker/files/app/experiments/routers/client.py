@@ -1,5 +1,7 @@
 import copy
 import json
+import random
+import string
 from typing import List
 import logging
 import traceback
@@ -274,6 +276,7 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
         logging.error(f"JSON Schema is not valid for the Pydantic model. Error: {e}")
         raise HTTPException(status_code=400, detail="JSON Schema is not valid for the Pydantic model.")
 
+    # username
     if json_schema_data.username is not None:
         username = json_schema_data.username
     elif "x-forwarded-preferred-username" in request.headers:
@@ -313,9 +316,14 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
         single_execution = False
         db_cohort = None
 
+    # generate random and unique experiment id
+    characters = string.ascii_uppercase + string.ascii_lowercase + string.digits
+    exp_id = ''.join(random.choices(characters, k=6))
+
     # create an experiment with involved_instances=conf_data["experiment_form"]["involved_instances"] and add jobs to it
     experiment = schemas.ExperimentCreate(**{
-        "experiment_name": json_schema_data.experiment_name,
+        "exp_id": exp_id,
+        "experiment_name": json_schema_data.experiment_name + '_exp' + exp_id,
         "username": username,
         "kaapana_instance_id": db_client_kaapana.id,
         # "experiment_jobs": db_jobs,
@@ -334,7 +342,7 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
 
 # get_experiment
 @router.get("/experiment", response_model=schemas.ExperimentWithKaapanaInstance)
-def get_experiment(experiment_id: int = None, experiment_name: str = None, db: Session = Depends(get_db)):
+def get_experiment(experiment_id: str = None, experiment_name: str = None, db: Session = Depends(get_db)):
     return crud.get_experiment(db, experiment_id, experiment_name)
 
 # get_experiments
@@ -374,7 +382,7 @@ def put_experiment_jobs(experiment: schemas.ExperimentUpdate, db: Session = Depe
 
 # delete_experiment
 @router.delete("/experiment")
-def delete_experiment(experiment_id: int, db: Session = Depends(get_db)):
+def delete_experiment(experiment_id: str, db: Session = Depends(get_db)):
     return crud.delete_experiment(db, experiment_id)
 
 # delete_experiments

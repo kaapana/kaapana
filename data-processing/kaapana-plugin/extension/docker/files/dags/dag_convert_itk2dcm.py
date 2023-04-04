@@ -43,7 +43,7 @@ ui_forms = {**schema_minio_form(
     "workflow_form": {
         "type": "object",
         "properties": {
-            "modality":{
+            "modality": {
                 "title": "Modality",
                 "description": "Modality of the input images. Usually CT or MR.",
                 "type": "string",
@@ -51,19 +51,19 @@ ui_forms = {**schema_minio_form(
                 "required": False,
             },
             "aetitle": {
-                "title": "Dataset tag",
+                "title": "Tag",
                 "description": "Specify a tag for your dataset.",
                 "type": "string",
                 "default": "itk2dcm",
-                "required": True
+                "required": True,
             },
             "delete_original_file": {
                 "title": "Delete file from Minio after successful upload?",
                 "type": "boolean",
                 "default": True,
-            }
-        }
-    }
+            },
+        },
+    },
 }
 
 log = LoggingMixin().log

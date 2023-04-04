@@ -1,5 +1,5 @@
 <template>
-  <v-card>
+  <v-card elevation="0" style="min-height: 100%">
     <v-card-title>
       <v-container align-items="center">
         <v-row align="center" justify="center">

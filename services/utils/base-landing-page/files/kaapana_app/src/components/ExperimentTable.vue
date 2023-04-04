@@ -5,19 +5,19 @@
         <p>Experiment Management System</p>
       </v-col>
       <v-col cols="4">
-        <workflow-execution 
+        <workflow-execution
           ref="workflowexecution"
-          v-if="clientInstance" 
-          :remote="true" 
-          :instances="allInstances" 
-          :clientinstance="clientInstance" 
+          v-if="clientInstance"
+          :remote="true"
+          :instances="allInstances"
+          :clientinstance="clientInstance"
           @refreshView="refreshClient()"
         ></workflow-execution>
-        <LocalKaapanaInstance 
-          v-if="clientInstance" 
-          :instance="clientInstance" 
-          :remote="false" 
-          @refreshView="refreshClient()" 
+        <LocalKaapanaInstance
+          v-if="clientInstance"
+          :instance="clientInstance"
+          :remote="false"
+          @refreshView="refreshClient()"
           @ei="editClientInstance"
         ></LocalKaapanaInstance>
         <template>
@@ -153,7 +153,7 @@ data () {
         value: 'exp_id',
       },
       { text: 'Experiment Name', value: 'experiment_name' },
-      { text: 'Cohort Name', value: 'cohort_name' },
+      { text: 'Dataset Name', value: 'dataset_name' },
       { text: 'Created', value: 'time_created' },
       { text: 'Updated', value: 'time_updated' },
       { text: 'Username', value: 'username' },

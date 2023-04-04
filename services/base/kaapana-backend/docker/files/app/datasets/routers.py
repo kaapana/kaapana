@@ -32,7 +32,7 @@ async def tag_data(data: list = Body(...)):
         )
         doc = es.get(index="meta-index", id=series_instance_uid)
         print(doc)
-        index_tags = doc["_source"].get("dataset_tags_keyword", [])
+        index_tags = doc["_source"].get("tags_keyword", [])
 
         final_tags = list(
             set(tags)
@@ -43,7 +43,7 @@ async def tag_data(data: list = Body(...)):
         print(f"Final tags: {final_tags}")
 
         # Write Tags back
-        body = {"doc": {"dataset_tags_keyword": final_tags}}
+        body = {"doc": {"tags_keyword": final_tags}}
         es.update(index="meta-index", id=series_instance_uid, body=body)
 
     try:
@@ -62,7 +62,7 @@ async def tag_data(data: list = Body(...)):
 
 
 @router.post("/series")
-async def get_query_elastic_structured(body: dict = Body(...)):
+async def get_series(body: dict = Body(...)):
     import pandas as pd
 
     structured: bool = body.get("structured", False)
@@ -164,7 +164,9 @@ async def get_dashboard(config: dict = Body(...)):
     names = config.get("names", [])
 
     name_field_map = await get_field_mapping()
-    filtered_name_field_map = {name: name_field_map[name] for name in names}
+    filtered_name_field_map = {
+        name: name_field_map[name] for name in names if name in name_field_map
+    }
 
     res = OpenSearch(
         hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"

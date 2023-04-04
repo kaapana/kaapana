@@ -1,24 +1,23 @@
 import copy
 import json
+import logging
 import random
 import string
 from typing import List
-import logging
-import traceback
-import asyncio
-import jsonschema
-from pydantic import ValidationError
-from pydantic.schema import schema
-from fastapi import APIRouter, Depends, UploadFile, File, Request, HTTPException
-from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
+from typing import Union
 
+import jsonschema
+from app.datasets.utils import execute_opensearch_query
 from app.dependencies import get_db
 from app.experiments import crud
 from app.experiments import schemas
 from app.experiments.utils import HelperMinio
-
 from app.experiments.utils import get_dag_list
+from fastapi import APIRouter, Depends, UploadFile, File, Request, HTTPException
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
+from pydantic.schema import schema
+from sqlalchemy.orm import Session
 
 logging.getLogger().setLevel(logging.DEBUG)
 
@@ -250,23 +249,25 @@ def ui_form_schemas(request: Request, filter_kaapana_instances: schemas.FilterKa
     dag = dags[dag_id]
     schemas = dag["ui_forms"]
 
-    # Cohorts: Checking for cohorts
+    # Datasets: Checking for datasets
     if (
         "data_form" in schemas
         and "properties" in schemas["data_form"]
-        and "cohort_name" in schemas["data_form"]["properties"]
+        and "dataset_name" in schemas["data_form"]["properties"]
     ):
         db_client_kaapana = crud.get_kaapana_instance(
             db, remote=False
         )  # get client_instance
         datasets = {}
         for instance_name in filter_kaapana_instances.instance_names:
-            # check if whether instance_name is client_instance --> datasets = crud.get_cohorts(db, username=username)
+            # check if whether instance_name is client_instance --> datasets = crud.get_datasets(db, username=username)
             if db_client_kaapana.instance_name == instance_name:
-                client_datasets = crud.get_cohorts(
+                client_datasets = crud.get_datasets(
                     db, username=username
                 )  # or rather get allowed_datasets of db_client_kaapana, but also a little bit unnecessary to restrict local datasets
-                datasets[db_client_kaapana.instance_name] = client_datasets
+                datasets[db_client_kaapana.instance_name] = [
+                    ds.name for ds in client_datasets
+                ]
             else:
                 db_remote_kaapana_instance = crud.get_kaapana_instance(
                     db, instance_name, remote=True
@@ -291,13 +292,13 @@ def ui_form_schemas(request: Request, filter_kaapana_instances: schemas.FilterKa
                     overall_allowed_datasets = list(
                         set(overall_allowed_datasets) & set(list1)
                     )
-            schemas["data_form"]["properties"]["cohort_name"]["oneOf"] = [
+            schemas["data_form"]["properties"]["dataset_name"]["oneOf"] = [
                 {"const": d, "title": d} for d in overall_allowed_datasets
             ]
         elif (
             len(datasets) == 1
         ):  # if just one instance is selected -> return (allowed) datasets of this instance
-            schemas["data_form"]["properties"]["cohort_name"]["oneOf"] = [
+            schemas["data_form"]["properties"]["dataset_name"]["oneOf"] = [
                 {"const": d, "title": d} for d in list(datasets.values())[0]
             ]
 
@@ -311,43 +312,64 @@ def check_for_remote_updates(db: Session = Depends(get_db)):
     return {f"Federated backend is up and running!"}
 
 
-@router.post("/cohort", response_model=schemas.Cohort)
-def create_cohort(request: Request, cohort: schemas.CohortCreate, db: Session = Depends(get_db)):
-    cohort.username = request.headers["x-forwarded-preferred-username"]
-    return crud.create_cohort(db=db, cohort=cohort)
+@router.post("/dataset", response_model=schemas.Dataset)
+def create_dataset(
+    request: Request,
+    dataset: Union[schemas.DatasetCreate, None] = None,
+    query: Union[str, None] = None,
+    db: Session = Depends(get_db),
+):
+    query_dict = json.loads(query)
+    if not dataset and query:
+        dataset = schemas.DatasetCreate(
+            name=query_dict["name"],
+            identifiers=[
+                d["_id"] for d in execute_opensearch_query(query_dict["query"])
+            ],
+        )
+    dataset.username = request.headers["x-forwarded-preferred-username"]
+    return crud.create_dataset(db=db, dataset=dataset)
 
 
-@router.get("/cohort", response_model=schemas.Cohort)
-def get_cohort(cohort_name: str, db: Session = Depends(get_db)):
-    return crud.get_cohort(db, cohort_name)
-
-@router.get("/cohorts", response_model=List[schemas.Cohort])
-def get_cohorts(request: Request, instance_name: str = None, limit: int = None, db: Session = Depends(get_db)):
-    return crud.get_cohorts(db, instance_name, limit=limit, as_list=False, username=request.headers["x-forwarded-preferred-username"])
-
-@router.get("/cohort-names")
-def get_cohort_names(request: Request, db: Session = Depends(get_db)):
-    return crud.get_cohorts(db, username=request.headers["x-forwarded-preferred-username"])
-
-@router.put("/cohort", response_model=schemas.Cohort)
-def put_cohort(cohort: schemas.CohortUpdate, db: Session = Depends(get_db)):
-    return crud.update_cohort(db, cohort)
+@router.get("/dataset", response_model=schemas.Dataset)
+def get_dataset(name: str, db: Session = Depends(get_db)):
+    return crud.get_dataset(db, name)
 
 
-@router.delete("/cohort")
-def delete_cohort(cohort_name: str, db: Session = Depends(get_db)):
-    return crud.delete_cohort(db, cohort_name)
+@router.get("/datasets", response_model=List[schemas.Dataset])
+def get_datasets(
+    request: Request,
+    instance_name: str = None,
+    limit: int = None,
+    db: Session = Depends(get_db),
+):
+    return crud.get_datasets(
+        db,
+        instance_name,
+        limit=limit,
+        username=request.headers["x-forwarded-preferred-username"],
+    )
 
 
-@router.delete("/cohorts")
-def delete_cohorts(db: Session = Depends(get_db)):
-    return crud.delete_cohorts(db)
+@router.put("/dataset", response_model=schemas.Dataset)
+def put_dataset(dataset: schemas.DatasetUpdate, db: Session = Depends(get_db)):
+    return crud.update_dataset(db, dataset)
+
+
+@router.delete("/dataset")
+def delete_dataset(name: str, db: Session = Depends(get_db)):
+    return crud.delete_dataset(db, name)
+
+
+@router.delete("/datasets")
+def delete_datasets(db: Session = Depends(get_db)):
+    return crud.delete_datasets(db)
 
 
 # create_experiment ; should replace and be sth like "def submit_workflow_json_schema()"
 @router.post("/experiment", response_model=schemas.Experiment)   # also okay: schemas.ExperimentWithKaapanaInstance
 def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData, db: Session = Depends(get_db)):
-    
+
     # validate incoming json_schema_data
     try:
         jsonschema.validate(json_schema_data.json(), schema([schemas.JsonSchemaData]))
@@ -392,19 +414,18 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
         "runner_instances": json_schema_data.instance_names    # instances on which jobs of experiment are created!
     }
 
-    if "data_form" in conf_data and "cohort_name" in conf_data["data_form"]:
-        db_cohort = crud.get_cohort(db, conf_data["data_form"]["cohort_name"])
+    if conf_data.get("data_form") and conf_data["data_form"].get("dataset_name"):
+        db_dataset = crud.get_dataset(db, conf_data["data_form"]["dataset_name"])
         conf_data["data_form"].update(
             {
-                "cohort_query": json.loads(db_cohort.cohort_query),
-                "cohort_identifiers": db_cohort.cohort_identifiers,
+                "identifiers": json.loads(db_dataset.identifiers),
             }
         )
 
         data_form = conf_data["data_form"]
-        cohort_limit = (
-            int(data_form["cohort_limit"])
-            if ("cohort_limit" in data_form and data_form["cohort_limit"] is not None)
+        dataset_limit = (
+            int(data_form["dataset_limit"])
+            if ("dataset_limit" in data_form and data_form["dataset_limit"] is not None)
             else None
         )
         single_execution = (
@@ -415,18 +436,22 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
 
     else:
         single_execution = False
-        db_cohort = None
+        db_dataset = None
 
     # create an experiment with involved_instances=conf_data["experiment_form"]["involved_instances"] and add jobs to it
-    experiment = schemas.ExperimentCreate(**{
-        "exp_id": exp_id,
-        "experiment_name": experiment_name,
-        "username": username,
-        "kaapana_instance_id": db_client_kaapana.id,
-        # "experiment_jobs": db_jobs,
-        "involved_kaapana_instances": conf_data["experiment_form"]["involved_instances"],
-        "cohort_name": db_cohort.cohort_name if db_cohort is not None else None,
-    })
+    experiment = schemas.ExperimentCreate(
+        **{
+            "exp_id": exp_id,
+            "experiment_name": experiment_name,
+            "username": username,
+            "kaapana_instance_id": db_client_kaapana.id,
+            # "experiment_jobs": db_jobs,
+            "involved_kaapana_instances": conf_data["experiment_form"][
+                "involved_instances"
+            ],
+            "dataset_name": db_dataset.name if db_dataset is not None else None,
+        }
+    )
     db_experiment = crud.create_experiment(db=db, experiment=experiment)
 
     # async function call to queue jobs and generate db_jobs + adding them to db_experiment

@@ -23,7 +23,25 @@ def get_model_targets(model_dir, targets):
     return None
 
 
-def predict(model, input_folder, output_folder, folds, save_npz, num_threads_preprocessing, num_threads_nifti_save, part_id, num_parts, tta, mixed_precision, overwrite_existing, mode, overwrite_all_in_gpu, step_size, checkpoint_name, lowres_segmentations=None):
+def predict(
+    model,
+    input_folder,
+    output_folder,
+    folds,
+    save_npz,
+    num_threads_preprocessing,
+    num_threads_nifti_save,
+    part_id,
+    num_parts,
+    tta,
+    mixed_precision,
+    overwrite_existing,
+    mode,
+    overwrite_all_in_gpu,
+    step_size,
+    checkpoint_name,
+    lowres_segmentations=None,
+):
     global task, task_body_part, task_targets, task_protocols, inf_seg_filter, remove_if_empty
 
     target_labels = {}
@@ -37,7 +55,11 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
         print("# ")
         local_task = model_info["name"]
         target_labels = model_info["labels"]
-        local_task_protocols = ",".join(model_info["modality"].values()) if "modality" in model_info else "N/A"
+        local_task_protocols = (
+            ",".join(model_info["modality"].values())
+            if "modality" in model_info
+            else "N/A"
+        )
 
     else:
         print("# Using env configuration ...")
@@ -45,7 +67,7 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
         local_task = task
         local_task_protocols = task_protocols
         assert task_targets is not None
-        for index in range(0,len(task_targets)):
+        for index in range(0, len(task_targets)):
             target_labels[index] = task_targets[index]
 
     print(f"#")
@@ -84,14 +106,10 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
     print("#")
     nifti_files = sorted(glob(join(output_folder, "*.nii*"), recursive=False))
     assert len(nifti_files) > 0
-    
-    
+
     labels_found = []
     for int_encoding, label_key in target_labels.items():
-        labels_found.append({
-            "label_name": label_key,
-            "label_int": str(int_encoding)
-        })
+        labels_found.append({"label_name": label_key, "label_int": str(int_encoding)})
 
     if remove_if_empty:
         for nifti_file in nifti_files:
@@ -120,16 +138,20 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
                 os.remove(nifti_file)
 
     seg_info_json = {}
-    seg_info_json["task_id"] = local_task if local_task != None else model.split("/")[-2]
+    seg_info_json["task_id"] = (
+        local_task if local_task != None else model.split("/")[-2]
+    )
     seg_info_json["task_body_part"] = task_body_part
     seg_info_json["task_protocols"] = local_task_protocols
     seg_info_json["task_targets"] = task
-    seg_info_json["algorithm"] = task.lower() if task != None else model.split("/")[-2].lower()
+    seg_info_json["algorithm"] = (
+        task.lower() if task != None else model.split("/")[-2].lower()
+    )
 
     seg_info_json["seg_info"] = labels_found
-    seg_json_path = join(output_folder, 'seg_info.json')
+    seg_json_path = join(output_folder, "seg_info.json")
     print(f"# Writing seg_info: {seg_json_path}")
-    with open(seg_json_path, 'w') as outfile:
+    with open(seg_json_path, "w") as outfile:
         json.dump(seg_info_json, outfile, sort_keys=True, indent=4, default=str)
     print("#")
     print("##################################################### ")
@@ -138,11 +160,13 @@ def predict(model, input_folder, output_folder, folds, save_npz, num_threads_pre
 def create_dataset(search_dir):
     global batch_dataset, operator_in_dir, input_modality_dirs, workflow_dir
 
-    input_data_dir = join('/', workflow_dir, "nnunet-input-data")
+    input_data_dir = join("/", workflow_dir, "nnunet-input-data")
     Path(input_data_dir).mkdir(parents=True, exist_ok=True)
 
     if batch_dataset:
-        batch_folders = sorted([f for f in glob(join('/', workflow_dir, "nnunet-cohort", '*'))])
+        batch_folders = sorted(
+            [f for f in glob(join("/", workflow_dir, "nnunet-dataset", "*"))]
+        )
         for batch_element_dir in batch_folders:
             input_count = 0
             for input_modality in input_modality_dirs:
@@ -151,7 +175,12 @@ def create_dataset(search_dir):
                 niftis_found = glob(nifti_dir, recursive=True)
 
                 for nifti in niftis_found:
-                    target_filename = join(input_data_dir, basename(nifti).replace(".nii.gz", f"_{input_count:04d}.nii.gz"))
+                    target_filename = join(
+                        input_data_dir,
+                        basename(nifti).replace(
+                            ".nii.gz", f"_{input_count:04d}.nii.gz"
+                        ),
+                    )
                     if exists(target_filename):
                         print(f"# target_filename: {target_filename}")
                         print(f"# Target input-data already exists -> skipping")
@@ -173,7 +202,10 @@ def create_dataset(search_dir):
             niftis_found = glob(nifti_dir, recursive=True)
 
             for nifti in niftis_found:
-                target_filename = join(input_data_dir, basename(nifti).replace(".nii.gz", f"_{input_count:04d}.nii.gz"))
+                target_filename = join(
+                    input_data_dir,
+                    basename(nifti).replace(".nii.gz", f"_{input_count:04d}.nii.gz"),
+                )
                 if exists(target_filename):
                     print(f"# Target input-data already exists -> skipping")
                     continue
@@ -201,16 +233,16 @@ def get_model_paths(batch_element_dir):
         model_paths.append(model_path)
     else:
         model_path = join(batch_element_dir, models_dir, model_arch)
-        batch_models_dir = join('/', workflow_dir, models_dir, model_arch)
+        batch_models_dir = join("/", workflow_dir, models_dir, model_arch)
         print(f"# Batch-element models dir: {model_path}")
         print(f"# Batch models dir: {batch_models_dir}")
         if exists(model_path):
             print("# Found batch-element models dir -> continue")
-            print(f"# model_path: {model_path}") 
+            print(f"# model_path: {model_path}")
             model_paths.append(model_path)
         elif exists(batch_models_dir):
             print("# Found batch models dir -> continue")
-            print(f"# model_path: {batch_models_dir}") 
+            print(f"# model_path: {batch_models_dir}")
             model_paths.append(batch_models_dir)
         else:
             print("# Could not find models !")
@@ -264,9 +296,20 @@ def get_model_paths(batch_element_dir):
             print("#")
             exit(1)
 
-        if len(glob(join(model_path, "**", "model_final_checkpoint.model.pkl"), recursive=True)) > 0:
+        if (
+            len(
+                glob(
+                    join(model_path, "**", "model_final_checkpoint.model.pkl"),
+                    recursive=True,
+                )
+            )
+            > 0
+        ):
             checkpoint_name = "model_final_checkpoint"
-        elif len(glob(join(model_path, "**", "model_latest.model.pkl"), recursive=True)) > 0:
+        elif (
+            len(glob(join(model_path, "**", "model_latest.model.pkl"), recursive=True))
+            > 0
+        ):
             checkpoint_name = "model_latest"
         else:
             print("#")
@@ -326,13 +369,17 @@ mode = mode if mode.lower() != "none" else None
 models_dir = getenv("MODELS_DIR", "None")
 models_dir = models_dir if models_dir.lower() != "none" else "/models"
 threads_preprocessing = getenv("INF_THREADS_PREP", "None")
-threads_preprocessing = int(threads_preprocessing) if threads_preprocessing.lower() != "none" else 2
+threads_preprocessing = (
+    int(threads_preprocessing) if threads_preprocessing.lower() != "none" else 2
+)
 threads_nifiti = getenv("INF_THREADS_NIFTI", "None")
 threads_nifiti = int(threads_nifiti) if threads_nifiti.lower() != "none" else 2
 batch_dataset = getenv("INF_BATCH_DATASET", "False")
 batch_dataset = True if batch_dataset.lower() == "true" else False
 input_modality_dirs = getenv("INPUT_MODALITY_DIRS", "None")
-input_modality_dirs = input_modality_dirs.split(",") if input_modality_dirs.lower() != "none" else None
+input_modality_dirs = (
+    input_modality_dirs.split(",") if input_modality_dirs.lower() != "none" else None
+)
 
 workflow_dir = getenv("WORKFLOW_DIR", "None")
 workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
@@ -346,7 +393,9 @@ enable_softmax = True if enable_softmax.lower() == "true" else False
 model_arch = getenv("MODEL", "None")
 model_arch = model_arch if model_arch.lower() != "none" else None
 train_network_trainer = getenv("TRAIN_NETWORK_TRAINER", "None")
-train_network_trainer = train_network_trainer if train_network_trainer.lower() != "none" else None
+train_network_trainer = (
+    train_network_trainer if train_network_trainer.lower() != "none" else None
+)
 
 cuda_visible_devices = getenv("CUDA_VISIBLE_DEVICES", "None")
 tta = getenv("TEST_TIME_AUGMENTATION", "None")
@@ -419,7 +468,7 @@ print("##################################################")
 print("#")
 
 processed_count = 0
-batch_folders = sorted([f for f in glob(join('/', workflow_dir, batch_name, '*'))])
+batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
 for batch_element_dir in batch_folders:
     input_data_dir, input_count = create_dataset(search_dir=batch_element_dir)
     if input_count == 0:
@@ -467,7 +516,7 @@ for batch_element_dir in batch_folders:
             mode=inf_mode,
             overwrite_all_in_gpu=overwrite_all_in_gpu,
             step_size=step_size,
-            checkpoint_name=checkpoint_name
+            checkpoint_name=checkpoint_name,
         )
         processed_count += 1
         print("#")
@@ -480,7 +529,7 @@ for batch_element_dir in batch_folders:
         print(f"# model: {model}")
         print("#")
 
-    input_data_dir = join('/', workflow_dir, "nnunet-input-data")
+    input_data_dir = join("/", workflow_dir, "nnunet-input-data")
     shutil.rmtree(input_data_dir, ignore_errors=True)
 
 if processed_count == 0:
@@ -535,13 +584,13 @@ if processed_count == 0:
                 mode=inf_mode,
                 overwrite_all_in_gpu=overwrite_all_in_gpu,
                 step_size=step_size,
-                checkpoint_name=checkpoint_name
+                checkpoint_name=checkpoint_name,
             )
             processed_count += 1
             print(f"# Prediction ok.")
             print(f"#")
 
-    input_data_dir = join('/', workflow_dir, "nnunet-input-data")
+    input_data_dir = join("/", workflow_dir, "nnunet-input-data")
     shutil.rmtree(input_data_dir, ignore_errors=True)
 
 if processed_count == 0:

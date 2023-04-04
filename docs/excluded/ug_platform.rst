@@ -56,7 +56,7 @@ Manual Workflow Triggering
 
 
 
-You can also select a cohort within the 'Meta' dashboard and trigger a workflow.
+You can also select a dataset within the 'Meta' dashboard and trigger a workflow.
 Every visualisation within Meta dashboard can be used to set filter based on the entries.
 If you hover over the corresponding entry, two magnifying glasses should appear (+ and -).
 If you click on the '+' the data will be filtered for data with the same tag content.
@@ -84,7 +84,7 @@ You can also create manual filters by clicking on 'Add a filter' at the top of t
    :scale: 30%
 
 
-Once you have selected your cohort, you can choose and start a workflow in the lower part of the dashboard.
+Once you have selected your dataset, you can choose and start a workflow in the lower part of the dashboard.
 
 .. figure:: _static/img/dag_tigger.png
    :align: center

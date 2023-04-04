@@ -46,11 +46,11 @@
                 h3 Remote Workflow
               v-col(cols='12')
                 v-select(
-                  v-model='external_instance_names' 
-                  :items='external_available_instance_names' 
-                  label='External Instance names' 
-                  multiple='' 
-                  chips='' 
+                  v-model='external_instance_names'
+                  :items='external_available_instance_names'
+                  label='External Instance names'
+                  multiple=''
+                  chips=''
                   hint='On which (remote) nodes do you want to execute the workflow'
                 )
             //- forms of external workflows
@@ -75,13 +75,13 @@
           v-btn(color="primary", @click="submissionValidator()"  dark) Start Experiment
           v-btn(color="primary", @click="(instance_names=[]) && (dag_id=null)"  dark) Clear
   </template>
-  
+
   <script>
   import kaapanaApiService from "@/common/kaapanaApi.service";
   import VJsf from "@koumoul/vjsf/lib/VJsf.js";
   import "@koumoul/vjsf/lib/VJsf.css";
   import "@koumoul/vjsf/lib/deps/third-party.js";
-  
+
   export default {
     name: "WorkflowExecution",
     components: {
@@ -108,7 +108,7 @@
       local_remote_switch: true,
       form_requiredFields: [],
       my_form_validation: false,
-      form_validation_cohort_name: false,
+      form_validation_dataset_name: false,
       form_validation_method_confirmation: false
     }),
     props: {
@@ -156,8 +156,8 @@
       },
       // dataformRules() {
       //   return [
-      //     (v['data_form']['cohort']) => !!v['data_form']['cohort'] || "Cohort is required"
-      //     // (v) => !!v || "Cohort is required",
+      //     (v['data_form']['dataset']) => !!v['data_form']['dataset'] || "Dataset is required"
+      //     // (v) => !!v || "Dataset is required",
       //   ];
       // }
     },
@@ -181,7 +181,7 @@
       // experiment_name() {
       //   this.resetFormData()
       // },
-      
+
       experiment_name_(value) {
         this.experiment_name = value;
       },
@@ -203,14 +203,14 @@
         if (this.local_remote_switch == true) {
           if (this.instance_names.indexOf(this.clientinstance.instance_name) === -1) {
             this.instance_names.push(this.clientinstance.instance_name)
-          } 
+          }
           return `Local experiment on instance: ${this.clientinstance.instance_name}`
         }
         else {
           if (this.instance_names.indexOf(this.clientinstance.instance_name) !== -1) {
             this.instance_names = []
           }
-          return `Remote Experiment on available remote instances` 
+          return `Remote Experiment on available remote instances`
         }
       },
       formatFormData (formData) {
@@ -253,7 +253,7 @@
             delete this.formData[key]
           }
         });
-  
+
       },
       getUiFormSchemas() {
         kaapanaApiService
@@ -394,7 +394,7 @@
         }
       },
       submitWorkflow() {
-        // modify attributes remote_data and federated_data depending on instances 
+        // modify attributes remote_data and federated_data depending on instances
         this.federated_data = false;
         if ((this.instance_names.indexOf(this.clientinstance.instance_name) != -1) && (this.instance_names.length == 1)) {
           // clientinstance is in instance_names ==> local experiment
@@ -411,7 +411,7 @@
           .federatedClientApiPost("/experiment", {
             experiment_name: this.experiment_name,
             dag_id: this.dag_id,
-            instance_names: this.instance_names,          
+            instance_names: this.instance_names,
             conf_data: this.formatFormData(this.formData),
             remote: this.remote_data,
             federated: this.federated_data,
@@ -427,11 +427,10 @@
     }
   };
   </script>
-  
+
   <!-- Add "scoped" attribute to limit CSS to this component only -->
   <style scoped lang="scss">
     .is-invalid {
       border: 1px solid red;
     }
   </style>
-  

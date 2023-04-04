@@ -322,7 +322,7 @@ def create_dataset(
 
 
 @router.get("/dataset", response_model=schemas.Dataset)
-async def get_dataset(name: str, db: Session = Depends(get_db)):
+def get_dataset(name: str, db: Session = Depends(get_db)):
     return crud.get_dataset(db, name)
 
 
@@ -359,7 +359,7 @@ def delete_datasets(db: Session = Depends(get_db)):
 # create_experiment ; should replace and be sth like "def submit_workflow_json_schema()"
 @router.post("/experiment", response_model=schemas.Experiment)   # also okay: schemas.ExperimentWithKaapanaInstance
 def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData, db: Session = Depends(get_db)):
-    
+
     # validate incoming json_schema_data
     try:
         jsonschema.validate(json_schema_data.json(), schema([schemas.JsonSchemaData]))

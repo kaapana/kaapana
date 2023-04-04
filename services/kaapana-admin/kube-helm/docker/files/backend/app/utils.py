@@ -353,7 +353,7 @@ def helm_install(
     helm_command = f'{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}'
 
     if not execute_cmd:
-        return False, "", {}, release_name, helm_command
+        return False, "", keywords, release_name, helm_command
 
     skip_check = False
     if helm_command_suffix != "":
@@ -386,6 +386,35 @@ def helm_install(
 
     return success, stdout, helm_result_dict, release_name, helm_command
 
+async def helm_delete_cmd_run_async(release_name, version, cmd, multiinstallable):
+    success, stdout = await helm_helper.exec_shell_cmd_async(cmd, shell=True, timeout=20)
+
+    if success and version is not None:
+        helm_helper.update_extension_state(
+            schemas.ExtensionStateUpdate.construct(
+                extension_name=release_name,
+                extension_version=version,
+                state=schemas.ExtensionStateType.NOT_INSTALLED,
+                multiinstallable=multiinstallable
+            )
+        )
+
+    return success, stdout
+
+async def helm_install_cmd_run_async(release_name, version, cmd, keywords):
+    success, stdout = await helm_helper.exec_shell_cmd_async(cmd, shell=True, timeout=10)
+
+    if success and version is not None:
+        helm_helper.update_extension_state(
+            schemas.ExtensionStateUpdate.construct(
+                extension_name=release_name,
+                extension_version=version,
+                state=schemas.ExtensionStateType.INSTALLED,
+                multiinstallable=(True if "kaapanamultiinstallable" in keywords else False)
+            )
+        )
+
+    return success, stdout
 
 def helm_delete(
     release_name,
@@ -394,7 +423,8 @@ def helm_delete(
     helm_command_addons='',
     update_state=True,
     multiinstallable=False,
-    platforms=False
+    platforms=False,
+    execute_cmd=True
 ):
     # release version only important for extensions charts
     cached_extension = []
@@ -419,6 +449,10 @@ def helm_delete(
 
     # delete version
     helm_command = f'{settings.helm_path} -n {helm_namespace} uninstall {helm_command_addons} {release_name}'
+
+    if not execute_cmd:
+        return False, helm_command
+
     success, stdout = helm_helper.execute_shell_command(helm_command, shell=True, blocking=False)
     if success:
         if release_version is not None:

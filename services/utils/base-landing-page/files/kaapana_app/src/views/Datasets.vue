@@ -11,24 +11,24 @@
               </v-col>
               <v-col>
                 <v-select
-                    v-model="cohort_name"
-                    :items="cohort_names"
+                    v-model="datasetName"
+                    :items="datasetNames"
                     label="Select Dataset"
                     clearable
                     hide-details
                     return-object
                     single-line
                     dense
-                    @click:clear="cohort_name=null"
+                    @click:clear="datasetName=null"
                 ></v-select>
               </v-col>
             </v-row>
             <Search
                 ref="search"
-                :cohort_name=cohort_name
+                :datasetName=datasetName
                 @search="(query) => updatePatients(query)"
-                @saveCohort="(dict) => saveCohort(dict.name, dict.query)"
-                @updateCohort="(dict) => updateCohort(dict.name, dict.query)"
+                @saveDataset="(dict) => saveDataset(dict.name, dict.query)"
+                @updateDataset="(dict) => updateDataset(dict.name, dict.query)"
             />
           </div>
           <v-divider/>
@@ -45,8 +45,8 @@
             v-else-if="!isLoading && Object.entries(patients).length > 0 && settings.datasets.structured"
             :patients.sync="patients"
             :selectedTags="tags"
-            :cohort_name="cohort_name"
-            :cohort_names="cohort_names"
+            :datasetName="datasetName"
+            :datasetNames="datasetNames"
             @openInDetailView="(seriesInstanceUID) => this.detailViewSeriesInstanceUID = seriesInstanceUID"
             @selectedItems="(_seriesInstanceUIDs) => this.selectedSeriesInstanceUIDs = _seriesInstanceUIDs"
         />
@@ -55,8 +55,8 @@
             v-else-if="!isLoading && seriesInstanceUIDs.length > 0 && !settings.datasets.structured"
             :seriesInstanceUIDs="seriesInstanceUIDs"
             :selectedTags="tags"
-            :cohort_name="cohort_name"
-            :cohort_names="cohort_names"
+            :datasetName="datasetName"
+            :datasetNames="datasetNames"
             @openInDetailView="(seriesInstanceUID) => this.detailViewSeriesInstanceUID = seriesInstanceUID"
             @selectedItems="(_seriesInstanceUIDs) => this.selectedSeriesInstanceUIDs = _seriesInstanceUIDs"
         />
@@ -141,7 +141,7 @@ import StructuredGallery from "@/components/StructuredGallery.vue";
 import Gallery from "@/components/Gallery.vue";
 import Search from "@/components/Search.vue";
 import TagBar from "@/components/TagBar.vue";
-import {createCohort, updateDataset, loadCohortNames, loadPatients, loadAvailableTags} from "../common/api.service";
+import {createDataset, updateDataset, loadDatasetNames, loadPatients, loadAvailableTags} from "../common/api.service";
 import MetaData from "@/components/MetaData.vue";
 import {settings} from "@/static/defaultUIConfig";
 
@@ -156,8 +156,8 @@ export default {
       isLoading: true,
       message: 'Loading...',
       settings: settings,
-      cohort_names: [],
-      cohort_name: null,
+      datasetNames: [],
+      datasetName: null,
       metadata: {},
       fab: false
     };
@@ -197,7 +197,7 @@ export default {
         this.isLoading = false
       })
     },
-    async updateCohort(name, query) {
+    async updateDataset(name, query) {
       try {
         const items = await loadPatients({
           structured: false,
@@ -205,9 +205,8 @@ export default {
         })
         const body = {
           action: 'UPDATE',
-          cohort_name: name,
-          cohort_identifiers: items,
-          cohort_query: {index: 'meta-index'}
+          name: name,
+          identifiers: items,
         }
         await updateDataset(body)
         this.$notify({title: 'Dataset updated', text: `Successfully updated dataset ${name}.`, type: 'success'})
@@ -216,21 +215,20 @@ export default {
         this.$notify({title: 'Network/Server error', text: error, type: 'error'});
       }
     },
-    async saveCohort(name, query) {
+    async saveDataset(name, query) {
       try {
         const items = await loadPatients({
           structured: false,
           query: query
         })
         const body = {
-          cohort_name: name,
-          cohort_identifiers: items,
-          cohort_query: {index: 'meta-index'}
+          name: name,
+          identifiers: items,
         }
-        await createCohort(body)
+        await createDataset(body)
         this.$notify({title: 'Dataset created', text: `Successfully new dataset ${name}.`, type: 'success'});
-        loadCohortNames().then(_cohort_names => this.cohort_names = _cohort_names)
-        this.cohort_name = name
+        loadDatasetNames().then(_datasetNames => this.datasetNames = _datasetNames)
+        this.datasetName = name
         await this.updatePatients(query)
       } catch (error) {
         this.$notify({title: 'Network/Server error', text: error, type: 'error'});
@@ -239,8 +237,8 @@ export default {
   },
   async created() {
     this.settings = JSON.parse(localStorage['settings'])
-    // this.cohort_name = JSON.parse(localStorage['Dataset.search.cohort_name'] || '')
-    loadCohortNames().then(_cohort_names => this.cohort_names = _cohort_names)
+    // this.datasetName = JSON.parse(localStorage['Dataset.search.datasetName'] || '')
+    loadDatasetNames().then(_datasetNames => this.datasetNames = _datasetNames)
   }
 };
 </script>
@@ -248,6 +246,7 @@ export default {
 .sidebar {
   width: 30%;
   height: calc(100vh - 81px);
+
   float: left;
   overflow-y: auto;
 }

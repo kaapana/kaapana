@@ -14,28 +14,38 @@ import torch
 from monai.metrics import compute_meandice
 from pprint import pprint
 from matplotlib import rcParams
-rcParams.update({'figure.autolayout': True})
+
+rcParams.update({"figure.autolayout": True})
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 # class LocalDiceOperator():
 class LocalDiceOperator(KaapanaPythonBaseOperator):
-
     def create_plots(self, data_table, table_name, result_dir):
         print(f"# Creating boxplots: {table_name}")
         os.makedirs(result_dir, exist_ok=True)
 
         plot_labels = sorted(list(data_table.Model.unique()))
         if "ensemble" in plot_labels:
-            plot_labels.append(plot_labels.pop(plot_labels.index('ensemble')))
+            plot_labels.append(plot_labels.pop(plot_labels.index("ensemble")))
 
         fig, ax1 = plt.subplots(1, 1, figsize=(12, 14))
-        box_plot = sns.boxplot(x="Model", y="Dice", hue="Label", palette="Set3", data=data_table, ax=ax1, order=plot_labels)
+        box_plot = sns.boxplot(
+            x="Model",
+            y="Dice",
+            hue="Label",
+            palette="Set3",
+            data=data_table,
+            ax=ax1,
+            order=plot_labels,
+        )
         box_plot.set_xticklabels(box_plot.get_xticklabels(), rotation=40, ha="right")
 
         box = box_plot.get_position()
-        box_plot.set_position([box.x0, box.y0, box.width * 0.85, box.height])  # resize position
-        box_plot.legend(loc='center right', bbox_to_anchor=(1.22, 0.5), ncol=1)
+        box_plot.set_position(
+            [box.x0, box.y0, box.width * 0.85, box.height]
+        )  # resize position
+        box_plot.legend(loc="center right", bbox_to_anchor=(1.22, 0.5), ncol=1)
         plt.tight_layout()
         fig.savefig(join(result_dir, f"pdf_results_{table_name}.pdf"))
         fig.savefig(join(result_dir, f"png_results_{table_name}.png"), dpi=fig.dpi)
@@ -72,7 +82,7 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
             print(f"# Couldn't find a 'Clear Label' 0 in NIFTI!")
             print(f"# NIFTI-path: {nifti_path}")
             print("#")
-            raise ValueError('ERROR')
+            raise ValueError("ERROR")
 
         return nifti_numpy, nifti_labels
 
@@ -102,12 +112,12 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
         # Compute Dice coefficient
         intersection = np.logical_and(pred, gt)
 
-        return 2. * intersection.sum() / im_sum
+        return 2.0 * intersection.sum() / im_sum
 
     @staticmethod
     def get_one_hot(targets, nb_classes):
         res = np.eye(nb_classes)[np.array(targets).reshape(-1)]
-        return res.reshape(list(targets.shape)+[nb_classes])
+        return res.reshape(list(targets.shape) + [nb_classes])
 
     def start(self, ds, **kwargs):
         print("# Evaluating predictions started ...")
@@ -122,10 +132,12 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
         result_table = []
 
         # run_dir = self.airflow_workflow_dir
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         processed_count = 0
 
-        batch_folders = sorted([f for f in glob(os.path.join(run_dir, self.batch_name, '*'))])
+        batch_folders = sorted(
+            [f for f in glob(os.path.join(run_dir, self.batch_name, "*"))]
+        )
         print("# Found {} batches".format(len(batch_folders)))
         dice_results = {}
         for batch_element_dir in batch_folders:
@@ -138,7 +150,9 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
             print("#")
             single_model_pred_dir = join(batch_element_dir, "single-model-prediction")
             # single_model_pred_dir = join(batch_element_dir, self.operator_in_dir)
-            single_model_pred_files = sorted(glob(join(single_model_pred_dir, "*.nii*"), recursive=False))
+            single_model_pred_files = sorted(
+                glob(join(single_model_pred_dir, "*.nii*"), recursive=False)
+            )
             for single_model_pred_file in single_model_pred_files:
                 print("#")
                 print("##################################################")
@@ -159,7 +173,9 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
                 print(f"# Found {len(gt_files)} gt-files @ {gt_dir}!")
                 assert len(gt_files) != 0
 
-                single_model_prediction = nib.load(single_model_pred_file).get_fdata().astype(int)
+                single_model_prediction = (
+                    nib.load(single_model_pred_file).get_fdata().astype(int)
+                )
                 max_label = single_model_prediction.max()
                 ground_trouth = nib.load(gt_files[0]).get_fdata().astype(int)
                 max_label_gt = ground_trouth.max()
@@ -167,34 +183,44 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
 
                 # nifti_int_encodings.extend(gt_int_encodings)
 
-                one_hot_encoding_pred = (np.arange(max_label+1) == single_model_prediction[..., None]).astype(int).transpose()
+                one_hot_encoding_pred = (
+                    (np.arange(max_label + 1) == single_model_prediction[..., None])
+                    .astype(int)
+                    .transpose()
+                )
                 one_hot_encoding_pred = np.expand_dims(one_hot_encoding_pred, axis=0)
                 single_model_prediction = None
-                one_hot_encoding_gt = (np.arange(max_label+1) == ground_trouth[..., None]).astype(int).transpose()
+                one_hot_encoding_gt = (
+                    (np.arange(max_label + 1) == ground_trouth[..., None])
+                    .astype(int)
+                    .transpose()
+                )
                 one_hot_encoding_gt = np.expand_dims(one_hot_encoding_gt, axis=0)
                 ground_trouth = None
 
                 # stack_gt = np.stack(one_hot_encoding_gt,axis=0)
                 pred_tensor = torch.from_numpy(one_hot_encoding_pred)
-                one_hot_encoding_pred =None
+                one_hot_encoding_pred = None
 
                 gt_tensor = torch.from_numpy(one_hot_encoding_gt)
-                one_hot_encoding_gt =None
+                one_hot_encoding_gt = None
 
-                dice_scores = compute_meandice(y_pred=pred_tensor, y=gt_tensor, include_background=True).numpy()
-                
+                dice_scores = compute_meandice(
+                    y_pred=pred_tensor, y=gt_tensor, include_background=True
+                ).numpy()
+
                 print("Single prediction:")
                 print(dice_scores)
-                processed_count+=1
+                processed_count += 1
                 dice_results[processed_count] = dice_scores
-                
-                single_model_prediction=None
-                ground_trouth=None
-                one_hot_encoding_pred=None
-                one_hot_encoding_gt=None
-                pred_tensor=None
-                gt_tensor=None
-            
+
+                single_model_prediction = None
+                ground_trouth = None
+                one_hot_encoding_pred = None
+                one_hot_encoding_gt = None
+                pred_tensor = None
+                gt_tensor = None
+
                 # if self.ensemble_dir is not None:
                 #     en_dir = join(batch_element_dir, self.ensemble_dir, "*.nii.gz")
                 #     ensemble_files = glob(en_dir, recursive=False)
@@ -226,17 +252,16 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
             print("#")
             print("##################################################")
             print("#")
-            raise ValueError('ERROR')
+            raise ValueError("ERROR")
         else:
             print("#")
             print(f"# ----> {processed_count} FILES HAVE BEEN PROCESSED!")
             print("#")
             print("# DONE #")
 
-
     # def __init__(self):
     #     self.airflow_workflow_dir = "/home/jonas/Downloads/dice_test_data/nnunet-ensemble-210505182552676296"
-    #     self.batch_name = "nnunet-cohort"
+    #     self.batch_name = "nnunet-dataset"
 
     #     self.gt_dir = "seg-check-gt"
     #     self.ensemble_dir = "ensemble-prediction"
@@ -244,17 +269,20 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
     #     self.operator_out_dir = "evaluation"
     #     self.anonymize = True
 
-    def __init__(self,
-                 dag,
-                 gt_operator,
-                 ensemble_operator=None,
-                 batch_name=None,
-                 airflow_workflow_dir=None,
-                 anonymize=True,
-                 **kwargs):
-
+    def __init__(
+        self,
+        dag,
+        gt_operator,
+        ensemble_operator=None,
+        batch_name=None,
+        airflow_workflow_dir=None,
+        anonymize=True,
+        **kwargs,
+    ):
         self.gt_dir = gt_operator.operator_out_dir
-        self.ensemble_dir = ensemble_operator.operator_out_dir if ensemble_operator != None else None
+        self.ensemble_dir = (
+            ensemble_operator.operator_out_dir if ensemble_operator != None else None
+        )
         self.anonymize = anonymize
 
         super().__init__(
@@ -264,7 +292,5 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
             batch_name=batch_name,
             airflow_workflow_dir=airflow_workflow_dir,
             execution_timeout=timedelta(hours=5),
-            **kwargs
+            **kwargs,
         )
-
-

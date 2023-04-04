@@ -15,14 +15,15 @@ from pprint import pprint
 import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
-rcParams.update({'figure.autolayout': True})
+
+rcParams.update({"figure.autolayout": True})
 
 # Counter to check if smth has been processed
 processed_count = 0
 model_counter = 0
 
 # os.environ['WORKFLOW_DIR'] = str("/home/jonas/Downloads/dag-data/nnunet-ensemble-210512095519706991")
-# os.environ['BATCH_NAME'] = str("nnunet-cohort")
+# os.environ['BATCH_NAME'] = str("nnunet-dataset")
 # os.environ['OPERATOR_IN_DIR'] = str("seg-check-inference")
 # os.environ['OPERATOR_OUT_DIR'] = str("dice-evaluation")
 # os.environ['GT_IN_DIR'] = str("seg-check-gt")
@@ -61,7 +62,9 @@ include_background = getenv("INCLUDE_BAKGROUND", "False")
 include_background = True if include_background.lower() == "true" else False
 
 parallel_processes = getenv("THREADS", "1")
-parallel_processes = int(parallel_processes) if parallel_processes.lower() != "none" else None
+parallel_processes = (
+    int(parallel_processes) if parallel_processes.lower() != "none" else None
+)
 assert parallel_processes is not None
 
 # File-extension to search for in the input-dir
@@ -73,10 +76,18 @@ dice_results = {}
 
 def get_seg_info(input_nifti):
     print(f"# Get seg configuration for: {basename(input_nifti)}")
-    model_id = f"-{basename(input_nifti).replace('.nii.gz','').split('-')[-1]}" if "-" in basename(input_nifti) else ""
+    model_id = (
+        f"-{basename(input_nifti).replace('.nii.gz','').split('-')[-1]}"
+        if "-" in basename(input_nifti)
+        else ""
+    )
     seg_nifti_id = basename(input_nifti).replace(".nii.gz", "")
     json_files_found = glob(join(dirname(input_nifti), "*.json"), recursive=False)
-    json_files_found = [meta_json_path for meta_json_path in json_files_found if "model_combinations" not in meta_json_path]
+    json_files_found = [
+        meta_json_path
+        for meta_json_path in json_files_found
+        if "model_combinations" not in meta_json_path
+    ]
 
     print(f"# input_nifti: {input_nifti}")
     print(f"# model_id: {model_id}")
@@ -84,7 +95,7 @@ def get_seg_info(input_nifti):
     print(f"# meta-info-file: {meta_json_path}")
     assert exists(meta_json_path)
     gen_seg_info = {}
-    with open(meta_json_path, 'rb') as f:
+    with open(meta_json_path, "rb") as f:
         meta_info = json.load(f)
 
     if "segmentAttributes" in meta_info:
@@ -100,11 +111,14 @@ def get_seg_info(input_nifti):
                 gen_seg_info[label_name] = label_int
 
     if "seg-check-inference" in input_nifti:
-        model_id_info_file = join(dirname(input_nifti).replace("seg-check-inference", "do-inference"), f"seg_info{model_id}.json")
+        model_id_info_file = join(
+            dirname(input_nifti).replace("seg-check-inference", "do-inference"),
+            f"seg_info{model_id}.json",
+        )
         print(f"# model_id_info_file: {model_id_info_file}")
         assert exists(model_id_info_file)
-        
-        with open(model_id_info_file, 'rb') as f:
+
+        with open(model_id_info_file, "rb") as f:
             model_info = json.load(f)
 
         assert "task_id" in model_info
@@ -114,7 +128,6 @@ def get_seg_info(input_nifti):
         model_id = "ensemble"
     else:
         print(f"# Could not find model info for: {input_nifti}")
-
 
     print(f"# extracted model-id: {model_id}")
     return model_id, gen_seg_info
@@ -133,7 +146,9 @@ def check_prediction_info(seg_info):
             print("# ")
             print("# ")
             print("# global_seg_check_info:")
-            print(json.dumps(global_seg_check_info, indent=4, sort_keys=True, default=str))
+            print(
+                json.dumps(global_seg_check_info, indent=4, sort_keys=True, default=str)
+            )
             print("# ")
             print("# Issue with prediction config!")
             return False
@@ -148,7 +163,11 @@ def get_metric_score(input_data):
     results = {}
 
     ground_trouth = nib.load(gt_file).get_fdata().astype(int)
-    one_hot_encoding_gt = (np.arange(max_label_encoding+1) == ground_trouth[..., None]).astype(int).transpose()
+    one_hot_encoding_gt = (
+        (np.arange(max_label_encoding + 1) == ground_trouth[..., None])
+        .astype(int)
+        .transpose()
+    )
     one_hot_encoding_gt = np.expand_dims(one_hot_encoding_gt, axis=0)
     ground_trouth = None
     gt_tensor = torch.from_numpy(one_hot_encoding_gt)
@@ -168,17 +187,30 @@ def get_metric_score(input_data):
         results[model_id] = {}
 
         single_model_prediction = nib.load(model_pred_file).get_fdata().astype(int)
-        one_hot_encoding_pred = (np.arange(max_label_encoding+1) == single_model_prediction[..., None]).astype(int).transpose()
+        one_hot_encoding_pred = (
+            (np.arange(max_label_encoding + 1) == single_model_prediction[..., None])
+            .astype(int)
+            .transpose()
+        )
         one_hot_encoding_pred = np.expand_dims(one_hot_encoding_pred, axis=0)
         single_model_prediction = None
         pred_tensor = torch.from_numpy(one_hot_encoding_pred)
         one_hot_encoding_pred = None
-        dice_scores = compute_meandice(y_pred=pred_tensor, y=gt_tensor, include_background=include_background).numpy()[0]
-        asd_scores = compute_average_surface_distance(y_pred=pred_tensor, y=gt_tensor, include_background=include_background).numpy()[0]
+        dice_scores = compute_meandice(
+            y_pred=pred_tensor, y=gt_tensor, include_background=include_background
+        ).numpy()[0]
+        asd_scores = compute_average_surface_distance(
+            y_pred=pred_tensor, y=gt_tensor, include_background=include_background
+        ).numpy()[0]
         pred_tensor = None
         print(f"# {model_pred_file} -> dice_scores: {list(dice_scores)}")
         print(f"# {model_pred_file} -> asd_scores: {list(asd_scores)}")
-        results[model_id] = {pred_file_id: {'dice_scores': list(dice_scores), 'asd_scores': list(np.float32(asd_scores)) }} # numpy casting to have same format as dice_score
+        results[model_id] = {
+            pred_file_id: {
+                "dice_scores": list(dice_scores),
+                "asd_scores": list(np.float32(asd_scores)),
+            }
+        }  # numpy casting to have same format as dice_score
     if ensemble_pred_file is not None:
         info_json = ensemble_pred_file.replace(".nii.gz", ".json")
         print(f"# info_json: {info_json}")
@@ -193,20 +225,33 @@ def get_metric_score(input_data):
 
         ensemble_file_id = basename(ensemble_pred_file).replace(".nii.gz", "")
         ensemble_prediction = nib.load(ensemble_pred_file).get_fdata().astype(int)
-        one_hot_encoding_ensemble = (np.arange(max_label_encoding+1) == ensemble_prediction[..., None]).astype(int).transpose()
+        one_hot_encoding_ensemble = (
+            (np.arange(max_label_encoding + 1) == ensemble_prediction[..., None])
+            .astype(int)
+            .transpose()
+        )
         one_hot_encoding_ensemble = np.expand_dims(one_hot_encoding_ensemble, axis=0)
         ensemble_prediction = None
         ensemble_tensor = torch.from_numpy(one_hot_encoding_ensemble)
         one_hot_encoding_ensemble = None
 
-        dice_scores = compute_meandice(y_pred=ensemble_tensor, y=gt_tensor, include_background=include_background).numpy()[0]
-        asd_scores = compute_average_surface_distance(y_pred=ensemble_tensor, y=gt_tensor, include_background=include_background).numpy()[0]
+        dice_scores = compute_meandice(
+            y_pred=ensemble_tensor, y=gt_tensor, include_background=include_background
+        ).numpy()[0]
+        asd_scores = compute_average_surface_distance(
+            y_pred=ensemble_tensor, y=gt_tensor, include_background=include_background
+        ).numpy()[0]
 
         pred_tensor = None
 
         print(f"# ensemble: {ensemble_pred_file} -> dice_scores: {list(dice_scores)}")
         print(f"# ensemble: {ensemble_pred_file} -> asd_scores: {list(asd_scores)}")
-        results["ensemble"] = {ensemble_file_id: {'dice_scores': list(dice_scores), 'asd_scores': list(np.float32(asd_scores)) }}
+        results["ensemble"] = {
+            ensemble_file_id: {
+                "dice_scores": list(dice_scores),
+                "asd_scores": list(np.float32(asd_scores)),
+            }
+        }
 
     return True, batch_id, results
 
@@ -234,7 +279,7 @@ print("#")
 print("##################################################")
 print("#")
 
-seg_check_info_json_files = glob(join('/', workflow_dir, "global-seg-info", "*.json"))
+seg_check_info_json_files = glob(join("/", workflow_dir, "global-seg-info", "*.json"))
 assert len(seg_check_info_json_files) == 1
 
 with open(seg_check_info_json_files[0]) as f:
@@ -244,19 +289,21 @@ global_seg_check_info = {}
 max_label_encoding = 0
 for label_key, int_encoding in tmp_info_dict.items():
     int_encoding = int(int_encoding)
-    max_label_encoding = int_encoding if int_encoding > max_label_encoding else max_label_encoding
+    max_label_encoding = (
+        int_encoding if int_encoding > max_label_encoding else max_label_encoding
+    )
     global_seg_check_info[label_key] = int_encoding
 
 if "Clear Label" not in global_seg_check_info:
     global_seg_check_info["Clear Label"] = 0
 
 queue_list = []
-batch_output_dir = join('/', workflow_dir, operator_out_dir)
+batch_output_dir = join("/", workflow_dir, operator_out_dir)
 Path(batch_output_dir).mkdir(parents=True, exist_ok=True)
 
 output_file = join(batch_output_dir, "dice_results.json")
 # Loop for every batch-element (usually series)
-batch_folders = sorted([f for f in glob(join('/', workflow_dir, batch_name, '*'))])
+batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
 for batch_element_dir in batch_folders:
     print("#")
     print(f"# Processing batch-element {batch_element_dir}")
@@ -273,7 +320,9 @@ for batch_element_dir in batch_folders:
     print(f"#")
     print(f"# found:")
     print(f"#")
-    print(f"# {len(single_model_pred_files)} single_model_pred_files at {single_model_input_dir}")
+    print(
+        f"# {len(single_model_pred_files)} single_model_pred_files at {single_model_input_dir}"
+    )
     print(f"# {len(gt_files)} gt_files at {gt_input_dir}")
     print(f"# {len(ensemble_pred_files)} ensemble_pred_files at {ensemble_input_dir}")
     print(f"#")
@@ -294,7 +343,9 @@ for batch_element_dir in batch_folders:
 
 print(f"#")
 print(f"#")
-print(f"# Starting {parallel_processes} parallel jobs -> job_count: {len(queue_list)} ...")
+print(
+    f"# Starting {parallel_processes} parallel jobs -> job_count: {len(queue_list)} ..."
+)
 print(f"#")
 print(f"#")
 with ThreadPool(parallel_processes) as threadpool:
@@ -333,7 +384,7 @@ print("# Writing results to json:")
 print("# ")
 print(json.dumps(dice_results, indent=4, sort_keys=True, default=str))
 print("# ")
-with open(output_file, "w", encoding='utf-8') as jsonData:
+with open(output_file, "w", encoding="utf-8") as jsonData:
     json.dump(dice_results, jsonData, indent=4, sort_keys=True, default=str)
 
 # with open(output_file) as f:
@@ -346,19 +397,19 @@ for batch_id, model_results in dice_results.items():
         print(f"model_id: {model_id}")
         for file_id, dice_info in file_results.items():
             print(f"file_id: {model_id}")
-            for array_index in range(0, len(dice_info['dice_scores'])):
-                class_label = list(global_seg_check_info.keys())[list(global_seg_check_info.values()).index(array_index+1)]
-                class_dice = float(dice_info['dice_scores'][array_index])
-                class_asd = float(dice_info['asd_scores'][array_index])
-                result_table.append([
-                    file_id,
-                    model_id,
-                    class_label,
-                    class_dice,
-                    class_asd
-                ])
+            for array_index in range(0, len(dice_info["dice_scores"])):
+                class_label = list(global_seg_check_info.keys())[
+                    list(global_seg_check_info.values()).index(array_index + 1)
+                ]
+                class_dice = float(dice_info["dice_scores"][array_index])
+                class_asd = float(dice_info["asd_scores"][array_index])
+                result_table.append(
+                    [file_id, model_id, class_label, class_dice, class_asd]
+                )
 
-df_data = pd.DataFrame(result_table, columns=['Series', 'Model', 'Label', 'Dice', 'ASD'])
-df_data.to_csv(join(batch_output_dir, "dice_results.csv"), sep='\t')
+df_data = pd.DataFrame(
+    result_table, columns=["Series", "Model", "Label", "Dice", "ASD"]
+)
+df_data.to_csv(join(batch_output_dir, "dice_results.csv"), sep="\t")
 
 print("# DONE #")

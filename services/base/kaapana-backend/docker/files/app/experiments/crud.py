@@ -17,6 +17,7 @@ from urllib3.util import Timeout
 
 from app.config import settings
 from . import models, schemas
+from .schemas import DatasetCreate
 from .utils import (
     execute_job_airflow,
     abort_job_airflow,
@@ -29,7 +30,6 @@ from .utils import (
     get_dag_list,
     raise_kaapana_connection_error,
     requests_retry_session,
-    get_uid_list_from_query,
 )
 
 logging.getLogger().setLevel(logging.INFO)
@@ -135,7 +135,7 @@ def create_and_update_client_kaapana_instance(
         [
             dataset
             for dataset in client_kaapana_instance.allowed_datasets
-            if dataset in get_cohorts(db)
+            if dataset in [ds.name for ds in get_datasets(db)]
         ]
     )
     db_client_kaapana_instance = get_kaapana_instance(db, remote=False)
@@ -324,7 +324,7 @@ def create_job(db: Session, job: schemas.JobCreate):
             **{
                 "job_id": db_job.id,
                 "status": "scheduled",
-                "description": "The worklow was triggered!",
+                "description": "The workflow was triggered!",
             }
         )
         update_job(db, job, remote=False)
@@ -830,187 +830,127 @@ def sync_states_from_airflow(db: Session, periodically=False):
         logging.error("Error while syncing kaapana-backend with Airflow")
 
 
-#
-# def create_identifier(db: Session, identifier: schemas.Identifier):
-#     db_identifier = models.Identifier(
-#         identifier=identifier.identifier
-#     )
-#     db.add(db_identifier)
-#     db.commit()
-#     db.refresh(db_identifier)
-#     return db_identifier
-#
-#
-# def get_identifiers(db: Session):
-#     return db.query(models.Identifier).all()
-#
-#
-# def get_identifier(db: Session, identifier: str):
-#     return db.query(models.Identifier).filter_by(identifier=identifier).first()
-#
-#
-# def create_identifier_if_not_present(db, identifier: schemas.Identifier):
-#     db_identifier = get_identifier(db, identifier=identifier.identifier)
-#
-#     if db_identifier:
-#         return db_identifier
-#     else:
-#         return create_identifier(db, identifier)
-#
-#
-# def delete_identifier(db: Session, identifier: str):
-#     db_identifier = get_identifier(db, identifier)
-#     db.delete(db_identifier)
-#     db.commit()
-#     return {"ok": True}
-#
-#
-# def delete_identifiers(db: Session):
-#     items = db.query(models.Identifier).all()
-#     [db.delete(item) for item in items]
-#     db.commit()
-#     return {"ok": True}
+def create_dataset(db: Session, dataset: schemas.DatasetCreate):
+    logging.info(f"Dataset: {dataset.identifiers}; type: {type(dataset.identifiers)}")
 
-
-def create_cohort(db: Session, cohort: schemas.CohortCreate):
-    print(
-        f"cohort: {cohort.cohort_identifiers}; type: {type(cohort.cohort_identifiers)}"
-    )
-
-    if cohort.kaapana_instance_id is None:
+    if dataset.kaapana_instance_id is None:
         db_kaapana_instance = (
             db.query(models.KaapanaInstance).filter_by(remote=False).first()
         )
     else:
         db_kaapana_instance = (
             db.query(models.KaapanaInstance)
-            .filter_by(id=cohort.kaapana_instance_id)
+            .filter_by(id=dataset.kaapana_instance_id)
             .first()
         )
 
-    if db.query(models.Cohort).filter_by(cohort_name=cohort.cohort_name).first():
-        raise HTTPException(status_code=409, detail="Cohort exists already!")
+    if db.query(models.Dataset).filter_by(name=dataset.name).first():
+        raise HTTPException(status_code=409, detail="Dataset exists already!")
 
     if not db_kaapana_instance:
         raise HTTPException(status_code=404, detail="Kaapana instance not found")
 
     utc_timestamp = get_utc_timestamp()
 
-    cohort_identifiers = (
-        get_uid_list_from_query(cohort.cohort_query)
-        if cohort.cohort_query and not cohort.cohort_identifiers
-        else cohort.cohort_identifiers
-    )
-
-    print(f"identifiers: {cohort_identifiers}")
-
-    db_cohort = models.Cohort(
-        username=cohort.username,
-        cohort_name=cohort.cohort_name,
-        cohort_query=json.dumps(cohort.cohort_query),
-        cohort_identifiers=json.dumps(cohort_identifiers),
+    db_dataset = models.Dataset(
+        username=dataset.username,
+        name=dataset.name,
+        identifiers=json.dumps(dataset.identifiers),
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
     )
 
-    print(db_cohort.cohort_identifiers)
-
-    db_kaapana_instance.cohorts.append(db_cohort)
+    db_kaapana_instance.datasets.append(db_dataset)
     db.add(db_kaapana_instance)
     db.commit()
-    db.refresh(db_cohort)
-    return db_cohort
+    db.refresh(db_dataset)
+    return db_dataset
 
 
-def get_cohort(db: Session, cohort_name: str):
-    db_cohort = db.query(models.Cohort).filter_by(cohort_name=cohort_name).first()
-    if not db_cohort:
-        raise HTTPException(status_code=404, detail="Cohort not found")
-    return db_cohort
+def get_dataset(db: Session, name: str, raise_if_not_existing=True):
+    db_dataset = db.query(models.Dataset).filter_by(name=name).first()
+    if not db_dataset and raise_if_not_existing:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    return db_dataset
 
 
-def get_cohorts(
+def get_datasets(
     db: Session,
     instance_name: str = None,
     limit=None,
-    as_list: bool = True,
     username: str = None,
-):
+) -> List[models.Dataset]:
     logging.info(username)
-    if username is not None:
-        db_cohorts = (
-            db.query(models.Cohort)
-            .filter_by(username=username)
-            .join(models.Cohort.kaapana_instance, aliased=True)
-            .order_by(desc(models.Cohort.time_updated))
-            .limit(limit)
-            .all()
-        )
-    else:
-        db_cohorts = (
-            db.query(models.Cohort)
-            .join(models.Cohort.kaapana_instance, aliased=True)
-            .order_by(desc(models.Cohort.time_updated))
-            .limit(limit)
-            .all()
-        )
-    if as_list is True:
-        return [db_cohort.cohort_name for db_cohort in db_cohorts]
-    return db_cohorts
+    # if username is not None:
+    #     db_datasets = (
+    #         db.query(models.Dataset)
+    #         .filter_by(username=username)
+    #         .join(models.Dataset.kaapana_instance, aliased=True)
+    #         .order_by(desc(models.Dataset.time_updated))
+    #         .limit(limit)
+    #         .all()
+    #     )
+    # else:
+    db_datasets = (
+        db.query(models.Dataset)
+        # .join(models.Dataset.kaapana_instance, aliased=True)
+        .order_by(desc(models.Dataset.time_updated))
+        .limit(limit)
+        .all()
+    )
+
+    return db_datasets
 
 
-def delete_cohort(db: Session, cohort_name: str):
-    db_cohort = get_cohort(db, cohort_name)
-    db.delete(db_cohort)
+def delete_dataset(db: Session, name: str):
+    db_dataset = get_dataset(db, name)
+    db.delete(db_dataset)
     db.commit()
     return {"ok": True}
 
 
-def delete_cohorts(db: Session):
-    items = db.query(models.Cohort).all()
+def delete_datasets(db: Session):
+    items = db.query(models.Dataset).all()
     [db.delete(item) for item in items]
     db.commit()
     return {"ok": True}
 
 
-def update_cohort(db: Session, cohort=schemas.CohortUpdate):
-    # TODO: this probably doesn't work yet!
-    utc_timestamp = get_utc_timestamp()
+def update_dataset(db: Session, dataset=schemas.DatasetUpdate):
+    logging.info(f"Updating dataset {dataset.name}")
+    db_dataset = get_dataset(db, dataset.name, raise_if_not_existing=False)
 
-    logging.info(f"Updating cohort {cohort.cohort_name}")
-    db_cohort = get_cohort(db, cohort.cohort_name)
-
-    if cohort.cohort_name is not None:
-        db_cohort.cohort_name = cohort.cohort_name
-
-    cohort.cohort_identifiers = (
-        get_uid_list_from_query(cohort.cohort_query)
-        if cohort.cohort_query and not cohort.cohort_identifiers
-        else cohort.cohort_identifiers
-    )
-
-    db_identifiers = cohort.cohort_identifiers
-
-    if cohort.action == "ADD":
-        db_cohort.cohort_identifiers = list(
-            set(db_identifiers + db_cohort.cohort_identifiers)
+    if not db_dataset:
+        logging.info(f"Dataset {dataset.name} doesn't exist. Creating it.")
+        db_dataset = create_dataset(
+            db,
+            DatasetCreate(name=dataset.name),
         )
-    elif cohort.action == "DELETE":
-        db_cohort.cohort_identifiers = [
-            identifier
-            for identifier in db_cohort.cohort_identifiers
-            if identifier not in db_identifiers
-        ]
-    elif cohort.action == "UPDATE":
-        db_cohort.cohort_identifiers = db_identifiers
-    else:
-        raise ValueError(f"Invalid action {cohort.action}")
+        logging.info(f"Dataset {dataset.name} created.")
 
-    # db_cohort.username = username
-    db_cohort.cohort_query = json.dumps(cohort.cohort_query)
+    logging.info(f"{dataset.action}: {db_dataset.identifiers} -> {dataset.identifiers}")
+    if dataset.action == "ADD":
+        db_dataset.identifiers = json.dumps(
+            list(set(dataset.identifiers + json.loads(db_dataset.identifiers)))
+        )
+    elif dataset.action == "DELETE":
+        db_dataset.identifiers = json.dumps(
+            [
+                identifier
+                for identifier in json.loads(db_dataset.identifiers)
+                if identifier not in dataset.identifiers
+            ]
+        )
+    elif dataset.action == "UPDATE":
+        db_dataset.identifiers = json.dumps(dataset.identifiers)
+    else:
+        raise ValueError(f"Invalid action {dataset.action}")
+
+    logging.info(f"Successful updated Dataset {dataset.name}")
+    # db_dataset.username = username
     db.commit()
-    db.refresh(db_cohort)
-    return db_cohort
+    db.refresh(db_dataset)
+    return db_dataset
 
 
 def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
@@ -1047,7 +987,7 @@ def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
         experiment_jobs=experiment.experiment_jobs,
         # list experiment_jobs already added to experiment in client.py's def create_experiment()
         involved_kaapana_instances=experiment.involved_kaapana_instances,
-        cohort_name=experiment.cohort_name,
+        dataset_name=experiment.dataset_name,
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
     )
@@ -1070,16 +1010,16 @@ async def queue_generate_jobs_and_add_to_exp(
 ):
     # get variables
     single_execution = False  # initialize with False
-    if "data_form" in conf_data and "cohort_name" in conf_data["data_form"]:
+    if "data_form" in conf_data and "dataset_name" in conf_data["data_form"]:
         data_form = conf_data["data_form"]
         single_execution = (
             "workflow_form" in conf_data
             and "single_execution" in conf_data["workflow_form"]
             and conf_data["workflow_form"]["single_execution"] is True
         )
-        cohort_limit = (
-            int(data_form["cohort_limit"])
-            if ("cohort_limit" in data_form and data_form["cohort_limit"] is not None)
+        dataset_limit = (
+            int(data_form["dataset_limit"])
+            if ("dataset_limit" in data_form and data_form["dataset_limit"] is not None)
             else None
         )
     username = conf_data["experiment_form"]["username"]
@@ -1087,10 +1027,10 @@ async def queue_generate_jobs_and_add_to_exp(
     # compose queued_jobs according to 'single_execution'
     queued_jobs = []
     if single_execution is True:
-        for cohort_identifier in data_form["cohort_identifiers"][:cohort_limit]:
+        for identifier in data_form["identifiers"][:dataset_limit]:
             # Copying due to reference?!
             single_conf_data = copy.deepcopy(conf_data)
-            single_conf_data["data_form"]["cohort_identifiers"] = [cohort_identifier]
+            single_conf_data["data_form"]["identifiers"] = [identifier]
             queued_jobs.append(
                 {
                     "conf_data": single_conf_data,

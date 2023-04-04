@@ -41,8 +41,8 @@
           <CardMenu
               @removeFromDataset="() => {this.$emit('removeFromDataset')}"
               @deleteFromPlatform="() => {this.$emit('deleteFromPlatform')}"
-              :cohort_names="cohort_names"
-              :cohort_name="cohort_name"
+              :datasetNames="datasetNames"
+              :datasetName="datasetName"
               :seriesInstanceUID="seriesInstanceUID"
           ></CardMenu>
         </v-app-bar>
@@ -119,7 +119,7 @@ export default {
   components: {Chip, TagChip, CardMenu},
   emits: ['openInDetailView'],
   props: {
-    cohort_name: {
+    datasetName: {
       type: String,
       default: null
     },
@@ -130,7 +130,7 @@ export default {
       type: Array,
       default: () => ([])
     },
-    cohort_names: {
+    datasetNames: {
       type: Array,
       default: () => ([])
     }
@@ -173,7 +173,7 @@ export default {
             this.seriesDescription = data['metadata']['Series Description'] || ''
             this.modality = data['metadata']['Modality'] || ''
             this.seriesData = data['metadata'] || {}
-            this.tags = data['metadata']['dataset tags'] || []
+            this.tags = data['metadata']['tags'] || []
             this.tagsData = Object.entries(this.seriesData).map(i => ({name: i[0], value: i[1]}))
           }
         })

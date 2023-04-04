@@ -91,7 +91,7 @@ export default {
       this.editMode = false
 
     loadAvailableTags()
-        .then(res => this.availableTags = 'dataset tags' in res.data ? res.data['dataset tags']['items'].map(i => i['value']) : [])
+        .then(res => this.availableTags = 'tags' in res.data ? res.data['tags']['items'].map(i => i['value']) : [])
 
     window.addEventListener("keypress", event => this.keypressListener(event));
   },

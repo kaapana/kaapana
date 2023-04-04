@@ -103,7 +103,7 @@ export default {
     local_remote_switch: true,
     form_requiredFields: [],
     my_form_validation: false,
-    form_validation_cohort_name: false,
+    form_validation_dataset_name: false,
     form_validation_method_confirmation: false
   }),
   props: {
@@ -150,8 +150,8 @@ export default {
     },
     // dataformRules() {
     //   return [
-    //     (v['data_form']['cohort']) => !!v['data_form']['cohort'] || "Cohort is required"
-    //     // (v) => !!v || "Cohort is required",
+    //     (v['data_form']['dataset']) => !!v['data_form']['dataset'] || "Dataset is required"
+    //     // (v) => !!v || "Dataset is required",
     //   ];
     // }
   },

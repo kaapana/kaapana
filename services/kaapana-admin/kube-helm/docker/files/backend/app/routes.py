@@ -172,9 +172,9 @@ async def helm_delete_chart(request: Request):
             multiinstallable=multiinstallable
         )
         if success:
-            return Response(f"Successfully ran uninstall command for {payload['release_name']}", 200)
+            return Response(f"Successfully uninstalled {payload['release_name']}", 200)
         else:
-            return Response(f"{stdout}", 400)
+            return Response(f"Chart uninstall command failed{stdout}", 400)
     except AssertionError as e:
         logger.error(f"/helm-delete-chart failed: {str(e)}")
         return Response(f"Chart uninstall failed, bad request {str(e)}", 400)
@@ -198,14 +198,14 @@ async def helm_install_chart(request: Request):
             cmd_addons = "--create-namespace"
         if ("blocking" in payload) and (str(payload["blocking"]).lower() == "true"):
             blocking = True
-        _, _, _, _, cmd = utils.helm_install(
+        _, _, keywords, release_name, cmd = utils.helm_install(
             payload, shell=True, blocking=blocking, platforms=platforms, helm_command_addons=cmd_addons, execute_cmd=False)
-        success, stdout = await helm_helper.exec_shell_cmd_async(cmd, shell=True, timeout=5)
+        success, stdout = await utils.helm_install_cmd_run_async(release_name, payload["version"], cmd, keywords)
         logger.debug(f"await ended {success=} {stdout=}")
         if success:
-            return Response(f"Successfully installed: {stdout}", 200)
+            return Response(f"Successfully installed: {release_name}", 200)
         else:
-            return Response(f"Chart install command failed {stdout}", 500)
+            return Response(f"Chart install command failed for {release_name}", 500)
     except AssertionError as e:
         logger.error(f"/helm-install-chart failed: {str(e)}")
         return Response(f"Chart install failed, bad request {str(e)}", 400)

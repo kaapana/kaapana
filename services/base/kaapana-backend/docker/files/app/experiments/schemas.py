@@ -167,36 +167,29 @@ class JsonSchemaData(FilterKaapanaInstances):
     username: str = None
 
 
-class CohortBase(BaseModel):
-    cohort_name: str = None
+class DatasetBase(BaseModel):
+    name: str = None
 
 
-class CohortCreate(CohortBase):
-    cohort_query: dict = {}
+class DatasetCreate(DatasetBase):
     kaapana_instance_id: int = None
     username: str = None
-    cohort_identifiers: List[str] = []
+    identifiers: List[str] = []
 
 
-class CohortUpdate(CohortBase):
+class DatasetUpdate(DatasetBase):
     action: str = ""
-    cohort_query: dict = {}
-    cohort_identifiers: List[str] = []
+    identifiers: List[str] = []
 
 
-class Cohort(CohortBase):
-    cohort_query: str
+class Dataset(DatasetBase):
     time_created: datetime.datetime
     time_updated: datetime.datetime
     username: str = None
-    cohort_identifiers: Optional[str]
+    identifiers: Optional[str]
 
-    @validator("cohort_identifiers")
-    def convert_cohort_identifiers(cls, v):
-        return json.loads(v)
-
-    @validator("cohort_query")
-    def convert_cohort_query(cls, v):
+    @validator("identifiers")
+    def convert_identifiers(cls, v):
         return json.loads(v)
 
     @validator("time_created")
@@ -230,7 +223,7 @@ class Experiment(ExperimentBase):
     time_created: datetime.datetime = None
     time_updated: datetime.datetime = None
     involved_kaapana_instances: str = None  # List = []
-    cohort_name: str = None
+    dataset_name: str = None
 
     @validator("time_created")
     def convert_time_created(cls, v):
@@ -255,7 +248,7 @@ class ExperimentCreate(ExperimentBase):
     kaapana_instance_id: int
     experiment_jobs: List = []  # List[Job] = []
     involved_kaapana_instances: list = []
-    cohort_name: str = None
+    dataset_name: str = None
 
 
 class ExperimentUpdate(ExperimentBase):

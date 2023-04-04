@@ -20,8 +20,8 @@
             <Gallery
                 :seriesInstanceUIDs="seriesInstanceUIDs"
                 :selectedTags="selectedTags"
-                :cohort_name="cohort_name"
-                :cohort_names="cohort_names"
+                :datasetName="datasetName"
+                :datasetNames="datasetNames"
                 @openInDetailView="(_seriesInstanceUID) => openInDetailView(_seriesInstanceUID)"
                 @emptyStudy="() => removeEmptyStudy(patient, studyInstanceUID)"
                 @selectedItems="_seriesInstanceUIDs => collectAndPropagateImageIds(studyInstanceUID, _seriesInstanceUIDs)"
@@ -42,11 +42,11 @@ import Gallery from "./Gallery.vue";
 export default {
   emits: ['openInDetailView', 'update:patients', 'selectedItems'],
   props: {
-    cohort_names: {
+    datasetNames: {
       type: Array,
       default: () => []
     },
-    cohort_name: {
+    datasetName: {
       type: String,
       default: null
     },

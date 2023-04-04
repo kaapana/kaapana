@@ -30,8 +30,8 @@
                 :min-height="50*cols"
             >
               <CardSelect
-                  :cohort_name="cohort_name"
-                  :cohort_names="cohort_names"
+                  :datasetName="datasetName"
+                  :datasetNames="datasetNames"
                   :series-instance-u-i-d="seriesInstanceUID"
                   :selected_tags="selectedTags"
                   @openInDetailView="openInDetailView(seriesInstanceUID)"
@@ -50,18 +50,18 @@
 
 import Chip from "./Chip.vue";
 import CardSelect from "./CardSelect";
-import {deleteSeriesFromPlatform, loadCohortNames, updateDataset} from "../common/api.service";
+import {deleteSeriesFromPlatform, loadDatasetNames, updateDataset} from "../common/api.service";
 import {VueSelecto} from "vue-selecto";
 
 export default {
   name: 'Gallery',
   emits: ['selectedItems', 'openInDetailView', 'emptyStudy'],
   props: {
-    cohort_names: {
+    datasetNames: {
       type: Array,
       default: () => []
     },
-    cohort_name: {
+    datasetName: {
       type: String,
       default: null
     },
@@ -134,17 +134,16 @@ export default {
       this.$refs.scroller.scrollTo(0, 0);
     },
     async removeFromDataset(seriesInstanceUID) {
-      if (this.cohort_name !== null) {
+      if (this.datasetName !== null) {
         try {
           await updateDataset({
-            "cohort_name": this.cohort_name,
+            "name": this.datasetName,
             "action": "DELETE",
-            "cohort_query": {"index": "meta-index"},
-            "cohort_identifiers": [{"identifier": seriesInstanceUID}]
+            "identifiers": [seriesInstanceUID]
           })
           this.$notify({
             type: 'success',
-            text: `Removed series ${seriesInstanceUID} from ${this.cohort_name}`
+            text: `Removed series ${seriesInstanceUID} from ${this.datasetName}`
           });
           this.removeFromUI(seriesInstanceUID)
         } catch (error) {

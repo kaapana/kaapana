@@ -14,12 +14,9 @@ const deleteSeriesFromPlatform = async (seriesInstanceUID, dag_id = 'delete-seri
             "dag_id": dag_id,
             "conf_data": {
                 "data_form": {
-                    "cohort_identifiers": [
+                    "identifiers": [
                         seriesInstanceUID
-                    ],
-                    "cohort_query": {
-                        'index': 'meta-index'
-                    }
+                    ]
                 },
                 "form_data": {
                     "delete_complete_study": false,
@@ -32,47 +29,41 @@ const deleteSeriesFromPlatform = async (seriesInstanceUID, dag_id = 'delete-seri
 }
 
 const updateDataset = async (body) => {
-    return await httpClient.put(KAAPANA_BACKEND_ENDPOINT + 'client/cohort', body)
+    return await httpClient.put(KAAPANA_BACKEND_ENDPOINT + 'client/dataset', body)
 }
 
-const createCohort = async (body) => {
-    return await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'client/cohort', body)
+const createDataset = async (body) => {
+    return await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'client/dataset', body)
 }
-const loadCohorts = async () => {
+const loadDatasets = async () => {
     try {
         // TODO
-        const cohorts = (
-            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'client/cohorts')
+        const datasets = (
+            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'client/datasets')
         )
-        return cohorts.data.map(cohort => ({
-            name: cohort.cohort_name,
-            identifiers: cohort.cohort_identifiers
-        }))
+        return datasets.data
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
     }
 }
 
-const loadCohortByName = async (cohort_name) => {
+const loadDatasetByName = async (datasetName) => {
     try {
-        const cohort = (
-            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + `client/cohort?cohort_name=${cohort_name}`)
+        const dataset = (
+            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + `client/dataset?name=${datasetName}`)
         ).data
-        return {
-            name: cohort.cohort_name,
-            identifiers: cohort.cohort_identifiers
-        }
+        return dataset
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
     }
 }
 
-const loadCohortNames = async () => {
+const loadDatasetNames = async () => {
     try {
-        const cohorts = (
-            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'client/cohort-names')
+        const datasets = (
+            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'client/datasets')
         )
-        return cohorts.data
+        return datasets.data.map(dataset => dataset.name)
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
     }
@@ -184,12 +175,12 @@ export {
     loadPatients,
     loadAvailableTags,
     loadSeriesData,
-    createCohort,
-    loadCohorts,
+    createDataset,
+    loadDatasets,
     deleteSeriesFromPlatform,
     updateDataset,
-    loadCohortNames,
-    loadCohortByName,
+    loadDatasetNames,
+    loadDatasetByName,
     loadDashboard,
     loadDicomTagMapping
 }

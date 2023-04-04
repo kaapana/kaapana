@@ -11,21 +11,20 @@ from app.database import Base
 # )
 
 
-class Cohort(Base):
-    __tablename__ = "cohort"
+class Dataset(Base):
+    __tablename__ = "dataset"
     # id = Column(Integer, primary_key=True)
-    cohort_name = Column(String(64), index=True, primary_key=True)
+    name = Column(String(64), index=True, primary_key=True)
     username = Column(String(64))
-    cohort_query = Column(String(51200))  # TODO: that sufficient?
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
-    cohort_identifiers = Column(String(102400))  # TODO: that sufficient?
+    identifiers = Column(String(102400))  # TODO: that sufficient?
 
     # many-to-one relationship
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
-    kaapana_instance = relationship("KaapanaInstance", back_populates="cohorts")
+    kaapana_instance = relationship("KaapanaInstance", back_populates="datasets")
     experiments = relationship(
-        "Experiment", back_populates="cohort", cascade="all, delete"
+        "Experiment", back_populates="dataset", cascade="all, delete"
     )
 
 
@@ -52,8 +51,8 @@ class KaapanaInstance(Base):
         "Experiment", back_populates="kaapana_instance", cascade="all, delete"
     )
     jobs = relationship("Job", back_populates="kaapana_instance", cascade="all, delete")
-    cohorts = relationship(
-        "Cohort", back_populates="kaapana_instance", cascade="all, delete"
+    datasets = relationship(
+        "Dataset", back_populates="kaapana_instance", cascade="all, delete"
     )
     # many-to-one relationships
     experiment_in_which_involved = Column(
@@ -79,15 +78,14 @@ class Experiment(Base):
     experiment_name = Column(String(64))
     external_experiment_id = Column(Integer)
     username = Column(String(64))
-    # cohort_name = Column(String(64), index=True)  # now in a relationship
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
 
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
     kaapana_instance = relationship("KaapanaInstance", back_populates="experiments")
-    cohort_name = Column(String(64), ForeignKey("cohort.cohort_name"))
-    cohort = relationship("Cohort", back_populates="experiments")
+    dataset_name = Column(String(64), ForeignKey("dataset.name"))
+    dataset = relationship("Dataset", back_populates="experiments")
     # one-to-many relationships
     involved_kaapana_instances = Column(String(51200), default="[]", index=True)
     experiment_jobs = relationship(

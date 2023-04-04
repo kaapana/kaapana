@@ -35,7 +35,7 @@ const settings = {
                 dashboard: true
             },
             {
-                name: 'dataset tags',
+                name: 'tags',
                 display: false,
                 truncate: false,
                 dashboard: true

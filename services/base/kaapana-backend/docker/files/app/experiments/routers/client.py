@@ -345,8 +345,8 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
 
 # get_experiment
 @router.get("/experiment", response_model=schemas.ExperimentWithKaapanaInstance)
-def get_experiment(experiment_id: str = None, experiment_name: str = None, db: Session = Depends(get_db)):
-    return crud.get_experiment(db, experiment_id, experiment_name)
+def get_experiment(exp_id: str = None, experiment_name: str = None, db: Session = Depends(get_db)):
+    return crud.get_experiment(db, exp_id, experiment_name)
 
 # get_experiments
 @router.get("/experiments", response_model=List[schemas.ExperimentWithKaapanaInstanceWithJobs]) # also okay: response_model=List[schemas.Experiment] ; List[schemas.ExperimentWithKaapanaInstance]
@@ -358,7 +358,7 @@ def get_experiments(request: Request, instance_name: str = None, involved_instan
 def put_experiment(experiment: schemas.ExperimentUpdate, db: Session = Depends(get_db)):
     if experiment.experiment_status == "abort":
         # iterate over experiment's jobs and execute crud.abort_job() and crud.update_job() and at the end also crud.update_experiment()
-        db_experiment = crud.get_experiment(db, experiment.experiment_id)   # better call crud method directly instead of calling client.py's def get_experiment()
+        db_experiment = crud.get_experiment(db, experiment.exp_id)   # better call crud method directly instead of calling client.py's def get_experiment()
         for db_job in db_experiment.experiment_jobs:
             
             # compose a JobUpdate schema, set it's status to 'abort' and execute client.py's put_job()
@@ -385,8 +385,8 @@ def put_experiment_jobs(experiment: schemas.ExperimentUpdate, db: Session = Depe
 
 # delete_experiment
 @router.delete("/experiment")
-def delete_experiment(experiment_id: str, db: Session = Depends(get_db)):
-    return crud.delete_experiment(db, experiment_id)
+def delete_experiment(exp_id: str, db: Session = Depends(get_db)):
+    return crud.delete_experiment(db, exp_id)
 
 # delete_experiments
 @router.delete("/experiments")

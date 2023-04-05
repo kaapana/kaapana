@@ -255,7 +255,6 @@ class ExperimentCreate(ExperimentBase):
     cohort_name: str = None
 
 class ExperimentUpdate(ExperimentBase):
-    experiment_id: Optional[str]            # either experiment_id ...
     experiment_name: Optional[str] = None   # ... or experiment_name
     experiment_jobs: List = []
 

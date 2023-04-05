@@ -291,12 +291,19 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
 
     conf_data = json_schema_data.conf_data
 
+    # generate random and unique experiment id
+    characters = string.ascii_uppercase + string.ascii_lowercase + string.digits
+    exp_id = ''.join(random.choices(characters, k=6))
+    # append exp_id to experiment_name
+    experiment_name = json_schema_data.experiment_name + '_exp' + exp_id
+
     if json_schema_data.federated:  # == True ;-)
         involved_instance_names = copy.deepcopy(json_schema_data.instance_names)
         involved_instance_names.extend(conf_data['external_schema_instance_names'])
     conf_data["experiment_form"] = {
         "username": username,
-        "experiment_name": json_schema_data.experiment_name,
+        "exp_id": exp_id,
+        "experiment_name": experiment_name,
         "involved_instances": json_schema_data.instance_names if json_schema_data.federated == False else involved_instance_names, # instances on which experiment is created!
         "runner_instances": json_schema_data.instance_names    # instances on which jobs of experiment are created!
     }
@@ -316,14 +323,10 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
         single_execution = False
         db_cohort = None
 
-    # generate random and unique experiment id
-    characters = string.ascii_uppercase + string.ascii_lowercase + string.digits
-    exp_id = ''.join(random.choices(characters, k=6))
-
     # create an experiment with involved_instances=conf_data["experiment_form"]["involved_instances"] and add jobs to it
     experiment = schemas.ExperimentCreate(**{
         "exp_id": exp_id,
-        "experiment_name": json_schema_data.experiment_name + '_exp' + exp_id,
+        "experiment_name": experiment_name,
         "username": username,
         "kaapana_instance_id": db_client_kaapana.id,
         # "experiment_jobs": db_jobs,
@@ -334,7 +337,7 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
 
     # async function call to queue jobs and generate db_jobs + adding them to db_experiment
     # TODO moved methodcall outside of async framwork because our database implementation is not async compatible
-    #asyncio.create_task(crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_experiment, json_schema_data, conf_data))
+    # asyncio.create_task(crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_experiment, json_schema_data, conf_data))
     crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_experiment, json_schema_data, conf_data)
 
     # directly return created db_experiment for fast feedback

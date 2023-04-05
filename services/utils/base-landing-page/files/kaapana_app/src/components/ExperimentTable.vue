@@ -250,17 +250,17 @@ methods: {
     this.clientUpdate = true
   },
   abortExperiment(item) {
-      this.abortID = item.id
+      this.abortID = item.exp_id
       console.log("Abort Experiment:", this.abortID)
       this.abortClientExperimentAPI(this.abortID, 'abort')
   },
   restartExperiment(item) {
-      this.restartID = item.id
+      this.restartID = item.exp_id
       console.log("Restart Experiment:", this.restartID)
       this.restartClientExperimentAPI(this.restartID, 'scheduled')
   },
   deleteExperiment(item) {
-      this.deleteID = item.id
+      this.deleteID = item.exp_id
       console.log("Delete Experiment:", this.deleteID, "Item:", item)
       this.deleteClientExperimentAPI(this.deleteID)
   },

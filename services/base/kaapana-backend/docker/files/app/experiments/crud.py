@@ -223,7 +223,8 @@ def get_job(db: Session, job_id: int = None, run_id: str = None):
         db_job = db.query(models.Job).filter_by(id=job_id).first()
     elif run_id is not None:
         db_job = db.query(models.Job).filter_by(run_id=run_id).first()
-    if not db_job:
+    # if not db_job:
+    else:
         logging.warning(f"No job found in db with job_id={job_id}, run_id={run_id} --> will return None")
         return None
         # raise HTTPException(status_code=404, detail="Job not found")
@@ -288,7 +289,7 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
             db_job.run_id = dag_run_id
 
     # check state and run_id for created or queued, scheduled, running jobs on local instance
-    if db_job.kaapana_instance.remote == False:
+    if db_job.run_id is not None and db_job.kaapana_instance.remote == False:
         # ask here first time Airflow for job status (explicit w/ job_id) via kaapana_api's def dag_run_status()
         airflow_details_resp = get_dagrun_details_airflow(db_job.dag_id, db_job.run_id)
         airflow_details_resp_text = json.loads(airflow_details_resp.text)
@@ -425,6 +426,7 @@ def update_external_job(db: Session, db_job):
             if r.status_code == 404:
                 logging.warning(f'External job {db_job.external_job_id} does not exist')
             else:
+                logging.error("Error in CRUD def update_external_job()")
                 raise_kaapana_connection_error(r)
                 logging.error(r.json())
 
@@ -479,16 +481,16 @@ def get_remote_updates(db: Session, periodically=False):
         # create experiment for incoming experiment if does NOT exist yet
         for incoming_experiment in incoming_experiments:
             # check if incoming_experiment already exists
-            # db_incoming_experiment = get_experiment(db, experiment_id=incoming_experiment["id"])
-            db_incoming_experiment = get_experiment(db, experiment_name=incoming_experiment['experiment_name']) # rather query via experiment_name than via experiment_id
+            db_incoming_experiment = get_experiment(db, experiment_id=incoming_experiment["exp_id"])
+            # db_incoming_experiment = get_experiment(db, experiment_name=incoming_experiment['experiment_name']) # rather query via experiment_name than via experiment_id
             if db_incoming_experiment is None:
                 # if not: create incoming experiments
                 incoming_experiment['kaapana_instance_id'] = db_remote_kaapana_instance.id
-                incoming_experiment['external_exp_id'] = incoming_experiment["id"]
+                # incoming_experiment['external_exp_id'] = incoming_experiment["id"]
                 incoming_experiment['involved_kaapana_instances'] = incoming_experiment["involved_kaapana_instances"][1:-1].split(',')  # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
                 experiment = schemas.ExperimentCreate(**incoming_experiment)
                 db_experiment = create_experiment(db, experiment)
-                logging.info(f"Remote experiment: {db_experiment}")
+                logging.info(f"Created incoming remote experiment: {db_experiment}")
 
         # create incoming jobs
         db_jobs = []
@@ -508,35 +510,30 @@ def get_remote_updates(db: Session, periodically=False):
                 "experiment_jobs": db_jobs, #  instead of incoming_jobs
             })
             db_experiment = put_experiment_jobs(db, exp_update)
-            logging.info(f"Remote experiment: {db_experiment}")
+            logging.info(f"Updated remote experiment: {db_experiment}")
 
 
     return  # schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload)
 
-def sync_states_from_airflow(db: Session, periodically=False):
-
-    # get list from airflow for jobs in states 'queued', 'scheduled', 'running': {'dag_run_id': 'state'} -> airflow_jobs_in_qsr_state
-    states = ["queued", "scheduled", "running"]
-    airflow_jobs_in_qsr_state = get_dagruns_airflow(tuple(states))
+def sync_states_from_airflow(db: Session, status: str = None, periodically=False):
+    # get list from airflow for jobs in status=status: {'dag_run_id': 'state'} -> airflow_jobs_in_qsr_state
+    airflow_jobs_in_state = get_dagruns_airflow(tuple([status]))
     # extract list of run_ids of jobs in qsr states
-    airflow_jobs_qsr_runids = []
-    for airflow_job in airflow_jobs_in_qsr_state:
-        airflow_jobs_qsr_runids.append(airflow_job['run_id'])
+    airflow_jobs_runids = []
+    for airflow_job in airflow_jobs_in_state:
+        airflow_jobs_runids.append(airflow_job['run_id'])
 
-    # get list from db with all db_jobs in states 'queued', 'scheduled', 'running'
-    db_jobs_in_q_state = get_jobs(db, status="queued")
-    db_jobs_in_s_state = get_jobs(db, status="scheduled")
-    db_jobs_in_r_state = get_jobs(db, status="running")
-    db_jobs_in_qsr_state = db_jobs_in_q_state + db_jobs_in_s_state + db_jobs_in_r_state
+    # get list from db with all db_jobs in status=status
+    db_jobs_in_state = get_jobs(db, status=status)
     # extract list of dag_run_ids from db_jobs_in_qsr_state
-    db_jobs_qsr_runids = []
-    for db_job in db_jobs_in_qsr_state:
-        db_jobs_qsr_runids.append(db_job.run_id)
+    db_jobs_runids = []
+    for db_job in db_jobs_in_state:
+        db_jobs_runids.append(db_job.run_id)
 
-    # find elements which are in current airflow_jobs_in_qsr_state but not in db_jobs_in_qsr_state from previous round
-    diff_airflow_to_db = [elem for elem in airflow_jobs_qsr_runids if elem not in db_jobs_qsr_runids]
-    # find elements which are in db_jobs_in_qsr_state from previous round but not in current airflow_jobs_in_qsr_state
-    diff_db_to_airflow = [elem for elem in db_jobs_qsr_runids if elem not in airflow_jobs_qsr_runids]
+    # find elements which are in current airflow_jobs_runids but not in db_jobs_runids from previous round
+    diff_airflow_to_db = [elem for elem in airflow_jobs_runids if elem not in db_jobs_runids]
+    # find elements which are in db_jobs_runids from previous round but not in current airflow_jobs_runids
+    diff_db_to_airflow = [elem for elem in db_jobs_runids if elem not in airflow_jobs_runids]
 
     if len(diff_airflow_to_db) > 0:
         # request airflow for states of all jobs in diff_airflow_to_db && update db_jobs of all jobs in diff_airflow_to_db
@@ -549,24 +546,84 @@ def sync_states_from_airflow(db: Session, periodically=False):
                         'job_id': db_job.id,
                         })
                 update_job(db, job_update, remote=False)
-
     elif len(diff_db_to_airflow) > 0:
         # request airflow for states of all jobs in diff_db_to_airflow && update db_jobs of all jobs in diff_db_to_airflow
         for diff_job_runid in diff_db_to_airflow:
+            if diff_job_runid is None:
+                logging.info("Remote db_job --> created to be executed on remote instance!")
+                pass
             # get db_job from db via 'run_id'
             db_job = get_job(db, run_id=diff_job_runid)
+            # get runner kaapana instance of db_job
             if db_job is not None:
                 # update db_job w/ updated state
                 job_update = schemas.JobUpdate(**{
                         'job_id': db_job.id,
                         })
                 update_job(db, job_update, remote=False)
-    
     elif len(diff_airflow_to_db) == 0 and len(diff_db_to_airflow) == 0:
         pass    # airflow and db in sync :)
-
     else:
         logging.error("Error while syncing kaapana-backend with Airflow")
+
+# def sync_states_from_airflow(db: Session, status: str = None, periodically=False):
+
+#     # get list from airflow for jobs in states 'queued', 'scheduled', 'running': {'dag_run_id': 'state'} -> airflow_jobs_in_qsr_state
+#     states = ["queued", "scheduled", "running"]
+#     airflow_jobs_in_qsr_state = get_dagruns_airflow(tuple(states))
+#     # extract list of run_ids of jobs in qsr states
+#     airflow_jobs_qsr_runids = []
+#     for airflow_job in airflow_jobs_in_qsr_state:
+#         airflow_jobs_qsr_runids.append(airflow_job['run_id'])
+
+#     # get list from db with all db_jobs in states 'queued', 'scheduled', 'running'
+#     db_jobs_in_q_state = get_jobs(db, status="queued")
+#     db_jobs_in_s_state = get_jobs(db, status="scheduled")
+#     db_jobs_in_r_state = get_jobs(db, status="running")
+#     db_jobs_in_qsr_state = db_jobs_in_q_state + db_jobs_in_s_state + db_jobs_in_r_state
+#     # extract list of dag_run_ids from db_jobs_in_qsr_state
+#     db_jobs_qsr_runids = []
+#     for db_job in db_jobs_in_qsr_state:
+#         db_jobs_qsr_runids.append(db_job.run_id)
+
+#     # find elements which are in current airflow_jobs_in_qsr_state but not in db_jobs_in_qsr_state from previous round
+#     diff_airflow_to_db = [elem for elem in airflow_jobs_qsr_runids if elem not in db_jobs_qsr_runids]
+#     # find elements which are in db_jobs_in_qsr_state from previous round but not in current airflow_jobs_in_qsr_state
+#     diff_db_to_airflow = [elem for elem in db_jobs_qsr_runids if elem not in airflow_jobs_qsr_runids]
+
+#     if len(diff_airflow_to_db) > 0:
+#         # request airflow for states of all jobs in diff_airflow_to_db && update db_jobs of all jobs in diff_airflow_to_db
+#         for diff_job_runid in diff_airflow_to_db:
+#             # get db_job from db via 'run_id'
+#             db_job = get_job(db, run_id=diff_job_runid) # fails for all airflow jobs which aren't user-created aka service-jobs
+#             if db_job is not None:
+#                 # update db_job w/ updated state
+#                 job_update = schemas.JobUpdate(**{
+#                         'job_id': db_job.id,
+#                         })
+#                 update_job(db, job_update, remote=False)
+
+#     elif len(diff_db_to_airflow) > 0:
+#         # request airflow for states of all jobs in diff_db_to_airflow && update db_jobs of all jobs in diff_db_to_airflow
+#         for diff_job_runid in diff_db_to_airflow:
+#             if diff_job_runid is None:
+#                 logging.info("Remote db_job --> created to be executed on remote instance!")
+#                 pass
+#             # get db_job from db via 'run_id'
+#             db_job = get_job(db, run_id=diff_job_runid)
+#             # get runner kaapana instance of db_job
+#             if db_job is not None:
+#                 # update db_job w/ updated state
+#                 job_update = schemas.JobUpdate(**{
+#                         'job_id': db_job.id,
+#                         })
+#                 update_job(db, job_update, remote=False)
+    
+#     elif len(diff_airflow_to_db) == 0 and len(diff_db_to_airflow) == 0:
+#         pass    # airflow and db in sync :)
+
+#     else:
+#         logging.error("Error while syncing kaapana-backend with Airflow")
 
 def sync_n_clean_qsr_jobs_with_airflow(db: Session, periodically=False):
     '''
@@ -758,7 +815,6 @@ def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
     
     utc_timestamp = get_utc_timestamp()
 
-    print(f"CRUD def create_experiment() ExperimentCreate's experiment.id: {experiment.exp_id}")
     db_experiment = models.Experiment(
         exp_id=experiment.exp_id,
         kaapana_id=experiment.kaapana_instance_id,
@@ -770,7 +826,6 @@ def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
         time_created=utc_timestamp,
         time_updated=utc_timestamp
     )
-    print(f"CRUD def create_experiment() db_experiment.exp_id: {db_experiment.exp_id}")
 
     # TODO: also update all involved_kaapana_instances with the experiment_id in which they are involved
 
@@ -838,6 +893,7 @@ def queue_generate_jobs_and_add_to_exp(db: Session, db_client_kaapana: models.Ka
 
     # update experiment w/ created db_jobs
     experiment = schemas.ExperimentUpdate(**{
+        "experiment_id": db_experiment.exp_id,
         "experiment_name": db_experiment.experiment_name,
         "experiment_jobs": db_jobs,
     })
@@ -848,12 +904,12 @@ def queue_generate_jobs_and_add_to_exp(db: Session, db_client_kaapana: models.Ka
 
 def get_experiment(db: Session, experiment_id: str = None, experiment_name: str = None):
     if experiment_id is not None:
-        db_experiment = db.query(models.Experiment).filter_by(exp_id=experiment_id).first()
+        return db.query(models.Experiment).filter_by(exp_id=experiment_id).first()
     elif experiment_name is not None:
-        db_experiment = db.query(models.Experiment).filter_by(experiment_name=experiment_name).first()
+        return db.query(models.Experiment).filter_by(experiment_name=experiment_name).first()
     # if not db_experiment:
     #     raise HTTPException(status_code=404, detail="Experiment not found")
-    return db_experiment
+    # return db_experiment
 
 def get_experiments(db: Session, instance_name: str = None, involved_instance_name: str = None, experiment_job_id: int = None, limit=None):
     if instance_name is not None:
@@ -897,9 +953,8 @@ def update_experiment(db: Session, experiment=schemas.ExperimentUpdate):
 def put_experiment_jobs(db: Session, experiment=schemas.ExperimentUpdate):
     utc_timestamp = get_utc_timestamp()
 
-    print(f"CRUD def put_experiment_jobs() ExperimentUpdate's experiment.experiment_name: {experiment.experiment_name}")
-    print(f"CRUD def put_experiment_jobs() ExperimentUpdate's experiment.exp_id: {experiment.exp_id}")
-    db_experiment = get_experiment(db, experiment_name=experiment.experiment_name)
+    # db_experiment = get_experiment(db, experiment_name=experiment.experiment_name)
+    db_experiment = get_experiment(db, experiment_id=experiment.experiment_id)
 
     # get db_jobs via job_id which should be added to db_experiment
     db_jobs = []
@@ -919,6 +974,7 @@ def put_experiment_jobs(db: Session, experiment=schemas.ExperimentUpdate):
     db_experiment.time_updated = utc_timestamp
     db.commit()
     db.refresh(db_experiment)
+
 
     return db_experiment
 

@@ -28,7 +28,7 @@ Glossary
       When a container image is run on a target environment such as a cloud or an on-premises server, such an event is called a deployment. Such a deployment can also be a part of a larger software or platform as in the case of Kaapana.
 
     workflow
-      A workflow in our definition is basically an Airflow DAG. It is a number of processing steps applied to a cohort of images. Synonyms used for :term:`"workflow<workflow>` are :term:`"pipeline"<pipeline>` or ":term:`"DAG"<dag>`". Some of the workflows are preinstalled in the platform. Other workflows can be installed and added via the :term:`extensions<extension>` to Airflow.
+      A workflow in our definition is basically an Airflow DAG. It is a number of processing steps applied to a dataset of images. Synonyms used for :term:`"workflow<workflow>` are :term:`"pipeline"<pipeline>` or ":term:`"DAG"<dag>`". Some of the workflows are preinstalled in the platform. Other workflows can be installed and added via the :term:`extensions<extension>` to Airflow.
 
     application
       When we speak of an application we mean a tool or service that can be installed via the :term:`extensions<extension>` into a running platform. Moreover, an extension can be started and deleted and runs statically. An example of an application is jupyterlab.

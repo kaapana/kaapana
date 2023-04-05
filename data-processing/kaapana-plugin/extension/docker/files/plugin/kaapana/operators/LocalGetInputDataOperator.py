@@ -26,7 +26,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     * data_form: 'json'
     * data_type: 'dicom' or 'json'
-    * cohort_limit: limit the download series list number
+    * dataset_limit: limit the download series list number
 
     **Outputs:**
 
@@ -101,7 +101,9 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 download_successful = False
 
         elif self.data_type == "json":
-            meta_data = HelperOpensearch.get_series_metadata(series_uid=seriesUID)
+            meta_data = HelperOpensearch.get_series_metadata(
+                series_instance_uid=seriesUID
+            )
             json_path = join(target_dir, "metadata.json")
             with open(json_path, "w") as fp:
                 json.dump(meta_data, fp, indent=4, sort_keys=True)
@@ -213,48 +215,44 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         print("#")
         print("#")
 
-        self.cohort_limit = (
-            int(self.data_form["cohort_limit"])
-            if "cohort_limit" in self.data_form
-            and self.data_form["cohort_limit"] is not None
-            else None
-        )
+        dataset_limit = int(self.data_form.get("dataset_limit", 0))
+        self.dataset_limit = dataset_limit if dataset_limit > 0 else None
 
-        if (
-            len(self.data_form["cohort_identifiers"]) == 0
-            and len(self.data_form["cohort_query"].keys()) > 1
-        ):
-            assert "index" in self.data_form["cohort_query"]
-            assert "query" in self.data_form["cohort_query"]
-            index = self.data_form["cohort_query"]["index"]
-            query = self.data_form["cohort_query"]["query"]
-            hits = HelperOpensearch.get_query_cohort(index=index, query=query)
-            self.dicom_data_infos = []
-            for hit in hits:
-                self.dicom_data_infos.append(
-                    {
-                        "dcm-uid": {
-                            "study-uid": hit["_source"][
-                                "0020000D StudyInstanceUID_keyword"
-                            ],
-                            "series-uid": hit["_source"][
-                                "0020000E SeriesInstanceUID_keyword"
-                            ],
-                            "modality": hit["_source"]["00080060 Modality_keyword"],
-                            "curated_modality": hit["_source"]["curated_modality"],
-                        }
-                    }
-                )
-        elif len(self.data_form["cohort_identifiers"]) > 0:
+        # if (
+        #     len(self.data_form["identifiers"]) == 0
+        #     and len(self.data_form["dataset_query"].keys()) > 1
+        # ):
+        #     assert "index" in self.data_form["dataset_query"]
+        #     assert "query" in self.data_form["dataset_query"]
+        #     index = self.data_form["dataset_query"]["index"]
+        #     query = self.data_form["dataset_query"]["query"]
+        #     hits = HelperOpensearch.get_query_dataset(index=index, query=query)
+        #     self.dicom_data_infos = []
+        #     for hit in hits:
+        #         self.dicom_data_infos.append(
+        #             {
+        #                 "dcm-uid": {
+        #                     "study-uid": hit["_source"][
+        #                         "0020000D StudyInstanceUID_keyword"
+        #                     ],
+        #                     "series-uid": hit["_source"][
+        #                         "0020000E SeriesInstanceUID_keyword"
+        #                     ],
+        #                     "modality": hit["_source"]["00080060 Modality_keyword"],
+        #                     "curated_modality": hit["_source"]["curated_modality"],
+        #                 }
+        #             }
+        #         )
+        # el
+        if len(self.data_form["identifiers"]) > 0:
             self.dicom_data_infos = HelperOpensearch.get_dcm_uid_objects(
-                self.data_form["cohort_identifiers"],
-                self.data_form["cohort_query"]["index"],
+                self.data_form["identifiers"]
             )
         else:
             print("# Issue with data form -> exit. ")
             exit(1)
 
-        print(f"# Cohort-limit: {self.cohort_limit}")
+        print(f"# Dataset-limit: {self.dataset_limit}")
         print("#")
         print("#")
         print("# Dicom data information:")
@@ -307,10 +305,10 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         print("")
         print(f"## SERIES FOUND: {len(download_list)}")
         print("")
-        print(f"## SERIES LIMIT: {self.cohort_limit}")
+        print(f"## SERIES LIMIT: {self.dataset_limit}")
         download_list = (
-            download_list[: self.cohort_limit]
-            if self.cohort_limit is not None
+            download_list[: self.dataset_limit]
+            if self.dataset_limit is not None
             else download_list
         )
         print("")
@@ -349,7 +347,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         data_type="dicom",
         data_form=None,
         check_modality=False,
-        cohort_limit=None,
+        dataset_limit=None,
         parallel_downloads=3,
         batch_name=None,
         **kwargs,
@@ -358,13 +356,13 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         :param data_type: 'dicom' or 'json'
         :param data_form: 'json'
         :param check_modality: 'True' or 'False'
-        :param cohort_limit: limits the download list
+        :param dataset_limit: limits the download list
         :param parallel_downloads: default 3, number of parallel downloads
         """
 
         self.data_type = data_type
         self.data_form = data_form
-        self.cohort_limit = cohort_limit
+        self.dataset_limit = dataset_limit
         self.check_modality = check_modality
         self.parallel_downloads = parallel_downloads
 

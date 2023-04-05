@@ -84,7 +84,7 @@ The upload in Minio expects a zip file of images with a ``.dcm`` ending. The zip
 When DICOMs are sent to the DICOM receiver of the platform two things happen. Firstly, the DICOMs are saved in the local PACs system called DCM4CHEE. Secondly, 
 the meta data of the DICOMs are extracted and indexed by a search engine (powered by OpenSearch) which makes the meta data available for OpenSearch Dashboards.
 The OpenSearch dashboard called "Meta dashboard" is mainly responsible for visualizing the metadata but also serves as a filtering tool in order to select images and to trigger a processing pipeline.
-Image cohorts on the Meta dashboard can be selected via custom filters at the top. To ease this process, it is also possible to add filters automatically by clicking on the graphs (``+/-`` pop ups).
+Image datasets on the Meta dashboard can be selected via custom filters at the top. To ease this process, it is also possible to add filters automatically by clicking on the graphs (``+/-`` pop ups).
 
 Deleting images from the platform
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -179,7 +179,7 @@ async def helm_delete_chart(request: Request):
         logger.error(f"/helm-delete-chart failed: {str(e)}")
         return Response(f"Chart uninstall failed, bad request {str(e)}", 400)
     except Exception as e:
-        logger.error("/helm-delete-chart failed: {0}".format(e))
+        logger.error(f"/helm-delete-chart failed: {e}")
         return Response(f"Chart uninstall failed {str(e)}", 500)
 
 
@@ -210,7 +210,7 @@ async def helm_install_chart(request: Request):
         logger.error(f"/helm-install-chart failed: {str(e)}")
         return Response(f"Chart install failed, bad request {str(e)}", 400)
     except Exception as e:
-        logger.error("/helm-install-chart failed: {0}".format(e))
+        logger.error(f"/helm-install-chart failed: {e}")
         return Response(f"Chart install failed {str(e)}", 500)
 
 
@@ -230,8 +230,8 @@ async def pull_docker_image(request: Request):
         logger.error(e)
         return Response(f"Unable to download container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}", 500)
     except Exception as e:
-        logger.error("/pull-docker-image failed: {0}".format(e))
-        return Response("Pulling docker image failed {0}".format(e), 400)
+        logger.error(f"/pull-docker-image failed: {e}")
+        return Response(f"Pulling docker image failed {e}", 400)
 
 @router.get("/pending-applications")
 async def pending_applications():
@@ -253,11 +253,11 @@ async def pending_applications():
         return extensions_list
 
     except subprocess.CalledProcessError as e:
-        logger.error("/pending-applications failed {0}".format(e))
+        logger.error(f"/pending-applications failed {e}")
         return Response("Internal server error!", 500)
     except Exception as e:
-        logger.error(f"/pending-applications failed: {e}".format(e))
-        return Response(f"Pending applications failed {e}".format(e), 400)
+        logger.error(f"/pending-applications failed: {e}")
+        return Response(f"Pending applications failed {e}", 400)
 
 
 @router.get("/extensions")

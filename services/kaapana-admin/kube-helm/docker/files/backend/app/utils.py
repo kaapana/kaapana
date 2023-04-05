@@ -50,7 +50,7 @@ def sha256sum(filepath):
 
 
 def helm_search_repo(keywords_filter):
-    logger.debug("in function: helm_search_repo, with filter {0}".format(keywords_filter))
+    logger.debug(f"in function: helm_search_repo, with filter {keywords_filter}")
     global charts_cached
     keywords_filter = set(keywords_filter)
 
@@ -246,7 +246,7 @@ def helm_install(
     Returns:
         Tuple[bool, str, dict, str, str]: success, stdout, helm_result_dict, release_name, helm_command
     """
-    logger.debug("in function: helm_install with payload {0}, shell {1}".format(payload, shell))
+    logger.debug(f"in function: helm_install with {payload=}, {shell=}")
 
     helm_cache_path = helm_cache_path or settings.helm_extensions_cache
     if platforms:
@@ -485,7 +485,7 @@ def helm_delete(
             found = False
             for release in json_out:
                 if release["name"] == release_name:
-                    logger.debug("found the release in helm ls results, release: {0}".format(release))
+                    logger.debug(f"found the release in helm ls results, release: {release}")
                     found = True
                     break
             if not found:
@@ -515,7 +515,7 @@ def helm_ls(helm_namespace=settings.helm_namespace, release_filter=''):
             f'{os.environ["HELM_PATH"]} -n {helm_namespace} --filter {release_filter} ls --deployed --pending --failed --uninstalling -o json', stderr=subprocess.STDOUT, shell=True)
         return json.loads(resp)
     except Exception as e:
-        logger.error("Error when running helm ls: {0}".format(e))
+        logger.error(f"Error when running helm ls: {e}")
         return []
 
 
@@ -566,14 +566,14 @@ def execute_update_extensions():
         'name': 'update-collections-chart',
         'version': '0.0.0'
     }
-    logger.info("chart info for update extensions {0}, {1}".format(chart['name'], chart['version']))
+    logger.info(f"chart info for update extensions {chart['name']}, {chart['version']}")
     payload = {k: chart[k] for k in ('name', 'version')}
 
     install_error = False
     message = f"No kaapana_collections defined..."
-    logger.info("split kaapana collections {0}".format(settings.kaapana_collections.split(';')[:-1]))
+    logger.info(f"split kaapana collections {settings.kaapana_collections.split(';')[:-1]}")
     for idx, kube_helm_collection in enumerate(settings.kaapana_collections.split(';')[:-1]):
-        logger.debug("kube_helm_collection {0}".format(kube_helm_collection))
+        logger.debug(f"kube_helm_collection {kube_helm_collection}")
         release_name = cure_invalid_name("-".join(kube_helm_collection.split('/')[-1].split(
             ':')), r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*", max_length=53)
         payload.update({

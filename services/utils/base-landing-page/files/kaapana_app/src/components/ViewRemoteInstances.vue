@@ -1,8 +1,9 @@
 <template>
   <v-dialog v-model=viewremoteList max-width="900px">
     <template v-slot:activator="{ on, attrs }">
-      <v-btn v-bind="attrs" v-on="on" small icon>
-        <v-icon color="primary" dark x-large>mdi-eye</v-icon>
+      <v-btn v-bind="attrs" v-on="on" small plain>
+        view remotes
+        <!-- v-icon color="primary" dark x-large>mdi-eye</v-icon -->
       </v-btn>
     </template>
     <v-card>

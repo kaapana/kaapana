@@ -216,13 +216,13 @@ class Cohort(CohortBase):
         orm_mode = True
 
 class ExperimentBase(BaseModel):
+    exp_id: str = None
     experiment_name: str = None
     experiment_status: str = None
-    external_experiment_id: int = None # experiment_id on another system
+    # external_experiment_id: int = None # experiment_id on another system
     
 
 class Experiment(ExperimentBase):
-    id: int
     username: str = None
     status: str = None
     time_created: datetime.datetime = None
@@ -255,7 +255,6 @@ class ExperimentCreate(ExperimentBase):
     cohort_name: str = None
 
 class ExperimentUpdate(ExperimentBase):
-    experiment_id: Optional[int]            # either experiment_id ...
     experiment_name: Optional[str] = None   # ... or experiment_name
     experiment_jobs: List = []
 

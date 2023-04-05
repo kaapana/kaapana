@@ -158,7 +158,6 @@ export default Vue.extend({
       ['Federated learning', 'mdi-vector-triangle', '/experiments'],
       ['Pending Applications', 'mdi-timer-sand', '/pending-applications']
     ],
-    settings: settings
   }),
   computed: {
     ...mapGetters(['currentUser', 'isAuthenticated', 'externalWebpages', 'commonData']),

@@ -130,7 +130,7 @@ const loadSeriesMetaData = async (studyInstanceUID, seriesInstanceUID) => {
 
 const loadPatients = async (data) => {
     try {
-        const res = await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/series', data)
+        const res = await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/series?body=' + JSON.stringify(data))
         return res.data
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error.text, type: 'error'});
@@ -141,7 +141,7 @@ const loadPatients = async (data) => {
 const loadAvailableTags = async (body = {}) => {
     try {
         return (
-            await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/curation_tool/query_values', body)
+            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/query_values?query=' + JSON.stringify(body))
         )
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
@@ -155,10 +155,10 @@ const updateTags = async (data) => {
 }
 
 const loadDashboard = async (seriesInstanceUIDs, fields) => {
-    return (await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/dashboard', {
+    return (await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/dashboard?config=' + JSON.stringify({
         series_instance_uids: seriesInstanceUIDs,
         names: fields
-    })).data
+    }))).data
 
 }
 

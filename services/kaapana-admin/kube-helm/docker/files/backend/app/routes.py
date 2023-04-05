@@ -172,7 +172,7 @@ async def helm_delete_chart(request: Request):
             multiinstallable=multiinstallable
         )
         if success:
-            return Response(f"Successfully uninstalled {payload['release_name']}", 200)
+            return Response(f"Started uninstalling {payload['release_name']}", 200)
         else:
             return Response(f"Chart uninstall command failed{stdout}", 400)
     except AssertionError as e:

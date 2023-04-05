@@ -275,9 +275,9 @@ def helm_install(
     logger.debug(json.dumps(default_sets, indent=4, sort_keys=True))
 
     # get chart's values
-    values = helm_helper.helm_show_values(name, version, platforms)
+    values = helm_helper.helm_show_values(name=name, version=version, platforms=platforms)
     if 'keywords' not in payload:
-        chart = helm_helper.helm_show_chart(name, version, platforms)
+        chart = helm_helper.helm_show_chart(name=name, version=version, platforms=platforms)
         if 'keywords' in chart:
             keywords = chart['keywords']
         else:
@@ -369,7 +369,7 @@ def helm_install(
 
     helm_result_dict = {}
     if blocking and success:
-        for item in helm_helper.global_extensions_dict_cached:
+        for item in helm_helper.global_extensions_list:
             if item["releaseName"] == release_name and item["version"] == version:
                 item["successful"] = KUBE_STATUS_PENDING
         helm_result_dict = json.loads(stdout)
@@ -433,7 +433,7 @@ def helm_delete(
             x for x in helm_helper.global_platforms_list if x["releaseName"] == release_name]
     else:
         cached_extension = [
-            x for x in helm_helper.global_extensions_dict_cached if x["releaseName"] == release_name]
+            x for x in helm_helper.global_extensions_list if x["releaseName"] == release_name]
 
     if len(cached_extension) == 1:
         ext = cached_extension[0]
@@ -456,7 +456,7 @@ def helm_delete(
     success, stdout = helm_helper.execute_shell_command(helm_command, shell=True, blocking=False)
     if success:
         if release_version is not None:
-            for item in helm_helper.global_extensions_dict_cached:
+            for item in helm_helper.global_extensions_list:
                 if item["releaseName"] == release_name and item["version"] == release_version:
                     item["successful"] = 'pending'
     else:

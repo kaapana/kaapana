@@ -88,7 +88,7 @@
                 <v-switch
                     label="Dark mode"
                     hide-details
-                    v-model="darkMode"
+                    v-model="settings.darkMode"
                     @change="(v) => changeMode(v)"
                 ></v-switch>
               </v-list-item>
@@ -128,6 +128,8 @@
 
 
 <script lang="ts">
+/* eslint-disable */
+
 import Vue from 'vue';
 import request from '@/request';
 import kaapanaApiService from '@/common/kaapanaApi.service'
@@ -136,6 +138,7 @@ import {mapGetters} from 'vuex';
 import {LOGIN, LOGOUT, CHECK_AUTH} from '@/store/actions.type';
 import {CHECK_AVAILABLE_WEBSITES, LOAD_COMMON_DATA} from '@/store/actions.type';
 import Settings from "@/components/Settings.vue";
+import {settings} from "@/static/defaultUIConfig";
 
 
 export default Vue.extend({
@@ -143,9 +146,9 @@ export default Vue.extend({
   components: {Settings},
   data: () => ({
     drawer: true,
-    darkMode: 'darkMode' in localStorage ? JSON.parse(localStorage['darkMode']) : false,
     federatedBackendAvailable: false,
     staticWebsiteAvailable: false,
+    settings: settings,
     workflowsList: [
       ['Data Upload', 'mdi-cloud-upload', '/data-upload'],
       ['Data curation', 'mdi-view-gallery-outline', '/datasets'],
@@ -172,8 +175,8 @@ export default Vue.extend({
   },
   methods: {
     changeMode(v: boolean) {
-      this.darkMode = v
-      localStorage['darkMode'] = JSON.stringify(v)
+      this.settings['darkMode'] = v
+      localStorage['settings'] = JSON.stringify(this.settings)
       this.$vuetify.theme.dark = v
     },
     login() {
@@ -188,9 +191,13 @@ export default Vue.extend({
   beforeCreate() {
     this.$store.dispatch(CHECK_AVAILABLE_WEBSITES)
     this.$store.dispatch(LOAD_COMMON_DATA)
+    if (!localStorage['settings']) {
+      localStorage['settings'] = JSON.stringify(settings)
+    }
   },
   mounted() {
-    this.$vuetify.theme.dark = this.darkMode
+    this.settings = JSON.parse(localStorage['settings'])
+    this.$vuetify.theme.dark = this.settings['darkMode']
     request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
       this.federatedBackendAvailable = kaapanaApiService.checkUrl(response.data, '/kaapana-backend')
     }).catch((error: any) => {

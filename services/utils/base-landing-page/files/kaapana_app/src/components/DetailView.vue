@@ -19,12 +19,12 @@
     <v-divider/>
     <v-card-text>
       <CornerStone
+          v-if="studyInstanceUID !== '' && seriesInstanceUID !== ''"
           :series-instance-u-i-d="seriesInstanceUID"
           :study-instance-u-i-d="studyInstanceUID"
       />
       <TagsTable
           :series-instance-u-i-d="seriesInstanceUID"
-          :study-instance-u-i-d="studyInstanceUID"
       />
     </v-card-text>
   </v-card>
@@ -35,7 +35,7 @@
 
 import TagsTable from './TagsTable.vue';
 import CornerStone from "./CornerStone.vue";
-import {controller} from '../common/httpClient'
+import {loadSeriesData} from "../common/api.service";
 
 export default {
   name: 'DetailView',
@@ -44,14 +44,32 @@ export default {
     CornerStone
   },
   props: {
-    seriesInstanceUID: String,
-    studyInstanceUID: String,
-    seriesDescription: String
+    seriesInstanceUID: String
   },
   data() {
-    return {};
+    return {
+      studyInstanceUID: '',
+      seriesDescription: ''
+    };
   },
-  methods: {},
+  methods: {
+    async getDicomData() {
+      if (this.seriesInstanceUID) {
+        loadSeriesData(this.seriesInstanceUID).then(data => {
+          this.studyInstanceUID = data['metadata']['Study Instance UID'] || ''
+          this.seriesDescription = data['metadata']['Series Description'] || ''
+        })
+      }
+    },
+  },
+  watch: {
+    seriesInstanceUID() {
+      this.getDicomData();
+    },
+  },
+  created() {
+    this.getDicomData();
+  },
 };
 </script>
 <style scoped>

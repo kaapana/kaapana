@@ -206,12 +206,9 @@ def trigger_delete_dag(examples_send):
 
         conf = {
             "data_form": {
-                "cohort_identifiers": [
+                "identifiers": [
                     file['series_uid']
-                ],
-                "cohort_query": {
-                    'index': 'meta-index'
-                }
+                ]
             },
             "workflow_form": {
                 "delete_complete_study": False,

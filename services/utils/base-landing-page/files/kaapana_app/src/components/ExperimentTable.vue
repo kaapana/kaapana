@@ -101,7 +101,7 @@ data () {
         align: 'start',
         value: 'experiment_name',
       },
-      { text: 'Cohort Name', value: 'cohort_name' },
+      { text: 'Dataset Name', value: 'dataset_name' },
       { text: 'Created', value: 'time_created' },
       { text: 'Updated', value: 'time_updated' },
       { text: 'Username', value: 'username' },

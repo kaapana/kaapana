@@ -35,6 +35,7 @@ import LocalKaapanaInstance from "@/components/LocalKaapanaInstance.vue";
 import WorkflowExecution  from "@/components/WorkflowExecution.vue";
 import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
 import ViewRemoteInstances from "@/components/ViewRemoteInstances.vue";
+import {loadDatasetNames} from "@/common/api.service";
 
 export default Vue.extend({
   components: {
@@ -148,14 +149,9 @@ export default Vue.extend({
         });
     },
     getDatasets() {
-      kaapanaApiService
-        .federatedClientApiGet("/cohort-names")
-        .then((response) => {
-          this.datasets = response.data;
-        })
-        .catch((err) => {
-          console.log(err);
-        });
+      loadDatasetNames().then(_datasetNames => {
+         this.datasets = _datasetNames;
+      })
     },
     editClientInstance(instance) {
       this.clientPost = instance

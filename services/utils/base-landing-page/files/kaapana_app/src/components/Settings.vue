@@ -2,7 +2,7 @@
   <div>
     <v-dialog
         v-model="dialog"
-        width="100vh"
+        width="50vw"
     >
       <template v-slot:activator="{ on, attrs }">
         <v-list-item-title
@@ -19,13 +19,44 @@
         </v-card-title>
 
         <v-card-text>
-          <vue-json-editor
-              v-model="json"
-              :show-btns="true"
-              :expandedOnStart="true"
-              @json-save="onSave"
-          />
+          <SettingsTable ref="settingsTable" :items.sync="settings.datasets.props">
+          </SettingsTable>
+          <v-row>
+            <v-col>
+              <v-checkbox
+                  v-model="settings.datasets.structured"
+                  label="Structured View"
+              >
+              </v-checkbox>
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col>
+              <v-checkbox
+                  v-model="settings.datasets.cardText"
+                  label="Show series metadata in Dataset view"
+              >
+              </v-checkbox>
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col>
+              <v-select
+                  v-model="settings.datasets.cols"
+                  :items="['auto', '1', '2', '3', '4', '6', '12']"
+                  label="Width of an item in the Dataset view"
+              ></v-select>
+            </v-col>
+          </v-row>
         </v-card-text>
+        <v-card-actions class="justify-center">
+          <v-btn
+              color="primary"
+              @click="onSave"
+          >
+            Save
+          </v-btn>
+        </v-card-actions>
       </v-card>
     </v-dialog>
   </div>
@@ -34,39 +65,27 @@
 <script>
 /* eslint-disable */
 
-import vueJsonEditor from 'vue-json-editor'
+import SettingsTable from "@/components/SettingsTable.vue";
+import {settings} from "@/static/defaultUIConfig";
 
 export default {
   data: () => ({
     dialog: false,
-    json: {}
+    settings: settings
   }),
   components: {
-    vueJsonEditor
+    SettingsTable,
   },
-  mounted() {
-
+  created() {
+    this.settings = JSON.parse(localStorage['settings'])
   },
   methods: {
-    updateJSON() {
-      this.json = Object.entries(localStorage)
-          .filter(([k, v]) => (k.startsWith('Dataset.') && v))
-          .map(([k, v]) => ({[k]: JSON.parse(v)}))
-    },
-    onSave(value) {
-      this.json
-          .forEach(item => Object.entries(item)
-              .forEach(([key, value]) => localStorage[key] = JSON.stringify(value))
-          )
+    onSave() {
+      localStorage['settings'] = JSON.stringify(this.settings)
       this.dialog = false
       window.location.reload();
     }
   },
-  watch: {
-    dialog() {
-      this.updateJSON()
-    }
-  }
 };
 </script>
 

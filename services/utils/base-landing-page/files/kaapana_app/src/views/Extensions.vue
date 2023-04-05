@@ -401,8 +401,13 @@ export default Vue.extend({
           }
           return s.slice(0, s.length - 2)
         } else if (typeof (statArr) != "string" && statArr.length > 0) {
-          let s = statArr[0]
-          return s.charAt(0).toUpperCase() + s.slice(1);
+          let s = ""
+          for (let i = 0; i < statArr.length; i++) {
+            let stat = statArr[i]
+            let key = stat.charAt(0).toUpperCase() + stat.slice(1);
+            s += key + ", "
+          }
+          return s.slice(0, s.length-2);
         } else if (typeof (statArr) == "string" && statArr.length > 0) {
           let s = statArr
           return s.charAt(0).toUpperCase() + s.slice(1);

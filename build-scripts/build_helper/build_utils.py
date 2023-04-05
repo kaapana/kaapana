@@ -34,6 +34,7 @@ class BuildUtils:
     version_latest = False
     platform_name = None
     platform_build_version = None
+    platform_repo_version = None
     platform_build_branch = None
     platform_last_commit_timestamp = None
     enable_image_stats = None
@@ -54,8 +55,6 @@ class BuildUtils:
         for chart_av in BuildUtils.charts_available:
             BuildUtils.charts_unused[chart_av.chart_id] = chart_av
 
-        for chart_object in BuildUtils.charts_available:
-            chart_object.check_dependencies()
 
     @staticmethod
     def init():

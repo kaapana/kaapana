@@ -20,7 +20,6 @@ class BuildUtils:
     build_ignore_patterns = None
     issues_list = None
     exit_on_error = True
-    enable_build_kit = None
     create_offline_installation = None
     skip_push_no_changes = None
     push_to_microk8s = None

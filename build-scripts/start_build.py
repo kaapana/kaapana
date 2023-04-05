@@ -629,7 +629,6 @@ if __name__ == "__main__":
     BuildUtils.http_proxy = http_proxy
     BuildUtils.exit_on_error = exit_on_error
     BuildUtils.logger = logger
-    BuildUtils.enable_build_kit = conf_enable_build_kit
     BuildUtils.create_offline_installation = create_offline_installation
     BuildUtils.skip_push_no_changes = skip_push_no_changes
     BuildUtils.parallel_processes = parallel_processes
@@ -649,6 +648,7 @@ if __name__ == "__main__":
         container_engine=container_engine,
         enable_build=container_build,
         enable_push=containers_push,
+        enable_build_kit=conf_enable_build_kit,
     )
 
     if not build_only and not no_login:

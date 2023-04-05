@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from glob import glob
 import os
+import semver
 from subprocess import PIPE, run
 from time import time
 from shutil import which
@@ -52,7 +53,7 @@ def pull_container_image(image_tag):
         stderr=PIPE,
         universal_newlines=True,
         timeout=6000,
-        env=dict(os.environ, DOCKER_BUILDKIT=f"{BuildUtils.enable_build_kit}"),
+        env=dict(os.environ, DOCKER_BUILDKIT=f"{Container.enable_build_kit}"),
     )
 
     if output.returncode == 0:
@@ -366,7 +367,7 @@ class Container:
                 universal_newlines=True,
                 timeout=6000,
                 cwd=self.container_dir,
-                env=dict(os.environ, DOCKER_BUILDKIT=f"{BuildUtils.enable_build_kit}"),
+                env=dict(os.environ, DOCKER_BUILDKIT=f"{Container.enable_build_kit}"),
             )
 
             if output.returncode == 0:
@@ -571,10 +572,11 @@ class Container:
                         self.operator_containers.append(container_id)
 
     @staticmethod
-    def init_containers(container_engine, enable_build=True, enable_push=True):
+    def init_containers(container_engine, enable_build=True, enable_push=True, enable_build_kit=1):
         Container.container_engine = container_engine
         Container.enable_build = enable_build
         Container.enable_push = enable_push
+        Container.enable_build_kit = enable_build_kit
 
         BuildUtils.logger.debug("")
         BuildUtils.logger.debug(" -> Container Init")
@@ -584,6 +586,39 @@ class Container:
             BuildUtils.logger.error("Please install {Container.container_engine} on your system.")
             if BuildUtils.exit_on_error:
                 exit(1)
+
+        if Container.container_engine == "docker" and Container.enable_build_kit:
+            docker_version = Container.get_engine_version(Container.container_engine)
+            if docker_version is not None and docker_version.major < 23:
+                BuildUtils.logger.debug("")
+                BuildUtils.logger.debug(
+                    "Toggling BuildKit off due to unreliable caching in Docker Engine prior to version 23."
+                )
+                BuildUtils.logger.debug("See https://github.com/moby/buildkit/issues/1368")
+                Container.enable_build_kit = 0
+
+    @staticmethod
+    def get_engine_version(container_engine):
+        version = None
+        command = [container_engine, "version", r"--format={{.Server.Version}}"]
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
+
+        if output.returncode == 0:
+            try:
+                version = semver.VersionInfo.parse(output.stdout)
+            except (ValueError, TypeError) as e:
+                BuildUtils.logger.error("Error while parsing the docker version")
+                if BuildUtils.exit_on_error:
+                    raise
+                else:
+                    BuildUtils.logger.error(f"{e}")
+        else:
+            BuildUtils.logger.error("Error while discovering the docker version")
+            BuildUtils.logger.error(f"{output.stderr}")
+            if BuildUtils.exit_on_error:
+                exit(1)
+
+        return version
 
     @staticmethod
     def collect_containers():

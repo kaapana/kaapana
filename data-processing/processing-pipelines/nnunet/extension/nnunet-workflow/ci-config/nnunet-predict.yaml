@@ -15,8 +15,8 @@ conf_data:
     inf_threads_nifti: 1
     task_url: "http://medicaldecathlon.com/"
   data_form:
-    cohort_name: testCT
-    cohort_limit: 2
+    dataset_name: testCT
+    dataset_limit: 2
 remote: false
 username: "kaapana"
 ---
@@ -37,7 +37,7 @@ conf_data:
     inf_threads_nifti: 1
     task_url: "https://www.synapse.org/'!Synapse:syn3193805/wiki/217754"
   data_form:
-    cohort_name: testCT
-    cohort_limit: 2
+    dataset_name: testCT
+    dataset_limit: 2
 remote: false
 username: "kaapana"

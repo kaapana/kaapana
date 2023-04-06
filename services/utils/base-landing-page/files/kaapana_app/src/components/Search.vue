@@ -59,14 +59,14 @@
             <v-list-item @click.stop="dialog=true">
               Save as Dataset
             </v-list-item>
-            <v-list-item v-if="cohort_name !== null" @click="() => updateCohort()">
+            <v-list-item v-if="datasetName !== null" @click="() => updateDataset()">
               Update Dataset
             </v-list-item>
           </v-list>
         </v-menu>
         <SaveDatasetDialog
             v-model="dialog"
-            @save="(name) => createCohort(name)"
+            @save="(name) => createDataset(name)"
             @cancel="() => this.dialog=false"
         />
       </v-col>
@@ -111,13 +111,13 @@
 
 <script>
 /* eslint-disable */
-import {loadAvailableTags, loadCohortByName} from "../common/api.service";
+import {loadAvailableTags, loadDatasetByName} from "../common/api.service";
 import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
 
 export default {
   name: "Search",
   props: {
-    cohort_name: null
+    datasetName: null
   },
   data() {
     return {
@@ -125,7 +125,6 @@ export default {
       display_filters: true,
       filters: [],
       counter: 0,
-      item_values: {},
       mapping: {},
       dialog: false
     }
@@ -158,17 +157,17 @@ export default {
     deleteFilter(id) {
       this.filters = this.filters.filter(filter => filter.id !== id)
     },
-    async createCohort(name) {
+    async createDataset(name) {
       this.dialog = false
 
-      this.$emit('saveCohort', {
+      this.$emit('saveDataset', {
         name: name,
         query: await this.composeQuery()
       })
     },
-    async updateCohort() {
-      this.$emit('updateCohort', {
-        name: this.cohort_name,
+    async updateDataset() {
+      this.$emit('updateDataset', {
+        name: this.datasetName,
         query: await this.composeQuery()
       })
     },
@@ -176,7 +175,7 @@ export default {
       const query = {
         "bool": {
           "must": [
-            await this.constructCohortQuery(this.cohort_name),
+            await this.constructDatasetQuery(this.datasetName),
             ...(
                 this.filters.map(filter => this.queryFromFilter(filter)).filter(query => query !== null)
             ),
@@ -189,7 +188,7 @@ export default {
         },
       }
       console.log(JSON.stringify(query))
-      return JSON.stringify(query)
+      return query
     },
     async search(onMount = false) {
       this.display_filters = onMount
@@ -204,7 +203,7 @@ export default {
       //     )
       // )
       // localStorage['Dataset.search.query_string'] = JSON.stringify(this.query_string)
-      // localStorage['Dataset.search.cohort_name'] = JSON.stringify(this.cohort_name)
+      // localStorage['Dataset.search.datasetName'] = JSON.stringify(this.datasetName)
     },
     queryFromFilter(filter) {
       if (filter.item_select && filter.item_select.length > 0) {
@@ -222,14 +221,14 @@ export default {
         return null
       }
     },
-    async constructCohortQuery(cohort_name = null) {
-      if (cohort_name === null)
+    async constructDatasetQuery(datasetName = null) {
+      if (datasetName === null)
         return ''
-      const cohort = await loadCohortByName(cohort_name)
-      if (cohort.identifiers && cohort.identifiers.length > 0) {
+      const dataset = await loadDatasetByName(datasetName)
+      if (dataset.identifiers && dataset.identifiers.length > 0) {
         return {
           "ids": {
-            "values": cohort.identifiers.map(item => item['identifier'])
+            "values": dataset.identifiers
           }
         }
       } else {
@@ -238,29 +237,27 @@ export default {
     }
   },
   async mounted() {
-    // console.log(await this.constructCohortQuery(this.cohort_name))
-    this.mapping = (await loadAvailableTags(
-        (await this.constructCohortQuery(this.cohort_name)) || {}
-    )).data
-    // if (localStorage['Dataset.search.filters']) {
-    //   this.filters = JSON.parse(localStorage['Dataset.search.filters'])
-    //   this.counter = this.filters.length
-    // }
-    // if (localStorage['Dataset.search.query_string']) {
-    //   this.query_string = JSON.parse(localStorage['Dataset.search.query_string'])
-    // }
-    await this.search(true)
+    const data = await this.constructDatasetQuery(this.datasetName)
+    this.search(true)
+    loadAvailableTags(data || {}).then(res => {
+      this.mapping = res.data
+    })
+
+    // this.filters = JSON.parse(localStorage['Dataset.search.filters'] || "[]")
+    // this.counter = this.filters.length
+    // this.query_string = JSON.parse(localStorage['Dataset.search.query_string'] || "")
+    // await this.search(true)
   },
   watch: {
-    async cohort_name() {
-
+    async datasetName() {
       this.filters = []
-
-      this.mapping = (await loadAvailableTags(
-          (await this.constructCohortQuery(this.cohort_name)) || {}
-      )).data
-      console.log('watch: ' + this.cohort_name)
-      await this.search()
+      this.constructDatasetQuery(this.datasetName)
+          .then(data => loadAvailableTags(data || {})
+              .then(res => {
+                this.mapping = res.data
+                this.search()
+              }))
+      // await this.search()
     }
   }
 }

@@ -6,6 +6,7 @@ import traceback
 from fastapi import Depends, FastAPI, Request
 
 from .admin import routers as admin
+from .datasets import routers
 from .experiments.routers import remote, client
 from .monitoring import routers as monitoring
 from .storage import routers as storage
@@ -27,8 +28,9 @@ logging.getLogger().setLevel(logging.INFO)
 
 app = FastAPI()
 
+
 @app.on_event("startup")
-@repeat_every(seconds=float(os.getenv('REMOTE_SYNC_INTERVAL', 2.5)))
+@repeat_every(seconds=float(os.getenv("REMOTE_SYNC_INTERVAL", 2.5)))
 def periodically_get_remote_updates():
     with SessionLocal() as db:
         try:
@@ -36,6 +38,7 @@ def periodically_get_remote_updates():
         except Exception as e:
             logging.warning('Something went wrong updating in crud.get_remote_updates()')
             logging.warning(traceback.format_exc())
+
 
 @app.on_event("startup")
 @repeat_every(seconds=float(os.getenv('AIRFLOW_SYNC_INTERVAL', 10.0)))
@@ -76,23 +79,16 @@ app.include_router(
     responses={418: {"description": "I'm the clients backend..."}},
 )
 
-# Not used yet
-app.include_router(
-    monitoring.router,
-    prefix="/monitoring"
-)
+app.include_router(routers.router, prefix="/dataset")
 
 # Not used yet
-app.include_router(
-    users.router,
-    prefix="/users"
-)
+app.include_router(monitoring.router, prefix="/monitoring")
 
 # Not used yet
-app.include_router(
-    storage.router,
-    prefix="/storage"
-)
+app.include_router(users.router, prefix="/users")
+
+# Not used yet
+app.include_router(storage.router, prefix="/storage")
 
 # Not used yet, probably overlap with client url
 app.include_router(

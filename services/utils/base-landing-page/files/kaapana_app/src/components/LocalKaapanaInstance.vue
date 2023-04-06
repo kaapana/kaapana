@@ -149,6 +149,7 @@ v-dialog(v-model='dialogOpen' max-width='600px')
   <script>
   
   import kaapanaApiService from "@/common/kaapanaApi.service";
+  import {loadDatasetNames} from "@/common/api.service";
   
   
   export default {
@@ -266,14 +267,9 @@ v-dialog(v-model='dialogOpen' max-width='600px')
           });
       },
       getDatasets() {
-        kaapanaApiService
-          .federatedClientApiGet("/cohort-names")
-          .then((response) => {
-            this.datasets = response.data;
-          })
-          .catch((err) => {
-            console.log(err);
-          });
+        loadDatasetNames().then(_datasetNames => {
+          this.datasets = _datasetNames;
+        })
       },
       updateClientForm() {
         kaapanaApiService

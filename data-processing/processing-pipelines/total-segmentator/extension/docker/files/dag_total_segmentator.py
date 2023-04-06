@@ -124,7 +124,7 @@ total_segmentator_1 = TotalSegmentatorOperator(
     dag=dag,
     task = ta,
     input_operator=dcm2nifti,
-    output_operator=total_segmentator_0,
+    operator_out_dir = total_segmentator_0.operator_out_dir,
     parallel_id = ta
 )
 
@@ -133,7 +133,7 @@ total_segmentator_2 = TotalSegmentatorOperator(
     dag=dag,
     task = ta,
     input_operator=dcm2nifti,
-    output_operator=total_segmentator_0,
+    operator_out_dir = total_segmentator_0.operator_out_dir,
     parallel_id = ta
 )
 
@@ -142,7 +142,7 @@ total_segmentator_3 = TotalSegmentatorOperator(
     dag=dag,
     task = ta,
     input_operator=dcm2nifti,
-    output_operator=total_segmentator_0,
+    operator_out_dir = total_segmentator_0.operator_out_dir,
     parallel_id = ta
 )
 
@@ -151,7 +151,7 @@ total_segmentator_4 = TotalSegmentatorOperator(
     dag=dag,
     task = ta,
     input_operator=dcm2nifti,
-    output_operator=total_segmentator_0,
+    operator_out_dir = total_segmentator_0.operator_out_dir,
     parallel_id = ta
 )
 
@@ -160,7 +160,7 @@ total_segmentator_5 = TotalSegmentatorOperator(
     dag=dag,
     task = ta,
     input_operator=dcm2nifti,
-    output_operator=total_segmentator_0,
+    operator_out_dir = total_segmentator_0.operator_out_dir,
     parallel_id = ta
 )
 
@@ -169,7 +169,7 @@ total_segmentator_6 = TotalSegmentatorOperator(
     dag=dag,
     task = ta,
     input_operator=dcm2nifti,
-    output_operator=total_segmentator_0,
+    operator_out_dir = total_segmentator_0.operator_out_dir,
     parallel_id = ta
 )
 

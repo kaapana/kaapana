@@ -11,6 +11,7 @@ from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from shared.GetZenodoModelOperator import GetZenodoModelOperator
 
 max_active_runs = 10
 concurrency = max_active_runs * 2
@@ -107,7 +108,7 @@ for idx, (task_name, task_values) in enumerate(all_selectable_tasks.items()):
     task_selection = {
         "title": task_name,
         "properties": {
-            "task": {
+            "task_ids": {
                 "type": "string",
                 "const": task_name
             }
@@ -189,8 +190,7 @@ get_input = LocalGetInputDataOperator(
     parallel_downloads=5,
     check_modality=True
 )
-get_task_model = GetTaskModelOperator(dag=dag)
-# get_task_model = GetContainerModelOperator(dag=dag)
+get_task_model = GetZenodoModelOperator(dag=dag)
 dcm2nifti = DcmConverterOperator(
     dag=dag,
     input_operator=get_input,

@@ -14,13 +14,14 @@ import json
 def process_input_file(input_path, output_path):
     global processed_count, task, output_type, multilabel, fast, preview, statistics, radiomics, body_seg, force_split, quiet, verbose, nr_thr_resamp, nr_thr_saving, roi_subset
     logger.info(f"{basename(input_file)}: start processing ...")
+    output_path_nii = join(output_path,"total.nii")
     try:
         crop_path = join(output_type, "crop")
         os.makedirs(crop_path, exist_ok=True)
 
         totalsegmentator(
             input=input_path,
-            output=output_path,
+            output=output_path_nii,
             ml=multilabel,
             nr_thr_resamp=nr_thr_resamp,
             nr_thr_saving=nr_thr_saving,
@@ -241,8 +242,6 @@ if __name__ == "__main__":
         logger.info(f"# Found {len(input_files)} input-files -> start processing ...")
 
         for input_file in input_files:
-            logger.info(f"# {input_file=} ")
-            logger.info(f"# {element_output_dir=} ")
             success, input_file = process_input_file(
                 input_path=input_file, output_path=element_output_dir
             )

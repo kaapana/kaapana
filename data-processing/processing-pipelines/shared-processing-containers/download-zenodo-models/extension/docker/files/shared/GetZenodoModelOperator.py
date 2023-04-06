@@ -13,7 +13,7 @@ class GetZenodoModelOperator(KaapanaBaseOperator):
     def __init__(self,
                 dag,
                 model_dir = "/models/nnUNet",
-                name="get-zenodo-model",
+                name="get-zenodo-models",
                 task_ids=None,
                 enable_proxy=True,
                 delete_output_on_start=False,

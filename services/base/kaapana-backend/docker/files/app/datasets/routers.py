@@ -1,3 +1,6 @@
+import json
+from typing import Union
+
 from fastapi import APIRouter, HTTPException, Body
 from fastapi.responses import JSONResponse
 from opensearchpy import OpenSearch
@@ -61,10 +64,11 @@ async def tag_data(data: list = Body(...)):
         raise HTTPException(500, e)
 
 
-@router.post("/series")
-async def get_series(body: dict = Body(...)):
+@router.get("/series")
+async def get_series(body: str):
     import pandas as pd
 
+    body: dict = json.loads(body)
     structured: bool = body.get("structured", False)
     query: dict = body.get("query", {"query_string": {"query": "*"}})
 
@@ -158,8 +162,9 @@ async def get_fields(index: str = "meta-index", field: str = None):
         return JSONResponse(mapping)
 
 
-@router.post("/dashboard")
-async def get_dashboard(config: dict = Body(...)):
+@router.get("/dashboard")
+async def get_dashboard(config: str):
+    config: dict = json.loads(config)
     series_instance_uids = config.get("series_instance_uids")
     names = config.get("names", [])
 
@@ -237,9 +242,11 @@ async def get_dashboard(config: dict = Body(...)):
     return JSONResponse(dict(histograms=histograms, metrics=metrics))
 
 
-@router.post("/curation_tool/query_values")
-async def get_query_values(query: dict = Body(...)):
-    if not query:
+@router.get("/query_values")
+async def get_query_values(query: Union[str, None] = None):
+    if query:
+        query: dict = json.loads(query)
+    if not query or query == {}:
         query = {"query_string": {"query": "*"}}
 
     try:

@@ -80,9 +80,9 @@ class KaapanaInstance(Base):
 
 class Experiment(Base):
     __tablename__ = "experiment"
-    id = Column(Integer, primary_key=True)
+    exp_id = Column(String(64), primary_key=True)
     experiment_name = Column(String(64))
-    external_experiment_id = Column(Integer)
+    # external_experiment_id = Column(Integer)
     username = Column(String(64))
     # cohort_name = Column(String(64), index=True)  # now in a relationship
     time_created = Column(DateTime(timezone=True))
@@ -115,7 +115,7 @@ class Job(Base):
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey('kaapana_instance.id'))
     kaapana_instance = relationship("KaapanaInstance", back_populates="jobs")
-    exp_id = Column(Integer, ForeignKey('experiment.id'))
+    exp_id = Column(String, ForeignKey('experiment.exp_id'))
     experiment = relationship("Experiment", back_populates="experiment_jobs")
 
 

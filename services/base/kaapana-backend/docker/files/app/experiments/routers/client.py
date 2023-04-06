@@ -1,5 +1,7 @@
 import copy
 import json
+import random
+import string
 from typing import List
 import logging
 import traceback
@@ -274,6 +276,7 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
         logging.error(f"JSON Schema is not valid for the Pydantic model. Error: {e}")
         raise HTTPException(status_code=400, detail="JSON Schema is not valid for the Pydantic model.")
 
+    # username
     if json_schema_data.username is not None:
         username = json_schema_data.username
     elif "x-forwarded-preferred-username" in request.headers:
@@ -288,12 +291,19 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
 
     conf_data = json_schema_data.conf_data
 
+    # generate random and unique experiment id
+    characters = string.ascii_uppercase + string.ascii_lowercase + string.digits
+    exp_id = ''.join(random.choices(characters, k=6))
+    # append exp_id to experiment_name
+    experiment_name = json_schema_data.experiment_name + '_exp' + exp_id
+
     if json_schema_data.federated:  # == True ;-)
         involved_instance_names = copy.deepcopy(json_schema_data.instance_names)
         involved_instance_names.extend(conf_data['external_schema_instance_names'])
     conf_data["experiment_form"] = {
         "username": username,
-        "experiment_name": json_schema_data.experiment_name,
+        "exp_id": exp_id,
+        "experiment_name": experiment_name,
         "involved_instances": json_schema_data.instance_names if json_schema_data.federated == False else involved_instance_names, # instances on which experiment is created!
         "runner_instances": json_schema_data.instance_names    # instances on which jobs of experiment are created!
     }
@@ -315,7 +325,8 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
 
     # create an experiment with involved_instances=conf_data["experiment_form"]["involved_instances"] and add jobs to it
     experiment = schemas.ExperimentCreate(**{
-        "experiment_name": json_schema_data.experiment_name,
+        "exp_id": exp_id,
+        "experiment_name": experiment_name,
         "username": username,
         "kaapana_instance_id": db_client_kaapana.id,
         # "experiment_jobs": db_jobs,
@@ -326,7 +337,7 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
 
     # async function call to queue jobs and generate db_jobs + adding them to db_experiment
     # TODO moved methodcall outside of async framwork because our database implementation is not async compatible
-    #asyncio.create_task(crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_experiment, json_schema_data, conf_data))
+    # asyncio.create_task(crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_experiment, json_schema_data, conf_data))
     crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_experiment, json_schema_data, conf_data)
 
     # directly return created db_experiment for fast feedback
@@ -334,8 +345,8 @@ def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData
 
 # get_experiment
 @router.get("/experiment", response_model=schemas.ExperimentWithKaapanaInstance)
-def get_experiment(experiment_id: int = None, experiment_name: str = None, db: Session = Depends(get_db)):
-    return crud.get_experiment(db, experiment_id, experiment_name)
+def get_experiment(exp_id: str = None, experiment_name: str = None, db: Session = Depends(get_db)):
+    return crud.get_experiment(db, exp_id, experiment_name)
 
 # get_experiments
 @router.get("/experiments", response_model=List[schemas.ExperimentWithKaapanaInstanceWithJobs]) # also okay: response_model=List[schemas.Experiment] ; List[schemas.ExperimentWithKaapanaInstance]
@@ -347,7 +358,7 @@ def get_experiments(request: Request, instance_name: str = None, involved_instan
 def put_experiment(experiment: schemas.ExperimentUpdate, db: Session = Depends(get_db)):
     if experiment.experiment_status == "abort":
         # iterate over experiment's jobs and execute crud.abort_job() and crud.update_job() and at the end also crud.update_experiment()
-        db_experiment = crud.get_experiment(db, experiment.experiment_id)   # better call crud method directly instead of calling client.py's def get_experiment()
+        db_experiment = crud.get_experiment(db, experiment.exp_id)   # better call crud method directly instead of calling client.py's def get_experiment()
         for db_job in db_experiment.experiment_jobs:
             
             # compose a JobUpdate schema, set it's status to 'abort' and execute client.py's put_job()
@@ -374,8 +385,8 @@ def put_experiment_jobs(experiment: schemas.ExperimentUpdate, db: Session = Depe
 
 # delete_experiment
 @router.delete("/experiment")
-def delete_experiment(experiment_id: int, db: Session = Depends(get_db)):
-    return crud.delete_experiment(db, experiment_id)
+def delete_experiment(exp_id: str, db: Session = Depends(get_db)):
+    return crud.delete_experiment(db, exp_id)
 
 # delete_experiments
 @router.delete("/experiments")

@@ -39,16 +39,15 @@
           <Chip :items="[modality]"/>
           <v-spacer></v-spacer>
           <CardMenu
-              @removeFromCohort="() => {this.$emit('removeFromCohort')}"
+              @removeFromDataset="() => {this.$emit('removeFromDataset')}"
               @deleteFromPlatform="() => {this.$emit('deleteFromPlatform')}"
-              :cohort_names="cohort_names"
-              :cohort_name="cohort_name"
+              :datasetNames="datasetNames"
+              :datasetName="datasetName"
               :seriesInstanceUID="seriesInstanceUID"
-              :studyInstanceUID="studyInstanceUID"
           ></CardMenu>
         </v-app-bar>
       </v-img>
-      <v-card-text v-if="config.display_card_text">
+      <v-card-text v-if="settings.datasets.cardText">
         <v-row no-gutters>
           <v-col cols="11">
             <div class="text-truncate">
@@ -80,23 +79,23 @@
             </v-tooltip>
           </v-col>
         </v-row>
-        <div v-for="data in config.props">
-          <div v-if="data['display']">
+        <div v-for="prop in settings.datasets.props">
+          <div v-if="prop['display']">
             <v-row no-gutters style="font-size: x-small">
               <v-col style="margin-bottom: -5px">
-                {{ data['name'] }}
+                {{ prop['name'] }}
               </v-col>
             </v-row>
             <v-row no-gutters style="font-size: small; padding-top: 0" align="start">
               <v-col>
-                <div :class="data['truncate'] ? 'text-truncate' : ''">
-                  {{ seriesData[data['key']] || 'N/A' }}
+                <div :class="prop['truncate'] ? 'text-truncate' : ''">
+                  {{ seriesData[prop['name']] || 'N/A' }}
                 </div>
               </v-col>
             </v-row>
           </div>
         </div>
-        <v-row v-if="tags && config.display_tags" no-gutters>
+        <v-row v-if="tags" no-gutters>
           <TagChip :items="tags" @deleteTag="(tag) => deleteTag(tag)"/>
         </v-row>
       </v-card-text>
@@ -111,29 +110,27 @@ import Chip from "./Chip.vue";
 import TagChip from "./TagChip.vue";
 import CardMenu from "./CardMenu";
 
-import {loadSeriesFromMeta, updateTags} from "@/common/api.service"
-import {getDicomTags} from "../common/api.service";
+import {loadSeriesData, updateTags} from "@/common/api.service"
+import {settings} from "@/static/defaultUIConfig";
 
 
 export default {
   name: "CardSelect",
   components: {Chip, TagChip, CardMenu},
+  emits: ['openInDetailView'],
   props: {
-    cohort_name: {
+    datasetName: {
       type: String,
       default: null
     },
     seriesInstanceUID: {
       type: String,
     },
-    studyInstanceUID: {
-      type: String,
-    },
     selected_tags: {
       type: Array,
       default: () => ([])
     },
-    cohort_names: {
+    datasetNames: {
       type: Array,
       default: () => ([])
     }
@@ -145,7 +142,7 @@ export default {
       seriesDescription: '',
       modality: null,
       tags: [],
-      config: {},
+      settings: settings,
       tagsData: [],
 
       img_loading_error: false,
@@ -155,36 +152,11 @@ export default {
       timer: null,
     };
   },
+  created() {
+    this.settings = JSON.parse(localStorage['settings'])
+  },
   async mounted() {
-    const type = JSON.parse(localStorage.getItem("Dataset.structuredGallery")) ? 'structured' : 'unstructured'
-    const key = `Dataset.CardSelect.config.${type}`
-    if (localStorage.getItem(key)) {
-      this.config = JSON.parse(localStorage.getItem(key))
-    } else {
-      if (type === 'unstructured') {
-        this.config = {
-          display_card_text: true,
-          display_tags: true,
-          props: [
-            {name: "Patient ID", key: '00100020 PatientID_keyword', display: true, truncate: true},
-            {name: 'Study Description', key: '00081030 StudyDescription_keyword', display: true, truncate: true},
-            {name: 'Study Date', key: '00080020 StudyDate_date', display: true, truncate: true},
-          ]
-        }
-      } else {
-        this.config = {
-          display_card_text: true,
-          display_tags: true,
-          props: [
-            {name: "Slice thickness", key: '00180050 SliceThickness_float', display: true, truncate: true}
-          ]
-        }
-      }
-      localStorage[key] = JSON.stringify(this.config)
-    }
-
     this.get_data();
-    getDicomTags(this.studyInstanceUID, this.seriesInstanceUID).then(data => this.tagsData = data)
   },
   watch: {
     // todo: why is this needed?
@@ -195,13 +167,14 @@ export default {
   methods: {
     get_data() {
       if (this.seriesInstanceUID !== '') {
-        loadSeriesFromMeta(this.seriesInstanceUID).then(data => {
+        loadSeriesData(this.seriesInstanceUID).then(data => {
           if (data !== undefined) {
-            this.src = data.src || ''
-            this.seriesDescription = data.seriesDescription || ''
-            this.modality = data.modality || ''
-            this.seriesData = data.seriesData || {}
-            this.tags = data.tags || []
+            this.src = data['thumbnail_src'] || ''
+            this.seriesDescription = data['metadata']['Series Description'] || ''
+            this.modality = data['metadata']['Modality'] || ''
+            this.seriesData = data['metadata'] || {}
+            this.tags = data['metadata']['tags'] || []
+            this.tagsData = Object.entries(this.seriesData).map(i => ({name: i[0], value: i[1]}))
           }
         })
       }
@@ -213,18 +186,18 @@ export default {
         "tags2add": [],
         "tags2delete": [tag]
       }]
-      updateTags(JSON.stringify(request_body))
+      updateTags(request_body)
           .then(() => this.tags = this.tags.filter((_tag) => _tag !== tag))
     },
     modifyTags() {
       let request_body = []
 
       if (this.selected_tags.length === 0) {
-        this.$notify({
-          type: 'hint',
-          title: 'No label selected',
-          text: 'There was no label selected. First select a label and then click on the respective Item to assign it.',
-        })
+        // this.$notify({
+        //   type: 'hint',
+        //   title: 'No label selected',
+        //   text: 'There was no label selected. First select a label and then click on the respective Item to assign it.',
+        // })
         return
       }
 
@@ -247,8 +220,8 @@ export default {
           "tags2delete": []
         }]
       }
-
-      updateTags(JSON.stringify(request_body))
+      console.log(request_body)
+      updateTags(request_body)
           .then(() => {
             this.tags =
                 tagsAlreadyExist
@@ -277,7 +250,7 @@ export default {
       this.show_details(this.seriesInstanceUID)
     },
     show_details(objectImage) {
-      this.$emit('imageId', objectImage);
+      this.$emit('openInDetailView', objectImage);
     }
   }
 };

@@ -2,7 +2,7 @@
   .federated-panel
     v-container(text-left fluid)
       experiment-table(v-if="clientInstance" :instance="clientInstance" :allInstances="allInstances" :experiments="clientExperiments" :remote="clientInstance.remote" @refreshView="refreshClient()")
-        
+
 </template>
 
 <script>
@@ -12,7 +12,7 @@ import kaapanaApiService from "@/common/kaapanaApi.service";
 
 import ExperimentTable from "@/components/ExperimentTable.vue"
 import WorkflowExecution  from "@/components/WorkflowExecution.vue";
-
+import {loadDatasetNames} from "@/common/api.service";
 
 export default Vue.extend({
   components: {
@@ -106,14 +106,9 @@ export default Vue.extend({
         });
     },
     getDatasets() {
-      kaapanaApiService
-        .federatedClientApiGet("/cohort-names")
-        .then((response) => {
-          this.datasets = response.data;
-        })
-        .catch((err) => {
-          console.log(err);
-        });
+      loadDatasetNames().then(_datasetNames => {
+         this.datasets = _datasetNames;
+      })
     },
     getClientInstance() {
       kaapanaApiService

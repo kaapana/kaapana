@@ -43,7 +43,7 @@ ui_forms = {**schema_minio_form(
     "workflow_form": {
         "type": "object",
         "properties": {
-            "modality":{
+            "modality": {
                 "title": "Modality",
                 "description": "Modality of the input images. Usually CT or MR.",
                 "type": "string",
@@ -51,19 +51,19 @@ ui_forms = {**schema_minio_form(
                 "required": False,
             },
             "aetitle": {
-                "title": "Dataset tag",
+                "title": "Tag",
                 "description": "Specify a tag for your dataset.",
                 "type": "string",
                 "default": "itk2dcm",
-                "required": True
+                "required": True,
             },
             "delete_original_file": {
                 "title": "Delete file from Minio after successful upload?",
                 "type": "boolean",
                 "default": True,
-            }
-        }
-    }
+            },
+        },
+    },
 }
 
 log = LoggingMixin().log
@@ -97,20 +97,20 @@ unzip_files = ZipUnzipOperator(
     batch_level=True,
     mode="unzip"
 )
-    
+
 convert = Itk2DcmOperator(
-    dag=dag, 
-    name="convert-itk2dcm", 
+    dag=dag,
+    name="convert-itk2dcm",
     # dev_server='code-server',
     trigger_rule="none_failed_min_one_success",
     input_operator=unzip_files
-) 
+)
 
 convert_seg = Itk2DcmSegOperator(
     dag=dag,
     name="convert-segmentation",
     input_operator=convert,
-    segmentation_in_dir='segmentations', 
+    segmentation_in_dir='segmentations',
     input_type="multi_label_seg",
     skip_empty_slices=True,
     fail_on_no_segmentation_found=False
@@ -147,7 +147,7 @@ def branching_zipping_callable(**kwargs):
         unzip_dir.mkdir(parents=True, exist_ok=True)
         download_dir.rename(unzip_dir)
         return [convert.name]
-    
+
 branching_zipping = BranchPythonOperator(
     task_id='branching-unzipping',
     provide_context=True,
@@ -161,7 +161,7 @@ def branching_sending_callable(**kwargs):
         return [convert_seg.name, dcm_send_img.name]
     else:
         return [dcm_send_img.name]
-    
+
 branching_sending = BranchPythonOperator(
     task_id='branching-sending',
     provide_context=True,

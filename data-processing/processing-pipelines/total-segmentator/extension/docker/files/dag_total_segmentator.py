@@ -10,6 +10,7 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from totalsegmentator.LocalGetTotalSegmentatorModelsOperator import LocalGetTotalSegmentatorModelsOperator
 from totalsegmentator.TotalSegmentatorOperator import TotalSegmentatorOperator
+from shared.GetZenodoModelOperator import GetZenodoModelOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalCombineMasksOperator import LocalCombineMasksOperator
 from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator
@@ -74,6 +75,7 @@ ui_forms = {
         }
     }
 }
+
 args = {
     'ui_visible': True,
     'ui_forms': ui_forms,
@@ -91,8 +93,10 @@ dag = DAG(
     schedule_interval=None
 )
 
-get_total_segmentator_model = LocalGetTotalSegmentatorModelsOperator(
-    dag=dag
+get_total_segmentator_model = GetZenodoModelOperator(
+    dag=dag,
+    model_dir="/models/total_segmentator/nnUNet",
+    task_ids="Task251_TotalSegmentator_part1_organs_1139subj,Task252_TotalSegmentator_part2_vertebrae_1139subj,Task253_TotalSegmentator_part3_cardiac_1139subj,Task254_TotalSegmentator_part4_muscles_1139subj,Task255_TotalSegmentator_part5_ribs_1139subj"
 )
 
 get_input = LocalGetInputDataOperator(
@@ -107,17 +111,74 @@ dcm2nifti = DcmConverterOperator(
     output_format='nii.gz',
 )
 
-total_segmentator = TotalSegmentatorOperator(
+ta = "total"
+total_segmentator_0 = TotalSegmentatorOperator(
     dag=dag,
-    input_operator=dcm2nifti
+    task = ta,
+    input_operator=dcm2nifti,
+    parallel_id = ta
+)
+
+ta = "lung_vessels"
+total_segmentator_1 = TotalSegmentatorOperator(
+    dag=dag,
+    task = ta,
+    input_operator=dcm2nifti,
+    output_operator=total_segmentator_0,
+    parallel_id = ta
+)
+
+ta = "cerebral_bleed"
+total_segmentator_2 = TotalSegmentatorOperator(
+    dag=dag,
+    task = ta,
+    input_operator=dcm2nifti,
+    output_operator=total_segmentator_0,
+    parallel_id = ta
+)
+
+ta = "hip_implant"
+total_segmentator_3 = TotalSegmentatorOperator(
+    dag=dag,
+    task = ta,
+    input_operator=dcm2nifti,
+    output_operator=total_segmentator_0,
+    parallel_id = ta
+)
+
+ta = "coronary_arteries"
+total_segmentator_4 = TotalSegmentatorOperator(
+    dag=dag,
+    task = ta,
+    input_operator=dcm2nifti,
+    output_operator=total_segmentator_0,
+    parallel_id = ta
+)
+
+ta = "body"
+total_segmentator_5 = TotalSegmentatorOperator(
+    dag=dag,
+    task = ta,
+    input_operator=dcm2nifti,
+    output_operator=total_segmentator_0,
+    parallel_id = ta
+)
+
+ta = "pleural_pericard_effusion"
+total_segmentator_6 = TotalSegmentatorOperator(
+    dag=dag,
+    task = ta,
+    input_operator=dcm2nifti,
+    output_operator=total_segmentator_0,
+    parallel_id = ta
 )
 
 combine_masks = LocalCombineMasksOperator(
     dag=dag,
-    input_operator=total_segmentator
+    combine_operators=[total_segmentator_0]
 )
 
-alg_name = 'TotalSegmentator'
+alg_name='TotalSegmentator'
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     dag=dag,
     input_operator=get_input,
@@ -129,17 +190,25 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     alg_name=alg_name
 )
 
-pyradiomics = PyRadiomicsOperator(
-    dag=dag,
-    input_operator=dcm2nifti,
-    segmentation_operator=total_segmentator,
-)
+# pyradiomics = PyRadiomicsOperator(
+#     dag=dag,
+#     input_operator=dcm2nifti,
+#     segmentation_operator=total_segmentator,
+# )
 
-put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[pyradiomics], file_white_tuples=('.json'))
+# put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[pyradiomics], file_white_tuples=('.json'))
 dcmseg_send_multi = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi)
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_total_segmentator_model >> total_segmentator
-get_input >> dcm2nifti >> total_segmentator >> combine_masks >> nrrd2dcmSeg_multi >> dcmseg_send_multi >> clean
-total_segmentator >> pyradiomics >> put_to_minio >> clean
+get_total_segmentator_model >> total_segmentator_0
+get_input >> dcm2nifti >> total_segmentator_0 
+
+total_segmentator_0 >> total_segmentator_1 >> combine_masks
+total_segmentator_0 >> total_segmentator_2 >> combine_masks
+total_segmentator_0 >> total_segmentator_3 >> combine_masks
+total_segmentator_0 >> total_segmentator_4 >> combine_masks
+total_segmentator_0 >> total_segmentator_5 >> combine_masks
+total_segmentator_0 >> total_segmentator_6 >> combine_masks
+combine_masks >> nrrd2dcmSeg_multi >> dcmseg_send_multi >> clean
+# total_segmentator >> pyradiomics >> put_to_minio >> clean

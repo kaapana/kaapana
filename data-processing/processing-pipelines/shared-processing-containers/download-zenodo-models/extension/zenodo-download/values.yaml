@@ -1,0 +1,4 @@
+---
+global:
+    image: "dag-zenodo-download"
+    action: "copy"

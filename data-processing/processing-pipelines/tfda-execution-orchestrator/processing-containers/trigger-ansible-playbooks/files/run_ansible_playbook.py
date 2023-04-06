@@ -57,4 +57,13 @@ def start():
     else:
         raise AirflowFailException("Fetching results FAILED! Cannot proceed further...")
 
+logging.info("##################################################")
+logging.info("#")
+logging.info("# Starting operator dice-evaluation:")
+logging.info("#")
+logging.info(f"# workflow_dir:     {workflow_dir}")
+logging.info("#")
+logging.info(f"# dag_run_id:     {dag_run_id}")
+logging.info("#")
+logging.info(f"# operator_in_dir:  {operator_in_dir}")
 start()

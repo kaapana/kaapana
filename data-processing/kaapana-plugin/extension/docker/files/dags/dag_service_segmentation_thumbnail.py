@@ -68,7 +68,7 @@ dcm2nifti_seg = Mask2nifitiOperator(
 
 combine_masks = LocalCombineMasksOperator(
     dag=dag,
-    input_operator=dcm2nifti_seg
+    combine_operators=[dcm2nifti_seg]
 )
 
 dcm2nifti_ct = DcmConverterOperator(

@@ -15,12 +15,12 @@ spec:
         image: "{{ .Values.global.registry_url }}/download-zenodo-models:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
-        - name: TASK_IDS
-          value: {{ .Values.global.task_ids | default "all" }}
         - name: MODEL_DIR
-          value: "/models/nnUNet"
+          value: "/models/total_segmentator/nnUNet"
         - name: LOG_LEVEL
           value: "INFO"
+        - name: TASK_IDS
+          value: {{ .Values.global.task_ids | default "total" }}
 {{- if .Values.global.http_proxy }}
         - name: http_proxy
           value: {{ .Values.global.http_proxy }}

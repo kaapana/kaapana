@@ -30,7 +30,7 @@ class LocalCombineMasksOperator(KaapanaPythonBaseOperator):
     """
 
     @staticmethod
-    def combine_masks_to_multilabel_file(masks_dir: Path, output_file: Path):
+    def combine_masks_to_multilabel_file(masks_dirs: List[Path], output_file: Path):
         """
         Given the Path to the directory which contains all the masks, the method will produce a single multi-mask
         nifti.
@@ -41,8 +41,10 @@ class LocalCombineMasksOperator(KaapanaPythonBaseOperator):
         :param output_file: Path to the file, where the single multi-mask segmentation nifti should be stored.
         :type output_file: Path
         """
-        masks_dir: Path = Path(masks_dir)
-        masks: List[Path] = list(masks_dir.glob('*.nii.gz'))
+
+        masks: List[Path] = []
+        for masks_dir in masks_dirs:
+            masks.extend(list(masks_dir.glob('*.nii.gz')))
         ref_img = nib.load(masks[0])
         img_out = np.zeros(ref_img.shape).astype(np.uint8)
         if not (masks_dir / 'seg_info.json').exists():
@@ -72,31 +74,36 @@ class LocalCombineMasksOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         run_id = kwargs['dag_run'].run_id
         batch_folders = list(Path(self.airflow_workflow_dir, run_id, self.batch_name).glob('*'))
-
+        
         for batch_element_dir in batch_folders:
-            element_input_dir = batch_element_dir / self.operator_in_dir
             element_output_dir = batch_element_dir / self.operator_out_dir
-
             element_output_dir.mkdir(exist_ok=True)
+
+            masks_dirs: List[Path] = []
+            for input_operator in self.combine_operators:
+                element_input_dir = Path(batch_element_dir / input_operator.operator_in_dir)
+                masks_dirs.append()
+                if (element_input_dir / 'seg_info.json').exists():
+                    shutil.copy(element_input_dir / 'seg_info.json', element_output_dir)
 
             # The processing algorithm
             print(
-                f'Converting multiple single-mask nifti files from {str(element_input_dir)} to a single multi-mask '
+                f'Converting multiple single-mask nifti files from {str(masks_dirs)} to a single multi-mask '
                 f'nifti file and writing results to {str(element_output_dir)}'
             )
 
             LocalCombineMasksOperator.combine_masks_to_multilabel_file(
-                element_input_dir,
+                masks_dirs,
                 (element_output_dir / f'{batch_element_dir.name}.nii.gz').absolute()
             )
 
-            if (element_input_dir / 'seg_info.json').exists():
-                shutil.copy(element_input_dir / 'seg_info.json', element_output_dir)
-
     def __init__(self,
                  dag,
+                 combine_operators,
                  name='combine-masks',
                  **kwargs):
+        
+        self.combine_operators = combine_operators
 
         super().__init__(
             dag=dag,

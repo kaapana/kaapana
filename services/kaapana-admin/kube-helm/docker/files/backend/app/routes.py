@@ -7,6 +7,7 @@ from fastapi import APIRouter, Response, Request, UploadFile, WebSocket, WebSock
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi.logger import logger
+from typing import Optional
 
 from config import settings
 import helm_helper
@@ -114,7 +115,7 @@ async def upload_file_chunks(file: UploadFile):
 
 
 @router.get("/import-container")
-async def import_container(filename: str, platforms: bool):
+async def import_container(filename: str, platforms: Optional[bool] = False):
     try:
         logger.info(f"/import-container called with {filename=}, {platforms=}")
         assert filename != "", "Required key 'filename' can not be empty"

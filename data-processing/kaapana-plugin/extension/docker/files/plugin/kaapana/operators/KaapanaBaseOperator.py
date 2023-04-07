@@ -590,7 +590,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         batch_input_dir = os.path.join(run_dir, operator_dir)
         logging.info(f"# Deleting: {batch_input_dir} ...")
         shutil.rmtree(batch_input_dir, ignore_errors=True)
-
+    
     @staticmethod
     def on_failure(context):
         """

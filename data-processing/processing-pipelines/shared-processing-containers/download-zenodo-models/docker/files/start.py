@@ -16,7 +16,7 @@ from logger_helper import get_logger
 success_count = 0
 processed_count = 0
 max_retries = 3
-waiting_timeout_sec = 3
+waiting_timeout_sec = 7200
 max_hours_since_creation = 3
 model_dir = getenv("MODEL_DIR", "None")
 model_dir = model_dir if model_dir.lower() != "none" else None
@@ -171,7 +171,9 @@ if __name__ == "__main__":
 
     for rounds in range(0, 2):
         logger.info(f"####### round: {rounds}")
+        success_count = 0
         for task_id in task_ids:
+            tmp_success = False
             assert task_id in model_lookup_dict
             task_url = model_lookup_dict[task_id]["download_link"]
             task_models = model_lookup_dict[task_id]["models"]
@@ -204,6 +206,8 @@ if __name__ == "__main__":
                         model_url=task_url,
                         model_download_zip_tmp_path=model_download_zip_tmp_path,
                     )
+                else:
+                    download_success = True
 
                 if not download_success:
                     issues_occurred = True
@@ -227,7 +231,10 @@ if __name__ == "__main__":
                     continue
                 else:
                     logger.info(f"{task_id}: {task_model} ✓ everything is fine -> DONE")
-                    success_count += 1
+                    tmp_success = True
+
+            if tmp_success:
+                success_count += 1
 
     if issues_occurred and success_count != len(task_ids):
         logger.info("# Something went wrong ...")

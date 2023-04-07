@@ -31,10 +31,10 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
     def __init__(
         self,
         dag,
+        task,
         name="total-segmentator",
-        task="total",
         output_type="nifti",
-        multilabel=True,
+        multilabel=False,
         fast=False,
         preview=False,
         statistics=True,
@@ -99,7 +99,7 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
             keep_parallel_id=False,
             enable_proxy=True,
             env_vars=env_vars,
-            ram_mem_mb=20000,
-            gpu_mem_mb=8000,
+            ram_mem_mb=13000,
+            gpu_mem_mb=11900,
             **kwargs,
         )

@@ -4,3 +4,5 @@ appVersion: "0.0.0"
 description: Shared operator to download zenodo models
 name: zenodo-download
 version: "0.0.0"
+keywords:
+- kaapanaworkflow

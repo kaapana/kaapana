@@ -54,8 +54,6 @@ dependencies:
     version: 0.0.0
   - name: slicer-workbench-chart
     version: 0.0.0
-  - name: static-website-chart
-    version: 0.0.0
   - name: tensorboard-chart
     version: 0.0.0
   - name: total-segmentator-workflow

@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: landingpage
-        image: <registry>/base-landing-page:0.1.3-dev
+        image: <registry>/base-landing-page:0.0.0-dev
         imagePullPolicy: Always
         command:
         - sh
@@ -50,12 +50,17 @@ spec:
         volumeMounts:
           - name: common-data-file
             mountPath: /kaapana/app/jsons
+          - name: minio-data
+            mountPath: /kaapana/app/minio
           - name: landing-dev-files
             mountPath: /kaapana/app/src
       volumes:
       - name: common-data-file
         configMap:
           name: landing-page-config
+      - name: minio-data
+        persistentVolumeClaim:
+          claimName: minio-pv-claim
       - name: landing-dev-files
         hostPath:
           path: /path/to/kaapana/services/utils/base-landing-page/files/kaapana_app/src

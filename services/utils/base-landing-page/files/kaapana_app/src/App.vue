@@ -2,7 +2,7 @@
   <div id="app">
     <v-app id="inspire">
       <notifications position="bottom right" width="20%"/>
-      <v-navigation-drawer clipped v-model="drawer" app class="ta-center">
+      <v-navigation-drawer clipped v-model="drawer" app mobile-breakpoint="0" class="ta-center">
         <v-list dense>
           <v-list-item :to="'/'">
             <v-list-item-action>
@@ -197,7 +197,6 @@ export default Vue.extend({
   data: () => ({
     drawer: true,
     federatedBackendAvailable: false,
-    staticWebsiteAvailable: false,
     settings: settings,
     workflowsList: [
       ['Data Upload', 'mdi-cloud-upload', '/data-upload'],
@@ -259,11 +258,6 @@ export default Vue.extend({
     this.$vuetify.theme.dark = this.settings['darkMode']
     request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
       this.federatedBackendAvailable = kaapanaApiService.checkUrl(response.data, '/kaapana-backend')
-    }).catch((error: any) => {
-      console.log('Something went wrong with traefik', error)
-    })
-    request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
-      this.staticWebsiteAvailable = kaapanaApiService.checkUrl(response.data, '/static-website-browser')
     }).catch((error: any) => {
       console.log('Something went wrong with traefik', error)
     })

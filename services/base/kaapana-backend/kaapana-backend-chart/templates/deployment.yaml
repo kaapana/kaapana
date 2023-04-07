@@ -135,12 +135,17 @@ spec:
 {{- end }}
         - name: alembic
           mountPath: /kaapana/app/alembic
+        - name: minio-data
+          mountPath: /kaapana/mounted/minio
       imagePullSecrets:
         - name: registry-secret
       volumes:
       - name: alembic
         persistentVolumeClaim:
           claimName: alembic-pv-claim
+      - name: minio-data
+        persistentVolumeClaim:
+          claimName: minio-pv-claim
 {{- if .Values.global.dev_files }}
       - name: kaapana-dev-files
         persistentVolumeClaim:

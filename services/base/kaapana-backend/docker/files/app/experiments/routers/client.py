@@ -29,7 +29,7 @@ router = APIRouter(tags=["client"])
 global minio_upload_mapping_dict
 minio_upload_mapping_dict = dict()
 
-UPLOAD_DIR = "/home/kaapana/minio/uploads"
+UPLOAD_DIR = "/kaapana/mounted/minio/uploads"
 @router.post("/minio-file-upload")
 async def post_minio_file_upload(request: Request):
     form = await request.form()
@@ -43,24 +43,26 @@ async def post_minio_file_upload(request: Request, patch: str):
     uoffset = request.headers.get('upload-offset', None) 
     ulength = request.headers.get('upload-length', None)
     uname = request.headers.get('upload-name', None)
-    fpath = Path(UPLOAD_DIR) / patch
+    fpath = Path(UPLOAD_DIR) / f"{patch}.tmp" 
     with open(fpath, "ab") as f:
         async for chunk in request.stream():
             f.write(chunk)
     if ulength == str(fpath.stat().st_size):
         try:
             object_name = minio_upload_mapping_dict[patch]
-            target_path = Path(UPLOAD_DIR)  / object_name
+            target_path = Path(UPLOAD_DIR)  / object_name.strip("/")
             target_path.parents[0].mkdir(parents=True, exist_ok=True)
+            logging.info(f'Moving file {fpath} to {target_path}')
             shutil.move(fpath, target_path)
             # Todo check if fput_objects also needs a long time... if not Minio file mount can be removed and UPLOAD_DIR might be /tmp
             # HelperMinio.minioClient.fput_object("uploads", minio_upload_mapping_dict[patch], fpath)
             logging.info(f'Successfully saved file {uname} to Minio')
-            fpath.unlink()
+            # fpath.unlink()
             filename = minio_upload_mapping_dict.pop(patch, 'already deleted')
             return Response(f"Upload of {filename} succesful!")
         except Exception as e:
             logging.error(f"Failed to upload to Minio: {e}")
+            fpath.unlink()
             raise HTTPException(status_code=500, detail=f"Failed to upload to Minio: {e}")
     return Response(patch)
 
@@ -69,7 +71,7 @@ def head_minio_file_upload(request: Request, patch: str):
     uoffset = request.headers.get('upload-offset', None)
     ulength = request.headers.get('upload-length', None)
     uname = request.headers.get('upload-name', None)
-    fpath = Path(UPLOAD_DIR) / patch
+    fpath = Path(UPLOAD_DIR) / f"{patch}.tmp" 
     if fpath.is_file():
         offset = int(ulength)-fpath.stat().st_size
     else:
@@ -80,7 +82,7 @@ def head_minio_file_upload(request: Request, patch: str):
 async def delete_minio_file_upload(request: Request):
     body = await request.body()
     patch = body.decode("utf-8") 
-    fpath = Path(UPLOAD_DIR) / patch
+    fpath = Path(UPLOAD_DIR) / f"{patch}.tmp" 
     fpath.unlink()
     filename = minio_upload_mapping_dict.pop(patch, 'already deleted')
     return Response(f"Deleted {filename} succesfully!")

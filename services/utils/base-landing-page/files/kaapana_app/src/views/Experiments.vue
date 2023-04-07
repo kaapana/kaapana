@@ -11,13 +11,11 @@ import { mapGetters } from "vuex";
 import kaapanaApiService from "@/common/kaapanaApi.service";
 
 import ExperimentTable from "@/components/ExperimentTable.vue"
-import WorkflowExecution  from "@/components/WorkflowExecution.vue";
 import {loadDatasetNames} from "@/common/api.service";
 
 export default Vue.extend({
   components: {
     ExperimentTable,
-    WorkflowExecution,
   },
   data: () => ({
     polling: 0,
@@ -159,9 +157,9 @@ export default Vue.extend({
     startExtensionsInterval() {
       this.polling = window.setInterval(() => {
         // a little bit ugly... https://stackoverflow.com/questions/40410332/vuejs-access-child-components-data-from-parent
-        if (!this.$refs.workflowexecution.dialogOpen) {
-          this.refreshClient();
-        }
+        // if (!this.$refs.workflowexecution.dialogOpen) {
+        //   this.refreshClient();
+        // }
       }, 15000);
     }
   },

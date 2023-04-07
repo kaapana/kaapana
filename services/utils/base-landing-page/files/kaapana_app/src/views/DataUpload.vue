@@ -1,10 +1,7 @@
 <template lang="pug">
   .dropzone
     v-container(grid-list-lg text-left)
-      div(v-if="supported")
-        upload(labelIdle="Drop files that shoud be available in workflows here...")
-      div(v-else)
-        v-alert(color='red' type='info') The data upload is not supported in Firefox.
+      upload(labelIdle="Drop files that shoud be available in workflows here... Attention! In case you want to upload image data you need to first upload them here in a zip file and then execute the dicom-upload workflow!")
 
 </template>
 

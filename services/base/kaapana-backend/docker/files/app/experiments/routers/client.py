@@ -3,8 +3,11 @@ import json
 import logging
 import random
 import string
+import uuid
+import shutil
 from typing import List, Union
 
+from pathlib import Path
 import jsonschema
 from app.datasets.utils import execute_opensearch_query
 from app.dependencies import get_db
@@ -13,25 +16,74 @@ from app.experiments import schemas
 from app.experiments.utils import HelperMinio
 from app.experiments.utils import get_dag_list
 from fastapi import APIRouter, Depends, UploadFile, File, Request, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import ValidationError
 from pydantic.schema import schema
 from sqlalchemy.orm import Session
+
 
 logging.getLogger().setLevel(logging.DEBUG)
 
 router = APIRouter(tags=["client"])
 
-@router.post("/post-minio-object-to-uploads")
-async def post_minio_object_to_uploads(filepond: UploadFile = File(...)):
-    logging.info(f'Uploading file: {filepond.filename}')
-    try:
-        HelperMinio.minioClient.put_object("uploads", filepond.filename, filepond.file, length=-1, part_size=10*1024*1024)
-        logging.info(f'Successfully saved file {filepond.filename} to Minio')
-    except Exception as e:
-        logging.error(f"Failed to upload to Minio: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to upload to Minio: {e}")
-    return JSONResponse(content={"message": "Succesfully uploaded file " + filepond.filename})
+global minio_upload_mapping_dict
+minio_upload_mapping_dict = dict()
+
+UPLOAD_DIR = "/home/kaapana/minio/uploads"
+@router.post("/minio-file-upload")
+async def post_minio_file_upload(request: Request):
+    form = await request.form()
+    patch = str(uuid.uuid4())
+    minio_upload_mapping_dict.update({patch: json.loads(form["filepond"])["filepath"]})
+    # return Response(content=json.loads(form["filepond"])["filepath"])
+    return Response(content=patch)
+
+@router.patch("/minio-file-upload")
+async def post_minio_file_upload(request: Request, patch: str):
+    uoffset = request.headers.get('upload-offset', None) 
+    ulength = request.headers.get('upload-length', None)
+    uname = request.headers.get('upload-name', None)
+    fpath = Path(UPLOAD_DIR) / patch
+    with open(fpath, "ab") as f:
+        async for chunk in request.stream():
+            f.write(chunk)
+    if ulength == str(fpath.stat().st_size):
+        try:
+            object_name = minio_upload_mapping_dict[patch]
+            target_path = Path(UPLOAD_DIR)  / object_name
+            target_path.parents[0].mkdir(parents=True, exist_ok=True)
+            shutil.move(fpath, target_path)
+            # Todo check if fput_objects also needs a long time... if not Minio file mount can be removed and UPLOAD_DIR might be /tmp
+            # HelperMinio.minioClient.fput_object("uploads", minio_upload_mapping_dict[patch], fpath)
+            logging.info(f'Successfully saved file {uname} to Minio')
+            fpath.unlink()
+            filename = minio_upload_mapping_dict.pop(patch, 'already deleted')
+            return Response(f"Upload of {filename} succesful!")
+        except Exception as e:
+            logging.error(f"Failed to upload to Minio: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to upload to Minio: {e}")
+    return Response(patch)
+
+@router.head("/minio-file-upload")
+def head_minio_file_upload(request: Request, patch: str):
+    uoffset = request.headers.get('upload-offset', None)
+    ulength = request.headers.get('upload-length', None)
+    uname = request.headers.get('upload-name', None)
+    fpath = Path(UPLOAD_DIR) / patch
+    if fpath.is_file():
+        offset = int(ulength)-fpath.stat().st_size
+    else:
+        offset = 0
+    return Response(str(offset))
+
+@router.delete("/minio-file-upload")
+async def delete_minio_file_upload(request: Request):
+    body = await request.body()
+    patch = body.decode("utf-8") 
+    fpath = Path(UPLOAD_DIR) / patch
+    fpath.unlink()
+    filename = minio_upload_mapping_dict.pop(patch, 'already deleted')
+    return Response(f"Deleted {filename} succesfully!")
 
 @router.post("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)
 def create_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate, db: Session = Depends(get_db)):

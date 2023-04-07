@@ -1,6 +1,7 @@
 
 const settings = {
     darkMode: false,
+    navigationMode: false,
     datasets: {
         structured: false,
         cols: 'auto',

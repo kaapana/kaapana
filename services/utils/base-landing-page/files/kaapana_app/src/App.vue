@@ -13,7 +13,7 @@
             </v-list-item-content>
             <v-list-item-icon></v-list-item-icon>
           </v-list-item>
-          <div v-if="!settings.navigationMode">
+          <div v-if="settings.navigationMode">
           <v-list-item :to="'/experiments'" v-if="isAuthenticated">
             <v-list-item-action>
               <v-icon>mdi-gamepad-variant</v-icon>
@@ -33,7 +33,7 @@
             <v-list-item-icon></v-list-item-icon>
           </v-list-item>
         </div>
-          <div v-if="settings.navigationMode">
+          <div v-if="!settings.navigationMode">
           <v-list-group prepend-icon="mdi-gamepad-variant">
             <template v-slot:activator>
               <v-list-item-title>Workflows</v-list-item-title>
@@ -132,7 +132,7 @@
         <v-container class="router-container pa-0" fluid fill-height>
           <v-layout align-start="align-start">
             <v-flex text-xs="text-xs">
-              <div v-if="!settings.navigationMode">
+              <div v-if="settings.navigationMode">
                 <v-bottom-navigation v-if="workflowNavigation && drawer" color="primary" :elevation="0" inset mode="shift">
                   <v-btn v-for="([title, icon, to], i) in workflowsList" :key="i" :to="to" :value="to">
                     <v-icon>{{ icon }}</v-icon>

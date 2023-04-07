@@ -475,6 +475,7 @@ class SchedulerJob(BaseJob):
                             )
                             starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                             continue
+
                         
                 util_service_success, pool_id, pool_slots = UtilService.check_operator_scheduling(task_instance=task_instance, logger=self.log)
                 if not util_service_success:
@@ -621,7 +622,7 @@ class SchedulerJob(BaseJob):
                 state,
                 ti_key.try_number,
             )
-            if state in (TaskInstanceState.FAILED, TaskInstanceState.SUCCESS, TaskInstanceState.QUEUED):
+            if state in (State.FAILED, State.SUCCESS, State.QUEUED):
                 tis_with_right_state.append(ti_key)
 
         # Return if no finished tasks
@@ -644,7 +645,7 @@ class SchedulerJob(BaseJob):
             buffer_key = ti.key.with_try_number(try_number)
             state, info = event_buffer.pop(buffer_key)
 
-            if state == TaskInstanceState.QUEUED:
+            if state == State.QUEUED:
                 ti.external_executor_id = info
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue
@@ -1323,6 +1324,8 @@ class SchedulerJob(BaseJob):
             )
 
             dag_run.notify_dagrun_state_changed()
+            duration = dag_run.end_date - dag_run.start_date
+            Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
             return callback_to_execute
 
         if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:

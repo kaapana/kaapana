@@ -1,1 +1,3 @@
 TotalSegmentator==1.5.5
+cucim==23.2.0
+pyradiomics==3.0.1

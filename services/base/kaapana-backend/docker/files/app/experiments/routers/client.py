@@ -62,8 +62,10 @@ async def post_minio_file_upload(request: Request, patch: str):
             return Response(f"Upload of {filename} succesful!")
         except Exception as e:
             logging.error(f"Failed to upload to Minio: {e}")
-            fpath.unlink()
-            raise HTTPException(status_code=500, detail=f"Failed to upload to Minio: {e}")
+            if fpath.is_file():
+                fpath.unlink()
+            filename = minio_upload_mapping_dict.pop(patch, 'already deleted')
+            raise HTTPException(status_code=500, detail=f"Failed to upload {filename} to Minio: {e}")
     return Response(patch)
 
 @router.head("/minio-file-upload")
@@ -83,9 +85,12 @@ async def delete_minio_file_upload(request: Request):
     body = await request.body()
     patch = body.decode("utf-8") 
     fpath = Path(UPLOAD_DIR) / f"{patch}.tmp" 
-    fpath.unlink()
-    filename = minio_upload_mapping_dict.pop(patch, 'already deleted')
-    return Response(f"Deleted {filename} succesfully!")
+    if fpath.is_file():
+        fpath.unlink()
+        filename = minio_upload_mapping_dict.pop(patch, 'already deleted')
+        return Response(f"Deleted {filename} succesfully!")
+    else:
+        return Response("Only removing file in frontend. The file in the target location was already successfully uploaded")
 
 @router.post("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)
 def create_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate, db: Session = Depends(get_db)):

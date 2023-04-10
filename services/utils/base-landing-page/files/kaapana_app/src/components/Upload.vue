@@ -3,7 +3,8 @@
     file-pond(
       allow-multiple="true"
       :label-idle='labelIdle'
-      allow-revert="false",
+      label-tap-to-undo="Remove from list"
+      :accepted-file-types='acceptedFileTypes'
     )
 </template>
 
@@ -19,6 +20,7 @@ export default {
   name: 'upload',
   props: {
     labelIdle: String,
+    acceptedFileTypes: String,
   },
   components: {
     FilePond

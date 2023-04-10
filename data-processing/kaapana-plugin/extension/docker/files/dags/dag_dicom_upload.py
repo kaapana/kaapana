@@ -26,6 +26,13 @@ ui_forms = {
                 "default": "dicomupload",
                 "required": True
             },
+            "dicom_glob_file_extension": {
+                "title": "File ending of DICOM files",
+                "description": "Most of the times *.dcm in case your DICOMS have no extensions you can try *",
+                "type": "string",
+                "default": "*.dcm",
+                "required": True
+            },
             "delete_original_file": {
                 "title": "Delete file from Minio after successful upload?",
                 "type": "boolean",

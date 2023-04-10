@@ -74,7 +74,7 @@ const kaapanaApiService = {
           }
         }).then(() => {
 
-          let osDashboardsUrl = '/flow/kaapana/api/get-os-dashboards'
+          let osDashboardsUrl = '/kaapana-backend/get-os-dashboards'
           request.get(osDashboardsUrl)
             .then((response: { data: any }) => {
               var dashboards = response.data['dashboards']

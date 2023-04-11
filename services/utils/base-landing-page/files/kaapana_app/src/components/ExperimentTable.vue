@@ -128,7 +128,7 @@ import kaapanaApiService from "@/common/kaapanaApi.service";
 
 import KaapanaInstance  from "@/components/KaapanaInstance.vue";
 import LocalKaapanaInstance from "@/components/LocalKaapanaInstance.vue";
-import WorkflowExecution  from "@/components/WorkflowExecution.vue";
+import WorkflowExecution  from "@/components/WorkflowExecution_wBtn.vue";
 import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
 import ViewRemoteInstances from "@/components/ViewRemoteInstances.vue";
 import SyncRemoteInstances from "@/components/SyncRemoteInstances.vue";

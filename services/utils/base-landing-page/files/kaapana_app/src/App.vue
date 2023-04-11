@@ -201,7 +201,7 @@ export default Vue.extend({
     workflowsList: [
       ['Data Upload', 'mdi-cloud-upload', '/data-upload'],
       ['Data curation', 'mdi-view-gallery-outline', '/datasets'],
-      ['Experiment execution', 'mdi-play-box', '/experiments'],
+      ['Experiment execution', 'mdi-play-box', '/experiment-execution'],
       ['Experiment list', 'mdi-clipboard-text-outline', '/experiments'],
       ['Experiment results', 'mdi-chart-bar-stacked', '/results-browser'],
       ['Federated learning', 'mdi-vector-triangle', '/experiments'],

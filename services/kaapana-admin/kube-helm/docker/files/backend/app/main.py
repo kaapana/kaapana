@@ -39,8 +39,8 @@ async def startup_event():
     gunicorn_logger = logging.getLogger('gunicorn.error')
     logger.handlers = gunicorn_logger.handlers
     logger.setLevel(log_level)
-    logger.info("FastAPI logger level set to {0}".format(logging.getLevelName(log_level)))
-    logger.info("settings {0}".format(settings))
+    logger.info(f"FastAPI logger level set to {logging.getLevelName(log_level)}")
+    logger.info(f"{settings=}")
 
 if __name__ == "__main__":
     get_extensions_list()

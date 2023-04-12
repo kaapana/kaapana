@@ -11,6 +11,7 @@ from os import getenv
 import json
 import pathlib
 import logging
+
 from logger_helper import get_logger
 
 success_count = 0
@@ -177,12 +178,19 @@ if __name__ == "__main__":
             assert task_id in model_lookup_dict
             task_url = model_lookup_dict[task_id]["download_link"]
             task_models = model_lookup_dict[task_id]["models"]
+            check_file = model_lookup_dict[task_id]["check_file"]
             for task_model in task_models:
                 model_target_dir = join(model_dir, task_model, task_id)
-                logger.info(f"Check if model already present: {model_target_dir}")
 
-                if exists(model_target_dir):
-                    logger.info(f"{task_id} already exisis -> skipping")
+                if check_file == "default":
+                    check_file_path=join(model_target_dir,"nnUNetTrainerV2__nnUNetPlansv2.1","plans.pkl")
+                else:
+                    check_file_path=join(model_target_dir,check_file)
+
+                logger.info(f"Check if model already present: {check_file_path}")
+                if exists(check_file_path):
+                    logger.info(f"{task_id} already exisis @{check_file_path} -> skipping")
+                    success_count += 1
                     continue
 
                 model_download_zip_tmp_path = join(
@@ -224,8 +232,9 @@ if __name__ == "__main__":
                 delete_file(model_download_zip_tmp_path)
                 delete_file(model_download_lockfile_path)
 
-                logger.info(f"{task_id} checking result ...")
-                if not exists(model_target_dir):
+                logger.info(f"{task_id} checking result @{check_file_path} ...")
+                if not exists(check_file_path):
+                    rmtree(model_target_dir)
                     logger.error(f"{task_id} model resulting could not be found! ")
                     issues_occurred = True
                     continue

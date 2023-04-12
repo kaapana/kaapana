@@ -2,12 +2,12 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: get-zenodo-models
+  name: total-get-zenodo-models
   namespace: "{{ .Values.global.jobs_namespace }}"
 spec:
   template:
     metadata:
-      name: get-zenodo-models
+      name: total-get-zenodo-models
     spec:
       # hostNetwork: true
       containers:

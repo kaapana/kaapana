@@ -6,15 +6,15 @@ from pathlib import Path
 from totalsegmentator.python_api import totalsegmentator
 from logger_helper import get_logger
 import logging
-import shutil
 import torch
 import json
 
+
 # Process each file
-def process_input_file(input_path, output_path):
+def process_input_file(input_path, output_path_nii):
     global processed_count, task, output_type, multilabel, fast, preview, statistics, radiomics, body_seg, force_split, quiet, verbose, nr_thr_resamp, nr_thr_saving, roi_subset
     logger.info(f"{basename(input_file)}: start processing ...")
-    output_path_nii = join(output_path,task)
+
     try:
         totalsegmentator(
             input=Path(input_path).absolute(),
@@ -38,10 +38,6 @@ def process_input_file(input_path, output_path):
             test=0,
         )
         processed_count += 1
-
-        seg_info_path = join(output_path,"seg_info.json")
-        with open(seg_info_path, 'w') as fp:
-            json.dump(seg_info_dict, fp, indent=4)
 
         logger.info(f"{basename(input_file)}: finished successully!")
         return True, input_path
@@ -85,6 +81,28 @@ if __name__ == "__main__":
     operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
     operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
     assert operator_out_dir is not None
+
+    enable_lung_vessels = getenv("LUNG_VESSELS", "False")
+    enable_lung_vessels = True if enable_lung_vessels.lower() == "true" else False
+
+    enable_cerebral_bleed = getenv("CEREBRAL_BLEED", "False")
+    enable_cerebral_bleed = True if enable_cerebral_bleed.lower() == "true" else False
+
+    enable_hip_implant = getenv("HIP_IMPLANT", "False")
+    enable_hip_implant = True if enable_hip_implant.lower() == "true" else False
+
+    enable_coronary_arteries = getenv("CORONARY_ARTERIES", "False")
+    enable_coronary_arteries = (
+        True if enable_coronary_arteries.lower() == "true" else False
+    )
+
+    enable_body = getenv("BODY", "False")
+    enable_body = True if enable_body.lower() == "true" else False
+
+    enable_pleural_pericard_effusion = getenv("PLEURAL_PERICARD_EFFUSION", "False")
+    enable_pleural_pericard_effusion = (
+        True if enable_pleural_pericard_effusion.lower() == "true" else False
+    )
 
     task = getenv("TASK", "None")
     task = task if task.lower() != "none" else None
@@ -140,11 +158,21 @@ if __name__ == "__main__":
     # if not cuda_available or not torch.cuda.is_available():
     if not torch.cuda.is_available():
         logger.warning("")
-        logger.warning("###############################################################################")
-        logger.warning("#                                                                             #")
-        logger.warning("#      CUDA is not available! -> switching to CPU and enforce --fast !!       #")
-        logger.warning("#                                                                             #")
-        logger.warning("###############################################################################")
+        logger.warning(
+            "###############################################################################"
+        )
+        logger.warning(
+            "#                                                                             #"
+        )
+        logger.warning(
+            "#      CUDA is not available! -> switching to CPU and enforce --fast !!       #"
+        )
+        logger.warning(
+            "#                                                                             #"
+        )
+        logger.warning(
+            "###############################################################################"
+        )
         logger.warning("")
         fast = True
 
@@ -169,10 +197,29 @@ if __name__ == "__main__":
     ]
     assert task in tasks_available
 
+    if task == "lung_vessels" and not enable_lung_vessels:
+        logger.warning(f"# task: {task} disabled -> skipping")
+        exit(0)
+    elif task == "cerebral_bleed" and not enable_cerebral_bleed:
+        logger.warning(f"# task: {task} disabled -> skipping")
+        exit(0)
+    elif task == "hip_implant" and not enable_hip_implant:
+        logger.warning(f"# task: {task} disabled -> skipping")
+        exit(0)
+    elif task == "coronary_arteries" and not enable_coronary_arteries:
+        logger.warning(f"# task: {task} disabled -> skipping")
+        exit(0)
+    elif task == "body" and not enable_body:
+        logger.warning(f"# task: {task} disabled -> skipping")
+        exit(0)
+    elif task == "pleural_pericard_effusion" and not enable_pleural_pericard_effusion:
+        logger.warning(f"# task: {task} disabled -> skipping")
+        exit(0)
+
     json_path = "/kaapana/app/seg_info_lookup.json"
     with open(json_path, encoding="utf-8") as seg_info_lookup:
         seg_info_lookup_dict = json.load(seg_info_lookup)
-    
+
     assert task in seg_info_lookup_dict
     seg_info_dict = seg_info_lookup_dict[task]
 
@@ -230,7 +277,11 @@ if __name__ == "__main__":
             continue
 
         # creating output dir
-        Path(element_output_dir).mkdir(parents=True, exist_ok=True)
+        output_path_nii = join(element_output_dir, "segmentations")
+        Path(output_path_nii).mkdir(parents=True, exist_ok=True)
+        seg_info_path = join(element_output_dir, f"{task}_seg_info.json")
+        with open(seg_info_path, "w") as fp:
+            json.dump(seg_info_dict, fp, indent=4)
 
         # creating output dir
         input_files = glob(
@@ -240,7 +291,7 @@ if __name__ == "__main__":
 
         for input_file in input_files:
             success, input_file = process_input_file(
-                input_path=input_file, output_path=element_output_dir
+                input_path=input_file, output_path_nii=output_path_nii
             )
             if not success:
                 issue_occurred = True
@@ -274,7 +325,17 @@ if __name__ == "__main__":
             logger.info("#")
         else:
             # creating output dir
-            Path(batch_output_dir).mkdir(parents=True, exist_ok=True)
+            output_path_nii = join(batch_output_dir, "segmentations")
+
+            Path(output_path_nii).mkdir(parents=True, exist_ok=True)
+            seg_info_path = join(output_path_nii, "seg_info.json")
+            if exists(seg_info_path):
+                with open(seg_info_path, "r") as f:
+                    existing_seg_info_dict = json.load(f)
+                    seg_info_dict.update(existing_seg_info_dict)
+
+            with open(seg_info_path, "w") as fp:
+                json.dump(seg_info_dict, fp, indent=4)
 
             # creating output dir
             input_files = glob(
@@ -286,7 +347,7 @@ if __name__ == "__main__":
             # Loop for every input-file found with extension 'input_file_extension'
             for input_file in input_files:
                 success, input_file = process_input_file(
-                    input_path=input_file, output_path=batch_output_dir
+                    input_path=input_file, output_path_nii=output_path_nii
                 )
                 if not success:
                     issue_occurred = True
@@ -323,4 +384,3 @@ if __name__ == "__main__":
         logger.info(f"# ----> {processed_count} FILES HAVE BEEN PROCESSED!")
         logger.info("#")
         logger.info("# DONE #")
-

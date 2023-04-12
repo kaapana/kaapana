@@ -12,7 +12,7 @@ from totalsegmentator.LocalGetTotalSegmentatorModelsOperator import (
     LocalGetTotalSegmentatorModelsOperator,
 )
 from totalsegmentator.TotalSegmentatorOperator import TotalSegmentatorOperator
-from shared.GetZenodoModelOperator import GetZenodoModelOperator
+from kaapana.operators.GetZenodoModelOperator import GetZenodoModelOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalCombineMasksOperator import LocalCombineMasksOperator
 from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator
@@ -111,6 +111,48 @@ ui_forms = {
                 "default": False,
                 "readOnly": False,
             },
+            "lung_vessels": {
+                "title": "enable lung_vessels",
+                "description": "Add segmentations for lung_vessels and lung_trachea_bronchia.",
+                "type": "boolean",
+                "default": True,
+                "readOnly": False,
+            },
+            "cerebral_bleed": {
+                "title": "enable lung_vessels",
+                "description": "Add segmentations for intracerebral_hemorrhage.",
+                "type": "boolean",
+                "default": True,
+                "readOnly": False,
+            },
+            "hip_implant": {
+                "title": "enable hip_implant",
+                "description": "Add segmentations for hip_implant.",
+                "type": "boolean",
+                "default": True,
+                "readOnly": False,
+            },
+            "coronary_arteries": {
+                "title": "enable coronary_arteries",
+                "description": "Add segmentations for coronary_arteries.",
+                "type": "boolean",
+                "default": True,
+                "readOnly": False,
+            },
+            "body": {
+                "title": "enable body",
+                "description": "Add segmentations for body, body_trunc, body_extremities, skin",
+                "type": "boolean",
+                "default": True,
+                "readOnly": False,
+            },
+            "pleural_pericard_effusion": {
+                "title": "enable pleural_pericard_effusion",
+                "description": "Add segmentations for pleural_effusion and pericardial_effusion.",
+                "type": "boolean",
+                "default": True,
+                "readOnly": False,
+            },
             "nr_thr_resamp": {
                 "title": "resampling thread count",
                 "description": "Nr of threads for resampling.",
@@ -133,17 +175,6 @@ ui_forms = {
                 "type": "boolean",
                 "default": True,
                 "readOnly": True,
-            },
-            "task": {
-                "title": "Task",
-                "default": "total",
-                "description": "total",  # , lung_vessels, cerebral_bleed, hip_implant, coronary_arteries
-                "enum": [
-                    "total"
-                ],  # , "lung_vessels", "cerebral_bleed", "hip_implant", "coronary_arteries
-                "type": "string",
-                "readOnly": False,
-                "required": True,
             },
         },
     },
@@ -169,7 +200,7 @@ dag = DAG(
 get_total_segmentator_model = GetZenodoModelOperator(
     dag=dag,
     model_dir="/models/total_segmentator/nnUNet",
-    task_ids="Task251_TotalSegmentator_part1_organs_1139subj,Task252_TotalSegmentator_part2_vertebrae_1139subj,Task253_TotalSegmentator_part3_cardiac_1139subj,Task254_TotalSegmentator_part4_muscles_1139subj,Task255_TotalSegmentator_part5_ribs_1139subj",
+    task_ids="Task251_TotalSegmentator_part1_organs_1139subj,Task252_TotalSegmentator_part2_vertebrae_1139subj,Task253_TotalSegmentator_part3_cardiac_1139subj,Task254_TotalSegmentator_part4_muscles_1139subj,Task255_TotalSegmentator_part5_ribs_1139subj,Task256_TotalSegmentator_3mm_1139subj,Task258_lung_vessels_248subj,Task150_icb_v0,Task260_hip_implant_71subj,Task269_Body_extrem_6mm_1200subj,Task273_Body_extrem_1259subj",
 )
 
 get_input = LocalGetInputDataOperator(
@@ -184,7 +215,7 @@ dcm2nifti = DcmConverterOperator(
 
 ta = "total"
 total_segmentator_0 = TotalSegmentatorOperator(
-    dag=dag, task=ta, input_operator=dcm2nifti, parallel_id=ta
+    dag=dag, task=ta, input_operator=dcm2nifti
 )
 
 ta = "lung_vessels"
@@ -192,7 +223,7 @@ total_segmentator_1 = TotalSegmentatorOperator(
     dag=dag,
     task=ta,
     input_operator=dcm2nifti,
-    # operator_out_dir = total_segmentator_0.operator_out_dir,
+    operator_out_dir=total_segmentator_0.operator_out_dir,
     delete_output_on_start=False,
     parallel_id=ta,
 )
@@ -202,7 +233,7 @@ total_segmentator_2 = TotalSegmentatorOperator(
     dag=dag,
     task=ta,
     input_operator=dcm2nifti,
-    # operator_out_dir = total_segmentator_0.operator_out_dir,
+    operator_out_dir=total_segmentator_0.operator_out_dir,
     delete_output_on_start=False,
     parallel_id=ta,
 )
@@ -212,7 +243,7 @@ total_segmentator_3 = TotalSegmentatorOperator(
     dag=dag,
     task=ta,
     input_operator=dcm2nifti,
-    # operator_out_dir = total_segmentator_0.operator_out_dir,
+    operator_out_dir=total_segmentator_0.operator_out_dir,
     delete_output_on_start=False,
     parallel_id=ta,
 )
@@ -222,7 +253,7 @@ total_segmentator_4 = TotalSegmentatorOperator(
     dag=dag,
     task=ta,
     input_operator=dcm2nifti,
-    # operator_out_dir = total_segmentator_0.operator_out_dir,
+    operator_out_dir=total_segmentator_0.operator_out_dir,
     delete_output_on_start=False,
     parallel_id=ta,
 )
@@ -232,7 +263,7 @@ total_segmentator_5 = TotalSegmentatorOperator(
     dag=dag,
     task=ta,
     input_operator=dcm2nifti,
-    # operator_out_dir = total_segmentator_0.operator_out_dir,
+    operator_out_dir=total_segmentator_0.operator_out_dir,
     delete_output_on_start=False,
     parallel_id=ta,
 )
@@ -242,13 +273,15 @@ total_segmentator_6 = TotalSegmentatorOperator(
     dag=dag,
     task=ta,
     input_operator=dcm2nifti,
-    # operator_out_dir = total_segmentator_0.operator_out_dir,
+    operator_out_dir=total_segmentator_0.operator_out_dir,
     delete_output_on_start=False,
     parallel_id=ta,
 )
 
 combine_masks = LocalCombineMasksOperator(
-    dag=dag, combine_operators=[total_segmentator_0]
+    dag=dag,
+    combine_operators=[total_segmentator_0],
+    trigger_rule="all_done",
 )
 
 alg_name = "TotalSegmentator"

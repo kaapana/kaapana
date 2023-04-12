@@ -15,6 +15,7 @@ extension_params:
             "Task255_TotalSegmentator_part5_ribs_1139subj",
             "Task256_TotalSegmentator_3mm_1139subj",
             "Task258_lung_vessels_248subj",
+            "Task150_icb_v0",
             "Task260_hip_implant_71subj",
             "Task269_Body_extrem_6mm_1200subj",
             "Task503_cardiac_motion",
@@ -27,4 +28,10 @@ extension_params:
             "Task253_TotalSegmentator_part3_cardiac_1139subj",
             "Task254_TotalSegmentator_part4_muscles_1139subj",
             "Task255_TotalSegmentator_part5_ribs_1139subj",
+            "Task256_TotalSegmentator_3mm_1139subj",
+            "Task258_lung_vessels_248subj",
+            "Task150_icb_v0",
+            "Task260_hip_implant_71subj",
+            "Task269_Body_extrem_6mm_1200subj",
+            "Task273_Body_extrem_1259subj",
         ]

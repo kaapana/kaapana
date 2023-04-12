@@ -5,14 +5,6 @@
         <p>Experiment Management System</p>
       </v-col>
       <v-col cols="4">
-        <workflow-execution
-          ref="workflowexecution"
-          v-if="clientInstance"
-          :remote="true"
-          :instances="allInstances"
-          :clientinstance="clientInstance"
-          @refreshView="refreshClient()"
-        ></workflow-execution>
         <LocalKaapanaInstance
           v-if="clientInstance"
           :instance="clientInstance"
@@ -128,7 +120,6 @@ import kaapanaApiService from "@/common/kaapanaApi.service";
 
 import KaapanaInstance  from "@/components/KaapanaInstance.vue";
 import LocalKaapanaInstance from "@/components/LocalKaapanaInstance.vue";
-import WorkflowExecution  from "@/components/WorkflowExecution_wBtn.vue";
 import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
 import ViewRemoteInstances from "@/components/ViewRemoteInstances.vue";
 import SyncRemoteInstances from "@/components/SyncRemoteInstances.vue";
@@ -140,7 +131,6 @@ name: 'ExperimentTable',
 components: {
   KaapanaInstance,
   LocalKaapanaInstance,
-  WorkflowExecution,
   AddRemoteInstance,
   ViewRemoteInstances,
   SyncRemoteInstances,

@@ -88,6 +88,12 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
             "NR_THR_RESAMP": str(nr_thr_resamp),
             "NR_THR_SAVING": str(nr_thr_saving),
         }
+        if task == "combine-masks":
+            ram_mem_mb=5000
+            gpu_mem_mb=None
+        else:
+            ram_mem_mb=13000
+            gpu_mem_mb=11900
 
         env_vars.update(envs)
         super().__init__(
@@ -99,7 +105,7 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
             keep_parallel_id=False,
             enable_proxy=True,
             env_vars=env_vars,
-            ram_mem_mb=13000,
-            gpu_mem_mb=11900,
+            ram_mem_mb=ram_mem_mb,
+            gpu_mem_mb=gpu_mem_mb,
             **kwargs,
         )

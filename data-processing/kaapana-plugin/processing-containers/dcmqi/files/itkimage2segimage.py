@@ -362,7 +362,7 @@ for batch_element_dir in batch_folders:
         print('Loaded seg_info', data)
 
         if "seg_info" not in data:
-            print("Could not find key 'seg_info' in json-file: {}".format(json_path))
+            print(f"Could not find key 'seg_info' in json-file: {json_path}")
             print("Abort!")
             exit(1)
 

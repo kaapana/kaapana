@@ -4,12 +4,11 @@ import re
 import shutil
 import requests
 import time
-import secrets
 from datetime import datetime
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.state import State
-from kaapana.kubetools import kube_client, pod_launcher
+from kaapana.kubetools import pod_launcher
 from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
 from kaapana.kubetools.pod import Pod
@@ -19,10 +18,8 @@ from kaapana.kubetools.resources import Resources as PodResources
 from datetime import datetime, timedelta
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.dates import days_ago
-from random import randint
-from airflow.utils.operator_helpers import context_to_airflow_vars
-
-from kaapana.blueprints.kaapana_utils import generate_run_id, cure_invalid_name, get_release_name
+from airflow.exceptions import AirflowSkipException
+from kaapana.blueprints.kaapana_utils import  cure_invalid_name, get_release_name
 from kaapana.blueprints.kaapana_global_variables import (
     AIRFLOW_WORKFLOW_DIR,
     BATCH_NAME,
@@ -560,24 +557,26 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             launcher_return = launcher.run_pod(
                 pod=pod, startup_timeout=self.startup_timeout_seconds, get_logs=self.get_logs
             )
-
-            if launcher_return is None:
-                raise AirflowException("Problems launching the pod...")
-            else:
-                (result, message) = launcher_return
-                self.result_message = result
-                logging.info("RESULT: {}".format(result))
-                logging.info("MESSAGE: {}".format(message))
-
-                if result != State.SUCCESS:
-                    raise AirflowException("Pod returned a failure: {state}".format(state=message))
-                else:
-                    if self.delete_input_on_success:
-                        self.delete_operator_out_dir(context["run_id"], self.operator_in_dir)
-                if self.xcom_push:
-                    return result
         except AirflowException as ex:
             raise AirflowException("Pod Launching failed: {error}".format(error=ex))
+
+        if launcher_return is None:
+            raise AirflowException("Problems launching the pod...")
+        else:
+            (result, message) = launcher_return
+            self.result_message = result
+            logging.info("RESULT: {}".format(result))
+            logging.info("MESSAGE: {}".format(message))
+
+            if result == State.SKIPPED:
+                raise AirflowSkipException("Pod has been skipped!")
+            elif result != State.SUCCESS:
+                raise AirflowException("Pod returned a failure!")
+            else:
+                if self.delete_input_on_success:
+                    self.delete_operator_out_dir(context["run_id"], self.operator_in_dir)
+            if self.xcom_push:
+                return result
 
     def delete_operator_out_dir(self, run_id, operator_dir):
         logging.info(f"#### deleting {operator_dir} folders...!")

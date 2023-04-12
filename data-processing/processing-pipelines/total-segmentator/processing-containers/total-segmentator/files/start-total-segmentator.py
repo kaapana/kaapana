@@ -8,17 +8,27 @@ from logger_helper import get_logger
 import logging
 import torch
 import json
+import shutil
+from combine_masks import combine_mask_nifits
+import nibabel as nib
+import numpy as np
 
 
 # Process each file
-def process_input_file(input_path, output_path_nii):
+def process_input_file(input_path, output_path):
     global processed_count, task, output_type, multilabel, fast, preview, statistics, radiomics, body_seg, force_split, quiet, verbose, nr_thr_resamp, nr_thr_saving, roi_subset
     logger.info(f"{basename(input_file)}: start processing ...")
-
+    Path(output_path).mkdir(parents=True, exist_ok=True)
+    if task != "total":
+        total_output_path = join(dirname(output_path), "total-segmentator")
+        before_file_list = glob(join(total_output_path, "*"))
+        logger.info(f"len(before_file_list): {len(before_file_list)} ...")
+    else:
+        total_output_path = output_path
     try:
         totalsegmentator(
-            input=Path(input_path).absolute(),
-            output=Path(output_path_nii).absolute(),
+            input=input_path,
+            output=total_output_path,
             ml=multilabel,
             nr_thr_resamp=nr_thr_resamp,
             nr_thr_saving=nr_thr_saving,
@@ -38,6 +48,39 @@ def process_input_file(input_path, output_path_nii):
             test=0,
         )
         processed_count += 1
+
+        if task != "total":
+            logger.info(f"")
+            logger.info(f"")
+            after_file_list = glob(join(total_output_path, "*"))
+            new_file_count = 0
+            for nifti_file in after_file_list:
+                if nifti_file not in before_file_list:
+                    logger.info(f"New NIFTI file found: {basename(nifti_file)}")
+                    new_file_count += 1
+            logger.info(f"")
+            logger.info(f"")
+            if new_file_count != len(seg_info_dict["seg_info"]):
+                logger.info(f"new_file_count {new_file_count} != len(seg_info_dict['seg_info']) {len(seg_info_dict['seg_info'])} ")
+                exit(1)
+
+            logger.info(f"Task: {task} -> moving result NIFTIs to {output_path} ...")
+            Path(output_path).mkdir(parents=True, exist_ok=True)
+            for label in seg_info_dict["seg_info"]:
+                label_nifti = f"{label['label_name']}.nii.gz"
+                src_nifti_path = join(total_output_path, label_nifti)
+                target_nifti_path = join(output_path, label_nifti)
+                logger.info(f"Moving {src_nifti_path} -> {target_nifti_path}")
+                assert exists(src_nifti_path)
+                nifti_labels_found = list(
+                    np.unique(nib.load(src_nifti_path).get_fdata().astype(int))
+                )
+                logger.info(f"{ nifti_labels_found= }")
+                if len(nifti_labels_found) == 1:
+                    logger.warning(f"No annotation has been found -> skipping")
+                    continue
+                else:
+                    shutil.move(src_nifti_path, target_nifti_path)
 
         logger.info(f"{basename(input_file)}: finished successully!")
         return True, input_path
@@ -122,6 +165,7 @@ if __name__ == "__main__":
     statistics = getenv("STATISTICS", "False").lower() in ("true", "1", "t")
     # Calc radiomics features. Requires pyradiomics. Results will be in statistics_radiomics.json
     radiomics = getenv("RADIOMICS", "False").lower() in ("true", "1", "t")
+    radiomics = False
     # Do initial rough body segmentation and crop image to body region
     body_seg = getenv("BODYSEG", "False").lower() in ("true", "1", "t")
     # Process image in 3 chunks for less memory consumption
@@ -194,34 +238,36 @@ if __name__ == "__main__":
         "bones_tissue_test",
         "aortic_branches_test",
         "test",
+        "combine-masks",
     ]
     assert task in tasks_available
 
     if task == "lung_vessels" and not enable_lung_vessels:
         logger.warning(f"# task: {task} disabled -> skipping")
-        exit(0)
+        exit(126)
     elif task == "cerebral_bleed" and not enable_cerebral_bleed:
         logger.warning(f"# task: {task} disabled -> skipping")
-        exit(0)
+        exit(126)
     elif task == "hip_implant" and not enable_hip_implant:
         logger.warning(f"# task: {task} disabled -> skipping")
-        exit(0)
+        exit(126)
     elif task == "coronary_arteries" and not enable_coronary_arteries:
         logger.warning(f"# task: {task} disabled -> skipping")
-        exit(0)
+        exit(126)
     elif task == "body" and not enable_body:
         logger.warning(f"# task: {task} disabled -> skipping")
-        exit(0)
+        exit(126)
     elif task == "pleural_pericard_effusion" and not enable_pleural_pericard_effusion:
         logger.warning(f"# task: {task} disabled -> skipping")
-        exit(0)
+        exit(126)
 
     json_path = "/kaapana/app/seg_info_lookup.json"
     with open(json_path, encoding="utf-8") as seg_info_lookup:
         seg_info_lookup_dict = json.load(seg_info_lookup)
 
-    assert task in seg_info_lookup_dict
-    seg_info_dict = seg_info_lookup_dict[task]
+    if task != "combine-masks":
+        assert task in seg_info_lookup_dict
+        seg_info_dict = seg_info_lookup_dict[task]
 
     # File-extension to search for in the input-dir
     input_file_extension = "*.nii.gz"
@@ -276,25 +322,31 @@ if __name__ == "__main__":
             logger.info("#")
             continue
 
-        # creating output dir
-        output_path_nii = join(element_output_dir, "segmentations")
-        Path(output_path_nii).mkdir(parents=True, exist_ok=True)
-        seg_info_path = join(element_output_dir, f"{task}_seg_info.json")
-        with open(seg_info_path, "w") as fp:
-            json.dump(seg_info_dict, fp, indent=4)
-
-        # creating output dir
-        input_files = glob(
-            join(element_input_dir, input_file_extension), recursive=True
-        )
-        logger.info(f"# Found {len(input_files)} input-files -> start processing ...")
-
-        for input_file in input_files:
-            success, input_file = process_input_file(
-                input_path=input_file, output_path_nii=output_path_nii
+        if task == "combine-masks":
+            logger.info(f"# task: {task} -> starting merging of NIFIs ...")
+            processed_count = combine_mask_nifits(
+                nifti_dir=element_input_dir, target_dir=element_output_dir
             )
-            if not success:
-                issue_occurred = True
+        else:
+            seg_info_path = join(element_output_dir, "seg_info.json")
+            Path(dirname(seg_info_path)).mkdir(parents=True, exist_ok=True)
+            with open(seg_info_path, "w") as fp:
+                json.dump(seg_info_dict, fp, indent=4)
+
+            # creating output dir
+            input_files = glob(
+                join(element_input_dir, input_file_extension), recursive=True
+            )
+            logger.info(
+                f"# Found {len(input_files)} input-files -> start processing ..."
+            )
+
+            for input_file in input_files:
+                success, input_file = process_input_file(
+                    input_path=input_file, output_path=element_output_dir
+                )
+                if not success:
+                    issue_occurred = True
 
     logger.info("#")
     logger.info("##################################################")
@@ -325,32 +377,31 @@ if __name__ == "__main__":
             logger.info("#")
         else:
             # creating output dir
-            output_path_nii = join(batch_output_dir, "segmentations")
-
-            Path(output_path_nii).mkdir(parents=True, exist_ok=True)
-            seg_info_path = join(output_path_nii, "seg_info.json")
-            if exists(seg_info_path):
-                with open(seg_info_path, "r") as f:
-                    existing_seg_info_dict = json.load(f)
-                    seg_info_dict.update(existing_seg_info_dict)
-
-            with open(seg_info_path, "w") as fp:
-                json.dump(seg_info_dict, fp, indent=4)
-
-            # creating output dir
-            input_files = glob(
-                join(batch_input_dir, input_file_extension), recursive=True
-            )
-            logger.info(f"# Found {len(input_files)} input-files!")
-
-            # Single process:
-            # Loop for every input-file found with extension 'input_file_extension'
-            for input_file in input_files:
-                success, input_file = process_input_file(
-                    input_path=input_file, output_path_nii=output_path_nii
+            if task == "combine-masks":
+                logger.info(f"# task: {task} -> starting merging of NIFIs ...")
+                processed_count = combine_mask_nifits(
+                    nifti_dir=batch_input_dir, target_dir=batch_output_dir
                 )
-                if not success:
-                    issue_occurred = True
+            else:
+                seg_info_path = join(batch_output_dir, "seg_info.json")
+                assert not exists(seg_info_path)
+                with open(seg_info_path, "w") as fp:
+                    json.dump(seg_info_dict, fp, indent=4)
+
+                # creating output dir
+                input_files = glob(
+                    join(batch_input_dir, input_file_extension), recursive=True
+                )
+                logger.info(f"# Found {len(input_files)} input-files!")
+
+                # Single process:
+                # Loop for every input-file found with extension 'input_file_extension'
+                for input_file in input_files:
+                    success, input_file = process_input_file(
+                        input_path=input_file, output_path=batch_output_dir
+                    )
+                    if not success:
+                        issue_occurred = True
 
         logger.info("#")
         logger.info("##################################################")

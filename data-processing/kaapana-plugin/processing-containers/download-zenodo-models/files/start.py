@@ -170,7 +170,7 @@ if __name__ == "__main__":
     if task_ids[0] == "all":
         task_ids = list(model_lookup_dict.keys())
 
-    for rounds in range(0, 2):
+    for rounds in range(0, 3):
         logger.info(f"####### round: {rounds}")
         success_count = 0
         for task_id in task_ids:
@@ -202,10 +202,11 @@ if __name__ == "__main__":
                 os.makedirs(dirname(model_download_zip_tmp_path), exist_ok=True)
 
                 logger.info(f"{task_id} check if already running ...")
+                wait = False if rounds <= 1 else True
                 already_completed = check_dl_running(
                     model_download_lockfile_path=model_download_lockfile_path,
                     model_path=model_target_dir,
-                    wait=True,
+                    wait=wait,
                 )
 
                 if not already_completed:
@@ -215,7 +216,7 @@ if __name__ == "__main__":
                         model_download_zip_tmp_path=model_download_zip_tmp_path,
                     )
                 else:
-                    download_success = True
+                    continue
 
                 if not download_success:
                     issues_occurred = True

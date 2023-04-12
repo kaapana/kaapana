@@ -496,6 +496,10 @@
       {
         "label_int": 3,
         "label_name": "pericardial_effusion"
+      },
+      {
+        "label_int": 4,
+        "label_name": "lung"
       }
     ]
   },

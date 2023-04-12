@@ -10,8 +10,6 @@ import torch
 import json
 import shutil
 from combine_masks import combine_mask_nifits
-import nibabel as nib
-import numpy as np
 
 
 # Process each file
@@ -61,8 +59,11 @@ def process_input_file(input_path, output_path):
             logger.info(f"")
             logger.info(f"")
             if new_file_count != len(seg_info_dict["seg_info"]):
-                logger.info(f"new_file_count {new_file_count} != len(seg_info_dict['seg_info']) {len(seg_info_dict['seg_info'])} ")
-                exit(1)
+                logger.info(f"")
+                logger.info(f"")
+                logger.warning(f"new_file_count {new_file_count} != len(seg_info_dict['seg_info']) {len(seg_info_dict['seg_info'])} ")
+                logger.info(f"")
+                logger.info(f"")
 
             logger.info(f"Task: {task} -> moving result NIFTIs to {output_path} ...")
             Path(output_path).mkdir(parents=True, exist_ok=True)
@@ -72,15 +73,7 @@ def process_input_file(input_path, output_path):
                 target_nifti_path = join(output_path, label_nifti)
                 logger.info(f"Moving {src_nifti_path} -> {target_nifti_path}")
                 assert exists(src_nifti_path)
-                nifti_labels_found = list(
-                    np.unique(nib.load(src_nifti_path).get_fdata().astype(int))
-                )
-                logger.info(f"{ nifti_labels_found= }")
-                if len(nifti_labels_found) == 1:
-                    logger.warning(f"No annotation has been found -> skipping")
-                    continue
-                else:
-                    shutil.move(src_nifti_path, target_nifti_path)
+                shutil.move(src_nifti_path, target_nifti_path)
 
         logger.info(f"{basename(input_file)}: finished successully!")
         return True, input_path

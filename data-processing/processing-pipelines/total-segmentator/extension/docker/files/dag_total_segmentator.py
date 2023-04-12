@@ -19,6 +19,7 @@ from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator
 
 max_active_runs = 10
 concurrency = max_active_runs * 3
+alg_name = "TotalSegmentator"
 
 ui_forms = {
     "publication_form": {
@@ -214,7 +215,6 @@ dcm2nifti = DcmConverterOperator(
 )
 
 ta = "total"
-alg_name = "TotalSegmentator"
 combine_masks_label = "combine-masks"
 total_segmentator_0 = TotalSegmentatorOperator(
     dag=dag, task=ta, input_operator=dcm2nifti
@@ -231,18 +231,23 @@ nrrd2dcmSeg_multi_0 = Itk2DcmSegOperator(
     input_operator=get_input,
     segmentation_operator=combine_masks_0,
     input_type="multi_label_seg",
-    multi_label_seg_name=f"{alg_name}-{ta}",
+    multi_label_seg_name=alg_name,
     multi_label_seg_info_json="seg_info.json",
     skip_empty_slices=True,
     parallel_id=ta,
-    alg_name=alg_name,
+    alg_name=f"{alg_name}-{ta}",
 )
-dcmseg_send_0 = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi_0,parallel_id=ta,)
+dcmseg_send_0 = DcmSendOperator(
+    dag=dag,
+    input_operator=nrrd2dcmSeg_multi_0,
+    parallel_id=ta,
+)
 pyradiomics_0 = PyRadiomicsOperator(
     dag=dag,
     input_operator=dcm2nifti,
     segmentation_operator=total_segmentator_0,
     parallel_id=ta,
+    trigger_rule="all_done",
 )
 
 ta = "lung_vessels"
@@ -265,13 +270,17 @@ nrrd2dcmSeg_multi_1 = Itk2DcmSegOperator(
     input_operator=get_input,
     segmentation_operator=combine_masks_1,
     input_type="multi_label_seg",
-    multi_label_seg_name=f"{alg_name}-{ta}",
+    multi_label_seg_name=alg_name,
     multi_label_seg_info_json="seg_info.json",
     skip_empty_slices=True,
     parallel_id=ta,
-    alg_name=alg_name,
+    alg_name=f"{alg_name}-{ta}",
 )
-dcmseg_send_1 = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi_1,parallel_id=ta,)
+dcmseg_send_1 = DcmSendOperator(
+    dag=dag,
+    input_operator=nrrd2dcmSeg_multi_1,
+    parallel_id=ta,
+)
 pyradiomics_1 = PyRadiomicsOperator(
     dag=dag,
     input_operator=dcm2nifti,
@@ -299,11 +308,11 @@ pyradiomics_1 = PyRadiomicsOperator(
 #     input_operator=get_input,
 #     segmentation_operator=combine_masks_2,
 #     input_type="multi_label_seg",
-#     multi_label_seg_name=f"{alg_name}-{ta}",
+#     multi_label_seg_name=alg_name,
 #     multi_label_seg_info_json="seg_info.json",
 #     skip_empty_slices=True,
 #     parallel_id=ta,
-#     alg_name=alg_name,
+#     alg_name=f"{alg_name}-{ta}",
 # )
 # dcmseg_send_2 = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi_2,parallel_id=ta,)
 # pyradiomics_2 = PyRadiomicsOperator(
@@ -333,11 +342,11 @@ pyradiomics_1 = PyRadiomicsOperator(
 #     input_operator=get_input,
 #     segmentation_operator=combine_masks_3,
 #     input_type="multi_label_seg",
-#     multi_label_seg_name=f"{alg_name}-{ta}",
+#     multi_label_seg_name=alg_name,
 #     multi_label_seg_info_json="seg_info.json",
 #     skip_empty_slices=True,
 #     parallel_id=ta,
-#     alg_name=alg_name,
+#     alg_name=f"{alg_name}-{ta}",
 # )
 # dcmseg_send_3 = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi_3,parallel_id=ta,)
 # pyradiomics_3 = PyRadiomicsOperator(
@@ -367,11 +376,11 @@ pyradiomics_1 = PyRadiomicsOperator(
 #     input_operator=get_input,
 #     segmentation_operator=combine_masks_4,
 #     input_type="multi_label_seg",
-#     multi_label_seg_name=f"{alg_name}-{ta}",
+#     multi_label_seg_name=alg_name,
 #     multi_label_seg_info_json="seg_info.json",
 #     skip_empty_slices=True,
 #     parallel_id=ta,
-#     alg_name=alg_name,
+#     alg_name=f"{alg_name}-{ta}",
 # )
 # dcmseg_send_4 = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi_4,parallel_id=ta,)
 # pyradiomics_4 = PyRadiomicsOperator(
@@ -401,13 +410,17 @@ nrrd2dcmSeg_multi_5 = Itk2DcmSegOperator(
     input_operator=get_input,
     segmentation_operator=combine_masks_5,
     input_type="multi_label_seg",
-    multi_label_seg_name=f"{alg_name}-{ta}",
+    multi_label_seg_name=alg_name,
     multi_label_seg_info_json="seg_info.json",
     skip_empty_slices=True,
     parallel_id=ta,
-    alg_name=alg_name,
+    alg_name=f"{alg_name}-{ta}",
 )
-dcmseg_send_5 = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi_5,parallel_id=ta,)
+dcmseg_send_5 = DcmSendOperator(
+    dag=dag,
+    input_operator=nrrd2dcmSeg_multi_5,
+    parallel_id=ta,
+)
 pyradiomics_5 = PyRadiomicsOperator(
     dag=dag,
     input_operator=dcm2nifti,
@@ -435,13 +448,17 @@ nrrd2dcmSeg_multi_6 = Itk2DcmSegOperator(
     input_operator=get_input,
     segmentation_operator=combine_masks_6,
     input_type="multi_label_seg",
-    multi_label_seg_name=f"{alg_name}-{ta}",
+    multi_label_seg_name=alg_name,
     multi_label_seg_info_json="seg_info.json",
     skip_empty_slices=True,
     parallel_id=ta,
-    alg_name=alg_name,
+    alg_name=f"{alg_name}-{ta}",
 )
-dcmseg_send_6 = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi_6,parallel_id=ta,)
+dcmseg_send_6 = DcmSendOperator(
+    dag=dag,
+    input_operator=nrrd2dcmSeg_multi_6,
+    parallel_id=ta,
+)
 pyradiomics_6 = PyRadiomicsOperator(
     dag=dag,
     input_operator=dcm2nifti,
@@ -465,27 +482,52 @@ put_to_minio = LocalMinioOperator(
     trigger_rule="all_done",
 )
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+clean = LocalWorkflowCleanerOperator(
+    dag=dag,
+    clean_workflow_dir=True,
+    trigger_rule="all_done",
+)
 
 get_total_segmentator_model >> total_segmentator_0
-get_input >> dcm2nifti >> total_segmentator_0
+get_input >> dcm2nifti >> total_segmentator_0 >> combine_masks_0 >> nrrd2dcmSeg_multi_0 >> dcmseg_send_0 >> clean
+total_segmentator_0 >> pyradiomics_0 >> put_to_minio
 
-total_segmentator_0 >> total_segmentator_1 >> combine_masks_1 >> nrrd2dcmSeg_multi_1 >> dcmseg_send_1 >> clean
-total_segmentator_1 >> pyradiomics_1 >> pyradiomics_0
+(
+    total_segmentator_0
+    >> total_segmentator_1
+    >> combine_masks_1
+    >> nrrd2dcmSeg_multi_1
+    >> dcmseg_send_1
+    >> clean
+)
+total_segmentator_1 >> pyradiomics_1 >> put_to_minio
 
 # total_segmentator_0 >> total_segmentator_2 >> combine_masks_2 >> nrrd2dcmSeg_multi_2 >> dcmseg_send_2 >> clean
-# total_segmentator_2 >> pyradiomics_2 >> pyradiomics_0
+# total_segmentator_2 >> pyradiomics_2 >> put_to_minio
 
 # total_segmentator_0 >> total_segmentator_3 >> combine_masks_3 >> nrrd2dcmSeg_multi_3 >> dcmseg_send_3 >> clean
-# total_segmentator_3 >> pyradiomics_3 >> pyradiomics_0
+# total_segmentator_3 >> pyradiomics_3 >> put_to_minio
 
 # total_segmentator_0 >> total_segmentator_4 >> combine_masks_4 >> nrrd2dcmSeg_multi_4 >> dcmseg_send_4 >> clean
-# total_segmentator_4 >> pyradiomics_4 >> pyradiomics_0
+# total_segmentator_4 >> pyradiomics_4 >> put_to_minio
 
-total_segmentator_0 >> total_segmentator_5 >> combine_masks_5 >> nrrd2dcmSeg_multi_5 >> dcmseg_send_5 >> clean
-total_segmentator_5 >> pyradiomics_5 >> pyradiomics_0
+(
+    total_segmentator_0
+    >> total_segmentator_5
+    >> combine_masks_5
+    >> nrrd2dcmSeg_multi_5
+    >> dcmseg_send_5
+    >> clean
+)
+total_segmentator_5 >> pyradiomics_5 >> put_to_minio
 
-total_segmentator_0 >> total_segmentator_6 >> combine_masks_6 >> nrrd2dcmSeg_multi_6 >> dcmseg_send_6 >> clean
-total_segmentator_6 >> pyradiomics_6 >> pyradiomics_0
+(
+    total_segmentator_0
+    >> total_segmentator_6
+    >> combine_masks_6
+    >> nrrd2dcmSeg_multi_6
+    >> dcmseg_send_6
+    >> clean
+)
+total_segmentator_6 >> pyradiomics_6 >> put_to_minio
 
-pyradiomics_0 >> put_to_minio >> combine_masks_0 >> nrrd2dcmSeg_multi_0 >> dcmseg_send_0 >> clean

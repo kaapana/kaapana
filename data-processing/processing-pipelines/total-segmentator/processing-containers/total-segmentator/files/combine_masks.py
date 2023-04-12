@@ -48,6 +48,7 @@ def combine_mask_nifits(nifti_dir, target_dir):
     input_files = glob(nifti_search_query, recursive=True)
     logger.info(f"Found {len(input_files)} NIFTI files ...")
     assert len(input_files) > 0
+    assert len(input_files) <= len(seg_info_dict)
 
     if len(seg_info_dict) == 1:
         logger.info("Only one label present -> no merging required.")
@@ -60,19 +61,17 @@ def combine_mask_nifits(nifti_dir, target_dir):
         shutil.copy(input_files[0], target_nifti_path)
         return 1
 
-    for nifti_path in input_files:
+    for label_entry in seg_info_dict:
+        label_name = label_entry["label_name"]
+        label_int = label_entry["label_int"]
+        label_nifti_path = join(nifti_dir,f"{label_name}.nii.gz")
+        assert exists(label_nifti_path)
         logger.info("")
         logger.info("")
         logger.info("")
-        logger.info(f"Merging {basename(nifti_path)}")
-        nifti_loaded = nib.load(nifti_path)
+        logger.info(f"Merging {basename(label_nifti_path)}")
+        nifti_loaded = nib.load(label_nifti_path)
         nifti_numpy = nifti_loaded.get_fdata().astype(int)
-
-        seg_nifti_id = basename(nifti_path).replace(".nii.gz", "")
-        logger.info(f"{seg_nifti_id=}")
-        label_info_entry = [x for x in seg_info_dict if x["label_name"] == seg_nifti_id]
-        assert len(label_info_entry) == 1
-        label_int = label_info_entry[0]["label_int"]
 
         nifti_numpy[nifti_numpy == 1] = label_int
         nifti_labels_found = list(np.unique(nifti_numpy))
@@ -90,7 +89,7 @@ def combine_mask_nifits(nifti_dir, target_dir):
 
         if base_img.shape != nifti_loaded.shape:
             logger.error("")
-            logger.error(basename(nifti_path))
+            logger.error(basename(label_nifti_path))
             logger.error("Shape miss-match! -> Error")
             logger.error("")
             exit(1)
@@ -111,12 +110,15 @@ def combine_mask_nifits(nifti_dir, target_dir):
         overlap_percentage = check_overlap(base_map=base_img_numpy, new_map=nifti_numpy)
         if overlap_percentage > 0:
             logger.error("")
-            logger.error(nifti_path)
+            logger.error(label_nifti_path)
             logger.error(
-                f"Overlap ({overlap_percentage} %) has been identified! -> Error"
+                f"Overlap ({overlap_percentage} %) has been identified! -> copy org nifti"
             )
             logger.error("")
-            exit(1)
+            keep_nifti_path = join(target_dir, basename(nifti_path))
+            keep_nifti = nib.Nifti1Image(nifti_numpy, base_img.affine, base_img.header)
+            keep_nifti.to_filename(keep_nifti_path)
+            continue
 
         logger.info(" -> no overlap ♥")
         logger.info(" Merging base_img_numpy + nifti_numpy ...")

@@ -12,7 +12,6 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
-
 COPY files/requirements.txt /kaapana/app/
 RUN python -m pip install --no-cache-dir -r /kaapana/app/requirements.txt
 

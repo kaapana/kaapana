@@ -1,5 +1,6 @@
 import json
 import os
+from os import getenv
 from functools import partial
 from pathlib import Path
 from typing import List
@@ -88,17 +89,27 @@ def get_radiomics_features_for_entire_dir(ct_file: Path, mask_dir: Path, file_ou
     with open(file_out, "w") as f:
         json.dump(stats, f, indent=4)
 
+radiomics = getenv("RADIOMICS", "False").lower() in ("true", "1", "t")
+if not radiomics:
+    print()
+    print()
+    print()
+    print("     RADIOMICS DISABLED -> Skipping!")
+    print()
+    print()
+    print()
+    exit(126)
 
 batch_folders: List[Path] = sorted([*Path('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME']).glob('*')])
-
 for batch_element_dir in batch_folders:
-
     element_input_dir = batch_element_dir / os.environ['OPERATOR_IN_DIR']
     element_output_dir = batch_element_dir / os.environ['OPERATOR_OUT_DIR']
     segmentation_input_dir = batch_element_dir / os.environ['OPERATOR_IN_SEGMENATIONS_DIR']
-
     element_output_dir.mkdir(exist_ok=True)
     # The processing algorithm
+    print(f"{element_input_dir= }")
+    print(f"{element_output_dir= }")
+    print(f"{segmentation_input_dir= }")
     print(
         f'Computing radiomics for nifit files in {str(element_input_dir)} '
         f'and writing results to {str(element_output_dir)}'

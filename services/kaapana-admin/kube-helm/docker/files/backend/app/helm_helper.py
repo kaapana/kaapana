@@ -33,12 +33,13 @@ last_refresh_timestamp_platforms = None
 update_running = False
 global_charts_hashes = {}
 global_charts_hashes_platforms = {}
-global_extensions_dict_cached = []
+global_extensions_list = []
 global_platforms_list = []
 global_collected_tgz_charts = {}
 global_collected_tgz_charts_platforms = {}
 global_extension_states: Dict[str, schemas.ExtensionState] = {}  # keys are in form <name>__<version>
 global_recently_updated: Set[str] = set()  # list of keys for recently updated ( < refresh_delay) extensions
+global_extensions_release_names: Set[str] = set()
 
 
 async def exec_shell_cmd_async(command, shell=False, timeout: float=5) -> Tuple[bool, str]:
@@ -53,8 +54,8 @@ async def exec_shell_cmd_async(command, shell=False, timeout: float=5) -> Tuple[
         success (bool)  : whether the command ran successfully
         stdout  (str)   : output of the command. If success=False it is the same as stderr
     """
-    logger.debug("executing ASYNC shell command: {0}".format(command))
-    logger.debug("shell={0} , timeout={1}".format(shell, timeout))
+    logger.debug(f"executing ASYNC shell command: {command}")
+    logger.debug(f"{shell=} , {timeout=}")
     try:
         if shell == False and (type(command) is str):
             command = [x for x in command.replace("  ", " ").split(" ") if x != ""]
@@ -109,8 +110,8 @@ def execute_shell_command(command, shell=False, blocking=True, timeout=5, skip_c
         err = f"Detected ';' in blocking command {command} -> cancel request!"
         logger.error(err)
         return False, err
-    logger.debug("executing blocking shell command: {0}".format(command))
-    logger.debug("shell={0} , timeout={1}".format(shell, timeout))
+    logger.debug(f"executing blocking shell command: {command}")
+    logger.debug(f"{shell=} , {timeout=}")
     if "--timeout" in command:
         logger.debug("--timeout found in command, not passing a separate timeout")
         timeout = None
@@ -311,7 +312,7 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
         (List[schemas.KaapanaExtension])
     """
     logger.debug(f"{platforms=}")
-    global update_running, global_extensions_dict_cached, last_refresh_timestamp, refresh_delay, global_platforms_list, last_refresh_timestamp_platforms
+    global update_running, global_extensions_list, last_refresh_timestamp, refresh_delay, global_platforms_list, last_refresh_timestamp_platforms
     logger.info("getting extensions...")
 
     keywords_filter=["kaapanaapplication", "kaapanaworkflow"]
@@ -321,10 +322,9 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
         if platforms:
             check = update_running or global_platforms_list == None or (last_refresh_timestamp_platforms != None and (time.time() - last_refresh_timestamp_platforms) < refresh_delay)
         else:
-            check = update_running or global_extensions_dict_cached == None or (last_refresh_timestamp != None and (time.time() - last_refresh_timestamp) < refresh_delay)
+            check = update_running or global_extensions_list == None or (last_refresh_timestamp != None and (time.time() - last_refresh_timestamp) < refresh_delay)
         global_extensions_dict: Dict[str, schemas.KaapanaExtension] = {}
         if (not platforms) and settings.recent_update_cache and check:
-            logger.info("using recent update cache")
             states_w_indexes = get_recently_updated_extensions()
 
             if len(states_w_indexes) == 0:
@@ -333,10 +333,10 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
                 if platforms:
                     return global_platforms_list
                 else:
-                    return global_extensions_dict_cached
+                    return global_extensions_list
 
             elif len(states_w_indexes) > 0:
-                logger.debug("updating cache, states_w_indexes {0}".format(states_w_indexes))
+                logger.info(f"updating recently updated cache, {len(states_w_indexes)=}")
                 # recent changes exist, update these in global extensions dict and return
                 for ind, ext in states_w_indexes:
                     chart_name = ext.chart_name
@@ -348,8 +348,7 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
                         name_filter=ext.chart_name+"-"+ext.version
                     )
                     if len(dep) > 1 or len(tgz) > 1:
-                        logger.error("ERROR in recently_updated_states dep or tgz, dep: {0}, tgz: {1}".format(
-                            dep, tgz))
+                        logger.error(f"ERROR in recently_updated_states dep or tgz, {dep=}, {tgz=}")
                     extension_id, extension_dict = list(tgz.items())[0]
                     global_extensions_dict = add_extension_to_dict(
                         extension_id=extension_id,
@@ -358,8 +357,13 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
                         deployed_extensions_dict=dep
                     )
                     # add to cache if a new extension is uploaded
-                    if ind >= len(global_extensions_dict_cached):
-                        global_extensions_dict_cached.append(global_extensions_dict[extension_dict["name"]])
+                    if ind >= len(global_extensions_list):
+                        name = global_extensions_dict[extension_dict["name"]]
+                        if name in global_extensions_release_names:
+                            logger.info(f"{name} already in the list, avoiding duplicate entries")
+                        else:
+                            global_extensions_list.append(name)
+                            global_extensions_release_names.add(name.releaseName)
 
 
                 res: List[schemas.KaapanaExtension] = []
@@ -370,20 +374,18 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
                     )
 
                 # TODO: pass index from above to make the search redundant
-                # TODO: make global_extensions_dict_cached actually a Dict so that double loop isn't necessary
-                for i, ext in enumerate(global_extensions_dict_cached):
+                # TODO: make global_extensions_list actually a Dict so that double loop isn't necessary
+                for i, ext in enumerate(global_extensions_list):
                     for j, rec_upd_ext in enumerate(res):
                         if ext.releaseName == rec_upd_ext.releaseName:
-                            global_extensions_dict_cached[i] = rec_upd_ext
+                            global_extensions_list[i] = rec_upd_ext
                             logger.debug(
-                                "value updated in global_extensions_dict_cached from {0} to {1}".format(
-                                    ext, rec_upd_ext
-                                ))
-                logger.debug(f"{len(global_extensions_dict_cached)=}")
+                                f"value updated in global_extensions_list from {ext} to {rec_upd_ext}")
+                logger.debug(f"{len(global_extensions_list)=}")
                 if platforms:
                     return global_platforms_list
                 else:
-                    return global_extensions_dict_cached
+                    return global_extensions_list
 
         if check:
             # TODO: becomes redundant if setting.recent_update_cache option is the default
@@ -392,7 +394,7 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
             if platforms:
                 return global_platforms_list
             else:
-                return global_extensions_dict_cached
+                return global_extensions_list
 
         # generate new list
         logger.info("Generating new extension-list ...")
@@ -427,7 +429,13 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
         if platforms:
             global_platforms_list = result_list
         else:
-            global_extensions_dict_cached = result_list
+            global_extensions_release_names = set()
+            for i, r in enumerate(result_list):
+                if r.releaseName in global_extensions_release_names:
+                    result_list.pop(i)
+                    logger.info(f"removing {r.releaseName} from the list, already exists in the set of release names")
+                global_extensions_release_names.add(r.releaseName)
+            global_extensions_list = result_list
 
     except Exception as e:
         logger.error(e)
@@ -437,7 +445,7 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
     if platforms:
         return global_platforms_list
     else:
-        return global_extensions_dict_cached
+        return global_extensions_list
 
 
 def collect_all_tgz_charts(keywords_filter: List, name_filter: str = "") -> Dict[str, Dict]:
@@ -451,10 +459,7 @@ def collect_all_tgz_charts(keywords_filter: List, name_filter: str = "") -> Dict
     Returns:
         global_collected_tgz_charts (Dict[str, Dict]): format for keys is `chart['name']}-{chart['version']`
     """
-    logger.debug("collect_all_tgz_charts with keyword filter: {0}, name filter: {1}".format(
-        keywords_filter,
-        name_filter
-    ))
+    logger.debug(f"collect_all_tgz_charts with {keywords_filter=}, {name_filter=}")
     global global_collected_tgz_charts, global_collected_tgz_charts_platforms, global_charts_hashes, global_charts_hashes_platforms
     current_hash = global_charts_hashes
     current_tgz_charts = global_collected_tgz_charts
@@ -517,12 +522,12 @@ def collect_all_tgz_charts(keywords_filter: List, name_filter: str = "") -> Dict
     logger.debug(f"{current_tgz_charts=}")
     if name_filter != "":
         if len(collected_tgz_charts) > 0:
-            logger.debug("returning collected_tgz_charts {0}".format(collected_tgz_charts))
+            logger.debug(f"returning {collected_tgz_charts=}")
             return collected_tgz_charts
 
         if name_filter in current_tgz_charts:
             chart_dict = {name_filter: current_tgz_charts[name_filter]}
-            logger.debug("returning {0}".format(chart_dict))
+            logger.debug(f"returning {chart_dict}")
             return chart_dict
 
     if "kaapanaplatform" in keywords_filter:
@@ -627,7 +632,7 @@ def get_kube_objects(release_name: str, helm_namespace: str = settings.helm_name
 
         return states
 
-    logger.debug(
+    logger.info(
         f"get_kube_objects for ({release_name=}, {helm_namespace=})")
     success, stdout = execute_shell_command(
         f'{settings.helm_path} -n {helm_namespace} get manifest {release_name}')
@@ -664,7 +669,7 @@ def get_kube_objects(release_name: str, helm_namespace: str = settings.helm_name
                 if obj_kube_status != None:
                     for key, value in obj_kube_status.dict().items():
                         concatenated_states[key].extend(value)
-                        logger.info(f"{key=} {value=}")
+                        logger.debug(f"{key=} {value=}")
                         if key == "status" and value[0] != KUBE_STATUS_COMPLETED and value[0] != KUBE_STATUS_RUNNING:
                             deployment_ready = False
     else:
@@ -737,7 +742,7 @@ def update_extension_state(state: schemas.ExtensionStateUpdate = None):
 
     if len(global_extension_states) == 0 and state is None:
         # initialize state dict
-        for ext in global_extensions_dict_cached:
+        for ext in global_extensions_list:
             for v in ext["available_versions"]:
                 state = schemas.ExtensionStateType.NOT_INSTALLED
                 if len(ext["available_versions"][v]["deployments"]) > 0:
@@ -764,7 +769,7 @@ def update_extension_state(state: schemas.ExtensionStateUpdate = None):
     version = state["extension_version"]
     key = name + "__" + version
     if key not in global_extension_states:
-        logger.warning("{0} is not already in global_extension_states, adding a new entry".format(key))
+        logger.warning(f"{key} is not already in global_extension_states, adding a new entry")
         global_extension_states[key] = schemas.ExtensionState.construct(
             extension_name=name,
             extension_version=version,
@@ -776,15 +781,15 @@ def update_extension_state(state: schemas.ExtensionStateUpdate = None):
             multiinstallable=state.multiinstallable
         )
     else:
-        logger.debug("{0} is already in global_extension_states, updating".format(key))
+        logger.debug(f"{key} is already in global_extension_states, updating")
         ext = global_extension_states[key]
-        logger.debug("before update {0}".format(ext))
+        logger.debug(f"before update {ext}")
         prev_state = ext.state
-        logger.info(f"updating extension state to {0} from {1}".format(state.state, prev_state))
+        logger.info(f"updating extension state to {state.state} from {prev_state}")
         ext.update_time = time.time()
         ext.last_read_time = time.time()
         ext.recently_updated = True
-        logger.debug("after update {0}".format(ext))
+        logger.debug(f"after update {ext}")
     global_recently_updated.add(key)
 
 
@@ -792,27 +797,26 @@ def get_recently_updated_extensions() -> List[schemas.KaapanaExtension]:
     """
     get states for keys in recently_updated set  
     """
-    global global_extension_states, global_recently_updated, global_extensions_dict_cached
+    global global_extension_states, global_recently_updated, global_extensions_list
     res: List[Tuple[int, schemas.KaapanaExtension]] = []
     to_remove = []
-    logger.debug("get_recently_updated_extensions called with global_recently_updated {0}".format(global_recently_updated))
+    logger.debug(f"get_recently_updated_extensions called with {global_recently_updated=}")
     for key in global_recently_updated:
         ext_state = global_extension_states[key]
-        # TODO: instead of this, update the extension in global_extensions_dict_cached
-        for i, ext in enumerate(global_extensions_dict_cached):
+        for i, ext in enumerate(global_extensions_list):
             if ext.releaseName == ext_state.extension_name:
-                res.append((i, global_extensions_dict_cached[i]))
+                res.append((i, global_extensions_list[i]))
         logger.debug(f"{res=}")
         if len(res) > 1:
             logger.error(f"Found more than one matching charts for {ext_state.extension_name} in cached extensions dict")
         elif len(res) == 0:
             # found new chart
-            logger.info("New chart {0}".format(ext_state.extension_name))
+            logger.info(f"New chart {ext_state.extension_name}")
             fname, version = key.split("__")
             name = '-'.join(fname[:-4].split("-")[0:-1])
             res.append(
                 (
-                    len(global_extensions_dict_cached),
+                    len(global_extensions_list),
                     schemas.KaapanaExtension.construct(
                         releaseName=ext_state.releaseName,
                         multiinstallable=("yes" if ext_state.multiinstallable == True else "no"),

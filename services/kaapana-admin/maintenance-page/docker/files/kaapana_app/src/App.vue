@@ -102,7 +102,7 @@ export default Vue.extend({
     staticWebsiteAvailable: false
   }),
   computed: {
-    ...mapGetters(['currentUser', 'isAuthenticated', 'externalWebpages', 'commonData']),
+    ...mapGetters(['currentUser', 'isAuthenticated', 'commonData']),
   },
   methods: {
     changeMode(v: boolean) {

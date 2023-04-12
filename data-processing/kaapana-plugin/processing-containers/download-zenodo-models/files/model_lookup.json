@@ -2,176 +2,211 @@
   "Task001_BrainTumour": {
     "id": "001",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task001_BrainTumour.zip?download=1"
   },
   "Task002_Heart": {
     "id": "002",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task002_Heart.zip?download=1"
   },
   "Task003_Liver": {
     "id": "003",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task003_Liver.zip?download=1"
   },
   "Task004_Hippocampus": {
     "id": "004",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task004_Hippocampus.zip?download=1"
   },
   "Task005_Prostate": {
     "id": "005",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task005_Prostate.zip?download=1"
   },
   "Task006_Lung": {
     "id": "006",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task006_Lung.zip?download=1"
   },
   "Task007_Pancreas": {
     "id": "007",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task007_Pancreas.zip?download=1"
   },
   "Task008_HepaticVessel": {
     "id": "008",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task008_HepaticVessel.zip?download=1"
   },
   "Task009_Spleen": {
     "id": "009",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task009_Spleen.zip?download=1"
   },
   "Task010_Colon": {
     "id": "010",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task010_Colon.zip?download=1"
   },
   "Task017_AbdominalOrganSegmentation": {
     "id": "017",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task017_AbdominalOrganSegmentation.zip?download=1"
   },
   "Task024_Promise": {
     "id": "024",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task024_Promise.zip?download=1"
   },
   "Task027_ACDC": {
     "id": "027",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task027_ACDC.zip?download=1"
   },
   "Task029_LITS": {
     "id": "029",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task029_LITS.zip?download=1"
   },
   "Task035_ISBILesionSegmentation": {
     "id": "035",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task035_ISBILesionSegmentation.zip?download=1"
   },
   "Task038_CHAOS_Task_3_5_Variant2": {
     "id": "038",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task038_CHAOS_Task_3_5_Variant2.zip?download=1"
   },
   "Task048_KiTS_clean": {
     "id": "048",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task048_KiTS_clean.zip?download=1"
   },
   "Task055_SegTHOR": {
     "id": "055",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task055_SegTHOR.zip?download=1"
   },
   "Task061_CREMI": {
     "id": "061",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task061_CREMI.zip?download=1"
   },
   "Task075_Fluo_C3DH_A549_ManAndSim": {
     "id": "075",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task075_Fluo_C3DH_A549_ManAndSim.zip?download=1"
   },
   "Task076_Fluo_N3DH_SIM": {
     "id": "076",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task076_Fluo_N3DH_SIM.zip?download=1"
   },
   "Task089_Fluo-N2DH-SIM_thickborder_time": {
     "id": "089",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task089_Fluo-N2DH-SIM_thickborder_time.zip?download=1"
   },
   "Task251_TotalSegmentator_part1_organs_1139subj": {
     "id": "251",
     "models": ["3d_fullres"],
+    "check_file": "nnUNetTrainerV2_ep4000_nomirror__nnUNetPlansv2.1/plans.pkl",
     "download_link": "https://zenodo.org/record/6802342/files/Task251_TotalSegmentator_part1_organs_1139subj.zip?download=1"
   },
   "Task252_TotalSegmentator_part2_vertebrae_1139subj": {
     "id": "252",
     "models": ["3d_fullres"],
+    "check_file": "nnUNetTrainerV2_ep4000_nomirror__nnUNetPlansv2.1/plans.pkl",
     "download_link": "https://zenodo.org/record/6802358/files/Task252_TotalSegmentator_part2_vertebrae_1139subj.zip?download=1"
   },
   "Task253_TotalSegmentator_part3_cardiac_1139subj": {
     "id": "253",
     "models": ["3d_fullres"],
+    "check_file": "nnUNetTrainerV2_ep4000_nomirror__nnUNetPlansv2.1/plans.pkl",
     "download_link": "https://zenodo.org/record/6802360/files/Task253_TotalSegmentator_part3_cardiac_1139subj.zip?download=1"
   },
   "Task254_TotalSegmentator_part4_muscles_1139subj": {
     "id": "254",
     "models": ["3d_fullres"],
+    "check_file": "nnUNetTrainerV2_ep4000_nomirror__nnUNetPlansv2.1/plans.pkl",
     "download_link": "https://zenodo.org/record/6802366/files/Task254_TotalSegmentator_part4_muscles_1139subj.zip?download=1"
   },
   "Task255_TotalSegmentator_part5_ribs_1139subj": {
     "id": "255",
     "models": ["3d_fullres"],
+    "check_file": "nnUNetTrainerV2_ep4000_nomirror__nnUNetPlansv2.1/plans.pkl",
     "download_link": "https://zenodo.org/record/6802452/files/Task255_TotalSegmentator_part5_ribs_1139subj.zip?download=1"
   },
   "Task256_TotalSegmentator_3mm_1139subj": {
     "id": "236",
     "models": ["3d_fullres"],
+    "check_file": "nnUNetTrainerV2_ep8000_nomirror__nnUNetPlansv2.1/plans.pkl",
     "download_link": "https://zenodo.org/record/6802052/files/Task256_TotalSegmentator_3mm_1139subj.zip?download=1"
   },
   "Task258_lung_vessels_248subj": {
     "id": "258",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/7064718/files/Task258_lung_vessels_248subj.zip?download=1"
   },
   "Task150_icb_v0": {
     "id": "150",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/7079161/files/Task150_icb_v0.zip?download=1"
   },
   "Task260_hip_implant_71subj": {
     "id": "260",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/7234263/files/Task260_hip_implant_71subj.zip?download=1"
   },
   "Task269_Body_extrem_6mm_1200subj": {
     "id": "269",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/7334272/files/Task269_Body_extrem_6mm_1200subj.zip?download=1"
   },
   "Task503_cardiac_motion": {
     "id": "503",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/7271576/files/Task503_cardiac_motion.zip?download=1"
   },
   "Task273_Body_extrem_1259subj": {
     "id": "273",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/7510286/files/Task273_Body_extrem_1259subj.zip?download=1"
   },
   "Task315_thoraxCT": {
     "id": "315",
     "models": ["3d_fullres"],
+    "check_file": "default",
     "download_link": "https://zenodo.org/record/7510288/files/Task315_thoraxCT.zip?download=1"
   }
 }

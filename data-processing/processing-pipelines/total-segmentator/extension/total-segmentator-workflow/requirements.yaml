@@ -1,6 +1,4 @@
 ---
 dependencies:
-- name: zenodo-download
-  version: 0.0.0
 - name: dag-installer-chart
   version: 0.0.0

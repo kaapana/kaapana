@@ -11,7 +11,7 @@ from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from shared.GetZenodoModelOperator import GetZenodoModelOperator
+from kaapana.operators.GetZenodoModelOperator import GetZenodoModelOperator
 
 max_active_runs = 10
 concurrency = max_active_runs * 2

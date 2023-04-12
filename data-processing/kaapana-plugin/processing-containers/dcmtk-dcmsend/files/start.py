@@ -1,6 +1,7 @@
 import os
 import glob
 import time
+import warnings
 from subprocess import PIPE, run
 import pydicom
 import requests
@@ -64,7 +65,9 @@ def send_dicom_data(send_dir, aetitle=AETITLE, check_arrival=False, timeout=60):
     if len(list(filter(lambda f: f.is_file(), Path(send_dir).rglob(DICOM_GLOB_FILE_EXTENSION)))) == 0:
         print(send_dir)
         print("############### No dicoms found...!")
-        raise FileNotFoundError
+        warnings.warn(f"No dicom found in {send_dir}. Skipping...") # Dirty fix but not sure how to do it better. Usually one would just catch the exception at a higher level and continue, but thats not possible since the code is executed inside a container.
+        # raise FileNotFoundError
+        return None
 
     for dicom_dir, _, _ in os.walk(send_dir):
         dicom_list = list(filter(lambda f: f.is_file(), Path(dicom_dir).glob(DICOM_GLOB_FILE_EXTENSION)))

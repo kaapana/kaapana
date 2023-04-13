@@ -18,13 +18,13 @@
                 }"
           >
             <Gallery
+                :ref="studyInstanceUID"
                 :seriesInstanceUIDs="seriesInstanceUIDs"
                 :selectedTags="selectedTags"
                 :datasetName="datasetName"
                 :datasetNames="datasetNames"
                 @openInDetailView="(_seriesInstanceUID) => openInDetailView(_seriesInstanceUID)"
                 @emptyStudy="() => removeEmptyStudy(patient, studyInstanceUID)"
-                @selectedItems="_seriesInstanceUIDs => collectAndPropagateImageIds(studyInstanceUID, _seriesInstanceUIDs)"
             />
           </v-lazy>
         </v-list>
@@ -60,8 +60,7 @@ export default {
   },
   data() {
     return {
-      detailViewSeriesInstanceUID: null,
-      selectedItems: {},
+      detailViewSeriesInstanceUID: null
     };
   },
   components: {
@@ -80,9 +79,19 @@ export default {
     openInDetailView(seriesInstanceUID) {
       this.$emit('openInDetailView', seriesInstanceUID);
     },
-    collectAndPropagateImageIds(study_id, _seriesInstanceUIDs) {
-      this.selectedItems[study_id] = _seriesInstanceUIDs
-      this.$emit('selectedItems', Object.values(this.selectedItems))
+    async removeFromDataset(seriesInstanceUIDs) {
+      if (this.datasetName === null) {
+        return
+      }
+      const studyInstanceUIDs = (Object.values(this.patients).map(studyInstanceUID=>Object.keys(studyInstanceUID))).flat()
+       const successful = await this.$refs[studyInstanceUIDs[0]][0].removeFromDatasetCall(seriesInstanceUIDs)
+      if (successful) {
+        studyInstanceUIDs.forEach(studyInstanceUID => {
+          if (this.$refs[studyInstanceUID]) {
+            this.$refs[studyInstanceUID][0].removeFromUI(seriesInstanceUIDs)
+          }
+      })
+      }
     },
     removeEmptyStudy(patient, study) {
       const patients_copy = {...this.patients}

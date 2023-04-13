@@ -66,7 +66,7 @@
 /* eslint-disable */
 
 
-import {loadAvailableTags} from "@/common/api.service";
+import {loadValues} from "@/common/api.service";
 import {settings} from "@/static/defaultUIConfig";
 
 
@@ -90,7 +90,7 @@ export default {
     if (this.settings.datasets.tagBar.tags.length > 0)
       this.editMode = false
 
-    loadAvailableTags()
+    loadValues(this.constructDatasetQuery(), 'Tags')
         .then(res => this.availableTags = 'tags' in res.data ? res.data['tags']['items'].map(i => i['value']) : [])
 
     window.addEventListener("keypress", event => this.keypressListener(event));

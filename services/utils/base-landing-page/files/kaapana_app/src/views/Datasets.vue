@@ -141,7 +141,7 @@ import StructuredGallery from "@/components/StructuredGallery.vue";
 import Gallery from "@/components/Gallery.vue";
 import Search from "@/components/Search.vue";
 import TagBar from "@/components/TagBar.vue";
-import {createDataset, updateDataset, loadDatasetNames, loadPatients, loadAvailableTags} from "../common/api.service";
+import {createDataset, updateDataset, loadDatasetNames, loadPatients} from "../common/api.service";
 import MetaData from "@/components/MetaData.vue";
 import {settings} from "@/static/defaultUIConfig";
 

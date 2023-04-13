@@ -65,8 +65,7 @@ def send_dicom_data(send_dir, aetitle=AETITLE, check_arrival=False, timeout=60):
     if len(list(filter(lambda f: f.is_file(), Path(send_dir).rglob(DICOM_GLOB_FILE_EXTENSION)))) == 0:
         print(send_dir)
         print("############### No dicoms found...! Skipping to next Batch.")
-        # warnings.warn(f"No dicom found in {send_dir}. Skipping...") # Dirty fix but not sure how to do it better. Usually one would just catch the exception at a higher level and continue, but thats not possible since the code is executed inside a container.
-        # raise FileNotFoundError
+        # raise FileNotFoundError # Not very elegant, but it still fails if nothing is processed. Maybe would be better if the dag would specify an "allow partial fail" parameter.
         return 
 
     for dicom_dir, _, _ in os.walk(send_dir):

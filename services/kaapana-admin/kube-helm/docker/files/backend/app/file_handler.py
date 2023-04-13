@@ -1,11 +1,14 @@
 import os
 import math
-import time
+import json
+import uuid
+from pathlib import Path
 
-from typing import Dict, List, Set, Union, Tuple
-from fastapi import UploadFile, WebSocket, WebSocketDisconnect
+from typing import Tuple
+from fastapi import UploadFile, WebSocket, WebSocketDisconnect, Form, Request
 from fastapi.logger import logger
 import aiofiles
+import shutil
 
 from repeat_timer import RepeatedTimer
 from config import settings
@@ -60,6 +63,59 @@ class FileSession:
 
 
 sessions = dict()  # {md5, FileSession}
+global filepond_dict
+filepond_dict = dict()
+
+
+def filepond_init_upload(form: Form) -> str:
+    patch = str(uuid.uuid4())
+    filepond_dict.update({patch: json.loads(form["filepond"])["filepath"]})
+    return patch
+
+
+# TODO: after successful upload, check if it's tgz and update the cache accordingly
+async def filepond_upload_stream(request: Request, patch: str, ulength: str, uname: str) -> Tuple[str,bool]:
+    fpath = Path(settings.helm_extensions_cache) / f"{patch}.tmp" 
+    with open(fpath, "ab") as f:
+        async for chunk in request.stream():
+            f.write(chunk)
+    if ulength == str(fpath.stat().st_size):
+        try:
+            object_name = filepond_dict[patch]
+            target_path = Path(settings.helm_extensions_cache)  / object_name.strip("/")
+            target_path.parents[0].mkdir(parents=True, exist_ok=True)
+            logger.info(f'Moving file {fpath} to {target_path}')
+            shutil.move(fpath, target_path)
+            logger.info(f'Successfully saved file {uname} using filepond')
+            filename = filepond_dict.pop(patch, 'already deleted')
+            return filename, True
+        except Exception as e:
+            logger.error(f"Failed to upload via filepond: {e}")
+            if fpath.is_file():
+                fpath.unlink()
+            filename = filepond_dict.pop(patch, 'already deleted')
+            return str(e), False
+    return "", True
+
+
+def filepond_get_offset(patch: str, ulength: str):
+    fpath = Path(settings.helm_extensions_cache) / f"{patch}.tmp" 
+    if fpath.is_file():
+        offset = int(ulength)-fpath.stat().st_size
+    else:
+        offset = 0
+
+    return offset
+
+
+def filepond_delete(patch):
+    fpath = Path(settings.helm_extensions_cache) / f"{patch}.tmp" 
+    if fpath.is_file():
+        fpath.unlink()
+        filename = filepond_dict.pop(patch, 'already deleted')
+        return filename
+    else:
+        return ""
 
 
 def make_fpath(fname: str, platforms=False):
@@ -317,10 +373,12 @@ def run_containerd_import(fname: str, platforms: bool = False) -> Tuple[bool, st
         logger.error(f"microk8s import failed: {stdout}")
         return res, f"Failed to import container {fname}"
 
-    sess = sessions[list(sessions.keys())[0]]
+    # TODO: include below if not using filepond
+    # sess = sessions[list(sessions.keys())[0]]
     # sess.timer.stop()
     # del sess.timer
-    del sess
+    # TODO: include below if not using filepond
+    # del sess
 
     logger.info("Successfully imported container")
 

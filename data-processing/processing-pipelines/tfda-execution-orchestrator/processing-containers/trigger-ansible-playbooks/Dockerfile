@@ -4,8 +4,9 @@ LABEL IMAGE="trigger-ansible-playbook"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-# ENV http_proxy http://www-int2.dkfz-heidelberg.de:80
-# ENV https_proxy http://www-int2.dkfz-heidelberg.de:80
+## TODO: Following is hard-coded proxy, which needs to change
+ENV http_proxy http://www-int2.dkfz-heidelberg.de:80
+ENV https_proxy http://www-int2.dkfz-heidelberg.de:80
 
 WORKDIR /kaapana/app
 

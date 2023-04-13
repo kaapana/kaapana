@@ -1,8 +1,11 @@
 <template>
-  <v-btn @click="checkForRemoteUpdates()" small plain>
+  <v-btn @click="doSyncing()" color="primary" small outlined rounded>
     sync remotes
     <!-- v-icon color="primary" dark="dark" x-large="x-large">mdi-sync-circle</v-icon -->
   </v-btn>
+  <!-- v-btn @click="doSyncing()" small icon>
+    <v-icon color="primary" dark >mdi-sync-circle</v-icon>
+  </v-btn -->
 </template>
 
 <script>
@@ -18,17 +21,13 @@ export default {
   },
 
   props: {
-    remote: {
-      type: Boolean,
-      required: true,
-    },
-    clientinstance: {
-      type: Object,
-      required: true
-    }
   },
 
   methods: {
+    doSyncing() {
+      this.$emit('refreshRemoteFromSyncing')
+      this.checkForRemoteUpdates()
+    },
     checkForRemoteUpdates() {
       console.log('checking remote')
       kaapanaApiService
@@ -39,7 +38,7 @@ export default {
             title: 'Successfully checked for remote updates',
             // text: 
           })
-          this.$emit('refreshView')
+          // this.$emit('refreshView')
         })
         .catch((err) => {
           console.log(err);

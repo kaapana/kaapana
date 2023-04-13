@@ -5,6 +5,7 @@ import traceback
 import uuid
 import copy
 from typing import List
+import datetime
 
 import requests
 from cryptography.fernet import Fernet
@@ -222,7 +223,8 @@ def create_and_update_remote_kaapana_instance(
             fernet_key=remote_kaapana_instance.fernet_key or "deactivated",
             remote=True,
             time_created=utc_timestamp,
-            time_updated=utc_timestamp,
+            # time_updated=utc_timestamp,
+            time_updated=datetime.datetime.min
         )
     elif action == "update":
         db_remote_kaapana_instance.token = remote_kaapana_instance.token

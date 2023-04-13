@@ -54,6 +54,15 @@ const routes = [
         },
     },
     {
+        name: 'federated-learning',
+        path: '/federated-learning',
+        component: () => import('@/views/FederatedLearning.vue'),
+        title: 'Federated Learning',
+        permissions: {
+            isPublic: false,
+        },
+    },
+    {
         name: 'federated',
         path: '/federated',
         component: () => import('@/views/Federated.vue'),

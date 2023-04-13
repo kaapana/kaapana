@@ -5,13 +5,13 @@
         <p>Experiment Management System</p>
       </v-col>
       <v-col cols="4">
-        <LocalKaapanaInstance
+        <!-- LocalKaapanaInstance
           v-if="clientInstance"
           :instance="clientInstance"
           :remote="false"
           @refreshView="refreshClient()"
           @ei="editClientInstance"
-        ></LocalKaapanaInstance>
+        ></LocalKaapanaInstance -->
         <template>
           <v-menu offset-y bottom transition="scale-transition" close-on-click>
             <template v-slot:activator="{ on, attrs }">

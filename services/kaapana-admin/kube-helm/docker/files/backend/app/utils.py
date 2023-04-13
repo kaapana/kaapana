@@ -434,18 +434,21 @@ def helm_delete(
         cached_extension = [
             x for x in helm_helper.global_extensions_list if x["releaseName"] == release_name]
 
-    if len(cached_extension) == 1:
-        ext = cached_extension[0]
-        versions = ext.available_versions
-        version_items = list(versions.items())
-        dep = None
-        if len(version_items) > 0:
-            dep = version_items[0][1]
-        if release_version is not None:
-            dep = versions[release_version]
-        if dep is not None:
-            if len(dep.deployments) > 0:
-                release_name = dep.deployments[0].helm_info.name
+    if len(cached_extension) > 1:
+        logger.warning(f"Found more than one matching extensions for {release_name=}")
+
+    # if len(cached_extension) == 1:
+    #     ext = cached_extension[0]
+    #     versions = ext.available_versions
+    #     version_items = list(versions.items())
+    #     dep = None
+    #     if len(version_items) > 0:
+    #         dep = version_items[0][1]
+    #     if release_version is not None:
+    #         dep = versions[release_version]
+    #     if dep is not None:
+    #         if len(dep.deployments) > 0:
+    #             release_name = dep.deployments[0].helm_info.name
 
             # if ext.multiinstallable == "yes":
             #     release_name = dep.deployments[0].helm_info.name

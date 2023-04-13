@@ -391,8 +391,8 @@ export default Vue.extend({
               console.log(response.data)
             })
             .catch((err: any) => {
-              console.log("import err", err);
-              console.log("Failed to import container " + fname)
+              console.log("import error", err.response.data);
+              console.log("Failed to import container " + fname, " see import error above")
             });
         }
       }

@@ -375,12 +375,12 @@ export default Vue.extend({
       console.log("filestart", file)
     },
     fileComplete(error: any, file: any) {
-      console.log("file upload completed using filepond")
+      console.log("file upload completed")
       if (error !== null) {
         console.log("filepond file upload error", error)
         return
       } else {
-        console.log("no errors, file", file)
+        console.log("successfully uploaded file", file)
         let fname = file.filename;
         let fExt = file.fileExtension;
         if (fExt == "tar") {
@@ -388,8 +388,7 @@ export default Vue.extend({
           kaapanaApiService
             .helmApiGet("/import-container", { filename: fname }, 120000)
             .then((response: any) => {
-              console.log("import response", response)
-              console.log("Successfully imported container " + fname)
+              console.log(response.data)
             })
             .catch((err: any) => {
               console.log("import err", err);

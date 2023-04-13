@@ -356,7 +356,7 @@ async def ws_add_file_chunks(ws: WebSocket, fname: str, fsize: int, chunk_size: 
     return fpath, "File successfully uploaded"
 
 
-def run_containerd_import(fname: str, platforms: bool = False) -> Tuple[bool, str]:
+async def run_containerd_import(fname: str, platforms: bool = False) -> Tuple[bool, str]:
     logger.debug(f"in function: run_containerd_import, {fname=}")
     fpath = make_fpath(fname, platforms=platforms)
     # check if file exists
@@ -366,12 +366,12 @@ def run_containerd_import(fname: str, platforms: bool = False) -> Tuple[bool, st
 
     cmd = f"ctr --namespace k8s.io -address='{settings.containerd_sock}' image import {fpath}"
     logger.debug(f"{cmd=}")
-    res, stdout = helm_helper.execute_shell_command(
-        cmd, shell=True, blocking=True, timeout=30)
+    res, stdout = await helm_helper.exec_shell_cmd_async(
+        cmd, shell=True, timeout=180)
 
     if not res:
         logger.error(f"microk8s import failed: {stdout}")
-        return res, f"Failed to import container {fname}"
+        return res, f"Failed to import container {fname}: {stdout}"
 
     # TODO: include below if not using filepond
     # sess = sessions[list(sessions.keys())[0]]
@@ -380,7 +380,7 @@ def run_containerd_import(fname: str, platforms: bool = False) -> Tuple[bool, st
     # TODO: include below if not using filepond
     # del sess
 
-    logger.info("Successfully imported container")
+    logger.info(f"Successfully imported container {fname}")
 
     return res, f"Successfully imported container {fname}"
 

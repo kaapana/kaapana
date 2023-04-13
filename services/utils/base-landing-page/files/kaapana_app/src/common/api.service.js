@@ -138,10 +138,20 @@ const loadPatients = async (data) => {
     }
 }
 
-const loadAvailableTags = async (body = {}) => {
+const loadFieldNames = async () => {
     try {
         return (
-            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/query_values?query=' + JSON.stringify(body))
+            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/field_names')
+        )
+    } catch (error) {
+        Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
+    }
+}
+
+const loadValues = async (query, key) => {
+    try {
+        return (
+            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + `dataset/query_values/${key}?query=${JSON.stringify(query)}`)
         )
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
@@ -173,7 +183,6 @@ export {
     assembleWadoURI,
     loadSeriesMetaData,
     loadPatients,
-    loadAvailableTags,
     loadSeriesData,
     createDataset,
     loadDatasets,
@@ -182,5 +191,7 @@ export {
     loadDatasetNames,
     loadDatasetByName,
     loadDashboard,
-    loadDicomTagMapping
+    loadDicomTagMapping,
+    loadFieldNames,
+    loadValues
 }

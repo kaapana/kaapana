@@ -241,21 +241,23 @@ export default {
     async updateMapping(filter) {
       filter.item_select = []
       const key = filter.key_select
-      console.log(key)
       loadValues(this.constructDatasetQuery(), key)
           .then(res => {
-            console.log(res.data)
             this.mapping[key] = res.data
           })
+    },
+    async initSearch(onMount = false) {
+      this.filters = []
+      this.dataset = this.datasetName && await loadDatasetByName(this.datasetName)
+      this.search(onMount)
+      loadFieldNames().then(res => {
+        this.fieldNames = res.data
+        this.mapping = Object.assign({}, ...this.fieldNames.map(_name => ({[_name]: {"items": [], "key": ""}})))
+      })
     }
   },
   async mounted() {
-    this.dataset = this.datasetName && await loadDatasetByName(this.datasetName)
-    this.search(true)
-    loadFieldNames().then(res => {
-      this.fieldNames = res.data
-      this.mapping = Object.assign({}, ...this.fieldNames.map(_name => ({[_name]: {"items": [], "key": ""}})))
-    })
+    await this.initSearch(true)
 
     // this.filters = JSON.parse(localStorage['Dataset.search.filters'] || "[]")
     // this.counter = this.filters.length
@@ -264,12 +266,7 @@ export default {
   },
   watch: {
     async datasetName() {
-      this.filters = []
-      const query = this.constructDatasetQuery(this.datasetName)
-      loadFieldNames().then(res => {
-        this.fieldNames = res.data
-        this.mapping = Object.assign({}, ...this.fieldNames.map(_name => ({[_name]: {"items": [], "key": ""}})))
-      })
+      await this.initSearch(false);
     }
   }
 }

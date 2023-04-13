@@ -9,7 +9,6 @@
 </template>
 
 <script>
-//      accepted-file-types="zip,application/octet-stream,application/zip,application/x-zip,application/x-zip-compressed"
 import vueFilePond, { setOptions } from 'vue-filepond';
 import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type'; // /dist/filepond-plugin-file-validate-type.esm.js';
 import 'filepond/dist/filepond.min.css';
@@ -23,7 +22,10 @@ export default {
     acceptedFileTypes: Array,
     onProcessFileStart: Function,
     onProcessFile: Function,
-    url: ""
+    url: {
+      type: String,
+      default: "/kaapana-backend/client/minio-file-upload"
+    } 
   },
   components: {
     FilePond
@@ -43,22 +45,18 @@ export default {
         file.setMetadata("filepath", filepath)
       },
       onprocessfilestart: (file) => {
-        console.log("onprocessfilestart")
-        console.log(this.onProcessFileStart)
         if (typeof this.onProcessFileStart == "function") {
           this.onProcessFileStart(file)
         }
       },
       onprocessfile: (error, file) => {
-        console.log("onprocessfile")
-        console.log(this.onProcessFile)
         if (typeof this.onProcessFile == "function") {
           this.onProcessFile(error, file)
         }
       },
       server: {
         // From https://pqina.nl/filepond/docs/api/server/#process-1
-        url: this.getURL(),
+        url: this.url,
         // process: (fieldName, file, metadata, load, error, progress, abort, transfer, options) => {
         //   // fieldName is the name of the input field
         //   // file is the actual file object to send
@@ -112,11 +110,6 @@ export default {
         // },
       },
     });
-  },
-  methods: {
-    getURL() {
-      if (this.url != "") { return this.url } else { return "/kaapana-backend/client/minio-file-upload" }
-    }
   },
 }
 </script>

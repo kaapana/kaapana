@@ -437,14 +437,18 @@ def helm_delete(
     if len(cached_extension) == 1:
         ext = cached_extension[0]
         versions = ext.available_versions
-        dep = list(versions.items())[0][1]
+        version_items = list(versions.items())
+        dep = None
+        if len(version_items) > 0:
+            dep = version_items[0][1]
         if release_version is not None:
             dep = versions[release_version]
+        if dep is not None:
+            if len(dep.deployments) > 0:
+                release_name = dep.deployments[0].helm_info.name
 
-        release_name = dep.deployments[0].helm_info.name
-
-        if ext.multiinstallable == "yes":
-            release_name = dep.deployments[0].helm_info.name
+            # if ext.multiinstallable == "yes":
+            #     release_name = dep.deployments[0].helm_info.name
 
     # delete version
     helm_command = f'{settings.helm_path} -n {helm_namespace} uninstall {helm_command_addons} {release_name}'

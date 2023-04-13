@@ -156,7 +156,7 @@ export default Vue.extend({
       this.polling = window.setInterval(() => {
         // a little bit ugly... https://stackoverflow.com/questions/40410332/vuejs-access-child-components-data-from-parent
         // if (!this.$refs.workflowexecution.dialogOpen) {
-        this.refreshClient();
+        //   this.refreshClient();
         // }
       }, 15000);
     }

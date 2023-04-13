@@ -15,8 +15,7 @@ class TrustedPreETLOperator(KaapanaBaseOperator):
 
     def __init__(self,
                  dag,
-                 instanceState = "present",
-                 name = "create-iso-inst",
+                 name = "trusted-pre-etl",
                  env_vars={},
                  execution_timeout=execution_timeout,
                  **kwargs):
@@ -30,10 +29,8 @@ class TrustedPreETLOperator(KaapanaBaseOperator):
             dag=dag,
             image=f"{DEFAULT_REGISTRY}/pre-and-post-etl:{KAAPANA_BUILD_VERSION}",
             name=name,
-            python_callable=self.start,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             env_vars=env_vars,
             **kwargs
         )
-        self.instanceState = instanceState

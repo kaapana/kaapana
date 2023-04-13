@@ -3,7 +3,7 @@ from os.path import dirname, join
 import secrets
 import subprocess
 
-from fastapi import APIRouter, Response, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Response, Request, UploadFile, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi.logger import logger
@@ -172,7 +172,7 @@ async def import_container(filename: str, platforms: Optional[bool] = False):
     try:
         logger.info(f"/import-container called with {filename=}, {platforms=}")
         assert filename != "", "Required key 'filename' can not be empty"
-        res, msg = file_handler.run_containerd_import(filename, platforms=platforms)
+        res, msg = await file_handler.run_containerd_import(filename, platforms=platforms)
         logger.debug(f"returned {res=}, {msg=}")
         if not res:
             logger.error(f"/import-container failed {msg}")
@@ -180,10 +180,10 @@ async def import_container(filename: str, platforms: Optional[bool] = False):
         return Response(msg, 200)
     except AssertionError as e:
         logger.error(f"/import-container failed: {str(e)}")
-        return Response(f"Container import failed, bad request {str(e)}", 400)
+        raise HTTPException(400, f"Container import failed, bad request {str(e)}")
     except Exception as e:
         logger.error(f"/import-container failed: {str(e)}")
-        return Response(f"Container import failed, bad request {str(e)}", 500)
+        raise HTTPException(500, f"Container import failed, bad request {str(e)}")
 
 @router.get("/health-check")
 async def health_check():

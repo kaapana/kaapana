@@ -90,8 +90,8 @@ export default {
     if (this.settings.datasets.tagBar.tags.length > 0)
       this.editMode = false
 
-    loadValues(this.constructDatasetQuery(), 'Tags')
-        .then(res => this.availableTags = 'tags' in res.data ? res.data['tags']['items'].map(i => i['value']) : [])
+    loadValues({}, 'Tags')
+        .then(res => this.availableTags = ('items' in res.data ? res.data['items'].map(i => i['value']) : []))
 
     window.addEventListener("keypress", event => this.keypressListener(event));
   },
